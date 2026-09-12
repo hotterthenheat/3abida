@@ -1,0 +1,184 @@
+/*
+==================================================
+  SLAYER TERMINAL - THE TOKENS (theme/tokens.css)
+
+  ONE SOURCE OF TRUTH FOR EVERY COLOUR (2026-09-12).
+  Each token is a CSS custom property holding RGB
+  channels ("10 10 10"), never a hex: Tailwind's
+  config maps `bg-panel` to `rgb(var(--panel) /
+  <alpha-value>)`, so every existing class — and
+  every alpha modifier like `bg-panel/70` — keeps
+  working, and a theme is nothing more than a
+  different set of channels under one attribute.
+
+  HOW A THEME FLIPS: `<html data-theme="light">`.
+  That is the whole mechanism. No rebuild, no
+  restart, no class swap — the browser recomputes
+  the variables and everything that reads them
+  follows in the same frame. The attribute is set
+  before the first paint by index.html's boot
+  script and kept by theme/theme.ts.
+
+  SCOPING: the attribute works on ANY element, not
+  only <html>. A box that must stay dark on a light
+  page carries its own `data-theme="dark"` and its
+  subtree reads the dark set — the same rule, one
+  level down. THE CHARTS ARE ALWAYS BLACK (Noah,
+  2026-09-12): every chart host box is such an
+  island — the tape, its strip, its legend and its
+  ladder read the dark set whatever the page wears.
+
+  The dark values are the house's originals to the
+  channel; nothing on the dark terminal changes by
+  this file's existence. The light set is the first
+  cut, walked page by page like every surface.
+
+  Canvas and chart code cannot read CSS variables:
+  they go through theme/theme.ts `readToken()`.
+==================================================
+*/
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --canvas: 5 5 5;
+  --panel: 10 10 10;
+  --panel-hover: 16 16 16;
+  --inset: 7 7 7;
+  --input-bg: 5 5 5;
+  /* The two recurring shades the pages drew by hand: a chip's ground and a card's */
+  --chip: 12 12 12;
+  --card: 18 18 18;
+
+  /* Hairlines */
+  --border-subtle: 28 28 28;
+  --border-muted: 42 42 42;
+  --border-focus: 237 237 237;
+
+  /* Text */
+  --text-primary: 237 237 237;
+  --text-secondary: 163 163 163;
+  --text-muted: 125 125 125;
+
+  /* THE INK — what a wash is made of: white on the dark terminal, near-black on
+     the light one. `bg-ink/[0.06]` is the hover wash that used to be
+     `bg-white/[0.06]`; it darkens a light page the way it lightened a dark one. */
+  --ink: 255 255 255;
+
+  /* Direction, status, the house accents */
+  --bull: 48 209 88;
+  --bear: 255 59 48;
+  --warn: 255 149 0;
+  --select: 210 255 0;
+  /* THE NEON AS A SURFACE never changes — a highlighter is the same lime on
+     either ground; only the neon as an INK is cut per theme (--select) */
+  --select-fill: 210 255 0;
+  /* THE LIVE SIGNAL, a component token with its own form per theme: on the
+     dark terminal a glow (lime words on a 10% lime wash), on paper a
+     highlighter (the neon as the fill, near-black words). Full colours, not
+     channels — the alpha is part of the form. */
+  --live-bg: rgb(210 255 0 / 0.1);
+  --live-ink: rgb(210 255 0);
+  --live-edge: rgb(210 255 0 / 0.2);
+  /* THE SILVER AS A SURFACE never changes either — a filled silver pill with
+     the dark word on it is the holo family's flat form on either ground
+     (Noah, 2026-09-12: "the holographic silver was fine with this section");
+     only the silver as an INK is cut per theme (--silver) */
+  --silver-fill: 199 211 232;
+  /* THE THERMAL RAMP'S TWO POLES AS WORDS — "breaks / pushes along" warm,
+     "a shelf / pushes back" cool: the exact inks heatLaneInks('thermal-yellow',
+     0.72) computes for the capsules, so a word and its bar agree on the dark
+     terminal; on paper each is cut deep enough to read as text */
+  --thermal-warm: 227 72 50;
+  --thermal-cool: 88 139 192;
+  /* The clock's pressure pair — a phase that pushes (ember) or absorbs (glacier) */
+  --ember: 245 197 66;
+  --glacier: 122 189 215;
+  --flip: 156 163 175;
+  --moon: 185 169 244;
+  --supreme: 234 0 255;
+  --darkpool: 45 212 191;
+  /* THE SILVER — where you are (the flat holo-silver ink, #C7D3E8): a token
+     since 2026-09-12 so the light terminal can cut it to deep steel; the
+     holo GRADIENT (holo-bg, holo-text) is not this and stays as it is */
+  --silver: 199 211 232;
+}
+
+/* THE LIGHT TERMINAL — a warm paper ground, the inks cut deep enough to read at
+   the 9–11px the labels live at (AA on the ground), the direction pair and the
+   lime in their deep cuts, magenta held. First cut. */
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* A near-white ground and WHITE panels (Noah, 2026-09-12, on the first cut:
+     "some of the page headers like the weigher have this weird gray that
+     makes it look totally different from the rest of the page" — the first
+     canvas was a grey the heads sat on; now the ground is a breath off white
+     and the boxes sit on it by their hairlines, not by a grey) */
+  --canvas: 246 245 242;
+  --panel: 255 255 255;
+  --panel-hover: 247 246 243;
+  --inset: 250 249 246;
+  --input-bg: 255 255 255;
+  --chip: 250 249 246;
+  --card: 249 248 245;
+
+  --border-subtle: 226 224 218;
+  --border-muted: 208 206 199;
+  --border-focus: 14 15 17;
+
+  /* Near-black at three weights, not three greys (Noah, 2026-09-12, on the
+     first cut: "the gray reads as mute... making them black of a less
+     thickness") — the tiers still read as tiers, none of them mumbles */
+  --text-primary: 14 15 17;
+  --text-secondary: 38 40 45;
+  --text-muted: 78 81 88;
+
+  --ink: 14 15 17;
+
+  /* The direction pair on paper: the same hues as the dark set, cut deep
+     enough to hold on white but kept vivid — the first cut (15 107 44 /
+     168 36 27) was a forest green and a brick red, and read as mute (Noah,
+     2026-09-12: "the green and red colors read too muted... a heavier red
+     and green") */
+  --bull: 22 163 74;
+  --bear: 220 38 38;
+  /* A visible orange, not a brown (Noah, 2026-09-12: "the oranges like breaks
+     need to become a more visual orange... thicker") */
+  --warn: 217 119 6;
+  /* A visible orange for the thermal's warm pole too (breaks, a trapdoor,
+     outside the band) — one step redder than the alert's amber so the two
+     stay apart; the cool pole a deep steel-blue */
+  --thermal-warm: 234 88 12;
+  --thermal-cool: 29 97 168;
+  --ember: 161 98 7;
+  --glacier: 3 105 161;
+  /* The neon as an ink on paper: a deep lime that still reads as lime, not the
+     olive of the first cut (Noah: "what should we change the neon accents for?")
+     — as a surface the neon itself stays (--select-fill, --live-bg) */
+  --select: 101 163 13;
+  --select-fill: 210 255 0;
+  --live-bg: rgb(210 255 0);
+  --live-ink: rgb(10 10 10);
+  --live-edge: rgb(170 214 0);
+  --flip: 107 114 128;
+  --moon: 91 74 168;
+  --supreme: 163 0 179;
+  --darkpool: 15 138 122;
+  /* The silver on paper: a steel with a breath more blue than the first cut
+     (47 61 92), so "where you are" reads as the holo family's flat form and not
+     as a second black beside the near-black text — still dark enough for words
+     (Noah, 2026-09-12: "do what you think is best with the silver") */
+  --silver: 58 79 122;
+  --silver-fill: 199 211 232;
+}
+
+/* A SCOPE CARRIES ITS OWN BASE INK: an island's text without an ink class of
+   its own would otherwise inherit the page's colour across the boundary —
+   dark words on a dark chart box. The body sets the page's; every scope sets
+   its own the same way. */
+[data-theme] {
+  color: rgb(var(--text-primary));
+}
