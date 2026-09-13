@@ -44,7 +44,8 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, MessageCircle, Paperclip, Plus } from 'lucide-react';
-import { CATEGORIES, commentOnFeedback, submitFeedback, tally, timeAgo, useFeedback, useVotes, voteFeedback, type FeedbackCategory, type FeedbackItem, type FeedbackKind, type FeedbackPriority, type FeedbackStatus } from '../data/feedback';
+import { CATEGORIES, commentOnFeedback, submitFeedback, tally, useFeedback, useVotes, voteFeedback, type FeedbackCategory, type FeedbackItem, type FeedbackKind, type FeedbackPriority, type FeedbackStatus } from '../data/feedback';
+import { timeAgo } from '../data/when';
 import { Name } from '../components/ui/Name';
 
 type Filter = 'all' | 'suggestion' | 'bug';
@@ -160,7 +161,24 @@ const Row = ({ item, vote, open, onOpen, featured = false }: { item: FeedbackIte
       data-open={open || undefined}
       data-featured={featured || undefined}
     >
-      <button type="button" onClick={onOpen} aria-expanded={open} className="w-full text-left grid items-center gap-x-3 px-3 py-2.5 hover:bg-ink/[0.03] transition-colors rounded-md" style={{ gridTemplateColumns: '30px minmax(0,1fr) auto auto auto' }}>
+      {/* A DIV THAT BEHAVES LIKE A BUTTON, not a button (2026-09-13): the votes
+          are buttons and they sit INSIDE this row, and a <button> inside a
+          <button> is invalid HTML — React warned on every render and a screen
+          reader was read one control where there are three. Enter and Space
+          open it, as a button would. */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={e => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          onOpen();
+        }}
+        aria-expanded={open}
+        className="w-full text-left grid items-center gap-x-3 px-3 py-2.5 hover:bg-ink/[0.03] transition-colors rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-silver/60"
+        style={{ gridTemplateColumns: '30px minmax(0,1fr) auto auto auto' }}
+      >
         <Mark kind={item.kind} />
         <span className="min-w-0">
           <span className="flex items-center gap-2 min-w-0">
@@ -180,7 +198,7 @@ const Row = ({ item, vote, open, onOpen, featured = false }: { item: FeedbackIte
         <span className="inline-flex items-center gap-1 font-mono text-[11px] tnum text-textSecondary" title={`${item.comments.length} ${item.comments.length === 1 ? 'reply' : 'replies'} — click to read`} data-comment-count>
           <MessageCircle className="w-3.5 h-3.5" /> {item.comments.length}
         </span>
-      </button>
+      </div>
       {open && (
         <div className="px-3 pb-3 pl-[45px]" data-feedback-detail={item.id}>
           <p className="text-[12.5px] leading-relaxed text-textPrimary whitespace-pre-wrap">{item.description}</p>

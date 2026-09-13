@@ -19,12 +19,18 @@
 ==================================================
 */
 
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bookmark, Flag, Heart, MessageCircle, MoreHorizontal, Repeat2, ShieldBan } from 'lucide-react';
-import { addUpdate, blocked, comment, finishSetup, isMe, liked, memberOf, report, reported, reposted, saved, timeAgo, toggleBlock, toggleLike, toggleRepost, toggleSave, unreport, type Outcome, type Post, type UpdateKind } from '../../data/room';
+import { addUpdate, blocked, comment, finishSetup, isMe, liked, memberOf, report, reported, reposted, saved, toggleBlock, toggleLike, toggleRepost, toggleSave, unreport, type Outcome, type Post, type UpdateKind } from '../../data/room';
+import { timeShort } from '../../data/when';
 import CompanyLogo from '../ui/CompanyLogo';
 import { knownTicker } from '../ui/Name';
+import { useAnchoredMenu } from '../ui/useAnchoredMenu';
+
+/** The ⋯ menu's width — named so the placement can keep its far edge on screen */
+const MENU_W = 208;
 
 /** The avatar — the member's initial on their own hue; the house has no photos yet */
 export const Avatar = ({ handle, size = 36 }: { handle: string; size?: number }) => {
@@ -106,6 +112,34 @@ const PostCard = ({ post, compact = false }: Props) => {
   const [updating, setUpdating] = useState(false);
   const [updKind, setUpdKind] = useState<UpdateKind>('trim');
   const [updText, setUpdText] = useState('');
+  /* THE ⋯ MENU WEARS THE HOUSE'S PLUMBING (2026-09-13). It used to close on
+     mouse-leave alone: a keyboard could not dismiss it, a click elsewhere left
+     it open, two cards could hold one open each, and `absolute top-full` inside
+     a feed is the very placement menuPlacement.ts exists to stop. Anchored and
+     portalled like every other menu, and dismissed on Escape or a pointer
+     landing outside — POINTERDOWN, so opening another menu closes this one. */
+  const rootRef = useRef<HTMLSpanElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const { anchorRef, placed } = useAnchoredMenu<HTMLButtonElement>(menu, 'bottom', MENU_W, 'end');
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setMenu(false);
+    };
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [menu]);
   const s = post.setup;
   /* A POST YOU REPORTED is hidden behind a strip, not deleted from under you —
      the report went to the moderators and you can take it back (2026-09-13) */
@@ -138,28 +172,31 @@ const PostCard = ({ post, compact = false }: Props) => {
           </Link>
           {m?.verified && <BadgeCheck className="w-3.5 h-3.5 text-select" aria-label="verified" data-verified />}
           <span className="font-mono text-[11px] text-textSecondary">@{post.author}</span>
-          <span className="font-mono text-[11px] text-textSecondary">· {timeAgo(post.at)}</span>
+          <span className="font-mono text-[11px] text-textSecondary">· {timeShort(post.at)}</span>
           {s && <span className={`ml-1 inline-flex items-center h-5 px-1.5 rounded border font-mono text-[9px] font-bold uppercase tracking-wider ${s.bias === 'bullish' ? 'text-bull border-bull/30 bg-bull/10' : 'text-bear border-bear/30 bg-bear/10'}`}>{s.bias}</span>}
           {!compact && (
-            <span className="ml-auto relative">
-              <button type="button" onClick={() => setMenu(v => !v)} aria-label="More" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]" data-post-menu>
+            <span ref={rootRef} className="ml-auto">
+              <button ref={anchorRef} type="button" onClick={() => setMenu(v => !v)} aria-label="More" aria-expanded={menu} aria-haspopup="menu" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]" data-post-menu>
                 <MoreHorizontal className="w-4 h-4" />
               </button>
-              {menu && (
-                <div className="absolute right-0 top-7 z-30 w-48 border border-borderMuted bg-panel/95 backdrop-blur-xl rounded-md shadow-2xl shadow-black/60 py-1 animate-slide-in" onMouseLeave={() => setMenu(false)} data-post-menu-card>
-                  {!mine && (
-                    <>
-                      <button type="button" onClick={() => { report(post.id); setMenu(false); }} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-textPrimary hover:bg-ink/[0.06]" data-post-report>
-                        <Flag className="w-3.5 h-3.5" /> Report this post
-                      </button>
-                      <button type="button" onClick={() => { toggleBlock(post.author); setMenu(false); }} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-bear hover:bg-bear/[0.06]" data-post-block>
-                        <ShieldBan className="w-3.5 h-3.5" /> {blocked(post.author) ? 'Unblock' : 'Block'} @{post.author}
-                      </button>
-                    </>
-                  )}
-                  {mine && <div className="px-3 h-8 flex items-center text-[11px] text-textSecondary">Your post — updates keep it honest; there is no delete</div>}
-                </div>
-              )}
+              {menu &&
+                placed &&
+                createPortal(
+                  <div ref={menuRef} role="menu" style={{ position: 'fixed', ...placed.box, width: MENU_W }} className="z-[120] border border-borderMuted bg-panel/95 backdrop-blur-xl rounded-md shadow-2xl shadow-black/60 py-1 animate-slide-in" data-post-menu-card>
+                    {!mine && (
+                      <>
+                        <button type="button" role="menuitem" onClick={() => { report(post.id); setMenu(false); }} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-textPrimary hover:bg-ink/[0.06]" data-post-report>
+                          <Flag className="w-3.5 h-3.5" /> Report this post
+                        </button>
+                        <button type="button" role="menuitem" onClick={() => { toggleBlock(post.author); setMenu(false); }} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-bear hover:bg-bear/[0.06]" data-post-block>
+                          <ShieldBan className="w-3.5 h-3.5" /> {blocked(post.author) ? 'Unblock' : 'Block'} @{post.author}
+                        </button>
+                      </>
+                    )}
+                    {mine && <div className="px-3 py-1.5 text-[11px] leading-snug text-textSecondary">Your post — updates keep it honest; there is no delete</div>}
+                  </div>,
+                  document.body
+                )}
             </span>
           )}
         </div>
@@ -199,7 +236,7 @@ const PostCard = ({ post, compact = false }: Props) => {
               <ul className="border-t border-borderSubtle/60 px-3 py-2 space-y-1" data-setup-updates>
                 {s.updates.map((u, i) => (
                   <li key={i} className="flex items-baseline gap-2 text-[11.5px]">
-                    <span className="font-mono text-[10px] text-textSecondary w-8 shrink-0">{timeAgo(u.at)}</span>
+                    <span className="font-mono text-[10px] text-textSecondary w-8 shrink-0">{timeShort(u.at)}</span>
                     <span className={`font-mono text-[10px] font-bold uppercase tracking-wider shrink-0 ${u.kind === 'target' ? 'text-bull' : u.kind === 'invalidated' ? 'text-bear' : 'text-textSecondary'}`}>{UPDATE_WORD[u.kind]}</span>
                     <span className="text-textPrimary">{u.text}</span>
                   </li>
@@ -263,7 +300,7 @@ const PostCard = ({ post, compact = false }: Props) => {
                 <Avatar handle={c.author} size={22} />
                 <div className="min-w-0">
                   <span className="text-[12px] font-semibold text-textPrimary">{memberOf(c.author)?.name ?? c.author}</span>
-                  <span className="font-mono text-[10px] text-textSecondary"> @{c.author} · {timeAgo(c.at)}</span>
+                  <span className="font-mono text-[10px] text-textSecondary"> @{c.author} · {timeShort(c.at)}</span>
                   <p className="text-[12px] text-textPrimary">
                     <RichPost text={c.text} />
                   </p>

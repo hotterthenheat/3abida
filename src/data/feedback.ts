@@ -333,15 +333,6 @@ export function commentOnFeedback(id: string, text: string, author = 'you'): str
   return null;
 }
 
-export const timeAgo = (iso: string): string => {
-  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-};
-
 /** The board's own counts — the head prints them */
 export interface FeedbackTally {
   all: number;

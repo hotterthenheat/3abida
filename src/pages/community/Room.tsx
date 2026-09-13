@@ -18,12 +18,14 @@
 
 import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, Bell, Bookmark, Flame, ImagePlus, LogOut, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react';
+import { BadgeCheck, Bell, Bookmark, Flame, ImagePlus, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { allPosts, blockList, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, timeAgo, toggleBlock, toggleFollow, trackRecord, trending, unreadNotes, useRoom, type Bias, type NoteKind } from '../../data/room';
+import { allPosts, blockList, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, type Bias, type NoteKind } from '../../data/room';
+import { timeAgo } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
 import CompanyLogo from '../../components/ui/CompanyLogo';
+import { shrinkAll } from '../../components/ui/shrinkImage';
 
 type Tab = 'feed' | 'following' | 'saved';
 const TABS = [
@@ -73,15 +75,12 @@ const Room = () => {
   const bell = notes();
   const unread = unreadNotes();
 
+  /* EVERY PICKED IMAGE IS SHRUNK FIRST. A pasted retina screenshot arrives at
+     15MB as a data URL, which no browser will keep — see ui/shrinkImage. */
   const readFiles = (files: FileList | File[]) => {
-    Array.from(files)
-      .filter(f => f.type.startsWith('image/'))
-      .slice(0, 4)
-      .forEach(f => {
-        const r = new FileReader();
-        r.onload = () => setImages(imgs => [...imgs, String(r.result)].slice(0, 4));
-        r.readAsDataURL(f);
-      });
+    void shrinkAll(files, 4).then(shrunk => {
+      if (shrunk.length) setImages(imgs => [...imgs, ...shrunk].slice(0, 4));
+    });
   };
   /* Cmd+V / Ctrl+V a screenshot straight into the composer */
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -91,12 +90,11 @@ const Room = () => {
       readFiles(files);
     }
   };
+  /* WHAT MAKES A SETUP VALID IS THE STORE'S RULE, not this form's. The form
+     used to check only that the three prices were numbers, which let a
+     bullish setup post with its target under its entry — see checkSetup. */
   const submit = () => {
     const setup = asSetup ? { ticker: ticker.trim().toUpperCase(), bias, entry: Number(entry), target: Number(target), stop: Number(stop), timeframe: tf } : undefined;
-    if (setup && (!setup.ticker || !Number.isFinite(setup.entry) || !Number.isFinite(setup.target) || !Number.isFinite(setup.stop) || !entry || !target || !stop)) {
-      setErr('A setup needs the name, the entry, the target and the stop.');
-      return;
-    }
     const body = setup && !text.trim() ? `$${setup.ticker} ${setup.bias} ${setup.timeframe}.` : text;
     const r = postToRoom(body, images, setup);
     if (typeof r === 'string') {
@@ -151,7 +149,10 @@ const Room = () => {
               ['/community/me?tab=following', 'Following', Users],
               ['#saved', 'Saved', Bookmark],
               ['/settings/profile', 'Settings', SettingsIcon],
-              ['/settings/security', 'Log out', LogOut],
+              /* NO "LOG OUT" DOOR until there is something to log out of
+                 (2026-09-13): it went to the security page, which is Settings
+                 again under another name — a door that lies about where it
+                 goes is worse than a door that is not there. */
             ].map(([to, label, Icon]) => (
               <Link
                 key={label as string}
@@ -188,17 +189,19 @@ const Room = () => {
             </div>
           </Card>
         )}
-        <Card title="Trending" right={<span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary ml-auto">what the room is on</span>}>
+        <Card title="Trending" right={<span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary ml-auto">last {TRENDING_HOURS}h</span>}>
           <div className="pb-2" data-room-trending>
-            {hot.length === 0 && <div className="px-4 pb-2 text-[11px] text-textSecondary">Quiet — nothing trending in the last six hours</div>}
+            {hot.length === 0 && <div className="px-4 pb-2 text-[11px] text-textSecondary">Quiet — no name has come up today</div>}
             {hot.map((t, i) => (
               <Link key={t.ticker} to={`/community/t/${t.ticker}`} className="flex items-center gap-2 px-4 h-9 hover:bg-ink/[0.04] transition-colors" data-trend={t.ticker}>
                 <span className="font-mono text-[10px] text-textSecondary w-4">{i + 1}</span>
                 <CompanyLogo ticker={t.ticker} size={14} />
                 <span className="font-mono text-[12px] font-semibold text-textPrimary">${t.ticker}</span>
-                <span className={`font-mono text-[9px] uppercase tracking-wider ${t.bias === 'bullish' ? 'text-bull' : t.bias === 'bearish' ? 'text-bear' : 'text-textSecondary'}`}>{t.bias}</span>
-                <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tnum text-textSecondary">
-                  <Flame className="w-3 h-3 text-warn" /> {t.posts} posts
+                {/* THE LEAN ONLY SHOWS WHEN SOMEONE HAS TAKEN ONE — a name being
+                    talked about and traded by nobody used to read "MIXED" */}
+                {t.bias && <span className={`font-mono text-[9px] uppercase tracking-wider ${t.bias === 'bullish' ? 'text-bull' : t.bias === 'bearish' ? 'text-bear' : 'text-textSecondary'}`}>{t.bias === 'mixed' ? 'split' : t.bias}</span>}
+                <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tnum text-textSecondary" title={t.setups ? `${t.setups} of them ${t.setups === 1 ? 'is a setup' : 'are setups'}` : 'talked about, not traded'}>
+                  <Flame className="w-3 h-3 text-warn" /> {t.posts} {t.posts === 1 ? 'post' : 'posts'}
                 </span>
               </Link>
             ))}
@@ -216,6 +219,7 @@ const Room = () => {
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onPaste={onPaste}
+                maxLength={MAX_POST}
                 rows={asSetup ? 2 : 3}
                 placeholder={asSetup ? 'The thesis — why this level, why now' : 'Share a thought · $SPY, $NVDA, @handles are doors · paste a screenshot straight in'}
                 className="w-full bg-inputBg border border-borderSubtle rounded-md px-3 py-2 text-[13px] leading-relaxed text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/50 resize-y"
@@ -279,7 +283,9 @@ const Room = () => {
                   <ImagePlus className="w-3.5 h-3.5" /> Image
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && readFiles(e.target.files)} />
-                <span className="font-mono text-[10px] text-textSecondary">{text.length} / 1000</span>
+                <span className={`font-mono text-[10px] tnum ${text.length >= MAX_POST ? 'text-bear' : text.length > MAX_POST * 0.9 ? 'text-warn' : 'text-textSecondary'}`} data-composer-count>
+                  {text.length} / {MAX_POST}
+                </span>
                 <button type="button" onClick={submit} disabled={!!gate} title={gate ?? 'Post to the room'} className="ml-auto h-8 px-4 rounded-full bg-[#ededed] text-[#0a0a0a] text-[12px] font-semibold hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed" data-composer-post>
                   Post
                 </button>

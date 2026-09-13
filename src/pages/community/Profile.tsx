@@ -17,7 +17,8 @@ import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { BadgeCheck, ShieldBan } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { blocked, follows, isMe, memberOf, postsBy, timeAgo, toggleBlock, toggleFollow, trackRecord, useRoom, followList } from '../../data/room';
+import { blocked, follows, isMe, memberOf, postsBy, toggleBlock, toggleFollow, trackRecord, useRoom, followList } from '../../data/room';
+import { timeShort } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
 import CompanyLogo from '../../components/ui/CompanyLogo';
@@ -34,11 +35,23 @@ const Profile = () => {
   const rev = useRoom();
   const account = useAccount();
   const { handle: raw } = useParams();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const handle = !raw || raw === 'me' ? account.handle : raw;
   const m = memberOf(handle);
   const mine = isMe(handle);
-  const [tab, setTab] = useState<Tab>(params.get('tab') === 'following' ? 'following' : 'setups');
+  /* THE TAB LIVES IN THE URL (2026-09-13). It used to be state seeded from the
+     query on mount only, so the room's own "Following" door — which is this
+     page with ?tab=following — did nothing at all when you were already on
+     your profile: the route did not change, so nothing remounted. Reading it
+     every render fixes that door, and makes a tab a link somebody can send. */
+  const asked = params.get('tab');
+  const tab: Tab = TABS.some(t => t.value === asked) ? (asked as Tab) : 'setups';
+  const setTab = (next: Tab) => {
+    const q = new URLSearchParams(params);
+    if (next === 'setups') q.delete('tab');
+    else q.set('tab', next);
+    setParams(q, { replace: true });
+  };
   const posts = useMemo(() => postsBy(handle), [handle, rev]);
   const record = trackRecord(handle);
   if (!m)
@@ -136,7 +149,7 @@ const Profile = () => {
                 <span className="text-bear">{setup.stop}</span>
                 <span className="text-textSecondary truncate">{setup.updates[setup.updates.length - 1]?.text ?? setup.timeframe}</span>
                 <span className={`font-bold uppercase tracking-wider ${setup.outcome === 'target hit' ? 'text-bull' : setup.outcome === 'stopped out' ? 'text-bear' : setup.outcome === 'scratched' ? 'text-warn' : 'text-textPrimary'}`}>{setup.outcome}</span>
-                <span className="text-textSecondary text-right">{timeAgo(post.at)}</span>
+                <span className="text-textSecondary text-right">{timeShort(post.at)}</span>
               </div>
             ))}
           </div>

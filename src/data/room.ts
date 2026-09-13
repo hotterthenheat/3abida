@@ -106,8 +106,12 @@ export interface Note {
 export interface Trend {
   ticker: string;
   posts: number;
+  /** How many of those posts are setups — the lean is only read off these */
+  setups: number;
   heat: number;
-  bias: Bias | 'mixed';
+  /** null when nobody has taken a side on it: the name is being talked about,
+      not traded, and a chip saying "MIXED" over that would be an invention */
+  bias: Bias | 'mixed' | null;
 }
 
 /* ---- the seed ---------------------------------------------------------------------- */
@@ -187,6 +191,42 @@ function fillText(t: string, seed: string): string {
   return t.replace(/\{(\w+)\}/g, (_, k) => fill[k] ?? '');
 }
 
+/*
+  WHO SAID WHAT IS DEALT AFTER THE SORT (2026-09-13).
+
+  The first cut picked an author per post and nudged it when it matched the
+  one before — but that ran in BUILD order, and the list was then sorted by
+  time, which undid every nudge it had made. Measured on the rendered feed:
+  the top five rows read Sam, Sam, Sam, Marcus, Sam — one member appearing to
+  hold the whole room.
+
+  So the posts are built and sorted first, and only then dealt their authors,
+  off a deck weighted by following (the most-followed speak most) with any
+  voice that comes up twice running skipped past. A deck of ten always has
+  another, so the walk terminates.
+*/
+function dealAuthors(count: number): string[] {
+  const deck: string[] = [];
+  for (const m of SEED_MEMBERS) {
+    /* one turn per ~2,500 followers, never fewer than two: the room has
+       voices of different sizes rather than a perfect rotation */
+    const share = Math.max(2, Math.round(m.followers / 2500));
+    for (let k = 0; k < share; k++) deck.push(m.handle);
+  }
+  const shuffled = deck
+    .map((h, k) => ({ h, k: h01(`room-author-${k}-${h}`) }))
+    .sort((a, b) => a.k - b.k)
+    .map(x => x.h);
+  const out: string[] = [];
+  let at = 0;
+  for (let i = 0; i < count; i++) {
+    for (let skips = 0; shuffled[at % shuffled.length] === out[out.length - 1] && skips < shuffled.length; skips++) at++;
+    out.push(shuffled[at % shuffled.length]);
+    at++;
+  }
+  return out;
+}
+
 function seedPosts(): Post[] {
   const out: Post[] = [];
   const now = Date.now();
@@ -199,9 +239,6 @@ function seedPosts(): Post[] {
   let nameAt = 0;
   for (let i = 0; i < 34; i++) {
     const seed = `room-post-${i}`;
-    let authorIdx = Math.floor(h01(seed + '-a') * SEED_MEMBERS.length) % SEED_MEMBERS.length;
-    if (out.length && SEED_MEMBERS[authorIdx].handle === out[out.length - 1].author) authorIdx = (authorIdx + 1) % SEED_MEMBERS.length;
-    const author = SEED_MEMBERS[authorIdx].handle;
     const minutesAgo = Math.round(h01(seed + '-t') * 60 * 40);
     const at = new Date(now - minutesAgo * 60_000).toISOString();
     const isSetup = h01(seed + '-k') < 0.4;
@@ -231,35 +268,61 @@ function seedPosts(): Post[] {
     }
     out.push({
       id: `seed-${i}`,
-      author,
+      author: '',
       at,
       text,
       images: [],
       setup,
       likes: Math.round(h01(seed + '-l') * 240),
       reposts: Math.round(h01(seed + '-r') * 40),
-      comments: Array.from({ length: Math.floor(h01(seed + '-c') * 4) }, (_, k) => ({
-        id: `seed-${i}-c${k}`,
-        author: SEED_MEMBERS[Math.floor(h01(`${seed}-c${k}-a`) * SEED_MEMBERS.length)].handle,
-        at: new Date(now - Math.max(1, minutesAgo - 10 - k * 7) * 60_000).toISOString(),
-        text: pick(['Agreed — same read on the ladder.', 'The wall drained since you posted, careful.', 'What timeframe is the stop on?', 'This is the trade.', 'Vanna says otherwise into 3:30.', 'Nice. Trimmed mine too.'], `${seed}-c${k}-t`),
-      })),
+      comments: [],
     });
   }
-  return out.sort((a, b) => b.at.localeCompare(a.at));
+  out.sort((a, b) => b.at.localeCompare(a.at));
+  /* The authors, then the replies — a reply needs to know whose post it is
+     under so nobody is seen agreeing with themselves */
+  const authors = dealAuthors(out.length);
+  return out.map((p, i) => {
+    const author = authors[i];
+    const others = SEED_MEMBERS.filter(m => m.handle !== author);
+    const minutesAgo = Math.round((now - new Date(p.at).getTime()) / 60_000);
+    return {
+      ...p,
+      author,
+      comments: Array.from({ length: Math.floor(h01(`${p.id}-c`) * 4) }, (_, k) => ({
+        id: `${p.id}-c${k}`,
+        author: others[Math.floor(h01(`${p.id}-c${k}-a`) * others.length) % others.length].handle,
+        at: new Date(now - Math.max(1, minutesAgo - 10 - k * 7) * 60_000).toISOString(),
+        text: pick(['Agreed — same read on the ladder.', 'The wall drained since you posted, careful.', 'What timeframe is the stop on?', 'This is the trade.', 'Vanna says otherwise into 3:30.', 'Nice. Trimmed mine too.'], `${p.id}-c${k}-t`),
+      })),
+    };
+  });
 }
 
-function seedNotes(follows: string[]): Note[] {
-  const now = Date.now();
-  const at = (m: number) => new Date(now - m * 60_000).toISOString();
-  return [
-    { id: 'n-1', at: at(4), kind: 'like', from: 'gamma_gwen', text: 'liked your post', read: false },
-    { id: 'n-2', at: at(19), kind: 'comment', from: 'quant_iv', text: 'commented: "vanna disagrees into the close"', read: false },
-    { id: 'n-3', at: at(46), kind: 'follow', from: 'flow_fern', text: 'started following you', read: false },
-    { id: 'n-4', at: at(75), kind: 'post', from: follows[0] ?? 'macro_mae', text: 'posted a new setup', read: true },
-    { id: 'n-5', at: at(130), kind: 'update', from: 'zero_dte_zed', text: 'updated a setup you follow: target hit', read: true },
-    { id: 'n-6', at: at(210), kind: 'mention', from: 'wall_watch', text: 'mentioned you: "@you your put wall read was right"', read: true },
-  ];
+/*
+  THE BELL ONLY SAYS WHAT HAPPENED (2026-09-13).
+
+  It used to open on "Gwen Tao liked your post" and "Marcus Feld commented"
+  over an account with NO POSTS, and on "mentioned you" in a room where
+  nobody had. Three of the six were about content that did not exist.
+
+  What is seeded now is only what is true of a reader who has not posted yet:
+  somebody followed you, and the people you already follow posted and updated
+  — each note pointing at the post it is about, so it can be opened and read.
+  Every other note in the bell is raised from a real event as it happens.
+*/
+function seedNotes(follows: string[], posts: readonly Post[]): Note[] {
+  const out: Note[] = [];
+  const followed = posts.filter(p => follows.includes(p.author));
+  out.push({ id: 'n-follow', at: new Date(Date.now() - 46 * 60_000).toISOString(), kind: 'follow', from: 'flow_fern', text: 'started following you', read: false });
+  const newest = followed[0];
+  if (newest) out.push({ id: 'n-post', at: newest.at, kind: 'post', from: newest.author, postId: newest.id, text: newest.setup ? `posted a ${newest.setup.bias} setup on $${newest.setup.ticker}` : 'posted', read: true });
+  const updated = followed.find(p => p.setup && p.setup.updates.length > 0);
+  if (updated) {
+    const last = updated.setup!.updates[updated.setup!.updates.length - 1];
+    out.push({ id: 'n-update', at: last.at, kind: 'update', from: updated.author, postId: updated.id, text: `updated $${updated.setup!.ticker}: ${last.text}`, read: true });
+  }
+  return out;
 }
 
 /* ---- the state ---------------------------------------------------------------------- */
@@ -283,24 +346,44 @@ interface Mine {
   activity: number;
 }
 const KEY = 'slayer_room';
+/*
+  THE PICTURES LIVE ON THEIR OWN KEY (2026-09-13).
+
+  A post used to carry its screenshots inside itself, as data URLs, inside the
+  one blob every write re-serialised. Two consequences, both measured:
+
+    the post vanished    two retina screenshots pasted into the composer came
+                         to 15MB each; the write threw QuotaExceeded, the
+                         catch swallowed it, and the post was gone on reload
+                         with nothing said. (shrinkImage now takes those to
+                         ~150KB, and this key keeps them out of the hot blob.)
+    every like was dear  liking a post rewrote every picture you had ever
+                         posted, because they were all in `mine`
+
+  So `mine` holds picture IDS and this key holds the pictures. Reads swap the
+  ids back (`hydrate`); a picture storage has lost simply does not draw.
+*/
+const IMG_KEY = 'slayer_room_images';
 const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
 
-const loadMine = (): Mine => {
+const readJson = <T,>(key: string, fallback: T): T => {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const v = JSON.parse(raw) as Partial<Mine>;
-      return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {} };
-    }
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as T;
   } catch {
-    /* none */
+    /* no storage, or an entry this build cannot read — the fallback */
   }
-  return { ...DEFAULT_MINE };
+  return fallback;
+};
+
+const loadMine = (): Mine => {
+  const v = readJson<Partial<Mine>>(KEY, {});
+  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {} };
 };
 
 let mine: Mine = loadMine();
+let blobs: Record<string, string> = readJson<Record<string, string>>(IMG_KEY, {});
 const seeded = seedPosts();
-const SEED_IDS = new Set(seeded.map(p => p.id));
 let version = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -313,12 +396,22 @@ const subscribe = (fn: () => void) => {
     listeners.delete(fn);
   };
 };
-const persist = () => {
+const writeKey = (key: string, value: unknown): boolean => {
   try {
-    localStorage.setItem(KEY, JSON.stringify(mine));
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    /* storage may be off */
+    /* storage off, or full — the caller decides whether that is worth saying */
+    return false;
   }
+};
+/** True when everything reached storage. A false here means a reload will not
+    show what the screen is showing, which `post` turns into a message rather
+    than letting the reader find out later. */
+const persist = (): boolean => {
+  const kept = writeKey(KEY, mine);
+  const pictures = writeKey(IMG_KEY, blobs);
+  return kept && pictures;
 };
 const getVersion = () => version;
 /** Subscribe to the room — re-renders on every change */
@@ -341,12 +434,16 @@ export const isMe = (handle: string) => handle === ME || handle === getAccount()
    repost of one moved no count at all). The stored post carries what OTHERS
    did; your like, your repost and your replies are kept as your own and
    merged here, so a reload prints what the screen printed before it. */
+/** The picture ids a post stores, swapped back for the pictures themselves */
+const hydrate = (p: Post): Post => (p.images.length === 0 ? p : { ...p, images: p.images.map(id => blobs[id]).filter((src): src is string => !!src) });
+
 const withMine = (base: Post): Post => {
+  const shown = hydrate(base);
   const liked = mine.likes.includes(base.id);
   const reposted = mine.reposts.includes(base.id);
   const added = mine.comments[base.id] ?? [];
-  if (!liked && !reposted && added.length === 0) return base;
-  return { ...base, likes: base.likes + (liked ? 1 : 0), reposts: base.reposts + (reposted ? 1 : 0), comments: added.length ? [...base.comments, ...added] : base.comments };
+  if (!liked && !reposted && added.length === 0) return shown;
+  return { ...shown, likes: shown.likes + (liked ? 1 : 0), reposts: shown.reposts + (reposted ? 1 : 0), comments: added.length ? [...shown.comments, ...added] : shown.comments };
 };
 
 /** Every post in the room, newest first, minus the people you blocked. A post
@@ -401,20 +498,30 @@ export function trackRecord(handle: string): TrackRecord {
   return { finished, open: setups.length - finished.length, wins, losses, scratched, closed, winRate: decided ? Math.round((wins / decided) * 100) : null };
 }
 
-/** What the room is talking about — $names in the last six hours, weighted by likes */
+/*
+  WHAT THE ROOM IS TALKING ABOUT — $names over the last day, weighted by the
+  likes and replies they drew.
+
+  THE WINDOW IS A DAY, not the six hours it was (2026-09-13). The room's own
+  posts are spread over forty, so a six-hour window caught six names at one
+  post each: a "trending" list where nothing out-ranked anything, and every
+  row read "1 posts · MIXED". A day is the span this room actually fills.
+*/
+export const TRENDING_HOURS = 24;
 export function trending(): Trend[] {
-  const since = Date.now() - 6 * 3600_000;
-  const heat = new Map<string, { posts: number; heat: number; bull: number; bear: number }>();
+  const since = Date.now() - TRENDING_HOURS * 3600_000;
+  const heat = new Map<string, { posts: number; setups: number; heat: number; bull: number; bear: number }>();
   for (const p of allPosts()) {
     if (new Date(p.at).getTime() < since) continue;
     const names = new Set<string>();
     for (const m of p.text.matchAll(/\$([A-Z][A-Z0-9.]{0,5})\b/g)) names.add(m[1]);
     if (p.setup) names.add(p.setup.ticker);
     for (const n of names) {
-      const cur = heat.get(n) ?? { posts: 0, heat: 0, bull: 0, bear: 0 };
+      const cur = heat.get(n) ?? { posts: 0, setups: 0, heat: 0, bull: 0, bear: 0 };
       cur.posts++;
       cur.heat += 1 + p.likes / 40 + p.comments.length / 2;
       if (p.setup?.ticker === n) {
+        cur.setups++;
         if (p.setup.bias === 'bullish') cur.bull++;
         else cur.bear++;
       }
@@ -422,7 +529,17 @@ export function trending(): Trend[] {
     }
   }
   return [...heat.entries()]
-    .map(([ticker, v]) => ({ ticker, posts: v.posts, heat: v.heat, bias: (v.bull > v.bear ? 'bullish' : v.bear > v.bull ? 'bearish' : 'mixed') as Trend['bias'] }))
+    .map(([ticker, v]) => ({
+      ticker,
+      posts: v.posts,
+      setups: v.setups,
+      heat: v.heat,
+      /* A LEAN IS ONLY READ OFF SETUPS. A name mentioned in three thoughts and
+         traded by nobody has no side, and the list used to call that "MIXED"
+         — which reads as "the room disagrees" when the truth is that nobody
+         has said. Mixed now means what it says: they took both sides, evenly. */
+      bias: (v.bull === 0 && v.bear === 0 ? null : v.bull > v.bear ? 'bullish' : v.bear > v.bull ? 'bearish' : 'mixed') as Trend['bias'],
+    }))
     .sort((a, b) => b.heat - a.heat)
     .slice(0, 8);
 }
@@ -432,7 +549,7 @@ export const suggestions = (): Member[] => SEED_MEMBERS.filter(m => !mine.follow
 
 export function notes(): Note[] {
   const read = new Set(mine.readNotes);
-  return [...mine.extraNotes, ...seedNotes(mine.follows)].map(n => ({ ...n, read: n.read || read.has(n.id) })).sort((a, b) => b.at.localeCompare(a.at));
+  return [...mine.extraNotes, ...seedNotes(mine.follows, seeded)].map(n => ({ ...n, read: n.read || read.has(n.id) })).sort((a, b) => b.at.localeCompare(a.at));
 }
 export const unreadNotes = () => notes().filter(n => !n.read).length;
 
@@ -466,14 +583,73 @@ const bump = (patch: Partial<Mine>) => {
   emit();
 };
 
+/** The most a post may say — the composer's counter reads this, and so does
+    the store, so the limit is enforced and not merely displayed */
+export const MAX_POST = 1000;
+
+/*
+  WHAT IS WRONG WITH A SETUP, or null.
+
+  A setup whose target is the wrong side of its entry is not a trade, it is a
+  typo — and it used to be accepted (2026-09-13): the composer checked only
+  that the three prices were numbers, so a BULLISH setup with the target UNDER
+  the entry posted happily and then graded as an instant win the moment price
+  did anything. The rule lives here rather than in the composer because the
+  grading engine downstream reads these three numbers as a direction.
+*/
+export function checkSetup(s: Omit<Setup, 'outcome' | 'updates'> | undefined): string | null {
+  if (!s) return null;
+  if (!s.ticker.trim()) return 'A setup needs a name.';
+  for (const [label, v] of [['entry', s.entry], ['target', s.target], ['stop', s.stop]] as const) {
+    if (!Number.isFinite(v) || v <= 0) return `A setup needs an ${label === 'entry' ? 'entry' : label} above zero.`;
+  }
+  if (s.bias === 'bullish') {
+    if (s.target <= s.entry) return `A bullish setup takes profit ABOVE the entry — ${s.target} is not over ${s.entry}.`;
+    if (s.stop >= s.entry) return `A bullish setup stops out BELOW the entry — ${s.stop} is not under ${s.entry}.`;
+  } else {
+    if (s.target >= s.entry) return `A bearish setup takes profit BELOW the entry — ${s.target} is not under ${s.entry}.`;
+    if (s.stop <= s.entry) return `A bearish setup stops out ABOVE the entry — ${s.stop} is not over ${s.entry}.`;
+  }
+  return null;
+}
+
 export function post(text: string, images: string[], setup?: Omit<Setup, 'outcome' | 'updates'>): Post | string {
   const gate = postGate();
   if (gate) return gate;
-  const body = text.trim();
+  const wrong = checkSetup(setup);
+  if (wrong) return wrong;
+  const body = text.trim().slice(0, MAX_POST);
   if (body.length < 2 && !setup && images.length === 0) return 'Say something first.';
-  const p: Post = { id: `me-${Date.now()}`, author: getAccount().handle, at: stamp(), text: body, images, setup: setup ? { ...setup, outcome: 'open', updates: [] } : undefined, likes: 0, reposts: 0, comments: [] };
-  bump({ posts: [p, ...mine.posts], postTimes: [...mine.postTimes.slice(-40), Date.now()] });
-  return p;
+  const stamped = Date.now();
+  const pictures = images.map((src, k) => ({ id: `img-${stamped}-${k}`, src }));
+  const p: Post = {
+    id: `me-${stamped}`,
+    author: getAccount().handle,
+    at: stamp(),
+    text: body,
+    images: pictures.map(i => i.id),
+    setup: setup ? { ...setup, ticker: setup.ticker.trim().toUpperCase(), outcome: 'open', updates: [] } : undefined,
+    likes: 0,
+    reposts: 0,
+    comments: [],
+  };
+  /* A POST THAT DID NOT REACH STORAGE IS NOT A POST. Staged, written, and put
+     back if the write failed — with a message, rather than a row that sits
+     there looking posted until the next reload takes it away. */
+  const wasMine = mine;
+  const wasBlobs = blobs;
+  blobs = { ...blobs };
+  for (const i of pictures) blobs[i.id] = i.src;
+  mine = { ...mine, posts: [p, ...mine.posts], postTimes: [...mine.postTimes.slice(-40), stamped] };
+  if (!persist()) {
+    mine = wasMine;
+    blobs = wasBlobs;
+    persist();
+    emit();
+    return pictures.length ? 'This browser has no room left for those pictures — post it with fewer screenshots.' : 'This browser has no room left to keep that post.';
+  }
+  emit();
+  return hydrate(p);
 }
 export function addUpdate(postId: string, kind: UpdateKind, text: string): void {
   const posts = mine.posts.map(p => {
@@ -537,17 +713,9 @@ export function notify(n: Omit<Note, 'id' | 'at' | 'read'>): void {
   bump({ extraNotes: [{ ...n, id: `n-${Date.now()}`, at: stamp(), read: false }, ...mine.extraNotes] });
 }
 
-export const timeAgo = (iso: string): string => {
-  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (m < 1) return 'now';
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
-};
-
 /** Reset the seed's live counters — the tests' door */
 export function resetRoomForTests(): void {
   mine = { ...DEFAULT_MINE };
+  blobs = {};
   emit();
 }
