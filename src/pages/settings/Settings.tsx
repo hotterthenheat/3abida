@@ -30,10 +30,11 @@
 ==================================================
 */
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, CreditCard, Info, Keyboard, LayoutDashboard, Palette, Plug, UserRound, type LucideIcon } from 'lucide-react';
+import { Bell, Check, CreditCard, Download, Info, Keyboard, LayoutDashboard, Palette, Pencil, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react';
+import { accountAgeDays, updateAccount, useAccount, type Notifications } from '../../data/account';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import { CANDLE_THEME_OPTIONS, setCandleTheme, useCandleThemeKey, type CandleThemeKey } from '../../components/gex/candleTheme';
 import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
@@ -46,18 +47,35 @@ import { setThemeChoice, useResolvedTheme, useThemeChoice, type ThemeChoice } fr
    subpages not all on the same page. transition should be smooth") —
    /settings/<id>, the rail a row of links, one box at a time, the box
    arriving on a short cross-fade. /settings alone lands on Appearance. */
-export type SettingsSection = 'appearance' | 'desk' | 'keyboard' | 'account' | 'billing' | 'data' | 'about';
-export const SETTINGS_SECTIONS: SettingsSection[] = ['appearance', 'desk', 'keyboard', 'account', 'billing', 'data', 'about'];
-const isSection = (v: string | undefined): v is SettingsSection => (SETTINGS_SECTIONS as string[]).includes(v ?? '');
+/* THE ACCOUNT SETTINGS (Noah, 2026-09-13, the mockup): the rail reads My
+   profile · Security · Notifications · Billing · Data export, then the
+   terminal's own pages, and Delete account last in red; every setting a row
+   — the name and one line at the left, the value or the switch at the right. */
+export type SettingsSection = 'profile' | 'security' | 'notifications' | 'billing' | 'data' | 'appearance' | 'desk' | 'keyboard' | 'about' | 'delete' | 'account';
+export const SETTINGS_SECTIONS: SettingsSection[] = ['profile', 'security', 'notifications', 'billing', 'data', 'appearance', 'desk', 'keyboard', 'about', 'delete'];
+const isSection = (v: string | undefined): v is SettingsSection => (SETTINGS_SECTIONS as string[]).includes(v ?? '') || v === 'account';
 
-const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; soon?: boolean }[] = [
-  { id: 'appearance', label: 'Appearance', icon: Palette },
+const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; danger?: boolean; gap?: boolean }[] = [
+  { id: 'profile', label: 'My profile', icon: UserRound },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'billing', label: 'Billing', icon: CreditCard },
+  { id: 'data', label: 'Data export', icon: Download },
+  { id: 'appearance', label: 'Appearance', icon: Palette, gap: true },
   { id: 'desk', label: 'The desk', icon: LayoutDashboard },
   { id: 'keyboard', label: 'Keyboard', icon: Keyboard },
-  { id: 'account', label: 'Account', icon: UserRound, soon: true },
-  { id: 'billing', label: 'Billing', icon: CreditCard, soon: true },
-  { id: 'data', label: 'Data', icon: Plug, soon: true },
   { id: 'about', label: 'About', icon: Info },
+  { id: 'delete', label: 'Delete account', icon: Trash2, danger: true, gap: true },
+];
+const NOTIFY_ROWS: { key: keyof Notifications; name: string; line: string }[] = [
+  { key: 'likes', name: 'Likes', line: 'Someone liked a post or a setup of yours' },
+  { key: 'comments', name: 'Comments', line: 'Someone commented on a post of yours' },
+  { key: 'follows', name: 'Follows', line: 'Someone started following you' },
+  { key: 'posts', name: 'People you follow post', line: 'A new post or setup from someone you follow' },
+  { key: 'updates', name: 'Trade updates', line: 'A setup you follow was trimmed, moved, invalidated or closed' },
+  { key: 'mentions', name: 'Mentions', line: 'Someone wrote @you' },
+  { key: 'email', name: 'Alerts by email', line: 'The bell\'s alerts, to your inbox as well' },
+  { key: 'newsletter', name: 'The weekly note', line: 'What shipped and what is next, once a week' },
 ];
 
 const THEME_WORDS: Record<ThemeChoice, [string, string]> = {
@@ -100,7 +118,7 @@ const Section = ({ id, title, line, children }: { id: string; title: string; lin
   <section id={id} className="border border-borderSubtle rounded-md bg-panel overflow-clip scroll-mt-5" data-settings-section={id}>
     <div className="px-5 pt-4 pb-3">
       <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h2>
-      <p className="mt-0.5 text-[11px] text-textMuted">{line}</p>
+      <p className="mt-0.5 text-[11px] text-textSecondary">{line}</p>
     </div>
     {children}
   </section>
@@ -111,7 +129,7 @@ const Row = ({ name, line, children, testId }: { name: string; line: string; chi
   <div className="px-5 py-3 border-t border-borderSubtle/60 flex items-center justify-between gap-6" data-settings-row={testId}>
     <div className="min-w-0">
       <div className="text-[12px] text-textPrimary">{name}</div>
-      <div className="text-[11px] text-textMuted">{line}</div>
+      <div className="text-[11px] text-textSecondary">{line}</div>
     </div>
     <div className="shrink-0 flex items-center gap-2">{children}</div>
   </div>
@@ -180,6 +198,57 @@ const ThemeTile = ({ choice, current, onPick }: { choice: ThemeChoice; current: 
   );
 };
 
+/** A switch — on in the house select ink, off in the hairline grey */
+const Switch = ({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) => (
+  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-select' : 'bg-ink/20'}`} data-switch={on ? 'on' : 'off'}>
+    <span className={`inline-block h-4 w-4 rounded-full bg-[#ededed] shadow transition-transform ${on ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+  </button>
+);
+
+/** A value with an Edit door — the mockup's grammar: the value printed, a small button beside it, an input while editing */
+const Editable = ({ value, onSave, placeholder, mono = false, testId }: { value: string; onSave: (v: string) => void; placeholder?: string; mono?: boolean; testId: string }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  if (editing)
+    return (
+      <span className="inline-flex items-center gap-1.5" data-editable={testId}>
+        <input
+          autoFocus
+          value={draft}
+          placeholder={placeholder}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              onSave(draft.trim());
+              setEditing(false);
+            }
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          className={`w-56 h-7 bg-inputBg border border-borderSubtle rounded-md px-2 text-[12px] text-textPrimary placeholder:text-textMuted focus:border-silver/50 outline-none ${mono ? 'font-mono' : ''}`}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            onSave(draft.trim());
+            setEditing(false);
+          }}
+          className="inline-flex items-center h-7 px-2.5 rounded-md border border-select/40 bg-select/[0.08] font-mono text-[10px] uppercase tracking-wider text-select"
+        >
+          Save
+        </button>
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-2" data-editable={testId}>
+      <span className={`text-[12px] text-textPrimary ${mono ? 'font-mono' : ''}`}>{value || <span className="text-textMuted">{placeholder ?? 'not set'}</span>}</span>
+      <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+        Edit <Pencil className="w-3 h-3" />
+      </button>
+    </span>
+  );
+};
+
 const Key = ({ children }: { children: ReactNode }) => (
   <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[10px] text-textSecondary">{children}</kbd>
 );
@@ -191,15 +260,17 @@ const Settings = () => {
   const theme = useResolvedTheme();
   const candleKey = useCandleThemeKey();
   const unit = useDistanceUnit();
+  const account = useAccount();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   /* THE SUBPAGE — from the route; a step to another lands at the head */
   const { section } = useParams<{ section?: string }>();
-  const current: SettingsSection = isSection(section) ? section : 'appearance';
+  const current: SettingsSection = section === 'account' ? 'profile' : isSection(section) ? section : 'profile';
   useEffect(() => {
     const main = document.querySelector<HTMLElement>('main');
     if (main && main.scrollTop > 0) main.scrollTop = 0;
   }, [current]);
-  if (!isSection(section)) return <Navigate to="/settings/appearance" replace />;
+  if (!isSection(section) || section === 'account') return <Navigate to="/settings/profile" replace />;
 
   return (
     <>
@@ -208,9 +279,11 @@ const Settings = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
             <Mark />
-            <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Settings</h1>
+            <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Account settings</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">How the terminal looks, what the desk opens on, what it says out loud</p>
+          <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">
+            {account.name} · @{account.handle} · {account.email} · {account.plan} plan
+          </p>
         </div>
         <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts>
           <div className="min-w-0">
@@ -230,7 +303,7 @@ const Settings = () => {
       <div className="grid grid-cols-1 xl:grid-cols-[168px_minmax(0,1fr)] gap-4 items-start" data-settings>
         {/* THE RAIL — the subpages, the one open lit */}
         <nav className="xl:sticky xl:top-5 flex xl:flex-col gap-0.5 flex-wrap" aria-label="Settings sections" data-settings-rail>
-          {SECTIONS.map((s, i) => {
+          {SECTIONS.map(s => {
             const on = s.id === current;
             const Icon = s.icon;
             return (
@@ -239,8 +312,8 @@ const Settings = () => {
                 to={`/settings/${s.id}`}
                 aria-current={on ? 'page' : undefined}
                 className={`flex items-center gap-2 px-2.5 h-8 rounded-md text-[12px] transition-colors text-left ${
-                  on ? 'bg-ink/[0.05] text-textPrimary' : s.soon ? 'text-textMuted hover:text-textSecondary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'
-                } ${i === 3 || i === 6 ? 'xl:mt-2' : ''}`}
+                  on ? 'bg-select/[0.12] text-textPrimary font-medium' : s.danger ? 'text-bear hover:bg-bear/[0.06]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'
+                } ${s.gap ? 'xl:mt-3' : ''}`}
                 data-settings-nav={s.id}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
@@ -309,20 +382,191 @@ const Settings = () => {
           </Section>
           )}
 
-          {/* WITH THE LAUNCH */}
-          {current === 'account' && (
-          <Section id="account" title="Account" line="Who you are to the terminal — sign in, your name, the desks you keep">
-            <Later name="Sign in" line="An account carries your board, your marks and your settings between machines" testId="sign-in" />
+          {/* MY PROFILE */}
+          {current === 'profile' && (
+          <Section id="profile" title="My profile" line="Who you are on the terminal and in the community — the name on your posts, the handle people follow">
+            <Row name="Name" line="Printed on your posts and your setups" testId="name">
+              <Editable value={account.name} onSave={v => v && updateAccount({ name: v })} testId="name" />
+            </Row>
+            <Row name="Handle" line="Your @ in the community — letters, numbers and underscores" testId="handle">
+              <Editable value={`@${account.handle}`} mono onSave={v => { const h = v.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_]/g, ''); if (h) updateAccount({ handle: h }); }} testId="handle" />
+            </Row>
+            <Row name="Bio" line="One or two lines under your name on your profile" testId="bio">
+              <Editable value={account.bio} placeholder="say what you trade" onSave={v => updateAccount({ bio: v })} testId="bio" />
+            </Row>
+            <Row name="Links" line="A site, an X handle — comma-separated" testId="links">
+              <Editable value={account.links.join(', ')} mono placeholder="none" onSave={v => updateAccount({ links: v.split(',').map(x => x.trim()).filter(Boolean) })} testId="links" />
+            </Row>
+            <Row name="Member since" line="The account's age — the community's posting gate reads it" testId="since">
+              <span className="font-mono text-[12px] tnum text-textPrimary">{new Date(account.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {accountAgeDays(account)} days</span>
+            </Row>
           </Section>
           )}
+
+          {/* SECURITY */}
+          {current === 'security' && (
+          <Section id="security" title="Security" line="The email, the password and the second step that guard the account">
+            <Row name="Email address" line="The email address associated with your account" testId="email">
+              <span className="inline-flex items-center gap-2">
+                <span className="flex flex-col items-end">
+                  <Editable value={account.email} mono onSave={v => v && updateAccount({ email: v, emailVerified: false })} testId="email" />
+                  <span className={`mt-0.5 font-mono text-[9px] uppercase tracking-widest ${account.emailVerified ? 'text-bull' : 'text-bear'}`}>{account.emailVerified ? 'verified' : 'unverified'}</span>
+                </span>
+                {!account.emailVerified && (
+                  <button type="button" onClick={() => updateAccount({ emailVerified: true })} className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-verify-email>
+                    Verify
+                  </button>
+                )}
+              </span>
+            </Row>
+            <Row name="Password" line="Set a unique password to protect your account" testId="password">
+              <button type="button" className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-change-password>
+                Change password
+              </button>
+            </Row>
+            <Row name="2-step verification" line="Make your account extra secure — along with your password, you'll need to enter a code" testId="two-step">
+              <Switch on={account.twoStep} onChange={v => updateAccount({ twoStep: v })} label="2-step verification" />
+            </Row>
+            <Row name="Blocked members" line="People you blocked in the community — they cannot see your posts or reach you" testId="blocked">
+              <Link to="/community" className="font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary">manage in the community</Link>
+            </Row>
+            <Row name="Deactivate my account" line="This will shut down your account. Your account will be reactivated when you sign in again." testId="deactivate">
+              <button type="button" onClick={() => updateAccount({ deactivated: !account.deactivated })} className={`inline-flex items-center h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${account.deactivated ? 'border-bull/40 text-bull' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`} data-deactivate>
+                {account.deactivated ? 'Reactivate' : 'Deactivate'}
+              </button>
+            </Row>
+            <Row name="Delete account" line="This will delete your account. Your account will be permanently deleted from the terminal." testId="delete-link">
+              <Link to="/settings/delete" className="font-mono text-[10px] uppercase tracking-wider text-bear hover:underline underline-offset-2">Delete</Link>
+            </Row>
+          </Section>
+          )}
+
+          {/* NOTIFICATIONS */}
+          {current === 'notifications' && (
+          <Section id="notifications" title="Notifications" line="What the bell and the inbox may say — every switch saves as you go">
+            {NOTIFY_ROWS.map(r => (
+              <Row key={r.key} name={r.name} line={r.line} testId={`notify-${r.key}`}>
+                <Switch on={account.notifications[r.key]} onChange={v => updateAccount({ notifications: { ...account.notifications, [r.key]: v } })} label={r.name} />
+              </Row>
+            ))}
+          </Section>
+          )}
+
+          {/* BILLING */}
           {current === 'billing' && (
           <Section id="billing" title="Billing" line="The plan and the card behind it">
-            <Later name="Plan" line="The tier, its data limits and its price" testId="plan" />
+            <Row name="Plan" line="Free reads the delayed tape; Pro is the live terminal; Desk adds seats and the data keys" testId="plan">
+              <span className="inline-flex rounded-md border border-borderSubtle overflow-hidden" role="group" aria-label="Plan">
+                {(['Free', 'Pro', 'Desk'] as const).map(p => (
+                  <button key={p} type="button" aria-pressed={account.plan === p} onClick={() => updateAccount({ plan: p })} className="h-7 px-3 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary aria-pressed:bg-select/[0.12] aria-pressed:text-textPrimary transition-colors" data-plan={p}>
+                    {p}
+                  </button>
+                ))}
+              </span>
+            </Row>
+            <Row name="Card" line="The card on file — arrives with the launch, when the plan is paid" testId="card">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted border border-borderSubtle rounded px-2 py-0.5 whitespace-nowrap">with the launch</span>
+            </Row>
+            <Row name="Invoices" line="Every charge, as a PDF" testId="invoices">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted border border-borderSubtle rounded px-2 py-0.5 whitespace-nowrap">none yet</span>
+            </Row>
           </Section>
           )}
+
+          {/* DATA EXPORT */}
           {current === 'data' && (
-          <Section id="data" title="Data" line="Where the tape, the chains and the record come from">
-            <Later name="Provider" line="Live options and quotes, dark pool prints, the congressional record — the keys and their tiers" testId="provider" />
+          <Section id="data" title="Data export" line="Everything the terminal keeps for you, as a file you own">
+            <Row name="Your board, marks and settings" line="The names on your board, your positions, your alerts, your scripts and every preference — one JSON file" testId="export-all">
+              <button
+                type="button"
+                onClick={() => {
+                  const dump: Record<string, unknown> = {};
+                  try {
+                    for (let i = 0; i < localStorage.length; i++) {
+                      const k = localStorage.key(i);
+                      if (k && k.startsWith('slayer_')) dump[k] = JSON.parse(localStorage.getItem(k) ?? 'null');
+                    }
+                  } catch {
+                    /* storage off — an empty file says so */
+                  }
+                  const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'slayer-terminal-export.json';
+                  a.click();
+                  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }}
+                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
+                data-export
+              >
+                <Download className="w-3 h-3" /> Export
+              </button>
+            </Row>
+            <Row name="Your community posts" line="Your posts, setups and their updates, as JSON" testId="export-posts">
+              <button
+                type="button"
+                onClick={() => {
+                  let posts: unknown = [];
+                  try {
+                    posts = JSON.parse(localStorage.getItem('slayer_room') ?? '[]');
+                  } catch {
+                    posts = [];
+                  }
+                  const blob = new Blob([JSON.stringify(posts, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'slayer-community-export.json';
+                  a.click();
+                  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }}
+                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
+                data-export-posts
+              >
+                <Download className="w-3 h-3" /> Export
+              </button>
+            </Row>
+          </Section>
+          )}
+
+          {/* DELETE ACCOUNT */}
+          {current === 'delete' && (
+          <Section id="delete" title="Delete account" line="This cannot be undone — the account, its board, its marks and its posts go with it">
+            <Row name="Delete my account" line="Everything the terminal keeps for you in this browser is erased. Export it first if you want a copy." testId="delete">
+              {confirmDelete ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-[11px] text-bear">Sure? This erases everything.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const keys: string[] = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                          const k = localStorage.key(i);
+                          if (k && k.startsWith('slayer_')) keys.push(k);
+                        }
+                        keys.forEach(k => localStorage.removeItem(k));
+                      } catch {
+                        /* storage off */
+                      }
+                      window.location.assign('/');
+                    }}
+                    className="inline-flex items-center h-7 px-2.5 rounded-md border border-bear/50 bg-bear/[0.1] font-mono text-[10px] uppercase tracking-wider text-bear"
+                    data-delete-confirm
+                  >
+                    Yes, delete
+                  </button>
+                  <button type="button" onClick={() => setConfirmDelete(false)} className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+                    Keep it
+                  </button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-bear/40 font-mono text-[10px] uppercase tracking-wider text-bear hover:bg-bear/[0.08] transition-colors" data-delete>
+                  <Trash2 className="w-3 h-3" /> Delete
+                </button>
+              )}
+            </Row>
           </Section>
           )}
 
@@ -337,7 +581,7 @@ const Settings = () => {
                   v{VERSION} · {import.meta.env.MODE}
                 </div>
               </div>
-              <Link to="/community/feedback" className="ml-auto shrink-0 inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+              <Link to="/feedback" className="ml-auto shrink-0 inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
                 Say something
               </Link>
             </div>

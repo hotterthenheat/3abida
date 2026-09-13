@@ -67,10 +67,13 @@ const MultiLeg = lazy(() => import('./pages/trace/MultiLeg'));
 const FlowTracker = lazy(() => import('./pages/trace/FlowTracker'));
 const DarkPool = lazy(() => import('./pages/trace/DarkPool'));
 const TraceCompare = lazy(() => import('./pages/trace/Compare'));
+/* THE COMMUNITY IS ONE ROOM (2026-09-13): the room, a profile, a name's page;
+   the requests and the feedback moved to their own page at /feedback */
 const CommunityLayout = lazy(() => import('./pages/community/CommunityLayout'));
-const Ideas = lazy(() => import('./pages/community/Ideas'));
-const Requests = lazy(() => import('./pages/community/Requests'));
-const Feedback = lazy(() => import('./pages/community/Feedback'));
+const Room = lazy(() => import('./pages/community/Room'));
+const Profile = lazy(() => import('./pages/community/Profile'));
+const TickerRoom = lazy(() => import('./pages/community/TickerRoom'));
+const Feedback = lazy(() => import('./pages/Feedback'));
 
 const App = () => {
   return (
@@ -179,11 +182,17 @@ const App = () => {
             <Route path="/flow-desk/*" element={<Navigate to="/trace" replace />} />
             <Route path="/pinpoint-gex/*" element={<Navigate to="/pinpoint" replace />} />
             <Route path="/community" element={<CommunityLayout />}>
-              <Route index element={<Navigate to="/community/ideas" replace />} />
-              <Route path="ideas" element={<Ideas />} />
-              <Route path="requests" element={<Requests />} />
-              <Route path="feedback" element={<Feedback />} />
+              <Route index element={<Room />} />
+              <Route path="me" element={<Profile />} />
+              <Route path="u/:handle" element={<Profile />} />
+              <Route path="t/:ticker" element={<TickerRoom />} />
+              {/* the old subpages: the room, or the feedback page */}
+              <Route path="ideas" element={<Navigate to="/community" replace />} />
+              <Route path="requests" element={<Navigate to="/feedback" replace />} />
+              <Route path="feedback" element={<Navigate to="/feedback" replace />} />
             </Route>
+            {/* FEEDBACK AND BUGS, its own page (2026-09-13) */}
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/auditor-log" element={<Navigate to="/tracker" replace />} />
           </Route>
         </Routes>

@@ -7,6 +7,7 @@ import {
   Sigma,
   ScrollText,
   Bookmark,
+  MessageSquareWarning,
   Users,
   Telescope,
   CandlestickChart,
@@ -132,7 +133,18 @@ export const NAV_ITEMS: NavItem[] = [
     code: '09',
     icon: Users,
     ink: NAV_INK.community,
-    description: 'Trade ideas, requests & feedback',
+    description: 'The room — traders, setups and the record they build',
+    group: 'Manage',
+  },
+  /* FEEDBACK AND BUGS, its own page (Noah, 2026-09-13) — suggestions and bug
+     reports with their votes, out of the community room */
+  {
+    path: '/feedback',
+    label: 'Feedback',
+    code: '08',
+    icon: MessageSquareWarning,
+    ink: NAV_INK.tracker,
+    description: 'Suggest what to build, report what broke — every note is read',
     group: 'Manage',
   },
   /* THE SETTINGS (2026-09-12): how the terminal looks, what the desk opens
