@@ -129,6 +129,25 @@ export function expiryFor(dte: number, from: Date = today()): Expiry {
   };
 }
 
+/**
+ * An expiry ON A GIVEN DATE, in the same shape `expiryFor` returns — for
+ * callers that already hold a listed date (a calendar pick, a ticker's own
+ * listing) and want its dte and sessions counted from `from`. A date that is
+ * not a session backs off to the session before it (a Friday holiday expires
+ * Thursday), which is how the exchanges list it.
+ */
+export function expiryAt(on: Date, from: Date = today()): Expiry {
+  const base = atMidnight(from);
+  const date = walkToSession(atMidnight(on), -1);
+  return {
+    date,
+    label: fmtExpiry(date),
+    weekday: WEEKDAY[date.getDay()],
+    dte: Math.round((date.getTime() - base.getTime()) / 86400000),
+    sessions: sessionsBetween(base, date),
+  };
+}
+
 /*
   HOW LONG A REGULAR SESSION IS, in one place.
 

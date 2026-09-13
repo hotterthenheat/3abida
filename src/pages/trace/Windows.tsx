@@ -16,7 +16,7 @@
 */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -37,6 +37,9 @@ import ReadDoor from '../../components/trace/ReadDoor';
 import { earnMarks, weightInk } from '../../components/trace/earnedInk';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import DayStrip from '../../components/trace/DayStrip';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
@@ -88,7 +91,10 @@ const Windows = () => {
   );
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book, tick } = hold.value;
+  const { book: heldBook, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): the day's windows over the cut book */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((s: { key: string }) => s.key, []);
   const openRow = useCallback((s: { row: { key: string } }) => setOpenKey(s.row.key), []);
   const windows = useMemo(() => intervalWindows(book), [book]);
@@ -186,7 +192,7 @@ const Windows = () => {
         align: 'right',
         sortValue: s => s.row.otmPct,
         render: s => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {s.row.otmPct >= 0 ? '+' : ''}
             {s.row.otmPct.toFixed(1)}%
           </span>
@@ -216,7 +222,7 @@ const Windows = () => {
                   style={{ width: `${Math.min(100, s.shareOfDayPct)}%` }}
                 />
               </span>
-              <span className={`tnum ${hot ? 'font-bold text-textPrimary' : 'text-textSecondary'}`}>
+              <span className={`tnum ${hot ? 'font-bold text-textPrimary' : 'text-textPrimary'}`}>
                 {s.shareOfDayPct.toFixed(0)}%
               </span>
             </span>
@@ -262,7 +268,7 @@ const Windows = () => {
         header: 'Sweep',
         align: 'right',
         sortValue: s => s.sweepPct,
-        render: s => <span className={s.sweepPct >= 40 ? 'text-textPrimary' : 'text-textSecondary'}>{s.sweepPct}%</span>,
+        render: s => <span className={s.sweepPct >= 40 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{s.sweepPct}%</span>,
       },
       {
         key: 'floor',
@@ -273,9 +279,9 @@ const Windows = () => {
         // the window.
         render: s =>
           s.floorPct === 0 ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={s.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textSecondary'}>{s.floorPct}%</span>
+            <span className={s.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{s.floorPct}%</span>
           ),
       },
       {
@@ -283,7 +289,7 @@ const Windows = () => {
         header: 'Multi',
         align: 'right',
         sortValue: s => s.multiPct,
-        render: s => <span className={s.multiPct >= 30 ? 'text-textPrimary' : 'text-textSecondary'}>{s.multiPct}%</span>,
+        render: s => <span className={s.multiPct >= 30 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{s.multiPct}%</span>,
       },
       {
         key: 'voloi',
@@ -291,7 +297,7 @@ const Windows = () => {
         align: 'right',
         sortValue: s => s.volOverOI,
         render: s => (
-          <span className={s.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>
+          <span className={s.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
             {s.volOverOI.toFixed(2)}
           </span>
         ),
@@ -331,9 +337,9 @@ const Windows = () => {
         sortValue: s => s.row.earnDays ?? 999,
         render: s =>
           s.row.earnDays == null ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={s.row.earnDays <= 5 ? 'text-warn' : 'text-textSecondary'}>
+            <span className={s.row.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>
               {s.row.earnDays === 0 ? 'today' : `in ${s.row.earnDays}d`}
             </span>
           ),
@@ -380,12 +386,12 @@ const Windows = () => {
         title="A quarter hour of the day"
         sub={`${activeCut.label} — ${activeCut.hint} · a row opens the contract's card`}
         testId="windows"
-        data={{ cut, window: win?.label, rows: slices.length }}
+        data={{ cut, window: win?.label, rows: slices.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the windows', door: 'What a window, a burst and the share of the day mean', body: <WindowsGuide />, testId: 'windows-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="In the window" testId="window">
-              {num(facts.total)} <span className="text-textMuted">contracts ·</span> {fmtUsd(facts.prem)}
+              {num(facts.total)} <span className="text-textSecondary">contracts ·</span> {fmtUsd(facts.prem)}
               {win?.live && (hold.paused ? <span className="ml-2 text-[9px] uppercase tracking-widest text-warn">held</span> : <span className="ml-2 text-[9px] uppercase tracking-widest text-select animate-live-breathe">still filling</span>)}
             </Fact>
             <Fact label="Names" testId="names">
@@ -438,6 +444,7 @@ const Windows = () => {
             <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
             <DropdownSelect label="Cut" value={cut} options={CUT_OPTIONS} onChange={setCut} title="Which of the window's flow" testId="windows-cut" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="windows-side" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="windows-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>

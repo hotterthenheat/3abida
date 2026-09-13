@@ -38,6 +38,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { X } from 'lucide-react';
 import { fmtDollars } from '../../data/ahead';
 import { GREEK_LABEL, GREEK_WORDS, distanceIn, sharedUnit, type Compare, type CompareSide, type Greek, type Reach } from '../../data/compare';
+import CompanyLogo from '../ui/CompanyLogo';
 import { GREEKS } from '../../data/exposureSurface';
 import type { DistanceUnit } from '../../data/atr';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
@@ -779,12 +780,14 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
            to distinguish the respected tickers here") — the left name and its
            scale, the greek, the right scale and its name */
         <div className="px-2 flex items-center justify-between font-mono text-[9px] tnum whitespace-nowrap" style={{ height: 22 }} data-lane-caption>
-          <span className="truncate">
-            <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> <span className="text-textMuted">{fmtDollars(scale.a)}</span>
+          <span className="truncate inline-flex items-center gap-1.5">
+            <CompanyLogo ticker={cmp.a.ticker} size={12} />
+            <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> <span className="text-textSecondary">{fmtDollars(scale.a)}</span>
           </span>
           <span className="font-bold uppercase tracking-widest text-textSecondary">{GREEK_LABEL[greek]}</span>
-          <span className="truncate">
-            <span className="text-textMuted">{fmtDollars(scale.b)}</span> <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
+          <span className="truncate inline-flex items-center gap-1.5">
+            <span className="text-textSecondary">{fmtDollars(scale.b)}</span> <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
+            <CompanyLogo ticker={cmp.b.ticker} size={12} />
           </span>
         </div>
       )}
@@ -825,7 +828,8 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                 const alignRight = (which === 's') === (myCard.side === 'a');
                 return (
                   <span key={which} className={`min-w-0 flex flex-col leading-tight ${alignRight ? 'items-end text-right' : 'items-start'}`} style={{ gridRow: 1, gridColumn: (which === 's') === (myCard.side === 'a') ? 2 : 3 }} data-card-head={which}>
-                    <span className="font-mono text-[12px] font-bold tnum text-textPrimary whitespace-nowrap">
+                    <span className="font-mono text-[12px] font-bold tnum text-textPrimary whitespace-nowrap inline-flex items-center gap-1.5">
+                      <CompanyLogo ticker={L.side.ticker} size={13} />
                       {L.side.ticker} {r ? fmtStrike(r.strike) : '—'}
                     </span>
                     <span className="text-[9.5px] whitespace-nowrap">
@@ -886,7 +890,8 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
         {row && S && readSide ? (
           compact ? (
             <>
-              <span className="font-mono font-bold tnum text-textPrimary">
+              <span className="font-mono font-bold tnum text-textPrimary inline-flex items-center gap-1.5">
+                <CompanyLogo ticker={S.side.ticker} size={12} />
                 {S.side.ticker} {fmtStrike(row.strike)}
               </span>
               <span className="font-mono tnum text-textPrimary truncate">
@@ -895,7 +900,8 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
             </>
           ) : (
             <>
-              <span className="font-mono text-[11px] font-bold tnum text-textPrimary">
+              <span className="font-mono text-[11px] font-bold tnum text-textPrimary inline-flex items-center gap-1.5">
+                <CompanyLogo ticker={S.side.ticker} size={13} />
                 {S.side.ticker} {fmtStrike(row.strike)}
               </span>
               <span className={`font-mono tnum ${row.d > 0 ? 'text-bull' : row.d < 0 ? 'text-bear' : 'text-textMuted'}`}>{tickWords(row.d, lay.U)}</span>

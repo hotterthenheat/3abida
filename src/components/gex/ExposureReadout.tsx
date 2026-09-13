@@ -7,6 +7,7 @@
 */
 
 import { fmtUsd } from '../../data/gex';
+import CompanyLogo from '../ui/CompanyLogo';
 import { GREEKS, GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposureSurface';
 import { BULL, LONG_GAMMA, PUT_WALL, SHORT_GAMMA } from './paletteInk';
 import type { SurfaceCell } from './exposureView';
@@ -60,7 +61,8 @@ const ExposureReadout = ({ surface, cell, depth, openRatio, caption }: ExposureR
   return (
     <div className="flex flex-col gap-1 min-w-[280px]">
       <div className="flex items-baseline gap-2 font-mono">
-        <span className="text-[12px] font-bold text-textPrimary tnum">
+        <span className="text-[12px] font-bold text-textPrimary tnum inline-flex items-center gap-1.5">
+          <CompanyLogo ticker={surface.ticker} size={13} />
           {surface.ticker} {fmtStrike(cell.strike)}
         </span>
         <span className="text-[9px] uppercase tracking-widest text-textSecondary">

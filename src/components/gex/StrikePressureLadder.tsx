@@ -104,6 +104,13 @@ const useMode = () => useContext(ModeCtx);
 /** Below this width the OI / volume / role columns fold away — the bars are
     the point, and they must never shrink to slivers to keep a caption. */
 const COMPACT_BELOW = 820;
+/** Below this the net column and the legs' figures go too (a docked Terrain
+    pane's rail, four charts up — Noah, 2026-09-12: "depending if someone has
+    4 charts or 1 you can remove the net old volume and xyz"); the hover card
+    still prints every figure */
+const TIGHT_BELOW = 420;
+/** Below this only the strike and the bars remain — the narrowest the rail is drawn */
+const BARE_BELOW = 280;
 /** The spine may lean this far from centre, in % of the bars lane, either way */
 const MAX_LEAN = 22;
 /** Room kept at each lane end for the leg's figure (11px mono, up to "$999.9M") */
@@ -178,9 +185,10 @@ const findTails = (strikes: StrikeExposure[], spot: number, maxNet: number): Set
   return out;
 };
 
+/** The flip's rule — the pill CENTRED on a dashed line to both edges (the spot rule's placement, 2026-09-12) */
 const FlipRule = ({ price }: { price: number }) => (
-  <span className="flex items-center gap-1.5 select-none" aria-label={`gamma flip ${price.toFixed(2)}`}>
-    <span className="h-px flex-grow border-t border-dashed" style={{ borderColor: alpha(FLIP, 0.6) }} />
+  <span className="flex items-center gap-1.5 select-none" aria-label={`gamma flip ${price.toFixed(2)}`} data-flip-rule>
+    <span className="h-px flex-1 border-t border-dashed" style={{ borderColor: alpha(FLIP, 0.6) }} />
     <span className="font-mono text-[9px] uppercase tracking-wider whitespace-nowrap" style={{ color: FLIP }}>
       flip
     </span>
@@ -190,7 +198,7 @@ const FlipRule = ({ price }: { price: number }) => (
     >
       {price.toFixed(2)}
     </span>
-    <span className="h-px w-3 shrink-0 border-t border-dashed" style={{ borderColor: alpha(FLIP, 0.6) }} />
+    <span className="h-px flex-1 border-t border-dashed" style={{ borderColor: alpha(FLIP, 0.6) }} />
   </span>
 );
 
@@ -240,6 +248,8 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
   const listRef = useRef<HTMLDivElement | null>(null);
   const rowLaneRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const [compact, setCompact] = useState(false);
+  const [tight, setTight] = useState(false);
+  const [bare, setBare] = useState(false);
   /* null until measured (2026-09-06, the perf sweep): the legs and their
      figures mount at their real length on the second frame instead of
      transitioning from a guessed one, and the measure itself waits for
@@ -269,7 +279,10 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
     const el = hostRef.current;
     if (!el) return;
     const read = () => {
-      setCompact(el.clientWidth < COMPACT_BELOW);
+      const w = el.clientWidth;
+      setCompact(w < COMPACT_BELOW);
+      setTight(w < TIGHT_BELOW);
+      setBare(w < BARE_BELOW);
       if (laneRef.current) setLaneW(laneRef.current.clientWidth);
     };
     const first = requestAnimationFrame(read);
@@ -283,7 +296,11 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
       () => {
         const hostTo = promisedWidth(el);
         const laneTo = laneRef.current ? promisedWidth(laneRef.current) : null;
-        if (hostTo != null) setCompact(hostTo < COMPACT_BELOW);
+        if (hostTo != null) {
+          setCompact(hostTo < COMPACT_BELOW);
+          setTight(hostTo < TIGHT_BELOW);
+          setBare(hostTo < BARE_BELOW);
+        }
         if (laneTo != null) setLaneW(laneTo);
       },
       () => undefined
@@ -392,13 +409,13 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
       cancelAnimationFrame(pending);
       list.removeEventListener('transitionend', onEnd);
     };
-  }, [strikes, compact, laneW, fill, spotAfterIndex]);
+  }, [strikes, compact, tight, bare, laneW, fill, spotAfterIndex]);
 
   // One scale for BOTH legs — the bars are comparable across the centre line.
   // The biggest leg reaches the lane's end minus its figure; the rest scale.
   const maxLeg = strikes.reduce((m, s) => Math.max(m, Math.abs(s.gex.put), Math.abs(s.gex.call)), 1);
   const maxNet = strikes.reduce((m, s) => Math.max(m, Math.abs(s.gex.net)), 1);
-  const reach = laneW === null ? 0 : Math.max(24, laneW / 2 - FIGURE_W - 6);
+  const reach = laneW === null ? 0 : Math.max(24, laneW / 2 - (tight ? 4 : FIGURE_W) - 6);
   const strengthOf = (v: number) => Math.abs(v) / maxLeg;
   const tails = findTails(strikes, levels.spot, maxNet);
 
@@ -429,9 +446,16 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
   }
 
   // The bars lane carries a floor in both sets — the bars are the number
-  const cols = compact
-    ? 'grid-cols-[52px_50px_minmax(160px,1fr)_68px]'
-    : 'grid-cols-[56px_52px_minmax(260px,1fr)_76px_60px_60px_80px]';
+  /* The figure columns hold "-$1185.8M" at 10px mono with a gutter to spare
+     (Noah, 2026-09-12, the photo with the net column cut off at the edge);
+     the tightest set (a docked pane's rail) keeps the strike and the bars. */
+  const cols = tight
+    ? bare
+      ? 'grid-cols-[48px_minmax(120px,1fr)]'
+      : 'grid-cols-[48px_46px_minmax(140px,1fr)]'
+    : compact
+      ? 'grid-cols-[52px_50px_minmax(160px,1fr)_84px]'
+      : 'grid-cols-[56px_52px_minmax(240px,1fr)_92px_66px_66px_84px]';
   const cell = 'font-mono text-[10px] tnum whitespace-nowrap';
   const head = 'font-mono text-[9px] uppercase tracking-widest text-textSecondary whitespace-nowrap';
   /* Row height as a NUMBER: in fill mode the rows share the list's height
@@ -450,6 +474,7 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
           2026-08-22: "this should be explained at the top"). */}
       {/* One line at full width (Noah, 2026-08-22) — 9px, short meanings;
           the long form lives on the term explainers. */}
+      {!bare && (
       <div className="shrink-0 flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-1.5 border-b border-borderSubtle/60 font-mono text-[9px] select-none">
         <LegendItem
           glyph={
@@ -503,21 +528,26 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
           />
         )}
       </div>
+      )}
 
       {/* Captions — one whisper row */}
       <div className={`shrink-0 grid ${cols} items-center gap-x-2 px-2 h-6 border-b border-borderSubtle bg-chip select-none`}>
         <span className={head}>Strike</span>
-        <span className={`${head} text-right`}>
-          <Term k="From spot">Δ spot</Term>
-        </span>
+        {!bare && (
+          <span className={`${head} text-right`}>
+            <Term k="From spot">Δ spot</Term>
+          </span>
+        )}
         <span ref={laneRef} className={`${head} text-center text-textMuted block min-w-0`}>
           <span className="transition-colors duration-700" style={{ color: inks.put }}>◂ puts</span>
           <span className="mx-2 text-textMuted">·</span>
           <span className="transition-colors duration-700" style={{ color: inks.call }}>calls ▸</span>
         </span>
-        <span className={`${head} text-right`}>
-          <Term k="Net GEX">Net</Term>
-        </span>
+        {!tight && (
+          <span className={`${head} text-right`}>
+            <Term k="Net GEX">Net</Term>
+          </span>
+        )}
         {!compact && (
           <>
             <span className={`${head} text-right`}>
@@ -602,7 +632,7 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
                     11px (Noah, 2026-08-22: "really muted") — the numbers a
                     trader reads must never sit in the whisper register. */}
                 <span className="font-mono text-[11px] font-semibold tnum whitespace-nowrap text-textPrimary">{strikeFormat(row.strike)}</span>
-                <span className="font-mono text-[10px] tnum whitespace-nowrap text-right text-textPrimary">{fmtDist(distPct)}</span>
+                {!bare && <span className="font-mono text-[10px] tnum whitespace-nowrap text-right text-textPrimary">{fmtDist(distPct)}</span>}
 
                 {/* THE LANE: the legs from the centre line, the leg's figure
                     riding each bar's end, and the spine contour drawn over it */}
@@ -618,27 +648,34 @@ const StrikePressureLadder = ({ data, strikeFormat = fmtStrikeDefault, fill = fa
                     <>
                       <LegBar px={putEnd} strength={putStrength} side="put" />
                       <LegBar px={callEnd} strength={callStrength} side="call" />
-                      {/* figures at the bar ends — axis labels on the bars themselves */}
-                      <span
-                        className="absolute top-1/2 -translate-y-1/2 text-right font-mono text-[11px] font-medium tnum whitespace-nowrap text-textPrimary transition-[right] duration-700"
-                        style={{ right: `calc(50% + ${putEnd + 6}px)`, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
-                      >
-                        {fmtUsd(Math.abs(row.gex.put))}
-                      </span>
-                      <span
-                        className="absolute top-1/2 -translate-y-1/2 font-mono text-[11px] font-medium tnum whitespace-nowrap text-textPrimary transition-[left] duration-700"
-                        style={{ left: `calc(50% + ${callEnd + 6}px)`, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
-                      >
-                        {fmtUsd(Math.abs(row.gex.call))}
-                      </span>
+                      {/* figures at the bar ends — axis labels on the bars themselves;
+                          folded at the tight width, where they would sit on the bars */}
+                      {!tight && (
+                        <>
+                          <span
+                            className="absolute top-1/2 -translate-y-1/2 text-right font-mono text-[11px] font-medium tnum whitespace-nowrap text-textPrimary transition-[right] duration-700"
+                            style={{ right: `calc(50% + ${putEnd + 6}px)`, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+                          >
+                            {fmtUsd(Math.abs(row.gex.put))}
+                          </span>
+                          <span
+                            className="absolute top-1/2 -translate-y-1/2 font-mono text-[11px] font-medium tnum whitespace-nowrap text-textPrimary transition-[left] duration-700"
+                            style={{ left: `calc(50% + ${callEnd + 6}px)`, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+                          >
+                            {fmtUsd(Math.abs(row.gex.call))}
+                          </span>
+                        </>
+                      )}
                     </>
                   )}
                 </span>
 
                 {/* Sim side-coding: negative = call-dominant = absorbs (steel), positive = amplifies (gold) */}
-                <span className={`${cell} text-right font-semibold transition-colors duration-700`} style={{ color: v < 0 ? inks.call : v > 0 ? inks.put : undefined }}>
-                  {fmtUsd(v)}
-                </span>
+                {!tight && (
+                  <span className={`${cell} text-right font-semibold transition-colors duration-700`} style={{ color: v < 0 ? inks.call : v > 0 ? inks.put : undefined }}>
+                    {fmtUsd(v)}
+                  </span>
+                )}
                 {!compact && (
                   <>
                     <span className={`${cell} text-right text-textPrimary`}>{row.oi.toLocaleString()}</span>

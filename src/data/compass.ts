@@ -9,6 +9,7 @@
 
 import { blackScholesGreeks } from '../core/greeks';
 import { expiryFor } from '../core/calendar';
+import { nearestListedExpiry } from './optionChain';
 import { isoDay } from '../core/journal';
 import type { MarketSnapshot, StrikeNode } from '../types/market';
 import { SLEEVE_BY_KEY, isScannerEligible } from '../types/compass';
@@ -219,7 +220,12 @@ export function sleeveForDte(dte: number): SleeveKey {
 /* THE SETUP'S ID IS ITS ADDRESS (the Compass walk, 2026-09-11): a setup's
    page lives at /compass/<id>, so the id round-trips — built here, read back
    here. Same shape `makeSetup` stamps: TICKER-strike-R-kind-tenor. */
-const ID_RE = /^([A-Z][A-Z0-9.]{0,6})-(\d+(?:\.\d+)?)-([CP])-(top-setups|quick-scalp|discounted|rebounds|whale-sweeps|all)-(odte|weekly|swing|leaps)$/;
+/* THE DATE RIDES THE ADDRESS (the calendar walk, 2026-09-12): a board set to a
+   listed expiry prices every setup at THAT date, not the sleeve's canonical
+   tenor, and the page must reprice at the same date — so the id carries the
+   exact calendar days as `-<n>d`, the suffix makeSetup already stamps for
+   user-named contracts. Absent, the sleeve's tenor stands, as before. */
+const ID_RE = /^([A-Z][A-Z0-9.]{0,6})-(\d+(?:\.\d+)?)-([CP])-(top-setups|quick-scalp|discounted|rebounds|whale-sweeps|all)-(odte|weekly|swing|leaps)(?:-(\d+)d)?$/;
 
 export interface SetupAddress {
   ticker: string;
@@ -227,17 +233,21 @@ export interface SetupAddress {
   right: OptionRight;
   scanner: ScannerKey;
   sleeve: SleeveKey;
+  /** Exact calendar days to the listed expiry the board priced at; absent = the sleeve's own tenor */
+  dte?: number;
 }
 
 export function setupIdOf(a: SetupAddress): string {
   const strikeLabel = a.strike % 1 === 0 ? a.strike.toFixed(0) : a.strike.toFixed(2);
-  return `${a.ticker.toUpperCase()}-${strikeLabel}-${a.right}-${a.scanner}-${a.sleeve}`;
+  return `${a.ticker.toUpperCase()}-${strikeLabel}-${a.right}-${a.scanner}-${a.sleeve}${a.dte != null ? `-${Math.max(0, Math.round(a.dte))}d` : ''}`;
 }
 
 export function parseSetupId(id: string): SetupAddress | null {
   const m = id.match(ID_RE);
   if (!m) return null;
-  return { ticker: m[1], strike: Number(m[2]), right: m[3] as OptionRight, scanner: m[4] as ScannerKey, sleeve: m[5] as SleeveKey };
+  const out: SetupAddress = { ticker: m[1], strike: Number(m[2]), right: m[3] as OptionRight, scanner: m[4] as ScannerKey, sleeve: m[5] as SleeveKey };
+  if (m[6] != null) out.dte = Number(m[6]);
+  return out;
 }
 
 export function makeSetup(
@@ -439,7 +449,9 @@ function buildGroup(
   iv: number,
   step: number,
   scanner: ScannerKey,
-  sleeve: SleeveKey
+  sleeve: SleeveKey,
+  /** The board's listed expiry, snapped to one THIS name lists — absent, the sleeve's tenor */
+  dte?: number
 ): SetupGroup | null {
   const bullish = tickerLean(ticker, scanner);
   const candidates: Setup[] = [];
@@ -447,7 +459,7 @@ function buildGroup(
   const rungPct = (SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).rungPct;
   const right: OptionRight = bullish ? 'C' : 'P';
   for (const strike of strikeLadder(spot, step, rungPct, 3, bullish)) {
-    const setup = makeSetup(ticker, spot, strike, right, scanner, iv, sleeve);
+    const setup = makeSetup(ticker, spot, strike, right, scanner, iv, sleeve, dte);
     if (setup.score >= PROFILES[scanner].scoreFloor) candidates.push(setup);
   }
 
@@ -508,9 +520,9 @@ export function buildChain(snapshot: MarketSnapshot, iv: number, tYears: number)
  * the contract's own analysis page; the expiry bucket follows the board's
  * sleeve, because that is the expiry the analysis will price.
  */
-function buildContractFacts(snapshot: MarketSnapshot, sleeve: SleeveKey): Omit<ImpactRow, 'rank'>[] {
+function buildContractFacts(snapshot: MarketSnapshot, sleeve: SleeveKey, dte?: number): Omit<ImpactRow, 'rank'>[] {
   const { ticker, spot, chain } = snapshot;
-  const exp = expiryFor((SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).dte);
+  const exp = expiryFor(dte ?? (SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).dte);
   const expiry = exp.dte === 0 ? '0DTE' : `${exp.dte}DTE`;
   const totalGamma = chain.reduce((a, n) => a + Math.abs(n.callGex) + Math.abs(n.putGex), 0) || 1;
   return chain.flatMap(node => {
@@ -543,8 +555,8 @@ function buildContractFacts(snapshot: MarketSnapshot, sleeve: SleeveKey): Omit<I
  * say whose book it is). 24 deep (Noah, 2026-08-17: 8 left the rail half
  * empty beside the board) — the rail fills its column and scrolls for the tail.
  */
-export function buildImpact(snapshot: MarketSnapshot, sleeve: SleeveKey): ImpactRow[] {
-  return buildContractFacts(snapshot, sleeve)
+export function buildImpact(snapshot: MarketSnapshot, sleeve: SleeveKey, dte?: number): ImpactRow[] {
+  return buildContractFacts(snapshot, sleeve, dte)
     .sort((a, b) => b.gamma - a.gamma)
     .slice(0, 24)
     .map((r, i) => ({ ...r, rank: i + 1 }));
@@ -567,11 +579,12 @@ export function buildSetupDrivers(
   snapshot: MarketSnapshot,
   target: { strike: number; right: OptionRight; priceTargets?: number[] },
   sleeve: SleeveKey,
-  limit = 8
+  limit = 8,
+  dte?: number
 ): DriverRow[] {
   const { spot, chain } = snapshot;
   if (!chain.length) return [];
-  const facts = buildContractFacts(snapshot, sleeve);
+  const facts = buildContractFacts(snapshot, sleeve, dte);
   const byKey = new Map(facts.map(f => [`${f.strike}${f.right}`, f]));
   const pick = (strike: number, right: OptionRight) => byKey.get(`${strike}${right}`);
 
@@ -627,7 +640,12 @@ export function buildCompassView(
   snapshot: MarketSnapshot,
   scanner: ScannerKey,
   universe: UniverseQuote[],
-  sleeve: SleeveKey = 'weekly'
+  sleeve: SleeveKey = 'weekly',
+  /** A listed expiry as calendar days out. Every name is priced at the date
+      IT lists nearest to it (index names carry dailies, most stocks only
+      Fridays or monthlies) — the board never offers a name a date it does
+      not trade. Absent, the sleeve's canonical tenor, as before. */
+  dte?: number
 ): CompassView {
   // The eligibility gate lives in the ENGINE, not just the tabs: an
   // ineligible lens×tenor combination yields an EMPTY scan, honestly — the
@@ -638,7 +656,7 @@ export function buildCompassView(
   // The sleeve's remaining life, in years — the chain prices at the TENOR the
   // board is showing, same clock-aware resolution the setups use.
   const sleeveT =
-    Math.max(expiryFor((SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).dte).sessions, 0.5) / 252;
+    Math.max(expiryFor(dte ?? (SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).dte).sessions, 0.5) / 252;
   if (!isScannerEligible(scanner, sleeve)) {
     return {
       scanner,
@@ -658,7 +676,8 @@ export function buildCompassView(
 
   const groups: SetupGroup[] = [];
   for (const q of feed) {
-    const group = buildGroup(q.ticker, q.price, q.iv, q.step, scanner, sleeve);
+    const own = dte != null ? nearestListedExpiry(q.ticker, dte).dte : undefined;
+    const group = buildGroup(q.ticker, q.price, q.iv, q.step, scanner, sleeve, own);
     if (group) groups.push(group);
   }
   groups.sort((a, b) => (b.setups[0]?.score ?? 0) - (a.setups[0]?.score ?? 0));

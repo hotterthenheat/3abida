@@ -16,6 +16,7 @@
 */
 
 import { useEffect, useState } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { firedWords, useAllAlerts, type FiredRecord } from '../gex/alertStore';
 import { ALERT, alpha } from '../gex/paletteInk';
 import { openAlertsDrawer } from '../../data/alertsDrawer';
@@ -55,6 +56,7 @@ const AlertToasts = () => {
           data-alert-toast={x.r.key}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: ALERT }} aria-hidden />
+          <CompanyLogo ticker={x.ticker} size={13} />
           <span className="font-bold">{x.ticker}</span>
           <span className="text-textPrimary">{firedWords(x.r.alert, x.ticker)}</span>
           <span className="text-[9px] uppercase tracking-wider text-textMuted">alerted</span>

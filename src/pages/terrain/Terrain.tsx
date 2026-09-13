@@ -29,15 +29,16 @@ import StrikeChart, {
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import { useFadeClose } from '../../components/ui/useFadeClose';
 import CompareControl from '../../components/gex/CompareControl';
-import ProfilePanel, { PROFILE_MIN_W, type ProfileLane } from '../../components/gex/ProfilePanel';
-import ProfileGuide from '../../components/gex/ProfileGuide';
-import GuideFocus from '../../components/ui/GuideFocus';
-import { buildFlowFromRows } from '../../data/hedgeFlow';
+import { type ProfileLane } from '../../components/gex/ProfilePanel';
+import TerrainPanel, { PANEL_MIN_W, panelDefaultW, type PanelGreek, type PanelMode } from '../../components/gex/TerrainPanel';
+import type { StrikeWindow } from '../../data/exposure';
+import type { ExposureExpiry } from '../../types/gex';
 import useFocusTrap from '../../components/ui/useFocusTrap';
 import { useIsBelowLg, useIsPhone } from '../../components/ui/useMediaQuery';
 import ScopeChip from '../../components/ui/ScopeChip';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
+import CompanyLogo from '../../components/ui/CompanyLogo';
 import {
   CANDLE_THEMES,
   chartSurface,
@@ -174,6 +175,15 @@ export interface PaneCfg {
       Per SLOT like `ladder`: a way of reading a pane. 'size' by default,
       because the docked panel is 132px and two lanes want room. */
   lane: ProfileLane;
+  /** THE PANEL'S FACE (2026-09-12): the ladder — bars, net, OI, volume, role —
+      or the net strip, one figure per strike over the chart's timeframe.
+      Per SLOT like `ladder`: a way of reading a pane. */
+  panel: PanelMode;
+  /** The strip's greek — GEX, DEX, VEX, vanna or charm on one card */
+  panelGreek: PanelGreek;
+  /** Which contracts the panel weighs, and how many strikes around spot */
+  ladderExpiry: ExposureExpiry;
+  ladderRange: StrikeWindow;
   /** This pane's candle theme (Noah, 2026-08-25: "if i change the theme for
       1 chart it should NOT change for all the others"). A SLOT field like
       the rail: the arrangement's look, not the symbol's memory. Ours, kept
@@ -220,6 +230,10 @@ const defaultPanes = (): PaneCfg[] =>
     sessionOr: 15 as OpeningRange,
     ladder: true,
     lane: 'size' as ProfileLane,
+    panel: 'ladder' as PanelMode,
+    panelGreek: 'gex' as PanelGreek,
+    ladderExpiry: '0DTE' as ExposureExpiry,
+    ladderRange: 10 as StrikeWindow,
     theme: getCandleThemeKey(),
     link: null,
   }));
@@ -278,8 +292,12 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
     sessionOr: typeof c.sessionOr === 'number' && OR_VALUES.has(c.sessionOr) ? (c.sessionOr as OpeningRange) : def.sessionOr,
     ladder: typeof c.ladder === 'boolean' ? c.ladder : def.ladder,
     ladderW:
-      typeof c.ladderW === 'number' && c.ladderW >= PROFILE_MIN_W && c.ladderW < 4000 ? c.ladderW : def.ladderW,
+      typeof c.ladderW === 'number' && c.ladderW >= PANEL_MIN_W && c.ladderW < 4000 ? c.ladderW : def.ladderW,
     lane: c.lane === 'both' || c.lane === 'size' || c.lane === 'flow' ? c.lane : def.lane,
+    panel: c.panel === 'ladder' || c.panel === 'strip' ? c.panel : def.panel,
+    panelGreek: c.panelGreek === 'gex' || c.panelGreek === 'dex' || c.panelGreek === 'vex' || c.panelGreek === 'vanna' || c.panelGreek === 'charm' ? c.panelGreek : def.panelGreek,
+    ladderExpiry: typeof c.ladderExpiry === 'string' && ['0DTE', '1D', '2D', '5D', '7D', 'OPEX', 'ALL'].includes(c.ladderExpiry) ? (c.ladderExpiry as ExposureExpiry) : def.ladderExpiry,
+    ladderRange: c.ladderRange === 10 || c.ladderRange === 15 || c.ladderRange === 20 || c.ladderRange === 30 ? c.ladderRange : def.ladderRange,
     theme: typeof c.theme === 'string' && c.theme in CANDLE_THEMES ? (c.theme as CandleThemeKey) : def.theme,
     link: c.link === 'A' || c.link === 'B' ? c.link : null,
   };
@@ -935,12 +953,6 @@ const Pane = ({
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => setFocus(null), [ticker]);
 
-  /* What a move to each strike forces dealers to trade — the panel's second
-     lane, off the SAME rows the size lane draws, so the flow beside a capsule
-     is the flow of that capsule's book. */
-  const flow = useMemo(() => (rail.rows.length ? buildFlowFromRows(rail.rows, levels.spot) : null), [rail, levels.spot]);
-  /* The panel's "How to read", as a focus over this pane — the Map's own card */
-  const [guideOpen, setGuideOpen] = useState(false);
 
   /*
     THE HOVERED BAR — T-8. The chart reports its own values at the crosshair,
@@ -1400,7 +1412,8 @@ const Pane = ({
                    is simply the ticker, timeframe, and tick price") — the
                    Pulse takeover's own legend: facts on the tape, no chip, no
                    controls; the controls all moved up into the strip. */
-                <div className="pointer-events-none select-none flex items-baseline gap-1.5 font-mono">
+                <div className="pointer-events-none select-none flex items-center gap-1.5 font-mono">
+                  <CompanyLogo ticker={ticker} size={14} />
                   <span className="text-[11px] font-semibold text-textPrimary">{ticker}</span>
                   <span className="text-[10px] text-textMuted" aria-hidden>·</span>
                   <span className="text-[10px] text-textMuted">{timeframe}</span>
@@ -1608,6 +1621,7 @@ const Pane = ({
                 {compares.map(c => (
                   <span key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
                     <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
+                    <CompanyLogo ticker={c.ticker} size={12} />
                     <span className="font-mono text-[10px] font-semibold" style={{ color: c.ink }}>
                       {c.ticker}
                     </span>
@@ -1644,60 +1658,40 @@ const Pane = ({
             rewrite a preference because they picked up their phone.
           */}
           {ladder && rail.rows.length > 0 && (
-            <ProfilePanel
-              width={cfg.ladderW ?? PROFILE_MIN_W}
-              onWidth={w => onCfg({ ladderW: w })}
+            /* THE PANEL (2026-09-12): the ladder, or the net strip over the chart's
+               timeframe — components/gex/TerrainPanel.tsx. Its face, greek,
+               expiry and window are the SLOT's, like `ladder` itself. */
+            <TerrainPanel
               ticker={ticker}
-              rows={rail.rows}
-              maxAbs={rail.maxAbs}
-              step={rail.step}
-              levels={levels}
-              flow={flow}
-              lane={cfg.lane}
-              onLane={l => onCfg({ lane: l })}
-              greek="GEX"
-              onGuide={() => setGuideOpen(v => !v)}
-              guideOpen={guideOpen}
+              revision={revision}
+              timeframe={timeframe}
+              mode={cfg.panel}
+              onMode={m => onCfg({ panel: m })}
+              greek={cfg.panelGreek}
+              onGreek={g => onCfg({ panelGreek: g })}
+              expiry={cfg.ladderExpiry}
+              onExpiry={e => onCfg({ ladderExpiry: e })}
+              range={cfg.ladderRange}
+              onRange={r => onCfg({ ladderRange: r })}
+              width={cfg.ladderW ?? 0}
+              onWidth={w => onCfg({ ladderW: w })}
               focusPrice={focus}
-              projection={projectionRef}
+              onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
               onClose={() => {
                 onCfg({ ladder: false });
-                /*
-                  A control that removes ITSELF has to say where focus goes.
-
-                  This button unmounts on the same click, and the browser's
-                  answer to "the focused element is gone" is <body> — so a
-                  keyboard reader is dropped to the top of the document and
-                  tabs back through the whole desk to reach anything. Focus
-                  goes to the one control that undoes this, which is what a
-                  reader would look for next.
-
-                  After the commit, not during: the button is still mounted in
-                  this tick, and focusing the target before React removes it
-                  would be undone by the removal.
-                */
+                /* A control that removes ITSELF says where focus goes: the
+                   STRIKES button, the one control that undoes this — after
+                   the commit, so the removal cannot undo the focus. */
                 requestAnimationFrame(() => {
                   const undo = document.querySelector<HTMLElement>('[data-strikes-toggle]');
-                  // Belt and braces. This × only exists where the rail does,
-                  // which is `lg` and up, and STRIKES is rendered across that
-                  // whole range — so the query should always find it. If a
-                  // resize ever lands between the two, leaving focus where it
-                  // is beats throwing on null.
                   if (undo?.isConnected) undo.focus();
                 });
               }}
-              closeHint="Hide this rail — R"
-              onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
-              className="hidden lg:block"
+              closeHint="Hide this panel — R"
+              className="hidden lg:flex"
             />
           )}
         </div>
-        {/* THE GUIDE IN FOCUS — over the whole pane, the pane blurred behind it */}
-        {ladder && (
-          <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read this panel" testId="profile-guide">
-            <ProfileGuide rows={rail.rows} levels={levels} flow={flow} />
-          </GuideFocus>
-        )}
       </div>
     </div>
   );
@@ -2317,11 +2311,12 @@ const Terrain = () => {
         browser chrome until the reader scrolls — and the bottom of a Terrain
         pane is its time axis. Pulse already documents this; same reason here.
       */
-      className={`relative -mx-4 lg:-mx-6 2xl:-mx-8 px-1.5 flex flex-col ${
-        isPhone
-          ? '-mt-5 -mb-16 py-1.5 h-[calc(100dvh-3.5rem)] min-h-0'
-          : 'lg:-mt-5 lg:-mb-16 lg:py-1.5 lg:h-[calc(100vh-3.5rem)] lg:min-h-0'
-      }`}
+      /* FITS THE SCREEN (Noah, 2026-09-12: "terrain should not have a footer
+         its a charting thing it should fit the screen perfectly"): the shell
+         frames this page — no footer, no gutters, no scroll — so the desk
+         is simply the frame's whole height, on a phone and on a desk alike. */
+      className="relative px-1.5 py-1.5 flex flex-col h-full min-h-0"
+      data-terrain-desk
     >
       {/*
         THE ARRANGEMENT CONTROLS, floating over the top-right of the grid.
@@ -2381,7 +2376,7 @@ const Terrain = () => {
         style={{
           right:
             ((expanded !== null ? panes[expanded] : panes[panes.length - 1])?.ladder && !belowLg
-              ? (expanded !== null ? panes[expanded] : panes[panes.length - 1])?.ladderW ?? PROFILE_MIN_W
+              ? (expanded !== null ? panes[expanded] : panes[panes.length - 1])?.ladderW ?? panelDefaultW(expanded !== null ? 1 : cfg.layout)
               : 0) +
             PRICE_GUTTER_PX +
             8,

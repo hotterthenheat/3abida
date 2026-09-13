@@ -31,6 +31,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -53,6 +54,9 @@ import BookDrill from '../../components/trace/BookDrill';
 import ContractCell from '../../components/trace/ContractCell';
 import { earnMarks, weightInk } from '../../components/trace/earnedInk';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import ReasonDoor from '../../components/trace/ReasonDoor';
 import ReadDoor from '../../components/trace/ReadDoor';
@@ -109,7 +113,10 @@ const Watchers = () => {
   );
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book, tick } = hold.value;
+  const { book: heldBook, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): the watchers run over the cut book */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((a: { id: string }) => a.id, []);
   const openRow = useCallback((a: { row: { key: string } }) => setOpenKey(a.row.key), []);
   const catches = useMemo(() => buildCatches(book, myReasons), [book, myReasons]);
@@ -243,7 +250,7 @@ const Watchers = () => {
         render: a => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={contractKey(a.row)} make={() => watchContract(a.row, 'watchers')} />
-            <span className="text-[11px] text-textSecondary">{a.time}</span>
+            <span className="text-[11px] text-textPrimary">{a.time}</span>
           </span>
         ),
       },
@@ -281,7 +288,7 @@ const Watchers = () => {
            leads with the handle you gave it. Shape says whose, hue says which. */
         render: a => {
           const meta = reasonOf(a.rule);
-          if (!meta) return <span className="text-textMuted">—</span>;
+          if (!meta) return <span className="text-textSecondary">—</span>;
           return (
             <span
               className="inline-flex items-center gap-1.5 text-[11px] text-textPrimary"
@@ -355,7 +362,7 @@ const Watchers = () => {
         align: 'right',
         sortValue: a => a.row.volOverOI,
         render: a => (
-          <span className={a.row.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>
+          <span className={a.row.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
             {a.row.volOverOI.toFixed(2)}
           </span>
         ),
@@ -366,7 +373,7 @@ const Watchers = () => {
         align: 'right',
         sortValue: a => a.row.otmPct,
         render: a => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {a.row.otmPct >= 0 ? '+' : ''}
             {a.row.otmPct.toFixed(1)}%
           </span>
@@ -379,9 +386,9 @@ const Watchers = () => {
         sortValue: a => a.row.earnDays ?? 999,
         render: a =>
           a.row.earnDays == null ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={a.row.earnDays <= 5 ? 'text-warn' : 'text-textSecondary'}>
+            <span className={a.row.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>
               {a.row.earnDays === 0 ? 'today' : `in ${a.row.earnDays}d`}
             </span>
           ),
@@ -421,21 +428,21 @@ const Watchers = () => {
         title="The desk watching the tape"
         sub={activeRule ? `${activeRule.label} — ${activeRule.phrase} · newest first · a row opens the contract's card` : "Every reason a contract is flagged — the desk's and yours, newest first · a row opens the contract's card"}
         testId="watchers"
-        data={{ rule, rows: rows.length }}
+        data={{ rule, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the watchers', door: 'What a reason, the print and the side mean', body: <WatchersGuide />, testId: 'watchers-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Caught today" testId="caught">
               {num(facts.total)}
               {facts.loudName && (
-                <span className="text-textMuted">
+                <span className="text-textSecondary">
                   {' '}
                   · {facts.loudCount} {facts.loudName.toLowerCase()}
                 </span>
               )}
             </Fact>
             <Fact label="From your reasons" testId="mine">
-              <span className={facts.mine > 0 ? 'text-textPrimary' : 'text-textMuted'}>{facts.mine}</span>
+              <span className={facts.mine > 0 ? 'text-textPrimary' : 'text-textSecondary'}>{facts.mine}</span>
             </Fact>
             {champs.ask && champs.ask !== champs.all && (
               <Champion label="Top ask" ink="bull" onOpen={() => setOpenKey(champs.ask!.row.key)} testId="top-ask">
@@ -460,6 +467,7 @@ const Watchers = () => {
             <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="contracts" />
             <DropdownSelect label="Reason" value={rule} options={reasonOptions} onChange={setRule} title="Which watcher's catches" testId="watchers-reason" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="watchers-side" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="watchers-expiry" />
             <ReasonDoor book={book} />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />

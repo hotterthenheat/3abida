@@ -124,10 +124,20 @@ const SessionSpark = ({ ticker, width = 96, height = 26 }: SessionSparkProps) =>
   if (!bars || bars.length < 2) return <span style={{ width, height }} className="shrink-0" aria-hidden />;
 
   const closes = sessionCloses(bars);
-  // Downsample to ≤40 points, always keeping the latest close.
-  const step = Math.max(1, Math.floor(closes.length / 40));
-  const pts = closes.filter((_, i) => i % step === 0);
-  if (pts[pts.length - 1] !== closes[closes.length - 1]) pts.push(closes[closes.length - 1]);
+  /* JITTER-FREE (Noah, 2026-09-12: "make sure these charts work and are
+     jitter free"). The old downsample kept every k-th close with k = floor(n/40):
+     each time the session crossed a multiple of 40 bars, k stepped and EVERY
+     kept point moved to a different bar — the whole line re-shaped on one
+     tick. Now the line is resampled onto a FIXED grid of 40 evenly spaced
+     positions across the session (the newest close always the last point), so
+     a new bar nudges the curve by one fortieth of its width and nothing else
+     moves. */
+  const N = Math.min(40, closes.length);
+  const pts: number[] = [];
+  for (let i = 0; i < N; i++) {
+    const at = N === 1 ? closes.length - 1 : Math.round((i / (N - 1)) * (closes.length - 1));
+    pts.push(closes[at]);
+  }
   if (pts.length < 2) return <span style={{ width, height }} className="shrink-0" aria-hidden />;
 
   const min = Math.min(...pts);

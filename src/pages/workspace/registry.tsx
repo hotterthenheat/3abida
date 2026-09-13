@@ -16,6 +16,23 @@
   five-factor Ranked Targets under its key), At the
   wall, Where the walls are heading (replacing Wall
   Drift under its key).
+
+  THE AUDIT (Noah, 2026-09-12: "some things we have
+  on the + add widget page don't make sense so take
+  control and you use logic to understand which
+  fits and does not"). The rule a panel has to pass:
+  it is a LIVE READING of one name or the market —
+  one question, answered on the desk's clock, in a
+  tile — and it is a copy of a page a reader can
+  open. What failed it: the Weigher, a whole
+  workstation (a chain to pick from, a contract to
+  weigh) crammed into a tile, which the page does
+  properly — gone. What the desk lacked and fits:
+  the name's Net flow, its Dark pool shelves and
+  its Tape, the Trace pages' own readings, so the
+  desk sees the flow beside the levels. Order flow
+  keeps its place and loses a door it never had a
+  page for.
 ==================================================
 */
 
@@ -26,7 +43,9 @@ import CompassSetupsWidget from './CompassSetupsWidget';
 import TargetsWidget from './TargetsWidget';
 import EarningsWidget from './EarningsWidget';
 import NewsWidget from './NewsWidget';
-import WeigherChainWidget from './WeigherChainWidget';
+import NetFlowWidget from './NetFlowWidget';
+import DarkPoolWidget from './DarkPoolWidget';
+import TapeWidget from './TapeWidget';
 import { CloseWidget, RangeWidget } from './AheadWidgets';
 import AtTheWallWidget from './AtTheWallWidget';
 import WallsHeadingWidget from './WallsHeadingWidget';
@@ -262,7 +281,6 @@ export const WIDGETS: WidgetDef[] = [
       </div>
     ),
     skeleton: chartSkeleton,
-    page: { path: '/trace/live-tape', label: 'the Live Tape' },
   },
   {
     // Key kept from the old mini-feed so saved desks upgrade in place —
@@ -310,21 +328,46 @@ export const WIDGETS: WidgetDef[] = [
     page: { path: '/record/news', label: 'News' },
   },
   {
-    key: 'compass-weigher',
-    /* The stored-layout key stays 'compass-weigher' — renaming it would
-       orphan every saved Pulse board. Only the words moved (the Weigher is
-       its own page now, not a Compass tab). */
-    title: 'Weigher',
-    sub: 'The deep chain and the strike weigh-up, live',
-    description: 'The Weigher desk in panel form — the deep chain & the strike weigh-up, live',
-    w: 8,
-    h: 6,
-    minW: 5,
+    key: 'net-flow',
+    title: 'Net flow',
+    sub: "Which way the name's money leans, through the session",
+    description: "The Net Flow pane on the tile's name — its own candles as the spot line, net call and net put premium as the lines, cut by money and by clock",
+    w: 6,
+    h: 5,
+    minW: 4,
     minH: 4,
-    maxH: 9,
-    render: ctx => <WeigherChainWidget ctx={ctx} />,
+    maxH: 8,
+    render: ctx => <NetFlowWidget ctx={ctx} />,
     skeleton: chartSkeleton,
-    page: { path: '/weigher', label: 'the Weigher' },
+    page: { path: '/trace/net-flow', label: 'Net Flow' },
+  },
+  {
+    key: 'dark-pool',
+    title: 'Dark pool',
+    sub: 'The shelves the off-exchange dollars left, and the posture behind them',
+    description: "The name's dark-pool posture, the share of the session that printed off-exchange, the largest cross, and the liquidity shelves — support, resistance, a pivot — with how often price has bounced off each",
+    w: 5,
+    h: 4,
+    minW: 4,
+    minH: 3,
+    maxH: 7,
+    render: ctx => <DarkPoolWidget ctx={ctx} />,
+    skeleton: chartSkeleton,
+    page: { path: '/trace/dark-pool', label: 'the Dark Pool' },
+  },
+  {
+    key: 'the-tape',
+    title: 'The tape',
+    sub: "The name's rich prints as they land",
+    description: "The Live Tape cut to the tile's name — each print's contract, size at the fill, dollars, the side of the spread it hit, sweeps marked",
+    w: 5,
+    h: 5,
+    minW: 4,
+    minH: 3,
+    maxH: 9,
+    render: ctx => <TapeWidget ctx={ctx} />,
+    skeleton: chartSkeleton,
+    page: { path: '/trace/live-tape', label: 'the Live Tape' },
   },
 ];
 

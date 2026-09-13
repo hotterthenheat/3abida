@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, X } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, X } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { buildSpreadFlow, spreadLegRow, SPREAD_KINDS, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
@@ -25,6 +25,9 @@ import BookDrill from '../../components/trace/BookDrill';
 import { earnMarks, weightInk } from '../../components/trace/earnedInk';
 import { DOOR, DOOR_HOVER_TEXT } from '../../components/trace/door';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import ReadDoor from '../../components/trace/ReadDoor';
@@ -73,7 +76,7 @@ const KIND_META = Object.fromEntries(SPREAD_KINDS.map(k => [k.key, k])) as Recor
 >;
 
 const riskCell = (v: number | 'uncapped' | null, tone: 'loss' | 'profit') => {
-  if (v === null) return <span className="text-textMuted">—</span>;
+  if (v === null) return <span className="text-textSecondary">—</span>;
   if (v === 'uncapped')
     return <span className={`font-bold ${tone === 'loss' ? 'text-warn' : 'text-bull'}`}>Uncapped</span>;
   return <span className={tone === 'loss' ? 'text-bear' : 'text-bull'}>{fmtUsd(v)}</span>;
@@ -125,7 +128,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: KIND_DOT[trade.kind] }} />
             {KIND_META[trade.kind].label}
           </span>
-          <span className="ml-auto font-mono text-[10px] text-textMuted tnum whitespace-nowrap">
+          <span className="ml-auto font-mono text-[10px] text-textSecondary tnum whitespace-nowrap">
             {trade.time} · spot ${trade.spot.toFixed(2)}
           </span>
           <button
@@ -154,7 +157,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
               <span className={`font-semibold ${l.right === 'C' ? 'text-bull' : 'text-bear'}`}>
                 {l.right === 'C' ? 'call' : 'put'}
               </span>
-              <span className="text-[10px] text-textMuted">
+              <span className="text-[10px] text-textSecondary">
                 {l.expiry} · {l.dte}d
               </span>
               <span className="ml-auto tnum text-textPrimary">@ ${l.fill.toFixed(2)}</span>
@@ -250,7 +253,10 @@ const MultiLeg = () => {
   );
   // The shared hold (see LiveHold): structures and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ trades: liveTrades, tick: marketData }), [liveTrades, marketData]), activeTicker);
-  const { trades, tick } = hold.value;
+  const { trades: heldTrades, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): a structure sits on its near leg's expiry */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldTrades, t => t.expiry);
+  const trades = useMemo(() => cutExpiry(heldTrades), [heldTrades, cutExpiry]);
   const keyOf = useCallback((t: { id: string }) => t.id, []);
   const openRow = useCallback((t: SpreadTrade) => setDrill(t), []);
 
@@ -334,7 +340,7 @@ const MultiLeg = () => {
         render: t => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={structureKey(t)} make={() => watchStructure(t, 'multi-leg')} noun="structure" />
-            <span className="text-[11px] text-textSecondary">{t.time}</span>
+            <span className="text-[11px] text-textPrimary">{t.time}</span>
           </span>
         ),
       },
@@ -373,7 +379,7 @@ const MultiLeg = () => {
           <span className="inline-flex items-baseline gap-1 font-mono tnum">
             {distinctStrikes(t).map(({ strike, legIdx }, n) => (
               <span key={legIdx} className="inline-flex items-baseline">
-                {n > 0 && <span className="text-textMuted mx-1">/</span>}
+                {n > 0 && <span className="text-textSecondary mx-1">/</span>}
                 <button
                   onClick={e => {
                     e.stopPropagation();
@@ -399,8 +405,8 @@ const MultiLeg = () => {
            up the tails and left the DATES ragged — the wrong thing anchored. */
         sortValue: t => t.dte,
         render: t => (
-          <span className="text-textSecondary text-[11px]">
-            {t.expiry} <span className="text-textMuted">· {t.dte}d</span>
+          <span className="text-textPrimary text-[11px]">
+            {t.expiry} <span className="text-textSecondary">· {t.dte}d</span>
           </span>
         ),
       },
@@ -419,7 +425,7 @@ const MultiLeg = () => {
         render: t => (
           <span className="text-textPrimary">
             ${Math.abs(t.net).toFixed(2)}{' '}
-            <span className="text-[10px] text-textMuted">{t.net >= 0 ? 'debit' : 'credit'}</span>
+            <span className="text-[10px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
           </span>
         ),
       },
@@ -469,7 +475,7 @@ const MultiLeg = () => {
         align: 'right',
         sortValue: t => t.theta,
         render: t => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {t.theta >= 0 ? '+' : ''}
             {t.theta.toFixed(2)}
           </span>
@@ -480,7 +486,7 @@ const MultiLeg = () => {
         header: 'Stock',
         align: 'right',
         sortValue: t => t.spot,
-        render: t => <span className="text-textSecondary">${t.spot.toFixed(2)}</span>,
+        render: t => <span className="text-textPrimary">${t.spot.toFixed(2)}</span>,
       },
       {
         key: 'legs',
@@ -523,21 +529,21 @@ const MultiLeg = () => {
         title="The tape as structures"
         sub={`${activeKind ? `${activeKind.label} — ${activeKind.read}` : 'Every structure on the tape today, newest first'} · a row opens the structure with each leg`}
         testId="multi-leg"
-        data={{ kind, rows: rows.length }}
+        data={{ kind, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the structures', door: 'What a shape, its strikes and its risk mean', body: <StructureGuide />, testId: 'multi-leg-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Structures today" testId="structures">
               {num(trades.length)}
               {facts.loudKind && (
-                <span className="text-textMuted">
+                <span className="text-textSecondary">
                   {' '}
                   · {facts.loudCount} {facts.loudKind.toLowerCase()}
                 </span>
               )}
             </Fact>
             <Fact label="Paid · collected" testId="money">
-              {facts.paid} <span className="text-textMuted">·</span> {facts.collected}
+              {facts.paid} <span className="text-textSecondary">·</span> {facts.collected}
             </Fact>
             {champs.paid && champs.paid !== champs.all && (
               <Champion label="Largest paid" ink="bull" onOpen={() => setDrill(champs.paid!)} testId="paid">
@@ -562,6 +568,7 @@ const MultiLeg = () => {
             <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="structures" />
             <DropdownSelect label="Shape" value={kind} options={SHAPE_OPTIONS} onChange={setKind} title="Which structures" testId="multi-leg-shape" />
             <DropdownSelect label="Money" value={money} options={MONEY_OPTIONS} onChange={setMoney} title="Paid to put on, or collected" testId="multi-leg-money" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only structures whose near leg sits on one expiry — or every expiry" testId="multi-leg-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>

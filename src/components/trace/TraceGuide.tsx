@@ -768,4 +768,154 @@ export const TrackerGuide = () => (
   </div>
 );
 
+/* ---- dark pool ---------------------------------------------------------------- */
+
+/** A shelf: the price, its role in its ink, the bar of the session's dark dollars that rested there */
+export const ShelfFigure = () => (
+  <Figure label="A liquidity shelf: the role, the price, the share bar and how many times price bounced off it" h={96}>
+    <Head x={12} y={14}>ROLE</Head>
+    <Head x={92} y={14}>PRICE</Head>
+    <Head x={168} y={14}>FROM SPOT</Head>
+    <Head x={408} y={14} anchor="end">DARK $</Head>
+    {[
+      { y: 34, role: 'RESISTANCE', ink: BEAR, price: '507.40', dist: '+0.71%', usd: '$182.0M', w: 210, note: 'defended 2×' },
+      { y: 58, role: 'PIVOT', ink: WARN, price: '503.85', dist: '+0.01%', usd: '$96.4M', w: 112, note: 'untested' },
+      { y: 82, role: 'SUPPORT', ink: BULL, price: '499.10', dist: '−0.93%', usd: '$141.3M', w: 164, note: 'defended 3×' },
+    ].map(r => (
+      <g key={r.role}>
+        <text x={12} y={r.y} fontSize={7} fontFamily={MONO} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
+          {r.role}
+        </text>
+        <text x={92} y={r.y} fontSize={9} fontFamily={MONO} fontWeight={700} fill={INK}>
+          ${r.price}
+        </text>
+        <text x={168} y={r.y} fontSize={7} fontFamily={MONO} fill={r.dist.startsWith('+') ? BULL : BEAR}>
+          {r.dist}
+        </text>
+        <rect x={224} y={r.y - 6} width={120} height={3} rx={1.5} fill="rgba(237,237,237,0.06)" />
+        <rect x={224} y={r.y - 6} width={(r.w / 210) * 120} height={3} rx={1.5} fill={r.ink} opacity={0.7} />
+        <text x={408} y={r.y} fontSize={8} fontFamily={MONO} fill={INK} textAnchor="end">
+          {r.usd}
+        </text>
+        <text x={224} y={r.y + 8} fontSize={6} fontFamily={MONO} fill={SECOND}>
+          {r.note}
+        </text>
+      </g>
+    ))}
+  </Figure>
+);
+
+/** A cross with its read: the size at the price, the intent in its ink, the classifier's bar */
+export const CrossFigure = () => (
+  <Figure label="A dark-pool cross: the shares at the price, the read in its ink, and how sure the classifier is" h={70}>
+    <Head x={12} y={14}>TIME</Head>
+    <Head x={64} y={14}>PRICE</Head>
+    <Head x={132} y={14}>SHARES</Head>
+    <Head x={214} y={14}>READ</Head>
+    <Head x={318} y={14}>CONVICTION</Head>
+    {[
+      { y: 36, t: '14:12', px: '499.12', sh: '640,000', read: 'ACCUMULATION', ink: BULL, c: 84 },
+      { y: 58, t: '13:47', px: '507.36', sh: '210,000', read: 'HEDGE FLOW', ink: WARN, c: 56 },
+    ].map(r => (
+      <g key={r.t}>
+        <text x={12} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+          {r.t}
+        </text>
+        <text x={64} y={r.y} fontSize={9} fontFamily={MONO} fontWeight={700} fill={INK}>
+          ${r.px}
+        </text>
+        <text x={132} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+          {r.sh}
+        </text>
+        <text x={214} y={r.y} fontSize={7} fontFamily={MONO} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
+          {r.read}
+        </text>
+        <rect x={318} y={r.y - 5} width={56} height={3} rx={1.5} fill="rgba(237,237,237,0.06)" />
+        <rect x={318} y={r.y - 5} width={(r.c / 100) * 56} height={3} rx={1.5} fill={r.ink} opacity={0.8} />
+        <text x={384} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+          {r.c}%
+        </text>
+      </g>
+    ))}
+  </Figure>
+);
+
+export const DarkPoolGuide = () => (
+  <div data-trace-guide="dark-pool">
+    <Section title="Off-exchange">
+      <p>A dark-pool cross is size that changed hands away from the lit exchanges — an institution moving a position without showing its hand. The tape shows the print; this page shows the read: who is most likely behind it and what it means for the level it printed at.</p>
+      <CrossFigure />
+    </Section>
+    <Section title="The read">
+      <p>
+        <span className="text-bull">Accumulation</span> is size bought below the market in an up-tape — someone building. <span className="text-bear">Distribution</span> is size sold into strength while the tape weakens — someone leaving. <span className="text-warn">Hedge flow</span> printed on an options shelf and is most likely a desk hedging, not a bet. Rotation is routine and no signal on its own. The bar is how sure the classifier is.
+      </p>
+    </Section>
+    <Section title="A shelf">
+      <p>Where the dark dollars rested through the session. Below the spot a shelf is support, above it resistance, at it a pivot; the bar is its share of the session's dark dollars and the count is how many times price has already bounced off it. A shelf cuts the grid to the crosses that landed on it, and its line says how to trade against it.</p>
+      <ShelfFigure />
+    </Section>
+    <Section title="The posture">
+      <p>Net accumulation against distribution across the sized prints, in dollars weighted by conviction — accumulating past +18%, distributing past −18%, balanced between.</p>
+    </Section>
+  </div>
+);
+
+/* ---- compare ------------------------------------------------------------------ */
+
+/** A ledger row: the fact, A's figure, B's figure, the diamond on the side that carries the row */
+export const LedgerFigure = () => (
+  <Figure label="A ledger row: the fact at the left, the two names' figures at the right, the diamond on the heavier side" h={78}>
+    <Head x={12} y={14}>FACT</Head>
+    <Head x={300} y={14} anchor="end">SPY</Head>
+    <Head x={408} y={14} anchor="end">QQQ</Head>
+    {[
+      { y: 36, label: 'Net premium', a: '+$4.2M', b: '−$1.1M', aInk: BULL, bInk: BEAR, edge: 'a' },
+      { y: 58, label: 'Volume', a: '812,400', b: '1,204,900', aInk: INK, bInk: INK, edge: 'b' },
+    ].map(r => (
+      <g key={r.label}>
+        <text x={12} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+          {r.label}
+        </text>
+        {r.edge === 'a' && (
+          <text x={262} y={r.y} fontSize={7} fill="rgb(var(--supreme))">
+            ◆
+          </text>
+        )}
+        <text x={300} y={r.y} fontSize={8} fontFamily={MONO} fontWeight={r.edge === 'a' ? 700 : 400} fill={r.aInk} textAnchor="end">
+          {r.a}
+        </text>
+        {r.edge === 'b' && (
+          <text x={362} y={r.y} fontSize={7} fill="rgb(var(--supreme))">
+            ◆
+          </text>
+        )}
+        <text x={408} y={r.y} fontSize={8} fontFamily={MONO} fontWeight={r.edge === 'b' ? 700 : 400} fill={r.bInk} textAnchor="end">
+          {r.b}
+        </text>
+      </g>
+    ))}
+  </Figure>
+);
+
+export const CompareGuide = () => (
+  <div data-trace-guide="compare">
+    <Section title="Two names">
+      <p>A and B are any two names on today's book — the searches offer exactly those, and the swap turns them around. Everything on the page reads the same cut book the other Trace pages read, so a figure here is the figure there.</p>
+    </Section>
+    <Section title="The panes">
+      <p>Each name's session on the Net Flow pane: its own candles as the spot line, net call and net put premium as the lines. The money and clock cards are shared, so both panes always answer the same question. Under each pane, the same-day money — the 0DTE desk's figures for that name.</p>
+      <PaneLinesFigure />
+    </Section>
+    <Section title="The ledger">
+      <p>One row per fact, A against B — net flow, the same-day money, the book, the footprints, the structures, the tape and the calendar. The diamond marks the side that carries the row: the larger figure, or for a lean, the more bullish one.</p>
+      <LedgerFigure />
+    </Section>
+    <Section title="The contracts">
+      <p>Each name's heaviest contracts by dollars — a row opens the contract's card — and its structures, the tape reconstructed into spreads, heaviest first.</p>
+      <ContractFigure />
+    </Section>
+  </div>
+);
+
 export default ScreenerGuide;

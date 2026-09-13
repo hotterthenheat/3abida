@@ -44,6 +44,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
 import { fmtDollars } from '../../data/ahead';
 import { GREEK_LABEL, GREEK_WORDS, REACH_OPTIONS, type Compare, type Greek, type Reach } from '../../data/compare';
+import CompanyLogo from '../ui/CompanyLogo';
 import DropdownMulti from '../ui/DropdownMulti';
 import { GREEK_PICK_OPTIONS } from './exposureView';
 import type { DistanceUnit } from '../../data/atr';
@@ -289,12 +290,14 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
         <>
           {/* THE LANE HEADS */}
           <div className="px-5 flex items-center justify-between font-mono text-[10px] tnum shrink-0" style={{ height: AXIS_HEADS_H }} data-axis-heads>
-            <span className="text-textSecondary">
-              <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> · {cmp.a.spot.toFixed(2)} · <span className="text-textMuted">scaled to {fmtDollars(scale.a)} {GREEK_LABEL[greek]}</span>
+            <span className="text-textSecondary inline-flex items-center gap-1.5">
+              <CompanyLogo ticker={cmp.a.ticker} size={13} />
+              <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> · {cmp.a.spot.toFixed(2)} · <span className="text-textSecondary">scaled to {fmtDollars(scale.a)} {GREEK_LABEL[greek]}</span>
             </span>
             <span className="text-[9px] uppercase tracking-widest text-textMuted">longest capsule = each name's heaviest {GREEK_LABEL[greek]} strike shown</span>
-            <span className="text-textSecondary">
-              <span className="text-textMuted">scaled to {fmtDollars(scale.b)} {GREEK_LABEL[greek]}</span> · {cmp.b.spot.toFixed(2)} · <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
+            <span className="text-textSecondary inline-flex items-center gap-1.5">
+              <span className="text-textSecondary">scaled to {fmtDollars(scale.b)} {GREEK_LABEL[greek]}</span> · {cmp.b.spot.toFixed(2)} · <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
+              <CompanyLogo ticker={cmp.b.ticker} size={13} />
             </span>
           </div>
 

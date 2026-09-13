@@ -18,6 +18,7 @@
 import { useMemo } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import Term from '../ui/Term';
+import ContractLabel from '../ui/ContractLabel';
 import type { Column } from '../ui/DataTable';
 import { TraceGrid } from '../trace/TraceBox';
 import { fmtUsd } from '../../data/gex';
@@ -67,26 +68,20 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         key: 'contract',
         header: 'Contract',
         sortValue: r => r.strike,
-        render: r => {
-          const m = r.contract.match(/^(.*?)([CP])$/);
-          return (
-            <span className="font-mono text-[12px] font-semibold text-textPrimary">
-              {m ? (
-                <>
-                  {m[1]}
-                  <span className={r.right === 'C' ? 'text-bull' : 'text-bear'}>{m[2]}</span>
-                </>
-              ) : (
-                r.contract
-              )}
-              <span className="ml-2 font-mono text-[9px] font-normal text-textMuted">{r.expiry}</span>
-            </span>
-          );
-        },
+        /* THE WHOLE CONTRACT IN ITS SIDE'S INK (Noah, 2026-09-12: the contracts
+           around it "have the green c and red p which I don't like") — the
+           board card's pill, one rule (components/ui/ContractLabel) */
+        render: r => (
+          <span className="inline-flex items-center gap-2 min-w-0">
+            <ContractLabel contract={r.contract} right={r.right} logo={ticker} size="sm" />
+            <span className="font-mono text-[9px] text-textSecondary tnum">{r.expiry}</span>
+          </span>
+        ),
       },
       { key: 'gamma', header: 'Gamma', align: 'right', sortValue: r => r.gamma, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">{r.gamma.toFixed(1)}%</span> },
-      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOi, render: r => <span className="font-mono text-[11px] tnum text-textSecondary">{r.volOi.toFixed(2)}×</span> },
-      { key: 'dist', header: 'From spot', align: 'right', sortValue: r => r.distPct, render: r => <span className="font-mono text-[11px] tnum text-textSecondary">{fmtDist(r.distPct)}</span> },
+      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOi, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">{r.volOi.toFixed(2)}×</span> },
+      /* Above the market green, below it red — the sign is the information (no grey, Noah 2026-09-12) */
+      { key: 'dist', header: 'From spot', align: 'right', sortValue: r => r.distPct, render: r => <span className={`font-mono text-[11px] tnum ${Math.abs(r.distPct) < 0.05 ? 'text-textPrimary' : r.distPct > 0 ? 'text-bull' : 'text-bear'}`}>{fmtDist(r.distPct)}</span> },
       {
         key: 'exposure',
         header: 'Exposure',
@@ -110,7 +105,7 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
       });
     }
     return cols;
-  }, [onOpen]);
+  }, [onOpen, ticker]);
 
   if (!rows.length) return null;
   const expiry = rows[0].expiry;

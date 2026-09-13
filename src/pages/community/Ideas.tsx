@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import CompanyLogo from '../../components/ui/CompanyLogo';
 import { ChevronUp, Send } from 'lucide-react';
 import Panel from '../../components/ui/Panel';
 import SegmentedControl from '../../components/ui/SegmentedControl';
@@ -140,6 +141,7 @@ const Ideas = () => {
               </button>
               <div className="min-w-0 flex-grow">
                 <div className="flex items-center gap-2 flex-wrap">
+                  <CompanyLogo ticker={idea.ticker} size={15} />
                   <span className="font-mono text-[12px] font-bold text-textPrimary">{idea.ticker}</span>
                   <SignalBadge tone={idea.direction === 'BULLISH' ? 'bull' : 'bear'}>{idea.direction}</SignalBadge>
                   <span className="ml-auto font-mono text-[10px] text-textMuted tnum">

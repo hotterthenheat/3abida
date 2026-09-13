@@ -47,6 +47,7 @@ import { NAV_GROUPS, NAV_GROUP_META, NAV_INK, itemsByGroup } from './nav';
 import { GEX_SUBPAGES } from '../../pages/pinpoint/subnav';
 import { RECORD_SUBPAGES } from '../../pages/record/subnav';
 import { TRACE_SUBPAGES } from '../../pages/trace/subnav';
+import { useCompassView } from '../../data/compassView';
 import { lookup } from '../../data/universe';
 import { readSessionClock } from '../../data/moc';
 import { useAllAlerts, useUnseenAll } from '../gex/alertStore';
@@ -109,6 +110,21 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const setTotal = allAlerts.reduce((n, a) => n + a.alerts.filter(x => !x.firedAt).length, 0);
   const unseen = useUnseenAll();
   const drawerOpen = useAlertsDrawer();
+  /* COMPASS'S PAGES ON THE TREE (Noah, 2026-09-12: "there are multiple pages
+     inside compass like the analysis page but it does not show that on the
+     side tab but it should and it should be named 'inside the contract' but
+     it should only come when you choose a contract because logically you
+     can't be inside the con if you haven't picked it"). The board is always
+     there; the contract's page joins the tree the moment a contract is chosen
+     — a card clicked, a row opened, a page landed on — and points at THAT
+     contract. */
+  const { chosenId } = useCompassView();
+  const subpagesFor = (path: string): { path: string; label: string }[] | undefined => {
+    if (path === '/compass') {
+      return [{ path: '/compass', label: 'The board' }, ...(chosenId ? [{ path: `/compass/${chosenId}`, label: 'Inside the contract' }] : [])];
+    }
+    return SUBPAGES[path];
+  };
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -320,8 +336,13 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
         )}
         {itemsByGroup(group).map(item => {
           const inside = pathname.startsWith(item.path);
-          const subs = !collapsed && inside ? SUBPAGES[item.path] : undefined;
-          const activeIdx = subs ? subs.findIndex(s => pathname.startsWith(s.path)) : -1;
+          const subs = !collapsed && inside ? subpagesFor(item.path) : undefined;
+          /* The LONGEST matching page is the one you are on — the board's path
+             is a prefix of the contract's, so a prefix test alone would light
+             the board while the reader is inside the contract */
+          const activeIdx = subs
+            ? subs.reduce((best, s, i) => (pathname.startsWith(s.path) && (best < 0 || s.path.length > subs[best].path.length) ? i : best), -1)
+            : -1;
           const link = (
             <NavLink
               key={item.path}

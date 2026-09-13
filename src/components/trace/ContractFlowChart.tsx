@@ -30,6 +30,7 @@
 */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { Check, ChevronDown } from 'lucide-react';
 import {
   Area,
@@ -690,7 +691,10 @@ export const NetPanel = ({
       <div className="flex items-center gap-2.5 flex-wrap">
         {/* "Tide" was the competition's word (Noah, 2026-08-30) — this panel
             reads the ticker's premium, so it says so. */}
-        <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">{ticker} net premium</span>
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary">
+          <CompanyLogo ticker={ticker} size={12} />
+          {ticker} net premium
+        </span>
         <MetricPicker value={metric} onChange={onMetric} />
         {isVolOrUsd ? (
           <span className="font-mono text-[10px] text-textMuted tnum">

@@ -16,6 +16,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { applyFilters, buildFlowBook, DEFAULT_FILTERS, FLOW_SCREENS, runScreen, type BookFilters, type ScreenKey } from '../../data/flowBook';
@@ -39,6 +40,9 @@ import WatchStar from '../../components/trace/WatchStar';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { ScreenerGuide } from '../../components/trace/TraceGuide';
 import { contractKey, watchContract } from '../../context/WatchContext';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 
 const FILTERS_KEY = 'slayer_screener_filters';
 const num = (v: number) => v.toLocaleString('en-US');
@@ -89,7 +93,7 @@ const MONEY_OPTIONS: DropdownOption<'any' | 'otm'>[] = [
 const snap = (v: number, steps: number[]) => steps.reduce((best, s) => (s <= v ? s : best), 0);
 
 /** The grid's own widths where flex would starve a cell */
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 124, prem: 92, iv: 100, sector: 176 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 };
 const TOOLTIPS: Record<string, string> = {
   time: 'When the contract last printed — the star marks it for the Tracker',
   contract: 'The strike, the side and the expiry — click the row for the card',
@@ -124,7 +128,10 @@ const OptionsScreener = () => {
   );
   /* ONE hold for the whole page: paused, the book AND the tick freeze together */
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book, tick } = hold.value;
+  const { book: heldBook, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): the dates on the book, as a calendar */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((r: { key: string }) => r.key, []);
   const openRow = useCallback((r: { key: string }) => setOpenKey(r.key), []);
 
@@ -170,7 +177,7 @@ const OptionsScreener = () => {
         render: r => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={contractKey(r)} make={() => watchContract(r, 'screener')} />
-            <span className="text-[11px] text-textSecondary">{r.lastAt}</span>
+            <span className="text-[11px] text-textPrimary">{r.lastAt}</span>
           </span>
         ),
       },
@@ -193,7 +200,7 @@ const OptionsScreener = () => {
         align: 'right',
         sortValue: r => r.otmPct,
         render: r => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {r.otmPct >= 0 ? '+' : ''}
             {r.otmPct.toFixed(1)}%
           </span>
@@ -222,9 +229,9 @@ const OptionsScreener = () => {
         align: 'right',
         sortValue: r => r.deltaOI,
         render: r => {
-          if (r.deltaOI === 0) return <span className="text-textMuted">—</span>;
+          if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
           const a = Math.abs(r.deltaOI);
-          const tone = a >= marks.doi.top ? 'text-supreme font-bold' : a >= marks.doi.bar ? (r.deltaOI > 0 ? 'text-bull' : 'text-bear') : 'text-textSecondary';
+          const tone = a >= marks.doi.top ? 'text-supreme font-bold' : a >= marks.doi.bar ? (r.deltaOI > 0 ? 'text-bull' : 'text-bear') : 'text-textPrimary';
           return (
             <span className={tone}>
               {r.deltaOI > 0 ? '+' : ''}
@@ -253,10 +260,10 @@ const OptionsScreener = () => {
           </span>
         ),
       },
-      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOverOI, render: r => <span className={r.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>{r.volOverOI.toFixed(2)}</span> },
-      { key: 'sweep', header: 'Sweep', align: 'right', sortValue: r => r.sweepPct, render: r => <span className={r.sweepPct >= 40 ? 'text-textPrimary' : 'text-textSecondary'}>{r.sweepPct}%</span> },
-      { key: 'floor', header: 'Floor', align: 'right', sortValue: r => r.floorPct, render: r => (r.floorPct === 0 ? <span className="text-textMuted">—</span> : <span className={r.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textSecondary'}>{r.floorPct}%</span>) },
-      { key: 'multi', header: 'Multi', align: 'right', sortValue: r => r.multiPct, render: r => <span className={r.multiPct >= 30 ? 'text-textPrimary' : 'text-textSecondary'}>{r.multiPct}%</span> },
+      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOverOI, render: r => <span className={r.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{r.volOverOI.toFixed(2)}</span> },
+      { key: 'sweep', header: 'Sweep', align: 'right', sortValue: r => r.sweepPct, render: r => <span className={r.sweepPct >= 40 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{r.sweepPct}%</span> },
+      { key: 'floor', header: 'Floor', align: 'right', sortValue: r => r.floorPct, render: r => (r.floorPct === 0 ? <span className="text-textSecondary">—</span> : <span className={r.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{r.floorPct}%</span>) },
+      { key: 'multi', header: 'Multi', align: 'right', sortValue: r => r.multiPct, render: r => <span className={r.multiPct >= 30 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{r.multiPct}%</span> },
       { key: 'lean', header: 'Lean', align: 'right', sortValue: r => r.askPct, render: r => <LeanCell askPct={r.askPct} /> },
       { key: 'sector', header: 'Sector', sortValue: r => r.sector ?? '', render: r => <SectorName sector={r.sector} /> },
     ],
@@ -274,15 +281,15 @@ const OptionsScreener = () => {
         title="The book"
         sub={`${activeScreen.label} — ${activeScreen.hint} · every contract that traded today · a row opens the contract's card`}
         testId="screener"
-        data={{ screen, rows: rows.length }}
+        data={{ screen, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the book', door: 'What a row, the inks and the shares mean', body: <ScreenerGuide />, testId: 'screener-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Premium" testId="premium">
-              {fmtUsd(facts.prem)} <span className="text-textMuted">·</span> <span className="text-bull">calls {facts.callPct}%</span> <span className="text-textMuted">/</span> <span className="text-bear">puts {100 - facts.callPct}%</span>
+              {fmtUsd(facts.prem)} <span className="text-textSecondary">·</span> <span className="text-bull">calls {facts.callPct}%</span> <span className="text-textSecondary">/</span> <span className="text-bear">puts {100 - facts.callPct}%</span>
             </Fact>
             <Fact label="Contracts" testId="contracts">
-              {num(rows.length)} <span className="text-textMuted">· {facts.names} names</span>
+              {num(rows.length)} <span className="text-textSecondary">· {facts.names} names</span>
             </Fact>
             <Fact label="Built today" testId="fresh" title="Contracts trading past their open interest">
               {facts.fresh}
@@ -314,6 +321,7 @@ const OptionsScreener = () => {
             <DropdownSelect label="Volume" value={snap(filters.minVolume, VOLUME_STEPS)} options={VOLUME_OPTIONS} onChange={v => setFilters(f => ({ ...f, minVolume: v }))} title="The least volume a contract must carry" testId="screener-volume" />
             <DropdownSelect label="Premium" value={snap(filters.minPremium, PREMIUM_STEPS)} options={PREMIUM_OPTIONS} onChange={v => setFilters(f => ({ ...f, minPremium: v }))} title="The least money a contract must carry" testId="screener-premium" />
             <DropdownSelect label="Money" value={filters.excludeItm ? 'otm' : 'any'} options={MONEY_OPTIONS} onChange={v => setFilters(f => ({ ...f, excludeItm: v === 'otm' }))} title="Where the strikes sit against the stock" testId="screener-money" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="screener-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>

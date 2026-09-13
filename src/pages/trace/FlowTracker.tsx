@@ -42,6 +42,7 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { contractKey, useWatch, type WatchSource, type WatchedItem } from '../../context/WatchContext';
 import Simulator from '../../core/simulator';
@@ -57,6 +58,9 @@ import { DOOR, DOOR_GROUP_TEXT } from '../../components/trace/door';
 import { directionInk, earnMarks, weightInk } from '../../components/trace/earnedInk';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 import ReadDoor from '../../components/trace/ReadDoor';
 import WatchStar from '../../components/trace/WatchStar';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
@@ -92,11 +96,11 @@ const leanWord = (askPct: number) => {
   const mid = Math.abs(askPct - 50) < 6;
   return {
     text: mid ? 'MID' : bid >= 50 ? `BID ${bid}%` : `ASK ${askPct}%`,
-    ink: mid ? 'text-textMuted' : bid >= 50 ? 'text-bear' : 'text-bull',
+    ink: mid ? 'text-textSecondary' : bid >= 50 ? 'text-bear' : 'text-bull',
   };
 };
 
-const Dash = () => <span className="text-textMuted">—</span>;
+const Dash = () => <span className="text-textSecondary">—</span>;
 
 /** Fixed widths for the figure columns (the spot's then → now and its change would otherwise clip); the name, contract and mark share the rest */
 const WIDTHS: Record<string, number> = { then: 170, money: 90, since: 140, spot: 200, vol: 96, oi: 96, lean: 160 };
@@ -147,10 +151,13 @@ const FlowTracker = () => {
   }, [book]);
 
   const nq = normSymbol(query);
+  /* THE EXPIRY CUT (2026-09-12): every mark carries its expiry — a contract's,
+     a print's, a structure's near leg */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(watched, w => w.expiry);
 
   const rows = useMemo<TrackRow[]>(
     () =>
-      watched
+      cutExpiry(watched)
         .filter(w => nq === '' || normSymbol(w.ticker).includes(nq))
         .map(w => {
           Simulator.ensureTicker(w.ticker);
@@ -179,7 +186,7 @@ const FlowTracker = () => {
         })
         .sort((a, b) => Math.abs(b.moved) - Math.abs(a.moved)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [watched, byKey, nq, tick]
+    [watched, byKey, nq, tick, cutExpiry]
   );
 
   /* Three registers per column, measured over what is on screen. */
@@ -245,8 +252,8 @@ const FlowTracker = () => {
           r.w.kind === 'structure' ? (
             <span className={`group/door inline-flex items-baseline gap-1.5 pb-[2px] ${DOOR}`}>
               <span className={`font-mono text-xs font-bold text-textPrimary tnum ${DOOR_GROUP_TEXT}`}>{r.w.strikesLabel}</span>
-              <span className="font-mono text-[11px] font-semibold text-textSecondary">{r.w.spreadKind}</span>
-              <span className="font-mono text-[10px] text-textMuted tnum">{r.w.expiry}</span>
+              <span className="font-mono text-[11px] font-semibold text-textPrimary">{r.w.spreadKind}</span>
+              <span className="font-mono text-[10px] text-textSecondary tnum">{r.w.expiry}</span>
             </span>
           ) : (
             <ContractCell strike={r.w.strike} right={r.w.right} expiry={r.w.expiry} />
@@ -257,8 +264,8 @@ const FlowTracker = () => {
         header: 'Marked',
         sortValue: r => r.w.watchedAt,
         render: r => (
-          <span className="text-[10px] text-textMuted whitespace-nowrap">
-            {markedAt(r.w.watchedAt)} <span className="text-textMuted/70">· {SOURCE_LABEL[r.w.from]}</span>
+          <span className="text-[10px] text-textPrimary whitespace-nowrap">
+            {markedAt(r.w.watchedAt)} <span className="text-textSecondary">· {SOURCE_LABEL[r.w.from]}</span>
           </span>
         ),
       },
@@ -281,7 +288,7 @@ const FlowTracker = () => {
             return (
               <span className="text-textSecondary">
                 <span className="text-textPrimary">{num(w.size)}</span> @ <span className="text-textPrimary">${w.fill.toFixed(2)}</span>{' '}
-                <span className={`text-[10px] ${w.side === 'ASK' ? 'text-bull' : w.side === 'BID' ? 'text-bear' : 'text-textMuted'}`}>
+                <span className={`text-[10px] ${w.side === 'ASK' ? 'text-bull' : w.side === 'BID' ? 'text-bear' : 'text-textSecondary'}`}>
                   {w.side === 'ASK' ? 'BUY' : w.side === 'BID' ? 'SELL' : 'MID'}
                   {w.sweep ? ' · SWEEP' : ''}
                 </span>
@@ -302,7 +309,7 @@ const FlowTracker = () => {
         sortValue: r => (r.w.kind === 'contract' ? r.w.at.premium : r.w.premium),
         // The dollars behind the mark: the print's premium, the structure's,
         // a contract's day when it was marked.
-        render: r => <span className="text-textSecondary">{fmtUsd(r.w.kind === 'contract' ? r.w.at.premium : r.w.premium)}</span>,
+        render: r => <span className="text-textPrimary">{fmtUsd(r.w.kind === 'contract' ? r.w.at.premium : r.w.premium)}</span>,
       },
       {
         key: 'since',
@@ -318,7 +325,7 @@ const FlowTracker = () => {
             <Dash />
           ) : (
             <span
-              className="text-[10px] text-textMuted"
+              className="text-[10px] text-textSecondary"
               title={
                 r.w.kind === 'contract'
                   ? 'This contract is not on today’s book — it expired, or the day rolled'
@@ -336,10 +343,10 @@ const FlowTracker = () => {
         sortValue: r => r.spotChg ?? -Infinity,
         render: r =>
           r.spotNow == null ? (
-            <span className="text-textSecondary">${r.spotThen.toFixed(2)}</span>
+            <span className="text-textPrimary">${r.spotThen.toFixed(2)}</span>
           ) : (
-            <span className="text-textSecondary">
-              ${r.spotThen.toFixed(2)} <span className="text-textMuted">→</span> <span className="text-textPrimary">${r.spotNow.toFixed(2)}</span>{' '}
+            <span className="text-textPrimary">
+              ${r.spotThen.toFixed(2)} <span className="text-textSecondary">→</span> <span className="text-textPrimary">${r.spotNow.toFixed(2)}</span>{' '}
               <span className={`text-[10px] ${directionInk(r.spotChg ?? 0, marks.spot)}`}>{signedPct(r.spotChg ?? 0)}</span>
             </span>
           ),
@@ -369,9 +376,9 @@ const FlowTracker = () => {
           const now = r.leanNow != null ? leanWord(r.leanNow) : null;
           return (
             <span className="font-mono text-[9px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
-              {then ? <span className={then.ink}>{then.text}</span> : <span className="text-textMuted">—</span>}
-              <span className="text-textMuted"> → </span>
-              {now ? <span className={now.ink}>{now.text}</span> : <span className="text-textMuted">—</span>}
+              {then ? <span className={then.ink}>{then.text}</span> : <span className="text-textSecondary">—</span>}
+              <span className="text-textSecondary"> → </span>
+              {now ? <span className={now.ink}>{now.text}</span> : <span className="text-textSecondary">—</span>}
             </span>
           );
         },
@@ -447,7 +454,7 @@ const FlowTracker = () => {
         title="Under watch"
         sub="Everything you marked on Trace — and what it has done since · a row opens its card"
         testId="tracker"
-        data={{ watched: total, rows: rows.length }}
+        data={{ watched: total, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the watch', door: 'What a mark and the since columns mean', body: <TrackerGuide />, testId: 'tracker-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
@@ -455,7 +462,7 @@ const FlowTracker = () => {
               {nq ? `${rows.length} of ${total}` : total}
             </Fact>
             <Fact label="Contracts · prints · structures" testId="kinds">
-              {counts.contracts} <span className="text-textMuted">·</span> {counts.prints} <span className="text-textMuted">·</span> {counts.structures}
+              {counts.contracts} <span className="text-textSecondary">·</span> {counts.prints} <span className="text-textSecondary">·</span> {counts.structures}
             </Fact>
             {champs.building && champs.building !== champs.moved && (
               <Champion label="Building" ink="bull" onOpen={() => openRow(champs.building!)} testId="building">
@@ -478,6 +485,7 @@ const FlowTracker = () => {
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
             <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="marks" tickersOnly />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only marks on one expiry — or every expiry" testId="tracker-expiry" />
           </>
         }
         sentence={read}

@@ -29,6 +29,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Search, X } from 'lucide-react';
 import { fmtUsd } from '../../data/gex';
 import { roomBelow } from '../ui/menuRoom';
+import CompanyLogo from '../ui/CompanyLogo';
 
 /** The four facts a row must carry — FlowPrint and BookContract both do. */
 export interface FlowSearchRow {
@@ -257,7 +258,8 @@ const FlowSearch = ({
       ) : s.kind === 'door' ? (
         <ArrowUpRight className="w-3 h-3 text-textMuted" />
       ) : (
-        <span className="inline-flex w-3.5 justify-center font-mono text-[9px] text-textMuted">/</span>
+        /* a name travels with its mark (the global rule, 2026-09-12) */
+        <CompanyLogo ticker={s.ticker} size={14} />
       )}
       <span className={`font-mono text-[11px] ${s.kind === 'back' || s.kind === 'door' ? 'text-textSecondary' : 'font-semibold text-textPrimary'}`}>
         {s.primary}

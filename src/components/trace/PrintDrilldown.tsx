@@ -21,6 +21,7 @@ import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bookmark, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, Copy, Crosshair, Scale } from 'lucide-react';
 import Modal from '../ui/Modal';
+import CompanyLogo from '../ui/CompanyLogo';
 import SignalBadge from '../ui/SignalBadge';
 import RichRead from '../ui/RichRead';
 import ErrorBoundary from '../ui/ErrorBoundary';
@@ -474,6 +475,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
       header={
         print && (
           <div className="flex items-center gap-3 flex-wrap">
+            <CompanyLogo ticker={print.ticker} size={18} />
             <span
               className={`inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[13px] font-semibold ${
                 print.right === 'C' ? 'border-bull/30 bg-bull/10 text-bull' : 'border-bear/30 bg-bear/10 text-bear'
@@ -492,7 +494,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <span className={`font-mono text-[10px] uppercase ${print.sweep ? 'text-warn font-semibold' : 'text-textMuted'}`}>
               {print.sweep ? 'Sweep' : print.strat === '—' ? 'Block' : print.strat}
             </span>
-            <span className="font-mono text-[10px] text-textMuted tnum">
+            <span className="font-mono text-[10px] text-textSecondary tnum">
               {print.ticker} ${fixed(print.spot)}
             </span>
           </div>

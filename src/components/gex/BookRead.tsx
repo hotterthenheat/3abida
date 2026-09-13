@@ -31,6 +31,7 @@
 */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { PanelRightClose, PanelRightOpen, X } from 'lucide-react';
 import { GREEK_LABEL } from '../../data/compare';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
@@ -300,6 +301,7 @@ const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, depth, afterBell
     >
       {/* THE HEAD — whose read, in which greek, over which window */}
       <div className="shrink-0 flex items-center gap-2 px-3.5 h-10 border-b border-borderSubtle/70">
+        <CompanyLogo ticker={surface.ticker} size={14} />
         <span className="font-mono text-[11px] font-bold text-textPrimary">{surface.ticker}</span>
         <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{label} · {shownIdx.length === 1 ? surface.expiries[shownIdx[0]]?.date : `${shownIdx.length} expiries`}</span>
         <span className="ml-auto inline-flex items-center gap-0.5" role="group" aria-label="Window" data-read-window>

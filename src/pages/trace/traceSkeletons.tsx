@@ -12,7 +12,8 @@
   body — the grid in its window with the house's
   32px head and 39px rows, Net Flow's board and
   pane, 0DTE's panes, the tape's grid and rail, the
-  Tracker's note. Imports nothing heavy.
+  Tracker's note, the dark pool's shelves. Imports
+  nothing heavy.
 ==================================================
 */
 
@@ -78,17 +79,20 @@ export const TraceBoxSkeleton = ({
   gridH = TRACE_GRID_H,
   rows = 18,
   className = '',
+  hold = true,
   children,
 }: {
   title?: number;
   facts?: number[];
   triggers?: number[];
-  /** The cards at the line's right end — the column chooser, the tape's rail door */
+  /** The cards at the line's right end — the column chooser */
   right?: number[];
   cols?: number;
   gridH?: string;
   rows?: number;
   className?: string;
+  /** The line opens with the 31px hold — every page but the tape, which runs (2026-09-12) */
+  hold?: boolean;
   children?: ReactNode;
 }) => (
   <div className={`border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col ${className}`} aria-hidden data-skeleton="trace-box">
@@ -100,7 +104,7 @@ export const TraceBoxSkeleton = ({
       <Facts widths={facts} />
     </div>
     <div className="px-5 pb-2 flex items-center gap-2 flex-wrap">
-      {triggers.map((w, i) => (i === 0 ? <Block key={i} w={w} h={31} className="rounded-md" /> : <Trigger key={i} w={w} />))}
+      {triggers.map((w, i) => (i === 0 && hold ? <Block key={i} w={w} h={31} className="rounded-md" /> : <Trigger key={i} w={w} />))}
       {right.length > 0 && (
         <span className="ml-auto flex items-center gap-2">
           {right.map((w, i) => (
@@ -183,51 +187,72 @@ const TrackerBody = () => (
   </div>
 );
 
-/** The tape: the grid in its window, the rail beside it — top names over the dark-pool crosses */
-const LiveTapeBody = () => (
-  <div className="flex">
-    <div className="flex-1 min-w-0">
-      <GridWindow cols={19} rows={18} gridH={TRACE_GRID_H} />
-    </div>
-    <div className="w-[360px] shrink-0 border-t border-l border-borderSubtle flex flex-col overflow-hidden" style={{ height: TRACE_GRID_H }}>
-      <div className="px-4 pt-3 pb-3 border-b border-borderSubtle">
+/** The dark pool: the shelves beside the grid — the role, the price, the share bar; the card under them */
+const DarkPoolBody = () => (
+  <div className="flex border-t border-borderSubtle">
+    <div className="w-[320px] shrink-0 border-r border-borderSubtle flex flex-col" style={{ height: TRACE_GRID_H }}>
+      <div className="px-4 pt-3 pb-2">
         <Line w={70} h={11} />
-        <Line w={210} h={9} className="mt-[6px]" />
-        <div className="mt-2.5 flex flex-col gap-2.5">
-          {[100, 88, 92, 70, 96, 80].map((w, i) => (
-            <div key={i} className="flex items-center gap-2 h-[17px]">
-              <Line w={40} h={11} />
-              <span className="flex-1 h-[5px] rounded-full bg-ink/[0.05]">
-                <Line w={`${w}%`} h={5} />
-              </span>
-              <Line w={44} h={10} />
-            </div>
-          ))}
-        </div>
+        <Line w={200} h={9} className="mt-[5px]" />
       </div>
-      <div className="flex-1 min-h-0 flex flex-col">
-        <div className="px-4 pt-3 pb-2">
-          <Line w={70} h={11} />
-          <Line w={180} h={9} className="mt-[4px]" />
-        </div>
-        <div className="flex items-center gap-3 px-4 h-[26px] border-y border-borderSubtle">
-          <Line w={36} h={8} />
-          <Line w={24} h={8} className="ml-auto" />
-          <Line w={28} h={8} />
-          <Line w={44} h={8} />
-          <Line w={24} h={8} />
-        </div>
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="flex items-center gap-3 px-4 h-[34px] border-b border-borderSubtle/30">
-            <Line w={40} h={11} />
-            <Line w={30} h={10} className="ml-auto" />
-            <Line w={40} h={10} />
-            <Line w={46} h={10} />
-            <Line w={30} h={9} />
+      {[210, 112, 164, 96, 140, 80].map((w, i) => (
+        <div key={i} className="px-4 py-2 border-t border-borderSubtle/60 h-[52px]">
+          <div className="flex items-center gap-2 h-[16px]">
+            <Line w={60} h={9} />
+            <Line w={46} h={12} />
+            <Line w={34} h={9} />
+            <Line w={44} h={10} className="ml-auto" />
           </div>
-        ))}
+          <div className="mt-1 flex items-center gap-2 h-[14px]">
+            <span className="flex-1 h-[4px] rounded-full bg-ink/[0.05]">
+              <Line w={`${(w / 210) * 100}%`} h={4} />
+            </span>
+            <Line w={120} h={9} />
+          </div>
+        </div>
+      ))}
+      <div className="mt-auto border-t border-borderSubtle px-4 py-3">
+        <Line w={180} h={10} />
       </div>
     </div>
+    <div className="flex-1 min-w-0 -mt-px">
+      <GridWindow cols={10} rows={18} gridH={TRACE_GRID_H} />
+    </div>
+  </div>
+);
+
+/** Compare: two panes over the ledger */
+const CompareBody = () => (
+  <div className="border-t border-borderSubtle">
+    <div className="grid grid-cols-2">
+      {[0, 1].map(i => (
+        <div key={i} className={`flex flex-col ${i === 0 ? 'border-r border-borderSubtle' : ''}`}>
+          <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle">
+            <Line w={10} h={8} />
+            <Block w={16} h={16} className="rounded-full" />
+            <Line w={34} h={11} />
+            <Line w={50} h={10} />
+            <Line w={70} h={10} className="ml-auto" />
+          </div>
+          <div className="h-[340px] p-2">
+            <PaneSkeleton name />
+          </div>
+          <div className="flex items-center gap-4 px-3 h-8 border-y border-borderSubtle">
+            <Line w={50} h={8} />
+            <Line w={60} h={9} />
+            <Line w={70} h={9} />
+            <Line w={90} h={9} className="ml-auto" />
+          </div>
+        </div>
+      ))}
+    </div>
+    {Array.from({ length: 9 }, (_, i) => (
+      <div key={i} className="flex items-center px-5 h-8 border-t border-borderSubtle/50">
+        <Line w={[90, 70, 64, 80, 110, 96, 60, 70, 90][i]} h={10} />
+        <Line w={70} h={10} className="ml-auto" />
+        <Line w={70} h={10} className="ml-[170px]" />
+      </div>
+    ))}
   </div>
 );
 
@@ -268,18 +293,27 @@ export const TracePageSkeleton = ({ pathname }: { pathname: string }) => {
         <OdteBody />
       </TraceBoxSkeleton>
     );
-  if (pathname.startsWith('/trace/multi-leg')) return <TraceBoxSkeleton title={96} facts={[130, 110, 160, 170, 150]} triggers={[70, 170, 118, 110]} cols={15} />;
+  if (pathname.startsWith('/trace/multi-leg')) return <TraceBoxSkeleton title={96} facts={[130, 110, 160, 170, 150]} triggers={[70, 170, 118, 110, 150]} cols={15} />;
+  if (pathname.startsWith('/trace/compare'))
+    return (
+      <TraceBoxSkeleton title={190} facts={[90, 90, 150, 150, 150, 150]} triggers={[70, 180, 24, 180, 28, 150]} right={[]}>
+        <CompareBody />
+      </TraceBoxSkeleton>
+    );
+  if (pathname.startsWith('/trace/dark-pool'))
+    return (
+      <TraceBoxSkeleton title={110} facts={[110, 120, 140, 150, 170, 150, 190]} triggers={[70, 130, 110, 120]}>
+        <DarkPoolBody />
+      </TraceBoxSkeleton>
+    );
   if (pathname.startsWith('/trace/tracker'))
     return (
       <TraceBoxSkeleton title={100} facts={[80, 200]} triggers={[70, 170]} right={[]}>
         <TrackerBody />
       </TraceBoxSkeleton>
     );
-  return (
-    <TraceBoxSkeleton title={70} facts={[150, 180, 130, 90, 140, 140, 150]} triggers={[70, 170, 100, 150, 100, 110]} right={[60, 130]}>
-      <LiveTapeBody />
-    </TraceBoxSkeleton>
-  );
+  /* The tape: no hold on its line, no rail beside its grid (2026-09-12) */
+  return <TraceBoxSkeleton title={70} facts={[150, 180, 130, 90, 140, 140, 150]} triggers={[170, 100, 150, 100, 110, 150]} right={[130]} cols={19} hold={false} />;
 };
 
 /** The whole route standing: the strip, then the rows in the container the layout gives them */

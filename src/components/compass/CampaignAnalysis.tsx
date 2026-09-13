@@ -50,14 +50,15 @@ import { processState, PROCESS_META } from './setupProcess';
 import { SetupGuide } from './SetupGuide';
 import ContractTrack from './ContractTrack';
 import SetupDrivers from './SetupDrivers';
-import { buildCompassView, buildSetupDrivers, estimatePremium } from '../../data/compass';
+import { buildCompassView, buildSetupDrivers, estimatePremium, sleeveForDte } from '../../data/compass';
+import { listExpiriesFor } from '../../data/optionChain';
+import { expiryWords } from '../ui/ExpiryCalendar';
 import ContractPick, { type ConPickRow } from './ContractPick';
 import { spotForPremium } from './trackModel';
 import { useFadeClose } from '../ui/useFadeClose';
 import { useTracker } from '../../context/TrackerContext';
 import {
   SCANNERS,
-  SLEEVES,
   isScannerEligible,
   type DriverRow,
   type OptionRight,
@@ -66,7 +67,11 @@ import {
   type SleeveKey,
 } from '../../types/compass';
 
-let lastChartView: 'stock' | 'premium' = 'stock';
+/* THE PREMIUM CHART OPENS FIRST (Noah, 2026-09-12: "the first chart that comes
+   out is the stock one that is incorrect the first chart should be the options
+   chart that we have called 'premium'"). Session memory keeps the reader's last
+   choice after that. */
+let lastChartView: 'stock' | 'premium' = 'premium';
 
 /* The lens said out loud (Noah, 2026-08-30: cards "dont state wether
    something is a 0dte, weekly, discounted etc so they all look the same...
@@ -83,12 +88,14 @@ interface CampaignAnalysisProps {
   scanner: ScannerKey;
   /** The tenor — it decides which exit-clock copy the floor panel speaks */
   sleeve: SleeveKey;
+  /** The exact listed expiry the setup was priced at, calendar days (the calendar walk, 2026-09-12) */
+  dte?: number;
   /** Provenance: when this page opened — the numbers that earned the click are frozen from then */
   gradedAt?: string;
   /** Open another contract on the same name — a driver row, or the capsule's
-      pick (which may carry a different tenor). The page's route does the rest
-      (pages/compass/SetupPage.tsx, 2026-09-11); the way back lives there too. */
-  onOpenContract?: (strike: number, right: OptionRight, sleeve?: SleeveKey) => void;
+      pick (which may carry a different tenor and date). The page's route does
+      the rest (pages/compass/SetupPage.tsx, 2026-09-11); the way back lives there too. */
+  onOpenContract?: (strike: number, right: OptionRight, sleeve?: SleeveKey, dte?: number) => void;
 }
 
 /** The driver list sweeps on the scan tier — structure must not vibrate with every tick. */
@@ -548,6 +555,7 @@ const CampaignAnalysis = ({
   spot,
   scanner,
   sleeve,
+  dte,
   gradedAt,
   onOpenContract,
 }: CampaignAnalysisProps) => {
@@ -661,25 +669,31 @@ const CampaignAnalysis = ({
      scanner swept across every eligible tenor, each row sleeve-tagged
      (Noah, 2026-08-30). LAZY: the sweeps run when the capsule opens, not
      per tick; useCallback identity keys the menu's cache. */
+  /* THE NAME'S OWN DATES (the calendar walk, 2026-09-12): the capsule sweeps
+     every expiry this name lists — dailies on an index name, Fridays and
+     monthlies on a stock — and each row carries its date, so a pick lands on
+     a page priced at that exact expiry. */
   const loadTickerCons = useCallback((): ConPickRow[] => {
     const snapshot = Simulator.snapshotFor(setup.ticker);
     const universe = Simulator.universeQuotes(setup.ticker);
     const out: ConPickRow[] = [];
-    for (const sl of SLEEVES) {
-      if (!isScannerEligible(scanner, sl.key)) continue;
+    for (const e of listExpiriesFor(setup.ticker)) {
+      const sl = sleeveForDte(e.dte);
+      if (!isScannerEligible(scanner, sl)) continue;
       try {
-        const view = buildCompassView(snapshot, scanner, universe, sl.key);
+        const view = buildCompassView(snapshot, scanner, universe, sl, e.dte);
         for (const s of view.groups.flatMap(g => g.setups)) {
           if (s.ticker !== setup.ticker) continue;
-          const key = `${s.strike}-${s.right}-${sl.key}`;
+          const key = `${s.strike}-${s.right}-${e.dte}`;
           if (out.some(r => r.key === key)) continue;
           out.push({
             key,
             strike: s.strike,
             right: s.right,
-            sleeve: sl.key,
+            sleeve: sl,
+            dte: e.dte,
             title: s.contract,
-            tag: sl.label,
+            tag: expiryWords(e),
             sub: `$${s.mid.toFixed(2)}`,
           });
         }
@@ -693,20 +707,47 @@ const CampaignAnalysis = ({
 
   const drivers = useMemo(() => {
     const st = driversRef.current;
-    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${sleeve}`;
+    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${sleeve}-${dte ?? ''}`;
     const now = Date.now();
     if (st.key !== key || now - st.at >= DRIVERS_SCAN_MS) {
       st.key = key;
       st.at = now;
       try {
-        st.rows = buildSetupDrivers(Simulator.snapshotFor(setup.ticker), c, sleeve);
+        st.rows = buildSetupDrivers(Simulator.snapshotFor(setup.ticker), c, sleeve, 8, dte);
       } catch {
         st.rows = [];
       }
     }
     return st.rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup.ticker, setup.strike, setup.right, sleeve, revision]);
+  }, [setup.ticker, setup.strike, setup.right, sleeve, dte, revision]);
+
+  /* WHERE IT SITS ON TODAY'S BOARD — the same sweep the board runs, on the
+     drivers' scan clock, so the Why tab can say "#3 of 17" or plainly that it
+     is not on the board (a user-named contract from the Weigher). */
+  const rankRef = useRef<{ key: string; at: number; rank: number | null; of: number }>({ key: '', at: 0, rank: null, of: 0 });
+  const boardPlace = useMemo(() => {
+    const st = rankRef.current;
+    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${scanner}-${sleeve}-${dte ?? ''}`;
+    const now = Date.now();
+    if (st.key !== key || now - st.at >= DRIVERS_SCAN_MS) {
+      st.key = key;
+      st.at = now;
+      try {
+        const flat = buildCompassView(Simulator.snapshotFor(setup.ticker), scanner, Simulator.universeQuotes(setup.ticker), sleeve, dte)
+          .groups.flatMap(g => g.setups)
+          .sort((a, b) => b.score - a.score);
+        const i = flat.findIndex(x => x.ticker === setup.ticker && x.right === setup.right && Math.abs(x.strike - setup.strike) < 1e-9);
+        st.rank = i >= 0 ? i + 1 : null;
+        st.of = flat.length;
+      } catch {
+        st.rank = null;
+        st.of = 0;
+      }
+    }
+    return { rank: st.rank, of: st.of };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setup.ticker, setup.strike, setup.right, scanner, sleeve, dte, revision]);
 
   const breakTimeLabel = floorBreak
     ? new Date(floorBreak.time * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -734,9 +775,13 @@ const CampaignAnalysis = ({
      (no remount, the chart keeps its view), Esc exits, page scroll locks. */
   const [chartFull, setChartFull] = useState(false);
   /* The card speaks in tabs (Noah, 2026-08-17: "so over information doesnt
-     hit the user") — Campaign = the trade's structure, Contract = the
-     instrument's dollars. The verdict strip and confidence stay persistent. */
-  const [cardTab, setCardTab] = useState<'campaign' | 'contract'>('campaign');
+     hit the user") — Setup = the trade's structure, with its premium, fair
+     value and expected move (moved in from Contract, Noah 2026-09-12: "the
+     premium fair value and expected move should be in the setup"); Contract =
+     the instrument's own facts; WHY WE CHOSE THIS = the case for the pick
+     (Noah, same day: "the rest of the tab should be more focused on why we
+     even chose this con as a top setup … make a new tab on why we chose this"). */
+  const [cardTab, setCardTab] = useState<'campaign' | 'contract' | 'why'>('campaign');
   /* The chart slot has two instruments (Noah, 2026-08-17: "i want a button
      ... that allows us to go to that chart"): Stock = the underlying's tape
      (the campaign map), Premium = the contract's modeled premium track
@@ -809,7 +854,7 @@ const CampaignAnalysis = ({
   const caseWord = setup.score >= 93 ? 'strong' : setup.score >= 85 ? 'fair' : 'weak';
   const caseInk = setup.score >= 93 ? 'text-bull' : setup.score >= 85 ? 'text-warn' : 'text-bear';
   const sideWord = setup.right === 'C' ? 'a call, bullish' : 'a put, bearish';
-  const tenorWord = `${SLEEVE_LABEL[sleeve] ?? sleeve} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `${Math.round(setup.sessionsLeft)} sessions left`}`;
+  const tenorWord = `${SLEEVE_LABEL[sleeve] ?? sleeve} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `expires ${setup.expiryDate.slice(5).replace('-', '/')} · ${Math.round(setup.sessionsLeft)} sessions left`}`;
   const kindLabel = SCANNERS.find(s => s.key === scanner)?.label ?? scanner;
   const targetsWord = retired
     ? `${hitCount} of ${c.takeProfits.length} hit before the break`
@@ -987,6 +1032,7 @@ const CampaignAnalysis = ({
                     onOpenContract={onOpenContract}
                     fullscreen={chartFull}
                     onToggleFullscreen={() => setChartFull(f => !f)}
+                    active={chartView === 'premium'}
                     actions={
                       <CardTabs
                         ariaLabel="Chart view"
@@ -1023,6 +1069,7 @@ const CampaignAnalysis = ({
                 options={[
                   { value: 'campaign', label: 'Setup' },
                   { value: 'contract', label: 'Contract' },
+                  { value: 'why', label: 'Why we chose this' },
                 ]}
                 value={cardTab}
                 onChange={setCardTab}
@@ -1035,6 +1082,28 @@ const CampaignAnalysis = ({
                 AnimatedNumber keeps rolling instead of remounting. */}
             <div className="flex-1 p-3 grid border-t border-borderSubtle">
               <div className={`col-start-1 row-start-1 flex flex-col gap-4 transition-opacity duration-300 ${cardTab === 'campaign' ? 'opacity-100' : 'invisible opacity-0'}`}>
+                {/* THE THREE NUMBERS A SETUP IS PRICED ON — premium, fair value,
+                    expected move — at the top of the Setup tab (Noah, 2026-09-12) */}
+                <div className="grid grid-cols-3 gap-2" data-setup-pricing>
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
+                      <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
+                    </div>
+                  </div>
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
+                      <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
+                    </div>
+                  </div>
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
+                    <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>
+                      <AnimatedNumber value={setup.expectedMovePct} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`} />
+                    </div>
+                  </div>
+                </div>
                 <div className="border border-borderSubtle rounded-md overflow-hidden">
                   <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
                     <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{c.takeProfits.length > 0 ? 'Targets' : 'Targets — none, the case is fading'}</span>
@@ -1113,18 +1182,6 @@ const CampaignAnalysis = ({
                   </p>
                 </div>
 
-                {/* Why this is on the board — the read alone. The chip wall died
-                    2026-08-17 (Noah: redundant, explains nothing). */}
-                <div className="flex items-start gap-2 border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
-                  <Info className="w-3.5 h-3.5 text-textMuted shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-1.5 min-w-0">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Why this is on the board</span>
-                    <p key={setup.id} className="text-[11px] text-textSecondary leading-relaxed animate-soft-in">
-                      <RichRead text={setup.whyText} />
-                    </p>
-                  </div>
-                </div>
-
                 {/* What retires it — the FROZEN floor (the merged `c`), the same
                     number the table's last row holds. */}
                 <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
@@ -1140,24 +1197,23 @@ const CampaignAnalysis = ({
               </div>
 
               <div className={`col-start-1 row-start-1 flex flex-col gap-4 transition-opacity duration-300 ${cardTab === 'contract' ? 'opacity-100' : 'invisible opacity-0'}`}>
-                <div className="grid grid-cols-3 gap-2">
+                {/* THE QUOTE — the instrument's own facts, kept here (the pricing trio moved to Setup, 2026-09-12) */}
+                <div className="grid grid-cols-4 gap-2" data-contract-quote>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
-                      <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
-                    </div>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Bid</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${setup.bid.toFixed(2)}</div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
-                      <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
-                    </div>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Ask</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${setup.ask.toFixed(2)}</div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
-                    <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>
-                      <AnimatedNumber value={setup.expectedMovePct} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`} />
-                    </div>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Spread</div>
+                    <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.liquidityLabel === 'Tight' ? 'text-bull' : setup.liquidityLabel === 'Wide' ? 'text-bear' : 'text-textPrimary'}`}>{setup.liquiditySpread.replace(' spread', '')}</div>
+                  </div>
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expires</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum whitespace-nowrap">{setup.expiry === '0DTE' ? 'today' : setup.expiryDate.slice(5).replace('-', '/')} <span className="text-[10px] text-textSecondary">· {Math.round(setup.sessionsLeft)} sess.</span></div>
                   </div>
                 </div>
 
@@ -1171,6 +1227,82 @@ const CampaignAnalysis = ({
                   <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1.5">In dollars</div>
                   <ContractFacts setup={c} spot={spot} ledger />
                 </div>
+              </div>
+
+              {/* WHY WE CHOSE THIS (Noah, 2026-09-12) — the case for the pick, in
+                  the order a reader asks: which lens found it, how strong the
+                  case is, the read in words, the numbers behind it, where it
+                  sits on today's board, and what would retire it. */}
+              <div className={`col-start-1 row-start-1 flex flex-col gap-3 transition-opacity duration-300 ${cardTab === 'why' ? 'opacity-100' : 'invisible opacity-0'}`} data-setup-why>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <SignalBadge tone={stateMeta.tone} dot pulse={stateMeta.pulse}>
+                    {state}
+                  </SignalBadge>
+                  <span className={`font-mono text-[11px] font-semibold ${caseInk}`}>a {caseWord} case</span>
+                  <span className="font-mono text-[10px] tnum text-textPrimary">{setup.confidence}% confidence</span>
+                  <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap">found by {kindLabel}</span>
+                </div>
+                <div className="flex items-start gap-2 border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
+                  <Info className="w-3.5 h-3.5 text-textSecondary shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Why it is on the board</span>
+                    <p key={setup.id} className="text-[11px] text-textPrimary leading-relaxed animate-soft-in">
+                      <RichRead text={setup.whyText} />
+                    </p>
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      {setup.whyChips.map(chip => (
+                        <span key={chip} className="font-mono text-[8px] uppercase tracking-wider text-textSecondary border border-borderSubtle rounded px-1 py-px">
+                          {chip}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                </div>
+                <div className="border border-borderSubtle rounded-md overflow-hidden">
+                  <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The numbers behind it</span>
+                  </div>
+                  <table className="w-full">
+                    <tbody className="divide-y divide-borderSubtle">
+                      {[
+                        { k: 'The lens', v: `${kindLabel} — ${SCANNERS.find(s => s.key === scanner)?.blurb ?? ''}`, ink: 'text-textPrimary' },
+                        { k: 'Priced against', v: `${setup.liveMid > setup.mid * 1.02 ? 'under' : setup.liveMid < setup.mid * 0.98 ? 'over' : 'at'} fair value — $${setup.mid.toFixed(2)} entry vs $${setup.liveMid.toFixed(2)} fair`, ink: setup.liveMid > setup.mid * 1.02 ? 'text-bull' : setup.liveMid < setup.mid * 0.98 ? 'text-bear' : 'text-textPrimary' },
+                        { k: 'The move it needs', v: `±${setup.sigmaMovePct}% is the stock's 1σ to expiry · the setup asks +${setup.expectedMovePct.toFixed(1)}% of the premium`, ink: 'text-textPrimary' },
+                        { k: 'The side', v: `${sideWord} — ${setup.right === 'C' ? 'dealers must buy the stock to stay hedged as it rises' : 'dealers must sell the stock to stay hedged as it falls'}`, ink: setup.right === 'C' ? 'text-bull' : 'text-bear' },
+                        { k: 'The clock', v: tenorWord, ink: 'text-textPrimary' },
+                        { k: 'The greeks', v: `delta ${setup.greeks.delta.toFixed(2)} · IV ${setup.greeks.iv.toFixed(1)}% · theta ${setup.greeks.theta.toFixed(2)}/day`, ink: 'text-textPrimary' },
+                        { k: 'The liquidity', v: `${setup.liquidityLabel} — ${setup.liquiditySpread}`, ink: setup.liquidityLabel === 'Tight' ? 'text-bull' : setup.liquidityLabel === 'Wide' ? 'text-bear' : 'text-textPrimary' },
+                        {
+                          k: "Today's board",
+                          v: boardPlace.rank != null ? `#${boardPlace.rank} of ${boardPlace.of} on the ${kindLabel} board at this expiry` : `not on today's ${kindLabel} board — it lists only the strongest few; this one was named by hand`,
+                          ink: boardPlace.rank != null ? 'text-textPrimary' : 'text-warn',
+                        },
+                      ].map(row => (
+                        <tr key={row.k}>
+                          <td className="px-3 py-1.5 align-top font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap w-28">{row.k}</td>
+                          <td className={`px-3 py-1.5 text-[11px] leading-snug ${row.ink}`}>{row.v}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <AlertTriangle className="w-3 h-3 text-warn" />
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">What would make us wrong</span>
+                  </div>
+                  <p className="text-[11px] text-textPrimary leading-snug">
+                    A close {setup.right === 'C' ? 'below' : 'above'} <span className="font-mono font-semibold tnum text-warn">${c.invalidationPrice.toFixed(2)}</span> — {c.invalidationReason.toLowerCase()} gives way and the thesis is gone.{' '}
+                    {c.takeProfits.length === 0 ? 'The case is already fading: no targets were earned.' : `${c.takeProfits.length} ${c.takeProfits.length === 1 ? 'target was' : 'targets were'} earned by the math; ${hitCount} ${hitCount === 1 ? 'has' : 'have'} been hit.`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/compass', { state: { tickerFilter: setup.ticker } })}
+                  className="self-start inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                >
+                  <ArrowUpRight className="w-3 h-3" /> See {setup.ticker} on the board
+                </button>
               </div>
             </div>
 

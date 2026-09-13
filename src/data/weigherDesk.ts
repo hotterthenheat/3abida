@@ -16,8 +16,9 @@
 import Simulator from '../core/simulator';
 import { expiryFor, type Expiry } from '../core/calendar';
 import { estimatePremium } from './compass';
-import { spotChangePct } from './gex';
+import { fmtUsd, spotChangePct } from './gex';
 import { blackScholesGreeks } from '../core/greeks';
+import { buildEarningsCalendar } from './earnings';
 import type { OptionRight } from '../types/compass';
 
 // ---- deterministic hash noise (the house pattern) ---------------------------
@@ -310,13 +311,47 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
 
 // ---- the scanner ------------------------------------------------------------
 
-export type ScanPreset = 'gainers' | 'losers' | 'voliv';
+/*
+  THE KINDS (Noah, 2026-09-12: "add more features on the scanner like new 52
+  week low/high, gap up or down today, highest option volume, highest implied
+  volatility, upcoming earnings, daily price jumps and dips and whatever else
+  you think of that are nice and easy"). Each kind is a QUESTION asked of the
+  same roster, ranked by its own figure — and that figure is the row's fourth
+  fact, so the scanner always prints the number it sorted by.
+*/
+export type ScanPreset =
+  | 'gainers'
+  | 'losers'
+  | 'hi52'
+  | 'lo52'
+  | 'gapup'
+  | 'gapdown'
+  | 'jumps'
+  | 'dips'
+  | 'optvol'
+  | 'unusual'
+  | 'iv'
+  | 'lowiv'
+  | 'earnings'
+  | 'voliv';
 
-export const SCAN_PRESETS: { key: ScanPreset; label: string; hint: string }[] = [
-  { key: 'gainers', label: 'Daily gainers', hint: 'Largest session gains first' },
-  { key: 'losers', label: 'Daily losers', hint: 'Largest session losses first' },
-  { key: 'voliv', label: 'Options volume · IV', hint: 'Busiest option tapes, priciest vol first' },
+export const SCAN_PRESETS: { key: ScanPreset; label: string; hint: string; fact: string; empty: string }[] = [
+  { key: 'gainers', label: 'Gainers today', hint: 'The largest gains this session first', fact: 'Change', empty: 'No names up today' },
+  { key: 'losers', label: 'Losers today', hint: 'The largest losses this session first', fact: 'Change', empty: 'No names down today' },
+  { key: 'hi52', label: 'New 52-week highs', hint: 'Names at or nearest their 52-week high', fact: 'From 52w high', empty: 'Nothing near a high' },
+  { key: 'lo52', label: 'New 52-week lows', hint: 'Names at or nearest their 52-week low', fact: 'From 52w low', empty: 'Nothing near a low' },
+  { key: 'gapup', label: 'Gap up today', hint: 'Opened above yesterday\u2019s close, biggest gap first', fact: 'Gap', empty: 'No gaps up today' },
+  { key: 'gapdown', label: 'Gap down today', hint: 'Opened below yesterday\u2019s close, biggest gap first', fact: 'Gap', empty: 'No gaps down today' },
+  { key: 'jumps', label: 'Daily price jumps', hint: 'The sharpest single move up inside the session', fact: 'Jump', empty: 'No jumps yet today' },
+  { key: 'dips', label: 'Daily price dips', hint: 'The sharpest single move down inside the session', fact: 'Dip', empty: 'No dips yet today' },
+  { key: 'optvol', label: 'Highest option volume', hint: 'The most contracts traded across the chain', fact: 'Opt vol', empty: 'Nothing on the tape' },
+  { key: 'unusual', label: 'Unusual option volume', hint: 'Today\u2019s contracts against the name\u2019s usual day', fact: 'vs usual', empty: 'Nothing unusual' },
+  { key: 'iv', label: 'Highest implied volatility', hint: 'The priciest vol first', fact: 'IV', empty: 'Nothing on the tape' },
+  { key: 'lowiv', label: 'Lowest implied volatility', hint: 'The cheapest vol first', fact: 'IV', empty: 'Nothing on the tape' },
+  { key: 'earnings', label: 'Upcoming earnings', hint: 'Reports inside two weeks, soonest first', fact: 'Reports', empty: 'No reports in the next two weeks' },
+  { key: 'voliv', label: 'Busiest options', hint: 'The most contracts traded, the priciest vol first', fact: 'Opt vol', empty: 'Nothing on the tape' },
 ];
+export const SCAN_PRESET_KEYS = new Set<string>(SCAN_PRESETS.map(p => p.key));
 
 export interface ScanRow {
   ticker: string;
@@ -325,41 +360,150 @@ export interface ScanRow {
   /** Contracts traded today across the name's chain */
   optVolume: number;
   ivPct: number;
+  /** Today's option volume against the name's usual day, \u00d7 */
+  volVsUsual: number;
+  /** Today's open against yesterday's close, signed % (0 before the open) */
+  gapPct: number;
+  /** The sharpest single bar move up inside today's session, % */
+  jumpPct: number;
+  /** The sharpest single bar move down inside today's session, % (\u2264 0) */
+  dipPct: number;
+  hi52: number;
+  lo52: number;
+  /** Signed distance from the 52-week high (\u2264 0 unless printing a new one) */
+  fromHi52Pct: number;
+  /** Signed distance from the 52-week low (\u2265 0 unless printing a new one) */
+  fromLo52Pct: number;
+  /** Sessions until the next report; null = none inside the calendar's two weeks */
+  earnDays: number | null;
+  /** The figure this kind ranked by, formatted — the row's fourth fact */
+  fact: string;
+  /** The fact's ink: bull, bear, or the primary white */
+  factInk: 'bull' | 'bear' | 'white' | 'warn';
 }
+
+/** Today's session off the sim's bars: the open against the prior close, and
+    the sharpest bar-to-bar moves inside the day. Names not yet seeded read 0. */
+function sessionShape(ticker: string): { gapPct: number; jumpPct: number; dipPct: number } {
+  const bars = Simulator.isSeeded(ticker) ? Simulator.getCandles(ticker) : null;
+  if (!bars || bars.length < 3) return { gapPct: 0, jumpPct: 0, dipPct: 0 };
+  const interval = bars[bars.length - 1].time - bars[bars.length - 2].time || 60;
+  let start = bars.length - 1;
+  while (start > 0 && bars[start].time - bars[start - 1].time <= interval * 2) start--;
+  const prevClose = start > 0 ? bars[start - 1].close : bars[start].open;
+  const gapPct = prevClose > 0 ? ((bars[start].open - prevClose) / prevClose) * 100 : 0;
+  let jump = 0;
+  let dip = 0;
+  for (let i = Math.max(start, 1); i < bars.length; i++) {
+    const ref = bars[i - 1].close;
+    if (ref <= 0) continue;
+    jump = Math.max(jump, ((bars[i].high - ref) / ref) * 100);
+    dip = Math.min(dip, ((bars[i].low - ref) / ref) * 100);
+  }
+  return { gapPct, jumpPct: jump, dipPct: dip };
+}
+
+const pct = (v: number, dp = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
 
 export function buildScan(preset: ScanPreset, active: string): ScanRow[] {
   const quotes = Simulator.universeQuotes(active);
+  const day = dayKey();
+  /* The calendar, once per build — reports inside two weeks by name */
+  const reports = new Map<string, number>();
+  try {
+    for (const e of buildEarningsCalendar()) {
+      const cur = reports.get(e.ticker);
+      if (cur == null || e.daysOut < cur) reports.set(e.ticker, e.daysOut);
+    }
+  } catch {
+    /* a calendar that cannot build leaves every name without a date */
+  }
   const rows: ScanRow[] = quotes.map(q => {
     /* SEEDED MEANS THE HISTORY EXISTS, not the config (2026-09-06, the perf
        sweep): a roster name the Compass pump had registered and walked
        halfway counted as seeded here, and spotChangePct then finished its
-       walk synchronously — 110ms inside the Weigher's open, profiled. */
+       walk synchronously \u2014 110ms inside the Weigher's open, profiled. */
     const seeded = Simulator.isSeeded(q.ticker);
     /* Seeded names report their real simulated session; roster names not yet
        clicked awake get a day-stable read, the same contract their scan
        quote already keeps. */
     const changePct = seeded
       ? Number(spotChangePct(q.ticker).toFixed(2))
-      : Number(((h01(`${q.ticker}-${dayKey()}-chg`) - 0.5) * 6.4).toFixed(2));
+      : Number(((h01(`${q.ticker}-${day}-chg`) - 0.5) * 6.4).toFixed(2));
     const optVolume = Math.round(
-      (h01(`${q.ticker}-${dayKey()}-ovol`) * 0.7 + q.iv * 0.9) * 900_000 + 40_000
+      (h01(`${q.ticker}-${day}-ovol`) * 0.7 + q.iv * 0.9) * 900_000 + 40_000
     );
+    /* The name's usual day \u2014 its own level, so an index name is not
+       "unusual" merely for being big */
+    const usual = Math.round((0.45 + h01(`${q.ticker}-usual`) * 0.5 + q.iv * 0.6) * 900_000 + 40_000);
+    const shape = seeded ? sessionShape(q.ticker) : { gapPct: 0, jumpPct: 0, dipPct: 0 };
+    /* The 52-week range, day-stable around the name's reference price: the
+       high sits 4\u201336% over it, the low 4\u201336% under, and a name can print a
+       NEW high or low when its live price runs through the bound. */
+    const hi52 = Number((q.price * (1 + 0.04 + h01(`${q.ticker}-hi52`) * 0.32) * (1 - changePct / 100)).toFixed(2));
+    const lo52 = Number((q.price * (1 - 0.04 - h01(`${q.ticker}-lo52`) * 0.32) * (1 - changePct / 100)).toFixed(2));
+    const fromHi52Pct = ((q.price - hi52) / hi52) * 100;
+    const fromLo52Pct = ((q.price - lo52) / lo52) * 100;
     return {
       ticker: q.ticker,
       last: Number(q.price.toFixed(2)),
       changePct,
       optVolume,
       ivPct: Number((q.iv * 100).toFixed(1)),
+      volVsUsual: Number((optVolume / usual).toFixed(2)),
+      gapPct: Number(shape.gapPct.toFixed(2)),
+      jumpPct: Number(shape.jumpPct.toFixed(2)),
+      dipPct: Number(shape.dipPct.toFixed(2)),
+      hi52,
+      lo52,
+      fromHi52Pct: Number(fromHi52Pct.toFixed(2)),
+      fromLo52Pct: Number(fromLo52Pct.toFixed(2)),
+      earnDays: reports.get(q.ticker) ?? null,
+      fact: '',
+      factInk: 'white',
     };
   });
 
+  const take = (list: ScanRow[], fact: (r: ScanRow) => { text: string; ink: ScanRow['factInk'] }) =>
+    list.slice(0, 14).map(r => {
+      const f = fact(r);
+      return { ...r, fact: f.text, factInk: f.ink };
+    });
+  const chg = (r: ScanRow) => ({ text: pct(r.changePct), ink: (r.changePct >= 0 ? 'bull' : 'bear') as ScanRow['factInk'] });
+
   switch (preset) {
     case 'gainers':
-      return rows.filter(r => r.changePct > 0).sort((a, b) => b.changePct - a.changePct).slice(0, 14);
+      return take(rows.filter(r => r.changePct > 0).sort((a, b) => b.changePct - a.changePct), chg);
     case 'losers':
-      return rows.filter(r => r.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, 14);
+      return take(rows.filter(r => r.changePct < 0).sort((a, b) => a.changePct - b.changePct), chg);
+    case 'hi52':
+      /* Nearest the high first \u2014 a name printing through it reads "new high" */
+      return take([...rows].sort((a, b) => b.fromHi52Pct - a.fromHi52Pct), r => ({ text: r.fromHi52Pct >= -0.25 ? 'new high' : pct(r.fromHi52Pct), ink: r.fromHi52Pct >= -0.25 ? 'bull' : 'white' }));
+    case 'lo52':
+      return take([...rows].sort((a, b) => a.fromLo52Pct - b.fromLo52Pct), r => ({ text: r.fromLo52Pct <= 0.25 ? 'new low' : pct(r.fromLo52Pct), ink: r.fromLo52Pct <= 0.25 ? 'bear' : 'white' }));
+    case 'gapup':
+      return take(rows.filter(r => r.gapPct > 0.05).sort((a, b) => b.gapPct - a.gapPct), r => ({ text: pct(r.gapPct), ink: 'bull' }));
+    case 'gapdown':
+      return take(rows.filter(r => r.gapPct < -0.05).sort((a, b) => a.gapPct - b.gapPct), r => ({ text: pct(r.gapPct), ink: 'bear' }));
+    case 'jumps':
+      return take(rows.filter(r => r.jumpPct > 0.05).sort((a, b) => b.jumpPct - a.jumpPct), r => ({ text: pct(r.jumpPct), ink: 'bull' }));
+    case 'dips':
+      return take(rows.filter(r => r.dipPct < -0.05).sort((a, b) => a.dipPct - b.dipPct), r => ({ text: pct(r.dipPct), ink: 'bear' }));
+    case 'optvol':
+      return take([...rows].sort((a, b) => b.optVolume - a.optVolume), r => ({ text: fmtUsd(r.optVolume).replace('$', ''), ink: 'white' }));
+    case 'unusual':
+      return take([...rows].sort((a, b) => b.volVsUsual - a.volVsUsual), r => ({ text: `${r.volVsUsual.toFixed(2)}\u00d7`, ink: r.volVsUsual >= 1.5 ? 'warn' : 'white' }));
+    case 'iv':
+      return take([...rows].sort((a, b) => b.ivPct - a.ivPct), r => ({ text: `${r.ivPct.toFixed(0)}%`, ink: 'white' }));
+    case 'lowiv':
+      return take([...rows].sort((a, b) => a.ivPct - b.ivPct), r => ({ text: `${r.ivPct.toFixed(0)}%`, ink: 'white' }));
+    case 'earnings':
+      return take(
+        rows.filter(r => r.earnDays != null).sort((a, b) => (a.earnDays ?? 99) - (b.earnDays ?? 99)),
+        r => ({ text: r.earnDays === 0 ? 'today' : r.earnDays === 1 ? 'tomorrow' : `in ${r.earnDays}d`, ink: (r.earnDays ?? 9) <= 2 ? 'warn' : 'white' })
+      );
     case 'voliv':
-      return [...rows].sort((a, b) => b.optVolume * b.ivPct - a.optVolume * a.ivPct).slice(0, 14);
+      return take([...rows].sort((a, b) => b.optVolume * b.ivPct - a.optVolume * a.ivPct), r => ({ text: fmtUsd(r.optVolume).replace('$', ''), ink: 'white' }));
   }
 }
 

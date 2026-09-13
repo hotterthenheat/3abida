@@ -28,6 +28,7 @@ import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useSeeded } from '../../components/gex/useSeeded';
 import { makeSetup, parseSetupId, setupIdOf } from '../../data/compass';
+import { setCompassView } from '../../data/compassView';
 import type { OptionRight, SleeveKey } from '../../types/compass';
 import CampaignAnalysis from '../../components/compass/CampaignAnalysis';
 import { CampaignSkeleton } from '../compassSkeleton';
@@ -46,6 +47,12 @@ const SetupPage = () => {
     if (address && address.ticker !== activeTicker) changeTicker(address.ticker);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address?.ticker]);
+  /* Being on a contract's page IS having chosen it — the sidebar's "Inside the
+     contract" row points here from now on (Noah, 2026-09-12), whichever door
+     the reader came through (the board, the Tracker, the Weigher, a link). */
+  useEffect(() => {
+    if (address) setCompassView({ chosenId: id, selectedId: id });
+  }, [id, address]);
 
   /* The page greets the reader at its top (Noah, 2026-08-09: opening a setup
      from a scrolled board dropped him mid-chart) — every page does since
@@ -64,7 +71,7 @@ const SetupPage = () => {
     Simulator.register(address.ticker);
     const cfg = Simulator.TICKERS[address.ticker];
     if (!cfg) return null;
-    return makeSetup(address.ticker, cfg.currentPrice, address.strike, address.right, address.scanner, cfg.iv, address.sleeve);
+    return makeSetup(address.ticker, cfg.currentPrice, address.strike, address.right, address.scanner, cfg.iv, address.sleeve, address.dte);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, marketData]);
   const spot = address ? (Simulator.TICKERS[address.ticker]?.currentPrice ?? 0) : 0;
@@ -110,8 +117,8 @@ const SetupPage = () => {
   /* A driver row or the capsule's pick opens the next contract on the same
      name — its own page, with this one named as the way back. A pick can
      carry ITS OWN tenor (the capsule spans tenors): the page follows. */
-  const openContract = (strike: number, right: OptionRight, pickSleeve?: SleeveKey) => {
-    const next = setupIdOf({ ticker: address.ticker, strike, right, scanner: address.scanner, sleeve: pickSleeve ?? address.sleeve });
+  const openContract = (strike: number, right: OptionRight, pickSleeve?: SleeveKey, pickDte?: number) => {
+    const next = setupIdOf({ ticker: address.ticker, strike, right, scanner: address.scanner, sleeve: pickSleeve ?? address.sleeve, dte: pickDte ?? address.dte });
     if (next === id) return;
     navigate(`/compass/${next}`, { state: { from: setup.contract } });
   };
@@ -120,7 +127,7 @@ const SetupPage = () => {
     <>
       {back}
       <div key={id} className="animate-soft-in-slow" data-setup-page={id}>
-        <CampaignAnalysis setup={setup} revision={revision} spot={spot} scanner={address.scanner} sleeve={address.sleeve} gradedAt={gradedAt} onOpenContract={openContract} />
+        <CampaignAnalysis setup={setup} revision={revision} spot={spot} scanner={address.scanner} sleeve={address.sleeve} dte={address.dte} gradedAt={gradedAt} onOpenContract={openContract} />
       </div>
     </>
   );

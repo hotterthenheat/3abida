@@ -31,8 +31,9 @@ import type { Setup } from '../../types/compass';
 import Simulator from '../../core/simulator';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import { buildSetupTrack, barsToSpan, type TrackLevel } from './trackModel';
-import ContractPremiumPane, { type PremiumLevel, type PremiumProjection } from '../gex/ContractPremiumPane';
+import ContractPremiumPane, { type PremiumLevel, type PremiumProjection, type PremiumProjectionApi } from '../gex/ContractPremiumPane';
 import ContractPick, { type ConPickRow } from './ContractPick';
+import PremiumLevelRail from './PremiumLevelRail';
 import { BULL } from '../gex/paletteInk';
 
 const MUTED_INK = 'rgb(var(--text-muted))'; // matches textMuted (the lifted AA value)
@@ -71,12 +72,17 @@ interface ContractTrackProps {
   onOpenContract?: (
     strike: number,
     right: import('../../types/compass').OptionRight,
-    sleeve?: import('../../types/compass').SleeveKey
+    sleeve?: import('../../types/compass').SleeveKey,
+    dte?: number
   ) => void;
+  /** This view is the one on screen — an untouched frame re-centres on its return */
+  active?: boolean;
 }
 
-const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen = false, onToggleFullscreen, loadPickRows, onOpenContract }: ContractTrackProps) => {
+const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen = false, onToggleFullscreen, loadPickRows, onOpenContract, active = true }: ContractTrackProps) => {
   const [timeframe, setTimeframe] = useState<Timeframe>('1m');
+  /* Where the pane puts a premium — the rail beside it reads this in its own frame loop */
+  const projectionRef = useRef<PremiumProjectionApi | null>(null);
 
   /* The chrome's real height, handed to the pane as reserved headroom —
      the strip WRAPS at narrow widths and a target near the top of scale was
@@ -145,8 +151,12 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
   }));
 
   return (
-    /* The tape region — edge to edge inside the caller's box, chrome floating over it */
-    <div ref={tapeRef} className="relative flex-1 min-h-0 overflow-hidden" data-premium-track>
+    /* The tape region — edge to edge inside the caller's box, chrome floating
+       over it — and THE RAIL beside it (2026-09-12): every level as a capsule
+       on the premium axis, the Terrain panel's grammar, so TP1–4, the floor
+       and the entry read down the side instead of only as rules on the plot. */
+    <div className="relative flex-1 min-h-0 flex" data-premium-track>
+      <div ref={tapeRef} className="relative flex-1 min-w-0 min-h-0 overflow-hidden">
       <ContractPremiumPane
         ticker={setup.ticker}
         strike={setup.strike}
@@ -158,6 +168,8 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
         levels={paneLevels}
         projections={projections}
         topMargin={topMargin}
+        projectionRef={projectionRef}
+        visible={active}
       />
 
       {/* ONE strip + its whisper — the stock view's slots: the capsule, the
@@ -207,6 +219,9 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
           )}
         </div>
       </div>
+      </div>
+      {/* The rail — hidden where the card is too narrow to share (below md) */}
+      <PremiumLevelRail levels={track.levels} projection={projectionRef} retired={retired} className="hidden md:block" />
     </div>
   );
 };

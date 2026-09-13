@@ -13,6 +13,7 @@
 import { ArrowUpRight, TriangleAlert } from 'lucide-react';
 import type { Setup } from '../../types/compass';
 import SignalBadge from '../ui/SignalBadge';
+import ContractLabel from '../ui/ContractLabel';
 import SessionSpark from './SessionSpark';
 import { hitLevel } from './setupStage';
 import { processState, PROCESS_META } from './setupProcess';
@@ -50,7 +51,7 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
          2026-08-19; since the 2026-09-05 doctrine that ink is the holo silver
          everywhere, and the walk (2026-09-11) brought the card in line. One
          click selects and points the rail at this name; a second opens. */
-      className={`text-left rounded-md border p-3.5 flex flex-col gap-3 transition-colors ${
+      className={`flex-1 min-w-0 text-left rounded-md border p-3.5 flex flex-col gap-3 transition-colors ${
         selected
           ? 'border-silver/60 bg-silver/[0.04]'
           : 'border-borderSubtle bg-ink/[0.015] hover:border-borderMuted hover:bg-ink/[0.03]'
@@ -60,14 +61,9 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
     >
       {/* identity row */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="font-mono text-[10px] text-textMuted tnum">#{rank}</span>
-        <span
-          className={`font-mono text-[12px] font-bold px-1.5 py-0.5 rounded border ${
-            isCall ? 'text-bull border-bull/30 bg-bull/[0.06]' : 'text-bear border-bear/30 bg-bear/[0.06]'
-          }`}
-        >
-          {setup.contract}
-        </span>
+        <span className="font-mono text-[10px] text-textSecondary tnum">#{rank}</span>
+        {/* The whole contract in its side's ink, with the name's mark (the one rule, components/ui/ContractLabel) */}
+        <ContractLabel contract={setup.contract} right={setup.right} logo={setup.ticker} />
         <span className="font-mono text-[10px] text-textSecondary border border-borderSubtle rounded px-1.5 py-0.5">
           {setup.expiry} · {expiryChip}
         </span>

@@ -37,6 +37,8 @@ export interface ConPickRow {
   strike: number;
   right: OptionRight;
   sleeve: SleeveKey;
+  /** The listed expiry's calendar days — the page prices the pick at this exact date (2026-09-12) */
+  dte?: number;
   /** The contract, e.g. "AAPL 185.50C" */
   title: string;
   /** The distinguishing word — the sleeve's label (0DTE / Weekly / …) */
@@ -55,7 +57,7 @@ const ContractPick = ({
   current: { strike: number; right: OptionRight; sleeve: SleeveKey };
   /** Called on first open — the sweeps run when the reader asks, not per tick. */
   loadRows: () => ConPickRow[];
-  onPick: (strike: number, right: OptionRight, sleeve: SleeveKey) => void;
+  onPick: (strike: number, right: OptionRight, sleeve: SleeveKey, dte?: number) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ConPickRow[] | null>(null);
@@ -123,7 +125,7 @@ const ContractPick = ({
                   aria-selected={isCur}
                   onClick={() => {
                     setOpen(false);
-                    if (!isCur) onPick(r.strike, r.right, r.sleeve);
+                    if (!isCur) onPick(r.strike, r.right, r.sleeve, r.dte);
                   }}
                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-left transition-colors ${
                     isCur ? 'bg-ink/[0.06]' : 'hover:bg-ink/[0.04]'

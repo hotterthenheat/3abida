@@ -5,8 +5,9 @@
   2026-08-19: "save a Pulse layout and come back
   to it instead of rebuilding it").
 
-  Three curated PRESETS ship as starting desks —
-  Market Structure, Flow, 0DTE — and the user can
+  Curated PRESETS ship as starting desks — Market
+  Structure, The Day Ahead, Flow, 0DTE, The Tape,
+  Levels, The Wire — and the user can
   save any arrangement under their own name. Every
   desk, preset or custom, autosaves its own working
   state as you go (the house "it saves as you go"
@@ -90,6 +91,28 @@ export const PRESETS: Record<string, SavedWorkspace> = {
     cell('order-flow-1', 'order-flow', 7, 0, 5, 6),
     cell('exposure-matrix-1', 'exposure-matrix', 0, 6, 12, 4),
   ]),
+  // THE TAPE (2026-09-12, more presets): the name's flow beside its chart —
+  // the prints, the lean through the session, the dark shelves
+  'The Tape': assemble([
+    cell('live-chart-1', 'live-chart', 0, 0, 7, 5),
+    cell('the-tape-1', 'the-tape', 7, 0, 5, 5),
+    cell('net-flow-1', 'net-flow', 0, 5, 6, 5),
+    cell('dark-pool-1', 'dark-pool', 6, 5, 6, 5),
+  ]),
+  // LEVELS: every named level and where it is heading — the agenda, the
+  // walls' drift, the ladder, where the close lands
+  Levels: assemble([
+    cell('ranked-targets-1', 'ranked-targets', 0, 0, 5, 5),
+    cell('wall-drift-1', 'wall-drift', 5, 0, 7, 5),
+    cell('gex-heatmap-1', 'gex-heatmap', 0, 5, 7, 6),
+    cell('where-it-closes-1', 'where-it-closes', 7, 5, 5, 6),
+  ]),
+  // THE WIRE: the calendar and the news beside the setups they feed
+  'The Wire': assemble([
+    cell('news-1', 'news', 0, 0, 4, 6),
+    cell('earnings-1', 'earnings', 4, 0, 4, 6),
+    cell('top-setups-1', 'top-setups', 8, 0, 4, 6),
+  ]),
 };
 
 /** One line per preset for the hover peek — what the desk is FOR. */
@@ -98,6 +121,9 @@ export const PRESET_BLURBS: Record<string, string> = {
   'The Day Ahead': 'From now to the close — the range and where it closes up top, the agenda and the wall in focus beneath.',
   Flow: 'What is hitting the tape, against the chart, with where the walls are heading and the setups it feeds.',
   '0DTE': 'Today’s expiry — the pressure ladder big with its levels view, the order flow beside it, strike-by-strike inventory beneath.',
+  'The Tape': 'The name’s flow beside its chart — the prints as they land, which way its money leans through the session, and the dark shelves.',
+  Levels: 'Every named level and where it is heading — the agenda, the walls’ drift, the ladder, and where the close lands.',
+  'The Wire': 'The calendar and the wire beside the setups they feed — reports, headlines and the scan’s cards.',
 };
 
 export const PRESET_NAMES = Object.keys(PRESETS);

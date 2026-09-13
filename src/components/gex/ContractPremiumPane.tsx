@@ -19,7 +19,7 @@
 ==================================================
 */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import {
   createChart,
   CandlestickSeries,
@@ -39,7 +39,16 @@ import { candleSeriesOptions, chartSurface, getCandleTheme, useCandleThemeKey } 
 import { useResolvedTheme } from '../../theme/theme';
 import { LOCAL_TIME, localTickMarks } from './chartTime';
 import type { OptionRight } from '../../types/compass';
+import type { PriceProjection } from './StrikeChart';
 import ResetViewControl from './ResetViewControl';
+
+/** Where this pane puts a premium — the chart's own projection (StrikeChart's
+    contract) plus the last close, for a neighbour drawing level capsules on
+    the same axis (the setup page's rail, 2026-09-12). */
+export interface PremiumProjectionApi extends PriceProjection {
+  /** The newest bar's close — where NOW is on the axis */
+  last(): number | null;
+}
 
 /** A labeled rule on the premium tape — a TP, the stop, the reference. */
 export interface PremiumLevel {
@@ -78,6 +87,14 @@ interface ContractPremiumPaneProps {
       floating chrome over the tape pass their measured chrome height so no
       candle or level label ever runs under it. Default = the engine's 0.2. */
   topMargin?: number;
+  /** Filled with this pane's live projection on mount, nulled on unmount —
+      the level rail beside it reads it in its own frame loop. */
+  projectionRef?: MutableRefObject<PremiumProjectionApi | null>;
+  /** ALWAYS CENTRED (Noah, 2026-09-12: "the first chart should be the options
+      chart … make sure its always centered"): while the reader has not touched
+      the frame, a resize or a return to this view re-fits the tape and its
+      levels to the pane; the first wheel or drag hands the frame to them. */
+  visible?: boolean;
 }
 
 const LEVEL_STYLE: Record<NonNullable<PremiumLevel['style']>, LineStyle> = {
@@ -86,11 +103,14 @@ const LEVEL_STYLE: Record<NonNullable<PremiumLevel['style']>, LineStyle> = {
   dotted: LineStyle.SparseDotted,
 };
 
-const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revision, iv: ivProp, levels, projections, topMargin }: ContractPremiumPaneProps) => {
+const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revision, iv: ivProp, levels, projections, topMargin, projectionRef, visible = true }: ContractPremiumPaneProps) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const loadedRef = useRef('');
+  /** The reader's hand has been on the frame since the last new contract */
+  const touchedRef = useRef(false);
+  const lastCloseRef = useRef<number | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   /* Undocked levels COUNT in the autoscale range (read by the provider
      below): a rule the caller chose to show on-plot must land on the plot,
@@ -153,21 +173,59 @@ const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revisio
        and undid the reader's hand. First wheel/pointer on the chart
        freezes the scale outright. The way back: resetView (the pill,
        right-click card, Alt+R, dbl-click) or a new world re-engages. */
-    const freezeScale = () => chart.priceScale('right').applyOptions({ autoScale: false });
+    const freezeScale = () => {
+      touchedRef.current = true;
+      chart.priceScale('right').applyOptions({ autoScale: false });
+    };
     host.addEventListener('wheel', freezeScale, { passive: true });
     host.addEventListener('pointerdown', freezeScale);
 
     chartRef.current = chart;
     seriesRef.current = series;
+    if (projectionRef) {
+      projectionRef.current = {
+        yFor: price => seriesRef.current?.priceToCoordinate(price) ?? null,
+        plotHeight: () => chart.paneSize(0).height,
+        axisHeight: () => chart.timeScale().height(),
+        last: () => lastCloseRef.current,
+      };
+    }
+    /* STAYS CENTRED: an untouched frame re-fits when the pane changes size —
+       the card column narrowing, the sidebar folding, fullscreen — so the
+       tape and its levels sit in the middle of whatever room there is. */
+    const ro = new ResizeObserver(() => {
+      if (touchedRef.current) return;
+      const c = chartRef.current;
+      if (!c) return;
+      c.priceScale('right').applyOptions({ autoScale: true });
+      const len = barCountRef.current;
+      if (len > 0) c.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 130), to: len + 5 });
+    });
+    ro.observe(host);
     return () => {
+      ro.disconnect();
       host.removeEventListener('wheel', freezeScale);
       host.removeEventListener('pointerdown', freezeScale);
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
       loadedRef.current = '';
+      if (projectionRef) projectionRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* Coming back to this view re-centres an untouched frame (the stacked
+     cross-fade keeps both charts mounted, so a view that was hidden while the
+     tape grew re-fits on its return) */
+  useEffect(() => {
+    if (!visible || touchedRef.current) return;
+    const c = chartRef.current;
+    if (!c) return;
+    c.priceScale('right').applyOptions({ autoScale: true });
+    const len = barCountRef.current;
+    if (len > 0) c.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 130), to: len + 5 });
+  }, [visible]);
 
   // The caller's reserved headroom, applied live (it changes on resize/wrap)
   useEffect(() => {
@@ -215,10 +273,12 @@ const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revisio
       };
     });
     barCountRef.current = pts.length;
+    lastCloseRef.current = pts[pts.length - 1]?.close ?? null;
     const sig = `${ticker}|${strike}|${right}|${timeframe}|${tYears.toFixed(4)}|${themeKey}`;
     if (loadedRef.current !== sig) {
       series.setData(pts);
-      // A new contract is a fresh greeting — autoscale returns with it.
+      // A new contract is a fresh greeting — autoscale returns with it, and the frame is nobody's yet.
+      touchedRef.current = false;
       chart.priceScale('right').applyOptions({ autoScale: true });
       chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, pts.length - 130), to: pts.length + 5 });
       loadedRef.current = sig;
@@ -300,6 +360,7 @@ const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revisio
   const resetView = () => {
     const chart = chartRef.current;
     if (!chart) return;
+    touchedRef.current = false;
     chart.priceScale('right').applyOptions({ autoScale: true });
     const len = barCountRef.current;
     const extraBars = (projections ?? [])

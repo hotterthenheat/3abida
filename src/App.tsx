@@ -63,6 +63,8 @@ const TradeWindows = lazy(() => import('./pages/trace/Windows'));
 const Odte = lazy(() => import('./pages/trace/Odte'));
 const MultiLeg = lazy(() => import('./pages/trace/MultiLeg'));
 const FlowTracker = lazy(() => import('./pages/trace/FlowTracker'));
+const DarkPool = lazy(() => import('./pages/trace/DarkPool'));
+const TraceCompare = lazy(() => import('./pages/trace/Compare'));
 const CommunityLayout = lazy(() => import('./pages/community/CommunityLayout'));
 const Ideas = lazy(() => import('./pages/community/Ideas'));
 const Requests = lazy(() => import('./pages/community/Requests'));
@@ -158,12 +160,13 @@ const App = () => {
               <Route path="windows" element={<TradeWindows />} />
               <Route path="odte" element={<Odte />} />
               <Route path="multi-leg" element={<MultiLeg />} />
-              {/* Launch trim (Noah, 2026-08-17): Dark Pool unrouted —
-                  dark-pool prints still stream on the tape and the charts */}
-              <Route path="dark-pool" element={<Navigate to="/trace/live-tape" replace />} />
-              <Route path="dark-feed" element={<Navigate to="/trace/live-tape" replace />} />
+              {/* Its own page since 2026-09-12 — the old feed path follows it */}
+              <Route path="dark-pool" element={<DarkPool />} />
+              <Route path="dark-feed" element={<Navigate to="/trace/dark-pool" replace />} />
               {/* The old scanner scaffold's slot — its promise became the screener */}
               <Route path="scanner" element={<Navigate to="/trace/screener" replace />} />
+              {/* Two names on everything Trace knows (2026-09-12) */}
+              <Route path="compare" element={<TraceCompare />} />
               <Route path="tracker" element={<FlowTracker />} />
             </Route>
             <Route path="/liquidity" element={<Navigate to="/trace" replace />} />

@@ -9,8 +9,11 @@
   be magenta?" — yes, and 'supreme' is already the
   house's own word for exactly that ink):
 
-    ordinary  the column's bulk — quiet gray, the
-              "rest be normal"
+    ordinary  the column's bulk — the primary ink
+              at regular weight (Noah, 2026-09-12:
+              the grey "is hard to see" — a figure
+              is never grey now; weight and hue
+              still tell the loud from the rest)
     loud      the top quintile of what is actually
               on screen — earns WEIGHT (bold white)
               on magnitudes, DIRECTION ink on
@@ -46,7 +49,7 @@ export function earnMarks<T>(rows: T[], get: (r: T) => number): InkMarks {
 
 /** A magnitude's ink: intensity is weight, never a hue — except the champion. */
 export const weightInk = (v: number, m: InkMarks): string =>
-  Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? 'font-bold text-textPrimary' : 'text-textSecondary';
+  Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? 'font-bold text-textPrimary' : 'text-textPrimary';
 
 /** A signed fact's ink: direction colour once loud, magenta for the champion. */
 export const directionInk = (v: number, m: InkMarks): string =>
@@ -56,4 +59,4 @@ export const directionInk = (v: number, m: InkMarks): string =>
       ? v > 0
         ? 'text-bull'
         : 'text-bear'
-      : 'text-textSecondary';
+      : 'text-textPrimary';

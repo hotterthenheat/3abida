@@ -18,6 +18,7 @@
 */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -44,6 +45,9 @@ import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnCh
 import LeanCell from '../../components/trace/LeanCell';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { FootprintsGuide } from '../../components/trace/TraceGuide';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 
 const num = (v: number) => v.toLocaleString('en-US');
 
@@ -69,14 +73,14 @@ const TOOLTIPS: Record<string, string> = {
    when the whole flow family got the three-register pass) and gained the
    SUPREME tier there - one magenta champion per column. */
 const dirInk = (v: number, m: InkMarks): string =>
-  Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? (v > 0 ? 'text-bull' : 'text-bear') : 'text-textSecondary';
+  Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? (v > 0 ? 'text-bull' : 'text-bear') : 'text-textPrimary';
 
 /** The prior session's 15-min volume shape — a whisper, not a second fact. */
 const PrevSpark = ({ values }: { values: number[] }) => (
   <svg width={52} height={14} aria-hidden className="block">
     {values.map((v, i) => {
       const h = Math.max(1, v * 13);
-      return <rect key={i} x={i * 2} y={14 - h} width={1.4} height={h} fill="rgba(237,237,237,0.35)" />;
+      return <rect key={i} x={i * 2} y={14 - h} width={1.4} height={h} fill="rgba(237,237,237,0.6)" />;
     })}
   </svg>
 );
@@ -96,7 +100,10 @@ const Footprints = () => {
   );
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book, tick } = hold.value;
+  const { book: heldBook, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): the dates on the book, as a calendar */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((r: { key: string }) => r.key, []);
   const openRow = useCallback((r: { key: string }) => setOpenKey(r.key), []);
 
@@ -217,7 +224,7 @@ const Footprints = () => {
         align: 'right',
         sortValue: r => r.otmPct,
         render: r => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {r.otmPct >= 0 ? '+' : ''}
             {r.otmPct.toFixed(1)}%
           </span>
@@ -247,14 +254,14 @@ const Footprints = () => {
            number still reads; it just stops shouting alongside a build forty
            times its size. */
         render: r => {
-          if (r.deltaOI === 0) return <span className="text-textMuted">—</span>;
+          if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
           const a = Math.abs(r.deltaOI);
           const ink =
             a >= marks.doi.top
               ? 'text-supreme font-bold'
               : a >= marks.doi.bar
                 ? `font-bold ${r.deltaOI > 0 ? 'text-bull' : 'text-bear'}`
-                : 'text-textSecondary';
+                : 'text-textPrimary';
           return (
             <span className={ink}>
               {r.deltaOI > 0 ? '+' : ''}
@@ -271,7 +278,7 @@ const Footprints = () => {
         // Ranked against the PERCENTAGES, not the contract counts — colour
         // only, so the absolute column stays the louder of the pair.
         render: r => {
-          if (r.deltaOI === 0) return <span className="text-textMuted">—</span>;
+          if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
           return (
             <span className={dirInk(r.deltaOI > 0 ? Math.abs(r.deltaOIPct) : -Math.abs(r.deltaOIPct), marks.doiPct)}>
               {r.deltaOIPct > 0 ? '+' : ''}
@@ -324,9 +331,9 @@ const Footprints = () => {
         // A build with legs — three sessions and up earns weight, not neon.
         render: r =>
           r.oiStreak === 0 ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={r.oiStreak >= 3 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>{r.oiStreak}d</span>
+            <span className={r.oiStreak >= 3 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{r.oiStreak}d</span>
           ),
       },
       {
@@ -343,9 +350,9 @@ const Footprints = () => {
         // A report inside the position's runway is a risk event — warn ink.
         render: r =>
           r.earnDays == null ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={r.earnDays <= 5 ? 'text-warn' : 'text-textSecondary'}>
+            <span className={r.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>
               {r.earnDays === 0 ? 'today' : `in ${r.earnDays}d`}
             </span>
           ),
@@ -386,15 +393,15 @@ const Footprints = () => {
         title="What the flow left standing"
         sub={`${activeScreen.label} — ${activeScreen.hint} · open interest is what stayed overnight · a row opens the contract's card`}
         testId="footprints"
-        data={{ screen, rows: rows.length }}
+        data={{ screen, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the footprints', door: 'What open interest, a build and a streak mean', body: <FootprintsGuide />, testId: 'footprints-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Overnight" testId="overnight">
-              <span className="text-bull">+{num(facts.added)}</span> <span className="text-textMuted">added ·</span> <span className="text-bear">−{num(facts.shed)}</span> <span className="text-textMuted">shed</span>
+              <span className="text-bull">+{num(facts.added)}</span> <span className="text-textSecondary">added ·</span> <span className="text-bear">−{num(facts.shed)}</span> <span className="text-textSecondary">shed</span>
             </Fact>
             <Fact label="Contracts" testId="contracts">
-              {facts.builds} <span className="text-textMuted">built · {facts.unwinds} unwound</span>
+              {facts.builds} <span className="text-textSecondary">built · {facts.unwinds} unwound</span>
             </Fact>
             {champs.build && champs.build !== champs.fastest && (
               <Champion label="Biggest build" ink="bull" onOpen={() => setOpenKey(champs.build!.key)} testId="build">
@@ -419,6 +426,7 @@ const Footprints = () => {
             <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
             <DropdownSelect label="Cut" value={screen} options={screenOptions} onChange={setScreen} title="Which side of the overnight ledger" testId="footprints-cut" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="footprints-side" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="footprints-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>

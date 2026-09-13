@@ -3,6 +3,7 @@ import { LayoutGroup, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import Term from '../ui/Term';
 import AnimatedNumber from '../ui/AnimatedNumber';
+import ContractLabel from '../ui/ContractLabel';
 import { fmtUsd } from '../../data/gex';
 import type { ImpactMetric, ImpactRow } from '../../types/compass';
 
@@ -42,6 +43,8 @@ const FACTS: {
       const d = Math.abs(v) < 0.05 ? 0 : v;
       return `${d > 0 ? '+' : ''}${d.toFixed(1)}%`;
     },
+    /* Above the market green, below it red — the sign IS the information */
+    tone: r => (Math.abs(r.distPct) < 0.05 ? 'text-textPrimary' : r.distPct > 0 ? 'text-bull' : 'text-bear'),
   },
   {
     key: 'exposure',
@@ -160,7 +163,6 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
             glides to its new length, and only the name cross-fades —
             the persist-DOM doctrine the campaign card already follows. */}
         {ranked.map(r => {
-          const m = r.contract.match(/^(.*?)([CP])$/);
           const isCall = r.right === 'C';
           return (
             <div
@@ -179,20 +181,16 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
             >
               {/* Identity line — rank, contract, expiry, and the door */}
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-6 shrink-0 font-mono text-[10px] text-textMuted tnum">#{r.rank}</span>
+                <span className="w-6 shrink-0 font-mono text-[10px] text-textSecondary tnum">#{r.rank}</span>
                 {/* The name is the one thing that can't roll — it soft-fades
-                    in on change (keyed), the way the campaign title does. */}
-                <span key={r.contract} className="font-mono text-[12px] font-semibold text-textPrimary truncate animate-soft-in">
-                  {m ? (
-                    <>
-                      {m[1]}
-                      <span className={isCall ? 'text-bull' : 'text-bear'}>{m[2]}</span>
-                    </>
-                  ) : (
-                    r.contract
-                  )}
+                    in on change (keyed), the way the campaign title does.
+                    THE WHOLE CONTRACT IN ITS SIDE'S INK (Noah, 2026-09-12):
+                    the board card's pill, not a coloured letter on a white
+                    name — one rule, components/ui/ContractLabel. */}
+                <span key={r.contract} className="min-w-0 animate-soft-in">
+                  <ContractLabel contract={r.contract} right={r.right} logo={r.contract.split(' ')[0]} size="sm" />
                 </span>
-                <span className="font-mono text-[9px] text-textMuted">{r.expiry}</span>
+                <span className="font-mono text-[9px] text-textSecondary tnum">{r.expiry}</span>
                 <ArrowUpRight
                   aria-hidden="true"
                   className="ml-auto w-3 h-3 shrink-0 text-textSecondary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -203,7 +201,11 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
               <div className="mt-1 grid grid-cols-4 gap-2">
                 {FACTS.map(f => {
                   const active = f.key === metric;
-                  const tone = f.tone?.(r) ?? (active ? 'text-textPrimary' : 'text-textSecondary');
+                  /* THE INFO IS GREEN, WHITE OR RED — NEVER GREY (Noah, 2026-09-12:
+                     "the info should be green white or red not the grey because
+                     its hard to see"). A signed fact wears its sign; a magnitude
+                     wears white; the ranked one is bold on top of that. */
+                  const tone = f.tone?.(r) ?? 'text-textPrimary';
                   return (
                     <span key={f.key} className="min-w-0 flex flex-col gap-1">
                       {/* Figures ROLL between values; the exposure ink eases

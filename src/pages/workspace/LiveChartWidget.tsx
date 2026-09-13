@@ -36,6 +36,7 @@ import { buildLevelRead } from '../../data/levelview';
 const fmtFocus = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 import TickerQuickPick from '../../components/gex/TickerQuickPick';
 import SpotPrice from '../../components/gex/SpotPrice';
+import CompanyLogo from '../../components/ui/CompanyLogo';
 import { buildPrints } from '../../data/gex';
 import { buildExposureProfile } from '../../data/exposure';
 import StrikeExposureBand, { type BandMetric } from '../../components/gex/StrikeExposureBand';
@@ -463,7 +464,8 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
           }`}
           data-chart-chrome
         >
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <CompanyLogo ticker={ctx.ticker} size={14} />
             <span className="text-[11px] font-semibold text-textPrimary">{ctx.ticker}</span>
             <span className="text-[10px] text-textMuted" aria-hidden>·</span>
             <span className="text-[10px] text-textMuted">{timeframe}</span>
@@ -478,6 +480,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
           {compares.map(c => (
             <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
               <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
+              <CompanyLogo ticker={c.ticker} size={12} />
               <span className="text-[10px] font-semibold" style={{ color: c.ink }}>
                 {c.ticker}
               </span>

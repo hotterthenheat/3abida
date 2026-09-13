@@ -30,6 +30,7 @@
 */
 
 import { useMemo, useState, type ReactNode } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import { WallGuide } from './WallGuide';
@@ -242,7 +243,8 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-wall-controls>
         <DropdownSelect label="Wall" value={wall.strike} options={options} onChange={onPick} title="Which wall to read" testId="wall-pick" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-wall-updated>
+        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-wall-updated>
+          <CompanyLogo ticker={ticker} size={11} />
           {ticker} · updated {updatedAt} · every 10s
         </span>
       </div>

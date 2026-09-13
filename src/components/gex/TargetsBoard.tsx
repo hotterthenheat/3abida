@@ -43,6 +43,7 @@
 */
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { createPortal } from 'react-dom';
 import { ArrowUpRight, X } from 'lucide-react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
@@ -445,7 +446,8 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-targets-controls>
         <DropdownSelect label="Ranked by" value={order} options={ORDER_OPTIONS} onChange={onOrder} title="The order of the list" testId="targets-order" />
         <DropdownSelect label="Strikes" value={window} options={WINDOW_OPTIONS} onChange={v => onWindow(v as StrikeWindow)} title="How many strikes around spot" testId="targets-strikes" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-targets-updated>
+        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-targets-updated>
+          <CompanyLogo ticker={ticker} size={11} />
           {ticker} · {agenda.targets.length} strikes · updated {updatedAt} · every 10s
         </span>
         {watch}

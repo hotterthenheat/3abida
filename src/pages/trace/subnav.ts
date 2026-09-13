@@ -1,4 +1,4 @@
-import { Radio, Bookmark, SlidersHorizontal, Footprints, Eye, Clock, Zap, Layers, Scale, type LucideIcon } from 'lucide-react';
+import { Radio, Bookmark, SlidersHorizontal, Footprints, Eye, Clock, Zap, Layers, Scale, Moon, GitCompareArrows, type LucideIcon } from 'lucide-react';
 
 /** Trace subpage registry — drives the sub-tab bar and command palette. */
 export interface TraceSubpage {
@@ -12,7 +12,7 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
   {
     path: '/trace/live-tape',
     label: 'Live Tape',
-    subtitle: 'Streaming options prints, dark-pool crosses & session flow',
+    subtitle: 'Streaming options prints & session flow',
     icon: Radio,
   },
   // Expansion phase (Noah, 2026-08-30): the flow family grows here — the
@@ -61,9 +61,21 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
     subtitle: 'The tape reconstructed into structures — spreads, their legs & their defined risk',
     icon: Layers,
   },
-  // Launch trim (Noah, 2026-08-17): Dark Pool + Scanner pulled from the
-  // first launch — pages kept on disk, routes redirect to the tape (which
-  // still carries the dark-pool feed).
+  // Its own page since 2026-09-12 (Noah: "make a dark pool page in trace") —
+  // the crosses left the tape's side rail the same day.
+  {
+    path: '/trace/dark-pool',
+    label: 'Dark Pool',
+    subtitle: 'Off-exchange crosses with the read attached — who is behind them, the shelves they left & where the dark money went',
+    icon: Moon,
+  },
+  // Two names on everything Trace knows (Noah, 2026-09-12)
+  {
+    path: '/trace/compare',
+    label: 'Compare',
+    subtitle: 'Two names side by side — net flow, the same-day money, the structures, the book & the tape',
+    icon: GitCompareArrows,
+  },
   {
     path: '/trace/tracker',
     label: 'Tracker',

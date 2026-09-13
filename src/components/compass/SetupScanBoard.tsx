@@ -18,12 +18,13 @@
 */
 
 import { useMemo } from 'react';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import type { Setup } from '../../types/compass';
 import { SCANNERS } from '../../types/compass';
 import type { Column } from '../ui/DataTable';
 import SignalBadge from '../ui/SignalBadge';
-import CompanyLogo from '../ui/CompanyLogo';
+import ContractLabel from '../ui/ContractLabel';
 import { TraceGrid } from '../trace/TraceBox';
 import SetupScanCard from './SetupScanCard';
 import { processState, PROCESS_META } from './setupProcess';
@@ -77,8 +78,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
         sortValue: r => r.ticker,
         render: r => (
           <span className="inline-flex items-center gap-2 min-w-0">
-            <CompanyLogo ticker={r.ticker} size={16} />
-            <span className={`font-mono text-[12px] font-semibold ${r.right === 'C' ? 'text-bull' : 'text-bear'}`}>{r.contract}</span>
+            <ContractLabel contract={r.contract} right={r.right} logo={r.ticker} size="sm" />
             {r.rank === 1 && (
               <Chip>
                 <SignalBadge tone="crown">Top pick</SignalBadge>
@@ -155,14 +155,41 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
     );
   }
 
-  /* The cards, two across — the box grows with them */
+  /* The cards, two across — the box grows with them.
+
+     NO SHAKING WHEN THE SWEEP RE-RANKS (Noah, 2026-09-12: "make the entire
+     page when it finds new cons it does it jitter free without constant
+     shaking of the screen"). A sweep re-orders the ranked list every ten
+     seconds; with plain keyed children each card SNAPPED to its new cell, and
+     a new contract shoved every card below it down in one frame. Now every
+     card is a layout-animated motion box: a card that changes rank GLIDES to
+     its new cell on the house curve, a new contract fades in where it lands,
+     a retired one fades out — the grid never snaps, and the reader's eye
+     follows a card instead of losing it. `layout="position"` on purpose: the
+     card's own size never animates (its content is what changes), only where
+     it sits. */
   return (
-    <div key="cards" className="border-t border-borderSubtle px-5 pt-4 pb-5 animate-soft-in" data-compass-board="cards">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        {ranked.map(s => (
-          <SetupScanCard key={s.id} setup={s} rank={s.rank} selected={s.id === selectedId} onSelect={onSelect} onAnalysis={onAnalysis} expiryChip={expiryChip} />
-        ))}
-      </div>
+    <div key="cards" className="border-t border-borderSubtle px-5 pt-4 pb-5" data-compass-board="cards">
+      <LayoutGroup id="compass-board">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <AnimatePresence initial={false}>
+            {ranked.map(s => (
+              <motion.div
+                key={s.id}
+                layout="position"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.18 } }}
+                transition={{ layout: { duration: 0.5, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.35 } }}
+                className="min-w-0 flex"
+                data-compass-slot={s.rank}
+              >
+                <SetupScanCard setup={s} rank={s.rank} selected={s.id === selectedId} onSelect={onSelect} onAnalysis={onAnalysis} expiryChip={expiryChip} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </LayoutGroup>
     </div>
   );
 };

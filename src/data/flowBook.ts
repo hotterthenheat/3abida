@@ -1091,12 +1091,14 @@ let leadersCache: { key: string; leaders: NetLeader[] } | null = null;
     timeline end the pane beside the board draws with, so both read the same
     instant of the same curve. Falls back to the wall clock only when no tape
     is on screen to borrow a clock from. */
-export function buildNetLeaders(rows: BookContract[], sampleTime?: number): NetLeader[] {
+export function buildNetLeaders(rows: BookContract[], sampleTime?: number, scope = ''): NetLeader[] {
   const day = dayKey();
   const nowSec = sampleTime ?? Math.floor(now().getTime() / 1000);
   const d0 = new Date(nowSec * 1000);
   const nowMin = d0.getHours() * 60 + d0.getMinutes();
-  const cacheKey = `${day}-${nowMin}`;
+  /* `scope` names the cut the rows came through (an expiry, 2026-09-12) — the
+     same minute on a different cut is a different board */
+  const cacheKey = `${day}-${nowMin}-${scope}-${rows.length}`;
   if (leadersCache?.key === cacheKey) return leadersCache.leaders;
 
   const byTicker = new Map<string, BookContract[]>();

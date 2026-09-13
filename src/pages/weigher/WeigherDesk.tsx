@@ -36,12 +36,16 @@ import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useStat
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Maximize2, Minimize2, Scale } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronRight, Maximize2, Minimize2, Scale } from 'lucide-react';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent, type RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { isoDate } from '../../core/calendar';
+import { listExpiriesFor, listingPatternFor, nearestListedExpiry } from '../../data/optionChain';
+import { spotForPremium } from '../../components/compass/trackModel';
 import CardTabs from '../../components/ui/CardTabs';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import CompanyLogo from '../../components/ui/CompanyLogo';
@@ -56,12 +60,11 @@ import { useMarketData } from '../../context/MarketDataContext';
 import { buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { buildCompassView, estimatePremium, makeSetup, sleeveForDte } from '../../data/compass';
 import {
-  DESK_DTES,
   SCAN_PRESETS,
+  SCAN_PRESET_KEYS,
   buildDeskChain,
   buildScan,
   contractIvFor,
-  deskExpiries,
   marketMood,
   marketSession,
   type DeskChain,
@@ -118,13 +121,9 @@ const SIDE_OPTIONS: DropdownOption<OptionRight>[] = [
   { value: 'P', label: 'Puts', hint: 'The right to sell' },
 ];
 const REACH_OPTIONS: DropdownOption<number>[] = DESK_DEPTHS.map(d => ({ value: d, label: `±${d}`, hint: `${d} strikes each side of the market` }));
-const KIND_OPTIONS: DropdownOption<ScanPreset>[] = [
-  { value: 'gainers', label: 'Gainers today', hint: 'The largest gains this session first' },
-  { value: 'losers', label: 'Losers today', hint: 'The largest losses this session first' },
-  { value: 'voliv', label: 'Busiest options', hint: 'The most contracts traded, the priciest vol first' },
-];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const fmtDay = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+/* Every kind the scanner asks (data/weigherDesk SCAN_PRESETS — Noah, 2026-09-12:
+   52-week highs and lows, gaps, jumps and dips, option volume, IV, earnings…) */
+const KIND_OPTIONS: DropdownOption<ScanPreset>[] = SCAN_PRESETS.map(p => ({ value: p.key, label: p.label, hint: p.hint }));
 
 interface DeskState {
   ticker: string;
@@ -151,10 +150,11 @@ function loadDesk(): DeskState {
     const cols = storedCols ? CHAIN_COLUMNS.map(x => x.key).filter(k => storedCols.includes(k)) : [];
     return {
       ticker: typeof c.ticker === 'string' && c.ticker ? c.ticker : def.ticker,
-      dte: typeof c.dte === 'number' && (DESK_DTES as readonly number[]).includes(c.dte) ? c.dte : def.dte,
+      /* Any horizon the calendar can list — snapped to the name's own dates on the desk */
+      dte: typeof c.dte === 'number' && Number.isFinite(c.dte) && c.dte >= 0 && c.dte <= 400 ? Math.round(c.dte) : def.dte,
       lens: c.lens === 'contract' ? 'contract' : 'stock',
       right: c.right === 'P' ? 'P' : 'C',
-      preset: c.preset === 'losers' || c.preset === 'voliv' ? c.preset : 'gainers',
+      preset: typeof c.preset === 'string' && SCAN_PRESET_KEYS.has(c.preset) ? (c.preset as ScanPreset) : 'gainers',
       depth: typeof c.depth === 'number' && (DESK_DEPTHS as readonly number[]).includes(c.depth) ? c.depth : def.depth,
       cols: cols.length ? cols : [...def.cols],
     };
@@ -198,8 +198,14 @@ const DeskCard = ({
           header (Noah, 2026-08-25: "the chain ticker should have the same
           dropdown as the chart ticker" — it always was the same menu, just
           decapitated). Wide strips wrap instead; the header grows. */}
+      {/* THE CARDS HUG THE TITLE (Noah, 2026-09-12: "you see how far apart the
+          ticker name is from the other black space and that only happens when
+          the left nav bar is open"): the strip flows on from the title instead
+          of being pushed to the far edge — when it wraps under a narrow column,
+          the first line no longer strands the ticker alone at the right. What
+          belongs at the edge (the expand door) carries its own ml-auto. */}
       {actions && (
-        <span className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-1.5 min-w-0">{actions}</span>
+        <span className="flex flex-1 flex-wrap items-center justify-start gap-1.5 min-w-0">{actions}</span>
       )}
     </div>
     <div className="flex-grow min-h-0">{children}</div>
@@ -330,7 +336,9 @@ const factCell =
   ({ data }: ICellRendererParams<ChainGridRow>) => {
     if (data?.kind !== 'row') return null;
     const v = col.render(data.c);
-    return <span className={`font-mono whitespace-nowrap tnum ${v.bold ? 'text-[11px] font-bold' : 'text-[10px]'} ${v.ink ?? (v.bold ? 'text-textPrimary' : 'text-textSecondary')}`}>{v.text}</span>;
+    /* Every figure in the primary ink (Noah, 2026-09-12: "the grey text is hard
+       to see") — a direction fact keeps its own colour, the mark stays bold */
+    return <span className={`font-mono whitespace-nowrap tnum ${v.bold ? 'text-[11px] font-bold' : 'text-[10px]'} ${v.ink ?? 'text-textPrimary'}`}>{v.text}</span>;
   };
 
 /* The two full-width rows: the market's hairline, and (Pulse) the weigh-up
@@ -539,10 +547,11 @@ export const ChainCard = memo(function ChainCard({
 /* ---- the scanner as a grid -------------------------------------------------- */
 const SCAN_THEME = GRID_THEME.withParams({ rowHeight: 34, headerHeight: 28, fontSize: 11 });
 const SCAN_COL: ColDef<ScanRow> = { sortable: false, resizable: false, suppressMovable: true };
-const SCAN_EMPTY: Record<ScanPreset, string> = { gainers: 'No names up today', losers: 'No names down today', voliv: 'Nothing on the tape' };
+const FACT_INK: Record<ScanRow['factInk'], string> = { bull: 'text-bull', bear: 'text-bear', warn: 'text-warn', white: 'text-textPrimary' };
 
 export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }: { rows: ScanRow[]; ticker: string; preset: ScanPreset; onPick: (t: string) => void }) {
   const gridRef = useRef<AgGridReact<ScanRow>>(null);
+  const kind = SCAN_PRESETS.find(p => p.key === preset) ?? SCAN_PRESETS[0];
   const columnDefs = useMemo<ColDef<ScanRow>[]>(
     () => [
       {
@@ -574,10 +583,21 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
             </span>
           ) : null,
       },
-      { colId: 'optvol', headerName: 'Opt vol', width: 88, type: 'rightAligned', headerTooltip: "Contracts traded today across the name's chain", cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textSecondary">{fmtUsd(data.optVolume).replace('$', '')}</span> : null) },
-      { colId: 'iv', headerName: 'IV', width: 64, type: 'rightAligned', cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textSecondary">{data.ivPct.toFixed(0)}%</span> : null) },
+      /* THE KIND'S OWN FIGURE — the number this kind ranked by, in its ink
+         (a gap up green, a report tomorrow amber, a volume plain white) */
+      {
+        colId: 'fact',
+        headerName: kind.fact,
+        width: 104,
+        type: 'rightAligned',
+        headerTooltip: kind.hint,
+        cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className={`font-mono text-[11px] font-semibold tnum ${FACT_INK[data.factInk]}`}>{data.fact}</span> : null),
+      },
+      /* No grey figures anywhere on the scanner (Noah, 2026-09-12) */
+      { colId: 'optvol', headerName: 'Opt vol', width: 84, type: 'rightAligned', headerTooltip: "Contracts traded today across the name's chain", cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textPrimary">{fmtUsd(data.optVolume).replace('$', '')}</span> : null) },
+      { colId: 'iv', headerName: 'IV', width: 60, type: 'rightAligned', cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textPrimary">{data.ivPct.toFixed(0)}%</span> : null) },
     ],
-    []
+    [kind]
   );
   /* The desk's name wears the house selection — synced once the grid has
      its rows (the first effect fires before the grid exists) */
@@ -606,7 +626,7 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
           animateRows={false}
           onFirstDataRendered={() => setReady(true)}
           tooltipShowDelay={350}
-          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${SCAN_EMPTY[preset]}</span>`}
+          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${kind.empty}</span>`}
         />
       </AgGridProvider>
     </div>
@@ -683,7 +703,37 @@ const METER_GLIDE = 'transition-[transform,background-color] duration-700 ease-[
    section in the bottom right be the information for the strike you click").
    Every pick lands on a soft fade - keyed remount, the Compass mode-swap
    recipe - and the content spreads to FILL the card rather than huddling at
-   the top. Facts only; the greeks stay magnitudes with no direction ink. */
+   the top. Facts only; the greeks stay magnitudes with no direction ink.
+
+   THREE TABS (Noah, 2026-09-12: "this is a weigher based on the parameters we
+   will set so it should be the same as compass's but … people might have had
+   their own cons and wanted our thoughts with our parameters"):
+     Contract — the instrument's own facts, cleaned up and fuller
+     Setup    — the take profits, the fair value, the works the Compass page
+                carries, for THIS contract
+     Verdict  — whether we like it or would fade it, and the reasoning */
+export type ContractTab = 'contract' | 'setup' | 'verdict';
+export const CONTRACT_TABS: readonly { value: ContractTab; label: string }[] = [
+  { value: 'contract', label: 'Contract' },
+  { value: 'setup', label: 'Setup' },
+  { value: 'verdict', label: 'Verdict' },
+];
+
+const VERDICT_WORDS: Record<ContractVerdict, { words: string; ink: string }> = {
+  BUY: { words: 'We like it', ink: 'text-bull' },
+  WATCH: { words: 'We are watching it', ink: 'text-warn' },
+  FADE: { words: 'We would fade it', ink: 'text-bear' },
+};
+const signedPctWord = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+
+/** A group of facts under one whisper head — the Contract tab's grammar */
+const FactGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="flex flex-col gap-1.5">
+    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">{title}</span>
+    <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2">{children}</div>
+  </div>
+);
+
 export const StrikeCard = ({
   c,
   contractKey,
@@ -692,6 +742,8 @@ export const StrikeCard = ({
   boardRank,
   onOpenSetup,
   onSeeBoard,
+  tab,
+  spot,
 }: {
   c: DeskContract | null;
   contractKey: string;
@@ -702,6 +754,9 @@ export const StrikeCard = ({
   boardRank: number | null;
   onOpenSetup: () => void;
   onSeeBoard: () => void;
+  tab: ContractTab;
+  /** The underlying, live — the Setup tab's "needs" column speaks in it */
+  spot: number;
 }) => {
   if (!c || !weigh || !grade) {
     return (
@@ -709,101 +764,221 @@ export const StrikeCard = ({
         <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted">
           Nothing weighed yet
         </span>
-        <span className="font-mono text-[9px] text-textMuted">
+        <span className="font-mono text-[9px] text-textSecondary">
           Click a strike in the chain — its read lands here; a double click puts it on the chart
         </span>
       </div>
     );
   }
-  /*
-    THE DESK'S OWN TWO CENTS (Noah, 2026-08-29), regraded 2026-08-30 after
-    Noah caught the contradiction ("active high conviction on the weigher
-    chain but that same con is NOT found on compass"): the STATE up top —
-    badge, conviction word, confidence — now comes from makeSetup, the SAME
-    engine that grades the Compass board, so the two pages cannot disagree
-    by construction. The six factor meters below are the OTHER lens, framed
-    as what they are: the contract's own build quality. And the board line
-    at the bottom answers the absence question outright — on today's board
-    with a rank, or plainly not, with doors either way. No raw scores
-    anywhere — meters and words (the 2026-08-16 ruling).
-  */
-  /* NO key on the container (Noah, 2026-08-29: "transition between
-     different cons should have the confidence bars be a smooth
-     transition") — a keyed remount starts every meter at its new width
-     with no journey. The DOM persists across contract switches so the
-     bars GLIDE (METER_GLIDE), and only the PROSE crossfades, keyed by the
-     contract. The ContractWeigher's own doctrine, applied here. */
+  const state = processState(grade);
+  const verdict = VERDICT_WORDS[weigh.contract.verdict];
+
+  /* THE SETUP'S OWN MATH — the Compass page's, verbatim: each premium rung
+     restated as the stock price that pays it, by THE pricer that minted the
+     mid (one-pricer rule). */
+  const iv = grade.greeks.iv / 100;
+  const sessions = Math.max(grade.sessionsLeft, 0.5);
+  const priceAt = (s: number, sess: number) => estimatePremium(s, grade.strike, grade.right, iv, Math.max(sess, 0.05) / 252);
+  const needFor = (target: number) => spotForPremium(target, grade.right, priceAt, sessions, spot);
+
   return (
-    <div className="h-full overflow-y-auto animate-soft-in">
-      {/* justify-evenly: a taller card spreads the read across its height
-          (Noah, 2026-08-29: "this should grow to fit the card when
-          extended") instead of huddling at the top over empty felt. */}
-      <div className="min-h-full flex flex-col justify-evenly gap-2 px-3.5 py-2.5">
-        <div key={contractKey} className="flex items-center gap-2 flex-wrap animate-soft-in" data-contract-read>
-          <SignalBadge tone={PROCESS_META[processState(grade)].tone} dot pulse={PROCESS_META[processState(grade)].pulse}>
-            {processState(grade)}
-          </SignalBadge>
-          <span className={`font-mono text-[10px] font-semibold ${CASE_INK(grade.score)}`}>a {CASE_WORD(grade.score)} case</span>
-          <span className="font-mono text-[10px] tnum text-textSecondary">{grade.confidence}%</span>
-          <span className="ml-auto font-mono text-[9px] text-textMuted whitespace-nowrap">graded as a {SLEEVE_WORD[grade.sleeve] ?? grade.sleeve} contract</span>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The contract itself</span>
-          {weigh.contract.factors.map(f => (
-            <div key={f.key} className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <span className="w-28 shrink-0 font-mono text-[9px] uppercase tracking-wider text-textSecondary">{f.label}</span>
-                <span className="flex-1 h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
-                  <span
-                    className={`block h-full w-full rounded-full origin-left ${METER_GLIDE} ${
-                      f.score >= 60 ? 'bg-bull/85' : f.score >= 40 ? 'bg-ink/30' : 'bg-bear/75'
-                    }`}
-                    style={{ transform: `scaleX(${f.score / 100})` }}
-                  />
-                </span>
+    <div className="h-full overflow-y-auto animate-soft-in" data-contract-tab={tab}>
+      <div className="min-h-full flex flex-col gap-3 px-3.5 py-2.5">
+        {tab === 'contract' && (
+          <div key={`con-${contractKey}`} className="flex flex-col gap-3 animate-soft-in" data-contract-read>
+            <FactGroup title="The quote">
+              <StatCell label="Bid" value={`$${c.bid.toFixed(2)}`} />
+              <StatCell label="Mark" term="Mark" value={`$${c.mark.toFixed(2)}`} />
+              <StatCell label="Ask" value={`$${c.ask.toFixed(2)}`} />
+              <StatCell label="Last trade" value={`$${c.last.toFixed(2)}`} />
+              <StatCell label="Net change" value={`${c.netChange >= 0 ? '+' : '-'}$${Math.abs(c.netChange).toFixed(2)} (${signedPctWord(c.netChangePct)})`} ink={c.netChange >= 0 ? 'text-bull' : 'text-bear'} />
+              <StatCell label="Prev close" value={`$${c.prevClose.toFixed(2)}`} />
+              <StatCell label="High" value={`$${c.high.toFixed(2)}`} />
+              <StatCell label="Low" value={`$${c.low.toFixed(2)}`} />
+              <StatCell label="Bid size" value={fmtCount(c.bidSize)} />
+              <StatCell label="Ask size" value={fmtCount(c.askSize)} />
+            </FactGroup>
+            <FactGroup title="The odds">
+              <StatCell label="ITM odds" term="ITM odds" value={`${c.itmOdds.toFixed(0)}%`} />
+              <StatCell label="Touch odds" term="Touch odds" value={`${c.touchOdds.toFixed(0)}%`} />
+              <StatCell label="Profit odds" term="Profit odds" value={`${c.profitOddsLong.toFixed(0)}%`} />
+              <StatCell label="Breakeven" term="Breakeven" value={`$${c.breakeven.toFixed(2)}`} />
+              <StatCell label="To breakeven" term="To breakeven" value={signedPctWord(c.toBreakevenPct)} ink={c.toBreakevenPct >= 0 ? 'text-bull' : 'text-bear'} />
+            </FactGroup>
+            <FactGroup title="The value">
+              <StatCell label="Intrinsic" term="Intrinsic value" value={`$${c.intrinsic.toFixed(2)}`} />
+              <StatCell label="Extrinsic" term="Extrinsic value" value={`$${c.extrinsic.toFixed(2)}`} />
+              <StatCell label="IV" term="IV" value={`${c.iv.toFixed(1)}%`} />
+              <StatCell label="Volume" term="Volume" value={fmtCount(c.volume)} />
+              <StatCell label="Open interest" term="Open interest" value={fmtCount(c.oi)} />
+              <StatCell label="From spot" value={signedPctWord(c.fromSpotPct)} ink={c.fromSpotPct >= 0 ? 'text-bull' : 'text-bear'} />
+              <StatCell label="Expires" value={`${grade.expiryDate.slice(5).replace('-', '/')} · ${Math.round(grade.sessionsLeft)} sess.`} />
+              <StatCell label="1σ move" value={`±${grade.sigmaMovePct}%`} />
+            </FactGroup>
+            <FactGroup title="The Greeks">
+              <StatCell label="Delta" term="Delta" value={c.delta.toFixed(4)} />
+              <StatCell label="Gamma" term="Gamma" value={c.gamma.toFixed(4)} />
+              <StatCell label="Theta / day" term="Theta" value={c.theta.toFixed(4)} />
+              <StatCell label="Vega" term="Vega" value={c.vega.toFixed(4)} />
+              <StatCell label="Rho" term="Rho" value={c.rho.toFixed(4)} />
+            </FactGroup>
+          </div>
+        )}
+
+        {tab === 'setup' && (
+          <div key={`setup-${contractKey}`} className="flex flex-col gap-3 animate-soft-in" data-contract-setup>
+            {/* The three numbers a setup is priced on — the Compass page's trio */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
+                <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${grade.mid.toFixed(2)}</div>
               </div>
-              <p key={contractKey} className="pl-28 text-[11px] text-textPrimary leading-snug animate-soft-in">
-                <RichRead text={f.detail} />
+              <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
+                <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${grade.liveMid.toFixed(2)}</div>
+              </div>
+              <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
+                <div className={`mt-1 font-mono text-sm font-semibold tnum ${grade.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>{signedPctWord(grade.expectedMovePct)}</div>
+              </div>
+            </div>
+            {/* The targets — the Compass page's strict table, for this contract */}
+            <div className="border border-borderSubtle rounded-md overflow-hidden">
+              <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
+                <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{grade.takeProfits.length > 0 ? 'Targets' : 'Targets — none, the case is fading'}</span>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-borderSubtle">
+                    <th className="text-left font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
+                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
+                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
+                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">{grade.ticker} needs</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-borderSubtle">
+                  {[...grade.takeProfits].reverse().map(tp => {
+                    const hit = tp.status === 'HIT';
+                    const working = tp.status === 'IN PROGRESS';
+                    const need = hit ? null : needFor(tp.target);
+                    return (
+                      <tr key={tp.level} data-setup-target={tp.level} data-status={tp.status}>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex items-center gap-1.5 font-mono text-[11px] ${hit ? 'text-bull font-semibold' : working ? 'text-textPrimary font-semibold' : 'text-textPrimary'}`}>
+                            {hit && <Check className="w-3 h-3" />}
+                            Target {tp.level}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-[12px] font-semibold tnum text-textPrimary">${tp.target.toFixed(2)}</td>
+                        <td className={`px-3 py-2 text-right font-mono text-[11px] tnum ${hit ? 'text-bull' : 'text-textPrimary'}`}>+{tp.expectedPct}%</td>
+                        <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textPrimary">{need != null ? need.toFixed(2) : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td className="px-3 py-2"><span className="font-mono text-[11px] text-textPrimary">Entry</span></td>
+                    <td className="px-3 py-2 text-right font-mono text-[12px] font-semibold tnum text-textPrimary">${grade.mid.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
+                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2"><span className="font-mono text-[11px] font-semibold text-bear">{grade.right === 'C' ? 'Floor' : 'Ceiling'}</span></td>
+                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
+                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
+                    <td className="px-3 py-2 text-right font-mono text-[12px] font-semibold tnum text-textPrimary whitespace-nowrap">{grade.right === 'C' ? 'below' : 'above'} {grade.invalidationPrice.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="px-3 py-2 border-t border-borderSubtle text-[10px] leading-snug text-textPrimary">
+                {grade.invalidationReason}. A close through it retires the setup{grade.expiry === '0DTE' ? ' — and nothing here outlives today\u2019s close anyway' : ` — otherwise it runs to ${grade.expiryDate.slice(5).replace('-', '/')}`}.
               </p>
             </div>
-          ))}
-        </div>
-        {/* Edge speaks for the trade, risk against it — the labels wear
-            their sides (Noah, 2026-08-29: "edge and risk should be color
-            coded"). Crossfades with the prose; the sentences stay bright. */}
-        <div key={`er-${contractKey}`} className="grid grid-cols-1 gap-1.5 pt-1.5 border-t border-borderSubtle/60 animate-soft-in">
-          <p className="text-[11px] leading-snug">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-bull mr-2">Edge</span>
-            <span className="text-textPrimary"><RichRead text={weigh.contract.edge} /></span>
-          </p>
-          <p className="text-[11px] leading-snug">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-bear mr-2">Risk</span>
-            <span className="text-textPrimary"><RichRead text={weigh.contract.risk} /></span>
-          </p>
-        </div>
-        {/* The absence answered — the very question that exposed the two
-            engines. On the board: say where. Off it: say why plainly. */}
-        <div key={`bd-${contractKey}`} className="pt-1.5 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap animate-soft-in">
-          {boardRank != null ? (
-            <span className="font-mono text-[10px] text-textPrimary">
-              On today's Compass board · <span className="font-semibold tnum">#{boardRank}</span>
-            </span>
-          ) : (
-            <span className="font-mono text-[10px] text-textMuted">
-              Not on today's board — it lists only the strongest few
-            </span>
-          )}
-          <span className="ml-auto flex items-center gap-1.5">
-            <button onClick={onOpenSetup} className={DOOR_CLS}>
-              <ArrowUpRight className="w-3 h-3" />
-              Setup page
-            </button>
-            <button onClick={onSeeBoard} className={DOOR_CLS}>
-              <ArrowUpRight className="w-3 h-3" />
-              The board
-            </button>
-          </span>
-        </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatCell label="1σ move" value={`±${grade.sigmaMovePct}%`} />
+              <StatCell label="Swing target" value={`$${grade.swingTarget.price.toFixed(2)} · +${grade.swingTarget.pct}%`} ink="text-bull" />
+              <StatCell label="Scalp exit" value={`$${grade.scalpExit.price.toFixed(2)} · +${grade.scalpExit.pct}%`} ink="text-bull" />
+            </div>
+          </div>
+        )}
+
+        {tab === 'verdict' && (
+          /* NO key on the container (Noah, 2026-08-29: "transition between
+             different cons should have the confidence bars be a smooth
+             transition") — the DOM persists across contract switches so the
+             bars GLIDE (METER_GLIDE), and only the PROSE crossfades. */
+          <div className="flex flex-col justify-evenly gap-2 flex-1" data-contract-verdict>
+            <div key={`v-${contractKey}`} className="flex items-center gap-2 flex-wrap animate-soft-in">
+              <span className={`font-mono text-[13px] font-bold ${verdict.ink}`} data-verdict={weigh.contract.verdict}>{verdict.words}</span>
+              <SignalBadge tone={PROCESS_META[state].tone} dot pulse={PROCESS_META[state].pulse}>
+                {state}
+              </SignalBadge>
+              <span className={`font-mono text-[10px] font-semibold ${CASE_INK(grade.score)}`}>a {CASE_WORD(grade.score)} case</span>
+              <span className="font-mono text-[10px] tnum text-textPrimary">{grade.confidence}%</span>
+              <span className="ml-auto font-mono text-[9px] text-textSecondary whitespace-nowrap">graded as a {SLEEVE_WORD[grade.sleeve] ?? grade.sleeve} contract</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The contract itself</span>
+              {weigh.contract.factors.map(f => (
+                <div key={f.key} className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-28 shrink-0 font-mono text-[9px] uppercase tracking-wider text-textSecondary">{f.label}</span>
+                    <span className="flex-1 h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
+                      <span
+                        className={`block h-full w-full rounded-full origin-left ${METER_GLIDE} ${
+                          f.score >= 60 ? 'bg-bull/85' : f.score >= 40 ? 'bg-ink/30' : 'bg-bear/75'
+                        }`}
+                        style={{ transform: `scaleX(${f.score / 100})` }}
+                      />
+                    </span>
+                  </div>
+                  <p key={contractKey} className="pl-28 text-[11px] text-textPrimary leading-snug animate-soft-in">
+                    <RichRead text={f.detail} />
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Edge speaks for the trade, risk against it — the labels wear
+                their sides (Noah, 2026-08-29: "edge and risk should be color
+                coded"). Crossfades with the prose; the sentences stay bright. */}
+            <div key={`er-${contractKey}`} className="grid grid-cols-1 gap-1.5 pt-1.5 border-t border-borderSubtle/60 animate-soft-in">
+              <p className="text-[11px] leading-snug">
+                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-bull mr-2">Edge</span>
+                <span className="text-textPrimary"><RichRead text={weigh.contract.edge} /></span>
+              </p>
+              <p className="text-[11px] leading-snug">
+                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-bear mr-2">Risk</span>
+                <span className="text-textPrimary"><RichRead text={weigh.contract.risk} /></span>
+              </p>
+              <p className="text-[11px] leading-snug">
+                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-textSecondary mr-2">Why</span>
+                <span className="text-textPrimary"><RichRead text={grade.whyText} /></span>
+              </p>
+            </div>
+            {/* The absence answered — the very question that exposed the two
+                engines. On the board: say where. Off it: say why plainly. */}
+            <div key={`bd-${contractKey}`} className="pt-1.5 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap animate-soft-in">
+              {boardRank != null ? (
+                <span className="font-mono text-[10px] text-textPrimary">
+                  On today's Compass board · <span className="font-semibold tnum">#{boardRank}</span>
+                </span>
+              ) : (
+                <span className="font-mono text-[10px] text-textSecondary">
+                  Not on today's board — it lists only the strongest few
+                </span>
+              )}
+              <span className="ml-auto flex items-center gap-1.5">
+                <button onClick={onOpenSetup} className={DOOR_CLS}>
+                  <ArrowUpRight className="w-3 h-3" />
+                  Setup page
+                </button>
+                <button onClick={onSeeBoard} className={DOOR_CLS}>
+                  <ArrowUpRight className="w-3 h-3" />
+                  The board
+                </button>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -992,6 +1167,8 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
 
   const [desk, setDesk] = useState<DeskState>(loadDesk);
   const [sel, setSel] = useState<number | null>(null);
+  /* Which face of the contract card is up (Noah, 2026-09-12: contract · setup · verdict) */
+  const [conTab, setConTab] = useState<ContractTab>('contract');
   const [timeframe, setTimeframe] = useState<Timeframe>('1m');
   const [overlays, setOverlays] = useState<ChartOverlays>(DEFAULT_OVERLAYS);
   const [chartStyle, setChartStyle] = useState<ChartStyle>('candles');
@@ -1016,17 +1193,16 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
   const changePct = useMemo(() => spotChangePct(ticker), [ticker, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prints = useMemo(() => buildPrints(ticker, levels.spot), [ticker]); // eslint-disable-line react-hooks/exhaustive-deps
-  const expiries = useMemo(() => deskExpiries(), []);
-  /* The expiries as dates (Noah, 2026-09-08 on the Map: "it just says 1d 2d 3d") */
-  const expiryOptions = useMemo<DropdownOption<number>[]>(
-    () =>
-      expiries.map(e => ({
-        value: e.dte,
-        label: e.dte === 0 ? `Today · ${fmtDay(e.date)}` : `${fmtDay(e.date)} · ${e.weekday}`,
-        hint: e.dte === 0 ? 'The contracts that expire at the bell' : `${e.dte} days out · ${e.sessions} ${e.sessions === 1 ? 'session' : 'sessions'}`,
-      })),
-    [expiries]
-  );
+  /* THE NAME'S OWN DATES (Noah, 2026-09-12: "only show the dates that these
+     tickers have cause every ticker may have different option dates") — the
+     calendar lists exactly what this name trades, and a stored horizon that
+     the name does not list snaps to the nearest one it does. */
+  const expiries = useMemo(() => listExpiriesFor(ticker), [ticker, scanTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const snapped = nearestListedExpiry(ticker, dte).dte;
+    if (snapped !== dte) setDesk(d => ({ ...d, dte: snapped }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
   const shownCols = useMemo(() => CHAIN_COLUMNS.filter(c => cols.includes(c.key)), [cols]);
   // One array per chain per side — the picker's memo depends on this identity.
   const sideContracts = useMemo(() => chain.rows.map(r => (right === 'C' ? r.call : r.put)), [chain, right]);
@@ -1073,7 +1249,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     if (t === ticker) return;
     Simulator.ensureTicker(t);
     setSel(null);
-    patch({ ticker: t, lens: 'stock' });
+    patch({ ticker: t, lens: 'stock', dte: nearestListedExpiry(t, dte).dte });
   };
 
   /* A deep link arrives with a name (Trace's "Weigh it"). It repoints the
@@ -1246,11 +1422,19 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
               becomes the spacer, Indicators · Alerts · Candles · Overlays · Theme
               land at the right edge beside the expand door. Compact (the card)
               stays packed — there is no room to spread across. */}
-          <div className="flex-1 min-w-0">
+          {/* ONE ROW, OR ONE MORE — never a stack (Noah, 2026-09-12: "when the
+              left tab is out there's a bunch of space on the top that makes it
+              look bad"). The toolbar used to sit in a flex-1 slot that the
+              identity and the lens door squeezed to a sliver on the half-width
+              card when the sidebar was open, and its controls wrapped one per
+              line down the tape. A floor on the slot makes the toolbar wrap AS
+              A WHOLE onto the strip's next line, still horizontal; and the
+              compact card packs its controls instead of spreading them. */}
+          <div className="flex-[1_1_360px] min-w-[300px] max-w-full">
             <ChartToolbar
               minimal
               candles
-              spread
+              spread={full === 'chart'}
               alertTicker={ticker}
               alertSpot={levels.spot}
               compact={full !== 'chart'}
@@ -1334,7 +1518,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     <span className="flex items-center gap-1.5 flex-wrap">
       <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />
       <DropdownSelect label="Side" value={right} options={SIDE_OPTIONS} onChange={v => patch({ right: v })} title="Calls or puts" testId="weigher-side" />
-      <DropdownSelect label="Expiry" value={chain.expiry.dte} options={expiryOptions} onChange={v => patch({ dte: v })} title="Which contracts the chain lists" testId="weigher-expiry" />
+      <ExpiryCalendar value={isoDate(chain.expiry.date)} expiries={expiries} onChange={e => patch({ dte: e.dte })} pattern={listingPatternFor(ticker)} title="Which contracts the chain lists — the dates this name trades" testId="weigher-expiry" />
       <DropdownSelect label="Reach" value={depth} options={REACH_OPTIONS} onChange={v => patch({ depth: v })} title="How many strikes each side of the market" testId="weigher-reach" />
       <DropdownMulti
         label="Columns"
@@ -1346,8 +1530,9 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
         testId="weigher-columns"
         align="end"
       />
-      <span className="font-mono text-[9px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
-        ±{chain.expectedMovePct.toFixed(1)}%
+      <span className="font-mono text-[10px] tnum whitespace-nowrap" title="The move the options are charging for by this expiry">
+        <span className="text-textMuted uppercase tracking-widest text-[9px] mr-1">move</span>
+        <span className="text-textPrimary font-semibold">±{chain.expectedMovePct.toFixed(1)}%</span>
       </span>
     </span>
   );
@@ -1399,7 +1584,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
   const openSetupPage = useCallback(() => {
     if (sel == null) return;
     navigate('/compass', {
-      state: { monitor: { ticker, strike: sel, right, scanner: 'top-setups', sleeve: sleeveForDte(chain.expiry.dte) } },
+      state: { monitor: { ticker, strike: sel, right, scanner: 'top-setups', sleeve: sleeveForDte(chain.expiry.dte), dte: chain.expiry.dte } },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, ticker, sel, right, chain]);
@@ -1552,7 +1737,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
             actions={
               <>
                 {chainActions}
-                {fullBtn('chain')}
+                <span className="ml-auto">{fullBtn('chain')}</span>
               </>
             }
           >
@@ -1574,12 +1759,21 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
           <DeskCard
             title="The contract"
             actions={
-              selected && sel != null ? (
-                <span className="font-mono text-[10px] font-semibold tnum text-textSecondary whitespace-nowrap">
-                  {ticker} {fmtStrike(sel)}
-                  {right} · {chain.expiry.dte}d
+              <>
+                {selected && sel != null && (
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tnum text-textPrimary whitespace-nowrap">
+                    <CompanyLogo ticker={ticker} size={14} />
+                    <span className={right === 'C' ? 'text-bull' : 'text-bear'}>
+                      {ticker} {fmtStrike(sel)}
+                      {right}
+                    </span>
+                    <span className="text-textSecondary">· {chain.expiry.dte === 0 ? 'today' : `${chain.expiry.dte}d`}</span>
+                  </span>
+                )}
+                <span className="ml-auto">
+                  <CardTabs ariaLabel="The contract's faces" options={CONTRACT_TABS} value={conTab} onChange={setConTab} />
                 </span>
-              ) : undefined
+              </>
             }
           >
             <StrikeCard
@@ -1590,6 +1784,8 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
               onOpenSetup={openSetupPage}
               onSeeBoard={seeBoard}
               contractKey={`${ticker}-${sel ?? 'none'}-${right}-${chain.expiry.dte}`}
+              tab={conTab}
+              spot={Simulator.TICKERS[ticker]?.currentPrice ?? chain.spot}
             />
           </DeskCard>
         </div>

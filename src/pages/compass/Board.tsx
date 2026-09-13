@@ -19,6 +19,18 @@
   in place, never pages in the sidebar (Noah:
   "they require immediate ability to change").
 
+  THE EXPIRY IS A CALENDAR (Noah, 2026-09-12: "Use
+  this calendar in the expiry tab on the board
+  because right now all we have is [four tenors]
+  and I feel like its very incomplete"): the Trace
+  calendar, listing every date the names on the
+  sweep actually trade — dailies where the index
+  complex lists them, Fridays and monthlies for
+  the rest — and the engine prices every name at
+  the date IT lists nearest the pick. The sleeve
+  (0DTE / weekly / swing / LEAPS) is derived from
+  the date and keeps steering which kinds run.
+
   A setup's page has a ROUTE of its own since the
   walk (/compass/<id>, pages/compass/SetupPage.tsx)
   — the board keeps its view in data/compassView
@@ -40,10 +52,11 @@ import { useMarketData } from '../../context/MarketDataContext';
 import type { MarketSnapshot } from '../../types/market';
 import Simulator from '../../core/simulator';
 import { useSeeded } from '../../components/gex/useSeeded';
-import { buildCompassView, buildImpact, setupIdOf } from '../../data/compass';
+import { buildCompassView, buildImpact, setupIdOf, sleeveForDte } from '../../data/compass';
 import { setCompassView, useCompassView, type BoardLayout } from '../../data/compassView';
-import { SCANNERS, SLEEVES, isScannerEligible, type ImpactRow, type ScannerKey, type Setup, type SleeveKey } from '../../types/compass';
-import { expiryFor } from '../../core/calendar';
+import { SCANNERS, SLEEVE_BY_KEY, isScannerEligible, type ImpactRow, type ScannerKey, type Setup, type SleeveKey } from '../../types/compass';
+import { expiryAt, isoDate, type Expiry } from '../../core/calendar';
+import { listExpiriesFor, nearestListedExpiry } from '../../data/optionChain';
 import { tickerName } from '../../data/tickers';
 import { NAV_INK } from '../../components/layout/nav';
 import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
@@ -51,6 +64,7 @@ import ReadDoor from '../../components/trace/ReadDoor';
 import RichRead from '../../components/ui/RichRead';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownSearch, { type SearchOption } from '../../components/ui/DropdownSearch';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import BackToTop from '../../components/ui/BackToTop';
 import ImpactLeaderboard from '../../components/compass/ImpactLeaderboard';
 import SetupScanBoard from '../../components/compass/SetupScanBoard';
@@ -66,6 +80,10 @@ const dayOf = (d: Date) => {
   const sameYear = d.getFullYear() === new Date().getFullYear();
   return `${MONTHS[d.getMonth()]} ${d.getDate()}${sameYear ? '' : ` '${String(d.getFullYear()).slice(2)}`}`;
 };
+const parseIso = (iso: string): Date | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+};
 
 const LAYOUT_OPTIONS: DropdownOption<BoardLayout>[] = [
   { value: 'cards', label: 'Cards', hint: "Two across, the stock's line on each" },
@@ -80,14 +98,14 @@ const Board = () => {
   const { activeTicker, marketData, changeTicker } = useMarketData();
   const location = useLocation();
   const navigate = useNavigate();
-  const { sleeve, scanner, layout, tickerFilter, selectedId } = useCompassView();
+  const { sleeve, expiry, scanner, layout, tickerFilter, selectedId } = useCompassView();
   const [guideOpen, setGuideOpen] = useState(false);
 
   // Deep links in: a setup from the Tracker, the Weigher, the tape's drilldown
   // or the Pulse tile lands on ITS PAGE; the wire's door lands here on one name.
   useEffect(() => {
     const state = location.state as {
-      monitor?: { ticker: string; strike: number; right: 'C' | 'P'; scanner: ScannerKey; sleeve?: SleeveKey };
+      monitor?: { ticker: string; strike: number; right: 'C' | 'P'; scanner: ScannerKey; sleeve?: SleeveKey; dte?: number };
       tickerFilter?: string;
     } | null;
     if (state?.tickerFilter && !state.monitor) {
@@ -102,7 +120,9 @@ const Board = () => {
       const known = SCANNERS.some(s => s.key === incoming.scanner);
       const kind: ScannerKey = known ? incoming.scanner : 'top-setups';
       const tenor: SleeveKey = incoming.sleeve ?? (!known ? ((incoming.scanner as string) === 'swings' ? 'swing' : 'weekly') : sleeve);
-      navigate(`/compass/${setupIdOf({ ticker: incoming.ticker, strike: incoming.strike, right: incoming.right, scanner: kind, sleeve: tenor })}`, { replace: true });
+      const id = setupIdOf({ ticker: incoming.ticker, strike: incoming.strike, right: incoming.right, scanner: kind, sleeve: tenor, dte: incoming.dte });
+      setCompassView({ chosenId: id, selectedId: id });
+      navigate(`/compass/${id}`, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -134,8 +154,37 @@ const Board = () => {
   // identical code. Scan-tier cadence: quotes refresh with the sweep.
   const universe = useMemo(() => (scanSnapshot ? Simulator.universeQuotes(scanSnapshot.ticker) : []), [scanSnapshot]);
 
+  /* THE DATES THE NAMES ON THIS SWEEP TRADE — the union of every name's own
+     listing (data/optionChain listExpiriesFor), so the calendar offers a daily
+     because SPY lists it and a monthly because everyone does, and never a date
+     nobody trades. Re-read with the sweep (the list rolls at midnight). */
+  const boardExpiries = useMemo<Expiry[]>(() => {
+    const seen = new Map<string, Expiry>();
+    const names = universe.length ? universe.map(q => q.ticker) : [activeTicker];
+    for (const t of names) for (const e of listExpiriesFor(t)) if (!seen.has(e.label)) seen.set(e.label, e);
+    return [...seen.values()].sort((a, b) => a.dte - b.dte);
+  }, [universe, activeTicker]);
+
+  /* THE EXPIRY ON THE BOARD: the picked date, or — before any pick — the date
+     nearest the stored sleeve's tenor that the sweep lists (0DTE → today when
+     today is a session). Its sleeve steers the kinds. */
+  const activeExp = useMemo<Expiry>(() => {
+    const picked = expiry ? parseIso(expiry) : null;
+    const listed = picked ? boardExpiries.find(e => isoDate(e.date) === expiry) : undefined;
+    if (listed) return listed;
+    if (picked) return expiryAt(picked);
+    const want = (SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).dte;
+    return boardExpiries.reduce((best, e) => (Math.abs(e.dte - want) < Math.abs(best.dte - want) ? e : best), boardExpiries[0] ?? expiryAt(new Date()));
+  }, [expiry, sleeve, boardExpiries]);
+  const effSleeve: SleeveKey = sleeveForDte(activeExp.dte);
+  const boardDte = activeExp.dte;
+  /* The stored sleeve follows the date, so the kinds card and the setup pages agree with the board */
+  useEffect(() => {
+    if (effSleeve !== sleeve) setCompassView({ sleeve: effSleeve, scanner: isScannerEligible(scanner, effSleeve) ? scanner : 'top-setups' });
+  }, [effSleeve, sleeve, scanner]);
+
   // Scan tier: the groups, the counts, the rail — stable between sweeps
-  const data = useMemo(() => (scanSnapshot ? buildCompassView(scanSnapshot, scanner, universe, sleeve) : null), [scanSnapshot, scanner, universe, sleeve]);
+  const data = useMemo(() => (scanSnapshot ? buildCompassView(scanSnapshot, scanner, universe, effSleeve, boardDte) : null), [scanSnapshot, scanner, universe, effSleeve, boardDte]);
 
   // The groups under the Name card
   const filteredGroups = useMemo(() => {
@@ -151,29 +200,23 @@ const Board = () => {
     const counts: Record<string, number> = {};
     let allCount = 0;
     for (const s of SCANNERS) {
-      if (s.key === 'all' || !isScannerEligible(s.key, sleeve)) continue;
-      const built = buildCompassView(scanSnapshot, s.key, universe, sleeve);
+      if (s.key === 'all' || !isScannerEligible(s.key, effSleeve)) continue;
+      const built = buildCompassView(scanSnapshot, s.key, universe, effSleeve, boardDte);
       const count = built.groups.reduce((acc, g) => acc + g.found, 0);
       counts[s.key] = count;
       allCount += count;
     }
     counts['all'] = allCount;
     return counts as Record<ScannerKey, number>;
-  }, [scanSnapshot, universe, sleeve]);
-
-  // Real expiry per tenor, through the clock-aware calendar — recomputed with
-  // each sweep so a session rollover moves the card.
-  const sleeveDates = useMemo(() => {
-    void scanSnapshot; // sweep dependency — the calendar reads the engine clock
-    return Object.fromEntries(SLEEVES.map(s => [s.key, expiryFor(s.dte)])) as Record<SleeveKey, ReturnType<typeof expiryFor>>;
-  }, [scanSnapshot]);
+  }, [scanSnapshot, universe, effSleeve, boardDte]);
 
   // The flat, globally-ranked board — rank is the organizing principle
   const rankedSetups = useMemo(() => filteredGroups.flatMap(g => g.setups).sort((a, b) => b.score - a.score), [filteredGroups]);
 
   /* Nothing selected → #1 is. The rail always follows a selection, so it
      never belongs to nothing; a sweep, filter or kind change that drops the
-     selected card falls back to the first one visible. */
+     selected card falls back to the first one visible. The fallback is NOT a
+     choice — `chosenId` (the sidebar's gate) is set only by the reader's hand. */
   useEffect(() => {
     if (!rankedSetups.length) return;
     if (!selectedId || !rankedSetups.some(s => s.id === selectedId)) setCompassView({ selectedId: rankedSetups[0].id });
@@ -195,41 +238,47 @@ const Board = () => {
       return scanSnapshot;
     }
   }, [scanSnapshot, railTicker, railReady]);
-  const railRows = useMemo(() => (railSnapshot ? buildImpact(railSnapshot, sleeve) : []), [railSnapshot, sleeve]);
+  /* The rail's book prices at the date ITS name lists nearest the board's */
+  const railDte = useMemo(() => (railTicker ? nearestListedExpiry(railTicker, boardDte).dte : boardDte), [railTicker, boardDte]);
+  const railRows = useMemo(() => (railSnapshot ? buildImpact(railSnapshot, effSleeve, railDte) : []), [railSnapshot, effSleeve, railDte]);
   const railNote = selectedSetup ? `the #${rankedSetups.indexOf(selectedSetup) + 1} card, ${selectedSetup.contract}` : undefined;
 
   const activeScanner = SCANNERS.find(s => s.key === scanner)!;
-  const activeSleeveExp = sleeveDates[sleeve];
 
   const handleScanner = (next: ScannerKey) => setCompassView({ scanner: next, selectedId: null, tickerFilter: null });
-  const handleSleeve = (next: SleeveKey) => {
-    // A kind the new tenor doesn't sell falls back to the ranking — landing
-    // on a Quick scalp that LEAPS doesn't have would strand the board.
-    setCompassView({ sleeve: next, scanner: isScannerEligible(scanner, next) ? scanner : 'top-setups', selectedId: null });
+  /* A date from the calendar: the sleeve follows it, and a kind the new tenor
+     doesn't sell falls back to the ranking — landing on a Quick scalp that
+     LEAPS doesn't have would strand the board. */
+  const handleExpiry = (e: Expiry) => {
+    const next = sleeveForDte(e.dte);
+    setCompassView({ expiry: isoDate(e.date), sleeve: next, scanner: isScannerEligible(scanner, next) ? scanner : 'top-setups', selectedId: null });
   };
 
   // The setup's page. The desk REPOINTS to the contract's underlying (a QQQ
   // setup over an SPY chain was the monitor pricing the wrong market); the
   // card stays selected underneath, so coming Back lands on it with the rail
-  // on its name.
+  // on its name. Opening is a CHOICE — the sidebar's page appears with it.
   const openSetup = (setup: Setup) => {
     if (setup.ticker !== activeTicker) changeTicker(setup.ticker);
-    setCompassView({ selectedId: setup.id });
+    setCompassView({ selectedId: setup.id, chosenId: setup.id });
     navigate(`/compass/${setup.id}`);
   };
 
-  // One click selects; a second click on the selected card opens it.
+  // One click selects (and CHOOSES — the reader picked a contract); a second click on the selected card opens it.
   const handleSelect = (setup: Setup) => {
     if (setup.id === selectedId) openSetup(setup);
-    else setCompassView({ selectedId: setup.id });
+    else setCompassView({ selectedId: setup.id, chosenId: setup.id });
   };
 
   // A contract from the rail opens its OWN page (Mo, 2026-08-19) — the same
-  // door the cards use, pinned to that strike and side on the rail's name.
+  // door the cards use, pinned to that strike and side on the rail's name,
+  // at the date the rail priced.
   const handleOpenContract = (row: ImpactRow) => {
     const ticker = railSnapshot?.ticker ?? activeTicker;
     if (ticker !== activeTicker) changeTicker(ticker);
-    navigate(`/compass/${setupIdOf({ ticker, strike: row.strike, right: row.right, scanner, sleeve })}`);
+    const id = setupIdOf({ ticker, strike: row.strike, right: row.right, scanner, sleeve: effSleeve, dte: railDte });
+    setCompassView({ chosenId: id });
+    navigate(`/compass/${id}`);
   };
 
   /* ---- the head's facts and the sentence ------------------------------------------ */
@@ -253,22 +302,10 @@ const Board = () => {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [rankedSetups]);
 
-  /* THE CARDS: the tenor as a date (the Map's spelling), the kind with its count, the name, the layout */
-  const expiryOptions = useMemo<DropdownOption<SleeveKey>[]>(
-    () =>
-      SLEEVES.map(sl => {
-        const exp = sleeveDates[sl.key];
-        return {
-          value: sl.key,
-          label: `${sl.label} · ${dayOf(exp.date)}`,
-          hint: exp.dte === 0 ? sl.blurb : `${sl.blurb} · ${exp.sessions} sessions`,
-        };
-      }),
-    [sleeveDates]
-  );
+  /* THE CARDS: the expiry as a calendar, the kind with its count, the name, the layout */
   const kindOptions = useMemo<DropdownOption<ScannerKey>[]>(
-    () => SCANNERS.filter(s => isScannerEligible(s.key, sleeve)).map(s => ({ value: s.key, label: `${s.label} · ${scannerCounts[s.key] ?? 0}`, hint: s.blurb })),
-    [sleeve, scannerCounts]
+    () => SCANNERS.filter(s => isScannerEligible(s.key, effSleeve)).map(s => ({ value: s.key, label: `${s.label} · ${scannerCounts[s.key] ?? 0}`, hint: s.blurb })),
+    [effSleeve, scannerCounts]
   );
   /* The Name card searches (Noah, 2026-09-11: "not a scroll down until you
      see the stock your looking for") — the ticker and the company both match */
@@ -287,13 +324,11 @@ const Board = () => {
   );
 
   const expiryWords = useMemo(() => {
-    const day = dayOf(activeSleeveExp.date);
-    if (sleeve === 'odte') return activeSleeveExp.dte === 0 ? "today's contracts" : `the ${day} contracts`;
-    if (sleeve === 'weekly') return `this week's contracts (${day})`;
-    if (sleeve === 'swing') return `the ${day} contracts`;
-    return `the ${day} contracts, a year out`;
-  }, [sleeve, activeSleeveExp]);
-  const horizonWords = sleeve === 'odte' ? 'by the bell' : sleeve === 'leaps' ? 'over the year' : `by ${dayOf(activeSleeveExp.date)}`;
+    const day = dayOf(activeExp.date);
+    if (activeExp.dte === 0) return "today's contracts";
+    return `the ${day} contracts (${activeExp.sessions} ${activeExp.sessions === 1 ? 'session' : 'sessions'} out)`;
+  }, [activeExp]);
+  const horizonWords = activeExp.dte === 0 ? 'by the bell' : `by ${dayOf(activeExp.date)}`;
 
   const sentence = useMemo<ReactNode>(() => {
     if (!rankedSetups.length || !top) {
@@ -324,16 +359,22 @@ const Board = () => {
      the box's height and both end on one line; a board taller than the screen
      → the rail STICKS a screen tall while the page scrolls (Noah, 2026-09-11).
      Measured off the box with a callback ref (the box mounts after the first
-     sweep), so a kind or tenor change re-decides. */
+     sweep), so a kind or tenor change re-decides.
+     WITH HYSTERESIS (2026-09-12, the jitter walk): a board that grew by one
+     card across the threshold used to flip the rail between its two stances
+     on the sweep that did it — a whole-column relayout the reader saw as the
+     page shaking. It now takes a clear margin to change stance either way. */
   const [boxEl, setBoxEl] = useState<HTMLDivElement | null>(null);
-  const [boxH, setBoxH] = useState(0);
+  const [railSticks, setRailSticks] = useState(false);
   useEffect(() => {
     if (!boxEl) return;
-    const ro = new ResizeObserver(() => setBoxH(boxEl.getBoundingClientRect().height));
+    const ro = new ResizeObserver(() => {
+      const h = boxEl.getBoundingClientRect().height;
+      setRailSticks(prev => (prev ? h > window.innerHeight - 160 : h > window.innerHeight - 40));
+    });
     ro.observe(boxEl);
     return () => ro.disconnect();
   }, [boxEl]);
-  const railSticks = boxH > window.innerHeight - 40;
 
   if (!data || !marketData) {
     return (
@@ -354,22 +395,22 @@ const Board = () => {
             title="The board"
             sub={`${activeScanner.blurb} · a card selects, a second click opens its page`}
             testId="compass"
-            data={{ expiry: sleeve, kind: scanner, layout, rows: rankedSetups.length }}
+            data={{ expiry: isoDate(activeExp.date), sleeve: effSleeve, kind: scanner, layout, rows: rankedSetups.length }}
             guide={{ title: 'How to read the board', door: 'What a card, its state and the rail mean', body: <CompassGuide />, testId: 'compass-guide', open: guideOpen, onOpen: setGuideOpen }}
             facts={
               <>
                 <Fact label="Found" testId="found">
                   {rankedSetups.length}
-                  {tickerFilter && <span className="text-textMuted"> · of {data.totalFound}</span>}
+                  {tickerFilter && <span className="text-textSecondary"> · of {data.totalFound}</span>}
                 </Fact>
                 <Fact label="Active" testId="active">
-                  <span className={counts.active ? 'text-textPrimary' : 'text-textMuted'}>{counts.active}</span>
+                  <span className={counts.active ? 'text-textPrimary' : 'text-textSecondary'}>{counts.active}</span>
                 </Fact>
                 <Fact label="Proving" testId="proving">
-                  <span className={counts.watch ? 'text-textPrimary' : 'text-textMuted'}>{counts.watch}</span>
+                  <span className={counts.watch ? 'text-textPrimary' : 'text-textSecondary'}>{counts.watch}</span>
                 </Fact>
                 <Fact label="Fading" testId="fading">
-                  <span className={counts.fading ? 'text-textPrimary' : 'text-textMuted'}>{counts.fading}</span>
+                  <span className={counts.fading ? 'text-textPrimary' : 'text-textSecondary'}>{counts.fading}</span>
                 </Fact>
                 {top && (
                   <Champion label="Top pick" ink="supreme" onOpen={() => openSetup(top)} testId="top-pick">
@@ -377,14 +418,25 @@ const Board = () => {
                   </Champion>
                 )}
                 <Fact label="Found at" testId="found-at">
-                  {lastScanAt || <span className="text-textMuted">—</span>}
+                  {lastScanAt || <span className="text-textSecondary">—</span>}
                 </Fact>
               </>
             }
             controls={
               <>
+                {/* THE EXPIRY IS THE TRACE CALENDAR (Noah, 2026-09-12): every date the
+                    names on the sweep list, the chosen one priced across the board */}
+                <ExpiryCalendar
+                  value={isoDate(activeExp.date)}
+                  expiries={boardExpiries}
+                  onChange={handleExpiry}
+                  label="Expiry"
+                  icon={CalendarDays}
+                  ink={CARD_INK.expiry}
+                  title="The listed expiry the board prices — each name at the date it lists nearest"
+                  testId="compass-expiry"
+                />
                 {/* Each card wears its own glyph, in its own ink on hover (Noah, 2026-09-11) */}
-                <DropdownSelect label="Expiry" value={sleeve} options={expiryOptions} onChange={handleSleeve} title="How long the trade lives" icon={CalendarDays} ink={CARD_INK.expiry} testId="compass-expiry" />
                 <DropdownSelect label="Kind" value={scanner} options={kindOptions} onChange={handleScanner} title="What found the setup" icon={Shapes} ink={CARD_INK.kind} testId="compass-kind" />
                 <DropdownSearch
                   label="Name"
@@ -400,12 +452,17 @@ const Board = () => {
                 <DropdownSelect label="Layout" value={layout} options={LAYOUT_OPTIONS} onChange={v => setCompassView({ layout: v })} title="Cards, or a table" icon={layout === 'cards' ? LayoutGrid : Table} ink={CARD_INK.layout} testId="compass-layout" />
               </>
             }
-            sentence={sentence}
+            /* Two lines are reserved for the sentence whatever it says (the jitter
+               walk, 2026-09-12): a sweep that turned a one-line read into two used
+               to grow the head and push the whole board down a line. */
+            sentence={<span className="block min-h-[2.6em]">{sentence}</span>}
           >
-            {/* The body fades on a kind or tenor change (the slow clock — a whole
-                board arriving in 0.2s reads as a snap, Noah 2026-08-10); the head stays put */}
-            <div key={`feed-${scanner}-${sleeve}`} className="animate-soft-in-slow">
-              <SetupScanBoard setups={rankedSetups} layout={layout} selectedId={selectedId} onSelect={handleSelect} onAnalysis={openSetup} expiryChip={activeSleeveExp.label} showKind={scanner === 'all'} />
+            {/* The body fades on a kind or date change (the slow clock — a whole
+                board arriving in 0.2s reads as a snap, Noah 2026-08-10); the head
+                stays put. A sweep on the SAME kind and date never remounts it —
+                the cards glide to their new ranks (SetupScanBoard). */}
+            <div key={`feed-${scanner}-${isoDate(activeExp.date)}`} className="animate-soft-in-slow">
+              <SetupScanBoard setups={rankedSetups} layout={layout} selectedId={selectedId} onSelect={handleSelect} onAnalysis={openSetup} expiryChip={activeExp.label} showKind={scanner === 'all'} />
             </div>
           </TraceBox>
         </div>

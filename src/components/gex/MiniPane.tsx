@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { Maximize2 } from 'lucide-react';
 import {
   createChart,
@@ -207,7 +208,10 @@ const MiniPane = ({ ticker, spot, changePercent, prints, revision, onChangeTicke
         {onChangeTicker ? (
           <TickerQuickPick ticker={ticker} onPick={onChangeTicker} />
         ) : (
-          <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>
+          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold text-textPrimary">
+            <CompanyLogo ticker={ticker} size={14} />
+            {ticker}
+          </span>
         )}
         <span className="font-mono text-[11px] font-semibold text-textPrimary tnum">${spot.toFixed(2)}</span>
         <span className={`font-mono text-[10px] tnum ${up ? 'text-bull' : 'text-bear'}`}>

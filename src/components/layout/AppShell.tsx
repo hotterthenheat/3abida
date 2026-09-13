@@ -107,7 +107,10 @@ const AppShell = () => {
      so a child's h-full resolves to exactly the viewport remainder — the desk
      fills the first screenful, and the footer sits just past the fold. */
   const weigherFrame = location.pathname.startsWith('/weigher');
-  const framePage = bleedPage || weigherFrame;
+  /* Terrain is a charting desk: it fits the screen exactly and carries no
+     footer (Noah, 2026-09-12) — the frame with no gutters at all. */
+  const terrainFrame = location.pathname.startsWith('/terrain');
+  const framePage = bleedPage || weigherFrame || terrainFrame;
 
   return (
     /* THE FRAME (Noah, 2026-09-05, direction B): the terminal's ONE subject
@@ -132,7 +135,7 @@ const AppShell = () => {
           main reserves its scrollbar gutter on every Trace page so a page
           without a scrollbar is not 15px wider than one with. */}
       <main
-        className={`flex-1 min-w-0 min-h-0 h-full ${bleedPage ? 'overflow-hidden' : 'overflow-y-auto'} ${
+        className={`flex-1 min-w-0 min-h-0 h-full ${bleedPage || terrainFrame ? 'overflow-hidden' : 'overflow-y-auto'} ${
           location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''
         }`}
       >
@@ -172,7 +175,9 @@ const AppShell = () => {
                  it — the overflow IS the slight scroll. Tight top like Trace
                  (Noah, 2026-08-30: "way too much space up top"). */
               className={`${
-                bleedPage
+                terrainFrame
+                  ? 'p-0 gap-0 h-full min-h-0 overflow-hidden'
+                  : bleedPage
                   ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-0 gap-4 h-full min-h-0 overflow-hidden'
                   : weigherFrame
                     ? 'px-4 lg:px-6 2xl:px-8 pt-2 pb-3 gap-2.5 h-full min-h-0 overflow-hidden shrink-0'
@@ -192,7 +197,7 @@ const AppShell = () => {
                 a footer at all"): the tape runs to the floor. */}
             {/* Trace runs to the floor with no footer; the Weigher keeps its
                 footer one slight scroll past the fold (Noah, 2026-08-30). */}
-            {!location.pathname.startsWith('/trace') && <SiteFooter />}
+            {!location.pathname.startsWith('/trace') && !terrainFrame && <SiteFooter />}
           </motion.div>
         </AnimatePresence>
       </main>

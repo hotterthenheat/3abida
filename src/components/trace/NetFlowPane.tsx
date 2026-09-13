@@ -158,7 +158,7 @@ const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegmen
         >
           {groups.map((g, gi) => (
             <div key={g} className={gi > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
-              <div className="px-2 pt-1 pb-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-textMuted">{g}</div>
+              <div className="px-2 pt-1 pb-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-textSecondary">{g}</div>
               {NET_SEGMENTS.filter(s => s.group === g).map(s => (
                 <button
                   key={s.key}
@@ -616,11 +616,11 @@ const NetFlowPane = ({
         <span className="ml-auto flex items-center gap-2.5 font-mono text-[10px] tnum whitespace-nowrap">
           <span style={{ color: SPOT }}>{ref}</span>
           <span>
-            <span className="text-textMuted uppercase text-[8px] tracking-wider mr-1">net calls</span>
+            <span className="text-textSecondary uppercase text-[8px] tracking-wider mr-1">net calls</span>
             <span className={view.ncp >= 0 ? 'text-bull' : 'text-bear'}>{fmtUsd(view.ncp)}</span>
           </span>
           <span>
-            <span className="text-textMuted uppercase text-[8px] tracking-wider mr-1">net puts</span>
+            <span className="text-textSecondary uppercase text-[8px] tracking-wider mr-1">net puts</span>
             <span className={view.npp >= 0 ? 'text-bear' : 'text-bull'}>{fmtUsd(view.npp)}</span>
           </span>
           <span className="text-textSecondary">{view.vol.toLocaleString('en-US')} vol</span>
@@ -644,12 +644,12 @@ const NetFlowPane = ({
           aria-hidden
           className="pointer-events-none absolute top-2 left-14 z-20 w-[168px] opacity-0 transition-opacity duration-100 border border-borderSubtle bg-panel/60 backdrop-blur-md rounded-md shadow-lg shadow-black/30 px-2.5 py-2"
         >
-          <span ref={tipTimeRef} className="block font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1">
+          <span ref={tipTimeRef} className="block font-mono text-[9px] uppercase tracking-widest text-textSecondary mb-1">
             --:--
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: SPOT }} />
-            <span ref={tipSpotLabelRef} className="font-mono text-[9px] uppercase tracking-wider text-textMuted">
+            <span ref={tipSpotLabelRef} className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">
               SPY
             </span>
             <span ref={tipSpotRef} className="ml-auto font-mono text-[11px] tnum text-textPrimary">
@@ -658,21 +658,21 @@ const NetFlowPane = ({
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: BULL }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Net calls</span>
+            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Net calls</span>
             <span ref={tipCallRef} className="ml-auto font-mono text-[11px] tnum text-bull">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PUT_WALL }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Net puts</span>
+            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Net puts</span>
             <span ref={tipPutRef} className="ml-auto font-mono text-[11px] tnum text-bear">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: VOL_LOUD }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Volume</span>
+            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Volume</span>
             <span ref={tipVolRef} className={`${TIP_VOL_BASE} text-textSecondary`}>
               —
             </span>

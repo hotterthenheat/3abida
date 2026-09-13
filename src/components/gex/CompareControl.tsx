@@ -11,6 +11,7 @@
 */
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { motion } from 'framer-motion';
 import { Plus, Search, X } from 'lucide-react';
 import type { TickerListing } from '../../data/tickers';
@@ -197,6 +198,7 @@ const CompareControl = ({
               {compares.map(c => (
                 <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-2 px-2.5 py-1">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.ink }} aria-hidden />
+                  <CompanyLogo ticker={c.ticker} size={13} />
                   <span className="font-mono text-[11px] font-semibold text-textPrimary w-14 shrink-0">{c.ticker}</span>
                   <span className="font-mono text-[10px] text-textMuted">{MODE_LABEL[c.mode]}</span>
                   <button

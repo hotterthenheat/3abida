@@ -13,30 +13,31 @@
   rows is not the same") — and since the walk (2026-09-09) the tape is
   the same house box as every Trace page: the head with the view's
   facts (prints, premium by side, sweeps · blocks · P/C, the 0DTE share)
-  and its three whales as champions; one line of cards — the hold, the
-  search, Order / Kind / Lean / Premium, the rail door and the column
-  chooser; the tape read as the sentence; the AG Grid in its window with
-  the rail beside it. What stayed the tape's own: the Stream/Notable/
-  Premium/Size order (the Order card, named in the sub line), the mark in
-  the time cell, the fill-in-spread and conviction cells, the side rail,
-  and the wrapper cache that keeps a row still while its print does not
-  move.
+  and its three whales as champions; one line of cards — the search,
+  Order / Kind / Lean / Premium / Expiry and the column chooser; the tape
+  read as the sentence; the AG Grid in its window. What stayed the tape's
+  own: the Stream/Notable/Premium/Size order (the Order card, named in the
+  sub line), the mark in the time cell, the fill-in-spread and conviction
+  cells, and the wrapper cache that keeps a row still while its print does
+  not move.
 
-  THE SIDE RAIL IS A DOOR (Noah, same day: "the dark pool and the top
-  tickers should have the ability to be hidden so you can have more room
-  for the actual live tape and then that allows for the width to match the
-  other subpages"). A toggle beside Columns; hidden, the grid takes the
-  whole window. Remembered.
+  THE TAPE IS THE WHOLE WINDOW (Noah, 2026-09-12: "completely remove the
+  live/pause button because its a live tape why are people pausing it and
+  then also remove the top names and darkpool panels we have on it"). No
+  hold — a live tape runs; the side rail and its door are gone, the grid
+  takes the box edge to edge, and the dark pool has its own page under
+  Trace (pages/trace/DarkPool.tsx). What the tape gained the same day: an
+  Expiry card on the controls line, the calendar cut to the dates the
+  prints in the buffer actually carry, "every expiry" where it opens.
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanelRight } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { printKey, useWatch, watchPrint } from '../../context/WatchContext';
 import WatchStar from '../../components/trace/WatchStar';
-import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import { enrichPrint, rankNotable, sentimentOf, summarizeTape } from '../../data/tape';
-import { buildGexView, fmtUsd } from '../../data/gex';
+import { fmtUsd } from '../../data/gex';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import type { Column } from '../../components/ui/DataTable';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
@@ -48,6 +49,9 @@ import ContractCell from '../../components/trace/ContractCell';
 import LeanCell from '../../components/trace/LeanCell';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 import { LiveTapeGuide } from '../../components/trace/TraceGuide';
 import type { FlowPrint, PrintSentiment, TapeSummary } from '../../types/trace';
 
@@ -56,7 +60,6 @@ const READ_INTERVAL_MS = 8_000;
 /* The shared chooser stores the HIDDEN set (see ColumnChooser); the old
    key held the visible one, so this is a new key rather than a misread. */
 const COLS_KEY = 'slayer_tape_hidden';
-const RAIL_KEY = 'slayer_tape_rail';
 
 type FlowFilter = 'ALL' | 'SWEEP' | 'BLOCK';
 /** The tape's ordering lens (Noah, 2026-08-19: "quickly switch between newest
@@ -160,14 +163,14 @@ const SpreadCell = ({ print }: { print: FlowPrint }) => {
   const dot = print.side === 'ASK' ? 'bg-bull' : print.side === 'BID' ? 'bg-bear' : 'bg-ink/50';
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="font-mono text-[9px] tnum text-textMuted">{print.bid.toFixed(2)}</span>
+      <span className="font-mono text-[9px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
       <span className="relative w-12 h-[3px] rounded-full bg-ink/[0.07]">
         <span
           className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full ${dot}`}
           style={{ left: `${print.fillPos * 100}%` }}
         />
       </span>
-      <span className="font-mono text-[9px] tnum text-textMuted">{print.ask.toFixed(2)}</span>
+      <span className="font-mono text-[9px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
     </span>
   );
 };
@@ -254,10 +257,6 @@ const LiveTape = () => {
      already keeps a rolling buffer of enriched prints for exactly this; the
      first paint now shows it. */
   const [rows, setRows] = useState<FlowPrint[]>(() => flowTape.slice(0, MAX_ROWS));
-  // The same hold every Trace page wears (see LiveHold); the tape's own
-  // effect below is what actually stops the prints.
-  const hold = useHold(marketData);
-  const paused = hold.paused;
   /* The bookmarks live in the Trace watch store now (2026-09-03) — they
      survive the page, and the Tracker reads them. */
   const { isWatched, toggle: toggleWatch } = useWatch();
@@ -282,55 +281,31 @@ const LiveTape = () => {
   const seededTickRef = useRef(marketData);
   const lastReadRef = useRef(0);
 
-  /* THE RAIL'S TWO STANCES (the Compass board's rule, 2026-09-11): measured
-     off the grid's column with a callback ref — a tape taller than the
-     screen → the rail sticks; a short cut → it adopts the tape's height. */
-  const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
-  const [gridH, setGridH] = useState(0);
+  /* A live tape RUNS (Noah, 2026-09-12) — every tick lands, nothing holds it. */
   useEffect(() => {
-    if (!gridEl) return;
-    const ro = new ResizeObserver(() => setGridH(gridEl.getBoundingClientRect().height));
-    ro.observe(gridEl);
-    return () => ro.disconnect();
-  }, [gridEl]);
-  const railSticks = gridH > window.innerHeight - 40;
-
-  /* The side rail's door — shown unless the reader closed it last time. */
-  const [rail, setRail] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(RAIL_KEY) !== 'hidden';
-    } catch {
-      return true;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(RAIL_KEY, rail ? 'shown' : 'hidden');
-    } catch {
-      /* non-fatal */
-    }
-  }, [rail]);
-
-  useEffect(() => {
-    if (!marketData || paused || marketData === seededTickRef.current) return;
+    if (!marketData || marketData === seededTickRef.current) return;
     const fresh = marketData.tape.map(o => enrichPrint(o, ++idRef.current));
     if (fresh.length === 0) return;
     setRows(prev => [...fresh, ...prev].slice(0, MAX_ROWS));
-  }, [marketData, paused]);
+  }, [marketData]);
 
   const summary = useMemo(() => summarizeTape(rows), [rows]);
+
+  /* THE EXPIRY CUT — the dates the prints in the buffer actually carry, as
+     a calendar; every expiry where the page opens (see bookExpiry). */
+  const { expiry, setExpiry, expiries: tapeExpiries, cut: cutExpiry, chosen: chosenExpiry } = useExpiryCut(rows, r => r.expiry);
 
   const filtered = useMemo(() => {
     const minPrem = Number(minPremKey);
     const nq = norm(searchQuery);
-    return rows.filter(
+    return cutExpiry(rows).filter(
       r =>
         (flowFilter === 'ALL' || (flowFilter === 'SWEEP' ? r.sweep : !r.sweep)) &&
         (sentFilter === 'ALL' || sentimentOf(r) === sentFilter) &&
         r.premium >= minPrem &&
         matchesTape(r, nq)
     );
-  }, [rows, flowFilter, sentFilter, minPremKey, searchQuery]);
+  }, [rows, flowFilter, sentFilter, minPremKey, searchQuery, cutExpiry]);
 
   // The strip and the tape read FOLLOW THE ACTIVE VIEW (Noah, 2026-08-18): an
   // NVDA-filtered table under a market-wide verdict and an SPY whale silently
@@ -375,7 +350,7 @@ const LiveTape = () => {
   /* The read still speaks the active SCOPE (the beam is gone — Noah + partner,
      2026-08-23 — but the scoped rows/summary survive it). */
   const scopeActive =
-    searchQuery.trim() !== '' || flowFilter !== 'ALL' || sentFilter !== 'ALL' || minPremKey !== '0';
+    searchQuery.trim() !== '' || flowFilter !== 'ALL' || sentFilter !== 'ALL' || minPremKey !== '0' || expiry !== null;
   const beamRows = scopeActive ? filtered : rows;
   const beamSummary = useMemo(
     () => (scopeActive ? summarizeTape(filtered) : summary),
@@ -408,42 +383,10 @@ const LiveTape = () => {
     return beamRows.filter(r => r.dte === 0).length / beamRows.length;
   }, [beamRows]);
 
-  const topTickers = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const r of rows) m.set(r.ticker, (m.get(r.ticker) ?? 0) + r.premium);
-    return [...m.entries()]
-      .map(([ticker, premium]) => ({ ticker, premium }))
-      .sort((a, b) => b.premium - a.premium)
-      .slice(0, 6);
-  }, [rows]);
-  const topMax = topTickers[0]?.premium ?? 1;
-
-  // Dark-pool crosses for the rail — deterministic per ticker, so keyed on the
-  // active symbol rather than every tick
-  const activeTicker = marketData?.ticker;
-  const darkPrints = useMemo(() => {
-    if (!marketData) return [];
-    return buildGexView(marketData, 'GEX', 10)
-      .board.flatMap(t =>
-        t.prints.map((p, i) => ({
-          key: `${t.ticker}-${i}`,
-          ticker: t.ticker,
-          size: p.size,
-          price: p.price,
-          notional: p.notional,
-          time: p.time,
-          date: p.date,
-        }))
-      )
-      .sort((a, b) => b.notional - a.notional)
-      .slice(0, 8);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTicker]);
-
   // The read speaks the same scope as the strip. A scope CHANGE bypasses the
   // 8s throttle — switching to NVDA and reading a market-wide sentence for
   // eight more seconds would be the same lie the beam just stopped telling.
-  const scopeKey = `${searchQuery}|${flowFilter}|${sentFilter}|${minPremKey}`;
+  const scopeKey = `${searchQuery}|${flowFilter}|${sentFilter}|${minPremKey}|${expiry ?? ''}`;
   const lastScopeRef = useRef(scopeKey);
   useEffect(() => {
     const now = Date.now();
@@ -508,7 +451,7 @@ const LiveTape = () => {
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={printKey(r.p)} make={() => watchPrint(r.p, 'tape')} noun="print" />
             {r.rank !== undefined && <span className="w-7 shrink-0 text-[10px] font-bold text-textPrimary">#{r.rank}</span>}
-            <span className="text-[11px] text-textSecondary">{to24h(r.p.time)}</span>
+            <span className="text-[11px] text-textPrimary">{to24h(r.p.time)}</span>
           </span>
         ),
       },
@@ -553,7 +496,7 @@ const LiveTape = () => {
         align: 'right',
         sortValue: r => r.p.otmPct,
         render: r => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {r.p.otmPct >= 0 ? '+' : ''}
             {r.p.otmPct.toFixed(1)}%
           </span>
@@ -566,7 +509,7 @@ const LiveTape = () => {
         header: 'Spot',
         align: 'right',
         sortValue: r => r.p.spot,
-        render: r => <span className="text-textSecondary">${r.p.spot.toFixed(2)}</span>,
+        render: r => <span className="text-textPrimary">${r.p.spot.toFixed(2)}</span>,
       },
       {
         key: 'fill',
@@ -607,7 +550,7 @@ const LiveTape = () => {
                 ? 'text-supreme font-bold'
                 : r.p.premium >= 250_000
                   ? 'font-bold text-textPrimary'
-                  : 'text-textSecondary'
+                  : 'text-textPrimary'
             }
           >
             {fmtUsd(r.p.premium)}
@@ -651,7 +594,7 @@ const LiveTape = () => {
         header: 'Vol',
         align: 'right',
         sortValue: r => r.p.volume,
-        render: r => <span className="text-textSecondary">{num(r.p.volume)}</span>,
+        render: r => <span className="text-textPrimary">{num(r.p.volume)}</span>,
       },
       {
         key: 'oi',
@@ -660,7 +603,7 @@ const LiveTape = () => {
         header: 'OI',
         align: 'right',
         sortValue: r => r.p.oi,
-        render: r => <span className="text-textSecondary">{num(r.p.oi)}</span>,
+        render: r => <span className="text-textPrimary">{num(r.p.oi)}</span>,
       },
       {
         key: 'deltaOi',
@@ -688,7 +631,7 @@ const LiveTape = () => {
         sortValue: r => r.p.volOverOI,
         // ≥1.5 = positions built TODAY — weight carries it, not neon.
         render: r => (
-          <span className={r.p.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>
+          <span className={r.p.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
             {r.p.volOverOI.toFixed(2)}
           </span>
         ),
@@ -709,7 +652,7 @@ const LiveTape = () => {
         header: 'Tag',
         sortValue: r => (r.p.sweep ? 'SWEEP' : r.p.strat),
         render: r => (
-          <span className="text-[9px] text-textMuted">
+          <span className="text-[9px] text-textSecondary">
             {r.p.sweep ? <span className="text-warn font-semibold">SWEEP</span> : r.p.strat}
           </span>
         ),
@@ -749,7 +692,7 @@ const LiveTape = () => {
         title="The tape"
         sub={`${VIEW_META[view].label} — ${VIEW_META[view].hint} · a row opens the print's card, the mark at its left keeps it under watch`}
         testId="live-tape"
-        data={{ view, prints: filtered.length, rail: rail ? 'shown' : 'hidden' }}
+        data={{ view, prints: filtered.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the tape', door: 'What a print, its fill and its conviction mean', body: <LiveTapeGuide />, testId: 'live-tape-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
@@ -784,139 +727,48 @@ const LiveTape = () => {
         }
         controls={
           <>
-            <LiveHold paused={paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
             <FlowSearch value={searchQuery} onChange={setSearchQuery} rows={rows} />
             <DropdownSelect label="Order" value={view} options={ORDER_OPTIONS} onChange={setView} title="How the prints are ordered" testId="tape-order" />
             <DropdownSelect label="Kind" value={flowFilter} options={KIND_OPTIONS} onChange={setFlowFilter} title="Sweeps, blocks, or both" testId="tape-kind" />
             <DropdownSelect label="Lean" value={sentFilter} options={LEAN_OPTIONS} onChange={setSentFilter} title="Bullish prints, bearish prints, or both" testId="tape-lean" />
             <DropdownSelect label="Premium" value={minPremKey} options={PREM_OPTIONS} onChange={setMinPremKey} title="The smallest print shown" testId="tape-premium" />
+            {/* The expiry cut — only the dates the prints on the tape carry (Noah, 2026-09-12) */}
+            <ExpiryCalendar
+              value={chosenExpiry ? isoDate(chosenExpiry.date) : ''}
+              expiries={tapeExpiries}
+              onChange={e => setExpiry(isoDate(e.date))}
+              onClear={() => setExpiry(null)}
+              label="Expiry"
+              icon={CalendarDays}
+              steppers={false}
+              title="Only prints on one expiry — or every expiry"
+              testId="tape-expiry"
+            />
             <span className="ml-auto flex items-center gap-2">
-              {/* The side rail's door — silver-white when the rail is up (where you
-                  are), quiet when it is away. Not lime: a layout choice is not a
-                  status. */}
-              <button
-                onClick={() => setRail(r => !r)}
-                aria-pressed={rail}
-                title={rail ? 'Hide the side rail — top names and dark pool' : 'Show the side rail — top names and dark pool'}
-                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                  rail ? 'border-borderMuted bg-ink/[0.05] text-textPrimary' : 'border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary'
-                }`}
-                data-tape-rail-door
-              >
-                <PanelRight className="w-3 h-3" />
-                Rail
-              </button>
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(chooserCols.map(c => c.key))} groupOrder={TAPE_GROUP_ORDER} />
             </span>
           </>
         }
         sentence={<>{readNode}</>}
       >
-        {/* The grid in its window and, beside it, the rail. Rail away, the grid takes the whole window. */}
-        <div className="flex" data-tape-body>
-          <div ref={setGridEl} className="flex-1 min-w-0">
-            <TraceGrid
-              rows={tableRows}
-              columns={columns}
-              hidden={hidden}
-              widths={WIDTHS}
-              flexes={FLEXES}
-              tooltips={TOOLTIPS}
-              rowKey={keyOf}
-              onRowClick={openRow}
-              selectedKey={openPrint ? String(openPrint.id) : null}
-              rowClass={FADE_ROW}
-              animate={false}
-              autoHeight
-              emptyText={rows.length === 0 ? 'Awaiting first prints…' : 'No prints on this cut'}
-              testId="live-tape"
-            />
-          </div>
-
-          {rail && (
-            /* Right rail: the session's top names, then the dark-pool crosses —
-               two heads inside the box. THE RAIL'S TWO STANCES (the Compass
-               board's rule, 2026-09-11): a tape taller than the screen → the
-               rail STICKS a screen tall while the page scrolls; a short cut →
-               the rail adopts the tape's height and both end on one line. */
-            <aside
-              className={`w-[360px] shrink-0 border-t border-l border-borderSubtle flex flex-col overflow-hidden animate-fade-in ${railSticks ? 'self-start sticky top-5 h-[calc(100vh-40px)]' : 'self-stretch'}`}
-              data-tape-rail={railSticks ? 'sticks' : 'adopts'}
-            >
-              <div className="px-4 pt-3 pb-3 border-b border-borderSubtle" data-tape-rail-names>
-                <h3 className="text-[11px] font-semibold text-textPrimary leading-tight">Top names</h3>
-                <p className="text-[10px] text-textMuted">Session premium by name · one cuts the tape to it</p>
-                {/* ALWAYS six slots: the rolling buffer's ticker mix breathes, and
-                    a list that gains or loses a row reflows the whole rail. Ghost
-                    rows hold the height until the tape fills them. */}
-                <div className="mt-2.5 flex flex-col gap-2.5">
-                  {topTickers.map((t, i) => (
-                    <button
-                      key={t.ticker}
-                      onClick={() => setSearchQuery(q => (q === t.ticker ? '' : t.ticker))}
-                      title={searchQuery === t.ticker ? 'Clear the cut' : `Cut the tape to ${t.ticker}`}
-                      className="flex items-center gap-2 group text-left"
-                    >
-                      <span className={`w-12 shrink-0 font-mono text-[11px] font-semibold transition-colors ${searchQuery === t.ticker ? 'text-select' : i === 0 ? 'text-supreme' : 'text-textPrimary'} group-hover:text-select`}>
-                        {t.ticker}
-                      </span>
-                      <span className="relative flex-1 h-[5px] rounded-full bg-ink/[0.05]">
-                        <span className={`absolute inset-y-0 left-0 rounded-full ${searchQuery === t.ticker ? 'bg-select/70' : i === 0 ? 'bg-supreme/70' : 'bg-ink/25'}`} style={{ width: `${(t.premium / topMax) * 100}%` }} />
-                      </span>
-                      <span className="w-14 shrink-0 text-right font-mono text-[10px] tnum text-textSecondary">{fmtUsd(t.premium)}</span>
-                    </button>
-                  ))}
-                  {Array.from({ length: Math.max(0, 6 - topTickers.length) }, (_, i) => (
-                    <div key={`ghost-${i}`} aria-hidden="true" className="flex items-center gap-2 select-none">
-                      <span className="w-12 shrink-0 font-mono text-[11px] text-textMuted/40">—</span>
-                      <span className="flex-1 h-[5px] rounded-full bg-ink/[0.03]" />
-                      <span className="w-14 shrink-0 text-right font-mono text-[10px] text-textMuted/40">—</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex-1 min-h-0 flex flex-col" data-tape-rail-dark>
-                <div className="px-4 pt-3 pb-2">
-                  <h3 className="text-[11px] font-semibold text-textPrimary leading-tight">Dark pool</h3>
-                  <p className="text-[10px] text-textMuted">Off-exchange crosses, largest first</p>
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  {darkPrints.length === 0 ? (
-                    <span className="block font-mono text-[10px] text-textMuted uppercase tracking-widest py-6 text-center">Awaiting prints…</span>
-                  ) : (
-                    <table className="w-full border-collapse">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-panel">
-                          {['Ticker', 'Size', 'Price', 'Notional', 'Time'].map((h, i) => (
-                            <th key={h} className={`px-2 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary border-y border-borderSubtle ${i === 0 ? 'text-left pl-4' : 'text-right'} ${i === 4 ? 'pr-4' : ''}`}>
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {darkPrints.map(p => (
-                          <tr key={p.key} title={`${p.date} · ${p.time}`} className="border-b border-borderSubtle/30 last:border-0 hover:bg-ink/[0.02] transition-colors">
-                            <td className="px-2 pl-4 py-2 whitespace-nowrap">
-                              <span className="flex items-center gap-1.5">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-darkpool" />
-                                <span className="font-mono text-[11px] font-semibold text-textPrimary">{p.ticker}</span>
-                              </span>
-                            </td>
-                            <td className="px-2 py-2 text-right font-mono text-[11px] tnum text-textSecondary">{p.size.toLocaleString()}</td>
-                            <td className="px-2 py-2 text-right font-mono text-[11px] tnum text-textSecondary">${p.price.toFixed(2)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-[11px] font-bold tnum text-textPrimary">${p.notional.toFixed(2)}B</td>
-                            <td className="px-2 pr-4 py-2 text-right font-mono text-[10px] tnum text-textSecondary whitespace-nowrap">{p.time.slice(0, 5)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            </aside>
-          )}
+        {/* The grid takes the whole window — the rail and its door are gone (2026-09-12). */}
+        <div data-tape-body>
+          <TraceGrid
+            rows={tableRows}
+            columns={columns}
+            hidden={hidden}
+            widths={WIDTHS}
+            flexes={FLEXES}
+            tooltips={TOOLTIPS}
+            rowKey={keyOf}
+            onRowClick={openRow}
+            selectedKey={openPrint ? String(openPrint.id) : null}
+            rowClass={FADE_ROW}
+            animate={false}
+            autoHeight
+            emptyText={rows.length === 0 ? 'Awaiting first prints…' : 'No prints on this cut'}
+            testId="live-tape"
+          />
         </div>
       </TraceBox>
 
