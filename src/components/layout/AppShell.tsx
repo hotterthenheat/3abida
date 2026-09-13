@@ -1,4 +1,4 @@
-import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RotateCcw } from 'lucide-react';
@@ -6,7 +6,22 @@ import SideNav from './SideNav';
 import CommandPalette from './CommandPalette';
 import SiteFooter from './SiteFooter';
 import RouteSkeleton from '../ui/RouteSkeleton';
-import EditorDock from '../scripts/EditorDock';
+/*
+  THE EDITOR IS NOT PART OF THE BOOT (2026-09-13, the load sweep). Importing
+  this dock here statically pulled CodeMirror, the Pine interpreter and the
+  script library — and through the library, lightweight-charts and StrikeChart
+  — into the entry chunk: ~700KB of the 1,506KB every page downloaded, parsed
+  and compiled before it could draw, for a panel that renders `null` until
+  somebody opens it.
+
+  The open flag has to be read OUT HERE for the split to mean anything: the
+  dock is rendered unconditionally, so a lazy() around it would resolve on the
+  first render and load the chunk anyway. data/editorDock is a bare
+  useSyncExternalStore with no dependencies of its own, so asking it costs
+  nothing and the editor now arrives when it is opened.
+*/
+import { useEditorDock } from '../../data/editorDock';
+const EditorDock = lazy(() => import('../scripts/EditorDock'));
 import AlertsDrawer from '../alerts/AlertsDrawer';
 import AlertWatcher from '../alerts/AlertWatcher';
 import AlertToasts from '../alerts/AlertToasts';
@@ -77,6 +92,8 @@ const FULL_PAGE_DETOURS = ['/pulse/board'];
 
 const AppShell = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  /* Read out here, not inside the dock — see the import note above. */
+  const editorOpen = useEditorDock().open;
   const location = useLocation();
   const transitionKey = FULL_PAGE_DETOURS.includes(location.pathname)
     ? location.pathname
@@ -203,7 +220,11 @@ const AppShell = () => {
       </main>
       {/* THE SCRIPT EDITOR (2026-09-10): docked at the right of a full-screen
           chart, the takeover narrowed to leave it room — see data/editorDock.ts */}
-      <EditorDock />
+      {editorOpen && (
+        <Suspense fallback={null}>
+          <EditorDock />
+        </Suspense>
+      )}
       {/* EVERY ALERT IN ONE PLACE (2026-09-10): the sidebar's bell opens it
           at the right, over any page — see data/alertsDrawer.ts */}
       <AlertsDrawer />

@@ -83,8 +83,24 @@ export const useLaunch = (): LaunchCtxValue => {
   return ctx;
 };
 
+/*
+  THE THREE DELAYS, MEASURED (2026-09-13, the second load sweep).
+
+  Instrumenting the boot showed where /pulse's time actually went, and it was
+  not where the last pass assumed:
+
+      275ms   entry chunk parsed, React mounted, gate on screen
+      420ms   the seed — the only real work in here
+      220ms   reveal hold, waiting for nothing
+      300ms   the gate's exit fade, over a terminal already drawn
+
+  Half of it was the gate being polite. The floor, the hold and the fade are
+  all still here — a screen that vanishes the instant it appears reads as a
+  flicker, and cross-fading onto a drawn terminal is the point of the gate —
+  but each is now the shortest it can be and still do its job.
+*/
 /** Below this the gate would read as a flash rather than a screen. */
-const FLOOR_MS = 420;
+const FLOOR_MS = 180;
 /** Above this we open anyway — a slow machine gets a terminal, not a spinner. */
 const CEILING_MS = 4000;
 /** How much of the walk each slice takes while the gate is covering the screen. */
@@ -92,7 +108,7 @@ const SLICE_MS = 22;
 /** A CTA gate is a transition, not a boot: there is nothing left to build. */
 const STEP_MS = 360;
 /** …then the destination mounts behind it before the fade-out starts. */
-const REVEAL_MS = 220;
+const REVEAL_MS = 90;
 
 const captionFor = (path: string) => (path === '/' ? 'Loading' : 'Entering terminal');
 
@@ -207,7 +223,7 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
             initial={bootRef.current ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="fixed inset-0 z-[100] bg-canvas flex flex-col items-center justify-center gap-6"
             data-launch-gate
           >

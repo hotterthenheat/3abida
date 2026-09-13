@@ -159,6 +159,29 @@ const Simulator = (() => {
     return entry;
   }
 
+  /*
+    THE SEED'S ALLOCATIONS (2026-09-13, the load sweep).
+
+    evolveBook runs once per bar and walks 61 strikes inside, so the seed for
+    one name goes round this loop ~520,000 times. Three things in it were
+    allocating on every single pass and none of them had to:
+
+      the breather   declared as a closure INSIDE the loop body, so half a
+                     million functions were built and collected to multiply
+                     two numbers. It is the same function every time — it is
+                     out here now.
+      the alive Set  a fresh Set every bar plus 61 adds, to answer a question
+                     that is two numeric comparisons (see below).
+      the magnets    gexAwareStep built a pair of {strike, s} objects, then an
+                     array, then filtered and sorted it, once a bar, to pick
+                     the nearer of two candidates.
+
+    None of this changes a number the simulator produces — the same values in
+    the same order, including every Math.random() call — it just stops the
+    garbage collector doing laps during the one second the gate is up.
+  */
+  const breathe = () => 1 + (Math.random() - 0.5) * 0.05; // order-flow breathing
+
   function evolveBook(sym: string, spot: number, blend = BOOK_BLEND): void {
     const cfg = TICKERS[sym];
     const step = cfg.step;
@@ -168,10 +191,15 @@ const Simulator = (() => {
       blend = 1; // first call seeds the book outright
     }
     const base = Math.round(spot / step) * step;
-    const alive = new Set<number>();
+    /* The live window is a contiguous run on the step grid, so "is this strike
+       still alive?" is two comparisons rather than a Set built fresh every bar
+       (see THE SEED'S ALLOCATIONS below). Every key in the book was created by
+       this same loop off a base that is always a multiple of step, so nothing
+       inside the range can be off-grid and miss the rebuild. */
+    const lo = r2(base - BOOK_RANGE * step);
+    const hi = r2(base + BOOK_RANGE * step);
     for (let i = -BOOK_RANGE; i <= BOOK_RANGE; i++) {
       const strike = r2(base + i * step);
-      alive.add(strike);
       const want = freshOI(strike, spot, step);
       const cur = book.get(strike);
       if (!cur) {
@@ -182,14 +210,13 @@ const Simulator = (() => {
           putOI: Math.round(want.putOI * scale),
         });
       } else {
-        const flow = () => 1 + (Math.random() - 0.5) * 0.05; // order-flow breathing
-        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * flow()));
-        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * flow()));
+        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * breathe()));
+        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * breathe()));
       }
     }
     // strikes price left behind: positions unwind gradually, then fall away
     for (const [k, e] of book) {
-      if (alive.has(k)) continue;
+      if (k >= lo && k <= hi) continue;
       e.callOI = Math.round(e.callOI * 0.985);
       e.putOI = Math.round(e.putOI * 0.985);
       if (e.callOI < 120 && e.putOI < 120) book.delete(k);
@@ -219,8 +246,8 @@ const Simulator = (() => {
     const refWall = (20000 * 2.4 * 100 * price * price * 0.01 * 0.54) / (2.5066 * denom);
 
     const base = Math.round(price / step) * step;
-    let nearAbove: { strike: number; s: number } | null = null;
-    let nearBelow: { strike: number; s: number } | null = null;
+    let aboveStrike = 0, aboveS = 0, hasAbove = false;
+    let belowStrike = 0, belowS = 0, hasBelow = false;
     let localNet = 0;
     for (let i = -8; i <= 8; i++) {
       const strike = r2(base + i * step);
@@ -234,31 +261,39 @@ const Simulator = (() => {
       localNet += v;
       const s = Math.min(1, Math.abs(v) / refWall);
       if (s < 0.22) continue; // not a real shelf
-      if (strike > price && (!nearAbove || strike < nearAbove.strike)) nearAbove = { strike, s };
-      if (strike < price && (!nearBelow || strike > nearBelow.strike)) nearBelow = { strike, s };
+      if (strike > price && (!hasAbove || strike < aboveStrike)) { aboveStrike = strike; aboveS = s; hasAbove = true; }
+      if (strike < price && (!hasBelow || strike > belowStrike)) { belowStrike = strike; belowS = s; hasBelow = true; }
     }
 
     // base random step; quiet zones (no shelf either side) run ~35% hotter
-    const inNoMansLand = !nearAbove && !nearBelow;
+    const inNoMansLand = !hasAbove && !hasBelow;
     const range = cfg.basePrice * cfg.iv * 0.0035 * (0.4 + Math.random()) * (inNoMansLand ? 1.35 : 1);
     let move = (Math.random() - 0.5) * 2 * range * scale;
 
-    // pin: the nearest strong shelf pulls when price is within ~2.5 strikes
-    const magnet = [nearAbove, nearBelow]
-      .filter((w): w is { strike: number; s: number } => w !== null)
-      .sort((a, b) => Math.abs(a.strike - price) - Math.abs(b.strike - price))[0];
-    if (magnet && Math.abs(magnet.strike - price) < step * 2.5) {
-      move += (magnet.strike - price) * 0.05 * magnet.s;
+    // pin: the nearest strong shelf pulls when price is within ~2.5 strikes.
+    // The old sort put `above` first, so a tie still resolves to `above`.
+    let magnetStrike = 0, magnetS = 0, hasMagnet = false;
+    if (hasAbove && hasBelow) {
+      const useAbove = Math.abs(aboveStrike - price) <= Math.abs(belowStrike - price);
+      magnetStrike = useAbove ? aboveStrike : belowStrike;
+      magnetS = useAbove ? aboveS : belowS;
+      hasMagnet = true;
+    } else if (hasAbove) { magnetStrike = aboveStrike; magnetS = aboveS; hasMagnet = true; }
+    else if (hasBelow) { magnetStrike = belowStrike; magnetS = belowS; hasMagnet = true; }
+    if (hasMagnet && Math.abs(magnetStrike - price) < step * 2.5) {
+      move += (magnetStrike - price) * 0.05 * magnetS;
     }
 
     // barrier: absorb most of any overshoot through a strong shelf; rare clean break
     const next = price + move;
-    const wall = move > 0 ? nearAbove : nearBelow;
-    if (wall && ((move > 0 && next > wall.strike) || (move < 0 && next < wall.strike))) {
+    const hasWall = move > 0 ? hasAbove : hasBelow;
+    const wallStrike = move > 0 ? aboveStrike : belowStrike;
+    const wallS = move > 0 ? aboveS : belowS;
+    if (hasWall && ((move > 0 && next > wallStrike) || (move < 0 && next < wallStrike))) {
       const breakout = Math.random() > 0.975;
       if (!breakout) {
-        const through = next - wall.strike;
-        move = wall.strike - price + through * (1 - 0.85 * wall.s);
+        const through = next - wallStrike;
+        move = wallStrike - price + through * (1 - 0.85 * wallS);
       } else {
         move *= 1.6; // wall breaks: the move runs
       }
