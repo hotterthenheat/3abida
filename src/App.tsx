@@ -27,6 +27,8 @@ const CompassSetup = lazy(() => import('./pages/compass/SetupPage'));
 const Weigher = lazy(() => import('./pages/Weigher'));
 /* Stocks walked into the Record (2026-09-10): the screens beside the name's news and filings */
 const Stocks = lazy(() => import('./pages/record/Stocks'));
+/* A name's own page under Stocks (2026-09-13): the whole read, not a jump to the Map */
+const StockOverview = lazy(() => import('./pages/record/StockOverview'));
 /* The News Room is gone (2026-09-09, archived in docs/news-page-reference.md) — the page starts again under the Record */
 const News = lazy(() => import('./pages/record/News'));
 /* Earnings walked under the Record (2026-09-09): the calendar and a name's page */
@@ -114,6 +116,7 @@ const App = () => {
               <Route path="insiders" element={<Insiders />} />
               <Route path="congress" element={<Congress />} />
               <Route path="stocks" element={<Stocks />} />
+              <Route path="stocks/:ticker" element={<StockOverview />} />
             </Route>
             <Route path="/stocks" element={<Navigate to="/record/stocks" replace />} />
             <Route path="/news" element={<Navigate to="/record/news" replace />} />

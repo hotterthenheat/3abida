@@ -284,10 +284,11 @@ const Stocks = () => {
     el.classList.add('animate-soft-in');
   }, [cutKey]);
 
+  /* A click opens the name's own page (Noah, 2026-09-13: "stop sending me to the pinpoint page") */
   const open = (e: RowClickedEvent<StockPick>) => {
     if (!e.data) return;
     changeTicker(e.data.ticker);
-    navigate('/pinpoint/map');
+    navigate(`/record/stocks/${e.data.ticker}`);
   };
 
   return (
