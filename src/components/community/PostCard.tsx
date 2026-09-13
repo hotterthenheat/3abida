@@ -159,9 +159,11 @@ interface Props {
   compact?: boolean;
   /** Lit for a moment: the bell sent the reader here and this is the row */
   highlight?: boolean;
+  /** Whose repost put this in front of you */
+  via?: string;
 }
 
-const PostCard = ({ post, compact = false, highlight = false }: Props) => {
+const PostCard = ({ post, compact = false, highlight = false, via }: Props) => {
   const m = memberOf(post.author);
   const mine = isMe(post.author);
   const [open, setOpen] = useState(false);
@@ -244,12 +246,25 @@ const PostCard = ({ post, compact = false, highlight = false }: Props) => {
   };
   return (
     <article
-      className={`border-b border-borderSubtle/60 px-4 py-3 flex gap-3 transition-colors duration-500 ${highlight ? 'bg-select/[0.09]' : ''}`}
+      className={`border-b border-borderSubtle/60 px-4 py-3 transition-colors duration-500 ${highlight ? 'bg-select/[0.09]' : ''}`}
       data-post={post.id}
       data-author={post.author}
       data-setup={s ? s.outcome : undefined}
       data-highlight={highlight || undefined}
+      data-via={via}
     >
+      {/* WHY IT IS HERE — a repost that says nothing about who passed it on is
+          a post appearing out of nowhere in a feed you curated yourself */}
+      {via && (
+        <div className="mb-1.5 pl-[48px] flex items-center gap-1.5 font-mono text-[10px] text-textSecondary" data-post-via={via}>
+          <Repeat2 className="w-3 h-3 shrink-0" />
+          <Link to={isMe(via) ? '/community/me' : `/community/u/${via}`} className="hover:text-textPrimary hover:underline underline-offset-2">
+            {isMe(via) ? 'You' : (memberOf(via)?.name ?? via)}
+          </Link>
+          <span>reposted this</span>
+        </div>
+      )}
+      <div className="flex gap-3">
       <Link to={mine ? '/community/me' : `/community/u/${post.author}`} className="shrink-0 self-start">
         <Avatar handle={post.author} />
       </Link>
@@ -459,6 +474,7 @@ const PostCard = ({ post, compact = false, highlight = false }: Props) => {
             {err && <div className="text-[11px] text-bear">{err}</div>}
           </div>
         )}
+      </div>
       </div>
     </article>
   );

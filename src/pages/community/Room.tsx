@@ -20,7 +20,7 @@ import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bell, Bookmark, Flame, ImagePlus, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { allPosts, blockList, followingPosts, markNoteRead, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, TIMEFRAMES, type Bias } from '../../data/room';
+import { allPosts, blockList, followingPosts, markNoteRead, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, TIMEFRAMES, type Bias, type FeedPost } from '../../data/room';
 import { timeAgo } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
@@ -67,7 +67,10 @@ const Room = () => {
   const gate = postGate();
   /* THE VERSION is the dep, not the hook — `useRoom` never changes identity, so
      the feed froze the moment anything was written to the room (2026-09-13) */
-  const posts = useMemo(() => (tab === 'feed' ? allPosts() : tab === 'following' ? followingPosts() : savedPosts()), [tab, rev]);
+  const posts = useMemo<FeedPost[]>(
+    () => (tab === 'following' ? followingPosts() : (tab === 'feed' ? allPosts() : savedPosts()).map(post => ({ post, at: post.at }))),
+    [tab, rev]
+  );
   const record = trackRecord(account.handle);
   const hot = trending();
   const who = suggestions();
@@ -120,10 +123,24 @@ const Room = () => {
     setStop('');
   };
 
+  /*
+    THREE COLUMNS AT XL, TWO BELOW IT, THE FEED FIRST ON A PHONE.
+
+    Measured at 1100px (2026-09-13): the three-column grid collapsed to ONE, in
+    DOM order, which put the profile card, the blocked list and the trending
+    rail above the composer — the feed started 700px down a page whose whole
+    job is the feed.
+
+    Between 1024 and 1280 the two side columns stack into one at the right: you
+    and the names over the bell and who to follow, with the feed taking the
+    rest. Explicit placement rather than auto-flow, because the middle column
+    has to span both rows on that shape. Under 1024 it is one column, and
+    `order` puts the composer and the feed first, where they belong.
+  */
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_300px] gap-4 items-start" data-room>
-      {/* THE LEFT — you, and what the room is talking about */}
-      <div className="flex flex-col gap-4 xl:sticky xl:top-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[260px_minmax(0,1fr)_300px] gap-4 items-start" data-room>
+      {/* YOU, and what the room is talking about */}
+      <div className="order-2 lg:order-none lg:col-start-2 lg:row-start-1 xl:col-start-1 xl:row-start-1 flex flex-col gap-4 xl:sticky xl:top-4">
         <Card>
           <div className="px-4 pt-4 pb-3 flex items-center gap-3">
             <Avatar handle={account.handle} size={44} />
@@ -230,8 +247,8 @@ const Room = () => {
         </Card>
       </div>
 
-      {/* THE MIDDLE — the composer and the feed */}
-      <div className="min-w-0 flex flex-col gap-4">
+      {/* THE COMPOSER AND THE FEED — first on a phone, the tall column above it */}
+      <div className="order-1 lg:order-none lg:col-start-1 lg:row-start-1 lg:row-span-2 xl:col-start-2 xl:row-start-1 xl:row-span-1 min-w-0 flex flex-col gap-4">
         <Card>
           <div className="px-4 pt-3 pb-3 flex gap-3" data-room-composer>
             <Avatar handle={account.handle} size={36} />
@@ -324,14 +341,14 @@ const Room = () => {
           <div data-room-feed={tab}>
             {posts.length === 0 && <div className="px-4 py-10 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">{tab === 'following' ? 'Follow someone — their posts gather here' : tab === 'saved' ? 'Nothing saved yet' : 'The room is quiet'}</div>}
             {posts.map(p => (
-              <PostCard key={p.id} post={p} highlight={flash === p.id} />
+              <PostCard key={p.post.id} post={p.post} via={p.via} highlight={flash === p.post.id} />
             ))}
           </div>
         </Card>
       </div>
 
-      {/* THE RIGHT — the bell, who to follow */}
-      <div className="flex flex-col gap-4 xl:sticky xl:top-4">
+      {/* THE BELL, and who to follow */}
+      <div className="order-3 lg:order-none lg:col-start-2 lg:row-start-2 xl:col-start-3 xl:row-start-1 flex flex-col gap-4 xl:sticky xl:top-4">
         <Card
           title="Notifications"
           right={

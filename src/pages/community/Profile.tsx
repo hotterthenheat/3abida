@@ -17,16 +17,17 @@ import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { BadgeCheck, ShieldBan } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { blocked, follows, isMe, memberOf, postsBy, realisedR, SETTLE_WORD, toggleBlock, toggleFollow, trackRecord, useRoom, followList } from '../../data/room';
+import { blocked, follows, isMe, memberOf, postsBy, realisedR, repostsBy, SETTLE_WORD, toggleBlock, toggleFollow, trackRecord, useRoom, followList } from '../../data/room';
 import { timeShort } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 
-type Tab = 'setups' | 'thoughts' | 'history' | 'following';
+type Tab = 'setups' | 'thoughts' | 'reposts' | 'history' | 'following';
 const TABS = [
   { value: 'setups', label: 'Setups' },
   { value: 'thoughts', label: 'Quick thoughts' },
+  { value: 'reposts', label: 'Reposts' },
   { value: 'history', label: 'Trade history' },
   { value: 'following', label: 'Following' },
 ] as const;
@@ -53,6 +54,7 @@ const Profile = () => {
     setParams(q, { replace: true });
   };
   const posts = useMemo(() => postsBy(handle), [handle, rev]);
+  const passed = useMemo(() => repostsBy(handle), [handle, rev]);
   const record = trackRecord(handle);
   if (!m)
     return (
@@ -131,6 +133,16 @@ const Profile = () => {
         </div>
         {tab === 'setups' && (setups.length ? setups.map(p => <PostCard key={p.id} post={p} />) : <div className="px-4 py-8 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">No setups posted</div>)}
         {tab === 'thoughts' && (thoughts.length ? thoughts.map(p => <PostCard key={p.id} post={p} />) : <div className="px-4 py-8 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">No quick thoughts yet</div>)}
+        {/* WHAT THEY PASSED ON. A repost used to move a number and vanish —
+            it belongs on the profile of whoever thought it was worth it. */}
+        {tab === 'reposts' && (
+          <div data-profile-reposts>
+            {passed.length === 0 && <div className="px-4 py-8 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">{mine ? 'You have not reposted anything yet' : 'Nothing passed on yet'}</div>}
+            {passed.map(f => (
+              <PostCard key={f.post.id} post={f.post} via={f.via} />
+            ))}
+          </div>
+        )}
         {tab === 'history' && (
           <div data-profile-history>
             <div className="px-4 py-3 grid grid-cols-3 md:grid-cols-6 gap-3 font-mono text-[11px] tnum border-b border-borderSubtle/60">

@@ -157,6 +157,31 @@ export interface Note {
   text: string;
   read: boolean;
 }
+/*
+  A REPOST HAS TO TRAVEL (2026-09-13).
+
+  It moved a number and did nothing else: the post did not reach anybody, it
+  did not appear on the reposter's profile, and nobody could tell who had
+  passed it on. A repost that goes nowhere is a counter, not a share.
+
+  So a repost is a record — who, what, when — and the Following feed carries
+  posts the people you follow have reposted, at the time THEY reposted them,
+  marked with who put it there.
+*/
+export interface Repost {
+  by: string;
+  postId: string;
+  at: string;
+}
+/** A post as it arrives in a feed, and why it is there */
+export interface FeedPost {
+  post: Post;
+  /** When it reached this feed — its own time, or the time it was reposted */
+  at: string;
+  /** Who passed it on; absent when it is simply theirs */
+  via?: string;
+}
+
 /** A reaction the room owes one of your posts, and when it is due */
 export interface Pending {
   /** epoch ms it lands */
@@ -435,6 +460,8 @@ interface Mine {
   likes: string[];
   saves: string[];
   reposts: string[];
+  /** when you reposted each one — a repost travels, so it needs a time */
+  repostedAt: Record<string, string>;
   /** post id → the replies you added, merged onto the post's own on read */
   comments: Record<string, Comment[]>;
   follows: string[];
@@ -458,13 +485,13 @@ const KEY = 'slayer_room';
 /* A post holds picture IDS; the pictures live on their own key — see
    data/pictures.ts for what that is worth and what it was measured against */
 const pics = pictureStore('slayer_room_images');
-const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], followers: [], pending: [], settled: {}, reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
+const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], repostedAt: {}, comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], followers: [], pending: [], settled: {}, reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
 /** The bell keeps this many raised notes — a session's worth, not a lifetime's */
 const NOTE_CAP = 60;
 
 const loadMine = (): Mine => {
   const v = readJson<Partial<Mine>>(KEY, {});
-  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {}, settled: v.settled ?? {}, pending: v.pending ?? [], followers: v.followers ?? [] };
+  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {}, repostedAt: v.repostedAt ?? {}, settled: v.settled ?? {}, pending: v.pending ?? [], followers: v.followers ?? [] };
 };
 
 let mine: Mine = loadMine();
@@ -813,10 +840,59 @@ export function allPosts(): Post[] {
     .sort((a, b) => b.at.localeCompare(a.at));
 }
 export const postById = (id: string): Post | null => allPosts().find(p => p.id === id) ?? null;
-export const followingPosts = (): Post[] => {
+
+/* WHO HAS PASSED WHAT ON. The seeded room's reposts are dealt once, sparsely,
+   on posts that are not the reposter's own; yours come off `mine`. */
+const seededReposts: Repost[] = (() => {
+  const out: Repost[] = [];
+  for (const m of SEED_MEMBERS) {
+    for (const p of seeded) {
+      if (p.author === m.handle) continue;
+      if (h01(`rp-${m.handle}-${p.id}`) < 0.94) continue;
+      out.push({ by: m.handle, postId: p.id, at: new Date(new Date(p.at).getTime() + Math.round(h01(`rpt-${m.handle}-${p.id}`) * 90 * 60_000)).toISOString() });
+    }
+  }
+  return out;
+})();
+/** Every repost in the room — the seeded ones, and yours */
+export function allReposts(): Repost[] {
+  const me = getAccount().handle;
+  const yours = mine.reposts.map(id => ({ by: me, postId: id, at: mine.repostedAt[id] ?? new Date().toISOString() }));
+  return [...yours, ...seededReposts];
+}
+/** What one member has passed on, newest first */
+export function repostsBy(handle: string): FeedPost[] {
+  const posts = new Map(allPosts().map(p => [p.id, p]));
+  const out: FeedPost[] = [];
+  for (const r of allReposts()) {
+    if (isMe(handle) ? !isMe(r.by) : r.by !== handle) continue;
+    const post = posts.get(r.postId);
+    if (post) out.push({ post, at: r.at, via: r.by });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/*
+  THE FOLLOWING FEED carries two things: what the people you follow wrote, and
+  what they thought was worth passing on — the second at the time THEY reposted
+  it, not the time it was written, because that is when it reached you.
+
+  A post reaches you once. If someone you follow wrote it AND someone else you
+  follow reposted it, it is theirs, drawn plainly.
+*/
+export function followingPosts(): FeedPost[] {
   const f = new Set(mine.follows);
-  return allPosts().filter(p => f.has(p.author) || isMe(p.author));
-};
+  const out = new Map<string, FeedPost>();
+  for (const p of allPosts()) if (f.has(p.author) || isMe(p.author)) out.set(p.id, { post: p, at: p.at });
+  const posts = new Map(allPosts().map(p => [p.id, p]));
+  for (const r of allReposts()) {
+    if (!f.has(r.by) && !isMe(r.by)) continue;
+    if (out.has(r.postId)) continue;
+    const p = posts.get(r.postId);
+    if (p) out.set(r.postId, { post: p, at: r.at, via: r.by });
+  }
+  return [...out.values()].sort((a, b) => b.at.localeCompare(a.at));
+}
 export const postsBy = (handle: string): Post[] => allPosts().filter(p => (isMe(handle) ? isMe(p.author) : p.author === handle));
 export const postsOn = (ticker: string): Post[] => {
   const re = new RegExp(`\\$${ticker}\\b`, 'i');
@@ -1155,7 +1231,10 @@ export function toggleSave(id: string): void {
 }
 export function toggleRepost(id: string): void {
   const has = mine.reposts.includes(id);
-  bump({ reposts: has ? mine.reposts.filter(x => x !== id) : [...mine.reposts, id] });
+  const when = { ...mine.repostedAt };
+  if (has) delete when[id];
+  else when[id] = stamp();
+  bump({ reposts: has ? mine.reposts.filter(x => x !== id) : [...mine.reposts, id], repostedAt: when });
 }
 export function comment(id: string, text: string): string | null {
   const gate = commentGate();
