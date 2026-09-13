@@ -14,12 +14,19 @@
     POSTS        a quick thought, or a TRADE SETUP
                  (bullish/bearish, entry, target,
                  stop, timeframe) that its author
-                 UPDATES in place — trimmed, stop
-                 moved, invalidated, target hit —
-                 and FINISHES as target hit,
-                 stopped out, scratched or closed,
-                 so the track record is real and
-                 the losers cannot be deleted away
+                 UPDATES in place — trimmed, a note,
+                 the stop moved tighter — and that
+                 THE MARKET SETTLES: the price
+                 reaching the stop or the target, or
+                 the timeframe running out, is what
+                 writes the outcome. The author can
+                 close it early at a price, and
+                 nothing else. See "THE MARKET
+                 GRADES THE TRADE" below.
+    THE RECORD   every finished setup in win rate
+                 AND in R, because a win rate alone
+                 can be bought with a near target
+                 and a far stop
     LIKES · COMMENTS · REPOSTS · FOLLOWS · SAVES
     NOTIFICATIONS  likes, comments, follows, a post
                  from someone you follow, a trade
@@ -66,6 +73,22 @@ export interface SetupUpdate {
   kind: UpdateKind;
   text: string;
 }
+/** Why a setup ended — the market reaching a level, the clock, or the author */
+export type SettleWhy = 'target' | 'stop' | 'timeframe' | 'closed';
+export interface Settlement {
+  outcome: Exclude<Outcome, 'open'>;
+  at: string;
+  /** The price it ended at: the target, the stop, or where it was closed */
+  price: number;
+  why: SettleWhy;
+}
+/** What ended it, in words — one wording, wherever a settlement is shown */
+export const SETTLE_WORD: Record<SettleWhy, string> = {
+  target: 'the target printed',
+  stop: 'the stop printed',
+  timeframe: 'the timeframe ran out',
+  closed: 'closed by the author',
+};
 export interface Setup {
   ticker: string;
   bias: Bias;
@@ -75,7 +98,36 @@ export interface Setup {
   timeframe: string;
   outcome: Outcome;
   updates: SetupUpdate[];
+  /** How it ended, written once, by the grader — never by the author */
+  settled?: Settlement;
 }
+
+/*
+  THE TIMEFRAMES, and how long each one gives a trade.
+
+  A setup that never reaches either level is not open forever. "Intraday" that
+  is still open two days later is not a trade being managed, it is a loser
+  being left out so it never has to be counted — which is the single easiest
+  way to fake a track record, and the reason the timeframe is a field at all.
+  Past its span with neither level touched, a setup is scratched where it
+  stands.
+
+  One list, exported, because the composer offers these strings and this map
+  reads them: two copies would drift the first time a timeframe was added and
+  a whole class of setup would quietly stop expiring.
+*/
+export const TIMEFRAMES = ['intraday', '0DTE', '2 sessions', '3–5 sessions', '2 weeks', 'into earnings'] as const;
+export type Timeframe = (typeof TIMEFRAMES)[number];
+const TIMEFRAME_HOURS: Record<string, number> = {
+  intraday: 8,
+  '0DTE': 8,
+  '2 sessions': 48,
+  '3–5 sessions': 120,
+  '2 weeks': 336,
+  'into earnings': 504,
+};
+/** How long a setup on this timeframe has before the clock scratches it */
+export const lifetimeHours = (timeframe: string): number => TIMEFRAME_HOURS[timeframe] ?? 120;
 export interface Comment {
   id: string;
   author: string;
@@ -129,7 +181,6 @@ const SEED_MEMBERS: Member[] = [
   { handle: 'wall_watch', name: 'Diego Ruiz', bio: 'Call walls, put walls, and the flip between.', links: [], verified: false, joinedAt: '2026-06-20', followers: 420, following: 120, hue: 300 },
 ];
 
-const TF = ['intraday', '0DTE', '2 sessions', '3–5 sessions', '2 weeks', 'into earnings'];
 const THOUGHTS = [
   '$SPY sitting on the put wall at {pw} again. Third test today — the fourth usually breaks.',
   'Dealers flipped to short gamma on $QQQ under {flip}. Moves run from here, size down.',
@@ -166,13 +217,37 @@ const UPDATE_TEXT: Record<UpdateKind, string[]> = {
   closed: ['Closed flat, no edge left.', 'Closed ahead of the print.'],
 };
 
-const pick = <T,>(arr: T[], seed: string) => arr[Math.floor(h01(seed) * arr.length) % arr.length];
+const pick = <T,>(arr: readonly T[], seed: string) => arr[Math.floor(h01(seed) * arr.length) % arr.length];
 const round = (v: number, step: number) => Math.round(v / step) * step;
 
 function priceOf(ticker: string): number {
   const cfg = Simulator.TICKERS[ticker];
   if (cfg) return cfg.currentPrice;
   return UNIVERSE.find(u => u.ticker === ticker)?.px ?? 100;
+}
+
+/*
+  A SEEDED SETUP IS ONLY EVER WRITTEN ON A NAME THE SIMULATOR IS RUNNING.
+
+  Measured (2026-09-13, wiring up the grader): at the moment this module loads,
+  Simulator.TICKERS holds four names — its watchlist. For every other name
+  `priceOf` fell back to the static universe price, which is nowhere near what
+  the simulator settles on once it seeds that name: NVDA 138.60 against 120.00,
+  AAPL 232.40 against 190.00. Setups built on those numbers were 15% away from
+  the market before anybody read them, and the grader — correctly — settled
+  thirteen of fourteen in the first sweep. The room opened with one open trade.
+
+  Asking for the rest is not the answer either: ensureTicker forward-seeds a
+  full candle history, and eight names measured 3.3 SECONDS of blocking.
+
+  So the setups are dealt on whatever the simulator already holds. It is the
+  watchlist on a cold open, and more when the reader has been somewhere else
+  first — either way the entry is a real price and the grade means something.
+  The quick thoughts still name anything: they are talk, not trades.
+*/
+function tradableNames(): string[] {
+  const live = Object.keys(Simulator.TICKERS).filter(t => Number.isFinite(Simulator.TICKERS[t]?.currentPrice));
+  return live.length ? live : ['SPY'];
 }
 const stepFor = (px: number) => (px > 400 ? 5 : px > 120 ? 2.5 : px > 40 ? 1 : 0.5);
 
@@ -230,7 +305,7 @@ function dealAuthors(count: number): string[] {
 function seedPosts(): Post[] {
   const out: Post[] = [];
   const now = Date.now();
-  const names = ['SPY', 'QQQ', 'NVDA', 'TSLA', 'AAPL', 'AMD', 'META', 'MSFT', 'AMZN', 'IWM', 'NFLX', 'GOOGL'];
+  const names = tradableNames();
   /* NO TWO POSTS ALIKE: the thoughts are dealt from a shuffled deck and the
      setups walk the names, so a seeded room never prints the same sentence
      twice (measured on the first cut — three repeats in fourteen rows) */
@@ -254,14 +329,30 @@ function seedPosts(): Post[] {
       const target = round(entry * (1 + dir * (0.012 + h01(seed + '-tg') * 0.03)), step);
       const stop = round(entry * (1 - dir * (0.006 + h01(seed + '-st') * 0.012)), step);
       const age = minutesAgo;
-      const outcome: Outcome = age < 240 ? 'open' : (['target hit', 'stopped out', 'scratched', 'closed', 'open', 'target hit'] as Outcome[])[Math.floor(h01(seed + '-o') * 6)];
+      /* AN OPEN SETUP IS ALWAYS YOUNGER THAN ITS OWN TIMEFRAME. The seed used
+         to deal "open" to a sixth of the setups regardless of age, which put
+         forty-hour-old intraday trades in the room — and the grader scratched
+         every one of them on the first sweep, exactly as it should. */
+      const timeframe = pick(TIMEFRAMES, seed + '-tf');
+      const finished = (['target hit', 'stopped out', 'scratched', 'closed', 'target hit', 'stopped out'] as Outcome[])[Math.floor(h01(seed + '-o') * 6)];
+      const outcome: Outcome = age >= lifetimeHours(timeframe) * 60 ? finished : h01(seed + '-open') < 0.55 ? 'open' : finished;
       const updates: SetupUpdate[] = [];
       if (age > 90) updates.push({ at: new Date(now - (age - 60) * 60_000).toISOString(), kind: h01(seed + '-u1') > 0.5 ? 'trim' : 'stop', text: pick(UPDATE_TEXT[h01(seed + '-u1') > 0.5 ? 'trim' : 'stop'], seed + '-u1t') });
+      /* A FINISHED SEEDED SETUP CARRIES ITS SETTLEMENT, so the record it feeds
+         is arithmetic on prices rather than a tally of labels: target hit
+         settles at the target, stopped out at the stop, and the two soft
+         outcomes somewhere between entry and whichever level they leant on. */
+      let settled: Settlement | undefined;
       if (outcome !== 'open') {
         const kind: UpdateKind = outcome === 'target hit' ? 'target' : outcome === 'stopped out' ? 'invalidated' : 'closed';
-        updates.push({ at: new Date(now - Math.max(5, age - 200) * 60_000).toISOString(), kind, text: pick(UPDATE_TEXT[kind], seed + '-u2t') });
+        const at = new Date(now - Math.max(5, age - 200) * 60_000).toISOString();
+        const part = 0.15 + h01(seed + '-x') * 0.5;
+        const price =
+          outcome === 'target hit' ? target : outcome === 'stopped out' ? stop : outcome === 'scratched' ? round(entry + (stop - entry) * part * 0.4, 0.01) : round(entry + (target - entry) * part, 0.01);
+        settled = { outcome, at, price, why: outcome === 'target hit' ? 'target' : outcome === 'stopped out' ? 'stop' : outcome === 'scratched' ? 'timeframe' : 'closed' };
+        updates.push({ at, kind, text: pick(UPDATE_TEXT[kind], seed + '-u2t') });
       }
-      setup = { ticker, bias, entry, target, stop, timeframe: pick(TF, seed + '-tf'), outcome, updates };
+      setup = { ticker, bias, entry, target, stop, timeframe, outcome, updates, settled };
       text = `$${ticker} ${bias} ${setup.timeframe}. ${bias === 'bullish' ? `Buying the put wall hold at ${entry}, target the call wall ${target}, out under ${stop}.` : `Fading the call wall at ${entry}, target the put wall ${target}, out over ${stop}.`}`;
     } else {
       text = fillText(deck[thoughtAt++ % deck.length], seed);
@@ -336,6 +427,8 @@ interface Mine {
   comments: Record<string, Comment[]>;
   follows: string[];
   blocks: string[];
+  /** A seeded setup's settlement, keyed by its fingerprint — see `setupKey` */
+  settled: Record<string, Settlement>;
   reports: Record<string, number>;
   readNotes: string[];
   extraNotes: Note[];
@@ -364,7 +457,7 @@ const KEY = 'slayer_room';
   ids back (`hydrate`); a picture storage has lost simply does not draw.
 */
 const IMG_KEY = 'slayer_room_images';
-const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
+const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], settled: {}, reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
 
 const readJson = <T,>(key: string, fallback: T): T => {
   try {
@@ -378,7 +471,7 @@ const readJson = <T,>(key: string, fallback: T): T => {
 
 const loadMine = (): Mine => {
   const v = readJson<Partial<Mine>>(KEY, {});
-  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {} };
+  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {}, settled: v.settled ?? {} };
 };
 
 let mine: Mine = loadMine();
@@ -392,8 +485,10 @@ const emit = () => {
 };
 const subscribe = (fn: () => void) => {
   listeners.add(fn);
+  startGrading();
   return () => {
     listeners.delete(fn);
+    stopGrading();
   };
 };
 const writeKey = (key: string, value: unknown): boolean => {
@@ -437,8 +532,151 @@ export const isMe = (handle: string) => handle === ME || handle === getAccount()
 /** The picture ids a post stores, swapped back for the pictures themselves */
 const hydrate = (p: Post): Post => (p.images.length === 0 ? p : { ...p, images: p.images.map(id => blobs[id]).filter((src): src is string => !!src) });
 
+/* =========================================================================
+   THE MARKET GRADES THE TRADE (2026-09-13)
+
+   "an actual trader track record system". It was not one. The author pressed
+   "target hit" and the record said so — nothing looked at the price. A
+   bullish $SPY setup entered at 500 for 505 could be marked target hit with
+   SPY at 498, and the profile would print 1W · 100%. Every number on it was
+   the author's opinion of their own trade.
+
+   So the outcome is taken out of the author's hands. An OPEN setup is read
+   against the simulator's price on a five-second sweep, and the first of
+   three things to happen settles it, once, with the price and the time:
+
+     the stop        price trades at or through it   -> stopped out at the stop
+     the target      price trades at or through it   -> target hit at the target
+     the timeframe   its span passes, neither hit    -> scratched where it stands
+
+   BOTH LEVELS INSIDE ONE TICK READS AS THE STOP. We cannot see which came
+   first between two samples, and crediting the win would be the generous
+   reading of our own record — which is the whole thing this replaces.
+
+   The settlement price is the LEVEL, not the sample that tripped it: the
+   order rests at the level and fills there. That makes a target worth exactly
+   the R it was written for, and a stop exactly -1R.
+
+   WHAT THE AUTHOR STILL DOES: trims, notes, moves the stop (in the safe
+   direction only), and closes early — which records the price it closed at,
+   and counts. There is no button that says "I won".
+   ========================================================================= */
+
+/** A seeded setup's fingerprint. The seeded room is re-dealt against live
+    prices on every load, so a settlement recorded against one deal must not
+    be worn by a different one that happens to land on the same id. */
+const setupKey = (p: Post, s: Setup): string => `${p.id}|${s.ticker}|${s.entry}|${s.target}|${s.stop}`;
+
+/** The line a settlement writes into the setup's own history */
+const settlementUpdate = (s: Settlement): SetupUpdate => ({
+  at: s.at,
+  kind: s.why === 'target' ? 'target' : s.why === 'stop' ? 'invalidated' : 'closed',
+  text:
+    s.why === 'target'
+      ? `Target hit at ${s.price} — graded on the tape.`
+      : s.why === 'stop'
+        ? `Stopped out at ${s.price} — graded on the tape.`
+        : s.why === 'timeframe'
+          ? `The timeframe ran out with neither level touched — scratched at ${s.price}.`
+          : `Closed by the author at ${s.price}.`,
+});
+
+/** A setup wearing its settlement — the outcome and the closing line */
+const settle = (s: Setup, by: Settlement): Setup => ({ ...s, outcome: by.outcome, settled: by, updates: [...s.updates, settlementUpdate(by)] });
+
+/** What the market has done to an open setup, or null while it is still open */
+function gradeSetup(s: Setup, postedAt: string): Settlement | null {
+  const now = Date.now();
+  const at = new Date(now).toISOString();
+  const price = Simulator.TICKERS[s.ticker]?.currentPrice;
+  if (price != null && Number.isFinite(price)) {
+    const hitStop = s.bias === 'bullish' ? price <= s.stop : price >= s.stop;
+    if (hitStop) return { outcome: 'stopped out', at, price: s.stop, why: 'stop' };
+    const hitTarget = s.bias === 'bullish' ? price >= s.target : price <= s.target;
+    if (hitTarget) return { outcome: 'target hit', at, price: s.target, why: 'target' };
+  }
+  const hours = (now - new Date(postedAt).getTime()) / 3_600_000;
+  if (hours >= lifetimeHours(s.timeframe)) return { outcome: 'scratched', at, price: Number((price ?? s.entry).toFixed(2)), why: 'timeframe' };
+  return null;
+}
+
+/** A seeded post with whatever the grader has already written about it */
+const graded = (base: Post): Post => {
+  if (!base.setup || base.setup.outcome !== 'open') return base;
+  const found = mine.settled[setupKey(base, base.setup)];
+  return found ? { ...base, setup: settle(base.setup, found) } : base;
+};
+
+/** Read every open setup against the price and record whatever has ended.
+    Returns true when something settled, so the caller knows to tell the room. */
+function sweepGrades(): boolean {
+  let moved = false;
+  const posts = mine.posts.map(p => {
+    if (!p.setup || p.setup.outcome !== 'open') return p;
+    const ended = gradeSetup(p.setup, p.at);
+    if (!ended) return p;
+    moved = true;
+    return { ...p, setup: settle(p.setup, ended) };
+  });
+  const settled = { ...mine.settled };
+  for (const p of seeded) {
+    if (!p.setup || p.setup.outcome !== 'open') continue;
+    const key = setupKey(p, p.setup);
+    if (settled[key]) continue;
+    const ended = gradeSetup(p.setup, p.at);
+    if (!ended) continue;
+    settled[key] = ended;
+    moved = true;
+  }
+  if (!moved) return false;
+  mine = { ...mine, posts, settled };
+  persist();
+  return true;
+}
+
+/*
+  THE SWEEP RUNS ONLY WHILE SOMEONE IS WATCHING. It is wired to the listener
+  set rather than started at import: a reader on the Weigher has no community
+  page mounted and should not be paying for a timer over thirty-four setups.
+  The first subscriber starts it and runs one immediately, so a page opened
+  after an hour away shows what happened while it was closed; the last one to
+  leave stops it.
+
+  IT NEVER WRITES DURING A RENDER. Grading on read was the obvious shape and
+  it is a loop: a read that settles a trade writes and emits, which re-renders,
+  which reads again. A timer outside React is the only safe place for it.
+*/
+const GRADE_MS = 5_000;
+let grader: number | null = null;
+const startGrading = () => {
+  if (grader != null || typeof window === 'undefined') return;
+  if (sweepGrades()) emit();
+  grader = window.setInterval(() => {
+    if (sweepGrades()) emit();
+  }, GRADE_MS);
+};
+const stopGrading = () => {
+  if (grader == null || listeners.size > 0) return;
+  window.clearInterval(grader);
+  grader = null;
+};
+
+/* A settlement recorded against a deal this session's seed no longer holds is
+   dropped on the way in — see `setupKey`. Keeps the store from growing a
+   record of rooms that no longer exist. */
+{
+  const live = new Set(seeded.filter(p => p.setup).map(p => setupKey(p, p.setup!)));
+  const stale = Object.keys(mine.settled).filter(k => !live.has(k));
+  if (stale.length) {
+    const kept: Record<string, Settlement> = {};
+    for (const [k, v] of Object.entries(mine.settled)) if (live.has(k)) kept[k] = v;
+    mine = { ...mine, settled: kept };
+    persist();
+  }
+}
+
 const withMine = (base: Post): Post => {
-  const shown = hydrate(base);
+  const shown = graded(hydrate(base));
   const liked = mine.likes.includes(base.id);
   const reposted = mine.reposts.includes(base.id);
   const added = mine.comments[base.id] ?? [];
@@ -477,6 +715,70 @@ export const followList = () => mine.follows;
 export const blockList = () => mine.blocks;
 export const savedPosts = (): Post[] => allPosts().filter(p => mine.saves.includes(p.id));
 
+/* ---- what a setup is worth ------------------------------------------------------------ */
+
+/** What the setup was risking, in price — the distance from entry to stop */
+export const riskOf = (s: Setup): number => Math.abs(s.entry - s.stop);
+/** The reward-to-risk the author wrote it for: 2 means the target is twice the stop away */
+export const plannedR = (s: Setup): number | null => {
+  const risk = riskOf(s);
+  return risk > 0 ? Math.abs(s.target - s.entry) / risk : null;
+};
+/*
+  WHAT A FINISHED TRADE MADE, IN R.
+
+  One formula covers every outcome because the settlement carries the price it
+  ended at: a target settles at the target and comes out at exactly the R it
+  was written for, a stop settles at the stop and comes out at exactly -1, and
+  a scratch or an early close comes out at whatever it actually was.
+
+  A win rate on its own can be bought: aim at a target a tenth of the stop
+  away and win nine times in ten while losing money. The average R is the
+  number that cannot be gamed that way, which is why the record prints both.
+*/
+export const realisedR = (s: Setup): number | null => {
+  if (!s.settled) return null;
+  const risk = riskOf(s);
+  if (risk <= 0) return null;
+  const move = s.bias === 'bullish' ? s.settled.price - s.entry : s.entry - s.settled.price;
+  return move / risk;
+};
+
+/** An open setup read against the price right now */
+export interface SetupLive {
+  price: number;
+  /** How far it has come from entry towards target: 1 is there, negative is the wrong way */
+  progress: number;
+  /** Where the price sits on the stop-to-target rail, 0..1, for drawing */
+  railAt: number;
+  /** Where the entry sits on that same rail */
+  entryAt: number;
+  /** What it is worth right now, in R — before it settles at a level */
+  liveR: number;
+  /** Move from entry, in per cent */
+  changePct: number;
+}
+export function liveSetup(s: Setup): SetupLive | null {
+  if (s.outcome !== 'open') return null;
+  const price = Simulator.TICKERS[s.ticker]?.currentPrice;
+  if (price == null || !Number.isFinite(price)) return null;
+  const risk = riskOf(s);
+  const reward = Math.abs(s.target - s.entry);
+  const move = s.bias === 'bullish' ? price - s.entry : s.entry - price;
+  const lo = Math.min(s.stop, s.target);
+  const hi = Math.max(s.stop, s.target);
+  const span = hi - lo;
+  const place = (v: number) => (span > 0 ? Math.min(1, Math.max(0, (v - lo) / span)) : 0.5);
+  return {
+    price,
+    progress: reward > 0 ? move / reward : 0,
+    railAt: place(price),
+    entryAt: place(s.entry),
+    liveR: risk > 0 ? move / risk : 0,
+    changePct: s.entry > 0 ? ((price - s.entry) / s.entry) * 100 : 0,
+  };
+}
+
 /** The track record — every finished setup, and the record it adds up to */
 export interface TrackRecord {
   finished: { post: Post; setup: Setup }[];
@@ -486,6 +788,10 @@ export interface TrackRecord {
   scratched: number;
   closed: number;
   winRate: number | null;
+  /** Average R across every finished trade, the scratches included */
+  avgR: number | null;
+  /** What they add up to, in R */
+  totalR: number | null;
 }
 export function trackRecord(handle: string): TrackRecord {
   const setups = postsBy(handle).filter(p => p.setup).map(p => ({ post: p, setup: p.setup! }));
@@ -495,7 +801,19 @@ export function trackRecord(handle: string): TrackRecord {
   const scratched = finished.filter(s => s.setup.outcome === 'scratched').length;
   const closed = finished.filter(s => s.setup.outcome === 'closed').length;
   const decided = wins + losses;
-  return { finished, open: setups.length - finished.length, wins, losses, scratched, closed, winRate: decided ? Math.round((wins / decided) * 100) : null };
+  const rs = finished.map(s => realisedR(s.setup)).filter((r): r is number => r != null);
+  const totalR = rs.length ? rs.reduce((a, r) => a + r, 0) : null;
+  return {
+    finished,
+    open: setups.length - finished.length,
+    wins,
+    losses,
+    scratched,
+    closed,
+    winRate: decided ? Math.round((wins / decided) * 100) : null,
+    avgR: totalR != null ? totalR / rs.length : null,
+    totalR,
+  };
 }
 
 /*
@@ -651,18 +969,66 @@ export function post(text: string, images: string[], setup?: Omit<Setup, 'outcom
   emit();
   return hydrate(p);
 }
-export function addUpdate(postId: string, kind: UpdateKind, text: string): void {
-  const posts = mine.posts.map(p => {
-    if (p.id !== postId || !p.setup) return p;
-    const outcome: Outcome = kind === 'target' ? 'target hit' : kind === 'invalidated' ? 'stopped out' : kind === 'closed' ? 'closed' : p.setup.outcome;
-    return { ...p, setup: { ...p.setup, outcome, updates: [...p.setup.updates, { at: stamp(), kind, text: text.trim() || UPDATE_TEXT[kind][0] }] } };
-  });
-  bump({ posts });
+/*
+  WHAT THE AUTHOR OF A SETUP MAY STILL DO.
+
+  Not much, and that is the point. The four finish buttons that used to live
+  here — target hit, stopped out, scratched, closed — wrote the outcome
+  straight onto the trade, which made the whole track record a self-report.
+  They are gone. What is left either says something about the trade without
+  deciding it, or closes it at a price the market has to agree with.
+*/
+/** The kinds of update an author may write. 'target', 'invalidated' and
+    'closed' are the grader's words and no longer take an author's. */
+export type AuthorUpdate = 'trim' | 'note';
+
+const myOpenSetup = (postId: string): Setup | string => {
+  const found = mine.posts.find(p => p.id === postId);
+  if (!found?.setup) return 'That setup is not yours, or it is gone.';
+  if (found.setup.outcome !== 'open') return 'That setup has already settled — its record is written.';
+  return found.setup;
+};
+const rewriteSetup = (postId: string, next: Setup) => bump({ posts: mine.posts.map(p => (p.id === postId ? { ...p, setup: next } : p)) });
+
+export function addUpdate(postId: string, kind: AuthorUpdate, text: string): string | null {
+  const s = myOpenSetup(postId);
+  if (typeof s === 'string') return s;
+  rewriteSetup(postId, { ...s, updates: [...s.updates, { at: stamp(), kind, text: text.trim() || UPDATE_TEXT[kind][0] }] });
+  return null;
 }
-export function finishSetup(postId: string, outcome: Exclude<Outcome, 'open'>, text = ''): void {
-  const kind: UpdateKind = outcome === 'target hit' ? 'target' : outcome === 'stopped out' ? 'invalidated' : 'closed';
-  const posts = mine.posts.map(p => (p.id === postId && p.setup ? { ...p, setup: { ...p.setup, outcome, updates: [...p.setup.updates, { at: stamp(), kind, text: text.trim() || `${outcome.charAt(0).toUpperCase()}${outcome.slice(1)}.` }] } } : p));
-  bump({ posts });
+
+/** Move the stop — tighter only. A stop that moves away from the entry is a
+    losing trade being given more room, and it is never allowed here. */
+export function moveStop(postId: string, to: number): string | null {
+  const s = myOpenSetup(postId);
+  if (typeof s === 'string') return s;
+  if (!Number.isFinite(to) || to <= 0) return 'A stop is a price above zero.';
+  const price = Simulator.TICKERS[s.ticker]?.currentPrice;
+  if (s.bias === 'bullish') {
+    if (to <= s.stop) return `A bullish stop only moves up — ${to} is not above ${s.stop}.`;
+    if (to >= s.target) return `${to} is at or past the target. That is a take-profit, not a stop.`;
+    if (price != null && to >= price) return `${to} is at or above the price (${price.toFixed(2)}) — that closes the trade. Close it here instead.`;
+  } else {
+    if (to >= s.stop) return `A bearish stop only moves down — ${to} is not below ${s.stop}.`;
+    if (to <= s.target) return `${to} is at or past the target. That is a take-profit, not a stop.`;
+    if (price != null && to <= price) return `${to} is at or below the price (${price.toFixed(2)}) — that closes the trade. Close it here instead.`;
+  }
+  const word = to === s.entry ? ' — breakeven' : '';
+  rewriteSetup(postId, { ...s, stop: to, updates: [...s.updates, { at: stamp(), kind: 'stop', text: `Stop ${s.stop} → ${to}${word}.` }] });
+  return null;
+}
+
+/** Close it where it stands. The price is recorded and the trade counts —
+    there is no outcome here to choose, only a price to be held to. */
+export function closeHere(postId: string, text = ''): string | null {
+  const s = myOpenSetup(postId);
+  if (typeof s === 'string') return s;
+  const price = Simulator.TICKERS[s.ticker]?.currentPrice;
+  if (price == null || !Number.isFinite(price)) return `No price for $${s.ticker} right now — it cannot be closed honestly.`;
+  const at = stamp();
+  const said = text.trim() ? { ...s, updates: [...s.updates, { at, kind: 'note' as UpdateKind, text: text.trim() }] } : s;
+  rewriteSetup(postId, settle(said, { outcome: 'closed', at, price: Number(price.toFixed(2)), why: 'closed' }));
+  return null;
 }
 export function toggleLike(id: string): void {
   const has = mine.likes.includes(id);

@@ -9,13 +9,22 @@
   and @handle a door; the pasted screenshots; and,
   for a TRADE SETUP, the card — bullish or bearish,
   entry · target · stop · timeframe, the outcome
-  badge, every update in order, and for the
-  author's own the Add update door and the four
-  ways to finish it (target hit · stopped out ·
-  scratched · closed) so the track record is built
-  from every trade, not the winners. Under it the
-  actions: like, comment, repost, save, and the ⋯
-  menu with report and block.
+  badge, and while it is open the LIVE RAIL: the
+  price now, how far of the way there it has come,
+  what it is worth in R, and the three levels drawn
+  on one axis.
+
+  THE OUTCOME IS NOT THE AUTHOR'S (2026-09-13). The
+  four "finish as" buttons that used to live here
+  wrote target hit / stopped out / scratched /
+  closed straight onto the trade, which made the
+  whole track record a self-report. The market
+  settles it now (see data/room.ts) and the author
+  keeps only what does not decide it: a trim, a
+  note, a stop moved tighter, and closing it at a
+  price. Under it the actions: like, comment,
+  repost, save, and the ⋯ menu with report and
+  block.
 ==================================================
 */
 
@@ -23,7 +32,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bookmark, Flag, Heart, MessageCircle, MoreHorizontal, Repeat2, ShieldBan } from 'lucide-react';
-import { addUpdate, blocked, comment, finishSetup, isMe, liked, memberOf, report, reported, reposted, saved, toggleBlock, toggleLike, toggleRepost, toggleSave, unreport, type Outcome, type Post, type UpdateKind } from '../../data/room';
+import { addUpdate, blocked, closeHere, comment, isMe, liked, liveSetup, memberOf, moveStop, plannedR, realisedR, report, reported, reposted, saved, toggleBlock, toggleLike, toggleRepost, toggleSave, unreport, SETTLE_WORD, type AuthorUpdate, type Outcome, type Post, type Setup, type SetupLive, type UpdateKind } from '../../data/room';
 import { timeShort } from '../../data/when';
 import CompanyLogo from '../ui/CompanyLogo';
 import { knownTicker } from '../ui/Name';
@@ -80,6 +89,54 @@ const OUTCOME_STYLE: Record<Outcome, string> = {
   closed: 'bg-ink/[0.06] text-textPrimary border-borderSubtle',
 };
 const UPDATE_WORD: Record<UpdateKind, string> = { trim: 'Trimmed', stop: 'Stop moved', invalidated: 'Invalidated', target: 'Target hit', note: 'Note', closed: 'Closed' };
+/*
+  THE LIVE RAIL — stop, entry, target and the price, on one axis.
+
+  Drawn low-to-high IN PRICE whichever way the trade leans, so the dot moving
+  right always means the name went up; the ends carry their level's name, so a
+  bearish setup reads correctly with its target at the left. The bar between
+  entry and price is the trade so far: green when it is winning, red when it
+  is not. Everything on it is read off the simulator, not off the author.
+*/
+const SetupRail = ({ setup, live }: { setup: Setup; live: SetupLive }) => {
+  const bull = setup.bias === 'bullish';
+  const planned = plannedR(setup);
+  const away = Math.round(live.progress * 100);
+  return (
+    <div className="px-3 pb-2.5" data-setup-rail>
+      <div className="flex items-baseline gap-2 flex-wrap font-mono text-[11px] tnum">
+        <span className="text-[13px] font-bold text-textPrimary">{live.price.toFixed(2)}</span>
+        <span className={live.changePct >= 0 ? 'text-bull' : 'text-bear'}>
+          {live.changePct >= 0 ? '+' : ''}
+          {live.changePct.toFixed(2)}%
+        </span>
+        <span className="text-textSecondary">from entry</span>
+        <span className="ml-auto text-textPrimary">
+          {away >= 0 ? `${Math.min(100, away)}% of the way there` : `${-away}% the wrong way`}
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] tnum">
+        <span className={`whitespace-nowrap ${bull ? 'text-bear' : 'text-bull'}`}>{bull ? `stop ${setup.stop}` : `target ${setup.target}`}</span>
+        <span className="relative flex-1 h-1.5 rounded-full bg-ink/[0.12] min-w-[60px]">
+          <span
+            className={`absolute top-0 bottom-0 rounded-full ${live.liveR >= 0 ? 'bg-bull' : 'bg-bear'}`}
+            style={{ left: `${Math.min(live.entryAt, live.railAt) * 100}%`, width: `${Math.max(0.8, Math.abs(live.railAt - live.entryAt) * 100)}%` }}
+          />
+          <span className="absolute -top-1 -bottom-1 w-px bg-textSecondary" style={{ left: `${live.entryAt * 100}%` }} title={`entry ${setup.entry}`} />
+          <span className="absolute top-1/2 w-2.5 h-2.5 -mt-[5px] -ml-[5px] rounded-full bg-textPrimary ring-2 ring-panel" style={{ left: `${live.railAt * 100}%` }} />
+        </span>
+        <span className={`whitespace-nowrap ${bull ? 'text-bull' : 'text-bear'}`}>{bull ? `target ${setup.target}` : `stop ${setup.stop}`}</span>
+      </div>
+      <div className="mt-1 font-mono text-[10px] tnum text-textSecondary">
+        <span className={live.liveR >= 0 ? 'text-bull' : 'text-bear'}>
+          {live.liveR >= 0 ? '+' : ''}
+          {live.liveR.toFixed(2)}R
+        </span>{' '}
+        right now{planned != null && ` · ${planned.toFixed(1)}R if it gets there, −1R if it does not`}
+      </div>
+    </div>
+  );
+};
 
 const Action = ({ on, onClick, children, title, ink = 'text-textSecondary', onInk = 'text-select' }: { on?: boolean; onClick: () => void; children: ReactNode; title: string; ink?: string; onInk?: string }) => (
   <button
@@ -109,9 +166,11 @@ const PostCard = ({ post, compact = false }: Props) => {
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [updKind, setUpdKind] = useState<UpdateKind>('trim');
+  const [mode, setMode] = useState<'idle' | 'update' | 'stop'>('idle');
+  const [updKind, setUpdKind] = useState<AuthorUpdate>('trim');
   const [updText, setUpdText] = useState('');
+  const [stopDraft, setStopDraft] = useState('');
+  const [ctlErr, setCtlErr] = useState<string | null>(null);
   /* THE ⋯ MENU WEARS THE HOUSE'S PLUMBING (2026-09-13). It used to close on
      mouse-leave alone: a keyboard could not dismiss it, a click elsewhere left
      it open, two cards could hold one open each, and `absolute top-full` inside
@@ -159,6 +218,27 @@ const PostCard = ({ post, compact = false }: Props) => {
     const e = comment(post.id, draft);
     setErr(e);
     if (!e) setDraft('');
+  };
+  /* The live reading and the settled one are read here rather than in the rail
+     so the card can label its own Close button with the price it would take */
+  const live = s ? liveSetup(s) : null;
+  const settledR = s ? realisedR(s) : null;
+  const sendUpdate = () => {
+    const e = addUpdate(post.id, updKind, updText);
+    setCtlErr(e);
+    if (!e) {
+      setUpdText('');
+      setMode('idle');
+    }
+  };
+  const sendStop = () => {
+    const e = moveStop(post.id, Number(stopDraft));
+    setCtlErr(e);
+    if (!e) setMode('idle');
+  };
+  const sendClose = () => {
+    const e = closeHere(post.id);
+    setCtlErr(e);
   };
   return (
     <article className="border-b border-borderSubtle/60 px-4 py-3 flex gap-3" data-post={post.id} data-author={post.author} data-setup={s ? s.outcome : undefined}>
@@ -232,6 +312,22 @@ const PostCard = ({ post, compact = false }: Props) => {
                 {s.outcome}
               </span>
             </div>
+            {live && <SetupRail setup={s} live={live} />}
+            {s.settled && (
+              <div className="px-3 pb-2 flex items-baseline gap-2 flex-wrap font-mono text-[11px] tnum" data-setup-settled={s.settled.why}>
+                {/* The badge above already says WHICH outcome — this line is the
+                    price it settled at, what that was worth, and why it ended */}
+                <span className="text-[9px] uppercase tracking-widest text-textSecondary">settled at</span>
+                <span className="text-textPrimary">{s.settled.price}</span>
+                {settledR != null && (
+                  <span className={settledR >= 0 ? 'text-bull' : 'text-bear'}>
+                    {settledR >= 0 ? '+' : ''}
+                    {settledR.toFixed(2)}R
+                  </span>
+                )}
+                <span className="text-textSecondary">· {SETTLE_WORD[s.settled.why]}</span>
+              </div>
+            )}
             {s.updates.length > 0 && (
               <ul className="border-t border-borderSubtle/60 px-3 py-2 space-y-1" data-setup-updates>
                 {s.updates.map((u, i) => (
@@ -243,35 +339,74 @@ const PostCard = ({ post, compact = false }: Props) => {
                 ))}
               </ul>
             )}
+            {/* WHAT THE AUTHOR MAY DO, and no more: say something about the
+                trade, tighten the stop, or close it at a price. The four
+                "finish as" buttons that used to sit here wrote the outcome
+                by hand, which made every record on this page a self-report. */}
             {mine && s.outcome === 'open' && !compact && (
-              <div className="border-t border-borderSubtle/60 px-3 py-2 flex items-center gap-2 flex-wrap" data-setup-controls>
-                {updating ? (
-                  <>
-                    <select value={updKind} onChange={e => setUpdKind(e.target.value as UpdateKind)} className="h-7 bg-inputBg border border-borderSubtle rounded-md px-2 font-mono text-[11px] text-textPrimary">
+              <div className="border-t border-borderSubtle/60 px-3 py-2 flex flex-col gap-1.5" data-setup-controls>
+                {mode === 'update' ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select value={updKind} onChange={e => setUpdKind(e.target.value as AuthorUpdate)} className="h-7 bg-inputBg border border-borderSubtle rounded-md px-2 font-mono text-[11px] text-textPrimary">
                       <option value="trim">Trimmed</option>
-                      <option value="stop">Stop moved</option>
                       <option value="note">Note</option>
                     </select>
-                    <input value={updText} onChange={e => setUpdText(e.target.value)} placeholder="what changed" className="flex-1 min-w-[160px] h-7 bg-inputBg border border-borderSubtle rounded-md px-2 text-[12px] text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/50" />
-                    <button type="button" onClick={() => { addUpdate(post.id, updKind, updText); setUpdText(''); setUpdating(false); }} className="h-7 px-2.5 rounded-md border border-select/40 bg-select/[0.08] font-mono text-[10px] uppercase tracking-wider text-select">
+                    <input
+                      value={updText}
+                      onChange={e => setUpdText(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && sendUpdate()}
+                      placeholder="what changed"
+                      className="flex-1 min-w-[160px] h-7 bg-inputBg border border-borderSubtle rounded-md px-2 text-[12px] text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/50"
+                      data-setup-update-text
+                    />
+                    <button type="button" onClick={sendUpdate} className="h-7 px-2.5 rounded-md border border-select/40 bg-select/[0.08] font-mono text-[10px] uppercase tracking-wider text-select">
                       Post update
                     </button>
-                    <button type="button" onClick={() => setUpdating(false)} className="h-7 px-2 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+                    <button type="button" onClick={() => { setMode('idle'); setCtlErr(null); }} className="h-7 px-2 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
                       Cancel
                     </button>
-                  </>
+                  </div>
+                ) : mode === 'stop' ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+                      stop {s.stop} →
+                    </span>
+                    <input
+                      value={stopDraft}
+                      onChange={e => setStopDraft(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && sendStop()}
+                      inputMode="decimal"
+                      className="w-24 h-7 bg-inputBg border border-borderSubtle rounded-md px-2 font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/50"
+                      data-setup-stop-input
+                    />
+                    <button type="button" onClick={sendStop} className="h-7 px-2.5 rounded-md border border-select/40 bg-select/[0.08] font-mono text-[10px] uppercase tracking-wider text-select" data-setup-stop-save>
+                      Move it
+                    </button>
+                    <button type="button" onClick={() => { setStopDraft(String(s.entry)); }} className="h-7 px-2 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary">
+                      To breakeven
+                    </button>
+                    <button type="button" onClick={() => { setMode('idle'); setCtlErr(null); }} className="h-7 px-2 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
-                  <>
-                    <button type="button" onClick={() => setUpdating(true)} className="h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:border-borderMuted" data-setup-add-update>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button type="button" onClick={() => { setMode('update'); setCtlErr(null); }} className="h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:border-borderMuted" data-setup-add-update>
                       + Add update
                     </button>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary ml-2">finish as</span>
-                    {(['target hit', 'stopped out', 'scratched', 'closed'] as const).map(o => (
-                      <button key={o} type="button" onClick={() => finishSetup(post.id, o)} className={`h-7 px-2 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${OUTCOME_STYLE[o]} hover:brightness-110`} data-setup-finish={o}>
-                        {o}
-                      </button>
-                    ))}
-                  </>
+                    <button type="button" onClick={() => { setStopDraft(String(s.stop)); setMode('stop'); setCtlErr(null); }} className="h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:border-borderMuted" data-setup-move-stop>
+                      Move stop
+                    </button>
+                    <button type="button" onClick={sendClose} className="h-7 px-2.5 rounded-md border border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:border-silver/50" data-setup-close>
+                      Close it here{live ? ` at ${live.price.toFixed(2)}` : ''}
+                    </button>
+                    <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textSecondary">the target and the stop are the market's to call</span>
+                  </div>
+                )}
+                {ctlErr && (
+                  <div className="text-[11px] text-warn" data-setup-error>
+                    {ctlErr}
+                  </div>
                 )}
               </div>
             )}

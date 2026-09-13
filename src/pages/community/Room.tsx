@@ -20,7 +20,7 @@ import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bell, Bookmark, Flame, ImagePlus, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { allPosts, blockList, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, type Bias, type NoteKind } from '../../data/room';
+import { allPosts, blockList, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, TIMEFRAMES, type Bias, type NoteKind } from '../../data/room';
 import { timeAgo } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
@@ -33,7 +33,6 @@ const TABS = [
   { value: 'following', label: 'Following' },
   { value: 'saved', label: 'Saved' },
 ] as const;
-const TIMEFRAMES = ['intraday', '0DTE', '2 sessions', '3–5 sessions', '2 weeks', 'into earnings'];
 const NOTE_WORD: Record<NoteKind, string> = { like: 'liked', comment: 'commented', follow: 'followed', post: 'posted', update: 'updated', mention: 'mentioned you' };
 
 const Card = ({ title, children, right }: { title?: string; children: React.ReactNode; right?: React.ReactNode }) => (
@@ -61,7 +60,7 @@ const Room = () => {
   const [entry, setEntry] = useState('');
   const [target, setTarget] = useState('');
   const [stop, setStop] = useState('');
-  const [tf, setTf] = useState(TIMEFRAMES[0]);
+  const [tf, setTf] = useState<string>(TIMEFRAMES[0]);
   const [err, setErr] = useState<string | null>(null);
   const [bellOpen, setBellOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -141,6 +140,18 @@ const Room = () => {
           {record.winRate != null && (
             <div className="mx-4 mb-3 rounded-md border border-borderSubtle px-3 py-2 font-mono text-[10px] tnum" data-room-record>
               <span className="uppercase tracking-widest text-textSecondary">Track record</span> <span className="text-bull">{record.wins}W</span> <span className="text-bear">{record.losses}L</span> <span className="text-textSecondary">· {record.winRate}%</span>
+              {/* AND IN R, because a win rate on its own can be bought with a
+                  near target and a far stop — the average is what cannot be */}
+              {record.avgR != null && (
+                <div className="mt-0.5">
+                  <span className="uppercase tracking-widest text-textSecondary">Average</span>{' '}
+                  <span className={record.avgR >= 0 ? 'text-bull' : 'text-bear'}>
+                    {record.avgR >= 0 ? '+' : ''}
+                    {record.avgR.toFixed(2)}R
+                  </span>{' '}
+                  <span className="text-textSecondary">a trade</span>
+                </div>
+              )}
             </div>
           )}
           <nav className="border-t border-borderSubtle" data-room-doors>

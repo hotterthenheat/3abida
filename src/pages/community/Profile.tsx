@@ -17,7 +17,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { BadgeCheck, ShieldBan } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { blocked, follows, isMe, memberOf, postsBy, toggleBlock, toggleFollow, trackRecord, useRoom, followList } from '../../data/room';
+import { blocked, follows, isMe, memberOf, postsBy, realisedR, SETTLE_WORD, toggleBlock, toggleFollow, trackRecord, useRoom, followList } from '../../data/room';
 import { timeShort } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
@@ -95,6 +95,16 @@ const Profile = () => {
             {record.winRate != null && (
               <span data-profile-record>
                 record <span className="text-bull">{record.wins}W</span> <span className="text-bear">{record.losses}L</span> {record.scratched > 0 && <span>{record.scratched} scratched</span>} · <span className="text-textPrimary font-semibold">{record.winRate}%</span>
+                {record.avgR != null && (
+                  <>
+                    {' · '}
+                    <span className={`font-semibold ${record.avgR >= 0 ? 'text-bull' : 'text-bear'}`}>
+                      {record.avgR >= 0 ? '+' : ''}
+                      {record.avgR.toFixed(2)}R
+                    </span>{' '}
+                    a trade
+                  </>
+                )}
               </span>
             )}
           </div>
@@ -123,13 +133,17 @@ const Profile = () => {
         {tab === 'thoughts' && (thoughts.length ? thoughts.map(p => <PostCard key={p.id} post={p} />) : <div className="px-4 py-8 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">No quick thoughts yet</div>)}
         {tab === 'history' && (
           <div data-profile-history>
-            <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-[11px] tnum border-b border-borderSubtle/60">
+            <div className="px-4 py-3 grid grid-cols-3 md:grid-cols-6 gap-3 font-mono text-[11px] tnum border-b border-borderSubtle/60">
               {[
                 ['Open', record.open, 'text-select'],
                 ['Target hit', record.wins, 'text-bull'],
                 ['Stopped out', record.losses, 'text-bear'],
                 ['Scratched', record.scratched, 'text-warn'],
                 ['Win rate', record.winRate == null ? '—' : `${record.winRate}%`, 'text-textPrimary'],
+                /* THE NUMBER A WIN RATE CANNOT HIDE. Aim at a target a tenth of
+                   the stop away and you win nine in ten while losing money; the
+                   average R says what the trades were actually worth. */
+                ['Average', record.avgR == null ? '—' : `${record.avgR >= 0 ? '+' : ''}${record.avgR.toFixed(2)}R`, record.avgR == null ? 'text-textPrimary' : record.avgR >= 0 ? 'text-bull' : 'text-bear'],
               ].map(([k, v, ink]) => (
                 <div key={k as string}>
                   <div className="text-[10px] text-textSecondary">{k as string}</div>
@@ -137,21 +151,28 @@ const Profile = () => {
                 </div>
               ))}
             </div>
-            {record.finished.length === 0 && <div className="px-4 py-8 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">No finished trades yet — the record is built as setups close</div>}
-            {record.finished.map(({ post, setup }) => (
-              <div key={post.id} className="px-4 py-2 border-b border-borderSubtle/50 grid items-center gap-x-3 font-mono text-[11px] tnum" style={{ gridTemplateColumns: '90px 70px 60px 60px 60px minmax(0,1fr) 100px 60px' }} data-history-row={post.id}>
-                <span className="inline-flex items-center gap-1.5 font-bold text-textPrimary">
-                  <CompanyLogo ticker={setup.ticker} size={13} /> {setup.ticker}
-                </span>
-                <span className={setup.bias === 'bullish' ? 'text-bull' : 'text-bear'}>{setup.bias}</span>
-                <span className="text-textPrimary">{setup.entry}</span>
-                <span className="text-bull">{setup.target}</span>
-                <span className="text-bear">{setup.stop}</span>
-                <span className="text-textSecondary truncate">{setup.updates[setup.updates.length - 1]?.text ?? setup.timeframe}</span>
-                <span className={`font-bold uppercase tracking-wider ${setup.outcome === 'target hit' ? 'text-bull' : setup.outcome === 'stopped out' ? 'text-bear' : setup.outcome === 'scratched' ? 'text-warn' : 'text-textPrimary'}`}>{setup.outcome}</span>
-                <span className="text-textSecondary text-right">{timeShort(post.at)}</span>
-              </div>
-            ))}
+            <div className="px-4 pt-2 pb-1 font-mono text-[9px] uppercase tracking-widest text-textSecondary">every trade, graded on the tape · entry → exit · what it made in R</div>
+            {record.finished.length === 0 && <div className="px-4 py-8 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">No finished trades yet — the record is built as setups settle</div>}
+            {record.finished.map(({ post, setup }) => {
+              const r = realisedR(setup);
+              return (
+                <div key={post.id} className="px-4 py-2 border-b border-borderSubtle/50 grid items-center gap-x-3 font-mono text-[11px] tnum" style={{ gridTemplateColumns: '86px 64px 60px 16px 60px 58px 104px minmax(0,1fr) 34px' }} data-history-row={post.id}>
+                  <span className="inline-flex items-center gap-1.5 font-bold text-textPrimary">
+                    <CompanyLogo ticker={setup.ticker} size={13} /> {setup.ticker}
+                  </span>
+                  <span className={setup.bias === 'bullish' ? 'text-bull' : 'text-bear'}>{setup.bias}</span>
+                  <span className="text-textPrimary text-right">{setup.entry}</span>
+                  <span className="text-textMuted text-center">→</span>
+                  <span className={`text-right ${setup.outcome === 'target hit' ? 'text-bull' : setup.outcome === 'stopped out' ? 'text-bear' : 'text-textPrimary'}`}>{setup.settled ? setup.settled.price : '—'}</span>
+                  <span className={`text-right font-semibold ${r == null ? 'text-textSecondary' : r >= 0 ? 'text-bull' : 'text-bear'}`} data-history-r>
+                    {r == null ? '—' : `${r >= 0 ? '+' : ''}${r.toFixed(2)}R`}
+                  </span>
+                  <span className={`font-bold uppercase tracking-wider ${setup.outcome === 'target hit' ? 'text-bull' : setup.outcome === 'stopped out' ? 'text-bear' : setup.outcome === 'scratched' ? 'text-warn' : 'text-textPrimary'}`}>{setup.outcome}</span>
+                  <span className="text-textSecondary truncate">{setup.settled ? SETTLE_WORD[setup.settled.why] : setup.timeframe}</span>
+                  <span className="text-textSecondary text-right">{timeShort(post.at)}</span>
+                </div>
+              );
+            })}
           </div>
         )}
         {tab === 'following' && (
