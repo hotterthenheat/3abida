@@ -22,7 +22,7 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bookmark, Flag, Heart, MessageCircle, MoreHorizontal, Repeat2, ShieldBan } from 'lucide-react';
-import { addUpdate, blocked, comment, finishSetup, isMe, liked, memberOf, report, reported, reposted, saved, timeAgo, toggleBlock, toggleLike, toggleRepost, toggleSave, type Outcome, type Post, type UpdateKind } from '../../data/room';
+import { addUpdate, blocked, comment, finishSetup, isMe, liked, memberOf, report, reported, reposted, saved, timeAgo, toggleBlock, toggleLike, toggleRepost, toggleSave, unreport, type Outcome, type Post, type UpdateKind } from '../../data/room';
 import CompanyLogo from '../ui/CompanyLogo';
 import { knownTicker } from '../ui/Name';
 
@@ -107,6 +107,20 @@ const PostCard = ({ post, compact = false }: Props) => {
   const [updKind, setUpdKind] = useState<UpdateKind>('trim');
   const [updText, setUpdText] = useState('');
   const s = post.setup;
+  /* A POST YOU REPORTED is hidden behind a strip, not deleted from under you —
+     the report went to the moderators and you can take it back (2026-09-13) */
+  if (reported(post.id) && !compact)
+    return (
+      <div className="border-b border-borderSubtle/60 px-4 py-2.5 flex items-center gap-3 text-[12px] text-textSecondary" data-post={post.id} data-reported>
+        <Flag className="w-3.5 h-3.5 text-warn shrink-0" />
+        <span>
+          Reported — thank you. It is hidden from your feed while the moderators look at it.
+        </span>
+        <button type="button" onClick={() => unreport(post.id)} className="ml-auto h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-post-unreport>
+          Undo
+        </button>
+      </div>
+    );
   const send = () => {
     const e = comment(post.id, draft);
     setErr(e);
@@ -135,8 +149,8 @@ const PostCard = ({ post, compact = false }: Props) => {
                 <div className="absolute right-0 top-7 z-30 w-48 border border-borderMuted bg-panel/95 backdrop-blur-xl rounded-md shadow-2xl shadow-black/60 py-1 animate-slide-in" onMouseLeave={() => setMenu(false)} data-post-menu-card>
                   {!mine && (
                     <>
-                      <button type="button" onClick={() => { report(post.id); setMenu(false); }} disabled={reported(post.id)} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-textPrimary hover:bg-ink/[0.06] disabled:opacity-50" data-post-report>
-                        <Flag className="w-3.5 h-3.5" /> {reported(post.id) ? 'Reported — thank you' : 'Report this post'}
+                      <button type="button" onClick={() => { report(post.id); setMenu(false); }} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-textPrimary hover:bg-ink/[0.06]" data-post-report>
+                        <Flag className="w-3.5 h-3.5" /> Report this post
                       </button>
                       <button type="button" onClick={() => { toggleBlock(post.author); setMenu(false); }} className="w-full flex items-center gap-2 px-3 h-8 text-left text-[12px] text-bear hover:bg-bear/[0.06]" data-post-block>
                         <ShieldBan className="w-3.5 h-3.5" /> {blocked(post.author) ? 'Unblock' : 'Block'} @{post.author}

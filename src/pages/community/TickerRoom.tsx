@@ -21,10 +21,10 @@ import PostCard from '../../components/community/PostCard';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 
 const TickerRoom = () => {
-  useRoom();
+  const rev = useRoom();
   const { ticker: raw = 'SPY' } = useParams();
   const ticker = raw.toUpperCase();
-  const posts = useMemo(() => postsOn(ticker), [ticker, useRoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const posts = useMemo(() => postsOn(ticker), [ticker, rev]);
   const setups = posts.filter(p => p.setup?.ticker === ticker);
   const bulls = setups.filter(p => p.setup!.bias === 'bullish').length;
   const bears = setups.length - bulls;

@@ -20,7 +20,7 @@ import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bell, Bookmark, Flame, ImagePlus, LogOut, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { allPosts, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, timeAgo, toggleFollow, trackRecord, trending, unreadNotes, useRoom, type Bias, type NoteKind } from '../../data/room';
+import { allPosts, blockList, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, timeAgo, toggleBlock, toggleFollow, trackRecord, trending, unreadNotes, useRoom, type Bias, type NoteKind } from '../../data/room';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
 import CompanyLogo from '../../components/ui/CompanyLogo';
@@ -47,7 +47,7 @@ const Card = ({ title, children, right }: { title?: string; children: React.Reac
 );
 
 const Room = () => {
-  useRoom();
+  const rev = useRoom();
   const account = useAccount();
   const myself = me();
   const [tab, setTab] = useState<Tab>('feed');
@@ -64,7 +64,9 @@ const Room = () => {
   const [bellOpen, setBellOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const gate = postGate();
-  const posts = useMemo(() => (tab === 'feed' ? allPosts() : tab === 'following' ? followingPosts() : savedPosts()), [tab, useRoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* THE VERSION is the dep, not the hook — `useRoom` never changes identity, so
+     the feed froze the moment anything was written to the room (2026-09-13) */
+  const posts = useMemo(() => (tab === 'feed' ? allPosts() : tab === 'following' ? followingPosts() : savedPosts()), [tab, rev]);
   const record = trackRecord(account.handle);
   const hot = trending();
   const who = suggestions();
@@ -171,6 +173,21 @@ const Room = () => {
             ))}
           </nav>
         </Card>
+        {blockList().length > 0 && (
+          <Card title="Blocked" right={<span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary ml-auto">they cannot reach you</span>}>
+            <div className="pb-2" data-room-blocked>
+              {blockList().map(h => (
+                <div key={h} className="px-4 py-2 flex items-center gap-2.5 border-t border-borderSubtle/50">
+                  <Avatar handle={h} size={24} />
+                  <span className="min-w-0 truncate text-[12px] text-textPrimary">{memberOf(h)?.name ?? h}</span>
+                  <button type="button" onClick={() => toggleBlock(h)} className="ml-auto h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-unblock={h}>
+                    Unblock
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
         <Card title="Trending" right={<span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary ml-auto">what the room is on</span>}>
           <div className="pb-2" data-room-trending>
             {hot.length === 0 && <div className="px-4 pb-2 text-[11px] text-textSecondary">Quiet — nothing trending in the last six hours</div>}
@@ -336,7 +353,7 @@ const Room = () => {
           </div>
         </Card>
         <div className="px-1 text-[10px] leading-relaxed text-textSecondary" data-room-rules>
-          New accounts read before they post · five posts in ten minutes at most · three reports hold a post for review · block anyone, report anything · the badge is verified members
+          New accounts read before they post · five posts in ten minutes at most · a report goes to the moderators and hides the post from your feed · block anyone · the badge is verified members
         </div>
       </div>
     </div>

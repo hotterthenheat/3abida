@@ -269,6 +269,8 @@ interface Mine {
   likes: string[];
   saves: string[];
   reposts: string[];
+  /** post id → the replies you added, merged onto the post's own on read */
+  comments: Record<string, Comment[]>;
   follows: string[];
   blocks: string[];
   reports: Record<string, number>;
@@ -281,12 +283,15 @@ interface Mine {
   activity: number;
 }
 const KEY = 'slayer_room';
-const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
+const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
 
 const loadMine = (): Mine => {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULT_MINE, ...(JSON.parse(raw) as Partial<Mine>) };
+    if (raw) {
+      const v = JSON.parse(raw) as Partial<Mine>;
+      return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {} };
+    }
   } catch {
     /* none */
   }
@@ -295,8 +300,7 @@ const loadMine = (): Mine => {
 
 let mine: Mine = loadMine();
 const seeded = seedPosts();
-let seedLikes = new Map(seeded.map(p => [p.id, p.likes]));
-let seedComments = new Map(seeded.map(p => [p.id, p.comments]));
+const SEED_IDS = new Set(seeded.map(p => p.id));
 let version = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -331,12 +335,30 @@ export const memberOf = (handle: string): Member | null => (handle === ME || han
 export const members = (): Member[] => SEED_MEMBERS;
 export const isMe = (handle: string) => handle === ME || handle === getAccount().handle;
 
-/** Every post in the room, newest first, minus what you blocked and what is held for review */
+/* A POST AS THE SCREEN SHOWS IT (the fix, 2026-09-13 — a like, a repost or a
+   reply on a SEEDED post used to live in a module-level map, so it survived
+   until the next reload and then vanished while the heart stayed lit; a
+   repost of one moved no count at all). The stored post carries what OTHERS
+   did; your like, your repost and your replies are kept as your own and
+   merged here, so a reload prints what the screen printed before it. */
+const withMine = (base: Post): Post => {
+  const liked = mine.likes.includes(base.id);
+  const reposted = mine.reposts.includes(base.id);
+  const added = mine.comments[base.id] ?? [];
+  if (!liked && !reposted && added.length === 0) return base;
+  return { ...base, likes: base.likes + (liked ? 1 : 0), reposts: base.reposts + (reposted ? 1 : 0), comments: added.length ? [...base.comments, ...added] : base.comments };
+};
+
+/** Every post in the room, newest first, minus the people you blocked. A post
+    YOU reported stays in the list — the card draws it as a reported strip with
+    a way back — because a row that silently vanishes on one click is not
+    moderation, it is a disappearing act (2026-09-13). */
 export function allPosts(): Post[] {
-  const held = new Set(Object.entries(mine.reports).filter(([, n]) => n >= 3).map(([id]) => id));
   const blocked = new Set(mine.blocks);
-  const seededLive = seeded.map(p => ({ ...p, likes: seedLikes.get(p.id) ?? p.likes, comments: seedComments.get(p.id) ?? p.comments }));
-  return [...mine.posts, ...seededLive].filter(p => !blocked.has(p.author) && !held.has(p.id)).sort((a, b) => b.at.localeCompare(a.at));
+  return [...mine.posts, ...seeded]
+    .filter(p => !blocked.has(p.author))
+    .map(withMine)
+    .sort((a, b) => b.at.localeCompare(a.at));
 }
 export const postById = (id: string): Post | null => allPosts().find(p => p.id === id) ?? null;
 export const followingPosts = (): Post[] => {
@@ -468,18 +490,14 @@ export function finishSetup(postId: string, outcome: Exclude<Outcome, 'open'>, t
 }
 export function toggleLike(id: string): void {
   const has = mine.likes.includes(id);
-  const likes = has ? mine.likes.filter(x => x !== id) : [...mine.likes, id];
-  if (seedLikes.has(id)) seedLikes.set(id, (seedLikes.get(id) ?? 0) + (has ? -1 : 1));
-  const posts = mine.posts.map(p => (p.id === id ? { ...p, likes: p.likes + (has ? -1 : 1) } : p));
-  bump({ likes, posts, activity: mine.activity + (has ? 0 : 1) });
+  bump({ likes: has ? mine.likes.filter(x => x !== id) : [...mine.likes, id], activity: mine.activity + (has ? 0 : 1) });
 }
 export function toggleSave(id: string): void {
   bump({ saves: mine.saves.includes(id) ? mine.saves.filter(x => x !== id) : [...mine.saves, id] });
 }
 export function toggleRepost(id: string): void {
   const has = mine.reposts.includes(id);
-  const posts = mine.posts.map(p => (p.id === id ? { ...p, reposts: p.reposts + (has ? -1 : 1) } : p));
-  bump({ reposts: has ? mine.reposts.filter(x => x !== id) : [...mine.reposts, id], posts });
+  bump({ reposts: has ? mine.reposts.filter(x => x !== id) : [...mine.reposts, id] });
 }
 export function comment(id: string, text: string): string | null {
   const gate = commentGate();
@@ -487,9 +505,7 @@ export function comment(id: string, text: string): string | null {
   const body = text.trim();
   if (!body) return 'Say something first.';
   const c: Comment = { id: `c-${Date.now()}`, author: getAccount().handle, at: stamp(), text: body };
-  if (seedComments.has(id)) seedComments.set(id, [...(seedComments.get(id) ?? []), c]);
-  const posts = mine.posts.map(p => (p.id === id ? { ...p, comments: [...p.comments, c] } : p));
-  bump({ posts, commentTimes: [...mine.commentTimes.slice(-20), Date.now()], activity: mine.activity + 1 });
+  bump({ comments: { ...mine.comments, [id]: [...(mine.comments[id] ?? []), c] }, commentTimes: [...mine.commentTimes.slice(-20), Date.now()], activity: mine.activity + 1 });
   return null;
 }
 export function toggleFollow(handle: string): void {
@@ -501,10 +517,18 @@ export function toggleBlock(handle: string): void {
   const has = mine.blocks.includes(handle);
   bump({ blocks: has ? mine.blocks.filter(x => x !== handle) : [...mine.blocks, handle], follows: has ? mine.follows : mine.follows.filter(x => x !== handle) });
 }
-/** A report counts once per person; a post reported three times is held for review */
+/** YOUR report: it goes to the moderators and hides the post from your own
+    feed. It counts once, and it is undoable — what the rest of the room
+    reported is theirs, not something this client may invent. */
 export function report(id: string): void {
   if (mine.reports[id]) return;
-  bump({ reports: { ...mine.reports, [id]: (mine.reports[id] ?? 0) + 1 + (seedLikes.has(id) ? Math.floor(h01(`${id}-reports`) * 3) : 0) } });
+  bump({ reports: { ...mine.reports, [id]: 1 } });
+}
+export function unreport(id: string): void {
+  if (!mine.reports[id]) return;
+  const reports = { ...mine.reports };
+  delete reports[id];
+  bump({ reports });
 }
 export function markNotesRead(): void {
   bump({ readNotes: notes().map(n => n.id) });
@@ -524,8 +548,6 @@ export const timeAgo = (iso: string): string => {
 
 /** Reset the seed's live counters — the tests' door */
 export function resetRoomForTests(): void {
-  seedLikes = new Map(seeded.map(p => [p.id, p.likes]));
-  seedComments = new Map(seeded.map(p => [p.id, p.comments]));
   mine = { ...DEFAULT_MINE };
   emit();
 }

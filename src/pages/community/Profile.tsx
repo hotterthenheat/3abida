@@ -31,7 +31,7 @@ const TABS = [
 ] as const;
 
 const Profile = () => {
-  useRoom();
+  const rev = useRoom();
   const account = useAccount();
   const { handle: raw } = useParams();
   const [params] = useSearchParams();
@@ -39,7 +39,7 @@ const Profile = () => {
   const m = memberOf(handle);
   const mine = isMe(handle);
   const [tab, setTab] = useState<Tab>(params.get('tab') === 'following' ? 'following' : 'setups');
-  const posts = useMemo(() => postsBy(handle), [handle, useRoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const posts = useMemo(() => postsBy(handle), [handle, rev]);
   const record = trackRecord(handle);
   if (!m)
     return (
