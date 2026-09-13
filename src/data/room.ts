@@ -49,6 +49,8 @@ import { useSyncExternalStore } from 'react';
 import { h01 } from '../core/rng';
 import { accountAgeDays, getAccount } from './account';
 import { UNIVERSE } from './universe';
+import { readJson, writeKey } from './kept';
+import { pictureStore } from './pictures';
 import Simulator from '../core/simulator';
 
 /* ---- the shapes ------------------------------------------------------------------- */
@@ -453,37 +455,12 @@ interface Mine {
   activity: number;
 }
 const KEY = 'slayer_room';
-/*
-  THE PICTURES LIVE ON THEIR OWN KEY (2026-09-13).
-
-  A post used to carry its screenshots inside itself, as data URLs, inside the
-  one blob every write re-serialised. Two consequences, both measured:
-
-    the post vanished    two retina screenshots pasted into the composer came
-                         to 15MB each; the write threw QuotaExceeded, the
-                         catch swallowed it, and the post was gone on reload
-                         with nothing said. (shrinkImage now takes those to
-                         ~150KB, and this key keeps them out of the hot blob.)
-    every like was dear  liking a post rewrote every picture you had ever
-                         posted, because they were all in `mine`
-
-  So `mine` holds picture IDS and this key holds the pictures. Reads swap the
-  ids back (`hydrate`); a picture storage has lost simply does not draw.
-*/
-const IMG_KEY = 'slayer_room_images';
+/* A post holds picture IDS; the pictures live on their own key — see
+   data/pictures.ts for what that is worth and what it was measured against */
+const pics = pictureStore('slayer_room_images');
 const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], followers: [], pending: [], settled: {}, reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
 /** The bell keeps this many raised notes — a session's worth, not a lifetime's */
 const NOTE_CAP = 60;
-
-const readJson = <T,>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw) as T;
-  } catch {
-    /* no storage, or an entry this build cannot read — the fallback */
-  }
-  return fallback;
-};
 
 const loadMine = (): Mine => {
   const v = readJson<Partial<Mine>>(KEY, {});
@@ -491,7 +468,6 @@ const loadMine = (): Mine => {
 };
 
 let mine: Mine = loadMine();
-let blobs: Record<string, string> = readJson<Record<string, string>>(IMG_KEY, {});
 const seeded = seedPosts();
 let version = 0;
 const listeners = new Set<() => void>();
@@ -507,21 +483,12 @@ const subscribe = (fn: () => void) => {
     stopGrading();
   };
 };
-const writeKey = (key: string, value: unknown): boolean => {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    /* storage off, or full — the caller decides whether that is worth saying */
-    return false;
-  }
-};
 /** True when everything reached storage. A false here means a reload will not
     show what the screen is showing, which `post` turns into a message rather
     than letting the reader find out later. */
 const persist = (): boolean => {
   const kept = writeKey(KEY, mine);
-  const pictures = writeKey(IMG_KEY, blobs);
+  const pictures = pics.write();
   return kept && pictures;
 };
 const getVersion = () => version;
@@ -549,7 +516,7 @@ export const isMe = (handle: string) => handle === ME || handle === getAccount()
    did; your like, your repost and your replies are kept as your own and
    merged here, so a reload prints what the screen printed before it. */
 /** The picture ids a post stores, swapped back for the pictures themselves */
-const hydrate = (p: Post): Post => (p.images.length === 0 ? p : { ...p, images: p.images.map(id => blobs[id]).filter((src): src is string => !!src) });
+const hydrate = (p: Post): Post => (p.images.length === 0 ? p : { ...p, images: pics.show(p.images) });
 
 /* =========================================================================
    THE MARKET GRADES THE TRADE (2026-09-13)
@@ -1089,13 +1056,14 @@ export function post(text: string, images: string[], setup?: Omit<Setup, 'outcom
   const body = text.trim().slice(0, MAX_POST);
   if (body.length < 2 && !setup && images.length === 0) return 'Say something first.';
   const stamped = Date.now();
-  const pictures = images.map((src, k) => ({ id: `img-${stamped}-${k}`, src }));
+  const wasPics = pics.snapshot();
+  const kept = pics.keep(images, 'img');
   const p: Post = {
     id: `me-${stamped}`,
     author: getAccount().handle,
     at: stamp(),
     text: body,
-    images: pictures.map(i => i.id),
+    images: kept,
     setup: setup ? { ...setup, ticker: setup.ticker.trim().toUpperCase(), outcome: 'open', updates: [] } : undefined,
     likes: 0,
     reposts: 0,
@@ -1105,17 +1073,14 @@ export function post(text: string, images: string[], setup?: Omit<Setup, 'outcom
      back if the write failed — with a message, rather than a row that sits
      there looking posted until the next reload takes it away. */
   const wasMine = mine;
-  const wasBlobs = blobs;
-  blobs = { ...blobs };
-  for (const i of pictures) blobs[i.id] = i.src;
   /* AND WHAT THE ROOM WILL DO ABOUT IT — scheduled now, landed by the sweep */
   mine = { ...mine, posts: [p, ...mine.posts], postTimes: [...mine.postTimes.slice(-40), stamped], pending: [...mine.pending, ...planReactions(p)] };
   if (!persist()) {
     mine = wasMine;
-    blobs = wasBlobs;
+    pics.restore(wasPics);
     persist();
     emit();
-    return pictures.length ? 'This browser has no room left for those pictures — post it with fewer screenshots.' : 'This browser has no room left to keep that post.';
+    return kept.length ? 'This browser has no room left for those pictures — post it with fewer screenshots.' : 'This browser has no room left to keep that post.';
   }
   emit();
   return hydrate(p);
@@ -1238,6 +1203,6 @@ export function notify(n: Omit<Note, 'id' | 'at' | 'read'>): void {
 /** Reset the seed's live counters — the tests' door */
 export function resetRoomForTests(): void {
   mine = { ...DEFAULT_MINE };
-  blobs = {};
+  pics.restore({});
   emit();
 }
