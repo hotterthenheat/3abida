@@ -22,6 +22,7 @@ import { distanceIn, fmtShared, sharedUnit, GREEK_LABEL, type Compare, type Comp
 import type { DistanceUnit } from '../../data/atr';
 import { CALL_WALL, FLIP, LONG_GAMMA, PUT_WALL, SHORT_GAMMA, SUPREME } from './paletteInk';
 import { H2H_COLUMNS, H2H_HEAD_H, H2H_KEYS, H2H_ROW_H } from './compareSkeletons';
+import { TickerText } from '../ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
@@ -256,7 +257,7 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
           <div>
             <dt className="text-[10px] text-textMuted">Today</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-h2h-today>
-              {facts.today}
+              <TickerText text={facts.today} />
             </dd>
           </div>
           <div>
@@ -266,7 +267,7 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
           <div>
             <dt className="text-[10px] text-textMuted">Wider expected move</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }}>
-              {facts.wider}
+              <TickerText text={facts.wider} />
             </dd>
           </div>
         </dl>
@@ -314,7 +315,7 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
           <span className="min-w-0 flex flex-col items-center leading-none">
             <span className="text-[11px] text-textSecondary group-hover:text-textPrimary transition-colors duration-150 whitespace-nowrap">{r.label}</span>
             <span className="mt-[3px] text-[9.5px] text-textMuted group-hover:text-textSecondary transition-colors duration-150 whitespace-nowrap truncate max-w-full" data-h2h-note>
-              {r.note}
+              <TickerText text={r.note} size={10} />
             </span>
           </span>
           <span className="min-w-0 flex items-center gap-2 whitespace-nowrap overflow-hidden" data-h2h-b>

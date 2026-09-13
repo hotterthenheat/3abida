@@ -22,6 +22,7 @@ import { sessionBars } from '../../data/levelview';
 import { buildWallBoard } from '../../data/wall';
 import { hhmmss, useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
+import { Name } from '../../components/ui/Name';
 
 const AtTheWallWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const clock = useDeskClock();
@@ -39,7 +40,7 @@ const AtTheWallWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
       return null;
     }
   }, [ctx.snapshot, clock, focus]);
-  if (!built) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;
+  if (!built) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest"><span>No book for <Name t={ctx.ticker} size={12} /></span></div>;
   return (
     <div className="h-full min-h-0 overflow-y-auto" data-wall-widget>
       <AtTheWall board={built.board} ticker={ctx.ticker} clock={clock} onPick={strike => ctx.focusStrike?.(strike)} updatedAt={built.at} headless />

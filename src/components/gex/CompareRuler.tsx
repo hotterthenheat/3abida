@@ -44,6 +44,7 @@ import type { DistanceUnit } from '../../data/atr';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
 import { HEAT_MODE, heatCellStyle, type HeatMode } from './heatmap';
 import { AXIS_COL_W, AXIS_READ_H } from './compareSkeletons';
+import { Name } from '../ui/Name';
 
 const SILVER = '#C7D3E8';
 const INK = '#ededed';
@@ -914,7 +915,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
               {roleOf(S, row.strike) && <span className="text-textPrimary">{roleOf(S, row.strike)}</span>}
               {other && O && (
                 <span className="text-textMuted">
-                  · nearest on <span className="text-textSecondary">{O.side.ticker}</span>: <span className="font-mono tnum text-textPrimary">{fmtStrike(other.strike)}</span> <span className="font-mono tnum">{tickWords(other.d, lay.U)}</span> ·{' '}
+                  · nearest on <Name t={O.side.ticker} size={10} className="text-textSecondary" />: <span className="font-mono tnum text-textPrimary">{fmtStrike(other.strike)}</span> <span className="font-mono tnum">{tickWords(other.d, lay.U)}</span> ·{' '}
                   <span className="font-mono tnum text-textPrimary">{fmtDollars(Math.abs(other.value))}</span> {other.value > 0 ? words.pos : words.neg}
                   {roleOf(O, other.strike) ? ` · ${roleOf(O, other.strike)}` : ''}
                 </span>

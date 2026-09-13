@@ -59,6 +59,7 @@ import Term from '../ui/Term';
 import { CALL_WALL, FLIP, SUPREME, PUT_WALL, alpha } from './paletteInk';
 import { HEAT_MODE, heatLaneInks, heatRampColorFor, type HeatMode } from './heatmap';
 import type { ExposureProfileData, StrikeExposure } from '../../types/gex';
+import { Name } from '../ui/Name';
 
 interface StrikePressureLadderProps {
   data: ExposureProfileData;
@@ -769,7 +770,7 @@ const StrikeCard = ({
     <div className="flex flex-col gap-2 min-w-[236px]">
       <div className="flex items-baseline gap-2">
         <span className="font-mono text-[13px] font-bold tnum text-textPrimary">
-          {ticker} {strikeFormat(row.strike)}
+          <Name t={ticker} size={13} /> {strikeFormat(row.strike)}
         </span>
         <span className={`font-mono text-[10px] tnum ${distPct > 0 ? 'text-textSecondary' : 'text-textSecondary'}`}>{fmtDist(distPct)} from spot</span>
         <span className="ml-auto inline-flex items-center gap-1.5">

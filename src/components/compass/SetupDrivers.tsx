@@ -23,6 +23,7 @@ import type { Column } from '../ui/DataTable';
 import { TraceGrid } from '../trace/TraceBox';
 import { fmtUsd } from '../../data/gex';
 import type { DriverRow, OptionRight } from '../../types/compass';
+import { Name } from '../ui/Name';
 
 interface SetupDriversProps {
   ticker: string;
@@ -116,7 +117,7 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The contracts around it</h3>
         </div>
         <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-          on {ticker} · {expiry} · the hedging this setup trades through{onOpen ? ' · a row opens that contract' : ''}
+          on <Name t={ticker} size={11} /> · {expiry} · the hedging this setup trades through{onOpen ? ' · a row opens that contract' : ''}
         </p>
       </div>
       <TraceGrid

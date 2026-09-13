@@ -43,6 +43,7 @@ import { buildPositionCurve, fmtPnl, type PositionCurve } from '../../data/posit
 import { removePosition, subjectWords, type Position, type PositionRead, type Verdict } from '../../data/positions';
 import { fmtUsd } from '../../data/gex';
 import type { ExposureLevels } from '../../types/gex';
+import { TickerText } from '../ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = 'rgb(var(--bull))';
@@ -289,7 +290,7 @@ const PositionCard = ({ position: p, read, spot, levels, lo, hi, focused, onShow
     >
       <header className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h4 className="text-[14px] font-semibold leading-tight text-textPrimary truncate">{title}</h4>
+          <h4 className="text-[14px] font-semibold leading-tight text-textPrimary truncate"><TickerText text={title} size={13} /></h4>
           <p className="mt-0.5 text-[11px] text-textMuted truncate">
             {p.side === 'long' ? 'You own' : 'You sold'} · {cost} · {p.source === 'tracker' ? 'from the Tracker' : 'added by you'}
           </p>

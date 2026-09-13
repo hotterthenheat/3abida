@@ -34,6 +34,7 @@ import { fmtUsd } from '../../data/gex';
 import PositionCard from './PositionCard';
 import PositionForm from './PositionForm';
 import type { ExposureProfileData } from '../../types/gex';
+import { TickerText } from '../ui/Name';
 
 const MODULES = [AllCommunityModule];
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
@@ -168,7 +169,7 @@ const PositionsBook = ({ profile, focus, onPick }: PositionsBookProps) => {
         <div className="min-w-0">
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Your positions</h3>
           <p className="mt-0.5 text-[11px] text-textMuted">
-            {positions.length ? `${contracts} contract${contracts === 1 ? '' : 's'} on ${ticker} · profit is measured from what you paid, or from today's value when you have not said` : `Nothing on ${ticker} yet`}
+            <TickerText size={11} text={positions.length ? `${contracts} contract${contracts === 1 ? '' : 's'} on ${ticker} · profit is measured from what you paid, or from today's value when you have not said` : `Nothing on ${ticker} yet`} />
           </p>
         </div>
         <span className="ml-auto" />

@@ -47,6 +47,7 @@ import { EarningsGuide } from '../../components/record/EarningsGuide';
 import { stateOf, type VolState } from '../../components/earnings/volState';
 import { buildEarningsCalendar, weekDayDate, weekDayLabel, type EarningsEvent } from '../../data/earnings';
 import { macroWindow, type MacroDate } from '../../data/events';
+import { Name } from '../../components/ui/Name';
 
 type WeekPick = '0' | '1' | 'both';
 type ShowPick = 'all' | VolState;
@@ -258,7 +259,7 @@ const Earnings = () => {
             <Fact label="Biggest move" testId="biggest">
               {biggest ? (
                 <>
-                  {biggest.ticker} ±{biggest.impliedMovePct.toFixed(1)}% <span className="text-textMuted">· {biggest.dateLabel}</span>
+                  <Name t={biggest.ticker} size={12} /> ±{biggest.impliedMovePct.toFixed(1)}% <span className="text-textMuted">· {biggest.dateLabel}</span>
                 </>
               ) : (
                 <span className="text-textMuted">—</span>
@@ -269,7 +270,7 @@ const Earnings = () => {
                 today.map((e, i) => (
                   <span key={e.ticker}>
                     {i > 0 && <span className="text-textMuted"> · </span>}
-                    {e.ticker} <span className="text-textMuted">{slotWord(e)}</span>
+                    <Name t={e.ticker} size={11} /> <span className="text-textMuted">{slotWord(e)}</span>
                   </span>
                 ))
               ) : (

@@ -49,6 +49,7 @@ import { buildNewsDeepRead, marketMood, type NewsCategory } from '../../data/new
 import { lookup } from '../../data/universe';
 import { buildEconCalendar, buildGeoNews, buildRoomInsights, clusterByCity, freshnessOf, severityWord, type CityPing, type GeoNewsEvent, type NewsGrade } from '../../data/newsroom';
 import { NEWS_ROW_H } from './recordSkeletons';
+import { Name } from '../../components/ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -357,7 +358,7 @@ const News = () => {
             <Fact label="Biggest move" testId="biggest">
               {biggest ? (
                 <>
-                  {biggest.item.ticker} <span className={biggest.item.prediction.expMove1dPct >= 0 ? 'text-bull' : 'text-bear'}>{signed(biggest.item.prediction.expMove1dPct)}</span>
+                  {biggest.item.ticker ? <Name t={biggest.item.ticker} size={12} /> : 'the market'} <span className={biggest.item.prediction.expMove1dPct >= 0 ? 'text-bull' : 'text-bear'}>{signed(biggest.item.prediction.expMove1dPct)}</span>
                 </>
               ) : (
                 <span className="text-textMuted">—</span>

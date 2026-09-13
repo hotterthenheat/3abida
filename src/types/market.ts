@@ -47,6 +47,12 @@ export interface GexLevel {
   dex?: number;
   /** Net vega exposure at the same instant, signed dollars */
   vex?: number;
+  /** Net vanna exposure at the same instant, signed dollars per one point of
+      vol — recorded since 2026-09-13 so the Net strip's sparkline can follow
+      every greek the card offers, not three of five */
+  vanna?: number;
+  /** Net charm exposure at the same instant, signed dollars per session */
+  charm?: number;
   /*
     OPEN INTEREST AT THE SAME INSTANT — the ΔOI heat's raw material. Carried
     on the GEX snapshot rather than in a store of its own so the two can

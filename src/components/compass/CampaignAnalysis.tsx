@@ -66,6 +66,7 @@ import {
   type Setup,
   type SleeveKey,
 } from '../../types/compass';
+import { Name } from '../ui/Name';
 
 /* THE PREMIUM CHART OPENS FIRST (Noah, 2026-09-12: "the first chart that comes
    out is the stock one that is incorrect the first chart should be the options
@@ -1119,7 +1120,7 @@ const CampaignAnalysis = ({
                         <th className="text-left font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
                         <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
                         <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
-                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">{setup.ticker} needs</th>
+                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5"><Name t={setup.ticker} size={10} /> needs</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-borderSubtle">
@@ -1301,7 +1302,7 @@ const CampaignAnalysis = ({
                   onClick={() => navigate('/compass', { state: { tickerFilter: setup.ticker } })}
                   className="self-start inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
                 >
-                  <ArrowUpRight className="w-3 h-3" /> See {setup.ticker} on the board
+                  <ArrowUpRight className="w-3 h-3" /> See <Name t={setup.ticker} size={10} /> on the board
                 </button>
               </div>
             </div>

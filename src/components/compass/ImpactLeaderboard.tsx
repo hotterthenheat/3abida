@@ -6,6 +6,7 @@ import AnimatedNumber from '../ui/AnimatedNumber';
 import ContractLabel from '../ui/ContractLabel';
 import { fmtUsd } from '../../data/gex';
 import type { ImpactMetric, ImpactRow } from '../../types/compass';
+import { Name } from '../ui/Name';
 
 interface ImpactLeaderboardProps {
   /** Whose book this is — the selected card's name */
@@ -115,7 +116,7 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Heaviest contracts</h3>
         </div>
         <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-          on {ticker}
+          on <Name t={ticker} size={11} />
           {note ? ` · ${note}` : ''} · a column head ranks by it · a row opens the contract
         </p>
       </div>

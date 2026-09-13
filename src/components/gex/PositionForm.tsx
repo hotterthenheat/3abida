@@ -19,6 +19,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { CARD } from '../ui/DropdownSelect';
 import ExpiryPicker from '../ui/ExpiryPicker';
 import { addPosition, updatePosition, todayExpiry, type Position, type Right, type Side } from '../../data/positions';
+import { Name } from '../ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SILVER_FILL = 'rgb(var(--silver-fill))'; /* the silver as a SURFACE — a filled pill with the dark word on it, the holo flat form on either ground */
@@ -107,7 +108,7 @@ const PositionForm = ({ ticker, position, defaultStrike, trigger, align = 'end' 
       <Popover.Portal>
         <Popover.Content align={align} sideOffset={6} collisionPadding={12} className={`${CARD} p-0 outline-none`} style={{ width: 560 }} data-position-form>
           <div className="px-4 pt-3 pb-2 border-b border-borderSubtle/70 flex items-baseline gap-2">
-            <span className="text-[13px] font-semibold text-textPrimary">{position ? 'Change this position' : `New position on ${ticker}`}</span>
+            <span className="text-[13px] font-semibold text-textPrimary">{position ? 'Change this position' : <>New position on <Name t={ticker} size={13} /></>}</span>
             <span className="ml-auto text-[10px] text-textMuted">premium in points per share, as your broker shows it</span>
           </div>
           <form

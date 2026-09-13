@@ -35,6 +35,7 @@ import ContractPremiumPane, { type PremiumLevel, type PremiumProjection, type Pr
 import ContractPick, { type ConPickRow } from './ContractPick';
 import PremiumLevelRail from './PremiumLevelRail';
 import { BULL } from '../gex/paletteInk';
+import { Name } from '../ui/Name';
 
 const MUTED_INK = 'rgb(var(--text-muted))'; // matches textMuted (the lifted AA value)
 const WARN_INK = 'rgb(var(--warn))';
@@ -209,7 +210,7 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
         {/* The whispers — the clock left, the off-scale rules and the modeled note right */}
         <div className="pl-3 pr-16 flex items-baseline justify-between gap-3 pointer-events-none">
           <span className="font-mono text-[10px] text-textMuted">
-            the contract's premium over {barsToSpan(track.pastMinutes)} · reference ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from {setup.ticker}
+            the contract's premium over {barsToSpan(track.pastMinutes)} · reference ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from <Name t={setup.ticker} size={10} />
             's bars, not a traded tape
           </span>
           {docked.length > 0 && (

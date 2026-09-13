@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { knownTicker, Name } from './Name';
 
 /*
   RichRead — renders a generated narrative sentence with its meaningful
@@ -58,6 +59,11 @@ function classFor(token: string): string | null {
   return null;
 }
 
+/* THE NAME'S MARK (Noah, 2026-09-12: a ticker travels with its logo everywhere,
+   prose included) — a caps token the terminal knows as a name renders with
+   its mark in front; jargon in caps never does. */
+const isName = (token: string): boolean => /^[A-Z]{1,5}$/.test(token) && !JARGON.has(token) && knownTicker(token);
+
 /* CHAMPION MARKUP (Noah, 2026-08-30: the tables crown their single largest in
    magenta, but the sentences saying "The largest:" printed it flat white).
    A generator wraps its champion fact in [[...]] and the whole span renders in
@@ -69,6 +75,12 @@ const tokenize = (text: string, keyBase: string): ReactNode[] =>
   text.split(TOKEN_RE).map((part, i) => {
     if (part === undefined || part === '') return null;
     const cls = classFor(part);
+    if (isName(part))
+      return (
+        <Name key={`${keyBase}-${i}`} t={part} size={12} className="font-semibold text-textPrimary">
+          {part}
+        </Name>
+      );
     return cls ? (
       <span key={`${keyBase}-${i}`} className={cls}>
         {part}

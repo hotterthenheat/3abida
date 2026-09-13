@@ -18,6 +18,7 @@ import { useMarketData } from '../../context/MarketDataContext';
 import { fmtUsd } from '../../data/gex';
 import ContractLabel from '../../components/ui/ContractLabel';
 import type { WorkspaceCtx } from './registry';
+import { Name } from '../../components/ui/Name';
 
 const num = (v: number) => v.toLocaleString('en-US');
 const to24h = (t: string): string => {
@@ -48,7 +49,7 @@ const TapeWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
         {rows.length === 0 ? (
-          <div className="h-full grid place-items-center px-4 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">No rich prints on {ctx.ticker} yet</div>
+          <div className="h-full grid place-items-center px-4 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary"><span>No rich prints on <Name t={ctx.ticker} size={12} /> yet</span></div>
         ) : (
           rows.map(p => (
             <div key={p.id} className="flex items-center gap-2 px-3 h-8 border-b border-borderSubtle/40 font-mono text-[10px] tnum animate-fade-in" data-widget-print={p.id}>

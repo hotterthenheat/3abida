@@ -33,6 +33,7 @@ import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../ui/houseGrid';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import type { Column } from '../ui/DataTable';
+import { withLeadingMark } from '../ui/Name';
 
 /** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30) */
 export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12 });
@@ -57,7 +58,7 @@ export const Champion = ({ label, ink, onOpen, children, testId }: { label: stri
     <dt className={`text-[10px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
     <dd className="mt-0.5 whitespace-nowrap" data-trace-champion={testId}>
       <button type="button" onClick={onOpen} title="Open the contract's card" className="font-mono text-[12px] tnum font-semibold text-textPrimary hover:underline underline-offset-2 decoration-textMuted">
-        {children}
+        {withLeadingMark(children)}
       </button>
     </dd>
   </div>

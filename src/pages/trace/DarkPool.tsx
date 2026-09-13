@@ -46,6 +46,7 @@ import ReadDoor from '../../components/trace/ReadDoor';
 import { SectorName } from '../../components/trace/SectorMark';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { DarkPoolGuide } from '../../components/trace/TraceGuide';
+import { Name } from '../../components/ui/Name';
 
 const num = (v: number) => v.toLocaleString('en-US');
 const signedPct = (v: number, dp = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
@@ -352,7 +353,11 @@ const DarkPool = () => {
       <div ref={topRef} />
       <TraceBox
         title="The dark pool"
-        sub={`${ticker}'s off-exchange crosses with the read attached — who is most likely behind each print, and the liquidity shelves they left · a shelf cuts the grid to it, a row puts the print on the card`}
+        sub={
+          <>
+            <Name t={ticker} size={11} />'s off-exchange crosses with the read attached — who is most likely behind each print, and the liquidity shelves they left · a shelf cuts the grid to it, a row puts the print on the card
+          </>
+        }
         testId="dark-pool"
         data={{ ticker, prints: rows.length, intent, shelf: shelf ? shelf.price : 'all' }}
         guide={{ title: 'How to read the dark pool', door: 'What a cross, a shelf and the read mean', body: <DarkPoolGuide />, testId: 'dark-pool-guide', open: guideOpen, onOpen: setGuideOpen }}

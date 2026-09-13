@@ -151,16 +151,18 @@ function levelsAt(range: ReplayRange, pos: number): GexLevel[] {
       cur.value += l.value * u;
       cur.dex = (cur.dex ?? 0) + (l.dex ?? 0) * u;
       cur.vex = (cur.vex ?? 0) + (l.vex ?? 0) * u;
+      if (l.vanna !== undefined) cur.vanna = (cur.vanna ?? 0) + l.vanna * u;
+      if (l.charm !== undefined) cur.charm = (cur.charm ?? 0) + l.charm * u;
       cur.callOI = (cur.callOI ?? 0) + (l.callOI ?? 0) * u;
       cur.putOI = (cur.putOI ?? 0) + (l.putOI ?? 0) * u;
-    } else byStrike.set(l.strike, { ...l, value: l.value * u, dex: (l.dex ?? 0) * u, vex: (l.vex ?? 0) * u, callOI: (l.callOI ?? 0) * u, putOI: (l.putOI ?? 0) * u });
+    } else byStrike.set(l.strike, { ...l, value: l.value * u, dex: (l.dex ?? 0) * u, vex: (l.vex ?? 0) * u, vanna: l.vanna === undefined ? undefined : l.vanna * u, charm: l.charm === undefined ? undefined : l.charm * u, callOI: (l.callOI ?? 0) * u, putOI: (l.putOI ?? 0) * u });
   }
   return [...byStrike.values()].sort((x, y) => x.strike - y.strike);
 }
 
-/* Vanna and charm are not in the per-minute history, so a rewound node keeps
-   the live node's legs for them (the template below) — the replay speaks
-   gamma, delta and vega for the moment, and today's vanna and charm. */
+/* Vanna and charm joined the per-minute history on 2026-09-13; a fold from
+   before that carries neither, and then a rewound node keeps the live node's
+   legs for them (the template below) rather than speaking zeros. */
 const EMPTY_NODE: Omit<StrikeNode, 'strike'> = { callOI: 0, putOI: 0, gamma: 0, callGex: 0, putGex: 0, netGex: 0, callDex: 0, putDex: 0, netDex: 0, callVex: 0, putVex: 0, netVex: 0, vanna: 0, charm: 0, callVanna: 0, putVanna: 0, netVanna: 0, callCharm: 0, putCharm: 0, netCharm: 0 };
 
 /** The market as it stood at a position — the live snapshot's shape, the book of that moment */
@@ -182,6 +184,10 @@ export function snapshotAt(live: MarketSnapshot, range: ReplayRange, pos: number
     const vex = l.vex ?? t?.netVex ?? 0;
     const dexShare = t && t.netDex !== 0 ? t.callDex / t.netDex : 0.5;
     const vexShare = t && t.netVex !== 0 ? t.callVex / t.netVex : 0.5;
+    const vanna = l.vanna ?? t?.netVanna ?? 0;
+    const charm = l.charm ?? t?.netCharm ?? 0;
+    const vannaShare = t && t.netVanna !== 0 ? t.callVanna / t.netVanna : 0.5;
+    const charmShare = t && t.netCharm !== 0 ? t.callCharm / t.netCharm : 0.5;
     return {
       ...(t ?? { strike: l.strike, ...EMPTY_NODE }),
       strike: l.strike,
@@ -196,6 +202,12 @@ export function snapshotAt(live: MarketSnapshot, range: ReplayRange, pos: number
       callVex: vex * vexShare,
       putVex: vex * (1 - vexShare),
       netVex: vex,
+      callVanna: vanna * vannaShare,
+      putVanna: vanna * (1 - vannaShare),
+      netVanna: vanna,
+      callCharm: charm * charmShare,
+      putCharm: charm * (1 - charmShare),
+      netCharm: charm,
     };
   });
   const open = range.bars[0].open;

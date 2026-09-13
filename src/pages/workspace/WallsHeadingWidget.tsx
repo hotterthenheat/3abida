@@ -19,6 +19,7 @@ import { buildBuilding } from '../../data/building';
 import { buildExposureProfile } from '../../data/exposure';
 import { useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
+import { Name } from '../../components/ui/Name';
 
 const WallsHeadingWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const clock = useDeskClock();
@@ -32,7 +33,7 @@ const WallsHeadingWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
       return null;
     }
   }, [ctx.snapshot, clock]);
-  if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;
+  if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest"><span>No book for <Name t={ctx.ticker} size={12} /></span></div>;
   return (
     <div className="h-full min-h-0" data-heading-widget>
       <WallHeading data={data} clock={clock} headless fill />

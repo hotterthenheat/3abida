@@ -21,6 +21,7 @@ import { buildCloseOdds, buildCorridor, buildSchedule, type VolPoints } from '..
 import { buildExposureProfile } from '../../data/exposure';
 import { useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
+import { Name } from '../../components/ui/Name';
 
 const WINDOW = 15;
 
@@ -36,7 +37,7 @@ export const RangeWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
       return null;
     }
   }, [ctx.snapshot, clock, volPoints]);
-  if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;
+  if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest"><span>No book for <Name t={ctx.ticker} size={12} /></span></div>;
   return (
     <div className="h-full min-h-0 overflow-y-auto" data-range-widget>
       <AheadCorridor corridor={data.corridor} schedule={data.schedule} levels={data.profile.levels} ticker={ctx.ticker} clock={clock} focus={ctx.focusPrice ?? null} onPick={price => ctx.focusStrike?.(price)} volPoints={volPoints} onVolPoints={setVolPoints} headless />
@@ -56,7 +57,7 @@ export const CloseWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
       return null;
     }
   }, [ctx.snapshot, clock]);
-  if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;
+  if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest"><span>No book for <Name t={ctx.ticker} size={12} /></span></div>;
   return (
     <div className="h-full min-h-0 overflow-y-auto" data-close-widget>
       <CloseOdds odds={data.odds} levels={data.levels} spot={ctx.snapshot.spot} ticker={ctx.ticker} clock={clock} focus={ctx.focusPrice ?? null} onPick={price => ctx.focusStrike?.(price)} headless />

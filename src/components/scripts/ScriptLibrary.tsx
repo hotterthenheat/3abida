@@ -25,6 +25,7 @@ import type { ChartScript, PaneId, Script, ScriptInput, ScriptInputValue } from 
 import Modal from '../ui/Modal';
 import { INDICATOR_ITEMS } from '../gex/indicatorItems';
 import { MAX_SUB_PANES, SUB_PANE_ORDER, type ChartIndicators } from '../gex/StrikeChart';
+import { Name } from '../ui/Name';
 
 type Shelf = 'recent' | 'favourites' | 'mine' | 'slayer' | 'technicals' | 'chart';
 type Kind = 'slayer' | 'pine' | 'chart';
@@ -77,7 +78,7 @@ const AlertSwitches = ({ script, chart, paneId }: { script: Script; chart: Chart
   return (
     <div className="col-span-3 mt-1 pt-2 border-t border-borderSubtle/60" data-script-alerts>
       <div className="pb-1 font-mono text-[8px] uppercase tracking-[0.14em] text-textMuted">
-        Tell me when · {ticker} · {pane.timeframe}
+        Tell me when · <Name t={ticker} size={10} /> · {pane.timeframe}
       </div>
       {conditions.map(c => {
         const on = !!hit(c.id);

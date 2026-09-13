@@ -55,6 +55,7 @@ import { ladderExpiryOptions } from './ladderControls';
 import type { ExposureExpiry } from '../../types/gex';
 import RulerLane, { inView, layout, rulerWords, tickWords, type NodeCard } from './CompareRuler';
 import { AXIS_H, AXIS_HEADS_H, AXIS_READ_H } from './compareSkeletons';
+import { Name } from '../ui/Name';
 
 /** The thermal ramp's two voices, for the words that name them */
 /* THE HEAD'S OTHER CARDS (Noah, 2026-09-10: "is 'the two books on one ruler'
@@ -204,10 +205,10 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
             {all ? (
-              <>Each strike at its distance from its own spot · {cmp.a.ticker} grows left, {cmp.b.ticker} right · one lane per greek, one window for all {greeks.length} · dashed is each flip</>
+              <>Each strike at its distance from its own spot · <Name t={cmp.a.ticker} size={10} /> grows left, <Name t={cmp.b.ticker} size={10} /> right · one lane per greek, one window for all {greeks.length} · dashed is each flip</>
             ) : (
               <>
-                Each strike at its distance from its own spot · {cmp.a.ticker} grows left, {cmp.b.ticker} right · longer is more {GREEK_LABEL[greek]} · <span style={{ color: COOL }}>{palette === 'house' ? 'ice' : 'blue'}</span> {words.neg}, <span style={{ color: WARM }}>{palette === 'house' ? 'gold' : 'orange'}</span> {words.pos} · dashed is each flip
+                Each strike at its distance from its own spot · <Name t={cmp.a.ticker} size={10} /> grows left, <Name t={cmp.b.ticker} size={10} /> right · longer is more {GREEK_LABEL[greek]} · <span style={{ color: COOL }}>{palette === 'house' ? 'ice' : 'blue'}</span> {words.neg}, <span style={{ color: WARM }}>{palette === 'house' ? 'gold' : 'orange'}</span> {words.pos} · dashed is each flip
               </>
             )}
           </p>

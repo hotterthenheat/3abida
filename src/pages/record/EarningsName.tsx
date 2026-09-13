@@ -51,6 +51,7 @@ import { bracketLabel, buildCongress } from '../../data/congress';
 import { buildEarningsDossier, type ActiveContract, type EarningsDossier } from '../../data/earnings';
 import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { PRICED_INK, PRICED_WORD, SlotMark, slotWord } from './Earnings';
+import { Name } from '../../components/ui/Name';
 
 const AXIS = { stroke: 'transparent', tick: { fill: 'rgb(var(--text-secondary))', fontSize: 10, fontFamily: 'inherit' } };
 const GRID = { stroke: 'rgba(255,255,255,0.05)', vertical: false };
@@ -285,7 +286,7 @@ const EarningsName = () => {
             <div className="min-w-0">
               <div className="h-6 flex items-center gap-2.5">
                 <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">{e.name}</h3>
-                <span className="font-mono text-[11px] font-bold text-textSecondary">{e.ticker}</span>
+                <Name t={e.ticker} size={13} className="font-mono text-[11px] font-bold text-textSecondary" />
               </div>
               <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate inline-flex items-center gap-1.5">
                 Reports {e.dateLabel} <SlotMark slot={e.slot} className="w-3 h-3" /> {slotWord(e)}

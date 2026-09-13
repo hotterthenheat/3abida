@@ -36,6 +36,7 @@ import DropdownSelect, { type DropdownOption } from '../../components/ui/Dropdow
 import { HEAT_MODE, type HeatMode } from '../../components/gex/heatmap';
 import type { ExposureExpiry } from '../../types/gex';
 import type { WorkspaceCtx } from './registry';
+import { Name } from '../../components/ui/Name';
 
 const VIEW_OPTIONS: DropdownOption<'ladder' | 'levels'>[] = [
   { value: 'ladder', label: 'Ladder', hint: 'Every strike a row — put and call hedging as bars' },
@@ -215,7 +216,7 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
           <StrikePressureLadder data={data} strikeFormat={strikeFormat} openRatio={openRatio} mode={modeFor(palette)} fill onPointer={strike => pointedRef.current?.(strike)} />
         ) : (
           <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted">
-            No exposure for {ctx.ticker}
+            <span>No exposure for <Name t={ctx.ticker} size={12} /></span>
           </div>
         )}
         {/* THE READ — glass over the right of the ladder, in GEX, the ladder's greek */}

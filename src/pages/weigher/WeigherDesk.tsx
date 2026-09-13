@@ -91,6 +91,7 @@ import { useFadeClose } from '../../components/ui/useFadeClose';
 import Term from '../../components/ui/Term';
 import type { Timeframe } from '../../data/timeframe';
 import type { OptionRight, Setup } from '../../types/compass';
+import { Name } from '../../components/ui/Name';
 
 /* Still v2 on purpose: the desk went static (2026-08-30) and the stored
    `layout` field simply stopped being read — but the tickers, columns, depth
@@ -853,7 +854,7 @@ export const StrikeCard = ({
                     <th className="text-left font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
                     <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
                     <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
-                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">{grade.ticker} needs</th>
+                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5"><Name t={grade.ticker} size={10} /> needs</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-borderSubtle">
@@ -1764,7 +1765,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
                   <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tnum text-textPrimary whitespace-nowrap">
                     <CompanyLogo ticker={ticker} size={14} />
                     <span className={right === 'C' ? 'text-bull' : 'text-bear'}>
-                      {ticker} {fmtStrike(sel)}
+                      <Name t={ticker} size={12} /> {fmtStrike(sel)}
                       {right}
                     </span>
                     <span className="text-textSecondary">· {chain.expiry.dte === 0 ? 'today' : `${chain.expiry.dte}d`}</span>

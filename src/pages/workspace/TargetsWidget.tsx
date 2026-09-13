@@ -27,6 +27,7 @@ import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface'
 import { sessionBars } from '../../data/levelview';
 import { useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
+import { Name } from '../../components/ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
@@ -57,7 +58,7 @@ const TargetsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   }, [ctx.snapshot, clock, order]);
 
   if (!agenda) {
-    return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;
+    return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest"><span>No book for <Name t={ctx.ticker} size={12} /></span></div>;
   }
   const maxStake = Math.max(1, ...agenda.targets.map(t => t.stake));
   const focus = ctx.focusPrice ?? null;

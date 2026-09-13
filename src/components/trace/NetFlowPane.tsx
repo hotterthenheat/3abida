@@ -61,6 +61,7 @@ import { roomBelow } from '../ui/menuRoom';
 import FlowSearch, { type SearchDoor } from './FlowSearch';
 import { SectorMark } from './SectorMark';
 import type { BookContract } from '../../types/trace';
+import { Name } from '../ui/Name';
 
 /* The pane's two cuts as cards (the walk, 2026-09-09): which strikes, and how far out */
 const MONEY_OPTIONS: DropdownOption<MoneynessKey>[] = MONEYNESS.map(m => ({ value: m.key, label: m.label === 'All strikes' ? 'All' : m.label, hint: m.hint }));
@@ -591,7 +592,7 @@ const NetFlowPane = ({
             <CompanyLogo ticker={ticker} size={16} />
             {/* With a search in the head, the field already holds the name —
                 the mark alone stands beside it; the label would say it twice. */}
-            {!onTicker && <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>}
+            {!onTicker && <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />}
           </span>
         ) : (
           <SegPick seg={seg} onSeg={onSeg} />

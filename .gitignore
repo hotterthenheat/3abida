@@ -36,7 +36,7 @@ build/
 Thumbs.db
 
 # Scratch / screenshot scripts
-_shot.mjs
+_shot*.mjs
 _scratch*
 
 # Map tiles — GENERATED, and far past GitHub's 100MB file ceiling

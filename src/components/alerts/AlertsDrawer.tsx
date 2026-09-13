@@ -53,6 +53,7 @@ import {
 } from '../gex/alertStore';
 import { ALERT, alpha } from '../gex/paletteInk';
 import { closeAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
+import { Name } from '../ui/Name';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -123,7 +124,7 @@ const Card = ({ children, testId }: { children: React.ReactNode; testId?: string
 const NameHead = ({ ticker, note }: { ticker: string; note: string }) => (
   <div className="flex items-center gap-2 h-8 px-3 border-b border-borderSubtle/70 bg-ink/[0.02]" data-alert-name={ticker}>
     <CompanyLogo ticker={ticker} size={14} />
-    <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>
+    <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />
     <span className="font-mono text-[9px] tnum text-textMuted">{note}</span>
   </div>
 );
@@ -157,7 +158,7 @@ const Row = ({ kind, alerted, ticker, words, state, door, action, testId }: { ki
       </span>
       <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
         <span className="flex items-center gap-1.5 min-w-0">
-          {ticker && <span className="shrink-0 font-mono text-[10px] font-bold text-textPrimary">{ticker}</span>}
+          {ticker && <Name t={ticker} size={12} className="shrink-0 font-mono text-[10px] font-bold text-textPrimary" />}
           <span className="truncate text-[12px] text-textPrimary">{words}</span>
         </span>
         <span className={`font-mono text-[9px] tnum ${alerted ? '' : 'text-textMuted'}`} style={alerted ? { color: ALERT } : undefined}>

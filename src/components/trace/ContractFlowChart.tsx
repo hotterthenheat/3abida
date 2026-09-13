@@ -52,6 +52,7 @@ import RichRead from '../ui/RichRead';
 import { flowAxisLabel, flowClock, sessionDate, type ContractFlow, type ContractPrintPoint } from '../../data/contractflow';
 import { fmtUsd } from '../../data/gex';
 import { BULL, SUPREME } from '../gex/paletteInk';
+import { Name } from '../ui/Name';
 
 const ASK = BULL; // lifted the offer — the market's bull colour
 const BID = '#FF3B30';
@@ -837,7 +838,7 @@ export const NetPanel = ({
             {metric === 'netPremium' ? 'Net puts' : 'Puts'}
           </Chip>
           <Chip active={showPrice} onClick={() => onShowPrice(!showPrice)}>
-            {ticker} price
+            <Name t={ticker} size={11} /> price
           </Chip>
         </div>
       )}

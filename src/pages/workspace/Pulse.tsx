@@ -37,6 +37,7 @@ import {
   type WidgetInstance,
 } from './desks';
 import type { MarketSnapshot } from '../../types/market';
+import { Name } from '../../components/ui/Name';
 
 /* THE DESK'S WIDTH, MEASURED BEFORE THE FIRST PAINT (Noah, 2026-09-12:
    "everytime i re-enter the page and the cards start sliding into their
@@ -866,7 +867,7 @@ const Pulse = () => {
                         </Deferred>
                       ) : (
                         <span className="flex h-full items-center justify-center font-mono text-[10px] text-textMuted uppercase tracking-widest">
-                          No data for {inst.ticker}
+                          No data for {inst.ticker ? <Name t={inst.ticker} size={12} /> : 'this name'}
                         </span>
                       );
                     })()}

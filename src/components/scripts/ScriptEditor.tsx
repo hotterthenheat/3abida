@@ -37,6 +37,7 @@ import { scriptStore } from '../../data/scriptStore';
 import type { PaneId, Script, ScriptVersion } from '../../types/scripts';
 import { CARD } from '../ui/DropdownSelect';
 import { pineHighlight, pineLanguage, pineTheme } from './pineLanguage';
+import { Name } from '../ui/Name';
 
 /* ---- the error line ---------------------------------------------------------------- */
 
@@ -496,7 +497,13 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
         {note && <span className="text-textSecondary truncate">· {note}</span>}
         {busy && <span className="text-textMuted">· {busy}…</span>}
         <span className="ml-auto text-textMuted whitespace-nowrap">
-          {bars ? `${bars.ticker} · ${bars.timeframe} · ` : ''}
+          {bars ? (
+            <>
+              <Name t={bars.ticker} size={10} /> · {bars.timeframe} ·{' '}
+            </>
+          ) : (
+            ''
+          )}
           Pine v6 · Line {cursor.line}, Col {cursor.col}
         </span>
       </div>

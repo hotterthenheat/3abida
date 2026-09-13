@@ -432,6 +432,12 @@ const Simulator = (() => {
     deltaCall: number;
     deltaPut: number;
     vega: number;
+    /* Vanna and charm ride the same memo (2026-09-13): both are functions
+       of d1/d2 alone at a fixed horizon and vol, so they are scale-free in
+       (spot, strike) exactly as delta is — one evaluation per bucket. */
+    vanna: number;
+    charmCall: number;
+    charmPut: number;
   }
   const unitGreeks: Map<number, Map<number, UnitGreeks>> = new Map();
   function unitAt(spot: number, strike: number, iv: number): UnitGreeks {
@@ -444,7 +450,7 @@ const Simulator = (() => {
     let u = byZ.get(z);
     if (u === undefined) {
       const g = calculateGreeks(1, Math.exp(-z / GAMMA_Q), GAMMA_T, iv);
-      u = { gamma: g.gamma, deltaCall: g.deltaCall, deltaPut: g.deltaPut, vega: g.vega };
+      u = { gamma: g.gamma, deltaCall: g.deltaCall, deltaPut: g.deltaPut, vega: g.vega, vanna: g.vanna, charmCall: g.charmCall, charmPut: g.charmPut };
       byZ.set(z, u);
     }
     return u;
@@ -453,7 +459,7 @@ const Simulator = (() => {
     return unitAt(spot, strike, iv).gamma / spot;
   }
 
-  // Net GEX, DEX and VEX (all-expiry proxy) per strike at a given price, captured as one snapshot
+  // Net GEX, DEX, VEX, vanna and charm (all-expiry proxy) per strike at a given price, captured as one snapshot
   function computeGexSnapshot(sym: string, spot: number, time: number): GexSnapshot {
     const config = TICKERS[sym];
     const step = config.step;
@@ -476,7 +482,10 @@ const Simulator = (() => {
       const putGex = entry.putOI * gamma * scale * 0.53;
       const dex = entry.callOI * 100 * u.deltaCall * spot * -0.55 + entry.putOI * 100 * u.deltaPut * spot * -0.53;
       const vex = (entry.callOI * -0.55 + entry.putOI * -0.53) * 100 * u.vega * spot;
-      levels.push({ strike, value: callGex + putGex, dex, vex, callOI: entry.callOI, putOI: entry.putOI });
+      /* the StrikeNode's own footing: vanna per one point of vol, charm per session */
+      const vanna = (entry.callOI * -0.55 + entry.putOI * -0.53) * 100 * u.vanna * 0.01 * spot;
+      const charm = ((entry.callOI * -0.55 * u.charmCall + entry.putOI * -0.53 * u.charmPut) * 100 * spot) / 252;
+      levels.push({ strike, value: callGex + putGex, dex, vex, vanna, charm, callOI: entry.callOI, putOI: entry.putOI });
     }
     return { time, levels };
   }

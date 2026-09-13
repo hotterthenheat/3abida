@@ -48,6 +48,7 @@ import { useMarketData } from '../../context/MarketDataContext';
 import type { FlowPrint, PrintSentiment } from '../../types/trace';
 import type { MarketSnapshot } from '../../types/market';
 import { toneBar, type Tone } from '../ui/tones';
+import { Name } from '../ui/Name';
 
 // recharts is heavy — it only loads when a print is actually opened
 const FlowPanels = lazy(() => import('./ContractFlowChart').then(m => ({ default: m.FlowPanel })));
@@ -603,7 +604,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   className="font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors text-left"
                 >
                   The scale reads the live chain — switch the terminal to{' '}
-                  <span className="text-select font-semibold">{print.ticker}</span> to grade this contract.
+                  <Name t={print.ticker} size={12} className="text-select font-semibold" /> to grade this contract.
                 </button>
               )}
             </div>
