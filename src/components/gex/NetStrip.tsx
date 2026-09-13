@@ -134,7 +134,7 @@ const Spark = ({ values }: { values: number[] }) => {
 const PITCH_MIN = 22;
 /** More than this and the rows are just spread out */
 const PITCH_MAX = 42;
-/** The bar folds under a row this short; the figure stays */
+/** Under this pitch the bar rides BESIDE the figure instead of under it — every row keeps its bar (the board, 2026-09-13) */
 const BAR_BELOW = 27;
 const RULE_H = 18;
 const EDGE_BAND = 14;
@@ -194,7 +194,8 @@ const NetStrip = ({ sym, profile, greek, timeframe, revision, width, focusPrice,
     return { shown: strikes.slice(start, start + fit), above: start, below: strikes.length - (start + fit), first: start };
   }, [strikes, fit, spotAfterIndex, centreOnFocus, focusPrice]);
   const pitch = shown.length ? Math.max(PITCH_MIN, Math.min(PITCH_MAX, Math.floor(room / shown.length))) : PITCH_MIN;
-  const showBar = pitch >= BAR_BELOW && width >= 200;
+  const showBar = width >= 200;
+  const barInline = pitch < BAR_BELOW;
 
   const totalAbs = useMemo(() => strikes.reduce((a, s) => a + Math.abs(legOf(s, greek).net), 0) || 1, [strikes, greek]);
   /* The sum of the nets between the spot and a strike — what a move there crosses */
@@ -249,7 +250,9 @@ const NetStrip = ({ sym, profile, greek, timeframe, revision, width, focusPrice,
           const put = Math.abs(leg.put);
           const call = Math.abs(leg.call);
           const gross = put + call || 1;
-          const len = 24 + Math.round((Math.abs(v) / maxAbs) * Math.max(40, Math.min(140, width - 130)));
+          const len = barInline
+            ? 12 + Math.round((Math.abs(v) / maxAbs) * Math.max(30, Math.min(110, width - 170)))
+            : 24 + Math.round((Math.abs(v) / maxAbs) * Math.max(40, Math.min(140, width - 130)));
           const tags = tagsOf(s);
           const isSpotRow = spotInside && idx === spotAfterIndex;
           const dashedBelow = s.strike === levels.callWall && !isSpotRow;
@@ -277,8 +280,8 @@ const NetStrip = ({ sym, profile, greek, timeframe, revision, width, focusPrice,
                     </span>
                   ))}
                 </span>
-                <span className="flex flex-col justify-center gap-[3px] pl-2 border-l border-borderSubtle min-w-0">
-                  <span className="font-mono text-[11px] font-semibold tnum whitespace-nowrap" style={{ color: inkOf(v) }}>
+                <span className={`flex ${barInline ? 'flex-row items-center gap-2' : 'flex-col justify-center gap-[3px]'} pl-2 border-l border-borderSubtle min-w-0`}>
+                  <span className={`font-mono text-[11px] font-semibold tnum whitespace-nowrap ${barInline ? 'w-[60px] shrink-0' : ''}`} style={{ color: inkOf(v) }}>
                     {fmtUsd(v)}
                   </span>
                   {showBar && (

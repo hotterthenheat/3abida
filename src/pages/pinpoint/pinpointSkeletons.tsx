@@ -26,7 +26,6 @@
 */
 
 import { Fragment } from 'react';
-import { readPanelShare, shareWidth } from '../../data/mapPanelShare';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Block, Box, ChartGround, Facts, Line, ScopeChipMark, SubLine, TitleRow, Trigger } from '../../components/ui/skeletonKit';
 import { BuildingPageSkeleton } from '../../components/gex/buildingSkeletons';
@@ -104,111 +103,72 @@ export const MapBoxSkeleton = () => (
         <span className="ml-auto shrink-0 inline-flex items-center gap-2">
           <Trigger w={112} />
           <Trigger w={103} />
-          <Trigger w={105} />
         </span>
       </div>
-      {/* the chart and the panel */}
+      {/* the chart, the whole box (the strike panel left the Map on 2026-09-13) */}
       <div className="relative flex-1 min-h-0 flex">
         <div className="relative flex-1 min-w-0" style={{ background: '#0a0a0a' }}>
           <ChartGround axis={74} />
-        </div>
-        {/* the panel at the reader's own cut (the Map's sash), 42% until they move it */}
-        <div className="relative shrink-0 h-full flex flex-col" style={{ width: shareWidth(readPanelShare()) }}>
-          <div className="h-[30px] flex items-center px-2 gap-4">
-            <Line w={60} h={9} />
-            <Line w={90} h={9} className="ml-auto" />
-          </div>
-          <div className="flex-1 min-h-0 relative">
-            {Array.from({ length: 24 }, (_, i) => {
-              const t = Math.abs(i - 11.5) / 11.5;
-              const w = 18 + Math.round((1 - t) * 44 * (0.6 + ((i * 7) % 5) * 0.12));
-              return (
-                <div key={i} className="absolute inset-x-0 flex items-center" style={{ top: `${(i + 0.5) * (100 / 24)}%` }}>
-                  <div className="absolute left-2 right-[44%] flex justify-end">
-                    <Block w={`${w}%`} h={11} className="rounded-full" style={{ opacity: 0.55 + (1 - t) * 0.45 }} />
-                  </div>
-                  <div className="absolute left-[58%] w-8">
-                    <Line w={28} h={8} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="h-[27px] shrink-0 flex items-center gap-3 px-2.5 border-t border-ink/[0.06]">
-            <Line w={34} h={11} />
-            <Line w={90} h={9} />
-            <Line w={70} h={9} />
-            <Line w={120} h={9} className="ml-auto" />
-          </div>
         </div>
       </div>
     </div>
   </div>
 );
 
-/** The Calendar under the Map: the band toolbar (it wraps at desk width, as the real one does), the read line, the capsule grid */
-export const CalendarInner = () => (
-  <div className="h-full min-h-0 flex flex-col" aria-hidden data-skeleton="calendar-box">
-    <div className="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-1.5 border-b border-borderSubtle">
-      <ScopeChipMark />
-      <Trigger w={103} />
-      <Trigger w={170} />
-      <Trigger w={158} />
-      <Trigger w={101} />
-      <Trigger w={140} />
-      <Block w={232} h={32} className="ml-auto rounded-md" />
-      <Block w={85} h={24} className="rounded-md" />
-      <Block w={28} h={28} className="rounded" />
-    </div>
-    <div className="flex-1 min-h-0 flex flex-col">
-      <div className="shrink-0 flex items-center gap-5 px-3 py-2 border-b border-borderSubtle/60 h-[34px]">
-        <Line w={30} h={13} />
-        <Line w={120} />
-        <Line w={70} />
-        <Line w={80} />
-        <Line w={180} className="ml-auto" />
-      </div>
-      <div className="flex-1 min-h-0 grid" style={{ gridTemplateColumns: '66px repeat(8, minmax(0, 1fr))', gridTemplateRows: '22px 22px repeat(20, minmax(18px, 1fr)) 18px repeat(20, minmax(18px, 1fr))' }}>
-        <div className="row-span-2 px-2 flex items-end pb-1 border-b border-borderSubtle">
-          <Line w={36} h={9} />
-        </div>
-        <div className="col-span-8 px-2 flex items-center justify-center border-l border-borderSubtle">
-          <Line w={90} h={9} />
-        </div>
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={`h-${i}`} className={`px-2 flex items-center justify-end border-b border-borderSubtle ${i === 0 ? 'border-l' : ''}`}>
-            <Line w={64} h={9} />
+/** The greek board under the Map: five strips side by side — a head, a net line, the strike rows, the foot */
+export const BoardInner = ({ panels = 5 }: { panels?: number }) => (
+  <div className="h-full min-h-0 flex flex-col" aria-hidden data-skeleton="greek-board">
+    <div className="flex-1 min-h-0 flex">
+      {Array.from({ length: panels }, (_, p) => (
+        <div key={p} className="flex-1 min-w-0 flex flex-col border-r border-borderSubtle last:border-r-0">
+          <div className="shrink-0 flex items-center gap-1 px-1.5 py-1 border-b border-borderSubtle">
+            <ScopeChipMark />
+            <Trigger w={62} />
+            <Trigger w={58} />
+            <Line w={44} className="ml-auto" />
           </div>
-        ))}
-        {/* The real window: twenty strikes each side of spot (the ledger's floor), 18px rows */}
-        {Array.from({ length: 41 }, (_, r) =>
-          r === 20 ? (
-            <div key="spot" className="col-span-9 px-2 flex items-center gap-1.5">
-              <span className="h-px flex-grow bg-gradient-to-r from-ink/[0.04] via-ink/[0.14] to-ink/[0.18]" />
-              <Line w={24} h={9} />
-              <Block w={48} h={15} className="rounded-[3px]" />
-              <span className="h-px w-3 shrink-0 bg-ink/[0.18]" />
-            </div>
-          ) : (
-            [
-              <div key={`s-${r}`} className="px-2 flex items-center">
-                <Line w={30} h={11} />
-              </div>,
-              ...Array.from({ length: 8 }, (_, c) => (
-                <div key={`c-${r}-${c}`} className={`min-w-0 px-[3px] py-[2px] ${c === 0 ? 'border-l border-borderSubtle/60' : ''}`}>
-                  <Skeleton className="h-full w-full rounded-full" style={{ opacity: 0.45 + 0.55 * (1 - Math.abs(r - 20) / 20) }} />
+          <div className="shrink-0 flex items-center gap-2 px-2 h-6 border-b border-borderSubtle/70">
+            <Line w={22} h={8} />
+            <Line w={54} h={9} />
+            <Line w={70} h={8} />
+          </div>
+          <div className="shrink-0 flex items-center gap-4 px-2 h-6 border-b border-borderSubtle">
+            <Line w={34} h={8} />
+            <Line w={60} h={8} />
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col justify-center gap-[6px] px-2 py-2">
+            {Array.from({ length: 22 }, (_, r) => (
+              <div key={r} className="flex items-center gap-3 h-[22px]">
+                <Line w={28} h={10} />
+                <div className="flex-1 flex flex-col gap-[3px]">
+                  <Line w={`${34 + ((r * 13) % 30)}%`} h={10} />
+                  <Line w={`${20 + ((r * 7) % 40)}%`} h={3} />
                 </div>
-              )),
-            ]
-          )
-        )}
-      </div>
+              </div>
+            ))}
+          </div>
+          <div className="shrink-0 flex items-center gap-3 px-2 h-6 border-t border-borderSubtle">
+            <Line w={50} h={8} />
+            <Line w={44} h={8} />
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="shrink-0 flex items-center gap-3 px-3 h-9 border-t border-borderSubtle">
+      <Line w={44} h={8} />
+      <Block w={140} h={24} className="rounded" />
+      <Block w={60} h={24} className="rounded" />
+      <Block w={56} h={24} className="rounded" />
+      <Block w={54} h={24} className="rounded" />
+      <Line w={160} className="ml-auto" />
+      <Block w={120} h={24} className="rounded" />
+      <Line w={170} />
     </div>
   </div>
 );
-export const CalendarBoxSkeleton = ({ className = 'h-[870px]' }: { className?: string }) => (
-  <div className={`border border-borderSubtle rounded-md overflow-hidden flex flex-col ${className}`}>
-    <CalendarInner />
+export const BoardBoxSkeleton = () => (
+  <div className="border border-borderSubtle rounded-md overflow-hidden flex flex-col" style={{ height: MAP_H, minHeight: 560 }}>
+    <BoardInner />
   </div>
 );
 
@@ -301,7 +261,7 @@ export const PositionsBoxSkeleton = () => (
 export const MapPageSkeleton = () => (
   <>
     <MapBoxSkeleton />
-    <CalendarBoxSkeleton />
+    <BoardBoxSkeleton />
     <DayBoxSkeleton />
     <ReportBoxSkeleton />
     <PositionsBoxSkeleton />
