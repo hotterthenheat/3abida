@@ -340,6 +340,34 @@
   );
 }
 
+/* ============================================================
+   THE FOIL ON PAPER (2026-09-13, the launch sweep).
+
+   The run above is built for a black ground: every stop sits between #a8c4e8
+   and #f7f8fc, which on the light theme's white panel is 1.1:1 to 1.3:1 —
+   the wordmark it paints is not faint there, it is absent. Found on the new
+   launch screen, but it was true of all eight places .holo-text and
+   .holo-bar are used (the sidebar's mark, the landing head, Settings, Prove
+   It) since the light theme landed.
+
+   Same foil, same hues in the same order, walked down into the ink range so
+   every stop clears 4.5:1 on white. --holo-gradient-bright is NOT touched:
+   that one is a BACKGROUND carrying dark text, and it has to stay light.
+   ============================================================ */
+[data-theme='light'] {
+  --holo-gradient: linear-gradient(
+    115deg,
+    #4a5468 0%,
+    #2f3a4e 14%,
+    #3c5f8c 30%,
+    #5b4a86 45%,
+    #232a38 58%,
+    #3d5675 72%,
+    #5a4b80 86%,
+    #4a5468 100%
+  );
+}
+
 @keyframes holo-pan {
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }

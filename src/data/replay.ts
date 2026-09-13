@@ -62,8 +62,28 @@ function rangeOf(ticker: string, bars: Candle[]): ReplayRange | null {
   if (bars.length < 2) return null;
   const first = bars[0].time;
   const last = bars[bars.length - 1].time;
+  /*
+    THE BOOK IS A STEP FUNCTION, NOT A READING PER BAR (2026-09-13).
+
+    This used to key the map on exact bar times, so a bar with no snapshot at
+    precisely its second had no book at all and `levelsAt` returned an empty
+    chain — the exposure overlay blanking out mid-scrub. That was invisible
+    only because the seed happened to record one snapshot per bar; the moment
+    history is sampled at any other rate it breaks, and a real feed is never
+    one book per minute.
+
+    Each bar now carries the LAST book recorded at or before it, which is what
+    a book is: it stands until the next reading replaces it.
+  */
+  const all = Simulator.getGexHistory(ticker) ?? [];
   const snaps = new Map<number, GexSnapshot>();
-  for (const s of Simulator.getGexHistory(ticker) ?? []) if (s.time >= first && s.time <= last) snaps.set(s.time, s);
+  let j = 0;
+  let carried: GexSnapshot | undefined;
+  for (const bar of bars) {
+    while (j < all.length && all[j].time <= bar.time) carried = all[j++];
+    if (carried) snaps.set(bar.time, carried);
+  }
+  void first;
   /* No book kept for that day — nothing to rewind to */
   if (snaps.size === 0) return null;
   return { ticker, bars, snaps, length: (bars.length - 1) * BAR_SEC };

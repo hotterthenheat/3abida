@@ -97,6 +97,11 @@ const Simulator = (() => {
   // Net-GEX-per-strike snapshots, kept as deep as the candle buffer so the
   // chart's exposure trails cover the full visible history.
   const gexHistory: Record<string, GexSnapshot[]> = {};
+  /** Sessions whose book is recorded every bar while seeding — today and the
+      one before it, which is everything the live reads and replay touch. */
+  const DENSE_SESSIONS = 2;
+  /** One book every this many bars in the sessions before those. */
+  const SPARSE_EVERY = 4;
   const RECENT_GEX_BARS = SESSIONS * SESSION_BARS;
   const GEX_LIMIT = RECENT_GEX_BARS + 600;
 
@@ -338,7 +343,18 @@ const Simulator = (() => {
           volume: Math.round(2000 + Math.random() * 18000),
         });
         evolveBook(sym, close);
-        job.snaps.push(computeGexSnapshot(sym, close, job.t));
+        /* THE BOOK IS SAMPLED, NOT PHOTOGRAPHED EVERY MINUTE (2026-09-13, the
+           launch sweep). A snapshot is 61 strikes of Black-Scholes and the
+           seed took one per bar for all 22 sessions — 8,580 of them, and the
+           two most expensive things in a cold boot were computing them
+           (534ms) and folding them into timeframes (432ms), measured on
+           /terrain. Nothing reads month-old exposure at one-minute
+           resolution: the strips take the tail, the trails aggregate, and
+           replay carries the last book forward (see data/replay.ts). So the
+           recent sessions stay per-bar and the older ones are sampled —
+           8,580 snapshots become 2,740 for the same history. The LIVE path
+           below is untouched: from here on it is one a bar, always. */
+        if (job.s >= SESSIONS - DENSE_SESSIONS || job.i % SPARSE_EVERY === 0) job.snaps.push(computeGexSnapshot(sym, close, job.t));
         job.t += BAR_SECONDS;
         job.i++;
         if (until !== Infinity && ++checks % 16 === 0 && performance.now() >= until) return false;
@@ -406,6 +422,25 @@ const Simulator = (() => {
     if (!TICKERS[sym]) registerTicker(sym);
     const job = seedJobs[sym] ?? (seedJobs[sym] = beginSeed(sym));
     return stepSeed(job, budgetMs) ? 'done' : 'pending';
+  }
+
+  /*
+    HOW FAR THROUGH A NAME'S WALK WE ARE, 0..1 (2026-09-13).
+
+    The launch gate used to hold for a flat 1,350ms and fill a bar on a CSS
+    animation of exactly that length — a progress bar that was not measuring
+    anything, over a wait that was not waiting for anything. The seed job
+    already knows precisely where it is (session s, bar i, of SESSIONS ×
+    SESSION_BARS), so the gate can show the real number and leave the moment
+    the walk is whole instead of on a timer.
+  */
+  function seedProgress(symbolRaw: string): number {
+    const sym = symbolRaw.toUpperCase();
+    if (candleHistory[sym]) return 1;
+    const job = seedJobs[sym];
+    if (!job) return 0;
+    /* never quite 1 until candleHistory has it — 1 means "you can read it" */
+    return Math.min(0.999, (job.s * SESSION_BARS + job.i) / (SESSIONS * SESSION_BARS));
   }
 
   /*
@@ -944,6 +979,7 @@ const Simulator = (() => {
       if (!TICKERS[s]) registerTicker(s);
     },
     seedAsync,
+    seedProgress,
     /** True once a name's history exists — no seeding side effect */
     isSeeded: (sym: string): boolean => !!candleHistory[sym.toUpperCase()],
     setActiveTicker: (t: string): string => {
