@@ -458,20 +458,6 @@
   animation: marquee 46s linear infinite;
 }
 
-/* Launch-gate progress fill — CSS transform so it runs on the compositor and
-   stays smooth even while the main thread is busy loading chunks on slow
-   connections. Duration mirrors HOLD_MS + REVEAL_MS in LaunchTransition.tsx.
-   Under reduced motion the bar rests at its base state: full. */
-@keyframes gate-fill {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-
-.animate-gate-fill {
-  transform-origin: left center;
-  animation: gate-fill 1350ms cubic-bezier(0.3, 0.1, 0.3, 1) forwards;
-}
-
 /* The session clock's second hand (components/ui/SessionClock.tsx) — one
    sweep a minute on the compositor, phased to the real second by a negative
    animation-delay set once at mount. Under reduced motion it holds at the
@@ -530,8 +516,7 @@
   .animate-soft-in-slow,
   .animate-border-trace,
   .animate-cursor-blink,
-  .animate-marquee,
-  .animate-gate-fill {
+  .animate-marquee {
     animation: none;
   }
 }
