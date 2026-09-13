@@ -120,6 +120,7 @@ const App = () => {
               <Route path="congress" element={<Congress />} />
               <Route path="stocks" element={<Stocks />} />
               <Route path="stocks/:ticker" element={<StockOverview />} />
+              <Route path="*" element={<Navigate to="/record/news" replace />} />
             </Route>
             <Route path="/stocks" element={<Navigate to="/record/stocks" replace />} />
             <Route path="/news" element={<Navigate to="/record/news" replace />} />
@@ -152,6 +153,7 @@ const App = () => {
               {/* COMPARE — two names side by side (2026-09-08) */}
               <Route path="compare" element={<Compare />} />
               <Route path="ranked-targets" element={<Navigate to="/pinpoint/targets" replace />} />
+              <Route path="*" element={<Navigate to="/pinpoint/map" replace />} />
               {['exposure-profile', 'session', 'history', 'oi-heat', 'strike-profile', 'vanna-charm', 'expiry-ladder', 'greek-surfaces', 'pain-map', 'model-error', 'vol-lab'].map(p => (
                 <Route key={p} path={p} element={<Navigate to="/pinpoint/map" replace />} />
               ))}
@@ -176,6 +178,7 @@ const App = () => {
               {/* Two names on everything Trace knows (2026-09-12) */}
               <Route path="compare" element={<TraceCompare />} />
               <Route path="tracker" element={<FlowTracker />} />
+              <Route path="*" element={<Navigate to="/trace/live-tape" replace />} />
             </Route>
             <Route path="/liquidity" element={<Navigate to="/trace" replace />} />
             {/* Legacy section paths from before the rebrand */}
@@ -190,10 +193,18 @@ const App = () => {
               <Route path="ideas" element={<Navigate to="/community" replace />} />
               <Route path="requests" element={<Navigate to="/feedback" replace />} />
               <Route path="feedback" element={<Navigate to="/feedback" replace />} />
+              <Route path="*" element={<Navigate to="/community" replace />} />
             </Route>
             {/* FEEDBACK AND BUGS, its own page (2026-09-13) */}
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/auditor-log" element={<Navigate to="/tracker" replace />} />
+            {/* NOTHING MATCHED (2026-09-13). Without this React Router renders
+                an empty element tree — not a 404 page, not the shell, a blank
+                screen with no way back but the URL bar. Found on /typo, and on
+                a bad child of every section that is a leaf route (/pulse/x).
+                Each section above catches its own so a near-miss lands on the
+                desk you were aiming at; this is the last resort. */}
+            <Route path="*" element={<Navigate to="/pulse" replace />} />
           </Route>
         </Routes>
         </Suspense>
