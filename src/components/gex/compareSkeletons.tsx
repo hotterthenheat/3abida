@@ -31,7 +31,8 @@ export const H2H_HEAD_H = 36;
 export const H2H_KEYS = ['price', 'dealers', 'flip', 'move', 'callWall', 'putWall', 'supreme', 'watch', 'closes', 'bell'] as const;
 /** The drawing's height (640 since 2026-09-09 — Noah: "needs to be taller, cover more of
     the capsules"), the lane heads over it and the read line under it */
-export const AXIS_H = 640;
+/* A screen's worth, not more (Noah, 2026-09-13: "fix aspect ratios and the charts") */
+export const AXIS_H = 460;
 export const AXIS_HEADS_H = 22;
 export const AXIS_READ_H = 26;
 export const AXIS_COL_W = 76;
@@ -39,7 +40,7 @@ export const AXIS_COL_W = 76;
 export const BANDS_CAP_H = 22;
 export const BAND_KEYS = ['up1', 'up2', 'dn1', 'dn2'] as const;
 /** Today's two lines, and the read line under them */
-export const TAPES_H = 300;
+export const TAPES_H = 260;
 export const TAPES_READ_H = 26;
 /** The pair over the sessions — the drawing's height and its margins — and its read line */
 export const PAIR_H = 240;

@@ -13,6 +13,10 @@
                          there now, what today added
                          or took off (calls · puts),
                          the day's shape, the word
+    WHAT BUILDING MEANS  the words defined, and the
+                         strikes loaded today as
+                         readable information rows
+                         (2026-09-13)
     WHERE THE WALLS      the four levels at the open,
     ARE HEADING          now, and by the close at
                          today's pace, with the
@@ -35,6 +39,7 @@ import ScopeChip from '../../components/ui/ScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import BuildingLedger, { type BuildOrder, type BuildPalette } from '../../components/gex/BuildingLedger';
 import WallHeading from '../../components/gex/WallHeading';
+import BuildingInfo, { BuildingInfoInner } from '../../components/gex/BuildingInfo';
 import { BuildingLedgerSkeleton, BuildingPageSkeleton, WallHeadingSkeleton } from '../../components/gex/buildingSkeletons';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import { aheadClock } from '../../data/ahead';
@@ -200,9 +205,16 @@ const Building = () => {
         </Deferred>
       </div>
 
-      {/* BOX 2 — WHERE THE WALLS ARE HEADING */}
+      {/* BOX 2 — WHAT BUILDING MEANS, and the strikes loaded today, as information (2026-09-13) */}
+      <div className="border border-borderSubtle rounded-md bg-panel" data-build-info data-scope-ticker={ledgerTicker}>
+        <Deferred index={1} fallback={<BuildingInfoInner />} className="animate-fade-in">
+          <BuildingInfo data={ledger} ticker={ledgerTicker} clock={clock} focus={focusFor(ledgerTicker)} onPick={price => toggleFocus(price, ledgerTicker)} />
+        </Deferred>
+      </div>
+
+      {/* BOX 3 — WHERE THE WALLS ARE HEADING */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-heading data-scope-ticker={headingTicker}>
-        <Deferred index={1} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
+        <Deferred index={2} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
           <WallHeading data={heading} clock={clock} scope={chipFor('heading', headingTicker)} />
         </Deferred>
       </div>

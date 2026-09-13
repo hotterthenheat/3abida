@@ -292,7 +292,7 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
             {scope}
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the capsule and the bar mean" testId="build-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textSecondary leading-snug max-w-[820px]">
             {clock.inSession ? "Today's trading" : 'The last session'}, strike by strike · the hedging added or taken off since the open, so a wall shows up before it is the wall · a bold change is past 5% of the biggest wall
           </p>
         </div>

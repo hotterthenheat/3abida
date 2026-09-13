@@ -11,17 +11,19 @@
   happens from here to the close, read top to
   bottom in two boxes:
 
-    THE CORRIDOR     the range price is likely to
-                     hold, bent by the walls, and
-                     under it on the same minutes
-                     what dealers must trade in
-                     each half hour left
-    WHERE IT CLOSES  the odds for the 4:00 print as
-                     one silhouette on the range's
-                     own price axis, the bands it
-                     most often lands inside, moving
-                     with the clock (redrawn
-                     2026-09-09)
+    THE RANGE        the range price is likely to
+                     hold as one ruler — the walls,
+                     the flip and the supreme as
+                     posts on it, spot as the pill —
+                     and under it what dealers must
+                     trade in each half hour, as
+                     plain bars (drawn simple,
+                     2026-09-13: "both the charts
+                     are truly unreadable")
+    WHERE IT CLOSES  one row per strike, the bar the
+                     chance the 4:00 print lands
+                     there, the 50% and 80% runs
+                     shaded, moving with the clock
 
   A COMPOSITION, like the Map: the book is the same
   buildExposureProfile the rail reads (today's
@@ -47,8 +49,7 @@ import { useFocus } from '../../context/FocusContext';
 import ScopeChip from '../../components/ui/ScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import { AheadPageSkeleton, CloseInner, CorridorInner } from './pinpointSkeletons';
-import AheadCorridor from '../../components/gex/AheadCorridor';
-import CloseOdds from '../../components/gex/CloseOdds';
+import { CloseSimple, RangeSimple } from '../../components/gex/AheadSimple';
 import { buildExposureProfile } from '../../data/exposure';
 import { aheadClock, buildCloseOdds, buildCorridor, buildSchedule, type VolPoints } from '../../data/ahead';
 import { readSessionClock } from '../../data/moc';
@@ -172,7 +173,7 @@ const Ahead = () => {
       {/* BOX 1 — THE CORRIDOR, with what dealers must trade under it on the same minutes */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-corridor data-scope-ticker={corridorTicker}>
         <Deferred fallback={<CorridorInner />} className="animate-fade-in">
-          <AheadCorridor
+          <RangeSimple
             corridor={corridor.model}
             schedule={corridor.schedule}
             levels={corridor.profile.levels}
@@ -190,7 +191,7 @@ const Ahead = () => {
       {/* BOX 2 — WHERE IT CLOSES */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-close data-scope-ticker={closeTicker}>
         <Deferred index={1} fallback={<CloseInner />} className="animate-fade-in">
-          <CloseOdds
+          <CloseSimple
             odds={close.odds}
             levels={close.levels}
             spot={closeSnap!.spot}

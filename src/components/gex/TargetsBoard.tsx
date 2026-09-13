@@ -47,6 +47,7 @@ import CompanyLogo from '../ui/CompanyLogo';
 import { createPortal } from 'react-dom';
 import { ArrowUpRight, X } from 'lucide-react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
+import CardTabs from '../ui/CardTabs';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import JingleBell from '../ui/JingleBell';
 import { TargetsGuide } from './TargetsGuide';
@@ -349,8 +350,23 @@ interface Props {
   watch?: ReactNode;
 }
 
+/* LIST OR TABLE (Noah, 2026-09-13: "I think we should have a list version and
+   table version"): the table is the rows under the first three; the list is
+   every strike as its own card, the first three's card, in the same order */
+export type TargetsView = 'table' | 'list';
+const VIEW_OPTIONS = [
+  { value: 'table', label: 'Table' },
+  { value: 'list', label: 'List' },
+] as const;
+let viewMemory: TargetsView = 'table';
+
 const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow, updatedAt, yours, armedAt, onChart, onAlert, focus, onPick, scope, watch }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
+  const [view, setViewState] = useState<TargetsView>(viewMemory);
+  const setView = (v: TargetsView) => {
+    viewMemory = v;
+    setViewState(v);
+  };
   const [hover, setHover] = useState<number | null>(null);
   /* THE CARD: one open at a time; a click anywhere, a scroll or Esc closes it.
      The document hears the click first (capture), so the row's own handler
@@ -446,6 +462,9 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-targets-controls>
         <DropdownSelect label="Ranked by" value={order} options={ORDER_OPTIONS} onChange={onOrder} title="The order of the list" testId="targets-order" />
         <DropdownSelect label="Strikes" value={window} options={WINDOW_OPTIONS} onChange={v => onWindow(v as StrikeWindow)} title="How many strikes around spot" testId="targets-strikes" />
+        <span className="ml-1" data-targets-view>
+          <CardTabs options={VIEW_OPTIONS} value={view} onChange={setView} ariaLabel="List or table" />
+        </span>
         <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-targets-updated>
           <CompanyLogo ticker={ticker} size={11} />
           {ticker} · {agenda.targets.length} strikes · updated {updatedAt} · every 10s
@@ -461,6 +480,28 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
         <span className="text-[12px] leading-snug text-textSecondary">{agenda.sentence.replace(/^Watch /, '')}</span>
       </div>
 
+      {view === 'list' ? (
+        /* THE LIST — every strike as its card, in the order chosen */
+        <div className="px-5 pt-3 pb-3 grid grid-cols-3 gap-3" data-targets-list>
+          {agenda.targets.map((t, i) => (
+            <Card
+              key={t.strike}
+              t={t}
+              n={i + 1}
+              pick={i === 0}
+              kept={focus != null && Math.abs(focus - t.strike) < 1e-9}
+              yours={yours?.get(t.strike)}
+              armed={armedAt(t.strike)}
+              inSession={clock.inSession}
+              marketPer1Pct={agenda.marketPer1Pct}
+              onPick={onPick}
+              onChart={onChart}
+              onAlert={onAlert}
+            />
+          ))}
+        </div>
+      ) : (
+        <>
       {/* THE THREE */}
       <div className="px-5 pt-3 pb-3 grid grid-cols-3 gap-3" data-targets-three>
         {three.map((t, i) => (
@@ -539,6 +580,8 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
           })}
         </div>
       </div>
+        </>
+      )}
       {card && cardTarget && <RowCard t={cardTarget} at={card} inSession={clock.inSession} onClose={() => setCard(null)} />}
       <p className="px-5 pb-4 pt-2 text-[12px] leading-relaxed text-textSecondary" data-targets-foot>
         {lead ? `${fmtStrike(lead.strike)} is ${reachedWord} ${pct(lead.reach)} of the time. ` : ''}

@@ -272,51 +272,55 @@ export const MapPageSkeleton = () => (
 
 /** The range: head with four facts, the one control (If vol), the price pane at its aspect, the half hours' head and pane, the sentences */
 export const CorridorInner = () => (
-    <section className="relative flex flex-col min-w-0" aria-hidden data-skeleton="corridor-box">
-      <div className="px-5 pt-4 pb-2 flex items-start gap-6 flex-wrap">
-        <div className="min-w-0 flex-1">
-          <TitleRow title={92} />
-          <SubLine w={620} />
+  <div className="flex flex-col" aria-hidden data-skeleton="range">
+    <div className="px-5 pt-4 pb-2 flex items-start gap-6 flex-wrap">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3">
+          <Line w={88} h={15} />
+          <ScopeChipMark />
+          <Line w={80} />
         </div>
-        <Facts widths={[118, 130, 140, 128]} />
+        <Line w={420} className="mt-1.5" />
       </div>
-      <div className="px-5 pb-2 flex items-center gap-2 flex-wrap">
-        <Skeleton className="h-7 w-[168px] rounded-md" />
-        <Line w={230} h={9} className="ml-auto" />
-      </div>
-      <div className="relative">
-        <div className="px-3">
-          <div className="relative w-full" style={{ aspectRatio: '1200 / 300' }}>
-            <ChartGround axis={74} foot={18} />
+      <div className="grid grid-flow-col auto-cols-max gap-x-6">
+        {[120, 110, 110, 120].map((w, i) => (
+          <div key={i}>
+            <Line w={64} h={9} />
+            <Line w={w} h={13} className="mt-1" />
           </div>
-        </div>
-        <div className="px-5 pt-1 pb-1 h-[28px] flex items-baseline gap-5">
-          <Line w={90} />
-          <Line w={190} />
-          <Line w={170} />
-          <Line w={96} />
-          <Line w={200} />
-          <Line w={150} />
-        </div>
-        <div className="px-3">
-          <div className="relative w-full" style={{ aspectRatio: '1200 / 118' }}>
-            <div className="absolute inset-x-3 bottom-5 top-4 flex items-end gap-[6px]">
-              {Array.from({ length: 13 }, (_, i) => (
-                <Block key={i} w="100%" h={`${10 + ((i * 3) % 4) * 8 + (i > 9 ? 40 : 0)}%`} className="rounded-t-sm" style={{ opacity: i > 9 ? 0.7 : 0.35 }} />
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="px-5 h-[14px] flex items-center">
-          <Line w={200} h={9} />
+        ))}
+      </div>
+    </div>
+    <div className="px-5 pt-2">
+      <div className="relative h-[150px] mx-8">
+        <Skeleton className="absolute left-0 right-0 top-[64px] h-[10px] rounded-full" />
+        <Skeleton className="absolute left-[30%] w-[38%] top-[62px] h-[14px] rounded-full" />
+        <Block w={58} h={26} className="absolute left-[48%] top-[56px] -translate-x-1/2 rounded-md" />
+        {[18, 30, 62, 78].map((l, i) => (
+          <Skeleton key={i} className="absolute w-[2px] h-[50px] top-[40px]" style={{ left: `${l}%` }} />
+        ))}
+      </div>
+      <Line w="70%" className="mt-2" />
+    </div>
+    <div className="px-5 pt-4 pb-4">
+      <Line w={360} h={9} />
+      <div className="mt-2 relative h-[170px] rounded-md border border-borderSubtle/60">
+        <span className="absolute left-0 right-0 top-1/2 h-px bg-ink/15" />
+        <div className="absolute inset-x-12 top-2 bottom-5 flex items-stretch gap-[6px]">
+          {Array.from({ length: 13 }, (_, i) => {
+            const h = 8 + ((i * 17) % 40);
+            const up = i % 3 !== 1;
+            return (
+              <div key={i} className="relative flex-1">
+                <Skeleton className="absolute left-[15%] right-[15%] rounded-[3px]" style={{ [up ? 'bottom' : 'top']: '50%', height: `${h}%` }} />
+              </div>
+            );
+          })}
         </div>
       </div>
-      <div className="px-5 pb-4 pt-2 h-[92px] flex flex-col justify-center gap-[9px]">
-        <Line w="62%" h={11} />
-        <Line w="78%" h={11} />
-        <Line w="70%" h={11} />
-      </div>
-    </section>
+      <Line w="60%" className="mt-4" />
+    </div>
+  </div>
 );
 export const CorridorBoxSkeleton = () => (
   <Box>
@@ -327,41 +331,38 @@ export const CorridorBoxSkeleton = () => (
 /** Where it closes: the head with four facts, the drawing at the range's aspect — the two bands
     across it, the silhouette hugging the axis — the read line, the sentence (redrawn 2026-09-09) */
 export const CloseInner = () => (
-  <section className="relative flex flex-col min-w-0" aria-hidden data-skeleton="close-box">
+  <div className="flex flex-col" aria-hidden data-skeleton="close">
     <div className="px-5 pt-4 pb-2 flex items-start gap-6 flex-wrap">
       <div className="min-w-0 flex-1">
-        <TitleRow title={118} />
-        <SubLine w={640} />
-      </div>
-      <Facts widths={[80, 96, 96, 150]} />
-    </div>
-    <div className="px-3">
-      <div className="relative w-full" style={{ aspectRatio: '1200 / 300' }}>
-        <ChartGround axis={74} foot={0} />
-        <div className="absolute rounded-sm" style={{ left: '1%', right: 'calc(74px + 0.5%)', top: '30%', height: '36%', background: 'rgb(var(--ink) / 0.03)' }} />
-        <div className="absolute rounded-sm" style={{ left: '1%', right: 'calc(74px + 0.5%)', top: '40%', height: '17%', background: 'rgba(199,211,232,0.07)' }} />
-        <div className="absolute" style={{ right: 'calc(74px + 0.5%)', top: '12%', bottom: '10%', width: '46%' }}>
-          <div className="absolute inset-0 rounded-l-full" style={{ background: 'linear-gradient(to left, rgba(199,211,232,0.14), rgba(199,211,232,0.02))', clipPath: 'ellipse(100% 50% at 100% 50%)' }} />
+        <div className="flex items-center gap-3">
+          <Line w={110} h={15} />
+          <ScopeChipMark />
+          <Line w={80} />
         </div>
+        <Line w={460} className="mt-1.5" />
+      </div>
+      <div className="grid grid-flow-col auto-cols-max gap-x-6">
+        {[90, 100, 100, 120].map((w, i) => (
+          <div key={i}>
+            <Line w={64} h={9} />
+            <Line w={w} h={13} className="mt-1" />
+          </div>
+        ))}
       </div>
     </div>
-    <div className="px-5 h-[18px] flex items-center">
-      <Line w={320} h={9} />
-    </div>
-    {/* the three reads: most likely · the bands · the pull (2026-09-09) */}
-    <div className="px-5 pb-4 pt-2 grid gap-x-4 gap-y-1.5" style={{ gridTemplateColumns: '84px minmax(0, 1fr)' }}>
-      {[[52, '34%'], [46, '58%'], [40, '50%']].map(([l, w], i) => (
-        <Fragment key={i}>
-          <div className="h-[17px] flex items-center">
-            <Line w={l as number} h={9} />
+    <div className="px-5 pt-1 pb-4">
+      {Array.from({ length: 21 }, (_, i) => {
+        const t = 1 - Math.abs(i - 9) / 10;
+        return (
+          <div key={i} className="grid grid-cols-[96px_minmax(0,1fr)_64px] items-center gap-x-3 h-[24px] px-1">
+            <Line w={34} h={11} />
+            <Skeleton className="h-[12px] rounded-full" style={{ width: `${Math.max(2, t * t * 100)}%` }} />
+            <Line w={30} h={11} className="ml-auto" />
           </div>
-          <div className="h-[17px] flex items-center">
-            <Line w={w as string} h={11} />
-          </div>
-        </Fragment>
-      ))}
+        );
+      })}
     </div>
-  </section>
+  </div>
 );
 export const CloseBoxSkeleton = () => (
   <Box>

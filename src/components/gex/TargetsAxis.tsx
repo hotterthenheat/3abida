@@ -31,7 +31,11 @@ const W = AXIS_W;
 const H = AXIS_H;
 const M = AXIS_M;
 const BASE = AXIS_BASE;
-const TICK_MAX = 76;
+/* THE BARS, READABLE (Noah, 2026-09-13: "where they sit again its nice looking
+   but unreadable fix the bars"): wider, never fainter than half, every strike
+   priced under its bar, the named levels and the first three worded above */
+const TICK_MAX = 96;
+const BAR_W = 8;
 
 const niceStep = (raw: number) => {
   const p = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1e-9))));
@@ -77,8 +81,8 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Where they sit</h3>
             {scope}
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">
-            The agenda on the strike axis — a tick as tall as what is at stake, the ruler one expected move {clock.inSession ? 'to the close' : 'for the next session'} each side of spot
+          <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap">
+            The agenda on the strike axis — a bar as tall as what is at stake, its figure on it, the ruler one expected move {clock.inSession ? 'to the close' : 'for the next session'} each side of spot
           </p>
         </div>
       </div>
@@ -87,23 +91,21 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
           {/* the ruler: one expected move each side, two faintly */}
           <rect x={x(spot - 2 * sigmaLeft)} y={24} width={x(spot + 2 * sigmaLeft) - x(spot - 2 * sigmaLeft)} height={BASE - 24} fill="#ffffff" fillOpacity={0.018} />
           <rect x={x(spot - sigmaLeft)} y={24} width={x(spot + sigmaLeft) - x(spot - sigmaLeft)} height={BASE - 24} fill="#ffffff" fillOpacity={0.035} />
-          <text x={x(spot + sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="#7c8290" fontFamily={SANS}>
-            one expected move
+          <text x={x(spot + sigmaLeft)} y={BASE + 26} textAnchor="middle" fontSize={9} fill="#b8bcc6" fontFamily={SANS}>
+            one expected move up
           </text>
-          <text x={x(spot - sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="#7c8290" fontFamily={SANS}>
-            one expected move
+          <text x={x(spot - sigmaLeft)} y={BASE + 26} textAnchor="middle" fontSize={9} fill="#b8bcc6" fontFamily={SANS}>
+            one expected move down
           </text>
           {/* the axis */}
           <line x1={M.l} x2={W - M.r} y1={BASE} y2={BASE} stroke="#ffffff" strokeOpacity={0.12} />
           {ticks.map(k => (
-            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={9} fill="#7c8290" fontFamily={MONO}>
-              {fmtStrike(k)}
-            </text>
+            <line key={k} x1={x(k)} x2={x(k)} y1={BASE} y2={BASE + 3} stroke="#ffffff" strokeOpacity={0.25} />
           ))}
           {/* spot */}
           <line x1={x(spot)} x2={x(spot)} y1={12} y2={BASE + 6} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-          <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="#ededed" fontFamily={MONO}>
-            {spot.toFixed(2)}
+          <text x={x(spot)} y={9} textAnchor="middle" fontSize={10} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+            spot {spot.toFixed(2)}
           </text>
           {/* the ticks */}
           {targets.map(t => {
@@ -113,24 +115,35 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
             const r = rankOf.get(t.strike);
             return (
               <g key={t.strike} data-axis-tick={t.strike} className="cursor-pointer" onPointerEnter={() => setHover(t.strike)} onClick={() => onPick(t.strike)}>
-                <rect x={x(t.strike) - 8} y={BASE - TICK_MAX - 4} width={16} height={TICK_MAX + 6} fill="transparent" />
-                <rect x={x(t.strike) - 2} y={BASE - h} width={4} height={h} rx={1.5} fill={ink} fillOpacity={isLit ? 1 : 0.35 + 0.65 * t.reach} />
-                {r != null && (
-                  <text x={x(t.strike)} y={BASE - h - 6} textAnchor="middle" fontSize={9} fontWeight={700} fill={r === 1 ? SUPREME : ink} fontFamily={MONO}>
-                    {r}
+                <rect x={x(t.strike) - 10} y={BASE - TICK_MAX - 4} width={20} height={TICK_MAX + 6} fill="transparent" />
+                <rect x={x(t.strike) - BAR_W / 2} y={BASE - h} width={BAR_W} height={h} rx={2} fill={ink} fillOpacity={isLit ? 1 : 0.55 + 0.45 * t.reach} />
+                {/* the figure at stake on every bar tall enough to carry it */}
+                {h >= 22 && (
+                  <text x={x(t.strike)} y={BASE - h - 5} textAnchor="middle" fontSize={8.5} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+                    {fmtDollars(t.stake)}
                   </text>
                 )}
+                {/* the rank, above the figure */}
+                {r != null && (
+                  <text x={x(t.strike)} y={BASE - h - (h >= 22 ? 16 : 5)} textAnchor="middle" fontSize={10} fontWeight={700} fill={r === 1 ? SUPREME : ink} fontFamily={MONO}>
+                    #{r}
+                  </text>
+                )}
+                {/* every strike priced under its bar, the named levels in their ink */}
+                <text x={x(t.strike)} y={BASE + 12} textAnchor="middle" fontSize={8.5} fontWeight={t.role || r != null ? 700 : 400} fill={t.role ? ink : '#b8bcc6'} fontFamily={MONO}>
+                  {fmtStrike(t.strike)}
+                </text>
               </g>
             );
           })}
           {/* the strike in hand */}
           {litT && (
-            <text x={x(litT.strike)} y={BASE - Math.max(4, Math.sqrt(litT.stake / maxStake) * TICK_MAX) - (rankOf.has(litT.strike) ? 17 : 6)} textAnchor="middle" fontSize={9} fill={SILVER} fontFamily={MONO}>
-              {fmtStrike(litT.strike)} · {Math.round(litT.reach * 100)}% reached · {fmtDollars(litT.stake)}
+            <text x={x(litT.strike)} y={BASE - Math.max(4, Math.sqrt(litT.stake / maxStake) * TICK_MAX) - (rankOf.has(litT.strike) ? 28 : 17)} textAnchor="middle" fontSize={9.5} fontWeight={600} fill={SILVER} fontFamily={MONO}>
+              {fmtStrike(litT.strike)} · {Math.round(litT.reach * 100)}% reached · {fmtDollars(litT.stake)} at stake{litT.role ? ` · ${litT.role}` : ''}
             </text>
           )}
         </svg>
-        <div className="mt-1 pl-2 flex items-center gap-4 h-[14px] font-mono text-[9px] text-textMuted" data-axis-key>
+        <div className="mt-1 pl-2 flex items-center gap-4 h-[14px] font-mono text-[9px] text-textSecondary" data-axis-key>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-[3px] h-2.5 rounded-sm" style={{ background: COOL }} /> a wall or shelf
           </span>

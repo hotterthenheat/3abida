@@ -24,9 +24,9 @@ export const AGENDA_MIN_W = 1200;
 export const CARD_H = 158;
 export const ROW_H = 32;
 export const AXIS_W = 1200;
-export const AXIS_H = 150;
+export const AXIS_H = 190;
 export const AXIS_M = { l: 44, r: 44 };
-export const AXIS_BASE = 112;
+export const AXIS_BASE = 148;
 
 /* ---- box 1 ---------------------------------------------------------------------- */
 
