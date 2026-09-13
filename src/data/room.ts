@@ -155,6 +155,16 @@ export interface Note {
   text: string;
   read: boolean;
 }
+/** A reaction the room owes one of your posts, and when it is due */
+export interface Pending {
+  /** epoch ms it lands */
+  at: number;
+  kind: 'like' | 'comment' | 'follow';
+  from: string;
+  postId: string;
+  /** a comment's words, decided when the reaction was planned */
+  text?: string;
+}
 export interface Trend {
   ticker: string;
   posts: number;
@@ -398,16 +408,16 @@ function seedPosts(): Post[] {
   nobody had. Three of the six were about content that did not exist.
 
   What is seeded now is only what is true of a reader who has not posted yet:
-  somebody followed you, and the people you already follow posted and updated
-  — each note pointing at the post it is about, so it can be opened and read.
-  Every other note in the bell is raised from a real event as it happens.
+  the people you already follow posted and updated — each note pointing at the
+  post it is about, so it can be opened and read. Nothing about YOU is seeded
+  at all, because until you post there is nothing to say; from then on the
+  bell is written by the reactions as they land (see "THE ROOM ANSWERS").
 */
 function seedNotes(follows: string[], posts: readonly Post[]): Note[] {
   const out: Note[] = [];
   const followed = posts.filter(p => follows.includes(p.author));
-  out.push({ id: 'n-follow', at: new Date(Date.now() - 46 * 60_000).toISOString(), kind: 'follow', from: 'flow_fern', text: 'started following you', read: false });
   const newest = followed[0];
-  if (newest) out.push({ id: 'n-post', at: newest.at, kind: 'post', from: newest.author, postId: newest.id, text: newest.setup ? `posted a ${newest.setup.bias} setup on $${newest.setup.ticker}` : 'posted', read: true });
+  if (newest) out.push({ id: 'n-post', at: newest.at, kind: 'post', from: newest.author, postId: newest.id, text: newest.setup ? `posted a ${newest.setup.bias} setup on $${newest.setup.ticker}` : 'posted', read: false });
   const updated = followed.find(p => p.setup && p.setup.updates.length > 0);
   if (updated) {
     const last = updated.setup!.updates[updated.setup!.updates.length - 1];
@@ -427,6 +437,10 @@ interface Mine {
   comments: Record<string, Comment[]>;
   follows: string[];
   blocks: string[];
+  /** Who has followed you since this browser started — the count reads it */
+  followers: string[];
+  /** Reactions to your posts that have been scheduled and not yet landed */
+  pending: Pending[];
   /** A seeded setup's settlement, keyed by its fingerprint — see `setupKey` */
   settled: Record<string, Settlement>;
   reports: Record<string, number>;
@@ -457,7 +471,9 @@ const KEY = 'slayer_room';
   ids back (`hydrate`); a picture storage has lost simply does not draw.
 */
 const IMG_KEY = 'slayer_room_images';
-const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], settled: {}, reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
+const DEFAULT_MINE: Mine = { posts: [], likes: [], saves: [], reposts: [], comments: {}, follows: ['gamma_gwen', 'macro_mae', 'blocks_only'], blocks: [], followers: [], pending: [], settled: {}, reports: {}, readNotes: [], extraNotes: [], postTimes: [], commentTimes: [], activity: 0 };
+/** The bell keeps this many raised notes — a session's worth, not a lifetime's */
+const NOTE_CAP = 60;
 
 const readJson = <T,>(key: string, fallback: T): T => {
   try {
@@ -471,7 +487,7 @@ const readJson = <T,>(key: string, fallback: T): T => {
 
 const loadMine = (): Mine => {
   const v = readJson<Partial<Mine>>(KEY, {});
-  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {}, settled: v.settled ?? {} };
+  return { ...DEFAULT_MINE, ...v, comments: v.comments ?? {}, settled: v.settled ?? {}, pending: v.pending ?? [], followers: v.followers ?? [] };
 };
 
 let mine: Mine = loadMine();
@@ -517,7 +533,10 @@ export const useRoom = (): number => useSyncExternalStore(subscribe, getVersion,
 export const ME = 'me';
 export const me = (): Member => {
   const a = getAccount();
-  return { handle: a.handle, name: a.name, bio: a.bio, links: a.links, verified: accountAgeDays(a) >= 30, joinedAt: a.createdAt, followers: 128 + mine.posts.length * 3, following: mine.follows.length, hue: 45 };
+  /* FOLLOWERS IS A REAL COUNT: the 128 you arrived with, plus everyone the
+     bell has actually shown following you. It used to be `posts * 3`, which
+     moved when you posted and had nothing to do with anybody following. */
+  return { handle: a.handle, name: a.name, bio: a.bio, links: a.links, verified: accountAgeDays(a) >= 30, joinedAt: a.createdAt, followers: 128 + mine.followers.length, following: mine.follows.length, hue: 45 };
 };
 export const memberOf = (handle: string): Member | null => (handle === ME || handle === getAccount().handle ? me() : (SEED_MEMBERS.find(m => m.handle === handle) ?? null));
 export const members = (): Member[] => SEED_MEMBERS;
@@ -634,6 +653,133 @@ function sweepGrades(): boolean {
   return true;
 }
 
+/* =========================================================================
+   THE ROOM ANSWERS (2026-09-13)
+
+   You posted into a room that never replied. The post sat at 0 likes, 0
+   comments, forever — while the bell, seeded separately, claimed people were
+   liking and commenting on posts that did not exist. Two halves of the same
+   missing thing: nothing in here ever raised an EVENT.
+
+   So a post now schedules what the room does about it — a like or three over
+   the next few minutes, usually a reply that has read the post, sometimes a
+   follow — and the sweep applies each one when it comes due, raising the
+   bell note from that same event. The count and the notification cannot
+   disagree, because they are written by one line of code.
+
+   The reactions are PERSISTED while they are pending, so closing the tab and
+   coming back an hour later lands them all at their scheduled times rather
+   than losing them: the room carried on while you were away.
+
+   WHAT THE READER ASKED FOR IS HONOURED: Settings has switches for likes,
+   comments and follows, and they had no effect on anything. A switch that is
+   off now suppresses the note — the like still lands, because that happened,
+   but the bell stays quiet about it.
+   ========================================================================= */
+
+const REPLY_TO_SETUP = [
+  'What is the plan if it loses {stop}?',
+  '{target} is the call wall on my board. Good level to aim at.',
+  'Size on this? {timeframe} is a long time to hold through a print.',
+  'Watching it. The flip sits right under {entry}.',
+  'In around {entry} as well. The stop is the part I would tighten.',
+  'Against the grain but I like it. {target} or nothing.',
+];
+const REPLY_TO_NAME = [
+  'Same read on ${T}. The flip is the whole story today.',
+  '${T} has been the cleanest tape on the board this week.',
+  'Careful — the ${T} wall has drained since the open.',
+  'Agreed. ${T} dealers are long gamma above the flip.',
+  'Not sure on ${T} here, the ladder is thin above spot.',
+];
+const REPLY_PLAIN = ['This is the read.', 'Been thinking the same since the open.', 'Say more? The ladder does not agree with this yet.', 'Noted. Watching it.', 'Second this.'];
+
+/** A reply that has read the post — its levels if it is a setup, its name if it
+    has one, and only failing both something that could be said about anything */
+function replyTo(p: Post, seed: string): string {
+  if (p.setup) {
+    const s = p.setup;
+    return pick(REPLY_TO_SETUP, seed)
+      .replace('{stop}', String(s.stop))
+      .replace('{target}', String(s.target))
+      .replace('{entry}', String(s.entry))
+      .replace('{timeframe}', s.timeframe);
+  }
+  const named = p.text.match(/\$([A-Z][A-Z0-9.]{0,5})\b/);
+  if (named) return pick(REPLY_TO_NAME, seed).replace('${T}', `$${named[1]}`);
+  return pick(REPLY_PLAIN, seed);
+}
+
+/** Who is around to react, the people you follow first, nobody you blocked */
+function audience(seed: string): string[] {
+  return SEED_MEMBERS.filter(m => !mine.blocks.includes(m.handle))
+    .map((m, k) => ({ h: m.handle, at: h01(`${seed}-aud-${k}`) - (mine.follows.includes(m.handle) ? 0.45 : 0) }))
+    .sort((a, b) => a.at - b.at)
+    .map(x => x.h);
+}
+
+/** What the room will do about a post, and when */
+function planReactions(p: Post): Pending[] {
+  const now = Date.now();
+  const room = audience(p.id);
+  if (room.length === 0) return [];
+  const out: Pending[] = [];
+  const at = (k: string, lo: number, hi: number) => now + Math.round((lo + h01(`${p.id}-${k}`) * (hi - lo)) * 1000);
+  let next = 0;
+  const someone = () => room[next++ % room.length];
+  const likes = 1 + Math.floor(h01(`${p.id}-likes`) * 3);
+  for (let i = 0; i < likes; i++) out.push({ at: at(`lt${i}`, 20, 240), kind: 'like', from: someone(), postId: p.id });
+  if (h01(`${p.id}-reply`) < 0.7) {
+    const from = someone();
+    out.push({ at: at('rt', 45, 320), kind: 'comment', from, postId: p.id, text: replyTo(p, `${p.id}-${from}`) });
+  }
+  if (h01(`${p.id}-follow`) < 0.35) out.push({ at: at('ft', 90, 400), kind: 'follow', from: someone(), postId: p.id });
+  return out.sort((a, b) => a.at - b.at);
+}
+
+/** Apply everything the room owes you that has come due */
+function sweepReactions(): boolean {
+  const now = Date.now();
+  if (!mine.pending.some(r => r.at <= now)) return false;
+  const wants = getAccount().notifications;
+  const blocked = new Set(mine.blocks);
+  let posts = mine.posts;
+  let followers = mine.followers;
+  const raised: Note[] = [];
+  const waiting: Pending[] = [];
+  for (const r of mine.pending) {
+    if (r.at > now) {
+      waiting.push(r);
+      continue;
+    }
+    /* Somebody blocked between the plan and the landing simply does not */
+    if (blocked.has(r.from)) continue;
+    const target = posts.find(p => p.id === r.postId);
+    if (!target) continue;
+    const when = new Date(r.at).toISOString();
+    /* WHO IS PART OF THE ID. Without it, two likes landing in the same
+       millisecond — which is exactly what happens when a tab is reopened and
+       a backlog lands at once — produce one id twice, and React draws one of
+       the two notes. */
+    const id = `n-${r.kind}-${r.from}-${r.postId}-${r.at}`;
+    if (r.kind === 'like') {
+      posts = posts.map(p => (p.id === r.postId ? { ...p, likes: p.likes + 1 } : p));
+      if (wants.likes) raised.push({ id, at: when, kind: 'like', from: r.from, postId: r.postId, text: 'liked your post', read: false });
+    } else if (r.kind === 'comment') {
+      const said = r.text ?? REPLY_PLAIN[0];
+      posts = posts.map(p => (p.id === r.postId ? { ...p, comments: [...p.comments, { id: `c-${r.from}-${r.at}`, author: r.from, at: when, text: said }] } : p));
+      if (wants.comments) raised.push({ id, at: when, kind: 'comment', from: r.from, postId: r.postId, text: `replied: "${said}"`, read: false });
+    } else {
+      if (followers.includes(r.from)) continue;
+      followers = [...followers, r.from];
+      if (wants.follows) raised.push({ id, at: when, kind: 'follow', from: r.from, postId: r.postId, text: 'started following you', read: false });
+    }
+  }
+  mine = { ...mine, posts, followers, pending: waiting, extraNotes: [...raised, ...mine.extraNotes].slice(0, NOTE_CAP) };
+  persist();
+  return true;
+}
+
 /*
   THE SWEEP RUNS ONLY WHILE SOMEONE IS WATCHING. It is wired to the listener
   set rather than started at import: a reader on the Weigher has no community
@@ -646,19 +792,23 @@ function sweepGrades(): boolean {
   it is a loop: a read that settles a trade writes and emits, which re-renders,
   which reads again. A timer outside React is the only safe place for it.
 */
-const GRADE_MS = 5_000;
-let grader: number | null = null;
+const SWEEP_MS = 5_000;
+let sweeper: number | null = null;
+/* Two sweeps, one tick, one emit — bitwise-or rather than || so the second
+   always runs: short-circuiting it would leave reactions waiting behind a
+   tick in which something happened to settle. */
+const sweepAll = () => (sweepGrades() ? 1 : 0) | (sweepReactions() ? 1 : 0);
 const startGrading = () => {
-  if (grader != null || typeof window === 'undefined') return;
-  if (sweepGrades()) emit();
-  grader = window.setInterval(() => {
-    if (sweepGrades()) emit();
-  }, GRADE_MS);
+  if (sweeper != null || typeof window === 'undefined') return;
+  if (sweepAll()) emit();
+  sweeper = window.setInterval(() => {
+    if (sweepAll()) emit();
+  }, SWEEP_MS);
 };
 const stopGrading = () => {
-  if (grader == null || listeners.size > 0) return;
-  window.clearInterval(grader);
-  grader = null;
+  if (sweeper == null || listeners.size > 0) return;
+  window.clearInterval(sweeper);
+  sweeper = null;
 };
 
 /* A settlement recorded against a deal this session's seed no longer holds is
@@ -958,7 +1108,8 @@ export function post(text: string, images: string[], setup?: Omit<Setup, 'outcom
   const wasBlobs = blobs;
   blobs = { ...blobs };
   for (const i of pictures) blobs[i.id] = i.src;
-  mine = { ...mine, posts: [p, ...mine.posts], postTimes: [...mine.postTimes.slice(-40), stamped] };
+  /* AND WHAT THE ROOM WILL DO ABOUT IT — scheduled now, landed by the sweep */
+  mine = { ...mine, posts: [p, ...mine.posts], postTimes: [...mine.postTimes.slice(-40), stamped], pending: [...mine.pending, ...planReactions(p)] };
   if (!persist()) {
     mine = wasMine;
     blobs = wasBlobs;
@@ -1074,6 +1225,11 @@ export function unreport(id: string): void {
 }
 export function markNotesRead(): void {
   bump({ readNotes: notes().map(n => n.id) });
+}
+/** One note read — opening it from the bell clears that one, not the lot */
+export function markNoteRead(id: string): void {
+  if (mine.readNotes.includes(id)) return;
+  bump({ readNotes: [...mine.readNotes, id] });
 }
 export function notify(n: Omit<Note, 'id' | 'at' | 'read'>): void {
   bump({ extraNotes: [{ ...n, id: `n-${Date.now()}`, at: stamp(), read: false }, ...mine.extraNotes] });

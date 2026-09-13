@@ -20,7 +20,7 @@ import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Bell, Bookmark, Flame, ImagePlus, Settings as SettingsIcon, UserRound, Users, X } from 'lucide-react';
 import { useAccount } from '../../data/account';
-import { allPosts, blockList, followingPosts, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, TIMEFRAMES, type Bias, type NoteKind } from '../../data/room';
+import { allPosts, blockList, followingPosts, markNoteRead, markNotesRead, me, memberOf, notes, post as postToRoom, postGate, savedPosts, suggestions, toggleBlock, toggleFollow, trackRecord, trending, TRENDING_HOURS, unreadNotes, useRoom, MAX_POST, TIMEFRAMES, type Bias } from '../../data/room';
 import { timeAgo } from '../../data/when';
 import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
@@ -33,7 +33,6 @@ const TABS = [
   { value: 'following', label: 'Following' },
   { value: 'saved', label: 'Saved' },
 ] as const;
-const NOTE_WORD: Record<NoteKind, string> = { like: 'liked', comment: 'commented', follow: 'followed', post: 'posted', update: 'updated', mention: 'mentioned you' };
 
 const Card = ({ title, children, right }: { title?: string; children: React.ReactNode; right?: React.ReactNode }) => (
   <div className="border border-borderSubtle rounded-md bg-panel">
@@ -63,6 +62,7 @@ const Room = () => {
   const [tf, setTf] = useState<string>(TIMEFRAMES[0]);
   const [err, setErr] = useState<string | null>(null);
   const [bellOpen, setBellOpen] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const gate = postGate();
   /* THE VERSION is the dep, not the hook — `useRoom` never changes identity, so
@@ -80,6 +80,16 @@ const Room = () => {
     void shrinkAll(files, 4).then(shrunk => {
       if (shrunk.length) setImages(imgs => [...imgs, ...shrunk].slice(0, 4));
     });
+  };
+  /* OPENING A NOTE takes you to the post it is about: back to the feed, which
+     holds everything, then scrolled to it and lit for a moment so the eye
+     lands on the right row in a list of thirty-four. */
+  const openNote = (noteId: string, postId: string) => {
+    markNoteRead(noteId);
+    setTab('feed');
+    setFlash(postId);
+    window.setTimeout(() => document.querySelector(`[data-post="${postId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    window.setTimeout(() => setFlash(f => (f === postId ? null : f)), 2400);
   };
   /* Cmd+V / Ctrl+V a screenshot straight into the composer */
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -314,7 +324,7 @@ const Room = () => {
           <div data-room-feed={tab}>
             {posts.length === 0 && <div className="px-4 py-10 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">{tab === 'following' ? 'Follow someone — their posts gather here' : tab === 'saved' ? 'Nothing saved yet' : 'The room is quiet'}</div>}
             {posts.map(p => (
-              <PostCard key={p.id} post={p} />
+              <PostCard key={p.id} post={p} highlight={flash === p.id} />
             ))}
           </div>
         </Card>
@@ -332,14 +342,26 @@ const Room = () => {
           }
         >
           <div className="pb-1" data-room-notes>
+            {bell.length === 0 && <div className="px-4 pb-2 text-[11px] text-textSecondary">Nothing yet — post something and the room will answer</div>}
+            {/* A NOTE ABOUT A POST OPENS THAT POST. Every note the room raises
+                carries the id of what it is about, so the bell is a way into
+                the feed rather than a list of things you cannot get to. */}
             {bell.slice(0, bellOpen ? 20 : 5).map(n => (
               <div key={n.id} className={`px-4 py-2 flex gap-2.5 border-t border-borderSubtle/50 ${n.read ? '' : 'bg-select/[0.05]'}`} data-note={n.kind}>
-                <Avatar handle={n.from} size={26} />
+                <Link to={`/community/u/${n.from}`} className="shrink-0 self-start">
+                  <Avatar handle={n.from} size={26} />
+                </Link>
                 <div className="min-w-0 text-[12px] leading-snug text-textPrimary">
                   <Link to={`/community/u/${n.from}`} className="font-semibold hover:underline underline-offset-2">
                     {memberOf(n.from)?.name ?? n.from}
                   </Link>{' '}
-                  <span className="text-textSecondary">{n.text.startsWith(NOTE_WORD[n.kind]) ? n.text : n.text}</span>
+                  {n.postId ? (
+                    <button type="button" onClick={() => openNote(n.id, n.postId!)} className="text-left text-textSecondary hover:text-textPrimary transition-colors" data-note-open={n.postId}>
+                      {n.text}
+                    </button>
+                  ) : (
+                    <span className="text-textSecondary">{n.text}</span>
+                  )}
                   <div className="font-mono text-[10px] text-textSecondary">{timeAgo(n.at)}</div>
                 </div>
               </div>

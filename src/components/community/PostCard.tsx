@@ -157,9 +157,11 @@ interface Props {
   post: Post;
   /** Compact: no comments opened, no menu — the profile's and the ticker page's lists */
   compact?: boolean;
+  /** Lit for a moment: the bell sent the reader here and this is the row */
+  highlight?: boolean;
 }
 
-const PostCard = ({ post, compact = false }: Props) => {
+const PostCard = ({ post, compact = false, highlight = false }: Props) => {
   const m = memberOf(post.author);
   const mine = isMe(post.author);
   const [open, setOpen] = useState(false);
@@ -241,7 +243,13 @@ const PostCard = ({ post, compact = false }: Props) => {
     setCtlErr(e);
   };
   return (
-    <article className="border-b border-borderSubtle/60 px-4 py-3 flex gap-3" data-post={post.id} data-author={post.author} data-setup={s ? s.outcome : undefined}>
+    <article
+      className={`border-b border-borderSubtle/60 px-4 py-3 flex gap-3 transition-colors duration-500 ${highlight ? 'bg-select/[0.09]' : ''}`}
+      data-post={post.id}
+      data-author={post.author}
+      data-setup={s ? s.outcome : undefined}
+      data-highlight={highlight || undefined}
+    >
       <Link to={mine ? '/community/me' : `/community/u/${post.author}`} className="shrink-0 self-start">
         <Avatar handle={post.author} />
       </Link>
