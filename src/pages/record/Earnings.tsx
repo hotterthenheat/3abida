@@ -247,7 +247,7 @@ const Earnings = () => {
               <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Who reports</h3>
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the doors, the price and the words mean" testId="earnings-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The fortnight's reports · the figure on every name is the move its options charge · click a name for its page</p>
+            <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">The fortnight's reports · the figure on every name is the move its options charge · click a name for its page</p>
           </div>
           <dl className="grid grid-cols-4 gap-x-6">
             <Fact label="Reports" testId="reports">
@@ -386,7 +386,7 @@ const Earnings = () => {
       <div className="border border-borderSubtle rounded-md overflow-hidden bg-panel" data-earnings-grid>
         <div className="px-5 pt-4 pb-3">
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Every report</h3>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">
             Both weeks · {show === 'all' ? 'every report' : `the reports priced ${PRICED_WORD[show]}`} · soonest first · click a row for the name's page
           </p>
         </div>

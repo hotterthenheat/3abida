@@ -28,6 +28,7 @@
 */
 
 import { useMemo, useState } from 'react';
+import { now } from '../../core/clock';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
@@ -82,12 +83,20 @@ const SIGNAL_WORD: Record<InsiderFlow['signal'], { word: string; ink: string }> 
   quiet: { word: 'quiet', ink: 'text-textMuted' },
 };
 
-const ago = (d: number) => (d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`);
+/* THE DATE, THEN HOW LONG AGO (Noah, 2026-09-13: "the WHEN should not be 9d
+   ago cause who is naming what 9 days ago was — have specific dates, or it
+   can be 9/19 · 2 days ago type of thing") */
+const dated = (d: number): string => {
+  const t = now();
+  t.setDate(t.getDate() - Math.max(0, d));
+  return `${t.getMonth() + 1}/${t.getDate()}`;
+};
+const ago = (d: number) => `${dated(d)} · ${d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`}`;
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 /* ---- cells --------------------------------------------------------------------- */
 
-const WhenCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">{ago(data.daysAgo)}</span> : null);
+const WhenCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">{ago(data.daysAgo)}</span> : null);
 
 const NameCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
   data ? (
@@ -262,7 +271,7 @@ const Insiders = () => {
 
   const columnDefs = useMemo<ColDef<InsiderTrade>[]>(
     () => [
-      { headerName: 'When', field: 'daysAgo', width: 92, cellRenderer: WhenCell, sort: 'asc', headerTooltip: 'When the trade happened — newest first' },
+      { headerName: 'When', field: 'daysAgo', width: 118, cellRenderer: WhenCell, sort: 'asc', headerTooltip: 'When the trade happened — newest first' },
       { headerName: 'Name', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: NameCell, headerTooltip: 'The company — click the row to open it on the Map' },
       { headerName: 'Who', field: 'person', flex: 1.4, minWidth: 180, cellRenderer: WhoCell, headerTooltip: 'The insider and their role — invented names until the feed lands' },
       { headerName: 'Trade', field: 'code', flex: 0.9, minWidth: 120, cellRenderer: TradeCell, headerTooltip: 'Bought or sold in the market; with Every filing on, the grants, conversions and withholdings are named for what they are' },
@@ -301,7 +310,7 @@ const Insiders = () => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What insiders did</h3>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">
             {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first · the people are invented until the feed lands
           </p>
         </div>

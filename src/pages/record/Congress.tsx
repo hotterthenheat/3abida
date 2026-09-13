@@ -27,6 +27,7 @@
 */
 
 import { useMemo, useState } from 'react';
+import { now } from '../../core/clock';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
@@ -73,14 +74,22 @@ const SHOW_OPTIONS: DropdownOption<Show>[] = [
   { value: 'sales', label: 'Sales', hint: 'Sales only, full or partial' },
 ];
 
-const ago = (d: number) => (d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`);
+/* THE DATE, THEN HOW LONG AGO (Noah, 2026-09-13: "the WHEN should not be 9d
+   ago cause who is naming what 9 days ago was — have specific dates, or it
+   can be 9/19 · 2 days ago type of thing") */
+const dated = (d: number): string => {
+  const t = now();
+  t.setDate(t.getDate() - Math.max(0, d));
+  return `${t.getMonth() + 1}/${t.getDate()}`;
+};
+const ago = (d: number) => `${dated(d)} · ${d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`}`;
 const seat = (t: CongressTrade) => `${t.member.party}-${t.member.district ?? t.member.state}`;
 const typeWord = (t: CongressTrade) => (t.type === 'Purchase' ? 'Purchase' : t.type === 'Exchange' ? 'Exchange' : 'Sale');
 const typeInk = (t: CongressTrade) => (t.type === 'Purchase' ? 'text-bull' : t.type === 'Exchange' ? 'text-textMuted' : 'text-bear');
 
 /* ---- cells: the house grammar inside the grid ------------------------------------ */
 
-const FiledCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">{ago(data.filedDaysAgo)}</span> : null);
+const FiledCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">{ago(data.filedDaysAgo)}</span> : null);
 
 const MemberCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   data ? (
@@ -139,7 +148,7 @@ const AmountCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   );
 };
 
-const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">{ago(data.tradedDaysAgo)}</span> : null);
+const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">{ago(data.tradedDaysAgo)}</span> : null);
 
 const LagCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   if (!data) return null;
@@ -263,7 +272,7 @@ const Congress = () => {
 
   const columnDefs = useMemo<ColDef<CongressTrade>[]>(
     () => [
-      { headerName: 'Filed', field: 'filedDaysAgo', width: 96, cellRenderer: FiledCell, sort: 'asc', headerTooltip: 'When the report was filed — newest first' },
+      { headerName: 'Filed', field: 'filedDaysAgo', width: 118, cellRenderer: FiledCell, sort: 'asc', headerTooltip: 'When the report was filed — newest first' },
       { headerName: 'Member', field: 'member', flex: 1.7, minWidth: 220, cellRenderer: MemberCell, comparator: (a: CongressTrade['member'], b: CongressTrade['member']) => a.name.localeCompare(b.name), headerTooltip: "Who filed it, with party and seat — and their own committee under the name when the trade sits in a sector it oversees" },
       { headerName: 'Asset', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: AssetCell, headerTooltip: 'The stock the report names — click the row to open it on the Map' },
       { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellRenderer: TypeCell, headerTooltip: 'Purchase, sale (full or partial), or an exchange' },
@@ -277,7 +286,7 @@ const Congress = () => {
         comparator: (a: number | null, b: number | null) => (a ?? -1) - (b ?? -1),
         headerTooltip: 'The bracket the member disclosed, as a rung on the ten-rung ladder — never a midpoint; some scanned filings carry none',
       },
-      { headerName: 'Traded', field: 'tradedDaysAgo', width: 96, cellRenderer: TradedCell, headerTooltip: 'When the trade itself happened' },
+      { headerName: 'Traded', field: 'tradedDaysAgo', width: 118, cellRenderer: TradedCell, headerTooltip: 'When the trade itself happened' },
       { headerName: 'Lag', field: 'lagDays', width: 100, cellRenderer: LagCell, headerTooltip: `Days from the trade to the filing — past ${STOCK_ACT_DEADLINE_DAYS} it is late` },
     ],
     []
@@ -301,7 +310,7 @@ const Congress = () => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What Congress reported</h3>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · the people are invented until the feed lands, the shape is the real one</p>
+          <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">Every report in the window, newest filing first · the people are invented until the feed lands, the shape is the real one</p>
         </div>
         <dl className="grid grid-cols-4 gap-x-6">
           <div>

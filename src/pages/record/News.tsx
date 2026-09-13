@@ -16,9 +16,11 @@
                 grade, its numbers, what the options
                 book thinks of it, the odds, the
                 playbook, what kills it, where it
-                lands, and the doors — then every
-                story as a row; a click on a row or
-                a pin picks the story
+                lands — then every story as a row;
+                a click on a row or a pin picks the
+                story. No doors out and no drip bar
+                (2026-09-13): "this should be a 100%
+                news page, just have the info"
     THE DAY     what is ahead on the calendar, and
                 the reads the wire adds up to
 
@@ -30,9 +32,7 @@
 */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Pause, Play } from 'lucide-react';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useLocation } from 'react-router-dom';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -43,13 +43,15 @@ import CatTag from '../../components/news/CatTag';
 import NewsMap, { HeatLegend, openSessions, type HeatPoint, type Reach } from '../../components/record/NewsMap';
 import { now } from '../../core/clock';
 import { NewsGuide } from '../../components/record/NewsGuide';
-import Simulator from '../../core/simulator';
 import { useBoardNames } from '../../data/boardNames';
 import { buildNewsDeepRead, marketMood, type NewsCategory } from '../../data/news';
 import { lookup } from '../../data/universe';
 import { buildEconCalendar, buildGeoNews, buildRoomInsights, clusterByCity, freshnessOf, severityWord, type CityPing, type GeoNewsEvent, type NewsGrade } from '../../data/newsroom';
 import { NEWS_ROW_H } from './recordSkeletons';
 import { Name } from '../../components/ui/Name';
+import { ImpactLegend, ImpactMark, tierOf } from '../../components/record/impactMark';
+import NewsFeedTabs from '../../components/record/NewsFeedTabs';
+import NewsCalendar from '../../components/record/NewsCalendar';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -93,58 +95,8 @@ const SORT_OPTIONS: DropdownOption<Sort>[] = [
   { value: 'loud', label: 'Loudest', hint: 'The hardest-landing story first' },
 ];
 
-/* THE IMPACT MARK (Noah, 2026-09-09, on Forex Factory's legend beside its
-   headlines: "it allows the user to decipher meaning instantly"): one small
-   square before every headline and every print, in the rungs every trader
-   already knows — red high, orange medium (Noah: "medium is orange and high
-   is red"), and grey for low ("low should stay gray"). The red and the orange
-   are the warm side of the house thermal ramp (heatmap.ts thermal-yellow at
-   0.8 / 0.4), so the red is the ramp's deeper red, not the direction red
-   that says "negative"; the grey is the muted ink. */
-type ImpactTier = 'high' | 'medium' | 'low';
-const IMPACT_TIERS: ImpactTier[] = ['high', 'medium', 'low'];
-const IMPACT_INK: Record<ImpactTier, string> = { high: '#D73027', medium: '#FDAE61', low: 'rgb(var(--text-muted))' };
-const IMPACT_WORD: Record<ImpactTier, string> = {
-  high: 'High impact — moves the market on its own',
-  medium: 'Medium impact — moves a name, a sector or a currency',
-  low: 'Low impact — noted, rarely moves anything',
-};
-/** A story's tier, on the same cuts as its word (heavy · firm · light — newsroom.ts severityWord):
-    on a typical wire the earnings prints land high, CPI / a deal / a probe medium, analyst notes and launches low */
-const tierOf = (severity: number): ImpactTier => (severity >= 7 ? 'high' : severity >= 4 ? 'medium' : 'low');
-
-const ImpactMark = ({ tier }: { tier: ImpactTier }) => (
-  <span className="inline-block w-2 h-2 rounded-[2px] shrink-0" style={{ background: IMPACT_INK[tier] }} title={IMPACT_WORD[tier]} aria-label={IMPACT_WORD[tier]} data-impact-mark={tier} />
-);
-
-/** The legend, one thin line: ■ high ■ medium ■ low impact */
-const ImpactLegend = ({ className = '' }: { className?: string }) => (
-  <span className={`inline-flex items-center gap-3 normal-case tracking-normal text-[10px] text-textSecondary ${className}`} data-impact-legend>
-    {IMPACT_TIERS.map(t => (
-      <span key={t} className="inline-flex items-center gap-1.5" title={IMPACT_WORD[t]}>
-        <ImpactMark tier={t} />
-        {t}
-      </span>
-    ))}
-    <span className="text-textMuted">impact</span>
-  </span>
-);
-
 const ago = (m: number) => (m < 1 ? 'just now' : m < 60 ? `${Math.round(m)}m ago` : `${Math.floor(m / 60)}h ${Math.round(m % 60)}m ago`);
 const signed = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
-
-/** A door out — small, labelled, never a naked icon; warms the name on hover so the landing is instant */
-const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () => void; children: React.ReactNode }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    onMouseEnter={onWarm}
-    className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
-  >
-    <ArrowUpRight className="w-3 h-3" />
-    {children}
-  </button>
-);
 
 const Fact = ({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) => (
   <div>
@@ -184,8 +136,6 @@ const OddsBar = ({ probUp }: { probUp: number }) => (
 
 const News = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { changeTicker } = useMarketData();
   const boardNames = useBoardNames();
 
   /* THE WIRE TICKS — stories drip in through the session; re-read every half minute */
@@ -198,40 +148,12 @@ const News = () => {
   const calendar = useMemo(() => buildEconCalendar(), [wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
   const mood = useMemo(() => marketMood(), [wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* THE DAY'S DRIP — the bar under the map pulls the page back to any minute
-     of the session: the wire as it stood then, ages counted from then, the
-     map's sessions as they were then. Live = the bar at its right end. Play
-     walks the day forward two minutes a tick and lands back on live. */
+  /* THE MOMENT IN VIEW is live — the day's drip bar left the page (Noah,
+     2026-09-13: "remove this live bar, makes no sense to have it, this is a
+     news page, why the hell would you rewind news") */
   const nowDate = useMemo(() => now(), [wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
-  const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
-  const [scrub, setScrub] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    if (!playing) return;
-    const t = window.setInterval(() => {
-      setScrub(s => {
-        const next = (s ?? 0) + 2;
-        if (next >= nowMin) {
-          setPlaying(false);
-          return null;
-        }
-        return next;
-      });
-    }, 45);
-    return () => window.clearInterval(t);
-  }, [playing, nowMin]);
-  const viewEvents = useMemo(() => {
-    if (scrub === null) return events;
-    const back = nowMin - scrub;
-    return events.filter(e => e.item.minutesAgo >= back).map(e => ({ ...e, item: { ...e.item, minutesAgo: e.item.minutesAgo - back } }));
-  }, [events, scrub, nowMin]);
-  const at = useMemo(() => {
-    if (scrub === null) return nowDate;
-    const d = new Date(nowDate);
-    d.setHours(Math.floor(scrub / 60), scrub % 60, 0, 0);
-    return d;
-  }, [scrub, nowDate]);
-  const clockWord = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  const viewEvents = events;
+  const at = nowDate;
   const insights = useMemo(() => buildRoomInsights(viewEvents), [viewEvents]);
 
   /* THE CARDS cut the wire; the map and the list read the same cut */
@@ -327,11 +249,6 @@ const News = () => {
   const nextPrint = calendar.find(c => c.impact === 'high' && c.inMinutes >= 0) ?? calendar.find(c => c.inMinutes >= 0) ?? null;
   const moodInk = mood.label === 'LEANS BULLISH' ? 'text-bull' : mood.label === 'LEANS BEARISH' ? 'text-bear' : 'text-textPrimary';
 
-  const openName = (t: string) => {
-    changeTicker(t);
-    navigate('/pinpoint/map');
-  };
-
   return (
     <>
       {/* BOX 1 — THE WIRE */}
@@ -393,46 +310,6 @@ const News = () => {
             <div className="flex-1 min-h-0 px-2 pt-2">
               <NewsMap pins={pins} selectedCity={selected?.origin.city ?? null} hoverCity={hoverCity?.city ?? null} onPick={p => setSelectedId(p.topId)} onHover={setHoverCity} heat={heat} reach={reach} at={at} />
             </div>
-            {/* THE DAY'S DRIP — play, the bar, the moment in view */}
-            <div className="px-4 h-[28px] border-t border-ink/[0.06] flex items-center gap-3" data-news-drip>
-              <button
-                type="button"
-                onClick={() => {
-                  if (playing) setPlaying(false);
-                  else {
-                    if (scrub === null) setScrub(0);
-                    setPlaying(true);
-                  }
-                }}
-                className="inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary transition-colors"
-                title={playing ? 'Pause' : 'Play the day from the open'}
-                aria-label={playing ? 'Pause the day' : 'Play the day'}
-                data-news-drip-play
-              >
-                {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              </button>
-              <span className="font-mono text-[9px] tnum text-textMuted">00:00</span>
-              <input
-                type="range"
-                min={0}
-                max={nowMin}
-                step={1}
-                value={scrub ?? nowMin}
-                onChange={e => {
-                  setPlaying(false);
-                  const v = Number(e.target.value);
-                  setScrub(v >= nowMin ? null : v);
-                }}
-                className="drip-range flex-1"
-                aria-label="The day's drip — pull back to any minute of the session"
-                title="Pull back to any minute of the session; the far right is live"
-                data-news-drip-bar
-              />
-              <span className="font-mono text-[9px] tnum text-textMuted">{clockWord(nowMin)}</span>
-              <span className={`w-[68px] text-right font-mono text-[9px] uppercase tracking-widest ${scrub === null ? 'text-select' : 'text-silver'}`} data-news-drip-label>
-                {scrub === null ? 'live' : `as of ${clockWord(scrub)}`}
-              </span>
-            </div>
             {/* ONE READ LINE under the map */}
             <div className="px-4 h-[26px] border-t border-ink/[0.06] flex items-center gap-3 font-mono text-[10px] text-textSecondary whitespace-nowrap overflow-hidden" data-news-map-read>
               {hoverCity ? (
@@ -471,10 +348,7 @@ const News = () => {
               <>
                 <div className="flex items-center gap-2 flex-wrap">
                   {selected.item.ticker ? (
-                    <button type="button" onClick={() => openName(selected.item.ticker!)} className="inline-flex items-center gap-1.5 group" title={`Open ${selected.item.ticker} on the Map`}>
-                      <CompanyLogo ticker={selected.item.ticker} size={16} />
-                      <span className="font-mono text-[12px] font-bold text-textPrimary group-hover:underline underline-offset-2">{selected.item.ticker}</span>
-                    </button>
+                    <Name t={selected.item.ticker} size={16} className="font-mono text-[12px] font-bold text-textPrimary" />
                   ) : (
                     <span className="font-mono text-[12px] font-bold text-textPrimary">MACRO</span>
                   )}
@@ -563,32 +437,6 @@ const News = () => {
                       ))}
                   </div>
                 )}
-                {/* THE DOORS — a macro story has no name of its own, so its door is the index */}
-                <div className="mt-auto pt-2 border-t border-ink/[0.06] flex items-center gap-2 flex-wrap" data-news-doors>
-                  {selected.item.ticker ? (
-                    <>
-                      <Door onWarm={() => Simulator.ensureTicker(selected.item.ticker!)} onClick={() => openName(selected.item.ticker!)}>
-                        The Map
-                      </Door>
-                      <Door onWarm={() => Simulator.ensureTicker(selected.item.ticker!)} onClick={() => navigate('/weigher', { state: { weigh: { ticker: selected.item.ticker } } })}>
-                        Weigh it
-                      </Door>
-                      <Door onWarm={() => Simulator.ensureTicker(selected.item.ticker!)} onClick={() => navigate('/compass', { state: { tickerFilter: selected.item.ticker } })}>
-                        Compass
-                      </Door>
-                      {selected.item.category === 'Earnings' && <Door onClick={() => navigate(`/record/earnings/${selected.item.ticker}`)}>Earnings</Door>}
-                    </>
-                  ) : (
-                    <>
-                      <Door onWarm={() => Simulator.ensureTicker('SPY')} onClick={() => openName('SPY')}>
-                        SPY on the Map
-                      </Door>
-                      <Door onWarm={() => Simulator.ensureTicker('SPY')} onClick={() => navigate('/pinpoint/ahead')}>
-                        Where SPY closes
-                      </Door>
-                    </>
-                  )}
-                </div>
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the wire for these cards</div>
@@ -654,63 +502,35 @@ const News = () => {
         </p>
       </div>
 
-      {/* BOX 2 — THE DAY: what is ahead, and what the wire adds up to */}
+      {/* BOX 2 — ALL NEWS: every headline as a feed with tabs, and the names you follow (2026-09-13) */}
+      <div className="border border-borderSubtle rounded-md bg-panel" data-news-all>
+        <div className="px-5 pt-4 pb-3">
+          <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">All news</h3>
+          <p className="mt-0.5 text-[11px] text-textSecondary">Every headline on the wire, newest first · a tab per kind · follow a name and ring the bell on it · a click opens the story beside the map</p>
+        </div>
+        <div className="border-t border-borderSubtle">
+          <NewsFeedTabs events={viewEvents} calendar={calendar} selectedId={selectedId} onPick={id => setSelectedId(id)} />
+        </div>
+      </div>
+
+      {/* BOX 3 — THE DAY: the month on the record, and what the wire adds up to */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-news-day>
         <div className="px-5 pt-4 pb-3">
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The day</h3>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">What is ahead on the calendar, and the reads the wire adds up to</p>
+          <p className="mt-0.5 text-[11px] text-textSecondary">What is ahead on the calendar — walk the months, open a day — and the reads the wire adds up to</p>
         </div>
-        <div className="grid border-t border-borderSubtle" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
-          <div className="border-r border-borderSubtle" data-news-calendar>
-            <div className="px-5 h-[22px] flex items-center gap-3 text-[9px] uppercase tracking-widest text-textMuted">
-              <span>What's ahead</span>
-              <span className="normal-case tracking-normal text-[10px] text-textSecondary">{calendar.filter(c => c.impact === 'high' && c.inMinutes >= 0).length} high impact still to print</span>
-              <ImpactLegend className="ml-auto" />
+        <div className="border-t border-borderSubtle">
+          <NewsCalendar />
+        </div>
+        <div className="grid grid-cols-3 border-t border-borderSubtle" data-news-reads>
+          {insights.map((i, k) => (
+            <div key={i.key} className={`px-5 py-3 ${k > 0 ? 'border-l border-borderSubtle/60' : ''}`} data-news-read={i.key}>
+              <div className={`text-[10px] font-semibold uppercase tracking-widest ${i.ink === 'bull' ? 'text-bull' : i.ink === 'bear' ? 'text-bear' : 'text-textPrimary'}`}>{i.title}</div>
+              <p className="mt-1 text-[11.5px] leading-relaxed text-textPrimary/85">
+                <RichRead text={i.read} />
+              </p>
             </div>
-            {/* Every title in the primary ink, the high-impact ones in weight; the figures primary under muted labels;
-                the when column wide enough for "Thu 09-10 08:30 AM" (18 mono glyphs) so nothing runs past the divider */}
-            {calendar.map(ev => (
-              <div key={ev.id} className="px-5 grid items-center gap-x-3 border-t border-borderSubtle/40" style={{ height: NEWS_ROW_H, gridTemplateColumns: `minmax(0, 1fr) 40px 96px 96px ${CAL_WHEN_W}px` }} data-news-print={ev.id} data-impact={ev.impact}>
-                <span className="min-w-0 flex items-center gap-2">
-                  <ImpactMark tier={ev.impact} />
-                  <span className={`min-w-0 truncate text-[12px] text-textPrimary ${ev.impact === 'high' ? 'font-semibold' : ''}`}>{ev.title}</span>
-                </span>
-                <span className="font-mono text-[10px] text-textSecondary">{ev.region}</span>
-                <span className="font-mono text-[10px] tnum text-textPrimary whitespace-nowrap">
-                  {ev.forecast ? (
-                    <>
-                      <span className="text-textMuted">fcst</span> {ev.forecast}
-                    </>
-                  ) : (
-                    ''
-                  )}
-                </span>
-                <span className="font-mono text-[10px] tnum text-textPrimary whitespace-nowrap">
-                  {ev.previous ? (
-                    <>
-                      <span className="text-textMuted">prev</span> {ev.previous}
-                    </>
-                  ) : (
-                    ''
-                  )}
-                </span>
-                <span className={`text-right font-mono text-[10px] tnum whitespace-nowrap ${ev.inMinutes < 0 ? 'text-textMuted' : ev.inMinutes < 90 ? 'text-warn' : 'text-textPrimary'}`} data-news-when>
-                  {ev.inMinutes < 0 ? 'printed' : ev.inMinutes < 60 ? `in ${ev.inMinutes}m` : `${ev.dayLabel} ${ev.timeLabel}`}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div data-news-reads>
-            <div className="px-5 h-[22px] flex items-center text-[9px] uppercase tracking-widest text-textMuted">The reads</div>
-            {insights.map(i => (
-              <div key={i.key} className="px-5 py-2.5 border-t border-borderSubtle/40" data-news-read={i.key}>
-                <div className={`text-[10px] font-semibold uppercase tracking-widest ${i.ink === 'bull' ? 'text-bull' : i.ink === 'bear' ? 'text-bear' : 'text-textPrimary'}`}>{i.title}</div>
-                <p className="mt-1 text-[11.5px] leading-relaxed text-textPrimary/85">
-                  <RichRead text={i.read} />
-                </p>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
     </>

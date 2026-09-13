@@ -96,6 +96,8 @@ const App = () => {
             <Route path="/workspace" element={<Navigate to="/pulse" replace />} />
             <Route path="/compass" element={<CompassLayout />}>
               <Route index element={<CompassBoard />} />
+              {/* THE OPTIONS TRACKER sits under Compass the way Trace's tracker sits under Trace (Noah, 2026-09-13) */}
+              <Route path="tracker" element={<Tracker embedded />} />
               {/* A setup's address: TICKER-strike-R-kind-tenor (data/compass.ts setupIdOf) */}
               <Route path=":id" element={<CompassSetup />} />
             </Route>
@@ -119,7 +121,7 @@ const App = () => {
             <Route path="/earnings" element={<Navigate to="/record/earnings" replace />} />
             <Route path="/earnings/:ticker" element={<EarningsRedirect />} />
             <Route path="/prove-it" element={<ProveIt />} />
-            <Route path="/tracker" element={<Tracker />} />
+            <Route path="/tracker" element={<Navigate to="/compass/tracker" replace />} />
             {/* each settings section is its own page (2026-09-12); /settings alone lands on Appearance */}
             <Route path="/settings/:section?" element={<Settings />} />
             <Route path="/pinpoint" element={<PinpointLayout />}>

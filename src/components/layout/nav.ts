@@ -127,15 +127,6 @@ export const NAV_ITEMS: NavItem[] = [
   },
   // ── Manage — track what you are in, build your desk, talk shop ──
   {
-    path: '/tracker',
-    label: 'Tracker',
-    code: '08',
-    icon: Bookmark,
-    ink: NAV_INK.tracker,
-    description: 'Bookmarked setups — live monitoring',
-    group: 'Manage',
-  },
-  {
     path: '/community',
     label: 'Community',
     code: '09',

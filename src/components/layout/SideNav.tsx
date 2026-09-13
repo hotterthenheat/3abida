@@ -121,7 +121,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const { chosenId } = useCompassView();
   const subpagesFor = (path: string): { path: string; label: string }[] | undefined => {
     if (path === '/compass') {
-      return [{ path: '/compass', label: 'The board' }, ...(chosenId ? [{ path: `/compass/${chosenId}`, label: 'Inside the contract' }] : [])];
+      /* The options tracker rides under Compass like Trace's tracker under Trace (Noah, 2026-09-13) */
+      return [{ path: '/compass', label: 'The board' }, ...(chosenId ? [{ path: `/compass/${chosenId}`, label: 'Inside the contract' }] : []), { path: '/compass/tracker', label: 'Tracker' }];
     }
     return SUBPAGES[path];
   };

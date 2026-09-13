@@ -1333,7 +1333,7 @@ const CampaignAnalysis = ({
                 <div className={doorClosing && !tracked ? 'animate-track-close pointer-events-none' : 'animate-track-open'}>
                   <div className="overflow-hidden min-w-0 flex items-stretch">
                     <button
-                      onClick={() => navigate('/tracker', { state: { focus: setup.id } })}
+                      onClick={() => navigate('/compass/tracker', { state: { focus: setup.id } })}
                       title="Jump to this setup on the Tracker"
                       className="ml-2 h-full whitespace-nowrap inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[11px] font-semibold uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
                     >

@@ -29,7 +29,7 @@ const FOOTER_COLS = [
       { label: 'Pinpoint', to: '/pinpoint' },
       { label: 'Prove It', to: '/prove-it' },
       { label: 'Record', to: '/record' },
-      { label: 'Tracker', to: '/tracker' },
+      { label: 'Tracker', to: '/compass/tracker' },
     ],
   },
   {

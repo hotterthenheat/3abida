@@ -221,7 +221,8 @@ const TABLE_COLUMNS: Column<{ tracked: TrackedSetup; live: Setup; expired: boole
 
 // ---- Main Page Component ---------------------------------------------------
 
-const Tracker = () => {
+/** `embedded`: under the Compass shell (2026-09-13) — the shell wears the head, the page starts at its tabs */
+const Tracker = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { trackedSetups, untrackSetup } = useTracker();
@@ -262,11 +263,13 @@ const Tracker = () => {
 
   return (
     <>
-      <PageHeader
-        breadcrumb={['Terminal', 'Tracker']}
-        title="Setup Tracker"
-        subtitle="Bookmarked setups with live-updating metrics — monitor your watchlist"
-      />
+      {!embedded && (
+        <PageHeader
+          breadcrumb={['Terminal', 'Tracker']}
+          title="Setup Tracker"
+          subtitle="Bookmarked setups with live-updating metrics — monitor your watchlist"
+        />
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-3">

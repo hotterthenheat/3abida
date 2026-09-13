@@ -2,13 +2,18 @@
 ==================================================
   SLAYER TERMINAL - THE NEWS MAP (components/record/NewsMap.tsx)
 
-  A flat world in the house greys with a pin on
-  every city the day's stories come from (Noah,
-  2026-09-09: "most importantly i want a 2d map
-  that has pins on the news you click"). Drawn by
-  react-simple-maps on the world-atlas borders the
-  globe left behind — no tiles, no key, nothing
-  that looks like someone else's map.
+  A flat world with a pin on every city the day's
+  stories come from (Noah, 2026-09-09: "most
+  importantly i want a 2d map that has pins on the
+  news you click"), redrawn in the globe's own
+  colours (Noah, 2026-09-13: "it should look like
+  the Apple and Google maps globe but follow time
+  zones and night and day") — blue water, green
+  land, the sun's terminator shading the night
+  side, a meridian per hour with the local hour on
+  it, and a flat flight to the open story's city.
+  Drawn by react-simple-maps on the world-atlas
+  borders — no tiles, no key.
 
   Four layers, bottom to top (Noah, the same day:
   "build the impact heat and the reach arcs also
@@ -39,21 +44,25 @@
 ==================================================
 */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getResolvedTheme, useResolvedTheme, type Theme } from '../../theme/theme';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup, useMapContext } from 'react-simple-maps';
-import { geoContains } from 'd3-geo';
+import { geoCircle, geoContains } from 'd3-geo';
 import { Maximize } from 'lucide-react';
 import worldUrl from 'world-atlas/countries-110m.json?url';
 import type { CityPing, GeoZone, NewsGrade } from '../../data/newsroom';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const INK: Record<NewsGrade, string> = { THREAT: 'rgb(var(--bear))', ALLY: 'rgb(var(--bull))', WATCH: '#8a8f99' };
-/* THE LAND follows the page's theme (2026-09-12): near-black on the dark
-   terminal, a warm grey on the light one — the heat (`heatFill`, the land's
-   only other fill) is mixed over whichever the page wears */
-const LAND_RGB: Record<Theme, [number, number, number]> = { dark: [22, 22, 22], light: [214, 212, 206] };
-const LAND_EDGE: Record<Theme, string> = { dark: '#242424', light: '#bfbdb6' };
+/* THE GLOBE'S OWN COLOURS (Noah, 2026-09-13: "it should not be a map that's
+   black, it should look like the Apple and Google maps globe but follow time
+   zones and night and day"): blue water, green-tan land, the night side
+   shaded by the sun's own terminator. The heat (`heatFill`, the land's only
+   other fill) is mixed over the land's colour. */
+const LAND_RGB: Record<Theme, [number, number, number]> = { dark: [78, 110, 76], light: [176, 196, 150] };
+const LAND_EDGE: Record<Theme, string> = { dark: '#2f4a35', light: '#7f9a72' };
+const OCEAN: Record<Theme, string> = { dark: '#163a63', light: '#a9cbe9' };
+const NIGHT = '#02030a';
 const landRgb = () => LAND_RGB[getResolvedTheme()];
 const land = () => `rgb(${landRgb().join(',')})`;
 const HOME = { center: [12, 12] as [number, number], zoom: 1 };
@@ -139,6 +148,65 @@ const SessionBands = ({ sessions, zoom, labelLat = 79 }: { sessions: SessionDef[
           </Marker>
         </g>
       ))}
+    </g>
+  );
+};
+
+/* ── night and day ────────────────────────────────────────────────────────
+   The sun's position at the moment in view: its declination from the day of
+   the year, its longitude from the UTC hour (the equation of time left
+   out — it moves the terminator a few minutes, not a time zone). The night
+   is the hemisphere centred on the point opposite the sun, drawn through
+   the map's own projection so it bends with it; a wider, fainter ring is
+   the twilight. */
+const subsolar = (at: Date): [number, number] => {
+  const start = Date.UTC(at.getUTCFullYear(), 0, 0);
+  const doy = (at.getTime() - start) / 86_400_000;
+  const decl = -23.44 * Math.cos(((2 * Math.PI) / 365) * (doy + 10));
+  const utcHours = at.getUTCHours() + at.getUTCMinutes() / 60;
+  const lng = -15 * (utcHours - 12);
+  return [lng, decl];
+};
+const NightShade = ({ at }: { at: Date }) => {
+  const { path } = useMapContext();
+  const [slng, slat] = subsolar(at);
+  const anti: [number, number] = [((slng + 180 + 540) % 360) - 180, -slat];
+  const night = { type: 'Feature', properties: {}, geometry: geoCircle().center(anti).radius(90)() } as GeoJSON.Feature;
+  const dusk = { type: 'Feature', properties: {}, geometry: geoCircle().center(anti).radius(96)() } as GeoJSON.Feature;
+  return (
+    <g data-news-night={`${anti[0].toFixed(1)},${anti[1].toFixed(1)}`} pointerEvents="none">
+      <path d={path(dusk) ?? undefined} fill={NIGHT} fillOpacity={0.22} />
+      <path d={path(night) ?? undefined} fill={NIGHT} fillOpacity={0.42} />
+    </g>
+  );
+};
+
+/* ── the time zones ───────────────────────────────────────────────────────
+   A faint meridian every fifteen degrees — one hour of the sun — with the
+   local hour at the moment in view written along the top every other one. */
+const Meridians = ({ at, zoom }: { at: Date; zoom: number }) => {
+  const { path } = useMapContext();
+  const utcHours = at.getUTCHours() + at.getUTCMinutes() / 60;
+  const lines: number[] = [];
+  for (let lng = -180; lng <= 180; lng += 15) lines.push(lng);
+  return (
+    <g data-news-meridians pointerEvents="none">
+      {lines.map(lng => {
+        const feature = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lng, -56], [lng, 84]] } } as GeoJSON.Feature;
+        const hour = (((utcHours + lng / 15) % 24) + 24) % 24;
+        return (
+          <g key={lng}>
+            <path d={path(feature) ?? undefined} fill="none" stroke="#ffffff" strokeOpacity={0.09} strokeWidth={0.5 / zoom} />
+            {lng % 30 === 0 && lng > -180 && (
+              <Marker coordinates={[lng, 82]}>
+                <text textAnchor="middle" fontSize={6.5 / zoom} fontFamily="ui-monospace, Menlo, monospace" fill="#ffffff" fillOpacity={0.45}>
+                  {`${String(Math.floor(hour)).padStart(2, '0')}:00`}
+                </text>
+              </Marker>
+            )}
+          </g>
+        );
+      })}
     </g>
   );
 };
@@ -266,6 +334,34 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
   /* The land's ink is the theme's — a flip redraws the countries */
   const theme = useResolvedTheme();
   const [view, setView] = useState(HOME);
+  /* THE FLIGHT (Noah, 2026-09-13: "it goes to each place like from Cali to
+     Russia, it moves in a flat manner"): when the open story changes, the map
+     pans flat to its city over half a second — the centre eased from where
+     it is to the pin, the zoom held (or lifted to 2 from the whole world so
+     the travel can be seen). Fit brings the whole world back. */
+  const flightRef = useRef(0);
+  const target = useMemo(() => (selectedCity ? pins.find(p => p.city === selectedCity) ?? null : null), [pins, selectedCity]);
+  useEffect(() => {
+    if (figure || !target) return;
+    cancelAnimationFrame(flightRef.current);
+    const from = view.center;
+    const zoom0 = view.zoom;
+    const zoom1 = Math.max(zoom0, 2);
+    const to: [number, number] = [target.lng, target.lat];
+    if (Math.abs(from[0] - to[0]) < 0.5 && Math.abs(from[1] - to[1]) < 0.5 && zoom0 === zoom1) return;
+    const t0 = performance.now();
+    const D = 560;
+    const ease = (u: number) => 1 - Math.pow(1 - u, 3);
+    const step = (now: number) => {
+      const u = Math.min(1, (now - t0) / D);
+      const e = ease(u);
+      setView({ center: [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e], zoom: zoom0 + (zoom1 - zoom0) * e });
+      if (u < 1) flightRef.current = requestAnimationFrame(step);
+    };
+    flightRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(flightRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.city, figure]);
   const home = view.zoom === 1 && view.center[0] === HOME.center[0] && view.center[1] === HOME.center[1];
   /* The loudest pins draw last so they sit on top; the open one last of all */
   const ordered = useMemo(() => [...pins].sort((a, b) => (a.city === selectedCity ? 1 : b.city === selectedCity ? -1 : a.n - b.n)), [pins, selectedCity]);
@@ -314,6 +410,9 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
                 });
             }}
           </Geographies>
+          {/* NIGHT AND DAY, and the hours — the globe's own clock at the moment in view */}
+          <NightShade at={at} />
+          {!figure && <Meridians at={at} zoom={z} />}
           <SessionBands sessions={sessions} zoom={z / s} labelLat={figure ? 60 : 79} />
           {/* THE REACH */}
           {reach && arcs.length > 0 && <ReachArcs reach={reach} zones={arcs} zoom={z / s} />}
@@ -327,12 +426,11 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
               <Marker key={p.city} coordinates={[p.lng, p.lat]} onClick={() => onPick(p)} onMouseEnter={() => onHover(p)} onMouseLeave={() => onHover(null)} style={{ default: { cursor: figure ? 'default' : 'pointer' }, hover: { cursor: figure ? 'default' : 'pointer' }, pressed: { cursor: figure ? 'default' : 'pointer' } }}>
                 <g data-news-pin={p.city} data-grade={p.grade} data-open={open || undefined}>
                   {p.freshest === 'fresh' && <circle r={r + (5 * s) / z} fill={ink} fillOpacity={0.14} />}
-                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : '#0a0a0a'} strokeWidth={((open ? 2 : 1) * s) / z} />
-                  {p.n > 1 && (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily="ui-monospace, Menlo, monospace" fill="#0a0a0a">
-                      {p.n}
-                    </text>
-                  )}
+                  <circle r={r + (3 * s) / z} fill={ink} fillOpacity={0.22} />
+                  <circle r={r} fill={ink} fillOpacity={open || hot ? 1 : 0.9} stroke={open ? SILVER : hot ? '#ffffff' : 'rgba(255,255,255,0.35)'} strokeWidth={((open ? 2 : 1) * s) / z} />
+                  <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily="ui-monospace, Menlo, monospace" fill="#ffffff">
+                    {p.n}
+                  </text>
                   <title>{`${p.city} · ${p.n} ${p.n === 1 ? 'story' : 'stories'} · ${p.topHeadline}`}</title>
                 </g>
               </Marker>
@@ -351,7 +449,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
 
   return (
     <div className="relative select-none" data-news-map={figure ? 'figure' : 'live'} data-zoom={z.toFixed(2)} data-heated={heat.length} data-reach={arcs.length}>
-      <ComposableMap projection="geoEqualEarth" projectionConfig={figure ? { scale: 236, center: [8, 30] } : { scale: 175 }} width={960} height={figure ? 400 : 440} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      <ComposableMap projection="geoEqualEarth" projectionConfig={figure ? { scale: 236, center: [8, 30] } : { scale: 175 }} width={960} height={figure ? 400 : 440} style={{ width: '100%', height: 'auto', display: 'block', background: OCEAN[theme], borderRadius: 6 }} data-ocean={theme}>
         {figure ? (
           <g>{layers}</g>
         ) : (
