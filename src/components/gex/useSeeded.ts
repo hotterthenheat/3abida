@@ -17,9 +17,32 @@
 import { useEffect, useState } from 'react';
 import Simulator from '../../core/simulator';
 
-/* A short timer, not an idle callback: a chart's frame loop leaves the
-   browser no quiet moment, so idle callbacks only fire on their timeout. */
-const idle = (fn: () => void, _timeout: number) => ({ id: window.setTimeout(fn, 24), idle: false });
+/*
+  THE SKELETON IS NOT A FRAME BUDGET (Noah, 2026-09-14: "terrain and pinpoint
+  and a few other areas dont load").
+
+  This pumped 5ms of seeding every 24ms — a 17% duty cycle — so a name that
+  needs ~420ms of CPU took two and a half seconds of wall clock to arrive, and
+  a desk that wants three names waited on them one after another. On this
+  machine that was ~640ms of skeleton on Terrain, survivable. On a CPU four
+  times slower, which is any laptop or phone:
+
+      /terrain          3.8s to real content, 1.8s of it skeleton
+      /pinpoint/map    12.2s to real content, 7.2s of it skeleton
+
+  Twelve seconds is not slow, it is broken — the page reads as one that never
+  loads, which is exactly how it was reported.
+
+  The 24ms gap was there to protect a chart's frame loop. But the whole point
+  of this hook is that the surface is showing its SKELETON: there is no chart
+  drawing yet, and nothing to stutter. So the slice is fat now and the gap is
+  gone. setTimeout(…, 0) nested past a few levels is clamped to ~4ms by the
+  browser, which lands the duty cycle near 80% — fast enough to be a blink,
+  and still yielding often enough that a pane that IS live next to this one
+  keeps its frames.
+*/
+const SLICE_MS = 16;
+const idle = (fn: () => void, _timeout: number) => ({ id: window.setTimeout(fn, 0), idle: false });
 
 export function useSeeded(ticker: string | null | undefined): boolean {
   const [ready, setReady] = useState(() => (ticker ? Simulator.isSeeded(ticker) : false));
@@ -39,7 +62,7 @@ export function useSeeded(ticker: string | null | undefined): boolean {
       if (stopped) return;
       let state: 'done' | 'pending' = 'done';
       try {
-        state = Simulator.seedAsync(ticker, 5);
+        state = Simulator.seedAsync(ticker, SLICE_MS);
       } catch {
         state = 'done';
       }

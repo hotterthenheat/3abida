@@ -37,7 +37,7 @@
 ==================================================
 */
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { DOCK_ROOM } from '../../data/editorDock';
 import { motion } from 'framer-motion';
 import Simulator from '../../core/simulator';
@@ -55,7 +55,20 @@ import TraderClock from '../../components/gex/TraderClock';
 import WallReportCard from '../../components/gex/WallReportCard';
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import { barsAt, barTimeAt, replayDay, replayMinute, replayRangeAt, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
-import PositionsBook from '../../components/gex/PositionsBook';
+/*
+  THE POSITIONS BOOK BRINGS ag-grid WITH IT (2026-09-14, Noah: "terrain and
+  pinpoint and a few other areas dont load"). Importing it here statically put
+  1,128KB of grid library on the Map's critical path — a data grid, parsed and
+  compiled before a page whose subject is a chart could draw. On this machine
+  that is invisible; on a CPU four times slower, which is any laptop or phone,
+  parsing is 55% of the page's whole load and the Map took ten seconds to show
+  a level.
+
+  It is already the LAST box on the page and already behind <Deferred> by 34
+  frames, so nothing about when it appears changes — the chunk just arrives
+  with it instead of ahead of everything else.
+*/
+const PositionsBook = lazy(() => import('../../components/gex/PositionsBook'));
 import { ladderExpiryOptions, LadderPatternStrip } from '../../components/gex/ladderControls';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import { GREEK_OPTIONS, type Greek } from '../../data/compare';
@@ -494,7 +507,9 @@ const MapDesk = () => {
           the read, so the last box on the page. */}
       <div className="border border-borderSubtle rounded-md overflow-hidden bg-panel">
         <Deferred index={4} frames={34} fallback={<PositionsInner />} className="animate-fade-in">
-          <PositionsBook profile={data} focus={focusPrice} onPick={price => focusOn(price, ticker)} />
+          <Suspense fallback={<PositionsInner />}>
+            <PositionsBook profile={data} focus={focusPrice} onPick={price => focusOn(price, ticker)} />
+          </Suspense>
         </Deferred>
       </div>
     </>
