@@ -25,7 +25,7 @@ import { Minus, Plus } from 'lucide-react';
 import CardTabs from '../../components/ui/CardTabs';
 import { feeFor, fmtPrice, roundToTick, shortExpiry, tagWord, unitWord, type Instrument } from '../../core/paper/instruments';
 import { sessionsLeft, type Quote } from '../../core/paper/market';
-import { markPosition, readAccount, submitOrder, usePaper, type OrderType, type Position, type Side } from '../../core/paper/engine';
+import { markPosition, submitOrder, type OrderType, type Position, type Side } from '../../core/paper/engine';
 import { updatePaperPrefs, usePaperPrefs } from '../../core/paper/prefs';
 import { FactRow, Money, PaperPill, ProvenanceChip, RailLabel, Toggle, fmtHold, sideFill } from './paperKit';
 
@@ -44,7 +44,6 @@ interface OrderTicketProps {
 
 export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) => {
   const prefs = usePaperPrefs();
-  const paper = usePaper();
   const [qty, setQty] = useState(prefs.defaultQty);
   const [type, setType] = useState<OrderType>('market');
   const [priceText, setPriceText] = useState('');
@@ -53,7 +52,6 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
   const [targetTicks, setTargetTicks] = useState(prefs.bracket.targetTicks);
   const [confirm, setConfirm] = useState<Side | null>(null);
   const [said, setSaid] = useState<string | null>(null);
-  const acct = readAccount(paper);
 
   /* A new instrument, a fresh ticket — the size persists, the price does not */
   useEffect(() => {
@@ -100,27 +98,33 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
   const touch = (side: Side) => (quote ? (side === 'buy' ? quote.ask : quote.bid) : null);
   const est = quote ? Math.abs(type === 'market' ? quote.mark : priceNum || quote.mark) : 0;
   const notional = instrument.kind === 'future' ? instrument.initialMargin * qty : est * instrument.multiplier * qty;
-  const tick = instrument.tickSize;
+  /** The long words for the head's subject — in the tooltip, where they cost nothing */
+  const subject =
+    instrument.kind === 'future'
+      ? `${instrument.name} · ${instrument.expiryLabel}`
+      : instrument.kind === 'stock'
+        ? `${instrument.symbol} shares`
+        : `${shortExpiry(instrument.expiry)} · ${Math.max(0, sessionsLeft(instrument.expiry))} sessions left`;
 
   return (
     <div className="flex flex-col" data-order-ticket>
+      {/*
+        WHAT IT WILL TRADE BELONGS IN THE HEAD, not in fact rows. The symbol, the
+        contract and its expiry were three rows here, the contract card under
+        this ticket says all three again, and the strip over the chart says the
+        first — one rail, the same name four times. A ticket must name its
+        subject, so it keeps it as the card's own caption, and the rows go.
+        What is left to trade with went the same way: the account panel over
+        this ticket carries it. The ticket says what THIS order is and costs.
+      */}
       <div className="flex items-center gap-2 px-3 h-8 border-b border-ink/[0.05]">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">Order ticket</span>
+        <span className="font-mono text-[10px] font-semibold text-textSecondary truncate" data-ticket-subject title={subject}>
+          {tagWord(instrument)}
+        </span>
         <PaperPill className="ml-auto" />
       </div>
       <div className="px-3 pt-2.5 pb-3 flex flex-col gap-2.5">
-        <div className="flex flex-col gap-1">
-          <FactRow label="Symbol" testId="symbol">
-            <span className="font-semibold">{tagWord(instrument)}</span>
-          </FactRow>
-          <FactRow label={instrument.kind === 'future' ? 'Contract' : instrument.kind === 'stock' ? 'Listing' : 'Expiration'} testId="contract">
-            {instrument.kind === 'future' ? `${instrument.name} · ${instrument.expiryLabel}` : instrument.kind === 'stock' ? `${instrument.symbol} shares` : `${shortExpiry(instrument.expiry)} · ${Math.max(0, sessionsLeft(instrument.expiry))} sessions`}
-          </FactRow>
-          <FactRow label="Account" testId="account">
-            Paper · <Money v={acct.buyingPower} signed={false} className="text-textPrimary" /> <span className="text-textMuted">to trade</span>
-          </FactRow>
-        </div>
-
         <div>
           <RailLabel>Position size</RailLabel>
           <div className="mt-1 flex items-center gap-1.5">
@@ -224,9 +228,6 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
           </span>
           <span>
             fee <span className="text-textSecondary">${feeFor(instrument, qty).toFixed(2)}</span>/side
-          </span>
-          <span>
-            tick <span className="text-textSecondary">{tick}</span>
           </span>
         </div>
         {said && <div className="font-mono text-[10px] text-textSecondary animate-fade-in" data-ticket-said>{said}</div>}

@@ -37,7 +37,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { CalendarRange, ClipboardPen, Keyboard, Layers, Maximize2, Minimize2, PanelRight, Rows3, SlidersHorizontal, Waypoints } from 'lucide-react';
+import { CalendarRange, ClipboardPen, Keyboard, Layers, Maximize2, Minimize2, PanelRight, Rows3, Rows4, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { TimeframeStrip } from '../../components/gex/ChartToolbar';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { armPrice, commitArm } from '../../components/gex/alertStore';
@@ -76,6 +76,8 @@ import { DEFAULT_BINDINGS, HOTKEY_ACTIONS, bindHotkey, comboOf, resetHotkeys, up
 import { activePane, activeTab, pickPane, setPaneInstrument, setPaneTimeframe, useWorkspace, type Pane, type PaneLayout } from '../../core/paper/workspace';
 import PaperChart, { type PaperChartApi } from './PaperChart';
 import WorkspaceBar from './WorkspaceBar';
+import AccountPanel from './AccountPanel';
+import Ladder from './Ladder';
 import ModesDoor, { TiltDoor } from './ModesDoor';
 import DealerDoor from './DealerDoor';
 import InstrumentPicker from './InstrumentPicker';
@@ -106,7 +108,14 @@ function familyFor(inst: Instrument): string | null {
   return inst.symbol;
 }
 
-const DOOR = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textMuted hover:text-textPrimary hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors';
+/*
+  ELEVEN BORDERED BOXES READ AS A FENCE, not a toolbar. Each door keeps its
+  own hover and its own open state, but the borders and the chip fill go: the
+  row is one bar of icons over the tape, the way every charting desk draws it.
+*/
+const DOOR = 'inline-flex items-center justify-center w-7 h-7 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.09] data-[state=open]:bg-ink/[0.12] data-[state=open]:text-textPrimary transition-colors';
+/** The bar they sit in — one surface, one border, over the candles */
+const DOOR_BAR = 'inline-flex items-center gap-px p-px rounded-md border border-borderSubtle/70 bg-panel/70 backdrop-blur-md';
 
 /* ---- the hotkeys card ---------------------------------------------------------------------- */
 const HotkeysDoor = () => {
@@ -348,6 +357,12 @@ const PaperDesk = () => {
   );
 
   /* ---- the keys ---- */
+  /* The frame's columns: the tape always, then whichever rails are open. A
+     STYLE and not a class, because Tailwind can only see the class names that
+     are written out in the source — one built at runtime never reaches the CSS. */
+  const deskSpan = 1 + (prefs.ladderOpen ? 1 : 0) + (prefs.ticketOpen ? 1 : 0);
+  const deskCols = `minmax(0,1fr)${prefs.ladderOpen ? ' 212px' : ''}${prefs.ticketOpen ? ' 286px' : ''}`;
+
   const qty = prefs.defaultQty;
   useHotkeys(true, {
     buyMarket: () => submitOrder({ instrument, side: 'buy', qty, type: 'market', source: 'hotkey' }),
@@ -393,7 +408,7 @@ const PaperDesk = () => {
         </span>
       )}
       <TimeframeStrip value={timeframe} onChange={(tf: Timeframe) => setPaneTimeframe(tab.id, tab.activePane, tf)} />
-      <span className="ml-auto flex items-center gap-1.5">
+      <span className={`ml-auto ${DOOR_BAR}`}>
         <button type="button" onClick={() => updatePaperPrefs({ levels: !prefs.levels })} title={prefs.levels ? 'Hide the dealer levels' : 'Show the walls and the flip'} aria-pressed={prefs.levels} className={`${DOOR} ${prefs.levels ? 'text-textPrimary border-silver/40' : ''}`} data-paper-levels>
           <Layers className="w-3.5 h-3.5" />
         </button>
@@ -415,6 +430,9 @@ const PaperDesk = () => {
         <TiltDoor />
         <HotkeysDoor />
         <PrefsDoor onReset={() => resetAccount()} />
+        <button type="button" onClick={() => updatePaperPrefs({ ladderOpen: !prefs.ladderOpen })} title={prefs.ladderOpen ? 'Hide the ladder' : 'Show the ladder — click a rung to place there'} aria-pressed={prefs.ladderOpen} className={`${DOOR} ${prefs.ladderOpen ? 'text-textPrimary' : ''}`} data-paper-ladder-door>
+          <Rows4 className="w-3.5 h-3.5" />
+        </button>
         <button type="button" onClick={() => updatePaperPrefs({ ticketOpen: !prefs.ticketOpen })} title={prefs.ticketOpen ? 'Hide the ticket (T)' : 'Show the ticket (T)'} aria-pressed={prefs.ticketOpen} className={`${DOOR} ${prefs.ticketOpen ? 'text-textPrimary' : ''}`} data-paper-ticket-door>
           <PanelRight className="w-3.5 h-3.5" />
         </button>
@@ -471,6 +489,7 @@ const PaperDesk = () => {
 
   const rail = (
     <div className="h-full flex flex-col overflow-y-auto overflow-x-hidden rounded-md border border-ink/[0.07] bg-panel" data-paper-rail>
+      <AccountPanel />
       <OrderTicket instrument={instrument} quote={quote} />
       <InstrumentFacts instrument={instrument} quote={quote} position={position} />
     </div>
@@ -490,14 +509,17 @@ const PaperDesk = () => {
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Trade the chart — futures and options against the live market state, on paper. Right-click a price to start.</p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts data-paper-account>
-          <Fact label="Equity" testId="equity">{fmtMoney(acct.equity, false)}</Fact>
-          <Fact label="Cash" testId="cash">{fmtMoney(acct.cash, false)}</Fact>
-          <Fact label="Buying power" testId="bp">{fmtMoney(acct.buyingPower, false)}</Fact>
-          <Fact label="Margin used" testId="margin">{fmtMoney(acct.marginUsed, false)}</Fact>
-          <Fact label="Day P&L" testId="day"><Money v={acct.dayPnl} /></Fact>
-          <Fact label="Total P&L" testId="total"><Money v={acct.totalPnl} /></Fact>
-        </dl>
+        {/* THE PANEL KEEPS THE LEDGER (the rail's account card), and the head
+            keeps the two that matter ONLY WHILE THE RAIL IS SHUT. Six bare
+            numbers strung across the top of the page were a balance sheet
+            pretending to be a caption; printing two of them forty pixels from
+            the card that prints them bigger is the same fault, smaller. */}
+        {!prefs.ticketOpen && (
+          <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts data-paper-account>
+            <Fact label="Equity" testId="equity">{fmtMoney(acct.equity, false)}</Fact>
+            <Fact label="Day P&L" testId="day"><Money v={acct.dayPnl} /></Fact>
+          </dl>
+        )}
       </header>
       <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to trade the chart" testId="paper-guide" viewport>
         <div className="flex flex-col gap-3 text-[12px] leading-relaxed text-textSecondary">
@@ -514,17 +536,27 @@ const PaperDesk = () => {
       </GuideFocus>
 
       <div
-        className={`relative flex-1 min-h-0 mt-3 grid grid-rows-[auto_minmax(0,3fr)_minmax(0,2fr)] gap-2.5 ${prefs.ticketOpen ? 'grid-cols-[minmax(0,1fr)_272px]' : 'grid-cols-[minmax(0,1fr)]'}`}
+        /* THE TAPE TAKES THE ROOM (was 3:2, and the blotter's one row sat over
+           three hundred pixels of black). A trading desk gives the chart the
+           screen and the book a band under it. The rail widens with it, since
+           the account, the ticket and the contract now share it. */
+        /* THE THREE-COLUMN WORKSTATION: the tape, the ladder it is traded from,
+           and the rail that holds the account and the ticket. Each of the two
+           side columns comes and goes on its own door, and the row under them
+           always spans whatever is open. */
+        className="relative flex-1 min-h-0 mt-3 grid grid-rows-[auto_minmax(0,68fr)_minmax(0,32fr)] gap-2.5"
+        style={{ gridTemplateColumns: deskCols }}
         data-paper-frame
       >
-        <div className={`min-w-0 -mb-1 ${prefs.ticketOpen ? 'col-span-2' : ''}`}>
+        <div className="min-w-0 -mb-1" style={{ gridColumn: `span ${deskSpan}` }}>
           <WorkspaceBar tab={tab} />
         </div>
         <div className="min-h-0 min-w-0">
           <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">{full ? <div className="h-full" /> : chartBody}</div>
         </div>
+        {prefs.ladderOpen && <div className="min-h-0 min-w-0">{full ? <div className="h-full" /> : <Ladder instrument={instrument} quote={quote} position={position} />}</div>}
         {prefs.ticketOpen && <div className="min-h-0 min-w-0">{full ? <div className="h-full" /> : rail}</div>}
-        <div className={`min-h-0 min-w-0 ${prefs.ticketOpen ? 'col-span-2' : ''}`}>
+        <div className="min-h-0 min-w-0" style={{ gridColumn: `span ${deskSpan}` }}>
           <Blotter instrument={instrument} onPick={pickInstrument} selectedOrderId={selectedOrderId} onSelectOrder={setSelectedOrderId} />
         </div>
       </div>
@@ -536,7 +568,12 @@ const PaperDesk = () => {
         createPortal(
           <div className={`fixed inset-0 z-[80] bg-canvas p-3 flex gap-2.5 animate-soft-in transition-opacity duration-200 ease-out ${closing ? 'opacity-0' : ''}`} style={DOCK_ROOM} data-paper-fullscreen>
             <div className="flex-1 min-w-0 relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">{chartBody}</div>
-            {prefs.ticketOpen && <div className="w-[272px] shrink-0 min-h-0">{rail}</div>}
+            {prefs.ladderOpen && (
+              <div className="w-[212px] shrink-0 min-h-0">
+                <Ladder instrument={instrument} quote={quote} position={position} />
+              </div>
+            )}
+            {prefs.ticketOpen && <div className="w-[286px] shrink-0 min-h-0">{rail}</div>}
           </div>,
           document.body
         )}

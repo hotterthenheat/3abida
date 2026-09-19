@@ -52,7 +52,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from 'react';
-import { X, ChevronDown, Crosshair, Minus, Plus, RotateCcw } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Crosshair, Minus, Plus } from 'lucide-react';
 import {
   createChart,
   createSeriesMarkers,
@@ -75,7 +75,6 @@ import { CALL_WALL, FLIP, PUT_WALL } from '../../components/gex/palette';
 import { useResolvedTheme } from '../../theme/theme';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import CompanyLogo from '../../components/ui/CompanyLogo';
-import SpotPrice from '../../components/gex/SpotPrice';
 import { fmtMoney, fmtPrice, roundToTick, tagWord, type Instrument } from '../../core/paper/instruments';
 import { barsFor, levelsFor, type Quote } from '../../core/paper/market';
 import {
@@ -154,8 +153,21 @@ interface PaperChartProps {
   onToast?: (words: string) => void;
 }
 
-const TAG_H = 20;
+const TAG_H = 18;
 const TAG_GAP = 2;
+/*
+  COLOUR BY WHAT THE LINE IS, NOT BY WHICH WAY IT SENDS.
+
+  A long's protection is two SELL orders, so colouring by side painted the
+  target and the stop the same red and the chart read as one wall of alarm.
+  Every platform colours the MEANING: a target is where you win, a stop is
+  where you lose, a working entry is the side it will open, a level is yours.
+*/
+const TARGET_HEX = '#30D158';
+const STOP_HEX = '#FF453A';
+const LIQ_HEX = '#FF6B5E';
+/** The line under a tag: the ink at a whisper, so the candles stay the subject */
+const lineInk = (hex: string, kind: TapeItem['kind']): string => `${hex}${kind === 'level' ? '55' : kind === 'liq' ? '66' : 'AA'}`;
 /* A ZONE IS A BAND, NOT A WASH. The book's own half-width is the strike's
    whole territory — on NQ, where a dollar of QQQ is 41 points, that is a third
    of the pane per strike and the tape disappears under it. Each zone is drawn
@@ -173,7 +185,6 @@ const shortMoney = (v: number): string => {
 };
 /** The P&L pill's ink — tokens, not hexes: this is DOM, not canvas */
 const pnlInk = (v: number): string => (v >= 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))');
-const pnlWash = (v: number): string => `color-mix(in srgb, ${v >= 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))'} 13%, transparent)`;
 
 const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, ready, selectedOrderId, onSelectOrder, topInset, apiRef, optionDraftAt, onOpenChain, onOpenSpread, onAlertAt, onToast }: PaperChartProps) => {
   const paper = usePaper();
@@ -196,6 +207,10 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   const cursorPriceRef = useRef<number | null>(null);
   const tagRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const legendRef = useRef<HTMLDivElement | null>(null);
+  /** The four numbers in the legend — written straight to the DOM, never through React */
+  const ohlcRef = useRef<HTMLDivElement | null>(null);
+  const lastBarRef = useRef<{ open: number; high: number; low: number; close: number } | null>(null);
+  const paintRef = useRef<(b: { open: number; high: number; low: number; close: number } | null) => void>(() => {});
   const itemsRef = useRef<TapeItem[]>([]);
   /** Prices the scale must hold — the position's average and its protection */
   const scalePricesRef = useRef<number[]>([]);
@@ -212,6 +227,8 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   const pullLineRef = useRef<IPriceLine | null>(null);
   const pullHudRef = useRef<HTMLDivElement | null>(null);
   const [hoverPos, setHoverPos] = useState(false);
+  /** The reader has taken the frame — the way back shows only then */
+  const [touched, setTouched] = useState(false);
   /** the dotted spine from the position's tag to each of its children */
   const spineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   /** the long/short drawing — a plan, until its button is pressed */
@@ -277,6 +294,42 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     chartRef.current?.applyOptions({ handleScroll: !held, handleScale: !held });
   }, []);
 
+  /*
+    THE LEGEND SAYS WHAT THE BAR DID, not what the strip already said.
+
+    It used to print the last price and the bid × ask — the same three numbers
+    the strip above it prints, forty pixels apart. It carries the hovered bar's
+    open, high, low and close instead (the last bar's when the pointer is off
+    the tape), which is the one thing a chart's legend is for and which nothing
+    else on the desk says. Written to the DOM on the crosshair's own events,
+    because a render per hovered bar is a render per seven pixels of travel.
+  */
+  const paintOhlc = useCallback(
+    (b: { open: number; high: number; low: number; close: number } | null) => {
+      const host = ohlcRef.current;
+      if (!host) return;
+      const bar = b ?? lastBarRef.current;
+      if (!bar) return;
+      const put = (k: string, v: string) => {
+        const el = host.querySelector<HTMLElement>(`[data-ohlc="${k}"]`);
+        if (el && el.textContent !== v) el.textContent = v;
+      };
+      put('o', fmtPrice(instrument, bar.open));
+      put('h', fmtPrice(instrument, bar.high));
+      put('l', fmtPrice(instrument, bar.low));
+      put('c', fmtPrice(instrument, bar.close));
+      const d = bar.close - bar.open;
+      const pct = bar.open ? (d / bar.open) * 100 : 0;
+      const chg = host.querySelector<HTMLElement>('[data-ohlc="chg"]');
+      if (chg) {
+        const words = `${d >= 0 ? '+' : ''}${fmtPrice(instrument, d)} (${d >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+        if (chg.textContent !== words) chg.textContent = words;
+        chg.style.color = Math.abs(d) < 1e-9 ? 'rgb(var(--text-muted))' : d > 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))';
+      }
+    },
+    [instrument]
+  );
+
   /* ---- the chart, once ---- */
   useEffect(() => {
     const host = hostRef.current;
@@ -339,6 +392,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
        a wheel, or a left-button press that pans. A right-click is a trade,
        not a hand on the frame, and leaves the scale following the market. */
     const freeze = () => {
+      if (!touchedRef.current) setTouched(true);
       touchedRef.current = true;
       chart.priceScale('right').applyOptions({ autoScale: false });
     };
@@ -348,6 +402,8 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     host.addEventListener('wheel', freeze, { passive: true });
     host.addEventListener('pointerdown', freezeOnPan);
     chart.subscribeCrosshairMove(p => {
+      const bar = seriesRef.current ? (p.seriesData.get(seriesRef.current) as { open?: number; high?: number; low?: number; close?: number } | undefined) : undefined;
+      paintRef.current(bar && bar.open != null ? (bar as { open: number; high: number; low: number; close: number }) : null);
       if (!p.point) {
         cursorPriceRef.current = null;
         publishCrosshair({ from: paneRef.current, time: null });
@@ -407,6 +463,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     const chart = chartRef.current;
     if (!chart) return;
     touchedRef.current = false;
+    setTouched(false);
     chart.priceScale('right').applyOptions({ autoScale: true });
     const len = barCountRef.current;
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 140), to: len + 8 });
@@ -441,7 +498,10 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
       volume.update(toV(last));
     }
     barCountRef.current = bars.length;
-  }, [instrument, timeframe, revision, ready, themeKey]);
+    const tail = bars[bars.length - 1];
+    lastBarRef.current = { open: tail.open, high: tail.high, low: tail.low, close: tail.close };
+    if (cursorPriceRef.current == null) paintOhlc(null);
+  }, [instrument, timeframe, revision, ready, themeKey, paintOhlc]);
 
   /* ---- the dealer levels: the walls and the flip, quietly ---- */
   useEffect(() => {
@@ -504,13 +564,14 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     for (const o of orders) {
       const price = o.type === 'limit' ? o.limitPrice! : o.type === 'stop' ? o.stopPrice! : null;
       if (price == null) continue;
-      out.push({ key: `ord:${o.id}`, kind: 'order', price, hex: o.side === 'buy' ? BUY_HEX : SELL_HEX, style: o.type === 'stop' ? LineStyle.Dotted : LineStyle.Dashed, width: 1, order: o });
+      const hex = o.role === 'target' ? TARGET_HEX : o.role === 'stop' ? STOP_HEX : o.side === 'buy' ? BUY_HEX : SELL_HEX;
+      out.push({ key: `ord:${o.id}`, kind: 'order', price, hex, style: o.type === 'stop' ? LineStyle.Dotted : LineStyle.Dashed, width: 1, order: o });
     }
     myLevels.forEach((p, i) => out.push({ key: `lvl:${i}:${p}`, kind: 'level', price: p, hex: LEVEL_HEX, style: LineStyle.LargeDashed, width: 1 }));
     /* WHERE THIS POSITION DIES. Only in the evaluation, only while something is
        open, and it MOVES: the floor trails the peak, so a position that makes
        money carries its own liquidation up behind it (propFirm.ts). */
-    if (liq) out.push({ key: `liq:${instrument.id}`, kind: 'liq', price: liq.price, hex: SELL_HEX, style: LineStyle.LargeDashed, width: 1 });
+    if (liq) out.push({ key: `liq:${instrument.id}`, kind: 'liq', price: liq.price, hex: LIQ_HEX, style: LineStyle.LargeDashed, width: 1 });
     return out;
   }, [orders, position, myLevels, liq, instrument.id]);
   itemsRef.current = items;
@@ -530,7 +591,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     }
     for (const it of items) {
       const price = dragRef.current?.key === it.key ? dragRef.current.price : it.price;
-      const opts = { price, color: it.kind === 'level' ? 'rgba(237,237,237,0.55)' : it.kind === 'liq' ? `${it.hex}99` : it.hex, lineWidth: it.width, lineStyle: it.style, axisLabelVisible: it.kind !== 'level', axisLabelColor: it.hex, axisLabelTextColor: '#0a0a0a', title: '' };
+      const opts = { price, color: lineInk(it.hex, it.kind), lineWidth: it.width, lineStyle: it.style, axisLabelVisible: it.kind !== 'level', axisLabelColor: it.hex, axisLabelTextColor: '#0a0a0a', title: '' };
       const cur = have.get(it.key);
       if (cur) cur.applyOptions(opts);
       else have.set(it.key, series.createPriceLine(opts));
@@ -565,6 +626,8 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     marks.sort((a, b) => (a.time as number) - (b.time as number));
     m.setMarkers(marks.slice(-120));
   }, [paper.orders, instrument.id, timeframe, prefs.fillMarks, ready, revision]);
+
+  paintRef.current = paintOhlc;
 
   /* ---- the tags ride the lines: one frame loop, DOM writes only when something moved ---- */
   useEffect(() => {
@@ -997,12 +1060,11 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         const pill = el.querySelector<HTMLElement>('[data-pnl-pill]');
         const money = el.querySelector<HTMLElement>('[data-tag-pnl]');
         const ticks = el.querySelector<HTMLElement>('[data-tag-ticks]');
+        const chip = el.querySelector<HTMLElement>('[data-tag-live]');
         if (money) money.textContent = r.money;
         if (ticks) ticks.textContent = r.tickWords;
-        if (pill) {
-          pill.style.color = pnlInk(r.pnl);
-          pill.style.background = pnlWash(r.pnl);
-        }
+        if (chip) chip.textContent = r.money;
+        if (pill) pill.style.color = pnlInk(r.pnl);
       }
     };
     const up = (ev: PointerEvent) => {
@@ -1114,71 +1176,107 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     return readLevel(instrument, position, it.price);
   };
 
-  const tagWords = (it: TapeItem) => {
+  /*
+    WHAT THE TAG SAYS AT REST, and what it keeps for when you look at it.
+
+    The price scale already draws this level's price, in this same ink, four
+    pixels to the right — so the tag repeating it was the chart saying one
+    number twice. At rest it says the two things the axis CANNOT: what the
+    line is, and what it is worth. Everything else — the price while it is
+    dragged, the ticks, the size, the fill, the queue, the handles and the
+    cancel — unfurls to its left when the pointer is on it, which is where
+    every trading platform keeps it.
+  */
+  const tagRest = (it: TapeItem) => {
     if (it.kind === 'position' && it.position && mark) {
       const p = it.position;
+      /* THE SIDE IS ONE FACT AND THE MONEY IS ANOTHER: a losing long on a chip
+         that is green because it is long said "green" and "−$471" at once. The
+         side keeps the chip; the money gets its own, in the ink of its sign. */
+      const up = mark.unrealized >= 0;
       return (
         <>
           <span className="font-bold">{p.qty > 0 ? 'LONG' : 'SHORT'} {Math.abs(p.qty)}</span>
-          <span className="text-textMuted">·</span>
-          <Money v={mark.unrealized} className="font-semibold" />
-          <span className="text-textMuted">·</span>
-          <span className="text-textSecondary">AVG</span> <span data-tag-price>{fmtPrice(instrument, p.avgPrice)}</span>
-          <span className="text-textMuted">·</span>
-          <span className="text-textSecondary">BE</span> <span>{fmtPrice(instrument, mark.breakeven)}</span>
+          <span
+            className="font-semibold -mr-1 px-1 py-[3px] rounded-r-[2px]"
+            data-tag-live
+            style={{ background: up ? 'rgba(10,10,10,0.14)' : STOP_HEX, color: up ? '#0a0a0a' : '#fff' }}
+          >
+            {fmtMoney(mark.unrealized)}
+          </span>
         </>
       );
     }
     if (it.kind === 'order' && it.order) {
       const o = it.order;
       const left = o.qty - o.filledQty;
+      const read = pnlOf(it);
+      if (o.role === 'stop' || o.role === 'target') {
+        return (
+          <>
+            <span className="font-bold">{o.role === 'stop' ? 'SL' : 'TP'}</span>
+            <span className="opacity-45" aria-hidden>·</span>
+            <span className="font-semibold" data-tag-live>{read ? read.money : fmtPrice(instrument, it.price)}</span>
+          </>
+        );
+      }
+      /* ONE SPAN, because two of them read as "BUY LMT2" to anything that takes
+         the text rather than the picture — a screen reader, a copy, a probe */
+      return (
+        <span className="font-bold">
+          {o.side === 'buy' ? 'BUY' : 'SELL'} {typeWord(o)} {left}
+        </span>
+      );
+    }
+    if (it.kind === 'liq') return <span className="font-bold">LIQ</span>;
+    return <span className="font-bold">LEVEL</span>;
+  };
+
+  const tagMore = (it: TapeItem) => {
+    const price = <span data-tag-price>{fmtPrice(instrument, it.price)}</span>;
+    if (it.kind === 'position' && it.position && mark) {
+      const p = it.position;
       return (
         <>
-          {o.role === 'stop' && <span className="text-textSecondary">SL</span>}
-          {o.role === 'target' && <span className="text-textSecondary">TP</span>}
-          <span className="font-bold">
-            {o.side === 'buy' ? 'BUY' : 'SELL'} {typeWord(o)} {left}
-          </span>
+          <span className="text-textMuted">AVG</span> <span data-tag-price>{fmtPrice(instrument, p.avgPrice)}</span>
+          <span className="text-textMuted">BE</span> <span>{fmtPrice(instrument, mark.breakeven)}</span>
+        </>
+      );
+    }
+    if (it.kind === 'order' && it.order) {
+      const o = it.order;
+      const read = pnlOf(it);
+      const line = modes.realisticFills && o.type === 'limit' ? readQueue(o.id) : null;
+      return (
+        <>
+          {read && (
+            <span data-pnl-pill className="inline-flex items-center gap-1" style={{ color: pnlInk(read.pnl) }} title={`${read.tickWords} from the average — ${read.money} if it fills`}>
+              <span data-tag-pnl className="font-semibold">{read.money}</span>
+              <span data-tag-ticks className="opacity-70">{read.tickWords}</span>
+            </span>
+          )}
+          {(o.role === 'stop' || o.role === 'target') && (
+            <span className="text-textSecondary">
+              {o.side === 'buy' ? 'BUY' : 'SELL'} {typeWord(o)} {o.qty - o.filledQty}
+            </span>
+          )}
+          {price}
           {o.filledQty > 0 && (
             <span className="inline-flex items-center gap-1 text-warn" title={`${o.filledQty} of ${o.qty} filled — the rest is working`}>
               <span className="w-1.5 h-1.5 rounded-full bg-warn" /> {o.filledQty}/{o.qty}
             </span>
           )}
-          <span className="text-textMuted">·</span>
-          <span data-tag-price>{fmtPrice(instrument, it.price)}</span>
-          {/* WHERE IT STANDS IN THE LINE, while the queue is on: what is still
-              in front of it at this price. A limit at the touch that is not
-              filling has a reason, and this is it (core/paper/queue.ts). */}
-          {(() => {
-            if (!modes.realisticFills || o.type !== 'limit') return null;
-            const line = readQueue(o.id);
-            if (!line || line.left <= 0) return null;
-            return (
-              <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary tnum" data-queue={line.left} title={`${line.left} of ${line.ahead} still in front of this order at ${fmtPrice(instrument, it.price)} — it fills as the tape trades through them`}>
-                Q {line.left}
-              </span>
-            );
-          })()}
-          {o.bracket && o.role === 'entry' && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary">BRK</span>}
-          {o.ocoGroup && o.role !== 'entry' && !position && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary">OCO</span>}
+          {line && line.left > 0 && (
+            <span className="text-textSecondary" data-queue={line.left} title={`${line.left} of ${line.ahead} still in front of this order at its price — it fills as the tape trades through them`}>
+              Q {line.left}
+            </span>
+          )}
+          {o.bracket && o.role === 'entry' && <span className="text-textMuted">BRK</span>}
         </>
       );
     }
-    if (it.kind === 'liq') {
-      return (
-        <>
-          <span className="font-bold text-bear">LIQUIDATION</span>
-          <span data-tag-price>{fmtPrice(instrument, it.price)}</span>
-          {liq && !liq.alone && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary" title="Other positions share the same allowance — close one and this moves">SHARED</span>}
-        </>
-      );
-    }
-    return (
-      <>
-        <span className="text-textSecondary">LEVEL</span>
-        <span data-tag-price>{fmtPrice(instrument, it.price)}</span>
-      </>
-    );
+    if (it.kind === 'liq') return <>{price}<span className="text-textMuted">{liq && !liq.alone ? 'shared' : 'max drawdown'}</span></>;
+    return price;
   };
 
   const removeItem = (it: TapeItem) => {
@@ -1220,21 +1318,22 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
 
       {/* the legend: the name, the clock, the live tick, the touch */}
       <div ref={legendRef} className="absolute left-2 z-10 pointer-events-none select-none flex flex-col gap-1 font-mono" style={{ top: topInset + 4 }} data-chart-chrome>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5" ref={ohlcRef}>
           <CompanyLogo ticker={instrument.underlying} size={13} />
           <span className="text-[11px] font-semibold text-textPrimary">{tagWord(instrument)}</span>
-          <span className="text-[10px] text-textMuted" aria-hidden>·</span>
           <span className="text-[10px] text-textMuted">{timeframe}</span>
-          {quote && (
-            <>
-              <span className="text-[10px] text-textMuted" aria-hidden>·</span>
-              <SpotPrice value={quote.last} className="text-[11px] font-semibold tnum text-textPrimary" />
-              <span className="text-[9px] tnum text-textMuted">
-                {fmtPrice(instrument, quote.bid)} × {fmtPrice(instrument, quote.ask)}
-              </span>
-              <ProvenanceChip quote={quote} />
-            </>
-          )}
+          <span className="inline-flex items-center gap-1 text-[10px] tnum">
+            <span className="text-textMuted">O</span>
+            <span className="text-textPrimary" data-ohlc="o">—</span>
+            <span className="text-textMuted ml-0.5">H</span>
+            <span className="text-textPrimary" data-ohlc="h">—</span>
+            <span className="text-textMuted ml-0.5">L</span>
+            <span className="text-textPrimary" data-ohlc="l">—</span>
+            <span className="text-textMuted ml-0.5">C</span>
+            <span className="text-textPrimary" data-ohlc="c">—</span>
+            <span className="ml-0.5 font-semibold" data-ohlc="chg">—</span>
+          </span>
+          {quote && <ProvenanceChip quote={quote} />}
         </div>
         {position && mark && (
           <PositionBar
@@ -1274,8 +1373,9 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
               />
             ))}
         {items.map(it => {
-          const read = pnlOf(it);
+          const expanded = dragging === it.key || (selectedOrderId != null && it.order?.id === selectedOrderId);
           const bare = it.kind === 'position' && position && (!stopOrder || !targetOrder);
+          const grabbable = it.kind === 'order' || it.kind === 'level';
           return (
             <div
               key={it.key}
@@ -1286,6 +1386,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
               data-tag={it.kind}
               data-tag-key={it.key}
               data-tag-role={it.order?.role}
+              data-open={expanded ? '1' : '0'}
               onPointerDown={onTagDown(it)}
               onPointerEnter={() => it.kind === 'position' && setHoverPos(true)}
               onPointerLeave={() => it.kind === 'position' && setHoverPos(false)}
@@ -1301,39 +1402,53 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                 e.stopPropagation();
                 if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
               }}
-              className={`absolute pointer-events-auto select-none inline-flex items-stretch h-5 rounded border bg-panel/95 backdrop-blur-sm font-mono text-[10px] tnum text-textPrimary shadow-md shadow-black/40 whitespace-nowrap ${
-                it.kind === 'position' ? 'cursor-pointer' : 'cursor-ns-resize'
-              } ${it.kind === 'liq' ? 'cursor-default' : ''} ${dragging === it.key ? 'opacity-90' : ''} ${selectedOrderId && it.order?.id === selectedOrderId ? 'ring-1 ring-silver/70' : ''}`}
-              style={{ right: 60, visibility: 'hidden', borderColor: `${it.hex}88` }}
+              className={`group absolute pointer-events-auto select-none inline-flex items-stretch rounded-[3px] font-mono text-[10px] leading-none tnum whitespace-nowrap ${
+                it.kind === 'position' ? 'cursor-pointer' : grabbable ? 'cursor-ns-resize' : 'cursor-default'
+              }`}
+              style={{ right: 60, height: TAG_H, visibility: 'hidden' }}
               title={
                 it.kind === 'order'
-                  ? 'Drag to move · × cancels · right-click for more'
+                  ? 'Drag to move · right-click for more'
                   : it.kind === 'position'
                     ? 'The position — click for what can be done to it'
                     : it.kind === 'liq'
                       ? 'The evaluation liquidates this position here — it trails the peak, so it moves'
-                      : 'Drag to move · × removes'
+                      : 'Drag to move'
               }
             >
-              <span className="w-[3px] self-stretch shrink-0 rounded-l-[3px]" style={{ background: it.hex }} aria-hidden />
-              <span data-conn className="absolute left-2 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
-              {/* ONE — what this level is worth, in ticks and in the instrument's own money */}
-              {read && (
-                <span
-                  data-pnl-pill
-                  className="inline-flex items-center gap-1 px-1.5 font-bold border-r border-borderSubtle"
-                  style={{ color: pnlInk(read.pnl), background: pnlWash(read.pnl) }}
-                  title={`${read.tickWords} from the average — ${read.money} if it fills`}
+              <span data-conn className="absolute left-1.5 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
+              {/* THE CANCEL GOES FIRST, at the far end of what unfurls — never
+                  beside the chip. The tag is anchored to the price scale, so
+                  anything drawn AFTER the chip pushes the chip left the moment
+                  the pointer arrives, and a hand reaching for the drag lands on
+                  the × instead. Everything grows leftward; the chip never moves. */}
+              {it.kind !== 'position' && it.kind !== 'liq' && (
+                <button
+                  type="button"
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={e => {
+                    e.stopPropagation();
+                    removeItem(it);
+                  }}
+                  aria-label={it.kind === 'order' ? 'Cancel this order' : 'Remove this level'}
+                  className="hidden group-hover:inline-flex group-data-[open=1]:inline-flex items-center justify-center w-[18px] mr-px shrink-0 rounded-[3px] border bg-canvas/90 text-textMuted hover:text-bear hover:border-bear/60 transition-colors"
+                  style={{ borderColor: `${it.hex}66` }}
                 >
-                  <span data-tag-pnl>{read.money}</span>
-                  <span data-tag-ticks className="font-normal opacity-70">{read.tickWords}</span>
-                </span>
+                  <X className="w-2.5 h-2.5" />
+                </button>
               )}
-              {/* TWO — what it is */}
-              <span className="inline-flex items-center gap-1.5 px-1.5">{tagWords(it)}</span>
-              {/* the handles: only over the position, only for the leg it lacks */}
+              {/* THE DETAIL, unfurled to the left: only under the pointer, while
+                  it is dragged, or while it is the order the desk has selected */}
+              <span
+                data-tag-more
+                className="hidden group-hover:inline-flex group-data-[open=1]:inline-flex items-center gap-1.5 px-1.5 mr-px rounded-l-[3px] border border-r-0 bg-canvas/90 backdrop-blur-sm text-textPrimary"
+                style={{ borderColor: `${it.hex}66` }}
+              >
+                {tagMore(it)}
+              </span>
+              {/* the handles: over the position, for the leg it has not got */}
               {bare && hoverPos && (
-                <span className="inline-flex items-stretch border-l border-borderSubtle" data-brk-handles>
+                <span className="inline-flex items-stretch mr-px rounded-[3px] overflow-hidden border bg-canvas/90" style={{ borderColor: `${it.hex}66` }} data-brk-handles>
                   {!targetOrder && (
                     <button
                       type="button"
@@ -1341,7 +1456,8 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                       onPointerDown={onPullDown('target')}
                       onClick={e => e.stopPropagation()}
                       title="Drag out a target — or click to place it at the bracket's own distance"
-                      className="inline-flex items-center gap-0.5 px-1.5 text-bull hover:bg-bull/[0.12] cursor-ns-resize transition-colors"
+                      className="inline-flex items-center gap-0.5 px-1 font-semibold cursor-ns-resize transition-colors hover:bg-bull/20"
+                      style={{ color: TARGET_HEX }}
                     >
                       <Plus className="w-2.5 h-2.5" />TP
                     </button>
@@ -1353,30 +1469,20 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                       onPointerDown={onPullDown('stop')}
                       onClick={e => e.stopPropagation()}
                       title="Drag out a stop — or click to place it at the bracket's own distance"
-                      className="inline-flex items-center gap-0.5 px-1.5 text-bear hover:bg-bear/[0.12] cursor-ns-resize transition-colors border-l border-borderSubtle"
+                      className="inline-flex items-center gap-0.5 px-1 font-semibold cursor-ns-resize transition-colors hover:bg-bear/20 border-l border-borderSubtle"
+                      style={{ color: STOP_HEX }}
                     >
                       <Plus className="w-2.5 h-2.5" />SL
                     </button>
                   )}
                 </span>
               )}
-              {/* off the pane: which way its price lies */}
-              <span data-caret className="font-bold self-center pr-1" style={{ display: 'none', color: it.hex }} aria-hidden />
-              {/* THREE — the cancel */}
-              {it.kind !== 'position' && it.kind !== 'liq' && (
-                <button
-                  type="button"
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={e => {
-                    e.stopPropagation();
-                    removeItem(it);
-                  }}
-                  aria-label={it.kind === 'order' ? 'Cancel this order' : 'Remove this level'}
-                  className="inline-flex items-center justify-center w-5 shrink-0 rounded-r-[3px] border-l border-borderSubtle text-textMuted hover:text-bear hover:bg-bear/[0.12] transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
+              {/* THE CHIP: the ink of its own line, dark type — the same mark the
+                  price scale wears for it, so the level and its label are one thing */}
+              <span className="inline-flex items-center gap-1 px-1.5 rounded-[3px]" style={{ background: it.hex, color: '#0a0a0a' }}>
+                {tagRest(it)}
+                <span data-caret className="font-bold" style={{ display: 'none' }} aria-hidden />
+              </span>
             </div>
           );
         })}
@@ -1399,15 +1505,19 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         </div>
       </div>
 
-      {/* the reset pill — ResetViewControl's, without its right-click (that is the trade menu's now) */}
-      <button
-        onClick={resetView}
-        title="Reset chart view (Alt+R, double-click)"
-        className="absolute z-20 left-2 bottom-8 inline-flex items-center gap-1 px-2 h-6 rounded-full border border-borderSubtle bg-panel/70 backdrop-blur-md font-mono text-[9px] uppercase tracking-wider text-textMuted hover:text-textPrimary opacity-35 hover:opacity-100 transition-opacity"
-      >
-        <RotateCcw className="w-3 h-3" />
-        Reset
-      </button>
+      {/* BACK TO THE TAPE — only once the reader has left it. A reset control on
+          a frame that is already following the market is a button for nothing,
+          and it sat on the volume band all day saying so. */}
+      {touched && (
+        <button
+          onClick={resetView}
+          title="Back to the live tape (Alt+R, or double-click)"
+          data-paper-reset-view
+          className="absolute z-20 right-[68px] bottom-8 inline-flex items-center justify-center w-6 h-6 rounded-full border border-borderSubtle bg-panel/80 backdrop-blur-md text-textMuted hover:text-textPrimary transition-colors"
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-panel/70 z-20">

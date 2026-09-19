@@ -87,6 +87,8 @@ export interface PaperPrefs {
   bindings: Bindings;
   /** The ticket rail is out */
   ticketOpen: boolean;
+  /** The price ladder sits between the tape and the rail */
+  ladderOpen: boolean;
   /** The dealer positioning overlay — heat-mapped zones behind the tape */
   dealer: { on: boolean; greek: 'gex' | 'dex' | 'vanna'; expiry: string; labels: boolean };
 }
@@ -102,6 +104,7 @@ const DEFAULT: PaperPrefs = {
   hotkeys: true,
   bindings: DEFAULT_BINDINGS,
   ticketOpen: true,
+  ladderOpen: false,
   dealer: { on: false, greek: 'gex', expiry: '0DTE', labels: true },
 };
 

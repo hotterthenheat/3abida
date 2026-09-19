@@ -138,7 +138,9 @@ const Blotter = ({ instrument, onPick, selectedOrderId, onSelectOrder }: Blotter
       {
         key: 'actions',
         header: '',
-        width: '230px',
+        /* FOUR BUTTONS NEED FOUR BUTTONS' WORTH: at 230 the last one was cut in
+           half by the panel's own edge on every width the desk is read at */
+        width: '268px',
         render: r =>
           r.isLeg ? null : (
             <span className="inline-flex items-center gap-1" data-own-click>
