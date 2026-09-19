@@ -19,6 +19,10 @@
 
 import { useEffect, useState } from 'react';
 import { dismissToasts, ensureClock, usePaper, type PaperToast } from '../../core/paper/engine';
+import { useModes } from '../../core/paper/modes';
+import { startPropFirm } from '../../core/paper/propFirm';
+import { startTilt } from '../../core/paper/tilt';
+import { applyFriction } from '../../core/paper/friction';
 
 export const PAPER_TOAST_MS = 4500;
 const AT_MOST = 4;
@@ -27,10 +31,31 @@ const INK: Record<PaperToast['kind'], string> = { fill: 'rgb(var(--warn))', reje
 
 const PaperToasts = ({ muted = false }: { muted?: boolean }) => {
   const paper = usePaper();
+  const modes = useModes();
   const [, wake] = useState(0);
+  /*
+    THE MODES RIDE WITH THE CLOCK, NOT WITH THE PAGE.
+
+    An evaluation that only enforced itself while the reader had the desk open
+    would not be an evaluation: a stop left working fills on any page, and the
+    trailing drawdown, the 16:59 flatten and the tilt watch have to see it.
+    They are installed here, beside the clock, through the engine's own seams —
+    a guard that may refuse, an observer that may watch, a fill model that may
+    only narrow how a fill is priced. Nothing here can move an account.
+  */
   useEffect(() => {
     ensureClock();
+    const stopProp = startPropFirm();
+    const stopTilt = startTilt();
+    return () => {
+      stopProp();
+      stopTilt();
+    };
   }, []);
+  /* the friction is one fill model, rebuilt whenever the switches change */
+  useEffect(() => {
+    applyFriction();
+  }, [modes]);
   const now = Date.now();
   /* ON THE DESK ITSELF THE CHIP WOULD BE A SECOND VOICE (the alerts' rule, in
      reverse): the position bar, the blotter and the log all say what filled,

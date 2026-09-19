@@ -34,6 +34,17 @@
   partially filled → filled, or canceled, or
   rejected. Every step is an event on the order.
 
+  THREE SEAMS, AND NOTHING ELSE (the sprint's rule:
+  "modular wrappers/interceptors so we do not bloat
+  the core order engine"). A GUARD may refuse an
+  order with a reason; an OBSERVER may hear what
+  happened; a FILL MODEL may narrow how a fill is
+  priced. Every mode — the prop firm's evaluation,
+  the free-rein sandbox, the tilt watch, the
+  microstructure queue — is one of those three and
+  lives in its own file. None of them can invent a
+  fill or move a balance. See "THE SEAMS" below.
+
   HOW A FILL IS PRICED, plainly:
     · a market order (or a stop that just triggered)
       takes what rests at the touch — the ask for a
@@ -119,6 +130,8 @@ export interface OrderRequest {
   bracket?: BracketSpec;
   /** Only ever closes — never opens or flips */
   reduceOnly?: boolean;
+  /** For a protective order: the share of the position it covers, 0..1 */
+  coverFraction?: number;
   source: OrderSource;
   note?: string;
 }
@@ -142,6 +155,17 @@ export interface Order {
   parentId?: string;
   bracket?: BracketSpec;
   reduceOnly: boolean;
+  /*
+    WHAT SHARE OF THE POSITION THIS PROTECTIVE ORDER COVERS, 0..1.
+
+    "Proportionally reduce both working TP and SL when the position is scaled
+    out" needs a fraction, not a count: a TP written for the whole position
+    and a TP written for half must both survive a 50% close, one going to
+    half and the other to a quarter. The fraction is set when a protective
+    order is created or resized by hand, and the engine re-sizes off it every
+    time the position changes (afterFills).
+  */
+  coverFraction?: number;
   source: OrderSource;
   note?: string;
   events: OrderEvent[];
@@ -176,6 +200,12 @@ export interface Position {
   entrySlip: number;
   openedAt: number;
   updatedAt: number;
+  /* THE HEAT AND THE HIGH WATER (the excursion pair every journal wants):
+     the best and the worst this lot has been worth since it opened, in
+     dollars, sampled on every quote. MFE says how much was left on the
+     table; MAE says how much heat was taken to get the result. */
+  mfe: number;
+  mae: number;
   legs?: PositionLeg[];
 }
 
@@ -197,6 +227,10 @@ export interface Trade {
   realized: number;
   returnPct: number;
   holdMs: number;
+  /** Maximum favourable excursion — the most this lot was ever worth, dollars */
+  mfe: number;
+  /** Maximum adverse excursion — the deepest it was ever under, dollars (≤ 0) */
+  mae: number;
   legs?: { symbol: string; qty: number; entry: number; exit: number }[];
 }
 
@@ -207,6 +241,13 @@ export interface AccountState {
   realizedTotal: number;
   dayKey: string;
   dayStartEquity: number;
+  /*
+    WHAT THE DESK IS LENT AGAINST ITS OWN EQUITY, ×1 unless a sandbox says
+    otherwise (Free Rein). It is the one dial outside this file that can widen
+    what the margin check allows, and it widens ONLY the allowance — every fill
+    still comes from the book, and every dollar still comes from a fill.
+  */
+  bpMultiple?: number;
 }
 
 export interface PaperToast {
@@ -227,6 +268,94 @@ export interface PaperState {
   quotes: Record<string, Quote>;
   /** Bumped on every change */
   rev: number;
+}
+
+/*
+  ═══ THE SEAMS ═══════════════════════════════════════════════════════════════
+  THE MODES DO NOT LIVE IN THIS FILE, and that is the point (the sprint's own
+  rule: "modular wrappers/interceptors so we do not bloat the core order
+  engine"). The engine keeps one job — the lifecycle of an order — and offers
+  three doors that everything else plugs into:
+
+    a GUARD       runs before an order is accepted and may refuse it with a
+                  reason. The prop firm's asset lock, its drawdown lock and
+                  the tilt manager's cool-off are all guards; none of them is
+                  known here.
+    an OBSERVER   hears every event the engine emits — submitted, modified,
+                  filled, canceled, a position opened, a position closed, a
+                  quote tick. The tilt manager watches stops being dragged
+                  through this door; the prop firm watches equity.
+    a FILL MODEL  may alter HOW a fill is priced: bypass the spread, cap the
+                  walk past the touch, refuse a limit fill that has not
+                  reached the front of the queue, zero the fee. Free Rein and
+                  the microstructure queue are fill models.
+
+  Nothing registered here can invent a fill or move the account — they can
+  only refuse, observe, or narrow. The lifecycle below is the one truth.
+  ═════════════════════════════════════════════════════════════════════════════
+*/
+
+export interface GuardContext {
+  state: PaperState;
+  quote: Quote;
+  account: AccountRead;
+  /** The position this order would act on, if any */
+  position: Position | null;
+  /** Units this order would OPEN (0 when it only closes) */
+  opens: number;
+}
+/** null lets the order through; a string rejects it with that reason */
+export type OrderGuard = (req: OrderRequest, ctx: GuardContext) => string | null;
+
+const guards = new Map<string, OrderGuard>();
+export function registerGuard(id: string, fn: OrderGuard): () => void {
+  guards.set(id, fn);
+  return () => {
+    guards.delete(id);
+  };
+}
+
+export type EngineEvent =
+  | { kind: 'submitted'; order: Order }
+  | { kind: 'rejected'; order: Order; reason: string }
+  | { kind: 'modified'; order: Order; before: { limitPrice?: number; stopPrice?: number; qty: number }; source: OrderSource }
+  | { kind: 'fill'; order: Order; fill: Fill }
+  | { kind: 'canceled'; order: Order; why: string }
+  | { kind: 'positionOpened'; position: Position }
+  | { kind: 'positionClosed'; trade: Trade; byRole: OrderRole }
+  | { kind: 'quotes'; at: number };
+
+type Observer = (e: EngineEvent) => void;
+const observers = new Set<Observer>();
+export function registerObserver(fn: Observer): () => void {
+  observers.add(fn);
+  return () => {
+    observers.delete(fn);
+  };
+}
+function emit(e: EngineEvent): void {
+  for (const fn of observers) {
+    try {
+      fn(e);
+    } catch {
+      /* an interceptor must never take the engine down with it */
+    }
+  }
+}
+
+export interface FillModel {
+  /** The price a market order starts from — return null to keep the touch */
+  touch?(side: Side, q: Quote, inst: Instrument): number | null;
+  /** How many ticks a market order may walk past the touch (0 = no slippage) */
+  maxWalk?(inst: Instrument): number;
+  /** How much of a crossed limit may fill on this quote — the queue's word */
+  limitFillQty?(o: Order, q: Quote, want: number, at: number): number;
+  /** The fee for this fill — null keeps the instrument's own */
+  fee?(inst: Instrument, qty: number): number | null;
+}
+let fillModel: FillModel | null = null;
+export function setFillModel(m: FillModel | null): void {
+  fillModel = m;
 }
 
 /* ---- storage ---------------------------------------------------------------------------- */
@@ -392,7 +521,7 @@ export function readAccount(s: PaperState = state): AccountRead {
   return {
     equity,
     cash: s.account.cash,
-    buyingPower: equity - marginUsed,
+    buyingPower: (equity - marginUsed) * (s.account.bpMultiple ?? 1),
     marginUsed,
     unrealized,
     dayPnl: equity - s.account.dayStartEquity,
@@ -525,6 +654,7 @@ export function submitOrder(req: OrderRequest): Order {
     parentId: req.parentId,
     bracket: req.bracket ?? (req.role == null && prefs.bracket.on && !req.reduceOnly ? { stopTicks: prefs.bracket.stopTicks, targetTicks: prefs.bracket.targetTicks } : undefined),
     reduceOnly: !!req.reduceOnly,
+    coverFraction: req.coverFraction,
     source: req.source,
     note: req.note,
     events: [{ at, kind: 'new', note: `${sideWord(req.side)} ${req.qty} ${tagWord(inst)} ${req.type.toUpperCase()}${req.limitPrice != null ? ` @ ${req.limitPrice}` : ''}${req.stopPrice != null ? ` stop ${req.stopPrice}` : ''} · from the ${req.source}` }],
@@ -539,6 +669,7 @@ export function submitOrder(req: OrderRequest): Order {
     event(o, 'rejected', why, at);
     replaceOrder(o);
     toast('reject', tagWord(inst), `rejected — ${why}`);
+    emit({ kind: 'rejected', order: o, reason: why });
     publish();
     return o;
   };
@@ -565,11 +696,26 @@ export function submitOrder(req: OrderRequest): Order {
     }
   }
 
+  /* THE GUARDS HAVE THE LAST WORD (the seams above): the prop firm's asset
+     lock and drawdown, the tilt manager's cool-off. They run after the
+     engine's own checks, so a rejection always names the real reason. */
+  const guardCtx: GuardContext = { state, quote: q, account: readAccount(), position: pos ?? null, opens: o.reduceOnly ? 0 : Math.max(0, o.qty - ((o.side === 'buy' && posQty < 0) || (o.side === 'sell' && posQty > 0) ? Math.abs(posQty) : 0)) };
+  for (const [, guard] of guards) {
+    let verdict: string | null = null;
+    try {
+      verdict = guard(req, guardCtx);
+    } catch {
+      verdict = null; /* a broken interceptor never blocks a trade */
+    }
+    if (verdict) return reject(verdict);
+  }
+
   o.status = 'accepted';
   event(o, 'accepted', 'accepted by the paper engine', at);
   o.status = 'working';
   event(o, 'working', o.type === 'market' ? 'working — filling at the market' : `working — ${o.type} at ${o.type === 'limit' ? o.limitPrice : o.stopPrice}`, at);
   replaceOrder(o);
+  emit({ kind: 'submitted', order: o });
   ensureClock();
   /* A market order (or a marketable limit) fills on this same quote */
   tryFill(o, q, at);
@@ -604,11 +750,20 @@ export function modifyOrder(id: string, patch: { limitPrice?: number; stopPrice?
     if (qn !== o.qty) {
       words.push(`size ${o.qty} → ${qn}`);
       o.qty = qn;
+      /* resized by hand: it now covers THIS share of the position, and the
+         engine will keep that share through every later scale-out */
+      if (o.role === 'stop' || o.role === 'target') {
+        const pos = state.positions.find(x => x.id === o.instrumentId);
+        if (pos && pos.qty !== 0) o.coverFraction = Math.min(1, Math.max(0.01, (qn - o.filledQty) / Math.abs(pos.qty)));
+      }
     }
   }
   if (words.length === 0) return cur;
   event(o, 'modified', `${words.join(', ')} · from the ${source}`, at);
   replaceOrder(o);
+  /* The tilt manager reads THIS: a stop moved further into the red while the
+     position is offside is the first pattern it flags (core/paper/tilt.ts) */
+  emit({ kind: 'modified', order: o, before: { limitPrice: cur.limitPrice, stopPrice: cur.stopPrice, qty: cur.qty }, source });
   if (o.qty === o.filledQty) {
     o.status = 'filled';
     o.filledAt = at;
@@ -635,6 +790,7 @@ export function cancelOrder(id: string, source: OrderSource = 'panel', why = 'ca
   o.canceledAt = at;
   event(o, 'canceled', `${why} · from the ${source}`, at);
   replaceOrder(o);
+  emit({ kind: 'canceled', order: o, why });
   toast('cancel', tagWord(o.instrument), `${sideWord(o.side)} ${remaining(o)} ${typeWord(o)} canceled`);
   publish();
   return true;
@@ -650,6 +806,7 @@ export function cancelAll(instrumentId?: string, source: OrderSource = 'panel'):
     o.canceledAt = at;
     event(o, 'canceled', `cancel all · from the ${source}`, at);
     replaceOrder(o);
+    emit({ kind: 'canceled', order: o, why: 'cancel all' });
   }
   if (live.length) {
     toast('cancel', live.length === 1 ? tagWord(live[0].instrument) : 'Paper', `${live.length} order${live.length === 1 ? '' : 's'} canceled`);
@@ -665,10 +822,23 @@ export const ordersFor = (instrumentId: string): Order[] => state.orders.filter(
 export const stopOrderFor = (instrumentId: string): Order | null => ordersFor(instrumentId).find(o => o.role === 'stop') ?? null;
 export const targetOrderFor = (instrumentId: string): Order | null => ordersFor(instrumentId).find(o => o.role === 'target') ?? null;
 
-/** Close part or all of a position at the market — fraction 1 is the whole thing */
+/** Every working child of a position — its stop, its target, and anything bracketed to it */
+export const childOrdersOf = (instrumentId: string): Order[] => state.orders.filter(o => o.instrumentId === instrumentId && isLive(o) && (o.role === 'stop' || o.role === 'target'));
+
+/**
+ * Close part or all of a position at the market — fraction 1 is the whole thing.
+ *
+ * A FULL CLOSE CANCELS THE CHILDREN FIRST, in the same call, before the
+ * closing order is ever submitted. Waiting for the close to fill and tidying
+ * up afterwards leaves a window — one quote wide, but real — where a stop is
+ * still working against a position that is already gone, and on a fast tape
+ * that window is a phantom fill. A partial close leaves them, and they are
+ * re-sized proportionally once it lands (afterFills).
+ */
 export function closePosition(instrumentId: string, fraction = 1, source: OrderSource = 'panel'): Order | null {
   const p = positionFor(instrumentId);
   if (!p) return null;
+  if (fraction >= 1) for (const c of childOrdersOf(instrumentId)) cancelOrder(c.id, source, 'the position is being closed');
   const qty = Math.max(1, Math.round(Math.abs(p.qty) * Math.min(1, Math.max(0, fraction))));
   return submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty, type: 'market', role: 'exit', reduceOnly: true, source, note: fraction < 1 ? `close ${Math.round(fraction * 100)}%` : 'close' });
 }
@@ -677,6 +847,7 @@ export function closePosition(instrumentId: string, fraction = 1, source: OrderS
 export function reversePosition(instrumentId: string, source: OrderSource = 'panel'): Order | null {
   const p = positionFor(instrumentId);
   if (!p) return null;
+  /* the old side's protection cannot survive the flip — it would be pointing the wrong way */
   cancelAll(instrumentId, 'engine');
   return submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty: Math.abs(p.qty) * 2, type: 'market', source, note: 'reverse' });
 }
@@ -702,7 +873,7 @@ export function setStop(instrumentId: string, price: number, source: OrderSource
   const target = targetOrderFor(instrumentId);
   const group = target?.ocoGroup ?? `oco-${p.id}-${Date.now().toString(36)}`;
   if (target && !target.ocoGroup) modifyGroup(target.id, group);
-  return submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty: Math.abs(p.qty), type: 'stop', stopPrice: price, role: 'stop', ocoGroup: group, reduceOnly: true, source, note: 'protective stop' });
+  return submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty: Math.abs(p.qty), type: 'stop', stopPrice: price, role: 'stop', ocoGroup: group, reduceOnly: true, coverFraction: 1, source, note: 'protective stop' });
 }
 
 export function setTarget(instrumentId: string, price: number, source: OrderSource = 'chart'): Order | null {
@@ -713,7 +884,7 @@ export function setTarget(instrumentId: string, price: number, source: OrderSour
   const stop = stopOrderFor(instrumentId);
   const group = stop?.ocoGroup ?? `oco-${p.id}-${Date.now().toString(36)}`;
   if (stop && !stop.ocoGroup) modifyGroup(stop.id, group);
-  return submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty: Math.abs(p.qty), type: 'limit', limitPrice: price, role: 'target', ocoGroup: group, reduceOnly: true, source, note: 'target' });
+  return submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty: Math.abs(p.qty), type: 'limit', limitPrice: price, role: 'target', ocoGroup: group, reduceOnly: true, coverFraction: 1, source, note: 'target' });
 }
 
 function modifyGroup(id: string, group: string): void {
@@ -748,10 +919,46 @@ export function stopToBreakeven(instrumentId: string, source: OrderSource = 'cha
   return setStop(instrumentId, m.breakeven, source);
 }
 
-/** Close everything and cancel everything */
-export function flattenAll(source: OrderSource = 'hotkey'): void {
+/** Close everything and cancel everything — the orders go first, atomically */
+export function flattenAll(source: OrderSource = 'hotkey', why = 'flatten'): void {
   cancelAll(undefined, source);
-  for (const p of state.positions.filter(x => x.qty !== 0)) closePosition(p.id, 1, source);
+  for (const p of state.positions.filter(x => x.qty !== 0)) {
+    submitOrder({ instrument: p.instrument, side: p.qty > 0 ? 'sell' : 'buy', qty: Math.abs(p.qty), type: 'market', role: 'exit', reduceOnly: true, source, note: why });
+  }
+}
+
+/*
+  THE SANDBOX'S TWO WRITES.
+
+  Free Rein lets the reader set the balance and the leverage on it. Both are
+  here, in the engine, because the account is the engine's — nothing outside
+  this file may touch a balance (the directive's architecture). Both say what
+  they did in the log.
+
+  SETTING THE BALANCE IS NOT A PROFIT: the starting cash and the day's opening
+  equity move with it, so the P&L figures keep their own count and a reader
+  who tops up to $1,000,000 does not read it as a million made.
+*/
+export function setPaperCash(cash: number): void {
+  const want = Math.max(0, Math.round(cash));
+  const delta = want - state.account.cash;
+  if (Math.abs(delta) < 0.005) return;
+  state = {
+    ...state,
+    account: { ...state.account, cash: want, startingCash: state.account.startingCash + delta, dayStartEquity: state.account.dayStartEquity + delta },
+    rev: state.rev + 1,
+  };
+  toast('info', 'Paper', `balance set to $${want.toLocaleString('en-US')}`);
+  save();
+  publish();
+}
+
+export function setBuyingPowerMultiple(x: number): void {
+  const m = Math.min(50, Math.max(1, Number(x) || 1));
+  state = { ...state, account: { ...state.account, bpMultiple: m }, rev: state.rev + 1 };
+  toast('info', 'Paper', m === 1 ? 'buying power back to the account' : `buying power at ${m}× the account`);
+  save();
+  publish();
 }
 
 export function resetAccount(startingCash = STARTING_CASH): void {
@@ -777,6 +984,23 @@ export function onQuotes(quotes: Quote[]): void {
     const eq = readAccount().equity;
     state = { ...state, account: { ...state.account, dayKey: dk, dayStartEquity: eq } };
   }
+  /* THE EXCURSION IS SAMPLED HERE, on every quote, because it can only be
+     known while the lot is open: the best and the worst it has been worth.
+     A trade inherits its share when it closes (settleFill). */
+  let excursionMoved = false;
+  const marked = state.positions.map(p => {
+    if (p.qty === 0) return p;
+    const q = nextQuotes[p.id];
+    if (!q) return p;
+    const un = (q.mark - p.avgPrice) * p.qty * p.instrument.multiplier;
+    if (un > p.mfe + 1e-9 || un < p.mae - 1e-9) {
+      excursionMoved = true;
+      return { ...p, mfe: Math.max(p.mfe, un), mae: Math.min(p.mae, un) };
+    }
+    return p;
+  });
+  if (excursionMoved) state = { ...state, positions: marked };
+
   let touched = false;
   const touchedInstruments = new Set<string>();
   for (const cur of state.orders) {
@@ -808,7 +1032,8 @@ export function onQuotes(quotes: Quote[]): void {
       }
     }
   }
-  if (touched) publish();
+  emit({ kind: 'quotes', at });
+  if (touched || excursionMoved) publish();
   else {
     state = { ...state, rev: state.rev + 1 };
     listeners.forEach(fn => fn());
@@ -846,13 +1071,17 @@ function tryFill(o: Order, q: Quote, at: number): void {
   const fills: { qty: number; price: number }[] = [];
   const buy = o.side === 'buy';
   if (o.type === 'market' || o.triggered) {
-    /* The touch, then the walk: one tick per block of displayed size */
+    /* The touch, then the walk: one tick per block of displayed size. A fill
+       model may move the touch (Free Rein's spread bypass fills at the mid)
+       or cap the walk (its slippage bypass fills the whole size at one
+       price) — the seam, never a branch in here. */
     let left = remaining(o);
-    const touch = buy ? q.ask : q.bid;
+    const touch = fillModel?.touch?.(o.side, q, inst) ?? (buy ? q.ask : q.bid);
     const size = Math.max(1, buy ? q.askSize : q.bidSize);
+    const walk = fillModel?.maxWalk?.(inst) ?? MAX_WALK;
     let level = 0;
     while (left > 0) {
-      const take = level >= MAX_WALK ? left : Math.min(left, size);
+      const take = level >= walk ? left : Math.min(left, size);
       const price = roundToTick(inst, touch + (buy ? 1 : -1) * level * inst.tickSize);
       fills.push({ qty: take, price });
       left -= take;
@@ -863,13 +1092,18 @@ function tryFill(o: Order, q: Quote, at: number): void {
     const crosses = buy ? q.ask <= limit : q.bid >= limit;
     if (!crosses) return;
     const size = Math.max(1, buy ? q.askSize : q.bidSize);
-    const take = Math.min(remaining(o), size);
+    let take = Math.min(remaining(o), size);
+    /* THE QUEUE HAS A SAY (core/paper/queue.ts): with realistic fills on, a
+       limit does not fill because price touched it — it fills once enough
+       has traded there to clear the size that was already in front. */
+    if (fillModel?.limitFillQty) take = Math.max(0, Math.min(take, fillModel.limitFillQty(o, q, take, at)));
+    if (take <= 0) return;
     fills.push({ qty: take, price: buy ? Math.min(limit, q.ask) : Math.max(limit, q.bid) });
   }
   if (fills.length === 0) return;
 
   for (const f of fills) {
-    const fee = feeFor(inst, f.qty);
+    const fee = fillModel?.fee?.(inst, f.qty) ?? feeFor(inst, f.qty);
     const slip = buy ? f.price - q.mark : q.mark - f.price;
     const legs = inst.kind === 'spread' && q.legs ? legFills(inst, o.side, f.qty, f.price, q) : undefined;
     const fill: Fill = { id: newId('fill'), orderId: o.id, instrumentId: inst.id, at, side: o.side, qty: f.qty, price: f.price, slippage: Number(slip.toFixed(6)), fee, provenance: 'PAPER', legs, barTime: lastBarTime(inst) ?? undefined };
@@ -877,7 +1111,8 @@ function tryFill(o: Order, q: Quote, at: number): void {
     o.avgFill = Number((((o.avgFill ?? 0) * o.filledQty + f.price * f.qty) / (o.filledQty + f.qty)).toFixed(6));
     o.filledQty += f.qty;
     event(o, 'fill', `${f.qty} @ ${f.price}${slip > 1e-9 ? ` (${slip.toFixed(2)} past the mark)` : ''}`, at);
-    settleFill(inst, o.side, f.qty, f.price, fee, slip, at, fill, q);
+    settleFill(inst, o.side, f.qty, f.price, fee, slip, at, fill, q, o.role);
+    emit({ kind: 'fill', order: o, fill });
   }
   if (o.filledQty >= o.qty) {
     o.status = 'filled';
@@ -914,7 +1149,7 @@ function legFills(inst: Instrument & { kind: 'spread' }, side: Side, qty: number
 }
 
 /** The fill lands on the book: cash, the position, the journal */
-function settleFill(inst: Instrument, side: Side, qty: number, price: number, fee: number, slip: number, at: number, fill: Fill | null, q: Quote): void {
+function settleFill(inst: Instrument, side: Side, qty: number, price: number, fee: number, slip: number, at: number, fill: Fill | null, q: Quote, byRole: OrderRole = 'exit'): void {
   const mult = inst.multiplier;
   const signed = side === 'buy' ? qty : -qty;
   let cash = state.account.cash - fee;
@@ -927,6 +1162,7 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
   let p = positions.find(x => x.id === inst.id);
   const trades: Trade[] = [];
   const legs = fill?.legs;
+  let opened: Position | null = null;
 
   const openLot = (lotQty: number, lotPrice: number, lotFee: number, lotSlip: number) => {
     const fresh: Position = {
@@ -939,6 +1175,8 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
       entrySlip: lotSlip,
       openedAt: at,
       updatedAt: at,
+      mfe: 0,
+      mae: 0,
       /* a leg's sign already carries the side — scale it by the lot's size, never its sign */
       legs: legs ? legs.map(l => ({ instrumentId: l.instrumentId, symbol: l.symbol, qty: (l.qty / qty) * Math.abs(lotQty), avgPrice: l.price })) : undefined,
     };
@@ -946,6 +1184,7 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
     if (i >= 0) positions[i] = fresh;
     else positions.push(fresh);
     p = fresh;
+    opened = fresh;
   };
 
   if (!p || p.qty === 0) {
@@ -993,6 +1232,9 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
       realized: Number(realized.toFixed(2)),
       returnPct: basis > 0 ? Number(((gross / basis) * 100).toFixed(2)) : 0,
       holdMs: at - p.openedAt,
+      /* the heat and the high water this lot saw, shared out with the size closed */
+      mfe: Number((p.mfe * share).toFixed(2)),
+      mae: Number((p.mae * share).toFixed(2)),
       legs: p.legs && legs ? p.legs.map(pl => ({ symbol: pl.symbol, qty: (pl.qty / Math.abs(p!.qty)) * closeQty, entry: pl.avgPrice, exit: legs.find(x => x.instrumentId === pl.instrumentId)?.price ?? pl.avgPrice })) : undefined,
     });
     if (inst.kind === 'future') cash += gross;
@@ -1001,6 +1243,8 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
     p.qty += signed;
     p.entryFees -= entryFeeShare;
     p.entrySlip -= entrySlipShare;
+    p.mfe = Number((p.mfe * (1 - share)).toFixed(2));
+    p.mae = Number((p.mae * (1 - share)).toFixed(2));
     p.updatedAt = at;
     if (p.legs) p.legs = p.legs.map(pl => ({ ...pl, qty: pl.qty * (1 - share) }));
     const leftover = qty - closeQty;
@@ -1018,6 +1262,8 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
     trades: trades.length ? [...state.trades, ...trades] : state.trades,
     quotes: { ...state.quotes, [inst.id]: q },
   };
+  if (opened) emit({ kind: 'positionOpened', position: opened });
+  for (const t of trades) emit({ kind: 'positionClosed', trade: t, byRole });
 }
 
 /** Housekeeping once fills have landed on an instrument: brackets attached, protective sizes synced, OCO siblings cleared */
@@ -1039,32 +1285,51 @@ function afterFills(instrumentId: string, at: number): void {
     const targetPrice = 'targetPrice' in b ? b.targetPrice : (o.avgFill ?? 0) + dir * b.targetTicks * inst.tickSize;
     const group = `oco-${o.id}`;
     const exitSide: Side = posQty > 0 ? 'sell' : 'buy';
-    if (!hasStop && stopPrice > 0) submitOrder({ instrument: inst, side: exitSide, qty: Math.abs(posQty), type: 'stop', stopPrice, role: 'stop', ocoGroup: group, parentId: o.id, reduceOnly: true, source: 'engine', note: 'bracket stop' });
-    if (!hasTarget && targetPrice > 0) submitOrder({ instrument: inst, side: exitSide, qty: Math.abs(posQty), type: 'limit', limitPrice: targetPrice, role: 'target', ocoGroup: group, parentId: o.id, reduceOnly: true, source: 'engine', note: 'bracket target' });
+    if (!hasStop && stopPrice > 0) submitOrder({ instrument: inst, side: exitSide, qty: Math.abs(posQty), type: 'stop', stopPrice, role: 'stop', ocoGroup: group, parentId: o.id, reduceOnly: true, coverFraction: 1, source: 'engine', note: 'bracket stop' });
+    if (!hasTarget && targetPrice > 0) submitOrder({ instrument: inst, side: exitSide, qty: Math.abs(posQty), type: 'limit', limitPrice: targetPrice, role: 'target', ocoGroup: group, parentId: o.id, reduceOnly: true, coverFraction: 1, source: 'engine', note: 'bracket target' });
   }
 
-  /* Protective orders follow the position's size, and leave with it */
+  /* PROTECTIVE ORDERS FOLLOW THE POSITION, PROPORTIONALLY, AND LEAVE WITH IT.
+     Scale out of half and a full-size stop becomes half; a stop written for
+     half the position becomes a quarter. The share is the order's own
+     (coverFraction) — see the field's note. A position that has gone to zero
+     takes every child with it, atomically, so no orphan leg is ever left
+     working against nothing. */
   const current = state.positions.find(p => p.id === instrumentId);
   const q = current?.qty ?? 0;
   for (const cur of state.orders) {
     if (cur.instrumentId !== instrumentId || !isLive(cur) || (cur.role !== 'stop' && cur.role !== 'target')) continue;
     if (q === 0) {
-      cancelOrder(cur.id, 'engine', 'position closed');
+      cancelOrder(cur.id, 'engine', 'the position closed — no orphan legs');
       continue;
     }
-    const want = Math.abs(q);
+    const want = Math.max(1, Math.round(Math.abs(q) * (cur.coverFraction ?? 1)));
     if (cur.qty - cur.filledQty !== want) {
       const o: Order = { ...cur, events: [...cur.events] };
-      event(o, 'modified', `size ${o.qty - o.filledQty} → ${want} to match the position`, at);
+      event(o, 'modified', `size ${o.qty - o.filledQty} → ${want}, ${Math.round((cur.coverFraction ?? 1) * 100)}% of the position`, at);
       o.qty = o.filledQty + want;
       replaceOrder(o);
     }
   }
 
-  /* OCO: a group member that filled whole takes its siblings with it */
+  /* OCO, STRICTLY: the moment one side of a pair takes a fill — the whole
+     order or a part of it — the other side is cancelled. A target that fills
+     kills the stop; a stop that triggers and fills kills the target. Keyed on
+     a fill in THIS pass, not on the order being complete, so a partial fill
+     on one leg cannot leave the other leg live against a position that is
+     already smaller than it. */
   const groups = new Set<string>();
-  for (const o of state.orders) if (o.instrumentId === instrumentId && o.ocoGroup && o.status === 'filled' && o.filledAt === at) groups.add(o.ocoGroup);
-  for (const g of groups) for (const o of state.orders) if (o.ocoGroup === g && isLive(o)) cancelOrder(o.id, 'engine', 'the other side of the OCO filled');
+  for (const o of state.orders) {
+    if (o.instrumentId !== instrumentId || !o.ocoGroup) continue;
+    if (o.fills.some(f => f.at === at)) groups.add(o.ocoGroup);
+  }
+  for (const g of groups) {
+    const filledSide = state.orders.find(o => o.ocoGroup === g && o.fills.some(f => f.at === at));
+    for (const o of state.orders) {
+      if (o.ocoGroup !== g || !isLive(o) || o.id === filledSide?.id) continue;
+      cancelOrder(o.id, 'engine', `the ${filledSide?.role === 'target' ? 'target' : 'stop'} filled — its OCO sibling is cancelled`);
+    }
+  }
 }
 
 /* ---- the activity feed --------------------------------------------------------------------- */

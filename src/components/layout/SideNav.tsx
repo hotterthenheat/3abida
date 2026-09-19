@@ -72,6 +72,11 @@ const SUBPAGES: Record<string, { path: string; label: string }[]> = {
   /* Trace's nine moved here from its fused strip (Noah, 2026-09-09: "should we
      have the different subtabs on the sub-bar or stay on the top section") */
   '/trace': TRACE_SUBPAGES.map(p => ({ path: p.path, label: p.label })),
+  /* The paper desk and the record it keeps (2026-09-19) */
+  '/paper': [
+    { path: '/paper', label: 'The desk' },
+    { path: '/paper/journal', label: 'Journal' },
+  ],
 };
 
 const readCollapsed = () => {

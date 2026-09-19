@@ -27,6 +27,7 @@ const CompassSetup = lazy(() => import('./pages/compass/SetupPage'));
 const Weigher = lazy(() => import('./pages/Weigher'));
 /* THE PAPER DESK (2026-09-19): the chart as the order ticket, on paper — its own tab under the Weigher */
 const Paper = lazy(() => import('./pages/paper/Paper'));
+const PaperJournal = lazy(() => import('./pages/paper/Journal'));
 /* Stocks walked into the Record (2026-09-10): the screens beside the name's news and filings */
 const Stocks = lazy(() => import('./pages/record/Stocks'));
 /* A name's own page under Stocks (2026-09-13): the whole read, not a jump to the Map */
@@ -110,6 +111,7 @@ const App = () => {
             </Route>
             <Route path="/weigher" element={<Weigher />} />
             <Route path="/paper" element={<Paper />} />
+            <Route path="/paper/journal" element={<PaperJournal />} />
             <Route path="/skys-vision" element={<Navigate to="/compass" replace />} />
             {/* THE RECORD (2026-09-09): what is on the record about a name — News
                 and Earnings moved under it, Insiders and Congress new, Stocks

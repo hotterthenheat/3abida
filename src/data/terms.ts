@@ -174,6 +174,8 @@ export const TERMS = {
     'Drag across the tape for the move it covers: dollars, percent, bars, elapsed, and the same move stated at an annual rate so it can be read against implied volatility.',
   Annualized:
     'A move restated as the yearly rate it implies, so a 20-minute move and a two-day one can be compared — and both compared against implied volatility, which is quoted the same way. Measured in trading time, so a weekend does not count against it.',
+  MAE: 'Maximum adverse excursion — the deepest a position was ever under while it was open, in dollars. A winner with a heavy MAE was nearly a loser; a stop placed inside it would have taken you out of a trade that worked.',
+  MFE: 'Maximum favourable excursion — the most a position was ever worth while it was open. The gap between it and what was realised is what was handed back, and it is the figure that says whether the exit, not the entry, is the problem.',
 } as const;
 
 export type TermKey = keyof typeof TERMS;

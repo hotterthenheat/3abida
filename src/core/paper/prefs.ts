@@ -87,6 +87,8 @@ export interface PaperPrefs {
   bindings: Bindings;
   /** The ticket rail is out */
   ticketOpen: boolean;
+  /** The dealer positioning overlay — heat-mapped zones behind the tape */
+  dealer: { on: boolean; greek: 'gex' | 'dex' | 'vanna'; expiry: string; labels: boolean };
 }
 
 const DEFAULT: PaperPrefs = {
@@ -100,6 +102,7 @@ const DEFAULT: PaperPrefs = {
   hotkeys: true,
   bindings: DEFAULT_BINDINGS,
   ticketOpen: true,
+  dealer: { on: false, greek: 'gex', expiry: '0DTE', labels: true },
 };
 
 function load(): PaperPrefs {
@@ -111,6 +114,7 @@ function load(): PaperPrefs {
       ...DEFAULT,
       ...v,
       bracket: { ...DEFAULT.bracket, ...(v.bracket ?? {}) },
+      dealer: { ...DEFAULT.dealer, ...(v.dealer ?? {}) },
       bindings: { ...DEFAULT_BINDINGS, ...(v.bindings ?? {}) },
       quickQtys: Array.isArray(v.quickQtys) && v.quickQtys.length ? v.quickQtys.filter(n => Number.isFinite(n) && n > 0).slice(0, 6) : DEFAULT.quickQtys,
     };
@@ -130,8 +134,20 @@ const subscribe = (fn: () => void) => {
 export const getPaperPrefs = (): PaperPrefs => prefs;
 export const usePaperPrefs = (): PaperPrefs => useSyncExternalStore(subscribe, getPaperPrefs, getPaperPrefs);
 
-export function updatePaperPrefs(patch: Partial<PaperPrefs>): void {
-  prefs = { ...prefs, ...patch, bracket: { ...prefs.bracket, ...(patch.bracket ?? {}) }, bindings: { ...prefs.bindings, ...(patch.bindings ?? {}) } };
+export type PrefsPatch = Partial<Omit<PaperPrefs, 'bracket' | 'bindings' | 'dealer'>> & {
+  bracket?: Partial<PaperPrefs['bracket']>;
+  bindings?: Partial<Bindings>;
+  dealer?: Partial<PaperPrefs['dealer']>;
+};
+
+export function updatePaperPrefs(patch: PrefsPatch): void {
+  prefs = {
+    ...prefs,
+    ...patch,
+    bracket: { ...prefs.bracket, ...(patch.bracket ?? {}) },
+    bindings: { ...prefs.bindings, ...(patch.bindings ?? {}) },
+    dealer: { ...prefs.dealer, ...(patch.dealer ?? {}) },
+  };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));
   } catch {

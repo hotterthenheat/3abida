@@ -20,9 +20,22 @@
       dashed too; buys wear the bull green, sells
       the bear red; a partly filled order says so;
       a fill prints a mark on the bar it landed on.
+    · a bracket's tag is THREE pills: what the level
+      is worth (ticks and dollars, through the
+      instrument's own multiplier), what the order
+      is, and the × that cancels it — with a dotted
+      spine down the lane to the position it
+      protects. Hover an unprotected position and
+      drag +TP or +SL out of it.
     · right-click anywhere and the TRADE MENU opens
       at that price; pick one and the card appears
-      where you clicked.
+      where you clicked. Two of those items open the
+      LONG/SHORT TOOL (PositionTool): a plan drawn
+      on the tape that becomes one bracketed entry.
+    · behind the candles, not over them: the DEALER
+      BANDS (gamma, delta or vanna by strike) and,
+      in the evaluation, the price this position is
+      liquidated at — which trails as it profits.
 
   THE CHART NEVER TOUCHES THE ACCOUNT. Every
   control here calls the engine (core/paper/engine)
@@ -51,6 +64,7 @@ import {
   type IPriceLine,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
+  type Logical,
   type SeriesMarker,
   type Time,
   type UTCTimestamp,
@@ -85,36 +99,22 @@ import {
   type Position,
   type Side,
 } from '../../core/paper/engine';
+import { isStopSide, isTargetSide, readLevel } from '../../core/paper/brackets';
+import { bandHalfWidth, dealerBook, useImports, type DealerBook, type DealerGreek } from '../../core/paper/dealer';
+import { liquidationFor } from '../../core/paper/propFirm';
+import { readQueue } from '../../core/paper/queue';
+import { useModes } from '../../core/paper/modes';
+import { onCrosshair, onRange, publishCrosshair, publishRange, setUserLevels, useUserLevels } from '../../core/paper/workspace';
+import type { ExposureExpiry } from '../../types/gex';
 import { usePaperPrefs } from '../../core/paper/prefs';
 import { BUY_HEX, LEVEL_HEX, Money, ProvenanceChip, SELL_HEX } from './paperKit';
 import { OrderEditCard, TradeCard, TradeMenu, type MenuSection, type TradeDraft } from './TradeMenu';
-
-/* ---- the reader's own levels, per instrument ---------------------------------------------- */
-const LEVELS_KEY = 'slayer_paper_levels_v1';
-function loadLevels(): Record<string, number[]> {
-  try {
-    const raw = localStorage.getItem(LEVELS_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, number[]>) : {};
-  } catch {
-    return {};
-  }
-}
-let userLevels = loadLevels();
-const levelListeners = new Set<() => void>();
-function setUserLevels(id: string, next: number[]): void {
-  userLevels = { ...userLevels, [id]: next };
-  try {
-    localStorage.setItem(LEVELS_KEY, JSON.stringify(userLevels));
-  } catch {
-    /* the session keeps them */
-  }
-  levelListeners.forEach(fn => fn());
-}
+import PositionTool, { type ChartGeo, type PositionPlan } from './PositionTool';
 
 /* ---- one thing on the tape ---------------------------------------------------------------- */
 interface TapeItem {
   key: string;
-  kind: 'order' | 'position' | 'level';
+  kind: 'order' | 'position' | 'level' | 'liq';
   price: number;
   hex: string;
   style: LineStyle;
@@ -132,6 +132,8 @@ export interface PaperChartApi {
 }
 
 interface PaperChartProps {
+  /** Which pane this is, for the sync bus — panes that share a tab talk through it */
+  paneId?: string;
   instrument: Instrument;
   quote: Quote | null;
   timeframe: Timeframe;
@@ -154,10 +156,30 @@ interface PaperChartProps {
 
 const TAG_H = 20;
 const TAG_GAP = 2;
+/* A ZONE IS A BAND, NOT A WASH. The book's own half-width is the strike's
+   whole territory — on NQ, where a dollar of QQQ is 41 points, that is a third
+   of the pane per strike and the tape disappears under it. Each zone is drawn
+   at half of that, centred, so the gaps between strikes stay visible and the
+   candles are never read through more than one. */
+const ZONE_FILL = 0.5;
+/** "$2.4B" · "−$840M" — a dealer figure is too big for the money formatter */
+const shortMoney = (v: number): string => {
+  const a = Math.abs(v);
+  const sign = v < 0 ? '−' : '';
+  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(1)}B`;
+  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(0)}M`;
+  if (a >= 1e3) return `${sign}$${(a / 1e3).toFixed(0)}K`;
+  return `${sign}$${a.toFixed(0)}`;
+};
+/** The P&L pill's ink — tokens, not hexes: this is DOM, not canvas */
+const pnlInk = (v: number): string => (v >= 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))');
+const pnlWash = (v: number): string => `color-mix(in srgb, ${v >= 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))'} 13%, transparent)`;
 
-const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrderId, onSelectOrder, topInset, apiRef, optionDraftAt, onOpenChain, onOpenSpread, onAlertAt, onToast }: PaperChartProps) => {
+const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, ready, selectedOrderId, onSelectOrder, topInset, apiRef, optionDraftAt, onOpenChain, onOpenSpread, onAlertAt, onToast }: PaperChartProps) => {
   const paper = usePaper();
   const prefs = usePaperPrefs();
+  const allLevels = useUserLevels();
+  const modes = useModes();
   const themeKey = useCandleThemeKey();
   const appTheme = useResolvedTheme();
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -178,28 +200,82 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
   /** Prices the scale must hold — the position's average and its protection */
   const scalePricesRef = useRef<number[]>([]);
   const dragRef = useRef<{ key: string; price: number } | null>(null);
-  const [, bumpLevels] = useState(0);
   const [menu, setMenu] = useState<{ x: number; y: number; price: number; order?: Order } | null>(null);
   const [draft, setDraft] = useState<{ at: { x: number; y: number }; draft: TradeDraft } | null>(null);
   const [edit, setEdit] = useState<{ at: { x: number; y: number }; order: Order } | null>(null);
   const [confirmMove, setConfirmMove] = useState<{ at: { x: number; y: number }; order: Order; price: number } | null>(null);
   const [posMenu, setPosMenu] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  /* the bracket pulled out of the position line: a handle dragged to a price */
+  const [pull, setPull] = useState<{ kind: 'stop' | 'target'; price: number } | null>(null);
+  const pullRef = useRef<{ kind: 'stop' | 'target'; price: number } | null>(null);
+  const pullLineRef = useRef<IPriceLine | null>(null);
+  const pullHudRef = useRef<HTMLDivElement | null>(null);
+  const [hoverPos, setHoverPos] = useState(false);
+  /** the dotted spine from the position's tag to each of its children */
+  const spineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  /** the long/short drawing — a plan, until its button is pressed */
+  const [plan, setPlan] = useState<PositionPlan | null>(null);
+  const geoRef = useRef<ChartGeo | null>(null);
+  /** the tape's own ground, under everything the library draws */
+  const groundRef = useRef<HTMLDivElement | null>(null);
+  const zonesRef = useRef<HTMLDivElement | null>(null);
+  const bandRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const liqRef = useRef<HTMLDivElement | null>(null);
+  /** set while a synced range is being applied, so it is not published straight back */
+  const applyingRef = useRef(false);
+  const bookRef = useRef<DealerBook | null>(null);
+  const halfRef = useRef(0);
+  const liqPriceRef = useRef<number | null>(null);
+  const paneRef = useRef(paneId);
+  paneRef.current = paneId;
   const topInsetRef = useRef(topInset);
   topInsetRef.current = topInset;
-
-  useEffect(() => {
-    const fn = () => bumpLevels(n => n + 1);
-    levelListeners.add(fn);
-    return () => {
-      levelListeners.delete(fn);
-    };
-  }, []);
 
   const orders = useMemo(() => paper.orders.filter(o => o.instrumentId === instrument.id && isLive(o)), [paper.orders, instrument.id]);
   const position = useMemo(() => paper.positions.find(p => p.id === instrument.id && p.qty !== 0) ?? null, [paper.positions, instrument.id]);
   const mark = position ? markPosition(position, quote ?? undefined) : null;
-  const myLevels = userLevels[instrument.id] ?? [];
+  const quoteRef = useRef(quote);
+  quoteRef.current = quote;
+  const stopOrder = useMemo(() => orders.find(o => o.role === 'stop') ?? null, [orders]);
+  const targetOrder = useMemo(() => orders.find(o => o.role === 'target') ?? null, [orders]);
+  const myLevels = allLevels[instrument.id] ?? [];
+  /* the floor trails, so this is read fresh on every tick of the engine's clock */
+  const liq = useMemo(() => liquidationFor(instrument.id), [instrument.id, revision, position?.qty, position?.avgPrice]);
+
+  /* THE DEALER BOOK KEEPS ITS OWN SLOW CLOCK. Positioning moves in minutes, not
+     ticks, and rebuilding forty bands on every quote would cost more than the
+     whole trading layer. Read on the switch, the name, the greek and the
+     expiry — and then every few seconds while it is on. */
+  const dealerPrefs = prefs.dealer;
+  const imports = useImports();
+  const [book, setBook] = useState<DealerBook | null>(null);
+  useEffect(() => {
+    if (!dealerPrefs.on) {
+      setBook(null);
+      return;
+    }
+    const read = () => setBook(dealerBook(instrument, dealerPrefs.greek as DealerGreek, dealerPrefs.expiry as ExposureExpiry));
+    read();
+    const id = window.setInterval(read, 6000);
+    return () => window.clearInterval(id);
+  }, [dealerPrefs.on, dealerPrefs.greek, dealerPrefs.expiry, instrument, imports, ready]);
+  const bandHalf = useMemo(() => (book ? bandHalfWidth(book.levels) : 0), [book]);
+  bookRef.current = book;
+  halfRef.current = bandHalf;
+  liqPriceRef.current = liq?.price ?? null;
+  /** the heaviest few, named on the tape */
+  const namedLevels = useMemo(() => {
+    if (!book || !dealerPrefs.labels) return new Set<number>();
+    return new Set([...book.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3).map(l => l.strike));
+  }, [book, dealerPrefs.labels]);
+
+  /* THE FRAME HOLDS STILL WHILE A TAG IS DRAGGED (the sprint's first rule):
+     the canvas pans and zooms under the pointer otherwise, and the price the
+     reader is aiming at moves while they aim. Given back on pointer-up. */
+  const holdFrame = useCallback((held: boolean) => {
+    chartRef.current?.applyOptions({ handleScroll: !held, handleScale: !held });
+  }, []);
 
   /* ---- the chart, once ---- */
   useEffect(() => {
@@ -209,7 +285,10 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     const s0 = chartSurface(t);
     const chart = createChart(host, {
       autoSize: true,
-      layout: { background: { color: s0.bg }, textColor: s0.text, fontFamily: "'SF Pro', sans-serif", fontSize: 10, attributionLogo: false },
+      /* TRANSPARENT ON PURPOSE: the ground is a div under this canvas, and the
+         dealer bands go BETWEEN the two — genuinely behind the candles, the
+         grid and the scales, rather than a wash laid over them. */
+      layout: { background: { color: 'transparent' }, textColor: s0.text, fontFamily: "'SF Pro', sans-serif", fontSize: 10, attributionLogo: false },
       localization: LOCAL_TIME,
       grid: { vertLines: { visible: false }, horzLines: { color: s0.grid } },
       rightPriceScale: { borderColor: s0.line, scaleMargins: { top: 0.2, bottom: 0.08 } },
@@ -271,10 +350,20 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     chart.subscribeCrosshairMove(p => {
       if (!p.point) {
         cursorPriceRef.current = null;
+        publishCrosshair({ from: paneRef.current, time: null });
         return;
       }
       const price = seriesRef.current?.coordinateToPrice(p.point.y);
       cursorPriceRef.current = price == null ? null : Number(price);
+      publishCrosshair({ from: paneRef.current, time: typeof p.time === 'number' ? p.time : null });
+    });
+    /* THE FRAME TRAVELS WITHOUT REACT (workspace.ts's bus): a pan here is
+       applied straight to the other panes' chart objects. The flag stops the
+       applied range from being published back and the two panes from chasing
+       each other around the tape. */
+    chart.timeScale().subscribeVisibleLogicalRangeChange(r => {
+      if (!r || applyingRef.current) return;
+      publishRange({ from: paneRef.current, from_: r.from, to: r.to });
     });
     return () => {
       host.removeEventListener('wheel', freeze);
@@ -295,8 +384,9 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     const t = getCandleTheme();
     const s = chartSurface(t);
     seriesRef.current?.applyOptions(candleSeriesOptions(t));
+    if (groundRef.current) groundRef.current.style.background = s.bg;
     chartRef.current?.applyOptions({
-      layout: { background: { color: s.bg }, textColor: s.text },
+      layout: { background: { color: 'transparent' }, textColor: s.text },
       grid: { horzLines: { color: s.grid } },
       rightPriceScale: { borderColor: s.line },
       timeScale: { borderColor: s.line },
@@ -372,6 +462,39 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     );
   }, [instrument, prefs.levels, ready, revision]);
 
+  /* ---- what the other panes are doing ---- */
+  useEffect(() => {
+    const offCross = onCrosshair(m => {
+      const chart = chartRef.current;
+      const series = seriesRef.current;
+      if (!chart || !series || m.from === paneRef.current) return;
+      if (m.time == null) {
+        chart.clearCrosshairPosition();
+        return;
+      }
+      /* ONLY THE MOMENT TRAVELS, not the price: what a pane marks is the bar the
+         other pane is on, read against ITS OWN tape — an option's premium and
+         its underlying share a clock, never a scale. */
+      const price = quoteRef.current?.last;
+      if (price == null) return;
+      chart.setCrosshairPosition(price, m.time as Time, series);
+    });
+    const offRange = onRange(m => {
+      const chart = chartRef.current;
+      if (!chart || m.from === paneRef.current) return;
+      applyingRef.current = true;
+      chart.timeScale().setVisibleLogicalRange({ from: m.from_, to: m.to });
+      /* the library fires the change back on the next frame — the flag must outlive it */
+      requestAnimationFrame(() => {
+        applyingRef.current = false;
+      });
+    });
+    return () => {
+      offCross();
+      offRange();
+    };
+  }, []);
+
   /* ---- what is on the tape: orders, the position, the reader's levels ---- */
   const items = useMemo<TapeItem[]>(() => {
     const out: TapeItem[] = [];
@@ -384,8 +507,12 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
       out.push({ key: `ord:${o.id}`, kind: 'order', price, hex: o.side === 'buy' ? BUY_HEX : SELL_HEX, style: o.type === 'stop' ? LineStyle.Dotted : LineStyle.Dashed, width: 1, order: o });
     }
     myLevels.forEach((p, i) => out.push({ key: `lvl:${i}:${p}`, kind: 'level', price: p, hex: LEVEL_HEX, style: LineStyle.LargeDashed, width: 1 }));
+    /* WHERE THIS POSITION DIES. Only in the evaluation, only while something is
+       open, and it MOVES: the floor trails the peak, so a position that makes
+       money carries its own liquidation up behind it (propFirm.ts). */
+    if (liq) out.push({ key: `liq:${instrument.id}`, kind: 'liq', price: liq.price, hex: SELL_HEX, style: LineStyle.LargeDashed, width: 1 });
     return out;
-  }, [orders, position, myLevels]);
+  }, [orders, position, myLevels, liq, instrument.id]);
   itemsRef.current = items;
   scalePricesRef.current = items.filter(i => i.kind === 'position' || i.order?.role === 'stop' || i.order?.role === 'target').map(i => i.price);
 
@@ -403,7 +530,7 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     }
     for (const it of items) {
       const price = dragRef.current?.key === it.key ? dragRef.current.price : it.price;
-      const opts = { price, color: it.kind === 'level' ? 'rgba(237,237,237,0.55)' : it.hex, lineWidth: it.width, lineStyle: it.style, axisLabelVisible: it.kind !== 'level', axisLabelColor: it.hex, axisLabelTextColor: '#0a0a0a', title: '' };
+      const opts = { price, color: it.kind === 'level' ? 'rgba(237,237,237,0.55)' : it.kind === 'liq' ? `${it.hex}99` : it.hex, lineWidth: it.width, lineStyle: it.style, axisLabelVisible: it.kind !== 'level', axisLabelColor: it.hex, axisLabelTextColor: '#0a0a0a', title: '' };
       const cur = have.get(it.key);
       if (cur) cur.applyOptions(opts);
       else have.set(it.key, series.createPriceLine(opts));
@@ -496,7 +623,7 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
         last.set(p.key, sig);
         p.el.style.visibility = 'visible';
         p.el.style.transform = `translateY(${Math.round(p.y - TAG_H / 2)}px)`;
-        p.el.style.right = `${axisW + 6}px`;
+        p.el.style.right = `${axisW + 10}px`;
         p.el.dataset.off = p.off === 0 ? '' : p.off < 0 ? 'above' : 'below';
         const caret = p.el.querySelector<HTMLElement>('[data-caret]');
         if (caret) {
@@ -511,6 +638,85 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
             conn.style.height = `${Math.abs(slide)}px`;
             conn.style.top = slide > 0 ? `${-Math.abs(slide) + TAG_H / 2}px` : `${TAG_H / 2}px`;
           } else conn.style.display = 'none';
+        }
+      }
+      /* A BRACKET IS ONE THING, SO IT IS DRAWN AS ONE: a 1px dotted spine down
+         the lane between the tags and the price axis, from the position's tag
+         to each protective child it owns. Nothing in the column moves for it. */
+      const at = new Map(placed.map(p => [p.key, p.y]));
+      const posY = at.get(itemsRef.current.find(i => i.kind === 'position')?.key ?? '');
+      for (const [key, el] of spineRefs.current) {
+        const y = at.get(key);
+        const sig = posY == null || y == null ? 'off' : `${Math.round(Math.min(posY, y))}|${Math.round(Math.abs(y - posY))}|${axisW}`;
+        if (last.get(`sp:${key}`) === sig) continue;
+        last.set(`sp:${key}`, sig);
+        if (sig === 'off' || posY == null || y == null) {
+          el.style.display = 'none';
+          continue;
+        }
+        const h = Math.abs(y - posY);
+        el.style.display = h < 4 ? 'none' : 'block';
+        el.style.transform = `translateY(${Math.round(Math.min(posY, y))}px)`;
+        el.style.height = `${Math.round(h)}px`;
+        el.style.right = `${axisW + 4}px`;
+      }
+      /* THE BANDS ARE THE ONLY THING UNDER THE CANDLES, so they are clipped to
+         the pane: a zone must not run under the price axis or the clock. */
+      const zones = zonesRef.current;
+      if (zones) {
+        const sigZ = `${Math.round(axisW)}|${Math.round(paneH)}`;
+        if (last.get('zones') !== sigZ) {
+          last.set('zones', sigZ);
+          zones.style.right = `${Math.round(axisW)}px`;
+          zones.style.height = `${Math.round(paneH)}px`;
+        }
+        for (const [i, el] of bandRefs.current) {
+          const lv = bookRef.current?.levels[i];
+          if (!lv) continue;
+          const half = halfRef.current * ZONE_FILL;
+          const top = series.priceToCoordinate(lv.price + half);
+          const bot = series.priceToCoordinate(lv.price - half);
+          const sigB = top == null || bot == null ? 'off' : `${Math.round(Math.min(top, bot))}|${Math.round(Math.abs(bot - top))}`;
+          if (last.get(`bd:${i}`) === sigB) continue;
+          last.set(`bd:${i}`, sigB);
+          if (sigB === 'off' || top == null || bot == null) {
+            el.style.display = 'none';
+            continue;
+          }
+          el.style.display = 'block';
+          el.style.transform = `translateY(${Math.round(Math.min(top, bot))}px)`;
+          el.style.height = `${Math.max(2, Math.round(Math.abs(bot - top)))}px`;
+        }
+      }
+      /* the watermark rides the liquidation line, wherever the floor has trailed to */
+      const liqEl = liqRef.current;
+      if (liqEl) {
+        const p = liqPriceRef.current;
+        const y = p == null ? null : series.priceToCoordinate(p);
+        const sigL = y == null ? 'off' : `${Math.round(y)}`;
+        if (last.get('liq') !== sigL) {
+          last.set('liq', sigL);
+          if (y == null) liqEl.style.display = 'none';
+          else {
+            liqEl.style.display = 'flex';
+            liqEl.style.transform = `translateY(${Math.round(y)}px)`;
+          }
+        }
+      }
+      /* the read on a bracket being pulled out rides its own line, not the column */
+      const hud = pullHudRef.current;
+      if (hud) {
+        const pl = pullRef.current;
+        const y = pl ? series.priceToCoordinate(pl.price) : null;
+        const sig = y == null ? 'off' : `${Math.round(y)}|${axisW}`;
+        if (last.get('hud') !== sig) {
+          last.set('hud', sig);
+          if (y == null) hud.style.display = 'none';
+          else {
+            hud.style.display = 'inline-flex';
+            hud.style.transform = `translateY(${Math.round(y - TAG_H / 2)}px)`;
+            hud.style.right = `${axisW + 10}px`;
+          }
         }
       }
     };
@@ -562,6 +768,64 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     const rect = host.getBoundingClientRect();
     const p = series.coordinateToPrice(clientY - rect.top);
     return p == null ? null : roundToTick(instrument, Number(p));
+  };
+
+  /* WHAT THE DRAWING TOOL IS ALLOWED TO KNOW: the series' own coordinates, and
+     permission to hold the frame still. Not the engine, not the account. */
+  geoRef.current = {
+    priceToY: price => {
+      const y = seriesRef.current?.priceToCoordinate(price);
+      return y == null ? null : Number(y);
+    },
+    logicalToX: logical => {
+      const x = chartRef.current?.timeScale().logicalToCoordinate(logical as Logical);
+      return x == null ? null : Number(x);
+    },
+    priceAtClientY: clientY => priceAtClientY(clientY),
+    logicalAtClientX: clientX => {
+      const host = hostRef.current;
+      const ts = chartRef.current?.timeScale();
+      if (!host || !ts) return null;
+      const l = ts.coordinateToLogical(clientX - host.getBoundingClientRect().left);
+      return l == null ? null : Number(l);
+    },
+    paneW: () => Math.max(0, (hostRef.current?.clientWidth ?? 0) - (chartRef.current?.priceScale('right').width() ?? 0)),
+    paneH: () => Math.max(0, (hostRef.current?.clientHeight ?? 0) - (chartRef.current?.timeScale().height() ?? 0)),
+    hold: holdFrame,
+  };
+
+  /** A plan drawn at a price: the bracket's own distances, the reader's size */
+  const openPlan = (side: Side, price: number, clientX: number) => {
+    const t = instrument.tickSize;
+    const dir = side === 'buy' ? 1 : -1;
+    const from = Math.round(geoRef.current?.logicalAtClientX(clientX) ?? 0);
+    setPlan({
+      side,
+      entry: roundToTick(instrument, price),
+      target: roundToTick(instrument, price + dir * prefs.bracket.targetTicks * t),
+      stop: roundToTick(instrument, price - dir * prefs.bracket.stopTicks * t),
+      qty: prefs.defaultQty,
+      from,
+      to: from + 30,
+    });
+  };
+
+  /* THE PLAN BECOMES ONE ORDER, THE WAY EVERY OTHER ORDER IS MADE: an entry at
+     its price carrying its stop and its target (BracketSpec's price form), so
+     the protection is attached by the engine the moment the entry fills. */
+  const createFromPlan = (p: PositionPlan) => {
+    submitOrder({
+      instrument,
+      side: p.side,
+      qty: p.qty,
+      type: 'limit',
+      limitPrice: p.entry,
+      role: 'entry',
+      bracket: { stopPrice: p.stop, targetPrice: p.target },
+      source: 'chart',
+      note: 'position tool',
+    });
+    setPlan(null);
   };
 
   /* ---- the right-click ---- */
@@ -681,6 +945,8 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
             navigator.clipboard?.writeText(String(m.price)).then(() => onToast?.(`${P} copied`)).catch(() => onToast?.('The clipboard is closed'));
           },
         },
+        { key: 'long-tool', label: 'Long position tool', hint: 'Draw the plan, read its R, then place it', onPick: () => openPlan('buy', m.price, m.x) },
+        { key: 'short-tool', label: 'Short position tool', hint: 'Draw the plan, read its R, then place it', onPick: () => openPlan('sell', m.price, m.x) },
         { key: 'level', label: 'Add horizontal level', meta: P, onPick: () => setUserLevels(instrument.id, [...myLevels, m.price]) },
         {
           key: 'remove',
@@ -701,7 +967,10 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
   /* ---- dragging a tag ---- */
   const onTagDown = (it: TapeItem) => (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    /* THE TAG OWNS THIS PRESS. Neither the canvas under it nor the browser's
+       own drag may see it — an order line is a control, not the chart. */
     e.stopPropagation();
+    e.preventDefault();
     if (it.kind === 'order' && it.order) onSelectOrder(it.order.id);
     if (it.kind !== 'order' && it.kind !== 'level') return;
     const el = e.currentTarget;
@@ -710,6 +979,8 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     let moved = false;
     dragRef.current = { key: it.key, price: start };
     setDragging(it.key);
+    holdFrame(true);
+    const protective = it.order && position && (it.order.role === 'stop' || it.order.role === 'target') ? position : null;
     const move = (ev: PointerEvent) => {
       const p = priceAtClientY(ev.clientY);
       if (p == null) return;
@@ -719,6 +990,20 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
       line?.applyOptions({ price: p });
       const priceEl = el.querySelector<HTMLElement>('[data-tag-price]');
       if (priceEl) priceEl.textContent = fmtPrice(instrument, p);
+      /* the pill says what this level is worth AS IT MOVES — ticks and dollars
+         through the instrument's own multiplier (brackets.ts), never share money */
+      if (protective) {
+        const r = readLevel(instrument, protective, p);
+        const pill = el.querySelector<HTMLElement>('[data-pnl-pill]');
+        const money = el.querySelector<HTMLElement>('[data-tag-pnl]');
+        const ticks = el.querySelector<HTMLElement>('[data-tag-ticks]');
+        if (money) money.textContent = r.money;
+        if (ticks) ticks.textContent = r.tickWords;
+        if (pill) {
+          pill.style.color = pnlInk(r.pnl);
+          pill.style.background = pnlWash(r.pnl);
+        }
+      }
     };
     const up = (ev: PointerEvent) => {
       el.removeEventListener('pointermove', move);
@@ -727,6 +1012,7 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
       const p = dragRef.current?.price ?? start;
       dragRef.current = null;
       setDragging(null);
+      holdFrame(false);
       if (!moved || p === start) {
         linesRef.current.get(it.key)?.applyOptions({ price: start });
         return;
@@ -747,12 +1033,87 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
     el.addEventListener('pointercancel', up);
   };
 
+  /* ---- pulling a bracket out of the position line ----------------------------------------
+     The handles sit on the position's tag while the pointer is over it and only
+     for the leg it does not have yet. Drag one to a price and that leg is placed
+     there; a plain click drops it at the bracket's own distance (prefs). A stop
+     dragged ABOVE a long is not a stop, so the price is held one tick on the
+     side that makes it one — the engine is never asked for a contradiction. */
+  const onPullDown = (kind: 'stop' | 'target') => (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || !position) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = position;
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    holdFrame(true);
+    const t = instrument.tickSize;
+    const dir = pos.qty > 0 ? 1 : -1;
+    const away = kind === 'stop' ? -dir : dir;
+    const ticks = kind === 'stop' ? prefs.bracket.stopTicks : prefs.bracket.targetTicks;
+    const ok = (p: number) => (kind === 'stop' ? isStopSide(pos.qty, pos.avgPrice, p) : isTargetSide(pos.qty, pos.avgPrice, p));
+    const clamp = (p: number) => (ok(p) ? p : roundToTick(instrument, pos.avgPrice + away * t));
+    let price = roundToTick(instrument, pos.avgPrice + away * ticks * t);
+    const show = (p: number) => {
+      price = p;
+      pullRef.current = { kind, price: p };
+      setPull({ kind, price: p });
+    };
+    show(price);
+    const line =
+      seriesRef.current?.createPriceLine({
+        price,
+        color: kind === 'stop' ? SELL_HEX : BUY_HEX,
+        lineWidth: 1,
+        lineStyle: kind === 'stop' ? LineStyle.Dotted : LineStyle.Dashed,
+        axisLabelVisible: true,
+        axisLabelColor: kind === 'stop' ? SELL_HEX : BUY_HEX,
+        axisLabelTextColor: '#0a0a0a',
+        title: '',
+      }) ?? null;
+    pullLineRef.current = line;
+    const move = (ev: PointerEvent) => {
+      const p = priceAtClientY(ev.clientY);
+      if (p == null) return;
+      const next = clamp(p);
+      line?.applyOptions({ price: next });
+      show(next);
+    };
+    const done = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', done);
+      el.removeEventListener('pointercancel', done);
+      holdFrame(false);
+      if (pullLineRef.current) {
+        seriesRef.current?.removePriceLine(pullLineRef.current);
+        pullLineRef.current = null;
+      }
+      pullRef.current = null;
+      setPull(null);
+      if (kind === 'stop') setStop(instrument.id, price, 'chart');
+      else setTarget(instrument.id, price, 'chart');
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', done);
+    el.addEventListener('pointercancel', done);
+  };
+
   const cancelConfirmMove = () => {
     if (confirmMove) linesRef.current.get(`ord:${confirmMove.order.id}`)?.applyOptions({ price: confirmMove.order.type === 'limit' ? confirmMove.order.limitPrice! : confirmMove.order.stopPrice! });
     setConfirmMove(null);
   };
 
-  /* ---- the tags' words ---- */
+  /* ---- the tag, in three parts ------------------------------------------------------------
+     [ what it is worth ][ what it is ][ × ] — the sprint's shape. The first pill
+     is there only when the level has a position to be measured against, and it
+     is the one that carries the direction ink; the second says the order in the
+     blotter's own words; the third cancels it. */
+  const pnlOf = (it: TapeItem): ReturnType<typeof readLevel> | null => {
+    const o = it.order;
+    if (!o || !position || (o.role !== 'stop' && o.role !== 'target')) return null;
+    return readLevel(instrument, position, it.price);
+  };
+
   const tagWords = (it: TapeItem) => {
     if (it.kind === 'position' && it.position && mark) {
       const p = it.position;
@@ -773,8 +1134,8 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
       const left = o.qty - o.filledQty;
       return (
         <>
-          {o.role === 'stop' && <span className="text-textSecondary">STOP</span>}
-          {o.role === 'target' && <span className="text-textSecondary">TARGET</span>}
+          {o.role === 'stop' && <span className="text-textSecondary">SL</span>}
+          {o.role === 'target' && <span className="text-textSecondary">TP</span>}
           <span className="font-bold">
             {o.side === 'buy' ? 'BUY' : 'SELL'} {typeWord(o)} {left}
           </span>
@@ -785,8 +1146,30 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
           )}
           <span className="text-textMuted">·</span>
           <span data-tag-price>{fmtPrice(instrument, it.price)}</span>
+          {/* WHERE IT STANDS IN THE LINE, while the queue is on: what is still
+              in front of it at this price. A limit at the touch that is not
+              filling has a reason, and this is it (core/paper/queue.ts). */}
+          {(() => {
+            if (!modes.realisticFills || o.type !== 'limit') return null;
+            const line = readQueue(o.id);
+            if (!line || line.left <= 0) return null;
+            return (
+              <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary tnum" data-queue={line.left} title={`${line.left} of ${line.ahead} still in front of this order at ${fmtPrice(instrument, it.price)} — it fills as the tape trades through them`}>
+                Q {line.left}
+              </span>
+            );
+          })()}
           {o.bracket && o.role === 'entry' && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary">BRK</span>}
-          {o.ocoGroup && o.role !== 'entry' && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary">OCO</span>}
+          {o.ocoGroup && o.role !== 'entry' && !position && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary">OCO</span>}
+        </>
+      );
+    }
+    if (it.kind === 'liq') {
+      return (
+        <>
+          <span className="font-bold text-bear">LIQUIDATION</span>
+          <span data-tag-price>{fmtPrice(instrument, it.price)}</span>
+          {liq && !liq.alone && <span className="text-[8px] px-1 rounded bg-ink/[0.08] text-textSecondary" title="Other positions share the same allowance — close one and this moves">SHARED</span>}
         </>
       );
     }
@@ -805,7 +1188,35 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
 
   return (
     <div ref={wrapRef} className="absolute inset-0" data-paper-chart={instrument.id} data-chart-ink onContextMenu={onContext} onDoubleClick={resetView} onPointerDown={() => onSelectOrder(null)}>
+      {/* THE TAPE'S GROUND. The library's own canvas is transparent so the dealer
+          bands can sit here — under the candles, the grid and the scales. */}
+      <div ref={groundRef} className="absolute inset-0" aria-hidden />
+      <div ref={zonesRef} className="absolute left-0 top-0 pointer-events-none overflow-hidden" style={{ right: 0, height: 0 }} data-dealer-zones={book ? book.greek : undefined} aria-hidden={!book}>
+        {book?.levels.map((lv, i) => (
+          <div
+            key={`${lv.strike}`}
+            ref={el => {
+              if (el) bandRefs.current.set(i, el);
+              else bandRefs.current.delete(i);
+            }}
+            data-dealer-band={lv.value >= 0 ? 'pos' : 'neg'}
+            className="absolute left-0 right-0"
+            style={{ top: 0, display: 'none', background: `${lv.value >= 0 ? CALL_WALL : PUT_WALL}${Math.round((0.04 + lv.heat * 0.16) * 255).toString(16).padStart(2, '0')}` }}
+          >
+            {namedLevels.has(lv.strike) && (
+              <span className="absolute left-1.5 top-0 font-mono text-[8px] uppercase tracking-widest whitespace-nowrap" style={{ color: lv.value >= 0 ? CALL_WALL : PUT_WALL, opacity: 0.75 }}>
+                {book.greek} {lv.strike.toLocaleString('en-US')} · {shortMoney(lv.value)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
       <div ref={hostRef} className="absolute inset-0" />
+      {/* the watermark: the price the evaluation ends at, said once, quietly */}
+      <div ref={liqRef} className="absolute left-0 right-0 z-[9] pointer-events-none items-center gap-2 pl-2 -translate-y-1/2" style={{ top: 0, display: 'none' }} data-liq-watermark aria-hidden>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-bear/40">Liquidation</span>
+        <span className="h-px flex-1 bg-bear/25" />
+      </div>
 
       {/* the legend: the name, the clock, the live tick, the touch */}
       <div ref={legendRef} className="absolute left-2 z-10 pointer-events-none select-none flex flex-col gap-1 font-mono" style={{ top: topInset + 4 }} data-chart-chrome>
@@ -830,8 +1241,8 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
             instrument={instrument}
             position={position}
             markRead={mark}
-            hasStop={orders.some(o => o.role === 'stop')}
-            hasTarget={orders.some(o => o.role === 'target')}
+            hasStop={!!stopOrder}
+            hasTarget={!!targetOrder}
             onMenu={(x, y) => setPosMenu({ x, y })}
           />
         )}
@@ -842,56 +1253,150 @@ const PaperChart = ({ instrument, quote, timeframe, revision, ready, selectedOrd
           pill lived at the same right offset as the tag column and swallowed
           the × of any tag parked at the bottom edge. The pill also moved to
           the left edge, where nothing of the trading layer goes. */}
+      {plan && <PositionTool instrument={instrument} plan={plan} topInset={topInset} geo={geoRef} onChange={setPlan} onCreate={createFromPlan} onClose={() => setPlan(null)} />}
+
       <div className="absolute inset-0 pointer-events-none z-30" data-paper-tags>
-        {items.map(it => (
-          <div
-            key={it.key}
-            ref={el => {
-              if (el) tagRefs.current.set(it.key, el);
-              else tagRefs.current.delete(it.key);
-            }}
-            data-tag={it.kind}
-            data-tag-key={it.key}
-            onPointerDown={onTagDown(it)}
-            onContextMenu={e => {
-              e.preventDefault();
-              e.stopPropagation();
-              const price = priceAtClientY(e.clientY) ?? it.price;
-              if (it.kind === 'order') setMenu({ x: e.clientX, y: e.clientY, price, order: it.order });
-              else if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
-              else setMenu({ x: e.clientX, y: e.clientY, price });
-            }}
-            onClick={e => {
-              e.stopPropagation();
-              if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
-            }}
-            className={`absolute pointer-events-auto select-none inline-flex items-center gap-1.5 h-5 pl-1.5 pr-1 rounded border bg-panel/95 backdrop-blur-sm font-mono text-[10px] tnum text-textPrimary shadow-md shadow-black/40 whitespace-nowrap ${
-              it.kind === 'position' ? 'cursor-pointer' : 'cursor-ns-resize'
-            } ${dragging === it.key ? 'opacity-90' : ''} ${selectedOrderId && it.order?.id === selectedOrderId ? 'ring-1 ring-silver/70' : ''}`}
-            style={{ right: 60, visibility: 'hidden', borderColor: `${it.hex}88` }}
-            title={it.kind === 'order' ? 'Drag to move · × cancels · right-click for more' : it.kind === 'position' ? 'The position — click for what can be done to it' : 'Drag to move · × removes'}
-          >
-            <span className="w-[3px] self-stretch rounded-full -ml-0.5" style={{ background: it.hex }} aria-hidden />
-            <span data-conn className="absolute left-2 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
-            {tagWords(it)}
-            {/* off the pane: which way its price lies */}
-            <span data-caret className="font-bold" style={{ display: 'none', color: it.hex }} aria-hidden />
-            {it.kind !== 'position' && (
-              <button
-                type="button"
-                onPointerDown={e => e.stopPropagation()}
-                onClick={e => {
-                  e.stopPropagation();
-                  removeItem(it);
+        {/* the dotted spine, in the lane between the tags and the axis */}
+        {position &&
+          items
+            .filter(i => i.order && (i.order.role === 'stop' || i.order.role === 'target'))
+            .map(i => (
+              <div
+                key={`spine:${i.key}`}
+                ref={el => {
+                  if (el) spineRefs.current.set(i.key, el);
+                  else spineRefs.current.delete(i.key);
                 }}
-                aria-label={it.kind === 'order' ? 'Cancel this order' : 'Remove this level'}
-                className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.1] transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        ))}
+                data-brk-spine={i.order?.role}
+                className="absolute pointer-events-none"
+                style={{ right: 60, top: 0, display: 'none', width: 0, borderLeft: `1px dotted ${i.hex}`, opacity: 0.6 }}
+                aria-hidden
+              />
+            ))}
+        {items.map(it => {
+          const read = pnlOf(it);
+          const bare = it.kind === 'position' && position && (!stopOrder || !targetOrder);
+          return (
+            <div
+              key={it.key}
+              ref={el => {
+                if (el) tagRefs.current.set(it.key, el);
+                else tagRefs.current.delete(it.key);
+              }}
+              data-tag={it.kind}
+              data-tag-key={it.key}
+              data-tag-role={it.order?.role}
+              onPointerDown={onTagDown(it)}
+              onPointerEnter={() => it.kind === 'position' && setHoverPos(true)}
+              onPointerLeave={() => it.kind === 'position' && setHoverPos(false)}
+              onContextMenu={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                const price = priceAtClientY(e.clientY) ?? it.price;
+                if (it.kind === 'order') setMenu({ x: e.clientX, y: e.clientY, price, order: it.order });
+                else if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
+                else setMenu({ x: e.clientX, y: e.clientY, price });
+              }}
+              onClick={e => {
+                e.stopPropagation();
+                if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
+              }}
+              className={`absolute pointer-events-auto select-none inline-flex items-stretch h-5 rounded border bg-panel/95 backdrop-blur-sm font-mono text-[10px] tnum text-textPrimary shadow-md shadow-black/40 whitespace-nowrap ${
+                it.kind === 'position' ? 'cursor-pointer' : 'cursor-ns-resize'
+              } ${it.kind === 'liq' ? 'cursor-default' : ''} ${dragging === it.key ? 'opacity-90' : ''} ${selectedOrderId && it.order?.id === selectedOrderId ? 'ring-1 ring-silver/70' : ''}`}
+              style={{ right: 60, visibility: 'hidden', borderColor: `${it.hex}88` }}
+              title={
+                it.kind === 'order'
+                  ? 'Drag to move · × cancels · right-click for more'
+                  : it.kind === 'position'
+                    ? 'The position — click for what can be done to it'
+                    : it.kind === 'liq'
+                      ? 'The evaluation liquidates this position here — it trails the peak, so it moves'
+                      : 'Drag to move · × removes'
+              }
+            >
+              <span className="w-[3px] self-stretch shrink-0 rounded-l-[3px]" style={{ background: it.hex }} aria-hidden />
+              <span data-conn className="absolute left-2 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
+              {/* ONE — what this level is worth, in ticks and in the instrument's own money */}
+              {read && (
+                <span
+                  data-pnl-pill
+                  className="inline-flex items-center gap-1 px-1.5 font-bold border-r border-borderSubtle"
+                  style={{ color: pnlInk(read.pnl), background: pnlWash(read.pnl) }}
+                  title={`${read.tickWords} from the average — ${read.money} if it fills`}
+                >
+                  <span data-tag-pnl>{read.money}</span>
+                  <span data-tag-ticks className="font-normal opacity-70">{read.tickWords}</span>
+                </span>
+              )}
+              {/* TWO — what it is */}
+              <span className="inline-flex items-center gap-1.5 px-1.5">{tagWords(it)}</span>
+              {/* the handles: only over the position, only for the leg it lacks */}
+              {bare && hoverPos && (
+                <span className="inline-flex items-stretch border-l border-borderSubtle" data-brk-handles>
+                  {!targetOrder && (
+                    <button
+                      type="button"
+                      data-pull="target"
+                      onPointerDown={onPullDown('target')}
+                      onClick={e => e.stopPropagation()}
+                      title="Drag out a target — or click to place it at the bracket's own distance"
+                      className="inline-flex items-center gap-0.5 px-1.5 text-bull hover:bg-bull/[0.12] cursor-ns-resize transition-colors"
+                    >
+                      <Plus className="w-2.5 h-2.5" />TP
+                    </button>
+                  )}
+                  {!stopOrder && (
+                    <button
+                      type="button"
+                      data-pull="stop"
+                      onPointerDown={onPullDown('stop')}
+                      onClick={e => e.stopPropagation()}
+                      title="Drag out a stop — or click to place it at the bracket's own distance"
+                      className="inline-flex items-center gap-0.5 px-1.5 text-bear hover:bg-bear/[0.12] cursor-ns-resize transition-colors border-l border-borderSubtle"
+                    >
+                      <Plus className="w-2.5 h-2.5" />SL
+                    </button>
+                  )}
+                </span>
+              )}
+              {/* off the pane: which way its price lies */}
+              <span data-caret className="font-bold self-center pr-1" style={{ display: 'none', color: it.hex }} aria-hidden />
+              {/* THREE — the cancel */}
+              {it.kind !== 'position' && it.kind !== 'liq' && (
+                <button
+                  type="button"
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={e => {
+                    e.stopPropagation();
+                    removeItem(it);
+                  }}
+                  aria-label={it.kind === 'order' ? 'Cancel this order' : 'Remove this level'}
+                  className="inline-flex items-center justify-center w-5 shrink-0 rounded-r-[3px] border-l border-borderSubtle text-textMuted hover:text-bear hover:bg-bear/[0.12] transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {/* the read on a bracket being pulled out of the position line */}
+        <div
+          ref={pullHudRef}
+          data-pull-hud={pull?.kind ?? ''}
+          className="absolute pointer-events-none items-center gap-1.5 h-5 px-1.5 rounded border bg-panel/95 backdrop-blur-sm font-mono text-[10px] tnum shadow-md shadow-black/40 whitespace-nowrap"
+          style={{ right: 60, display: 'none', borderColor: pull?.kind === 'stop' ? `${SELL_HEX}88` : `${BUY_HEX}88` }}
+        >
+          {pull && position && (
+            <>
+              <span className={pull.kind === 'stop' ? 'text-bear font-bold' : 'text-bull font-bold'}>{pull.kind === 'stop' ? 'SL' : 'TP'}</span>
+              <span className="text-textPrimary">{fmtPrice(instrument, pull.price)}</span>
+              <span className="text-textMuted">·</span>
+              <span style={{ color: pnlInk(readLevel(instrument, position, pull.price).pnl) }}>{readLevel(instrument, position, pull.price).money}</span>
+              <span className="text-textSecondary">{readLevel(instrument, position, pull.price).tickWords}</span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* the reset pill — ResetViewControl's, without its right-click (that is the trade menu's now) */}

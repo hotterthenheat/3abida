@@ -6,11 +6,22 @@
   surface (Noah, 2026-09-19: "put this paper trader
   in a tab below weigher"). The Weigher's frame —
   the shell head, a static grid on one screenful,
-  the footer one slight scroll below — with three
-  boxes: the CHART (the order ticket you right-click
-  on), the RAIL beside it (the compact ticket and
-  the instrument's facts), and the BLOTTER under
-  both (positions · orders · trades · the log).
+  the footer one slight scroll below — with four
+  boxes: the TABS across the top (each its own
+  layout and its own charts, core/paper/workspace),
+  the PANES under them (one chart, or four, each
+  with its own instrument and interval), the RAIL
+  beside them (the compact ticket and the
+  instrument's facts), and the BLOTTER under all of
+  it (positions · orders · trades · the log).
+
+  The strip over the chart carries the doors: the
+  chain, the spread builder, the dealer overlay,
+  the journal, HOW THE DESK RUNS (standard, the
+  prop firm's evaluation, the free-rein sandbox),
+  the tilt watch, the keys and the preferences.
+  Every one of those is an INTERCEPTOR on the
+  engine, never a branch inside it.
 
   EVERYTHING HERE IS PAPER, and the desk says so
   wherever an order or a balance lives. Every hand
@@ -23,9 +34,10 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ClipboardPen, Keyboard, Layers, Maximize2, Minimize2, PanelRight, Rows3, SlidersHorizontal, Waypoints } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CalendarRange, ClipboardPen, Keyboard, Layers, Maximize2, Minimize2, PanelRight, Rows3, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { TimeframeStrip } from '../../components/gex/ChartToolbar';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { armPrice, commitArm } from '../../components/gex/alertStore';
@@ -39,10 +51,8 @@ import { NAV_INK } from '../../components/layout/nav';
 import type { Timeframe } from '../../data/timeframe';
 import {
   fmtMoney,
-  futureInstrument,
   indexFamily,
   optionInstrument,
-  stockInstrument,
   tagWord,
   type Instrument,
   type OptionInstrument,
@@ -63,7 +73,11 @@ import {
   watchInstrument,
 } from '../../core/paper/engine';
 import { DEFAULT_BINDINGS, HOTKEY_ACTIONS, bindHotkey, comboOf, resetHotkeys, updatePaperPrefs, usePaperPrefs, type HotkeyAction } from '../../core/paper/prefs';
+import { activePane, activeTab, pickPane, setPaneInstrument, setPaneTimeframe, useWorkspace, type Pane, type PaneLayout } from '../../core/paper/workspace';
 import PaperChart, { type PaperChartApi } from './PaperChart';
+import WorkspaceBar from './WorkspaceBar';
+import ModesDoor, { TiltDoor } from './ModesDoor';
+import DealerDoor from './DealerDoor';
 import InstrumentPicker from './InstrumentPicker';
 import OrderTicket, { InstrumentFacts } from './OrderTicket';
 import Blotter from './Blotter';
@@ -73,32 +87,17 @@ import { useHotkeys } from './useHotkeys';
 import { Money, PaperPill, Toggle } from './paperKit';
 import type { TradeDraft } from './TradeMenu';
 
-const DESK_KEY = 'slayer_paper_desk_v1';
 /** What the chart reserves at its top before the strip has been measured */
 const STRIP_H = 34;
 
-interface DeskState {
-  instrument: Instrument;
-  timeframe: Timeframe;
-}
-
-const TIMEFRAMES = new Set<string>(['15s', '1m', '5m', '15m', '30m', '1h', '1D', '1W']);
-
-function loadDesk(): DeskState {
-  const def: DeskState = { instrument: futureInstrument('NQ') ?? stockInstrument('SPY'), timeframe: '1m' };
-  try {
-    const raw = localStorage.getItem(DESK_KEY);
-    if (!raw) return def;
-    const v = JSON.parse(raw) as Partial<DeskState>;
-    const inst = v.instrument;
-    const ok = inst && typeof inst === 'object' && typeof inst.id === 'string' && typeof inst.kind === 'string' && typeof inst.underlying === 'string';
-    /* a stored front month rolls forward with the calendar */
-    const instrument: Instrument = ok ? (inst.kind === 'future' ? futureInstrument(inst.root) ?? def.instrument : inst) : def.instrument;
-    return { instrument, timeframe: v.timeframe && TIMEFRAMES.has(v.timeframe) ? v.timeframe : '1m' };
-  } catch {
-    return def;
-  }
-}
+/* WHERE THE PANES SIT, per layout */
+const GRID: Record<PaneLayout, string> = {
+  '1': 'grid-cols-1 grid-rows-1',
+  '2h': 'grid-cols-2 grid-rows-1',
+  '2v': 'grid-cols-1 grid-rows-2',
+  '3': 'grid-cols-2 grid-rows-2',
+  '4': 'grid-cols-2 grid-rows-2',
+};
 
 /** The option family over an instrument: NDX over NQ, SPXW over ES and SPY, a stock's own chain over the stock */
 function familyFor(inst: Instrument): string | null {
@@ -273,8 +272,12 @@ const PrefsDoor = ({ onReset }: { onReset: () => void }) => {
 /* ---- the desk --------------------------------------------------------------------------------- */
 
 const PaperDesk = () => {
-  const [desk, setDesk] = useState<DeskState>(loadDesk);
-  const { instrument, timeframe } = desk;
+  const ws = useWorkspace();
+  const tab = activeTab(ws);
+  const pane = activePane(ws);
+  const instrument = pane.instrument;
+  const timeframe = pane.timeframe;
+  const split = tab.panes.length > 1;
   const paper = usePaper();
   const prefs = usePaperPrefs();
   const ready = useSeeded(instrument.underlying);
@@ -308,16 +311,13 @@ const PaperDesk = () => {
     return () => ro.disconnect();
   }, [full, prefs.ticketOpen]);
 
+  /* THE CLOCK QUOTES EVERY PANE, not just the one being traded: a second chart
+     on another name is as live as the first, and the watch is refcounted so a
+     name on two panes is still quoted once. */
   useEffect(() => {
-    try {
-      localStorage.setItem(DESK_KEY, JSON.stringify(desk));
-    } catch {
-      /* never fatal */
-    }
-  }, [desk]);
-
-  /* the engine's clock quotes what the desk is looking at */
-  useEffect(() => watchInstrument(instrument), [instrument]);
+    const offs = tab.panes.map(p => watchInstrument(p.instrument));
+    return () => offs.forEach(off => off());
+  }, [tab.panes]);
   useEffect(() => {
     setSelectedOrderId(null);
   }, [instrument.id]);
@@ -340,38 +340,11 @@ const PaperDesk = () => {
   const acct = useMemo(() => readAccount(paper), [paper]);
   const family = familyFor(instrument);
 
-  const pickInstrument = useCallback((inst: Instrument) => {
-    setDesk(d => ({ ...d, instrument: inst }));
-  }, []);
-
-  /* an option on this tape, at a clicked price */
-  const optionDraftAt = useCallback(
-    (price: number, right: 'C' | 'P', side: 'buy' | 'sell'): TradeDraft | null => {
-      if (!family) return null;
-      const fam = indexFamily(family);
-      const ratio = fam ? fam.ratio : 1;
-      /* an option's own tape is premium — its strike comes off the underlying's spot instead */
-      const under = instrument.kind === 'option' || instrument.kind === 'spread' ? (spotOf(instrument.underlying) ?? 0) : toUnderlyingPrice(instrument, price);
-      const strike = nearestStrike(family, under * ratio);
-      const expiry = instrument.kind === 'option' || instrument.kind === 'spread' ? instrument.expiry : defaultExpiryFor(family);
-      return { instrument: optionInstrument(family, strike, right, expiry), side, type: 'market', qty: prefs.defaultQty };
+  const pickInstrument = useCallback(
+    (inst: Instrument) => {
+      setPaneInstrument(tab.id, tab.activePane, inst);
     },
-    [family, instrument, prefs.defaultQty]
-  );
-
-  const alertAt = useCallback(
-    (price: number) => {
-      if (instrument.kind === 'option' || instrument.kind === 'spread') return;
-      const spot = spotOf(instrument.underlying);
-      if (spot == null) return;
-      const etfPrice = toUnderlyingPrice(instrument, price);
-      const a = armPrice(instrument.underlying, Number(etfPrice.toFixed(2)), spot);
-      if (a) {
-        commitArm(instrument.underlying, a);
-        notePaper(tagWord(instrument), `alert set at ${price} (${instrument.underlying} ${etfPrice.toFixed(2)})`);
-      } else notePaper(tagWord(instrument), 'that name already carries its most alerts');
-    },
-    [instrument]
+    [tab.id, tab.activePane]
   );
 
   /* ---- the keys ---- */
@@ -398,7 +371,18 @@ const PaperDesk = () => {
   });
 
   const strip = (
-    <div ref={measureStrip} className="absolute top-0 inset-x-0 z-20 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-2 pr-[76px] py-1 select-none" data-chart-chrome data-paper-strip>
+    /* THE CHROME DOES NOT SWALLOW THE TAPE. The strip lies across the top of the
+       chart, and with it catching pointers the whole top band of the tape was
+       dead — a drawing's handle up there could not be grabbed. Only its own
+       controls take a press now; the gaps between them belong to the chart. */
+    <div
+      ref={measureStrip}
+      className={`z-20 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-2 py-1 select-none pointer-events-none [&>*]:pointer-events-auto ${
+        split ? 'relative shrink-0 pr-2 border-b border-borderSubtle/70 bg-panel' : 'absolute top-0 inset-x-0 pr-[76px]'
+      }`}
+      data-chart-chrome
+      data-paper-strip
+    >
       <InstrumentPicker instrument={instrument} onPick={pickInstrument} onOpenChain={f => setChain(f)} />
       {quote && (
         <span className="inline-flex items-center gap-2">
@@ -408,11 +392,12 @@ const PaperDesk = () => {
           </span>
         </span>
       )}
-      <TimeframeStrip value={timeframe} onChange={tf => setDesk(d => ({ ...d, timeframe: tf }))} />
+      <TimeframeStrip value={timeframe} onChange={(tf: Timeframe) => setPaneTimeframe(tab.id, tab.activePane, tf)} />
       <span className="ml-auto flex items-center gap-1.5">
         <button type="button" onClick={() => updatePaperPrefs({ levels: !prefs.levels })} title={prefs.levels ? 'Hide the dealer levels' : 'Show the walls and the flip'} aria-pressed={prefs.levels} className={`${DOOR} ${prefs.levels ? 'text-textPrimary border-silver/40' : ''}`} data-paper-levels>
           <Layers className="w-3.5 h-3.5" />
         </button>
+        <DealerDoor instrument={instrument} />
         {family && (
           <>
             <button type="button" onClick={() => setChain(family)} title={`${family} option chain`} className={DOOR} data-paper-chain-door>
@@ -423,6 +408,11 @@ const PaperDesk = () => {
             </button>
           </>
         )}
+        <Link to="/paper/journal" title="The journal — the calendar, the profit factor, MAE and MFE" aria-label="Journal" className={DOOR} data-paper-journal-door>
+          <CalendarRange className="w-3.5 h-3.5" />
+        </Link>
+        <ModesDoor />
+        <TiltDoor />
         <HotkeysDoor />
         <PrefsDoor onReset={() => resetAccount()} />
         <button type="button" onClick={() => updatePaperPrefs({ ticketOpen: !prefs.ticketOpen })} title={prefs.ticketOpen ? 'Hide the ticket (T)' : 'Show the ticket (T)'} aria-pressed={prefs.ticketOpen} className={`${DOOR} ${prefs.ticketOpen ? 'text-textPrimary' : ''}`} data-paper-ticket-door>
@@ -435,27 +425,47 @@ const PaperDesk = () => {
     </div>
   );
 
-  const chartBody = (
-    <div className="relative h-full bg-panel" data-theme="dark">
-      <div className="absolute inset-0">
-        <PaperChart
-          instrument={instrument}
-          quote={quote}
-          timeframe={timeframe}
-          revision={paper.rev}
-          ready={ready}
-          selectedOrderId={selectedOrderId}
+  /* ONE PANE. The active one carries the ticket, the keys and the chart api;
+     the others are live charts in their own right — their own instrument,
+     their own interval, their own tags — and clicking one makes it active. */
+  const paneBody = (p: Pane, i: number) => {
+    const isActive = p.id === tab.activePane;
+    const many = tab.panes.length > 1;
+    return (
+      <div
+        key={p.id}
+        className={`relative min-w-0 min-h-0 overflow-hidden ${many ? 'rounded border' : ''} ${many ? (isActive ? 'border-silver/45' : 'border-ink/[0.07]') : 'border-transparent'}`}
+        onPointerDownCapture={() => {
+          if (!isActive) pickPane(tab.id, p.id);
+        }}
+        data-paper-pane={p.id}
+        data-pane-active={isActive ? '1' : '0'}
+        style={tab.layout === '3' && i === 0 ? { gridColumn: 'span 2' } : undefined}
+      >
+        <PaneChart
+          pane={p}
+          topInset={split ? 6 : stripH}
+          apiRef={isActive ? chartApi : undefined}
           onSelectOrder={setSelectedOrderId}
-          topInset={stripH}
-          apiRef={chartApi}
-          optionDraftAt={family ? optionDraftAt : undefined}
-          onOpenChain={family ? () => setChain(family) : undefined}
-          onOpenSpread={family ? () => setSpread({ family }) : undefined}
-          onAlertAt={instrument.kind === 'stock' || instrument.kind === 'future' ? alertAt : undefined}
-          onToast={w => notePaper(tagWord(instrument), w)}
+          selectedOrderId={isActive ? selectedOrderId : null}
+          rev={paper.rev}
+          onOpenChain={setChain}
+          onOpenSpread={f => setSpread({ family: f })}
         />
       </div>
-      {strip}
+    );
+  };
+
+  /* ONE CHART, AND THE STRIP LIES OVER IT (the desk's own look, kept). SPLIT,
+     and it cannot: a toolbar drawn across four panes puts its buttons inside
+     three of them. It becomes a row of its own above the grid instead. */
+  const chartBody = (
+    <div className={`relative h-full bg-panel ${split ? 'flex flex-col' : ''}`} data-theme="dark">
+      {split && strip}
+      <div className={`grid gap-1 ${split ? 'relative flex-1 min-h-0 p-1' : 'absolute inset-0'} ${GRID[tab.layout]}`} data-paper-panes={tab.layout}>
+        {tab.panes.map(paneBody)}
+      </div>
+      {!split && strip}
     </div>
   );
 
@@ -495,15 +505,21 @@ const PaperDesk = () => {
           <p><span className="text-textPrimary font-semibold">Every order is a line with a tag</span> at the axis. Drag the tag to move the order; × cancels it. A stop is dotted, a target dashed; buys are green, sells red; a partly filled order says how much.</p>
           <p><span className="text-textPrimary font-semibold">The position bar</span> at the top of the tape closes some or all of it, reverses it, puts a stop and a target on it, or moves the stop to breakeven. The same lives in the blotter below.</p>
           <p><span className="text-textPrimary font-semibold">Options ride the same chart.</span> Buy a call or a put at the strike nearest your click, open the chain, or build a spread — one order, one position, the legs underneath.</p>
+          <p><span className="text-textPrimary font-semibold">Draw the trade before you take it.</span> Right-click and pick the long or short position tool: two boxes from one entry, the reward over the risk in the middle, and a button that places the whole plan as an entry with its stop and target attached. Nothing reaches the account until that button is pressed.</p>
+          <p><span className="text-textPrimary font-semibold">Tabs, panes and what they share.</span> The strip above the chart holds your tabs — each one its own layout and its own charts — and the split beside it. Four panes, four instruments, four intervals; the switches say what travels between them. The whole workspace saves itself and comes back as it was left.</p>
+          <p><span className="text-textPrimary font-semibold">How the desk runs.</span> Standard is the desk as it is. <span className="text-warn">Prop firm</span> makes it an evaluation: futures only, a trailing drawdown that liquidates and draws the price it will happen at, flat by the bell. <span className="text-silver">Free rein</span> is a sandbox — set the balance, switch the spread, the slippage and the fees off, and read the numbers knowing you did.</p>
           <p><span className="text-textPrimary font-semibold">Three registers.</span> <span className="text-textPrimary">Observed</span> is the feed's own price. <span className="text-silver">Calculated</span> is derived from it by a model the chip names — a future off its index twin, an option off the chain. <span className="text-warn">Paper execution</span> is the engine filling you: at the touch, walking the book past it, never a free midpoint.</p>
           <p className="text-textMuted">Nothing on this desk reaches a brokerage. There is no door for it to go through.</p>
         </div>
       </GuideFocus>
 
       <div
-        className={`relative flex-1 min-h-0 mt-4 grid grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5 ${prefs.ticketOpen ? 'grid-cols-[minmax(0,1fr)_272px]' : 'grid-cols-[minmax(0,1fr)]'}`}
+        className={`relative flex-1 min-h-0 mt-3 grid grid-rows-[auto_minmax(0,3fr)_minmax(0,2fr)] gap-2.5 ${prefs.ticketOpen ? 'grid-cols-[minmax(0,1fr)_272px]' : 'grid-cols-[minmax(0,1fr)]'}`}
         data-paper-frame
       >
+        <div className={`min-w-0 -mb-1 ${prefs.ticketOpen ? 'col-span-2' : ''}`}>
+          <WorkspaceBar tab={tab} />
+        </div>
         <div className="min-h-0 min-w-0">
           <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">{full ? <div className="h-full" /> : chartBody}</div>
         </div>
@@ -525,6 +541,92 @@ const PaperDesk = () => {
           document.body
         )}
     </div>
+  );
+};
+
+
+/* ---- one pane's chart ---------------------------------------------------------------------- */
+
+/*
+  EVERY PANE IS A WHOLE CHART. It reads its own instrument's quote and its own
+  history, opens its own chain and spread doors, and prices its own options —
+  the desk only says which one the ticket and the keys are pointed at. The
+  chart api goes to the active pane alone, so a hotkey can never land on a
+  chart the reader is not looking at.
+*/
+const PaneChart = ({
+  pane,
+  topInset,
+  apiRef,
+  selectedOrderId,
+  onSelectOrder,
+  rev,
+  onOpenChain,
+  onOpenSpread,
+}: {
+  pane: Pane;
+  topInset: number;
+  apiRef?: MutableRefObject<PaperChartApi | null>;
+  selectedOrderId: string | null;
+  onSelectOrder: (id: string | null) => void;
+  rev: number;
+  onOpenChain: (family: string) => void;
+  onOpenSpread: (family: string) => void;
+}) => {
+  const paper = usePaper();
+  const prefs = usePaperPrefs();
+  const inst = pane.instrument;
+  const ready = useSeeded(inst.underlying);
+  const quote = paper.quotes[inst.id] ?? (ready ? quoteFor(inst) : null);
+  const family = familyFor(inst);
+
+  const optionDraftAt = useCallback(
+    (price: number, right: 'C' | 'P', side: 'buy' | 'sell'): TradeDraft | null => {
+      if (!family) return null;
+      const fam = indexFamily(family);
+      const ratio = fam ? fam.ratio : 1;
+      /* an option's own tape is premium — its strike comes off the underlying's spot instead */
+      const under = inst.kind === 'option' || inst.kind === 'spread' ? spotOf(inst.underlying) ?? 0 : toUnderlyingPrice(inst, price);
+      const strike = nearestStrike(family, under * ratio);
+      const expiry = inst.kind === 'option' || inst.kind === 'spread' ? inst.expiry : defaultExpiryFor(family);
+      return { instrument: optionInstrument(family, strike, right, expiry), side, type: 'market', qty: prefs.defaultQty };
+    },
+    [family, inst, prefs.defaultQty]
+  );
+
+  const alertAt = useCallback(
+    (price: number) => {
+      if (inst.kind === 'option' || inst.kind === 'spread') return;
+      const spot = spotOf(inst.underlying);
+      if (spot == null) return;
+      const etfPrice = toUnderlyingPrice(inst, price);
+      const a = armPrice(inst.underlying, Number(etfPrice.toFixed(2)), spot);
+      if (a) {
+        commitArm(inst.underlying, a);
+        notePaper(tagWord(inst), `alert set at ${price} (${inst.underlying} ${etfPrice.toFixed(2)})`);
+      } else notePaper(tagWord(inst), 'that name already carries its most alerts');
+    },
+    [inst]
+  );
+
+  return (
+    <PaperChart
+      paneId={pane.id}
+      instrument={inst}
+      quote={quote}
+      timeframe={pane.timeframe}
+      revision={rev}
+      ready={ready}
+      selectedOrderId={selectedOrderId}
+      onSelectOrder={onSelectOrder}
+      topInset={topInset}
+      apiRef={apiRef}
+      optionDraftAt={family ? optionDraftAt : undefined}
+      onOpenChain={family ? () => onOpenChain(family) : undefined}
+      onOpenSpread={family ? () => onOpenSpread(family) : undefined}
+      onAlertAt={inst.kind === 'stock' || inst.kind === 'future' ? alertAt : undefined}
+      onToast={w => notePaper(tagWord(inst), w)}
+    />
   );
 };
 
