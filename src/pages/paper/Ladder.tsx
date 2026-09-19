@@ -341,7 +341,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
         </div>
         <p className="px-2 pb-1.5 font-mono text-[8px] leading-tight text-textMuted" data-ladder-note>
           Size shows at the touch only — this desk's feed is a top of book, and the rows under it are not ours to fill in. The lane at the right marks the session's high and low, its heaviest price, and the dealer walls; a caret on the end rung means the nearest one lies past it.
-          {modes.realisticFills ? ' Amber is what is still in front of your order there.' : ''}
+          {modes.realisticFills ? " Amber is this desk's own model of what is still in front of your order there \u2014 emulated, not a reading: a real queue place needs market-by-order data and the exchange's acknowledgement of an order that, on paper, was never sent." : ''}
         </p>
       </div>
     </div>

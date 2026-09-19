@@ -153,21 +153,32 @@ interface PaperChartProps {
   onToast?: (words: string) => void;
 }
 
-const TAG_H = 18;
+const TAG_H = 22;
 const TAG_GAP = 2;
 /*
-  COLOUR BY WHAT THE LINE IS, NOT BY WHICH WAY IT SENDS.
+  THE FOUR INKS, READ OFF A REAL CHART TRADER.
 
-  A long's protection is two SELL orders, so colouring by side painted the
-  target and the stop the same red and the chart read as one wall of alarm.
-  Every platform colours the MEANING: a target is where you win, a stop is
-  where you lose, a working entry is the side it will open, a level is yours.
+  A target is green, a stop is ORANGE, the position is blue, and red is kept
+  for the two things that are not orders: the live price on the axis and the
+  liquidation. That is the assignment TradingView's paper desk uses, and the
+  reason for it is the red chip: a red stop line and a red last-price chip on
+  the same scale are two different alarms wearing one colour.
+
+  Colouring by SIDE is what these replace — a long's protection is two sell
+  orders, so a side-coloured chart painted the target and the stop the same
+  red and read as one wall of alarm.
 */
-const TARGET_HEX = '#30D158';
-const STOP_HEX = '#FF453A';
-const LIQ_HEX = '#FF6B5E';
-/** The line under a tag: the ink at a whisper, so the candles stay the subject */
-const lineInk = (hex: string, kind: TapeItem['kind']): string => `${hex}${kind === 'level' ? '55' : kind === 'liq' ? '66' : 'AA'}`;
+const TARGET_HEX = '#26A69A';
+const STOP_HEX = '#FF9800';
+const ENTRY_HEX = '#2962FF';
+const LIQ_HEX = '#FF5252';
+/*
+  THE LINE IS SOLID AND IT CROSSES THE WHOLE PANE. It was drawn at a whisper
+  here so the candles stayed the subject, and the result was a chart whose
+  orders you had to look for. A working order is the most important thing on
+  a trading chart; it gets a full-strength hairline, and the candles cope.
+*/
+const lineInk = (hex: string, kind: TapeItem['kind']): string => (kind === 'level' ? `${hex}99` : hex);
 /* A ZONE IS A BAND, NOT A WASH. The book's own half-width is the strike's
    whole territory — on NQ, where a dollar of QQQ is 41 points, that is a third
    of the pane per strike and the tape disappears under it. Each zone is drawn
@@ -559,13 +570,13 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   const items = useMemo<TapeItem[]>(() => {
     const out: TapeItem[] = [];
     if (position) {
-      out.push({ key: `pos:${position.id}`, kind: 'position', price: position.avgPrice, hex: position.qty > 0 ? BUY_HEX : SELL_HEX, style: LineStyle.Solid, width: 1, position });
+      out.push({ key: `pos:${position.id}`, kind: 'position', price: position.avgPrice, hex: ENTRY_HEX, style: LineStyle.Solid, width: 1, position });
     }
     for (const o of orders) {
       const price = o.type === 'limit' ? o.limitPrice! : o.type === 'stop' ? o.stopPrice! : null;
       if (price == null) continue;
       const hex = o.role === 'target' ? TARGET_HEX : o.role === 'stop' ? STOP_HEX : o.side === 'buy' ? BUY_HEX : SELL_HEX;
-      out.push({ key: `ord:${o.id}`, kind: 'order', price, hex, style: o.type === 'stop' ? LineStyle.Dotted : LineStyle.Dashed, width: 1, order: o });
+      out.push({ key: `ord:${o.id}`, kind: 'order', price, hex, style: LineStyle.Solid, width: 1, order: o });
     }
     myLevels.forEach((p, i) => out.push({ key: `lvl:${i}:${p}`, kind: 'level', price: p, hex: LEVEL_HEX, style: LineStyle.LargeDashed, width: 1 }));
     /* WHERE THIS POSITION DIES. Only in the evaluation, only while something is
@@ -686,7 +697,6 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         last.set(p.key, sig);
         p.el.style.visibility = 'visible';
         p.el.style.transform = `translateY(${Math.round(p.y - TAG_H / 2)}px)`;
-        p.el.style.right = `${axisW + 10}px`;
         p.el.dataset.off = p.off === 0 ? '' : p.off < 0 ? 'above' : 'below';
         const caret = p.el.querySelector<HTMLElement>('[data-caret]');
         if (caret) {
@@ -721,7 +731,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         el.style.display = h < 4 ? 'none' : 'block';
         el.style.transform = `translateY(${Math.round(Math.min(posY, y))}px)`;
         el.style.height = `${Math.round(h)}px`;
-        el.style.right = `${axisW + 4}px`;
+        el.style.left = '4px';
       }
       /* THE BANDS ARE THE ONLY THING UNDER THE CANDLES, so they are clipped to
          the pane: a zone must not run under the price axis or the clock. */
@@ -1125,11 +1135,11 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     const line =
       seriesRef.current?.createPriceLine({
         price,
-        color: kind === 'stop' ? SELL_HEX : BUY_HEX,
+        color: kind === 'stop' ? STOP_HEX : TARGET_HEX,
         lineWidth: 1,
         lineStyle: kind === 'stop' ? LineStyle.Dotted : LineStyle.Dashed,
         axisLabelVisible: true,
-        axisLabelColor: kind === 'stop' ? SELL_HEX : BUY_HEX,
+        axisLabelColor: kind === 'stop' ? STOP_HEX : TARGET_HEX,
         axisLabelTextColor: '#0a0a0a',
         title: '',
       }) ?? null;
@@ -1177,63 +1187,72 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   };
 
   /*
-    WHAT THE TAG SAYS AT REST, and what it keeps for when you look at it.
+    WHAT THE LABEL SAYS, read off a real chart trader.
 
-    The price scale already draws this level's price, in this same ink, four
-    pixels to the right — so the tag repeating it was the chart saying one
-    number twice. At rest it says the two things the axis CANNOT: what the
-    line is, and what it is worth. Everything else — the price while it is
-    dragged, the ticks, the size, the fill, the queue, the handles and the
-    cancel — unfurls to its left when the pointer is on it, which is where
-    every trading platform keeps it.
+    It says the SIZE and WHAT THE ORDER IS, and it carries its own cancel. Not
+    the price — the price scale draws that, in this same ink, as the chip at
+    the end of the line. Not the money either: the position bar over the tape
+    keeps the running P&L, and a number that moves on every tick does not
+    belong on a label you are trying to drag.
+
+    That is three facts on the chart for one order and no repeats: the label
+    says what and how many, the line says where, the axis chip says the price.
+
+    Everything else — the ticks from the average, what it is worth if it
+    fills, how much of it has filled, where it stands in the queue — unfurls
+    to the RIGHT when the pointer is on it, away from the pane's edge.
   */
+  const SEG = 'inline-flex items-center px-1.5';
+  const RULE = 'w-px self-stretch my-[3px] bg-current opacity-30';
+  /* THE SIZE READS WHITE, the word reads in the line's ink — the reference's
+     own split, and the right one: how many is the fact you check at a glance,
+     and the colour has already told you which line it is. On the position,
+     where the whole label is filled, the type is white throughout. */
+  const QTY = `${SEG} font-bold text-textPrimary`;
+
+  /** "Take profit" · "Stop loss" · "Buy limit" — the words a ticket uses */
+  const orderWord = (o: Order): string => {
+    if (o.role === 'target') return 'Take profit';
+    if (o.role === 'stop') return 'Stop loss';
+    return `${o.side === 'buy' ? 'Buy' : 'Sell'} ${o.type === 'limit' ? 'limit' : o.type === 'stop' ? 'stop' : 'market'}`;
+  };
+
+  /* THE SEGMENTS RUN TOGETHER when anything reads the text rather than the
+     picture — a screen reader, a copy, a probe — because they are separate
+     spans with a rule between them. So the label carries its own spoken name. */
+  const tagSaid = (it: TapeItem): string => {
+    if (it.kind === 'position' && it.position) return `${it.position.qty > 0 ? 'Long' : 'Short'} ${Math.abs(it.position.qty)} at ${fmtPrice(instrument, it.price)}`;
+    if (it.kind === 'order' && it.order) return `${orderWord(it.order)} ${it.order.qty - it.order.filledQty} at ${fmtPrice(instrument, it.price)}`;
+    if (it.kind === 'liq') return `Liquidation at ${fmtPrice(instrument, it.price)}`;
+    return `Level at ${fmtPrice(instrument, it.price)}`;
+  };
+
   const tagRest = (it: TapeItem) => {
-    if (it.kind === 'position' && it.position && mark) {
+    if (it.kind === 'position' && it.position) {
       const p = it.position;
-      /* THE SIDE IS ONE FACT AND THE MONEY IS ANOTHER: a losing long on a chip
-         that is green because it is long said "green" and "−$471" at once. The
-         side keeps the chip; the money gets its own, in the ink of its sign. */
-      const up = mark.unrealized >= 0;
       return (
         <>
-          <span className="font-bold">{p.qty > 0 ? 'LONG' : 'SHORT'} {Math.abs(p.qty)}</span>
-          <span
-            className="font-semibold -mr-1 px-1 py-[3px] rounded-r-[2px]"
-            data-tag-live
-            style={{ background: up ? 'rgba(10,10,10,0.14)' : STOP_HEX, color: up ? '#0a0a0a' : '#fff' }}
-          >
-            {fmtMoney(mark.unrealized)}
-          </span>
+          <span className={`${SEG} font-bold`}>{Math.abs(p.qty)}</span>
+          <span className={RULE} aria-hidden />
+          <span className={SEG}>{p.qty > 0 ? 'Long' : 'Short'}</span>
         </>
       );
     }
     if (it.kind === 'order' && it.order) {
       const o = it.order;
-      const left = o.qty - o.filledQty;
-      const read = pnlOf(it);
-      if (o.role === 'stop' || o.role === 'target') {
-        return (
-          <>
-            <span className="font-bold">{o.role === 'stop' ? 'SL' : 'TP'}</span>
-            <span className="opacity-45" aria-hidden>·</span>
-            <span className="font-semibold" data-tag-live>{read ? read.money : fmtPrice(instrument, it.price)}</span>
-          </>
-        );
-      }
-      /* ONE SPAN, because two of them read as "BUY LMT2" to anything that takes
-         the text rather than the picture — a screen reader, a copy, a probe */
       return (
-        <span className="font-bold">
-          {o.side === 'buy' ? 'BUY' : 'SELL'} {typeWord(o)} {left}
-        </span>
+        <>
+          <span className={QTY}>{o.qty - o.filledQty}</span>
+          <span className={RULE} aria-hidden />
+          <span className={SEG}>{orderWord(o)}</span>
+        </>
       );
     }
-    if (it.kind === 'liq') return <span className="font-bold">LIQ</span>;
-    return <span className="font-bold">LEVEL</span>;
+    if (it.kind === 'liq') return <span className={SEG}>Liquidation</span>;
+    return <span className={SEG}>Level</span>;
   };
 
   const tagMore = (it: TapeItem) => {
-    const price = <span data-tag-price>{fmtPrice(instrument, it.price)}</span>;
     if (it.kind === 'position' && it.position && mark) {
       const p = it.position;
       return (
@@ -1255,28 +1274,22 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
               <span data-tag-ticks className="opacity-70">{read.tickWords}</span>
             </span>
           )}
-          {(o.role === 'stop' || o.role === 'target') && (
-            <span className="text-textSecondary">
-              {o.side === 'buy' ? 'BUY' : 'SELL'} {typeWord(o)} {o.qty - o.filledQty}
-            </span>
-          )}
-          {price}
           {o.filledQty > 0 && (
             <span className="inline-flex items-center gap-1 text-warn" title={`${o.filledQty} of ${o.qty} filled — the rest is working`}>
               <span className="w-1.5 h-1.5 rounded-full bg-warn" /> {o.filledQty}/{o.qty}
             </span>
           )}
           {line && line.left > 0 && (
-            <span className="text-textSecondary" data-queue={line.left} title={`${line.left} of ${line.ahead} still in front of this order at its price — it fills as the tape trades through them`}>
-              Q {line.left}
+            <span className="text-textSecondary" data-queue={line.left} title={`EMULATED, not a feed: no data vendor can tell a paper order its place in a real queue — that needs market-by-order plus the exchange's own acknowledgement of your order. This is the desk's model of ${line.ahead} in front of you at this price.`}>
+              Q {line.left} <span className="opacity-60">sim</span>
             </span>
           )}
           {o.bracket && o.role === 'entry' && <span className="text-textMuted">BRK</span>}
         </>
       );
     }
-    if (it.kind === 'liq') return <>{price}<span className="text-textMuted">{liq && !liq.alone ? 'shared' : 'max drawdown'}</span></>;
-    return price;
+    if (it.kind === 'liq') return <><span data-tag-price>{fmtPrice(instrument, it.price)}</span><span className="text-textMuted">{liq && !liq.alone ? 'shared' : 'max drawdown'}</span></>;
+    return <span data-tag-price>{fmtPrice(instrument, it.price)}</span>;
   };
 
   const removeItem = (it: TapeItem) => {
@@ -1368,7 +1381,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                 }}
                 data-brk-spine={i.order?.role}
                 className="absolute pointer-events-none"
-                style={{ right: 60, top: 0, display: 'none', width: 0, borderLeft: `1px dotted ${i.hex}`, opacity: 0.6 }}
+                style={{ left: 4, top: 0, display: 'none', width: 0, borderLeft: `1px dotted ${i.hex}`, opacity: 0.6 }}
                 aria-hidden
               />
             ))}
@@ -1386,6 +1399,9 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
               data-tag={it.kind}
               data-tag-key={it.key}
               data-tag-role={it.order?.role}
+              data-tag-said={tagSaid(it)}
+              role="group"
+              aria-label={tagSaid(it)}
               data-open={expanded ? '1' : '0'}
               onPointerDown={onTagDown(it)}
               onPointerEnter={() => it.kind === 'position' && setHoverPos(true)}
@@ -1405,57 +1421,64 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
               className={`group absolute pointer-events-auto select-none inline-flex items-stretch rounded-[3px] font-mono text-[10px] leading-none tnum whitespace-nowrap ${
                 it.kind === 'position' ? 'cursor-pointer' : grabbable ? 'cursor-ns-resize' : 'cursor-default'
               }`}
-              style={{ right: 60, height: TAG_H, visibility: 'hidden' }}
+              style={{ left: 6, height: TAG_H, visibility: 'hidden' }}
               title={
                 it.kind === 'order'
-                  ? 'Drag to move · right-click for more'
+                  ? 'Drag to move \u00b7 \u00d7 cancels \u00b7 right-click for more'
                   : it.kind === 'position'
-                    ? 'The position — click for what can be done to it'
+                    ? 'The position \u2014 click for what can be done to it'
                     : it.kind === 'liq'
-                      ? 'The evaluation liquidates this position here — it trails the peak, so it moves'
-                      : 'Drag to move'
+                      ? 'The evaluation liquidates this position here \u2014 it trails the peak, so it moves'
+                      : 'Drag to move \u00b7 \u00d7 removes'
               }
             >
-              <span data-conn className="absolute left-1.5 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
-              {/* THE CANCEL GOES FIRST, at the far end of what unfurls — never
-                  beside the chip. The tag is anchored to the price scale, so
-                  anything drawn AFTER the chip pushes the chip left the moment
-                  the pointer arrives, and a hand reaching for the drag lands on
-                  the × instead. Everything grows leftward; the chip never moves. */}
-              {it.kind !== 'position' && it.kind !== 'liq' && (
-                <button
-                  type="button"
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={e => {
-                    e.stopPropagation();
-                    removeItem(it);
-                  }}
-                  aria-label={it.kind === 'order' ? 'Cancel this order' : 'Remove this level'}
-                  className="hidden group-hover:inline-flex group-data-[open=1]:inline-flex items-center justify-center w-[18px] mr-px shrink-0 rounded-[3px] border bg-canvas/90 text-textMuted hover:text-bear hover:border-bear/60 transition-colors"
-                  style={{ borderColor: `${it.hex}66` }}
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              )}
-              {/* THE DETAIL, unfurled to the left: only under the pointer, while
-                  it is dragged, or while it is the order the desk has selected */}
+              <span data-conn className="absolute right-0 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
+
+              {/*
+                THE LABEL. Filled for the POSITION, outlined for everything that
+                is still only an order \u2014 the distinction a chart trader draws,
+                and the one that matters: filled means you are in it.
+              */}
               <span
-                data-tag-more
-                className="hidden group-hover:inline-flex group-data-[open=1]:inline-flex items-center gap-1.5 px-1.5 mr-px rounded-l-[3px] border border-r-0 bg-canvas/90 backdrop-blur-sm text-textPrimary"
-                style={{ borderColor: `${it.hex}66` }}
+                className="inline-flex items-stretch rounded-[2px] border overflow-hidden"
+                style={
+                  it.kind === 'position'
+                    ? { background: it.hex, borderColor: it.hex, color: '#fff' }
+                    : { background: 'rgb(var(--canvas) / 0.82)', borderColor: it.hex, color: it.hex }
+                }
               >
-                {tagMore(it)}
+                {tagRest(it)}
+                <span data-caret className="font-bold self-center pr-1" style={{ display: 'none' }} aria-hidden />
+                {/* the cancel, inside the label at its far end, the way the reference draws it */}
+                {it.kind !== 'position' && it.kind !== 'liq' && (
+                  <>
+                    <span className={RULE} aria-hidden />
+                    <button
+                      type="button"
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => {
+                        e.stopPropagation();
+                        removeItem(it);
+                      }}
+                      aria-label={it.kind === 'order' ? 'Cancel this order' : 'Remove this level'}
+                      className="inline-flex items-center justify-center w-[17px] shrink-0 hover:bg-bear/25 transition-colors"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </>
+                )}
               </span>
+
               {/* the handles: over the position, for the leg it has not got */}
               {bare && hoverPos && (
-                <span className="inline-flex items-stretch mr-px rounded-[3px] overflow-hidden border bg-canvas/90" style={{ borderColor: `${it.hex}66` }} data-brk-handles>
+                <span className="inline-flex items-stretch ml-px rounded-[2px] overflow-hidden border bg-canvas/90" style={{ borderColor: `${it.hex}66` }} data-brk-handles>
                   {!targetOrder && (
                     <button
                       type="button"
                       data-pull="target"
                       onPointerDown={onPullDown('target')}
                       onClick={e => e.stopPropagation()}
-                      title="Drag out a target — or click to place it at the bracket's own distance"
+                      title="Drag out a target \u2014 or click to place it at the bracket's own distance"
                       className="inline-flex items-center gap-0.5 px-1 font-semibold cursor-ns-resize transition-colors hover:bg-bull/20"
                       style={{ color: TARGET_HEX }}
                     >
@@ -1468,7 +1491,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                       data-pull="stop"
                       onPointerDown={onPullDown('stop')}
                       onClick={e => e.stopPropagation()}
-                      title="Drag out a stop — or click to place it at the bracket's own distance"
+                      title="Drag out a stop \u2014 or click to place it at the bracket's own distance"
                       className="inline-flex items-center gap-0.5 px-1 font-semibold cursor-ns-resize transition-colors hover:bg-bear/20 border-l border-borderSubtle"
                       style={{ color: STOP_HEX }}
                     >
@@ -1477,11 +1500,17 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                   )}
                 </span>
               )}
-              {/* THE CHIP: the ink of its own line, dark type — the same mark the
-                  price scale wears for it, so the level and its label are one thing */}
-              <span className="inline-flex items-center gap-1 px-1.5 rounded-[3px]" style={{ background: it.hex, color: '#0a0a0a' }}>
-                {tagRest(it)}
-                <span data-caret className="font-bold" style={{ display: 'none' }} aria-hidden />
+
+              {/* THE DETAIL, unfurled to the RIGHT: only under the pointer, while
+                  it is dragged, or while it is the order the desk has selected.
+                  Rightward because the label is against the pane's left edge now
+                  and there is nothing to its left to grow into. */}
+              <span
+                data-tag-more
+                className="hidden group-hover:inline-flex group-data-[open=1]:inline-flex items-center gap-1.5 px-1.5 ml-px rounded-[2px] border bg-canvas/90 backdrop-blur-sm text-textPrimary"
+                style={{ borderColor: `${it.hex}66` }}
+              >
+                {tagMore(it)}
               </span>
             </div>
           );
@@ -1491,7 +1520,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
           ref={pullHudRef}
           data-pull-hud={pull?.kind ?? ''}
           className="absolute pointer-events-none items-center gap-1.5 h-5 px-1.5 rounded border bg-panel/95 backdrop-blur-sm font-mono text-[10px] tnum shadow-md shadow-black/40 whitespace-nowrap"
-          style={{ right: 60, display: 'none', borderColor: pull?.kind === 'stop' ? `${SELL_HEX}88` : `${BUY_HEX}88` }}
+          style={{ right: 60, display: 'none', borderColor: pull?.kind === 'stop' ? `${STOP_HEX}88` : `${TARGET_HEX}88` }}
         >
           {pull && position && (
             <>
