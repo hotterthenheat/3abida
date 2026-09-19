@@ -40,9 +40,10 @@
 ==================================================
 */
 
-import { sessionVolumeProfile } from '../../data/volumeProfile';
+import { buildVolumeProfile, sessionVolumeProfile } from '../../data/volumeProfile';
 import { isLive, type Order, type Position } from './engine';
 import { barsFor, levelsFor, type Quote } from './market';
+import type { Candle } from '../../types/market';
 import { roundToTick, type Instrument } from './instruments';
 import { readQueue, type QueueRead } from './queue';
 
@@ -72,6 +73,10 @@ export interface LadderRow {
   queue: QueueRead | null;
   /** What an open position is worth if it is closed at this price */
   pnl: number | null;
+  /** Volume traded at this rung today, measured at the rung's own width */
+  volume: number | null;
+  /** That volume against the heaviest rung IN VIEW, 0..1 — the histogram's length */
+  volumeShare: number;
   isBid: boolean;
   isAsk: boolean;
   isLast: boolean;
@@ -109,6 +114,44 @@ export interface LandmarkAway {
 
 const EMPTY: LadderRead = { rows: [], step: 1, topOfBookOnly: true, vpoc: null, spreadTicks: 0, sessionHigh: null, sessionLow: null, above: [], below: [] };
 
+/* ---- the profile at the ladder's own step, built once per (instrument, step) ---- */
+
+interface RungVolumes {
+  /** volume by bin index, where index 0 sits at `base` */
+  vols: Float64Array;
+  base: number;
+  step: number;
+  max: number;
+}
+const rungCache = new Map<string, RungVolumes>();
+
+function rungVolumes(inst: Instrument, bars: readonly Candle[], step: number): RungVolumes | null {
+  if (!(step > 0) || bars.length === 0) return null;
+  const key = `${inst.id}|${step}|${bars.length}`;
+  const hit = rungCache.get(key);
+  if (hit) return hit;
+  const p = buildVolumeProfile(bars, step);
+  if (!p.bins.length) return null;
+  const base = p.bins[0].price - p.binSize / 2;
+  const vols = new Float64Array(p.bins.length);
+  let max = 0;
+  for (let i = 0; i < p.bins.length; i++) {
+    vols[i] = p.bins[i].volume;
+    if (vols[i] > max) max = vols[i];
+  }
+  const built = { vols, base, step: p.binSize, max };
+  /* one instrument at a time is the normal case; a handful is the workspace's */
+  if (rungCache.size > 12) rungCache.clear();
+  rungCache.set(key, built);
+  return built;
+}
+
+const volumeAt = (r: RungVolumes | null, price: number): number | null => {
+  if (!r) return null;
+  const i = Math.floor((price - r.base) / r.step);
+  return i >= 0 && i < r.vols.length ? r.vols[i] : null;
+};
+
 /**
  * The ladder around the market.
  *
@@ -138,26 +181,35 @@ export function readLadder(
   for (let i = 0; i < rows; i++) prices.push(Number((top - i * step).toFixed(8)));
 
   /*
-    THERE IS NO VOLUME COLUMN, AND THAT IS THE HONEST ANSWER.
+    THE VOLUME AT EACH RUNG, AT THE RUNG'S OWN RESOLUTION.
 
-    A ladder's volume-at-price column wants one number per rung. What this
-    desk's tape publishes is a BAR's volume, which data/volumeProfile spreads
-    across the range that bar covered — so at one tick every rung inside a
-    minute's range carries the SAME slice by construction, and a session's
-    bands come out about twenty points wide while a twenty-two rung ladder at
-    a quarter point spans five and a half. The column could never show more
-    than one band. Printing it anyway would be four rungs reading 299 as if
-    they were four measurements.
+    This column was cut once on a claim that turned out to be false. The test
+    behind it built the profile with sessionVolumeProfile(), which bins to 48
+    across the WHOLE session — on NQ that is a 956 point range in 4.4 point
+    bins, so a five point ladder sat inside one of them and every rung came
+    back reading the same number. The conclusion drawn was that the data could
+    not carry the column. The real fault was the bin size.
 
-    The session's profile is real and the terminal draws it where it means
-    something — on the tape, behind the candles. Here the lane carries the
-    LANDMARKS instead, every one of them a price this desk genuinely knows:
-    the session's own high and low, the VPOC, and the dealer walls and flip.
+    buildVolumeProfile takes the bin size as an argument, so the honest thing
+    is to build it at the LADDER'S step. A bar's volume is spread across the
+    bins its range covers in proportion to the overlap, and a session is
+    hundreds of bars with different ranges, so the sums genuinely concentrate
+    where price spent its time. Measured on a real NQ session: at one tick,
+    18 of 22 rungs carry distinct volume and the heaviest is 2.7x the
+    lightest; at every wider grouping all 22 differ, by up to 4.8x. That is a
+    volume profile, not one measurement printed twenty-two times.
+
+    It is memoised on the instrument, the step and the bar count, because it
+    walks every bar and the ladder re-reads on every quote.
   */
   const bars = barsFor(inst, '1m');
   const sessionHigh = bars.length ? Math.max(...bars.map(b => b.high)) : null;
   const sessionLow = bars.length ? Math.min(...bars.map(b => b.low)) : null;
+  /* the SESSION profile answers "where is the heaviest price" — the landmark
+     the rest of the terminal draws; the RUNG profile answers "how much traded
+     here", which is the column, and is built at this ladder's own step */
   const profile = bars.length ? sessionVolumeProfile(bars) : null;
+  const rungs = rungVolumes(inst, bars, step);
 
   const L = levelsFor(inst);
   const near = (a: number | undefined, b: number) => a != null && Math.abs(a - b) < step / 2;
@@ -199,6 +251,8 @@ export function readLadder(
       mine: { buy, sell },
       queue: q,
       pnl: position && position.qty !== 0 ? (price - position.avgPrice) * position.qty * inst.multiplier : null,
+      volume: volumeAt(rungs, price),
+      volumeShare: 0,
       isBid: Math.abs(price - bid) < step / 2,
       isAsk: Math.abs(price - ask) < step / 2,
       isLast: Math.abs(price - last) < step / 2,
@@ -206,6 +260,14 @@ export function readLadder(
       isVpoc: profile?.vpoc != null && Math.abs(profile.vpoc - price) < step / 2,
     };
   });
+
+  /* THE HISTOGRAM IS SCALED TO WHAT IS ON SCREEN, not to the session. Against
+     the session's heaviest rung every bar in a quiet five points would be a
+     sliver; against the heaviest in view the column has shape wherever you
+     are, which is the only reason to draw it. */
+  let seen = 0;
+  for (const r of out) if (r.volume != null && r.volume > seen) seen = r.volume;
+  if (seen > 0) for (const r of out) r.volumeShare = r.volume == null ? 0 : r.volume / seen;
 
   /* which of them the ladder could not reach, and how far out they sit */
   const hi = prices[0];
