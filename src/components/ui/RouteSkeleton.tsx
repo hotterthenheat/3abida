@@ -19,6 +19,7 @@ import { PageSkeleton } from './Skeleton';
 import { PinpointRouteSkeleton } from '../../pages/pinpoint/pinpointSkeletons';
 import { TraceRouteSkeleton } from '../../pages/trace/traceSkeletons';
 import { WeigherPageSkeleton } from '../../pages/weigherSkeleton';
+import { PaperPageSkeleton } from '../../pages/paper/paperSkeleton';
 import { CompassHeadSkeleton, CompassRouteSkeleton } from '../../pages/compassSkeleton';
 import { PulseBoardSkeleton, PulsePageSkeleton } from '../../pages/workspace/pulseSkeletons';
 import { RecordRouteSkeleton } from '../../pages/record/recordSkeletons';
@@ -30,6 +31,7 @@ const RouteSkeleton = ({ pathname }: { pathname: string }) => {
   if (pathname.startsWith('/record')) return <RecordRouteSkeleton pathname={pathname} />;
   if (pathname.startsWith('/trace')) return <TraceRouteSkeleton pathname={pathname} />;
   if (pathname.startsWith('/weigher')) return <WeigherPageSkeleton />;
+  if (pathname.startsWith('/paper')) return <PaperPageSkeleton />;
   if (pathname.startsWith('/compass'))
     return (
       <>

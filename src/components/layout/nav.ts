@@ -7,6 +7,7 @@ import {
   Sigma,
   ScrollText,
   Bookmark,
+  ClipboardPen,
   MessageSquareWarning,
   Users,
   Telescope,
@@ -35,6 +36,9 @@ export const NAV_INK = {
   alerts: '#E9A23B',
   compass: '#4FB8B8',
   weigher: '#A78BFA',
+  /* the paper desk's straw — between the Weigher's violet and Trace's orange
+     on the wheel, and nothing the terminal means by a colour (2026-09-19) */
+  paper: '#E2C15E',
   trace: '#F0925A',
   pulse: '#E86F8A',
   terrain: '#86B98B',
@@ -77,11 +81,23 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'The weigh station — chart, chain and scanner on one desk, with what a contract has to clear',
     group: 'Discover',
   },
+  /* THE PAPER DESK (Noah, 2026-09-19: "put this paper trader in a tab below
+     weigher") — the chart as the order ticket: futures and options traded on
+     paper against the terminal's market state, one engine behind every hand */
+  {
+    path: '/paper',
+    label: 'Paper',
+    code: '03',
+    icon: ClipboardPen,
+    ink: NAV_INK.paper,
+    description: 'Paper trading — trade futures and options on the chart itself, against the live tape, no real money',
+    group: 'Discover',
+  },
   /* Stocks moved under the Record (2026-09-10) — the screens are a record about a name, read beside its news and filings */
   {
     path: '/trace',
     label: 'Trace',
-    code: '03',
+    code: '04',
     icon: Radar,
     ink: NAV_INK.trace,
     description: 'Options flow & dark-pool intelligence — what the prints actually mean',
@@ -91,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/pulse',
     label: 'Pulse',
-    code: '04',
+    code: '05',
     icon: Activity,
     ink: NAV_INK.pulse,
     description: 'The live market desk — chart, dealer pressure & key levels, arranged your way',
@@ -100,7 +116,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/terrain',
     label: 'Terrain',
-    code: '05',
+    code: '06',
     icon: CandlestickChart,
     ink: NAV_INK.terrain,
     description: 'Charts only — one to four books side by side, one set of controls',
@@ -109,7 +125,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/pinpoint',
     label: 'Pinpoint',
-    code: '06',
+    code: '07',
     icon: Crosshair,
     ink: NAV_INK.pinpoint,
     description: 'GEX & dealer-positioning system',
@@ -120,7 +136,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/record',
     label: 'Record',
-    code: '07',
+    code: '08',
     icon: ScrollText,
     ink: NAV_INK.record,
     description: 'What is on the record about a name — news, earnings, insiders, Congress',
@@ -130,7 +146,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/community',
     label: 'Community',
-    code: '09',
+    code: '10',
     icon: Users,
     ink: NAV_INK.community,
     description: 'The room — traders, setups and the record they build',
@@ -141,7 +157,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/feedback',
     label: 'Feedback',
-    code: '08',
+    code: '09',
     icon: MessageSquareWarning,
     ink: NAV_INK.tracker,
     description: 'Suggest what to build, report what broke — every note is read',
@@ -152,7 +168,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/settings',
     label: 'Settings',
-    code: '10',
+    code: '11',
     icon: Settings,
     ink: NAV_INK.settings,
     description: 'How the terminal looks, what the desk opens on, what it says out loud',
@@ -162,7 +178,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/prove-it',
     label: 'Prove It',
-    code: '11',
+    code: '12',
     icon: Sigma,
     ink: NAV_INK.proveIt,
     description: 'Quantitative modeling & predictive analytics',

@@ -99,6 +99,10 @@ const SHORTCUTS: { keys: string[]; does: string }[] = [
   { keys: ['Esc'], does: 'Close what is open — a menu, the alerts, fullscreen, a replay' },
   { keys: ['Ctrl', 'S'], does: 'Save the script in the editor' },
   { keys: ['Ctrl', 'Enter'], does: 'Run the script on its chart' },
+  /* THE PAPER DESK'S KEYS (2026-09-19) — the defaults; every one is rebindable on the desk itself */
+  { keys: ['B', '/', 'S'], does: 'Paper desk — buy or sell at the market (B then L, S then L: a limit at the cursor)' },
+  { keys: ['C', '/', 'R'], does: 'Paper desk — close the position, or reverse it' },
+  { keys: ['X', '/', 'Shift', 'X'], does: 'Paper desk — cancel the selected order, or all of them (rebind on the desk)' },
 ];
 
 /** The version the About box prints — package.json's, by hand until the build stamps it */

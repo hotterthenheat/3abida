@@ -22,6 +22,19 @@ import RouteSkeleton from '../ui/RouteSkeleton';
 */
 import { useEditorDock } from '../../data/editorDock';
 const EditorDock = lazy(() => import('../scripts/EditorDock'));
+/* THE PAPER DESK'S CLOCK AND ITS FILLS (2026-09-19): the engine and the market
+   state travel only when the desk has something live (a flag the engine
+   writes beside its book) or the reader is on it — the same rule as the
+   editor: nothing of it in the entry chunk. */
+const PaperToasts = lazy(() => import('./PaperToasts'));
+const PAPER_LIVE_FLAG = 'slayer_paper_live';
+const paperIsLive = (): boolean => {
+  try {
+    return localStorage.getItem(PAPER_LIVE_FLAG) === '1';
+  } catch {
+    return false;
+  }
+};
 import AlertsDrawer from '../alerts/AlertsDrawer';
 import AlertWatcher from '../alerts/AlertWatcher';
 import AlertToasts from '../alerts/AlertToasts';
@@ -123,7 +136,13 @@ const AppShell = () => {
      a slight scroll down"). The trick is calc-free: main's height is definite,
      so a child's h-full resolves to exactly the viewport remainder — the desk
      fills the first screenful, and the footer sits just past the fold. */
-  const weigherFrame = location.pathname.startsWith('/weigher');
+  /* The Paper desk wears the Weigher's frame (2026-09-19): the tab below it, the same screenful */
+  const weigherFrame = location.pathname.startsWith('/weigher') || location.pathname.startsWith('/paper');
+  /* Once the desk has been opened this session, or has a book, its clock rides the shell */
+  const [paperWanted, setPaperWanted] = useState(paperIsLive);
+  useEffect(() => {
+    if (location.pathname.startsWith('/paper')) setPaperWanted(true);
+  }, [location.pathname]);
   /* Terrain is a charting desk: it fits the screen exactly and carries no
      footer (Noah, 2026-09-12) — the frame with no gutters at all. */
   const terrainFrame = location.pathname.startsWith('/terrain');
@@ -232,6 +251,12 @@ const AppShell = () => {
           page, and a firing shown wherever the reader is */}
       <AlertWatcher />
       <AlertToasts />
+      {/* PAPER FILLS, HEARD EVERYWHERE (2026-09-19): a stop left on the chart is watched on every page, and its fill shown wherever the reader is */}
+      {paperWanted && (
+        <Suspense fallback={null}>
+          <PaperToasts muted={location.pathname.startsWith('/paper')} />
+        </Suspense>
+      )}
       <CommandPalette open={paletteOpen} onClose={closePalette} />
     </div>
   );
