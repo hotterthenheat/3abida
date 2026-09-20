@@ -67,6 +67,8 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
     return () => window.clearTimeout(id);
   }, [said]);
 
+  /** the same dollars-and-cents the contract card speaks */
+  const money = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const priceNum = Number(priceText);
   const priceOk = type === 'market' || (Number.isFinite(priceNum) && (priceNum > 0 || instrument.kind === 'spread'));
   const setDefaultQty = (n: number) => {
@@ -199,6 +201,37 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
             <input value={targetTicks} onChange={e => { const v = Math.max(1, Math.round(Number(e.target.value) || 1)); setTargetTicks(v); updatePaperPrefs({ bracket: { targetTicks: v } as never }); }} inputMode="numeric" aria-label="Target, in ticks" className="w-9 h-6 text-center rounded border border-borderSubtle bg-inputBg font-mono text-[10px] tnum text-textPrimary outline-none focus:border-silver/60" />
           </span>
         </div>
+        {/*
+          WHAT THOSE TICKS COST, because nobody thinks in ticks.
+
+          The bracket was set in ticks alone: "stop 40" on NQ is two hundred
+          dollars a contract and the ticket never said so. A tick is worth the
+          tick size times the multiplier times the size, and those three live
+          on the instrument, so the ticket can simply say it.
+
+          ON AN OPTION THIS IS THE PREMIUM, not the underlying. A forty tick
+          stop on a $6.00 call is forty CENTS of premium; it is not a move in
+          the stock, and the two are not interchangeable. The desk trades the
+          option's own tape here, so the bracket rides the premium, and the
+          line says which it is rather than leaving it to be assumed.
+        */}
+        {bracket && (
+          <div className="flex items-baseline gap-1.5 font-mono text-[10px] tnum" data-bracket-cost>
+            <span className="text-textMuted">Risk</span>
+            <span className="font-semibold text-bear">{money(stopTicks * instrument.tickSize * instrument.multiplier * qty)}</span>
+            <span className="text-textMuted">to make</span>
+            <span className="font-semibold text-bull">{money(targetTicks * instrument.tickSize * instrument.multiplier * qty)}</span>
+            <span className="ml-auto text-textMuted">R:R</span>
+            <span className="font-semibold" style={{ color: targetTicks / stopTicks >= 2 ? 'rgb(var(--bull))' : targetTicks / stopTicks >= 1 ? 'rgb(var(--text-primary))' : 'rgb(var(--bear))' }}>
+              {(targetTicks / stopTicks).toFixed(2)}
+            </span>
+          </div>
+        )}
+        {bracket && instrument.kind === 'option' && (
+          <p className="font-mono text-[9px] leading-snug text-textMuted" data-bracket-basis="premium">
+            On the PREMIUM, not the underlying — {stopTicks} ticks is {money(stopTicks * instrument.tickSize)} off the contract's own price.
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           {(['buy', 'sell'] as const).map(side => (

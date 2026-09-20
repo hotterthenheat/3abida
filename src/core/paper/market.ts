@@ -443,17 +443,32 @@ export function lastBarTime(inst: Instrument): number | null {
 
 /* ---- the dealer levels, in the instrument's own units ---------------------------------- */
 
-/** The walls, the flip and the supreme where this instrument trades — null for an option's premium tape */
+/**
+ * The walls, the flip and the supreme where this instrument trades.
+ *
+ * A STOCK ONLY. These are read off the name's OWN option chain, so on a stock
+ * they are a fact about the thing you are trading.
+ *
+ * They used to be handed to futures as well, by taking the underlying ETF's
+ * chain and mapping every level across with the family ratio and the basis.
+ * That is wrong to draw on a futures chart: a call wall is a property of an
+ * OPTION CHAIN, and the chain in question is QQQ's, not NQ's. Transposed onto
+ * the contract's own tape with no word said, it reads as a level in that
+ * contract, which it is not — three anonymous hairlines asserting something
+ * about a market they were not measured in.
+ *
+ * The dealer BAND overlay (core/paper/dealer.ts) does its own transposition
+ * knowingly and says so: every band is captioned with the greek and the
+ * UNDERLYING'S strike, so the reader can see it is the chain talking. That is
+ * a different thing and it stays.
+ *
+ * Null for an option's premium tape and for a spread, for the same reason:
+ * the level lives on the underlying's price, not on a premium.
+ */
 export function levelsFor(inst: Instrument): KeyLevels | null {
-  if (inst.kind === 'option' || inst.kind === 'spread') return null;
+  if (inst.kind !== 'stock') return null;
   if (!Simulator.isSeeded(inst.underlying)) return null;
-  const L = buildLevelsFor(inst.underlying);
-  if (inst.kind === 'stock') return L;
-  const fam = twinFamilyFor(inst.underlying);
-  if (!fam) return null;
-  const basis = futuresBasis(inst.underlying);
-  const map = (v: number) => roundToTick(inst, v * fam.ratio + basis);
-  return { spot: map(L.spot), callWall: map(L.callWall), putWall: map(L.putWall), flip: map(L.flip), supreme: map(L.supreme) };
+  return buildLevelsFor(inst.underlying);
 }
 
 /* ---- the chain's grid, for a click on the tape ----------------------------------------- */

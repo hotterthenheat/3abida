@@ -74,8 +74,7 @@ import { LOCAL_TIME, localTickMarks } from '../../components/gex/chartTime';
 import { CALL_WALL, FLIP, PUT_WALL } from '../../components/gex/palette';
 import { useResolvedTheme } from '../../theme/theme';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
-import CompanyLogo from '../../components/ui/CompanyLogo';
-import { fmtMoney, fmtPrice, roundToTick, tagWord, type Instrument } from '../../core/paper/instruments';
+import { fmtPrice, roundToTick, tagWord, type Instrument } from '../../core/paper/instruments';
 import { barsFor, levelsFor, type Quote } from '../../core/paper/market';
 import {
   addToPosition,
@@ -260,6 +259,18 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   /** the tape's own ground, under everything the library draws */
   const groundRef = useRef<HTMLDivElement | null>(null);
   const zonesRef = useRef<HTMLDivElement | null>(null);
+  /*
+    THE BRACKET IS ONE OBJECT, so it is drawn as one.
+
+    A target line, an entry line and a stop line are three unrelated hairlines
+    until something fills the space between them. Every platform that lets you
+    drag a bracket shades it: the ground you win on above the entry, the ground
+    you lose on below it. That is what makes the thing read as a shape you can
+    take hold of rather than three coincidental levels — and it puts the reward
+    against the risk as AREA, which is read without arithmetic.
+  */
+  const profitZoneRef = useRef<HTMLDivElement | null>(null);
+  const riskZoneRef = useRef<HTMLDivElement | null>(null);
   const bandRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const liqRef = useRef<HTMLDivElement | null>(null);
   /** set while a synced range is being applied, so it is not published straight back */
@@ -279,6 +290,40 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   quoteRef.current = quote;
   const stopOrder = useMemo(() => orders.find(o => o.role === 'stop') ?? null, [orders]);
   const targetOrder = useMemo(() => orders.find(o => o.role === 'target') ?? null, [orders]);
+  /* what the target is worth against what the stop costs, whenever both exist */
+  /*
+    THE THREE LINES THE DEALER TOGGLE DRAWS, named.
+
+    They were created with a `title` and no label shown, which in this library
+    version renders nothing at all — so the pane carried three anonymous
+    hairlines a reader could only guess at, and an unnameable line on a
+    trading chart is worse than no line. The names ride just inside the price
+    axis, where an overlay's label belongs, rather than on the axis itself
+    where the wall nearest the market would stack on the last-price chip.
+  */
+  const dealerLines = useMemo(() => {
+    if (!prefs.levels) return [] as { key: string; price: number; hex: string; word: string }[];
+    const L = levelsFor(instrument);
+    if (!L) return [];
+    return [
+      { key: 'call', price: L.callWall, hex: CALL_WALL, word: 'Call wall' },
+      { key: 'put', price: L.putWall, hex: PUT_WALL, word: 'Put wall' },
+      { key: 'flip', price: L.flip, hex: FLIP, word: 'Gamma flip' },
+    ].filter(l => Number.isFinite(l.price));
+  }, [instrument, prefs.levels, revision]);
+  const levelLabelRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const dealerRef = useRef(dealerLines);
+  dealerRef.current = dealerLines;
+
+  const rr = useMemo(() => {
+    if (!position || !stopOrder || !targetOrder) return null;
+    const t = targetOrder.limitPrice ?? targetOrder.stopPrice;
+    const st = stopOrder.stopPrice ?? stopOrder.limitPrice;
+    if (t == null || st == null) return null;
+    const reward = Math.abs(t - position.avgPrice);
+    const risk = Math.abs(position.avgPrice - st);
+    return risk > 0 ? reward / risk : null;
+  }, [position, stopOrder, targetOrder]);
   const myLevels = allLevels[instrument.id] ?? [];
   /* the floor trails, so this is read fresh on every tick of the engine's clock */
   const liq = useMemo(() => liquidationFor(instrument.id), [instrument.id, revision, position?.qty, position?.avgPrice]);
@@ -575,8 +620,20 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
       { price: L.putWall, color: PUT_WALL, title: 'PUT WALL', style: LineStyle.Solid, width: 1 },
       { price: L.flip, color: FLIP, title: 'FLIP', style: LineStyle.LargeDashed, width: 1 },
     ];
+    /* A LINE NOBODY CAN NAME IS NOISE. These three were drawn with their titles
+       set but no label shown, so the pane carried three anonymous hairlines
+       that a reader could only guess at. They wear their names now, on the
+       line, at the left — and not on the price axis, where the wall nearest
+       the market would stack on top of the last-price chip. */
     levelLinesRef.current = spec.map(s =>
-      series.createPriceLine({ price: s.price, color: `${s.color}66`, lineWidth: s.width, lineStyle: s.style, axisLabelVisible: false, title: s.title })
+      series.createPriceLine({
+        price: s.price,
+        color: `${s.color}66`,
+        lineWidth: s.width,
+        lineStyle: s.style,
+        axisLabelVisible: false,
+        title: s.title,
+      })
     );
   }, [instrument, prefs.levels, ready, revision]);
 
@@ -676,7 +733,9 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
           position: f.side === 'buy' ? 'belowBar' : 'aboveBar',
           shape: f.side === 'buy' ? 'arrowUp' : 'arrowDown',
           color: f.side === 'buy' ? BUY_HEX : SELL_HEX,
-          text: `${f.side === 'buy' ? 'B' : 'S'} ${f.qty}`,
+          /* "BUY 3 @ 17,054.50" and not "B 3" — a fill marker is the record of
+             a trade and the price is the whole point of reading it back */
+          text: `${f.side === 'buy' ? 'BUY' : 'SELL'} ${f.qty} @ ${fmtPrice(instrument, f.price)}`,
           size: 1,
         });
       }
@@ -779,6 +838,51 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         el.style.transform = `translateY(${Math.round(Math.min(posY, y))}px)`;
         el.style.height = `${Math.round(h)}px`;
         el.style.left = '4px';
+      }
+      /* the dealer lines wear their names just inside the axis */
+      for (const [key, el] of levelLabelRefs.current) {
+        const price = dealerRef.current.find(l => l.key === key)?.price;
+        const y = price == null ? null : series.priceToCoordinate(price);
+        const sigL = y == null ? 'off' : `${Math.round(y)}|${axisW}`;
+        if (last.get(`lvl:${key}`) === sigL) continue;
+        last.set(`lvl:${key}`, sigL);
+        if (y == null || y < 2 || y > paneH - 2) {
+          el.style.display = 'none';
+          continue;
+        }
+        el.style.display = 'block';
+        el.style.transform = `translateY(${Math.round(y) - 7}px)`;
+        el.style.right = `${axisW + 6}px`;
+      }
+      /* the bracket's two grounds: entry to target, entry to stop */
+      {
+        const items = itemsRef.current;
+        const pos = items.find(i => i.kind === 'position');
+        const legs: [HTMLDivElement | null, TapeItem | undefined][] = [
+          [profitZoneRef.current, items.find(i => i.order?.role === 'target')],
+          [riskZoneRef.current, items.find(i => i.order?.role === 'stop')],
+        ];
+        for (const [el, leg] of legs) {
+          if (!el) continue;
+          if (!pos || !leg) {
+            if (el.style.display !== 'none') el.style.display = 'none';
+            continue;
+          }
+          const a = series.priceToCoordinate(pos.price);
+          const bq = series.priceToCoordinate(dragRef.current?.key === leg.key ? dragRef.current.price : leg.price);
+          if (a == null || bq == null) {
+            if (el.style.display !== 'none') el.style.display = 'none';
+            continue;
+          }
+          const top = Math.round(Math.min(a, bq));
+          const h = Math.round(Math.abs(bq - a));
+          const sigZ = `${top}|${h}`;
+          if (last.get(`bz:${el.dataset.bracketZone}`) === sigZ) continue;
+          last.set(`bz:${el.dataset.bracketZone}`, sigZ);
+          el.style.display = h < 2 ? 'none' : 'block';
+          el.style.transform = `translateY(${top}px)`;
+          el.style.height = `${h}px`;
+        }
       }
       /* THE BANDS ARE THE ONLY THING UNDER THE CANDLES, so they are clipped to
          the pane: a zone must not run under the price axis or the clock. */
@@ -1149,6 +1253,30 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         if (ticks) ticks.textContent = r.tickWords;
         if (chip) chip.textContent = r.money;
         if (pill) pill.style.color = pnlInk(r.pnl);
+        /*
+          AND THE REWARD AGAINST THE RISK, WHILE THE LEG IS STILL MOVING.
+
+          R:R is the number you are dragging to FIND — you pull the stop until
+          the ratio is one you will take. Left to the committed prices it only
+          caught up when the pointer came off, which is the one moment it is no
+          longer any use. The other leg holds still, so the live ratio is this
+          price against that one.
+        */
+        const other =
+          it.order?.role === 'stop'
+            ? (targetOrder?.limitPrice ?? targetOrder?.stopPrice ?? null)
+            : (stopOrder?.stopPrice ?? stopOrder?.limitPrice ?? null);
+        const rrEl = wrapRef.current?.querySelector<HTMLElement>('[data-rr-value]');
+        if (rrEl && other != null) {
+          const avg = protective.avgPrice;
+          const reward = it.order?.role === 'target' ? Math.abs(p - avg) : Math.abs(other - avg);
+          const risk = it.order?.role === 'stop' ? Math.abs(avg - p) : Math.abs(avg - other);
+          if (risk > 0) {
+            const live = reward / risk;
+            rrEl.textContent = live.toFixed(2);
+            rrEl.style.color = live >= 2 ? TARGET_HEX : live >= 1 ? 'rgb(var(--text-primary))' : STOP_HEX;
+          }
+        }
       }
     };
     const up = (ev: PointerEvent) => {
@@ -1377,6 +1505,9 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
           bands can sit here — under the candles, the grid and the scales. */}
       <div ref={groundRef} className="absolute inset-0" aria-hidden />
       <div ref={zonesRef} className="absolute left-0 top-0 pointer-events-none overflow-hidden" style={{ right: 0, height: 0 }} data-dealer-zones={book ? book.greek : undefined} aria-hidden={!book}>
+        {/* the bracket's two grounds, under the candles with the dealer bands */}
+        <div ref={profitZoneRef} data-bracket-zone="profit" className="absolute left-0 right-0" style={{ top: 0, display: 'none', background: `${TARGET_HEX}22` }} />
+        <div ref={riskZoneRef} data-bracket-zone="risk" className="absolute left-0 right-0" style={{ top: 0, display: 'none', background: `${STOP_HEX}14` }} />
         {book?.levels.map((lv, i) => (
           <div
             key={`${lv.strike}`}
@@ -1405,10 +1536,20 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
 
       {/* the legend: the name, the clock, the live tick, the touch */}
       <div ref={legendRef} className="absolute left-2 z-10 pointer-events-none select-none flex flex-col gap-1 font-mono" style={{ top: topInset + 4 }} data-chart-chrome>
+        {/*
+          THE LEGEND NAMES THE BAR, NOT THE INSTRUMENT.
+
+          The strip directly above this carries the name in the picker that
+          CHANGES it, and the position bar directly below carried it a third
+          time — three prints of NQZ6 inside fifty-five vertical pixels, with
+          the logo twice. A chart says what it is once, at the control that
+          sets it. The timeframe went the same way: the strip's own row of
+          them already shows which is lit.
+
+          What is left is the only thing here that nothing else says: what the
+          bar under the pointer did.
+        */}
         <div className="flex items-center gap-1.5" ref={ohlcRef}>
-          <CompanyLogo ticker={instrument.underlying} size={13} />
-          <span className="text-[11px] font-semibold text-textPrimary">{tagWord(instrument)}</span>
-          <span className="text-[10px] text-textMuted">{timeframe}</span>
           <span className="inline-flex items-center gap-1 text-[10px] tnum">
             <span className="text-textMuted">O</span>
             <span className="text-textPrimary" data-ohlc="o">—</span>
@@ -1429,6 +1570,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
             markRead={mark}
             hasStop={!!stopOrder}
             hasTarget={!!targetOrder}
+            rr={rr}
             onMenu={(x, y) => setPosMenu({ x, y })}
           />
         )}
@@ -1459,6 +1601,20 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                 aria-hidden
               />
             ))}
+        {dealerLines.map(l => (
+          <span
+            key={l.key}
+            ref={el => {
+              if (el) levelLabelRefs.current.set(l.key, el);
+              else levelLabelRefs.current.delete(l.key);
+            }}
+            data-level-label={l.key}
+            className="absolute top-0 pointer-events-none select-none font-mono text-[8px] font-semibold uppercase tracking-widest whitespace-nowrap"
+            style={{ display: 'none', color: l.hex, opacity: 0.8 }}
+          >
+            {l.word}
+          </span>
+        ))}
         {items.map(it => {
           const expanded = dragging === it.key || (selectedOrderId != null && it.order?.id === selectedOrderId);
           const bare = it.kind === 'position' && position && (!stopOrder || !targetOrder);
@@ -1707,7 +1863,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
 
 /* ---- the position bar: the four things a position needs done to it ------------------------ */
 
-const PositionBar = ({ instrument, position, markRead, hasStop, hasTarget, onMenu }: { instrument: Instrument; position: Position; markRead: ReturnType<typeof markPosition>; hasStop: boolean; hasTarget: boolean; onMenu: (x: number, y: number) => void }) => {
+const PositionBar = ({ instrument, position, markRead, hasStop, hasTarget, rr, onMenu }: { instrument: Instrument; position: Position; markRead: ReturnType<typeof markPosition>; hasStop: boolean; hasTarget: boolean; rr: number | null; onMenu: (x: number, y: number) => void }) => {
   const long = position.qty > 0;
   /* THE BAR'S ONE BIG NUMBER IS THE OPEN P&L. Everything else on it — the
      side, the average, breakeven — is a fact you check once when you enter;
@@ -1717,7 +1873,7 @@ const PositionBar = ({ instrument, position, markRead, hasStop, hasTarget, onMen
     <div className="pointer-events-auto inline-flex items-center rounded-md border border-borderSubtle bg-panel/90 backdrop-blur-md overflow-hidden shadow-md shadow-black/40 select-none" data-position-bar>
       <button type="button" onClick={e => onMenu(e.clientX, e.clientY)} title="Close some or all, add, reduce, reverse" className={`${seg} font-bold ${long ? 'text-bull' : 'text-bear'}`}>
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: long ? BUY_HEX : SELL_HEX }} aria-hidden />
-        {long ? 'LONG' : 'SHORT'} {Math.abs(position.qty)} {tagWord(instrument)}
+        {long ? 'LONG' : 'SHORT'} {Math.abs(position.qty)}
         <ChevronDown className="w-3 h-3 opacity-70" />
       </button>
       <span className="w-px h-4 bg-borderSubtle" aria-hidden />
@@ -1732,6 +1888,25 @@ const PositionBar = ({ instrument, position, markRead, hasStop, hasTarget, onMen
       <button type="button" onClick={() => stopToBreakeven(instrument.id, 'chart')} title="Move the stop to breakeven — the average with the fees on it" className={seg}>
         <span className="text-[8px] uppercase tracking-widest text-textMuted">Breakeven</span> <span className="text-textPrimary">{fmtPrice(instrument, markRead.breakeven)}</span>
       </button>
+      {/* THE REWARD AGAINST THE RISK, once the bracket has both legs. The two
+          shaded grounds on the pane say it as area; this says it as a number,
+          and it is the one figure that decides whether a trade is worth
+          taking at all. */}
+      {rr != null && (
+        <>
+          <span className="w-px h-4 bg-borderSubtle" aria-hidden />
+          <span
+            className={`${seg} hover:bg-transparent cursor-default`}
+            data-position-rr={rr.toFixed(2)}
+            title={`The target is worth ${rr.toFixed(2)} times what the stop costs`}
+          >
+            <span className="text-[8px] uppercase tracking-widest text-textMuted">R:R</span>{' '}
+            <span data-rr-value className="font-semibold" style={{ color: rr >= 2 ? TARGET_HEX : rr >= 1 ? 'rgb(var(--text-primary))' : STOP_HEX }}>
+              {rr.toFixed(2)}
+            </span>
+          </span>
+        </>
+      )}
       <span className="w-px h-4 bg-borderSubtle" aria-hidden />
       {!hasStop && (
         <button type="button" onClick={() => placeBracket(instrument.id, undefined, hasTarget ? undefined : undefined, 'chart')} title="A stop under it (and a target over it)" className={`${seg} text-textSecondary hover:text-textPrimary`}>
