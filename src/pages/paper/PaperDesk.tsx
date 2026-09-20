@@ -473,7 +473,7 @@ const PaperDesk = () => {
     return (
       <div
         key={p.id}
-        className={`relative min-w-0 min-h-0 overflow-hidden ${many ? 'rounded border' : ''} ${many ? (isActive ? 'border-silver/45' : 'border-ink/[0.07]') : 'border-transparent'}`}
+        className={`relative min-w-0 min-h-0 overflow-hidden ${many ? 'rounded border' : ''} ${many ? (isActive ? 'border-silver/45' : 'border-borderSubtle') : 'border-transparent'}`}
         onPointerDownCapture={() => {
           if (!isActive) pickPane(tab.id, p.id);
         }}
@@ -509,7 +509,7 @@ const PaperDesk = () => {
   );
 
   const rail = (
-    <div className="h-full flex flex-col overflow-y-auto overflow-x-hidden rounded-md border border-ink/[0.07] bg-panel" data-paper-rail>
+    <div className="h-full flex flex-col overflow-y-auto overflow-x-hidden rounded-md border border-borderSubtle bg-panel" data-paper-rail>
       <AccountPanel />
       <OrderTicket instrument={instrument} quote={quote} />
       <InstrumentFacts instrument={instrument} quote={quote} position={position} />
@@ -573,7 +573,7 @@ const PaperDesk = () => {
           <WorkspaceBar tab={tab} />
         </div>
         <div className="min-h-0 min-w-0">
-          <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">{full ? <div className="h-full" /> : chartBody}</div>
+          <div className="h-full relative overflow-hidden rounded-md border border-borderSubtle bg-panel">{full ? <div className="h-full" /> : chartBody}</div>
         </div>
         {prefs.ladderOpen && <div className="min-h-0 min-w-0">{full ? <div className="h-full" /> : <Ladder instrument={instrument} quote={quote} position={position} />}</div>}
         {prefs.ticketOpen && <div className="min-h-0 min-w-0">{full ? <div className="h-full" /> : rail}</div>}
@@ -588,7 +588,7 @@ const PaperDesk = () => {
       {full &&
         createPortal(
           <div className={`fixed inset-0 z-[80] bg-canvas p-3 flex gap-2.5 animate-soft-in transition-opacity duration-200 ease-out ${closing ? 'opacity-0' : ''}`} style={DOCK_ROOM} data-paper-fullscreen>
-            <div className="flex-1 min-w-0 relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">{chartBody}</div>
+            <div className="flex-1 min-w-0 relative overflow-hidden rounded-md border border-borderSubtle bg-panel">{chartBody}</div>
             {prefs.ladderOpen && (
               <div className="w-[268px] shrink-0 min-h-0">
                 <Ladder instrument={instrument} quote={quote} position={position} />

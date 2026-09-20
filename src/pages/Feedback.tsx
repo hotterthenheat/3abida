@@ -456,7 +456,7 @@ const Feedback = () => {
     <div className="flex flex-col gap-4" data-feedback-page>
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell>
         <div className="min-w-0 flex-1">
-          <h1 className="text-[22px] font-semibold leading-tight text-textPrimary">Feedback</h1>
+          <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Feedback</h1>
           <p className="mt-0.5 text-[11px] text-textSecondary">Suggest what to build, report what broke — every note is read</p>
           {/* THE COUNTS ARE THE WAY IN. They are the proof that notes get read;
               a reader who sees "2 planned" should be one click from the two. */}

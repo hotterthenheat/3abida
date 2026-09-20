@@ -311,7 +311,7 @@ const News = () => {
               <NewsMap pins={pins} selectedCity={selected?.origin.city ?? null} hoverCity={hoverCity?.city ?? null} onPick={p => setSelectedId(p.topId)} onHover={setHoverCity} heat={heat} reach={reach} at={at} />
             </div>
             {/* ONE READ LINE under the map */}
-            <div className="px-4 h-[26px] border-t border-ink/[0.06] flex items-center gap-3 font-mono text-[10px] text-textSecondary whitespace-nowrap overflow-hidden" data-news-map-read>
+            <div className="px-4 h-[26px] border-t border-borderSubtle flex items-center gap-3 font-mono text-[10px] text-textSecondary whitespace-nowrap overflow-hidden" data-news-map-read>
               {hoverCity ? (
                 <>
                   <span className="font-bold text-textPrimary">{hoverCity.city}</span>

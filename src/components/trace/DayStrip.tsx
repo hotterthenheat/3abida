@@ -99,7 +99,7 @@ const DayStrip = ({
         {/* The room: regular hours as a faint band, its edges the open and the close. */}
         <div
           aria-hidden
-          className="absolute inset-y-0 bg-ink/[0.045] border-x border-ink/[0.12]"
+          className="absolute inset-y-0 bg-ink/[0.045] border-x border-borderMuted"
           style={{ left: pct(OPEN), width: pct(CLOSE - OPEN) }}
         />
         {/* Baseline */}

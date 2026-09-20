@@ -235,7 +235,7 @@ const ComparePair = ({ a, b, aInk, bInk, nonce }: Props) => {
       </div>
 
       {/* THE READ LINE */}
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: PAIR_READ_H }} data-pair-read>
+      <div className="px-5 border-t border-borderSubtle flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: PAIR_READ_H }} data-pair-read>
         {hovered ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{hovered.today ? 'now' : dayWords(hovered.time)}</span>

@@ -145,14 +145,14 @@ export const NewsInner = ({ rows = 21 }: { rows?: number }) => (
           </div>
         </div>
         {/* the drip bar, then the read line */}
-        <div className="px-4 h-[28px] border-t border-ink/[0.06] flex items-center gap-3">
+        <div className="px-4 h-[28px] border-t border-borderSubtle flex items-center gap-3">
           <Block w={14} h={14} />
           <Line w={26} h={9} />
           <Skeleton className="h-[2px] flex-1 rounded-full" />
           <Line w={26} h={9} />
           <Line w={30} h={9} className="ml-2" />
         </div>
-        <div className="px-4 h-[26px] border-t border-ink/[0.06] flex items-center">
+        <div className="px-4 h-[26px] border-t border-borderSubtle flex items-center">
           <Line w={420} h={9} />
           <Line w={90} h={9} className="ml-auto" />
         </div>

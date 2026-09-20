@@ -119,8 +119,8 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
         What is left to trade with went the same way: the account panel over
         this ticket carries it. The ticket says what THIS order is and costs.
       */}
-      <div className="flex items-center gap-2 px-3 h-8 border-b border-ink/[0.05]">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">Order ticket</span>
+      <div className="flex items-center gap-2 px-3 h-8 border-b border-borderSubtle/70">
+        <span className="text-[11px] font-semibold text-textPrimary">Order ticket</span>
         <span className="font-mono text-[10px] font-semibold text-textSecondary truncate" data-ticket-subject title={subject}>
           {tagWord(instrument)}
         </span>
@@ -279,8 +279,8 @@ export const InstrumentFacts = ({ instrument, quote, position }: { instrument: I
   const money = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return (
     <div className="flex flex-col" data-instrument-facts>
-      <div className="flex items-center gap-2 px-3 h-8 border-b border-t border-ink/[0.05]">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">{instrument.kind === 'future' ? 'The contract' : instrument.kind === 'stock' ? 'The name' : 'The option'}</span>
+      <div className="flex items-center gap-2 px-3 h-8 border-b border-t border-borderSubtle/70">
+        <span className="text-[11px] font-semibold text-textPrimary">{instrument.kind === 'future' ? 'The contract' : instrument.kind === 'stock' ? 'The name' : 'The option'}</span>
         {quote && <ProvenanceChip quote={quote} className="ml-auto" />}
       </div>
       <div className="px-3 py-2 flex flex-col">
@@ -336,7 +336,7 @@ export const InstrumentFacts = ({ instrument, quote, position }: { instrument: I
         )}
         {position && m && (
           <>
-            <div className="mt-1.5 pt-1.5 border-t border-ink/[0.05]" />
+            <div className="mt-1.5 pt-1.5 border-t border-borderSubtle/70" />
             <FactRow label="Position">
               <span className={position.qty > 0 ? 'text-bull' : 'text-bear'}>{position.qty > 0 ? 'Long' : 'Short'} {Math.abs(position.qty)}</span> <span className="text-textMuted">{unitWord(instrument, Math.abs(position.qty))}</span>
             </FactRow>

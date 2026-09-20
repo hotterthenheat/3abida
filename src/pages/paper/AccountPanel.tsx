@@ -93,7 +93,7 @@ const AccountPanel = () => {
   return (
     <section className="shrink-0 border-b border-borderSubtle/70" data-paper-account-panel>
       {/* ---- 0. WHICH ACCOUNT ---- */}
-      <div className="flex items-center gap-2 px-3 h-9 border-b border-ink/[0.05]">
+      <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/70">
         <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-warn border border-warn/60 rounded px-1.5 py-0.5 select-none" title="Paper trading — simulated orders against the live market state. Nothing here reaches a brokerage.">
           Paper
         </span>
@@ -202,7 +202,7 @@ const AccountPanel = () => {
           </div>
 
           {/* ---- 4. THE LEDGER, looked up rather than watched ---- */}
-          <div className="px-3 pb-3 grid grid-cols-3 gap-x-2 gap-y-2.5 border-t border-ink/[0.05] pt-2.5">
+          <div className="px-3 pb-3 grid grid-cols-3 gap-x-2 gap-y-2.5 border-t border-borderSubtle/70 pt-2.5">
             <Cell k="cash" label="Cash">{fmtMoney(acct.cash, false)}</Cell>
             <Cell
               k="bp"

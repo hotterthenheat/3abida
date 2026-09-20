@@ -427,7 +427,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
         <button
           onClick={() => setSuperFull(false)}
           title="Back to fullscreen — the toolbar returns (Esc); or reach the top edge for it"
-          className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[9px] uppercase tracking-widest text-textSecondary opacity-40 hover:opacity-100 hover:text-textPrimary transition-opacity"
+          className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] font-mono text-[9px] uppercase tracking-widest text-textSecondary opacity-40 hover:opacity-100 hover:text-textPrimary transition-opacity"
           data-total-esc
         >
           Esc · the toolbar

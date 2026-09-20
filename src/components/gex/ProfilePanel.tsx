@@ -903,7 +903,7 @@ const ProfilePanel = ({
     <div
       data-profile-read
       data-read-strike={readRow ? readRow.strike : undefined}
-      className={`absolute inset-x-0 flex items-center ${tight ? 'gap-2 px-2' : 'gap-3 px-2.5'} border-t border-ink/[0.06] bg-panel whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary pointer-events-none`}
+      className={`absolute inset-x-0 flex items-center ${tight ? 'gap-2 px-2' : 'gap-3 px-2.5'} border-t border-borderSubtle bg-panel whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary pointer-events-none`}
       style={{ top: foot.top, height: foot.h }}
     >
       {readRow ? (

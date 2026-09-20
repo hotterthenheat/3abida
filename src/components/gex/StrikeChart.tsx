@@ -4402,7 +4402,7 @@ const StrikeChart = ({
           <div
             ref={priceTagRef}
             aria-hidden
-            className="pointer-events-none absolute top-0 right-0 z-10 rounded-[4px] border border-ink/[0.07] border-l-2 border-l-white/60 pl-2 pr-1.5 py-[3px] text-right opacity-0 shadow-md shadow-black/50"
+            className="pointer-events-none absolute top-0 right-0 z-10 rounded-[4px] border border-borderSubtle border-l-2 border-l-white/60 pl-2 pr-1.5 py-[3px] text-right opacity-0 shadow-md shadow-black/50"
             style={{ background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }}
           >
             <div className="font-mono text-[12px] font-bold leading-[14px] tnum text-textPrimary" />

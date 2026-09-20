@@ -203,7 +203,7 @@ const RowCard = ({ t, at, inSession, onClose }: { t: Target; at: CardAt; inSessi
         </CardLine>
         {t.beside && <CardLine label="Beside it">{t.beside}</CardLine>}
       </dl>
-      <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[10px] text-textMuted whitespace-nowrap truncate" data-card-driver>
+      <div className="mt-2 pt-1.5 border-t border-borderSubtle text-[10px] text-textMuted whitespace-nowrap truncate" data-card-driver>
         <span className="font-mono tnum text-textPrimary">#{t.rank}</span> {DRIVER_WORDS[t.driver]} · <span className="font-mono tnum text-textPrimary">{pct(t.reach)}</span> reached ×{' '}
         <span className="font-mono tnum text-textPrimary">{fmtDollars(t.stake)}</span> at stake
       </div>

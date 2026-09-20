@@ -221,7 +221,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
   const head = 'font-mono text-[8px] uppercase tracking-widest text-textMuted';
 
   return (
-    <div className="h-full min-h-0 flex flex-col rounded-md border border-ink/[0.07] bg-panel overflow-hidden" data-paper-ladder={instrument.id}>
+    <div className="h-full min-h-0 flex flex-col rounded-md border border-borderSubtle bg-panel overflow-hidden" data-paper-ladder={instrument.id}>
       {/* the head: the name, the spread, the grouping, the columns */}
       <div className="shrink-0 h-8 px-2 flex items-center gap-1.5 border-b border-borderSubtle/70">
         <Rows3 className="w-3 h-3 text-textMuted shrink-0" aria-hidden />
@@ -301,7 +301,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
           return (
             <div
               key={r.price}
-              className={`grid items-stretch font-mono text-[10px] border-b border-ink/[0.04] ${r.isAvg ? 'bg-silver/[0.07]' : ''}`}
+              className={`grid items-stretch font-mono text-[10px] border-b border-borderSubtle/50 ${r.isAvg ? 'bg-silver/[0.07]' : ''}`}
               style={{ height: ROW_H, gridTemplateColumns: gridCols }}
               data-ladder-row={r.price}
               data-ladder-at={r.isBid ? 'bid' : r.isAsk ? 'ask' : r.isLast ? 'last' : undefined}

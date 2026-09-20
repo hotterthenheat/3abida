@@ -135,7 +135,7 @@ export const CompareAxisInner = () => {
           );
         })}
       </div>
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3" style={{ height: AXIS_READ_H }}>
+      <div className="px-5 border-t border-borderSubtle flex items-center gap-3" style={{ height: AXIS_READ_H }}>
         <Line w={160} h={10} />
         <Line w={220} h={10} />
       </div>
@@ -160,7 +160,7 @@ export const CompareTapesInner = () => (
     <div className="border-t border-borderSubtle/60" style={{ height: TAPES_H }}>
       <ChartGround axis={60} />
     </div>
-    <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3" style={{ height: TAPES_READ_H }}>
+    <div className="px-5 border-t border-borderSubtle flex items-center gap-3" style={{ height: TAPES_READ_H }}>
       <Line w={36} h={10} />
       <Line w={90} h={10} />
       <Line w={90} h={10} />
@@ -201,7 +201,7 @@ export const ComparePairInner = () => {
           ))}
         </div>
       </div>
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3" style={{ height: PAIR_READ_H }}>
+      <div className="px-5 border-t border-borderSubtle flex items-center gap-3" style={{ height: PAIR_READ_H }}>
         <Line w={36} h={10} />
         <Line w={80} h={10} />
         <Line w={160} h={10} />

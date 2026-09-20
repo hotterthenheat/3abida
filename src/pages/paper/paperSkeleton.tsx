@@ -34,7 +34,7 @@ export const PaperPageSkeleton = () => (
     </header>
     <div className="relative flex-1 min-h-0 mt-4 grid grid-cols-[minmax(0,1fr)_272px] grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5">
       <div className="min-h-0 min-w-0">
-        <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD }}>
+        <div className="h-full relative overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD }}>
           <div className="absolute inset-0">
             <ChartGround />
           </div>
@@ -49,8 +49,8 @@ export const PaperPageSkeleton = () => (
         </div>
       </div>
       <div className="min-h-0 min-w-0">
-        <div className="h-full flex flex-col overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD }}>
-          <div className="flex items-center gap-2 px-3 h-8 border-b border-ink/[0.05]">
+        <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD }}>
+          <div className="flex items-center gap-2 px-3 h-8 border-b border-borderSubtle/70">
             <Line w={70} h={10} />
             <Block w={40} h={16} className="ml-auto rounded" />
           </div>
@@ -79,19 +79,19 @@ export const PaperPageSkeleton = () => (
         </div>
       </div>
       <div className="min-h-0 min-w-0 col-span-2">
-        <div className="h-full flex flex-col overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD }}>
-          <div className="flex items-center gap-4 px-2.5 min-h-8 border-b border-ink/[0.05]">
+        <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD }}>
+          <div className="flex items-center gap-4 px-2.5 min-h-8 border-b border-borderSubtle/70">
             {[64, 48, 48, 30].map((w, i) => (
               <Line key={i} w={w} h={9} />
             ))}
           </div>
-          <div className="flex items-center gap-3 px-3 h-8 border-b border-ink/[0.06]">
+          <div className="flex items-center gap-3 px-3 h-8 border-b border-borderSubtle">
             {[60, 40, 40, 70, 60, 80, 70, 60].map((w, i) => (
               <Line key={i} w={w} h={8} className={i > 2 ? 'ml-auto' : ''} />
             ))}
           </div>
           {[0, 1, 2].map(r => (
-            <div key={r} className="flex items-center gap-3 px-3 h-[39px] border-b border-ink/[0.04]" style={{ opacity: 1 - r * 0.2 }}>
+            <div key={r} className="flex items-center gap-3 px-3 h-[39px] border-b border-borderSubtle/50" style={{ opacity: 1 - r * 0.2 }}>
               {[64, 44, 36, 76, 66, 84, 74, 64].map((w, i) => (
                 <Line key={i} w={w} h={10} className={i > 2 ? 'ml-auto' : ''} />
               ))}

@@ -274,7 +274,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       </div>
 
       {/* THE READ LINE — now */}
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
+      <div className="px-5 border-t border-borderSubtle flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
         {at ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">now</span>

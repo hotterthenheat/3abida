@@ -152,7 +152,7 @@ const PremiumLevelRail = ({ levels, projection, retired = false, width = 168, cl
   const lastPremium = projection.current?.last() ?? null;
 
   return (
-    <div ref={rootRef} className={`relative shrink-0 select-none border-l border-ink/[0.08] overflow-hidden ${className}`} style={{ width }} data-premium-rail aria-label="The setup's levels on the premium axis">
+    <div ref={rootRef} className={`relative shrink-0 select-none border-l border-borderSubtle overflow-hidden ${className}`} style={{ width }} data-premium-rail aria-label="The setup's levels on the premium axis">
       {/* THE HEAD — the column's one word */}
       <div className="absolute inset-x-0 top-0 flex items-center px-2 text-[10px] text-textSecondary" style={{ height: HEAD_BAND }}>
         Levels <span className="ml-1 text-textMuted">· premium</span>
@@ -192,7 +192,7 @@ const PremiumLevelRail = ({ levels, projection, retired = false, width = 168, cl
         );
       })}
       {/* THE FOOT — the time-axis band, so the column ends where the chart's plot does */}
-      {foot > 0 && <div className="absolute inset-x-0 border-t border-ink/[0.06]" style={{ top: foot }} aria-hidden />}
+      {foot > 0 && <div className="absolute inset-x-0 border-t border-borderSubtle" style={{ top: foot }} aria-hidden />}
     </div>
   );
 };

@@ -182,7 +182,7 @@ const Journal = () => {
 
       <div className="relative flex-1 min-h-0 mt-4 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)] grid-cols-[minmax(0,1fr)_288px] gap-2.5">
         {/* the matrix */}
-        <div className="min-h-0 min-w-0 rounded-md border border-ink/[0.07] bg-panel flex flex-col overflow-hidden" data-journal-calendar>
+        <div className="min-h-0 min-w-0 rounded-md border border-borderSubtle bg-panel flex flex-col overflow-hidden" data-journal-calendar>
           <div className="shrink-0 h-9 px-3 flex items-center gap-2 border-b border-borderSubtle/70">
             <button type="button" onClick={() => step(-1)} aria-label="The month before" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors">
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -217,7 +217,7 @@ const Journal = () => {
                 return (
                   <Fragment key={d ? d.toISOString() : `pad-${i}`}>
                     <div
-                      className={`relative min-h-[54px] rounded border px-1.5 py-1 flex flex-col ${d ? 'border-ink/[0.06]' : 'border-transparent'} ${isToday ? 'ring-1 ring-silver/50' : ''}`}
+                      className={`relative min-h-[54px] rounded border px-1.5 py-1 flex flex-col ${d ? 'border-borderSubtle' : 'border-transparent'} ${isToday ? 'ring-1 ring-silver/50' : ''}`}
                       style={{ background: cell ? dayWash(cell.net, scale) : 'transparent' }}
                       data-journal-day={d ? dayKeyOf(d.getTime()) : undefined}
                       title={cell ? `${cell.trades} trade${cell.trades === 1 ? '' : 's'} · ${cell.volume} traded · best ${fmtMoney(cell.best)} · worst ${fmtMoney(cell.worst)} · fees ${fmtMoney(-cell.fees)}` : undefined}
@@ -233,7 +233,7 @@ const Journal = () => {
                       )}
                     </div>
                     {endOfWeek && (
-                      <div className="min-h-[54px] rounded border border-ink/[0.04] bg-ink/[0.02] px-1 py-1 flex flex-col items-end justify-end" data-journal-week>
+                      <div className="min-h-[54px] rounded border border-borderSubtle/50 bg-ink/[0.02] px-1 py-1 flex flex-col items-end justify-end" data-journal-week>
                         {w && w.trades > 0 ? (
                           <>
                             <Money v={w.net} className="text-[10px] font-semibold leading-none" />
@@ -252,7 +252,7 @@ const Journal = () => {
         </div>
 
         {/* the numbers */}
-        <div className="min-h-0 min-w-0 rounded-md border border-ink/[0.07] bg-panel flex flex-col overflow-hidden" data-journal-stats>
+        <div className="min-h-0 min-w-0 rounded-md border border-borderSubtle bg-panel flex flex-col overflow-hidden" data-journal-stats>
           <div className="shrink-0 h-9 px-3 flex items-center gap-2 border-b border-borderSubtle/70">
             <CardTabs
               ariaLabel="What the numbers cover"
@@ -289,7 +289,7 @@ const Journal = () => {
         </div>
 
         {/* the round trips */}
-        <div className="min-h-0 min-w-0 col-span-2 rounded-md border border-ink/[0.07] bg-panel flex flex-col overflow-hidden">
+        <div className="min-h-0 min-w-0 col-span-2 rounded-md border border-borderSubtle bg-panel flex flex-col overflow-hidden">
           <div className="shrink-0 h-9 px-3 flex items-center gap-3 border-b border-borderSubtle/70">
             <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">Round trips</span>
             <span className="font-mono text-[9px] text-textMuted">{shown.length} closed · how far each one went both ways before it ended</span>

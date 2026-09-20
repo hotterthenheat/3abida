@@ -180,11 +180,11 @@ const DeskCard = ({
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) => (
-  <div className="h-full flex flex-col overflow-hidden rounded-md border border-ink/[0.07] bg-panel">
+  <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle bg-panel">
     {/* min-h, not h: a crowded actions strip (the chain's) wraps, and the
         header must GROW with it — with a fixed height the wrapped chips
         slid under the table and its sticky header ate their clicks. */}
-    <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-ink/[0.05]">
+    <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-borderSubtle/70">
       {/* The title takes its NATURAL width and keeps it — flex-1 here let the
           chain's loaded strip squeeze it down to "C…". The actions take the
           remainder and wrap; the header grows to fit them. (The drag grip
@@ -375,7 +375,7 @@ const FullRow = (p: ICellRendererParams<ChainGridRow>) => {
   }
   return (
     <div ref={ref} className="bg-silver/[0.04] animate-soft-in" data-chain-drill>
-      <div className="px-3 py-2.5 border-b border-ink/[0.05] flex flex-col gap-3">
+      <div className="px-3 py-2.5 border-b border-borderSubtle/70 flex flex-col gap-3">
         <WeighGrids c={data.c} />
       </div>
     </div>
@@ -1727,7 +1727,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
           {/* NOT a DeskCard: the chart card has no header row — the strip
               inside chartBody is its whole chrome (Noah, 2026-08-29: one
               row, translucent, tape edge to edge). */}
-          <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">
+          <div className="h-full relative overflow-hidden rounded-md border border-borderSubtle bg-panel">
             {full === 'chart' ? <div className="h-full" /> : chartBody}
           </div>
         </div>
@@ -1823,7 +1823,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
             <div className="flex-1 min-h-0 border border-borderSubtle bg-panel rounded-lg overflow-hidden flex flex-col">
               {/* ONE row (Noah, 2026-08-29: the Back button was the second
                   one) — the chain's own controls, and the minimize door. */}
-              <div className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 border-b border-ink/[0.05]">
+              <div className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 border-b border-borderSubtle/70">
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5 min-w-0">{chainActions}</span>
                 <button
                   onClick={close}

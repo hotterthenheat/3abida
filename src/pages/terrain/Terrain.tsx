@@ -2318,6 +2318,13 @@ const Terrain = () => {
       className="relative px-1.5 py-1.5 flex flex-col h-full min-h-0"
       data-terrain-desk
     >
+      {/* THE HEADING A SCREEN READER NEEDS AND THE DESK DOES NOT SHOW.
+          The visible title was removed on purpose and stays gone — a line
+          naming the page you just clicked is chrome. But a document with no
+          h1 leaves anyone navigating by headings with nothing to land on,
+          and this was the only page on the terminal without one. It is here
+          and it is invisible, which costs the desk no pixels. */}
+      <h1 className="sr-only">Terrain</h1>
       {/*
         THE ARRANGEMENT CONTROLS, floating over the top-right of the grid.
 
@@ -2414,7 +2421,7 @@ const Terrain = () => {
         <div
           role="group"
           aria-label="How many charts"
-          className="pointer-events-auto inline-flex flex-wrap items-center gap-0.5 border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] rounded-md p-0.5"
+          className="pointer-events-auto inline-flex flex-wrap items-center gap-0.5 border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] rounded-md p-0.5"
         >
           <Rows3 className="w-3.5 h-3.5 mx-1.5 text-textMuted shrink-0" aria-hidden />
           {LAYOUTS.map(n => {
@@ -2461,7 +2468,7 @@ const Terrain = () => {
           onClick={() => setCfg(prev => ({ ...prev, panes: prev.panes.map(p => ({ ...p, ladder: !anyLadder })) }))}
           aria-pressed={anyLadder}
           title={anyLadder ? 'Hide every strike rail — Shift R' : 'Show the strike rail beside every chart — Shift R'}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
+          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
             anyLadder ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
           }`}
         >
@@ -2471,7 +2478,7 @@ const Terrain = () => {
 
         {/* T-19's desk-wide ruler, in the desk's own cluster — the same four
             chips the flip strip carries on Pinpoint, one store behind both. */}
-        <span className="pointer-events-auto inline-flex rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] px-1 py-0.5">
+        <span className="pointer-events-auto inline-flex rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] px-1 py-0.5">
           <DistanceUnitPicker dense />
         </span>
 
@@ -2482,7 +2489,7 @@ const Terrain = () => {
             aria-haspopup="dialog"
             aria-expanded={layoutsOpen}
             title="Named layouts — save this arrangement, recall another"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
               layoutsOpen ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
             }`}
           >
@@ -2568,7 +2575,7 @@ const Terrain = () => {
           <button
             onClick={() => openEditor(null, `terrain:${expanded + 1}`)}
             title="Write a Pine script for this chart — the editor opens beside it"
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
             data-terrain-pine
           >
             <Code2 className="w-3 h-3" /> Pine
@@ -2584,7 +2591,7 @@ const Terrain = () => {
           return (
             <span
               title={`${words.blurb}. Session shading over the tape arrives with the futures feed.`}
-              className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider ${
+              className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider ${
                 words.label === 'RTH' ? 'text-textPrimary' : 'text-textSecondary'
               }`}
             >

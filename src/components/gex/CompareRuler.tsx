@@ -883,11 +883,11 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                 );
               })}
             </div>
-            <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[9px] text-textMuted whitespace-nowrap truncate">a click anywhere or Esc closes · the capsule again lets the strike go</div>
+            <div className="mt-2 pt-1.5 border-t border-borderSubtle text-[9px] text-textMuted whitespace-nowrap truncate">a click anywhere or Esc closes · the capsule again lets the strike go</div>
           </div>
         )}
       </div>
-      <div className={`${compact ? 'px-2 text-[10px]' : 'px-5 text-[10.5px]'} border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-textSecondary`} style={{ height: AXIS_READ_H }} data-axis-read data-read-strike={row ? row.strike : undefined}>
+      <div className={`${compact ? 'px-2 text-[10px]' : 'px-5 text-[10.5px]'} border-t border-borderSubtle flex items-center gap-3 whitespace-nowrap overflow-hidden text-textSecondary`} style={{ height: AXIS_READ_H }} data-axis-read data-read-strike={row ? row.strike : undefined}>
         {row && S && readSide ? (
           compact ? (
             <>

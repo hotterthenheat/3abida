@@ -31,15 +31,15 @@ const PageHeader = ({ breadcrumb, title, subtitle, actions }: PageHeaderProps) =
             </React.Fragment>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="h-6 flex items-center gap-2.5" data-shell-page>
           {Icon && (
-            <span className="inline-flex w-6 h-6 rounded-md border border-borderSubtle bg-inset items-center justify-center shrink-0">
+            <span className="inline-flex w-6 h-6 rounded-md border border-borderSubtle items-center justify-center shrink-0">
               <Icon className="w-3.5 h-3.5 text-textSecondary" />
             </span>
           )}
-          <h1 className="text-lg font-semibold tracking-tight text-textPrimary leading-none">{title}</h1>
+          <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h1>
         </div>
-        {subtitle && <p className="text-xs text-textSecondary mt-1.5">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-[11px] text-textSecondary">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
     </div>

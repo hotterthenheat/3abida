@@ -286,8 +286,8 @@ const Blotter = ({ instrument, onPick, selectedOrderId, onSelectOrder }: Blotter
   ] as const;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden rounded-md border border-ink/[0.07] bg-panel" data-blotter={tab}>
-      <div className="shrink-0 flex items-center gap-3 px-2.5 min-h-8 border-b border-ink/[0.05]">
+    <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle bg-panel" data-blotter={tab}>
+      <div className="shrink-0 flex items-center gap-3 px-2.5 min-h-8 border-b border-borderSubtle/70">
         <CardTabs ariaLabel="The blotter" options={tabs} value={tab} onChange={setTab} />
         {tab === 'orders' && (
           <span className="ml-auto inline-flex items-center gap-1">

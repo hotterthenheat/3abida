@@ -24,7 +24,7 @@ const CARD_FILL = 'rgb(var(--panel))';
 
 const Card = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-0 min-w-0">
-    <div className="h-full flex flex-col overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD_FILL }}>
+    <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD_FILL }}>
       {children}
     </div>
   </div>
@@ -32,7 +32,7 @@ const Card = ({ children }: { children: React.ReactNode }) => (
 
 /** A desk card's head: the title at the left, its cards at the right — 33px with a line of h-7 cards in it */
 const Head = ({ title = 48, children }: { title?: number; children?: React.ReactNode }) => (
-  <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-ink/[0.05]">
+  <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-borderSubtle/70">
     <div className="flex items-center gap-2 pl-2.5 self-stretch shrink-0">
       <Line w={title} h={10} />
     </div>
@@ -43,13 +43,13 @@ const Head = ({ title = 48, children }: { title?: number; children?: React.React
 /** A grid window's head and rows in the house's clothes */
 const Rows = ({ cols, rows, rowH, headH }: { cols: number[]; rows: number; rowH: number; headH: number }) => (
   <div className="flex-grow min-h-0 overflow-hidden">
-    <div className="flex items-center gap-3 px-2 border-b border-ink/[0.06]" style={{ height: headH }}>
+    <div className="flex items-center gap-3 px-2 border-b border-borderSubtle" style={{ height: headH }}>
       {cols.map((w, i) => (
         <Line key={i} w={w} h={8} className={i > 0 ? 'ml-auto' : ''} />
       ))}
     </div>
     {Array.from({ length: rows }, (_, r) => (
-      <div key={r} className="flex items-center gap-3 px-2 border-b border-ink/[0.04]" style={{ height: rowH, opacity: 1 - Math.min(0.55, Math.abs(r - Math.floor(rows / 2)) * 0.06) }}>
+      <div key={r} className="flex items-center gap-3 px-2 border-b border-borderSubtle/50" style={{ height: rowH, opacity: 1 - Math.min(0.55, Math.abs(r - Math.floor(rows / 2)) * 0.06) }}>
         {cols.map((w, i) => (
           <Line key={i} w={w + 6} h={i === 0 ? 11 : 10} className={i > 0 ? 'ml-auto' : ''} />
         ))}
@@ -77,7 +77,7 @@ export const WeigherPageSkeleton = () => (
     <div className="relative flex-1 min-h-0 mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5">
       {/* the chart, its strip floating over the top: the name capsule, Stock/Premium, the toolbar */}
       <div className="min-h-0 min-w-0">
-        <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD_FILL }}>
+        <div className="h-full relative overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD_FILL }}>
           <div className="absolute inset-0">
             <ChartGround />
           </div>

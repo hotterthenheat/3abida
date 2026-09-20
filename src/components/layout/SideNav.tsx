@@ -245,7 +245,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       aria-label={`Watching ${activeTicker} ${priceText} — switch`}
       onMouseEnter={e => showTip(e, `${activeTicker} ${priceText} ${changeText} · ⌘K to switch`)}
       onMouseLeave={hideTip}
-      className="mx-auto w-8 h-8 rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
+      className="mx-auto w-8 h-8 rounded-lg border border-borderSubtle bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
     </button>
@@ -256,7 +256,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       data-subject
       aria-label={`Watching ${activeTicker} — switch`}
       title={name ? `${name} · ⌘K to switch` : '⌘K to switch'}
-      className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
+      className="group w-full h-[34px] rounded-lg border border-borderSubtle bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
       <span className="text-[12px] font-semibold text-textPrimary" data-subject-ticker>
@@ -338,7 +338,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             {group}
           </span>
         ) : (
-          gi > 0 && <span className="mx-3 mb-2 border-t border-ink/[0.08]" aria-hidden />
+          gi > 0 && <span className="mx-3 mb-2 border-t border-borderSubtle" aria-hidden />
         )}
         {itemsByGroup(group).map(item => {
           const inside = pathname.startsWith(item.path);
@@ -439,7 +439,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
              frame after the aside settles and lays its items out on the next */
           if (e.target === asideRef.current && e.propertyName === 'width') requestAnimationFrame(() => requestAnimationFrame(endGlide));
         }}
-        className="relative hidden md:flex shrink-0 h-full flex-col bg-panel border-r border-ink/[0.07] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="relative hidden md:flex shrink-0 h-full flex-col bg-panel border-r border-borderSubtle transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width }}
         data-sidenav
         data-collapsed={collapsed || undefined}
@@ -451,7 +451,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           aria-label={collapsed ? 'Open the sidebar' : 'Collapse the sidebar to icons'}
           title={collapsed ? 'Open the sidebar' : 'Collapse to icons'}
           data-sidenav-toggle
-          className="absolute -right-[11px] top-[15px] z-10 w-[22px] h-[22px] rounded-full border border-ink/[0.12] bg-card text-textMuted hover:text-textPrimary hover:border-silver/60 shadow-md shadow-black/50 flex items-center justify-center transition-colors"
+          className="absolute -right-[11px] top-[15px] z-10 w-[22px] h-[22px] rounded-full border border-borderMuted bg-card text-textMuted hover:text-textPrimary hover:border-silver/60 shadow-md shadow-black/50 flex items-center justify-center transition-colors"
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
@@ -475,7 +475,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           {groups}
         </nav>
         <div
-          className={`shrink-0 flex items-center gap-2 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-3'}`}
+          className={`shrink-0 flex items-center gap-2 border-t border-borderSubtle bg-ink/[0.02] ${collapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-3'}`}
           title={collapsed ? `${clock.label} · ${time}` : undefined}
           onMouseEnter={e => showTip(e, `Simulated data · ${clock.label} · ${time}`)}
           onMouseLeave={hideTip}
@@ -500,7 +500,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             data-nav-tip
             role="tooltip"
             style={{ position: 'fixed', left: tip.x, top: tip.y }}
-            className="z-[90] -translate-y-1/2 pointer-events-none whitespace-nowrap px-2 py-1 rounded-md border border-ink/[0.1] bg-card/95 backdrop-blur-md text-[11px] text-textPrimary shadow-lg shadow-black/50 animate-fade-in"
+            className="z-[90] -translate-y-1/2 pointer-events-none whitespace-nowrap px-2 py-1 rounded-md border border-borderMuted bg-card/95 backdrop-blur-md text-[11px] text-textPrimary shadow-lg shadow-black/50 animate-fade-in"
           >
             {tip.label}
           </div>,

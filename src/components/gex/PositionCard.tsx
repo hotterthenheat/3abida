@@ -243,7 +243,7 @@ const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => 
             <dt className="text-[10px] text-textMuted">Today</dt>
             <dd className={`font-mono text-[11px] tnum text-right ${pt.now > 0 ? 'text-bull' : pt.now < 0 ? 'text-bear' : 'text-textPrimary'}`}>{fmtPnl(pt.now)}</dd>
           </dl>
-          <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[10px] leading-snug text-textSecondary whitespace-nowrap">
+          <p className="mt-1.5 pt-1.5 border-t border-borderSubtle text-[10px] leading-snug text-textSecondary whitespace-nowrap">
             {words.dealers}
             <br />
             <span className={words.withYou ? 'text-bull' : 'text-bear'}>{words.withYou ? 'with you' : 'against you'}</span>
