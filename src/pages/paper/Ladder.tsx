@@ -2,51 +2,77 @@
 ==================================================
   SLAYER TERMINAL - THE LADDER (pages/paper/Ladder.tsx)
 
-  The panel a futures desk is actually traded from:
-  prices down the middle, your book on the sides,
-  and one click to put an order at a level.
+  The panel a futures desk is actually traded from,
+  rebuilt to the one professional DOM whose layout
+  is published rather than guessed at (Quantower's
+  help site is an open GitBook, so its columns,
+  controls and click grammar could be read at the
+  source instead of inferred from screenshots).
 
-    P&L     what the open position is worth if it
-            ends on that row
-    BID     resting size — AT THE TOUCH ONLY. This
-            desk's feed is a top of book; the nine
-            rows under it are not ours to fill in,
-            so they stay empty and the foot says so
-    PRICE   the rung. The touch, the last and the
-            position's average mark themselves here
-    ASK     the same, at the touch
-    LANE    the landmarks that fall on a rung — the
-            session's high and low, its heaviest
-            price, the dealer walls and the flip.
-            A volume-at-price column would be the
-            honest thing to put here and we cannot:
-            see the note in core/paper/ladder.ts
+  WHAT THAT CHANGED, from the first pass:
 
-  CLICKING IS ORDERING, on the ladder's own
-  convention: on the buy side, under the market is
-  a limit and over it a stop; on the sell side, the
-  other way about. A click on your own resting
-  order cancels it. Every one of those goes through
+    MY ORDERS LEFT THE DEPTH COLUMN. A real ladder
+    keeps the book and your own resting size in
+    SEPARATE columns, so you can see both at one
+    price. Painting mine over the size cell meant
+    you could see either, never both.
+
+    SIZE IS COLOUR, NOT BARS. The documented way to
+    weigh a cell is a gradient scaled to a max, with
+    the figure still legible on top. Only a running
+    total is ever drawn as a histogram.
+
+    THE PRICE COLUMN IS A MARKER GUTTER, carrying
+    the bid, the ask, the last, the day's extremes
+    and VWAP. Every one of those comes off prints
+    alone, so a desk with no depth feed still draws
+    the whole set — which is the honest answer to
+    having no book below the touch.
+
+    THE POSITION STRIP SITS AT THE FOOT, as a dim
+    label over a bright value. That is also the
+    typographic fix this whole desk needed: ours
+    was 163 things all whispering at 10px.
+
+  CLICKING IS ORDERING, on the documented grammar:
+  under the market a limit, over it a stop, and
+  SHIFT forces the other one. A click on your own
+  resting order pulls it. Every one goes through
   the same engine as the chart and the ticket.
 ==================================================
 */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Rows3 } from 'lucide-react';
+import { Rows3, Settings2 } from 'lucide-react';
 import { fmtMoney, fmtPrice, tagWord, type Instrument } from '../../core/paper/instruments';
 import type { Quote } from '../../core/paper/market';
-import { cancelAll, cancelOrder, closePosition, reversePosition, submitOrder, usePaper, type Position } from '../../core/paper/engine';
+import {
+  cancelAll,
+  cancelOrder,
+  closePosition,
+  isLive,
+  markPosition,
+  reversePosition,
+  stopToBreakeven,
+  submitOrder,
+  usePaper,
+  type Position,
+} from '../../core/paper/engine';
 import { MARK_WORDS, orderAt, readLadder, type LadderMark, type LadderRow } from '../../core/paper/ladder';
 import { usePaperPrefs } from '../../core/paper/prefs';
 import { useModes } from '../../core/paper/modes';
 
 const GROUPS = [1, 2, 4, 10];
-const ROW_H = 17;
-/* THE RUNGS HAVE TO FIT THE RAIL. At 46/44/1fr/44/40 the volume column was
-   pushed off the panel's own edge — a ladder is columns first, so they are
-   measured against the width the desk gives it. */
-const COLS = '46px 34px minmax(0,1fr) 34px 26px';
-/** "+570" · "−1.2k" — a rung has no room for $1,392.00 */
+const ROW_H = 18;
+
+/** "12.4k" · "1.8M" — a rung has no room for 12,431 */
+const abbrev = (v: number): string => {
+  if (!(v > 0)) return '';
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1)}M`;
+  if (v >= 1000) return `${(v / 1000).toFixed(v >= 10_000 ? 0 : 1)}k`;
+  return String(Math.round(v));
+};
+/** "+570" · "−1.2k" */
 const shortPnl = (v: number): string => {
   const a = Math.abs(v);
   const sign = v < 0 ? '−' : '+';
@@ -55,17 +81,27 @@ const shortPnl = (v: number): string => {
   return `${sign}${a.toFixed(0)}`;
 };
 
-/* The lane at the right: the landmarks this rung carries, each in its own ink.
-   V and the walls sat inline with the price and crowded it. */
+/* The markers that ride in the price gutter, each one a price this desk knows */
 const MARK_INK: Record<LadderMark, string> = {
   call: 'rgb(var(--bull))',
   put: 'rgb(var(--bear))',
   flip: 'rgb(var(--silver))',
-  vpoc: 'rgb(var(--silver))',
+  vpoc: 'rgb(var(--warn))',
+  vwap: 'rgb(var(--silver))',
   high: 'rgb(var(--text-secondary))',
   low: 'rgb(var(--text-secondary))',
 };
-const MARK_LETTER: Record<LadderMark, string> = { call: 'C', put: 'P', flip: 'F', vpoc: 'V', high: 'H', low: 'L' };
+const MARK_LETTER: Record<LadderMark, string> = { call: 'C', put: 'P', flip: 'F', vpoc: 'V', vwap: 'W', high: 'H', low: 'L' };
+
+/* ---- the columns ---------------------------------------------------------------------------- */
+
+type ColKey = 'pnl' | 'mine' | 'depth' | 'vol';
+const COL_WORDS: Record<ColKey, { label: string; blurb: string }> = {
+  pnl: { label: 'P&L per rung', blurb: 'What the open position is worth if it ends on that price' },
+  mine: { label: 'My working size', blurb: 'Your own resting orders, in their own columns beside the book' },
+  depth: { label: 'Book size', blurb: 'Resting size from the feed. This desk has a top of book, so only the touch carries a figure' },
+  vol: { label: 'Volume at price', blurb: "Today's volume at each rung, weighed against the heaviest rung on screen" },
+};
 
 interface Props {
   instrument: Instrument;
@@ -80,13 +116,30 @@ const Ladder = ({ instrument, quote, position }: Props) => {
   const [group, setGroup] = useState(1);
   const [rows, setRows] = useState(22);
   const [held, setHeld] = useState<number | null>(null);
+  const [cols, setCols] = useState<Record<ColKey, boolean>>({ pnl: true, mine: true, depth: true, vol: true });
+  const [colsOpen, setColsOpen] = useState(false);
+  /* the foot's P&L reads in money or in ticks — right-click flips it, as a DOM does */
+  const [pnlTicks, setPnlTicks] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
-  /* the ladder follows the market unless the reader has taken it off centre */
   const read = useMemo(
     () => readLadder(instrument, quote, position, paper.orders, { rows, group, centre: held }),
     [instrument, quote, position, paper.orders, rows, group, held]
   );
+
+  /* the grid, built from whichever columns are on. A STYLE and not a class:
+     Tailwind only sees class names written out in the source. */
+  const gridCols = [
+    cols.pnl ? '40px' : null,
+    cols.mine ? '24px' : null,
+    cols.depth ? '28px' : null,
+    'minmax(0,1fr)',
+    cols.depth ? '28px' : null,
+    cols.mine ? '24px' : null,
+    cols.vol ? '42px' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   /* how many rows the panel has room for — a ladder that overflows is a list */
   useEffect(() => {
@@ -105,23 +158,29 @@ const Ladder = ({ instrument, quote, position }: Props) => {
   const qty = prefs.defaultQty;
   const mark = quote?.mark ?? 0;
   const tradable = quote != null && instrument.kind !== 'spread';
+  const posRead = position && position.qty !== 0 ? markPosition(position, quote ?? undefined) : null;
+  const working = paper.orders.filter(o => isLive(o) && o.instrumentId === instrument.id);
 
   /*
-    SCROLLING THE LADDER OFF THE MARKET, which is the whole reason a ladder has
-    a re-centre button. The wheel walks the rungs; the market keeps trading
-    underneath, so the touch simply leaves the panel until LIVE brings it back.
-    Bound by hand rather than through onWheel, because React's is passive and
-    cannot stop the page scrolling with it.
+    THE WHEEL WALKS THE RUNGS and CTRL+wheel regroups them, which is the
+    documented pair. Bound by hand rather than through onWheel, because
+    React's is passive and cannot stop the page scrolling with it.
   */
-  const walkRef = useRef({ step: 1, mark: 0, held: null as number | null });
-  walkRef.current = { step: read.step, mark, held };
+  const walkRef = useRef({ step: 1, mark: 0, held: null as number | null, group: 1 });
+  walkRef.current = { step: read.step, mark, held, group };
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      const { step, mark: m, held: h } = walkRef.current;
+      const { step, mark: m, held: h, group: g } = walkRef.current;
       if (!(step > 0) || !Number.isFinite(m) || m === 0) return;
       e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        const i = GROUPS.indexOf(g);
+        const next = GROUPS[Math.min(GROUPS.length - 1, Math.max(0, i + (e.deltaY > 0 ? -1 : 1)))];
+        setGroup(next);
+        return;
+      }
       const rungs = e.deltaY > 0 ? -1 : 1;
       const from = h ?? m;
       const next = Number((Math.round(from / step) * step + rungs * step).toFixed(8));
@@ -132,15 +191,20 @@ const Ladder = ({ instrument, quote, position }: Props) => {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  const place = (side: 'buy' | 'sell', row: LadderRow) => {
+  /*
+    A CLICK IS AN ORDER, on the ladder's own convention: under the market a
+    limit and over it a stop, per side. SHIFT forces the other one, which is
+    how a DOM lets you put a buy stop over the market without a ticket.
+  */
+  const place = (side: 'buy' | 'sell', row: LadderRow, flip: boolean) => {
     if (!tradable) return;
-    /* a click on my own resting order takes it off, the way a ladder does */
     const mineHere = row.orders.filter(o => o.side === side);
     if (mineHere.length) {
       for (const o of mineHere) cancelOrder(o.id, 'panel', 'pulled from the ladder');
       return;
     }
-    const type = orderAt(side, row.price, mark);
+    const natural = orderAt(side, row.price, mark);
+    const type = flip ? (natural === 'limit' ? 'stop' : 'limit') : natural;
     submitOrder({
       instrument,
       side,
@@ -158,16 +222,16 @@ const Ladder = ({ instrument, quote, position }: Props) => {
 
   return (
     <div className="h-full min-h-0 flex flex-col rounded-md border border-ink/[0.07] bg-panel overflow-hidden" data-paper-ladder={instrument.id}>
-      {/* the head: the name, the spread, and how many ticks a rung covers */}
+      {/* the head: the name, the spread, the grouping, the columns */}
       <div className="shrink-0 h-8 px-2 flex items-center gap-1.5 border-b border-borderSubtle/70">
         <Rows3 className="w-3 h-3 text-textMuted shrink-0" aria-hidden />
-        <span className="font-mono text-[10px] font-semibold text-textPrimary truncate">{tagWord(instrument)}</span>
+        <span className="font-mono text-[11px] font-semibold text-textPrimary truncate">{tagWord(instrument)}</span>
         {quote && (
           <span className="font-mono text-[9px] tnum text-textMuted whitespace-nowrap" title={`The spread at the touch — ${read.spreadTicks} tick${read.spreadTicks === 1 ? '' : 's'}`}>
-            {read.spreadTicks}t spread
+            {read.spreadTicks}t
           </span>
         )}
-        <span className="ml-auto inline-flex items-center rounded border border-borderSubtle overflow-hidden" title="How many ticks each rung covers">
+        <span className="ml-auto inline-flex items-center rounded border border-borderSubtle overflow-hidden" title="Ticks a rung covers — CTRL and the wheel does this too">
           {GROUPS.map(g => (
             <button
               key={g}
@@ -181,126 +245,231 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             </button>
           ))}
         </span>
+        <span className="relative">
+          <button
+            type="button"
+            onClick={() => setColsOpen(v => !v)}
+            aria-expanded={colsOpen}
+            aria-label="Which columns the ladder shows"
+            data-ladder-cols
+            className={`inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${colsOpen ? 'bg-ink/[0.12] text-textPrimary' : 'text-textMuted hover:text-textPrimary'}`}
+          >
+            <Settings2 className="w-3 h-3" />
+          </button>
+          {colsOpen && (
+            <>
+              <span className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} aria-hidden />
+              <span className="absolute right-0 top-6 z-30 w-52 flex flex-col p-1 rounded-md border border-borderSubtle bg-panel shadow-lg shadow-black/40">
+                {(Object.keys(COL_WORDS) as ColKey[]).map(k => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setCols(c => ({ ...c, [k]: !c[k] }))}
+                    title={COL_WORDS[k].blurb}
+                    data-ladder-col={k}
+                    aria-pressed={cols[k]}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded text-left hover:bg-ink/[0.07] transition-colors"
+                  >
+                    <span className={`w-3 h-3 rounded-[2px] border shrink-0 ${cols[k] ? 'bg-silver border-silver' : 'border-borderMuted'}`} aria-hidden />
+                    <span className="font-mono text-[10px] text-textPrimary">{COL_WORDS[k].label}</span>
+                  </button>
+                ))}
+              </span>
+            </>
+          )}
+        </span>
       </div>
 
-      {/* the columns */}
-      <div className="shrink-0 grid items-center h-4 px-1 border-b border-borderSubtle/70" style={{ gridTemplateColumns: COLS }} aria-hidden>
-        <span className={`${head} text-right pr-1`}>P&amp;L</span>
-        <span className={`${head} text-right pr-1`}>Bid</span>
+      {/* the column heads */}
+      <div className="shrink-0 grid items-center h-4 px-1 border-b border-borderSubtle/70" style={{ gridTemplateColumns: gridCols }} aria-hidden>
+        {cols.pnl && <span className={`${head} text-right pr-1`}>P&amp;L</span>}
+        {cols.mine && <span className={`${head} text-center`}>B</span>}
+        {cols.depth && <span className={`${head} text-right pr-1`}>Bid</span>}
         <span className={`${head} text-center`}>Price</span>
-        <span className={`${head} pl-1`}>Ask</span>
-        <span className={`${head} text-center`} title="The landmarks that land on a rung">·</span>
+        {cols.depth && <span className={`${head} pl-1`}>Ask</span>}
+        {cols.mine && <span className={`${head} text-center`}>S</span>}
+        {cols.vol && <span className={`${head} text-right pr-1`}>Vol</span>}
       </div>
 
       {/* the rungs */}
       <div ref={bodyRef} className="flex-1 min-h-0 overflow-hidden" data-ladder-body>
         {read.rows.map((r, i) => {
-          /* WHAT IS OFF THE TOP AND OFF THE BOTTOM rides the end rungs. Most of
-             the day every landmark is outside five points of ladder, and a lane
-             that is empty all day is the column we cut the volume one for. */
           const away = i === 0 ? read.above : i === read.rows.length - 1 ? read.below : [];
-          const caret = i === 0 ? '\u2191' : '\u2193';
-          const mineBuy = r.mine.buy > 0;
-          const mineSell = r.mine.sell > 0;
+          const caret = i === 0 ? '↑' : '↓';
           const buyKind = orderAt('buy', r.price, mark);
           const sellKind = orderAt('sell', r.price, mark);
           return (
             <div
               key={r.price}
               className={`grid items-stretch font-mono text-[10px] border-b border-ink/[0.04] ${r.isAvg ? 'bg-silver/[0.07]' : ''}`}
-              style={{ height: ROW_H, gridTemplateColumns: COLS }}
+              style={{ height: ROW_H, gridTemplateColumns: gridCols }}
               data-ladder-row={r.price}
               data-ladder-at={r.isBid ? 'bid' : r.isAsk ? 'ask' : r.isLast ? 'last' : undefined}
             >
               {/* what the position is worth if it ends here */}
+              {cols.pnl && (
+                <span
+                  className="flex items-center justify-end h-full px-1 tnum text-[9px]"
+                  style={{ color: r.pnl == null || Math.abs(r.pnl) < 0.005 ? 'rgb(var(--text-muted))' : r.pnl > 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))', opacity: r.pnl == null ? 1 : 0.85 }}
+                  title={r.pnl == null ? undefined : `The open position is ${fmtMoney(r.pnl)} at ${fmtPrice(instrument, r.price)}`}
+                >
+                  {r.pnl == null ? '' : shortPnl(r.pnl)}
+                </span>
+              )}
+
+              {/* MY working buys — their own column, beside the book and not over it */}
+              {cols.mine && (
+                <button
+                  type="button"
+                  disabled={!tradable}
+                  onClick={e => place('buy', r, e.shiftKey)}
+                  data-ladder-buy={r.price}
+                  title={
+                    r.mine.buy > 0
+                      ? `Cancel my ${r.mine.buy} resting here`
+                      : `${buyKind === 'limit' ? 'Buy limit' : 'Buy stop'} ${qty} at ${fmtPrice(instrument, r.price)} · shift for a ${buyKind === 'limit' ? 'stop' : 'limit'}`
+                  }
+                  className={`${cell} justify-center transition-colors disabled:cursor-default ${
+                    r.mine.buy > 0 ? 'font-bold text-[#0a0a0a]' : 'text-textMuted hover:bg-bull/[0.18]'
+                  }`}
+                  style={r.mine.buy > 0 ? { background: 'rgb(var(--bull))' } : undefined}
+                >
+                  {r.mine.buy > 0 ? r.mine.buy : ''}
+                </button>
+              )}
+
+              {/* the book, bid side */}
+              {cols.depth && (
+                <span
+                  className={`${cell} justify-end text-[9px] ${r.isBid ? 'text-bull font-semibold' : 'text-textMuted'}`}
+                  style={r.isBid ? { background: 'color-mix(in srgb, rgb(var(--bull)) 15%, transparent)' } : undefined}
+                >
+                  {r.bidSize != null ? r.bidSize : ''}
+                </span>
+              )}
+
+              {/* THE PRICE GUTTER: the rung, and every marker that lands on it */}
               <span
-                className="flex items-center justify-end h-full px-1 tnum text-[9px]"
-                style={{ color: r.pnl == null || Math.abs(r.pnl) < 0.005 ? 'rgb(var(--text-muted))' : r.pnl > 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))', opacity: r.pnl == null ? 1 : 0.85 }}
-                title={r.pnl == null ? undefined : `The open position is ${fmtMoney(r.pnl)} at ${fmtPrice(instrument, r.price)}`}
+                className={`${cell} justify-between gap-1 ${r.isLast ? 'font-bold' : ''}`}
+                style={
+                  r.isLast
+                    ? /* the last traded rung, in the colour every ladder gives it */
+                      { background: 'rgb(var(--warn) / 0.22)', color: 'rgb(var(--text-primary))' }
+                    : { color: 'rgb(var(--text-secondary))' }
+                }
               >
-                {r.pnl == null ? '' : shortPnl(r.pnl)}
+                <span className="tabular-nums">{fmtPrice(instrument, r.price)}</span>
+                <span className="inline-flex items-center gap-0.5 text-[8px] font-bold" data-ladder-marks={r.marks.join(',') || undefined}>
+                  {r.isAvg && <span className="text-textPrimary" title="The position's average entry">◆</span>}
+                  {r.marks.length
+                    ? r.marks.slice(0, 3).map(m => (
+                        <span key={m} style={{ color: MARK_INK[m] }} title={MARK_WORDS[m]}>
+                          {MARK_LETTER[m]}
+                        </span>
+                      ))
+                    : away.slice(0, 2).map(a => (
+                        <span
+                          key={a.mark}
+                          className="opacity-55"
+                          style={{ color: MARK_INK[a.mark] }}
+                          data-ladder-away={a.mark}
+                          title={`${MARK_WORDS[a.mark]} is ${a.ticks} tick${a.ticks === 1 ? '' : 's'} ${i === 0 ? 'above' : 'below'} the ladder, at ${fmtPrice(instrument, a.price)}`}
+                        >
+                          {caret}
+                          {MARK_LETTER[a.mark]}
+                        </span>
+                      ))}
+                </span>
               </span>
 
-              {/* the buy side */}
-              <button
-                type="button"
-                disabled={!tradable}
-                onClick={() => place('buy', r)}
-                data-ladder-buy={r.price}
-                title={mineBuy ? `Cancel my ${r.mine.buy} resting here` : `${buyKind === 'limit' ? 'Buy limit' : 'Buy stop'} ${qty} at ${fmtPrice(instrument, r.price)}`}
-                className={`${cell} justify-end border-r border-ink/[0.05] transition-colors disabled:cursor-default ${
-                  mineBuy ? 'font-bold text-[#0a0a0a]' : r.isBid ? 'text-bull font-semibold' : 'text-textMuted hover:bg-bull/[0.14]'
-                }`}
-                style={mineBuy ? { background: 'rgb(var(--bull))' } : r.isBid ? { background: 'color-mix(in srgb, rgb(var(--bull)) 16%, transparent)' } : undefined}
-              >
-                {mineBuy ? r.mine.buy : r.bidSize != null ? r.bidSize : ''}
-              </button>
+              {/* the book, ask side */}
+              {cols.depth && (
+                <span
+                  className={`${cell} text-[9px] ${r.isAsk ? 'text-bear font-semibold' : 'text-textMuted'}`}
+                  style={r.isAsk ? { background: 'color-mix(in srgb, rgb(var(--bear)) 15%, transparent)' } : undefined}
+                >
+                  {r.askSize != null ? r.askSize : ''}
+                </span>
+              )}
 
-              {/* the rung */}
-              <span
-                className={`${cell} justify-center tabular-nums ${r.isLast ? 'text-textPrimary font-bold' : 'text-textSecondary'}`}
-                style={r.isLast ? { background: 'rgb(var(--ink) / 0.1)' } : undefined}
-              >
-                {r.isAvg && <span className="mr-1 text-[8px] font-bold text-textPrimary" title="The position's average entry">A</span>}
-                {fmtPrice(instrument, r.price)}
-              </span>
+              {/* MY working sells */}
+              {cols.mine && (
+                <button
+                  type="button"
+                  disabled={!tradable}
+                  onClick={e => place('sell', r, e.shiftKey)}
+                  data-ladder-sell={r.price}
+                  title={
+                    r.mine.sell > 0
+                      ? `Cancel my ${r.mine.sell} resting here`
+                      : `${sellKind === 'limit' ? 'Sell limit' : 'Sell stop'} ${qty} at ${fmtPrice(instrument, r.price)} · shift for a ${sellKind === 'limit' ? 'stop' : 'limit'}`
+                  }
+                  className={`${cell} justify-center transition-colors disabled:cursor-default ${
+                    r.mine.sell > 0 ? 'font-bold text-white' : 'text-textMuted hover:bg-bear/[0.18]'
+                  }`}
+                  style={r.mine.sell > 0 ? { background: 'rgb(var(--bear))' } : undefined}
+                >
+                  {r.mine.sell > 0 ? r.mine.sell : ''}
+                </button>
+              )}
 
-              {/* the sell side */}
-              <button
-                type="button"
-                disabled={!tradable}
-                onClick={() => place('sell', r)}
-                data-ladder-sell={r.price}
-                title={mineSell ? `Cancel my ${r.mine.sell} resting here` : `${sellKind === 'limit' ? 'Sell limit' : 'Sell stop'} ${qty} at ${fmtPrice(instrument, r.price)}`}
-                className={`${cell} border-l border-ink/[0.05] transition-colors disabled:cursor-default ${
-                  mineSell ? 'font-bold text-white' : r.isAsk ? 'text-bear font-semibold' : 'text-textMuted hover:bg-bear/[0.14]'
-                }`}
-                style={mineSell ? { background: 'rgb(var(--bear))' } : r.isAsk ? { background: 'color-mix(in srgb, rgb(var(--bear)) 16%, transparent)' } : undefined}
-              >
-                {mineSell ? r.mine.sell : r.askSize != null ? r.askSize : ''}
-              </button>
-
-              {/* the landmarks: the ones on this rung, or the ones past the end */}
-              <span className="flex items-center justify-center gap-0.5 h-full font-mono text-[8px] font-bold" data-ladder-marks={r.marks.join(',') || undefined}>
-                {r.queue && r.queue.left > 0 ? (
-                  <span className="text-warn" title={`${r.queue.left} of ${r.queue.ahead} still in front of my order here`}>
-                    {r.queue.left}
-                  </span>
-                ) : r.marks.length ? (
-                  r.marks.slice(0, 2).map(m => (
-                    <span key={m} style={{ color: MARK_INK[m] }} title={MARK_WORDS[m]}>
-                      {MARK_LETTER[m]}
+              {/* VOLUME AT PRICE, weighed as colour and not as a bar — the figure
+                  has to stay legible, and a run of equal cells reads as one band */}
+              {cols.vol && (
+                <span
+                  className="flex items-center justify-end h-full px-1 tnum text-[9px] text-textSecondary"
+                  style={{ background: r.volumeShare > 0 ? `rgb(var(--silver) / ${(r.volumeShare * 0.34).toFixed(3)})` : undefined }}
+                  title={r.volume == null ? undefined : `${Math.round(r.volume).toLocaleString('en-US')} traded at ${fmtPrice(instrument, r.price)} today`}
+                >
+                  {r.queue && r.queue.left > 0 ? (
+                    <span className="text-warn" title={`This desk's own model of ${r.queue.ahead} in front of you here — emulated, not a reading`}>
+                      q{r.queue.left}
                     </span>
-                  ))
-                ) : (
-                  away.slice(0, 2).map(a => (
-                    <span
-                      key={a.mark}
-                      className="opacity-60"
-                      style={{ color: MARK_INK[a.mark] }}
-                      data-ladder-away={a.mark}
-                      title={`${MARK_WORDS[a.mark]} is ${a.ticks} tick${a.ticks === 1 ? '' : 's'} ${i === 0 ? 'above' : 'below'} the ladder, at ${fmtPrice(instrument, a.price)}`}
-                    >
-                      {caret}
-                      {MARK_LETTER[a.mark]}
-                    </span>
-                  ))
-                )}
-              </span>
+                  ) : (
+                    abbrev(r.volume ?? 0)
+                  )}
+                </span>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* the hands at the foot, and the one thing the feed cannot tell us */}
+      {/* ---- THE POSITION STRIP, at the foot, label over value ---- */}
       <div className="shrink-0 border-t border-borderSubtle/70">
-        <div className="grid grid-cols-2 gap-px p-1">
+        <div className="grid grid-cols-3 gap-px px-2 py-1.5" data-ladder-position>
+          <Field label="Position">
+            <span style={{ color: posRead ? (position!.qty > 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))') : undefined }}>
+              {position && position.qty !== 0 ? `${position.qty > 0 ? '+' : ''}${position.qty}` : '—'}
+            </span>
+          </Field>
+          <Field label="Average">{position && position.qty !== 0 ? fmtPrice(instrument, position.avgPrice) : '—'}</Field>
+          <Field
+            label={pnlTicks ? 'Open · ticks' : 'Open P&L'}
+            onContextMenu={e => {
+              e.preventDefault();
+              setPnlTicks(v => !v);
+            }}
+            title="Right-click to read it in ticks instead"
+          >
+            <span style={{ color: !posRead || Math.abs(posRead.unrealized) < 0.005 ? undefined : posRead.unrealized > 0 ? 'rgb(var(--bull))' : 'rgb(var(--bear))' }} data-ladder-pnl>
+              {!posRead
+                ? '—'
+                : pnlTicks
+                  ? `${posRead.unrealized >= 0 ? '+' : '−'}${Math.abs(Math.round((quote!.mark - position!.avgPrice) / instrument.tickSize))}`
+                  : fmtMoney(posRead.unrealized)}
+            </span>
+          </Field>
+        </div>
+
+        {/* ---- the hands, the vocabulary a ladder's own sidebar carries ---- */}
+        <div className="grid grid-cols-2 gap-px px-1">
           <button
             type="button"
             disabled={!tradable}
             onClick={() => submitOrder({ instrument, side: 'buy', qty, type: 'market', source: 'panel', note: 'from the ladder' })}
             data-ladder-market="buy"
-            className="h-7 rounded font-mono text-[10px] font-bold uppercase tracking-wider bg-bull text-[#0a0a0a] hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bull text-[#0a0a0a] hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             Buy {qty}
           </button>
@@ -309,17 +478,19 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             disabled={!tradable}
             onClick={() => submitOrder({ instrument, side: 'sell', qty, type: 'market', source: 'panel', note: 'from the ladder' })}
             data-ladder-market="sell"
-            className="h-7 rounded font-mono text-[10px] font-bold uppercase tracking-wider bg-bear text-white hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bear text-white hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             Sell {qty}
           </button>
         </div>
-        <div className="px-1 pb-1 flex items-center gap-px">
+        <div className="grid grid-cols-3 gap-px p-1">
           {[
-            { k: 'flat', label: 'Flat', title: 'Close the position at the market', on: () => closePosition(instrument.id, 1, 'panel'), off: !position },
-            { k: 'rev', label: 'Rev', title: 'Reverse the position', on: () => reversePosition(instrument.id, 'panel'), off: !position },
-            { k: 'cxl', label: 'Cancel', title: 'Cancel every working order on this instrument', on: () => cancelAll(instrument.id, 'panel'), off: false },
-            { k: 'centre', label: held == null ? 'Live' : 'Centre', title: held == null ? 'The ladder is following the market \u2014 scroll it to look away' : 'Back to the market', on: () => setHeld(null), off: held == null },
+            { k: 'flat', label: 'Flatten', title: 'Close the position and cancel every working order on this instrument', on: () => { closePosition(instrument.id, 1, 'panel'); cancelAll(instrument.id, 'panel'); }, off: !position && working.length === 0 },
+            { k: 'rev', label: 'Reverse', title: 'Close and open the other way', on: () => reversePosition(instrument.id, 'panel'), off: !position },
+            { k: 'be', label: 'Break even', title: "Move the stop to the position's own average, fees included", on: () => stopToBreakeven(instrument.id, 'panel'), off: !position },
+            { k: 'cxl', label: 'Cancel all', title: 'Cancel every working order on this instrument', on: () => cancelAll(instrument.id, 'panel'), off: working.length === 0 },
+            { k: 'cxlb', label: 'Cancel buys', title: 'Cancel the working buys only', on: () => working.filter(o => o.side === 'buy').forEach(o => cancelOrder(o.id, 'panel', 'buys canceled from the ladder')), off: !working.some(o => o.side === 'buy') },
+            { k: 'cxls', label: 'Cancel sells', title: 'Cancel the working sells only', on: () => working.filter(o => o.side === 'sell').forEach(o => cancelOrder(o.id, 'panel', 'sells canceled from the ladder')), off: !working.some(o => o.side === 'sell') },
           ].map(b => (
             <button
               key={b.k}
@@ -328,24 +499,58 @@ const Ladder = ({ instrument, quote, position }: Props) => {
               disabled={b.off}
               title={b.title}
               data-ladder-act={b.k}
-              /* OFF THE MARKET IS A STATE, so the way back is lit while it lasts */
-              className={`flex-1 h-6 rounded border font-mono text-[9px] uppercase tracking-wider disabled:opacity-30 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors ${
-                b.k === 'centre' && held != null
-                  ? 'border-warn/60 text-warn hover:bg-warn/[0.1]'
-                  : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
-              }`}
+              className="h-6 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors"
             >
               {b.label}
             </button>
           ))}
         </div>
+
+        {/* off the market, and the way back */}
+        <div className="px-1 pb-1">
+          <button
+            type="button"
+            onClick={() => setHeld(null)}
+            disabled={held == null}
+            data-ladder-act="centre"
+            title={held == null ? 'The ladder is following the market — scroll it to look away, CTRL and scroll to regroup' : 'Back to the market'}
+            className={`w-full h-5 rounded border font-mono text-[9px] uppercase tracking-wider transition-colors disabled:opacity-30 ${
+              held == null ? 'border-borderSubtle text-textMuted' : 'border-warn/60 text-warn hover:bg-warn/[0.1]'
+            }`}
+          >
+            {held == null ? 'Following the market' : 'Back to the market'}
+          </button>
+        </div>
+
         <p className="px-2 pb-1.5 font-mono text-[8px] leading-tight text-textMuted" data-ladder-note>
-          Size shows at the touch only — this desk's feed is a top of book, and the rows under it are not ours to fill in. The lane at the right marks the session's high and low, its heaviest price, and the dealer walls; a caret on the end rung means the nearest one lies past it.
-          {modes.realisticFills ? " Amber is this desk's own model of what is still in front of your order there \u2014 emulated, not a reading: a real queue place needs market-by-order data and the exchange's acknowledgement of an order that, on paper, was never sent." : ''}
+          Book size shows at the touch only — this desk's feed is a top of book, and the rows under it are not ours to fill in. Volume at price is real and weighed against the heaviest rung on screen.
+          {modes.realisticFills ? " The amber q is this desk's own model of the line in front of you — emulated, not a reading." : ''}
         </p>
       </div>
     </div>
   );
 };
+
+/**
+ * A DIM LABEL OVER A BRIGHT VALUE — the pattern a professional ladder's foot
+ * uses, and the one this desk was missing everywhere: ours was a hundred and
+ * sixty things all whispering at the same size.
+ */
+const Field = ({
+  label,
+  children,
+  title,
+  onContextMenu,
+}: {
+  label: string;
+  children: React.ReactNode;
+  title?: string;
+  onContextMenu?: (e: React.MouseEvent) => void;
+}) => (
+  <div className="flex flex-col gap-0.5 min-w-0" title={title} onContextMenu={onContextMenu} data-ladder-field={label}>
+    <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted whitespace-nowrap truncate">{label}</span>
+    <span className="font-mono text-[13px] font-semibold tnum text-textPrimary whitespace-nowrap truncate leading-none">{children}</span>
+  </div>
+);
 
 export default Ladder;

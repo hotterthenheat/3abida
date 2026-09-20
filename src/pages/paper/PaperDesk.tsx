@@ -361,7 +361,7 @@ const PaperDesk = () => {
      STYLE and not a class, because Tailwind can only see the class names that
      are written out in the source — one built at runtime never reaches the CSS. */
   const deskSpan = 1 + (prefs.ladderOpen ? 1 : 0) + (prefs.ticketOpen ? 1 : 0);
-  const deskCols = `minmax(0,1fr)${prefs.ladderOpen ? ' 212px' : ''}${prefs.ticketOpen ? ' 286px' : ''}`;
+  const deskCols = `minmax(0,1fr)${prefs.ladderOpen ? ' 268px' : ''}${prefs.ticketOpen ? ' 286px' : ''}`;
 
   const qty = prefs.defaultQty;
   useHotkeys(true, {
@@ -569,7 +569,7 @@ const PaperDesk = () => {
           <div className={`fixed inset-0 z-[80] bg-canvas p-3 flex gap-2.5 animate-soft-in transition-opacity duration-200 ease-out ${closing ? 'opacity-0' : ''}`} style={DOCK_ROOM} data-paper-fullscreen>
             <div className="flex-1 min-w-0 relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">{chartBody}</div>
             {prefs.ladderOpen && (
-              <div className="w-[212px] shrink-0 min-h-0">
+              <div className="w-[268px] shrink-0 min-h-0">
                 <Ladder instrument={instrument} quote={quote} position={position} />
               </div>
             )}

@@ -47,7 +47,7 @@ import type { Candle } from '../../types/market';
 import { roundToTick, type Instrument } from './instruments';
 import { readQueue, type QueueRead } from './queue';
 
-export type LadderMark = 'call' | 'put' | 'flip' | 'high' | 'low' | 'vpoc';
+export type LadderMark = 'call' | 'put' | 'flip' | 'high' | 'low' | 'vpoc' | 'vwap';
 
 export const MARK_WORDS: Record<LadderMark, string> = {
   call: 'Call wall',
@@ -56,6 +56,7 @@ export const MARK_WORDS: Record<LadderMark, string> = {
   high: "The session's high",
   low: "The session's low",
   vpoc: 'The session\u2019s heaviest price',
+  vwap: "The session's volume-weighted average",
 };
 
 export interface LadderRow {
@@ -94,6 +95,8 @@ export interface LadderRead {
   spreadTicks: number;
   sessionHigh: number | null;
   sessionLow: number | null;
+  /** The session's volume-weighted average price — a price-gutter marker */
+  vwap: number | null;
   /*
     THE LANDMARKS THE LADDER CANNOT REACH. Twenty-two rungs at a quarter point
     span five and a half points; a session runs a hundred and thirty. So for
@@ -112,7 +115,7 @@ export interface LandmarkAway {
   ticks: number;
 }
 
-const EMPTY: LadderRead = { rows: [], step: 1, topOfBookOnly: true, vpoc: null, spreadTicks: 0, sessionHigh: null, sessionLow: null, above: [], below: [] };
+const EMPTY: LadderRead = { rows: [], step: 1, topOfBookOnly: true, vpoc: null, spreadTicks: 0, sessionHigh: null, sessionLow: null, vwap: null, above: [], below: [] };
 
 /* ---- the profile at the ladder's own step, built once per (instrument, step) ---- */
 
@@ -210,6 +213,18 @@ export function readLadder(
      here", which is the column, and is built at this ladder's own step */
   const profile = bars.length ? sessionVolumeProfile(bars) : null;
   const rungs = rungVolumes(inst, bars, step);
+  /* VWAP belongs in the price gutter beside the bid, the ask, the last and the
+     day's extremes — a ladder's price column is a marker gutter, and every one
+     of those five is derivable from prints alone, so a desk with no depth feed
+     can still draw the lot. */
+  let pv = 0;
+  let vv = 0;
+  for (const b of bars) {
+    const typical = (b.high + b.low + b.close) / 3;
+    pv += typical * b.volume;
+    vv += b.volume;
+  }
+  const vwap = vv > 0 ? pv / vv : null;
 
   const L = levelsFor(inst);
   const near = (a: number | undefined, b: number) => a != null && Math.abs(a - b) < step / 2;
@@ -245,6 +260,7 @@ export function readLadder(
           profile?.vpoc != null && Math.abs(profile.vpoc - price) < step / 2 ? 'vpoc' : null,
           sessionHigh != null && Math.abs(sessionHigh - price) < step / 2 ? 'high' : null,
           sessionLow != null && Math.abs(sessionLow - price) < step / 2 ? 'low' : null,
+          vwap != null && Math.abs(vwap - price) < step / 2 ? 'vwap' : null,
         ] as (LadderMark | null)[]
       ).filter((m): m is LadderMark => m != null),
       orders: mine,
@@ -261,13 +277,36 @@ export function readLadder(
     };
   });
 
-  /* THE HISTOGRAM IS SCALED TO WHAT IS ON SCREEN, not to the session. Against
-     the session's heaviest rung every bar in a quiet five points would be a
-     sliver; against the heaviest in view the column has shape wherever you
-     are, which is the only reason to draw it. */
-  let seen = 0;
-  for (const r of out) if (r.volume != null && r.volume > seen) seen = r.volume;
-  if (seen > 0) for (const r of out) r.volumeShare = r.volume == null ? 0 : r.volume / seen;
+  /*
+    THE WEIGHT IS SCALED BETWEEN THE LIGHTEST AND HEAVIEST RUNG ON SCREEN, not
+    from zero and not against the session.
+
+    Against the session's heaviest, a quiet five points is a flat wash. From
+    zero it is barely better: a window whose rungs run 43k to 57k spends only
+    a quarter of the ramp, so every cell comes out the same shade and the
+    column tells you nothing. Stretched across what is actually in view, the
+    heavy prices separate from the light ones wherever the reader is — which
+    is the only reason to draw the column at all. The tooltip carries the
+    absolute figure, so nothing is lost by the relative shading.
+
+    A floor keeps the lightest rung visible rather than blank: an empty cell
+    should mean NO VOLUME, not the least of what is on screen.
+  */
+  let heaviest = 0;
+  let lightest = Infinity;
+  for (const r of out) {
+    if (r.volume == null || !(r.volume > 0)) continue;
+    if (r.volume > heaviest) heaviest = r.volume;
+    if (r.volume < lightest) lightest = r.volume;
+  }
+  const span = heaviest - lightest;
+  for (const r of out) {
+    if (r.volume == null || !(r.volume > 0)) {
+      r.volumeShare = 0;
+      continue;
+    }
+    r.volumeShare = span > 0 ? 0.12 + 0.88 * ((r.volume - lightest) / span) : 1;
+  }
 
   /* which of them the ladder could not reach, and how far out they sit */
   const hi = prices[0];
@@ -279,6 +318,7 @@ export function readLadder(
     { mark: 'vpoc', price: profile?.vpoc ?? null },
     { mark: 'high', price: sessionHigh },
     { mark: 'low', price: sessionLow },
+    { mark: 'vwap', price: vwap },
   ];
   const away = (which: 'above' | 'below'): LandmarkAway[] =>
     every
@@ -296,6 +336,7 @@ export function readLadder(
     spreadTicks: Math.max(0, Math.round((quote.ask - quote.bid) / inst.tickSize)),
     sessionHigh,
     sessionLow,
+    vwap,
     above: away('above'),
     below: away('below'),
   };
