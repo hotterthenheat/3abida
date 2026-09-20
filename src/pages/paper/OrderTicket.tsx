@@ -208,12 +208,15 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
               disabled={!quote || !priceOk}
               onClick={() => send(side)}
               data-ticket-send={side}
-              className={`h-10 rounded-md font-mono transition-opacity hover:opacity-90 disabled:opacity-40 flex flex-col items-center justify-center leading-tight ${
+              className={`h-12 rounded-md font-mono transition-opacity hover:opacity-90 disabled:opacity-40 flex flex-col items-center justify-center leading-tight ${
                 confirm === side ? 'ring-2 ring-offset-1 ring-offset-panel ring-textPrimary' : ''
               } ${sideFill(side)}`}
             >
-              <span className="text-[11px] font-bold uppercase tracking-wider">{confirm === side ? 'Send it' : side === 'buy' ? 'Buy' : 'Sell'}</span>
-              <span className="text-[10px] tnum opacity-90">{touch(side) != null ? fmtPrice(instrument, touch(side)!) : '—'}</span>
+              {/* THE PRICE IS THE POINT OF THE BUTTON. The word above it is
+                  already said by the colour and the position; the number is
+                  what you are about to pay, and it was the smaller of the two. */}
+              <span className="text-[9px] font-bold uppercase tracking-widest opacity-80">{confirm === side ? 'Send it' : side === 'buy' ? 'Buy' : 'Sell'}</span>
+              <span className="text-[15px] font-semibold tnum leading-none">{touch(side) != null ? fmtPrice(instrument, touch(side)!) : '—'}</span>
             </button>
           ))}
         </div>

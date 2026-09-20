@@ -469,7 +469,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             disabled={!tradable}
             onClick={() => submitOrder({ instrument, side: 'buy', qty, type: 'market', source: 'panel', note: 'from the ladder' })}
             data-ladder-market="buy"
-            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bull text-[#0a0a0a] hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bullSolid text-[#0a0a0a] hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             Buy {qty}
           </button>
@@ -478,7 +478,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             disabled={!tradable}
             onClick={() => submitOrder({ instrument, side: 'sell', qty, type: 'market', source: 'panel', note: 'from the ladder' })}
             data-ladder-market="sell"
-            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bear text-white hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bearSolid text-white hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             Sell {qty}
           </button>

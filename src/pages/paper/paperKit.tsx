@@ -18,6 +18,69 @@ import type { Quote } from '../../core/paper/market';
 import { fmtMoney } from '../../core/paper/instruments';
 import type { Side } from '../../core/paper/engine';
 
+/*
+  ================================================================
+  THE TYPE SCALE, and the rule that made one necessary.
+
+  A count of /paper found 163 text-bearing elements of which 98%
+  were 11px or smaller and 39% were uppercase. That is not a
+  dense terminal, it is one long whisper, and it is the single
+  loudest tell that a screen was generated rather than designed.
+  A trading desk has a handful of figures you read across the
+  room and a great many you go looking for; ours had none of the
+  first kind.
+
+  FIVE STEPS, and what each is for:
+
+    HERO    the one number a panel exists to answer. At most ONE
+            per panel. If a panel has two, it is two panels.
+    VALUE   the figures you read without hunting.
+    SUB     supporting figures, read on purpose.
+    LABEL   what a value is, when the value cannot say so itself.
+            Uppercase is a LABEL device and nothing else: a
+            number never wears it, and neither does prose.
+    NOTE    the sentences that explain rather than report.
+
+  Every one is tabular-numeral and monospaced where it carries a
+  figure, because columns of numbers that do not line up are
+  harder to read than small ones.
+  ================================================================
+*/
+export const T = {
+  hero: 'font-mono text-[22px] font-semibold tnum leading-none text-textPrimary',
+  value: 'font-mono text-[13px] font-semibold tnum leading-tight text-textPrimary',
+  sub: 'font-mono text-[11px] tnum leading-tight text-textSecondary',
+  label: 'font-mono text-[9px] font-medium uppercase tracking-widest text-textMuted whitespace-nowrap',
+  note: 'font-mono text-[10px] leading-snug text-textMuted',
+} as const;
+
+/**
+ * A LABEL OVER A VALUE — the unit a trading panel is built from, and the
+ * shape the desk was missing. The label recedes, the figure carries.
+ */
+export const Stat = ({
+  label,
+  children,
+  size = 'value',
+  title,
+  testId,
+  onContextMenu,
+  className = '',
+}: {
+  label: string;
+  children: ReactNode;
+  size?: 'hero' | 'value' | 'sub';
+  title?: string;
+  testId?: string;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  className?: string;
+}) => (
+  <div className={`flex flex-col gap-1 min-w-0 ${className}`} title={title} data-stat={testId ?? label} onContextMenu={onContextMenu}>
+    <span className={T.label}>{label}</span>
+    <span className={`${T[size]} truncate`}>{children}</span>
+  </div>
+);
+
 /** THE PAPER MARK — unmistakable, everywhere an order or a balance lives */
 export const PaperPill = ({ className = '' }: { className?: string }) => (
   <span className={`font-mono text-[9px] font-bold uppercase tracking-wider text-warn border border-warn/60 rounded px-1.5 py-0.5 select-none whitespace-nowrap ${className}`} title="Paper trading — simulated orders against the live market state. Nothing here reaches a brokerage." data-paper-pill>
@@ -49,7 +112,8 @@ export const Money = ({ v, className = '', signed = true, dim = false }: { v: nu
 );
 
 export const sideInk = (side: Side): string => (side === 'buy' ? 'text-bull' : 'text-bear');
-export const sideFill = (side: Side): string => (side === 'buy' ? 'bg-bull text-[#0a0a0a]' : 'bg-bear text-white');
+export const sideFill = (side: Side): string =>
+  side === 'buy' ? 'bg-bullSolid text-[#0a0a0a]' : 'bg-bearSolid text-white';
 
 /** The house switch (WatchMenu's) */
 export const Toggle = ({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) => (

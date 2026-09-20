@@ -70,6 +70,14 @@
   /* Direction, status, the house accents */
   --bull: 48 209 88;
   --bear: 255 59 48;
+  /* THE SOLID ACTION FILLS. A BUY button is near-black on green and a SELL is
+     white on red, which is the convention everywhere — but white on this red
+     measures 3.55:1, under the 4.5 a 15px figure needs, and the figure on
+     those buttons is the price you are about to pay. Darkening the fill 15%
+     takes it to 4.73:1 and leaves the red reading as the same red. Green needs
+     no help: near-black on it is 9.79:1. */
+  --bull-solid: 48 209 88;
+  --bear-solid: 217 50 41;
   --warn: 255 149 0;
   --select: 210 255 0;
   /* THE NEON AS A SURFACE never changes — a highlighter is the same lime on
@@ -145,6 +153,12 @@
      and green") */
   --bull: 22 163 74;
   --bear: 220 38 38;
+  /* In the light theme the green is dark enough that near-black on it drops to
+     6.01:1 — still passing, but the button reads muddy, so the fill lightens
+     to 8.14:1. The red already passes for white and darkens a little for
+     consistency of weight between the two. */
+  --bull-solid: 80 186 119;
+  --bear-solid: 187 32 32;
   /* A visible orange, not a brown (Noah, 2026-09-12: "the oranges like breaks
      need to become a more visual orange... thicker") */
   --warn: 217 119 6;

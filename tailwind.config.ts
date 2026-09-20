@@ -55,6 +55,9 @@ export default {
         // purpose — see CHART_MINT in components/gex/palette.ts.
         bull: token('bull'),
         bear: token('bear'),
+        /* the solid action fills, contrast-checked against their own type */
+        bullSolid: token('bull-solid'),
+        bearSolid: token('bear-solid'),
         // True orange — caution reads clearly apart from green and hot red
         warn: token('warn'),
         // Interface accent — neon lime, ~17:1 on canvas. Interface only, never data.

@@ -225,6 +225,18 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   const itemsRef = useRef<TapeItem[]>([]);
   /** Prices the scale must hold — the position's average and its protection */
   const scalePricesRef = useRef<number[]>([]);
+  /*
+    ONE MORE PRICE, and only while it is asked for.
+
+    The scale always holds the position and its protection, because those are
+    the trade. A WORKING ENTRY is not: a limit half a percent away would
+    stretch the pane and squash the candles every time one rested, so it is
+    left out. But that is exactly the order whose label parks at the edge, and
+    a refit cannot reveal a price the fit was never told to keep. So pressing
+    a parked label puts ITS price here for one fit, and the next time the
+    reader takes the frame themselves it is let go.
+  */
+  const revealRef = useRef<number | null>(null);
   const dragRef = useRef<{ key: string; price: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; price: number; order?: Order } | null>(null);
   const [draft, setDraft] = useState<{ at: { x: number; y: number }; draft: TradeDraft } | null>(null);
@@ -382,12 +394,45 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
       */
       autoscaleInfoProvider: (orig: () => AutoscaleInfo | null): AutoscaleInfo | null => {
         const base = orig();
-        const keep = scalePricesRef.current;
+        const reveal = revealRef.current;
+        const keep = reveal == null ? scalePricesRef.current : [...scalePricesRef.current, reveal];
         if (!base?.priceRange || keep.length === 0) return base;
         let { minValue, maxValue } = base.priceRange;
+        let stretched = false;
         for (const p of keep) {
-          if (p < minValue) minValue = p;
-          if (p > maxValue) maxValue = p;
+          if (p < minValue) {
+            minValue = p;
+            stretched = true;
+          }
+          if (p > maxValue) {
+            maxValue = p;
+            stretched = true;
+          }
+        }
+        /*
+          HEADROOM FOR THE CHROME, when a kept price is what widened the range.
+
+          Fitted exactly, the outermost of these lands ON the pane's edge. The
+          top edge is not empty: the legend and the position bar are drawn over
+          it, and a label may not sit under them, so one that the fit was meant
+          to reveal parks at the boundary and stays unreachable. A flat
+          percentage does not fix that either — it has to clear whatever the
+          chrome actually measures this frame.
+
+          So the top pad is the height of the chrome plus a label, as a
+          fraction of the pane, and the bottom pad is a flat sliver because
+          nothing is drawn down there but the clock, which has its own space.
+          Only when a KEPT price did the stretching: left alone, the tape's own
+          range keeps the library's margins.
+        */
+        if (stretched) {
+          const span = maxValue - minValue || 1;
+          const host = hostRef.current;
+          const paneH = host ? Math.max(120, host.clientHeight - chart.timeScale().height()) : 400;
+          const chrome = topInsetRef.current + (legendRef.current?.offsetHeight ?? 0) + 12 + TAG_H;
+          const topFrac = Math.min(0.32, Math.max(0.08, chrome / paneH));
+          maxValue += span * topFrac;
+          minValue -= span * 0.08;
         }
         return { ...base, priceRange: { minValue, maxValue } };
       },
@@ -405,6 +450,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     const freeze = () => {
       if (!touchedRef.current) setTouched(true);
       touchedRef.current = true;
+      revealRef.current = null;
       chart.priceScale('right').applyOptions({ autoScale: false });
     };
     const freezeOnPan = (e: PointerEvent) => {
@@ -475,6 +521,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     if (!chart) return;
     touchedRef.current = false;
     setTouched(false);
+    revealRef.current = null;
     chart.priceScale('right').applyOptions({ autoScale: true });
     const len = barCountRef.current;
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 140), to: len + 8 });
@@ -1047,6 +1094,33 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     if (it.kind === 'order' && it.order) onSelectOrder(it.order.id);
     if (it.kind !== 'order' && it.kind !== 'level') return;
     const el = e.currentTarget;
+    /*
+      A PARKED TAG IS NOT A DRAG HANDLE, IT IS A WAY BACK TO ITS PRICE.
+
+      A label whose line has left the pane parks at the edge it went out by
+      (that is the rule: an order off the screen is still an order). But the
+      pointer is then nowhere near the price, so a drag from it read the price
+      under the EDGE and moved the order by a tick or two — silently nudging
+      something the reader cannot see, which is the worst of the three
+      possible behaviours. Nothing at all would be the second worst.
+
+      So pressing a parked tag turns the scale's autofit back on instead. The
+      fit already keeps the position and its protection in range
+      (autoscaleInfoProvider above), so the order comes back into view and
+      becomes draggable in the ordinary way.
+    */
+    if (el.dataset.off === 'above' || el.dataset.off === 'below') {
+      revealRef.current = it.price;
+      touchedRef.current = false;
+      setTouched(false);
+      /* toggling is what makes the fit recompute now; setting it true when it
+         is already true is a no-op and the label would stay where it was */
+      const scale = chartRef.current?.priceScale('right');
+      scale?.applyOptions({ autoScale: false });
+      scale?.applyOptions({ autoScale: true });
+      onToast?.(`${fmtPrice(instrument, it.price)} was off the pane — the scale has been fitted to bring it back`);
+      return;
+    }
     el.setPointerCapture(e.pointerId);
     const start = it.price;
     let moved = false;
@@ -1418,7 +1492,9 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                 e.stopPropagation();
                 if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
               }}
-              className={`group absolute pointer-events-auto select-none inline-flex items-stretch rounded-[3px] font-mono text-[10px] leading-none tnum whitespace-nowrap ${
+              /* a parked tag is a way back to its price, not a drag handle — and
+                 the cursor says which of the two it is at any moment */
+              className={`group absolute pointer-events-auto select-none inline-flex items-stretch rounded-[3px] font-mono text-[10px] leading-none tnum whitespace-nowrap data-[off=above]:cursor-pointer data-[off=below]:cursor-pointer ${
                 it.kind === 'position' ? 'cursor-pointer' : grabbable ? 'cursor-ns-resize' : 'cursor-default'
               }`}
               style={{ left: 6, height: TAG_H, visibility: 'hidden' }}
@@ -1633,7 +1709,10 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
 
 const PositionBar = ({ instrument, position, markRead, hasStop, hasTarget, onMenu }: { instrument: Instrument; position: Position; markRead: ReturnType<typeof markPosition>; hasStop: boolean; hasTarget: boolean; onMenu: (x: number, y: number) => void }) => {
   const long = position.qty > 0;
-  const seg = 'inline-flex items-center gap-1 h-6 px-2 font-mono text-[10px] tnum transition-colors hover:bg-ink/[0.07]';
+  /* THE BAR'S ONE BIG NUMBER IS THE OPEN P&L. Everything else on it — the
+     side, the average, breakeven — is a fact you check once when you enter;
+     the money is the one you watch, and it was the same 10px as the rest. */
+  const seg = 'inline-flex items-center gap-1 h-7 px-2 font-mono text-[10px] tnum transition-colors hover:bg-ink/[0.07]';
   return (
     <div className="pointer-events-auto inline-flex items-center rounded-md border border-borderSubtle bg-panel/90 backdrop-blur-md overflow-hidden shadow-md shadow-black/40 select-none" data-position-bar>
       <button type="button" onClick={e => onMenu(e.clientX, e.clientY)} title="Close some or all, add, reduce, reverse" className={`${seg} font-bold ${long ? 'text-bull' : 'text-bear'}`}>
@@ -1643,15 +1722,15 @@ const PositionBar = ({ instrument, position, markRead, hasStop, hasTarget, onMen
       </button>
       <span className="w-px h-4 bg-borderSubtle" aria-hidden />
       <button type="button" onClick={() => closePosition(instrument.id, 1, 'chart')} title="Close the whole position at the market" className={`${seg} font-semibold`}>
-        <Money v={markRead.unrealized} />
+        <Money v={markRead.unrealized} className="text-[15px] font-semibold leading-none" />
       </button>
       <span className="w-px h-4 bg-borderSubtle" aria-hidden />
-      <span className={`${seg} hover:bg-transparent cursor-default text-textSecondary`} title="Average entry">
-        AVG <span className="text-textPrimary">{fmtPrice(instrument, position.avgPrice)}</span>
+      <span className={`${seg} hover:bg-transparent cursor-default`} title="Average entry">
+        <span className="text-[8px] uppercase tracking-widest text-textMuted">Avg</span> <span className="text-textPrimary">{fmtPrice(instrument, position.avgPrice)}</span>
       </span>
       <span className="w-px h-4 bg-borderSubtle" aria-hidden />
-      <button type="button" onClick={() => stopToBreakeven(instrument.id, 'chart')} title="Move the stop to breakeven — the average with the fees on it" className={`${seg} text-textSecondary`}>
-        BE <span className="text-textPrimary">{fmtPrice(instrument, markRead.breakeven)}</span>
+      <button type="button" onClick={() => stopToBreakeven(instrument.id, 'chart')} title="Move the stop to breakeven — the average with the fees on it" className={seg}>
+        <span className="text-[8px] uppercase tracking-widest text-textMuted">Breakeven</span> <span className="text-textPrimary">{fmtPrice(instrument, markRead.breakeven)}</span>
       </button>
       <span className="w-px h-4 bg-borderSubtle" aria-hidden />
       {!hasStop && (
