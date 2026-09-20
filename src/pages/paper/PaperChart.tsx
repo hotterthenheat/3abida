@@ -153,6 +153,8 @@ interface PaperChartProps {
 }
 
 const TAG_H = 22;
+/** How thick the invisible band over a line is — a hand needs more than a pixel */
+const HIT_H = 13;
 const TAG_GAP = 2;
 /*
   THE FOUR INKS, READ OFF A REAL CHART TRADER.
@@ -315,6 +317,18 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     ].filter(l => Number.isFinite(l.price));
   }, [instrument, prefs.levels, revision]);
   const levelLabelRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  /*
+    THE LINE IS THE HANDLE, not just the label.
+
+    A one pixel hairline is not a thing a hand can catch, and until now the
+    only way to move an order was to find its label at one edge of the pane.
+    Every chart trader lets you take the line anywhere along its length, over
+    a band far thicker than the line it draws. These strips are that band:
+    invisible, the pane's full width, and sat on the order's TRUE price rather
+    than on the label, which may have been nudged aside to make room for a
+    neighbour.
+  */
+  const hitRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dealerRef = useRef(dealerLines);
   dealerRef.current = dealerLines;
 
@@ -874,6 +888,22 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
           el.style.left = '4px';
         }
       }
+      /* the grab bands sit on the line's own price, never on the nudged label */
+      for (const [key, el] of hitRefs.current) {
+        const it = itemsRef.current.find(i => i.key === key);
+        const price = it ? (dragRef.current?.key === key ? dragRef.current.price : it.price) : null;
+        const y = price == null ? null : series.priceToCoordinate(price);
+        const sigH = y == null ? 'off' : `${Math.round(y)}|${axisW}`;
+        if (last.get(`hit:${key}`) === sigH) continue;
+        last.set(`hit:${key}`, sigH);
+        if (y == null || y < 0 || y > paneH) {
+          el.style.display = 'none';
+          continue;
+        }
+        el.style.display = 'block';
+        el.style.transform = `translateY(${Math.round(y) - HIT_H / 2}px)`;
+        el.style.right = `${axisW}px`;
+      }
       /* the dealer lines wear their names just inside the axis */
       for (const [key, el] of levelLabelRefs.current) {
         const price = dealerRef.current.find(l => l.key === key)?.price;
@@ -1267,9 +1297,38 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     setDragging(it.key);
     holdFrame(true);
     const protective = it.order && position && (it.order.role === 'stop' || it.order.role === 'target') ? position : null;
+    /*
+      WHERE A PROTECTIVE LEG IS ALLOWED TO GO.
+
+      A long's stop belongs BELOW its entry and a target above it; short, the
+      other way about. That is the structural rule, and dragging across it does
+      not make a bad order — it makes an order that FIRES THE INSTANT YOU LET
+      GO. Measured before this: dragging a stop over the entry on a long closed
+      the whole position at market, silently, with no warning and no undo. A
+      drag is for finding a price, not for closing a trade; there is a Close
+      button for that, and it says what it does.
+
+      So the leg is clamped, one tick clear of whichever bound is nearer: its
+      own entry, and the live market — because a sell stop above the last
+      print and a sell limit below it are both "close me now" in disguise.
+      Clamping rather than refusing is the kinder of the two: the line simply
+      stops following the pointer, which says where the edge is without an
+      error message.
+    */
+    const clampLeg = (raw: number): number => {
+      if (!protective || !it.order) return raw;
+      const tick = instrument.tickSize;
+      const long = protective.qty > 0;
+      const ref = quoteRef.current?.mark ?? protective.avgPrice;
+      const role = it.order.role;
+      const wantsBelow = role === 'stop' ? long : !long;
+      const bound = wantsBelow ? Math.min(protective.avgPrice, ref) - tick : Math.max(protective.avgPrice, ref) + tick;
+      return wantsBelow ? Math.min(raw, bound) : Math.max(raw, bound);
+    };
     const move = (ev: PointerEvent) => {
-      const p = priceAtClientY(ev.clientY);
-      if (p == null) return;
+      const raw = priceAtClientY(ev.clientY);
+      if (raw == null) return;
+      const p = roundToTick(instrument, clampLeg(raw));
       if (p !== start) moved = true;
       dragRef.current = { key: it.key, price: p };
       const line = linesRef.current.get(it.key);
@@ -1288,6 +1347,11 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         if (ticks) ticks.textContent = r.tickWords;
         if (chip) chip.textContent = r.money;
         if (pill) pill.style.color = pnlInk(r.pnl);
+        const pctEl = el.querySelector<HTMLElement>('[data-tag-pct]');
+        if (pctEl && protective.avgPrice) {
+          const pc = ((p - protective.avgPrice) / protective.avgPrice) * 100;
+          pctEl.textContent = `${pc >= 0 ? '+' : ''}${pc.toFixed(2)}%`;
+        }
         /*
           AND THE REWARD AGAINST THE RISK, WHILE THE LEG IS STILL MOVING.
 
@@ -1314,7 +1378,39 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         }
       }
     };
+    /*
+      ESCAPE ABANDONS THE DRAG.
+
+      Half way through moving a stop you change your mind, and the only way out
+      was to let go somewhere harmless and drag it back. Escape puts the line
+      where it was and ends the gesture without sending anything — the
+      universal "never mind", and the one key a hand reaches for.
+    */
+    const abandon = () => {
+      dragRef.current = null;
+      linesRef.current.get(it.key)?.applyOptions({ price: start });
+      window.removeEventListener('keydown', onKey);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        /* the capture is already gone */
+      }
+      setDragging(null);
+      holdFrame(false);
+      onToast?.('Left where it was');
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      abandon();
+    };
+    window.addEventListener('keydown', onKey);
     const up = (ev: PointerEvent) => {
+      window.removeEventListener('keydown', onKey);
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
       el.removeEventListener('pointercancel', up);
@@ -1503,8 +1599,28 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
       const o = it.order;
       const read = pnlOf(it);
       const line = modes.realisticFills && o.type === 'limit' ? readQueue(o.id) : null;
+      /* THE PRICE YOU ARE DRAGGING TO. I took this out when the labels were
+         rebuilt, on the argument that the axis already draws it — which is
+         true at rest and wrong the moment you grab the line, because the axis
+         chip only catches up when the order is committed. What the pointer is
+         over has to be readable while the pointer is moving. */
+      const pct = position && position.avgPrice ? ((it.price - position.avgPrice) / position.avgPrice) * 100 : null;
       return (
         <>
+          <span className="font-semibold" data-tag-price>
+            {fmtPrice(instrument, it.price)}
+          </span>
+          {/* ONE CHILD, NOT THREE. The drag writes this figure straight to the DOM,
+              and textContent collapses whatever is in here into a single text
+              node — so a span built from three expressions loses the two React is
+              still holding references to, and the next render throws
+              NotFoundError on insertBefore, taking the pane down with it. Every
+              element the drag writes to is one expression for that reason. */}
+          {pct != null && (o.role === 'stop' || o.role === 'target') && (
+            <span className="opacity-70" data-tag-pct title="From the position's average">
+              {`${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}
+            </span>
+          )}
           {read && (
             <span data-pnl-pill className="inline-flex items-center gap-1" style={{ color: pnlInk(read.pnl) }} title={`${read.tickWords} from the average — ${read.money} if it fills`}>
               <span data-tag-pnl className="font-semibold">{read.money}</span>
@@ -1650,6 +1766,35 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
             {l.word}
           </span>
         ))}
+        {/* THE GRAB BANDS. Only what can be moved gets one, and they carry the
+            tag's own gestures so the line and the label behave identically. */}
+        {items
+          .filter(it => it.kind === 'order' || it.kind === 'level')
+          .map(it => (
+            <div
+              key={`hit:${it.key}`}
+              ref={el => {
+                if (el) hitRefs.current.set(it.key, el);
+                else hitRefs.current.delete(it.key);
+              }}
+              data-tag-hit={it.key}
+              className="absolute left-0 top-0 pointer-events-auto cursor-ns-resize"
+              style={{ display: 'none', height: HIT_H }}
+              onPointerDown={onTagDown(it)}
+              onDoubleClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (it.order) setEdit({ at: { x: e.clientX, y: e.clientY }, order: it.order });
+              }}
+              onContextMenu={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                const price = priceAtClientY(e.clientY) ?? it.price;
+                if (it.kind === 'order') setMenu({ x: e.clientX, y: e.clientY, price, order: it.order });
+                else setMenu({ x: e.clientX, y: e.clientY, price });
+              }}
+            />
+          ))}
         {items.map(it => {
           const expanded = dragging === it.key || (selectedOrderId != null && it.order?.id === selectedOrderId);
           const bare = it.kind === 'position' && position && (!stopOrder || !targetOrder);
@@ -1683,17 +1828,32 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                 e.stopPropagation();
                 if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
               }}
+              /* A DOUBLE-CLICK OPENED NOTHING. It fell through to the pane, whose
+                 own double-click resets the frame — so asking an order to open
+                 threw the reader's view away instead. It opens the order. */
+              onDoubleClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (it.order) setEdit({ at: { x: e.clientX, y: e.clientY }, order: it.order });
+                else if (it.kind === 'position') setPosMenu({ x: e.clientX, y: e.clientY });
+              }}
               /* a parked tag is a way back to its price, not a drag handle — and
                  the cursor says which of the two it is at any moment */
               /*
-                THE CHIP ALWAYS SITS AGAINST THE PRICE SCALE'S OWN CHIP, and
-                everything that unfurls grows AWAY from it. On the right edge
-                that is the source order; on the left the row reverses, so the
-                label reads the same and only the direction of the unfurl
-                changes. Nothing else about the tag is aware of the side.
+                THE LABEL ALWAYS SITS AGAINST THE PRICE SCALE'S OWN CHIP, and
+                everything that unfurls grows AWAY from it.
+
+                The source order is [label][handles][detail], which is what the
+                LEFT edge wants: label at the pane's edge, detail growing right.
+                On the RIGHT the row reverses, so the label ends against the
+                axis and the detail grows leftward into the pane. Getting this
+                backwards was not cosmetic — it put the label's own cancel
+                button exactly where a hand reaches to grab the chip, and the
+                × swallowed the press, so right-anchored orders could not be
+                dragged from their labels at all.
               */
               className={`group absolute pointer-events-auto select-none inline-flex items-stretch rounded-[3px] font-mono text-[10px] leading-none tnum whitespace-nowrap data-[off=above]:cursor-pointer data-[off=below]:cursor-pointer ${
-                labelSide === 'left' ? 'flex-row-reverse' : ''
+                labelSide === 'right' ? 'flex-row-reverse' : ''
               } ${it.kind === 'position' ? 'cursor-pointer' : grabbable ? 'cursor-ns-resize' : 'cursor-default'}`}
               style={{ height: TAG_H, visibility: 'hidden' }}
               title={
