@@ -89,6 +89,16 @@ export interface PaperPrefs {
   ticketOpen: boolean;
   /** The price ladder sits between the tape and the rail */
   ladderOpen: boolean;
+  /*
+    WHICH EDGE THE ORDER LABELS LIVE ON.
+
+    A real chart trader offers both, and the two references I was given show
+    one each — so it is a preference and not a fact. The default is the RIGHT,
+    for one reason: the price scale draws every line's price as a chip on the
+    right, and a label on the left leaves those two halves of the same object
+    a whole pane apart. Against the axis they read as one thing.
+  */
+  orderLabelSide: 'left' | 'right';
   /** The dealer positioning overlay — heat-mapped zones behind the tape */
   dealer: { on: boolean; greek: 'gex' | 'dex' | 'vanna'; expiry: string; labels: boolean };
 }
@@ -105,6 +115,7 @@ const DEFAULT: PaperPrefs = {
   bindings: DEFAULT_BINDINGS,
   ticketOpen: true,
   ladderOpen: false,
+  orderLabelSide: 'right',
   dealer: { on: false, greek: 'gex', expiry: '0DTE', labels: true },
 };
 

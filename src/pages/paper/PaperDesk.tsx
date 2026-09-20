@@ -235,7 +235,28 @@ const PrefsDoor = ({ onReset }: { onReset: () => void }) => {
         </li>
         <li className={row}>
           <Toggle checked={prefs.levels} onChange={v => updatePaperPrefs({ levels: v })} label="Dealer levels" />
-          <span className="font-mono text-[10px] text-textPrimary">The walls and the flip on the tape</span>
+          <span className="font-mono text-[10px] text-textPrimary">The walls and the flip — a stock's own chain only</span>
+        </li>
+        {/* a real chart trader offers both edges; the default keeps a label
+            beside its own price chip rather than a pane away from it */}
+        <li className={row}>
+          <span className="inline-flex items-center rounded border border-borderSubtle overflow-hidden" data-order-side>
+            {(['left', 'right'] as const).map(sd => (
+              <button
+                key={sd}
+                type="button"
+                onClick={() => updatePaperPrefs({ orderLabelSide: sd })}
+                aria-pressed={prefs.orderLabelSide === sd}
+                data-order-side-pick={sd}
+                className={`h-5 px-1.5 font-mono text-[9px] uppercase tracking-wider transition-colors ${
+                  prefs.orderLabelSide === sd ? 'bg-ink/[0.12] text-textPrimary' : 'text-textMuted hover:text-textSecondary'
+                }`}
+              >
+                {sd}
+              </button>
+            ))}
+          </span>
+          <span className="font-mono text-[10px] text-textPrimary">Which edge the order labels ride</span>
         </li>
         <li className={row}>
           <Toggle checked={prefs.fillMarks} onChange={v => updatePaperPrefs({ fillMarks: v })} label="Fill marks" />

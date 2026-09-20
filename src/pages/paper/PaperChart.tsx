@@ -236,6 +236,9 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
     reader takes the frame themselves it is let go.
   */
   const revealRef = useRef<number | null>(null);
+  /* which edge the labels ride, read by the frame loop without re-subscribing */
+  const sideRef = useRef<'left' | 'right'>(prefs.orderLabelSide);
+  sideRef.current = prefs.orderLabelSide;
   const dragRef = useRef<{ key: string; price: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; price: number; order?: Order } | null>(null);
   const [draft, setDraft] = useState<{ at: { x: number; y: number }; draft: TradeDraft } | null>(null);
@@ -314,6 +317,25 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
   const levelLabelRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
   const dealerRef = useRef(dealerLines);
   dealerRef.current = dealerLines;
+
+  const labelSide = prefs.orderLabelSide;
+  /*
+    ROOM FOR THE LABELS TO SIT ON.
+
+    Against the price scale a label is a couple of hundred pixels wide, and the
+    couple of hundred pixels in front of the last bar are the ones you are
+    watching. Parked on the right with the tape's usual eight bars of run-off,
+    the take profit covered the live price action — the labels were legible and
+    the market underneath them was not.
+
+    So the run-off follows the side: enough bars for the widest label when they
+    ride the right, the ordinary eight when they ride the left and the space is
+    not needed. The reader keeps the same view either way; only the empty
+    margin changes.
+  */
+  useEffect(() => {
+    chartRef.current?.timeScale().applyOptions({ rightOffset: labelSide === 'right' ? 26 : 8 });
+  }, [labelSide, ready]);
 
   const rr = useMemo(() => {
     if (!position || !stopOrder || !targetOrder) return null;
@@ -798,11 +820,18 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
       }
       for (const p of placed) {
         const slide = Math.round(p.y - p.want);
-        const sig = `${Math.round(p.y)}|${slide}|${p.off}|${axisW}`;
+        const sig = `${Math.round(p.y)}|${slide}|${p.off}|${axisW}|${sideRef.current}`;
         if (last.get(p.key) === sig) continue;
         last.set(p.key, sig);
         p.el.style.visibility = 'visible';
         p.el.style.transform = `translateY(${Math.round(p.y - TAG_H / 2)}px)`;
+        if (sideRef.current === 'right') {
+          p.el.style.left = 'auto';
+          p.el.style.right = `${axisW + 8}px`;
+        } else {
+          p.el.style.right = 'auto';
+          p.el.style.left = '6px';
+        }
         p.el.dataset.off = p.off === 0 ? '' : p.off < 0 ? 'above' : 'below';
         const caret = p.el.querySelector<HTMLElement>('[data-caret]');
         if (caret) {
@@ -826,7 +855,7 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
       const posY = at.get(itemsRef.current.find(i => i.kind === 'position')?.key ?? '');
       for (const [key, el] of spineRefs.current) {
         const y = at.get(key);
-        const sig = posY == null || y == null ? 'off' : `${Math.round(Math.min(posY, y))}|${Math.round(Math.abs(y - posY))}|${axisW}`;
+        const sig = posY == null || y == null ? 'off' : `${Math.round(Math.min(posY, y))}|${Math.round(Math.abs(y - posY))}|${axisW}|${sideRef.current}`;
         if (last.get(`sp:${key}`) === sig) continue;
         last.set(`sp:${key}`, sig);
         if (sig === 'off' || posY == null || y == null) {
@@ -837,7 +866,13 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
         el.style.display = h < 4 ? 'none' : 'block';
         el.style.transform = `translateY(${Math.round(Math.min(posY, y))}px)`;
         el.style.height = `${Math.round(h)}px`;
-        el.style.left = '4px';
+        if (sideRef.current === 'right') {
+          el.style.left = 'auto';
+          el.style.right = `${axisW + 4}px`;
+        } else {
+          el.style.right = 'auto';
+          el.style.left = '4px';
+        }
       }
       /* the dealer lines wear their names just inside the axis */
       for (const [key, el] of levelLabelRefs.current) {
@@ -1650,10 +1685,17 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
               }}
               /* a parked tag is a way back to its price, not a drag handle — and
                  the cursor says which of the two it is at any moment */
+              /*
+                THE CHIP ALWAYS SITS AGAINST THE PRICE SCALE'S OWN CHIP, and
+                everything that unfurls grows AWAY from it. On the right edge
+                that is the source order; on the left the row reverses, so the
+                label reads the same and only the direction of the unfurl
+                changes. Nothing else about the tag is aware of the side.
+              */
               className={`group absolute pointer-events-auto select-none inline-flex items-stretch rounded-[3px] font-mono text-[10px] leading-none tnum whitespace-nowrap data-[off=above]:cursor-pointer data-[off=below]:cursor-pointer ${
-                it.kind === 'position' ? 'cursor-pointer' : grabbable ? 'cursor-ns-resize' : 'cursor-default'
-              }`}
-              style={{ left: 6, height: TAG_H, visibility: 'hidden' }}
+                labelSide === 'left' ? 'flex-row-reverse' : ''
+              } ${it.kind === 'position' ? 'cursor-pointer' : grabbable ? 'cursor-ns-resize' : 'cursor-default'}`}
+              style={{ height: TAG_H, visibility: 'hidden' }}
               title={
                 it.kind === 'order'
                   ? 'Drag to move \u00b7 \u00d7 cancels \u00b7 right-click for more'
@@ -1664,15 +1706,27 @@ const PaperChart = ({ paneId = 'solo', instrument, quote, timeframe, revision, r
                       : 'Drag to move \u00b7 \u00d7 removes'
               }
             >
-              <span data-conn className="absolute right-0 w-px bg-current opacity-50" style={{ display: 'none', color: it.hex }} aria-hidden />
+              <span
+                data-conn
+                className="absolute w-px bg-current opacity-50"
+                style={{ display: 'none', color: it.hex, [labelSide === 'left' ? 'left' : 'right']: 0 }}
+                aria-hidden
+              />
 
               {/*
                 THE LABEL. Filled for the POSITION, outlined for everything that
                 is still only an order \u2014 the distinction a chart trader draws,
                 and the one that matters: filled means you are in it.
               */}
+              {/* THE LABEL ANSWERS THE POINTER. Nothing about it changed on hover,
+                  so the only thing saying "you can pull this" was the cursor —
+                  and a cursor is not a thing you notice before you try. Under
+                  the pointer a grabbable one lifts: its own ink fills in behind
+                  it and the border comes up to full strength. */}
               <span
-                className="inline-flex items-stretch rounded-[2px] border overflow-hidden"
+                className={`inline-flex items-stretch rounded-[2px] border overflow-hidden transition-[box-shadow,filter] ${
+                  grabbable ? 'group-hover:brightness-110 group-hover:shadow-[0_0_0_1px_currentColor]' : ''
+                }`}
                 style={
                   it.kind === 'position'
                     ? { background: it.hex, borderColor: it.hex, color: '#fff' }
