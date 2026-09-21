@@ -138,7 +138,7 @@ export const RangeSimple = ({ corridor, schedule, levels, ticker, clock, focus, 
           </div>
           <p className="mt-0.5 text-[11px] text-textSecondary">{clock.inSession ? 'From now to the close' : 'The next session'} · where price stays, and what the clock and a vol move make dealers buy or sell</p>
         </div>
-        <div className="grid grid-flow-col auto-cols-max gap-x-6" data-range-facts>
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-1" data-range-facts>
           <Fact label="Likely range" testId="likely">
             {fmtPrice(likely.low.price)} – {fmtPrice(likely.high.price)}
           </Fact>
@@ -323,7 +323,7 @@ export const CloseSimple = ({ odds, spot, ticker, clock, yours, focus, onPick, s
           </div>
           <p className="mt-0.5 text-[11px] text-textSecondary">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
         </div>
-        <div className="grid grid-flow-col auto-cols-max gap-x-6" data-close-facts>
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-1" data-close-facts>
           <Fact label="Most likely" testId="most-likely">
             {lead ? (
               <>

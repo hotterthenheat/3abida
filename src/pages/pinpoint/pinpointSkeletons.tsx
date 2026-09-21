@@ -282,7 +282,7 @@ export const CorridorInner = () => (
         </div>
         <Line w={420} className="mt-1.5" />
       </div>
-      <div className="grid grid-flow-col auto-cols-max gap-x-6">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
         {[120, 110, 110, 120].map((w, i) => (
           <div key={i}>
             <Line w={64} h={9} />
@@ -341,7 +341,7 @@ export const CloseInner = () => (
         </div>
         <Line w={460} className="mt-1.5" />
       </div>
-      <div className="grid grid-flow-col auto-cols-max gap-x-6">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
         {[90, 100, 100, 120].map((w, i) => (
           <div key={i}>
             <Line w={64} h={9} />

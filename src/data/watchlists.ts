@@ -93,6 +93,25 @@ const subscribe = (f: () => void) => {
   };
 };
 
+/* TWO TABS WERE DESTROYING EACH OTHER'S WORK. The store reads localStorage
+   once at module load and writes the WHOLE object on every change, so a
+   second tab held a stale copy: add a name in tab A, add another in tab B,
+   and B's write silently erased A's. The reader saw a symbol they had just
+   added simply not be there after a refresh, with nothing said.
+
+   The `storage` event fires in every OTHER tab of the origin when one of
+   them writes, which is exactly the signal needed: re-read and tell the
+   subscribers. It never fires in the tab that did the writing, so there is
+   no loop, and the whole fix is to stop treating a shared store as if this
+   tab were the only one holding it. */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', e => {
+    if (e.key !== null && e.key !== KEY) return;
+    state = read();
+    for (const f of subs) f();
+  });
+}
+
 export const getWatchlists = (): Stored => state;
 export const useWatchlists = (): Stored => useSyncExternalStore(subscribe, getWatchlists, getWatchlists);
 

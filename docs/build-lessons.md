@@ -319,3 +319,39 @@ Two rules out of it:
 And when a page hangs the browser rather than throwing, no console probe
 will tell you: read the code along the render path for a `while` whose
 condition compares against something that can be `NaN`.
+
+## Testing a virtualised grid: DOM order is not visual order
+
+Two findings in one QA pass turned out to be the probe's fault, not the
+app's, and both were the same mistake.
+
+AG Grid **virtualises and positions rows with `transform: translateY`**, so
+`document.querySelectorAll('.ag-cell')` returns them in whatever order the
+row elements happen to be recycled in — not top to bottom. Reading a column
+that way after a sort produced `["", "", "", "", "$1M", "$8K"]` and looked
+exactly like "sorting blanks out the cells". A screenshot showed a
+perfectly sorted table. Read rows by `getBoundingClientRect().top` and sort
+by it; that is what the reader sees.
+
+The matching rule for messages: **an app that reports its refusals does not
+necessarily use `role="status"`.** Three separate "the control does nothing
+and says nothing" findings — a rejected order, a refused alert, an empty
+post — were all wrong: the app said "Rejected — Buying power $100000 is
+short of the $20999979000 this needs", "No price for ZZZZZ yet", and "Say
+something first." A probe that only looks at `[role=status]` will report
+silence that is not there. Observe the DOM for *anything* that appears, or
+read the container's whole text.
+
+Before reporting a UI bug found by a script, **look at a screenshot of it.**
+
+## Two tabs, one store, last write wins
+
+Every store in this build reads `localStorage` once at module load and
+writes the whole object back on every change. That is fine until the reader
+opens a second tab: it holds a stale copy, and its next write silently
+erases whatever the first tab did in between. Add a symbol in tab A, add
+one in tab B, refresh A — the first symbol is gone, with nothing said.
+
+The fix is four lines: listen for `storage`, which fires in every *other*
+tab of the origin when one writes, re-read, and notify the subscribers. It
+never fires in the tab that wrote, so there is no loop.

@@ -79,6 +79,16 @@ export function createViewStore(storageKey: string): ViewStore {
     };
   };
 
+  /* Another tab saving a cut must not be invisible here, and this tab's
+     next write must not erase it — see the note in data/watchlists. */
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', e => {
+      if (e.key !== null && e.key !== storageKey) return;
+      views = read();
+      for (const f of subs) f();
+    });
+  }
+
   const getViews = () => views;
 
   return {

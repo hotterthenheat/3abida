@@ -104,7 +104,13 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{sub}</p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-trace-facts>
+        {/* FLEX-WRAP, NEVER grid-flow-col auto-cols-max. That grid CANNOT
+            wrap: on a 390px phone this strip measured 794px wide and four of
+            its six facts sat past the right edge with no horizontal scroll to
+            reach them — "sweeps · blocks", "0DTE", both champions, simply
+            absent. Every Trace page wears this one strip, so it was the same
+            four facts missing eleven times. */}
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-trace-facts>
           {facts}
         </dl>
       </div>

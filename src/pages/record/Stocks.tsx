@@ -307,7 +307,7 @@ const Stocks = () => {
             The trend, the numbers, the money and the news, each read against the 50 line and rolled into one screen · strongest first · the rotation ranks the sectors the same way · a row opens the name on the Map
           </p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6">
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1">
           <div>
             <dt className="text-[10px] text-textMuted">Names</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-stocks-names>

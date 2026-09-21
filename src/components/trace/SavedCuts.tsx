@@ -58,7 +58,12 @@ export const SavedCutsControl = ({ store, query, noun, testId, onSay, open, onTo
         onClick={() => {
           const n = window.prompt(`Name this ${noun}`);
           if (!n) return;
-          onSay(store.saveView(n, query) ? `Saved as "${n.trim()}".` : 'That needs a name.');
+          /* Echo what was SAVED, not what was typed. The store caps a name at
+             forty characters; repeating the raw input told a reader their cut
+             was called something it is not, and a hundred-and-twenty-character
+             status line ran off the end of the strip saying so. */
+          const saved = store.saveView(n, query);
+          onSay(saved ? `Saved as "${saved.name}".` : 'That needs a name.');
         }}
         title={`Save this ${noun} by name`}
         aria-label={`Save this ${noun}`}

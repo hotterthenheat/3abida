@@ -112,13 +112,29 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     }));
   }, [query, tickMod, changeTicker, activeTicker]);
 
+  /* A MATCH ON THE NAME BEATS A MATCH ON THE BLURB. Unranked, the catalog's
+     own order decided, and every page's one-line hint is fair game: typing
+     "weigh" put COMPASS first, because its hint reads "weeklies, swings and
+     LEAPS weighed and graded", and Enter — the thing a reader does straight
+     after typing a page's name — took them to the wrong desk. Name first,
+     then a name that contains it, then the blurb; ties keep catalog order. */
+  const score = (a: PaletteAction, q: string): number => {
+    const label = a.label.toLowerCase();
+    if (label === q) return 0;
+    if (label.startsWith(q)) return 1;
+    if (label.includes(q)) return 2;
+    return 3;
+  };
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [...actions, ...tickerActions];
-    return [
-      ...actions.filter(a => a.label.toLowerCase().includes(q) || a.hint.toLowerCase().includes(q)),
-      ...tickerActions,
-    ];
+    const hits = actions
+      .map((a, i) => ({ a, i, s: score(a, q) }))
+      .filter(({ a, s }) => s < 3 || a.hint.toLowerCase().includes(q))
+      .sort((x, y) => x.s - y.s || x.i - y.i)
+      .map(({ a }) => a);
+    return [...hits, ...tickerActions];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions, tickerActions, query]);
 
   useEffect(() => {

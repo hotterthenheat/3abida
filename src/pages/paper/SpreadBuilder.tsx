@@ -330,7 +330,7 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
             <Plus className="w-3 h-3" />
           </button>
         </span>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-5 font-mono tnum">
+        <dl className="flex flex-wrap items-start gap-x-5 gap-y-1 font-mono tnum">
           <div>
             <dt className="text-[9px] uppercase tracking-widest text-textMuted">{net != null && net < 0 ? 'Net credit' : 'Net debit'}</dt>
             <dd className={`text-[12px] font-semibold ${net != null && net < 0 ? 'text-bull' : 'text-textPrimary'}`}>{net != null ? `$${Math.abs(net).toFixed(2)}` : '—'}</dd>

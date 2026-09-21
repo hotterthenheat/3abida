@@ -245,7 +245,7 @@ const Catalysts = () => {
         The calendar carries the Fed's published decision days, payrolls on its first-Friday rule, CPI at its usual second
         Wednesday — named as an approximation until the release feed lands — and the earnings dates the engine prices.
         Dividends, splits and company events join when their feeds do.{' '}
-        <button type="button" onClick={() => navigate('/settings/data-sources')} className="text-select hover:underline underline-offset-2 inline-flex items-center gap-0.5">
+        <button type="button" onClick={() => navigate('/settings/sources')} className="text-select hover:underline underline-offset-2 inline-flex items-center gap-0.5">
           What each key unlocks <ArrowUpRight className="w-3 h-3" />
         </button>
       </p>

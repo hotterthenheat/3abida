@@ -901,7 +901,7 @@ const CampaignAnalysis = ({
               </p>
             </div>
           </div>
-          <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-setup-facts>
+          <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-setup-facts>
             <Fact label="Premium" testId="premium">
               <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
             </Fact>
