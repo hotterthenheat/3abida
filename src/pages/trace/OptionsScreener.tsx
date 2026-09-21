@@ -16,7 +16,9 @@
 */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Link2, Save, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { filtersToParams, paramsToFilters, removeView, saveView, useViews } from '../../data/screenerViews';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { applyFilters, buildFlowBook, DEFAULT_FILTERS, FLOW_SCREENS, runScreen, type BookFilters, type ScreenKey } from '../../data/flowBook';
@@ -107,11 +109,23 @@ const TOOLTIPS: Record<string, string> = {
 
 const OptionsScreener = () => {
   const { marketData, activeTicker } = useMarketData();
-  const [screen, setScreen] = useState<ScreenKey>('active');
-  const [filters, setFilters] = useState<BookFilters>(loadFilters);
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+
+  /* THE URL WINS OVER THE STORED FILTER. A link someone was SENT is a more
+     specific instruction than whatever this reader happened to be looking at
+     last, and opening a shared screen only to get your own old one back
+     would make links pointless. With no query, the stored filter stands. */
+  const fromUrl = useMemo(() => paramsToFilters(params, SLEEVES.map(x => x.key)), [params]);
+  const [screen, setScreen] = useState<ScreenKey>(
+    () => (fromUrl.screen && FLOW_SCREENS.some(x => x.key === fromUrl.screen) ? (fromUrl.screen as ScreenKey) : 'active')
+  );
+  const [filters, setFilters] = useState<BookFilters>(() => (fromUrl.any ? fromUrl.filters : loadFilters()));
+  const [query, setQuery] = useState(fromUrl.query);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [viewsOpen, setViewsOpen] = useState(false);
+  const [said, setSaid] = useState('');
+  const views = useViews();
 
   useEffect(() => {
     try {
@@ -120,6 +134,38 @@ const OptionsScreener = () => {
       /* private mode — filters just don't persist */
     }
   }, [filters]);
+
+  /* The address follows the screen. `replace` rather than push: tuning a
+     filter is not a place a reader wants twenty Back presses to walk through. */
+  useEffect(() => {
+    const next = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined);
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, screen, query]);
+
+  /* AND THE OTHER DIRECTION. Opening a saved view, pressing Back, or pasting
+     a link changes the address without touching state — so state follows it.
+     The guard is the same string comparison the writer uses, which is what
+     keeps the two effects from chasing each other: neither fires unless the
+     address and the screen actually disagree. */
+  useEffect(() => {
+    const mine = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined);
+    if (mine.toString() === params.toString()) return;
+    const next = paramsToFilters(params, SLEEVES.map(x => x.key));
+    setFilters(next.filters);
+    setQuery(next.query);
+    setScreen(next.screen && FLOW_SCREENS.some(x => x.key === next.screen) ? (next.screen as ScreenKey) : 'active');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
+  const shareLink = () => {
+    const q = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString();
+    const url = `${window.location.origin}${window.location.pathname}${q ? `?${q}` : ''}`;
+    navigator.clipboard?.writeText(url).then(
+      () => setSaid('Link copied — it opens this exact screen.'),
+      () => setSaid(url)
+    );
+  };
 
   const liveBook = useMemo(
     () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
@@ -322,12 +368,59 @@ const OptionsScreener = () => {
             <DropdownSelect label="Premium" value={snap(filters.minPremium, PREMIUM_STEPS)} options={PREMIUM_OPTIONS} onChange={v => setFilters(f => ({ ...f, minPremium: v }))} title="The least money a contract must carry" testId="screener-premium" />
             <DropdownSelect label="Money" value={filters.excludeItm ? 'otm' : 'any'} options={MONEY_OPTIONS} onChange={v => setFilters(f => ({ ...f, excludeItm: v === 'otm' }))} title="Where the strikes sit against the stock" testId="screener-money" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="screener-expiry" />
+            {/* THE FILTER IS THE ADDRESS. A tuned screen lives in the query
+                string now, so it can be sent, bookmarked, opened twice side
+                by side, and saved by name. */}
+            <span className="inline-flex items-center gap-1">
+              <button type="button" onClick={shareLink} title="Copy a link that opens this exact screen" aria-label="Copy a link to this screen" className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-screener-share>
+                <Link2 className="w-3 h-3" /> Link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const n = window.prompt('Name this screen');
+                  if (!n) return;
+                  const q = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString();
+                  setSaid(saveView(n, q) ? `Saved as "${n.trim()}".` : 'That needs a name.');
+                }}
+                title="Save this screen by name"
+                aria-label="Save this screen"
+                className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
+                data-screener-save
+              >
+                <Save className="w-3 h-3" /> Save
+              </button>
+              {views.length > 0 && (
+                <button type="button" onClick={() => setViewsOpen(v => !v)} aria-expanded={viewsOpen} className="h-7 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-screener-views>
+                  {views.length} saved
+                </button>
+              )}
+            </span>
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
           </>
         }
-        sentence={<RichRead text={sentence} />}
+        sentence={
+          <>
+            {viewsOpen && views.length > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-1.5" data-screener-view-list>
+                {views.map(v => (
+                  <span key={v.id} className="inline-flex items-center rounded-md border border-borderSubtle overflow-hidden">
+                    <button type="button" onClick={() => { setParams(new URLSearchParams(v.query), { replace: true }); setSaid(`Opened "${v.name}".`); }} className="h-6 px-2 text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors" data-screener-view={v.name}>
+                      {v.name}
+                    </button>
+                    <button type="button" onClick={() => removeView(v.id)} aria-label={`Forget ${v.name}`} className="h-6 px-1.5 text-textMuted hover:text-bear border-l border-borderSubtle transition-colors">
+                      <Trash2 className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {said && <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-screener-said>{said}</p>}
+            <RichRead text={sentence} />
+          </>
+        }
       >
         <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing matches this cut today — loosen the cards" testId="screener" />
       </TraceBox>
