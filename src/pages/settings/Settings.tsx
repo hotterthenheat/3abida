@@ -33,7 +33,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, Check, CreditCard, Download, Info, Keyboard, LayoutDashboard, Palette, Pencil, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react';
+import { Antenna, Bell, Check, CreditCard, Download, Info, Keyboard, LayoutDashboard, Palette, Pencil, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react';
+import DataSources from './DataSources';
 import { accountAgeDays, updateAccount, useAccount, type Notifications } from '../../data/account';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import { CANDLE_THEME_OPTIONS, setCandleTheme, useCandleThemeKey, type CandleThemeKey } from '../../components/gex/candleTheme';
@@ -51,8 +52,8 @@ import { setThemeChoice, useResolvedTheme, useThemeChoice, type ThemeChoice } fr
    profile · Security · Notifications · Billing · Data export, then the
    terminal's own pages, and Delete account last in red; every setting a row
    — the name and one line at the left, the value or the switch at the right. */
-export type SettingsSection = 'profile' | 'security' | 'notifications' | 'billing' | 'data' | 'appearance' | 'desk' | 'keyboard' | 'about' | 'delete' | 'account';
-export const SETTINGS_SECTIONS: SettingsSection[] = ['profile', 'security', 'notifications', 'billing', 'data', 'appearance', 'desk', 'keyboard', 'about', 'delete'];
+export type SettingsSection = 'profile' | 'security' | 'notifications' | 'billing' | 'data' | 'sources' | 'appearance' | 'desk' | 'keyboard' | 'about' | 'delete' | 'account';
+export const SETTINGS_SECTIONS: SettingsSection[] = ['profile', 'security', 'notifications', 'billing', 'data', 'sources', 'appearance', 'desk', 'keyboard', 'about', 'delete'];
 const isSection = (v: string | undefined): v is SettingsSection => (SETTINGS_SECTIONS as string[]).includes(v ?? '') || v === 'account';
 
 const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; danger?: boolean; gap?: boolean }[] = [
@@ -61,6 +62,8 @@ const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; danger?:
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'data', label: 'Data export', icon: Download },
+  /* WHAT EACH KEY BUYS (2026-09-21) — the capability map, beside the export */
+  { id: 'sources', label: 'Data sources', icon: Antenna },
   { id: 'appearance', label: 'Appearance', icon: Palette, gap: true },
   { id: 'desk', label: 'The desk', icon: LayoutDashboard },
   { id: 'keyboard', label: 'Keyboard', icon: Keyboard },
@@ -339,6 +342,9 @@ const Settings = () => {
             className="flex flex-col gap-4 min-w-0"
             data-settings-page={current}
           >
+          {/* DATA SOURCES */}
+          {current === 'sources' && <DataSources />}
+
           {/* APPEARANCE */}
           {current === 'appearance' && (
           <Section id="appearance" title="Appearance" line="The terminal drawn in each theme, not a swatch — the change lands in the same frame, on every page">
