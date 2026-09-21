@@ -30,8 +30,10 @@ import { submitOrder } from '../../core/paper/engine';
 import { usePaperPrefs } from '../../core/paper/prefs';
 import type { OptionRight } from '../../types/compass';
 import { PaperPill, ProvenanceChip, sideFill } from './paperKit';
+import PayoffChart from '../../components/ui/PayoffChart';
+import { payoffProfile } from '../../core/paper/payoff';
 
-type Shape = 'call-vertical' | 'put-vertical' | 'straddle' | 'strangle' | 'iron-condor' | 'custom';
+type Shape = 'call-vertical' | 'put-vertical' | 'straddle' | 'strangle' | 'iron-condor' | 'call-butterfly' | 'put-butterfly' | 'custom';
 
 const SHAPES: DropdownOption<Shape>[] = [
   { value: 'call-vertical', label: 'Call vertical', hint: 'Buy one call, sell a higher one — a defined-risk bet up' },
@@ -39,10 +41,12 @@ const SHAPES: DropdownOption<Shape>[] = [
   { value: 'straddle', label: 'Straddle', hint: 'A call and a put on the same strike — a bet on the move' },
   { value: 'strangle', label: 'Strangle', hint: 'A call above and a put below — the move, cheaper' },
   { value: 'iron-condor', label: 'Iron condor', hint: 'A put spread below and a call spread above — the range' },
+  { value: 'call-butterfly', label: 'Call butterfly', hint: 'One in, two at the body, one out — a bet it pins' },
+  { value: 'put-butterfly', label: 'Put butterfly', hint: 'The same pin, built from puts' },
   { value: 'custom', label: 'Custom legs', hint: 'Your own legs, any ratio' },
 ];
 
-const SHAPE_WORD: Record<Shape, string> = { 'call-vertical': 'call spread', 'put-vertical': 'put spread', straddle: 'straddle', strangle: 'strangle', 'iron-condor': 'iron condor', custom: 'multi-leg' };
+const SHAPE_WORD: Record<Shape, string> = { 'call-vertical': 'call spread', 'put-vertical': 'put spread', straddle: 'straddle', strangle: 'strangle', 'iron-condor': 'iron condor', 'call-butterfly': 'call butterfly', 'put-butterfly': 'put butterfly', custom: 'multi-leg' };
 
 interface LegDraft {
   strike: number;
@@ -79,6 +83,18 @@ function legsFor(shape: Shape, atm: number, step: number): LegDraft[] {
         { strike: atm - w, right: 'P', ratio: -1 },
         { strike: atm + w, right: 'C', ratio: -1 },
         { strike: atm + 2 * w, right: 'C', ratio: 1 },
+      ];
+    case 'call-butterfly':
+      return [
+        { strike: atm - w, right: 'C', ratio: 1 },
+        { strike: atm, right: 'C', ratio: -2 },
+        { strike: atm + w, right: 'C', ratio: 1 },
+      ];
+    case 'put-butterfly':
+      return [
+        { strike: atm + w, right: 'P', ratio: 1 },
+        { strike: atm, right: 'P', ratio: -2 },
+        { strike: atm - w, right: 'P', ratio: 1 },
       ];
     default:
       return [{ strike: atm, right: 'C', ratio: 1 }];
@@ -148,9 +164,22 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
   const width = strikes.length ? Math.max(...strikes) - Math.min(...strikes) : 0;
   const q = built?.q ?? null;
   const net = q ? (side === 'buy' ? q.ask : q.bid) : null;
-  const hasShort = legs.some(l => (side === 'buy' ? l.ratio : -l.ratio) < 0);
-  const maxRisk = net == null ? null : net > 0 && !hasShort ? net * 100 * qty : hasShort ? Math.max(0, width - Math.max(0, -net)) * 100 * qty : net * 100 * qty;
-  const maxReward = net == null ? null : shape === 'call-vertical' || shape === 'put-vertical' || shape === 'iron-condor' ? (net > 0 ? (width - net) * 100 * qty : Math.abs(net) * 100 * qty) : null;
+  /* MAX RISK AND MAX REWARD USED TO BE READ OFF THE STRATEGY'S NAME — right
+     for the five shapes the switch knew, silently wrong the moment a reader
+     dragged a leg, and blank for a butterfly. core/paper/payoff.ts evaluates
+     the LEGS instead, so breakevens, the worst case and the best all fall out
+     of one curve and stay correct for a shape nobody has named. */
+  const optSpot = spot == null ? null : spot * (fam ? fam.ratio : 1);
+  /* The axis is the option's OWN underlying — an index, not the ETF the feed
+     quotes — so it is formatted on that scale, not with the leg's tick. */
+  const fmtUnderlying = (v: number): string =>
+    v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(v >= 100 ? 1 : 2);
+  const profile = useMemo(() => {
+    if (net == null || optSpot == null || legs.length === 0) return null;
+    return payoffProfile(legs.map(l => ({ strike: l.strike, right: l.right, ratio: l.ratio })), net, side, qty, 100, optSpot);
+  }, [legs, net, side, qty, optSpot]);
+  const maxRisk = profile?.maxLoss ?? null;
+  const maxReward = profile?.maxProfit ?? null;
 
   const place = () => {
     if (!built) return;
@@ -234,6 +263,25 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
         </div>
       </div>
 
+      {/* THE CURVE, above the numbers it explains. A max-loss figure tells you
+          how bad it gets; the curve tells you WHERE, which is the thing a
+          reader is choosing strikes against. */}
+      {profile && optSpot != null && (
+        <div className="border border-borderSubtle rounded-md bg-inset px-2.5 pt-2 pb-1.5" data-spread-payoff>
+          <div className="flex items-baseline justify-between px-0.5 pb-1">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">At expiry</span>
+            <span className="font-mono text-[9px] text-textMuted">
+              {profile.maxLoss == null
+                ? 'loss is unlimited'
+                : profile.worstAt != null
+                  ? `worst at ${fmtUnderlying(profile.worstAt)}`
+                  : ''}
+            </span>
+          </div>
+          <PayoffChart profile={profile} spot={optSpot} strikes={strikes} height={130} fmt={fmtUnderlying} />
+        </div>
+      )}
+
       <div className="flex items-center gap-4 flex-wrap" data-spread-foot>
         <FilterTabs ariaLabel="Buy or sell the strategy" options={[{ value: 'buy', label: 'Buy' }, { value: 'sell', label: 'Sell' }]} value={side} onChange={setSide} />
         <span className="inline-flex items-center gap-1">
@@ -256,11 +304,11 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
           </div>
           <div>
             <dt className="text-[9px] uppercase tracking-widest text-textMuted">Max risk</dt>
-            <dd className="text-[12px] text-bear">{maxRisk != null ? `$${maxRisk.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}</dd>
+            <dd className="text-[12px] text-bear">{net == null ? '—' : maxRisk != null ? `$${maxRisk.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'unlimited'}</dd>
           </div>
           <div>
             <dt className="text-[9px] uppercase tracking-widest text-textMuted">Max reward</dt>
-            <dd className="text-[12px] text-bull">{maxReward != null ? `$${maxReward.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'open'}</dd>
+            <dd className="text-[12px] text-bull">{net == null ? '—' : maxReward != null ? `$${maxReward.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'unlimited'}</dd>
           </div>
           <div>
             <dt className="text-[9px] uppercase tracking-widest text-textMuted">Δ · Θ · V</dt>
