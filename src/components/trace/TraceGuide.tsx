@@ -651,21 +651,27 @@ export const TapeRowFigure = () => (
 
 /** Where the fill landed between the bid and the ask */
 export const FillFigure = () => (
-  <Figure label="Two fills in the spread: a green dot near the ask, bought; a red dot near the bid, sold" h={64}>
+  <Figure label="Two fills with their markets: $1.28 marked ask over a 1.20 by 1.28 quote with the dot at the offer; $1.20 marked bid over the same quote with the dot at the bid" h={76}>
     {[
-      { y: 22, pos: 0.92, ink: BULL, word: 'near the ask — bought, someone paid up for it' },
-      { y: 48, pos: 0.08, ink: BEAR, word: 'near the bid — sold, someone took what was there' },
+      { y: 22, pos: 0.93, price: '1.28', side: 'ASK', word: 'paid the offer — someone wanted it now' },
+      { y: 54, pos: 0.07, price: '1.20', side: 'BID', word: 'hit the bid — someone took what was there' },
     ].map(r => (
       <g key={r.y}>
-        <text x={14} y={r.y + 3} fontSize={7} fill={MUTED} fontFamily={MONO}>
+        <text x={14} y={r.y - 5} fontSize={9} fontWeight={700} fill={INK} fontFamily={MONO}>
+          ${r.price}
+        </text>
+        <text x={46} y={r.y - 5} fontSize={7} fontWeight={600} fill={INK} fontFamily={MONO}>
+          {r.side}
+        </text>
+        <text x={14} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={MONO}>
           1.20
         </text>
-        <rect x={40} y={r.y - 1.5} width={80} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
-        <circle cx={40 + 80 * r.pos} cy={r.y} r={3.5} fill={r.ink} />
-        <text x={128} y={r.y + 3} fontSize={7} fill={MUTED} fontFamily={MONO}>
+        <rect x={38} y={r.y + 4.5} width={54} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
+        <circle cx={38 + 54 * r.pos} cy={r.y + 6} r={3.5} fill={INK} />
+        <text x={98} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={MONO}>
           1.28
         </text>
-        <text x={170} y={r.y + 3} fontSize={7} fill={SECOND} fontFamily={SANS}>
+        <text x={132} y={r.y + 2} fontSize={7} fill={SECOND} fontFamily={SANS}>
           {r.word}
         </text>
       </g>
@@ -673,26 +679,22 @@ export const FillFigure = () => (
   </Figure>
 );
 
-/** Which side was hit, and how hard — the bar's reach from the centre */
+/** How hard the aggressor pressed — the bar's reach from the centre */
 export const ConvictionFigure = () => (
-  <Figure label="Two conviction cells: a green BUY pill over a bar reaching far right of centre; a red SELL pill over a short bar left of centre" h={70}>
+  <Figure label="Two conviction bars: a long green bar reaching right of centre, and a short red bar left of centre" h={64}>
     {[
-      { y: 16, side: 'BUY', ink: BULL, score: 0.8, word: 'the ask was hit, hard — a long bar to the right' },
-      { y: 46, side: 'SELL', ink: BEAR, score: -0.3, word: 'the bid was hit, gently — a short bar to the left' },
+      { y: 18, key: 'up', ink: BULL, score: 0.8, word: 'offers lifted, hard — a long bar to the right' },
+      { y: 44, key: 'down', ink: BEAR, score: -0.3, word: 'bids hit, gently — a short bar to the left' },
     ].map(r => (
-      <g key={r.side}>
-        <rect x={14} y={r.y - 8} width={30} height={13} rx={2} fill={r.ink} fillOpacity={0.08} stroke={r.ink} strokeOpacity={0.35} strokeWidth={0.6} />
-        <text x={29} y={r.y + 1.5} textAnchor="middle" fontSize={7} fontWeight={600} fill={r.ink} fontFamily={MONO}>
-          {r.side}
-        </text>
-        <rect x={14} y={r.y + 10} width={64} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
-        <rect x={45.6} y={r.y + 9} width={0.8} height={5} fill="#ffffff" fillOpacity={0.25} />
+      <g key={r.key}>
+        <rect x={14} y={r.y} width={64} height={5} rx={2.5} fill="#ffffff" fillOpacity={0.08} />
+        <rect x={45.6} y={r.y - 1} width={0.8} height={7} fill="#ffffff" fillOpacity={0.25} />
         {r.score >= 0 ? (
-          <rect x={46} y={r.y + 10} width={32 * r.score} height={3} rx={1.5} fill={r.ink} />
+          <rect x={46} y={r.y} width={32 * r.score} height={5} rx={2.5} fill={r.ink} />
         ) : (
-          <rect x={46 + 32 * r.score} y={r.y + 10} width={-32 * r.score} height={3} rx={1.5} fill={r.ink} />
+          <rect x={46 + 32 * r.score} y={r.y} width={-32 * r.score} height={5} rx={2.5} fill={r.ink} />
         )}
-        <text x={100} y={r.y + 6} fontSize={7} fill={SECOND} fontFamily={SANS}>
+        <text x={96} y={r.y + 5} fontSize={7} fill={SECOND} fontFamily={SANS}>
           {r.word}
         </text>
       </g>
@@ -706,12 +708,15 @@ export const LiveTapeGuide = () => (
       <p>One contract traded once — when, the name, the contract, how many at what price, the dollars, and its tag.</p>
       <TapeRowFigure />
     </Section>
-    <Section title="The fill">
-      <p>Where the price landed between the bid and the ask — near the ask it was bought, near the bid sold.</p>
+    <Section title="Fill &amp; market">
+      <p>
+        What was paid, the side it crossed as a word, and under it the bid and ask it crossed into. A fill sitting on the
+        offer of a 1.20 × 1.28 market is its own argument that somebody wanted it now.
+      </p>
       <FillFigure />
     </Section>
     <Section title="Conviction">
-      <p>Which side was hit, and how hard — the bar's reach from the centre.</p>
+      <p>How hard the aggressor pressed — the bar's reach from the centre, right for offers lifted, left for bids hit.</p>
       <ConvictionFigure />
     </Section>
     <Section title="The inks">

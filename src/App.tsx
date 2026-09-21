@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MarketDataProvider } from './context/MarketDataContext';
 import AppBoundary from './components/layout/AppBoundary';
@@ -45,10 +45,22 @@ const RecordLayout = lazy(() => import('./pages/record/RecordLayout'));
 const Insiders = lazy(() => import('./pages/record/Insiders'));
 const Congress = lazy(() => import('./pages/record/Congress'));
 
+/* A REDIRECT THAT DROPS THE QUERY BREAKS EVERY LINK INTO THE PAGE. React
+   Router's <Navigate to="/path"> keeps the path and throws the search and
+   the hash away — harmless while a page's state lived in localStorage, and
+   silently destructive the moment a cut, a screen or a filter lives in the
+   address. /trace/tape?order=premium&kind=sweep landed on /trace/live-tape
+   with a bare URL and the reader's own default tape, and nothing said so.
+   Every hop below goes through Keep, which carries them. */
+const Keep = ({ to }: { to: string }) => {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: to, search, hash }} replace />;
+};
+
 /** An old dossier link keeps its name on the way to the Record */
 const EarningsRedirect = () => {
   const { ticker } = useParams();
-  return <Navigate to={ticker ? `/record/earnings/${ticker}` : '/record/earnings'} replace />;
+  return <Keep to={ticker ? `/record/earnings/${ticker}` : '/record/earnings'} />;
 };
 const ProveIt = lazy(() => import('./pages/proveit/ProveIt'));
 const Tracker = lazy(() => import('./pages/Tracker'));
@@ -101,15 +113,15 @@ const App = () => {
           {/* Public landing — full-bleed, outside the app shell. First thing a
               visitor sees; "Launch terminal" plays the gate into /pulse. */}
           <Route path="/" element={<Landing />} />
-          <Route path="/welcome" element={<Navigate to="/" replace />} />
+          <Route path="/welcome" element={<Keep to="/" />} />
           <Route element={<AppShell />}>
-            <Route path="/home" element={<Navigate to="/pulse" replace />} />
+            <Route path="/home" element={<Keep to="/pulse" />} />
             <Route path="/pulse" element={<Pulse />} />
             <Route path="/pulse/board" element={<PulseBoard />} />
             <Route path="/terrain" element={<Terrain />} />
-            <Route path="/live-terminal" element={<Navigate to="/pulse" replace />} />
+            <Route path="/live-terminal" element={<Keep to="/pulse" />} />
             {/* Workspace merged INTO Pulse (2026-08-17) — old links land there */}
-            <Route path="/workspace" element={<Navigate to="/pulse" replace />} />
+            <Route path="/workspace" element={<Keep to="/pulse" />} />
             <Route path="/compass" element={<CompassLayout />}>
               <Route index element={<CompassBoard />} />
               {/* THE OPTIONS TRACKER sits under Compass the way Trace's tracker sits under Trace (Noah, 2026-09-13) */}
@@ -124,18 +136,18 @@ const App = () => {
             {/* THE ALERTS DESK (2026-09-21): the bell is for glancing, this is
                 for managing — set, alerted, and the record of both */}
             <Route path="/alerts" element={<Alerts />} />
-            <Route path="/watchlists" element={<Navigate to="/watchlist" replace />} />
+            <Route path="/watchlists" element={<Keep to="/watchlist" />} />
             <Route path="/paper" element={<Paper />} />
             <Route path="/paper/journal" element={<PaperJournal />} />
             {/* THE RISK DESK (2026-09-21): what the open book is exposed to — the
                 question the desk and the journal both leave unanswered */}
             <Route path="/paper/risk" element={<PaperRisk />} />
-            <Route path="/skys-vision" element={<Navigate to="/compass" replace />} />
+            <Route path="/skys-vision" element={<Keep to="/compass" />} />
             {/* THE RECORD (2026-09-09): what is on the record about a name — News
                 and Earnings moved under it, Insiders and Congress new, Stocks
                 joined 2026-09-10. The old top-level paths follow. */}
             <Route path="/record" element={<RecordLayout />}>
-              <Route index element={<Navigate to="/record/news" replace />} />
+              <Route index element={<Keep to="/record/news" />} />
               <Route path="news" element={<News />} />
               <Route path="earnings" element={<Earnings />} />
               <Route path="earnings/:ticker" element={<EarningsName />} />
@@ -143,15 +155,15 @@ const App = () => {
               <Route path="congress" element={<Congress />} />
               <Route path="stocks" element={<Stocks />} />
               <Route path="stocks/:ticker" element={<StockOverview />} />
-              <Route path="*" element={<Navigate to="/record/news" replace />} />
+              <Route path="*" element={<Keep to="/record/news" />} />
             </Route>
-            <Route path="/stocks" element={<Navigate to="/record/stocks" replace />} />
-            <Route path="/news" element={<Navigate to="/record/news" replace />} />
-            <Route path="/newsroom" element={<Navigate to="/record/news" replace />} />
-            <Route path="/earnings" element={<Navigate to="/record/earnings" replace />} />
+            <Route path="/stocks" element={<Keep to="/record/stocks" />} />
+            <Route path="/news" element={<Keep to="/record/news" />} />
+            <Route path="/newsroom" element={<Keep to="/record/news" />} />
+            <Route path="/earnings" element={<Keep to="/record/earnings" />} />
             <Route path="/earnings/:ticker" element={<EarningsRedirect />} />
             <Route path="/prove-it" element={<ProveIt />} />
-            <Route path="/tracker" element={<Navigate to="/compass/tracker" replace />} />
+            <Route path="/tracker" element={<Keep to="/compass/tracker" />} />
             {/* each settings section is its own page (2026-09-12); /settings alone lands on Appearance */}
             <Route path="/settings/:section?" element={<Settings />} />
             <Route path="/pinpoint" element={<PinpointLayout />}>
@@ -160,9 +172,9 @@ const App = () => {
                   every other path — the three-tab cut's included — lands on it
                   until the new desk exists. The Strike Pressure Ladder and the
                   Exposure Ledger live on as Pulse widgets meanwhile. */}
-              <Route index element={<Navigate to="/pinpoint/map" replace />} />
-              <Route path="command" element={<Navigate to="/pulse" replace />} />
-              <Route path="flow-map" element={<Navigate to="/pulse" replace />} />
+              <Route index element={<Keep to="/pinpoint/map" />} />
+              <Route path="command" element={<Keep to="/pulse" />} />
+              <Route path="flow-map" element={<Keep to="/pulse" />} />
               {/* THE MAP — band 2 of the roadmap, the first thing built on the canvas */}
               <Route path="map" element={<MapDesk />} />
               {/* AHEAD — from now to the bell (2026-09-06) */}
@@ -175,59 +187,59 @@ const App = () => {
               <Route path="board" element={<Board />} />
               {/* COMPARE — two names side by side (2026-09-08) */}
               <Route path="compare" element={<Compare />} />
-              <Route path="ranked-targets" element={<Navigate to="/pinpoint/targets" replace />} />
-              <Route path="*" element={<Navigate to="/pinpoint/map" replace />} />
+              <Route path="ranked-targets" element={<Keep to="/pinpoint/targets" />} />
+              <Route path="*" element={<Keep to="/pinpoint/map" />} />
               {['exposure-profile', 'session', 'history', 'oi-heat', 'strike-profile', 'vanna-charm', 'expiry-ladder', 'greek-surfaces', 'pain-map', 'model-error', 'vol-lab'].map(p => (
-                <Route key={p} path={p} element={<Navigate to="/pinpoint/map" replace />} />
+                <Route key={p} path={p} element={<Keep to="/pinpoint/map" />} />
               ))}
             </Route>
             <Route path="/trace" element={<TraceLayout />}>
-              <Route index element={<Navigate to="/trace/live-tape" replace />} />
+              <Route index element={<Keep to="/trace/live-tape" />} />
               <Route path="live-tape" element={<LiveTape />} />
               <Route path="screener" element={<OptionsScreener />} />
               <Route path="net-flow" element={<NetFlow />} />
               <Route path="footprints" element={<Footprints />} />
               <Route path="watchers" element={<Watchers />} />
               {/* "Flow Alerts" until 2026-09-11 — the bell is the reader's alerts; these are the desk's watchers */}
-              <Route path="flow-alerts" element={<Navigate to="/trace/watchers" replace />} />
+              <Route path="flow-alerts" element={<Keep to="/trace/watchers" />} />
               <Route path="windows" element={<TradeWindows />} />
               <Route path="odte" element={<Odte />} />
               <Route path="multi-leg" element={<MultiLeg />} />
               {/* Its own page since 2026-09-12 — the old feed path follows it */}
               <Route path="dark-pool" element={<DarkPool />} />
-              <Route path="dark-feed" element={<Navigate to="/trace/dark-pool" replace />} />
+              <Route path="dark-feed" element={<Keep to="/trace/dark-pool" />} />
               {/* The old scanner scaffold's slot — its promise became the screener */}
-              <Route path="scanner" element={<Navigate to="/trace/screener" replace />} />
+              <Route path="scanner" element={<Keep to="/trace/screener" />} />
               {/* Two names on everything Trace knows (2026-09-12) */}
               <Route path="compare" element={<TraceCompare />} />
               <Route path="tracker" element={<FlowTracker />} />
-              <Route path="*" element={<Navigate to="/trace/live-tape" replace />} />
+              <Route path="*" element={<Keep to="/trace/live-tape" />} />
             </Route>
-            <Route path="/liquidity" element={<Navigate to="/trace" replace />} />
+            <Route path="/liquidity" element={<Keep to="/trace" />} />
             {/* Legacy section paths from before the rebrand */}
-            <Route path="/flow-desk/*" element={<Navigate to="/trace" replace />} />
-            <Route path="/pinpoint-gex/*" element={<Navigate to="/pinpoint" replace />} />
+            <Route path="/flow-desk/*" element={<Keep to="/trace" />} />
+            <Route path="/pinpoint-gex/*" element={<Keep to="/pinpoint" />} />
             <Route path="/community" element={<CommunityLayout />}>
               <Route index element={<Room />} />
               <Route path="me" element={<Profile />} />
               <Route path="u/:handle" element={<Profile />} />
               <Route path="t/:ticker" element={<TickerRoom />} />
               {/* the old subpages: the room, or the feedback page */}
-              <Route path="ideas" element={<Navigate to="/community" replace />} />
-              <Route path="requests" element={<Navigate to="/feedback" replace />} />
-              <Route path="feedback" element={<Navigate to="/feedback" replace />} />
-              <Route path="*" element={<Navigate to="/community" replace />} />
+              <Route path="ideas" element={<Keep to="/community" />} />
+              <Route path="requests" element={<Keep to="/feedback" />} />
+              <Route path="feedback" element={<Keep to="/feedback" />} />
+              <Route path="*" element={<Keep to="/community" />} />
             </Route>
             {/* FEEDBACK AND BUGS, its own page (2026-09-13) */}
             <Route path="/feedback" element={<Feedback />} />
-            <Route path="/auditor-log" element={<Navigate to="/tracker" replace />} />
+            <Route path="/auditor-log" element={<Keep to="/tracker" />} />
             {/* NOTHING MATCHED (2026-09-13). Without this React Router renders
                 an empty element tree — not a 404 page, not the shell, a blank
                 screen with no way back but the URL bar. Found on /typo, and on
                 a bad child of every section that is a leaf route (/pulse/x).
                 Each section above catches its own so a near-miss lands on the
                 desk you were aiming at; this is the last resort. */}
-            <Route path="*" element={<Navigate to="/pulse" replace />} />
+            <Route path="*" element={<Keep to="/pulse" />} />
           </Route>
         </Routes>
         </Suspense>

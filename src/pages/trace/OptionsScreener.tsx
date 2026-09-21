@@ -18,7 +18,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Link2, Save, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { filtersToParams, paramsToFilters, removeView, saveView, useViews } from '../../data/screenerViews';
+import { filtersToParams, paramsToFilters } from '../../data/screenerViews';
+import { screenerCuts } from '../../data/screenerViews';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { applyFilters, buildFlowBook, DEFAULT_FILTERS, FLOW_SCREENS, runScreen, type BookFilters, type ScreenKey } from '../../data/flowBook';
@@ -123,9 +125,7 @@ const OptionsScreener = () => {
   const [query, setQuery] = useState(fromUrl.query);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
-  const [viewsOpen, setViewsOpen] = useState(false);
-  const [said, setSaid] = useState('');
-  const views = useViews();
+  const cuts = useSavedCuts();
 
   useEffect(() => {
     try {
@@ -158,14 +158,6 @@ const OptionsScreener = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  const shareLink = () => {
-    const q = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString();
-    const url = `${window.location.origin}${window.location.pathname}${q ? `?${q}` : ''}`;
-    navigator.clipboard?.writeText(url).then(
-      () => setSaid('Link copied — it opens this exact screen.'),
-      () => setSaid(url)
-    );
-  };
 
   const liveBook = useMemo(
     () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
@@ -368,34 +360,19 @@ const OptionsScreener = () => {
             <DropdownSelect label="Premium" value={snap(filters.minPremium, PREMIUM_STEPS)} options={PREMIUM_OPTIONS} onChange={v => setFilters(f => ({ ...f, minPremium: v }))} title="The least money a contract must carry" testId="screener-premium" />
             <DropdownSelect label="Money" value={filters.excludeItm ? 'otm' : 'any'} options={MONEY_OPTIONS} onChange={v => setFilters(f => ({ ...f, excludeItm: v === 'otm' }))} title="Where the strikes sit against the stock" testId="screener-money" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="screener-expiry" />
-            {/* THE FILTER IS THE ADDRESS. A tuned screen lives in the query
-                string now, so it can be sent, bookmarked, opened twice side
-                by side, and saved by name. */}
-            <span className="inline-flex items-center gap-1">
-              <button type="button" onClick={shareLink} title="Copy a link that opens this exact screen" aria-label="Copy a link to this screen" className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-screener-share>
-                <Link2 className="w-3 h-3" /> Link
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const n = window.prompt('Name this screen');
-                  if (!n) return;
-                  const q = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString();
-                  setSaid(saveView(n, q) ? `Saved as "${n.trim()}".` : 'That needs a name.');
-                }}
-                title="Save this screen by name"
-                aria-label="Save this screen"
-                className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
-                data-screener-save
-              >
-                <Save className="w-3 h-3" /> Save
-              </button>
-              {views.length > 0 && (
-                <button type="button" onClick={() => setViewsOpen(v => !v)} aria-expanded={viewsOpen} className="h-7 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-screener-views>
-                  {views.length} saved
-                </button>
-              )}
-            </span>
+            {/* THE FILTER IS THE ADDRESS (data/savedViews): a tuned screen
+                lives in the query string, so it can be sent, bookmarked,
+                opened twice side by side, and saved by name. */}
+            <SavedCutsControl
+              store={screenerCuts}
+              query={filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString()}
+              onOpen={q => setParams(new URLSearchParams(q), { replace: true })}
+              noun="screen"
+              testId="screener"
+              onSay={cuts.say}
+              open={cuts.open}
+              onToggleOpen={cuts.toggle}
+            />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
@@ -403,21 +380,20 @@ const OptionsScreener = () => {
         }
         sentence={
           <>
-            {viewsOpen && views.length > 0 && (
-              <div className="mb-2 flex flex-wrap items-center gap-1.5" data-screener-view-list>
-                {views.map(v => (
-                  <span key={v.id} className="inline-flex items-center rounded-md border border-borderSubtle overflow-hidden">
-                    <button type="button" onClick={() => { setParams(new URLSearchParams(v.query), { replace: true }); setSaid(`Opened "${v.name}".`); }} className="h-6 px-2 text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors" data-screener-view={v.name}>
-                      {v.name}
-                    </button>
-                    <button type="button" onClick={() => removeView(v.id)} aria-label={`Forget ${v.name}`} className="h-6 px-1.5 text-textMuted hover:text-bear border-l border-borderSubtle transition-colors">
-                      <Trash2 className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+            <SavedCutsList
+              store={screenerCuts}
+              query=""
+              onOpen={q => setParams(new URLSearchParams(q), { replace: true })}
+              noun="screen"
+              testId="screener"
+              onSay={cuts.say}
+              open={cuts.open}
+            />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-screener-said>
+                {cuts.said}
+              </p>
             )}
-            {said && <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-screener-said>{said}</p>}
             <RichRead text={sentence} />
           </>
         }

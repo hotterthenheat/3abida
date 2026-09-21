@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { createViewStore, type SavedView } from './savedViews';
 import { DEFAULT_FILTERS, type BookFilters } from './flowBook';
 import type { SleeveKey } from '../types/compass';
 
@@ -31,15 +31,7 @@ import type { SleeveKey } from '../types/compass';
   and a readable link is one a reader will trust enough to click.
 */
 
-export interface SavedView {
-  id: string;
-  name: string;
-  /** The query string, without the leading '?' */
-  query: string;
-  at: number;
-}
-
-const KEY = 'slayer_screener_views_v1';
+export type { SavedView };
 
 // ---- the codec ------------------------------------------------------------
 
@@ -90,58 +82,6 @@ export function paramsToFilters(p: URLSearchParams, validTenors: readonly string
 }
 
 // ---- the saved views ------------------------------------------------------
-
-function read(): SavedView[] {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-    const p = JSON.parse(raw) as unknown;
-    if (!Array.isArray(p)) return [];
-    return p
-      .filter((v): v is SavedView =>
-        !!v && typeof v.id === 'string' && typeof v.name === 'string' && typeof v.query === 'string')
-      .map(v => ({ id: v.id, name: v.name.slice(0, 40), query: v.query.slice(0, 400), at: Number(v.at) || 0 }))
-      .slice(0, 24);
-  } catch {
-    return [];
-  }
-}
-
-let views: SavedView[] = read();
-const subs = new Set<() => void>();
-
-function commit(next: SavedView[]): void {
-  views = next;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* A blocked store keeps the session's views and forgets them on reload. */
-  }
-  for (const f of subs) f();
-}
-
-const subscribe = (f: () => void) => {
-  subs.add(f);
-  return () => {
-    subs.delete(f);
-  };
-};
-
-export const getViews = (): SavedView[] => views;
-export const useViews = (): SavedView[] => useSyncExternalStore(subscribe, getViews, getViews);
-
-let seq = 0;
-
-/** Saving the same name twice replaces it rather than growing a duplicate. */
-export function saveView(name: string, query: string): SavedView | null {
-  const n = name.trim().slice(0, 40);
-  if (!n) return null;
-  const v: SavedView = { id: `v-${Date.now().toString(36)}-${++seq}`, name: n, query, at: Date.now() };
-  const rest = views.filter(x => x.name.toLowerCase() !== n.toLowerCase());
-  commit([v, ...rest].slice(0, 24));
-  return v;
-}
-
-export function removeView(id: string): void {
-  commit(views.filter(v => v.id !== id));
-}
+/* The store itself is shared (data/savedViews) — the screener keeps only its
+   own key and its own codec. */
+export const screenerCuts = createViewStore('slayer_screener_views_v1');

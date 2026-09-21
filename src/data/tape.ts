@@ -25,6 +25,29 @@ function h01(seed: string): number {
   return (hash(seed) % 1000) / 1000;
 }
 
+/* ---- the quote a print crossed into ----------------------------------------
+   THE FILL MUST LIE INSIDE ITS OWN QUOTE. It did not: the quote was built by
+   walking a MID out from the fill and then spreading half a width each way,
+   which lands the bid and the ask on the wrong side of the print — every ASK
+   print priced above its own ask, every BID print below its own bid. Nobody
+   could see it while Fill and Spread were separate columns; the tape's
+   compound Fill & market cell prints the three numbers together and the
+   contradiction is the first thing you read.
+
+   Built the other way round now, from the fill outward: the aggressor's side
+   says WHERE in the spread the print landed, and the quote is placed around
+   it. Rounded outward — bid down to the cent, ask up — so a cent of rounding
+   can never push the fill back out of the market it crossed into. The stored
+   position is then read back off the ROUNDED quote, so the dot on the rail
+   sits exactly where the printed numbers say it does. */
+const floorCent = (v: number) => Math.floor(v * 100 + 1e-7) / 100;
+const ceilCent = (v: number) => Math.ceil(v * 100 - 1e-7) / 100;
+function quoteAround(fill: number, width: number, aim: number): { bid: number; ask: number; fillPos: number } {
+  const bid = Math.max(0.01, floorCent(fill - width * aim));
+  const ask = Math.max(bid + 0.01, ceilCent(fill + width * (1 - aim)));
+  return { bid, ask, fillPos: Number(((fill - bid) / (ask - bid)).toFixed(2)) };
+}
+
 const DTE_POOL = [0, 1, 2, 5, 9, 16, 30, 44, 72, 102, 254];
 const STRATS: StratTag[] = ['Vertical', 'Butterfly', 'Ratio', 'Custom'];
 
@@ -50,15 +73,16 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
     spot * baseIv * 0.08 * Math.exp(-Math.pow(money * 18, 2) / 2) * (0.5 + Math.sqrt((dte + 1) / 30));
   const fill = Number(Math.max(0.05, intrinsic * 0.98 + timeValue).toFixed(2));
 
-  // Fill position within the spread follows the aggressor side
-  const spreadW = Math.max(0.02, fill * 0.03 * (0.6 + h('spr')));
-  const fillPos = order.side === 'ASK' ? 0.72 + h('pos') * 0.28 : h('pos') * 0.28;
-  const mid = order.side === 'ASK' ? fill - spreadW * fillPos : fill + spreadW * (1 - fillPos);
-  const bid = Number((mid - spreadW / 2).toFixed(2));
-  const ask = Number((mid + spreadW / 2).toFixed(2));
-
   const isMid = h('mid') > 0.82;
   const side: FlowPrint['side'] = isMid ? 'MID' : order.side;
+
+  /* The side comes FIRST, because it is what decides where in the spread the
+     print landed. It used to come after, so a print the tape called MID still
+     carried an aggressor's 0.95 position and drew its dot hard against the
+     offer — the cell said mid and the rail said lifted. */
+  const spreadW = Math.max(0.02, fill * 0.03 * (0.6 + h('spr')));
+  const aim = side === 'ASK' ? 0.72 + h('pos') * 0.28 : side === 'BID' ? h('pos') * 0.28 : 0.42 + h('pos') * 0.16;
+  const { bid, ask, fillPos } = quoteAround(fill, spreadW, aim);
   const flowScore = isMid
     ? Math.round((h('fs') - 0.5) * 24)
     : Math.round((side === 'ASK' ? 1 : -1) * (48 + h('fs') * 52));
@@ -86,7 +110,7 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
     fill,
     bid,
     ask,
-    fillPos: Number(fillPos.toFixed(2)),
+    fillPos,
     side,
     flowScore,
     ratioLabel,
@@ -118,8 +142,8 @@ export function bookRowToPrint(
   const fill = clip?.fill ?? row.last;
   const side: FlowPrint['side'] = clip?.side ?? (row.askPct >= 55 ? 'ASK' : row.askPct <= 45 ? 'BID' : 'MID');
   const spreadW = Math.max(0.02, fill * 0.03 * (0.6 + h('spr')));
-  const fillPos = side === 'ASK' ? 0.72 + h('pos') * 0.28 : side === 'BID' ? h('pos') * 0.28 : 0.5;
-  const mid = side === 'ASK' ? fill - spreadW * fillPos : fill + spreadW * (1 - fillPos);
+  const aim = side === 'ASK' ? 0.72 + h('pos') * 0.28 : side === 'BID' ? h('pos') * 0.28 : 0.42 + h('pos') * 0.16;
+  const { bid, ask, fillPos } = quoteAround(fill, spreadW, aim);
   const size = clip?.size ?? Math.max(5, Math.round(row.volume * (0.01 + h('sz') * 0.05)));
   const bidPct = 100 - row.askPct;
 
@@ -134,9 +158,9 @@ export function bookRowToPrint(
     expiry: row.expiry,
     dte: row.dte,
     fill,
-    bid: Number((mid - spreadW / 2).toFixed(2)),
-    ask: Number((mid + spreadW / 2).toFixed(2)),
-    fillPos: Number(fillPos.toFixed(2)),
+    bid,
+    ask,
+    fillPos,
     side,
     flowScore:
       side === 'MID' ? Math.round((h('fs') - 0.5) * 24) : Math.round((side === 'ASK' ? 1 : -1) * (48 + h('fs') * 52)),

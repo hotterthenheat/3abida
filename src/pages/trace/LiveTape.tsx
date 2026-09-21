@@ -32,6 +32,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { printKey, useWatch, watchPrint } from '../../context/WatchContext';
@@ -48,6 +49,8 @@ import FlowSearch from '../../components/trace/FlowSearch';
 import ContractCell from '../../components/trace/ContractCell';
 import LeanCell from '../../components/trace/LeanCell';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
+import { createViewStore } from '../../data/savedViews';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
@@ -78,6 +81,59 @@ const VIEW_META: Record<TapeView, { label: string; hint: string }> = {
 type SentFilter = 'ALL' | PrintSentiment;
 type PremKey = '0' | '100000' | '500000' | '1000000';
 
+/* THE CUT IS THE ADDRESS, on the tape too (data/savedViews). The screener
+   learned this and kept it; the tape — the surface a trader most wants to
+   hand someone, because what is on it right now is the whole point — had no
+   way to send or save a thing. Only what DIFFERS from the default tape is
+   written, so an untouched tape has a clean URL and a shared one carries
+   exactly the decisions that were made. */
+const TAPE_CUTS = createViewStore('slayer_tape_cuts_v1');
+interface TapeCut {
+  view: TapeView;
+  kind: FlowFilter;
+  lean: SentFilter;
+  prem: PremKey;
+  expiry: string | null;
+  q: string;
+}
+const TAPE_CUT_DEFAULT: TapeCut = { view: 'STREAM', kind: 'ALL', lean: 'ALL', prem: '0', expiry: null, q: '' };
+const PREM_KEYS: PremKey[] = ['0', '100000', '500000', '1000000'];
+const LEAN_KEYS: SentFilter[] = ['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'];
+
+function cutToQuery(c: TapeCut): string {
+  const p = new URLSearchParams();
+  if (c.view !== TAPE_CUT_DEFAULT.view) p.set('order', c.view.toLowerCase());
+  if (c.kind !== TAPE_CUT_DEFAULT.kind) p.set('kind', c.kind.toLowerCase());
+  if (c.lean !== TAPE_CUT_DEFAULT.lean) p.set('lean', c.lean.toLowerCase());
+  if (c.prem !== TAPE_CUT_DEFAULT.prem) p.set('prem', c.prem);
+  if (c.expiry) p.set('exp', c.expiry);
+  if (c.q.trim()) p.set('q', c.q.trim());
+  return p.toString();
+}
+
+/** A URL is user input, so every field is validated rather than trusted — a
+    value the tape does not know falls back to the default rather than
+    filtering the whole tape away and leaving a reader staring at nothing. */
+function queryToCut(p: URLSearchParams): { cut: TapeCut; any: boolean } {
+  const up = (k: string) => (p.get(k) ?? '').toUpperCase();
+  const view = up('order');
+  const kind = up('kind');
+  const lean = up('lean');
+  const prem = p.get('prem') ?? '';
+  const exp = p.get('exp');
+  return {
+    cut: {
+      view: view in VIEW_META ? (view as TapeView) : TAPE_CUT_DEFAULT.view,
+      kind: kind === 'SWEEP' || kind === 'BLOCK' ? (kind as FlowFilter) : TAPE_CUT_DEFAULT.kind,
+      lean: (LEAN_KEYS as string[]).includes(lean) ? (lean as SentFilter) : TAPE_CUT_DEFAULT.lean,
+      prem: (PREM_KEYS as string[]).includes(prem) ? (prem as PremKey) : TAPE_CUT_DEFAULT.prem,
+      expiry: exp && /^\d{4}-\d{2}-\d{2}$/.test(exp) ? exp : null,
+      q: (p.get('q') ?? '').slice(0, 40),
+    },
+    any: ['order', 'kind', 'lean', 'prem', 'exp', 'q'].some(k => p.has(k)),
+  };
+}
+
 const PREM_CHIPS: { value: Exclude<PremKey, '0'>; label: string }[] = [
   { value: '100000', label: '≥$100K' },
   { value: '500000', label: '≥$500K' },
@@ -99,14 +155,24 @@ const LEAN_OPTIONS: DropdownOption<SentFilter>[] = [
 const PREM_OPTIONS: DropdownOption<PremKey>[] = [{ value: '0', label: 'Any', hint: 'No floor' }, ...PREM_CHIPS.map(c => ({ value: c.value, label: c.label, hint: `Only prints ${c.label}` }))];
 
 /** Fixed widths where a header or a cell would otherwise clip; the tag takes the rest */
-const WIDTHS: Record<string, number> = { time: 124, ticker: 96, contract: 150, dte: 64, otm: 76, spot: 84, fill: 80, spread: 132, size: 72, prem: 92, flow: 92, dayRatio: 100, sentiment: 96, vol: 76, oi: 76, deltaOi: 84, volOverOi: 80, iv: 64 };
+/* A COLUMN NARROWER THAN ITS CELL PAINTS A CLIPPED ELLIPSIS — a single stray
+   dot at the cell's edge that reads like a rendering fault, because that is
+   what it is. Every width here clears its widest cell; the probe in
+   docs/build-lessons checks it rather than trusting the arithmetic. */
+const WIDTHS: Record<string, number> = { time: 124, ticker: 104, contract: 196, dte: 64, otm: 76, quote: 136, size: 152, prem: 92, flow: 92, dayRatio: 100, sentiment: 96, vol: 76, oi: 76, deltaOi: 84, volOverOi: 80, iv: 64 };
+/* THE TAPE OPENS ON ELEVEN COLUMNS, NOT EIGHTEEN. Everything below still
+   exists and still sorts — it is folded into a compound cell, so showing it
+   twice by default would be the clutter the compounding was for. */
+const TAPE_CLOSED = ['dte', 'otm', 'vol', 'oi'];
 const FLEXES: Record<string, number> = { tag: 1 };
 /** What the short headers mean, on hover (the dotted explainers of the old table) */
 const TOOLTIPS: Record<string, string> = {
   otm: 'How far the strike sits from the spot, as a share of the spot',
-  spread: 'Where the fill landed between the bid and the ask',
+  contract: 'The contract, the days it has left, and where the market was when the print crossed',
+  quote: 'What was paid, which side of the market it crossed, and the bid and ask it crossed into',
+  size: 'Contracts on this print, over the day\'s volume and the standing open interest',
   prem: 'Dollars paid — size × fill × 100',
-  flow: 'Which side of the spread was hit, and how hard',
+  flow: 'How hard the aggressor pressed — right of centre lifted offers, left of centre hit bids',
   dayRatio: "The day's prints on the ask against the bid, for this contract",
   sentiment: 'Bullish, bearish or neutral — by the side hit and the right',
   deltaOi: 'Open interest change since yesterday',
@@ -159,47 +225,65 @@ function tapeRead(rows: FlowPrint[], summary: TapeSummary): ReadSeg[] {
 }
 
 // ---- the tape's own cells -----------------------------------------------------
-const SpreadCell = ({ print }: { print: FlowPrint }) => {
-  const dot = print.side === 'ASK' ? 'bg-bull' : print.side === 'BID' ? 'bg-bear' : 'bg-ink/50';
-  return (
-    <span className="inline-flex items-center gap-1.5">
+/* THE SIDE CALL TRAVELS WITH ITS EVIDENCE. "BUY" is a CONCLUSION — it means
+   the print crossed at the offer — and the tape used to state it in one
+   column, show the fill price in a second, and draw the bid-ask rail in a
+   third, leaving the reader to carry a number three columns to check the
+   claim. They are one fact and they belong in one cell: the fill on top with
+   the side as a WORD beside it, and the market it crossed into underneath.
+   A print at 2.30 into a 2.10 × 2.30 market argues for itself.
+
+   NO BULL/BEAR INK ON THE SIDE. In this row, green already means CALL two
+   columns left and BULLISH two columns right; a third green meaning "lifted
+   the offer" is the reading that makes a bought put look bullish at a
+   glance. The dot's POSITION on the rail and the word carry the side; the
+   colour stays where it is information. */
+const SIDE_WORD: Record<FlowPrint['side'], string> = { ASK: 'ask', BID: 'bid', MID: 'mid' };
+const QuoteCell = ({ print }: { print: FlowPrint }) => (
+  <span className="inline-flex flex-col items-end gap-[2px] leading-none align-middle">
+    <span className="inline-flex items-baseline gap-1">
+      <span className="font-mono text-[11px] font-bold tnum text-textPrimary">${print.fill.toFixed(2)}</span>
+      <span className="font-mono text-[9px] font-semibold uppercase tracking-wide text-textPrimary">{SIDE_WORD[print.side]}</span>
+    </span>
+    <span className="inline-flex items-center gap-1">
       <span className="font-mono text-[9px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
-      <span className="relative w-12 h-[3px] rounded-full bg-ink/[0.07]">
+      <span className="relative w-10 h-[3px] rounded-full bg-ink/[0.07]">
         <span
-          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full ${dot}`}
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full bg-textPrimary"
           style={{ left: `${print.fillPos * 100}%` }}
         />
       </span>
       <span className="font-mono text-[9px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
     </span>
-  );
-};
+  </span>
+);
 
-/** Side + conviction read. BUY = hit the ask, SELL = hit the bid. The flow
-    grade itself is engine-internal (Noah, 2026-08-16) — the centered bar's
-    reach and side carry the conviction. */
+/* SIZE, AND WHAT THE SIZE MEANS. A thousand contracts is enormous against an
+   open interest of eight hundred and unremarkable against forty thousand —
+   the number alone cannot be read, which is why the three travel together on
+   every serious tape. Size leads; the day's volume and the standing open
+   interest sit under it as the scale it is read against. */
+const SizeCell = ({ print }: { print: FlowPrint }) => (
+  <span className="inline-flex flex-col items-end gap-[2px] leading-none align-middle">
+    <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{num(print.size)}</span>
+    <span className="font-mono text-[9px] tnum text-textSecondary whitespace-nowrap">
+      vol {num(print.volume)} <span aria-hidden>·</span> oi {num(print.oi)}
+    </span>
+  </span>
+);
+
+/** The aggressor read. The flow grade itself is engine-internal (Noah,
+    2026-08-16) — the centred bar's reach and side carry the conviction. The
+    BUY/SELL chip that used to sit above it is gone: it restated the side the
+    Quote cell now says in a word, beside the fill that proves it, and its
+    green fought the green on "call" in the same row. */
 const FlowCell = ({ print }: { print: FlowPrint }) => {
   const score = print.flowScore;
   const bar = score > 15 ? 'bg-bull/90' : score < -15 ? 'bg-bear/80' : 'bg-ink/25';
   const half = Math.abs(score) / 2;
-  const sideLabel = print.side === 'ASK' ? 'BUY' : print.side === 'BID' ? 'SELL' : 'MID';
   return (
-    /* 14px label + 3 + 3 = the Lean cell's exact height, so a row carrying
-       both stays the Screener's 39px (measured 43 with the pill's own
-       padding — the one cell that was taller than the table's line). */
     <span className="inline-flex flex-col items-start gap-[3px] w-16">
-      <span
-        className={`inline-flex w-9 justify-center rounded border px-1 leading-[12px] font-mono text-[9px] font-semibold ${
-          print.side === 'ASK'
-            ? 'border-bull/30 bg-bull/[0.07] text-bull'
-            : print.side === 'BID'
-              ? 'border-bear/30 bg-bear/[0.07] text-bear'
-              : 'border-borderSubtle text-textMuted'
-        }`}
-      >
-        {sideLabel}
-      </span>
-      <span className="relative w-16 h-[3px] rounded-full bg-ink/[0.07]">
+      <span className="relative w-16 h-[5px] rounded-full bg-ink/[0.07]">
         <span className="absolute left-1/2 top-0 bottom-0 w-px bg-ink/20" />
         <span
           className={`absolute top-0 bottom-0 rounded-full ${bar}`}
@@ -294,6 +378,59 @@ const LiveTape = () => {
   /* THE EXPIRY CUT — the dates the prints in the buffer actually carry, as
      a calendar; every expiry where the page opens (see bookExpiry). */
   const { expiry, setExpiry, expiries: tapeExpiries, cut: cutExpiry, chosen: chosenExpiry } = useExpiryCut(rows, r => r.expiry);
+
+  /* ---- the cut in the address ---------------------------------------------
+     THE URL WINS, always: a link someone was SENT is a more specific
+     instruction than whatever that reader last had open. The tape writes its
+     cut back on every change (replace, never push — a filter is not a page,
+     and six of them would bury the back button). */
+  const [params, setParams] = useSearchParams();
+  const cuts = useSavedCuts();
+  const cut: TapeCut = { view, kind: flowFilter, lean: sentFilter, prem: minPremKey, expiry, q: searchQuery };
+  const cutQuery = cutToQuery(cut);
+  const applyCut = useCallback(
+    (c: TapeCut) => {
+      setView(c.view);
+      setFlowFilter(c.kind);
+      setSentFilter(c.lean);
+      setMinPremKey(c.prem);
+      setSearchQuery(c.q);
+      setExpiry(c.expiry);
+    },
+    [setExpiry]
+  );
+  /* Read in on arrival and whenever the address changes under us (a saved cut
+     opened, the back button). Written out from the state, so the two can
+     never drift: whichever moved last, the other follows.
+
+     THE HANDSHAKE IS THE WHOLE TRICK, and getting it wrong is silent. React
+     runs both effects in the same pass, and on the pass that READS a link the
+     state has not caught up yet — so the writer looks at a still-default cut,
+     decides the address is wrong, and erases the link it was just handed. The
+     reader therefore hands the writer a beat: applied, but not yet settled,
+     so sit this one out. */
+  const appliedRef = useRef<string | null>(null);
+  const settledRef = useRef(false);
+  useEffect(() => {
+    const incoming = params.toString();
+    if (appliedRef.current === incoming) {
+      settledRef.current = true;
+      return;
+    }
+    appliedRef.current = incoming;
+    const { cut: c, any } = queryToCut(params);
+    if (any) applyCut(c);
+    settledRef.current = !any;
+  }, [params, applyCut]);
+  useEffect(() => {
+    if (!settledRef.current) {
+      settledRef.current = true;
+      return;
+    }
+    if (cutQuery === appliedRef.current) return;
+    appliedRef.current = cutQuery;
+    setParams(new URLSearchParams(cutQuery), { replace: true });
+  }, [cutQuery, setParams]);
 
   const filtered = useMemo(() => {
     const minPrem = Number(minPremKey);
@@ -477,8 +614,12 @@ const LiveTape = () => {
         header: 'Contract',
         align: 'right',
         sortValue: r => r.p.strike,
-        render: r => <ContractCell strike={r.p.strike} right={r.p.right} expiry={r.p.expiry} />,
+        render: r => (
+          <ContractCell strike={r.p.strike} right={r.p.right} expiry={r.p.expiry} dte={r.p.dte} spot={r.p.spot} otmPct={r.p.otmPct} />
+        ),
       },
+      /* DTE, OTM % and Spot are IN the contract cell now; they keep their own
+         columns only because a reader sorts by them, and they open closed. */
       {
         key: 'dte',
         label: 'DTE',
@@ -503,38 +644,22 @@ const LiveTape = () => {
         ),
       },
       {
-        key: 'spot',
-        label: 'Spot',
-        group: 'Contract',
-        header: 'Spot',
-        align: 'right',
-        sortValue: r => r.p.spot,
-        render: r => <span className="text-textPrimary">${r.p.spot.toFixed(2)}</span>,
-      },
-      {
-        key: 'fill',
-        label: 'Fill',
+        key: 'quote',
+        label: 'Fill & market',
         group: 'Execution',
-        header: 'Fill',
+        header: 'Fill & market',
         align: 'right',
-        sortValue: r => r.p.fill,
-        render: r => <span className="text-textPrimary">${r.p.fill.toFixed(2)}</span>,
-      },
-      {
-        key: 'spread',
-        label: 'Spread',
-        group: 'Execution',
-        header: 'Spread',
-        render: r => <SpreadCell print={r.p} />,
+        sortValue: r => r.p.fillPos,
+        render: r => <QuoteCell print={r.p} />,
       },
       {
         key: 'size',
-        label: 'Size',
+        label: 'Size, vol & OI',
         group: 'Execution',
-        header: 'Size',
+        header: 'Size, vol & OI',
         align: 'right',
         sortValue: r => r.p.size,
-        render: r => <span className="text-textPrimary">{num(r.p.size)}</span>,
+        render: r => <SizeCell print={r.p} />,
       },
       {
         key: 'prem',
@@ -587,6 +712,8 @@ const LiveTape = () => {
           return <span className={`text-[10px] font-semibold ${SENT_TEXT[s]}`}>{s}</span>;
         },
       },
+      /* Volume and open interest ride in the Size cell; the columns survive
+         for sorting, closed until a reader opens them. */
       {
         key: 'vol',
         label: 'Vol',
@@ -662,7 +789,7 @@ const LiveTape = () => {
   );
 
   /* The chooser offers every column but the time rail, which is always on. */
-  const { hidden, toggle, showAll, hideAll } = useHiddenColumns(COLS_KEY);
+  const { hidden, toggle, showAll, hideAll } = useHiddenColumns(COLS_KEY, TAPE_CLOSED);
   const chooserCols = useMemo(
     () => columns.filter(c => c.key !== 'time').map(c => ({ key: c.key, label: c.label, group: c.group })),
     [columns]
@@ -744,12 +871,32 @@ const LiveTape = () => {
               title="Only prints on one expiry — or every expiry"
               testId="tape-expiry"
             />
+            <SavedCutsControl
+              store={TAPE_CUTS}
+              query={cutQuery}
+              onOpen={q => setParams(new URLSearchParams(q), { replace: true })}
+              noun="cut"
+              testId="tape"
+              onSay={cuts.say}
+              open={cuts.open}
+              onToggleOpen={cuts.toggle}
+            />
             <span className="ml-auto flex items-center gap-2">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(chooserCols.map(c => c.key))} groupOrder={TAPE_GROUP_ORDER} />
             </span>
           </>
         }
-        sentence={<>{readNode}</>}
+        sentence={
+          <>
+            <SavedCutsList store={TAPE_CUTS} query="" onOpen={q => setParams(new URLSearchParams(q), { replace: true })} noun="cut" testId="tape" onSay={cuts.say} open={cuts.open} />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-tape-said>
+                {cuts.said}
+              </p>
+            )}
+            {readNode}
+          </>
+        }
       >
         {/* The grid takes the whole window — the rail and its door are gone (2026-09-12). */}
         <div data-tape-body>
