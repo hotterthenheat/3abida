@@ -10,7 +10,10 @@
     "serve": "tsx server.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "test": "tsx scripts/terrain-setups-proof.ts",
-    "theme:audit": "node scripts/theme-audit.mjs"
+    "theme:audit": "node scripts/theme-audit.mjs",
+    "proof:logic": "tsx scripts/logic-proof.ts",
+    "proof:desk": "tsx scripts/desk-proof.ts",
+    "proof": "npm run proof:logic && npm run proof:desk && npm run test"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

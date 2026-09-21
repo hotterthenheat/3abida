@@ -72,6 +72,16 @@ const dayKey = () => {
    the contract's own IV on the appropriate side, which is where the answer
    provably is. Null when no vol explains the price — a bid under intrinsic
    is a quote problem, not a vol.
+
+   AND NULL ON THE ESTIMATOR'S OWN FLOOR, which is the case bisection hides
+   rather than reports. `estimatePremium` bottoms out at PREMIUM_FLOOR, so
+   every quote at or under a nickel prices the same at 1% vol as at 12%, and
+   a bracket that keeps halving lands on its own floor and calls it 0.01%.
+   A 0DTE wing then printed "0.01 / 15.26" — a fifteen-point vol spread on a
+   two-cent market, which is not a wide market, it is a broken number. If a
+   whole vol point cannot move the premium by as much as the quote's own
+   resolution, the quote does not carry a vol, and the column says nothing
+   rather than saying that.
 */
 const IV_CEILING = 5;
 function ivAtPrice(
@@ -103,7 +113,14 @@ function ivAtPrice(
     if (at(m) < price) lo = m;
     else hi = m;
   }
-  return Number((((lo + hi) / 2) * 100).toFixed(2));
+  const v = (lo + hi) / 2;
+  /* HALF A CENT is the quote's own resolution — the bid and the ask are both
+     rounded to the cent before they get here. A vol point that moves the
+     premium by less than that is a vol point the market cannot express, so
+     the answer above is whichever end of the flat band the bracket walked in
+     from rather than a reading. See the head of this block. */
+  if (at(Math.min(IV_CEILING, v + 0.01)) - at(Math.max(1e-4, v - 0.01)) < 0.005) return null;
+  return Number((v * 100).toFixed(2));
 }
 
 // ---- the chain --------------------------------------------------------------

@@ -1238,9 +1238,24 @@ function settleFill(inst: Instrument, side: Side, qty: number, price: number, fe
       legs: p.legs && legs ? p.legs.map(pl => ({ symbol: pl.symbol, qty: (pl.qty / Math.abs(p!.qty)) * closeQty, entry: pl.avgPrice, exit: legs.find(x => x.instrumentId === pl.instrumentId)?.price ?? pl.avgPrice })) : undefined,
     });
     if (inst.kind === 'future') cash += gross;
-    realizedTotal += gross;
-    p.realized += gross;
-    p.qty += signed;
+    /* NET, LIKE THE BLOTTER ROW. `realizedTotal` and `p.realized` are both
+       printed under the word "Realized" — in the account panel, in the
+       ticket, in the blotter's position view — beside a trades table whose
+       own "Realized" column is `trade.realized`, which is net of fees. Two
+       panels a click apart disagreed by exactly the commission, and the
+       account's figure did not tie to its own equity either, because the
+       cash it is measured against paid those fees on the way past. */
+    realizedTotal += realized;
+    p.realized += realized;
+    /* CLOSE ONLY WHAT WAS CLOSED. `p.qty += signed` looks like the same
+       arithmetic and is not: on a REVERSAL the order is bigger than the
+       position, so it carried the whole overshoot straight into the
+       quantity — leaving −10 where the close should have left 0, which made
+       the leftover branch below unreachable and the new short inherit the
+       long's average price. A long 10 at 100 reversed at 120 opened a short
+       that was instantly 200 dollars offside and moved the wrong way from
+       there, for the life of the position. */
+    p.qty -= dir * closeQty;
     p.entryFees -= entryFeeShare;
     p.entrySlip -= entrySlipShare;
     p.mfe = Number((p.mfe * (1 - share)).toFixed(2));

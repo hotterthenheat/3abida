@@ -144,6 +144,15 @@ export function blackScholesPrice(
  * Returns null when the price is outside what the model can produce at ANY
  * vol — below intrinsic, or above the ceiling — because that is a quote
  * problem, not a vol.
+ *
+ * AND NULL WHEN THE PRICE DOES NOT IMPLY ONE. This is the case bisection
+ * hides rather than reports. Deep in the money, or at the last bell, vega
+ * collapses: every vol from 0 to 30% prices the contract at the same
+ * parity, to the last bit of a double. The bracket then walks all the way
+ * down to its own floor and the function hands back 0.01% — a confident
+ * absurdity, and one that renders as a plausible "0.0%" on a chain rather
+ * than as an error. A price that a whole vol point cannot move does not
+ * carry a vol, and saying so is the honest answer.
  */
 export function impliedVolFromPrice(
   price: number,
@@ -166,5 +175,13 @@ export function impliedVolFromPrice(
     else hi = mid;
     if (hi - lo < 1e-8) break;
   }
-  return (lo + hi) / 2;
+  const v = (lo + hi) / 2;
+  /* One vol POINT either side. If the model cannot tell the difference, the
+     quote cannot either, and the answer above is whichever end of the flat
+     band bisection happened to walk in from. The threshold is scaled to the
+     underlying because a cent means something different on a $9 name than
+     on a $6,000 index. */
+  const wide = Math.abs(at(Math.min(5, v + 0.01)) - at(Math.max(0.0001, v - 0.01)));
+  if (wide < 1e-7 * Math.max(1, S)) return null;
+  return v;
 }

@@ -31,6 +31,22 @@ import type { OptionRight } from '../../types/compass';
   decided by the ratio sum at each tail, in closed form, and the curve is
   only asked about the interior. A max loss printed as a number when it is
   actually infinite is the single most dangerous thing this file could say.
+
+  BUT ONLY ONE TAIL IS ACTUALLY A TAIL. A share price cannot go below zero,
+  so the downside is not a tail at all — it is a wall, and the payoff at the
+  wall is a number this file can name exactly. Reading the down slope the
+  same way as the up slope told every put holder in the terminal that their
+  best case was UNBOUNDED, when a long 100 put bought for 5 makes at most
+  9,500 and makes it at a share price of nothing. The mirror was worse: a
+  sold put reported an INFINITE max loss, which is the figure a reader sizes
+  against, on the single most common short-premium position there is.
+
+  So the down side is evaluated at S = 0 in closed form and folded into the
+  extremes, and only the up side can still answer "unbounded". The curve
+  itself is not redrawn through zero — a chart stretched from 0 to 112 to
+  show one straight line wastes the window the strikes live in — so the
+  number and the picture come from the same arithmetic without the picture
+  paying for it.
 */
 
 export interface PayoffLeg {
@@ -109,17 +125,19 @@ export function pnlAt(
   return per * multiplier * qty;
 }
 
-/** The ratio-weighted slope far above every strike, and far below every one. */
-function tails(legs: readonly PayoffLeg[]): { up: number; down: number } {
+/**
+ * The ratio-weighted slope far above every strike — the ONLY open end.
+ *
+ * There is no matching down slope here on purpose. Below every strike the
+ * payoff is linear too, but it stops at a share price of zero, so the down
+ * side is answered by evaluating the payoff there rather than by reading a
+ * slope off toward an infinity that does not exist. See the header.
+ */
+function upSlope(legs: readonly PayoffLeg[]): number {
   let up = 0;
-  let down = 0;
-  for (const l of legs) {
-    // Above every strike: calls are linear in S, puts are worthless.
-    if (l.right === 'C') up += l.ratio;
-    // Below every strike: puts fall with S (slope −1 in S), calls are worthless.
-    else down -= l.ratio;
-  }
-  return { up, down };
+  // Above every strike: calls are linear in S, puts are worthless.
+  for (const l of legs) if (l.right === 'C') up += l.ratio;
+  return up;
 }
 
 /** One unit of the strategy's value TODAY at an underlying price. */
@@ -181,29 +199,34 @@ export function payoffProfile(
   if (points.length && points[points.length - 1].pnl === 0) breakevens.push(points[points.length - 1].s);
 
   // ---- extremes: the tails in closed form, the interior from the curve ----
-  const t = tails(legs);
   const dir = side === 'buy' ? 1 : -1;
-  const slopeUp = dir * t.up;
-  const slopeDown = dir * t.down;
+  const slopeUp = dir * upSlope(legs);
 
   let maxProfit: number | null = null;
   let maxLoss: number | null = null;
 
-  const interiorMax = Math.max(...points.map(p => p.pnl));
-  const interiorMin = Math.min(...points.map(p => p.pnl));
+  /* THE DOWNSIDE ENDS AT ZERO, so it is evaluated rather than extrapolated.
+     Below the lowest strike the payoff is a straight line, and the grid's
+     own floor sits at or below that strike, so the value at S = 0 and the
+     interior between them are the whole of the down side. See the header
+     for what reading it as an open tail did to every put on the desk. */
+  const atZero = pnlAt(legs, 0, net, side, qty, multiplier);
+
+  const interiorMax = Math.max(...points.map(p => p.pnl), atZero);
+  const interiorMin = Math.min(...points.map(p => p.pnl), atZero);
 
   // Up tail: slope in S. Positive means profit grows without bound.
   const upGains = slopeUp > 1e-9;
   const upLoses = slopeUp < -1e-9;
-  // Down tail: `down` is already expressed as the slope in S below the strikes.
-  const downGains = slopeDown < -1e-9;
-  const downLoses = slopeDown > 1e-9;
 
-  maxProfit = upGains || downGains ? null : interiorMax;
-  maxLoss = upLoses || downLoses ? null : Math.abs(Math.min(0, interiorMin));
+  maxProfit = upGains ? null : interiorMax;
+  maxLoss = upLoses ? null : Math.abs(Math.min(0, interiorMin));
 
-  const worstAt =
-    maxLoss == null ? null : points.reduce((w, p) => (p.pnl < w.pnl ? p : w), points[0]).s;
+  /* The worst price, including the floor — a sold put is worst at nothing,
+     and pointing at the cheapest SAMPLE instead would name a price the
+     position has not finished falling at. */
+  const interiorWorst = points.reduce((w, p) => (p.pnl < w.pnl ? p : w), points[0]);
+  const worstAt = maxLoss == null ? null : atZero < interiorWorst.pnl ? 0 : interiorWorst.s;
 
   /* The at-today curve rides the SAME grid, so the two lines are directly
      comparable point for point and the gap between them is readable. */
