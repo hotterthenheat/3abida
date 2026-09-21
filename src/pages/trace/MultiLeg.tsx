@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, CalendarDays, X } from 'lucide-react';
+import { ArrowUpRight, CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { buildSpreadFlow, spreadLegRow, SPREAD_KINDS, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
@@ -39,6 +39,7 @@ import { structureKey, watchStructure } from '../../context/WatchContext';
 import RichRead from '../../components/ui/RichRead';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { StructureGuide } from '../../components/trace/TraceGuide';
+import Modal from '../../components/ui/Modal';
 
 const num = (v: number) => v.toLocaleString('en-US');
 
@@ -49,7 +50,7 @@ const MONEY_OPTIONS: DropdownOption<'ALL' | 'DEBIT' | 'CREDIT'>[] = [
   { value: 'DEBIT', label: 'Paid', hint: 'Structures that cost money to put on' },
   { value: 'CREDIT', label: 'Collected', hint: 'Structures that paid the trader to put on' },
 ];
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 170, exp: 130, size: 80, net: 100, legs: 64 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 204, exp: 130, size: 80, net: 100, legs: 64, kind: 108 };
 const TOOLTIPS: Record<string, string> = {
   strategy: 'The shape — its dot is its kind, never a verdict',
   strikes: 'Every strike the structure prints, in order; a strike is the door to that leg',
@@ -90,16 +91,6 @@ const doorBtn =
 const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => void }) => {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
-
   const go = (fn: () => void) => {
     onClose();
     fn();
@@ -112,34 +103,39 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
     </div>
   );
 
+  /* THE HOUSE MODAL, not a hand-rolled one (ui/Modal). This card had its own
+     scrim, its own Escape listener and its own close button — and therefore
+     none of what the house's modal had learned: no scroll lock, no focus
+     trap, no portal. A second grammar for the same gesture is how a design
+     system dies, one card at a time. */
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full max-w-[480px] border border-borderMuted bg-panel/90 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 p-4 animate-soft-in">
-        {/* THE HEAD CARRIES WEIGHT AT BOTH ENDS (Noah, 2026-08-30: "clean up
-            this box a bit"): who it is on the left — logo, ticker, the
-            structure as a pill — and when/where on the right, beside the
-            close. The old line ran four registers together and trailed off
-            after the name. */}
-        <div className="flex items-center gap-2.5 mb-2.5">
+    <Modal
+      open
+      onClose={onClose}
+      ariaLabel={`${trade.ticker} ${KIND_META[trade.kind].label}`}
+      widthClass="max-w-[480px]"
+      /* THE HEAD CARRIES WEIGHT AT BOTH ENDS (Noah, 2026-08-30: "clean up
+         this box a bit"): who it is on the left — logo, ticker, the
+         structure as a pill — and when/where on the right, beside the
+         close. The old line ran four registers together and trailed off
+         after the name. */
+      header={
+        <span className="flex items-center gap-2.5 min-w-0">
           <CompanyLogo ticker={trade.ticker} size={20} />
           <span className="font-mono text-sm font-bold text-textPrimary">{trade.ticker}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.06] px-2 py-0.5 font-mono text-[10px] font-semibold text-textPrimary">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.06] px-2 py-0.5 font-mono text-[10px] font-semibold text-textPrimary whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: KIND_DOT[trade.kind] }} />
             {KIND_META[trade.kind].label}
           </span>
-          <span className="ml-auto font-mono text-[10px] text-textSecondary tnum whitespace-nowrap">
-            {trade.time} · spot ${trade.spot.toFixed(2)}
-          </span>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="p-1 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
+        </span>
+      }
+      headerActions={
+        <span className="font-mono text-[10px] text-textSecondary tnum whitespace-nowrap">
+          {trade.time} · spot ${trade.spot.toFixed(2)}
+        </span>
+      }
+    >
+      <div>
         <div className="text-[12px] text-textSecondary leading-snug mb-3">
           <RichRead text={KIND_META[trade.kind].read} />
         </div>
@@ -217,7 +213,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -376,7 +372,11 @@ const MultiLeg = () => {
            each strike stops the click from reaching it. One button per DISTINCT
            strike, which is exactly what strikesLabel prints. */
         render: t => (
-          <span className="inline-flex items-baseline gap-1 font-mono tnum">
+          /* leading-none + align-middle: the cell inherits the table's 36px
+             line height, which makes this one line taller than the row and
+             clips the strikes' own white underlines — the doors' whole
+             affordance. The same trap the contract cell was in. */
+          <span className="inline-flex items-baseline gap-1 font-mono tnum leading-none align-middle">
             {distinctStrikes(t).map(({ strike, legIdx }, n) => (
               <span key={legIdx} className="inline-flex items-baseline">
                 {n > 0 && <span className="text-textSecondary mx-1">/</span>}
@@ -576,7 +576,7 @@ const MultiLeg = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight emptyText="No structures on this cut today" testId="multi-leg" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight emptyText="No structures on this cut" emptyBody="Nothing printed as a spread, a fly or a condor under these cards today." testId="multi-leg" />
       </TraceBox>
 
       {drill && <SpreadCard trade={drill} onClose={() => setDrill(null)} />}

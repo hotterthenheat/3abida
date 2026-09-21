@@ -52,6 +52,7 @@ import { Name } from '../../components/ui/Name';
 import { ImpactLegend, ImpactMark, tierOf } from '../../components/record/impactMark';
 import NewsFeedTabs from '../../components/record/NewsFeedTabs';
 import NewsCalendar from '../../components/record/NewsCalendar';
+import DataState from '../../components/ui/DataState';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -439,7 +440,7 @@ const News = () => {
                 )}
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the wire for these cards</div>
+              <DataState kind="empty" className="flex-1" title="Nothing on the wire" body="No story matches these cards — widen one and the wire fills." pad="sm" />
             )}
           </div>
         </div>
@@ -458,7 +459,7 @@ const News = () => {
             <span className="text-right">1-day</span>
             <span className="text-right">Sure</span>
           </div>
-          {rows.length === 0 && <div className="px-5 py-6 text-center font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the tape for these cards</div>}
+          {rows.length === 0 && <DataState kind="empty" title="Nothing on the tape" body="No story matches these cards — widen one and the tape fills." pad="sm" />}
           {rows.map(e => {
             const open = e.id === selectedId;
             const faded = freshnessOf(e) === 'faded';

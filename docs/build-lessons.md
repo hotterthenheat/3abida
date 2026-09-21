@@ -180,3 +180,110 @@ active name and their watchlist; a saved arrangement always wins.
   a section twice and asking whether anything had printed — a route sweep
   that counts nodes and checks the console passes straight over four empty
   boxes under a headline promising live panels.
+
+## A table cell inherits a line height, and it clips
+
+The single worst layout trap in this codebase, hit three times in one day.
+
+An `.ag-cell` hands its children a **36px line height**. An inline-flex child
+inherits it, so:
+
+- one line of a 39px row measures **42px** and the bottom of it — usually a
+  door's white underline, the whole click affordance — is cut off;
+- two stacked lines measure **75px**, and the second one lands under the
+  clip and is *silently not there*. The text is in the DOM, `innerText`
+  finds it, a snapshot test passes, and nobody can see it.
+
+Any multi-line or underlined cell wants `leading-none` **and**
+`align-middle`. `leading-none` stops the inheritance; `align-middle` stops
+the box hanging off the line's baseline, which is the other half of the
+same bug.
+
+## An overflowing cell paints a clipped ellipsis, and it reads as a fault
+
+`.ag-cell` is `overflow:hidden; text-overflow:ellipsis`. A child four pixels
+wider than the content box paints the ellipsis **clipped to those four
+pixels** — one stray white dot at the cell's edge. It looks exactly like a
+rendering bug, and it is caused by a column width, which is the last place
+anyone looks.
+
+The grid's flex `minWidth` was 84 while the house's widest standard cell
+(the Lean bar) is 64px inside 24px of padding — an 88px need against an 84px
+floor, i.e. every flex column carrying one was guaranteed to do this. A floor
+below what the house's own cells need is not a floor.
+
+Measure it; do not reason about it. `scratchpad/clipprobe.mjs` walks every
+`.ag-cell`, computes the real content box from **computed padding** and
+reports the overflow per column. An earlier version guessed 24px of padding,
+which over-reported the chain (8px padding) by six pixels on every cell and
+hid the columns that were actually wrong. A measuring instrument that is
+wrong is worse than none.
+
+## Prices are rounded, and rounding is a direction
+
+Two bugs, same shape, found one after the other.
+
+The chain rounded bid and ask to the **nearest** cent off an already-rounded
+mark, so on a sub-dollar contract a bid could land a hair above the model's
+own fair value — and its implied vol then read *higher* than the contract's,
+which is the one thing a Bid IV column exists to rule out.
+
+The tape built a print's quote by walking a mid **out** from the fill and
+spreading half a width each way, which puts the bid and ask on the wrong
+side of the print: every ask-side print above its own ask.
+
+Both fixed the same way: build the quote **from the fill (or the fair value)
+outward**, floor the bid, ceil the ask. `bid < fair < ask` then holds by
+construction, and every ordering that depends on it holds with it. And read
+any derived position back off the **rounded** numbers, so the dot on a rail
+sits where the printed figures say it does.
+
+Cent arithmetic needs the nudge: `0.19 * 100` is `18.999999999999996` and
+floors to 18.
+
+## Compounding cells is how you find data bugs
+
+The tape's fill, its side and its NBBO lived in three columns for months
+with the fill outside its own quote on every single row. Putting the three
+numbers in one cell made it unmissable in one glance. **Facts that are read
+together belong together**, and not only because it is easier to read —
+because a contradiction between them becomes visible.
+
+## A redirect that drops the query breaks every link into the page
+
+React Router's `<Navigate to="/path">` keeps the path and throws `search`
+and `hash` away. Harmless while page state lived in localStorage; silently
+destructive the moment a filter lives in the address.
+`/trace/tape?order=premium&kind=sweep` landed on `/trace/live-tape` with a
+bare URL and the reader's own default tape, and nothing said so. Every hop
+goes through a `Keep` wrapper that carries them.
+
+## The URL/state handshake needs a beat
+
+Reading a cut in from the query and writing it back out are two effects in
+the same pass, and on the pass that *reads* a link the state has not caught
+up. The writer looks at a still-default cut, decides the address is wrong,
+and **erases the link it was just handed**. The reader has to hand the
+writer a beat — applied, not yet settled, sit this one out.
+
+## A design-system component nobody imports is not a design system
+
+`ui/DataState` defined the four non-answers — loading, empty, unavailable,
+error — with a careful note on why conflating empty and unavailable is the
+failure it exists to prevent. **Zero files imported it.** Meanwhile the two
+tables had two different empty renderings and `DataTable`'s default empty
+string was literally `"No data"`.
+
+The fix is never "write the component". It is to put it behind the thing
+everyone already uses — here, the grids' own no-rows overlay — so adopting
+it costs nothing and *not* adopting it takes effort.
+
+The same shape, three more times in one pass: the disabled treatment existed
+at 25%, 30%, 35%, 40% and 50% opacity with two different cursors; the
+screener's saved-views UI was sixty lines of one-off buttons the tape could
+not reuse, so the tape simply had no saved views; and the house `Modal` —
+portal, Escape, scroll lock — had four users while a page hand-rolled its
+own with none of that, and no focus trap anywhere.
+
+**A one-off pattern does not just cost consistency; it makes the second
+surface worse.**

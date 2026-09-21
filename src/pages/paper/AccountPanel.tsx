@@ -225,7 +225,7 @@ const AccountPanel = () => {
               disabled={opens === 0 && working === 0}
               title="Close every position and cancel every working order"
               data-account-flatten
-              className="inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-bear hover:border-bear/50 disabled:opacity-35 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors"
+              className="inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-bear hover:border-bear/50 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors"
             >
               <Power className="w-3 h-3" /> Flatten
             </button>

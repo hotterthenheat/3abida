@@ -100,7 +100,7 @@ const POSTURE_WORD = { ACCUMULATING: 'Accumulating', DISTRIBUTING: 'Distributing
 /** A print sits on a shelf when it printed within 0.15% of it */
 const onShelf = (p: DarkPoolPrint, l: DarkPoolLevel) => Math.abs(p.price - l.price) / l.price < 0.0015;
 
-const WIDTHS: Record<string, number> = { time: 64, price: 84, vs: 80, size: 88, notional: 92, venue: 100, shelf: 84, intent: 112, conviction: 108 };
+const WIDTHS: Record<string, number> = { time: 64, price: 84, vs: 80, size: 88, notional: 92, venue: 100, shelf: 84, intent: 124, conviction: 120 };
 const FLEXES: Record<string, number> = { read: 1 };
 const TOOLTIPS: Record<string, string> = {
   vs: 'Where the cross printed against the spot, as a percent',
@@ -499,7 +499,7 @@ const DarkPool = () => {
           </aside>
           {/* THE GRID */}
           <div className="flex-1 min-w-0">
-            <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openId != null ? String(openId) : null} autoHeight initialSort={{ key: 'time', dir: 'desc' }} emptyText={view ? 'No crosses on this cut' : 'Awaiting prints…'} testId="dark-pool" />
+            <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openId != null ? String(openId) : null} autoHeight initialSort={{ key: 'time', dir: 'desc' }} state={view ? 'empty' : 'loading'} emptyText={view ? 'No crosses on this cut' : 'Awaiting prints'} emptyBody={view ? 'No dark print cleared the floor under these cards.' : 'The feed fills as the session crosses.'} testId="dark-pool" />
           </div>
         </div>
       </TraceBox>
@@ -537,7 +537,7 @@ const DarkPool = () => {
         }
         sentence={leadersRead}
       >
-        <TraceGrid rows={leaderRows} columns={leaderColumns} widths={LEADER_WIDTHS} tooltips={LEADER_TOOLTIPS} rowKey={leaderKey} onRowClick={openLeader} selectedKey={activeTicker} autoHeight emptyText="Nothing printed dark on this cut" testId="dark-pool-leaders" />
+        <TraceGrid rows={leaderRows} columns={leaderColumns} widths={LEADER_WIDTHS} tooltips={LEADER_TOOLTIPS} rowKey={leaderKey} onRowClick={openLeader} selectedKey={activeTicker} autoHeight emptyText="Nothing printed dark" emptyBody="No name crossed off-exchange under these cards." testId="dark-pool-leaders" />
       </TraceBox>
     </>
   );

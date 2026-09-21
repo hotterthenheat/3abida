@@ -125,7 +125,7 @@ const ProviderCard = ({ id, status, onCheck }: { id: ProviderId; status: Provide
             type="button"
             onClick={() => onCheck(id)}
             disabled={!status.configured || status.state === 'checking'}
-            className="px-2.5 h-7 inline-flex items-center rounded-md border border-borderSubtle text-[11px] font-semibold text-textPrimary hover:border-borderMuted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-2.5 h-7 inline-flex items-center rounded-md border border-borderSubtle text-[11px] font-semibold text-textPrimary hover:border-borderMuted transition-colors"
             data-provider-check={id}
           >
             Test

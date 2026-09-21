@@ -22,3 +22,9 @@ export function roomBelow(anchor: HTMLElement | null): number {
   const floor = Math.min(window.innerHeight, clip ? clip.getBoundingClientRect().bottom : Infinity);
   return Math.max(MENU_ROOM_FLOOR, Math.floor(floor - rect.bottom - MENU_OFFSET - MENU_EDGE));
 }
+
+/* THE ONE LINE A MENU SAYS WHEN IT HAS NOTHING. A full DataState with its
+   icon and its second line is right for a panel and far too heavy inside a
+   200px dropdown, so menus get their own single line — but ONE line, shared,
+   not each menu's own guess at the padding and the ink. */
+export const MENU_EMPTY = 'px-2.5 py-4 text-center font-mono text-[10px] text-textMuted';

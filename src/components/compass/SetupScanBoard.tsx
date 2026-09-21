@@ -148,7 +148,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           selectedKey={selectedId}
           autoHeight
           initialSort={{ key: 'rank', dir: 'asc' }}
-          emptyText="Nothing cleared the bar on this sweep"
+          emptyText="Nothing cleared the bar" emptyBody="No name met the engine's threshold on this sweep — the next one is moments away."
           testId="compass-board"
         />
       </div>

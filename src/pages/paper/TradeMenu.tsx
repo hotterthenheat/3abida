@@ -113,7 +113,7 @@ export const TradeMenu = ({ at, sections, onClose, head }: { at: { x: number; y:
                 it.onPick();
                 onClose();
               }}
-              className={`w-full flex items-center gap-2 px-2.5 h-[26px] rounded font-mono text-[11px] text-left transition-colors disabled:opacity-35 disabled:cursor-not-allowed ${
+              className={`w-full flex items-center gap-2 px-2.5 h-[26px] rounded font-mono text-[11px] text-left transition-colors ${
                 it.danger ? 'text-bear hover:bg-bear/[0.08]' : 'text-textPrimary hover:bg-ink/[0.06]'
               }`}
             >

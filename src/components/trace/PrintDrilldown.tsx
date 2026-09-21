@@ -425,7 +425,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               onClick={() => setDayOffset(d => Math.max(0, d - 1))}
               disabled={dayOffset === 0}
               title="Next session"
-              className="p-0.5 rounded disabled:opacity-30 transition-colors"
+              className="p-0.5 rounded transition-colors"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -459,7 +459,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             onClick={() => onStep(-1)}
             disabled={!hasPrev}
             title="Previous print (↑)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] disabled:opacity-25 transition-colors"
+            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
@@ -467,7 +467,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             onClick={() => onStep(1)}
             disabled={!hasNext}
             title="Next print (↓)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] disabled:opacity-25 transition-colors"
+            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
           >
             <ChevronDown className="w-4 h-4" />
           </button>

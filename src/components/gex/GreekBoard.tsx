@@ -472,7 +472,7 @@ const GreekBoard = ({ snapshot, frameTicker, onFrameTicker, revision, timeframe,
 
   const spot = snapshot.ticker === frameTicker ? snapshot.spot : Simulator.TICKERS[frameTicker]?.currentPrice ?? snapshot.spot;
   const chg = snapshot.ticker === frameTicker ? snapshot.changePercent : 0;
-  const footBtn = 'inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle text-[10px] font-semibold text-textSecondary hover:text-textPrimary hover:border-borderMuted aria-pressed:border-silver/50 aria-pressed:text-textPrimary aria-pressed:bg-silver/[0.06] disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
+  const footBtn = 'inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle text-[10px] font-semibold text-textSecondary hover:text-textPrimary hover:border-borderMuted aria-pressed:border-silver/50 aria-pressed:text-textPrimary aria-pressed:bg-silver/[0.06] transition-colors';
 
   return (
     <div className="flex-1 min-h-0 flex flex-col" data-greek-board data-panels={shown.length} data-linked={linked} data-focus={centreOnFocus}>

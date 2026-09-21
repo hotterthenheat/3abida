@@ -41,6 +41,7 @@ import { clearLock, readProp, resetEvaluation, usePropState } from '../../core/p
 import { PATTERN_WORDS, clearTilt, endLockout, tiltScore, useTilt } from '../../core/paper/tilt';
 import { frictionWords } from '../../core/paper/friction';
 import { fmtClock, Toggle } from './paperKit';
+import DataState from '../../components/ui/DataState';
 
 const DOOR = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textMuted hover:text-textPrimary hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors';
 const ROW = 'flex items-center gap-2 px-3 h-8';
@@ -424,7 +425,7 @@ export const TiltDoor = () => {
         )}
       </div>
       {tilt.flags.length === 0 ? (
-        <div className="px-3 pb-2.5 font-mono text-[10px] text-textSecondary">Nothing yet.</div>
+        <DataState kind="empty" title="Nothing yet" body="The desk flags a pattern here the moment one shows." pad="sm" />
       ) : (
         <ul className="pb-2" data-tilt-flags>
           {tilt.flags.slice(0, 6).map(f => (

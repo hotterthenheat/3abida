@@ -329,7 +329,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
                       ? `Cancel my ${r.mine.buy} resting here`
                       : `${buyKind === 'limit' ? 'Buy limit' : 'Buy stop'} ${qty} at ${fmtPrice(instrument, r.price)} · shift for a ${buyKind === 'limit' ? 'stop' : 'limit'}`
                   }
-                  className={`${cell} justify-center transition-colors disabled:cursor-default ${
+                  className={`${cell} justify-center transition-colors ${
                     r.mine.buy > 0 ? 'font-bold text-[#0a0a0a]' : 'text-textMuted hover:bg-bull/[0.18]'
                   }`}
                   style={r.mine.buy > 0 ? { background: 'rgb(var(--bull))' } : undefined}
@@ -404,7 +404,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
                       ? `Cancel my ${r.mine.sell} resting here`
                       : `${sellKind === 'limit' ? 'Sell limit' : 'Sell stop'} ${qty} at ${fmtPrice(instrument, r.price)} · shift for a ${sellKind === 'limit' ? 'stop' : 'limit'}`
                   }
-                  className={`${cell} justify-center transition-colors disabled:cursor-default ${
+                  className={`${cell} justify-center transition-colors ${
                     r.mine.sell > 0 ? 'font-bold text-white' : 'text-textMuted hover:bg-bear/[0.18]'
                   }`}
                   style={r.mine.sell > 0 ? { background: 'rgb(var(--bear))' } : undefined}
@@ -469,7 +469,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             disabled={!tradable}
             onClick={() => submitOrder({ instrument, side: 'buy', qty, type: 'market', source: 'panel', note: 'from the ladder' })}
             data-ladder-market="buy"
-            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bullSolid text-[#0a0a0a] hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bullSolid text-[#0a0a0a] hover:opacity-90 transition-opacity"
           >
             Buy {qty}
           </button>
@@ -478,7 +478,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             disabled={!tradable}
             onClick={() => submitOrder({ instrument, side: 'sell', qty, type: 'market', source: 'panel', note: 'from the ladder' })}
             data-ladder-market="sell"
-            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bearSolid text-white hover:opacity-90 disabled:opacity-30 transition-opacity"
+            className="h-7 rounded font-mono text-[11px] font-bold uppercase tracking-wider bg-bearSolid text-white hover:opacity-90 transition-opacity"
           >
             Sell {qty}
           </button>
@@ -499,7 +499,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
               disabled={b.off}
               title={b.title}
               data-ladder-act={b.k}
-              className="h-6 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors"
+              className="h-6 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors"
             >
               {b.label}
             </button>
@@ -514,7 +514,7 @@ const Ladder = ({ instrument, quote, position }: Props) => {
             disabled={held == null}
             data-ladder-act="centre"
             title={held == null ? 'The ladder is following the market — scroll it to look away, CTRL and scroll to regroup' : 'Back to the market'}
-            className={`w-full h-5 rounded border font-mono text-[9px] uppercase tracking-wider transition-colors disabled:opacity-30 ${
+            className={`w-full h-5 rounded border font-mono text-[9px] uppercase tracking-wider transition-colors ${
               held == null ? 'border-borderSubtle text-textMuted' : 'border-warn/60 text-warn hover:bg-warn/[0.1]'
             }`}
           >

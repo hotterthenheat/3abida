@@ -157,7 +157,7 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
           onClick={submit}
           disabled={full}
           title={full ? capMsg : `Alert me at this price`}
-          className="shrink-0 px-2 py-1 rounded border border-borderSubtle bg-inset font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-40 disabled:hover:text-textSecondary transition-colors"
+          className="shrink-0 px-2 py-1 rounded border border-borderSubtle bg-inset font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:hover:text-textSecondary transition-colors"
         >
           Set
         </button>

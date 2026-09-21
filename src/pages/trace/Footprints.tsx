@@ -57,7 +57,7 @@ const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'C', label: 'Calls', hint: 'Calls only' },
   { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, doi: 104, doipct: 84, builton: 104, streak: 76, spark: 76, earn: 84 };
+const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, doi: 104, doipct: 96, builton: 104, streak: 76, spark: 76, earn: 84 , lean: 96 };
 const TOOLTIPS: Record<string, string> = {
   oi: 'Open interest standing this morning',
   prevoi: 'Open interest standing yesterday morning',
@@ -434,7 +434,7 @@ const Footprints = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing on this cut today" testId="footprints" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing on this cut" emptyBody="No contract's open interest moved enough to show under these cards." testId="footprints" />
       </TraceBox>
 
       <BookDrill

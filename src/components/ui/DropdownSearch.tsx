@@ -25,6 +25,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { ChevronDown, Search, type LucideIcon } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { CARD } from './DropdownSelect';
+import { MENU_EMPTY } from './menuRoom';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 
@@ -134,7 +135,7 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
           </div>
           <div ref={listRef} className="max-h-64 overflow-y-auto p-1.5" role="listbox">
             {matches.length === 0 ? (
-              <div className="px-2.5 py-4 text-center font-mono text-[10px] text-textMuted">Nothing on the board matches</div>
+              <div className={MENU_EMPTY}>Nothing on the board matches</div>
             ) : (
               matches.map((o, i) => {
                 const on = o.value === value;

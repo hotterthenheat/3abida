@@ -4543,7 +4543,7 @@ const StrikeChart = ({
                   disabled={selectedIdx === null}
                   title="Delete the selected drawing"
                   aria-label="Delete selected"
-                  className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textSecondary enabled:hover:text-textPrimary enabled:hover:bg-ink/[0.04] disabled:opacity-30 disabled:cursor-default ${
+                  className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textSecondary enabled:hover:text-textPrimary enabled:hover:bg-ink/[0.04] ${
                     rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
                   }`}
                 >

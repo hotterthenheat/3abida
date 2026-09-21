@@ -496,7 +496,7 @@ const FlowTracker = () => {
             Nothing is under watch. The mark at the left of any row on the <ReadDoor onOpen={() => navigate('/trace/live-tape')}>Live Tape</ReadDoor>, the <ReadDoor onOpen={() => navigate('/trace/screener')}>Screener</ReadDoor> or any other Trace page keeps it here, with what it has done since.
           </div>
         ) : (
-          <TraceGrid rows={rows} columns={columns} widths={WIDTHS} flexes={FLEXES} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} rowClass={dimGone} autoHeight emptyText="Nothing under watch on that name" testId="tracker" />
+          <TraceGrid rows={rows} columns={columns} widths={WIDTHS} flexes={FLEXES} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} rowClass={dimGone} autoHeight emptyText="Nothing under watch" emptyBody="Mark a print anywhere on Trace and it follows you here." testId="tracker" />
         )}
       </TraceBox>
 

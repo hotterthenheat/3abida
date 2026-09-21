@@ -60,6 +60,7 @@ import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
 import { CompareGuide } from '../../components/trace/TraceGuide';
 import { isoDate } from '../../core/calendar';
 import { Name } from '../../components/ui/Name';
+import DataState from '../../components/ui/DataState';
 
 const num = (v: number) => v.toLocaleString('en-US');
 const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
@@ -355,7 +356,9 @@ const Compare = () => {
 
   const contracts = (s: Side) => (
     <div className="flex flex-col" data-compare-contracts={s.ticker}>
-      {s.heaviest.length === 0 && <span className="px-3 py-4 font-mono text-[10px] uppercase tracking-widest text-textSecondary">Nothing on the book for <Name t={s.ticker} size={12} /> on this cut</span>}
+      {s.heaviest.length === 0 && (
+        <DataState kind="empty" title="Nothing on the book" body={<>No contract on <Name t={s.ticker} size={12} /> carries weight on this cut.</>} pad="sm" />
+      )}
       {s.heaviest.map(r => (
         <button key={r.key} type="button" onClick={() => openRow(r)} className={`flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 text-left transition-colors ${openKey === r.key ? 'bg-silver/[0.06]' : 'hover:bg-silver/[0.04]'}`} title="Open the contract's card">
           <ContractLabel contract={`${r.ticker} ${r.strike}${r.right}`} right={r.right} logo={r.ticker} size="sm" />

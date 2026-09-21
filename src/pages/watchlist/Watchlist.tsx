@@ -222,7 +222,7 @@ const Watchlist = () => {
             <button type="button" onClick={() => { const n = window.prompt('Rename the list', list.name); if (n) renameList(list.id, n); }} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
               Rename
             </button>
-            <button type="button" onClick={() => { if (!removeList(list.id)) setSaid('That is the last list — a reader with none has no way back.'); }} disabled={lists.length <= 1} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-bear hover:border-borderMuted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <button type="button" onClick={() => { if (!removeList(list.id)) setSaid('That is the last list — a reader with none has no way back.'); }} disabled={lists.length <= 1} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-bear hover:border-borderMuted transition-colors">
               Delete
             </button>
           </>

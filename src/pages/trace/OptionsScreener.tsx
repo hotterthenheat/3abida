@@ -97,7 +97,7 @@ const MONEY_OPTIONS: DropdownOption<'any' | 'otm'>[] = [
 const snap = (v: number, steps: number[]) => steps.reduce((best, s) => (s <= v ? s : best), 0);
 
 /** The grid's own widths where flex would starve a cell */
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 , lean: 96 };
 const TOOLTIPS: Record<string, string> = {
   time: 'When the contract last printed — the star marks it for the Tracker',
   contract: 'The strike, the side and the expiry — click the row for the card',
@@ -398,7 +398,7 @@ const OptionsScreener = () => {
           </>
         }
       >
-        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing matches this cut today — loosen the cards" testId="screener" />
+        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing matches this cut" emptyBody="Loosen a card — the screen, the side, the tenor, the volume or premium floor." testId="screener" />
       </TraceBox>
       <BookDrill list={rows} openKey={openKey} onOpen={setOpenKey} tick={tick} />
     </>

@@ -913,7 +913,9 @@ const LiveTape = () => {
             rowClass={FADE_ROW}
             animate={false}
             autoHeight
-            emptyText={rows.length === 0 ? 'Awaiting first prints…' : 'No prints on this cut'}
+            state={rows.length === 0 ? 'loading' : 'empty'}
+            emptyText={rows.length === 0 ? 'Awaiting first prints' : 'No prints on this cut'}
+            emptyBody={rows.length === 0 ? 'The tape fills as the session prints.' : 'Loosen a card — the order, the kind, the lean, the floor or the expiry.'}
             testId="live-tape"
           />
         </div>

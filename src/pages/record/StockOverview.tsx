@@ -52,6 +52,7 @@ import { Name } from '../../components/ui/Name';
 import RichRead from '../../components/ui/RichRead';
 import CatTag from '../../components/news/CatTag';
 import { RecordTableBoxSkeleton } from './recordSkeletons';
+import DataState from '../../components/ui/DataState';
 
 /** The page re-reads the name on the scan cadence — a verdict must not vibrate with every tick */
 const SCAN_INTERVAL_MS = 10_000;
@@ -249,7 +250,7 @@ const StockOverview = () => {
       {/* THE WIRE */}
       <Box id="wire" title="The wire" line="The headlines on the name today, and the catalysts ahead">
         {so.headlines.length === 0 ? (
-          <div className="px-5 py-5 text-center font-mono text-[10px] uppercase tracking-widest text-textSecondary">Nothing on the wire for this name today</div>
+          <DataState kind="empty" title="Nothing on the wire" body="No headline has named this stock today." pad="sm" />
         ) : (
           <div>
             {so.headlines.slice(0, 8).map(h => (

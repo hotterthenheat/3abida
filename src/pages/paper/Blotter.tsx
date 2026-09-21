@@ -237,7 +237,7 @@ const Blotter = ({ instrument, onPick, selectedOrderId, onSelectOrder }: Blotter
         render: o =>
           isLive(o) ? (
             <span className="inline-flex items-center gap-1" data-own-click>
-              <button type="button" onClick={() => setEditing({ id: o.id, text: String(o.type === 'limit' ? o.limitPrice : o.stopPrice ?? '') })} disabled={o.type === 'market'} className={`${chip} disabled:opacity-40`}>Modify</button>
+              <button type="button" onClick={() => setEditing({ id: o.id, text: String(o.type === 'limit' ? o.limitPrice : o.stopPrice ?? '') })} disabled={o.type === 'market'} className={`${chip}`}>Modify</button>
               <button type="button" onClick={() => cancelOrder(o.id, 'panel')} className={`${chip} hover:text-bear`}>Cancel</button>
             </span>
           ) : null,
@@ -301,13 +301,13 @@ const Blotter = ({ instrument, onPick, selectedOrderId, onSelectOrder }: Blotter
       </div>
       <div className="flex-1 min-h-0">
         {tab === 'positions' && (
-          <TraceGrid<PositionRow> rows={posRows} columns={posCols} rowKey={r => r.key} height="100%" onRowClick={r => onPick(r.position.instrument)} selectedKey={instrument.id} animate={false} emptyText="No paper positions — trade the chart" testId="paper-positions" />
+          <TraceGrid<PositionRow> rows={posRows} columns={posCols} rowKey={r => r.key} height="100%" onRowClick={r => onPick(r.position.instrument)} selectedKey={instrument.id} animate={false} emptyText="No paper positions" emptyBody="Trade the chart and what you are holding shows here." testId="paper-positions" />
         )}
         {tab === 'orders' && (
-          <TraceGrid<Order> rows={orderRows} columns={orderCols} rowKey={o => o.id} height="100%" onRowClick={o => { onSelectOrder(isLive(o) ? o.id : null); if (o.instrumentId !== instrument.id) onPick(o.instrument); }} selectedKey={selectedOrderId} animate={false} emptyText={orderFilter === 'open' ? 'No working orders' : 'Nothing here yet'} testId="paper-orders" />
+          <TraceGrid<Order> rows={orderRows} columns={orderCols} rowKey={o => o.id} height="100%" onRowClick={o => { onSelectOrder(isLive(o) ? o.id : null); if (o.instrumentId !== instrument.id) onPick(o.instrument); }} selectedKey={selectedOrderId} animate={false} emptyText={orderFilter === 'open' ? 'No working orders' : 'Nothing here yet'} emptyBody={orderFilter === 'open' ? 'An order you place rests here until it fills or you pull it.' : 'Orders land here as you place them.'} testId="paper-orders" />
         )}
-        {tab === 'trades' && <TraceGrid<Trade> rows={tradeRows} columns={tradeCols} rowKey={t => t.id} height="100%" animate={false} emptyText="No completed paper trades yet" testId="paper-trades" />}
-        {tab === 'log' && <TraceGrid rows={logRows} columns={logCols} rowKey={r => r.key} height="100%" animate={false} emptyText="Nothing has happened yet" testId="paper-log" />}
+        {tab === 'trades' && <TraceGrid<Trade> rows={tradeRows} columns={tradeCols} rowKey={t => t.id} height="100%" animate={false} emptyText="No completed trades" emptyBody="A position you close is written here with what it did." testId="paper-trades" />}
+        {tab === 'log' && <TraceGrid rows={logRows} columns={logCols} rowKey={r => r.key} height="100%" animate={false} emptyText="Nothing has happened yet" emptyBody="Every fill, pull and guard the desk applies is logged here." testId="paper-log" />}
       </div>
     </div>
   );

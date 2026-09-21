@@ -375,7 +375,7 @@ const Windows = () => {
   const { hidden, toggle, showAll, hideAll } = useHiddenColumns('slayer_windows_cols');
   const chooserCols = useMemo(() => columns.map(c => ({ key: c.key, label: typeof c.header === 'string' ? c.header : c.key })), [columns]);
   const selectedKey = openKey ? (slices.find(s => s.row.key === openKey)?.key ?? null) : null;
-  const stepBtn = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors';
+  const stepBtn = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
 
   return (
     <>
@@ -452,7 +452,7 @@ const Windows = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight emptyText="Nothing traded in this window on this cut" testId="windows" />
+        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight emptyText="Nothing in this window" emptyBody="No contract traded inside it on this cut — try a wider window or a looser card." testId="windows" />
       </TraceBox>
 
       <BookDrill list={slices.map(s => s.row)} openKey={openKey} onOpen={setOpenKey} tick={tick} />

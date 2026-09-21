@@ -454,7 +454,7 @@ const NewAlert = ({ onRefused }: { onRefused: (s: string) => void }) => {
         </div>
       )}
       <div className="flex items-center gap-1.5">
-        <button type="button" onClick={set} disabled={!ready} className="flex-1 h-7 rounded-md border border-borderMuted text-[11px] font-semibold text-textPrimary hover:bg-ink/[0.05] disabled:opacity-40 disabled:cursor-not-allowed transition-colors" data-alerts-new-set>
+        <button type="button" onClick={set} disabled={!ready} className="flex-1 h-7 rounded-md border border-borderMuted text-[11px] font-semibold text-textPrimary hover:bg-ink/[0.05] transition-colors" data-alerts-new-set>
           Set it
         </button>
         <button type="button" onClick={() => { setOpen(false); onRefused(''); }} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary transition-colors">

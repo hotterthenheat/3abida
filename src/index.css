@@ -781,6 +781,32 @@
   transform: rotate(90deg);
   color: rgb(var(--silver));
 }
+/* ---- A DISABLED CONTROL IS STILL A CONTROL --------------------------------
+   "You cannot use this" was drawn at 25%, 30%, 40% and 50% opacity across
+   the terminal, with `not-allowed` on some controls and `default` on others,
+   because every control decided for itself and none of them knew what the
+   others had chosen. One rule, one number, one cursor.
+
+   No pointer-events-none, deliberately: a disabled control must still be
+   able to show its title and say WHY it cannot be used, and killing pointer
+   events kills the tooltip that carries the reason. A control that refuses
+   without explaining is the worse failure. */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* One exception, and it is a different thing: a control that is REVEALED by
+   hovering its row (the watchlist's re-order arrows) hides rather than dims
+   at the ends of the list, because a 40% arrow that does nothing reads as
+   broken where no arrow reads as "this is the top". */
+.disabled\:opacity-0:disabled {
+  opacity: 0;
+}
+
 /* The full-width rows (the market's hairline, the inline weigh-up) carry no hover wash */
 .slayer-chain .ag-full-width-row:hover {
   background-color: transparent !important;

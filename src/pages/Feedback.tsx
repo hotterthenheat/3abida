@@ -78,6 +78,7 @@ import { Avatar } from '../components/community/PostCard';
 import { Name, knownTicker } from '../components/ui/Name';
 import CompanyLogo from '../components/ui/CompanyLogo';
 import { shrinkAll } from '../components/ui/shrinkImage';
+import DataState from '../components/ui/DataState';
 
 type Filter = 'all' | 'suggestion' | 'bug';
 type Sort = 'newest' | 'supported' | 'open';
@@ -561,18 +562,25 @@ const Feedback = () => {
             <Row key={item.id} item={item} on={votes.includes(item.id)} open={openId === item.id} onOpen={() => setOpenId(openId === item.id ? null : item.id)} />
           ))}
           {shown.length === 0 && (
-            <div className="px-4 py-8 text-center text-[12px] text-textSecondary">
-              {query ? (
-                <>
-                  Nothing on the board matches “{query}”.{' '}
+            <DataState
+              kind="empty"
+              pad="sm"
+              title={query ? 'No match' : 'Nothing here yet'}
+              body={
+                query ? (
+                  <>
+                    Nothing on the board matches “{query}”.{' '}
+                    <button type="button" onClick={() => openForm(tab)} className="text-select hover:underline underline-offset-2">
+                      Be the first to say it
+                    </button>
+                  </>
+                ) : (
                   <button type="button" onClick={() => openForm(tab)} className="text-select hover:underline underline-offset-2">
                     Be the first to say it
                   </button>
-                </>
-              ) : (
-                'Nothing here yet — be the first'
-              )}
-            </div>
+                )
+              }
+            />
           )}
         </div>
 
@@ -763,7 +771,7 @@ const Feedback = () => {
               onClick={submit}
               disabled={!canSubmit}
               title={canSubmit ? undefined : bug ? 'A line on what broke, and what happened' : 'A title of four characters and a description of ten'}
-              className="w-full h-11 rounded-full border border-borderSubtle bg-ink/[0.05] text-[13px] text-textPrimary hover:bg-ink/[0.09] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full h-11 rounded-full border border-borderSubtle bg-ink/[0.05] text-[13px] text-textPrimary hover:bg-ink/[0.09] transition-colors"
               data-form-submit
             >
               {bug ? 'Submit bug report' : 'Submit suggestion'}

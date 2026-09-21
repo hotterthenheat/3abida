@@ -26,6 +26,7 @@ import PostCard, { Avatar } from '../../components/community/PostCard';
 import CardTabs from '../../components/ui/CardTabs';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import { shrinkAll } from '../../components/ui/shrinkImage';
+import DataState from '../../components/ui/DataState';
 
 type Tab = 'feed' | 'following' | 'saved';
 const TABS = [
@@ -324,7 +325,7 @@ const Room = () => {
                 <span className={`font-mono text-[10px] tnum ${text.length >= MAX_POST ? 'text-bear' : text.length > MAX_POST * 0.9 ? 'text-warn' : 'text-textSecondary'}`} data-composer-count>
                   {text.length} / {MAX_POST}
                 </span>
-                <button type="button" onClick={submit} disabled={!!gate} title={gate ?? 'Post to the room'} className="ml-auto h-8 px-4 rounded-full bg-[#ededed] text-[#0a0a0a] text-[12px] font-semibold hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed" data-composer-post>
+                <button type="button" onClick={submit} disabled={!!gate} title={gate ?? 'Post to the room'} className="ml-auto h-8 px-4 rounded-full bg-[#ededed] text-[#0a0a0a] text-[12px] font-semibold hover:brightness-95" data-composer-post>
                   Post
                 </button>
               </div>
@@ -359,7 +360,7 @@ const Room = () => {
           }
         >
           <div className="pb-1" data-room-notes>
-            {bell.length === 0 && <div className="px-4 pb-2 text-[11px] text-textSecondary">Nothing yet — post something and the room will answer</div>}
+            {bell.length === 0 && <DataState kind="empty" title="Nothing yet" body="Post something and the room will answer." pad="sm" />}
             {/* A NOTE ABOUT A POST OPENS THAT POST. Every note the room raises
                 carries the id of what it is about, so the bell is a way into
                 the feed rather than a list of things you cannot get to. */}

@@ -142,7 +142,7 @@ const PositionForm = ({ ticker, position, defaultStrike, trigger, align = 'end' 
                   Cancel
                 </button>
               </Popover.Close>
-              <button type="submit" disabled={!valid} data-save-position className="h-8 px-4 rounded-full text-[12px] font-semibold disabled:opacity-40 transition-opacity" style={{ background: SILVER_FILL, color: '#0a0a0a' }}>
+              <button type="submit" disabled={!valid} data-save-position className="h-8 px-4 rounded-full text-[12px] font-semibold transition-opacity" style={{ background: SILVER_FILL, color: '#0a0a0a' }}>
                 {position ? 'Save' : 'Add'}
               </button>
             </div>

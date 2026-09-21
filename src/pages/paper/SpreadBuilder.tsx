@@ -286,7 +286,7 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
               >
                 {l.off ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               </button>
-              <button type="button" onClick={() => setLegs(ls => ls.filter((_, j) => j !== i))} disabled={legs.length <= 1} aria-label="Remove this leg" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear disabled:opacity-30 transition-colors">
+              <button type="button" onClick={() => setLegs(ls => ls.filter((_, j) => j !== i))} disabled={legs.length <= 1} aria-label="Remove this leg" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear transition-colors">
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -353,10 +353,10 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
           </div>
         </dl>
         <span className="ml-auto inline-flex items-center gap-1.5">
-          <button type="button" onClick={() => built && (onChart(built.inst), onClose())} disabled={!built} className="h-8 px-3.5 rounded-md border border-borderMuted font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05] disabled:opacity-40 transition-colors">
+          <button type="button" onClick={() => built && (onChart(built.inst), onClose())} disabled={!built} className="h-8 px-3.5 rounded-md border border-borderMuted font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05] transition-colors">
             Chart the spread
           </button>
-          <button type="button" onClick={place} disabled={!built || !q} data-spread-place className={`h-8 px-4 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider disabled:opacity-40 ${sideFill(side)}`}>
+          <button type="button" onClick={place} disabled={!built || !q} data-spread-place className={`h-8 px-4 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider ${sideFill(side)}`}>
             Place paper order
           </button>
         </span>

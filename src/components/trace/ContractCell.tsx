@@ -44,8 +44,12 @@ const ContractCell = ({
   otmPct?: number;
 }) => {
   const context = dte !== undefined || spot !== undefined || otmPct !== undefined;
+  /* leading-none + align-middle on the head too, not just on the compound
+     form: a table cell hands its children a 36px line height, so this one
+     line measured 42px in a 39px row and the door's underline — the whole
+     click affordance — was cut off at the bottom on every Trace table. */
   const head = (
-    <span className={`group/door inline-flex items-baseline gap-1.5 pb-[2px] ${DOOR}`}>
+    <span className={`group/door inline-flex items-baseline gap-1.5 pb-[2px] leading-none align-middle ${DOOR}`}>
       <span className={`font-mono text-xs font-bold text-textPrimary tnum ${DOOR_GROUP_TEXT}`}>{strike}</span>
       <span className={`font-mono text-[11px] font-semibold ${right === 'C' ? 'text-bull' : 'text-bear'}`}>
         {right === 'C' ? 'call' : 'put'}

@@ -33,6 +33,7 @@ import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../ui/houseGrid';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import type { Column } from '../ui/DataTable';
+import DataState, { type DataStateKind } from '../ui/DataState';
 import { withLeadingMark } from '../ui/Name';
 
 /** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30) */
@@ -139,11 +140,24 @@ export function columnsToColDefs<T>(columns: Column<T>[], hidden: Set<string>, w
     if (fixed) def.width = fixed;
     else {
       def.flex = flexes[c.key] ?? 1;
-      def.minWidth = 84;
+      /* 92, not 84: the house's widest standard cell (the Lean bar) is 64px
+         and the grid's own padding is 24, so 84 guaranteed a four-pixel
+         overflow — and an overflowing cell paints a CLIPPED ELLIPSIS, a
+         single stray dot at the cell's edge that reads as a rendering
+         fault. A floor below what the house's own cells need is not a
+         floor. */
+      def.minWidth = 92;
     }
     return def;
   });
 }
+
+/** AG Grid's no-rows overlay, in the house's own words. A COMPONENT, not the
+    HTML template it was: a template cannot carry an icon, a second line or a
+    retry, which is why the grids only ever said one of the four things. */
+const NoRows = (p: { kind?: DataStateKind; title?: string; body?: ReactNode; onRetry?: () => void }) => (
+  <DataState kind={p.kind ?? 'empty'} title={p.title} body={p.body} onRetry={p.onRetry} pad="sm" />
+);
 
 interface TraceGridProps<T> {
   rows: T[];
@@ -167,10 +181,20 @@ interface TraceGridProps<T> {
   /** Rows slide to their new place on a re-sort (off for the tape: a print a second would keep every row moving) */
   animate?: boolean;
   emptyText?: string;
+  /* THE FOUR NON-ANSWERS (components/ui/DataState). A table with no rows is
+     not automatically EMPTY: it may be still loading, unable to answer at
+     all, or broken, and a reader who cannot tell the difference will keep
+     loosening a filter that was never the problem. The grids spoke only one
+     of the four — a grey line of small caps — so every surface behind them
+     said "nothing" whatever had actually happened. */
+  state?: DataStateKind;
+  /** One line under the headline: what would put something here, or why not */
+  emptyBody?: ReactNode;
+  onRetry?: () => void;
   testId: string;
 }
 
-export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', testId }: TraceGridProps<T>) => {
+export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, testId }: TraceGridProps<T>) => {
   const gridRef = useRef<AgGridReact<T>>(null);
   const hiddenSet = hidden ?? new Set<string>();
   const columnDefs = useMemo(() => {
@@ -266,7 +290,8 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
           animateRows={animate}
           tooltipShowDelay={350}
           tooltipHideDelay={8000}
-          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${emptyText}</span>`}
+          noRowsOverlayComponent={NoRows}
+          noRowsOverlayComponentParams={{ kind: state, title: emptyText, body: emptyBody, onRetry }}
         />
       </AgGridProvider>
       {showTop && !autoHeight && (

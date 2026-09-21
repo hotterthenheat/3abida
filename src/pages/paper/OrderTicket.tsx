@@ -182,7 +182,7 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
                   type="button"
                   disabled={!quote}
                   onClick={() => quote && setPriceText(String(roundToTick(instrument, k === 'bid' ? quote.bid : k === 'ask' ? quote.ask : quote.mark)))}
-                  className="h-6 px-1.5 rounded font-mono text-[9px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] disabled:opacity-40 transition-colors"
+                  className="h-6 px-1.5 rounded font-mono text-[9px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
                 >
                   {k}
                 </button>
@@ -241,7 +241,7 @@ export const OrderTicket = ({ instrument, quote, seedPrice }: OrderTicketProps) 
               disabled={!quote || !priceOk}
               onClick={() => send(side)}
               data-ticket-send={side}
-              className={`h-12 rounded-md font-mono transition-opacity hover:opacity-90 disabled:opacity-40 flex flex-col items-center justify-center leading-tight ${
+              className={`h-12 rounded-md font-mono transition-opacity hover:opacity-90 flex flex-col items-center justify-center leading-tight ${
                 confirm === side ? 'ring-2 ring-offset-1 ring-offset-panel ring-textPrimary' : ''
               } ${sideFill(side)}`}
             >

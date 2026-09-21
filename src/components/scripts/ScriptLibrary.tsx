@@ -26,6 +26,7 @@ import Modal from '../ui/Modal';
 import { INDICATOR_ITEMS } from '../gex/indicatorItems';
 import { MAX_SUB_PANES, SUB_PANE_ORDER, type ChartIndicators } from '../gex/StrikeChart';
 import { Name } from '../ui/Name';
+import DataState from '../ui/DataState';
 
 type Shelf = 'recent' | 'favourites' | 'mine' | 'slayer' | 'technicals' | 'chart';
 type Kind = 'slayer' | 'pine' | 'chart';
@@ -352,7 +353,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
             onClick={() => edit(null)}
             disabled={!fullscreen}
             title={fullscreen ? 'A new script on the template, in the editor beside the chart' : EDITOR_SHUT}
-            className="inline-flex items-center h-7 px-2.5 rounded-md border border-silver/40 bg-silver/[0.06] font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:bg-silver/[0.1] transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:bg-silver/[0.06]"
+            className="inline-flex items-center h-7 px-2.5 rounded-md border border-silver/40 bg-silver/[0.06] font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:bg-silver/[0.1] transition-colors disabled:hover:bg-silver/[0.06]"
             data-library-write
           >
             Write your own
@@ -418,9 +419,23 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
             </div>
             <div key={`${q ? 'search' : shelf}|${q}`} className="flex-1 min-h-0 overflow-y-auto animate-soft-in" data-library-rows>
             {rows.length === 0 && (
-              <div className="h-[200px] flex items-center justify-center font-mono text-[10px] uppercase tracking-widest text-textMuted">
-                {q ? 'Nothing on any shelf matches' : shelf === 'mine' ? 'Nothing of your own yet — Write your own, or copy a built-in' : shelf === 'favourites' ? 'No favourites yet — the star on any row keeps it here' : shelf === 'recent' ? 'Nothing used yet — what you add to a chart or open lands here, newest first' : 'Nothing here'}
-              </div>
+              <DataState
+                kind="empty"
+                className="h-[200px]"
+                pad="sm"
+                title={q ? 'No match' : 'Nothing on this shelf'}
+                body={
+                  q
+                    ? `Nothing on any shelf matches “${q}”.`
+                    : shelf === 'mine'
+                      ? 'Write your own, or copy a built-in to start from.'
+                      : shelf === 'favourites'
+                        ? 'The star on any row keeps it here.'
+                        : shelf === 'recent'
+                          ? 'What you add to a chart or open lands here, newest first.'
+                          : 'Pick another shelf.'
+                }
+              />
             )}
             {groups.map(g => (
               <div key={g.title}>

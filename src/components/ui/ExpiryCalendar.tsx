@@ -116,7 +116,7 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', pattern, 
   const nearest = expiries[0] ?? null;
   const listedThisMonth = expiries.filter(e => e.date.getFullYear() === cursor.getFullYear() && e.date.getMonth() === cursor.getMonth()).length;
 
-  const stepBtn = 'inline-flex items-center justify-center w-6 h-7 rounded-md border border-borderSubtle bg-chip text-textMuted hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:hover:text-textMuted disabled:hover:border-borderSubtle transition-colors';
+  const stepBtn = 'inline-flex items-center justify-center w-6 h-7 rounded-md border border-borderSubtle bg-chip text-textMuted hover:text-textPrimary hover:border-borderMuted disabled:hover:text-textMuted disabled:hover:border-borderSubtle transition-colors';
 
   return (
     <span className="inline-flex items-center gap-1" data-expiry-calendar={testId ?? label}>
@@ -218,7 +218,7 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', pattern, 
                 type="button"
                 disabled={!nearest}
                 onClick={() => nearest && pick(nearest)}
-                className="w-full py-2 rounded border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors disabled:opacity-40"
+                className="w-full py-2 rounded border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
                 data-expiry-nearest
               >
                 {nearest ? (nearest.dte === 0 ? 'Jump to today · 0DTE' : `Jump to nearest · ${SHORT[nearest.date.getMonth()]} ${nearest.date.getDate()}`) : 'Nothing listed'}

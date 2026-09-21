@@ -38,6 +38,7 @@ import {
 } from './desks';
 import type { MarketSnapshot } from '../../types/market';
 import { Name } from '../../components/ui/Name';
+import DataState from '../../components/ui/DataState';
 
 /* THE DESK'S WIDTH, MEASURED BEFORE THE FIRST PAINT (Noah, 2026-09-12:
    "everytime i re-enter the page and the cards start sliding into their
@@ -651,7 +652,7 @@ const Pulse = () => {
               type="submit"
               disabled={!newName.trim() || isPreset(newName.trim())}
               title={isPreset(newName.trim()) ? 'Preset names are reserved' : 'Save'}
-              className="p-1 rounded text-textSecondary hover:text-textPrimary disabled:opacity-30 transition-colors"
+              className="p-1 rounded text-textSecondary hover:text-textPrimary transition-colors"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
@@ -866,9 +867,16 @@ const Pulse = () => {
                           })}
                         </Deferred>
                       ) : (
-                        <span className="flex h-full items-center justify-center font-mono text-[10px] text-textMuted uppercase tracking-widest">
-                          No data for {inst.ticker ? <Name t={inst.ticker} size={12} /> : 'this name'}
-                        </span>
+                        /* UNAVAILABLE, not empty (ui/DataState): the desk has
+                           no series for this name, which is not something a
+                           reader can fix by waiting or by widening anything. */
+                        <DataState
+                          kind="unavailable"
+                          className="h-full"
+                          pad="sm"
+                          title="No series"
+                          body={<>The desk carries nothing for {inst.ticker ? <Name t={inst.ticker} size={12} /> : 'this name'} — pick another.</>}
+                        />
                       );
                     })()}
                   </div>

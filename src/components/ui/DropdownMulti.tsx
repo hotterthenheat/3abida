@@ -24,6 +24,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown } from 'lucide-react';
 import { CARD } from './DropdownSelect';
+import { MENU_EMPTY } from './menuRoom';
 
 export interface MultiOption {
   value: string;
@@ -86,7 +87,7 @@ const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Ev
         <DropdownMenu.Content align={align} sideOffset={6} className={`${CARD} p-1.5`} data-dropdown-card={testId ?? label}>
           <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</DropdownMenu.Label>
           {shown.length === 0 ? (
-            <div className="px-2 py-3 font-mono text-[10px] text-textMuted">Nothing on the page to pick from</div>
+            <div className={MENU_EMPTY}>Nothing on the page to pick from</div>
           ) : (
             <div className="grid gap-x-2" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(200px, 1fr))` }}>
               {shown.map(g => (

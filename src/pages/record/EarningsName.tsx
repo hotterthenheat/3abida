@@ -52,6 +52,7 @@ import { buildEarningsDossier, type ActiveContract, type EarningsDossier } from 
 import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { PRICED_INK, PRICED_WORD, SlotMark, slotWord } from './Earnings';
 import { Name } from '../../components/ui/Name';
+import DataState from '../../components/ui/DataState';
 
 const AXIS = { stroke: 'transparent', tick: { fill: 'rgb(var(--text-secondary))', fontSize: 10, fontFamily: 'inherit' } };
 const GRID = { stroke: 'rgba(255,255,255,0.05)', vertical: false };
@@ -460,7 +461,7 @@ const EarningsName = () => {
       <div className="grid grid-cols-2 gap-4 items-stretch" data-name-record>
         <Box title="What its insiders did" sub={`Open-market trades in the last 90 days · ${insiders.trades.length ? insiders.signal : 'nothing filed'}`} testId="insiders">
           {marketInsiders.length === 0 ? (
-            <div className="px-5 pb-5 pt-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the record in 90 days</div>
+            <DataState kind="empty" title="Nothing on the record" body="No open-market insider trade in this stock was filed in the last 90 days." pad="sm" />
           ) : (
             <>
               <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 64px 80px 80px 72px' }}>
@@ -500,7 +501,7 @@ const EarningsName = () => {
         </Box>
         <Box title="What Congress reported" sub="STOCK Act reports naming this stock in the last 180 days" testId="congress">
           {congress.length === 0 ? (
-            <div className="px-5 pb-5 pt-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the record in 180 days</div>
+            <DataState kind="empty" title="Nothing on the record" body="No STOCK Act report named this stock in the last 180 days." pad="sm" />
           ) : (
             <>
               <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 88px 132px 64px' }}>

@@ -14,9 +14,10 @@
 ==================================================
 */
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useFocusTrap } from './useFocusTrap';
 
 interface ModalProps {
   open: boolean;
@@ -33,6 +34,14 @@ interface ModalProps {
 }
 
 const Modal = ({ open, onClose, ariaLabel, header, children, headerActions, headerCenter, widthClass = 'max-w-[760px]' }: ModalProps) => {
+  /* THE KEYBOARD MUST NOT WALK OUT OF A MODAL. This card carried role=dialog
+     and aria-modal and neither of those does anything to Tab: the page
+     behind is dimmed, not hidden, so a reader who cannot see the dim tabbed
+     straight off the card and into controls that, to them, are not there.
+     The trap the palette and the drilldown already use (ui/useFocusTrap),
+     finally on the house's own modal. */
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(open, cardRef);
   // Escape closes; the page underneath must not scroll while we're up.
   /* THE INNERMOST THING GETS THE KEY (2026-09-10: the scripts library opened
      over a full-screen chart, and one Escape closed the library AND left
@@ -65,6 +74,8 @@ const Modal = ({ open, onClose, ariaLabel, header, children, headerActions, head
       <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] animate-modal-backdrop" onClick={onClose} aria-hidden />
 
       <div
+        ref={cardRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}

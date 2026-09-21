@@ -433,11 +433,11 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
         <span className="ml-auto flex items-center gap-2">
           {paneId &&
             (onPane ? (
-              <button onClick={removeFromChart} disabled={!!busy} title="Take it off this pane" className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[10px] uppercase tracking-wider text-silver transition-colors disabled:opacity-50" data-script-remove>
+              <button onClick={removeFromChart} disabled={!!busy} title="Take it off this pane" className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[10px] uppercase tracking-wider text-silver transition-colors" data-script-remove>
                 On the chart · remove
               </button>
             ) : (
-              <button onClick={addToChart} disabled={!!busy || !status.ok} title={status.ok ? 'Draw it on this pane — Ctrl Enter' : 'Fix the line first'} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-selectFill font-mono text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a] transition-opacity disabled:opacity-40" data-script-add>
+              <button onClick={addToChart} disabled={!!busy || !status.ok} title={status.ok ? 'Draw it on this pane — Ctrl Enter' : 'Fix the line first'} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-selectFill font-mono text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a] transition-opacity" data-script-add>
                 <Play className="w-3 h-3" />
                 Add to chart
               </button>
