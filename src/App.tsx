@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MarketDataProvider } from './context/MarketDataContext';
+import AppBoundary from './components/layout/AppBoundary';
 import { TrackerProvider } from './context/TrackerContext';
 import { WatchProvider } from './context/WatchContext';
 import AppShell from './components/layout/AppShell';
@@ -88,8 +89,12 @@ const App = () => {
         <TrackerProvider>
         <WatchProvider>
         <LaunchProvider>
-        {/* The landing sits outside the shell, so it needs its own boundary —
-            a dark screen, never a flash of white, while its chunk travels */}
+        {/* THE LANDING SITS OUTSIDE THE SHELL, so it needs its own boundary —
+            and for a long time this comment said that above a <Suspense>,
+            which catches a slow chunk and not a fault. AppBoundary is the
+            error net; the Suspense below is still the dark screen that holds
+            while the chunk travels. */}
+        <AppBoundary>
         <Suspense fallback={<div className="min-h-screen bg-canvas" aria-busy="true" />}>
         <Routes>
           {/* Public landing — full-bleed, outside the app shell. First thing a
@@ -222,6 +227,7 @@ const App = () => {
           </Route>
         </Routes>
         </Suspense>
+        </AppBoundary>
         </LaunchProvider>
         </WatchProvider>
         </TrackerProvider>
