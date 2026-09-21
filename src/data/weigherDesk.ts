@@ -32,6 +32,12 @@ function hash(s: string): number {
 }
 const h01 = (s: string) => hash(s) / 4294967295;
 
+/* Cent arithmetic that survives binary floating point: 0.19 * 100 is
+   18.999999999999996 and floors to 18. The nudge is a hundred-thousandth of
+   a cent — far under anything a quote can express, far over the error. */
+const floorCent = (v: number) => Math.floor(v * 100 + 1e-7) / 100;
+const ceilCent = (v: number) => Math.ceil(v * 100 - 1e-7) / 100;
+
 /** Today's key, so day-stable noise rolls at midnight like the sim's quotes.
     Remembered for a second at a time: it is asked ten times per contract,
     and a whole book of chains asked it ninety thousand times per build —
@@ -46,6 +52,59 @@ const dayKey = () => {
   }
   return dayKeyMemo;
 };
+
+/* ---- the vol a quote implies -----------------------------------------------
+   A chain that prints ONE implied vol leaves a reader looking at a wide
+   market with no way to tell whether that width is a penny or three vol
+   points — and vol points are the units an options trader prices in. So the
+   quote gets read back through the pricer at each side: the bid's vol and the
+   ask's vol bracket the mark's, and the gap between them IS the spread,
+   stated honestly.
+
+   Inverted against estimatePremium, the same estimator that produced the
+   mark — never against a different model. A Black-Scholes inversion of an
+   estimatePremium price would return numbers that fail to bracket the
+   chain's own IV, which is worse than printing nothing at all.
+
+   Bisection, not Newton: the premium is strictly increasing in vol here, so
+   a bracket always converges, while Newton divides by a vega that collapses
+   in the deep wings and returns a confident absurdity. The bracket starts at
+   the contract's own IV on the appropriate side, which is where the answer
+   provably is. Null when no vol explains the price — a bid under intrinsic
+   is a quote problem, not a vol.
+*/
+const IV_CEILING = 5;
+function ivAtPrice(
+  price: number,
+  spot: number,
+  strike: number,
+  right: OptionRight,
+  tYears: number,
+  iv: number
+): number | null {
+  if (!(price > 0) || !(tYears > 0) || !(iv > 0)) return null;
+  const at = (v: number) => estimatePremium(spot, strike, right, v, tYears);
+  const mid = at(iv);
+  let lo: number;
+  let hi: number;
+  if (price <= mid) {
+    lo = 1e-4;
+    hi = iv;
+    if (price < at(lo) - 1e-9) return null;
+  } else {
+    lo = iv;
+    hi = IV_CEILING;
+    if (price > at(hi) + 1e-9) return null;
+  }
+  /* 24 halvings take a 5-wide bracket under 1e-6 — four orders finer than
+     the one decimal of a percent the column prints. */
+  for (let i = 0; i < 24 && hi - lo > 1e-6; i++) {
+    const m = (lo + hi) / 2;
+    if (at(m) < price) lo = m;
+    else hi = m;
+  }
+  return Number((((lo + hi) / 2) * 100).toFixed(2));
+}
 
 // ---- the chain --------------------------------------------------------------
 
@@ -66,6 +125,10 @@ export interface DeskContract {
   /** The quote around the mark — bid under, ask over, by a moneyness-wide spread */
   bid: number;
   ask: number;
+  /** The vol each side of the quote implies — the spread in vol points.
+      Null when no vol explains that price (a bid under intrinsic). */
+  bidIv: number | null;
+  askIv: number | null;
   /** Session extremes and reference prints for the drilldown */
   high: number;
   low: number;
@@ -204,7 +267,12 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
 
   const side = (strike: number, right: OptionRight, oi: number): DeskContract => {
     const iv = contractIv(baseIv, spot, strike, right);
-    const mark = Number(estimatePremium(spot, strike, right, iv, t).toFixed(2));
+    /* The model's own price, unrounded — the quote is built around THIS, and
+       the printed mark is only its cent-rounded face. Building the quote
+       around the rounded face instead is what let a bid land above the fair
+       value on a cheap contract (see the outward rounding below). */
+    const fair = estimatePremium(spot, strike, right, iv, t);
+    const mark = Number(fair.toFixed(2));
     const g = blackScholesGreeks(spot, strike, t, iv);
     const r = 0.05;
     const d1 = (Math.log(spot / strike) + (r + (iv * iv) / 2) * t) / (iv * Math.sqrt(t));
@@ -222,9 +290,17 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
     /* The spread widens as the contract leaves the money — a $12 ATM name is
        penny-wide, a lotto is not. Floored at a cent. */
     const m = Math.abs(strike - spot) / spot;
-    const spread = Math.max(0.01, mark * (0.015 + 0.06 * Math.min(1, m * 5)) * (0.6 + 0.8 * h01(`${seed}-spr`)));
-    const bid = Math.max(0, Number((mark - spread / 2).toFixed(2)));
-    const ask = Number((mark + spread / 2).toFixed(2));
+    const spread = Math.max(0.01, fair * (0.015 + 0.06 * Math.min(1, m * 5)) * (0.6 + 0.8 * h01(`${seed}-spr`)));
+    /* THE QUOTE ROUNDS OUTWARD, the way a real one does: the bid falls to the
+       cent below, the ask rises to the cent above, and neither is ever nudged
+       ACROSS the fair value by a rounding step. Rounding both to nearest let
+       a bid land a hair above the model's own price on a sub-dollar contract,
+       and its implied vol then read higher than the contract's own — exactly
+       the thing the Bid IV column exists to rule out. Floor and ceiling make
+       bid < fair < ask true by construction, so bid IV < IV < ask IV is true
+       by construction too. */
+    const bid = Math.max(0, floorCent(fair - spread / 2));
+    const ask = ceilCent(fair + spread / 2);
     const last = Number((bid + (ask - bid) * h01(`${seed}-fill`)).toFixed(2));
     const prevClose = Math.max(0.01, Number(estimatePremium(prevSpot, strike, right, iv, t + 1 / 252).toFixed(2)));
     const high = Number((Math.max(mark, last, prevClose) * (1 + 0.04 + 0.09 * h01(`${seed}-hi`))).toFixed(2));
@@ -272,6 +348,8 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
       rho,
       bid,
       ask,
+      bidIv: ivAtPrice(bid, spot, strike, right, t, iv),
+      askIv: ivAtPrice(ask, spot, strike, right, t, iv),
       high,
       low,
       prevClose,

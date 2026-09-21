@@ -785,6 +785,21 @@
 .slayer-chain .ag-full-width-row:hover {
   background-color: transparent !important;
 }
+/* THE FOCUS DIMS, IT DOES NOT DELETE. A chain's rows are a price axis: pull
+   the out-of-the-money half out and the survivors close ranks, the market's
+   hairline lands at an edge, and the distance that carried the meaning is
+   gone. Dimmed rows keep their place, their height and their click — they
+   are still the ladder, just not what you asked to look at. Hover brings one
+   most of the way back, because wanting to read a row is the same gesture as
+   pointing at it. */
+.slayer-chain .chain-dim {
+  opacity: 0.32;
+  transition: opacity 120ms ease-out;
+}
+.slayer-chain .chain-dim:hover,
+.slayer-chain .chain-dim.ag-row-selected {
+  opacity: 0.85;
+}
 /* A GRID GROWN TO ITS ROWS (2026-09-11: the Trace and Record grids grow with
    the page, the Compass board's rule) renders every row — AG Grid cannot
    virtualise when the page is the scroller. Rows off the screen skip their

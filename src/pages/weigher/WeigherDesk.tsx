@@ -37,7 +37,20 @@ import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronRight, Maximize2, Minimize2, Scale } from 'lucide-react';
-import { type ColDef, type ICellRendererParams, type RowClickedEvent, type RowDoubleClickedEvent } from 'ag-grid-community';
+import {
+  CHAIN_COLUMNS,
+  CHAIN_FAMILIES,
+  DEFAULT_COLS,
+  fmtCount,
+  fmtStrike,
+  inChainFocus,
+  type ChainCol,
+  type ChainDensity,
+  type ChainFocus,
+  type ChainScale,
+  NEAR_BAND,
+} from '../../data/chainColumns';
+import { type ColDef, type ICellRendererParams, type RowClassRules, type RowClickedEvent, type RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
@@ -122,6 +135,21 @@ const SIDE_OPTIONS: DropdownOption<OptionRight>[] = [
   { value: 'P', label: 'Puts', hint: 'The right to sell' },
 ];
 const REACH_OPTIONS: DropdownOption<number>[] = DESK_DEPTHS.map(d => ({ value: d, label: `±${d}`, hint: `${d} strikes each side of the market` }));
+export { CHAIN_COLUMNS, DEFAULT_COLS, type ChainCol, type ChainDensity, type ChainFocus, type ChainScale } from '../../data/chainColumns';
+
+/* FILTERING A LADDER BY REMOVING ROWS THROWS AWAY THE LADDER — see the note
+   on inChainFocus in data/chainColumns. These are the words the card says. */
+const FOCUS_OPTIONS: DropdownOption<ChainFocus>[] = [
+  { value: 'all', label: 'Every strike', hint: 'Nothing dimmed' },
+  { value: 'itm', label: 'In the money', hint: 'Strikes the tape is already past' },
+  { value: 'otm', label: 'Out of the money', hint: 'Strikes the tape has yet to reach' },
+  { value: 'near', label: 'Near the money', hint: `Within ${(NEAR_BAND * 100).toFixed(0)}% of the market` },
+];
+
+const DENSITY_OPTIONS: DropdownOption<ChainDensity>[] = [
+  { value: 'comfortable', label: 'Comfortable', hint: 'Roomy rows, the default chain' },
+  { value: 'compact', label: 'Compact', hint: 'More strikes on the screen at once' },
+];
 /* Every kind the scanner asks (data/weigherDesk SCAN_PRESETS — Noah, 2026-09-12:
    52-week highs and lows, gaps, jumps and dips, option volume, IV, earnings…) */
 const KIND_OPTIONS: DropdownOption<ScanPreset>[] = SCAN_PRESETS.map(p => ({ value: p.key, label: p.label, hint: p.hint }));
@@ -135,12 +163,15 @@ interface DeskState {
   depth: number;
   /** Which catalog columns the chain shows, in catalog order */
   cols: string[];
+  /** Which half of the ladder stays lit — the rest dims in place */
+  focus: ChainFocus;
+  density: ChainDensity;
 }
 
 /* An old record may still carry `layout`/`rowsV`/`colsV` from the movable
    era — parsed and ignored here, and the next save sheds them for good. */
 function loadDesk(): DeskState {
-  const def: DeskState = { ticker: 'SPY', dte: 2, lens: 'stock', right: 'C', preset: 'gainers', depth: 150, cols: DEFAULT_COLS };
+  const def: DeskState = { ticker: 'SPY', dte: 2, lens: 'stock', right: 'C', preset: 'gainers', depth: 150, cols: DEFAULT_COLS, focus: 'all', density: 'comfortable' };
   try {
     const raw = localStorage.getItem(DESK_KEY);
     if (!raw) return def;
@@ -158,6 +189,8 @@ function loadDesk(): DeskState {
       preset: typeof c.preset === 'string' && SCAN_PRESET_KEYS.has(c.preset) ? (c.preset as ScanPreset) : 'gainers',
       depth: typeof c.depth === 'number' && (DESK_DEPTHS as readonly number[]).includes(c.depth) ? c.depth : def.depth,
       cols: cols.length ? cols : [...def.cols],
+      focus: FOCUS_OPTIONS.some(o => o.value === c.focus) ? (c.focus as ChainFocus) : def.focus,
+      density: c.density === 'compact' ? 'compact' : def.density,
     };
   } catch {
     return def;
@@ -214,124 +247,16 @@ const DeskCard = ({
 );
 
 /* ---- the chain card -------------------------------------------------------- */
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const fmtCount = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(v));
-
-/* ---- the chain's column catalog -------------------------------------------
-   Every face of the contract the reference offers that is a FACT (Noah,
-   2026-08-26, the customize-columns screenshots). The four return-on-…
-   entries stayed out on purpose: a projected yield on a position is strategy
-   advice wearing a stat's clothes, and we are not a broker. Order here IS
-   column order; the menu speaks the reference's wording, the header speaks
-   compact, and every jargon head carries its Term. */
-/*
-  THE SCOPE OF A BAR IS THE WHOLE POINT. A cell can carry a background bar
-  showing how its number compares — but compares to WHAT decides whether the
-  bar means anything. Normalised across every expiry, a weekly's volume is a
-  sliver beside a LEAPS' open interest and the column reads as empty. Scoped
-  to THE EXPIRY ON SCREEN, it answers the question a reader actually has:
-  where is the action in this chain, today. (Fidelity draws it that way and
-  it is the right call.)
-
-  So `render` is handed the chain's own maxima rather than computing them, and
-  the bar is a fraction of the column's largest visible value.
-*/
-export interface ChainScale {
-  maxVolume: number;
-  maxOi: number;
-}
-
-export interface ChainCol {
-  key: string;
-  /** The menu's wording - the reference's own names */
-  label: string;
-  /** The column header's compact wording */
-  head: string;
-  term?: string;
-  render: (c: DeskContract, scale: ChainScale) => { text: string; ink?: string; bold?: boolean; bar?: number };
-}
-
-const money = (v: number) => `$${v.toFixed(2)}`;
-const signedPct = (v: number, dp = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
-
-export const CHAIN_COLUMNS: ChainCol[] = [
-  { key: 'mark', label: 'Mark', head: 'Mark', term: 'Mark', render: c => ({ text: money(c.mark), bold: true }) },
-  { key: 'bid', label: 'Bid', head: 'Bid', render: c => ({ text: money(c.bid) }) },
-  { key: 'ask', label: 'Ask', head: 'Ask', render: c => ({ text: money(c.ask) }) },
-  { key: 'bidSize', label: 'Bid size', head: 'Bid size', render: c => ({ text: fmtCount(c.bidSize) }) },
-  { key: 'askSize', label: 'Ask size', head: 'Ask size', render: c => ({ text: fmtCount(c.askSize) }) },
-  { key: 'last', label: 'Last', head: 'Last', render: c => ({ text: money(c.last) }) },
-  {
-    key: 'netChange',
-    label: 'Net change',
-    head: 'Net chg',
-    render: c => ({
-      text: `${c.netChange >= 0 ? '+' : '-'}$${Math.abs(c.netChange).toFixed(2)}`,
-      ink: c.netChange >= 0 ? 'text-bull' : 'text-bear',
-    }),
-  },
-  {
-    key: 'changePct',
-    label: 'Change %',
-    head: 'Chg %',
-    render: c => ({ text: signedPct(c.netChangePct), ink: c.netChangePct >= 0 ? 'text-bull' : 'text-bear' }),
-  },
-  { key: 'high', label: 'High', head: 'High', render: c => ({ text: money(c.high) }) },
-  { key: 'low', label: 'Low', head: 'Low', render: c => ({ text: money(c.low) }) },
-  { key: 'prevClose', label: 'Prev close', head: 'Prev close', render: c => ({ text: money(c.prevClose) }) },
-  { key: 'delta', label: 'Delta', head: 'Delta', term: 'Delta', render: c => ({ text: c.delta.toFixed(2) }) },
-  { key: 'gamma', label: 'Gamma', head: 'Gamma', term: 'Gamma', render: c => ({ text: c.gamma.toFixed(4) }) },
-  { key: 'theta', label: 'Theta', head: 'Theta', term: 'Theta', render: c => ({ text: c.theta.toFixed(4) }) },
-  { key: 'vega', label: 'Vega', head: 'Vega', term: 'Vega', render: c => ({ text: c.vega.toFixed(4) }) },
-  { key: 'rho', label: 'Rho', head: 'Rho', term: 'Rho', render: c => ({ text: c.rho.toFixed(4) }) },
-  { key: 'iv', label: 'IV', head: 'IV', term: 'IV', render: c => ({ text: `${c.iv.toFixed(0)}%` }) },
-  { key: 'itm', label: 'Probability ITM', head: 'ITM odds', term: 'ITM odds', render: c => ({ text: `${c.itmOdds.toFixed(0)}%` }) },
-  { key: 'otm', label: 'Probability OTM', head: 'OTM odds', term: 'OTM odds', render: c => ({ text: `${(100 - c.itmOdds).toFixed(0)}%` }) },
-  {
-    key: 'touch',
-    label: 'Probability of touching',
-    head: 'Touch odds',
-    term: 'Touch odds',
-    render: c => ({ text: `${c.touchOdds.toFixed(0)}%` }),
-  },
-  {
-    key: 'copLong',
-    label: 'Chance of profit (long)',
-    head: 'Profit odds L',
-    term: 'Profit odds',
-    render: c => ({ text: `${c.profitOddsLong.toFixed(0)}%` }),
-  },
-  {
-    key: 'copShort',
-    label: 'Chance of profit (short)',
-    head: 'Profit odds S',
-    term: 'Profit odds',
-    render: c => ({ text: `${c.profitOddsShort.toFixed(0)}%` }),
-  },
-  { key: 'breakeven', label: 'Breakeven', head: 'Breakeven', term: 'Breakeven', render: c => ({ text: money(c.breakeven) }) },
-  { key: 'toBreakeven', label: 'To breakeven', head: 'To B/E', term: 'To breakeven', render: c => ({ text: signedPct(c.toBreakevenPct) }) },
-  { key: 'intrinsic', label: 'Intrinsic value', head: 'Intrinsic', term: 'Intrinsic value', render: c => ({ text: money(c.intrinsic) }) },
-  { key: 'extrinsic', label: 'Extrinsic value', head: 'Extrinsic', term: 'Extrinsic value', render: c => ({ text: money(c.extrinsic) }) },
-  {
-    key: 'vol',
-    label: 'Volume',
-    head: 'Vol',
-    term: 'Volume',
-    render: (c, s) => ({ text: fmtCount(c.volume), bar: s.maxVolume > 0 ? c.volume / s.maxVolume : 0 }),
-  },
-  {
-    key: 'oi',
-    label: 'Open interest',
-    head: 'OI',
-    term: 'Open interest',
-    render: (c, s) => ({ text: fmtCount(c.oi), bar: s.maxOi > 0 ? c.oi / s.maxOi : 0 }),
-  },
-];
-
-/** The chain as it has always opened. */
-export const DEFAULT_COLS = ['mark', 'delta', 'iv', 'itm', 'vol', 'oi'];
-/** The catalog as the Columns card's one group — the reference's own names */
-const COLUMN_GROUPS: MultiGroup[] = [{ title: 'Facts', options: CHAIN_COLUMNS.map(c => ({ value: c.key, label: c.label })) }];
+/* THIRTY-ONE NAMES IN ONE LIST IS NOT A CATALOG, IT IS A WALL. The card now
+   sections by family, in the order a chain is read: the quote, then the
+   session behind it, then the greeks, the odds, the value split, and what
+   traded. Within a family the catalog's own order holds, which is also the
+   order the columns appear in — so picking down the card builds the chain
+   left to right. */
+const COLUMN_GROUPS: MultiGroup[] = CHAIN_FAMILIES.map(title => ({
+  title,
+  options: CHAIN_COLUMNS.filter(c => c.family === title).map(c => ({ value: c.key, label: c.label })),
+})).filter(g => g.options.length > 0);
 
 /* ---- the chain as a grid ----------------------------------------------------
    THE HOUSE GRID (the walk, 2026-09-11): AG Grid on the house theme at 30px
@@ -344,10 +269,22 @@ const COLUMN_GROUPS: MultiGroup[] = [{ title: 'Facts', options: CHAIN_COLUMNS.ma
    floats up when the spot row leaves the window. The progressive first paint
    (forty rows, then sixty a frame) is gone with the table: the grid never
    renders a row nobody can see. */
-const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, cellHorizontalPadding: 8 });
+const CHAIN_THEMES: Record<ChainDensity, typeof GRID_THEME> = {
+  comfortable: GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, cellHorizontalPadding: 8 }),
+  /* Compact keeps the TYPE and loses the air: the figures are already at 10px
+     and shrinking them further would buy rows by making the chain unreadable,
+     which is not a density, it is a squeeze. */
+  compact: GRID_THEME.withParams({ rowHeight: 23, headerHeight: 24, fontSize: 11, cellHorizontalPadding: 6 }),
+};
 const CHAIN_COL: ColDef<ChainGridRow> = { sortable: false, resizable: true, suppressMovable: true };
-type ChainGridRow = { kind: 'row'; key: string; c: DeskContract } | { kind: 'divider'; key: string; spot: number } | { kind: 'drill'; key: string; c: DeskContract };
-const CHAIN_ROW_H = 30;
+type ChainGridRow =
+  | { kind: 'row'; key: string; c: DeskContract; dim?: boolean }
+  | { kind: 'divider'; key: string; spot: number }
+  | { kind: 'drill'; key: string; c: DeskContract };
+const CHAIN_ROW_H: Record<ChainDensity, number> = { comfortable: 30, compact: 23 };
+/* The dimmed rows keep their place and lose their weight — a class, so the
+   focus changes without re-rendering a cell (index.css .chain-dim) */
+const CHAIN_ROW_CLASS: RowClassRules<ChainGridRow> = { 'chain-dim': p => p.data?.kind === 'row' && !!p.data.dim };
 const DIVIDER_H = 22;
 const DRILL_H = 210;
 
@@ -439,6 +376,8 @@ export const ChainCard = memo(function ChainCard({
   cols,
   centerKey,
   inlineDrill,
+  focus = 'all',
+  density = 'comfortable',
 }: {
   chain: DeskChain;
   right: OptionRight;
@@ -454,6 +393,10 @@ export const ChainCard = memo(function ChainCard({
       unfolds its weigh-up inline, Robinhood-style. The desk page leaves
       this off; its weigh-up owns the bottom-right card. */
   inlineDrill?: boolean;
+  /** Which half of the ladder stays lit. The rest dims IN PLACE — see the
+      note on FOCUS_OPTIONS for why a chain must never drop rows. */
+  focus?: ChainFocus;
+  density?: ChainDensity;
 }) {
   const gridRef = useRef<AgGridReact<ChainGridRow>>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -468,7 +411,7 @@ export const ChainCard = memo(function ChainCard({
     const out: ChainGridRow[] = [];
     let divider = -1;
     ordered.forEach((c, i) => {
-      out.push({ kind: 'row', key: `s${c.strike}`, c });
+      out.push({ kind: 'row', key: `s${c.strike}`, c, dim: !inChainFocus(c, chain.spot, focus) });
       if (inlineDrill && sel != null && Math.abs(c.strike - sel) < 1e-9) out.push({ kind: 'drill', key: `d${c.strike}`, c });
       const next = ordered[i + 1];
       if (c.strike > chain.spot && next && next.strike <= chain.spot) {
@@ -477,7 +420,7 @@ export const ChainCard = memo(function ChainCard({
       }
     });
     return { rows: out, dividerIdx: divider };
-  }, [chain, right, sel, inlineDrill]);
+  }, [chain, right, sel, inlineDrill, focus]);
 
   /* The maxima the bars are read against — this expiry's own, not the
      session's and not the family's. Recomputed with the chain, so switching
@@ -487,7 +430,7 @@ export const ChainCard = memo(function ChainCard({
     let maxVolume = 0;
     let maxOi = 0;
     for (const r of rows) {
-      if (r.kind !== 'row') continue;
+      if (r.kind !== 'row' || r.dim) continue;
       if (r.c.volume > maxVolume) maxVolume = r.c.volume;
       if (r.c.oi > maxOi) maxOi = r.c.oi;
     }
@@ -509,6 +452,22 @@ export const ChainCard = memo(function ChainCard({
     ],
     [cols, chainScale]
   );
+
+  /* A density is a row HEIGHT, and the grid measured every row on the way in;
+     it re-measures only when asked. A focus is a row CLASS, and the class
+     rules run on a row's draw. Both changes are user-driven and rare, so
+     both are told explicitly rather than folded into the row data and hoped
+     for. */
+  useEffect(() => {
+    const api = gridRef.current?.api;
+    if (!api || !ready) return;
+    api.resetRowHeights();
+  }, [density, ready]);
+  useEffect(() => {
+    const api = gridRef.current?.api;
+    if (!api || !ready) return;
+    api.redrawRows();
+  }, [focus, ready]);
 
   /* The picked strike is the grid's selection — synced, never clicked into
      (a click is the desk's: one weighs, two chart) */
@@ -559,14 +518,15 @@ export const ChainCard = memo(function ChainCard({
       <AgGridProvider modules={GRID_MODULES}>
         <AgGridReact<ChainGridRow>
           ref={gridRef}
-          theme={CHAIN_THEME}
+          theme={CHAIN_THEMES[density]}
           rowData={rows}
           columnDefs={columnDefs}
           defaultColDef={CHAIN_COL}
           getRowId={p => p.data.key}
           isFullWidthRow={p => p.rowNode.data?.kind !== 'row'}
           fullWidthCellRenderer={FullRow}
-          getRowHeight={p => (p.data?.kind === 'divider' ? DIVIDER_H : p.data?.kind === 'drill' ? DRILL_H : CHAIN_ROW_H)}
+          getRowHeight={p => (p.data?.kind === 'divider' ? DIVIDER_H : p.data?.kind === 'drill' ? DRILL_H : CHAIN_ROW_H[density])}
+          rowClassRules={CHAIN_ROW_CLASS}
           /* One click weighs, two chart: the grid hands the single click through
              as 1 and the double through its own event as 2 (a second click's
              detail is not relied on — the grid may fold it into the double) */
@@ -1245,7 +1205,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     }
   }, [desk]);
 
-  const { ticker, dte, lens, right, preset, depth, cols } = desk;
+  const { ticker, dte, lens, right, preset, depth, cols, focus, density } = desk;
   const patch = (p: Partial<DeskState>) => setDesk(d => ({ ...d, ...p }));
 
   const mood = useMemo(() => marketMood(), [tick]);
@@ -1596,13 +1556,31 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
      chain should have its own ticker search" — the same state as the chart's
      picker, so either one repoints both), then Side · Expiry (as dates, the
      Map's spelling) · Reach (the strike distance is a choice, not a cap) ·
-     Columns (the catalog, in catalog order), and the expected move as a fact. */
+     Focus (which half stays lit) · Density · Columns (the catalog, in catalog
+     order), and the expected move as a fact. The strip wraps rather than
+     scrolls: a control you cannot see is a control you do not have. */
   const chainActions = (
     <span className="flex items-center gap-1.5 flex-wrap">
       <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />
       <DropdownSelect label="Side" value={right} options={SIDE_OPTIONS} onChange={v => patch({ right: v })} title="Calls or puts" testId="weigher-side" />
       <ExpiryCalendar value={isoDate(chain.expiry.date)} expiries={expiries} onChange={e => patch({ dte: e.dte })} pattern={listingPatternFor(ticker)} title="Which contracts the chain lists — the dates this name trades" testId="weigher-expiry" />
       <DropdownSelect label="Reach" value={depth} options={REACH_OPTIONS} onChange={v => patch({ depth: v })} title="How many strikes each side of the market" testId="weigher-reach" />
+      <DropdownSelect
+        label="Focus"
+        value={focus}
+        options={FOCUS_OPTIONS}
+        onChange={v => patch({ focus: v })}
+        title="Which strikes stay lit — the rest dim where they are, so the ladder keeps its shape"
+        testId="weigher-focus"
+      />
+      <DropdownSelect
+        label="Density"
+        value={density}
+        options={DENSITY_OPTIONS}
+        onChange={v => patch({ density: v })}
+        title="How much room each strike gets"
+        testId="weigher-density"
+      />
       <DropdownMulti
         label="Columns"
         values={cols}
@@ -1690,6 +1668,8 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
       sel={sel}
       onSelect={pickStrike}
       cols={shownCols}
+      focus={focus}
+      density={density}
       centerKey={`${ticker}:${dte}:${depth}`}
     />
   );

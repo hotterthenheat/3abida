@@ -31,7 +31,7 @@ import type { OptionRight } from '../../types/compass';
 import { PaperPill, ProvenanceChip, sideFill } from './paperKit';
 
 const ChainCard = lazy(() => import('../weigher/WeigherDesk').then(m => ({ default: m.ChainCard })));
-type ChainCol = import('../weigher/WeigherDesk').ChainCol;
+import { CHAIN_COLUMNS, type ChainCol } from '../../data/chainColumns';
 
 const SIDE_OPTIONS: DropdownOption<OptionRight>[] = [
   { value: 'C', label: 'Calls', hint: 'The right to buy' },
@@ -96,18 +96,15 @@ const ChainDoor = ({ open, onClose, family, onChart, onAddLeg }: ChainDoorProps)
 
   const expiries = useMemo(() => listExpiriesFor(underlying), [underlying, tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const chain = useMemo(() => (open ? scaleChain(buildDeskChain(underlying, dte, depth), ratio) : null), [open, underlying, dte, depth, ratio, tick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const cols = useMemo<ChainCol[]>(() => {
-    const money = (v: number) => `$${v.toFixed(2)}`;
-    return [
-      { key: 'bid', label: 'Bid', head: 'Bid', render: c => ({ text: money(c.bid) }) },
-      { key: 'ask', label: 'Ask', head: 'Ask', render: c => ({ text: money(c.ask) }) },
-      { key: 'mark', label: 'Mark', head: 'Mark', render: c => ({ text: money(c.mark), bold: true }) },
-      { key: 'delta', label: 'Delta', head: 'Delta', render: c => ({ text: c.delta.toFixed(2) }) },
-      { key: 'iv', label: 'IV', head: 'IV', render: c => ({ text: `${c.iv.toFixed(0)}%` }) },
-      { key: 'vol', label: 'Volume', head: 'Vol', render: c => ({ text: c.volume >= 1000 ? `${(c.volume / 1000).toFixed(1)}K` : String(c.volume) }) },
-      { key: 'oi', label: 'Open interest', head: 'OI', render: c => ({ text: c.oi >= 1000 ? `${(c.oi / 1000).toFixed(1)}K` : String(c.oi) }) },
-    ];
-  }, []);
+  /* THE DOOR'S CHAIN IS THE DESK'S CHAIN, NARROWED. It used to re-declare its
+     own bid/ask/mark/delta/IV/vol/OI and so sat out every improvement the
+     Weigher's catalog got — it was still printing volume and open interest as
+     bare numbers after the chain grew bars behind them. Picked by key now, in
+     the door's own order, off the one catalog. */
+  const cols = useMemo<ChainCol[]>(
+    () => ['bid', 'ask', 'mark', 'delta', 'iv', 'vol', 'oi'].flatMap(k => CHAIN_COLUMNS.filter(c => c.key === k)),
+    []
+  );
 
   const expiryIso = chain ? isoDate(chain.expiry.date) : '';
   const picked: OptionInstrument | null = sel != null && expiryIso ? optionInstrument(family, sel, right, expiryIso) : null;
