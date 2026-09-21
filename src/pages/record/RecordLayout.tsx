@@ -45,7 +45,7 @@ const RecordLayout = () => {
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{page.subtitle}</p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts>
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-shell-facts>
           <div className="min-w-0">
             <dt className="text-[10px] text-textMuted whitespace-nowrap">Source</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-record-source>

@@ -85,7 +85,7 @@ const Risk = () => {
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">What the open book is exposed to — by name, by expiry, and repriced across the moves that would hurt.</p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts data-risk-facts>
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-shell-facts data-risk-facts>
           <Fact label="Open P&L" testId="risk-open"><Money v={totals.unrealized} /></Fact>
           <Fact label="Gross exposure" testId="risk-gross">{fmtMoney(totals.grossExposure, false)}</Fact>
           <Fact label="Net delta $" testId="risk-net"><Money v={totals.netDeltaDollars} /></Fact>

@@ -1685,7 +1685,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Chart, chain and scanner on one desk — pick a name, pick a contract, read what it has to clear</p>
         </div>
         <dl
-          className="grid grid-flow-col auto-cols-max gap-x-6"
+          className="flex flex-wrap items-start gap-x-6 gap-y-1"
           data-shell-facts
           title={session === 'overnight' ? 'Overnight — New York is closed; the read follows the Nasdaq session (QQQ)' : 'Trading hours — the read follows the Nasdaq session (QQQ)'}
         >

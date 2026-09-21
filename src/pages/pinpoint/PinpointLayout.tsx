@@ -168,7 +168,7 @@ const PinpointLayout = () => {
         <div className="flex items-center gap-6 flex-wrap">
           {/* THE FACTS, each named: which way dealers hedge, the flip and how far, how often it was crossed, the clock */}
           {gauge && (
-            <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts>
+            <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-shell-facts>
               {words && gauge.regime ? (
                 <>
                   <Fact label="Dealers" title={words.blurb} testId="dealers">

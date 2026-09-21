@@ -168,7 +168,7 @@ const Journal = () => {
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every closed round trip — what the days made, and how far each trade went both ways before it ended.</p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts data-journal-facts>
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-shell-facts data-journal-facts>
           <Fact label="Profit factor" testId="pf">
             <span className="tnum" style={{ color: stats.profitFactor >= 1.5 ? 'rgb(var(--bull))' : stats.profitFactor < 1 && stats.trades > 0 ? 'rgb(var(--bear))' : undefined }}>{pf}</span>
           </Fact>

@@ -39,7 +39,7 @@ const CommunityLayout = () => {
           </div>
           <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">Traders, setups and the record they build — every $name a door, every @handle a person</p>
         </div>
-        <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts>
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-shell-facts>
           <div className="min-w-0">
             <dt className="text-[10px] text-textSecondary whitespace-nowrap">You</dt>
             <dd className="mt-0.5 font-mono text-[12px] text-textPrimary whitespace-nowrap">@{account.handle}</dd>

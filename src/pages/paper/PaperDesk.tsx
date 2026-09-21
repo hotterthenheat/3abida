@@ -539,7 +539,7 @@ const PaperDesk = () => {
             pretending to be a caption; printing two of them forty pixels from
             the card that prints them bigger is the same fault, smaller. */}
         {!prefs.ticketOpen && (
-          <dl className="grid grid-flow-col auto-cols-max gap-x-6" data-shell-facts data-paper-account>
+          <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-shell-facts data-paper-account>
             <Fact label="Equity" testId="equity">{fmtMoney(acct.equity, false)}</Fact>
             <Fact label="Day P&L" testId="day"><Money v={acct.dayPnl} /></Fact>
           </dl>
