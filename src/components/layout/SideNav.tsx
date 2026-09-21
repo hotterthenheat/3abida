@@ -76,6 +76,7 @@ const SUBPAGES: Record<string, { path: string; label: string }[]> = {
   '/paper': [
     { path: '/paper', label: 'The desk' },
     { path: '/paper/journal', label: 'Journal' },
+    { path: '/paper/risk', label: 'Risk' },
   ],
 };
 

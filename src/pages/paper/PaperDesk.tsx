@@ -37,7 +37,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { CalendarRange, ClipboardPen, Keyboard, Layers, Maximize2, Minimize2, PanelRight, Rows3, Rows4, SlidersHorizontal, Waypoints } from 'lucide-react';
+import { CalendarRange, ClipboardPen, Keyboard, Layers, Maximize2, Minimize2, PanelRight, Rows3, Rows4, ShieldAlert, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { TimeframeStrip } from '../../components/gex/ChartToolbar';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { armPrice, commitArm } from '../../components/gex/alertStore';
@@ -446,6 +446,9 @@ const PaperDesk = () => {
         )}
         <Link to="/paper/journal" title="The journal — the calendar, the profit factor, MAE and MFE" aria-label="Journal" className={DOOR} data-paper-journal-door>
           <CalendarRange className="w-3.5 h-3.5" />
+        </Link>
+        <Link to="/paper/risk" title="Risk — what the open book is exposed to, and what a move does to it" aria-label="Risk" className={DOOR} data-paper-risk-door>
+          <ShieldAlert className="w-3.5 h-3.5" />
         </Link>
         <ModesDoor />
         <TiltDoor />

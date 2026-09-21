@@ -116,9 +116,16 @@ export function futuresBasis(etf: string): number {
   if (!fam) return 0;
   const hit = basisMemo.get(fam.etf);
   if (hit != null) return hit;
-  const spot = spotOf(fam.etf) ?? Simulator.TICKERS[fam.etf]?.basePrice ?? 0;
+  /* ONLY A SEEDED SPOT EARNS THE MEMO. The fallback to basePrice exists so a
+     caller before the feed lands gets a sane number rather than zero — but
+     memoising THAT pins the session's basis to a price the market never had,
+     for the app's life. A cold load of a page that marks futures before the
+     simulator seeds did exactly this and marked NQ 219 points light against
+     the same book on the desk. Unseeded: compute, return, do not remember. */
+  const seeded = spotOf(fam.etf);
+  const spot = seeded ?? Simulator.TICKERS[fam.etf]?.basePrice ?? 0;
   const b = twinBasis(fam, spot);
-  basisMemo.set(fam.etf, b);
+  if (seeded != null) basisMemo.set(fam.etf, b);
   return b;
 }
 
