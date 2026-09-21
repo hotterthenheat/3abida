@@ -490,14 +490,30 @@ export function similarity(a: string, b: string): number {
   return Math.min(1, overlap + inside);
 }
 
-/** What is already on the board that this title might be a second copy of */
+/**
+ * What is already on the board that this title might be a second copy of.
+ *
+ * THE FILTER THAT FILTERED NOTHING. This read `author !== 'you'`, which
+ * looks like "other people's only" and was a dead comparison: a submitted
+ * item carries the account's HANDLE (`getAccount().handle`, below), and no
+ * item anywhere is authored by the literal string "you". So your own posts
+ * were already being matched — by accident rather than by decision — and a
+ * later reader tightening that string would have quietly removed the most
+ * useful duplicate there is.
+ *
+ * It is a decision now, and the right one: the likeliest duplicate of a
+ * title you are typing is the one YOU filed last week, so yours rank first
+ * and the caller marks them, because "+1 me too" on a thing you said
+ * yourself is nonsense.
+ */
 export function nearest(title: string, kind: FeedbackKind, limit = 3): { item: FeedbackItem; score: number }[] {
   if (wordsOf(title).length === 0) return [];
+  const me = getAccount().handle;
   return getFeedback()
-    .filter(i => i.kind === kind && i.author !== 'you')
+    .filter(i => i.kind === kind)
     .map(item => ({ item, score: similarity(title, item.title) }))
     .filter(x => x.score >= 0.5)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => Number(b.item.author === me) - Number(a.item.author === me) || b.score - a.score)
     .slice(0, limit);
 }
 

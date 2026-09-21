@@ -397,7 +397,9 @@ const Feedback = () => {
   }, [shown]);
   const rest = useMemo(() => (pinned ? shown.filter(i => i.id !== pinned.id) : shown), [shown, pinned]);
 
-  /* SAYING THE SAME THING TWICE — what is already on the board like this */
+  /* SAYING THE SAME THING TWICE — what is already on the board like this,
+     yours included and marked (see data/feedback nearest). */
+  const me = useAccount();
   const doubles = useMemo(() => nearest(title, tab), [title, tab]);
 
   useEffect(() => {
@@ -613,26 +615,42 @@ const Feedback = () => {
             {doubles.length > 0 && (
               <div className="rounded-md border border-warn/30 bg-warn/[0.06] px-3 py-2" data-feedback-doubles>
                 <div className="font-mono text-[10px] uppercase tracking-widest text-warn">{bug ? 'Already reported?' : 'Already asked for?'}</div>
-                {doubles.map(({ item }) => (
-                  <div key={item.id} className="mt-1.5 flex items-center gap-2">
-                    <span className="min-w-0 flex-1 text-[12px] text-textPrimary truncate" title={item.title}>
-                      {item.title}
-                    </span>
-                    <span className={`inline-flex items-center h-5 px-1.5 rounded-full border text-[10px] whitespace-nowrap ${STATUS_STYLE[item.status]}`}>{item.status}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!votes.includes(item.id)) voteFeedback(item.id);
-                        setOpenId(item.id);
-                        setTitle('');
-                      }}
-                      className="h-6 px-2 rounded-md border border-bull/40 bg-bull/[0.08] font-mono text-[10px] uppercase tracking-wider text-bull whitespace-nowrap"
-                      data-double-support={item.id}
-                    >
-                      {votes.includes(item.id) ? 'Supported' : bug ? '+1 me too' : '+1 this'}
-                    </button>
-                  </div>
-                ))}
+                {doubles.map(({ item }) => {
+                  /* YOUR OWN DUPLICATE IS A DIFFERENT OFFER. "+1 me too" on
+                     a thing you filed yourself is nonsense — you already
+                     said it. The row says so and opens it instead. Against
+                     the HANDLE, which is what an item is actually authored
+                     by; the store used to compare against the literal
+                     "you", which matched nothing. */
+                  const mine = item.author === me.handle;
+                  return (
+                    <div key={item.id} className="mt-1.5 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 text-[12px] text-textPrimary truncate" title={item.title}>
+                        {item.title}
+                      </span>
+                      {mine && (
+                        <span className="inline-flex items-center h-5 px-1.5 rounded-full border border-borderMuted font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap">
+                          yours
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center h-5 px-1.5 rounded-full border text-[10px] whitespace-nowrap ${STATUS_STYLE[item.status]}`}>{item.status}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!mine && !votes.includes(item.id)) voteFeedback(item.id);
+                          setOpenId(item.id);
+                          setTitle('');
+                        }}
+                        className={`h-6 px-2 rounded-md border font-mono text-[10px] uppercase tracking-wider whitespace-nowrap ${
+                          mine ? 'border-borderMuted text-textPrimary' : 'border-bull/40 bg-bull/[0.08] text-bull'
+                        }`}
+                        data-double-support={item.id}
+                      >
+                        {mine ? 'Open yours' : votes.includes(item.id) ? 'Supported' : bug ? '+1 me too' : '+1 this'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
