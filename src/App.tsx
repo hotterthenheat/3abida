@@ -31,6 +31,7 @@ const Paper = lazy(() => import('./pages/paper/Paper'));
 const PaperJournal = lazy(() => import('./pages/paper/Journal'));
 const PaperRisk = lazy(() => import('./pages/paper/Risk'));
 const Watchlist = lazy(() => import('./pages/watchlist/Watchlist'));
+const Alerts = lazy(() => import('./pages/alerts/Alerts'));
 /* Stocks walked into the Record (2026-09-10): the screens beside the name's news and filings */
 const Stocks = lazy(() => import('./pages/record/Stocks'));
 /* A name's own page under Stocks (2026-09-13): the whole read, not a jump to the Map */
@@ -120,6 +121,9 @@ const App = () => {
             {/* WATCHLISTS (2026-09-21): the names a reader carries. The terminal
                 had a four-name constant in the simulator and no way to edit it. */}
             <Route path="/watchlist" element={<Watchlist />} />
+            {/* THE ALERTS DESK (2026-09-21): the bell is for glancing, this is
+                for managing — set, alerted, and the record of both */}
+            <Route path="/alerts" element={<Alerts />} />
             <Route path="/watchlists" element={<Navigate to="/watchlist" replace />} />
             <Route path="/paper" element={<Paper />} />
             <Route path="/paper/journal" element={<PaperJournal />} />

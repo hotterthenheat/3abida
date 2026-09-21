@@ -1,5 +1,6 @@
 import {
   Activity,
+  Bell,
   Crosshair,
   Compass,
   Radar,
@@ -97,6 +98,15 @@ export const NAV_ITEMS: NavItem[] = [
   /* Stocks moved under the Record (2026-09-10) — the screens are a record about a name, read beside its news and filings */
   /* THE NAMES YOU CARRY (2026-09-21) — first in Discover, because a session
      starts by deciding what to look at */
+  {
+    path: '/alerts',
+    label: 'Alerts',
+    code: '00',
+    icon: Bell,
+    ink: NAV_INK.alerts,
+    description: 'Everything you set and everything that has gone off — the bell, managed',
+    group: 'Manage',
+  },
   {
     path: '/watchlist',
     label: 'Watchlists',
