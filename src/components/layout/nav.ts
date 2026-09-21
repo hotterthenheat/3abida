@@ -35,6 +35,7 @@ export type NavGroup = 'Discover' | 'Analyze' | 'Manage' | 'Review';
 export const NAV_INK = {
   alerts: '#E9A23B',
   compass: '#4FB8B8',
+  watchlist: '#C48BD9',
   weigher: '#A78BFA',
   /* the paper desk's straw — between the Weigher's violet and Trace's orange
      on the wheel, and nothing the terminal means by a colour (2026-09-19) */
@@ -94,6 +95,17 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'Discover',
   },
   /* Stocks moved under the Record (2026-09-10) — the screens are a record about a name, read beside its news and filings */
+  /* THE NAMES YOU CARRY (2026-09-21) — first in Discover, because a session
+     starts by deciding what to look at */
+  {
+    path: '/watchlist',
+    label: 'Watchlists',
+    code: '04',
+    icon: Bookmark,
+    ink: NAV_INK.watchlist,
+    description: 'The names you are carrying — price, flip, walls and field, one row each',
+    group: 'Discover',
+  },
   {
     path: '/trace',
     label: 'Trace',

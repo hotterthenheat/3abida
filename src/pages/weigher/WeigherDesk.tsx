@@ -1166,6 +1166,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     };
   }, [applyTick]);
 
+  const { activeTicker, changeTicker } = useMarketData();
   const [desk, setDesk] = useState<DeskState>(loadDesk);
   const [sel, setSel] = useState<number | null>(null);
   /* Which face of the contract card is up (Noah, 2026-09-12: contract · setup · verdict) */
@@ -1246,12 +1247,31 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     return row ? (right === 'C' ? row.call : row.put) : null;
   }, [chain, sel, right]);
 
+  /* TWO WAYS, ONE NAME (2026-09-21). The desk kept its own ticker and the
+     terminal kept another, so a reader who picked NVDA in the palette or off
+     a watchlist arrived here still looking at whatever they last weighed —
+     the one desk in the terminal whose entire job is ONE name was the one
+     that would not follow. Picking here now names the terminal, and the
+     terminal naming itself moves the desk (below). The desk still remembers
+     its name across a reload; the two just agree about what it is. */
   const pickTicker = (t: string) => {
     if (t === ticker) return;
     Simulator.ensureTicker(t);
     setSel(null);
     patch({ ticker: t, lens: 'stock', dte: nearestListedExpiry(t, dte).dte });
+    changeTicker(t);
   };
+
+  /* The other direction: the terminal's name moves the desk. A deep link
+     (below) still wins for the arrival it describes, because it is a more
+     specific instruction than "the name the terminal is on". */
+  useEffect(() => {
+    if (!activeTicker || activeTicker === ticker) return;
+    Simulator.ensureTicker(activeTicker);
+    setSel(null);
+    patch({ ticker: activeTicker, lens: 'stock', dte: nearestListedExpiry(activeTicker, dte).dte });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTicker]);
 
   /* A deep link arrives with a name (Trace's "Weigh it"). It repoints the
      desk once; after that the desk's own pickers own the ticker again, and
@@ -1261,6 +1281,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     Simulator.ensureTicker(incomingTicker);
     setSel(null);
     patch({ ticker: incomingTicker, lens: 'stock' });
+    changeTicker(incomingTicker);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingTicker]);
 

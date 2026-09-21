@@ -29,6 +29,7 @@ const Weigher = lazy(() => import('./pages/Weigher'));
 const Paper = lazy(() => import('./pages/paper/Paper'));
 const PaperJournal = lazy(() => import('./pages/paper/Journal'));
 const PaperRisk = lazy(() => import('./pages/paper/Risk'));
+const Watchlist = lazy(() => import('./pages/watchlist/Watchlist'));
 /* Stocks walked into the Record (2026-09-10): the screens beside the name's news and filings */
 const Stocks = lazy(() => import('./pages/record/Stocks'));
 /* A name's own page under Stocks (2026-09-13): the whole read, not a jump to the Map */
@@ -111,6 +112,10 @@ const App = () => {
               <Route path=":id" element={<CompassSetup />} />
             </Route>
             <Route path="/weigher" element={<Weigher />} />
+            {/* WATCHLISTS (2026-09-21): the names a reader carries. The terminal
+                had a four-name constant in the simulator and no way to edit it. */}
+            <Route path="/watchlist" element={<Watchlist />} />
+            <Route path="/watchlists" element={<Navigate to="/watchlist" replace />} />
             <Route path="/paper" element={<Paper />} />
             <Route path="/paper/journal" element={<PaperJournal />} />
             {/* THE RISK DESK (2026-09-21): what the open book is exposed to — the

@@ -1,0 +1,170 @@
+import Simulator from '../core/simulator';
+import { buildLevelsFor, readHeatPattern, spotChangePct } from './gex';
+import { getAlerts } from '../components/gex/alertStore';
+import type { HeatPatternKey } from '../types/gex';
+
+/*
+==================================================
+  SLAYER TERMINAL - THE WATCHLIST ROW
+  (data/watchRow.ts)
+
+  What a name says about itself, in one line.
+==================================================
+
+  A WATCHLIST OF PRICES IS A STOCK APP. The point of carrying a name on a
+  terminal like this one is the things beside the price: where spot sits
+  against the flip, which wall is nearest and how far, what the heat field
+  is doing, and whether you already told it to shout at you. A row that
+  printed last and change would have been faster to build and would have
+  given a reader no reason to open this page rather than any other.
+
+  UNSEEDED IS A STATE, NOT A ZERO. The simulator seeds a name's history
+  lazily, and a name that has not been seeded has no levels — not levels of
+  zero, NO levels. A row for it reports `resting` and prints dashes rather
+  than manufacturing a flip at the current price, which is what any
+  `?? 0` in here would have quietly done.
+
+  BUILDING LEVELS WALKS A CHAIN, so it is not free and a twenty-name list
+  would pay for it on every tick. The rows are memoised per name for a beat;
+  the price beside them is read fresh every time, because that is the part
+  that moves and the part a reader would notice going stale.
+*/
+
+export type RowState = 'live' | 'resting';
+
+export interface WatchRow {
+  symbol: string;
+  state: RowState;
+  last: number | null;
+  changePct: number | null;
+  ivPct: number | null;
+  /** Above the flip is long gamma territory; below it is short */
+  aboveFlip: boolean | null;
+  flip: number | null;
+  /** The nearer of the two walls, and how far spot is from it in percent */
+  wall: { price: number; kind: 'call' | 'put'; distPct: number } | null;
+  pattern: HeatPatternKey | null;
+  patternWord: string | null;
+  /** How many alerts the reader has set on this name */
+  alerts: number;
+}
+
+const CACHE_MS = 4000;
+const cache = new Map<string, { at: number; row: WatchRow }>();
+
+function build(symbol: string): WatchRow {
+  const sym = symbol.toUpperCase();
+  const seeded = Simulator.isSeeded(sym);
+  const cfg = Simulator.TICKERS[sym];
+  const alerts = getAlerts(sym).length;
+
+  if (!seeded || !cfg) {
+    return {
+      symbol: sym, state: 'resting', last: cfg?.currentPrice ?? null, changePct: null,
+      ivPct: cfg ? Number((cfg.iv * 100).toFixed(1)) : null,
+      aboveFlip: null, flip: null, wall: null, pattern: null, patternWord: null, alerts,
+    };
+  }
+
+  const levels = buildLevelsFor(sym);
+  const read = readHeatPattern(levels);
+  const spot = levels.spot;
+  const dCall = Math.abs(levels.callWall - spot);
+  const dPut = Math.abs(levels.putWall - spot);
+  const nearer = dCall <= dPut
+    ? { price: levels.callWall, kind: 'call' as const, distPct: (dCall / spot) * 100 }
+    : { price: levels.putWall, kind: 'put' as const, distPct: (dPut / spot) * 100 };
+
+  return {
+    symbol: sym,
+    state: 'live',
+    last: spot,
+    changePct: spotChangePct(sym),
+    ivPct: Number((cfg.iv * 100).toFixed(1)),
+    aboveFlip: spot >= levels.flip,
+    flip: levels.flip,
+    wall: { ...nearer, distPct: Number(nearer.distPct.toFixed(2)) },
+    pattern: read.key,
+    patternWord: read.direction,
+    alerts,
+  };
+}
+
+export function watchRow(symbol: string): WatchRow {
+  const sym = symbol.toUpperCase();
+  const hit = cache.get(sym);
+  const now = Date.now();
+  if (hit && now - hit.at < CACHE_MS) {
+    /* The price is the part that moves; the levels are the part that is
+       expensive. Refresh the first off the ticker config and keep the second. */
+    const cfg = Simulator.TICKERS[sym];
+    if (cfg && hit.row.state === 'live') {
+      return { ...hit.row, last: cfg.currentPrice, changePct: spotChangePct(sym), alerts: getAlerts(sym).length };
+    }
+    return hit.row;
+  }
+  const row = build(sym);
+  cache.set(sym, { at: now, row });
+  return row;
+}
+
+/*
+  WAKING A NAME IS A QUEUE, not a call. `seedAsync` walks a SLICE of the
+  history per invocation and answers 'pending' until it is whole, so calling
+  it once leaves a name half-built and permanently resting. This drives it
+  across idle slots the way the rest of the terminal does — a few
+  milliseconds per quiet moment, never one long frame — and one pump serves
+  every name on the list rather than each row starting its own.
+*/
+const queue: string[] = [];
+let pumping = false;
+const listeners = new Set<() => void>();
+
+const idle = (fn: () => void, timeout: number): void => {
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+  if (ric) ric(fn, { timeout });
+  else window.setTimeout(fn, 60);
+};
+
+function pump(): void {
+  const next = queue[0];
+  if (!next) {
+    pumping = false;
+    return;
+  }
+  let state: 'done' | 'pending' = 'done';
+  try {
+    state = Simulator.seedAsync(next, 5);
+  } catch {
+    /* A name the simulator cannot build stays resting rather than retrying
+       forever — it leaves the queue either way. */
+    state = 'done';
+  }
+  if (state === 'done') {
+    queue.shift();
+    cache.delete(next);
+    for (const l of listeners) l();
+  }
+  idle(pump, 1500);
+}
+
+/** Told when a name finishes seeding, so a resting row can redraw itself. */
+export const onWake = (fn: () => void): (() => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+
+/** Ask the simulator to start carrying a name, so its row can go live. */
+export function wakeSymbol(symbol: string): void {
+  if (typeof window === 'undefined') return;
+  const sym = symbol.toUpperCase();
+  if (!Simulator.TICKERS[sym]) Simulator.register(sym);
+  if (Simulator.isSeeded(sym) || queue.includes(sym)) return;
+  queue.push(sym);
+  if (!pumping) {
+    pumping = true;
+    idle(pump, 800);
+  }
+}
