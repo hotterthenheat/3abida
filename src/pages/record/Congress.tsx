@@ -107,9 +107,15 @@ const MemberCell = ({ data }: ICellRendererParams<CongressTrade>) =>
     </span>
   ) : null;
 
+/* flex w-full + a title, for the reason spelled out on Insiders' NameCell:
+   an inline-flex wrapper sizes to its content, so the inner truncate never
+   fired and the cell clipped the name with no way to read the rest. */
 const AssetCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   data ? (
-    <span className="inline-flex items-center gap-2 min-w-0">
+    <span
+      className="flex w-full items-center gap-2 min-w-0"
+      title={`${data.ticker} — ${data.assetKind === 'Stock' ? tickerName(data.ticker) : data.assetKind}`}
+    >
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>

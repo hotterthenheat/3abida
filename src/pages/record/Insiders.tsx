@@ -98,9 +98,15 @@ const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const WhenCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">{ago(data.daysAgo)}</span> : null);
 
+/* A CELL THAT TRUNCATES MUST SAY THE REST SOMEWHERE. The inner name carried
+   `truncate` and could never use it: the wrapper was inline-flex, so it sized
+   to its content and ran past the cell instead of capping at it — the cell's
+   own overflow did the cutting, which paints a clipped ellipsis and offers
+   no way to read what was cut. `flex w-full` lets the inner truncate do the
+   job it was written for, and the title carries the full name. */
 const NameCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
   data ? (
-    <span className="inline-flex items-center gap-2 min-w-0">
+    <span className="flex w-full items-center gap-2 min-w-0" title={`${data.ticker} — ${tickerName(data.ticker)}`}>
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
