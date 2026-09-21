@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { PinpointPageSkeleton } from './pinpointSkeletons';
+import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, X } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
@@ -80,7 +81,55 @@ const Fact = ({ label, children, title, testId }: { label: string; children: Rea
   </div>
 );
 
+/*
+  WHOSE BOOK THE SIGN IS ABOUT — the one sentence that separates a terminal
+  asserting levels from one asserting a model.
+
+  The convention was stated correctly in the code (components/gex/heatmap.ts
+  has carried "positive = put-dominant = dealers short gamma = AMPLIFY"
+  since it was written) and nowhere a reader could see it. A number whose
+  sign flips meaning depending on whose position you are describing is the
+  single easiest thing to misread on this desk, and the products that read
+  as serious are the ones that print the inversion rather than assuming it.
+
+  And what these levels are NOT, at the same size as what they are. A wall
+  is where exposure concentrates. It is not a promise.
+*/
+const SignGuide = () => (
+  <div className="flex flex-col gap-3 text-[12px] leading-relaxed text-textSecondary">
+    <p>
+      Every exposure figure on this desk is <span className="text-textPrimary">dealer</span> exposure — what
+      the people on the other side of the public&apos;s options are holding, not what the public is.
+      The two are opposites, and the sign is where that bites.
+    </p>
+    <dl className="flex flex-col gap-2">
+      <div className="flex gap-3">
+        <dt className="w-[92px] shrink-0 font-mono text-[10px] uppercase tracking-widest text-bull pt-0.5">Positive</dt>
+        <dd>Dealers are <span className="text-textPrimary">long gamma</span> here. Hedging works against the move — they sell into strength and buy weakness, which damps it. Price tends to stick.</dd>
+      </div>
+      <div className="flex gap-3">
+        <dt className="w-[92px] shrink-0 font-mono text-[10px] uppercase tracking-widest text-bear pt-0.5">Negative</dt>
+        <dd>Dealers are <span className="text-textPrimary">short gamma</span>. Hedging runs WITH the move — they sell into weakness and buy strength, which feeds it. Price tends to travel.</dd>
+      </div>
+      <div className="flex gap-3">
+        <dt className="w-[92px] shrink-0 font-mono text-[10px] uppercase tracking-widest text-textMuted pt-0.5">The flip</dt>
+        <dd>Where the aggregate crosses zero — the price at which that behaviour reverses.</dd>
+      </div>
+    </dl>
+    <p className="pt-1 border-t border-borderSubtle">
+      <span className="text-textPrimary">And what these are not.</span> A wall is the strike where exposure
+      concentrates, which is a fact about positioning — not a guarantee of support, not a resistance
+      level, not a price target, and not evidence that anyone is defending it. Size shows where the
+      hedging pressure sits. It does not say the pressure wins.
+    </p>
+    <p className="text-[11px] text-textMuted">
+      Computed here from the chain rather than supplied by a feed — the chip on each panel says which.
+    </p>
+  </div>
+);
+
 const PinpointLayout = () => {
+  const [signOpen, setSignOpen] = useState(false);
   const { activeTicker, marketData, flowTape } = useMarketData();
   const { focus, clearFocus } = useFocus();
   /* Alerts are watched by the app shell on every page now (components/alerts/AlertWatcher.tsx, 2026-09-10) */
@@ -131,6 +180,10 @@ const PinpointLayout = () => {
       {/* THE FRAME OWNS THE SUBJECT AND THE PAGES (direction B, 2026-09-05): the
           sidebar carries the ticker and the Map · Ahead · … choice, so this head
           no longer repeats them. It names the page and reads the market. */}
+      <GuideFocus open={signOpen} onClose={() => setSignOpen(false)} title="Reading dealer exposure" testId="pinpoint-sign" width={520}>
+        <SignGuide />
+      </GuideFocus>
+
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
@@ -138,6 +191,7 @@ const PinpointLayout = () => {
               <PageIcon className="w-3.5 h-3.5" />
             </span>
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
+            <GuideDoor open={signOpen} onClick={() => setSignOpen(v => !v)} title="What the sign means, and what these levels are not" testId="pinpoint-sign" />
             {focused != null && (
               <span data-focus-chip className="inline-flex items-center gap-2 rounded-md border border-silver/40 bg-silver/[0.06] pl-2.5 pr-1 py-0.5 font-mono">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-silver">Focus</span>
