@@ -42,17 +42,16 @@ import { useNavigate } from 'react-router-dom';
 import {
   Activity, ArrowUpRight, Bell, BellOff, Code2, Crosshair, Crown, Droplets, Layers, MoveHorizontal, Newspaper, Repeat, RotateCcw, X,
   type LucideIcon,
-  Plus,
 } from 'lucide-react';
 import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import CompanyLogo from '../ui/CompanyLogo';
+import NewAlert from './NewAlert';
 import {
-  MAX_ALERTS, armGexFlip, armNewSupreme, armPrice, clearAlerts, clearFiredLog, firedWords, markSeenAll,
+  MAX_ALERTS, clearAlerts, clearFiredLog, firedWords, markSeenAll,
   rearmFromRecord, removeAlert, useAllAlerts, waitingWords, type Alert, type AlertKind, type FiredRecord,
 } from '../gex/alertStore';
-import { spotOf } from '../../core/paper/market';
 import { ALERT, alpha } from '../gex/paletteInk';
 import { closeAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
 import { Name } from '../ui/Name';
@@ -373,96 +372,5 @@ const AlertsDrawer = () => {
   or an indicator alert without the pane it is read off would be a guess
   at what the reader meant, so those stay where they can be pointed at.
 */
-type NewKind = 'price' | 'gexflip' | 'supreme';
-
-const NEW_KINDS: DropdownOption<NewKind>[] = [
-  { value: 'price', label: 'Price', hint: 'When it crosses a level you name' },
-  { value: 'gexflip', label: 'Gamma flip', hint: 'When dealer gamma changes sign' },
-  { value: 'supreme', label: 'New supreme', hint: 'When a new heaviest strike takes over' },
-];
-
-const NewAlert = ({ onRefused }: { onRefused: (s: string) => void }) => {
-  const [open, setOpen] = useState(false);
-  const [ticker, setTicker] = useState('');
-  const [kind, setKind] = useState<NewKind>('price');
-  const [price, setPrice] = useState('');
-
-  const sym = ticker.trim().toUpperCase();
-  const spot = sym ? spotOf(sym) : null;
-  const ready = sym.length > 0 && (kind !== 'price' || Number(price) > 0);
-
-  const set = () => {
-    if (!ready) return;
-    let made: Alert | null = null;
-    if (kind === 'price') {
-      /* The side an alert has to be crossed from is fixed at arming, off the
-         spot — so a name the feed has not seeded cannot arm a price alert
-         without the terminal inventing which way it meant. It says so. */
-      if (spot == null) { onRefused(`No price for ${sym} yet — open it once and try again.`); return; }
-      made = armPrice(sym, Number(price), spot);
-    } else if (kind === 'gexflip') made = armGexFlip(sym);
-    else made = armNewSupreme(sym);
-
-    if (!made) { onRefused(`${sym} already has that one, or is at its ${MAX_ALERTS}.`); return; }
-    onRefused('');
-    setPrice('');
-    setOpen(false);
-  };
-
-  if (!open) {
-    return (
-      <div className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/70">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="w-full h-7 inline-flex items-center justify-center gap-1.5 rounded-md border border-borderSubtle text-[11px] font-semibold text-textPrimary hover:border-borderMuted transition-colors"
-          data-alerts-new
-        >
-          <Plus className="w-3 h-3" aria-hidden="true" />
-          Set one from here
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="shrink-0 px-3.5 py-2.5 border-t border-borderSubtle/70 flex flex-col gap-2" data-alerts-new-form>
-      <div className="flex items-center gap-1.5">
-        <input
-          value={ticker}
-          onChange={e => setTicker(e.target.value.slice(0, 8))}
-          placeholder="Ticker"
-          aria-label="Ticker"
-          autoFocus
-          className="w-[86px] h-7 px-2 rounded border border-borderSubtle bg-inputBg font-mono text-[11px] font-semibold uppercase text-textPrimary placeholder:text-textMuted placeholder:font-normal placeholder:normal-case outline-none focus:border-silver/60"
-        />
-        <DropdownSelect<NewKind> label="Kind" value={kind} options={NEW_KINDS} onChange={setKind} title="What to watch" testId="alerts-new-kind" align="start" />
-      </div>
-      {kind === 'price' && (
-        <div className="flex items-center gap-1.5">
-          <input
-            value={price}
-            onChange={e => setPrice(e.target.value)}
-            inputMode="decimal"
-            placeholder="Price"
-            aria-label="Price"
-            className="flex-1 h-7 px-2 rounded border border-borderSubtle bg-inputBg font-mono text-[11px] tnum text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60"
-          />
-          {spot != null && (
-            <span className="font-mono text-[9px] text-textMuted whitespace-nowrap">now {spot.toFixed(2)}</span>
-          )}
-        </div>
-      )}
-      <div className="flex items-center gap-1.5">
-        <button type="button" onClick={set} disabled={!ready} className="flex-1 h-7 rounded-md border border-borderMuted text-[11px] font-semibold text-textPrimary hover:bg-ink/[0.05] transition-colors" data-alerts-new-set>
-          Set it
-        </button>
-        <button type="button" onClick={() => { setOpen(false); onRefused(''); }} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary transition-colors">
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export default AlertsDrawer;

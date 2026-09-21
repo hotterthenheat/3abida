@@ -18,6 +18,7 @@
 import { useSyncExternalStore } from 'react';
 import { armNews, getAlerts, removeAlert } from '../components/gex/alertStore';
 import { DEFAULT_BOARD_NAMES } from './boardNames';
+import { syncAcrossTabs } from './crossTab';
 
 const KEY = 'slayer_news_follows';
 
@@ -56,6 +57,14 @@ function load(): NewsFollow[] {
 
 let current: NewsFollow[] = load();
 const listeners = new Set<() => void>();
+/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The store
+   above reads storage once and writes the whole object back, so without
+   this a second tab silently overwrites the first one's work. */
+syncAcrossTabs(KEY, () => {
+  current = load();
+  for (const l of listeners) l();
+});
+
 const commit = (next: NewsFollow[]) => {
   current = next;
   try {

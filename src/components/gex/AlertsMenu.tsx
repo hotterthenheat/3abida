@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   MAX_ALERTS, armFlow, armGexFlip, armIndicator, armLevel, armNews, armNewSupreme,
-  armPrice, armWallMove, removeAlert, useAlerts,
+  armPrice, armWallMove, priceAlertProblem, removeAlert, useAlerts,
   type Alert, type IndicatorSource, type LevelName,
 } from './alertStore';
 import { ALERT, alpha } from './paletteInk';
@@ -99,16 +99,18 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
 
   const submit = () => {
     const price = Number(draft.trim());
-    if (!Number.isFinite(price) || price <= 0) {
-      setRefused('That is not a price');
-      return;
-    }
-    if (full) {
-      setRefused(capMsg);
+    /* THE STORE SAYS WHICH THING WENT WRONG. This used to guess — anything
+       that was not "not a number" and not "the pane is full" was reported as
+       "there is already an alert there", which was wrong every time the real
+       problem was the number: 999999999 on a $500 name armed nothing and
+       explained nothing. */
+    const why = priceAlertProblem(ticker, price, spot);
+    if (why) {
+      setRefused(why);
       return;
     }
     if (!armPrice(ticker, price, spot)) {
-      setRefused('There is already an alert there');
+      setRefused(capMsg);
       return;
     }
     setDraft('');

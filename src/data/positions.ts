@@ -36,6 +36,7 @@ import { expiryFor, isoDate, sessionsBetween, today } from '../core/calendar';
 import { SLEEVE_BY_KEY } from '../types/compass';
 import type { ExposureProfileData } from '../types/gex';
 import type { TrackedSetup } from '../types/tracker';
+import { syncAcrossTabs } from './crossTab';
 
 export type Right = 'C' | 'P';
 export type Side = 'long' | 'short';
@@ -91,6 +92,14 @@ function load(): Position[] {
 
 let positions: Position[] = load();
 const listeners = new Set<() => void>();
+/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The store
+   above reads storage once and writes the whole object back, so without
+   this a second tab silently overwrites the first one's work. */
+syncAcrossTabs(KEY, () => {
+  positions = load();
+  listeners.forEach(l => l());
+});
+
 
 function commit(next: Position[]): void {
   positions = next;

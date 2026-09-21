@@ -9,6 +9,7 @@ import {
   clearAlerts, clearFiredLog, firedWords, markSeenAll, rearmFromRecord, removeAlert,
   useAllAlerts, waitingWords, type Alert, type FiredRecord,
 } from '../../components/gex/alertStore';
+import NewAlert from '../../components/alerts/NewAlert';
 import { spotOf } from '../../core/paper/market';
 
 /*
@@ -93,6 +94,12 @@ const NameHead = ({ ticker, count, onClear }: { ticker: string; count: number; o
 const Alerts = () => {
   const names = useAllAlerts();
   const [shelf, setShelf] = useState<Shelf>('set');
+  /* THE DESK COULD MANAGE ALERTS AND NOT MAKE ONE. Setting an alert meant
+     leaving this page, finding the name, opening its pane and using a menu
+     — so the surface that exists to manage alerts was the one surface that
+     could not arm one. Same form the bell's rail carries, laid out on a
+     line, so the two refuse for the same reasons in the same words. */
+  const [refused, setRefused] = useState('');
 
   const waiting = useMemo(
     () => names.map(n => ({ ticker: n.ticker, alerts: n.alerts.filter(a => a.firedAt === 0) })).filter(n => n.alerts.length > 0),
@@ -165,6 +172,15 @@ const Alerts = () => {
         </span>
       </div>
 
+      <div className="flex flex-col gap-1.5" data-alerts-create>
+        <NewAlert layout="row" onRefused={setRefused} onArmed={() => setShelf('set')} />
+        {refused && (
+          <p role="status" className="font-mono text-[10px] text-bear" data-alerts-refused>
+            {refused}
+          </p>
+        )}
+      </div>
+
       {empty ? (
         <div className="border border-borderSubtle rounded-md px-3 py-12 flex flex-col items-center gap-2" data-alerts-empty>
           <BellOff className="w-6 h-6 text-textMuted" aria-hidden="true" />
@@ -174,7 +190,7 @@ const Alerts = () => {
           <p className="text-[11px] text-textMuted text-center max-w-sm">
             {shelf === 'alerted'
               ? 'Alerts that go off while this tab is open land here, newest first.'
-              : 'Set one from the bell in the sidebar, or from the surface that shows the thing — a price off the chart, a wall off the levels.'}
+              : 'Set one above, from the bell in the sidebar, or from the surface that shows the thing — a price off the chart, a wall off the levels.'}
           </p>
         </div>
       ) : (

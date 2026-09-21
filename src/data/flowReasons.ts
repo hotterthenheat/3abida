@@ -34,6 +34,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 import type { BookContract } from '../types/trace';
+import { syncAcrossTabs } from './crossTab';
 
 // ---- the vocabulary ---------------------------------------------------------
 
@@ -404,6 +405,14 @@ const save = (list: UserReason[]) => {
    so a fresh array per read would re-render forever. */
 let cache: UserReason[] | null = null;
 const subs = new Set<() => void>();
+/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The cache
+   above is read once and written whole, so without this a second tab
+   silently overwrites the first one's work. */
+syncAcrossTabs(STORE_KEY, () => {
+  cache = load();
+  subs.forEach(fn => fn());
+});
+
 
 export const getReasons = (): UserReason[] => {
   if (!cache) cache = load();

@@ -126,14 +126,43 @@ export function setActiveList(id: string): void {
 let seq = 0;
 const freshId = () => `wl-${Date.now().toString(36)}-${++seq}`;
 
-export function createList(name: string): string {
+/** The cleaned name, or null when it is empty. */
+const cleanName = (name: string): string | null => {
+  const n = name.trim().slice(0, 32);
+  return n.length > 0 ? n : null;
+};
+
+/**
+ * Is this name already taken, ignoring one list (the one being renamed)?
+ *
+ * A LIST IS PICKED BY ITS NAME. The strip, the dropdown and every "add to a
+ * list" menu in the terminal show nothing but it, so two lists called
+ * "Swing" are two identical rows a reader has to pick between by guessing —
+ * and the one they meant is decided by which the store happened to order
+ * first. Case does not count, because a strip showing "Swing" and "swing"
+ * is the same problem with an extra insult.
+ */
+export const listNameTaken = (name: string, exceptId?: string): boolean => {
+  const n = cleanName(name)?.toLowerCase();
+  if (n == null) return false;
+  return state.lists.some(l => l.id !== exceptId && l.name.toLowerCase() === n);
+};
+
+/** The new list's id, or null when the name is empty or already in use. */
+export function createList(name: string): string | null {
+  const n = cleanName(name);
+  if (n == null || listNameTaken(n)) return null;
   const id = freshId();
-  commit({ lists: [...state.lists, { id, name: name.trim().slice(0, 32) || 'Untitled', symbols: [] }], activeId: id });
+  commit({ lists: [...state.lists, { id, name: n, symbols: [] }], activeId: id });
   return id;
 }
 
-export function renameList(id: string, name: string): void {
-  commit({ ...state, lists: state.lists.map(l => (l.id === id ? { ...l, name: name.trim().slice(0, 32) || l.name } : l)) });
+/** False when the name is empty, unchanged or already in use. */
+export function renameList(id: string, name: string): boolean {
+  const n = cleanName(name);
+  if (n == null || listNameTaken(n, id)) return false;
+  commit({ ...state, lists: state.lists.map(l => (l.id === id ? { ...l, name: n } : l)) });
+  return true;
 }
 
 /** The last list cannot be removed — a reader with none has no way back. */

@@ -7,7 +7,7 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import { useMarketData } from '../../context/MarketDataContext';
 import {
-  addSymbol, createList, moveSymbol, removeList, removeSymbol, renameList, setActiveList, useWatchlists,
+  addSymbol, createList, listNameTaken, moveSymbol, removeList, removeSymbol, renameList, setActiveList, useWatchlists,
 } from '../../data/watchlists';
 import { onWake, wakeSymbol, watchRow, type WatchRow } from '../../data/watchRow';
 import type { HeatPatternKey } from '../../types/gex';
@@ -137,6 +137,35 @@ const Watchlist = () => {
   const [adding, setAdding] = useState('');
   const [said, setSaid] = useState('');
   const [tick, setTick] = useState(0);
+  /* Naming a list, inline — see the form in the bar below for why it is not
+     a `window.prompt` any more. */
+  const [naming, setNaming] = useState<'new' | 'rename' | null>(null);
+  const [draft, setDraft] = useState('');
+
+  const startNaming = (mode: 'new' | 'rename'): void => {
+    setNaming(mode);
+    setDraft(mode === 'rename' ? (list?.name ?? '') : '');
+    setSaid('');
+  };
+  const stopNaming = (): void => {
+    setNaming(null);
+    setDraft('');
+    setSaid('');
+  };
+  const commitName = (): void => {
+    const n = draft.trim();
+    if (n.length === 0) return;
+    if (naming === 'rename') {
+      if (!list) return;
+      if (n.toLowerCase() === list.name.toLowerCase()) { stopNaming(); return; }
+      if (listNameTaken(n, list.id)) { setSaid(`There is already a list called ${n}.`); return; }
+      renameList(list.id, n);
+    } else {
+      if (listNameTaken(n)) { setSaid(`There is already a list called ${n}.`); return; }
+      createList(n);
+    }
+    stopNaming();
+  };
 
   /* One tick drives every row — the prices move, the levels are memoised
      behind them, and a name that finishes seeding announces itself. */
@@ -215,14 +244,45 @@ const Watchlist = () => {
             <Plus className="w-3.5 h-3.5" />
           </button>
         </span>
-        <button type="button" onClick={() => { const n = window.prompt('Name the list'); if (n) createList(n); }} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-watch-new-list>
-          New list
-        </button>
+        {/* AN INLINE FIELD, NOT `window.prompt`. Every other name in this
+            terminal is typed into the page — the saved cut, the desk, the
+            alert — and a browser prompt is the one control that cannot be
+            styled, cannot say why it refused, and is blocked outright in
+            some embeddings. It also had nowhere to put "that name is
+            already taken", so two lists called Swing were simply made. */}
+        {naming ? (
+          <span className="inline-flex items-center gap-1" data-watch-name-form>
+            <input
+              value={draft}
+              onChange={e => { setDraft(e.target.value.slice(0, 32)); setSaid(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') stopNaming(); }}
+              placeholder={naming === 'rename' ? 'New name' : 'Name the list'}
+              aria-label={naming === 'rename' ? 'Rename the list' : 'Name the new list'}
+              autoFocus
+              className="w-[150px] h-7 px-2 rounded-md border border-borderSubtle bg-inputBg text-[11px] text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60"
+              data-watch-name-input
+            />
+            <button type="button" onClick={commitName} disabled={draft.trim().length === 0} className="h-7 px-2.5 rounded-md border border-borderMuted text-[11px] font-semibold text-textPrimary hover:bg-ink/[0.05] disabled:opacity-40 transition-colors" data-watch-name-save>
+              {naming === 'rename' ? 'Rename' : 'Create'}
+            </button>
+            <button type="button" onClick={stopNaming} className="h-7 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary transition-colors">
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <>
+            <button type="button" onClick={() => startNaming('new')} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-watch-new-list>
+              New list
+            </button>
+            {list && (
+              <button type="button" onClick={() => startNaming('rename')} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-watch-rename>
+                Rename
+              </button>
+            )}
+          </>
+        )}
         {list && (
           <>
-            <button type="button" onClick={() => { const n = window.prompt('Rename the list', list.name); if (n) renameList(list.id, n); }} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
-              Rename
-            </button>
             {/* THE SECOND CLICK (ui/ConfirmButton). One click used to take a
                 list and up to a hundred names with it, with nothing asked and
                 nothing to undo — and the empty state promises that every name

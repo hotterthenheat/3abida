@@ -17,6 +17,7 @@
 */
 
 import { useSyncExternalStore } from 'react';
+import { syncAcrossTabs } from './crossTab';
 
 const KEY = 'slayer_board_names';
 
@@ -49,6 +50,14 @@ function load(): string[] {
 
 let current: string[] = load();
 const listeners = new Set<() => void>();
+/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The store
+   above reads storage once and writes the whole object back, so without
+   this a second tab silently overwrites the first one's work. */
+syncAcrossTabs(KEY, () => {
+  current = load();
+  for (const l of listeners) l();
+});
+
 
 const commit = (next: string[]) => {
   current = next;

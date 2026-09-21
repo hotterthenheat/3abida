@@ -73,7 +73,18 @@ const PaperToasts = ({ muted = false }: { muted?: boolean }) => {
   });
   if (shown.length === 0) return null;
   return (
-    <div className="fixed top-[52px] right-3 z-[86] flex flex-col items-end gap-1.5 pointer-events-none" aria-live="polite" aria-label="Paper fills" data-paper-toasts>
+    /* A REJECTION IS NOT A FILL, and a screen reader waiting for a pause is
+       the wrong behaviour for "that order did not go". The region is polite
+       while the desk is only reporting, and assertive the moment one of the
+       chips is a refusal — one region either way, because a role="alert"
+       nested inside a polite region gets announced twice. */
+    <div
+      className="fixed top-[52px] right-3 z-[86] flex flex-col items-end gap-1.5 pointer-events-none"
+      role="status"
+      aria-live={shown.some(t => t.kind === 'reject') ? 'assertive' : 'polite'}
+      aria-label="Paper fills"
+      data-paper-toasts
+    >
       {shown.map(t => (
         <div key={t.id} className="shell-toast inline-flex items-center gap-2 h-7 pl-2.5 pr-3 rounded-md border bg-canvas/85 backdrop-blur-md backdrop-saturate-150 shadow-lg shadow-black/40 font-mono text-[11px] select-none" style={{ color: INK[t.kind], borderColor: `color-mix(in srgb, ${INK[t.kind]} 50%, transparent)` }} data-paper-toast={t.kind}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: INK[t.kind] }} aria-hidden />

@@ -37,6 +37,7 @@
 import { useSyncExternalStore } from 'react';
 import { futureInstrument, stockInstrument, type Instrument } from './instruments';
 import type { Timeframe } from '../../data/timeframe';
+import { syncAcrossTabs } from '../../data/crossTab';
 
 export type PaneLayout = '1' | '2h' | '2v' | '3' | '4';
 
@@ -134,6 +135,14 @@ function load(): Workspace {
 
 let ws: Workspace = load();
 const listeners = new Set<() => void>();
+/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The store
+   above reads storage once and writes the whole object back, so without
+   this a second tab silently overwrites the first one's work. */
+syncAcrossTabs(KEY, () => {
+  ws = load();
+  listeners.forEach(fn => fn());
+});
+
 const subscribe = (fn: () => void) => {
   listeners.add(fn);
   return () => {

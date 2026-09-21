@@ -43,11 +43,17 @@ const FOOTER_COLS = [
     ],
   },
   {
+    /* BOTH OF THESE POINTED AT `/`. "Launch Terminal" sent a reader on the
+       landing page back to the landing page, and in-app it sent them OUT of
+       the terminal they were already in; "Log in / Sign up" pointed at the
+       same nowhere and promised an account system this build does not have,
+       which is the fake functionality the house rule exists to keep out.
+       The column now carries the three doors that are real. */
     title: 'Access',
     links: [
-      { label: 'Launch Terminal', to: '/' },
-      { label: 'Log in / Sign up', to: '/' },
-      { label: 'Pulse', to: '/pulse' },
+      { label: 'Launch Terminal', to: '/pulse' },
+      { label: 'Settings', to: '/settings' },
+      { label: 'Data sources', to: '/settings/sources' },
     ],
   },
 ];

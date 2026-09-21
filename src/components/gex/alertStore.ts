@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
+
 /*
 ==================================================
   SLAYER TERMINAL - ALERTS (gex/alertStore.ts)
@@ -192,6 +193,9 @@ const isSide = (v: unknown): v is -1 | 0 | 1 => v === -1 || v === 0 || v === 1;
 const isFin = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 const storageKey = (ticker: string) => `slayer_price_alerts_${ticker}`;
+const KEY_PREFIX = 'slayer_price_alerts_';
+/** Which name a storage key belongs to, or null when it is not one of ours. */
+const tickerOfKey = (key: string): string | null => (key.startsWith(KEY_PREFIX) ? key.slice(KEY_PREFIX.length) : null);
 
 /** Heals what it can, drops what it cannot. A pre-kinds entry (price/above
     and no `kind`) becomes a price alert rather than being thrown away. */
@@ -272,6 +276,29 @@ const save = (ticker: string, list: Alert[]) => {
    identity, so returning a fresh array each read would re-render forever. */
 const cache = new Map<string, Alert[]>();
 const subs = new Map<string, Set<() => void>>();
+/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The cache
+   above is read once and written whole, so without this a second tab
+   silently overwrites the first one's work — and A KEY PER NAME means the listener cannot just re-read "the"
+   store: it drops the cached copy of whichever name was written — or all
+   of them on a `clear()`, which arrives with a null key — and tells that
+   name's subscribers. `syncAcrossTabs` filters by ONE key, and there are
+   as many keys here as there are names, so this one listens raw. */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', e => {
+    if (e.key === null) {
+      const names = [...cache.keys()];
+      cache.clear();
+      for (const t of names) subs.get(t)?.forEach(fn => fn());
+      bumpAll();
+      return;
+    }
+    const ticker = tickerOfKey(e.key);
+    if (ticker == null) return;
+    cache.delete(ticker);
+    subs.get(ticker)?.forEach(fn => fn());
+    bumpAll();
+  });
+}
 
 const read = (ticker: string): Alert[] => {
   let list = cache.get(ticker);
@@ -311,10 +338,48 @@ const arm = (ticker: string, make: () => Alert, same: (a: Alert) => boolean): Al
   return alert;
 };
 
+/**
+ * How far from spot a price alert is still an alert.
+ *
+ * A NUMBER IS NOT A PRICE. The form took anything positive, so 999999999 on
+ * a $500 name armed happily and waited for a two-million-fold rally, and
+ * 0.0000001 armed too and rendered in the list as "0.00" — a row that reads
+ * as a rendering fault rather than as the typo it is. Twenty times either
+ * way is far wider than any thesis a price alert is used for and still
+ * catches a fat finger on the keypad, and the floor is a cent because a
+ * cent is the smallest price anything here quotes in.
+ */
+export const ALERT_BAND = 20;
+export const MIN_ALERT_PRICE = 0.01;
+
+/**
+ * Why a price alert would be refused, in words, or null when it would take.
+ *
+ * SEPARATE FROM ARMING because a form has to say which of four things went
+ * wrong. `armPrice` returning null told every caller the same story — "that
+ * one is already set, or this name is at its eight" — which is a lie three
+ * times out of four and leaves a reader retyping a price that was never
+ * going to be accepted.
+ */
+export function priceAlertProblem(ticker: string, price: number, spot: number): string | null {
+  if (!isFin(price) || price <= 0) return 'That is not a price.';
+  if (!isFin(spot) || spot <= 0) return `No price for ${ticker} yet — open it once and try again.`;
+  if (price < MIN_ALERT_PRICE) return `A cent is the smallest price ${ticker} quotes in.`;
+  if (price > spot * ALERT_BAND || price < spot / ALERT_BAND) {
+    return `${ticker} is at ${spot.toFixed(2)} — ${price} is too far away to be watching for.`;
+  }
+  const list = read(ticker);
+  if (list.some(a => a.kind === 'price' && Math.abs(a.price - price) < 1e-9)) return `${ticker} already has an alert at ${price}.`;
+  if (list.length >= MAX_ALERTS) return `${ticker} is already carrying its ${MAX_ALERTS} alerts.`;
+  return null;
+}
+
 /** `spot` fixes which way the alert has to be crossed. Refused if it is not a
-    real number, or a duplicate, or the pane is already carrying its most. */
+    real number, or outside the band above, or a duplicate, or the pane is
+    already carrying its most. */
 export function armPrice(ticker: string, price: number, spot: number): Alert | null {
-  if (!isFin(price) || price <= 0 || !isFin(spot)) return null;
+  if (!isFin(price) || price <= 0 || !isFin(spot) || spot <= 0) return null;
+  if (price < MIN_ALERT_PRICE || price > spot * ALERT_BAND || price < spot / ALERT_BAND) return null;
   return arm(
     ticker,
     () => ({ id: freshId(), kind: 'price', price, above: price > spot, firedAt: 0 }),
