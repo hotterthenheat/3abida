@@ -33,11 +33,16 @@ import {
   reversePosition,
   addToPosition,
   setFillModel,
+  isLive,
+  setStop,
+  setTarget,
   cancelAll,
   flattenAll,
 } from '../src/core/paper/engine';
-import { stockInstrument, optionInstrument } from '../src/core/paper/instruments';
+import { stockInstrument, optionInstrument, roundToTick } from '../src/core/paper/instruments';
+import { readPlan, readLevel, ticksBetween, isStopSide, isTargetSide } from '../src/core/paper/brackets';
 import { statsOf } from '../src/core/paper/analytics';
+import { bookRisk } from '../src/core/paper/risk';
 import type { Quote } from '../src/core/paper/market';
 
 let pass = 0;
@@ -278,6 +283,160 @@ section('nothing is NaN');
   const m2 = markPosition(positionFor(SPY.id)!, undefined);
   for (const [k, v] of Object.entries(m2)) ok(Number.isFinite(v), `unquoted mark.${k} is a number`, v);
   near(m2.unrealized, 0, 1e-9, 'an unquoted position is flat, not NaN');
+  fresh();
+}
+
+/* ============================ PROTECTION ==================================== */
+
+section('the stop and the target');
+{
+  fresh();
+  onQuotes([q(100)]);
+  submitOrder({ instrument: SPY, side: 'buy', qty: 10, type: 'market', source: 'ticket' });
+  setStop(SPY.id, 95);
+  setTarget(SPY.id, 110);
+  let live = getPaperState().orders.filter(o => isLive(o) && o.instrumentId === SPY.id);
+  ok(live.length === 2, 'a stop and a target are working', live.map(o => o.role));
+  ok(live.every(o => o.side === 'sell'), 'both protect a long by selling', live.map(o => o.side));
+  ok(live.every(o => o.reduceOnly), 'and neither can open anything');
+  ok(new Set(live.map(o => o.ocoGroup)).size === 1, 'they are one OCO pair', live.map(o => o.ocoGroup));
+  ok(live.every(o => o.qty === 10), 'both cover the whole position', live.map(o => o.qty));
+
+  /* SCALE OUT AND THE PROTECTION FOLLOWS. A full-size stop left working
+     against half a position is an order that will flip the reader short the
+     moment it triggers. */
+  closePosition(SPY.id, 0.5);
+  live = getPaperState().orders.filter(o => isLive(o) && o.instrumentId === SPY.id);
+  ok(live.length === 2, 'both legs survive a scale-out', live.length);
+  ok(live.every(o => o.qty - o.filledQty === 5), 'and both are cut to the size left', live.map(o => o.qty));
+
+  /* ONE FILLS, THE OTHER GOES. */
+  onQuotes([q(112)]);
+  live = getPaperState().orders.filter(o => isLive(o) && o.instrumentId === SPY.id);
+  ok(live.length === 0, 'the target filled and took the stop with it', live.map(o => `${o.role} ${o.status}`));
+  ok(positionFor(SPY.id) === null, 'and the position is closed');
+  const killed = getPaperState().orders.filter(o => o.instrumentId === SPY.id && o.role === 'stop');
+  ok(killed.every(o => o.status === 'canceled' || o.status === 'filled'), 'no orphan leg is left working', killed.map(o => o.status));
+
+  /* THE SHORT IS THE MIRROR: the stop is ABOVE and the target BELOW. */
+  fresh();
+  onQuotes([q(100)]);
+  submitOrder({ instrument: SPY, side: 'sell', qty: 4, type: 'market', source: 'ticket' });
+  setStop(SPY.id, 105);
+  setTarget(SPY.id, 90);
+  const sh = getPaperState().orders.filter(o => isLive(o) && o.instrumentId === SPY.id);
+  ok(sh.every(o => o.side === 'buy'), 'a short is protected by buying', sh.map(o => o.side));
+  ok(sh.find(o => o.role === 'stop')!.stopPrice! > 100, "the short's stop is above it");
+  ok(sh.find(o => o.role === 'target')!.limitPrice! < 100, "the short's target is below it");
+  onQuotes([q(89)]);
+  ok(positionFor(SPY.id) === null, 'the target covered the short');
+  ok(getPaperState().orders.filter(o => isLive(o) && o.instrumentId === SPY.id).length === 0, 'and took the stop with it');
+
+  /* A POSITION THAT CLOSES BY HAND TAKES ITS CHILDREN. */
+  fresh();
+  onQuotes([q(100)]);
+  submitOrder({ instrument: SPY, side: 'buy', qty: 4, type: 'market', source: 'ticket' });
+  setStop(SPY.id, 95);
+  setTarget(SPY.id, 110);
+  closePosition(SPY.id, 1);
+  ok(getPaperState().orders.filter(o => isLive(o) && o.instrumentId === SPY.id).length === 0, 'closing by hand leaves nothing working');
+  fresh();
+}
+
+section('the plan the HUD prints');
+{
+  // A long: target above, stop below, and two-to-one is 2.00 R.
+  const long = readPlan(SPY, 100, 110, 95, 10, 'buy');
+  near(long.reward.pnl, 100, 1e-9, 'a long makes ten points on ten shares');
+  near(long.risk.pnl, -50, 1e-9, 'and risks five');
+  near(long.rr, 2, 1e-9, 'which is two R');
+  ok(long.rrWords === '2.00 R', 'printed as R', long.rrWords);
+  // A short is the mirror: target BELOW, stop ABOVE.
+  const short = readPlan(SPY, 100, 90, 105, 10, 'sell');
+  near(short.reward.pnl, 100, 1e-9, 'a short makes ten points falling');
+  near(short.risk.pnl, -50, 1e-9, 'and risks five rising');
+  near(short.rr, 2, 1e-9, 'same two R');
+  // A stop on the entry is not a ratio.
+  const flat = readPlan(SPY, 100, 110, 100, 10, 'buy');
+  ok(!Number.isFinite(flat.rr) && flat.rrWords === '—', 'a stop on the entry has no R', flat.rrWords);
+
+  near(ticksBetween(SPY, 100, 100.05), 5, 0, 'ticks are counted, not guessed');
+  near(ticksBetween(SPY, 100.05, 100), 5, 0, 'and are always positive');
+  ok(isStopSide(10, 100, 95) && !isStopSide(10, 100, 105), "a long's stop is under it");
+  ok(isStopSide(-10, 100, 105) && !isStopSide(-10, 100, 95), "a short's stop is over it");
+  ok(isTargetSide(10, 100, 105) && isTargetSide(-10, 100, 95), 'and the targets are the mirror');
+
+  const lvl = readLevel(SPY, { avgPrice: 100, qty: -10 }, 95);
+  near(lvl.pnl, 50, 1e-9, 'a level read off a SHORT position signs itself');
+  near(roundToTick(SPY, 100.017), 100.02, 1e-9, 'a price is rounded to the tick');
+  near(roundToTick(SPY, 100.014), 100.01, 1e-9, 'down as well as up');
+}
+
+/* ============================== THE RISK DESK =============================== */
+
+section('the book');
+{
+  fresh();
+  const QQQ = stockInstrument('QQQ');
+  onQuotes([q(100), q(400, QQQ.id)]);
+  submitOrder({ instrument: SPY, side: 'buy', qty: 10, type: 'market', source: 'ticket' });
+  submitOrder({ instrument: QQQ, side: 'sell', qty: 2, type: 'market', source: 'ticket' });
+
+  const r = bookRisk(getPaperState());
+  ok(r.legs.length === 2, 'both positions are legs of the book', r.legs.length);
+  ok(r.byUnderlying.length === 2, 'and two names', r.byUnderlying.map(u => u.underlying));
+  /* A SHARE IS A SHARE OF SOMETHING. If the denominator is not the same
+     gross the rows are measured against, the concentration panel reads as a
+     set of percentages that do not add up. */
+  const shares = r.byUnderlying.reduce((a, u) => a + u.share, 0);
+  near(shares, 1, 1e-9, 'the shares add to one');
+  ok(r.byUnderlying.every(u => u.share >= 0 && u.share <= 1), 'and none is outside it', r.byUnderlying.map(u => u.share));
+  ok(
+    r.byUnderlying.every((u, i) => i === 0 || Math.abs(u.deltaDollars) <= Math.abs(r.byUnderlying[i - 1].deltaDollars)),
+    'the names are ranked by weight'
+  );
+  near(r.concentration.topShare, r.byUnderlying[0].share, 1e-9, 'the top share is the top row');
+  ok(r.concentration.top === r.byUnderlying[0].underlying, 'and names it', r.concentration.top);
+  ok(r.concentration.names === 2, 'two names in the book', r.concentration.names);
+  /* THE HERFINDAHL IS BOUNDED. One name is 1; n equal names is 1/n. Two
+     unequal names must sit between a half and one, and a figure outside
+     that is an index measured against the wrong base. */
+  ok(r.concentration.herfindahl > 0.499 && r.concentration.herfindahl <= 1.0001, 'the Herfindahl is inside its own range', r.concentration.herfindahl);
+
+  near(r.totals.grossExposure, r.byUnderlying.reduce((a, u) => a + Math.abs(u.deltaDollars), 0), 1e-6, 'gross exposure is the rows summed');
+  near(r.totals.netDeltaDollars, r.legs.reduce((a, l) => a + l.deltaDollars, 0), 1e-6, 'net delta is the legs summed');
+  near(r.totals.unrealized, readAccount().unrealized, 0.01, 'the book and the account agree on unrealised');
+  near(r.totals.realized, getPaperState().account.realizedTotal, 0.01, 'and on realised');
+  // Shares long, so the delta is the share count and the dollars are the notional.
+  const spyLeg = r.legs.find(l => l.symbol === 'SPY')!;
+  near(spyLeg.delta, 10, 1e-9, 'ten shares is ten deltas');
+  near(spyLeg.deltaDollars, 1000, 1e-6, 'and a thousand dollars of it');
+  near(spyLeg.gammaDollars, 0, 1e-9, 'a share has no gamma');
+  const qqqLeg = r.legs.find(l => l.symbol === 'QQQ')!;
+  near(qqqLeg.delta, -2, 1e-9, 'a short is negative delta');
+
+  /* THE SCENARIO GRID. The flat cell is flat by construction, and a book
+     that is net long must lose on a down move and make on an up one. */
+  ok(r.grid.length === r.vols.length && r.grid.every(row => row.length === r.moves.length), 'the grid is vols by moves');
+  const flatIdx = r.moves.indexOf(0);
+  const flatVol = r.vols.indexOf(0);
+  near(r.grid[flatVol][flatIdx].pnl, 0, 0.01, 'no move and no vol shock is no P&L');
+  const row = r.grid[flatVol];
+  ok(row.every(c => Number.isFinite(c.pnl) && Number.isFinite(c.value)), 'every cell is a number', row.map(c => c.pnl));
+  ok(
+    row.every((c, i) => i === 0 || (r.totals.netDeltaDollars >= 0 ? c.pnl >= row[i - 1].pnl - 0.01 : c.pnl <= row[i - 1].pnl + 0.01)),
+    'the row runs the way the book is leaning',
+    row.map(c => Math.round(c.pnl))
+  );
+
+  // An empty book is an empty book, not a division.
+  fresh();
+  const none = bookRisk(getPaperState());
+  ok(none.legs.length === 0 && none.byUnderlying.length === 0, 'an empty book has no legs');
+  near(none.totals.grossExposure, 0, 1e-9, 'and no exposure');
+  near(none.concentration.herfindahl, 0, 1e-9, 'and no concentration');
+  ok(none.concentration.top === null, 'and nothing to name');
+  ok(none.grid.every(rr => rr.every(c => Number.isFinite(c.pnl))), 'and a grid of zeroes, not NaN');
   fresh();
 }
 

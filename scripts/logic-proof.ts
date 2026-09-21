@@ -29,6 +29,10 @@ import { statsOf, byDay, monthGrid, excursions, dayKeyOf } from '../src/core/pap
 import { pickWalls, pickFlip } from '../src/core/walls';
 import { isoDate, isTradingDay, sessionsBetween, expiryFor, futuresPhaseAt } from '../src/core/calendar';
 import { getCarry } from '../src/core/carry';
+import {
+  emaSeries, vwapSeries, rsiSeries, macdSeries, bollingerSeries, smaSeries, atrBarSeries, sessionStarts,
+} from '../src/data/indicators';
+import type { Candle } from '../src/types/market';
 import type { Trade } from '../src/core/paper/engine';
 
 let pass = 0;
@@ -546,6 +550,109 @@ section('calendar');
 
   const phases = [0, 3, 7, 10, 14, 17, 18, 20, 23].map(h => futuresPhaseAt(new Date(2026, 8, 22, h)));
   ok(phases.every(p => typeof p === 'string' && p.length > 0), 'every hour has a futures phase', phases);
+}
+
+/* ============================== INDICATORS ================================== */
+
+section('indicators');
+{
+  /* A SYNTHETIC TAPE WITH A KNOWN SHAPE. Every assertion below is a property
+     that holds for any bars — inside the high/low, no value before its own
+     warm-up, an oscillator inside its own range — because an indicator that
+     is merely plausible on one chart is the kind that is wrong on another. */
+  const MIN = 60_000;
+  const bars: Candle[] = [];
+  let px = 100;
+  for (let i = 0; i < 400; i++) {
+    px += Math.sin(i / 11) * 0.6 + Math.cos(i / 4) * 0.2;
+    const o = px;
+    const c = px + Math.sin(i / 3) * 0.3;
+    bars.push({ time: i * MIN, open: o, high: Math.max(o, c) + 0.25, low: Math.min(o, c) - 0.25, close: c, volume: 1000 + (i % 37) * 90 } as Candle);
+  }
+  const flat: Candle[] = Array.from({ length: 50 }, (_, i) => ({ time: i * MIN, open: 50, high: 50, low: 50, close: 50, volume: 100 }) as Candle);
+
+  for (const period of [9, 21, 50, 200]) {
+    const e = emaSeries(bars, period);
+    ok(e.length === bars.length, `ema${period} is one value per bar`, e.length);
+    ok(e.every(v => Number.isFinite(v)), `ema${period} carries no NaN`);
+    const lo = Math.min(...bars.map(b => b.low));
+    const hi = Math.max(...bars.map(b => b.high));
+    ok(e.every(v => v >= lo - 1e-6 && v <= hi + 1e-6), `ema${period} stays inside the tape`, { lo, hi });
+    near(emaSeries(flat, period).at(-1)!, 50, 1e-9, `ema${period} of a flat tape is the flat price`);
+    const s = smaSeries(bars, period);
+    ok(s.length === bars.length, `sma${period} is one value per bar`);
+    ok(s.slice(0, period - 1).every(v => v === null), `sma${period} says nothing before it has ${period} bars`);
+    ok(s.slice(period - 1).every(v => v !== null && Number.isFinite(v)), `sma${period} is a number after that`);
+    // The last SMA really is the mean of the last `period` closes.
+    const tail = bars.slice(-period).reduce((a, b) => a + b.close, 0) / period;
+    near(s.at(-1)!, tail, 1e-6, `sma${period} is the mean of its window`);
+  }
+
+  const v = vwapSeries(bars, 1);
+  ok(v.length === bars.length, 'vwap is one value per bar');
+  ok(v.every(x => Number.isFinite(x)), 'vwap carries no NaN');
+  ok(
+    v.every((x, i) => {
+      const lo = Math.min(...bars.slice(0, i + 1).map(b => b.low));
+      const hi = Math.max(...bars.slice(0, i + 1).map(b => b.high));
+      return x >= lo - 1e-6 && x <= hi + 1e-6;
+    }),
+    'vwap never leaves the range it has seen'
+  );
+  near(vwapSeries(flat, 1).at(-1)!, 50, 1e-9, 'vwap of a flat tape is the flat price');
+  ok(sessionStarts(bars, 1).length >= 1, 'the tape has at least one session start');
+  ok(sessionStarts([], 1).length === 0, 'an empty tape has none');
+
+  const r = rsiSeries(bars, 14);
+  ok(r.length === bars.length, 'rsi is one value per bar');
+  ok(r.slice(0, 14).every(x => x === null), 'rsi says nothing before it has 14 bars');
+  ok(r.slice(14).every(x => x !== null && x >= 0 && x <= 100), 'rsi stays inside nought and a hundred', r.slice(14).filter(x => x === null || x < 0 || x > 100).slice(0, 3));
+  /* A TAPE THAT ONLY RISES IS 100, AND ONE THAT ONLY FALLS IS 0 — the two
+     ends an oscillator has to reach, and the two a divide-by-zero breaks. */
+  const up: Candle[] = Array.from({ length: 60 }, (_, i) => ({ time: i * MIN, open: 100 + i, high: 100 + i, low: 100 + i, close: 100 + i, volume: 1 }) as Candle);
+  const down: Candle[] = Array.from({ length: 60 }, (_, i) => ({ time: i * MIN, open: 200 - i, high: 200 - i, low: 200 - i, close: 200 - i, volume: 1 }) as Candle);
+  near(rsiSeries(up, 14).at(-1)!, 100, 1e-6, 'a tape that only rises is 100');
+  near(rsiSeries(down, 14).at(-1)!, 0, 1e-6, 'a tape that only falls is 0');
+  ok(rsiSeries(flat, 14).slice(14).every(x => x !== null && Number.isFinite(x)), 'a flat tape does not divide by zero', rsiSeries(flat, 14).at(-1));
+
+  const m = macdSeries(bars);
+  ok(m.macd.length === bars.length && m.signal.length === bars.length && m.hist.length === bars.length, 'macd returns three aligned series');
+  ok(m.macd.every(x => x === null || Number.isFinite(x)), 'the macd line carries no NaN');
+  ok(
+    m.hist.every((h, i) => h === null || m.macd[i] === null || m.signal[i] === null || Math.abs(h - (m.macd[i]! - m.signal[i]!)) < 1e-9),
+    'the histogram is the line minus its signal'
+  );
+
+  const bb = bollingerSeries(bars, 20, 2);
+  ok(bb.upper.length === bars.length, 'bollinger is one band per bar');
+  ok(bb.upper.slice(0, 19).every(u => u === null), 'bollinger says nothing before it has its window');
+  ok(
+    bb.upper.every((u, i) => u === null || (bb.basis[i] !== null && bb.lower[i] !== null && u >= bb.basis[i]! && bb.basis[i]! >= bb.lower[i]!)),
+    'the bands never cross their basis'
+  );
+  ok(
+    bb.basis.every((m, i) => m === null || Math.abs(m - (bb.upper[i]! + bb.lower[i]!) / 2) < 1e-9),
+    'the basis sits exactly between the bands'
+  );
+  const flatBB = bollingerSeries(flat, 20, 2);
+  ok(flatBB.upper.slice(19).every((u, i) => u !== null && Math.abs(u - flatBB.lower.slice(19)[i]!) < 1e-9), 'a flat tape has no width');
+
+  const atr = atrBarSeries(bars, 14);
+  ok(atr.length === bars.length, 'atr is one value per bar');
+  ok(atr.every(x => x === null || x >= 0), 'a range is never negative', atr.filter(x => x !== null && x < 0).slice(0, 3));
+  near(atrBarSeries(flat, 14).at(-1) ?? 0, 0, 1e-9, 'a flat tape has no range');
+
+  /* AND NONE OF THEM MAY THROW ON A TAPE TOO SHORT TO READ. */
+  for (const n of [0, 1, 2, 5]) {
+    const few = bars.slice(0, n);
+    ok(emaSeries(few, 21).length === n, `ema survives ${n} bars`);
+    ok(vwapSeries(few, 1).length === n, `vwap survives ${n} bars`);
+    ok(rsiSeries(few, 14).length === n, `rsi survives ${n} bars`);
+    ok(smaSeries(few, 20).length === n, `sma survives ${n} bars`);
+    ok(macdSeries(few).macd.length === n, `macd survives ${n} bars`);
+    ok(bollingerSeries(few, 20, 2).upper.length === n, `bollinger survives ${n} bars`);
+    ok(atrBarSeries(few, 14).length === n, `atr survives ${n} bars`);
+  }
 }
 
 /* ================================ REPORT ==================================== */
