@@ -31,6 +31,12 @@ import { buildCatalysts, catalystDays, catalystRead, whenWords } from '../src/da
 import { buildDeskChain, deskExpiries } from '../src/data/weigherDesk';
 import { buildBasisBand, buildStrikeBasis } from '../src/data/costBasis';
 import { isoDate, today as engineToday } from '../src/core/calendar';
+import { buildExposureProfile } from '../src/data/exposure';
+import { buildExpiryLadder, wallOwnership } from '../src/data/expiryLadder';
+import { buildStability } from '../src/data/stability';
+import { buildSpotScenario } from '../src/data/spotScenario';
+import { buildFlipGauge, buildExpiryFlips, countFlipCrossings } from '../src/data/flipGauge';
+import { buildWallConviction, convictionGrade, touchesAndBreaks } from '../src/data/wallConviction';
 
 let pass = 0;
 const fails: string[] = [];
@@ -269,6 +275,95 @@ section('cost basis');
     const b = buildBasisBand([], 'C', spot, t, iv);
     ok(b.breakevenSpot === null, `a market with no ${spot === 0 ? 'spot' : t === 0 ? 'time' : 'vol'} has no breakeven`);
   }
+}
+
+/* ============================ THE EXPOSURE FAMILY =========================== */
+
+section('exposure');
+for (const t of TICKERS) {
+  const snap = Simulator.snapshotFor(t);
+  noNaN({ spot: snap.spot, changePercent: snap.changePercent }, `${t} snapshot`);
+  ok(snap.chain.length > 0, `${t}: the snapshot carries a chain`, snap.chain.length);
+  ok(snap.spot > 0, `${t}: and a spot`, snap.spot);
+
+  for (const lens of ['0DTE', '7D', 'ALL'] as const) {
+    const prof = buildExposureProfile(snap, lens, 10);
+    noNaN(prof, `${t} exposure ${lens}`);
+    ok(prof.strikes.length > 0, `${t} ${lens}: the profile has strikes`, prof.strikes.length);
+    ok(
+      prof.strikes.every((x, i) => i === 0 || x.strike <= prof.strikes[i - 1].strike),
+      `${t} ${lens}: the strikes run high to low, the way a price axis does`
+    );
+    /* A WALL IS ON THE SIDE OF SPOT IT IS NAMED FOR — the whole reason
+       core/walls.ts exists, asserted against a real book each time rather
+       than trusted because it was true when it was written. */
+    ok(prof.levels.callWall >= snap.spot - 1e-6, `${t} ${lens}: the call wall is overhead or is spot`, { wall: prof.levels.callWall, spot: snap.spot });
+    ok(prof.levels.putWall <= snap.spot + 1e-6, `${t} ${lens}: the put wall is below or is spot`, { wall: prof.levels.putWall, spot: snap.spot });
+    /* AND THE WALL IS THE WHOLE BOOK'S, not the drawn window's — a wall
+       that moves when the reader resizes the panel is a drawing choice
+       wearing an answer's name. */
+    const shared = pickWalls(snap.chain, snap.spot, n => n.netGex);
+    ok(prof.levels.callWall === (shared.callWall ?? snap.spot), `${t} ${lens}: the call wall is the shared rule's, off the full chain`, { got: prof.levels.callWall, want: shared.callWall });
+    ok(prof.levels.putWall === (shared.putWall ?? snap.spot), `${t} ${lens}: the put wall is the shared rule's`, { got: prof.levels.putWall, want: shared.putWall });
+    ok(Math.abs(prof.levels.flip - (pickFlip(snap.chain, snap.spot, n => n.netGex) ?? snap.spot)) < 1e-9, `${t} ${lens}: and so is the flip`);
+    // Exactly one strike is the pin, and the split adds up.
+    ok(prof.strikes.filter(x => x.pin).length <= 1, `${t} ${lens}: at most one strike is the pin`, prof.strikes.filter(x => x.pin).length);
+    for (const g of ['gex', 'dex', 'vex', 'vanna', 'charm'] as const) {
+      ok(
+        prof.strikes.every(x => Math.abs(x[g].net - (x[g].call + x[g].put)) < Math.max(1e-6, Math.abs(x[g].net) * 1e-9)),
+        `${t} ${lens}: ${g} net is its two legs added`
+      );
+    }
+    ok(prof.strikes.every(x => x.oi >= 0 && x.volume >= 0), `${t} ${lens}: no negative size on a strike`);
+  }
+  // A WIDER WINDOW DRAWS MORE AND ANSWERS THE SAME.
+  const narrow = buildExposureProfile(snap, 'ALL', 10);
+  const wide = buildExposureProfile(snap, 'ALL', 30);
+  ok(wide.strikes.length >= narrow.strikes.length, `${t}: a wider window draws more strikes`, { narrow: narrow.strikes.length, wide: wide.strikes.length });
+  ok(narrow.levels.callWall === wide.levels.callWall && narrow.levels.putWall === wide.levels.putWall && narrow.levels.flip === wide.levels.flip, `${t}: resizing the window does not move the walls`, { narrow: [narrow.levels.callWall, narrow.levels.putWall], wide: [wide.levels.callWall, wide.levels.putWall] });
+
+  const lad = buildExpiryLadder(snap, 10);
+  noNaN(lad, `${t} expiry ladder`);
+  ok(lad.rows.length > 0, `${t}: the ladder has rows`, lad.rows.length);
+  ok(lad.rows.every(r => r.cells.length === lad.columns.length), `${t}: every row is as wide as its header`, lad.rows.map(r => r.cells.length).slice(0, 3));
+  ok(
+    lad.rows.every((r, i) => i === 0 || r.strike <= lad.rows[i - 1].strike),
+    `${t}: the ladder runs high to low`
+  );
+  ok(lad.maxAbs >= 0, `${t}: the ladder's bar scale is not negative`, lad.maxAbs);
+  noNaN(wallOwnership(lad), `${t} wall ownership`);
+
+  const stab = buildStability(snap.chain, snap.spot, 0.2);
+  if (stab) noNaN(stab, `${t} stability`);
+  ok(buildStability([], snap.spot, 0.2) === null, `${t}: no chain, no stability read`);
+
+  const gauge = buildFlipGauge(snap);
+  noNaN(gauge, `${t} flip gauge`);
+  noNaN(buildExpiryFlips(snap), `${t} expiry flips`);
+  ok(countFlipCrossings([], []) === 0, 'no bars and no snapshots is no crossings');
+
+  const snaps = Simulator.getGexHistory(Simulator.ensureTicker(t)) ?? [];
+  for (const side of ['call', 'put'] as const) {
+    const conv = buildWallConviction(snaps, [], snap.spot, side);
+    if (conv) {
+      noNaN(conv, `${t} ${side} conviction`);
+      ok(['STRONG', 'HOLDING', 'THIN'].includes(convictionGrade(conv)), `${t}: the ${side} wall grades`, convictionGrade(conv));
+    }
+    ok(buildWallConviction([], [], snap.spot, side) === null, `${t}: no snapshots, no ${side} conviction`);
+    const tb = touchesAndBreaks([], snap.spot, side);
+    ok(tb.touches === 0 && tb.breaks === 0, `${t}: no bars, no ${side} touches`);
+  }
+
+  /* A SPOT SCENARIO IS A MOVE, and it has to be finite at every distance. */
+  for (const pct of [-0.08, -0.02, 0.02, 0.08]) {
+    const sc = buildSpotScenario(snap.chain, snap.spot, snap.spot * (1 + pct));
+    if (sc == null) continue;
+    noNaN(sc, `${t} scenario ${pct}`);
+    ok(sc.at > 0, `${t} scenario ${pct}: the destination is a price`, sc.to);
+    ok(sc.callWall == null || sc.callWall >= sc.at - 1e-6, `${t} scenario ${pct}: the wall is re-picked at the NEW spot, not the old one`, { wall: sc.callWall, at: sc.at });
+    ok(sc.putWall == null || sc.putWall <= sc.at + 1e-6, `${t} scenario ${pct}: and so is the put wall`, { wall: sc.putWall, at: sc.at });
+  }
+  ok(buildSpotScenario([], snap.spot, snap.spot * 1.02) === null, `${t}: an empty chain has no scenario`);
 }
 
 console.log(`\n${pass} passed, ${fails.length} FAILED`);

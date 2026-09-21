@@ -26,6 +26,9 @@ interface PaletteAction {
   icon?: React.ReactNode;
 }
 
+/* One id for the list and its rows — the field points at both. */
+const LIST_ID = 'palette-matches';
+
 const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const navigate = useNavigate();
   const { changeTicker, activeTicker } = useMarketData();
@@ -193,14 +196,29 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
         data-command-palette
         className="relative w-full max-w-lg border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black overflow-hidden animate-slide-in"
       >
+        {/* A COMBOBOX, WHICH IS WHAT IT HAS ALWAYS BEHAVED LIKE. Focus never
+            leaves the field — the arrows move a highlight through a list the
+            field owns — and that is exactly the pattern a screen reader
+            cannot follow without being told: it announced the typing and
+            nothing else, so a reader pressing Down four times and Enter was
+            navigating the terminal blind. `aria-activedescendant` names the
+            row the highlight is on, and each row is an option that says
+            whether it is the selected one. Same wiring gex/CompareControl
+            already uses; a placeholder is not a label, so the field has one. */}
         <input
           ref={inputRef}
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Type a command or destination…"
+          role="combobox"
+          aria-label="Command or destination"
+          aria-expanded
+          aria-autocomplete="list"
+          aria-controls={LIST_ID}
+          aria-activedescendant={filtered[highlight] ? `${LIST_ID}-opt-${highlight}` : undefined}
           className="w-full bg-transparent px-4 py-3 text-sm text-textPrimary placeholder:text-textMuted focus:outline-none border-b border-borderSubtle"
         />
-        <div className="max-h-72 overflow-y-auto py-1.5">
+        <div id={LIST_ID} role="listbox" aria-label="Matches" className="max-h-72 overflow-y-auto py-1.5">
           {filtered.length === 0 && (
             <div className="px-4 py-6 text-center font-mono text-[11px] text-textMuted">No matches</div>
           )}
@@ -208,13 +226,23 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
             const showGroup = action.group !== lastGroup;
             lastGroup = action.group;
             return (
-              <div key={action.id}>
+              /* `presentation` on the wrapper and the heading: a listbox's
+                 children have to be options, and a stray div between them
+                 makes the count a reader hears wrong. */
+              <div key={action.id} role="presentation">
                 {showGroup && (
-                  <div className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted select-none">
+                  <div role="presentation" className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted select-none">
                     {action.group}
                   </div>
                 )}
                 <button
+                  id={`${LIST_ID}-opt-${i}`}
+                  role="option"
+                  aria-selected={i === highlight}
+                  /* The field keeps the focus, so nothing in the list may
+                     take it — a Tab that lands on row forty is a reader
+                     lost inside a list they cannot see the top of. */
+                  tabIndex={-1}
                   onClick={() => runAction(action)}
                   onMouseEnter={() => setHighlight(i)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
