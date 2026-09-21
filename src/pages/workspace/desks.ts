@@ -61,6 +61,18 @@ const assemble = (cells: { inst: WidgetInstance; l: Layout }[]): SavedWorkspace 
 
 /** Curated starting desks, in the order the rail shows them. */
 export const PRESETS: Record<string, SavedWorkspace> = {
+  /* THE MARKET, FIRST. The desk opened on a chart of one name, which answers
+     the second question a trader has. This one answers the first: the strip
+     across the top, then the rotation, the breadth and the movers, then the
+     name's own chart underneath. */
+  'The Market': assemble([
+    cell('indices-1', 'indices', 0, 0, 12, 1),
+    cell('sectors-1', 'sectors', 0, 1, 5, 4),
+    cell('breadth-1', 'breadth', 5, 1, 4, 4),
+    cell('movers-1', 'movers', 9, 1, 3, 4),
+    cell('live-chart-1', 'live-chart', 0, 5, 8, 5),
+    cell('top-setups-1', 'top-setups', 8, 5, 4, 5),
+  ]),
   // The session-opening pair top row, the strike-by-strike inventory beneath
   // (Noah, 2026-08-17; the dealer positioning map that sat beneath is gone
   // from the terminal, 2026-09-03)
@@ -117,6 +129,7 @@ export const PRESETS: Record<string, SavedWorkspace> = {
 
 /** One line per preset for the hover peek — what the desk is FOR. */
 export const PRESET_BLURBS: Record<string, string> = {
+  'The Market': 'What kind of day this is, before any one name — the indices on one line, the rotation, the breadth underneath them, and the movers each way.',
   'Market Structure': 'The session opener — chart and pressure ladder up top (levels ride inside the ladder), the strike-by-strike inventory beneath.',
   'The Day Ahead': 'From now to the close — the range and where it closes up top, the agenda and the wall in focus beneath.',
   Flow: 'What is hitting the tape, against the chart, with where the walls are heading and the setups it feeds.',

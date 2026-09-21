@@ -46,6 +46,7 @@ import NewsWidget from './NewsWidget';
 import NetFlowWidget from './NetFlowWidget';
 import DarkPoolWidget from './DarkPoolWidget';
 import TapeWidget from './TapeWidget';
+import { BreadthWidget, IndicesWidget, MoversWidget, SectorsWidget } from './MarketTideWidgets';
 import { CloseWidget, RangeWidget } from './AheadWidgets';
 import AtTheWallWidget from './AtTheWallWidget';
 import WallsHeadingWidget from './WallsHeadingWidget';
@@ -120,6 +121,11 @@ export interface WidgetDef {
   render: (ctx: WorkspaceCtx) => ReactNode;
   /** The panel standing in its own shape for the frame it takes to mount */
   skeleton: () => ReactNode;
+  /** THE PANEL TAKES NO NAME. The market's own readings — the indices, the
+      rotation, the breadth, the movers — are about the whole tape, so a
+      scope chip offering to pin them to NVDA is a control that does nothing,
+      which is worse than no control. */
+  marketWide?: boolean;
   /** The panel has a fullscreen of its own (the live chart: the quartet, the
       editor dock, total fullscreen) — the tile head's button hands it
       `ctx.fullOpen` and the chart lifts it */
@@ -143,6 +149,68 @@ const MAP_VIEW = (view: 'calendar' | 'ladder') => () => {
 const chartSkeleton = () => <ChartSkeleton className="h-full" />;
 
 export const WIDGETS: WidgetDef[] = [
+  /* ---- the market, before any one name ------------------------------------
+     THE DESK HAD FIFTEEN PANELS AND EVERY ONE WAS ABOUT ONE NAME. A trader
+     opening a terminal does not start at NVDA; they start at "what kind of
+     day is this". These four answer that, and everything below them answers
+     the next question. They take no ticker, so they are the one part of the
+     desk that does not change when the name does. */
+  {
+    key: 'indices',
+    marketWide: true,
+    title: 'The indices',
+    sub: 'The four, and what insurance costs',
+    description: 'SPY, QQQ, IWM and DIA on one line with the VIX — read against each other, not one at a time. Click one to put it on the desk.',
+    w: 12,
+    h: 1,
+    minW: 5,
+    minH: 1,
+    maxH: 2, // a strip; height past this is empty surface
+    render: ctx => <IndicesWidget pickTicker={ctx.pickTicker} />,
+    skeleton: chartSkeleton,
+  },
+  {
+    key: 'sectors',
+    marketWide: true,
+    title: 'Sector rotation',
+    sub: 'Every sector around the zero line, ranked, with how many of its names agree',
+    description: "Eleven sectors ranked by today's move, drawn around a zero line so the rotation reads at a glance — with the advancer count beside each, because an average says a sector moved and the count says whether it moved together",
+    w: 5,
+    h: 4,
+    minW: 4,
+    minH: 3,
+    maxH: 6,
+    render: () => <SectorsWidget />,
+    skeleton: chartSkeleton,
+  },
+  {
+    key: 'breadth',
+    marketWide: true,
+    title: 'Breadth',
+    sub: 'How much of the tape is actually taking part',
+    description: 'Advancers against decliners across the sector universe, the A/D ratio, how many names cleared ±2%, and the market in one sentence — the fact an index hides',
+    w: 4,
+    h: 4,
+    minW: 3,
+    minH: 3,
+    maxH: 6,
+    render: () => <BreadthWidget />,
+    skeleton: chartSkeleton,
+  },
+  {
+    key: 'movers',
+    marketWide: true,
+    title: 'Movers',
+    sub: 'The widest each way, facing each other',
+    description: 'What is leading and what is lagging, side by side — a ranking only means something against the other end of it. Click a name to put it on the desk.',
+    w: 3,
+    h: 4,
+    minW: 3,
+    minH: 3,
+    maxH: 7,
+    render: ctx => <MoversWidget pickTicker={ctx.pickTicker} />,
+    skeleton: chartSkeleton,
+  },
   {
     key: 'live-chart',
     title: 'Live chart',

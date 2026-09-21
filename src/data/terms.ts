@@ -176,6 +176,15 @@ export const TERMS = {
     'A move restated as the yearly rate it implies, so a 20-minute move and a two-day one can be compared — and both compared against implied volatility, which is quoted the same way. Measured in trading time, so a weekend does not count against it.',
   MAE: 'Maximum adverse excursion — the deepest a position was ever under while it was open, in dollars. A winner with a heavy MAE was nearly a loser; a stop placed inside it would have taken you out of a trade that worked.',
   MFE: 'Maximum favourable excursion — the most a position was ever worth while it was open. The gap between it and what was realised is what was handed back, and it is the figure that says whether the exit, not the entry, is the problem.',
+  // ---- the market's own read (the tide) ----
+  Advancers:
+    'How many names in the sector closed the count up against how many are in it. An average says a sector moved; this says whether it moved TOGETHER \u2014 a +1% sector on three of ten names is one stock, not a rotation.',
+  Breadth:
+    'How much of the market is taking part. An index can close green on four names while three hundred fall, and the index says green either way \u2014 the advance/decline count is what tells the two apart.',
+  'A/D':
+    'Advancers divided by decliners. Above 1, more names are up than down; under 0.5 the tape is falling apart underneath whatever the index is doing.',
+  'Fear gauge':
+    'What insurance on the S&P costs, as an annualised percent. It rises when the tape falls, so it is drawn green when it FALLS \u2014 cheaper insurance is the good news.',
 } as const;
 
 export type TermKey = keyof typeof TERMS;

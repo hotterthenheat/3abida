@@ -817,13 +817,18 @@ const Pulse = () => {
                         its own name. stopPropagation on mousedown so using
                         the picker never starts a panel drag. */}
                     <span className="ml-auto shrink-0 flex items-center gap-1.5" onMouseDown={e => e.stopPropagation()}>
-                      <ScopeChip
-                        ticker={inst.ticker ?? activeTicker}
-                        linked={inst.ticker === undefined}
-                        onPick={pickFor(inst)}
-                        onToggleLink={() => toggleLink(inst)}
-                        quote
-                      />
+                      {/* A market-wide panel has no name to scope — offering
+                          to pin the indices to NVDA is a control that does
+                          nothing, which is worse than no control at all. */}
+                      {!def.marketWide && (
+                        <ScopeChip
+                          ticker={inst.ticker ?? activeTicker}
+                          linked={inst.ticker === undefined}
+                          onPick={pickFor(inst)}
+                          onToggleLink={() => toggleLink(inst)}
+                          quote
+                        />
+                      )}
                       {(def.ownFull || def.page) && (
                         <button
                           onClick={() => (def.ownFull ? setFullReq({ id: inst.id, token: Date.now() }) : openPage(def.page!, inst))}
