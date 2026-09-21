@@ -1,3 +1,4 @@
+import { blackScholesPrice } from '../greeks';
 import type { OptionRight } from '../../types/compass';
 
 /*
@@ -46,6 +47,14 @@ export interface PayoffPoint {
   pnl: number;
 }
 
+/** A leg priced as it stands TODAY — what the at-today curve needs. */
+export interface LiveLeg extends PayoffLeg {
+  /** Implied vol as a fraction, e.g. 0.23 */
+  iv: number;
+  /** Years to expiry, from now */
+  years: number;
+}
+
 export interface PayoffProfile {
   points: PayoffPoint[];
   /** Underlying prices where the position crosses zero, ascending */
@@ -56,6 +65,19 @@ export interface PayoffProfile {
   maxLoss: number | null;
   /** The price where the position is worth least, when it is bounded */
   worstAt: number | null;
+  /**
+   * The same position priced TODAY rather than at expiry — absent when the
+   * caller did not supply live legs.
+   *
+   * BOTH CURVES OR THE CHART LIES BY OMISSION. At expiry is the shape every
+   * payoff diagram draws and it is the one a reader will not experience
+   * unless they hold to the last bell. The at-today line is where the
+   * position actually is when they close it, and the gap between the two IS
+   * the extrinsic value they are paying or collecting. thinkorswim draws
+   * both (blue and purple) and so does OptionStrat; drawing only the first
+   * is the difference between a diagram and a position.
+   */
+  today: PayoffPoint[] | null;
 }
 
 /** One unit of the strategy's intrinsic value at expiry, in option price units. */
@@ -100,6 +122,15 @@ function tails(legs: readonly PayoffLeg[]): { up: number; down: number } {
   return { up, down };
 }
 
+/** One unit of the strategy's value TODAY at an underlying price. */
+function markAt(legs: readonly LiveLeg[], s: number): number {
+  let v = 0;
+  for (const l of legs) {
+    v += l.ratio * blackScholesPrice(s, l.strike, Math.max(l.years, 0.0001), Math.max(l.iv, 0.0001), l.right);
+  }
+  return v;
+}
+
 export function payoffProfile(
   legs: readonly PayoffLeg[],
   net: number,
@@ -107,7 +138,8 @@ export function payoffProfile(
   qty: number,
   multiplier: number,
   spot: number,
-  samples = 161
+  samples = 161,
+  live?: readonly LiveLeg[]
 ): PayoffProfile {
   const strikes = legs.map(l => l.strike);
   const lo0 = Math.min(spot, ...strikes);
@@ -173,5 +205,15 @@ export function payoffProfile(
   const worstAt =
     maxLoss == null ? null : points.reduce((w, p) => (p.pnl < w.pnl ? p : w), points[0]).s;
 
-  return { points, breakevens, maxProfit, maxLoss, worstAt };
+  /* The at-today curve rides the SAME grid, so the two lines are directly
+     comparable point for point and the gap between them is readable. */
+  const today = live && live.length === legs.length
+    ? points.map(p => {
+        const value = markAt(live, p.s);
+        const per = side === 'buy' ? value - net : net - value;
+        return { s: p.s, pnl: per * multiplier * qty };
+      })
+    : null;
+
+  return { points, breakevens, maxProfit, maxLoss, worstAt, today };
 }

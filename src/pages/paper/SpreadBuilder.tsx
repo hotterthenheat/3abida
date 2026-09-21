@@ -17,7 +17,7 @@
 */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Minus, Plus, X } from 'lucide-react';
+import { Eye, EyeOff, Minus, Plus, X } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
@@ -25,7 +25,7 @@ import FilterTabs from '../../components/ui/FilterTabs';
 import { isoDate } from '../../core/calendar';
 import { listExpiriesFor, listingPatternFor, nearestListedExpiry } from '../../data/optionChain';
 import { fmtPrice, indexFamily, optionInstrument, spreadInstrument, type Instrument, type OptionInstrument, type SpreadLeg } from '../../core/paper/instruments';
-import { nearestStrike, quoteFor, spotOf, strikeStepFor } from '../../core/paper/market';
+import { nearestStrike, quoteFor, spotOf, strikeStepFor, yearsToExpiry } from '../../core/paper/market';
 import { submitOrder } from '../../core/paper/engine';
 import { usePaperPrefs } from '../../core/paper/prefs';
 import type { OptionRight } from '../../types/compass';
@@ -52,6 +52,12 @@ interface LegDraft {
   strike: number;
   right: OptionRight;
   ratio: number;
+  /* EXCLUDED, NOT DELETED (OptionStrat's move, and the best one in its
+     builder): seeing what a leg is worth to the structure means taking it
+     out and putting it back, and delete-then-re-add loses the strike, the
+     right and the ratio every time you ask. An excluded leg stays in the
+     list, greyed, and stops counting. */
+  off?: boolean;
 }
 
 function legsFor(shape: Shape, atm: number, step: number): LegDraft[] {
@@ -150,17 +156,21 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
   const expiry = useMemo(() => nearestListedExpiry(underlying, dte), [underlying, dte]);
   const expiryIso = isoDate(expiry.date);
 
+  /* Everything downstream reads the ON legs. An excluded one is still in
+     `legs` so the row can be put back, and is absent from every number. */
+  const onLegs = useMemo(() => legs.filter(l => !l.off), [legs]);
+
   const built = useMemo(() => {
-    if (legs.length === 0) return null;
-    const specs: SpreadLeg[] = legs.map(l => ({ option: optionInstrument(family, l.strike, l.right, expiryIso), ratio: l.ratio }));
-    const words = shape === 'custom' ? undefined : `${family} ${[...new Set(legs.map(l => l.strike))].sort((a, b) => a - b).join('/')} ${SHAPE_WORD[shape].toUpperCase()} ${expiryIso.slice(5, 7)}/${expiryIso.slice(8, 10)}`;
+    if (onLegs.length === 0) return null;
+    const specs: SpreadLeg[] = onLegs.map(l => ({ option: optionInstrument(family, l.strike, l.right, expiryIso), ratio: l.ratio }));
+    const words = shape === 'custom' ? undefined : `${family} ${[...new Set(onLegs.map(l => l.strike))].sort((a, b) => a - b).join('/')} ${SHAPE_WORD[shape].toUpperCase()} ${expiryIso.slice(5, 7)}/${expiryIso.slice(8, 10)}`;
     const inst = spreadInstrument(SHAPE_WORD[shape], specs, words);
     const q = quoteFor(inst);
     return { inst, q };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, family, expiryIso, shape, tick]);
+  }, [onLegs, family, expiryIso, shape, tick]);
 
-  const strikes = legs.map(l => l.strike);
+  const strikes = onLegs.map(l => l.strike);
   const width = strikes.length ? Math.max(...strikes) - Math.min(...strikes) : 0;
   const q = built?.q ?? null;
   const net = q ? (side === 'buy' ? q.ask : q.bid) : null;
@@ -175,9 +185,21 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
   const fmtUnderlying = (v: number): string =>
     v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(v >= 100 ? 1 : 2);
   const profile = useMemo(() => {
-    if (net == null || optSpot == null || legs.length === 0) return null;
-    return payoffProfile(legs.map(l => ({ strike: l.strike, right: l.right, ratio: l.ratio })), net, side, qty, 100, optSpot);
-  }, [legs, net, side, qty, optSpot]);
+    if (net == null || optSpot == null || onLegs.length === 0) return null;
+    const plain = onLegs.map(l => ({ strike: l.strike, right: l.right, ratio: l.ratio }));
+    /* The at-today curve needs each leg's own IV and clock. They come off
+       the same quotes that price the structure, so the two lines cannot
+       disagree about what the market is. A leg the chain will not quote
+       drops the whole today curve rather than pricing part of it at a
+       guessed vol. */
+    const live = onLegs.map(l => {
+      const lq = quoteFor(optionInstrument(family, l.strike, l.right, expiryIso));
+      return lq?.greeks ? { strike: l.strike, right: l.right, ratio: l.ratio, iv: lq.greeks.iv / 100, years: yearsToExpiry(expiryIso) } : null;
+    });
+    const allLive = live.every((x): x is NonNullable<typeof x> => x !== null);
+    return payoffProfile(plain, net, side, qty, 100, optSpot, 161, allLive ? live : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onLegs, net, side, qty, optSpot, family, expiryIso, tick]);
   const maxRisk = profile?.maxLoss ?? null;
   const maxReward = profile?.maxProfit ?? null;
 
@@ -215,7 +237,7 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
       }
     >
       <div className="rounded-md border border-borderSubtle overflow-hidden" data-spread-legs>
-        <div className="grid grid-cols-[64px_1fr_72px_1fr_1fr_1fr_1fr_28px] items-center gap-2 px-3 h-8 bg-chip border-b border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary">
+        <div className="grid grid-cols-[64px_1fr_72px_1fr_1fr_1fr_1fr_28px_28px] items-center gap-2 px-3 h-8 bg-chip border-b border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary">
           <span>Leg</span>
           <span>Strike</span>
           <span>Right</span>
@@ -226,10 +248,14 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
           <span />
         </div>
         {legs.map((l, i) => {
-          const lq = q?.legs?.[i] ?? null;
+          /* The quote's legs are the ON legs, in their own order — an
+             excluded row must not read the next leg's price by index. */
+          const liveIdx = l.off ? -1 : legs.slice(0, i).filter(x => !x.off).length;
+          const lq = liveIdx >= 0 ? q?.legs?.[liveIdx] ?? null : null;
+          const legInst = liveIdx >= 0 ? built?.inst.legs[liveIdx]?.option ?? null : null;
           const signed = (side === 'buy' ? 1 : -1) * l.ratio;
           return (
-            <div key={i} className="grid grid-cols-[64px_1fr_72px_1fr_1fr_1fr_1fr_28px] items-center gap-2 px-3 h-10 border-b border-borderSubtle/60 font-mono text-[11px] tnum" data-spread-leg={i}>
+            <div key={i} className={`grid grid-cols-[64px_1fr_72px_1fr_1fr_1fr_1fr_28px_28px] items-center gap-2 px-3 h-10 border-b border-borderSubtle/60 font-mono text-[11px] tnum transition-opacity ${l.off ? 'opacity-40' : ''}`} data-spread-leg={i} data-leg-off={l.off ? '1' : undefined}>
               <button type="button" onClick={() => setLeg(i, { ratio: -l.ratio })} title="Flip this leg" className={`font-bold text-left ${signed > 0 ? 'text-bull' : 'text-bear'}`}>
                 {signed > 0 ? 'BUY' : 'SELL'} {Math.abs(l.ratio)}
               </button>
@@ -245,11 +271,22 @@ const SpreadBuilder = ({ open, onClose, family, seedLegs, onChart }: SpreadBuild
               <button type="button" onClick={() => setLeg(i, { right: l.right === 'C' ? 'P' : 'C' })} className="h-6 px-2 rounded border border-borderSubtle text-textPrimary hover:border-borderMuted transition-colors text-left">
                 {l.right === 'C' ? 'Call' : 'Put'}
               </button>
-              <span className="text-right text-textPrimary">{lq ? fmtPrice(built!.inst.legs[i].option, lq.bid) : '—'}</span>
-              <span className="text-right text-textPrimary">{lq ? fmtPrice(built!.inst.legs[i].option, lq.ask) : '—'}</span>
-              <span className="text-right text-textPrimary font-semibold">{lq ? fmtPrice(built!.inst.legs[i].option, lq.mark) : '—'}</span>
+              <span className="text-right text-textPrimary">{lq && legInst ? fmtPrice(legInst, lq.bid) : '—'}</span>
+              <span className="text-right text-textPrimary">{lq && legInst ? fmtPrice(legInst, lq.ask) : '—'}</span>
+              <span className="text-right text-textPrimary font-semibold">{lq && legInst ? fmtPrice(legInst, lq.mark) : '—'}</span>
               <span className="text-right text-textSecondary">{lq?.greeks ? lq.greeks.delta.toFixed(2) : '—'}</span>
-              <button type="button" onClick={() => setLegs(ls => ls.filter((_, j) => j !== i))} disabled={legs.length <= 1} aria-label="Remove this leg" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary disabled:opacity-30">
+              <button
+                type="button"
+                onClick={() => setLeg(i, { off: !l.off })}
+                aria-pressed={!l.off}
+                title={l.off ? 'Count this leg again' : 'Leave this leg out — it stays on the list'}
+                aria-label={l.off ? 'Include this leg' : 'Exclude this leg'}
+                className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary transition-colors"
+                data-leg-toggle={i}
+              >
+                {l.off ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </button>
+              <button type="button" onClick={() => setLegs(ls => ls.filter((_, j) => j !== i))} disabled={legs.length <= 1} aria-label="Remove this leg" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear disabled:opacity-30 transition-colors">
                 <X className="w-3 h-3" />
               </button>
             </div>
