@@ -32,6 +32,7 @@ const PaperJournal = lazy(() => import('./pages/paper/Journal'));
 const PaperRisk = lazy(() => import('./pages/paper/Risk'));
 const Watchlist = lazy(() => import('./pages/watchlist/Watchlist'));
 const Alerts = lazy(() => import('./pages/alerts/Alerts'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 /* Stocks walked into the Record (2026-09-10): the screens beside the name's news and filings */
 const Stocks = lazy(() => import('./pages/record/Stocks'));
 /* A name's own page under Stocks (2026-09-13): the whole read, not a jump to the Map */
@@ -241,7 +242,15 @@ const App = () => {
                 a bad child of every section that is a leaf route (/pulse/x).
                 Each section above catches its own so a near-miss lands on the
                 desk you were aiming at; this is the last resort. */}
-            <Route path="*" element={<Keep to="/pulse" />} />
+            {/* A PATH THAT DOES NOT EXIST SAYS SO. This used to be a
+                `Keep to="/pulse"`, which turned every typo into a different
+                page: `/paper/jurnal` showed the market dashboard as though
+                that were what had been asked for, and rewrote the address
+                bar so the reader could not even see what they had typed.
+                The redirects that MEAN something — a bare /record opening
+                the news, the thirty-odd old addresses above — are answers;
+                "I do not know what that is" is also an answer. */}
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
         </Suspense>
