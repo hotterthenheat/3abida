@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Code2, Link2, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
+import { activeList } from '../../data/watchlists';
 import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import DistanceUnitPicker from '../../components/ui/DistanceUnitPicker';
@@ -216,9 +217,41 @@ const SCALES = new Set<string>(PRICE_SCALES.map(o => o.value));
 /* Same rule: derived from the engine's own list rather than typed twice. */
 const OR_VALUES = new Set<number>(OPENING_RANGES);
 
-/** The pane slots differ only by symbol at first; a reader sets the rest. */
-const defaultPanes = (): PaneCfg[] =>
-  Simulator.WATCHLIST.slice(0, 4).map(ticker => ({
+/*
+  THE PANE SLOTS DIFFER ONLY BY SYMBOL AT FIRST; a reader sets the rest.
+
+  WHICH SYMBOLS, THOUGH. This used to be a four-name constant inside the
+  simulator that nobody could edit. A FRESH Terrain now opens on the name the
+  reader was actually researching, then fills the rest from their own active
+  watchlist — so the four-pane grid starts from what they carry rather than
+  from a list shipped in 2026.
+
+  A SAVED ARRANGEMENT STILL WINS, and this is the whole reason Terrain is not
+  simply told to follow the global name like the Weigher is. The Weigher's
+  job is ONE name, so a reader who picks NVDA anywhere means the Weigher. A
+  four-pane grid is a comparison the reader BUILT, and repointing a pane of
+  it because they looked at a name on another desk would destroy the thing
+  they made. This function only runs when there is nothing saved.
+*/
+const defaultPanes = (): PaneCfg[] => {
+  const carried = (() => {
+    try {
+      const list = activeList();
+      return list?.symbols ?? [];
+    } catch {
+      return [];
+    }
+  })();
+  const active = Simulator.getActiveTicker();
+  /* The active name first, then the list, then the roster — deduped, and
+     always four even if the reader's list is shorter than that. */
+  const picks: string[] = [];
+  for (const t of [active, ...carried, ...Simulator.WATCHLIST]) {
+    const sym = t?.toUpperCase();
+    if (sym && !picks.includes(sym)) picks.push(sym);
+    if (picks.length === 4) break;
+  }
+  return picks.map(ticker => ({
     ticker,
     timeframe: '15m' as Timeframe,
     overlays: { ...DEFAULT_OVERLAYS },
@@ -237,6 +270,7 @@ const defaultPanes = (): PaneCfg[] =>
     theme: getCandleThemeKey(),
     link: null,
   }));
+};
 
 /* The map starts EMPTY on a fresh install, deliberately. Seeding it from the
    four watchlist rows would mean a reader who sets a pane to 1h and then picks
