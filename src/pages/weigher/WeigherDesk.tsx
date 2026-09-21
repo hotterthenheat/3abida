@@ -224,6 +224,23 @@ const fmtCount = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : Strin
    advice wearing a stat's clothes, and we are not a broker. Order here IS
    column order; the menu speaks the reference's wording, the header speaks
    compact, and every jargon head carries its Term. */
+/*
+  THE SCOPE OF A BAR IS THE WHOLE POINT. A cell can carry a background bar
+  showing how its number compares — but compares to WHAT decides whether the
+  bar means anything. Normalised across every expiry, a weekly's volume is a
+  sliver beside a LEAPS' open interest and the column reads as empty. Scoped
+  to THE EXPIRY ON SCREEN, it answers the question a reader actually has:
+  where is the action in this chain, today. (Fidelity draws it that way and
+  it is the right call.)
+
+  So `render` is handed the chain's own maxima rather than computing them, and
+  the bar is a fraction of the column's largest visible value.
+*/
+export interface ChainScale {
+  maxVolume: number;
+  maxOi: number;
+}
+
 export interface ChainCol {
   key: string;
   /** The menu's wording - the reference's own names */
@@ -231,7 +248,7 @@ export interface ChainCol {
   /** The column header's compact wording */
   head: string;
   term?: string;
-  render: (c: DeskContract) => { text: string; ink?: string; bold?: boolean };
+  render: (c: DeskContract, scale: ChainScale) => { text: string; ink?: string; bold?: boolean; bar?: number };
 }
 
 const money = (v: number) => `$${v.toFixed(2)}`;
@@ -295,8 +312,20 @@ export const CHAIN_COLUMNS: ChainCol[] = [
   { key: 'toBreakeven', label: 'To breakeven', head: 'To B/E', term: 'To breakeven', render: c => ({ text: signedPct(c.toBreakevenPct) }) },
   { key: 'intrinsic', label: 'Intrinsic value', head: 'Intrinsic', term: 'Intrinsic value', render: c => ({ text: money(c.intrinsic) }) },
   { key: 'extrinsic', label: 'Extrinsic value', head: 'Extrinsic', term: 'Extrinsic value', render: c => ({ text: money(c.extrinsic) }) },
-  { key: 'vol', label: 'Volume', head: 'Vol', term: 'Volume', render: c => ({ text: fmtCount(c.volume) }) },
-  { key: 'oi', label: 'Open interest', head: 'OI', term: 'Open interest', render: c => ({ text: fmtCount(c.oi) }) },
+  {
+    key: 'vol',
+    label: 'Volume',
+    head: 'Vol',
+    term: 'Volume',
+    render: (c, s) => ({ text: fmtCount(c.volume), bar: s.maxVolume > 0 ? c.volume / s.maxVolume : 0 }),
+  },
+  {
+    key: 'oi',
+    label: 'Open interest',
+    head: 'OI',
+    term: 'Open interest',
+    render: (c, s) => ({ text: fmtCount(c.oi), bar: s.maxOi > 0 ? c.oi / s.maxOi : 0 }),
+  },
 ];
 
 /** The chain as it has always opened. */
@@ -333,13 +362,30 @@ const StrikeCell = ({ data }: ICellRendererParams<ChainGridRow>) =>
 
 /* A catalog column's cell: the fact in its ink */
 const factCell =
-  (col: ChainCol) =>
+  (col: ChainCol, scale: ChainScale) =>
   ({ data }: ICellRendererParams<ChainGridRow>) => {
     if (data?.kind !== 'row') return null;
-    const v = col.render(data.c);
+    const v = col.render(data.c, scale);
     /* Every figure in the primary ink (Noah, 2026-09-12: "the grey text is hard
        to see") — a direction fact keeps its own colour, the mark stays bold */
-    return <span className={`font-mono whitespace-nowrap tnum ${v.bold ? 'text-[11px] font-bold' : 'text-[10px]'} ${v.ink ?? 'text-textPrimary'}`}>{v.text}</span>;
+    const text = (
+      <span className={`relative font-mono whitespace-nowrap tnum ${v.bold ? 'text-[11px] font-bold' : 'text-[10px]'} ${v.ink ?? 'text-textPrimary'}`}>{v.text}</span>
+    );
+    if (v.bar == null || v.bar <= 0) return text;
+    /* THE BAR SITS BEHIND THE NUMBER, not beside it. A separate sparkline
+       column costs a column; a background fill costs nothing and is read at
+       the same glance as the figure it belongs to. It is pinned to the right
+       so the bars grow toward the strike, which is where the eye already is. */
+    return (
+      <span className="relative flex items-center justify-end w-full h-full">
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-[3px] right-0 rounded-[2px] bg-textSecondary/[0.16] pointer-events-none"
+          style={{ width: `${Math.max(2, Math.min(100, v.bar * 100))}%` }}
+        />
+        {text}
+      </span>
+    );
   };
 
 /* The two full-width rows: the market's hairline, and (Pulse) the weigh-up
@@ -433,6 +479,21 @@ export const ChainCard = memo(function ChainCard({
     return { rows: out, dividerIdx: divider };
   }, [chain, right, sel, inlineDrill]);
 
+  /* The maxima the bars are read against — this expiry's own, not the
+     session's and not the family's. Recomputed with the chain, so switching
+     expiry re-scales the column rather than leaving it flat against a LEAPS
+     open interest it can never approach. */
+  const chainScale = useMemo<ChainScale>(() => {
+    let maxVolume = 0;
+    let maxOi = 0;
+    for (const r of rows) {
+      if (r.kind !== 'row') continue;
+      if (r.c.volume > maxVolume) maxVolume = r.c.volume;
+      if (r.c.oi > maxOi) maxOi = r.c.oi;
+    }
+    return { maxVolume, maxOi };
+  }, [rows]);
+
   const columnDefs = useMemo<ColDef<ChainGridRow>[]>(
     () => [
       { colId: 'strike', headerName: 'Strike', width: 84, cellRenderer: StrikeCell, resizable: false },
@@ -443,10 +504,10 @@ export const ChainCard = memo(function ChainCard({
         flex: 1,
         minWidth: 68,
         type: 'rightAligned',
-        cellRenderer: factCell(col),
+        cellRenderer: factCell(col, chainScale),
       })),
     ],
-    [cols]
+    [cols, chainScale]
   );
 
   /* The picked strike is the grid's selection — synced, never clicked into
