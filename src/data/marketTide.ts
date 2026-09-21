@@ -249,7 +249,11 @@ export function buildBreadth(): TideBreadth {
     flat,
     total: moves.length,
     upPct,
-    ratio: down > 0 ? Number((up / down).toFixed(2)) : up,
+    /* NO DECLINERS IS NOT A RATIO. This used to fall back to the COUNT of
+       advancers, so a tape with 180 names up and none down printed "180.00"
+       in the slot a reader reads as roughly two-to-one. Infinity renders as
+       ∞ beside it, which is the true shape of that day. */
+    ratio: down > 0 ? Number((up / down).toFixed(2)) : up > 0 ? Infinity : 0,
     tilt: upPct >= 70 ? 'broad advance' : upPct >= 56 ? 'advancing' : upPct > 44 ? 'mixed' : upPct > 30 ? 'declining' : 'broad decline',
     strongUp: moves.filter(m => m.changePct >= 2).length,
     strongDown: moves.filter(m => m.changePct <= -2).length,

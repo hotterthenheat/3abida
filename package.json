@@ -13,7 +13,8 @@
     "theme:audit": "node scripts/theme-audit.mjs",
     "proof:logic": "tsx scripts/logic-proof.ts",
     "proof:desk": "tsx scripts/desk-proof.ts",
-    "proof": "npm run proof:logic && npm run proof:desk && npm run test"
+    "proof": "npm run proof:logic && npm run proof:desk && npm run proof:data && npm run test",
+    "proof:data": "tsx scripts/data-proof.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

@@ -182,7 +182,10 @@ export const BreadthWidget = () => {
       <div className="shrink-0 flex items-baseline justify-between font-mono text-[10px] tnum">
         <span className="text-bull">{breadth.up} up</span>
         <span className="text-textSecondary">
-          {breadth.flat} flat · {breadth.ratio.toFixed(2)}
+          {/* A ratio with no decliners in it is ∞, not "Infinity" — and the
+              engine says Infinity rather than the advancer COUNT it used to,
+              so this is the one place that has to render it. */}
+          {breadth.flat} flat · {Number.isFinite(breadth.ratio) ? breadth.ratio.toFixed(2) : '∞'}
           <span className="text-textMuted"> A/D</span>
         </span>
         <span className="text-bear">{breadth.down} down</span>

@@ -295,43 +295,32 @@ export function buildLevelsFor(ticker: string): KeyLevels {
   const latest = snaps?.[snaps.length - 1];
   if (!latest) return { spot, callWall: spot, putWall: spot, flip: spot, supreme: spot };
 
+  /* THE SHARED RULE, NOT A SIXTH COPY OF IT. core/walls.ts exists because
+     this exact pair was written four separate times and the copies drifted;
+     its header names `buildLevelsFor` as one of the three that were meant to
+     be unified, and this one was left behind. The copy it kept ignored the
+     SIGN entirely — "the heaviest strike overhead" rather than "the heaviest
+     CALL-DOMINANT strike overhead" — so a put-heavy strike above spot could
+     be printed as a call wall on the map while the Exposure page, reading
+     pickWalls, named a different one off the same book. They happen to agree
+     on a clean chain, which is exactly why nobody saw it. */
+  const w = pickWalls(latest.levels, spot, l => l.value);
+  const flip = pickFlip(latest.levels, spot, l => l.value);
+
   let supreme = spot;
   let supremeAbs = 0;
-  let callWall = spot;
-  let cwAbs = 0;
-  let putWall = spot;
-  let pwAbs = 0;
   for (const l of latest.levels) {
     const a = Math.abs(l.value);
     if (a > supremeAbs) {
       supremeAbs = a;
       supreme = l.strike;
     }
-    if (l.strike > spot && a > cwAbs) {
-      cwAbs = a;
-      callWall = l.strike;
-    }
-    if (l.strike < spot && a > pwAbs) {
-      pwAbs = a;
-      putWall = l.strike;
-    }
   }
 
-  let flip = spot;
-  let flipDist = Infinity;
-  const sorted = [...latest.levels].sort((a, b) => a.strike - b.strike);
-  for (let i = 1; i < sorted.length; i++) {
-    if (Math.sign(sorted[i - 1].value) !== Math.sign(sorted[i].value)) {
-      const mid = (sorted[i - 1].strike + sorted[i].strike) / 2;
-      const d = Math.abs(mid - spot);
-      if (d < flipDist) {
-        flipDist = d;
-        flip = mid;
-      }
-    }
-  }
-
-  return { spot, callWall, putWall, flip, supreme };
+  /* Spot is the fallback the whole KeyLevels stack already uses when a side
+     of the book names nothing (data/exposure.ts does the same) — a wall at
+     spot draws as no wall, which is the honest picture of a one-sided book. */
+  return { spot, callWall: w.callWall ?? spot, putWall: w.putWall ?? spot, flip: flip ?? spot, supreme };
 }
 
 /*
@@ -364,7 +353,11 @@ export function buildLadderFor(
   if (!latest || latest.levels.length === 0) return { rows: [], core: [], maxAbs: 1, spot, step: 1 };
 
   const sorted = [...latest.levels].sort((a, b) => a.strike - b.strike);
-  const spotIdx = Math.max(0, sorted.findIndex(n => n.strike >= spot));
+  /* `findIndex` answers −1 when spot is ABOVE every strike, and clamping that
+     to 0 windows the bottom of the chain — the far wing — around a price at
+     the top of it. The right clamp is the last row. */
+  const found = sorted.findIndex(n => n.strike >= spot);
+  const spotIdx = found >= 0 ? found : sorted.length - 1;
 
   /*
     TWO WINDOWS, and they are deliberately different sizes.
