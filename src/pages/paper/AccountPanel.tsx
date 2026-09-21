@@ -61,6 +61,7 @@ import { MODE_WORDS, useModes } from '../../core/paper/modes';
 import { readProp, usePropState } from '../../core/paper/propFirm';
 import { tiltLocked, useTilt } from '../../core/paper/tilt';
 import { Money, Stat, T } from './paperKit';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 
 const AccountPanel = () => {
   const paper = usePaper();
@@ -68,7 +69,6 @@ const AccountPanel = () => {
   const prop = usePropState();
   const tilt = useTilt();
   const acct = readAccount(paper);
-  const [armed, setArmed] = useState(false);
   const [open, setOpen] = useState(true);
 
   const opens = paper.positions.filter(p => p.qty !== 0).length;
@@ -219,35 +219,32 @@ const AccountPanel = () => {
 
           {/* ---- the two hands on the account itself ---- */}
           <div className="px-3 pb-3 flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => flattenAll('panel', 'flatten from the account')}
+            {/* THE SECOND CLICK (ui/ConfirmButton). One click used to close an
+                open book — every position and every working order — with no
+                dialog and no way back. The armed label names the damage. */}
+            <ConfirmButton
+              onConfirm={() => flattenAll('panel', 'flatten from the account')}
               disabled={opens === 0 && working === 0}
               title="Close every position and cancel every working order"
-              data-account-flatten
-              className="inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-bear hover:border-bear/50 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle transition-colors"
+              confirm={`Yes — close ${opens} and cancel ${working}`}
+              testId="account-flatten"
+              className="inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-bear hover:border-bear/50 disabled:hover:text-textSecondary disabled:hover:border-borderSubtle"
             >
               <Power className="w-3 h-3" /> Flatten
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!armed) {
-                  setArmed(true);
-                  return;
-                }
-                resetAccount();
-                setArmed(false);
-              }}
-              onBlur={() => setArmed(false)}
+            </ConfirmButton>
+            {/* This one already asked twice — it is on the shared control now
+                so there is one arming pattern on the desk rather than one
+                here and none anywhere else. */}
+            <ConfirmButton
+              onConfirm={resetAccount}
               title="Start the paper account over"
-              data-account-reset
-              className={`ml-auto inline-flex items-center gap-1 h-6 px-2 rounded border font-mono text-[9px] uppercase tracking-widest transition-colors ${
-                armed ? 'border-bear text-bear bg-bear/[0.08]' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
-              }`}
+              confirm="Yes, wipe the account"
+              testId="account-reset"
+              armedClassName="border-bear text-bear bg-bear/[0.08]"
+              className="ml-auto inline-flex items-center gap-1 h-6 px-2 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary hover:border-borderMuted"
             >
-              <RotateCcw className="w-3 h-3" /> {armed ? 'Yes, reset' : 'Reset'}
-            </button>
+              <RotateCcw className="w-3 h-3" /> Reset
+            </ConfirmButton>
           </div>
         </>
       )}

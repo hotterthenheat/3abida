@@ -39,6 +39,7 @@ import {
 import type { MarketSnapshot } from '../../types/market';
 import { Name } from '../../components/ui/Name';
 import DataState from '../../components/ui/DataState';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 
 /* THE DESK'S WIDTH, MEASURED BEFORE THE FIRST PAINT (Noah, 2026-09-12:
    "everytime i re-enter the page and the cards start sliding into their
@@ -612,14 +613,20 @@ const Pulse = () => {
                       <span className={`w-1 h-1 rounded-full shrink-0 ${active === name ? 'bg-select' : 'bg-silver/50'}`} aria-hidden="true" />
                       {name}
                     </button>
-                    <button
-                      onClick={() => deleteDesk(name)}
-                      aria-label={`Delete the ${name} desk`}
-                      title="Delete this desk"
-                      className="w-4 h-4 inline-flex items-center justify-center rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:!text-bear transition-opacity"
+                    {/* THE SECOND CLICK (ui/ConfirmButton). A saved desk is an
+                        arrangement someone built; one click on a hover-revealed
+                        trash icon took it with nothing asked. Armed, the icon
+                        turns into the word — there is no mistaking it. */}
+                    <ConfirmButton
+                      onConfirm={() => deleteDesk(name)}
+                      confirm={`Delete ${name}?`}
+                      title={`Delete the ${name} desk`}
+                      testId={`desk-delete-${name}`}
+                      armedClassName="!opacity-100 !w-auto px-1.5 border border-bear/60 text-bear font-mono text-[9px] uppercase tracking-wider"
+                      className="w-4 h-4 inline-flex items-center justify-center rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:!text-bear"
                     >
                       <Trash2 className="w-3 h-3" />
-                    </button>
+                    </ConfirmButton>
                   </span>
                 ))}
               </span>

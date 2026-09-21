@@ -11,6 +11,7 @@ import {
 } from '../../data/watchlists';
 import { onWake, wakeSymbol, watchRow, type WatchRow } from '../../data/watchRow';
 import type { HeatPatternKey } from '../../types/gex';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 
 /*
 ==================================================
@@ -222,9 +223,21 @@ const Watchlist = () => {
             <button type="button" onClick={() => { const n = window.prompt('Rename the list', list.name); if (n) renameList(list.id, n); }} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
               Rename
             </button>
-            <button type="button" onClick={() => { if (!removeList(list.id)) setSaid('That is the last list — a reader with none has no way back.'); }} disabled={lists.length <= 1} className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-bear hover:border-borderMuted transition-colors">
+            {/* THE SECOND CLICK (ui/ConfirmButton). One click used to take a
+                list and up to a hundred names with it, with nothing asked and
+                nothing to undo — and the empty state promises that every name
+                added "starts building its history in the background", so it
+                was real work going quietly. The armed label counts it. */}
+            <ConfirmButton
+              onConfirm={() => { if (!removeList(list.id)) setSaid('That is the last list — a reader with none has no way back.'); }}
+              disabled={lists.length <= 1}
+              confirm={`Yes — delete ${list.name} and its ${list.symbols.length} name${list.symbols.length === 1 ? '' : 's'}`}
+              title={`Delete ${list.name}`}
+              testId="watchlist-delete"
+              className="h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-bear hover:border-borderMuted"
+            >
               Delete
-            </button>
+            </ConfirmButton>
           </>
         )}
         {said && <span role="status" className="font-mono text-[10px] text-warn">{said}</span>}

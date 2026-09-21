@@ -100,6 +100,57 @@ const Simulator = (() => {
     }
   })();
   let activeTicker = storedActive ?? 'SPY';
+
+  /* ---- THE MARKET IS CONTINUOUS ACROSS A REFRESH --------------------------
+     Every price in here is a fresh 22-session random walk from basePrice,
+     rolled with Math.random() at load. That is fine for a chart nobody has a
+     stake in and ruinous the moment someone does: a paper position records
+     its entry against one run's price and is marked against the NEXT run's,
+     so pressing F5 moved a long NQ from +$23 to −$7,332 on an entry that had
+     not changed. The blotter, the journal and the risk desk all read those
+     marks, so one keystroke made every number on the desk fiction.
+
+     So the last price of every name is remembered, and a reload RESUMES from
+     it: the seeded history walks home to that price instead of to basePrice,
+     the live tick carries on from there, and a position is marked against
+     the same market it was opened in. basePrice is untouched, so the day's
+     change carries over too — it used to reset on every reload as well.
+
+     Scoped to the session day: come back tomorrow and the market has moved,
+     which is the one time a jump is the truth. */
+  const MARKS_KEY = 'slayer_sim_marks_v1';
+  const simDayKey = (): string => new Date().toISOString().slice(0, 10);
+  const resumedMarks: Record<string, number> = (() => {
+    try {
+      const raw = localStorage.getItem(MARKS_KEY);
+      if (!raw) return {};
+      const p = JSON.parse(raw) as { day?: string; marks?: Record<string, number> };
+      if (p.day !== simDayKey() || !p.marks || typeof p.marks !== 'object') return {};
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(p.marks)) {
+        if (/^[A-Z.:-]{1,12}$/.test(k) && typeof v === 'number' && Number.isFinite(v) && v > 0) out[k] = v;
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  })();
+
+  let marksSavedAt = 0;
+  function saveMarks(force = false): void {
+    const now = Date.now();
+    if (!force && now - marksSavedAt < 4000) return;
+    marksSavedAt = now;
+    try {
+      const marks: Record<string, number> = {};
+      for (const [sym, cfg] of Object.entries(TICKERS)) marks[sym] = cfg.currentPrice;
+      localStorage.setItem(MARKS_KEY, JSON.stringify({ day: simDayKey(), at: now, marks }));
+    } catch {
+      /* A blocked store just means the market restarts on reload, as it did
+         before this existed — the desk still works, the P&L just jumps. */
+    }
+  }
+
   const priceHistory: Record<string, number[]> = {};
   const historyLimit = 100;
 
@@ -345,6 +396,10 @@ const Simulator = (() => {
     i: number;
     overnightGap: number;
     homeK: number;
+    /* Where the walk has to END. basePrice for a roster name so a card and
+       its chart price the same market; the RESUMED price when this tab has
+       been here before, so the history joins the live tick without a step. */
+    homeTo: number;
   }
   const seedJobs: Record<string, SeedJob> = {};
 
@@ -368,9 +423,13 @@ const Simulator = (() => {
        remaining gap per bar) steers the walk to end ≈ basePrice while the
        book evolves ON the corrected path — wall physics stay coherent, and
        the watchlist keeps its unpulled drift (a feature: it reads live). */
-    const homeK = SCAN_ROSTER.some(r => r.ticker === sym) ? 0.0015 : 0;
+    /* A resumed name is pulled home too, whatever roster it is on: its last
+       bar has to meet the price the desk is already marking against. */
+    const resumed = resumedMarks[sym];
+    const homeTo = resumed ?? cfg.basePrice;
+    const homeK = resumed != null || SCAN_ROSTER.some(r => r.ticker === sym) ? 0.0015 : 0;
     evolveBook(sym, cfg.basePrice, 1); // seed the book at the journey's start
-    return { sym, bars: [], snaps: [], close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK };
+    return { sym, bars: [], snaps: [], close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK, homeTo };
   }
 
   /** Walk the job forward until the budget is spent or the history is whole. Returns true when done. */
@@ -383,7 +442,7 @@ const Simulator = (() => {
       while (job.i < SESSION_BARS) {
         const open = job.close;
         const move = gexAwareStep(sym, job.close);
-        const pull = job.homeK > 0 ? (cfg.basePrice - job.close) * job.homeK : 0;
+        const pull = job.homeK > 0 ? (job.homeTo - job.close) * job.homeK : 0;
         const close = r2(job.close + move + pull);
         job.close = close;
         const wig = cfg.basePrice * cfg.iv * 0.0012 * Math.random();
@@ -434,7 +493,7 @@ const Simulator = (() => {
        one session — versus 15% everywhere without it. First click now
        prices the SAME market the card did. */
     if (job.homeK > 0 && bars.length > 0) {
-      const gap = r2(cfg.basePrice - close);
+      const gap = r2(job.homeTo - close);
       if (Math.abs(gap) > 0.005) {
         const K = Math.min(SESSION_BARS, bars.length);
         for (let j = 0; j < K; j++) {
@@ -446,7 +505,7 @@ const Simulator = (() => {
           b.high = r2(b.high + Math.max(adjO, adjC));
           b.low = r2(b.low + Math.min(adjO, adjC));
         }
-        close = cfg.basePrice;
+        close = job.homeTo;
       }
     }
     cfg.currentPrice = close;
@@ -660,6 +719,10 @@ const Simulator = (() => {
       const step = basePrice >= 100 ? 1 : 0.5;
       TICKERS[sym] = { basePrice, currentPrice: basePrice, iv, step };
     }
+    /* Where this name was when the tab last closed. basePrice keeps its own
+       job — the session's anchor, so the day's change survives too. */
+    const resumed = resumedMarks[sym];
+    if (resumed != null) TICKERS[sym].currentPrice = resumed;
   }
 
   /** Register a config for any symbol on demand (synthesized for non-core tickers). */
@@ -926,6 +989,17 @@ const Simulator = (() => {
   }
 
   // Simulate one tick
+  /* The last word before the tab goes. `pagehide` fires on close, reload and
+     a bfcache suspend where `beforeunload` does not, and `visibilitychange`
+     catches a phone being backgrounded — between them the resumed price is
+     never more than one tick stale. */
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', () => saveMarks(true));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveMarks(true);
+    });
+  }
+
   function tick(callback?: (data: MarketSnapshot) => void): void {
     Object.keys(TICKERS).forEach(ticker => {
       const config = TICKERS[ticker];
@@ -947,6 +1021,11 @@ const Simulator = (() => {
 
       updateCandles(ticker);
     });
+
+    /* Remember where the market got to — throttled, so a tick a second does
+       not write localStorage a second. The pagehide handler below takes the
+       last one, which is the one a returning reader resumes from. */
+    saveMarks();
 
     /* No feed until the active name's history is whole (it seeds in slices
        at boot — see the pump at the end of the module) */

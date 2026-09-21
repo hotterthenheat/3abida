@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import { Link2, Save, Trash2 } from 'lucide-react';
 import type { ViewStore } from '../../data/savedViews';
+import ConfirmButton from '../ui/ConfirmButton';
 
 const BTN =
   'h-7 px-2 inline-flex items-center gap-1 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
@@ -100,9 +101,16 @@ export const SavedCutsList = ({ store, onOpen, noun, testId, onSay, open }: Save
           >
             {v.name}
           </button>
-          <button type="button" onClick={() => store.removeView(v.id)} aria-label={`Forget ${v.name}`} title={`Forget this ${noun}`} className="h-6 px-1.5 text-textMuted hover:text-bear border-l border-borderSubtle transition-colors">
+          <ConfirmButton
+            onConfirm={() => store.removeView(v.id)}
+            confirm="Forget?"
+            title={`Forget this ${noun}`}
+            testId={`cut-forget-${v.name}`}
+            armedClassName="px-1.5 text-bear font-mono text-[9px] uppercase tracking-wider"
+            className="h-6 px-1.5 inline-flex items-center text-textMuted hover:text-bear border-l border-borderSubtle"
+          >
             <Trash2 className="w-2.5 h-2.5" aria-hidden />
-          </button>
+          </ConfirmButton>
         </span>
       ))}
     </div>
