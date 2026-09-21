@@ -81,7 +81,25 @@ const Simulator = (() => {
     return { ticker: base.ticker, price, iv: base.iv, step: stepFor(price) };
   }
 
-  let activeTicker = 'SPY';
+  /* THE NAME SURVIVES A REFRESH (2026-09-21). It lived in this variable
+     alone, so a reader three desks deep into NVDA who reloaded — or whose
+     tab was restored — landed back on SPY with no way to tell what had
+     happened. Every other choice the terminal makes for you is remembered
+     (the theme, the paper prefs, the alerts, the watchlist); the name you
+     are looking at is the most consequential of them and was the one that
+     was not. Read once, guarded: a blocked or empty store just means SPY,
+     and a stored name the roster no longer carries is ignored rather than
+     registered, so a stale key cannot conjure a ticker. */
+  const ACTIVE_KEY = 'slayer_active_ticker';
+  const storedActive = ((): string | null => {
+    try {
+      const v = localStorage.getItem(ACTIVE_KEY);
+      return v && /^[A-Z.:-]{1,12}$/.test(v) ? v : null;
+    } catch {
+      return null;
+    }
+  })();
+  let activeTicker = storedActive ?? 'SPY';
   const priceHistory: Record<string, number[]> = {};
   const historyLimit = 100;
 
@@ -1019,6 +1037,12 @@ const Simulator = (() => {
     isSeeded: (sym: string): boolean => !!candleHistory[sym.toUpperCase()],
     setActiveTicker: (t: string): string => {
       activeTicker = ensureTicker(t);
+      try {
+        localStorage.setItem(ACTIVE_KEY, activeTicker);
+      } catch {
+        /* A private window or a blocked store loses the name on reload and
+           keeps working — the choice is a convenience, never a dependency. */
+      }
       return activeTicker;
     },
     getActiveTicker: (): string => activeTicker,

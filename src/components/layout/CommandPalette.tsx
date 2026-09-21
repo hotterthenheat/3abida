@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useFocusTrap from '../ui/useFocusTrap';
 import { Activity, ArrowRightLeft, CornerDownLeft, Crosshair, Users } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
 import { GEX_SUBPAGES } from '../../pages/pinpoint/subnav';
@@ -32,6 +33,8 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const [highlight, setHighlight] = useState(0);
   const [tickMod, setTickMod] = useState<TickerModule | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(open, cardRef);
 
   // The full ticker universe (S&P 500 + NASDAQ listings) — lazy, its chunk is
   // ~300KB and ⌘K is the desk's only terminal-ticker control (Noah,
@@ -160,7 +163,20 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] px-4" onKeyDown={onKeyDown}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-lg border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black overflow-hidden animate-slide-in">
+      {/* THE PALETTE IS A DIALOG AND HAD NEVER SAID SO. It is the terminal's
+          keyboard-first surface, and it was the one modal in the app without
+          a role, without aria-modal and without a focus trap — so a screen
+          reader announced nothing and Tab walked straight out of it into the
+          page behind. Modal.tsx has carried all three since it was written;
+          this now borrows the same trap rather than growing a second one. */}
+      <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        data-command-palette
+        className="relative w-full max-w-lg border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black overflow-hidden animate-slide-in"
+      >
         <input
           ref={inputRef}
           value={query}
