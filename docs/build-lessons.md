@@ -287,3 +287,35 @@ own with none of that, and no focus trap anywhere.
 
 **A one-off pattern does not just cost consistency; it makes the second
 surface worse.**
+
+## A day key is not a date, and an unbounded weekday walk is a hang
+
+`dayKey()` returns `2026-9-21` — a hash seed, unpadded. `isoDate()` returns
+`2026-09-21` — a date. They look alike and only one of them parses:
+`new Date('2026-9-21T12:00:00')` is an **Invalid Date**.
+
+That alone is a bug. What made it a *hang* is the second half:
+
+```js
+while (d.getDay() !== 5) d.setDate(d.getDate() + 1);   // first Friday
+```
+
+`getDay()` on an Invalid Date is `NaN`, `NaN !== 5` is true forever, and the
+tab stops responding — not an error, not a blank screen, a pinned CPU and a
+browser that will not even evaluate `document.body.children.length`. The
+route sweep could not report it because the sweep itself never got an answer
+back.
+
+Two rules out of it:
+
+- Take today from `core/calendar`'s `today()`/`isoDate()`, never from
+  `dayKey()`. The day key is for seeding noise.
+- **Every walk is bounded.** `core/calendar`'s own `walkToSession` carries
+  the note "bounded — never spins" and the macro schedule's two weekday
+  walks had missed it. A month has at most seven days before its first
+  Friday, so seven iterations is the entire search and an eighth means the
+  input was not a date.
+
+And when a page hangs the browser rather than throwing, no console probe
+will tell you: read the code along the render path for a `while` whose
+condition compares against something that can be `NaN`.

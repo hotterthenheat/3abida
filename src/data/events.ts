@@ -78,16 +78,22 @@ const isoOf = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** First Friday of a month — the NFP rule. */
+/* BOUNDED, LIKE EVERY OTHER WALK IN THIS BUILD (core/calendar's walkToSession
+   carries the same note). A weekday walk over an Invalid Date never lands:
+   getDay() is NaN, NaN !== 5 is true forever, and the tab stops responding.
+   A month has at most seven days before its first Friday, so seven steps is
+   the whole search and an eighth means the input was not a date. */
 export function firstFriday(year: number, month0: number): string {
   const d = new Date(year, month0, 1);
-  while (d.getDay() !== 5) d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 7 && d.getDay() !== 5; i++) d.setDate(d.getDate() + 1);
   return isoOf(d);
 }
 
 /** Second Wednesday — the CPI approximation (see the header). */
 export function secondWednesday(year: number, month0: number): string {
   const d = new Date(year, month0, 1);
-  while (d.getDay() !== 3) d.setDate(d.getDate() + 1);
+  /* Bounded for the same reason firstFriday is — see the note there. */
+  for (let i = 0; i < 7 && d.getDay() !== 3; i++) d.setDate(d.getDate() + 1);
   d.setDate(d.getDate() + 7);
   return isoOf(d);
 }

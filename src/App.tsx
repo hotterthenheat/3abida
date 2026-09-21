@@ -40,6 +40,7 @@ const StockOverview = lazy(() => import('./pages/record/StockOverview'));
 const News = lazy(() => import('./pages/record/News'));
 /* Earnings walked under the Record (2026-09-09): the calendar and a name's page */
 const Earnings = lazy(() => import('./pages/record/Earnings'));
+const Catalysts = lazy(() => import('./pages/record/Catalysts'));
 const EarningsName = lazy(() => import('./pages/record/EarningsName'));
 const RecordLayout = lazy(() => import('./pages/record/RecordLayout'));
 const Insiders = lazy(() => import('./pages/record/Insiders'));
@@ -155,6 +156,7 @@ const App = () => {
               <Route path="congress" element={<Congress />} />
               <Route path="stocks" element={<Stocks />} />
               <Route path="stocks/:ticker" element={<StockOverview />} />
+              <Route path="calendar" element={<Catalysts />} />
               <Route path="*" element={<Keep to="/record/news" />} />
             </Route>
             <Route path="/stocks" element={<Keep to="/record/stocks" />} />

@@ -1,4 +1,4 @@
-import { BarChart3, Building2, CalendarClock, Landmark, Newspaper, type LucideIcon } from 'lucide-react';
+import { BarChart3, Building2, CalendarClock, CalendarRange, Landmark, Newspaper, type LucideIcon } from 'lucide-react';
 
 /*
   THE RECORD (2026-09-09): what is on the record about a name that never
@@ -20,6 +20,12 @@ export interface RecordSubpage {
 export const RECORD_SUBPAGES: RecordSubpage[] = [
   { path: '/record/news', label: 'News', subtitle: 'Every story on the wire today — where it came from, what it does to the name, and the numbers behind it', icon: Newspaper, source: 'Wire' },
   { path: '/record/earnings', label: 'Earnings', subtitle: 'Every upcoming print priced by us — our implied move against what the name typically does', icon: CalendarClock, source: 'Earnings calendar' },
+  /* THE CALENDAR (§25): the macro schedule and the earnings engine both
+     shipped months ago and were drawn only as marks along a chart's bottom
+     edge — which answers "is anything near this bar" and never answers
+     "what is coming". One stream, so a report is read beside the release it
+     lands next to. */
+  { path: '/record/calendar', label: 'Calendar', subtitle: "Every release and every report ahead in one order — the macro that lands on the whole tape, and the names reporting into it", icon: CalendarRange, source: "Fed decision days · payrolls rule · CPI approximation · our earnings calendar" },
   { path: '/record/insiders', label: 'Insiders', subtitle: 'What the people who run these companies did with their own shares — and whether they chose to', icon: Building2, source: 'SEC Form 4 · filed within two business days of the trade' },
   { path: '/record/congress', label: 'Congress', subtitle: 'What members of Congress reported trading, and how long they took to say so', icon: Landmark, source: 'STOCK Act reports · due within 45 days of the trade' },
   /* Stocks joined the Record (Noah, 2026-09-10): every name and sector screened on the four sleeves — the synthesis, so it reads last */
