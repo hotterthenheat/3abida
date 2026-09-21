@@ -1,4 +1,5 @@
 import Simulator from '../core/simulator';
+import { onWake, wakeSymbol } from './seedPump';
 import { buildLevelsFor, readHeatPattern, spotChangePct } from './gex';
 import { getAlerts } from '../components/gex/alertStore';
 import type { HeatPatternKey } from '../types/gex';
@@ -108,63 +109,10 @@ export function watchRow(symbol: string): WatchRow {
   return row;
 }
 
-/*
-  WAKING A NAME IS A QUEUE, not a call. `seedAsync` walks a SLICE of the
-  history per invocation and answers 'pending' until it is whole, so calling
-  it once leaves a name half-built and permanently resting. This drives it
-  across idle slots the way the rest of the terminal does — a few
-  milliseconds per quiet moment, never one long frame — and one pump serves
-  every name on the list rather than each row starting its own.
-*/
-const queue: string[] = [];
-let pumping = false;
-const listeners = new Set<() => void>();
+/* A name that finishes seeding must not be read from a row built while it
+   was still resting — the cache would hold that answer for up to CACHE_MS
+   after it stopped being true. The pump's signal clears it. */
+onWake(() => cache.clear());
 
-const idle = (fn: () => void, timeout: number): void => {
-  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
-  if (ric) ric(fn, { timeout });
-  else window.setTimeout(fn, 60);
-};
-
-function pump(): void {
-  const next = queue[0];
-  if (!next) {
-    pumping = false;
-    return;
-  }
-  let state: 'done' | 'pending' = 'done';
-  try {
-    state = Simulator.seedAsync(next, 5);
-  } catch {
-    /* A name the simulator cannot build stays resting rather than retrying
-       forever — it leaves the queue either way. */
-    state = 'done';
-  }
-  if (state === 'done') {
-    queue.shift();
-    cache.delete(next);
-    for (const l of listeners) l();
-  }
-  idle(pump, 1500);
-}
-
-/** Told when a name finishes seeding, so a resting row can redraw itself. */
-export const onWake = (fn: () => void): (() => void) => {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
-};
-
-/** Ask the simulator to start carrying a name, so its row can go live. */
-export function wakeSymbol(symbol: string): void {
-  if (typeof window === 'undefined') return;
-  const sym = symbol.toUpperCase();
-  if (!Simulator.TICKERS[sym]) Simulator.register(sym);
-  if (Simulator.isSeeded(sym) || queue.includes(sym)) return;
-  queue.push(sym);
-  if (!pumping) {
-    pumping = true;
-    idle(pump, 800);
-  }
-}
+/* One pump serves the whole app — see data/seedPump.ts. */
+export { onWake, wakeSymbol };

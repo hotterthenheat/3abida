@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
+import { onWake, wakeSymbol } from '../../data/seedPump';
 import Simulator from '../../core/simulator';
 import { buildGexView, fmtUsd, pulseMatrix } from '../../data/gex';
 import { buildExposureProfile } from '../../data/exposure';
@@ -57,31 +58,63 @@ function useNearViewport(ref: RefObject<HTMLDivElement | null>): boolean {
   const [near, setNear] = useState(false);
   useEffect(() => {
     const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') {
+    if (!el) {
       setNear(true);
       return;
     }
-    let sawCallback = false;
-    const io = new IntersectionObserver(
-      entries => {
-        sawCallback = true;
-        // Wake when the sentinel enters the upper 85% of the viewport, or is
-        // already above it (mid-page refresh with scroll restoration).
-        if (entries.some(e => e.isIntersecting || e.boundingClientRect.top < 0)) {
-          setNear(true);
-          io.disconnect();
-        }
-      },
-      // Ignore the sliver of this block that peeks above the fold at rest.
-      { rootMargin: '0px 0px -15% 0px' }
-    );
-    io.observe(el);
-    const fallback = window.setTimeout(() => {
-      if (!sawCallback) setNear(true);
-    }, 1600);
+
+    /* THE SENTINEL USED TO BE ABLE TO MISS ITSELF. It is one pixel tall, and
+       IntersectionObserver only calls back when the ratio CROSSES a
+       threshold — so an anchor jump (the hero's own "See it live" button),
+       a restored scroll position or a fast flick carries it from below the
+       fold to far above it between two frames, the ratio never leaves zero,
+       and the callback never comes. The `top < 0` recovery for exactly that
+       case lived INSIDE the callback that was not arriving, and the timeout
+       fallback was suppressed the moment any callback had ever fired — which
+       the first, not-intersecting one always did.
+
+       Result: `enabled` stayed false for the life of the page, `marketData`
+       was never asked for, and the section headlined "Not screenshots. The
+       actual panels, printing." rendered four empty skeletons to every
+       visitor. The page's strongest claim was the one thing on it that could
+       not be true.
+
+       So the rect is now checked directly — on the observer's callback, on
+       scroll, and once on a timer. Any one of the three is enough. */
+    let done = false;
+    const wake = () => {
+      if (done) return;
+      done = true;
+      setNear(true);
+      io?.disconnect();
+      window.removeEventListener('scroll', check);
+      window.clearTimeout(fallback);
+    };
+    const check = () => {
+      const r = el.getBoundingClientRect();
+      /* Above the fold, on screen, or already passed — all mean "the reader
+         has arrived or will imminently", and none of them is a ratio. */
+      if (r.top < window.innerHeight * 0.85) wake();
+    };
+
+    const io =
+      typeof IntersectionObserver === 'undefined'
+        ? null
+        : new IntersectionObserver(check, { rootMargin: '0px 0px -15% 0px' });
+    io?.observe(el);
+    window.addEventListener('scroll', check, { passive: true });
+    check();
+
+    /* AND IT WAKES ANYWAY. This is the main content of the first page anyone
+       sees; the seed costs a few milliseconds spread over idle slots, and a
+       reader who arrives to live panels is worth more than the cost of
+       waking them for a reader who never scrolls. */
+    const fallback = window.setTimeout(wake, 2200);
+
     return () => {
-      io.disconnect();
-      clearTimeout(fallback);
+      io?.disconnect();
+      window.removeEventListener('scroll', check);
+      window.clearTimeout(fallback);
     };
   }, [ref]);
   return near;
@@ -91,6 +124,23 @@ function useNearViewport(ref: RefObject<HTMLDivElement | null>): boolean {
     Idle until `enabled` — see useNearViewport. */
 function useLandingScan(enabled: boolean): LandingCtx | null {
   const { marketData } = useMarketData();
+
+  /* NOTHING ELSE SEEDS THE SIMULATOR ON THIS ROUTE, and that made the
+     section's own headline false. The landing sits OUTSIDE the app shell, so
+     no desk has asked for a name and `marketData` stays null forever —
+     which meant "Not screenshots. The actual panels, printing." rendered
+     four empty skeleton boxes, permanently, to every visitor. The page's
+     strongest claim was the one thing on it that could never be true.
+
+     So the block wakes the active name itself once the reader reaches it,
+     through the same shared pump the watchlist uses: a few milliseconds per
+     idle slot, no frozen frames on the first page anyone sees. */
+  const [, wake] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    wakeSymbol(Simulator.getActiveTicker());
+    return onWake(() => wake(n => n + 1));
+  }, [enabled]);
 
   const revRef = useRef(0);
   const revision = useMemo(() => ++revRef.current, [marketData]);
