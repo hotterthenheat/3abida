@@ -72,8 +72,3 @@ export const useFocus = (): FocusValue => {
   return v;
 };
 
-/** The focused strike if it belongs to this name, else null — the read every surface wants */
-export const useFocusedStrike = (ticker: string | null | undefined): number | null => {
-  const { focus } = useFocus();
-  return focus && ticker && focus.ticker === ticker ? focus.price : null;
-};

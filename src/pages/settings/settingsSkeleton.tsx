@@ -254,5 +254,3 @@ export const SettingsPageSkeleton = ({ section = 'account' }: { section?: string
     </div>
   </>
 );
-
-export default SettingsPageSkeleton;

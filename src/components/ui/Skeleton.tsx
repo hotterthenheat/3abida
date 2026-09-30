@@ -132,5 +132,3 @@ export const Deferred = ({ children, fallback, index = 0, frames = 1, className 
   if (!ready) return <>{fallback}</>;
   return className ? <div className={className}>{children}</div> : <>{children}</>;
 };
-
-export default Skeleton;

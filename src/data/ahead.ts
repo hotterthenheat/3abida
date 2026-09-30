@@ -47,7 +47,7 @@ import { lastSessionSupreme, moveIntoClose, ofLast, rangeFrom, recentSessions, s
 import { sessionBars } from './levelview';
 import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
 import { buildVannaCharm } from './vannacharm';
-import type { SessionClock } from './moc';
+import type { SessionClock } from './sessionClock';
 import type { ExposureProfileData, IvShift, LevelShift } from '../types/gex';
 import type { MarketSnapshot } from '../types/market';
 

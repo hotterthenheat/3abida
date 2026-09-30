@@ -50,7 +50,6 @@ import type { DistanceUnit } from '../../data/atr';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import ExpiryCard, { type ExpiryChoice } from '../ui/ExpiryCard';
 import { GuideDoor } from '../ui/GuideFocus';
-import { HEAT_MODE, heatLaneInks } from './heatmap';
 import { ladderExpiryOptions } from './ladderControls';
 import type { ExposureExpiry } from '../../types/gex';
 import RulerLane, { inView, layout, rulerWords, tickWords, type NodeCard } from './CompareRuler';

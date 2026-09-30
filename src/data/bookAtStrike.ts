@@ -33,7 +33,7 @@
 import Simulator from '../core/simulator';
 import { aheadClock, buildCloseOdds, buildCorridor, fmtDollars } from './ahead';
 import { buildBuilding, type BuildVerdict } from './building';
-import { readSessionClock } from './moc';
+import { readSessionClock } from './sessionClock';
 import { sessionBars } from './levelview';
 import { cutOf, shapesOf, type MapRow, type Shape } from './mapShape';
 import { testEvents } from './wall';
@@ -65,8 +65,6 @@ export interface Book {
   rows: Map<number, BookAtStrike>;
 }
 
-/** The lean, in words for a sentence */
-export const leanWords = (lean: Lean): string => (lean === 'push back' ? 'dealers push back on a move through it' : 'dealers push a move along through it');
 /** The change, in words */
 export const changeWords = (c: BookAtStrike['change']): string => {
   if (!c) return 'no record of today yet';

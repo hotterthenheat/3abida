@@ -22,7 +22,6 @@ import { ScopeChipMark } from '../ui/skeletonKit';
 
 /** Reason · the fact · the push meter · in words */
 export const REASON_COLUMNS = '150px minmax(0,1fr) 112px minmax(0,1.3fr)';
-export const REASON_KEYS = ['weight', 'tests', 'build', 'expiry', 'speed', 'prints', 'vol'] as const;
 /** Wall · reached · holds · made of · tested · expires · if it breaks · if it holds */
 export const BOARD_COLUMNS = '140px 80px 112px minmax(140px,1fr) 128px 88px 104px 104px';
 /** The column-head row of the board's grid */
@@ -34,8 +33,6 @@ export const BOARD_HEAD_H = 14;
     as tall as its rows. The lock walk's "cover the full box" (2026-09-09) and
     the 64px cap (2026-09-10) are both retired by this. */
 export const BOARD_ROW_H = 30;
-/** The gap between rows (the grid's gap-y) */
-export const BOARD_ROW_GAP = 3;
 /** The row template: the column heads, then every wall at the one height */
 export const boardRows = (n: number) => `${BOARD_HEAD_H}px repeat(${Math.max(1, n)}, ${BOARD_ROW_H}px)`;
 export const PATHS_W = 1200;

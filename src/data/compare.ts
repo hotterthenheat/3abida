@@ -39,19 +39,6 @@ const WINDOW = 30;
 
 export type { Greek };
 
-/* THE GREEK (Noah, 2026-09-09: "shouldn't we be able to compare the different
-   gex, vex and dex of each ticker?… when I switch the map from gex to dex the
-   supreme node changes"): the ruler, the reach sums and the Supreme row follow
-   one Greek card; the walls stay gamma's, because a wall is a gamma idea. Each
-   greek has its own two words for a strike's sign — gamma speaks push, delta
-   speaks lean, vega speaks volatility — the ledger's own reading. */
-export const GREEK_OPTIONS: { value: Greek; label: string; hint: string }[] = [
-  { value: 'gex', label: 'GEX', hint: 'Gamma — how hard dealers must hedge a move' },
-  { value: 'dex', label: 'DEX', hint: 'Delta — which way dealers are leaning' },
-  { value: 'vex', label: 'VEX', hint: 'Vega — how a change in volatility moves them' },
-  { value: 'vanna', label: 'VANNA', hint: 'How their hedges re-price when vol moves — the stock a vol drop makes them buy or sell' },
-  { value: 'charm', label: 'CHARM', hint: "The clock's pull on their hedges — the stock the passing day makes them buy or sell" },
-];
 export interface GreekWords {
   pos: string;
   neg: string;
@@ -236,48 +223,6 @@ export const REACH_OPTIONS: { value: Reach; label: string; hint: string }[] = [
   { value: 'three', label: 'Three expected moves', hint: 'Almost every day ends inside it' },
   { value: 'all', label: 'Everything', hint: 'Every strike either name carries' },
 ];
-
-/** A strike's distance in the day's expected moves */
-export const movesAway = (s: CompareSide, strike: number) => (s.sigmaDay > 0 ? (strike - s.spot) / s.sigmaDay : 0);
-
-export interface ReachBand {
-  key: 'up1' | 'up2' | 'dn1' | 'dn2';
-  label: string;
-  /** Expected moves from spot, signed: the band runs from `from` to `to` */
-  from: number;
-  to: number;
-}
-export const REACH_BANDS: ReachBand[] = [
-  { key: 'up1', label: 'Overhead · within one expected move', from: 0, to: 1 },
-  { key: 'up2', label: 'Overhead · one to two moves out', from: 1, to: 2 },
-  { key: 'dn1', label: 'Below · within one expected move', from: -1, to: 0 },
-  { key: 'dn2', label: 'Below · one to two moves out', from: -2, to: -1 },
-];
-
-export interface BandSum {
-  /** The greek's negative side, summed — gamma that pushes back, delta that leans down, vega that gains as vol falls */
-  neg: number;
-  /** Its positive side — gamma that pushes along, delta that leans up, vega that gains as vol rises */
-  pos: number;
-  total: number;
-  strikes: number;
-}
-
-/** What sits in a band of the day's expected moves, for one name, in the chosen greek */
-export function withinReach(s: CompareSide, band: ReachBand, greek: Greek): BandSum {
-  let neg = 0;
-  let pos = 0;
-  let strikes = 0;
-  for (const r of s.rows[greek]) {
-    const m = movesAway(s, r.strike);
-    const inside = band.from < 0 ? m >= band.from && m < band.to : m > band.from && m <= band.to;
-    if (!inside) continue;
-    strikes++;
-    if (r.value < 0) neg += -r.value;
-    else pos += r.value;
-  }
-  return { neg, pos, total: neg + pos, strikes };
-}
 
 /* ---- the pair ------------------------------------------------------------------ */
 

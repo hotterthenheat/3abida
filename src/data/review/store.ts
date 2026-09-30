@@ -104,7 +104,6 @@ export const closePosition = (id: string, contract: ContractId, qty: number) =>
     },
     true
   );
-export const setNote = (id: string, tradeId: string, note: string) => commit(list.map(s => (s.id === id ? { ...s, notes: { ...s.notes, [tradeId]: note } } : s)), true);
 /** The journal's entry on a closed trade — what is given is written over what was there; an answer emptied is kept empty,
     so the first journal's one note does not come back as the first answer */
 export const setEntry = (id: string, tradeId: string, patch: Partial<JournalEntry>) =>

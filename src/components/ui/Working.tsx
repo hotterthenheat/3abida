@@ -22,19 +22,6 @@
   one never flickers it. No wait is ever invented to
   show it off.
 
-  THE ONE EXCEPTION, AND IT IS NOT A WAIT (Noah,
-  2026-09-19, on Trace's Intervals page: "should have
-  our brief little loading icon before transitioning
-  because right now the transition is way too quick
-  for the user to even figure out that the page
-  switched"): a change the reader ASKED FOR that lands
-  faster than the eye — 300 rows re-sorted in one
-  frame reads as nothing having happened. `useBeat`
-  holds the mark over the box for one short beat so
-  the change is SEEN. It is for a whole box swapping
-  what it holds at the reader's click, nothing
-  smaller, and never for data that moved by itself.
-
   THE MARK is loading-ui's Morphing Infinity — a line
   that goes circle → infinity → circle (loading-ui.com
   /docs/components/morphing-infinity; their words:
@@ -104,24 +91,6 @@ export function useWorking(active: boolean, delay: number = WORKING_DELAY): bool
     return () => window.clearTimeout(t);
   }, [active, delay]);
   return active && shown;
-}
-
-/** One beat, so a swap that lands faster than the eye is seen (see the head: the one exception) */
-export const BEAT_MS = 600;
-/** True for `ms` after `key` changes — never on the first render */
-export function useBeat(key: unknown, ms: number = BEAT_MS): boolean {
-  const [on, setOn] = useState(false);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    setOn(true);
-    const t = window.setTimeout(() => setOn(false), ms);
-    return () => window.clearTimeout(t);
-  }, [key, ms]);
-  return on;
 }
 
 /** Run an action; while a promise it returned is unsettled, `busy` is true. One action at a time. */

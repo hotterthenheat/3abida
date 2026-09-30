@@ -199,5 +199,3 @@ export const SetupGuide = () => (
     </Section>
   </div>
 );
-
-export default SetupGuide;

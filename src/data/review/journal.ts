@@ -133,7 +133,6 @@ export const entryOf = (r: JournalRow): JournalEntry => {
 /** Every word the reader wrote on it, as one line — the list's column, and what the search reads */
 export const wordsOf = (e: JournalEntry): string => [e.why, e.saw, e.again].map(w => (w ?? '').trim()).filter(Boolean).join(' · ');
 export const hasWords = (e: JournalEntry): boolean => wordsOf(e).length > 0;
-export const hasTags = (e: JournalEntry): boolean => !!e.setup || (e.mistakes?.length ?? 0) > 0 || !!e.plan;
 
 /* ---- the cut: what the page's cards ask of a row ---- */
 export interface JournalCut {

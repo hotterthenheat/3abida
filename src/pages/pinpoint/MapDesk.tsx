@@ -71,7 +71,7 @@ let scopesMemory: Scopes = {};
 
 const MapDesk = () => {
   const { marketData, activeTicker, changeTicker } = useMarketData();
-  const { focus, toggleFocus, focusOn } = useFocus();
+  const { focus, toggleFocus } = useFocus();
 
   /* Which boxes have stepped off the frame, and onto which name */
   const [scopes, setScopesState] = useState<Scopes>(scopesMemory);
@@ -258,7 +258,6 @@ const MapDesk = () => {
   }, [frameSnap]);
 
   const ticker = frameSnap?.ticker ?? activeTicker;
-  const focusPrice = focusFor(ticker);
   const calTicker = calSnap?.ticker ?? ticker;
   const dayTicker = daySnap?.ticker ?? ticker;
   const reportTicker = reportSnap?.ticker ?? ticker;

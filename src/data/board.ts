@@ -26,10 +26,9 @@ import { buildBuilding } from './building';
 import { buildExposureProfile } from './exposure';
 import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
 import { buildFlipGauge } from './flipGauge';
-import { getBoardNames } from './boardNames';
 import { sessionBars } from './levelview';
 import { spotChangePct } from './gex';
-import { readSessionClock } from './moc';
+import { readSessionClock } from './sessionClock';
 import { getPositions } from './positions';
 import type { WallRole } from './wall';
 import type { ExposureProfileData } from '../types/gex';
@@ -161,23 +160,3 @@ export function buildBoardRow(ticker: string): BoardRow | null {
   };
 }
 
-/** The names on the board — the list the user keeps (data/boardNames.ts), not
-    whatever the simulator happens to run (2026-09-09) */
-export function boardTickers(): string[] {
-  return getBoardNames();
-}
-
-/** Whether the simulator already carries a name — an unseeded one takes ~0.6s
-    to walk its history in, so the Board seeds those one at a time */
-export function boardNameSeeded(ticker: string): boolean {
-  return !!Simulator.TICKERS[ticker.toUpperCase()];
-}
-
-export function buildBoard(tickers: string[] = boardTickers()): BoardRow[] {
-  const out: BoardRow[] = [];
-  for (const t of tickers) {
-    const row = buildBoardRow(t);
-    if (row) out.push(row);
-  }
-  return out;
-}

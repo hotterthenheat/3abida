@@ -238,5 +238,3 @@ export const TargetsGuide = ({ agenda, clock }: { agenda: Agenda; clock: AheadCl
     </div>
   );
 };
-
-export default TargetsGuide;

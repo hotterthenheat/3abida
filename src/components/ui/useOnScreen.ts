@@ -27,5 +27,3 @@ export function useOnScreen<T extends HTMLElement>(margin = '120px'): [(el: T | 
   }, [el, margin]);
   return [setEl, on];
 }
-
-export default useOnScreen;

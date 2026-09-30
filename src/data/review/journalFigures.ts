@@ -143,12 +143,6 @@ export function dayTotals(rows: JournalRow[]): Map<string, DayTotal> {
   }
   return out;
 }
-/** A calendar day as a moment on a day-clock chart: its noon in New York, in seconds (16:00 UTC is noon or 11:00 there — the
-    same date either way) */
-export const dayTime = (day: string): number => Math.floor(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)), 16) / 1000);
-/** WHAT EACH DAY MADE — a bar a day that closed anything, oldest first */
-export const dailyOf = (days: Map<string, DayTotal>): { time: number; value: number; day: string }[] =>
-  [...days.values()].sort((a, b) => (a.day < b.day ? -1 : 1)).map(d => ({ time: dayTime(d.day), value: d.net, day: d.day }));
 
 /* ---- the running total ---- */
 export interface RunPoint {

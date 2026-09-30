@@ -65,53 +65,6 @@ export const Facts = ({ widths, cols }: { widths: number[]; cols?: number }) => 
   </dl>
 );
 
-/** A panel header the house way: h-10, px-4, a title at the left and something at the right */
-export const PanelHeader = ({ title = 127, right = 190 }: { title?: number; right?: number }) => (
-  <header className="flex items-center justify-between gap-3 px-4 h-10 border-b border-borderSubtle shrink-0">
-    <Line w={title} h={11} />
-    {right > 0 && <Line w={right} h={12} />}
-  </header>
-);
-
-/** A read line under a border: the Trace family's "Tape read" strip */
-export const ReadStrip = ({ label = 58, w = '88%' }: { label?: number; w?: number | string }) => (
-  <div className="flex items-start gap-2.5 border-l-2 pl-3 py-0.5 border-borderMuted h-[21px]">
-    <Line w={label} h={10} className="mt-[3px]" />
-    <Line w={w} h={10} className="mt-[3px] flex-1" />
-    <Line w={50} h={10} className="mt-[3px]" />
-  </div>
-);
-
-/** A house table: a 32px sticky head and 39px rows of px-3 py-2 cells, in the given column widths */
-export const TableRows = ({ cols, rows, className = '', rowH = 39, headH = 32 }: { cols: number[]; rows: number; className?: string; rowH?: number; headH?: number }) => (
-  <div className={`w-full border-t border-borderSubtle ${className}`}>
-    <div className="overflow-hidden">
-      <table className="w-full border-collapse" style={{ minWidth: cols.reduce((a, b) => a + b, 0) }}>
-        <thead>
-          <tr className="bg-chip border-b border-borderSubtle" style={{ height: headH }}>
-            {cols.map((w, i) => (
-              <th key={i} className="px-3 py-2 text-left" style={{ width: w }}>
-                <Line w={Math.max(24, w - 30)} h={9} />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: rows }, (_, r) => (
-            <tr key={r} className="border-b border-borderSubtle/60" style={{ height: rowH, opacity: 1 - Math.min(0.5, r * 0.035) }}>
-              {cols.map((w, i) => (
-                <td key={i} className="px-3 py-2">
-                  <Line w={Math.max(20, Math.round((w - 24) * (0.55 + ((r * 7 + i * 3) % 5) * 0.09)))} h={12} className={i > 1 ? 'ml-auto' : ''} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
-
 /** A chart's ground: one quiet block with a price axis down its right edge and a time axis along its foot */
 export const ChartGround = ({ className = '', axis = 60, foot = 22 }: { className?: string; axis?: number; foot?: number }) => (
   <div className={`relative h-full w-full ${className}`} data-skeleton="chart">

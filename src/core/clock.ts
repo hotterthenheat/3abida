@@ -23,11 +23,6 @@ export function now(): Date {
   return injected ? injected() : new Date();
 }
 
-/** Pin the engine clock (replay harness only — never call from UI code). */
-export function setEngineClock(fn: (() => Date) | null): void {
-  injected = fn;
-}
-
 /** Run fn with the clock pinned to `at`, restoring afterwards even on throw. */
 export function withEngineClock<T>(at: Date, fn: () => T): T {
   const prev = injected;

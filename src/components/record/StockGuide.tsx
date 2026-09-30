@@ -228,5 +228,3 @@ export const StockGuide = ({ view }: { view: StockOverview }) => (
     </Section>
   </div>
 );
-
-export default StockGuide;

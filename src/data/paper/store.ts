@@ -111,8 +111,6 @@ export function liveMarket(now = Date.now()): PaperMarket {
     open: () => true,
   };
 }
-/** Where the name would have to stand now for a contract to bid this — the chart's lines, and a pin's level */
-export const spotForBid = (c: ContractId, bid: number): number | null => spotForBidNow(c, Date.now(), bid);
 
 /* ================================================================== */
 /*  THE ACCOUNTS                                                       */
@@ -183,11 +181,6 @@ const snapshot = () => state;
 /** Every paper account, the one in hand, and whether this tab holds them */
 export const usePaper = (): PaperState => useSyncExternalStore(subscribe, snapshot, snapshot);
 export const readPaper = (): PaperState => state;
-/** The account on the desk (null: none yet) */
-export const useInHand = (): PaperAccount | null => {
-  const s = usePaper();
-  return s.accounts.find(a => a.id === s.inHand) ?? null;
-};
 
 /* ================================================================== */
 /*  ONE TAB AT A TIME                                                  */
@@ -418,9 +411,6 @@ export function startEvaluation(plan: EvalPlan): string | null {
   return a.id;
 }
 export const setInHand = (id: string) => state.accounts.some(a => a.id === id) && commit({ inHand: id }, true);
-export const renameAccount = (id: string, name: string) => state.holding && commit({ accounts: state.accounts.map(a => (a.id === id ? { ...a, name: name.trim() || a.name } : a)) }, true);
-/** The sandbox: fees off — practice only */
-export const setSandbox = (id: string, on: boolean) => state.holding && commit({ accounts: state.accounts.map(a => (a.id === id && a.kind === 'practice' ? { ...a, sandbox: on || undefined } : a)) }, true);
 
 /* ================================================================== */
 /*  THE JOURNAL'S OWN KEY                                              */

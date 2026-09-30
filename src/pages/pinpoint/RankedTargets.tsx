@@ -45,7 +45,7 @@ import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface'
 import { aheadClock } from '../../data/ahead';
 import { buildBuilding } from '../../data/building';
 import { sessionBars } from '../../data/levelview';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import { contractWords, usePositions } from '../../data/positions';
 import type { MarketSnapshot } from '../../types/market';
 

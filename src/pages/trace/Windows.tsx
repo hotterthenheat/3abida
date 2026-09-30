@@ -26,7 +26,6 @@ import {
   type IntervalSlice,
 } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
-import type { BookContract } from '../../types/trace';
 import type { Column } from '../../components/ui/DataTable';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';

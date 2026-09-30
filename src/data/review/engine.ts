@@ -189,7 +189,6 @@ export const DEFAULT_FEE = 0.65;
 export const MULT = 100;
 /** A moment as one number, for order. 2,000 a day: an option's day is 390 minutes */
 export const stampOf = (m: Moment): number => dayIndex(m.day) * 2000 + m.minute;
-export const sameMoment = (a: Moment, b: Moment) => a.day === b.day && a.minute === b.minute;
 const cents = (v: number) => Math.round(v * 100) / 100;
 
 /** The names a session trades, first one first */

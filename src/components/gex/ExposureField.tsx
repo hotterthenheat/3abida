@@ -36,7 +36,7 @@
 ==================================================
 */
 
-import { cloneElement, isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import Fold from '../ui/Fold';
 import ScopeChip from '../ui/ScopeChip';
@@ -61,9 +61,9 @@ import CompanyLogo from '../ui/CompanyLogo';
 import TickerSearch from '../ui/TickerSearch';
 import { useFadeClose } from '../ui/useFadeClose';
 import { fmtUsd } from '../../data/gex';
-import { STRIKE_WINDOWS, type StrikeWindow } from '../../data/exposure';
+import { type StrikeWindow } from '../../data/exposure';
 import { buildExposureSurface, CALENDAR_DTES, GREEKS, type ExposureSurface, type Greek } from '../../data/exposureSurface';
-import { HEAT_MODE, heatCellStyle, heatRampColorFor, ladderRampT } from './heatmap';
+import { HEAT_MODE } from './heatmap';
 import ColoursSwitch from './ColoursSwitch';
 import type { MarketSnapshot } from '../../types/market';
 import { VIEWS_FOR, readLedgerView, writeLedgerView, type LedgerView } from './ledgerView';

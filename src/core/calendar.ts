@@ -15,7 +15,7 @@
 
 import { now } from './clock';
 
-/** US equity market holidays. Same list moc.ts used privately — now shared.
+/** US equity market holidays — one list for the session clock (data/sessionClock.ts) and every expiry.
     EXTENDED BACK TO 2016 (2026-09-17): the replay walks the tape from 2016, and a
     calendar that knew only 2026 would have counted Good Friday 2019 as a session.
     The one-offs are real: 2018-12-05 (the

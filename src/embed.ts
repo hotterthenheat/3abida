@@ -75,5 +75,3 @@ export const EMBED_THEME: Theme | null = EMBEDDED && (asked === 'light' || asked
 export type ToEmbed = { slayer: 'landing'; type: 'go'; path: string } | { slayer: 'landing'; type: 'theme'; theme: Theme };
 export type FromEmbed = { slayer: 'embed'; type: 'ready' | 'route' | 'escape'; path: string };
 
-/** The address a window loads first */
-export const embedSrc = (path: string, theme: Theme): string => `${path}${path.includes('?') ? '&' : '?'}embed=1&theme=${theme}`;

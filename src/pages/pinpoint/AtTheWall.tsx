@@ -38,7 +38,7 @@ import { aheadClock } from '../../data/ahead';
 import { buildBuilding } from '../../data/building';
 import { buildWallBoard } from '../../data/wall';
 import { sessionBars } from '../../data/levelview';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import type { MarketSnapshot } from '../../types/market';
 
 /** The odds sweep on their own cadence — a wall must not vibrate with every tick */

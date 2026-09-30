@@ -72,8 +72,6 @@ export function bracketOf(d: LadderDraft, qty: number, stopFromTrail?: (by: numb
   if (!targets.length && !stops.length) return undefined;
   return { targets: targets.length ? targets : undefined, stops: stops.length ? stops : undefined, breakeven: (d.breakeven && targets.length > 0 && stops.length > 0) || undefined, trail: (d.trail && stops.length > 0) || undefined, trailBy: d.trail && by != null ? by : undefined };
 }
-/** Every stop typed, with the contracts it speaks for — what a ticket works its planned risk out from */
-export const stopsOf = (d: LadderDraft, qty: number): Rung[] => rungs(d.nStops, d.stops, d.stopQty, qty);
 
 const inputCls = 'h-8 w-full px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60 transition-colors';
 const countCls = 'h-[18px] w-7 px-1 rounded border border-borderSubtle bg-panel text-center font-mono text-[10px] tnum text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60 transition-colors';

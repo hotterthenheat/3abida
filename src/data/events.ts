@@ -1,6 +1,6 @@
 import { RTH_MINUTES, isTradingDay } from '../core/calendar';
 import { sessionStarts } from './indicators';
-import { buildEarningsCalendar, type EarningsEvent } from './earnings';
+import { type EarningsEvent } from './earnings';
 import type { Candle } from '../types/market';
 import type { FlowPrint } from '../types/trace';
 
@@ -210,18 +210,3 @@ export function buildTapeEvents(input: TapeEventsInput): MarketEvent[] {
   return [...past, ...future];
 }
 
-/** The chart-side wrapper: same stores every other surface reads. */
-export function tapeEventsFor(
-  ticker: string,
-  bars: readonly Candle[],
-  prints: readonly (FlowPrint & { at: number })[],
-  now: Date = new Date()
-): MarketEvent[] {
-  return buildTapeEvents({
-    bars,
-    prints,
-    earnings: buildEarningsCalendar().find(e => e.ticker === ticker.toUpperCase()) ?? null,
-    macro: macroWindow(now),
-    todayIso: isoOf(now),
-  });
-}

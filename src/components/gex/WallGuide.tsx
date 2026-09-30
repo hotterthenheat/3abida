@@ -227,5 +227,3 @@ export const WallGuide = ({ board, clock }: { board: WallBoard; clock: AheadCloc
     </div>
   );
 };
-
-export default WallGuide;

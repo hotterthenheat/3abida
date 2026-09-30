@@ -58,7 +58,6 @@ import { gradeOfNewsConfidence } from '../../data/news';
 import NewsCalendar from '../../components/record/NewsCalendar';
 import { NEWS_ROW_H } from './recordSkeletons';
 
-const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const GRADE_INK: Record<NewsGrade, string> = { THREAT: 'text-bear', ALLY: 'text-bull', WATCH: 'text-textSecondary' };
 const GRADE_BAR: Record<NewsGrade, string> = { THREAT: 'bg-bear/85', ALLY: 'bg-bull', WATCH: 'bg-ink/40' };

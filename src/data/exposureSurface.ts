@@ -40,8 +40,6 @@ import type { ExposureLevels, ExposureProfileData } from '../types/gex';
 /** The five greeks every exposure surface can speak (vanna and charm joined 2026-09-09) */
 export type Greek = 'gex' | 'dex' | 'vex' | 'vanna' | 'charm';
 export const GREEKS: Greek[] = ['gex', 'dex', 'vex', 'vanna', 'charm'];
-/** The three the calendar shows side by side under "All" */
-export const CORE_GREEKS: Greek[] = ['gex', 'dex', 'vex'];
 
 /** The unit each greek is stated in — the matrix's own headers. */
 export const GREEK_UNIT: Record<Greek, string> = { gex: '1% move', dex: '1σ move', vex: '1% vol', vanna: '1 vol pt', charm: '1 day' };

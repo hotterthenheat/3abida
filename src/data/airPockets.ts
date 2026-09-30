@@ -116,9 +116,3 @@ export function airPocketZones(pockets: readonly AirPocket[]): ZoneBand[] {
   }));
 }
 
-/** What a pocket is worth saying, in the desk's own voice. */
-export function pocketWords(p: AirPocket, spot: number): string {
-  const span = Math.abs(p.ceiling - p.floor);
-  const where = spot > p.ceiling ? 'below' : spot < p.floor ? 'above' : 'around';
-  return `${p.floor}–${p.ceiling} is ${span.toFixed(2)} wide with almost no hedging in it — ${where} spot, price has nothing to lean on crossing it`;
-}

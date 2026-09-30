@@ -5,18 +5,7 @@
 ==================================================
 */
 
-import type {
-  Candle,
-  GexSnapshot,
-  Greeks,
-  Indicators,
-  MarketSnapshot,
-  StrikeNode,
-  TapeOrder,
-  TickerConfig,
-  TickerSymbol,
-  TradePlan,
-} from '../types/market';
+import type { Candle, GexSnapshot, Indicators, MarketSnapshot, StrikeNode, TapeOrder, TickerConfig, TickerSymbol, TradePlan } from '../types/market';
 import { blackScholesGreeks } from './greeks';
 import { dayKey } from './rng';
 import { lookup as universeLookup } from '../data/universe';
@@ -458,9 +447,6 @@ const Simulator = (() => {
       byZ.set(z, u);
     }
     return u;
-  }
-  function gammaAt(spot: number, strike: number, iv: number): number {
-    return unitAt(spot, strike, iv).gamma / spot;
   }
 
   // Net GEX, DEX and VEX (all-expiry proxy) per strike at a given price, captured as one snapshot

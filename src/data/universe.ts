@@ -83,10 +83,6 @@ export const SECTORS: Sector[] = [
   'Materials',
 ];
 
-export function bySector(sector: Sector): UniverseName[] {
-  return UNIVERSE.filter(u => u.sector === sector);
-}
-
 export function lookup(ticker: string): UniverseName | undefined {
   return UNIVERSE.find(u => u.ticker === ticker);
 }

@@ -14,22 +14,7 @@ import ThemePreview from './ThemePreview';
 import { createPortal } from 'react-dom';
 import { useAnchoredMenu } from '../ui/useAnchoredMenu';
 import { motion } from 'framer-motion';
-import {
-  Activity,
-  CandlestickChart,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Fullscreen,
-  Grid2x2,
-  Layers,
-  Maximize2,
-  Minimize2,
-  Palette,
-  Play,
-} from 'lucide-react';
+import { Activity, CandlestickChart, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Fullscreen, Layers, Maximize2, Minimize2, Palette, Play } from 'lucide-react';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
 import {
   CANDLE_THEMES,

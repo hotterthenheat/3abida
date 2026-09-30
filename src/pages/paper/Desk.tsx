@@ -77,7 +77,7 @@ import { TraceGrid } from '../../components/trace/TraceBox';
 import ContractLabel from '../../components/ui/ContractLabel';
 import type { DropdownOption } from '../../components/ui/DropdownSelect';
 import type { Column } from '../../components/ui/DataTable';
-import DeskShell, { card, head, headWord, smallDoor, type DeskName } from '../../components/review/DeskShell';
+import DeskShell, { card, smallDoor, type DeskName } from '../../components/review/DeskShell';
 import OptionsChain, { ChainOrder, type ChainOrderDesk } from '../../components/paper/OptionsChain';
 import type { ChartBracket, ChartEntry, ChartMark, ChartPosition } from '../../components/review/PositionLayer';
 import PnlBadges from '../../components/review/PnlBadges';

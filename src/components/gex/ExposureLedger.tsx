@@ -50,10 +50,13 @@ import { HEAT_MODE, heatLaneColor, type HeatMode } from './heatmap';
 import SpotRule from '../ui/SpotRule';
 import { fmtUsd } from '../../data/gex';
 import { GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposureSurface';
-import { LONG_GAMMA, SHORT_GAMMA, SUPREME } from './paletteInk';
+import { BULL, LONG_GAMMA, PUT_WALL, SHORT_GAMMA, SUPREME } from './paletteInk';
 import { afterGlide, onGlide, promisedWidth } from '../../core/glide';
-import { netInk } from './ExposureReadout';
 import type { SurfaceCell } from './exposureView';
+
+/** The net's ink per greek — gamma speaks regime, delta speaks direction, vega, vanna and charm stay plain. */
+const netInk = (greek: Greek, v: number): string =>
+  greek === 'gex' ? (v >= 0 ? SHORT_GAMMA : LONG_GAMMA) : greek === 'dex' ? (v >= 0 ? BULL : PUT_WALL) : '#EDEDED';
 
 interface ExposureLedgerProps {
   surface: ExposureSurface;

@@ -294,5 +294,3 @@ export const NewsGuide = () => (
     </Section>
   </div>
 );
-
-export default NewsGuide;

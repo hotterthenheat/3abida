@@ -125,7 +125,6 @@ const CALL_INK = CALL_WALL;
 const GREEK_LABEL: Record<Greek, string> = { gex: 'GEX', dex: 'DEX', vex: 'VEX', vanna: 'VANNA', charm: 'CHARM' };
 /* The Ledger's floor, so ±20 strikes stand in the calendar's box without a scroll (measured: 823px holds 40 rows at 19.4) */
 const ROW_MIN = 18;
-const HEAD_H = 28;
 const SPOT_H = 18;
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const fmtDist = (pct: number) => {

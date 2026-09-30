@@ -50,9 +50,6 @@ export const AXIS_COL_W = 60;
 /** THE SPINE OF STRIKES (2026-09-29): a column of strike figures on each side of the ruler, so every capsule is named
     where the Map's ladder names its strikes — the first cut printed a strike only on hover */
 export const AXIS_STRIKE_W = 46;
-/** The caption over the four bands within reach */
-export const BANDS_CAP_H = 22;
-export const BAND_KEYS = ['up1', 'up2', 'dn1', 'dn2'] as const;
 /** Today's two lines, and the read line under them */
 export const TAPES_H = 300;
 export const TAPES_READ_H = 26;

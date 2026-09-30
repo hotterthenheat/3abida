@@ -10,10 +10,8 @@
   dollars of stock dealers must trade to stay
   hedged if price walks from here to there.
 
-  THE ARITHMETIC IS THE SPOT SCENARIO'S (P-18,
-  data/spotScenario.ts), pointed at every strike at
-  once instead of one slider position: net gamma at
-  a strike is dollars of dealer hedging per 1% move,
+  THE ARITHMETIC (P-18): net gamma at a strike is
+  dollars of dealer hedging per 1% move,
   so the flow a path forces is the gamma crossed
   along it times the size of the move —
 
@@ -32,16 +30,14 @@
   profile's strikes, not the raw chain — so the flow
   beside a bar is the flow of that bar's book.
 
-  THE ASSUMPTION IS LOAD-BEARING and every row
-  carries it: continuous delta hedging at the
-  modelled sign, over the book as it stands now.
+  THE ASSUMPTION IS LOAD-BEARING: continuous delta
+  hedging at the modelled sign, over the book as it
+  stands now. Real dealers hedge in steps and on
+  their own schedule.
 ==================================================
 */
 
-import { HEDGING_ASSUMPTION } from './spotScenario';
 import type { ExposureProfileData } from '../types/gex';
-
-export { HEDGING_ASSUMPTION };
 
 export interface FlowRung {
   strike: number;
@@ -106,16 +102,3 @@ export function buildFlowFromRows(rows: readonly { strike: number; value: number
   return { spot, rungs, maxAbs };
 }
 
-/** The two-wall line for the rail's head: "↑485 sell $210M · ↓480 buy $90M" */
-export function wallFlowWords(ladder: FlowLadder, callWall: number, putWall: number): string {
-  const at = (k: number) => ladder.rungs.find(r => Math.abs(r.strike - k) < 1e-9);
-  const part = (r: FlowRung | undefined, k: number, arrow: string) => (r ? `${arrow}${fmtStrike(k)} ${r.flow >= 0 ? 'buy' : 'sell'} ${fmtFlow(r.flow)}` : `${arrow}${fmtStrike(k)} —`);
-  return `${part(at(callWall), callWall, '↑')} · ${part(at(putWall), putWall, '↓')}`;
-}
-
-/** The sentence for one strike, subject included: "A push up to 485 forces about $210M of dealer selling, which slows the move." */
-export function flowSentence(r: FlowRung): string {
-  if (r.flow === 0) return `A move to ${fmtStrike(r.strike)} forces no dealer flow.`;
-  const up = r.movePct > 0;
-  return `A ${up ? 'push up' : 'drop'} to ${fmtStrike(r.strike)} forces about ${fmtFlow(r.flow)} of dealer ${r.flow >= 0 ? 'buying' : 'selling'}, which ${r.amplifies ? 'speeds the move up' : 'slows the move'}.`;
-}

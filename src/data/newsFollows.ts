@@ -78,7 +78,6 @@ const subscribe = (fn: () => void) => {
 
 export const getFollows = (): NewsFollow[] => current;
 export const useFollows = (): NewsFollow[] => useSyncExternalStore(subscribe, getFollows, getFollows);
-export const isFollowed = (ticker: string): boolean => current.some(f => f.ticker === ticker.toUpperCase());
 
 export function followName(symbol: string): void {
   const t = symbol.trim().toUpperCase();

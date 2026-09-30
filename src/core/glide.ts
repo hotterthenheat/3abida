@@ -47,7 +47,6 @@ const starters = new Set<() => void>();
 const enders = new Set<() => void>();
 const once = new Set<() => void>();
 
-export const isGliding = (): boolean => gliding;
 /** The frame's destination for the glide under way, when the starter said it */
 export const glideTarget = (): GlideTarget | null => target;
 

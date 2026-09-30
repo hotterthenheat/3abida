@@ -20,7 +20,7 @@
 */
 
 import { useEffect, useRef, useState } from 'react';
-import { readSessionClock, type SessionClock as Session } from '../../data/moc';
+import { readSessionClock, type SessionClock as Session } from '../../data/sessionClock';
 
 /** Hours, minutes and seconds off the New York wall clock the session reads */
 const parts = (s: Session) => {

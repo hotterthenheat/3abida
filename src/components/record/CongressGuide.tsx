@@ -174,5 +174,3 @@ export const CongressGuide = () => (
     </Section>
   </div>
 );
-
-export default CongressGuide;

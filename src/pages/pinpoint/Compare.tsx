@@ -46,7 +46,7 @@ import { CompareAxisInner, ComparePageSkeleton, ComparePairInner, CompareTapesIn
 import { aheadClock } from '../../data/ahead';
 import { buildCompare, buildCompareSide, partnerFor, type Greek, type Reach } from '../../data/compare';
 import { useDistanceUnit } from '../../data/distanceUnits';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import type { MarketSnapshot } from '../../types/market';
 import type { ExposureExpiry } from '../../types/gex';
 

@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { aheadClock, type AheadClock } from '../../data/ahead';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 
 export function useDeskClock(): AheadClock {
   const [raw, setRaw] = useState(() => readSessionClock());

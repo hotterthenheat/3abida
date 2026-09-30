@@ -72,8 +72,6 @@ export function usePaneScripts(paneId?: PaneId): PaneScript[] {
   );
 }
 
-export const getPaneScripts = (paneId: PaneId): PaneScript[] => snapshots.get(paneId) ?? EMPTY;
-
 export async function placeOnPane(paneId: PaneId, scriptId: string, inputs?: Record<string, ScriptInputValue>): Promise<ChartScript> {
   const cs = await scriptStore.place(paneId, scriptId, inputs);
   await refreshPane(paneId);

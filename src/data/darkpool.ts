@@ -236,8 +236,8 @@ function classify(
                                     great"): the first cut, 60, called 41 of the 110 names strong; 80 calls 16
                           good      from 50 — three dollars to one · caution between 18 and 50
                         (the simulator's books are few and lopsided — median lean 56 — so re-read these on the live spread)
-   The figure still weighs a contract (core/contractScore.ts), quantizes the close read (data/moc.ts) and sets the LENGTH of
-   the stock page's selling ←→ buying bar. */
+   The figure still weighs a contract (core/contractScore.ts) and sets the LENGTH of the stock page's selling ←→ buying
+   bar. */
 export const gradeOfPosture = (netPosturePct: number): Grade => {
   const lean = Math.abs(netPosturePct);
   return lean >= 80 ? 'strong' : lean >= 50 ? 'good' : lean >= 18 ? 'caution' : 'poor';

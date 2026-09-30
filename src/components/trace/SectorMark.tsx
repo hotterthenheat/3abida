@@ -73,5 +73,3 @@ export const SectorName = ({ sector }: { sector: string | null }) =>
   ) : (
     <span className="text-textMuted">—</span>
   );
-
-export default SectorMark;

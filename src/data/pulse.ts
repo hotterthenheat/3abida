@@ -112,26 +112,6 @@ export function buildKeyLevels(snapshot: MarketSnapshot, levels: KeyLevels, pin:
   return rows.sort((a, b) => b.price - a.price);
 }
 
-// ---- auto market notes ----------------------------------------------------------
-/** One generated observation per scan, or null when nothing is notable. */
-export function makeAutoNote(snapshot: MarketSnapshot, levels: KeyLevels, bias: DealerBias): string | null {
-  const { spot } = snapshot;
-  const pct = (a: number, b: number) => Math.abs((a - b) / b) * 100;
-  const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-
-  if (pct(spot, levels.callWall) < 0.15)
-    return `Spot testing ${fmt(levels.callWall)} call wall; dealer supply concentrated overhead.`;
-  if (pct(spot, levels.putWall) < 0.15)
-    return `Spot pressing ${fmt(levels.putWall)} put wall; dealer support being tested.`;
-  if (pct(spot, levels.flip) < 0.12)
-    return `Price is at the ${fmt(levels.flip)} gamma flip — dealer hedging switches direction here.`;
-  if (spot < levels.flip)
-    return `Trading below the ${fmt(levels.flip)} flip; dealers short gamma — expect amplified moves.`;
-  if (bias === 'BULLISH')
-    return `Supportive positioning above ${fmt(levels.flip)}; dips into ${fmt(levels.putWall)} likely absorbed.`;
-  return null;
-}
-
 // ---- top-level assembly ----------------------------------------------------------
 export function buildPulseView(snapshot: MarketSnapshot): PulseView {
   const { chain, spot, plan } = snapshot;

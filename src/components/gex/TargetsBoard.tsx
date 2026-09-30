@@ -50,7 +50,7 @@ import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import JingleBell from '../ui/JingleBell';
 import { TargetsGuide } from './TargetsGuide';
 import { heatLaneColor } from './heatmap';
-import { ALERT, CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
+import { ALERT, CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_WARM } from './paletteInk';
 import { AGENDA_COLUMNS, AGENDA_MIN_W, CARD_H, ROW_H } from './targetsSkeletons';
 import { AGENDA_ORDERS, DRIVER_WORDS, buildWords, type Agenda, type AgendaOrder, type Target } from '../../data/agenda';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
@@ -63,7 +63,6 @@ const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 export const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
 /** Breaks and trapdoors are the calendar's warm side; a wall's weight its cool side */
 const WARM = THERMAL_WARM;
-const COOL = THERMAL_COOL;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const ORDER_OPTIONS: DropdownOption<AgendaOrder>[] = AGENDA_ORDERS.map(o => ({ value: o.value, label: o.label, hint: o.hint }));
 const WINDOW_OPTIONS: DropdownOption<number>[] = STRIKE_WINDOWS.map(w => ({ value: w, label: `${w} each side`, hint: w === 30 ? 'The whole book' : `${w} strikes above spot and ${w} below` }));

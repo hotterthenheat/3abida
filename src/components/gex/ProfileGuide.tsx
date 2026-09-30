@@ -28,7 +28,7 @@ import { fmtUsd } from '../../data/gex';
 import { fmtFlow, type FlowLadder } from '../../data/hedgeFlow';
 import type { GexLevel } from '../../types/market';
 import type { PanelLevels } from './ProfilePanel';
-import { splinePath } from './StrikePressureLadder';
+import { splinePath } from './spline';
 
 const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';

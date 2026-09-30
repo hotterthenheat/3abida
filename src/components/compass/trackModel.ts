@@ -207,13 +207,6 @@ export function buildSetupTrack(setup: Setup, bars: Candle[]): SetupTrack {
   };
 }
 
-/** Signed span for a cursor readout — "−1h 20m" / "NOW" / "+45m". */
-export function barsToOffset(barCount: number): string {
-  const r = Math.round(barCount);
-  if (r === 0) return 'NOW';
-  return `${r < 0 ? '−' : '+'}${barsToSpan(r)}`;
-}
-
 /** Relative time only, never a wall clock — the sim's bars have no real
     09:30–16:00 relationship, and this chart's whole argument is honesty. */
 export function barsToSpan(barCount: number): string {

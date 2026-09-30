@@ -14,7 +14,7 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';

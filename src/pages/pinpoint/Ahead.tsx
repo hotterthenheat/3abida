@@ -51,7 +51,7 @@ import AheadCorridor from '../../components/gex/AheadCorridor';
 import CloseOdds from '../../components/gex/CloseOdds';
 import { buildExposureProfile } from '../../data/exposure';
 import { aheadClock, buildCloseOdds, buildCorridor, buildSchedule, type VolPoints } from '../../data/ahead';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import { usePositions } from '../../data/positions';
 import type { MarketSnapshot } from '../../types/market';
 

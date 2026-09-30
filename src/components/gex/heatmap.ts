@@ -235,7 +235,7 @@ const RAMPS: Record<
   // `neg`. Measured on SPY: the call wall row prints −$149.1M and the put wall
   // row +$507.8M, so pairing green with `pos` would put a green CW label on a
   // red row and a red PW label on a green row. It also lines up the chart's own
-  // trails legend, which already calls heatPoles.neg "call walls".
+  // trails legend, which already calls the negative pole "call walls".
   // Stops are ARC-LENGTH EVEN, not hand-placed — see the note above. The old
   // four hand-picked anchors survive as waypoints on the same path (oxblood
   // ~#601612, deep pine ~#14542B); all that changed is how fast the eye
@@ -452,17 +452,6 @@ function relativeLuminance([r, g, b]: RGB): number {
 const INK_CROSSOVER = Math.sqrt((relativeLuminance([237, 237, 237]) + 0.05) * (relativeLuminance([10, 10, 10]) + 0.05)) - 0.05;
 const inkFor = (rgb: RGB): string => (relativeLuminance(rgb) > INK_CROSSOVER ? INK_DARK : INK_LIGHT);
 
-/*
-  Magnitude on the ramp's OWN curve, 0..1 — exported so a bar's LENGTH can use
-  the same spacing its colour does. Sizing a bar linearly while colouring it on
-  the gamma curve gives a row that is visibly hot and visibly ~empty, which
-  reads as a rendering fault rather than as a light strike. The note above says
-  why the linear scale is wrong for this data; it is wrong for length too.
-*/
-export function heatMagnitude(value: number, maxAbs: number): number {
-  return heatT(value, maxAbs);
-}
-
 /** Ramp color at a raw position t (0..1) for one side (+1 amplify / -1
     absorb) — NO magnitude curve applied; for surfaces that carry their own
     normalization (the pressure ladder's traveling bars). */
@@ -509,17 +498,6 @@ export function heatRampColorFor(sign: 1 | -1, t: number, mode: HeatMode, paper 
     return [c, c, c];
   }
   return rampColor(sign >= 0 ? r.pos : r.neg, tt);
-}
-
-/** Raw ramp color for a signed value — used by the on-chart node overlay. */
-export function heatRgb(value: number, maxAbs: number): RGB {
-  const t = heatT(value, maxAbs);
-  const r = RAMPS[HEAT_MODE as keyof typeof RAMPS];
-  if (r) return rampColor(value >= 0 ? r.pos : r.neg, t);
-  // grayscale fallback for the legacy mono/hybrid/diverging modes
-  const lum = value >= 0 ? 0.3 + t * 0.6 : 0.3;
-  const c = Math.round(lum * 255);
-  return [c, c, c];
 }
 
 const EMERALD: RGB = [48, 209, 88];
@@ -644,38 +622,3 @@ export function heatLadderColor(value: number, cut: number, mode: HeatMode, pape
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
-/** Pole colors of the active ramp — legends must derive from these, never hardcode. */
-const poleHex = (stops: Stops): string => {
-  const c = stops[stops.length - 1][1];
-  return `rgb(${c[0]},${c[1]},${c[2]})`;
-};
-export const heatPoles = ramp
-  ? { pos: poleHex(ramp.pos), neg: poleHex(ramp.neg) }
-  : { pos: '#ededed', neg: '#8f8f8f' };
-
-export const heatScaleGradient: string = ramp
-  ? ramp.gradient
-  : HEAT_MODE === 'diverging'
-    ? 'linear-gradient(to bottom, rgba(48,209,88,0.85), rgba(48,209,88,0.12) 46%, rgba(20,20,20,1) 50%, rgba(255,59,48,0.12) 54%, rgba(255,59,48,0.85))'
-    : HEAT_MODE === 'hybrid'
-      ? 'linear-gradient(to bottom, rgb(126,210,180), rgb(235,235,235) 14%, rgb(61,61,61) 50%, rgb(5,5,5) 86%, rgb(122,32,47))'
-      : 'linear-gradient(to bottom, rgb(235,235,235), rgb(61,61,61) 50%, rgb(5,5,5))';
-
-/** Scale end-label classes (sign already carried by the printed values). */
-export const heatScaleLabels =
-  HEAT_MODE === 'steel-gold'
-    ? // Each end label wears its pole: + is the gold (amplify) end of the
-      // bar, − the steel (absorb) end.
-      { pos: 'text-[#F5C542]', neg: 'text-[#E2EAF4]' }
-    : HEAT_MODE === 'ice-plasma'
-    ? // Each end label wears its pole: + is the plasma (amplify) end of the
-      // bar, − the ice (absorb) end.
-      { pos: 'text-[#FF5EA8]', neg: 'text-[#3DD6E8]' }
-    : HEAT_MODE === 'terminal'
-      ? // Terminal's poles are inverted vs 'diverging' — see the ramp note:
-        // positive is put-dominant (red) and negative call-dominant (green),
-        // so each end label wears the colour of the bar end it sits against.
-        { pos: 'text-bear', neg: 'text-bull' }
-      : HEAT_MODE === 'diverging'
-        ? { pos: 'text-bull', neg: 'text-bear' }
-        : { pos: 'text-textPrimary', neg: 'text-textSecondary' };

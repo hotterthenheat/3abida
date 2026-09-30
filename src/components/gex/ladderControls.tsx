@@ -13,35 +13,10 @@
 ==================================================
 */
 
-import type { ReactNode } from 'react';
-import SignalBadge from '../ui/SignalBadge';
-import RichRead from '../ui/RichRead';
-import type { DropdownOption } from '../ui/DropdownSelect';
 import type { ExpiryChoice } from '../ui/ExpiryCard';
 import { expiryFor, today } from '../../core/calendar';
 import { STRIKE_WINDOWS, type StrikeWindow } from '../../data/exposure';
-import type { Tone } from '../ui/tones';
-import type { ExposureExpiry, HeatPatternRead } from '../../types/gex';
-
-/** Pattern chip tone follows the read's direction — the engine's verdict
-    wears its own color, never the field's. */
-export const PATTERN_TONE: Record<HeatPatternRead['direction'], Tone> = {
-  BULLISH: 'bull',
-  BEARISH: 'bear',
-  RANGE: 'neutral',
-  VOLATILE: 'warn',
-};
-
-/** The time axis, as a control above the ladder — not a grid beside it. */
-export const LADDER_EXPIRIES: { value: ExposureExpiry; label: string }[] = [
-  { value: '0DTE', label: '0DTE' },
-  { value: '1D', label: '1D' },
-  { value: '2D', label: '2D' },
-  { value: '5D', label: '5D' },
-  { value: '7D', label: '7D' },
-  { value: 'OPEX', label: 'OPEX' },
-  { value: 'ALL', label: 'All' },
-];
+import type { ExposureExpiry } from '../../types/gex';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDay = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
@@ -81,20 +56,3 @@ export function ladderExpiryOptions(): ExpiryChoice<ExposureExpiry>[] {
 /** ±10 for the day's fight, ±30 for the whole book — the tail hedges live out there */
 export const LADDER_RANGES: StrikeWindow[] = STRIKE_WINDOWS;
 
-/** The pattern strip — what the ladder below actually says. */
-export const LadderPatternStrip = ({ pattern, after, right }: { pattern: HeatPatternRead; after?: ReactNode; right?: ReactNode }) => (
-  <div className="shrink-0 px-2.5 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2">
-    <SignalBadge tone={PATTERN_TONE[pattern.direction]} dot>
-      {pattern.key}
-    </SignalBadge>
-    <p className="min-w-0 text-[11px] text-textSecondary leading-snug">
-      <RichRead text={pattern.read} />
-    </p>
-    {/* Two slots a host can fill (the Map, 2026-09-05): `after` sits right
-        after the sentence — the thing that changes its words, the instrument
-        whose prices it prints; `right` sits at the far end, over whatever
-        stands at the right of the surface below. */}
-    {after}
-    {right && <span className="ml-auto shrink-0 flex items-center gap-2">{right}</span>}
-  </div>
-);

@@ -42,8 +42,6 @@ interface DrawTarget {
 }
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-/** The ladder's room at the right edge, media px */
-export const LADDER_W = 34;
 
 export interface SetupMarks {
   /** The entry: its candle's time, the stock price then, and the premium paid */

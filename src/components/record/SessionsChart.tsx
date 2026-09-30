@@ -31,7 +31,7 @@
 */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AreaSeries, BaselineSeries, HistogramSeries, LineSeries, LineStyle, LineType, TickMarkType, createChart, createSeriesMarkers, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
+import { AreaSeries, BaselineSeries, HistogramSeries, LineSeries, LineStyle, LineType, createChart, createSeriesMarkers, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
 import { DARK_FIGURE_SURFACE } from '../gex/candleTheme';
 import { readToken, useResolvedTheme } from '../../theme/theme';
 import { alpha, resolveInk } from '../gex/paletteInk';

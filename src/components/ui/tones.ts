@@ -19,18 +19,6 @@
                navigation); the animated foil is nav/brand. */
 export type Tone = 'bull' | 'bear' | 'warn' | 'select' | 'white' | 'crown' | 'supreme' | 'holo' | 'neutral';
 
-export const toneText: Record<Tone, string> = {
-  bull: 'text-bull',
-  bear: 'text-bear',
-  warn: 'text-warn',
-  select: 'text-select',
-  white: 'text-textPrimary',
-  crown: 'text-supreme',
-  supreme: 'text-supreme',
-  holo: 'holo-text',
-  neutral: 'text-textPrimary',
-};
-
 export const toneDot: Record<Tone, string> = {
   bull: 'bg-bull',
   bear: 'bg-bear',

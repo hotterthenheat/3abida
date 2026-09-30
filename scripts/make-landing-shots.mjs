@@ -321,45 +321,6 @@ PREPARE['/practice/backtest'] = async (page, theme, size) => {
   await page.mouse.move(size.w - 10, 6);
   await page.waitForTimeout(1500);
 };
-/* A FUTURES SESSION, IN USE — /practice/futures is the sessions page with its first card on Futures. The risk rule is set, so
-   the ticket is shown doing what it is for: a stop typed, the size taken from the risk, a long with its target and stop on
-   the chart of the day session. */
-PREPARE['/practice/futures'] = async (page, theme, size) => {
-  const frame = page.frameLocator('#t');
-  if (size.form === 'desk') {
-    await frame.locator('[data-dropdown="review-rule-risk"]').click();
-    await page.waitForTimeout(350);
-    await frame.locator('[data-dropdown-card="review-rule-risk"] [role^="menuitem"]', { hasText: '2% of the account' }).first().click();
-    await page.waitForTimeout(350);
-  }
-  await frame.locator('[data-review-start]').click();
-  await frame.locator('[data-review-kind="futures"]').waitFor({ timeout: 20000 });
-  await page.waitForTimeout(2500);
-  const top = () => frame.locator('main').evaluate(m => (m.scrollTop = 0));
-  await frame.locator('[data-review-open]').click();
-  await page.waitForTimeout(1500);
-  /* an hour into the day session, by the bar's own track */
-  await top();
-  const t = await frame.locator('[data-replay-track]').first().boundingBox();
-  if (t) await page.mouse.click(t.x + t.width * (990 / 1380), t.y + t.height / 2);
-  await page.waitForTimeout(1500);
-  /* the Order card is the paper desk's (2026-09-26): the brackets are DISTANCES in points from the fill, and Buy takes them */
-  const last = Number(((await frame.locator('[data-review-ticket]').textContent()) ?? '').match(/last ([\d,.]+)/)?.[1].replace(/,/g, '') ?? 0);
-  if (last > 0) {
-    /* wide enough that the four minutes stepped after the buy rarely take the stop out (a 5-point stop was hit in the still) */
-    await frame.locator('[data-ticket-field="stop"]').fill('8');
-    await frame.locator('[data-ticket-field="target"]').fill('12');
-    await page.waitForTimeout(300);
-    if (size.form === 'desk') await frame.locator('[data-ticket-risk="0.02"]').click();
-    await page.waitForTimeout(300);
-    await frame.locator('[data-order-act="buy"]').click();
-    await page.waitForTimeout(900);
-  }
-  for (let i = 0; i < 4; i++) await frame.locator('[aria-label="One step on"]').first().click();
-  await top();
-  await page.mouse.move(size.w - 10, 6);
-  await page.waitForTimeout(1500);
-};
 /* THE JOURNAL, AS IT OPENS (2026-09-26): calendar first, on the sample September (data/paper/sample.ts) — a day opened on
    the desk form, so the picture shows what a press on a day gives */
 PREPARE['/practice/journal'] = async (page, theme, size) => {

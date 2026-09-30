@@ -40,7 +40,7 @@ import CardTabs from '../ui/CardTabs';
 import { When } from '../record/when';
 import SessionsChart from '../record/SessionsChart';
 import PositionForm from '../gex/PositionForm';
-import { PayoffSketch } from '../gex/PositionCard';
+import { PayoffSketch } from '../gex/PayoffSketch';
 import PriceRuler from './PriceRuler';
 import { buildPositionCurve, fmtPnl, valueOn } from '../../data/positionCurve';
 import { readPosition, subjectWords, type Position, type Verdict } from '../../data/positions';

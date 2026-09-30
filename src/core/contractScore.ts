@@ -79,32 +79,6 @@ export interface WeighedContract {
   risk: string;
 }
 
-export const HORIZONS: { key: Horizon; label: string; blurb: string }[] = [
-  {
-    key: 'SAMEDAY',
-    label: 'Same-day',
-    blurb: 'Hours, not days — the arithmetic is close to a coin flip, so the tape does most of the voting.',
-  },
-  {
-    key: 'WEEKLIES',
-    label: 'Weeklies',
-    blurb: 'Days, not weeks — theta is the landlord. Only tapes with flow behind them are worth renting.',
-  },
-  {
-    key: 'SWINGS',
-    label: 'Swings',
-    blurb: '2–6 week holds — the balanced sleeve: math, flow and news all get a vote.',
-  },
-  {
-    key: 'LEAPS',
-    label: 'LEAPS',
-    blurb: '12+ months out — buy volatility cheap and the story right; decay barely votes.',
-  },
-];
-
-/** 100 shares per contract — turns a premium into a dollar outlay. */
-export const CONTRACT_MULTIPLIER = 100;
-
 // ---- Black-Scholes ------------------------------------------------------------
 
 function normCdf(x: number): number {
@@ -381,25 +355,6 @@ export function weighContract(snapshot: MarketSnapshot, right: 'C' | 'P', strike
   const horizon = horizonForDte(dte);
   const contract = scoreCandidate(ctx, right, snappedStrike, dte, horizon);
   return { contract, requestedStrike: strike, snappedStrike, snapped: Math.abs(snappedStrike - strike) > 1e-6, horizon };
-}
-
-/** The strictly-stronger expression in the SAME direction, or null. Two gates:
-    a real composite margin (+5) AND better 1σ-over-breakeven headroom — so it
-    only ever redirects toward a genuinely better contract, never a lateral one. */
-export function betterAlternative(contracts: WeighedContract[], target: WeighedContract): WeighedContract | null {
-  const coverage = (c: WeighedContract) => c.expectedMovePct / Math.max(c.breakevenMovePct, 0.05);
-  // Apply BOTH gates as a filter over the whole pool first, THEN take the best
-  // survivor — checking only the argmax-composite contract would miss a
-  // slightly-lower-composite one that clears both gates.
-  const qualified = contracts.filter(
-    c =>
-      c.right === target.right &&
-      c.id !== target.id &&
-      c.composite - target.composite >= 5 &&
-      coverage(c) > coverage(target)
-  );
-  if (qualified.length === 0) return null;
-  return qualified.reduce((best, c) => (c.composite > best.composite ? c : best), qualified[0]);
 }
 
 export function weighContracts(snapshot: MarketSnapshot, horizon: Horizon): WeighedContract[] {

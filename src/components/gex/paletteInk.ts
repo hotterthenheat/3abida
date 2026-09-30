@@ -25,7 +25,6 @@ export const CALL_WALL = BULL;
 export const PUT_WALL = 'rgb(var(--bear))';
 export const FLIP = 'rgb(var(--flip))';
 export const SUPREME = 'rgb(var(--supreme))';
-export const DARK_POOL = 'rgb(var(--darkpool))';
 export const SPOT = 'rgb(var(--text-primary))';
 export const FOCUS = LIME;
 export const SHORT_GAMMA = 'rgb(var(--bear))';
@@ -36,14 +35,9 @@ export const ALERT = 'rgb(var(--warn))';
    capsules on the dark terminal, cut deep on paper (tokens.css) */
 export const THERMAL_WARM = 'rgb(var(--thermal-warm))';
 export const THERMAL_COOL = 'rgb(var(--thermal-cool))';
-/* THE SILVER AS A SURFACE — a filled pill with the dark word on it, the holo
-   family's flat form on either ground (the silver as an INK is `--silver`) */
-export const SILVER_FILL = 'rgb(var(--silver-fill))';
 /* The clock's pressure pair */
 export const EMBER = 'rgb(var(--ember))';
 export const GLACIER = 'rgb(var(--glacier))';
-/* Categorical side inks — identity, the same on both grounds (palette.ts) */
-export { CALL_SIDE, PUT_SIDE, CHART_MINT } from './palette';
 
 /** An ink at an alpha. The hex trick (`${ink}55`) breaks on a token — the
     string becomes `rgb(var(--x))55`, the whole declaration is dropped and the

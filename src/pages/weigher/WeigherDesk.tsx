@@ -34,14 +34,13 @@
 
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Maximize2, Minimize2, Plus, Scale } from 'lucide-react';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import ExpiryCard, { type ExpiryChoice } from '../../components/ui/ExpiryCard';
-import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
+import DropdownMulti from '../../components/ui/DropdownMulti';
 import CardTabs from '../../components/ui/CardTabs';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import CompanyLogo from '../../components/ui/CompanyLogo';
@@ -55,20 +54,7 @@ import { DOCK_ROOM } from '../../data/editorDock';
 import { useMarketData } from '../../context/MarketDataContext';
 import { buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { estimatePremium } from '../../data/compass';
-import {
-  SCAN_PRESETS,
-  buildDeskChain,
-  buildScan,
-  contractIvFor,
-  dteForDate,
-  deskExpiries,
-  marketMood,
-  marketSession,
-  type DeskChain,
-  type DeskContract,
-  type ScanPreset,
-  type ScanRow,
-} from '../../data/weigherDesk';
+import { buildDeskChain, buildScan, contractIvFor, dteForDate, deskExpiries, marketMood, marketSession, type DeskContract, type ScanPreset, type ScanRow } from '../../data/weigherDesk';
 import { expiryFor, isoDate, today } from '../../core/calendar';
 import { addToWatchlist, closeWatched, hasOpenWatched, removeWatched, returnsOf, spotOf, tickWatchlist, useWatchlist, watchedFor } from '../../data/watchlist';
 import type { WatchedContract } from '../../types/watchlist';
@@ -97,7 +83,6 @@ import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
 import ContractPremiumPane from '../../components/gex/ContractPremiumPane';
 import { useFadeClose } from '../../components/ui/useFadeClose';
-import Term from '../../components/ui/Term';
 import { fmtStrike, CHAIN_COLUMNS, DEFAULT_COLS, COLUMN_GROUPS, ChainCard } from '../../components/weigher/ChainGrid';
 import type { Timeframe } from '../../data/timeframe';
 import type { OptionRight } from '../../types/compass';
@@ -352,12 +337,6 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
   );
 });
 
-/* States, never orders (the Compass ruling): BUY/WATCH/FADE are internal
-   loop vocabulary; the reader sees the state — and THE CASE in one word
-   (the walk, 2026-09-11: "High conviction" was a buzzword; the setup page
-   says strong / fair / weak off the same score, so this card does too). */
-const DOOR_CLS =
-  'inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
 /** One chain row, with the spot rule under it when it brackets the market.
     Clicking it puts the strike ON THE SCALE - the Strike card carries the
     weigh-up now, so the ladder itself stays clean. */

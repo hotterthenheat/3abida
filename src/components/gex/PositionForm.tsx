@@ -20,7 +20,6 @@ import { CARD } from '../ui/DropdownSelect';
 import ExpiryPicker from '../ui/ExpiryPicker';
 import { addPosition, updatePosition, todayExpiry, type Position, type Right, type Side } from '../../data/positions';
 
-const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SILVER_FILL = 'rgb(var(--silver-fill))'; /* the silver as a SURFACE — a filled pill with the dark word on it, the holo flat form on either ground */
 
 interface Draft {

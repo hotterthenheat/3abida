@@ -45,7 +45,6 @@ export interface ContractId {
   /** A VERTICAL SPREAD: the strike SOLD against `strike` — same right, same expiry (see the head note) */
   short?: number;
 }
-export const isSpread = (c: ContractId): boolean => c.short != null;
 /** What a spread is worth at the most: the distance between its strikes */
 export const spreadWidth = (c: ContractId): number => (c.short != null ? Math.abs(c.short - c.strike) : 0);
 /** The bought leg on its own — what the chain's row and its drop-down are */

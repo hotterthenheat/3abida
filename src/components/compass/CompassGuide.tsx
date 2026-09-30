@@ -176,5 +176,3 @@ export const CompassGuide = () => (
     </Section>
   </div>
 );
-
-export default CompassGuide;

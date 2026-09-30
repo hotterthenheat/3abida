@@ -1,19 +1,18 @@
 /*
 ==================================================
-  SLAYER TERMINAL - THE POSITION CARD
-  (components/gex/PositionCard.tsx)
+  SLAYER TERMINAL - THE PAYOFF SKETCH
+  (components/gex/PayoffSketch.tsx)
 
-  One contract, one picture. The grammar is
-  TradingView's strategy builder and Robinhood's
-  holding card, the two references Noah kept
-  (2026-09-05): the contract as the title, ONE
-  verdict chip, a payoff sketch — profit or loss
-  across price, the hard line at expiry with soft
-  green and red fills, the soft line for today —
-  and, the thing no builder has, the dealer map's
-  walls and flip drawn on the same price axis so
-  "hedging works against you above 507.50" is a
-  line on the curve, not a sentence in a cell.
+  One contract's profit or loss across price, the
+  grammar of TradingView's strategy builder and
+  Robinhood's holding card (the two references Noah
+  kept, 2026-09-05): the hard line at expiry with soft
+  green and red fills, the soft line for today — and,
+  the thing no builder has, the dealer map's walls and
+  flip drawn on the same price axis, so "hedging works
+  against you above 507.50" is a line on the curve,
+  not a sentence in a cell. The Weigher's position
+  card draws it (weigher/PositionDeskCard.tsx).
 
   THE SKETCH ANSWERS THE CURSOR (Noah: "shouldn't
   the cards have hover effects on the literal
@@ -25,10 +24,6 @@
   against the nearest level. The fills come up a
   shade while the pointer is on the chart.
 
-  Under the sketch, five facts as small labels over
-  values, divided by air. Then the sentence. Then
-  the three things you can do.
-
   THE COLOURWAY IS DELIBERATELY QUIET: one neutral
   ground, the house silver for today's line and the
   spot, green and red only for profit and loss, the
@@ -37,27 +32,13 @@
 */
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { ArrowUpRight, Pencil, X } from 'lucide-react';
-import PositionForm from './PositionForm';
-import { buildPositionCurve, fmtPnl, type PositionCurve } from '../../data/positionCurve';
-import { removePosition, subjectWords, type Position, type PositionRead, type Verdict } from '../../data/positions';
-import { fmtUsd } from '../../data/gex';
+import { fmtPnl, type PositionCurve } from '../../data/positionCurve';
 import type { ExposureLevels } from '../../types/gex';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = 'rgb(var(--bull))';
 const RED = 'rgb(var(--bear))';
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const fmtDate = (iso: string) => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-const VERDICT: Record<Verdict, { label: string; cls: string }> = {
-  with: { label: 'Hedging with you', cls: 'bg-bull/10 text-bull border-bull/20' },
-  against: { label: 'Hedging against you', cls: 'bg-bear/10 text-bear border-bear/20' },
-  mixed: { label: 'Hedging both ways', cls: 'bg-ink/[0.05] text-textSecondary border-borderSubtle' },
-};
 
 // ---- the sketch ----------------------------------------------------------------
 
@@ -323,95 +304,3 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
 
 // ---- the card ----------------------------------------------------------------------
 
-interface PositionCardProps {
-  position: Position;
-  read: PositionRead;
-  spot: number;
-  levels: ExposureLevels;
-  /** The Map's price window — the sketch's range */
-  lo: number;
-  hi: number;
-  focused: boolean;
-  onShow: (strike: number) => void;
-}
-
-const PositionCard = ({ position: p, read, spot, levels, lo, hi, focused, onShow }: PositionCardProps) => {
-  const curve = buildPositionCurve(p, spot, lo, hi);
-  const v = VERDICT[read.verdict];
-  const title = `${p.contracts} × ${p.ticker} ${fmtStrike(p.strike)} ${p.right === 'C' ? 'call' : 'put'}${p.contracts === 1 ? '' : 's'}`;
-  const cost = curve.refKind === 'entry' ? `paid ${curve.ref.toFixed(2)} each` : curve.refKind === 'added' ? `marked ${curve.ref.toFixed(2)} each when added` : `worth ${curve.valueNow.toFixed(2)} each today`;
-  const wantsUp = (p.right === 'C') === (p.side === 'long');
-  const facts: { k: string; v: string; tone?: string }[] = [
-    { k: 'Where it sits', v: read.sits },
-    { k: 'Breakeven at expiry', v: fmtStrike(Math.round(curve.breakeven * 100) / 100) },
-    { k: curve.refKind === 'now' ? 'If it expired here, vs today' : 'If it expired here', v: fmtPnl(curve.atSpot), tone: curve.atSpot > 0 ? 'text-bull' : curve.atSpot < 0 ? 'text-bear' : undefined },
-    { k: 'Dealer gamma at your strike', v: read.gammaHere === 0 ? 'outside the window' : `${fmtUsd(read.gammaHere)}${read.through ? ` · ${read.through === 'slows it' ? 'slows a move' : 'speeds a move up'}` : ''}` },
-    { k: 'Expires', v: `${fmtDate(p.expiry)} · ${read.expires}` },
-  ];
-
-  return (
-    <article
-      data-position-card={p.id}
-      className={`rounded-[10px] border bg-chip p-4 flex flex-col gap-3 transition-colors ${focused ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
-    >
-      <header className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h4 className="text-[14px] font-semibold leading-tight text-textPrimary truncate">{title}</h4>
-          <p className="mt-0.5 text-[11px] text-textMuted truncate">
-            {p.side === 'long' ? 'You own' : 'You sold'} · {cost} · {p.source === 'tracker' ? 'from the Tracker' : 'added by you'}
-          </p>
-        </div>
-        <span className={`shrink-0 inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] font-medium ${v.cls}`} data-verdict={read.verdict}>
-          {v.label}
-        </span>
-      </header>
-
-      <PayoffSketch curve={curve} spot={spot} levels={levels} strike={p.strike} wantsUp={wantsUp} />
-
-      <dl className="grid grid-cols-5 gap-x-4 gap-y-1 border-t border-borderSubtle/50 pt-3">
-        {facts.map(f => (
-          <div key={f.k} className="min-w-0">
-            <dt className="text-[10px] text-textMuted truncate">{f.k}</dt>
-            <dd className={`mt-0.5 font-mono text-[12px] tnum leading-snug ${f.tone ?? 'text-textPrimary'}`}>{f.v}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <p className="text-[12px] leading-relaxed text-textSecondary" data-position-sentence>
-        {subjectWords(p)} sit{p.contracts === 1 ? 's' : ''} {read.sits}. {read.hedging[0].toUpperCase()}
-        {read.hedging.slice(1)}.
-      </p>
-
-      <footer className="flex items-center gap-1 -mb-1 -ml-1">
-        <button
-          onClick={() => onShow(p.strike)}
-          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
-          title="Show this strike on the map"
-        >
-          Show on the map <ArrowUpRight className="w-3 h-3" />
-        </button>
-        <PositionForm
-          ticker={p.ticker}
-          position={p}
-          defaultStrike={p.strike}
-          align="start"
-          trigger={
-            <button className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05] transition-colors" data-edit-position>
-              <Pencil className="w-3 h-3" /> Change
-            </button>
-          }
-        />
-        <button
-          onClick={() => removePosition(p.id)}
-          className="ml-auto inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
-          title="Remove this position"
-          aria-label={`Remove ${title}`}
-        >
-          <X className="w-3 h-3" /> Remove
-        </button>
-      </footer>
-    </article>
-  );
-};
-
-export default PositionCard;

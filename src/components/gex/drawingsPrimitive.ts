@@ -211,7 +211,6 @@ const MARK = '237,237,237';
   stay legible over candles.
 */
 const MEASURE_RGB = '226,234,244';
-const MEASURE_FILL = 'rgba(226,234,244,0.07)';
 
 /*
   ONE TYPE VOICE FOR EVERY LABEL THE LAYER PRINTS (partner, 2026-08-27:

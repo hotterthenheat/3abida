@@ -35,9 +35,7 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { expiryFor, isoDate, sessionsBetween, today } from '../core/calendar';
 import Simulator from '../core/simulator';
 import { valueOn } from './positionCurve';
-import { SLEEVE_BY_KEY } from '../types/compass';
 import type { ExposureProfileData } from '../types/gex';
-import type { TrackedSetup } from '../types/tracker';
 
 export type Right = 'C' | 'P';
 export type Side = 'long' | 'short';
@@ -164,17 +162,6 @@ export function removePosition(id: string): void {
   commit(positions.filter(p => p.id !== id));
 }
 
-/** A tracked Compass contract as a position: one long contract on the sleeve's expiry */
-export function positionFromTracked(t: TrackedSetup): Omit<Position, 'id' | 'addedAt'> {
-  const dte = SLEEVE_BY_KEY[t.sleeve ?? 'odte']?.dte ?? 0;
-  return { ticker: t.ticker, strike: t.strike, right: t.right, side: 'long', contracts: 1, expiry: isoDate(expiryFor(dte).date), source: 'tracker' };
-}
-
-/** Tracked contracts on this name that are not in the list yet (by strike and right) */
-export function trackedNotIn(tracked: TrackedSetup[], ticker: string, have: Position[]): TrackedSetup[] {
-  return tracked.filter(t => t.ticker === ticker && !have.some(p => p.strike === t.strike && p.right === t.right));
-}
-
 /** Today's session as an expiry string — the default for a new position */
 export const todayExpiry = (): string => isoDate(expiryFor(0).date);
 
@@ -290,17 +277,3 @@ export function readPosition(p: Position, profile: ExposureProfileData): Positio
   return { sits, verdict, hedging, gammaHere, through, expires, sessions, sentence };
 }
 
-/** The one line for the box: the tally, then the position nearest spot in full */
-export function positionsLine(ticker: string, positions: Position[], reads: ReadonlyMap<string, PositionRead>, spot: number): string | null {
-  if (!positions.length) return null;
-  const tally = { with: 0, against: 0, mixed: 0 };
-  for (const p of positions) {
-    const r = reads.get(p.id);
-    if (r) tally[r.verdict]++;
-  }
-  const lead = [...positions].sort((a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot))[0];
-  const leadRead = reads.get(lead.id);
-  const n = positions.length;
-  const head = n === 1 ? '' : `${n} positions on ${ticker} — hedging works with ${tally.with}, against ${tally.against}${tally.mixed ? `, both ways for ${tally.mixed}` : ''}. Nearest spot: `;
-  return leadRead ? `${head}${leadRead.sentence}` : head;
-}

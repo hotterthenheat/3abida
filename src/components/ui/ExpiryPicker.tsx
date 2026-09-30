@@ -26,7 +26,6 @@ import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CARD } from './DropdownSelect';
 import { isoDate, isTradingDay, nextSession, today } from '../../core/calendar';
 
-const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SILVER_FILL = 'rgb(var(--silver-fill))'; /* the silver as a SURFACE — a filled pill with the dark word on it, the holo flat form on either ground */
 
 const parse = (iso: string): Date | undefined => {

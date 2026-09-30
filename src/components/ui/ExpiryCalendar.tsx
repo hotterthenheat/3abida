@@ -33,7 +33,6 @@ import * as Popover from '@radix-ui/react-popover';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { CARD } from './DropdownSelect';
 import { isoDate, today, type Expiry } from '../../core/calendar';
-import type { ListingPattern } from '../../data/optionChain';
 
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -48,12 +47,6 @@ export const expiryWords = (e: Expiry): string => {
   return e.dte === 0 ? `Today · ${day}` : `${day}${year} · ${e.weekday}`;
 };
 
-const PATTERN_WORDS: Record<ListingPattern, string> = {
-  daily: 'dailies, Fridays and monthlies',
-  weekly: 'Fridays and monthlies',
-  monthly: 'monthlies and quarterlies',
-};
-
 interface ExpiryCalendarProps {
   /** YYYY-MM-DD of the chosen expiry */
   value: string;
@@ -62,8 +55,6 @@ interface ExpiryCalendarProps {
   onChange: (e: Expiry) => void;
   /** The card's name, printed small before the date */
   label?: string;
-  /** The listing shape, for the foot's one line */
-  pattern?: ListingPattern;
   /** A glyph before the label, in the muted ink — the card's own face on a line of cards */
   icon?: LucideIcon;
   /** The glyph's own colour on hover and while open — the sidebar's rule */
@@ -82,7 +73,7 @@ interface ExpiryCalendarProps {
   anyLabel?: string;
 }
 
-const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', pattern, icon: Icon = CalendarDays, ink, align = 'start', steppers = true, title, testId, onClear, clearLabel = 'Every expiry', anyLabel = 'Any' }: ExpiryCalendarProps) => {
+const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Icon = CalendarDays, ink, align = 'start', steppers = true, title, testId, onClear, clearLabel = 'Every expiry', anyLabel = 'Any' }: ExpiryCalendarProps) => {
   const [open, setOpen] = useState(false);
   const t = useMemo(() => today(), []);
   const byIso = useMemo(() => new Map(expiries.map(e => [isoDate(e.date), e])), [expiries]);
@@ -239,7 +230,7 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', pattern, 
               )}
             </div>
             <p className="mt-2 text-[10px] leading-snug text-textSecondary">
-              {expiries.length} listed{pattern ? ` · ${PATTERN_WORDS[pattern]}` : ''}
+              {expiries.length} listed
               {listedThisMonth === 0 && expiries.length > 0 ? ' · nothing this month — step the month' : ''}
             </p>
           </Popover.Content>

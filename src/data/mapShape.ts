@@ -42,8 +42,7 @@
 ==================================================
 */
 
-import { GREEKS, type ExposureSurface, type Greek } from './exposureSurface';
-import { fmtDollars, fmtStrike } from './ahead';
+import { type Greek } from './exposureSurface';
 
 export type Shape = 'wall' | 'cliff' | 'shelf' | 'void';
 export type Role = 'call wall' | 'put wall' | 'supreme' | null;
@@ -66,18 +65,6 @@ export interface MapRow {
   above: boolean;
 }
 
-/** A run of voids folded to one line — strikes high to low */
-export interface MapFold {
-  key: string;
-  from: number;
-  to: number;
-  n: number;
-  above: boolean;
-  rows: MapRow[];
-}
-
-export type MapLine = { kind: 'row'; row: MapRow } | { kind: 'fold'; fold: MapFold };
-
 export const SHAPE_WORD: Record<Shape, string> = { wall: 'Wall', cliff: 'Cliff', shelf: 'Shelf', void: 'Void' };
 export const SHAPE_SAYS: Record<Shape, string> = {
   wall: 'The heaviest hedging around — a move tends to slow or turn here',
@@ -85,8 +72,6 @@ export const SHAPE_SAYS: Record<Shape, string> = {
   shelf: 'A run of strikes with steady, middling hedging — support in layers rather than one line',
   void: 'Next to nothing here — a move through these strikes meets no hedging',
 };
-export const GREEK_WORD: Record<Greek, string> = { gex: 'gamma', dex: 'delta', vex: 'vega', vanna: 'vanna', charm: 'charm' };
-export const GREEK_UNIT_WORDS: Record<Greek, string> = { gex: 'dollars of hedging per 1% move', dex: 'dollars of hedging per 1σ move', vex: 'dollars per 1% of vol', vanna: 'dollars of delta per vol point', charm: 'dollars of delta the clock takes a day' };
 
 /* the shape's thresholds, as shares of the heaviest |net| among the rows shown */
 const WALL_AT = 0.5;
@@ -94,36 +79,6 @@ const CLIFF_DROP = 0.35;
 const SHELF_LO = 0.2;
 const SHELF_HI = 0.55;
 const VOID_AT = 0.06;
-const FOLD_AT = 3;
-
-/** The rows, high strike first: `rings` each side of spot, the legs summed over the expiries drawn */
-export function rowsOf(surface: ExposureSurface, expiryIdx: readonly number[], rings: number, lead: Greek): MapRow[] {
-  const idx = expiryIdx.filter(i => i >= 0 && i < surface.expiries.length);
-  const desc = [...surface.strikes].sort((a, b) => b - a);
-  const above = desc.filter(s => s >= surface.spot).slice(-Math.max(1, rings));
-  const below = desc.filter(s => s < surface.spot).slice(0, Math.max(1, rings));
-  const { callWall, putWall, supreme } = surface.levels;
-  const rowFor = (strike: number, isAbove: boolean): MapRow => {
-    const si = surface.strikes.indexOf(strike);
-    const legs = {} as Record<Greek, Legs>;
-    for (const g of GREEKS) {
-      let put = 0;
-      let call = 0;
-      let net = 0;
-      if (si >= 0)
-        for (const e of idx) {
-          put += surface.put[g][e]?.[si] ?? 0;
-          call += surface.call[g][e]?.[si] ?? 0;
-          net += surface.net[g][e]?.[si] ?? 0;
-        }
-      legs[g] = { put, call, net };
-    }
-    const role: Role = strike === supreme ? 'supreme' : strike === callWall ? 'call wall' : strike === putWall ? 'put wall' : null;
-    return { strike, legs, net: legs[lead].net, shape: null, role, above: isAbove };
-  };
-  const rows = [...above.map(s => rowFor(s, true)), ...below.map(s => rowFor(s, false))];
-  return shapesOf(rows);
-}
 
 /** The shape words, from the drawn greek's |net| against the rows shown (see the head) */
 export function shapesOf(rows: MapRow[]): MapRow[] {
@@ -160,28 +115,6 @@ export function shapesOf(rows: MapRow[]): MapRow[] {
   return rows.map((r, k) => ({ ...r, shape: shape[k] }));
 }
 
-/** The rows as lines: runs of three or more voids folded, never across price */
-export function linesOf(rows: MapRow[]): MapLine[] {
-  const out: MapLine[] = [];
-  let i = 0;
-  while (i < rows.length) {
-    const r = rows[i];
-    if (r.shape === 'void') {
-      let j = i;
-      while (j + 1 < rows.length && rows[j + 1].shape === 'void' && rows[j + 1].above === r.above) j++;
-      if (j - i + 1 >= FOLD_AT) {
-        const run = rows.slice(i, j + 1);
-        out.push({ kind: 'fold', fold: { key: `${run[0].strike}-${run[run.length - 1].strike}`, from: run[0].strike, to: run[run.length - 1].strike, n: run.length, above: r.above, rows: run } });
-        i = j + 1;
-        continue;
-      }
-    }
-    out.push({ kind: 'row', row: r });
-    i++;
-  }
-  return out;
-}
-
 /** THE CUT — the heaviest ordinary strike: the 90th percentile of |net| among the rows shown (the heaviest itself under ten rows) */
 export function cutOf(rows: readonly MapRow[]): number {
   const abs = rows.map(r => Math.abs(r.net)).sort((a, b) => a - b);
@@ -190,48 +123,3 @@ export function cutOf(rows: readonly MapRow[]): number {
   return Math.max(1, p90 > 0 ? p90 : abs[abs.length - 1]);
 }
 
-/** The heaviest strike among rows by |net| — null when the book is empty */
-export const heaviestOf = (rows: readonly { strike: number; net: number }[]): number | null => {
-  let best: { strike: number; net: number } | null = null;
-  for (const r of rows) if (!best || Math.abs(r.net) > Math.abs(best.net)) best = r;
-  return best && Math.abs(best.net) > 0 ? best.strike : null;
-};
-
-/** How concentrated the hedging is, in words: the share the heaviest few strikes hold of every strike's |net| */
-export function concentrationWords(rows: readonly MapRow[], greek: Greek): string {
-  const abs = rows.map(r => Math.abs(r.net)).sort((a, b) => b - a);
-  const total = abs.reduce((a, b) => a + b, 0);
-  const word = GREEK_WORD[greek];
-  if (total <= 0) return `There is no ${word} to speak of in these strikes.`;
-  const top = (n: number) => abs.slice(0, n).reduce((a, b) => a + b, 0) / total;
-  if (top(1) >= 0.45) return `One strike holds nearly half the ${word}.`;
-  if (top(2) >= 0.5) return `Two strikes hold half the ${word}.`;
-  if (top(4) >= 0.6) return `Four strikes hold most of the ${word}.`;
-  if (top(8) >= 0.75) return `The ${word} sits in a handful of strikes.`;
-  return `The ${word} is spread across the strikes.`;
-}
-
-/** Where the heaviest strike went since the open */
-export function migrationWords(openHeaviest: number | null, nowHeaviest: number | null): string | null {
-  if (openHeaviest == null || nowHeaviest == null) return null;
-  if (openHeaviest === nowHeaviest) return `The heaviest strike has held at ${fmtStrike(nowHeaviest)} since the open.`;
-  return `The heaviest strike moved ${fmtStrike(openHeaviest)} → ${fmtStrike(nowHeaviest)} since the open.`;
-}
-
-/** The read — where price stands, which way the book leans either side of it, and how concentrated it is */
-export function readOf(surface: ExposureSurface, rows: readonly MapRow[], lead: Greek, migration: string | null): string {
-  const { ticker, spot, levels } = surface;
-  const { callWall, putWall } = levels;
-  const where = spot > putWall && spot < callWall ? `${ticker} sits between the ${fmtStrike(putWall)} put wall and the ${fmtStrike(callWall)} call wall.` : spot >= callWall ? `${ticker} trades above its call wall at ${fmtStrike(callWall)}.` : `${ticker} trades below its put wall at ${fmtStrike(putWall)}.`;
-  const aboveNet = rows.filter(r => r.above).reduce((a, r) => a + r.net, 0);
-  const belowNet = rows.filter(r => !r.above).reduce((a, r) => a + r.net, 0);
-  /* the house sign: negative = call-heavy = dealers absorb; positive = put-heavy = dealers amplify (data/exposure.ts) */
-  const lean =
-    lead === 'gex'
-      ? `Above price the book is ${aboveNet < 0 ? 'call-heavy, so dealers push back on a rise' : 'put-heavy, so dealers push a rise along'}; below it ${belowNet < 0 ? 'they push back on a drop' : 'they push a drop along'}.`
-      : `Above price the ${GREEK_WORD[lead]} leans ${aboveNet < 0 ? 'call-heavy' : 'put-heavy'}; below it ${belowNet < 0 ? 'call-heavy' : 'put-heavy'}.`;
-  return [where, lean, concentrationWords(rows, lead), migration].filter(Boolean).join(' ');
-}
-
-/** "+$1.2B" · "−$340M" — the book's dollars, signed */
-export const signedDollars = (v: number): string => `${v >= 0 ? '+' : '−'}${fmtDollars(v)}`;

@@ -14,7 +14,7 @@
 */
 
 import { Compass as CompassIcon } from 'lucide-react';
-import { Block, ChartGround, Facts, Line, PanelHeader, SubLine, TitleRow, Trigger } from '../components/ui/skeletonKit';
+import { Block, ChartGround, Facts, Line, SubLine, TitleRow, Trigger } from '../components/ui/skeletonKit';
 import { PageSkeleton } from '../components/ui/Skeleton';
 
 /** The shell head as static chrome — the page's icon and name over its line (CompassLayout renders the real one) */
@@ -231,5 +231,3 @@ export const CampaignSkeleton = () => (
     </div>
   </div>
 );
-
-export default CompassPageSkeleton;

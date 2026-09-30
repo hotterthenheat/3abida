@@ -37,7 +37,7 @@ import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import { GREEKS, GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposureSurface';
 import { fmtUsd, readHeatPattern } from '../../data/gex';
 import { YEAR_MINUTES } from '../../data/measure';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import { replayRange, snapshotAt } from '../../data/replay';
 import type { ExposureProfileData } from '../../types/gex';
 import type { MarketSnapshot } from '../../types/market';

@@ -41,7 +41,7 @@ import { aheadClock } from '../../data/ahead';
 import { fmtDistance, impliedDaySigma, sessionAtr } from '../../data/atr';
 import { buildBuilding } from '../../data/building';
 import { useDistanceUnit } from '../../data/distanceUnits';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import { usePositions } from '../../data/positions';
 import type { MarketSnapshot } from '../../types/market';
 

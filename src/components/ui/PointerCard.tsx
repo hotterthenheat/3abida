@@ -110,5 +110,3 @@ export const PointerFollowCard = ({ start, ...rest }: PointerFollowCardProps) =>
   }, []);
   return <PointerCard x={pos.x} y={pos.y} {...rest} />;
 };
-
-export default PointerCard;

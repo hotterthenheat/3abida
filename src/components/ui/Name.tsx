@@ -8,10 +8,9 @@
   a ticker we show the photo like this I need you to
   make this a global feature because this is a
   system flaw and this is one terminal so things
-  should be the same"). Three ways in:
+  should be the same"). Two ways in:
 
     <Name t="SPY" />            the mark and the name, inline
-    <TickerText text="…" />     a sentence, every name in it marked
     withLeadingMark(children)   a door or a champion whose words
                                 open with a name — the mark first
 
@@ -73,23 +72,6 @@ export const Name = ({ t, size = 12, className = '', children }: NameProps) => (
   </span>
 );
 
-const WORD_RE = /(\$?\b[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?\b)/;
-
-/** A sentence with every name in it marked — the prose that names a ticker never prints it bare */
-export const TickerText = ({ text, size = 12, className }: { text: string; size?: number; className?: string }) => (
-  <span className={className}>
-    {text.split(WORD_RE).map((part, i) =>
-      part && knownTicker(part) ? (
-        <Name key={i} t={part.replace(/^\$/, '')} size={size}>
-          {part}
-        </Name>
-      ) : (
-        <span key={i}>{part}</span>
-      )
-    )}
-  </span>
-);
-
 /** A door's or a champion's words that open with a name get the mark in front */
 export const withLeadingMark = (children: ReactNode, size = 12): ReactNode => {
   const arr = Children.toArray(children);
@@ -104,5 +86,3 @@ export const withLeadingMark = (children: ReactNode, size = 12): ReactNode => {
     </>
   );
 };
-
-export default Name;

@@ -16,7 +16,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Link2, Save, Trash2 } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { filtersToParams, paramsToFilters } from '../../data/screenerViews';
 import { screenerCuts } from '../../data/screenerViews';

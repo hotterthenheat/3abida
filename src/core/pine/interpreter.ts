@@ -26,7 +26,7 @@ import { asBool, asNum, callBuiltin, CONSTANTS, namedColor, type CallArg, type C
 import { fromHex, isColor, toCss } from './colors';
 import type { Expr, Stmt } from './ast';
 import type { Program } from './ast';
-import { PineError, type AlertOut, type Bar, type FillOut, type HLineOut, type PineColor, type PlotOut, type PlotRef, type RunOptions, type RunResult, type ShapeOut, type Tuple, type UserFunction, type Value } from './types';
+import { PineError, type AlertOut, type Bar, type FillOut, type HLineOut, type PlotOut, type PlotRef, type RunOptions, type RunResult, type ShapeOut, type Tuple, type UserFunction, type Value } from './types';
 import type { ShapeLocation, ShapeStyle } from './types';
 import type { ScriptPlotStyle } from '../../types/scripts';
 
@@ -45,7 +45,6 @@ const NA = NaN;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const isNa = (v: Value) => v === null || (typeof v === 'number' && Number.isNaN(v));
 const isTuple = (v: Value): v is Tuple => !!v && typeof v === 'object' && 'tuple' in v;
-const isFn = (v: Value): v is UserFunction => !!v && typeof v === 'object' && 'fn' in v;
 
 const BUILTIN_SERIES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'time_close', 'bar_index']);
 
@@ -84,7 +83,7 @@ export class Runner {
     private program: Program,
     private bars: Bar[],
     private opts: RunOptions,
-    private plan: OutputPlan
+    plan: OutputPlan
   ) {
     this.n = bars.length;
     this.budget = opts.budgetMs ?? 200;
@@ -803,6 +802,4 @@ export class Runner {
   }
 }
 
-/** A colour string a plot handed back, for callers that keep colours as text */
-export const cssOf = (c: PineColor | null): string | null => (c ? toCss(c) : null);
 export type { PlotRef };

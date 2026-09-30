@@ -49,10 +49,10 @@
 
 import { MULT, nameGoesUp, type Bracket, type OrderKind, type Side } from '../review/engine';
 import type { DayNote, JournalEntry } from '../review/journal';
-import { MAX_STOPS, MAX_TARGETS, giveUp, ladderShapeRefusal, nextRung, rungsOf, type LadderBracket } from '../review/ladder';
-import { contractKey, contractWords, dteAt, legsOf, spreadWidth, type ContractId, type Quote } from '../review/quotes';
+import { MAX_STOPS, MAX_TARGETS, giveUp, ladderShapeRefusal, nextRung, rungsOf } from '../review/ladder';
+import { contractKey, contractWords, dteAt, legsOf, type ContractId, type Quote } from '../review/quotes';
 import type { Candle } from '../../types/market';
-import { bellOf, dayEndsAt, flatByOf, nyAt, nyClockWords, tradingDayOf } from './clock';
+import { bellOf, dayEndsAt, flatByOf, nyAt, tradingDayOf } from './clock';
 
 /* ================================================================== */
 /*  TYPES                                                              */
@@ -235,7 +235,6 @@ export interface PaperAccount {
 /* ================================================================== */
 
 const cents = (v: number) => Math.round(v * 100) / 100;
-const pctWords = (v: number) => `${+(v * 100).toFixed(1)}%`;
 export const money = (v: number, dp = 2) => `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
 export const momentAt = (ms: number): PaperMoment => ({ at: ms, day: tradingDayOf(ms) });
 /** Ours, not the reader's: past this many positions a desk cannot be read */
@@ -1180,8 +1179,3 @@ export function afterHand(before: PaperAccount, after: PaperAccount, m: PaperMar
   return keepClosed(before, keepHeld(after, m), m);
 }
 
-/** "the day" and "the time" of an instant, for a line in the log */
-export const whenWords = (ms: number): string => nyClockWords(ms);
-/** A spread's width in dollars a contract, for the ticket's line */
-export const widthOf = (c: ContractId): number => spreadWidth(c) * MULT;
-export { pctWords };

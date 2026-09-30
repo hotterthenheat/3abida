@@ -235,8 +235,6 @@ export const severityWord = (severity: number): string =>
 export type Freshness = 'fresh' | 'developing' | 'faded';
 export const freshnessOf = (e: GeoNewsEvent): Freshness =>
   e.item.minutesAgo <= 45 ? 'fresh' : e.item.minutesAgo <= 180 ? 'developing' : 'faded';
-/** How much of its weight an aging story keeps — scales heat and pings. */
-export const FRESHNESS_FACTOR: Record<Freshness, number> = { fresh: 1, developing: 0.72, faded: 0.45 };
 
 /* ── one ping per CITY, not per story ─────────────────────────────────────
    Five NYC stories must read as ONE louder ping with a count, not dot soup.

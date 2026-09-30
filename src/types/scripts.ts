@@ -180,25 +180,6 @@ export interface ScriptFavourite {
 
 /* ---- the limits ------------------------------------------------------------------ */
 
-/** The terminal's tiers, as the pricing names them */
-export type Tier = 'pinpoint' | 'compass' | 'lifetime';
-
-/** What a tier may hold — the pane count is the one that costs anything, the rest are guards */
-export interface ScriptLimits {
-  /** Scripts drawn on one pane at once */
-  onPane: number;
-  /** Saved scripts of your own; null = no cap */
-  saved: number | null;
-  /** Publishes a day */
-  publishesPerDay: number;
-}
-
-export const SCRIPT_LIMITS: Record<Tier, ScriptLimits> = {
-  pinpoint: { onPane: 5, saved: 200, publishesPerDay: 10 },
-  compass: { onPane: 15, saved: 1000, publishesPerDay: 10 },
-  lifetime: { onPane: 25, saved: null, publishesPerDay: 10 },
-};
-
 /** The caps every script lives under, whoever wrote it */
 export const SCRIPT_CAPS = {
   /** Source text, in bytes */

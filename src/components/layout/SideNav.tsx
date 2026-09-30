@@ -35,7 +35,7 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Menu, Search } from 'lucide-react';
@@ -51,7 +51,7 @@ import { subpagesFor } from './navTree';
 import MobileMenu from './MobileMenu';
 import { useCompassView } from '../../data/compassView';
 import { lookup } from '../../data/universe';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import { useAllAlerts, useUnseenAll } from '../gex/alertStore';
 import { toggleAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
 import { beginGlide, endGlide } from '../../core/glide';

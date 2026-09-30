@@ -20,15 +20,11 @@
   paid up for are options, stocks and the three index feeds; a rate curve
   needs the economic-indicators add-on, and dividend yields need a corporate
   actions feed. Neither is on the account. So both arrive here as NAMED
-  ASSUMPTIONS with their basis written down — and every consumer can ask
-  `carrySource()` what it is standing on, so a surface that wants to caveat
-  its numbers has something true to print.
+  ASSUMPTIONS with their basis written down.
 
-  THE SEAM IS THE POINT. When the add-on lands, `setCarry` takes the live
-  figures and nothing downstream changes: the greeks already read r and q
-  through here, and the proof already pins the relationships (put-call
-  parity, the q-effect on delta, charm's q-term) that a real feed has to
-  keep satisfying.
+  THE SEAM IS THE POINT. When a live rate and yield land, `getCarry` hands
+  them out and nothing downstream changes: the greeks already read r and q
+  through here.
 
   WHY THESE DEFAULTS. `DEFAULT_R` is the front-end Treasury yield's
   neighbourhood as of this file's writing, not a number chosen to be round;
@@ -45,59 +41,16 @@ export interface Carry {
   q: number;
 }
 
-export interface CarrySource {
-  /** 'assumed' until a feed sets it — surfaces may print this. */
-  kind: 'assumed' | 'feed';
-  /** One line a surface can show a reader without lying. */
-  note: string;
-}
-
 /* The neighbourhood of the front-end Treasury yield. Not live — see above. */
 export const DEFAULT_R = 0.042;
 /* Roughly the S&P 500's trailing yield — right for the index ETFs, an
    overstatement for a name that pays nothing. */
 export const DEFAULT_Q = 0.012;
 
-let current: Carry = { r: DEFAULT_R, q: DEFAULT_Q };
-let source: CarrySource = {
-  kind: 'assumed',
-  note: `assumed r ${(DEFAULT_R * 100).toFixed(1)}% · q ${(DEFAULT_Q * 100).toFixed(1)}% — no rates or corporate-actions feed on this account`,
-};
+const current: Carry = { r: DEFAULT_R, q: DEFAULT_Q };
 
 /** The rate and yield every greek is priced against. */
 export function getCarry(): Carry {
   return current;
 }
 
-/** What the figures above are standing on — for surfaces that caveat. */
-export function carrySource(): CarrySource {
-  return source;
-}
-
-/**
- * Point the seam at real figures.
- *
- * Rejects a non-finite or absurd input rather than poisoning every greek on
- * the desk with it: a feed hiccup that hands back NaN must leave the last
- * good carry standing, and a "rate" of 40% is a units error (percent handed
- * over where a fraction was meant), not a market.
- */
-export function setCarry(next: Partial<Carry>, note?: string): boolean {
-  const ok = (v: number | undefined) => v === undefined || (Number.isFinite(v) && v > -0.05 && v < 0.25);
-  if (!ok(next.r) || !ok(next.q)) return false;
-  current = { r: next.r ?? current.r, q: next.q ?? current.q };
-  source = {
-    kind: 'feed',
-    note: note ?? `feed r ${(current.r * 100).toFixed(2)}% · q ${(current.q * 100).toFixed(2)}%`,
-  };
-  return true;
-}
-
-/** Back to the documented assumptions — for tests and for a feed dropping. */
-export function resetCarry(): void {
-  current = { r: DEFAULT_R, q: DEFAULT_Q };
-  source = {
-    kind: 'assumed',
-    note: `assumed r ${(DEFAULT_R * 100).toFixed(1)}% · q ${(DEFAULT_Q * 100).toFixed(1)}% — no rates or corporate-actions feed on this account`,
-  };
-}

@@ -59,7 +59,7 @@
 
 import Simulator from '../core/simulator';
 import { now } from '../core/clock';
-import { readSessionClock } from './moc';
+import { readSessionClock } from './sessionClock';
 import { buildExposureProfile } from './exposure';
 import { buildFlowBook } from './flowBook';
 import { buildDarkPoolView, postureRead } from './darkpool';

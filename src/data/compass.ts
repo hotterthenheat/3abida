@@ -8,8 +8,7 @@
 */
 
 import { blackScholesGreeks } from '../core/greeks';
-import { expiryFor } from '../core/calendar';
-import { isoDay } from '../core/journal';
+import { expiryFor, isoDate } from '../core/calendar';
 import type { MarketSnapshot, StrikeNode } from '../types/market';
 import { SLEEVE_BY_KEY, isScannerEligible } from '../types/compass';
 import type { Grade } from './stockOverview';
@@ -80,12 +79,6 @@ const PROFILES: Record<ScannerKey, ScannerProfile> = {
   'whale-sweeps': { swingMul: 0.42, scalpMul: 0.2, moveBias: 1.1, scoreFloor: 89 },
   all: { swingMul: 0.38, scalpMul: 0.18, moveBias: 1.0, scoreFloor: 80 },
 };
-
-/** The score floor a scanner surfaces at — internal only since 2026-08-16
-    prints this, so it must come from the same table the gate reads. */
-export function scannerFloor(scanner: ScannerKey): number {
-  return (PROFILES[scanner] ?? PROFILES['top-setups']).scoreFloor;
-}
 
 /** Target/expected-move scaling per tenor — a swing's runway earns wider
     targets than a same-day ticket regardless of which lens found it. */
@@ -365,7 +358,7 @@ export function makeSetup(
     right,
     strike,
     expiry: exp.dte === 0 ? '0DTE' : `${exp.dte}DTE`,
-    expiryDate: isoDay(exp.date),
+    expiryDate: isoDate(exp.date),
     sessionsLeft,
     sigmaMovePct,
     sleeve,

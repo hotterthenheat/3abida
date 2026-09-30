@@ -1,6 +1,5 @@
 import Simulator from '../core/simulator';
 import { pickFlip } from '../core/walls';
-import { buildExposureProfile } from './exposure';
 import type { Candle, GexSnapshot, MarketSnapshot } from '../types/market';
 
 /*
@@ -159,52 +158,3 @@ export const REGIME_WORDS: Record<GammaRegime, { label: string; blurb: string }>
   flip is not a number.
 */
 
-export interface ExpiryFlips {
-  d0: number | null;
-  weekly: number | null;
-  book: number | null;
-  /** book − d0. Positive = the structural flip sits above today's. */
-  spread: number | null;
-}
-
-/* The wider of the two windows the Exposure page offers — flips live near
-   spot, and ±15 strikes is far more room than one ever needs. */
-const FLIP_WINDOW = 15 as const;
-
-/*
-  WHAT THE THREE LENSES CAN AND CANNOT SAY, as of P-24B.
-
-  The expiry lens is a UNIFORM POSITIVE SCALAR over every strike
-  (`EXPIRY_DECAY` in data/exposure.ts: 0DTE 1, 7D 0.16, ALL 3.13). Scaling a
-  whole book by a positive constant cannot move a sign change — so on this
-  data source the three flips are the SAME PRICE, necessarily, and the panel
-  says so rather than implying three measurements happened to coincide.
-
-  They used to differ, and that difference was not real: the profile's
-  per-strike jitter was seeded with the expiry NAME, so a hash of the string
-  "7D" tilted near-balanced strikes and produced three numbers. The
-  divergence measured when this feature was built (6 of 22 names) was
-  measuring that hash. P-24B made the split net-preserving — levels are now
-  a property of the book, not of the seed — and the three lenses collapsed
-  onto one price, which is the honest reading of a book with no per-expiry
-  structure in it.
-
-  THE SHAPE STAYS because the seam is the point: a real chain carries its own
-  open interest per expiry, those are three genuinely different books, and
-  this function differentiates them the moment it is handed them. That is
-  proven with a staged per-expiry book in the proof rather than asserted
-  here.
-*/
-export function buildExpiryFlips(snapshot: MarketSnapshot): ExpiryFlips {
-  const flipOf = (expiry: '0DTE' | '7D' | 'ALL') =>
-    pickFlip(buildExposureProfile(snapshot, expiry, FLIP_WINDOW).strikes, snapshot.spot, s => s.gex.net);
-  const d0 = flipOf('0DTE');
-  const weekly = flipOf('7D');
-  const book = flipOf('ALL');
-  return {
-    d0,
-    weekly,
-    book,
-    spread: d0 !== null && book !== null ? book - d0 : null,
-  };
-}

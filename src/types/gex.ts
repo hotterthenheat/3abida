@@ -8,8 +8,6 @@
 
 export type GexMetric = 'GEX' | 'VEX' | 'GEX+VEX';
 
-export type OverlayMode = 'NODES' | 'LEVELS' | 'BOTH';
-
 export type StrikeRange = 10 | 20;
 
 /** Key dealer-structure price levels drawn on the strike chart. */
@@ -197,14 +195,6 @@ export interface KeyLevelRow {
   pressure: number;
 }
 
-export interface MarketNote {
-  /** HH:MM:SS */
-  time: string;
-  text: string;
-  /** True when typed by the user rather than generated */
-  manual?: boolean;
-}
-
 export interface PulseView {
   pressure: PressureRow[];
   /** Max |pressure| across rows for bar scaling */
@@ -215,96 +205,6 @@ export interface PulseView {
 }
 
 // ---- Volatility Lab ------------------------------------------------------------
-
-export interface IvSurfaceData {
-  /** Column axis — strike / forward */
-  moneyness: number[];
-  /** Row axis, shortest first */
-  dte: number[];
-  /** cells[dteIndex][moneynessIndex], IV in % */
-  cells: number[][];
-  min: number;
-  max: number;
-  forward: number;
-}
-
-export interface TermPoint {
-  dte: number;
-  /** ATM IV, % */
-  iv: number;
-}
-
-export interface TermStructureData {
-  current: TermPoint[];
-  dayAgo: TermPoint[];
-  weekAgo: TermPoint[];
-  monthAgo: TermPoint[];
-  stats: {
-    atm30: number;
-    iv1m: number;
-    iv3m: number;
-    iv6m: number;
-    iv1y: number;
-    /** 0–100, of the 1y range */
-    ivRank: number;
-    /** 0–100 */
-    ivPercentile: number;
-  };
-}
-
-export interface RndData {
-  /** Price grid, ascending */
-  prices: number[];
-  /** Normalized density per price */
-  density: number[];
-  forward: number;
-  /** [-1σ, +1σ] prices */
-  sigma1: [number, number];
-  /** [-2σ, +2σ] prices */
-  sigma2: [number, number];
-  stats: {
-    expMoveAbs: number;
-    expMovePct: number;
-    skew: number;
-    kurtosis: number;
-    /** Tail probabilities, % */
-    pAbove2: number;
-    pBelow2: number;
-    /** 25Δ structures, vol points */
-    riskReversal: number;
-    butterfly: number;
-  };
-}
-
-export type VolRegime = 'LOW VOL' | 'NORMAL' | 'HIGH VOL';
-
-export interface RegimeSlice {
-  /** e.g. "Jul 24" */
-  month: string;
-  /** Probabilities 0–1, sum ≈ 1 */
-  low: number;
-  normal: number;
-  high: number;
-}
-
-export interface RegimeData {
-  series: RegimeSlice[];
-  current: VolRegime;
-  /** Probability of the current regime, % */
-  prob: number;
-  since: string;
-  avgDurationDays: number;
-  /** 1-month transition probabilities, % */
-  nextLow: number;
-  nextHigh: number;
-}
-
-export interface VolLabData {
-  surface: IvSurfaceData;
-  term: TermStructureData;
-  rnd: RndData;
-  regime: RegimeData;
-}
 
 // ---- Vanna & Charm (exposure migration) -----------------------------------------
 
@@ -339,59 +239,6 @@ export interface WallDriftPoint {
 }
 
 // ---- Ranked Targets (strike scoring engine) ---------------------------------------
-
-export type HedgingClass = 'DOWNSIDE CUSHION' | 'UPSIDE RESISTANCE' | 'MAGNET' | 'NEUTRAL';
-
-export type TargetTag = 'WALL' | 'PIN' | 'SUPREME' | 'SPOT TARGET';
-
-/** What earns a strike its priority — the five reasons, in bar order (Mo,
-    2026-08-19: "I want to know exactly why #1 beat #2 — NBR + OI + volume +
-    net GEX + distance from spot"). */
-export type RankFactor = 'gex' | 'oi' | 'volume' | 'nbr' | 'proximity';
-
-export interface FactorShare {
-  key: RankFactor;
-  /** 0–1 against the book's best on this factor */
-  norm: number;
-  /** The slice of the priority bar this factor earned. Engine-internal scale —
-      rendered as LENGTH only, never as a digit. */
-  points: number;
-}
-
-/** The lens the ladder is ranked through — the composite, or one reason alone. */
-export type RankLens = 'priority' | RankFactor;
-
-export interface RankedTarget {
-  rank: number;
-  strike: number;
-  /** 0–100 composite priority score */
-  score: number;
-  /** The priority, split by what earned it — sums to `score` */
-  factors: FactorShare[];
-  /** The reason in words: which factors led */
-  reason: string;
-  /** Signed basis points from spot */
-  bps: number;
-  volume: number;
-  /** Volume vs. average of neighboring strikes — isolated magnets score high */
-  nbr: number;
-  netGex: number;
-  openInterest: number;
-  callVol: number;
-  putVol: number;
-  pressure: 'SUPPORT' | 'RESISTANCE';
-  hedgingClass: HedgingClass;
-  tags: TargetTag[];
-}
-
-export interface RankedTargetsView {
-  ticker: string;
-  spot: number;
-  /** Sorted by score, descending */
-  targets: RankedTarget[];
-  maxVolume: number;
-  maxAbsGex: number;
-}
 
 // ---- Vanna & Charm view -------------------------------------------------------------
 

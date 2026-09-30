@@ -458,13 +458,6 @@ const notifyTicker = (ticker: string) => {
 export const getFiredLog = (ticker: string): FiredRecord[] => firedLogs.get(ticker) ?? EMPTY_FIRED;
 export const getUnseen = (ticker: string): number => unseenCounts.get(ticker) ?? 0;
 
-/** The bell was looked at — its count goes back to zero. The log stays. */
-export function markSeen(ticker: string): void {
-  if ((unseenCounts.get(ticker) ?? 0) === 0) return;
-  unseenCounts.set(ticker, 0);
-  notifyTicker(ticker);
-}
-
 /** Put a fired-and-gone alert back on watch, from its log row — through the
     same cap and duplicate gates as arming it fresh. */
 export function rearmFromRecord(ticker: string, key: string, spot: number, now: number): Alert | null {
@@ -609,8 +602,7 @@ export function useUnseenAll(): number {
 
 /*
   ── THE PLAIN VOICE (moved here from Pinpoint's WatchMenu, 2026-09-10) ──
-  `alertLabel` is the chart's terse voice for a rail row; these are the
-  sentences a reader gets on Targets and in the drawer — the same words
+  The sentences a reader gets on Targets and in the drawer — the same words
   everywhere an alert is written out (the rule: one row, one shape).
 */
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
@@ -730,14 +722,6 @@ function sameIdentity(a: Alert, b: Alert): boolean {
     case 'script':
       return b.kind === 'script' && a.scriptId === b.scriptId && a.conditionId === b.conditionId && a.paneId === b.paneId;
   }
-}
-
-export function rearmAlert(ticker: string, id: string, spot: number, now: number): void {
-  const list = read(ticker);
-  const hit = list.find(a => a.id === id);
-  if (!hit) return;
-  const next = list.map(a => (a.id === id ? { ...resetAlert(a, spot, now), setAt: now } : a));
-  if (next.some((a, i) => a !== list[i])) write(ticker, next);
 }
 
 /*
@@ -867,63 +851,6 @@ export function evaluateAlert(a: Alert, ctx: AlertContext): AlertVerdict {
     the wall clock is a different clock. */
 export function scriptBarCounts(a: ScriptAlert, barTime: number): boolean {
   return barTime !== a.lastBar && barTime >= a.armedBar;
-}
-
-/** The words a rail row or a menu row prints for an alert — one place, so
-    the pane and the menu never describe the same alert differently. */
-export function alertLabel(a: Alert): string {
-  switch (a.kind) {
-    case 'price':
-      return `${a.price.toFixed(2)} ${a.above ? 'above' : 'below'}`;
-    case 'level':
-      return `${{ callWall: 'call wall', putWall: 'put wall', flip: 'flip', supreme: 'supreme' }[a.level]} cross`;
-    case 'indicator':
-      return a.source === 'rsi'
-        ? `RSI ${a.threshold} · ${a.tf}`
-        : `${{ vwap: 'VWAP', ema9: 'EMA 9', ema21: 'EMA 21', ema50: 'EMA 50' }[a.source]} cross · ${a.tf}`;
-    case 'gexflip':
-      return 'net GEX flips sign';
-    case 'newsupreme':
-      return 'new supreme';
-    case 'wallmove':
-      return `wall moves ${a.strikes}+ strikes`;
-    case 'flow':
-      return `print ≥ $${a.floor >= 1_000_000 ? `${(a.floor / 1_000_000).toFixed(a.floor % 1_000_000 ? 1 : 0)}M` : `${Math.round(a.floor / 1_000)}K`}`;
-    case 'news':
-      return 'a headline lands';
-    case 'script':
-      return a.title;
-  }
-}
-
-/** Shared subscribe — the log and the count ride the ticker's channel. */
-function useTickerChannel(ticker: string): (fn: () => void) => () => void {
-  return useCallback(
-    (fn: () => void) => {
-      let set = subs.get(ticker);
-      if (!set) {
-        set = new Set();
-        subs.set(ticker, set);
-      }
-      set.add(fn);
-      return () => {
-        set?.delete(fn);
-      };
-    },
-    [ticker]
-  );
-}
-
-export function useFiredLog(ticker: string): FiredRecord[] {
-  const subscribe = useTickerChannel(ticker);
-  const snapshot = useCallback(() => getFiredLog(ticker), [ticker]);
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
-
-export function useUnseen(ticker: string): number {
-  const subscribe = useTickerChannel(ticker);
-  const snapshot = useCallback(() => getUnseen(ticker), [ticker]);
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
 export function useAlerts(ticker: string): Alert[] {

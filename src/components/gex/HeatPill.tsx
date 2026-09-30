@@ -133,24 +133,3 @@ const HeatPill = ({
    words are the same is the same pill. */
 export default memo(HeatPill);
 
-/*
-  A RUN OF QUIET STRIKES, FOLDED.
-
-  The reference collapses contiguous rows that carry nothing into a single
-  line saying how many went. That is worth copying for a reason beyond space:
-  a chain is mostly empty away from the money, and rendering forty near-zero
-  rows at full height buries the dozen that matter inside a wall of almost-
-  black. Folding them keeps the surface honest about where the book actually
-  is, and says the count out loud so nothing is silently dropped.
-*/
-export const HiddenStrikes = ({ count, cols }: { count: number; cols?: number }) => (
-  <div
-    className="flex items-center gap-2 border-y border-dashed border-borderSubtle/50 px-2 py-[3px] font-mono text-[9px] uppercase tracking-wider text-textMuted"
-    {...(cols ? { style: { gridColumn: `span ${cols}` } } : null)}
-  >
-    <span aria-hidden className="text-textMuted/60">
-      ··
-    </span>
-    {count} {count === 1 ? 'strike' : 'strikes'} hidden
-  </div>
-);

@@ -84,7 +84,6 @@ const GLIDE = `width 520ms ${EASE}, left 520ms ${EASE}`;
 const LEAN_INK: Record<Lean, string> = { bullish: 'text-bull', neutral: 'text-textPrimary', bearish: 'text-bear' };
 const STATUS_WORD: Record<SourceStatus, string> = { live: 'live', sample: 'sample', thin: 'thin' };
 const STATUS_INK: Record<SourceStatus, string> = { live: 'text-select', sample: 'text-warn', thin: 'text-textMuted' };
-const KIND_INK: Record<TimelineKind, string> = { earnings: 'text-warn', news: 'text-silver', breakout: 'text-bull', breakdown: 'text-bear', volume: 'text-textSecondary', session: 'text-textSecondary' };
 /** The same kinds as marks on the sessions chart — token inks, resolved on the island */
 const KIND_MARK: Record<TimelineKind, string> = { earnings: 'rgb(var(--warn))', news: 'rgb(var(--silver))', breakout: 'rgb(var(--bull))', breakdown: 'rgb(var(--bear))', volume: 'rgb(var(--silver))', session: 'rgb(var(--text-primary))' };
 /** A dark print's bar in the posture's ink: accumulation for, distribution against, the rest muted */

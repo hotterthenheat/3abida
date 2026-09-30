@@ -64,7 +64,7 @@ import { fmtFlow, type FlowLadder, type FlowRung } from '../../data/hedgeFlow';
 import { sessionVolumeProfile, type VolumeProfile } from '../../data/volumeProfile';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
 import { HEAT_MODE, heatCellStyle, heatRampColorFor, type HeatMode } from './heatmap';
-import { splinePath } from './StrikePressureLadder';
+import { splinePath } from './spline';
 import type { PriceProjection } from './StrikeChart';
 import type { GexLevel } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
@@ -146,8 +146,6 @@ const FOOT_BAND = 14;
     the strike (the full and mid tiers) */
 const COL_W = 60;
 const COL_W_WIDE = 96;
-/** The Net view's figure slot at the lane's left edge, when the lane has room for it */
-const NET_FIG_W = 58;
 /** A strike's label needs about this much line box */
 const LABEL_PITCH = 12;
 

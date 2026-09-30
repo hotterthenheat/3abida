@@ -109,32 +109,6 @@ export function intrinsicOf(strike: number, right: OptionRight, spot: number): n
   return Number(Math.max(0, right === 'C' ? spot - strike : strike - spot).toFixed(2));
 }
 
-/** The contract's value at a spot on a date — the what-if's pricer, the same one */
-export function valueAt(w: Pick<WatchedContract, 'ticker' | 'strike' | 'right'>, spot: number, tYears: number): number {
-  if (tYears <= 0) return intrinsicOf(w.strike, w.right, spot);
-  const iv = contractIvFor(w.ticker, w.strike, w.right);
-  return Number(estimatePremium(spot, w.strike, w.right, iv, tYears).toFixed(2));
-}
-
-/** Risk-neutral odds the contract finishes in the money — N(d2), the chain's own family */
-export function itmOddsOf(w: Pick<WatchedContract, 'ticker' | 'strike' | 'right' | 'expiry'>, spot = spotOf(w.ticker)): number {
-  const t = yearsToExpiry(w.expiry);
-  const iv = contractIvFor(w.ticker, w.strike, w.right);
-  const r = 0.05;
-  const d1 = (Math.log(spot / w.strike) + (r + (iv * iv) / 2) * t) / (iv * Math.sqrt(t));
-  const d2 = d1 - iv * Math.sqrt(t);
-  const nd2 = normalCDF(d2);
-  return Math.round((w.right === 'C' ? nd2 : 1 - nd2) * 100);
-}
-
-/** Abramowitz–Stegun N(x) — the approximation core/greeks and the chain use */
-function normalCDF(x: number): number {
-  const k = 1 / (1 + 0.2316419 * Math.abs(x));
-  const d = 0.3989422804 * Math.exp((-x * x) / 2);
-  const p = k * (0.31938153 + k * (-0.356563782 + k * (1.781477937 + k * (-1.821255978 + k * 1.330274429))));
-  return x >= 0 ? 1 - d * p : d * p;
-}
-
 /* ---- the returns ------------------------------------------------------------------ */
 
 export interface WatchReturns {
@@ -178,20 +152,6 @@ export function returnsOf(w: WatchedContract, spot = spotOf(w.ticker)): WatchRet
   };
 }
 
-/** The record — the Tracker's own line: settled · hit · R */
-export function recordOf(rows: WatchedContract[]): { settled: number; hit: number; r: number } {
-  const done = rows.filter(w => w.status !== 'open');
-  let hit = 0;
-  let r = 0;
-  for (const w of done) {
-    const close = w.closedMark ?? w.addedMark;
-    const rr = (close - w.addedMark) / Math.max(0.01, w.addedMark);
-    if (close > w.addedMark) hit += 1;
-    r += rr;
-  }
-  return { settled: done.length, hit, r };
-}
-
 /* ---- the store's doors ------------------------------------------------------------ */
 
 /** Watch a contract — marked at this tick's mark and spot. Returns the row, or the one already watching it. */
@@ -229,11 +189,6 @@ export function watchedFor(req: Pick<WatchRequest, 'ticker' | 'strike' | 'right'
   return same.find(w => w.status === 'open') ?? same.sort((a, b) => b.addedAt - a.addedAt)[0] ?? null;
 }
 
-/** Is this contract on the list, open? */
-export function isWatching(req: Pick<WatchRequest, 'ticker' | 'strike' | 'right' | 'expiry'>): boolean {
-  return list.some(w => w.status === 'open' && w.ticker === req.ticker && w.strike === req.strike && w.right === req.right && w.expiry === req.expiry);
-}
-
 /** Close at the mark now — the return locks */
 export function closeWatched(id: string): void {
   const w = list.find(x => x.id === id);
@@ -248,10 +203,6 @@ export function removeWatched(id: string): void {
 
 export function setWatchedSize(id: string, size: number): void {
   commit(list.map(x => (x.id === id ? { ...x, size: Math.max(1, Math.round(size)) } : x)));
-}
-
-export function setWatchedNote(id: string, note: string): void {
-  commit(list.map(x => (x.id === id ? { ...x, note: note.trim() || undefined } : x)));
 }
 
 /**

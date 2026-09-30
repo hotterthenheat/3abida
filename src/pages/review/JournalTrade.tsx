@@ -386,6 +386,3 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
   );
 };
 
-/** Review › Journal's trade page — the backtest's */
-const JournalTrade = () => <JournalTradePage kind="backtest" />;
-export default JournalTrade;

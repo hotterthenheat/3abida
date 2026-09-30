@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Working from '../ui/Working';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ArrowRightLeft, CornerDownLeft, Crosshair, Users } from 'lucide-react';
+import { Activity, ArrowRightLeft, CornerDownLeft, Crosshair } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
 import { GEX_SUBPAGES } from '../../pages/pinpoint/subnav';
 import { TRACE_SUBPAGES } from '../../pages/trace/subnav';

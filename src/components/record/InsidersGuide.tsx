@@ -183,5 +183,3 @@ export const InsidersGuide = () => (
     </Section>
   </div>
 );
-
-export default InsidersGuide;

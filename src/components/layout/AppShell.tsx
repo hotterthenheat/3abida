@@ -12,7 +12,6 @@ import AlertToasts from '../alerts/AlertToasts';
 import PaperRunner from '../paper/PaperRunner';
 import ScrollHome from './ScrollHome';
 import WayBack from './WayBack';
-import { useIsBelowLg } from '../ui/useMediaQuery';
 import { OPEN_PALETTE_EVENT } from './paletteDoor';
 import { FaultView, isLoadFault, reloadOnceForStaleBuild } from '../ui/Fault';
 

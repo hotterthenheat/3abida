@@ -105,8 +105,6 @@ export function useEditorDock(): DockState {
   );
 }
 
-export const getEditorDock = (): DockState => state;
-
 /* ---- drafts: what a closed dock keeps ---------------------------------------------- */
 
 const drafts = new Map<string, { title: string; source: string }>();

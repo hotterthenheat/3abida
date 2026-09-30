@@ -13,7 +13,7 @@ import Term from '../../components/ui/Term';
 import { REGIME_WORDS, buildFlipGauge } from '../../data/flipGauge';
 import { fmtDistance, impliedDaySigma, sessionAtr, type DistanceScales, type DistanceUnit } from '../../data/atr';
 import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import { FLIP, LONG_GAMMA, SHORT_GAMMA } from '../../components/gex/paletteInk';
 import { GEX_SUBPAGES } from './subnav';
 
@@ -81,7 +81,7 @@ const Fact = ({ label, children, title, testId }: { label: string; children: Rea
 );
 
 const PinpointLayout = () => {
-  const { activeTicker, marketData, flowTape } = useMarketData();
+  const { activeTicker, marketData } = useMarketData();
   const { focus, clearFocus } = useFocus();
   /* Alerts are watched by the app shell on every page now (components/alerts/AlertWatcher.tsx, 2026-09-10) */
   const location = useLocation();

@@ -81,8 +81,6 @@ export const barNowOf = (ticker: string): number => {
 /* ---- an option ---- */
 /** The quote now — the backtest's pricer on the real clock */
 export const optionQuote = (c: ContractId, ms: number, spot = spotOf(c.ticker)): Quote => priceWith(c, spot, yearsToExpiry(c.expiry, ms), baseIvOf(c.ticker));
-/** The same contract with the name somewhere else, now — where a way out on the contract's price is drawn on the chart */
-export const optionQuoteAt = (c: ContractId, ms: number, spot: number): Quote => optionQuote(c, ms, spot);
 /** Where the name would have to stand NOW for the contract to bid `bid` — the nearest such place (quotes.ts spotForBid's
     walk, on the live quote) */
 export const spotForBidNow = (c: ContractId, ms: number, bid: number): number | null => spotForQuoteNow(c, ms, bid, 'bid');

@@ -3325,7 +3325,6 @@ const StrikeChart = ({
     const timeEl = el.lastElementChild as HTMLElement | null;
     if (!priceEl || !timeEl) return;
 
-    const bucket = Math.max(60, tfMinutes(timeframe) * 60);
     let shownPrice = '';
     let shownLeft = '';
     let shownY = Number.NaN;

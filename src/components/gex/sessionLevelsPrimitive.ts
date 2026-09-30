@@ -62,7 +62,6 @@ const DASH: Record<SessionLevelKey, number[]> = {
 const TAG_PX = 10;
 const TAG_PX_MAJOR = 11.5;
 const MAJOR: Set<SessionLevelKey> = new Set(['prevHigh', 'prevLow']);
-const TAG_FONT = `${TAG_PX}px ui-monospace, SFMono-Regular, Menlo, monospace`;
 const TAG_PAD_X = 4;
 const TAG_PAD_Y = 2;
 
@@ -291,5 +290,3 @@ export class SessionLevelsPrimitive implements ISeriesPrimitive<Time> {
   }
 }
 
-/** Exported for the proof: the constants a test would otherwise re-type. */
-export const SESSION_LAYER = { INK, LINE_ALPHA, TAG_ALPHA, FORMING_ALPHA, DASH, TAG_FONT } as const;

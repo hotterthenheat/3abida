@@ -106,8 +106,6 @@ export const isChosenBuy = (t: { code: TxCode; plan: PlanState }): boolean => {
   return m.openMarket && m.acquires && m.discretionary && t.plan !== 'plan';
 };
 
-const EMPTY: InsiderFlow = { ticker: '', trades: [], bought: 0, sold: 0, net: 0, plannedValue: 0, compValue: 0, buyerCluster: 0, openMarketBuys: 0, signal: 'quiet', windowDays: 0 };
-
 /** One name's insider filings over a window — deterministic per session day */
 export function insiderFlow(ticker: string, windowDays = 90, day = dayKey()): InsiderFlow {
   const sym = ticker.toUpperCase();

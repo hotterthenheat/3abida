@@ -57,7 +57,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { buildExposureProfile } from '../../data/exposure';
 import { buildVannaCharm } from '../../data/vannacharm';
-import { readSessionClock } from '../../data/moc';
+import { readSessionClock } from '../../data/sessionClock';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import ClockGuide from './ClockGuide';
 import type { MarketSnapshot } from '../../types/market';

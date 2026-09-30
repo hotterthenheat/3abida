@@ -146,5 +146,3 @@ export const WeigherPageSkeleton = () => (
     </div>
   </div>
 );
-
-export default WeigherPageSkeleton;

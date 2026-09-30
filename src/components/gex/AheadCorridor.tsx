@@ -79,7 +79,7 @@ import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import { CorridorGuide } from './AheadGuide';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
 import { useResolvedTheme } from '../../theme/theme';
-import { CLOSE_MIN, OPEN_MIN, VOL_OPTIONS, fmtDollars, fmtPrice, fmtStrike, hhmm, volWords, type AheadClock, type Corridor, type Schedule, type ScheduleBlock, type VolPoints } from '../../data/ahead';
+import { CLOSE_MIN, VOL_OPTIONS, fmtDollars, fmtPrice, fmtStrike, hhmm, volWords, type AheadClock, type Corridor, type Schedule, type ScheduleBlock, type VolPoints } from '../../data/ahead';
 import type { ExposureLevels } from '../../types/gex';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
@@ -171,7 +171,6 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
   /* Where the walls and the flip go under the vol move — the ghosts on the scale */
   const ghosts = (vol?.shifts ?? []).filter(s => s.kind !== 'supreme');
   const shut = !clock.inSession;
-  const start = clock.nowMin ?? OPEN_MIN;
 
   /* THE DOMAIN: the rarer stretch with air around it, and any level within reach */
   const { lo, hi } = useMemo(() => {

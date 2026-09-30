@@ -193,7 +193,6 @@ const TAPE_FLOOR_PX = 760;
 const SPLIT_PANE_PX = 560;
 /** A grid's shapes (Paper's layouts): how its panes are laid out, as the grid's classes */
 export type GridLayout = '1' | '2h' | '2v' | '3' | '4';
-export const GRID_PANES: Record<GridLayout, number> = { '1': 1, '2h': 2, '2v': 2, '3': 3, '4': 4 };
 const GRID_CLASS: Record<GridLayout, string> = { '1': 'grid-cols-1 grid-rows-1', '2h': 'grid-cols-2 grid-rows-1', '2v': 'grid-cols-1 grid-rows-2', '3': 'grid-cols-2 grid-rows-2', '4': 'grid-cols-2 grid-rows-2' };
 /** One pane of a grid: whose chart, at what interval — and what floats at its foot (a position's bar) */
 export interface GridPane {

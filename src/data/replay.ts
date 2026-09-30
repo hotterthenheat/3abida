@@ -55,9 +55,6 @@ export interface ReplayRange {
   length: number;
 }
 
-/** Bars this far apart are one session; farther is the overnight */
-const SESSION_GAP_S = 90;
-
 function rangeOf(ticker: string, bars: Candle[]): ReplayRange | null {
   if (bars.length < 2) return null;
   const first = bars[0].time;
@@ -73,23 +70,6 @@ function rangeOf(ticker: string, bars: Candle[]): ReplayRange | null {
 export function replayRange(ticker: string): ReplayRange | null {
   const bars = sessionBars(ticker);
   return bars ? rangeOf(ticker, bars) : null;
-}
-
-/** THE SESSION A BAR BELONGS TO, and where the bar sits in it (the
-    TradingView way in: click a bar on the chart, the replay starts there —
-    Noah, 2026-09-08). The bar is the last one at or before `time`; the
-    session is the contiguous run of minute bars around it. */
-export function replayRangeAt(ticker: string, time: number): { range: ReplayRange; pos: number } | null {
-  const all = Simulator.peekCandles(ticker);
-  if (!all || all.length < 2) return null;
-  let i = all.length - 1;
-  while (i > 0 && all[i].time > time) i--;
-  let start = i;
-  while (start > 0 && all[start].time - all[start - 1].time <= SESSION_GAP_S) start--;
-  let end = i;
-  while (end < all.length - 1 && all[end + 1].time - all[end].time <= SESSION_GAP_S) end++;
-  const range = rangeOf(ticker, all.slice(start, end + 1));
-  return range ? { range, pos: (i - start) * BAR_SEC } : null;
 }
 
 /** The clock at a position: minutes from midnight ET, as if the session opened at 09:30 */
@@ -132,9 +112,6 @@ export function spotAt(range: ReplayRange, pos: number): number {
   const b = range.bars[k + 1];
   return b ? lerp(a.close, b.close, u) : a.close;
 }
-
-/** The bar a position is in — the chart's own replay clock reads its time */
-export const barTimeAt = (range: ReplayRange, pos: number) => range.bars[place(range, pos).k].time;
 
 /** The book between two minutes, strike by strike */
 function levelsAt(range: ReplayRange, pos: number): GexLevel[] {

@@ -922,5 +922,3 @@ export const CompareGuide = () => (
     </Section>
   </div>
 );
-
-export default ScreenerGuide;

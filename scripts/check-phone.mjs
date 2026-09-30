@@ -21,7 +21,7 @@ const ALL_ROUTES = [
   '/trace/live-tape', '/trace/dark-pool', '/trace/screener', '/trace/net-flow', '/trace/footprints', '/trace/watchers', '/trace/windows', '/trace/odte', '/trace/multi-leg', '/trace/compare', '/trace/tracker',
   '/pinpoint/map', '/pinpoint/ahead', '/pinpoint/building', '/pinpoint/wall', '/pinpoint/targets', '/pinpoint/board', '/pinpoint/compare',
   '/dossier/news', '/dossier/earnings', '/dossier/earnings/NVDA', '/dossier/insiders', '/dossier/congress', '/dossier/stocks', '/dossier/stocks/NVDA',
-  '/practice/paper', '/practice/backtest', '/practice/futures', '/practice/journal', '/practice/backtest/not-a-session',
+  '/practice/paper', '/practice/backtest', '/practice/journal', '/practice/backtest/not-a-session',
   '/community', '/settings/account', '/settings/billing', '/settings/data', '/settings/appearance', '/settings/desk', '/settings/keyboard', '/settings/about',
   '/pinpoint/not-a-page', '/not-a-page',
 ];

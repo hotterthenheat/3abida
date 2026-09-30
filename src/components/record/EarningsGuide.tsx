@@ -251,5 +251,3 @@ export const EarningsGuide = () => (
     </Section>
   </div>
 );
-
-export default EarningsGuide;

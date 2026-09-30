@@ -13,8 +13,6 @@
 import { GREEKS, type Greek } from '../../data/exposureSurface';
 import type { MultiOption } from '../ui/DropdownMulti';
 
-export type ViewGreek = Greek | 'all';
-
 export interface SurfaceCell {
   strike: number;
   /** Index into surface.expiries */

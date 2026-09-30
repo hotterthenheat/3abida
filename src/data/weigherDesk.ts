@@ -334,12 +334,6 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
 
 export type ScanPreset = 'gainers' | 'losers' | 'voliv';
 
-export const SCAN_PRESETS: { key: ScanPreset; label: string; hint: string }[] = [
-  { key: 'gainers', label: 'Daily gainers', hint: 'Largest session gains first' },
-  { key: 'losers', label: 'Daily losers', hint: 'Largest session losses first' },
-  { key: 'voliv', label: 'Options volume · IV', hint: 'Busiest option tapes, priciest vol first' },
-];
-
 export interface ScanRow {
   ticker: string;
   last: number;

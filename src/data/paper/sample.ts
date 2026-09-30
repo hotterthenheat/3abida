@@ -43,7 +43,6 @@ import type { Candle } from '../../types/market';
 /** THE SWITCH — off before launch */
 export const SAMPLE_JOURNAL = true;
 export const SAMPLE_IDS = ['sampleP', 'sampleE'] as const;
-export const isSampleAccount = (id: string): boolean => (SAMPLE_IDS as readonly string[]).includes(id);
 
 /* ---- shown or hidden, kept on this machine ---- */
 const SHOWN_KEY = 'slayer_paper_sample';

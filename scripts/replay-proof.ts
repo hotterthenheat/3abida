@@ -9,13 +9,11 @@
   3. Expiry resolution follows the PINNED calendar: a Friday pin resolves
      "2 days" to Monday; a Tuesday pin resolves it to Thursday
   4. Engine modules import cleanly without booting the simulator
-  5. occSymbol builds the canonical OCC key correctly
 */
 import { withEngineClock } from '../src/core/clock';
 import { weighContracts } from '../src/core/contractScore';
 import { buildCompassView } from '../src/data/compass';
 import { expiryFor } from '../src/core/calendar';
-import { occSymbol, decisionId, optionContractId } from '../src/core/journal';
 import type { MarketSnapshot } from '../src/types/market';
 
 // A minimal hand-built snapshot — NO simulator import anywhere in this file.
@@ -88,20 +86,6 @@ const ineligible = withEngineClock(dayA, () =>
 check('ineligible lens×tenor scans empty', ineligible.totalFound === 0 && ineligible.groups.length === 0);
 const eligible = withEngineClock(dayA, () => buildCompassView(snap, 'quick-scalp', universe, 'weekly'));
 check('the same lens on an eligible tenor scans', eligible.totalFound > 0, `${eligible.totalFound} found`);
-
-// 4. occ + decision identity
-const occ = occSymbol('SPY', '2026-07-31', 'C', 500);
-check('OCC symbol exact', occ === 'SPY   260731C00500000', occ);
-const occHalf = occSymbol('AAPL', '2026-08-01', 'P', 183.5);
-check('OCC half-dollar strike pads to 00183500', occHalf === 'AAPL  260801P00183500', occHalf);
-const id = decisionId(
-  optionContractId('SPY', '2026-07-31', 'C', 500),
-  { kind: 'scanner', scanner: 'top-setups', sleeve: 'weekly' },
-  '2026-07-29T15:00:00Z'
-);
-check('decision id shape (sleeve-aware source)', id === 'SPY   260731C00500000|scanner:top-setups@weekly|2026-07-29T15:00:00Z', id);
-const idNoSleeve = decisionId(optionContractId('SPY', '2026-07-31', 'C', 500), { kind: 'scanner', scanner: 'all' }, '2026-07-29T15:00:00Z');
-check('decision id shape (sleeveless source)', idNoSleeve === 'SPY   260731C00500000|scanner:all|2026-07-29T15:00:00Z', idNoSleeve);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
