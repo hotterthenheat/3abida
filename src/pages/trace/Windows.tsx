@@ -97,7 +97,7 @@ const Windows = () => {
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((s: { key: string }) => s.key, []);
   const openRow = useCallback((s: { row: { key: string } }) => setOpenKey(s.row.key), []);
-  const windows = useMemo(() => intervalWindows(book), [book]);
+  const windows = useMemo(() => intervalWindows(book, expiry ?? ''), [book, expiry]);
 
   // "Latest" follows the newest COMPLETE window; the live one is a click away.
   const latestIdx = windows.length >= 2 ? windows[windows.length - 2].idx : windows[windows.length - 1]?.idx ?? 0;

@@ -58,7 +58,9 @@ export function buildFlowBook(quotes: UniverseQuote[]): BookContract[] {
   const day = dayKey();
   const t0 = now();
   const nowMin = t0.getHours() * 60 + t0.getMinutes();
-  const cacheKey = `${day}-${nowMin}`;
+  /* THE UNIVERSE IS PART OF THE KEY (2026-09-30): the active name joins the list (Simulator.universeQuotes), so a
+     name picked from outside the roster used to wait up to a minute for a book that had it */
+  const cacheKey = `${day}-${nowMin}-${quotes.map(q => q.ticker).join(',')}`;
   if (bookCache?.key === cacheKey) return bookCache.rows;
 
   // Quarter-hour bucket — intraday wobble steps deterministically, not per render.
@@ -641,12 +643,14 @@ export function buildIntervalSlices(rows: BookContract[], idx: number): Interval
 let navCache: { key: string; windows: IntervalWindow[] } | null = null;
 
 /** The session so far as a navigator — total volume per landed window. */
-export function intervalWindows(rows: BookContract[]): IntervalWindow[] {
+export function intervalWindows(rows: BookContract[], scope = ''): IntervalWindow[] {
   const day = dayKey();
   const t0 = now();
   const nowMin = t0.getHours() * 60 + t0.getMinutes();
   const qNow = Math.floor(nowMin / WINDOW_MIN);
-  const cacheKey = `${day}-${nowMin}`;
+  /* `scope` names the cut the rows came through (an expiry), as buildNetLeaders' does: the same minute on another
+     cut is other windows — keyed by the minute alone, a new expiry showed the last one's until the minute turned */
+  const cacheKey = `${day}-${nowMin}-${scope}-${rows.length}`;
   if (navCache?.key === cacheKey) return navCache.windows;
 
   const totals = new Array(qNow + 1).fill(0);
@@ -1211,7 +1215,8 @@ export function buildSpreadFlow(quotes: UniverseQuote[]): SpreadTrade[] {
   const day = dayKey();
   const t0 = now();
   const nowMin = t0.getHours() * 60 + t0.getMinutes();
-  const cacheKey = `${day}-${nowMin}`;
+  /* the universe is part of the key, as the book's is (buildFlowBook) */
+  const cacheKey = `${day}-${nowMin}-${quotes.map(q => q.ticker).join(',')}`;
   if (spreadCache?.key === cacheKey) return spreadCache.trades;
 
   const trades: SpreadTrade[] = [];
