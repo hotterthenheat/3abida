@@ -16,9 +16,42 @@
 ==================================================
 */
 
-import { AllCommunityModule, themeQuartz } from 'ag-grid-community';
+import {
+  CellStyleModule,
+  ClientSideRowModelApiModule,
+  ClientSideRowModelModule,
+  ExternalFilterModule,
+  PaginationModule,
+  RowApiModule,
+  RowSelectionModule,
+  RowStyleModule,
+  ScrollApiModule,
+  TooltipModule,
+  ValidationModule,
+  themeQuartz,
+  type Module,
+} from 'ag-grid-community';
 
-export const GRID_MODULES = [AllCommunityModule];
+/* THE MODULES THE GRIDS USE, NOT ALL OF THEM (2026-09-30, the perf pass): AllCommunityModule carried every feature AG
+   Grid has — filters, editors, export, drag, the lot — into every page with a table, 668KB of it before a row was drawn.
+   These are what the terminal's grids ask for: rows handed in, one row selected, row and cell classes, the header
+   tooltips, the rest cap's pages (TraceGrid), the Board's own search (an external filter), and the row and scroll calls
+   the Weigher's chain makes (and the client-side row calls under them). A grid that reaches for anything else says so
+   by name in the console — in full while developing (the validation module), as an error #200 in a build. */
+export const GRID_MODULES: Module[] = [
+  ClientSideRowModelModule,
+  RowSelectionModule,
+  RowStyleModule,
+  CellStyleModule,
+  TooltipModule,
+  PaginationModule,
+  ExternalFilterModule,
+  RowApiModule,
+  ScrollApiModule,
+  ClientSideRowModelApiModule,
+  /* the names of what is missing, while building — the production build leaves the validation out */
+  ...(import.meta.env.DEV ? [ValidationModule] : []),
+];
 
 export const GRID_THEME = themeQuartz.withParams({
   backgroundColor: 'rgb(var(--panel))',
