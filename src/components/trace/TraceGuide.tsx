@@ -71,10 +71,11 @@ export const ContractFigure = () => (
       09/11/2026
     </text>
     <line x1={150} x2={258} y1={36} y2={36} stroke={INK} strokeOpacity={0.7} strokeWidth={1} />
-    <text x={290} y={27} fontSize={7} fill={SECOND} fontFamily={SANS}>
+    {/* the words end at the figure's edge (from 290 they ran 17 past it) */}
+    <text x={414} y={27} textAnchor="end" fontSize={7} fill={SECOND} fontFamily={SANS}>
       the strike, the side in its ink, the expiry;
     </text>
-    <text x={290} y={38} fontSize={7} fill={SECOND} fontFamily={SANS}>
+    <text x={414} y={38} textAnchor="end" fontSize={7} fill={SECOND} fontFamily={SANS}>
       the line under it opens the contract's card
     </text>
   </Figure>
@@ -541,23 +542,27 @@ export const BoardRowFigure = () => (
 /** The pane's lines: the spot in white, net calls in green, net puts in red, the volume floor */
 export const PaneLinesFigure = () => (
   <Figure label="A small chart: a white spot line drifting down, a green net-calls line rising, a red net-puts line flat, small volume bars along the floor with one in magenta" h={96}>
-    <polyline points="14,30 60,26 100,34 150,40 200,44 250,52 300,50 350,60 400,58" fill="none" stroke={INK} strokeWidth={1.2} />
-    <polyline points="14,64 60,60 100,58 150,52 200,48 250,42 300,40 350,34 400,32" fill="none" stroke={BULL} strokeWidth={1.4} />
-    <polyline points="14,70 60,70 100,69 150,70 200,71 250,70 300,72 350,71 400,72" fill="none" stroke={BEAR} strokeWidth={1.2} />
+    <polyline points="14,30 60,26 100,34 150,40 200,44 250,52 300,50 350,60 394,58" fill="none" stroke={INK} strokeWidth={1.2} />
+    <polyline points="14,64 60,60 100,58 150,52 200,48 250,42 300,40 350,34 394,32" fill="none" stroke={BULL} strokeWidth={1.4} />
+    <polyline points="14,70 60,70 100,69 150,70 200,71 250,70 300,72 350,71 394,72" fill="none" stroke={BEAR} strokeWidth={1.2} />
     {Array.from({ length: 40 }, (_, i) => (
       <rect key={i} x={14 + i * 9.7} y={90 - (3 + ((i * 7) % 9))} width={3} height={3 + ((i * 7) % 9)} fill={i === 11 ? SUPREME : SECOND} fillOpacity={i === 11 ? 0.9 : 0.35} />
     ))}
-    <text x={404} y={58} fontSize={6.5} fill={INK} fontFamily={MONO}>
+    <text x={398} y={58} fontSize={6.5} fill={INK} fontFamily={MONO}>
       spot
     </text>
-    <text x={404} y={32} fontSize={6.5} fill={BULL} fontFamily={MONO}>
+    <text x={398} y={32} fontSize={6.5} fill={BULL} fontFamily={MONO}>
       calls
     </text>
-    <text x={404} y={74} fontSize={6.5} fill={BEAR} fontFamily={MONO}>
+    <text x={398} y={74} fontSize={6.5} fill={BEAR} fontFamily={MONO}>
       puts
     </text>
-    <text x={14} y={14} fontSize={7} fill={SECOND} fontFamily={SANS}>
-      the name's own candles as the white line; net call and put premium as the green and red; the floor is volume, its largest bar magenta
+    {/* two lines — as one it ran 64 past the figure's edge */}
+    <text x={14} y={9} fontSize={7} fill={SECOND} fontFamily={SANS}>
+      the name's own candles as the white line; net call and put premium as the green and red;
+    </text>
+    <text x={14} y={19} fontSize={7} fill={SECOND} fontFamily={SANS}>
+      the floor is volume, its largest bar magenta
     </text>
   </Figure>
 );
@@ -891,7 +896,7 @@ export const LedgerFigure = () => (
           {r.a}
         </text>
         {r.edge === 'b' && (
-          <text x={362} y={r.y} fontSize={7} fill="rgb(var(--supreme))">
+          <text x={352} y={r.y} fontSize={7} fill="rgb(var(--supreme))">
             ◆
           </text>
         )}

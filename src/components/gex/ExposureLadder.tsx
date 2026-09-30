@@ -514,7 +514,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         role="row"
         /* the supreme's row wears the magenta wash end to end, the chart ladder's rule */
         className={`relative grid items-center gap-x-2 px-3 border-b border-borderSubtle/30 cursor-pointer transition-[color,background-color,border-color,grid-template-columns] duration-200 motion-reduce:transition-none ${
-          kept ? `z-30 bg-silver/[0.06] ${paper ? '' : 'shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]'}` : washed ? 'bg-silver/[0.04]' : isSupreme ? 'bg-supreme/[0.14] hover:bg-supreme/[0.18]' : 'hover:bg-ink/[0.03]'
+          kept ? `z-30 bg-silver/[0.06] ${paper ? '' : 'shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]'}` : washed ? 'bg-silver/[0.04]' : isSupreme ? 'bg-supreme/[0.14] hover:bg-supreme/[0.18]' : 'hover:bg-ink/[0.03]'
         }`}
         /* the kept row's silver edge: the dark literal above, the paper silver token here (steel on paper) */
         style={{ gridTemplateColumns: cols, height: rowH, fontSize, ...(kept && paper ? { boxShadow: 'inset 2px 0 0 0 rgb(var(--silver) / 0.7)' } : {}) }}

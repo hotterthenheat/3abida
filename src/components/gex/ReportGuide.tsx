@@ -51,7 +51,7 @@ const RowFigure = () => {
         held 3 of 4
       </Label>
       {/* The session strip */}
-      <line x1={110} x2={330} y1={36.5} y2={36.5} stroke="#ffffff" strokeOpacity="0.1" />
+      <line x1={110} x2={330} y1={36.5} y2={36.5} stroke="rgb(var(--ink))" strokeOpacity="0.1" />
       {ticks.map(t => (
         <line key={t.x} x1={t.x} x2={t.x} y1={t.kind === 'broke' ? 24 : 28} y2={t.kind === 'broke' ? 49 : 45} stroke={t.kind === 'broke' ? RED : GREEN} strokeWidth={t.kind === 'broke' ? 2 : 1.5} strokeOpacity="0.9" />
       ))}
@@ -71,10 +71,10 @@ const RowFigure = () => {
         ['Since the open', 'growing +12%', INK],
       ].map(([k, v, c], i) => (
         <g key={k}>
-          <Label x={14 + i * 72} y={80} fill={INK_3} size={8}>
+          <Label x={14 + i * 68} y={80} fill={INK_3} size={8}>
             {k}
           </Label>
-          <Label x={14 + i * 72} y={94} fill={c} size={9.5} mono>
+          <Label x={14 + i * 68} y={94} fill={c} size={9.5} mono>
             {v}
           </Label>
         </g>
@@ -94,7 +94,8 @@ const RowFigure = () => {
 const TestFigure = () => {
   const level = 62;
   const bars = [
-    { x: 70, hi: 78, lo: 112, o: 104, c: 84, words: 'no test', why: 'never reached it', tick: null },
+    /* a down bar, so the caption's two kinds are both on the figure; its wick stops clear of its words */
+    { x: 70, hi: 70, lo: 96, o: 76, c: 92, words: 'no test', why: 'never reached it', tick: null },
     { x: 184, hi: 50, lo: 96, o: 90, c: 72, words: 'test · held', why: 'reached, closed below', tick: GREEN },
     { x: 298, hi: 44, lo: 92, o: 86, c: 52, words: 'test · broke', why: 'reached, closed through', tick: RED },
   ];
@@ -107,7 +108,7 @@ const TestFigure = () => {
       {bars.map(b => (
         <g key={b.x}>
           <line x1={b.x} x2={b.x} y1={b.hi} y2={b.lo} stroke={INK} strokeOpacity="0.8" />
-          <rect x={b.x - 4} y={Math.min(b.o, b.c)} width={8} height={Math.abs(b.o - b.c)} fill={b.c < b.o ? INK : '#0a0a0a'} stroke={INK} strokeOpacity="0.9" />
+          <rect x={b.x - 4} y={Math.min(b.o, b.c)} width={8} height={Math.abs(b.o - b.c)} fill={b.c > b.o ? INK : 'rgb(var(--panel))'} stroke={INK} strokeOpacity="0.9" />
           {b.tick && <line x1={b.x} x2={b.x} y1={116} y2={128} stroke={b.tick} strokeWidth={b.tick === RED ? 2 : 1.5} />}
           <Label x={b.x} y={106} anchor="middle" fill={b.tick ?? INK_3} size={9} weight={600}>
             {b.words}

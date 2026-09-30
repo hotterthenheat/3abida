@@ -843,19 +843,23 @@ const News = () => {
           {rows.length === 0 && <div className="px-5 py-6 text-center font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the tape for these cards</div>}
           {rows.map(e => {
             const open = e.id === selectedId;
-            const faded = freshnessOf(e) === 'faded';
+            /* AN OLD STORY (three hours and more) RECEDES BY ITS PLAIN WORDS — the time, the name and the headline drop a tier —
+               never by fading the row: an opacity took the reads, the move and the sure word with it, and on paper the green
+               and the orange fell under 3:1 (2026-09-30) */
+            const quiet = freshnessOf(e) === 'faded' && !open;
             return (
               <button
                 key={e.id}
                 type="button"
                 onClick={() => pick(e)}
-                className={`group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-silver/[0.05]'} ${faded && !open ? 'opacity-60' : ''}`}
+                className={`group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
                 style={{ height: NEWS_ROW_H, gridTemplateColumns: '72px 104px 96px 72px minmax(0, 1fr) 76px 72px' }}
                 data-news-row={e.id}
                 data-open={open || undefined}
+                data-faded={quiet || undefined}
               >
-                <span className="font-mono text-[10px] tnum text-textSecondary">{e.item.time}</span>
-                <span className="min-w-0 inline-flex items-center gap-1.5 font-mono text-[11px] font-bold text-textPrimary">
+                <span className={`font-mono text-[10px] tnum ${quiet ? 'text-textMuted' : 'text-textSecondary'}`}>{e.item.time}</span>
+                <span className={`min-w-0 inline-flex items-center gap-1.5 font-mono text-[11px] font-bold ${quiet ? 'text-textSecondary' : 'text-textPrimary'}`}>
                   {e.item.ticker ? (
                     <>
                       <CompanyLogo ticker={e.item.ticker} size={14} />
@@ -871,7 +875,7 @@ const News = () => {
                 <span className={`font-mono text-[9px] font-semibold uppercase tracking-widest ${GRADE_INK[e.grade]}`}>{GRADE_WORD[e.grade]}</span>
                 <span className="min-w-0 flex items-center gap-2">
                   <ImpactMark tier={tierOf(e.severity)} />
-                  <span className={`min-w-0 truncate text-[12px] ${open ? 'text-textPrimary' : 'text-textSecondary group-hover:text-textPrimary'} transition-colors`}>{e.item.headline}</span>
+                  <span className={`min-w-0 truncate text-[12px] ${open ? 'text-textPrimary' : quiet ? 'text-textMuted group-hover:text-textPrimary' : 'text-textSecondary group-hover:text-textPrimary'} transition-colors`}>{e.item.headline}</span>
                 </span>
                 <span className={`text-right font-mono text-[11px] font-semibold tnum ${e.item.prediction.expMove1dPct >= 0 ? 'text-bull' : 'text-bear'}`}>{signed(e.item.prediction.expMove1dPct)}</span>
                 <span className={`text-right font-mono text-[10px] font-semibold ${READ_INK[gradeOfNewsConfidence(e.item.prediction.confidencePct)]}`} data-news-row-sure>

@@ -199,8 +199,8 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         {/* the faint grid and the zero line */}
         {yTicks.map(v => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="#ffffff" strokeOpacity={v === 0 ? 0.22 : 0.06} strokeWidth={1} />
-            <text x={M.l - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill="#7c8290" fontFamily={MONO}>
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="rgb(var(--ink))" strokeOpacity={v === 0 ? 0.22 : 0.06} strokeWidth={1} />
+            <text x={M.l - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO}>
               {fmtPnl(v)}
             </text>
           </g>
@@ -212,9 +212,9 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         {levelMarks &&
           levelLines.map(l => (
           <g key={l.label}>
-            <line x1={x(l.price)} x2={x(l.price)} y1={labels ? LABEL_ROWS[l.row] + 3 : M.t} y2={H - M.b} stroke="#ffffff" strokeOpacity={0.16} strokeWidth={1} strokeDasharray="2 3" />
+            <line x1={x(l.price)} x2={x(l.price)} y1={labels ? LABEL_ROWS[l.row] + 3 : M.t} y2={H - M.b} stroke="rgb(var(--ink))" strokeOpacity={0.16} strokeWidth={1} strokeDasharray="2 3" />
             {labels && (
-              <text x={x(l.price)} y={LABEL_ROWS[l.row]} textAnchor="middle" fontSize={8.5} fill="#8a909c" fontFamily={MONO} data-level-label>
+              <text x={x(l.price)} y={LABEL_ROWS[l.row]} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={MONO} data-level-label>
                 {l.label}
               </text>
             )}
@@ -230,27 +230,27 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         <path d={path('expiry')} fill="none" stroke={GREEN} strokeWidth={1.5} clipPath={`url(#${clipId}-up)`} />
         <path d={path('expiry')} fill="none" stroke={RED} strokeWidth={1.5} clipPath={`url(#${clipId}-down)`} />
         {/* your strike — a small tick on the zero line */}
-        <path d={`M${x(strike)},${y0 + 5} l-4,6 h8 z`} fill="#ededed" fillOpacity={0.7} />
+        <path d={`M${x(strike)},${y0 + 5} l-4,6 h8 z`} fill="rgb(var(--text-primary))" fillOpacity={0.7} />
         {/* now — the spot, on today's line */}
         <line x1={x(spot)} x2={x(spot)} y1={M.t} y2={H - M.b} stroke={SILVER} strokeOpacity={0.35} strokeWidth={1} />
-        <circle cx={x(spot)} cy={y(spotNow.now)} r={3} fill={SILVER} stroke="#0a0a0a" strokeWidth={1.5} />
+        <circle cx={x(spot)} cy={y(spotNow.now)} r={3} fill={SILVER} stroke="rgb(var(--panel))" strokeWidth={1.5} />
         {/* the price axis */}
         {xTicks.map(v => (
-          <text key={v} x={x(v)} y={H - 6} textAnchor={v === lo ? 'start' : v === hi ? 'end' : 'middle'} fontSize={9} fill="#7c8290" fontFamily={MONO} data-x-tick>
+          <text key={v} x={x(v)} y={H - 6} textAnchor={v === lo ? 'start' : v === hi ? 'end' : 'middle'} fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO} data-x-tick>
             {fmtStrike(Math.round(v * 2) / 2)}
           </text>
         ))}
-        <text x={x(spot)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} data-now-label style={{ paintOrder: 'stroke', stroke: '#0e0e0f', strokeWidth: 4 }}>
+        <text x={x(spot)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} data-now-label style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
           now {spot.toFixed(2)}
         </text>
         {/* THE PINNED PRICE — kept when the pointer leaves: a silver hairline, the dots, its price under the axis */}
         {pinPt && (!pt || Math.abs(pt.price - pinPt.price) > 1e-9) && (
           <g data-pin>
             <line x1={x(pinPt.price)} x2={x(pinPt.price)} y1={M.t} y2={H - M.b} stroke={SILVER} strokeOpacity={0.6} strokeWidth={1} />
-            <circle cx={x(pinPt.price)} cy={y(pinPt.now)} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.5} />
-            <circle cx={x(pinPt.price)} cy={y(pinPt.expiry)} r={3.5} fill={pinPt.expiry >= 0 ? GREEN : RED} stroke="#0e0e0f" strokeWidth={1.5} />
+            <circle cx={x(pinPt.price)} cy={y(pinPt.now)} r={3} fill="rgb(var(--panel))" stroke={SILVER} strokeWidth={1.5} />
+            <circle cx={x(pinPt.price)} cy={y(pinPt.expiry)} r={3.5} fill={pinPt.expiry >= 0 ? GREEN : RED} stroke="rgb(var(--panel))" strokeWidth={1.5} />
             {Math.abs(x(pinPt.price) - x(spot)) > 48 && (
-              <text x={x(pinPt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: '#0e0e0f', strokeWidth: 4 }}>
+              <text x={x(pinPt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
                 {pinPt.price.toFixed(2)}
               </text>
             )}
@@ -259,11 +259,11 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         {/* THE CURSOR — a hairline, a dot on each line, the price under the axis */}
         {pt && (
           <g data-cursor>
-            <line x1={x(pt.price)} x2={x(pt.price)} y1={M.t} y2={H - M.b} stroke="#ffffff" strokeOpacity={0.35} strokeWidth={1} />
-            <circle cx={x(pt.price)} cy={y(pt.now)} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.5} />
-            <circle cx={x(pt.price)} cy={y(pt.expiry)} r={3.5} fill={pt.expiry >= 0 ? GREEN : RED} stroke="#0e0e0f" strokeWidth={1.5} />
+            <line x1={x(pt.price)} x2={x(pt.price)} y1={M.t} y2={H - M.b} stroke="rgb(var(--ink))" strokeOpacity={0.35} strokeWidth={1} />
+            <circle cx={x(pt.price)} cy={y(pt.now)} r={3} fill="rgb(var(--panel))" stroke={SILVER} strokeWidth={1.5} />
+            <circle cx={x(pt.price)} cy={y(pt.expiry)} r={3.5} fill={pt.expiry >= 0 ? GREEN : RED} stroke="rgb(var(--panel))" strokeWidth={1.5} />
             {Math.abs(x(pt.price) - x(spot)) > 48 && (
-              <text x={x(pt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill="#ededed" fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: '#0e0e0f', strokeWidth: 4 }}>
+              <text x={x(pt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
                 {pt.price.toFixed(2)}
               </text>
             )}

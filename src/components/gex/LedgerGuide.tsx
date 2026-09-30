@@ -22,7 +22,7 @@ const INK_2 = 'rgb(var(--text-secondary))';
 const INK_3 = 'rgb(var(--text-muted))';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SUPREME = 'rgb(var(--supreme))';
-const GRID = 'rgba(255,255,255,0.07)';
+const GRID = 'rgb(var(--ink) / 0.07)';
 const COOL_1 = '#ABD9E9';
 const COOL_2 = '#74ADD1';
 const COOL_3 = '#4575B4';
@@ -70,7 +70,7 @@ const GridFigure = () => {
     { y: 110, k: '493', wall: 'put', cells: [[WARM_3, '$131M', '#fff'], [WARM_2, '$104M'], [WARM_2, '$96M'], [WARM_1, '$70M']] },
   ] as { y: number; k: string; wall?: string; cells: (string | boolean)[][] }[];
   return (
-    <svg viewBox="0 0 368 150" width="100%" role="img" aria-label="A grid of capsules: one strike per row, one expiry per column, the heaviest cell ringed in magenta with a star" data-guide-figure="grid">
+    <svg viewBox="0 0 368 162" width="100%" role="img" aria-label="A grid of capsules: one strike per row, one expiry per column, the heaviest cell ringed in magenta with a star" data-guide-figure="grid">
       {/* Column heads — the dates, today first */}
       {COLS.map((c, i) => (
         <Label key={c.head} x={c.x + CELL_W / 2} y={18} anchor="middle" fill={i === 0 ? INK : INK_3} size={8.5} mono>
@@ -95,7 +95,8 @@ const GridFigure = () => {
       {/* Spot, between the rows it sits between — the chip at the line's end */}
       <line x1={50} x2={322} y1={99.5} y2={99.5} stroke={INK} strokeOpacity="0.35" strokeDasharray="2 3" />
       <rect x={326} y={93.5} width={42} height={12} rx={3} fill={INK} />
-      <Label x={347} y={99.5} anchor="middle" fill="#0a0a0a" size={8} mono>
+      {/* the chip is the page's ink, its figure the ground's — near-black on paper printed black on black (2026-09-30) */}
+      <Label x={347} y={99.5} anchor="middle" fill="rgb(var(--panel))" size={8} mono>
         493.60
       </Label>
       <Label x={50} y={131} fill={INK_3} size={9}>
@@ -104,11 +105,12 @@ const GridFigure = () => {
       <text x={50} y={144} dominantBaseline="middle" fontFamily={SANS} fontSize="9" fill={INK_2}>
         ★ the heaviest cell
       </text>
-      <text x={138} y={144} dominantBaseline="middle" fontFamily={SANS} fontSize="9" fill={SUPREME}>
+      <text x={146} y={144} dominantBaseline="middle" fontFamily={SANS} fontSize="9" fill={SUPREME}>
         magenta strike: the supreme
       </text>
-      <Label x={250} y={144} fill={INK_3} size={9}>
-        white line: the market now
+      {/* its own line — beside the supreme it ran into it; and the line is dashed in the page's ink on either ground, never white */}
+      <Label x={50} y={157} fill={INK_3} size={9}>
+        the dashed line: the market now
       </Label>
     </svg>
   );

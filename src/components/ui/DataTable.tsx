@@ -85,7 +85,7 @@ const DataRowInner = <T,>({
       /* Holographic silver, not lime (Noah, 2026-08-30): a selected
          row is WHERE YOU ARE — the same rail the drilldown's
          latest row and the Weigher's open row wear. */
-      selected ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-ink/[0.02]'
+      selected ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-ink/[0.02]'
     } ${extra ?? ''}`}
   >
     {columns.map(col => (

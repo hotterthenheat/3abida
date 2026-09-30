@@ -110,8 +110,8 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
     <svg viewBox={`0 0 ${W} ${PH}`} width="100%" role="img" aria-label="The strike axis with spot, the wall, the run if it breaks and the way back if it holds" data-wall-paths>
       {ticks.map(k => (
         <g key={k}>
-          <line x1={x(k)} x2={x(k)} y1={14} y2={PH - 20} stroke="#ffffff" strokeOpacity={0.05} />
-          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={9} fill="#7c8290" fontFamily={MONO}>
+          <line x1={x(k)} x2={x(k)} y1={14} y2={PH - 20} stroke="rgb(var(--ink))" strokeOpacity={0.05} />
+          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO}>
             {fmtStrike(k)}
           </text>
         </g>
@@ -119,15 +119,15 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {/* the empty stretch a break crosses */}
       {wall.breakPath.pocket && breakTo != null && (
         <g>
-          <rect x={Math.min(x(K), x(breakTo))} y={14} width={Math.abs(x(breakTo) - x(K))} height={PH - 34} fill="#ffffff" fillOpacity={0.035} />
-          <text x={(x(K) + x(breakTo)) / 2} y={PH - 24} textAnchor="middle" fontSize={8.5} fill="#7c8290" fontFamily={SANS}>
+          <rect x={Math.min(x(K), x(breakTo))} y={14} width={Math.abs(x(breakTo) - x(K))} height={PH - 34} fill="rgb(var(--ink))" fillOpacity={0.035} />
+          <text x={(x(K) + x(breakTo)) / 2} y={PH - 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             almost nothing in between
           </text>
         </g>
       )}
       {/* spot */}
-      <line x1={x(spot)} x2={x(spot)} y1={12} y2={PH - 18} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+      <line x1={x(spot)} x2={x(spot)} y1={12} y2={PH - 18} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
+      <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO}>
         {fmtStrike(spot)}
       </text>
       {/* the wall */}

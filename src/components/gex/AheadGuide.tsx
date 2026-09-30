@@ -98,8 +98,9 @@ const ScaleFigure = () => {
 const ReachFigure = () => (
   <Figure label="Two days: a wall inside the expected move bends the corridor; a wall beyond it does not">
     {[
-      { x: 40, wallInside: true, label: 'wall inside the reach · it becomes the edge' },
-      { x: 230, wallInside: false, label: 'wall beyond the reach · the move is the edge' },
+      /* two lines under each case — as one line apiece the two ran into each other */
+      { x: 40, wallInside: true, label: ['wall inside the reach', 'it becomes the edge'] },
+      { x: 230, wallInside: false, label: ['wall beyond the reach', 'the move is the edge'] },
     ].map(p => (
       <g key={p.x}>
         <rect x={p.x} y={40} width={150} height={60} rx={6} fill={SILVER} fillOpacity={0.12} stroke={SILVER} strokeOpacity={0.5} />
@@ -112,8 +113,11 @@ const ReachFigure = () => (
             expected move
           </text>
         )}
-        <text x={p.x + 75} y={124} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
-          {p.label}
+        <text x={p.x + 75} y={120} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
+          {p.label[0]}
+        </text>
+        <text x={p.x + 75} y={132} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
+          {p.label[1]}
         </text>
       </g>
     ))}

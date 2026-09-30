@@ -54,7 +54,7 @@ import type { ExposureExpiry } from '../../types/gex';
 const SCAN_INTERVAL_MS = 10_000;
 /** The two names' inks on the lines: the frame's name in the house white, the second in the first comparison ink (Terrain's set) */
 const A_INK = 'rgb(var(--text-primary))';
-const B_INK = '#5B9CF6';
+const B_INK = 'rgb(var(--compare))';
 
 const hhmmss = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 

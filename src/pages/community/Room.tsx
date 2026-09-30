@@ -411,7 +411,7 @@ const Room = () => {
                     type="button"
                     onClick={() => setName(on ? 'all' : t.name)}
                     title={on ? 'Every name again' : `Only posts naming $${t.name}`}
-                    className={`w-full px-4 flex items-center gap-2.5 border-t border-borderSubtle/60 text-left transition-colors ${on ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-silver/[0.04]'}`}
+                    className={`w-full px-4 flex items-center gap-2.5 border-t border-borderSubtle/60 text-left transition-colors ${on ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
                     style={{ height: ROOM_TREND_H }}
                     data-room-trend={t.name}
                     data-on={on || undefined}
@@ -535,7 +535,7 @@ const Room = () => {
                     <div
                       key={p.id}
                       onClick={() => setKept(isKept ? null : p.id)}
-                      className={`group px-4 py-3 flex gap-3 border-b border-borderSubtle/60 cursor-pointer transition-colors ${isKept ? 'relative z-30 bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-silver/[0.04]'}`}
+                      className={`group px-4 py-3 flex gap-3 border-b border-borderSubtle/60 cursor-pointer transition-colors ${isKept ? 'relative z-30 bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
                       style={{ minHeight: ROOM_POST_H }}
                       title={isKept ? 'Let go of this post' : 'Keep this post and read its replies'}
                       data-room-post={p.id}

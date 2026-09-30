@@ -129,7 +129,7 @@ const MarkStrip = ({ ticks, n, label }: { ticks: LaneTick[]; n: number; label: s
   return (
     <div className="relative" onPointerLeave={() => setHot(null)}>
       <svg ref={ref} viewBox={`0 0 ${SW} ${SH}`} width="100%" height={SH} preserveAspectRatio="none" data-lane-strip onPointerMove={onMove} style={{ display: 'block', cursor: ticks.length ? 'crosshair' : 'default' }} role="img" aria-label={`${label}: ${ticks.length} on the sessions on hand`}>
-        <line x1={8} x2={SW - 8} y1={SH / 2} y2={SH / 2} stroke="#ffffff" strokeOpacity={0.1} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        <line x1={8} x2={SW - 8} y1={SH / 2} y2={SH / 2} stroke="rgb(var(--ink))" strokeOpacity={0.1} strokeWidth={1} vectorEffect="non-scaling-stroke" />
         {ticks.map((t, k) => (
           <line key={`${t.i}-${k}`} x1={x(t.i)} x2={x(t.i)} y1={t.tall ? 4 : 8} y2={t.tall ? SH - 4 : SH - 8} stroke={t.ink} strokeOpacity={hot && hot.i !== t.i ? 0.45 : 0.9} strokeWidth={t.tall ? 2 : 1.5} vectorEffect="non-scaling-stroke" />
         ))}
@@ -393,7 +393,7 @@ const Flags = ({ flags }: { flags: NonNullable<StockOverview['trend']['flags']> 
   return (
     <span className="inline-flex items-center gap-1.5" data-stock-flags={items.filter(i => i[2]).map(i => i[0]).join(' ')}>
       {items.map(([code, word, on, good]) => (
-        <span key={code} title={word} className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[9px] font-bold tracking-wider transition-colors ${on ? (good ? 'border-bull/40 text-bull bg-bull/10' : 'border-bear/40 text-bear bg-bear/10') : 'border-borderSubtle text-textMuted/60'}`} data-flag={code} data-on={on || undefined}>
+        <span key={code} title={word} className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[9px] font-bold tracking-wider transition-colors ${on ? (good ? 'border-bull/40 text-bull bg-bull/10' : 'border-bear/40 text-bear bg-bear/10') : 'border-borderSubtle text-textMuted'}`} data-flag={code} data-on={on || undefined}>
           {code}
         </span>
       ))}

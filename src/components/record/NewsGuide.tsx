@@ -23,7 +23,7 @@ const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
 const MONO = 'ui-monospace, Menlo, monospace';
 const SANS = 'ui-sans-serif, system-ui, sans-serif';
-const IMPACT = { high: '#D73027', medium: '#FDAE61', low: 'rgb(var(--text-muted))' };
+const IMPACT = { high: 'rgb(var(--impact-high))', medium: 'rgb(var(--impact-medium))', low: 'rgb(var(--text-muted))' };
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -104,8 +104,9 @@ const HEAT_FIGURE = {
     ],
   } as Reach,
   notes: [
-    { lat: 36, lng: -98, text: 'hot · most news lands here', dy: 74 },
-    { lat: 25.03, lng: 121.56, text: 'where the open story reaches', dy: 50 },
+    { lat: 36, lng: -98, text: 'hot · most news lands here', dy: 74, dx: 14 },
+    /* over the Bay of Bengal, clear of the land's names (under Taipei it ran off the frame, then sat on Thailand) */
+    { lat: 5, lng: 93, text: 'where the open story reaches', dy: 0 },
   ] as MapNote[],
 };
 const HeatFigure = () => (
@@ -175,12 +176,13 @@ const NumbersFigure = () => {
 /* All news: the six tabs with their counts, the hairline under the one in hand, a followed name's chip with its bell */
 const TabsFigure = () => {
   const tabs: [string, number, number][] = [
+    /* even gaps, the last tab inside the figure (at 384 it ran off the edge) */
     ['ALL FINANCE · 24', 12, 1],
-    ['FOLLOWING · 5', 118, 0],
-    ['EARNINGS · 9', 196, 0],
-    ['DATA · 4', 272, 0],
-    ['ANALYST · 6', 322, 0],
-    ['DEALS · 5', 384, 0],
+    ['FOLLOWING · 5', 101, 0],
+    ['EARNINGS · 9', 176, 0],
+    ['DATA · 4', 246, 0],
+    ['ANALYST · 6', 298, 0],
+    ['DEALS · 5', 364, 0],
   ];
   return (
     <Figure label="The six tabs in a line, ALL FINANCE · 24 underlined; under them a followed name's chip, NVDA with a silver bell, and the Follow a name door" h={64}>
@@ -256,7 +258,8 @@ const MonthFigure = () => {
         ['Housing starts', '08:30', IMPACT.low],
       ], 2)}
       {cell(284, '18', false, [
-        ['Monthly options expiration', '16:00', SUPREME],
+        /* cut the way the calendar's pill cuts it — whole, it ran into its time */
+        ['Monthly options expir…', '16:00', SUPREME],
         ['TSLA', 'AMC', SILVER],
       ])}
     </Figure>

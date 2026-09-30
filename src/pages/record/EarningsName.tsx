@@ -54,9 +54,11 @@ import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { PRICED_INK, PRICED_WORD, SlotMark, slotWord } from './Earnings';
 
 const AXIS = { stroke: 'transparent', tick: { fill: 'rgb(var(--text-secondary))', fontSize: 10, fontFamily: 'inherit' } };
-const GRID = { stroke: 'rgba(255,255,255,0.05)', vertical: false };
+const GRID = { stroke: 'rgb(var(--ink) / 0.05)', vertical: false };
 const BEAR = 'rgb(var(--bear))';
-const WHITE_DIM = 'rgba(237,237,237,0.28)';
+/* the estimate's grey bar and the charts' hairlines in the page's ink — they were white, and on paper the estimates the
+   legend names were not there (2026-09-30) */
+const WHITE_DIM = 'rgb(var(--text-primary) / 0.28)';
 
 const TooltipShell = ({ children }: { children: React.ReactNode }) => <div className="border border-borderMuted bg-panel rounded-md px-2.5 py-2 shadow-xl shadow-black/60 font-mono text-[11px] text-textPrimary">{children}</div>;
 
@@ -378,7 +380,7 @@ const EarningsName = () => {
                   <YAxis {...AXIS} width={40} tickFormatter={(v: number) => `$${v}`} />
                   <Tooltip
                     isAnimationActive={false}
-                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                    cursor={{ fill: 'rgb(var(--ink) / 0.04)' }}
                     content={({ active, payload, label }) =>
                       active && payload?.length ? (
                         <TooltipShell>
@@ -413,7 +415,7 @@ const EarningsName = () => {
                   <YAxis {...AXIS} width={40} tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v}%`} />
                   <Tooltip
                     isAnimationActive={false}
-                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                    cursor={{ fill: 'rgb(var(--ink) / 0.04)' }}
                     content={({ active, payload, label }) =>
                       active && payload?.length ? (
                         <TooltipShell>
@@ -426,9 +428,9 @@ const EarningsName = () => {
                       ) : null
                     }
                   />
-                  <ReferenceLine y={e.impliedMovePct} stroke="rgba(199,211,232,0.55)" strokeDasharray="4 3" />
-                  <ReferenceLine y={-e.impliedMovePct} stroke="rgba(199,211,232,0.55)" strokeDasharray="4 3" />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
+                  <ReferenceLine y={e.impliedMovePct} stroke="rgb(var(--silver) / 0.55)" strokeDasharray="4 3" />
+                  <ReferenceLine y={-e.impliedMovePct} stroke="rgb(var(--silver) / 0.55)" strokeDasharray="4 3" />
+                  <ReferenceLine y={0} stroke="rgb(var(--ink) / 0.15)" />
                   <Bar dataKey="move" radius={[2, 2, 0, 0]} barSize={16} isAnimationActive={false}>
                     {moveData.map(q => (
                       <Cell key={q.label} fill={q.move >= 0 ? BULL : BEAR} fillOpacity={q.move >= 0 ? 0.9 : 0.8} />

@@ -40,12 +40,14 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
    verdict chip with its words — a folded line of steady strikes and the spot
    rule between. Every part is one the reader can find behind the card. */
 const LedgerFigure = () => {
-  const COL = { strike: 10, bar: 84, barW: 120, change: 262, day: 272, dayW: 44, word: 326 };
+  /* the columns fit the figure: the verdict's words ended 25 past its edge and the bars' figures ran into the change —
+     the bars are drawn at two thirds and the day's line is shorter (2026-09-30) */
+  const COL = { strike: 10, bar: 84, barW: 78, change: 254, day: 260, dayW: 30, word: 296 };
   type Row = { y: number; strike: string; dist: string; tag?: { text: string; ink: string }; base: number; lit: number; gone: boolean; now: string; was?: string; change: string; chip: string; tone: string; words: string; day: 'up' | 'down' };
   const rows: Row[] = [
-    { y: 34, strike: '487', dist: '0.3% above', tag: { text: 'CALL WALL', ink: CALL_WALL }, base: 68, lit: 30, gone: false, now: '$190M', was: '$165M', change: '+$25M', chip: 'BUILDING', tone: BULL, words: 'calls · mostly early', day: 'up' },
-    { y: 92, strike: '485', dist: '0.1% below', tag: { text: 'PUT WALL', ink: PUT_WALL }, base: 92, lit: 22, gone: true, now: '$226M', was: '$244M', change: '−$18M', chip: 'DRAINING', tone: PUT_WALL, words: 'puts · mostly late', day: 'down' },
-    { y: 118, strike: '484', dist: '0.3% below', base: 20, lit: 40, gone: false, now: '$40M', was: '$14M', change: '+$26M', chip: 'BUILDING', tone: BULL, words: 'puts · mostly midday', day: 'up' },
+    { y: 34, strike: '487', dist: '0.3% above', tag: { text: 'CALL WALL', ink: CALL_WALL }, base: 44, lit: 19, gone: false, now: '$190M', was: '$165M', change: '+$25M', chip: 'BUILDING', tone: BULL, words: 'calls · mostly early', day: 'up' },
+    { y: 92, strike: '485', dist: '0.1% below', tag: { text: 'PUT WALL', ink: PUT_WALL }, base: 59, lit: 14, gone: true, now: '$226M', was: '$244M', change: '−$18M', chip: 'DRAINING', tone: PUT_WALL, words: 'puts · mostly late', day: 'down' },
+    { y: 118, strike: '484', dist: '0.3% below', base: 13, lit: 26, gone: false, now: '$40M', was: '$14M', change: '+$26M', chip: 'BUILDING', tone: BULL, words: 'puts · mostly midday', day: 'up' },
   ];
   const dayLine = (kind: Row['day'], y: number) => {
     const x0 = COL.day;
@@ -96,7 +98,7 @@ const LedgerFigure = () => {
           ) : (
             <rect x={COL.bar + r.base} y={r.y - 6} width={r.lit} height={7} fill={BULL} />
           )}
-          <text x={COL.bar + r.base + r.lit + 4} y={r.y} fontSize={6.5} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+          <text x={COL.bar + r.base + r.lit + 4} y={r.y} fontSize={6} fontWeight={600} fill="#ededed" fontFamily={MONO}>
             {r.now}
             <tspan fill="#7c8290" fontWeight={400}>
               {' '}

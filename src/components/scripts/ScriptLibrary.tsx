@@ -392,7 +392,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
                       }}
                       aria-pressed={on}
                       data-library-shelf={s.key}
-                      className={`w-full flex items-center justify-between h-8 px-2 rounded-md text-[12px] transition-colors ${on ? 'bg-silver/[0.08] text-textPrimary shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'}`}
+                      className={`w-full flex items-center justify-between h-8 px-2 rounded-md text-[12px] transition-colors ${on ? 'bg-silver/[0.08] text-textPrimary shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'}`}
                     >
                       <span className={on ? 'font-semibold' : ''}>{s.label}</span>
                       <span className="font-mono text-[10px] tnum text-textMuted">{counts[s.key]}</span>
@@ -434,7 +434,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
                       <div
                         role="row"
                         onMouseEnter={() => setHighlight(idx)}
-                        className={`grid grid-cols-[60px_minmax(0,1fr)_96px_28px_28px_40px] items-center h-[38px] px-2 rounded-md transition-colors ${hi ? 'bg-silver/[0.06]' : ''} ${r.on ? 'shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : ''}`}
+                        className={`grid grid-cols-[60px_minmax(0,1fr)_96px_28px_28px_40px] items-center h-[38px] px-2 rounded-md transition-colors ${hi ? 'bg-silver/[0.06]' : ''} ${r.on ? 'shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : ''}`}
                         data-library-row={r.key}
                         data-on={r.on || undefined}
                       >
@@ -500,7 +500,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
           <span>
             <span className="text-textSecondary">{shipped}</span> shipped · <span className="text-textSecondary">{allRows.mine.length}</span> of your own
           </span>
-          <span className="text-textMuted/70">· Slayer and Pine rows draw on this pane with their own inputs · Chart rows are the tape's built-ins{fullscreen ? '' : ' · the editor opens beside a full-screen chart'}</span>
+          <span className="text-textMuted">· Slayer and Pine rows draw on this pane with their own inputs · Chart rows are the tape's built-ins{fullscreen ? '' : ' · the editor opens beside a full-screen chart'}</span>
           <span className="ml-auto whitespace-nowrap">↑↓ move · ↵ toggle · esc close</span>
         </div>
       </Modal>

@@ -132,7 +132,7 @@ const RotationFigure = () => (
         </text>
         <rect x={c.x + 8} y={31} width={104} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
         <rect x={c.x + 8} y={31} width={104 * c.bar} height={4} rx={2} fill={c.ink} fillOpacity={c.ink === BEAR ? 0.8 : 1} />
-        <text x={c.x + 8} y={50} fontSize={5.5} letterSpacing={1} fill={c.ink} fontFamily={MONO}>
+        <text x={c.x + 8} y={50} fontSize={5.5} letterSpacing={0.6} fill={c.ink} fontFamily={MONO}>
           {c.word}
         </text>
         <text x={c.x + 112} y={50} textAnchor="end" fontSize={5.5} fontFamily={MONO}>

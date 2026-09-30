@@ -461,6 +461,9 @@ export interface MapNote {
   text: string;
   /** Offset below (positive) or above the point, in the drawing's units */
   dy?: number;
+  /** Across, and which end of the words sits there — a note near the frame's edge reads inward (2026-09-30: two ran off it) */
+  dx?: number;
+  anchor?: 'start' | 'middle' | 'end';
 }
 
 interface Props {
@@ -624,7 +627,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
           {/* THE WORDS — the guide's figures only */}
           {notes.map(n => (
             <Marker key={n.text} coordinates={[n.lng, n.lat]}>
-              <text y={n.dy ?? 30} textAnchor="middle" fontSize={17} fill="#a3a3a3" fontFamily="ui-sans-serif, system-ui, sans-serif" data-news-note>
+              <text x={n.dx ?? 0} y={n.dy ?? 30} textAnchor={n.anchor ?? 'middle'} fontSize={17} fill="#a3a3a3" fontFamily="ui-sans-serif, system-ui, sans-serif" data-news-note>
                 {n.text}
               </text>
             </Marker>

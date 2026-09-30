@@ -74,12 +74,12 @@ const Pill = ({ e, onOpen }: { e: CalEvent; onOpen: () => void }) => {
         <>
           <CompanyLogo ticker={e.ticker} size={10} />
           <span className="truncate">{e.ticker}</span>
-          <span className="ml-auto text-[8px] font-normal opacity-80">{e.slot}</span>
+          <span className="ml-auto text-[8px] font-normal">{e.slot}</span>
         </>
       ) : (
         <>
           <span className="truncate">{e.title}</span>
-          <span className="ml-auto text-[8px] font-normal opacity-80">{e.time}</span>
+          <span className="ml-auto text-[8px] font-normal">{e.time}</span>
         </>
       )}
     </button>
@@ -161,7 +161,7 @@ const NewsCalendar = () => {
                   onKeyDown={ev => {
                     if (ev.key === 'Enter' || ev.key === ' ') setPickedKey(day.key);
                   }}
-                  className={`relative cursor-pointer px-1.5 pt-1 pb-1.5 text-left border-r border-borderSubtle/40 last:border-r-0 flex flex-col gap-[3px] transition-colors ${isPicked ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-silver/[0.04]'} ${!day.inMonth ? 'opacity-45' : ''} ${day.weekend && day.inMonth && !isPicked ? 'bg-ink/[0.015]' : ''}`}
+                  className={`relative cursor-pointer px-1.5 pt-1 pb-1.5 text-left border-r border-borderSubtle/40 last:border-r-0 flex flex-col gap-[3px] transition-colors ${isPicked ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'} ${!day.inMonth ? 'opacity-45' : ''} ${day.weekend && day.inMonth && !isPicked ? 'bg-ink/[0.015]' : ''}`}
                   style={{ minHeight: CAL_CELL_H }}
                   data-cal-day={day.key}
                   data-picked={isPicked || undefined}

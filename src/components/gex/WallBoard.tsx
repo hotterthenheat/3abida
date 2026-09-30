@@ -94,7 +94,7 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
             const tag = w.strike === board.weakest ? 'weakest' : w.strike === board.strongest ? 'strongest' : null;
             return (
               <div key={w.strike} className={`grid grid-cols-subgrid col-span-8 items-center h-full min-h-0 rounded cursor-pointer ${wash}`} data-wall-row={w.strike} data-tag={tag ?? undefined} onPointerEnter={() => setHover(w.strike)} onClick={() => onPick?.(w.strike)}>
-                <div className={`h-full flex items-center gap-1.5 px-2 font-mono tnum ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'text-textPrimary'}`} style={{ fontSize: fig }}>
+                <div className={`h-full flex items-center gap-1.5 px-2 font-mono tnum ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'text-textPrimary'}`} style={{ fontSize: fig }}>
                   {fmtStrike(w.strike)}
                   {/* A named level wears its ink; the rest are shelves — heavy strikes the Map does not name */}
                   <span className="uppercase tracking-widest whitespace-nowrap" style={{ color: ink ?? 'rgb(var(--text-muted))', fontSize: tagSize }}>

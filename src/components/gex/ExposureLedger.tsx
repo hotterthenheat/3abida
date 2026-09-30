@@ -46,7 +46,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import HeatPill from './HeatPill';
-import { HEAT_MODE, heatLaneColor, type HeatMode } from './heatmap';
+import { HEAT_MODE, heatLadderColor, type HeatMode } from './heatmap';
 import SpotRule from '../ui/SpotRule';
 import { fmtUsd } from '../../data/gex';
 import { GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposureSurface';
@@ -191,8 +191,9 @@ const LedgerCell = memo(({ strike, e, g, v, maxAbs, date, first, wash, isKing, r
       selected={!!ring}
       ringColor={ring}
       // The star needs a lane of its own; in a narrow column (All at 24
-      // columns) the ring and the read line carry the supreme instead
-      marker={star ? <span className="text-textPrimary">★</span> : undefined}
+      // columns) the ring and the read line carry the supreme instead. It wears the FIGURE'S ink, chosen against its
+      // capsule — the page's near-black on paper's deep blue capsule was 1.9:1 (2026-09-30)
+      marker={star ? <span>★</span> : undefined}
       title={`${GREEK_LABEL[g]} · ${date} · ${fmtUsd(v)}${isKing ? ' · the heaviest cell' : ''}`}
     >
       {figure === 'full' ? fmtUsd(v) : figure === 'short' ? fmtShortUsd(v) : ''}
@@ -503,12 +504,14 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         </span>
         <span className="inline-flex items-baseline gap-3 whitespace-nowrap max-sm:flex-wrap">
           <span className="text-[8px] uppercase tracking-widest text-textSecondary">
-            {GREEK_LABEL[focus.greek]} <span className="text-textMuted/70 normal-case tracking-normal">· $ per {GREEK_UNIT[focus.greek]}</span>
+            {GREEK_LABEL[focus.greek]} <span className="text-textMuted normal-case tracking-normal">· $ per {GREEK_UNIT[focus.greek]}</span>
           </span>
           <Read k="put" v={fmtUsd(putV)} ink={PUT_INK} />
           <Read k="call" v={fmtUsd(callV)} ink={CALL_INK} />
-          {/* the net figure in the ramp the capsule wears (the ladder's rule, 2026-09-12); the verdict's WORDS keep the regime inks */}
-          <Read k="net" v={fmtUsd(netV)} ink={heatLaneColor(netV, surface.maxAbs[focus.greek], mode ?? HEAT_MODE, 0.35, paper)} bold />
+          {/* the net figure in the ramp the capsule wears, read through the ladder's window (the ladder's rule, 2026-09-12):
+              the capsule's deep pole is a fill, and as a WORD on black it fell under 3:1 (the thermal red, 2026-09-30); the
+              verdict's WORDS keep the regime inks */}
+          <Read k="net" v={fmtUsd(netV)} ink={heatLadderColor(netV, surface.maxAbs[focus.greek], mode ?? HEAT_MODE, paper)} bold />
         </span>
         <span className="text-[9px] tracking-wide whitespace-nowrap" style={{ color: verdictInk }}>
           {verdict}
@@ -606,7 +609,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
                 data-pinned-row={isPinnedRow ? '' : undefined}
                 onClick={() => onSelectStrike?.(strike)}
                 className={`px-2 flex items-center gap-1.5 overflow-hidden font-mono text-[11px] tnum cursor-pointer ${rowWash} ${
-                  isPinnedRow ? `text-silver font-bold ${paper ? '' : 'shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]'}` : isSupremeRow ? 'font-bold' : 'text-textPrimary'
+                  isPinnedRow ? `text-silver font-bold ${paper ? '' : 'shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]'}` : isSupremeRow ? 'font-bold' : 'text-textPrimary'
                 }`}
                 style={!isPinnedRow && isSupremeRow ? { color: SUPREME } : undefined}
                 data-supreme-row={isSupremeRow ? '' : undefined}

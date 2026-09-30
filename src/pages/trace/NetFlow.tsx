@@ -186,7 +186,7 @@ const NetFlow = () => {
                 type="button"
                 data-ticker={l.ticker}
                 onClick={() => setPicked(l.ticker)}
-                className={`w-full flex flex-col gap-1 px-3 py-2 border-b border-borderSubtle/60 text-left transition-colors ${isSel ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-silver/[0.04]'}`}
+                className={`w-full flex flex-col gap-1 px-3 py-2 border-b border-borderSubtle/60 text-left transition-colors ${isSel ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
               >
                 <span className="flex items-center gap-2">
                   <span className="font-mono text-[9px] text-textPrimary tnum w-5">{String(i + 1).padStart(2, '0')}</span>

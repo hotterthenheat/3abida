@@ -58,7 +58,7 @@ const JournalLanes = ({ title, lanes, measure = 'net', rest, labelW = 92, testId
               <div
                 key={l.key}
                 onPointerEnter={() => setOver(l.key)}
-                className={`grid items-center gap-3 h-8 px-5 transition-colors ${on ? 'bg-ink/[0.05]' : ''} ${l.n === 0 ? 'opacity-45' : ''}`}
+                className={`grid items-center gap-3 h-8 px-5 transition-colors ${on ? 'bg-ink/[0.05]' : ''} ${l.n === 0 ? 'opacity-75' : ''}`}
                 style={{ gridTemplateColumns: `minmax(0,${labelW}px) minmax(0,1fr) 68px 22px` }}
                 data-journal-lane={l.key}
                 data-n={l.n}

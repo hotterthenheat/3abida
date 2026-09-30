@@ -147,7 +147,7 @@ const ExpiryPicker = ({ value, onChange, testId, width = 150 }: ExpiryPickerProp
               day: 'p-0 text-center',
               day_button: 'w-9 h-8 rounded-md font-mono text-[12px] tnum text-textPrimary hover:bg-ink/[0.06] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-silver/60',
               selected: '[&>button]:bg-silverFill [&>button]:text-[#0a0a0a] [&>button]:font-semibold [&>button:hover]:bg-silverFill',
-              today: '[&>button]:shadow-[inset_0_0_0_1px_rgba(199,211,232,0.45)]',
+              today: '[&>button]:shadow-[inset_0_0_0_1px_rgb(var(--silver)/0.45)]',
               outside: '[&>button]:text-textMuted/40',
               disabled: '[&>button]:text-textMuted/30 [&>button]:cursor-not-allowed [&>button:hover]:bg-transparent',
               hidden: 'invisible',

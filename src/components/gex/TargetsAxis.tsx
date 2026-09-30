@@ -85,24 +85,24 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
       <div className="px-3 pt-1 pb-1">
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Every strike as a tick on the price axis, as tall as what is at stake there, with the expected move to the close as a ruler around spot" data-targets-axis onPointerLeave={() => setHover(null)}>
           {/* the ruler: one expected move each side, two faintly */}
-          <rect x={x(spot - 2 * sigmaLeft)} y={24} width={x(spot + 2 * sigmaLeft) - x(spot - 2 * sigmaLeft)} height={BASE - 24} fill="#ffffff" fillOpacity={0.018} />
-          <rect x={x(spot - sigmaLeft)} y={24} width={x(spot + sigmaLeft) - x(spot - sigmaLeft)} height={BASE - 24} fill="#ffffff" fillOpacity={0.035} />
-          <text x={x(spot + sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="#7c8290" fontFamily={SANS}>
+          <rect x={x(spot - 2 * sigmaLeft)} y={24} width={x(spot + 2 * sigmaLeft) - x(spot - 2 * sigmaLeft)} height={BASE - 24} fill="rgb(var(--ink))" fillOpacity={0.018} />
+          <rect x={x(spot - sigmaLeft)} y={24} width={x(spot + sigmaLeft) - x(spot - sigmaLeft)} height={BASE - 24} fill="rgb(var(--ink))" fillOpacity={0.035} />
+          <text x={x(spot + sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             one expected move
           </text>
-          <text x={x(spot - sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="#7c8290" fontFamily={SANS}>
+          <text x={x(spot - sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             one expected move
           </text>
           {/* the axis */}
-          <line x1={M.l} x2={W - M.r} y1={BASE} y2={BASE} stroke="#ffffff" strokeOpacity={0.12} />
+          <line x1={M.l} x2={W - M.r} y1={BASE} y2={BASE} stroke="rgb(var(--ink))" strokeOpacity={0.12} />
           {ticks.map(k => (
-            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={9} fill="#7c8290" fontFamily={MONO}>
+            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO}>
               {fmtStrike(k)}
             </text>
           ))}
           {/* spot */}
-          <line x1={x(spot)} x2={x(spot)} y1={12} y2={BASE + 6} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-          <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+          <line x1={x(spot)} x2={x(spot)} y1={12} y2={BASE + 6} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
+          <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO}>
             {spot.toFixed(2)}
           </text>
           {/* the ticks */}

@@ -135,13 +135,13 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                       aria-pressed={on}
                       title={`${DAYS[date.getDay()]}, ${monthName} ${date.getDate()} — ${t ? `${t.n} closed, ${usdSigned(t.net)}` : future ? 'still to come' : 'nothing closed'} · ${on ? 'close the day' : 'open the day'}`}
                       className={`relative min-h-[76px] rounded-lg border px-2.5 py-1.5 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-silver/60 ${on ? 'ring-2 ring-silver border-transparent' : isToday ? 'border-silver/60' : 'border-borderSubtle hover:border-borderMuted'} ${!t ? 'hover:bg-ink/[0.03]' : ''}`}
-                      style={ink ? { background: `rgb(var(--${ink}) / ${wash.toFixed(3)})`, borderColor: on ? undefined : `rgb(var(--${ink}) / ${(0.3 + wash).toFixed(3)})` } : undefined}
+                      style={ink ? { background: `rgb(var(--${ink}) / calc(${wash.toFixed(3)} * var(--day-wash)))`, borderColor: on ? undefined : `rgb(var(--${ink}) / ${(0.3 + wash).toFixed(3)})` } : undefined}
                       data-journal-day={d}
                       data-trades={t?.n ?? 0}
                       data-on={on || undefined}
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className={`font-mono text-[11px] font-bold tnum ${isToday || on ? 'text-silver' : t ? 'text-textPrimary' : future ? 'text-textMuted/50' : 'text-textMuted'}`}>{date.getDate()}</span>
+                        <span className={`font-mono text-[11px] font-bold tnum ${isToday || on ? 'text-silver' : t ? 'text-textPrimary' : future ? 'text-textMuted/80' : 'text-textMuted'}`}>{date.getDate()}</span>
                         {isToday && <span className="font-mono text-[8px] font-semibold uppercase tracking-widest text-silver">Today</span>}
                         {noted.has(d) && <PenLine className="ml-auto w-3 h-3 text-silver" strokeWidth={2} aria-label="This day has words of its own" data-journal-day-noted />}
                       </span>
@@ -149,7 +149,7 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                         <span className="mt-1.5 block">
                           <span className={`block font-mono text-[14px] font-semibold tnum leading-none ${dirInk(t.net)}`}>{usdSigned(t.net, 0)}</span>
                           {/* the two halves wrap as wholes on a narrow month */}
-                          <span className="mt-1 block font-mono text-[9px] tnum text-textMuted leading-snug">
+                          <span className="mt-1 block font-mono text-[9px] tnum text-textSecondary leading-snug">
                             <span className="whitespace-nowrap">
                               {t.n} {t.n === 1 ? 'trade' : 'trades'} ·
                             </span>{' '}
@@ -170,7 +170,7 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                       </span>
                     </>
                   ) : (
-                    <span className="font-mono text-[11px] text-textMuted/60">—</span>
+                    <span className="font-mono text-[11px] text-textMuted">—</span>
                   )}
                 </div>
               </div>

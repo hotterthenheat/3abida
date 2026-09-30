@@ -122,7 +122,7 @@ const SessionStrip = ({ row, bars }: { row: Row; bars: readonly Candle[] }) => {
     <div className="relative" onPointerLeave={() => setHover(null)}>
       <svg ref={ref} viewBox={`0 0 ${SW} ${SH}`} width="100%" height={SH} preserveAspectRatio="none" data-session-strip onPointerMove={onMove} style={{ display: 'block', cursor: row.ticks.length ? 'crosshair' : 'default' }} role="img" aria-label={`${row.label}: ${row.tests} tests along the session`}>
         {/* the session, as a hairline from the first bar to the newest */}
-        <line x1={8} x2={SW - 8} y1={SH / 2} y2={SH / 2} stroke="#ffffff" strokeOpacity={0.1} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        <line x1={8} x2={SW - 8} y1={SH / 2} y2={SH / 2} stroke="rgb(var(--ink))" strokeOpacity={0.1} strokeWidth={1} vectorEffect="non-scaling-stroke" />
         {/* one tick per test */}
         {row.ticks.map(t => (
           <line
@@ -186,7 +186,7 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       mk('call', 'Call wall', CALL_WALL, levels.callWall, 'call'),
       mk('flip', 'Gamma flip', FLIP, levels.flip, levels.flip >= spot ? 'call' : 'put'),
       mk('put', 'Put wall', PUT_WALL, levels.putWall, 'put'),
-      mk('pin', 'Gamma pin', '#EDEDED', levels.pin, levels.pin >= spot ? 'call' : 'put'),
+      mk('pin', 'Gamma pin', 'rgb(var(--text-primary))', levels.pin, levels.pin >= spot ? 'call' : 'put'),
       mk('supreme', 'Supreme', SUPREME, levels.supreme, levels.supreme >= spot ? 'call' : 'put'),
     ];
     // Highest price first — the section reads like the ladder above it

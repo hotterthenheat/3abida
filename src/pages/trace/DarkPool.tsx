@@ -442,7 +442,7 @@ const DarkPool = () => {
                     onClick={() => setShelfSel(s => (s === l.price ? null : l.price))}
                     aria-pressed={on}
                     title={l.usage}
-                    className={`w-full text-left px-4 py-2 border-t border-borderSubtle/60 transition-colors ${on ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : 'hover:bg-silver/[0.04]'}`}
+                    className={`w-full text-left px-4 py-2 border-t border-borderSubtle/60 transition-colors ${on ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
                     data-dark-pool-shelf={l.price}
                   >
                     <span className="flex items-center gap-2">

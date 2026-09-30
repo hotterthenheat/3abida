@@ -409,7 +409,7 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
               the 'net gamma' in there somewhere so it doesn't have to be a mystery") — and the full definition on hover */}
           <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap flex items-center gap-2 min-w-0" data-build-measure>
             <Term k="The wall now">The wall now</Term>
-            <span className="normal-case tracking-normal text-textMuted/70">· net gamma at the strike, in dollars</span>
+            <span className="normal-case tracking-normal text-textMuted">· net gamma at the strike, in dollars</span>
           </div>
           <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted text-right">Change</div>
           <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted text-right">Calls</div>

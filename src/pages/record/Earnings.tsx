@@ -304,7 +304,7 @@ const Earnings = () => {
                 return (
                   <div
                     key={`${weekIdx}-${wd}`}
-                    className={`flex items-stretch border-b border-borderSubtle/60 last:border-0 min-h-[58px] ${isToday ? 'bg-silver/[0.04] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : ''} ${past ? 'opacity-50' : ''}`}
+                    className={`flex items-stretch border-b border-borderSubtle/60 last:border-0 min-h-[58px] ${isToday ? 'bg-silver/[0.04] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : ''} ${past ? 'opacity-50' : ''}`}
                     data-earnings-day={iso}
                     data-today={isToday || undefined}
                   >

@@ -511,7 +511,7 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
                 title="Click for its card"
               >
                 <div className="font-mono text-[10px] tnum text-textSecondary">#{t.rank}</div>
-                <div className={`flex items-center gap-1.5 px-2 font-mono text-[11px] tnum whitespace-nowrap overflow-hidden ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)] h-full' : 'text-textPrimary'}`}>
+                <div className={`flex items-center gap-1.5 px-2 font-mono text-[11px] tnum whitespace-nowrap overflow-hidden ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)] h-full' : 'text-textPrimary'}`}>
                   {fmtStrike(t.strike)}
                   <Tags t={t} yours={yours?.get(t.strike)} />
                 </div>

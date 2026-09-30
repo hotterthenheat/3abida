@@ -103,11 +103,15 @@ const StatesFigure = () => (
         </text>
       </g>
     ))}
-    <text x={334} y={20} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+    {/* three short lines — as one it ran 66 past the figure's edge */}
+    <text x={334} y={16} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
       left to right:
     </text>
-    <text x={334} y={30} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
-      proving → in place → trading → retiring
+    <text x={334} y={25} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+      proving → in place →
+    </text>
+    <text x={334} y={34} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+      trading → retiring
     </text>
   </Figure>
 );

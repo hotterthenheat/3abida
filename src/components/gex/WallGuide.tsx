@@ -68,17 +68,19 @@ const ReasonsFigure = () => {
     { label: 'Tested today', fact: '3× · held 3 · broke 0', push: 0.6, words: 'every touch held' },
     { label: 'Expires at 4:00', fact: '24% of it · 1h 25m left', push: -0.25, words: 'thins into the close' },
   ];
-  const meterX = 236;
+  /* the fact, the meter and the words each in their own lane — the words ran 15 past the figure's edge and the first
+     fact into the meter (2026-09-30) */
+  const meterX = 232;
   const mid = meterX + 30;
   return (
     <Figure label="Three reasons: a fact in mono, a meter that fills right for holding and left for breaking, and a clause" h={96}>
       <g fontFamily={MONO} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
         <text x={10} y={12}>REASON</text>
-        <text x={108} y={12}>THE FACT</text>
+        <text x={100} y={12}>THE FACT</text>
         <text x={mid} y={12} textAnchor="middle">
           <tspan fill={WARM}>◂ BREAKS</tspan> · <tspan fill={SILVER}>HOLDS ▸</tspan>
         </text>
-        <text x={318} y={12}>IN WORDS</text>
+        <text x={306} y={12}>IN WORDS</text>
       </g>
       {rows.map((r, i) => {
         const y = 30 + i * 22;
@@ -89,13 +91,13 @@ const ReasonsFigure = () => {
             <text x={10} y={y + 3} fontSize={8} fill="#a3a3a3" fontFamily={SANS}>
               {r.label}
             </text>
-            <text x={108} y={y + 3} fontSize={7.5} fill={i === 0 ? COOL : 'rgb(var(--text-primary))'} fontFamily={MONO}>
+            <text x={100} y={y + 3} fontSize={7} fill={i === 0 ? COOL : 'rgb(var(--text-primary))'} fontFamily={MONO}>
               {r.fact}
             </text>
             <rect x={meterX} y={y - 1.5} width={60} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
             <rect x={mid - 0.5} y={y - 3} width={1} height={6} fill="#ffffff" fillOpacity={0.25} />
             <rect x={r.push >= 0 ? mid : mid - w} y={y - 1.5} width={w} height={3} rx={1.5} fill={r.push >= 0 ? SILVER : WARM} fillOpacity={0.9} />
-            <text x={318} y={y + 3} fontSize={7.5} fill="#7c8290" fontFamily={SANS}>
+            <text x={306} y={y + 3} fontSize={7} fill="#7c8290" fontFamily={SANS}>
               {r.words}
             </text>
           </g>
@@ -133,8 +135,12 @@ const PathsFigure = () => {
       </text>
       <line x1={x(K)} x2={x(breakTo) - 6} y1={46} y2={46} stroke={WARM} strokeOpacity={0.9} strokeDasharray="3 3" />
       <path d={`M${x(breakTo) - 6},${43} L${x(breakTo)},${46} L${x(breakTo) - 6},${49} Z`} fill={WARM} fillOpacity={0.9} />
+      {/* over and under its arrow — as one line it ran 28 past the figure's edge */}
       <text x={x(K) + 8} y={40} fontSize={7.5} fill={WARM} fontFamily={SANS}>
-        if it breaks · runs to 497 · $210M of dealer buying on the way
+        if it breaks · runs to 497
+      </text>
+      <text x={x(K) + 8} y={57} fontSize={7.5} fill={WARM} fontFamily={SANS}>
+        $210M of dealer buying on the way
       </text>
       <line x1={x(K)} x2={x(holdTo) + 6} y1={66} y2={66} stroke={SILVER} strokeOpacity={0.9} />
       <path d={`M${x(holdTo) + 6},${63} L${x(holdTo)},${66} L${x(holdTo) + 6},${69} Z`} fill={SILVER} />

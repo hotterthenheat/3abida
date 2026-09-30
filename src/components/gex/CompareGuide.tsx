@@ -17,7 +17,7 @@ const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
 const INK_3 = 'rgb(var(--text-muted))';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const GRID = 'rgba(255,255,255,0.07)';
+const GRID = 'rgb(var(--ink) / 0.07)';
 const COOL_1 = '#ABD9E9';
 const COOL_2 = '#74ADD1';
 const COOL_3 = '#4575B4';
@@ -56,7 +56,7 @@ const RulerFigure = ({ a, b }: { a: string; b: string }) => {
   ];
   return (
     <svg viewBox="0 0 368 172" width="100%" role="img" aria-label="Two names side by side on one column of distances from spot; the first name's capsules grow left, the second's grow right" data-guide-figure="ruler">
-      <rect x={cx - col / 2} y={8} width={col} height={140} fill="rgba(255,255,255,0.03)" />
+      <rect x={cx - col / 2} y={8} width={col} height={140} fill="rgb(var(--ink) / 0.03)" />
       {ticks.map(t => (
         <g key={t.t}>
           <line x1={10} x2={cx - col / 2 - 2} y1={t.y + 0.5} y2={t.y + 0.5} stroke={GRID} />
@@ -64,7 +64,7 @@ const RulerFigure = ({ a, b }: { a: string; b: string }) => {
           {t.t === 'spot' ? (
             <>
               <rect x={cx - 22} y={t.y - 8} width={44} height={16} rx={4} fill={INK} />
-              <Label x={cx} y={t.y} anchor="middle" fill="#0a0a0a" size={9} mono>
+              <Label x={cx} y={t.y} anchor="middle" fill="rgb(var(--panel))" size={9} mono>
                 spot
               </Label>
             </>
@@ -75,22 +75,22 @@ const RulerFigure = ({ a, b }: { a: string; b: string }) => {
           )}
         </g>
       ))}
-      {/* the first name, growing left */}
-      <Capsule x={cx - col / 2 - 4 - 118} y={36} w={118} fill={COOL_3} text="$256M" ink="#ffffff" align="start" />
-      <Capsule x={cx - col / 2 - 4 - 62} y={58} w={62} fill={COOL_2} text="$110M" align="start" />
-      <Capsule x={cx - col / 2 - 4 - 84} y={98} w={84} fill={WARM_2} text="$131M" align="start" />
-      <Capsule x={cx - col / 2 - 4 - 40} y={120} w={40} fill={WARM_1} />
+      {/* the first name, growing left — its longest capsule stops short of the wall's tag (at 118 the two overlapped) */}
+      <Capsule x={cx - col / 2 - 4 - 96} y={36} w={96} fill={COOL_3} text="$256M" ink="#ffffff" align="start" />
+      <Capsule x={cx - col / 2 - 4 - 50} y={58} w={50} fill={COOL_2} text="$110M" align="start" />
+      <Capsule x={cx - col / 2 - 4 - 68} y={98} w={68} fill={WARM_2} text="$131M" align="start" />
+      <Capsule x={cx - col / 2 - 4 - 33} y={120} w={33} fill={WARM_1} />
       <rect x={4} y={28} width={44} height={16} rx={8} fill="rgb(var(--bull) / 0.14)" stroke="rgb(var(--bull) / 0.5)" />
       <Label x={26} y={36} anchor="middle" fill="rgb(var(--bull))" size={8.5}>
         Call wall
       </Label>
-      {/* the second name, growing right */}
-      <Capsule x={cx + col / 2 + 4} y={30} w={44} fill={COOL_1} />
-      <Capsule x={cx + col / 2 + 4} y={64} w={96} fill={COOL_2} text="$88M" />
-      <Capsule x={cx + col / 2 + 4} y={92} w={70} fill={WARM_1} text="$61M" />
-      <Capsule x={cx + col / 2 + 4} y={126} w={124} fill={WARM_3} text="$202M" ink="#ffffff" />
-      <rect x={cx + col / 2 + 4 + 124 + 8} y={118} width={44} height={16} rx={8} fill="rgb(var(--bear) / 0.14)" stroke="rgb(var(--bear) / 0.5)" />
-      <Label x={cx + col / 2 + 4 + 124 + 30} y={126} anchor="middle" fill="rgb(var(--bear))" size={8.5}>
+      {/* the second name, growing right — its wall's tag inside the figure (at 124 the tag ran off the right edge) */}
+      <Capsule x={cx + col / 2 + 4} y={30} w={33} fill={COOL_1} />
+      <Capsule x={cx + col / 2 + 4} y={64} w={73} fill={COOL_2} text="$88M" />
+      <Capsule x={cx + col / 2 + 4} y={92} w={53} fill={WARM_1} text="$61M" />
+      <Capsule x={cx + col / 2 + 4} y={126} w={94} fill={WARM_3} text="$202M" ink="#ffffff" />
+      <rect x={cx + col / 2 + 4 + 94 + 6} y={118} width={44} height={16} rx={8} fill="rgb(var(--bear) / 0.14)" stroke="rgb(var(--bear) / 0.5)" />
+      <Label x={cx + col / 2 + 4 + 94 + 28} y={126} anchor="middle" fill="rgb(var(--bear))" size={8.5}>
         Put wall
       </Label>
       {/* the words */}

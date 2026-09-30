@@ -59,8 +59,10 @@ const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5, mon
 const Names = ({ y, dim }: { y: number; dim?: string }) => (
   <>
     {PHASES.map(p => {
-      const right = p.key === 'turn';
-      const x = right ? bx(p.to) - 2 : p.key === 'close' ? bx(p.from) + 2 : bx(p.from);
+      /* the turn and the close are six blocks between them: the turn ends short of its blocks' end, the close ends at the
+         figure's edge (from its own first block it ran off the figure) */
+      const right = p.key === 'turn' || p.key === 'close';
+      const x = p.key === 'turn' ? bx(p.to) - 6 : p.key === 'close' ? 367 : bx(p.from);
       return (
         <Label key={p.key} x={x} y={y} anchor={right ? 'end' : 'start'} fill={dim && dim !== p.key ? INK_3 : INK_2} size={8.5}>
           {p.key === 'close' ? 'Close' : p.key === 'turn' ? 'Turn' : p.key === 'open' ? 'Open' : p.key === 'morning' ? 'Morning' : p.name}
@@ -106,7 +108,9 @@ const StripFigure = ({ nowBlock }: { nowBlock: number | null }) => (
 
 /** FIGURE 2 — a phase in focus, the rest blurred, its card above the block under the pointer */
 const FocusFigure = () => {
-  const hov = 61; // 14:35
+  /* 15:10 — a block right of the phase's name, so the pointer does not strike through it */
+  const hov = 68;
+  const CARD_X = 140;
   return (
     <svg viewBox="0 0 368 150" width="100%" role="img" aria-label="The charm window kept in focus, the other phases dimmed, and the card that opens over a block" data-guide-figure="focus">
       <Names y={66} dim="charm" />
@@ -118,15 +122,16 @@ const FocusFigure = () => {
       })}
       {/* The card above the hovered block, clear of the names */}
       <path d={`M${bx(hov) + BW / 2} 76 v-18`} stroke={SILVER} strokeOpacity="0.6" />
-      <rect x={bx(hov) - 120} y={16} width={196} height={40} rx={6} fill="#141416" stroke="#2a2a2c" />
-      <Label x={bx(hov) - 110} y={28} fill={INK} size={9} mono weight={700}>
-        14:35
+      {/* wide enough for its longer line (at 196 the line ran out of the card) */}
+      <rect x={CARD_X} y={16} width={216} height={40} rx={6} fill="rgb(var(--panel))" stroke="rgb(var(--border-muted))" />
+      <Label x={CARD_X + 10} y={28} fill={INK} size={9} mono weight={700}>
+        15:10
       </Label>
-      <Label x={bx(hov) - 72} y={28} fill={INK_2} size={9}>
+      <Label x={CARD_X + 48} y={28} fill={INK_2} size={9}>
         Charm window · 14:00 to 15:30
       </Label>
-      <circle cx={bx(hov) - 105} cy={44} r={3.5} fill={EMBER} />
-      <Label x={bx(hov) - 97} y={44} fill={INK_2} size={9}>
+      <circle cx={CARD_X + 15} cy={44} r={3.5} fill={EMBER} />
+      <Label x={CARD_X + 23} y={44} fill={INK_2} size={9}>
         dealers unwind hedges · pushes moves along
       </Label>
       <Label x={X0} y={108} fill={SILVER}>click a phase name to keep the phase · click a block to keep the minute</Label>

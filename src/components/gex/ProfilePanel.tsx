@@ -1691,14 +1691,14 @@ const ProfilePanel = ({
             <span className="min-w-0 flex-1 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="size">
               <Term k={view === 'net' ? 'Net at a strike' : 'Size at a strike'} className="pointer-events-auto truncate">
                 {view === 'net' ? 'Net' : 'Size'} · {greek}
-                <span className="text-textMuted/60">{view === 'net' ? ' · puts − calls' : ' · puts ◂ ▸ calls'}</span>
+                <span className="text-textMuted">{view === 'net' ? ' · puts − calls' : ' · puts ◂ ▸ calls'}</span>
               </Term>
             </span>
           )}
           {!twoRowHead && showFlow && (
             <span className="min-w-0 flex-1 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="flow">
               <Term k="What a move forces" className="pointer-events-auto truncate">
-                What a move forces <span className="text-textMuted/60">· from gamma</span>
+                What a move forces <span className="text-textMuted">· from gamma</span>
               </Term>
             </span>
           )}

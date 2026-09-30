@@ -230,7 +230,7 @@ const SequenceStrip = ({
               <div
                 key={p.id}
                 className={`flex items-baseline gap-2.5 px-1.5 py-1 rounded ${
-                  self ? 'bg-silver/[0.05] shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : ''
+                  self ? 'bg-silver/[0.05] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : ''
                 }`}
               >
                 {row}
@@ -853,7 +853,7 @@ const HistoryTable = ({ rows, unusual }: { rows: VolOiDay[]; unusual: boolean })
             className={`border-b border-borderSubtle/30 last:border-0 hover:bg-ink/[0.02] ${
               /* Holographic silver, not lime (Noah, 2026-08-30): the latest
                  row is WHERE YOU ARE, and silver is that ink everywhere. */
-              i === 0 ? 'shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : ''
+              i === 0 ? 'shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : ''
             }`}
           >
             <td className={`${td} text-textSecondary whitespace-nowrap`}>

@@ -12,3 +12,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   history is packed and its snapshots build on read (src/core/simulator.ts). Long Trace grids rest at 80 rows through
   TraceGrid's pagination. AG Grid registers only the modules listed in src/components/ui/houseGrid.ts — add one there
   when a grid needs a new feature (development names what is missing).
+- Theme rules (2026-09-30 light/dark pass): every colour is a token (src/theme/tokens.css). In SVG attributes and inline
+  styles write rgb(var(--token)) or rgb(var(--token) / a); a canvas or a chart option reads resolveInk/readToken. White
+  hairlines, bands and washes are rgb(var(--ink) / a) — a literal white only inside a data-theme="dark" island. A chip
+  filled with --text-primary takes rgb(var(--panel)) for its words. Quiet rows recede by dropping a text tier, never by
+  row opacity (it took the green and orange figures under 3:1 on paper). The paper direction and warn inks are pure hues
+  at about 4.3:1 on purpose — do not deepen them. Low-contrast by design: the chart Reset whisper pill, disabled
+  buttons, calendar days that are not expiries, the landing tour's waiting steps, Terrain's receding chrome, Trace's
+  breathing Live. The drawing rail stays black on either ground.

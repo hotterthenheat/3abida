@@ -148,7 +148,7 @@ const SessionSpark = ({ ticker, width = 96, height = 26 }: SessionSparkProps) =>
         x2={width}
         y1={y(base)}
         y2={y(base)}
-        stroke="rgba(237,237,237,0.18)"
+        stroke="rgb(var(--text-primary) / 0.18)"
         strokeWidth={1}
         strokeDasharray="2 3"
       />

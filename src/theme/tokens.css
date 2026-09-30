@@ -146,6 +146,17 @@
   --moon: 185 169 244;
   --supreme: 234 0 255;
   --darkpool: 45 212 191;
+  /* THE SECOND NAME ON A COMPARISON (Pinpoint Compare, 2026-09-30): Terrain's first comparison blue — on paper it is cut
+     deep enough to be read as a word (the dark blue printed at 2.8:1 on white) */
+  --compare: 91 156 246;
+  /* HOW STRONGLY A JOURNAL DAY WEARS ITS RESULT: the calendar's green or red wash is multiplied by this — the whole wash on
+     black; on paper about half, so the day's figure in the same red or green still reads on it */
+  --day-wash: 1;
+  /* THE IMPACT RUNGS (record/impactMark.tsx): high and medium are the warm side of the thermal ramp — its red and its
+     orange on black; on paper the ramp's deep red and the house's visible orange (the pastel printed at 1.7:1 on its
+     own wash in the month calendar) */
+  --impact-high: 215 48 39;
+  --impact-medium: 253 174 97;
   /* THE SILVER — where you are (the flat holo-silver ink, #C7D3E8): a token
      since 2026-09-12 so the light terminal can cut it to deep steel; the
      holo GRADIENT (holo-bg, holo-text) is not this and stays as it is */
@@ -257,6 +268,10 @@
   --moon: 91 74 168;
   --supreme: 163 0 179;
   --darkpool: 15 138 122;
+  --compare: 37 99 235; /* 5.2:1 on white */
+  --day-wash: 0.55; /* the deepest loss day's red figure on its pink: 3.6:1 (was 2.7 at the full wash) */
+  --impact-high: 165 0 38; /* 8.0:1 on white — the thermal's deep pole, apart from the direction red */
+  --impact-medium: 220 70 0; /* the house orange (--warn), 4.3:1 */
   /* The silver on paper: a steel with a breath more blue than the first cut
      (47 61 92), so "where you are" reads as the holo family's flat form and not
      as a second black beside the near-black text — still dark enough for words

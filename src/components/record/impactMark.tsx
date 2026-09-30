@@ -25,8 +25,9 @@
 
 export type ImpactTier = 'high' | 'medium' | 'low';
 export const IMPACT_TIERS: ImpactTier[] = ['high', 'medium', 'low'];
-/* the warm side of the house thermal ramp for high and medium, the muted ink for low — never the direction red */
-export const IMPACT_INK: Record<ImpactTier, string> = { high: '#D73027', medium: '#FDAE61', low: 'rgb(var(--text-muted))' };
+/* the warm side of the house thermal ramp for high and medium, the muted ink for low — never the direction red. Tokens
+   since 2026-09-30 (tokens.css --impact-*): the dark set is the ramp's #D73027 / #FDAE61, the light set is cut for paper */
+export const IMPACT_INK: Record<ImpactTier, string> = { high: 'rgb(var(--impact-high))', medium: 'rgb(var(--impact-medium))', low: 'rgb(var(--text-muted))' };
 export const IMPACT_WORD: Record<ImpactTier, string> = {
   high: 'High impact — moves the market on its own',
   medium: 'Medium impact — moves a name, a sector or a currency',

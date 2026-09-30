@@ -34,7 +34,7 @@ const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
 const INK_3 = 'rgb(var(--text-muted))';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const GRID = 'rgba(255,255,255,0.07)';
+const GRID = 'rgb(var(--ink) / 0.07)';
 /* The thermal ramp's stops, as the calendar and the panel paint them */
 const COOL_1 = '#ABD9E9';
 const COOL_2 = '#74ADD1';
@@ -191,7 +191,7 @@ const FlowFigure = () => {
       ))}
       {/* Spot, the chip */}
       <rect x={14} y={spotY - 8} width={46} height={16} rx={4} fill={INK} />
-      <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fontWeight="700" fill="#0a0a0a">
+      <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fontWeight="700" fill="rgb(var(--panel))">
         492.40
       </text>
       <Label x={66} y={spotY} fill={INK_3}>where the market is now</Label>
