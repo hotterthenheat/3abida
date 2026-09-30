@@ -41,7 +41,6 @@ const FOOTER_COLS = [
     links: [
       { label: 'Pricing', to: '#pricing' },
       { label: 'Questions', to: '#faq' },
-      { label: 'Community', to: '/community' },
       { label: 'Contact', to: 'mailto:info@slayerterminal.com' },
     ],
   },

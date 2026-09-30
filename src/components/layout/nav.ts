@@ -5,7 +5,6 @@ import {
   Radar,
   Scale,
   ScrollText,
-  Users,
   CandlestickChart,
   Settings,
   History,
@@ -164,20 +163,11 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'Every trade you closed — paper or backtest — on its day, with your own words on it',
     group: 'Practice',
   },
-  // ── More ──
-  {
-    path: '/community',
-    label: 'Community',
-    code: '11',
-    icon: Users,
-    ink: NAV_INK.community,
-    description: 'The room — traders, their setups & the record they build',
-    group: 'More',
-  },
+  // ── More ── (Community is off the menu until it opens, 2026-09-30; its page stays at /community)
   {
     path: '/settings',
     label: 'Settings',
-    code: '12',
+    code: '11',
     icon: Settings,
     ink: NAV_INK.settings,
     description: 'How the terminal looks, what the desk opens on, what it says out loud',

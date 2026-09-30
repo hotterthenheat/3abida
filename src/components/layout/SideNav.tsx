@@ -326,7 +326,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   }, [pathname]);
 
   /* THE RAIL'S ORDER (2026-09-28, nav.ts): Home (Pulse) stands ABOVE the Alerts row with no caption; the captioned
-     groups scroll under; More (Community · Settings) is pinned to the foot of the list with no caption */
+     groups scroll under; More (Settings) is pinned to the foot of the list with no caption */
   const groupBlocks = NAV_GROUPS.map((group, gi) => {
     const meta = NAV_GROUP_META[group];
     const first = gi === 1;

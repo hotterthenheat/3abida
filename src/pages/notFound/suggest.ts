@@ -82,7 +82,6 @@ const ALIASES: Record<string, { path: string; note?: string }> = {
   gex: { path: '/pinpoint/map' }, gamma: { path: '/pinpoint/map' }, levels: { path: '/pinpoint/map' }, heatmap: { path: '/pinpoint/map' }, ladder: { path: '/pinpoint/map' },
   shortcuts: { path: '/settings/keyboard' }, keys: { path: '/settings/keyboard' }, hotkeys: { path: '/settings/keyboard' },
   theme: { path: '/settings/appearance' }, themes: { path: '/settings/appearance' }, profile: { path: '/settings/account' }, invoices: { path: '/settings/billing' },
-  discord: { path: '/community' }, room: { path: '/community' }, chat: { path: '/community' },
   scanner: { path: '/trace/screener' }, weigh: { path: '/weigher' }, chain: { path: '/weigher' }, contracts: { path: '/compass' }, setups: { path: '/compass' },
 };
 
