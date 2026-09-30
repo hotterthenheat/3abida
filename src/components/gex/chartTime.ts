@@ -18,21 +18,47 @@
 */
 
 import { TickMarkType, type Time, type TickMarkFormatter } from 'lightweight-charts';
+import { readDeskPrefs } from '../../data/deskPrefs';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const two = (n: number) => String(n).padStart(2, '0');
 
+/* THE CLOCK IS THE READER'S CHOICE (Settings › The desk, 2026-09-12): the
+   machine's own zone, or New York's — the market's. An instant asked for in
+   New York comes back as a Date whose fields READ as New York's wall clock
+   (built from Intl's parts), so every formatter below keeps its getters;
+   only these labels use it, never any arithmetic. */
+const NY = 'America/New_York';
+let nyFmt: Intl.DateTimeFormat | null = null;
+function inNewYork(d: Date): Date {
+  nyFmt ??= new Intl.DateTimeFormat('en-US', { timeZone: NY, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  const p: Record<string, number> = {};
+  for (const part of nyFmt.formatToParts(d)) if (part.type !== 'literal') p[part.type] = Number(part.value);
+  return new Date(p.year, p.month - 1, p.day, p.hour === 24 ? 0 : p.hour, p.minute, p.second);
+}
+
 /**
- * Every `Time` shape the library accepts, resolved to a LOCAL Date.
+ * Every `Time` shape the library accepts, resolved to a Date in the reader's
+ * chosen clock.
  *
  * Epoch seconds are an instant — `new Date(ms)` renders them in the reader's
- * zone, which is the whole point. A BusinessDay (or 'YYYY-MM-DD') is a calendar
- * date with no instant behind it, so it is built field-by-field: passing that
- * string to `new Date()` would parse it as UTC midnight and hand back the
- * PREVIOUS day to anyone west of Greenwich.
+ * zone, which is the whole point (shifted to New York's wall clock when that
+ * is the choice). A BusinessDay (or 'YYYY-MM-DD') is a calendar date with no
+ * instant behind it, so it is built field-by-field: passing that string to
+ * `new Date()` would parse it as UTC midnight and hand back the PREVIOUS day
+ * to anyone west of Greenwich.
  */
-export function chartDate(t: Time): Date {
-  if (typeof t === 'number') return new Date(t * 1000);
+/* WHOSE CLOCK. 'reader' is the choice in Settings (their own zone, or New York). 'ny' is New York WHATEVER they chose — for
+   a chart whose tape is the market's own day (Review's backtest; Noah, 2026-09-20: "make the backtest speak new york
+   everywhere… option cons only open at new york am session and close new york pm session"): a contract lists at 09:30 and
+   settles at 16:00 New York, and a replay whose axis says 08:30 beside a bar that says 09:30 is two clocks for one minute. */
+export type ChartClock = 'reader' | 'ny';
+
+export function chartDate(t: Time, clock: ChartClock = 'reader'): Date {
+  if (typeof t === 'number') {
+    const d = new Date(t * 1000);
+    return clock === 'ny' || readDeskPrefs().clock === 'ny' ? inNewYork(d) : d;
+  }
   if (typeof t === 'string') {
     const [y, m, d] = t.split('-').map(Number);
     return new Date(y, (m || 1) - 1, d || 1);
@@ -41,14 +67,14 @@ export function chartDate(t: Time): Date {
 }
 
 /** `14:50` — the clock the cards, the wire and the tape all speak. */
-export const fmtClockLocal = (t: Time): string => {
-  const d = chartDate(t);
+export const fmtClockLocal = (t: Time, clock?: ChartClock): string => {
+  const d = chartDate(t, clock);
   return `${two(d.getHours())}:${two(d.getMinutes())}`;
 };
 
 /** `Aug 30` */
-export const fmtDayLocal = (t: Time): string => {
-  const d = chartDate(t);
+export const fmtDayLocal = (t: Time, clock?: ChartClock): string => {
+  const d = chartDate(t, clock);
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 };
 
@@ -56,7 +82,7 @@ export const fmtDayLocal = (t: Time): string => {
  * `Aug 30, 14:50` — the crosshair label for any chart that spans more than one
  * session, where a bare clock would leave you asking "which day's 14:50?".
  */
-export const fmtStampLocal = (t: Time): string => `${fmtDayLocal(t)}, ${fmtClockLocal(t)}`;
+export const fmtStampLocal = (t: Time, clock?: ChartClock): string => `${fmtDayLocal(t, clock)}, ${fmtClockLocal(t, clock)}`;
 
 /**
  * Axis tick marks, in the reader's timezone.
@@ -66,8 +92,8 @@ export const fmtStampLocal = (t: Time): string => `${fmtDayLocal(t)}, ${fmtClock
  * context arrives without every tick paying for it in width. These panes run
  * at 9-10px; a column of "Aug 30"s would crowd out the tape.
  */
-export const localTickMarks: TickMarkFormatter = (time, type) => {
-  const d = chartDate(time);
+const tickMarks = (time: Time, type: TickMarkType, clock: ChartClock): string => {
+  const d = chartDate(time, clock);
   switch (type) {
     case TickMarkType.Year:
       return String(d.getFullYear());
@@ -76,15 +102,20 @@ export const localTickMarks: TickMarkFormatter = (time, type) => {
     case TickMarkType.DayOfMonth:
       return String(d.getDate());
     case TickMarkType.TimeWithSeconds:
-      return `${fmtClockLocal(time)}:${two(d.getSeconds())}`;
+      return `${fmtClockLocal(time, clock)}:${two(d.getSeconds())}`;
     default:
-      return fmtClockLocal(time);
+      return fmtClockLocal(time, clock);
   }
 };
+export const localTickMarks: TickMarkFormatter = (time, type) => tickMarks(time, type, 'reader');
+/** The same ticks on New York's clock, whatever the reader chose (see ChartClock) */
+export const nyTickMarks: TickMarkFormatter = (time, type) => tickMarks(time, type, 'ny');
 
 /**
  * Drop into `createChart` for a chart that spans days: `localization: LOCAL_TIME`.
  * Single-session panes pass `{ timeFormatter: fmtClockLocal }` instead — the
  * date is already in their header.
  */
-export const LOCAL_TIME = { timeFormatter: fmtStampLocal };
+export const LOCAL_TIME = { timeFormatter: (t: Time) => fmtStampLocal(t) };
+/** The crosshair's stamp on New York's clock, whatever the reader chose (see ChartClock) */
+export const NY_TIME = { timeFormatter: (t: Time) => fmtStampLocal(t, 'ny') };

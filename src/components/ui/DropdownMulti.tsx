@@ -24,7 +24,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown } from 'lucide-react';
 import { CARD } from './DropdownSelect';
-import { MENU_EMPTY } from './menuRoom';
 
 export interface MultiOption {
   value: string;
@@ -50,9 +49,14 @@ interface DropdownMultiProps {
   title?: string;
   /** What the trigger says when nothing is picked */
   emptyWord?: string;
+  /** The summary's ink once something is picked — the journal's mistakes wear the warn ink (2026-09-22) */
+  tone?: 'warn' | 'bull' | 'bear';
   align?: 'start' | 'end';
   /** A data-* hook for probes */
   testId?: string;
+  /** The card WITHOUT its printed name — for a line that measured itself too short for four named cards (the Weigher's
+      chain head on a laptop, 2026-09-20). The name stays in the tooltip, the aria-label and the open card's heading. */
+  bare?: boolean;
 }
 
 /** The trigger's summary: nothing · one name · two names · two names +N */
@@ -63,7 +67,7 @@ const summarise = (values: string[], groups: MultiGroup[], emptyWord: string): s
   return `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
 };
 
-const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Everything', align = 'end', testId }: DropdownMultiProps) => {
+const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Everything', align = 'end', testId, bare = false, tone }: DropdownMultiProps) => {
   const picked = new Set(values);
   const toggle = (v: string) => onChange(picked.has(v) ? values.filter(x => x !== v) : [...values, v]);
   const summary = summarise(values, groups, emptyWord);
@@ -76,10 +80,11 @@ const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Ev
           data-dropdown={testId ?? label}
           data-picked={values.length}
           aria-label={`${label}: ${summary}`}
+          title={bare ? label : undefined}
           className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none max-w-[260px]"
         >
-          <span className="text-[9px] uppercase tracking-widest text-textMuted">{label}</span>
-          <span className={`text-[11px] font-semibold truncate ${values.length ? 'text-textPrimary' : 'text-textSecondary'}`}>{summary}</span>
+          {!bare && <span className="text-[9px] uppercase tracking-widest text-textMuted">{label}</span>}
+          <span className={`text-[11px] font-semibold truncate ${values.length ? (tone === 'warn' ? 'text-warn' : tone === 'bull' ? 'text-bull' : tone === 'bear' ? 'text-bear' : 'text-textPrimary') : 'text-textSecondary'}`} data-tone={values.length && tone ? tone : undefined}>{summary}</span>
           <ChevronDown className="w-3 h-3 text-textMuted shrink-0" />
         </button>
       </DropdownMenu.Trigger>
@@ -87,7 +92,7 @@ const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Ev
         <DropdownMenu.Content align={align} sideOffset={6} className={`${CARD} p-1.5`} data-dropdown-card={testId ?? label}>
           <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</DropdownMenu.Label>
           {shown.length === 0 ? (
-            <div className={MENU_EMPTY}>Nothing on the page to pick from</div>
+            <div className="px-2 py-3 font-mono text-[10px] text-textMuted">Nothing on the page to pick from</div>
           ) : (
             <div className="grid gap-x-2" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(200px, 1fr))` }}>
               {shown.map(g => (

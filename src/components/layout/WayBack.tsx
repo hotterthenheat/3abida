@@ -24,6 +24,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const NAMES: Record<string, string> = {
   '/pulse': 'Pulse',
 };
+/* A name's page on the Record is named by the name (the busiest rows' way
+   back, 2026-09-12); any other origin is plainly "back" */
+const nameFor = (to: string): string => {
+  if (NAMES[to]) return NAMES[to];
+  /* a name's page under the Record — the earnings page or the stock overview (2026-09-13) */
+  const m = to.match(/^\/record\/(?:earnings|stocks)\/([^/?#]+)/);
+  if (m) return decodeURIComponent(m[1]).toUpperCase();
+  return 'back';
+};
 
 export type WayBackState = { wayBack?: string };
 
@@ -58,7 +67,7 @@ const WayBack = () => {
   const to = (location.state as WayBackState | null)?.wayBack;
   const left = useMainCentre();
   if (!to || left == null) return null;
-  const name = NAMES[to] ?? 'back';
+  const name = nameFor(to);
   return (
     <button
       onClick={() => navigate(to)}

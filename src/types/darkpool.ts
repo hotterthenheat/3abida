@@ -23,6 +23,8 @@ export interface DarkPoolPrint {
   vsSpotPct: number;
   /** Print landed on one of the session's tracked liquidity shelves */
   atLevel: boolean;
+  /** A sized print — the top quarter by shares, the prints the reads are built on (2026-09-13) */
+  sized: boolean;
   intent: DarkPoolIntent;
   /** 0–100 — how confident the classifier is in the intent */
   conviction: number;

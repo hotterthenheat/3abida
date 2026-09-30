@@ -53,16 +53,18 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Info, X } from 'lucide-react';
 import Simulator from '../../core/simulator';
 import Term from '../ui/Term';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import { fmtUsd } from '../../data/gex';
+import { sinceOpenRead } from '../../data/levelview';
 import { fmtFlow, type FlowLadder, type FlowRung } from '../../data/hedgeFlow';
 import { sessionVolumeProfile, type VolumeProfile } from '../../data/volumeProfile';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
-import { heatCellStyle } from './heatmap';
+import { HEAT_MODE, heatCellStyle, heatRampColorFor, type HeatMode } from './heatmap';
+import { splinePath } from './StrikePressureLadder';
 import type { PriceProjection } from './StrikeChart';
 import type { GexLevel } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
@@ -75,8 +77,22 @@ export const LANE_OPTIONS: DropdownOption<ProfileLane>[] = [
 ];
 /** The Map hands ExposureLevels (with the pin); a Terrain pane hands KeyLevels (without) */
 export type PanelLevels = KeyLevels & { pin?: number };
-/** The narrowest the panel is drawn — a Terrain pane's docked width, and the grip's floor */
-export const PROFILE_MIN_W = 132;
+/** The narrowest the panel is drawn — the grip's floor. 180, not 132 (Noah, 2026-09-16, with
+    the partner's ladder at three widths: "we should have a cutoff after a certain scaling
+    becomes too minimum"): at 132 the ladder was a spine with pill legs and printed nothing. */
+export const PROFILE_MIN_W = 180;
+/** THE REST WIDTH (the same day: "open the rail wider by rest and only fall to the floor on a
+    four-up") — by the desk's pane count, since the panes' widths follow it: one pane or the
+    fullscreen pane 520 (the top tier: the dollars at the tips, the Δ column, the key), two or
+    four panes (two columns either way) 340, three across 240. The 60% ceiling of the pane
+    still holds above it. */
+export const profileRestWidth = (panes: number, expanded: boolean): number => (expanded || panes === 1 ? 520 : panes === 3 ? 240 : 340);
+/** THE TIERS (the partner's ladder drops its columns as it narrows; ours too): full — the Δ
+    column, the key, the dollars past the tips when the lane has room; mid — the Δ column and
+    a short key; thin — the strike and the legs alone. Below full, the hover card carries
+    the figures the rows cannot print. */
+export type ProfileTier = 'full' | 'mid' | 'thin';
+export const profileTier = (panelW: number): ProfileTier => (panelW >= 440 ? 'full' : panelW >= 300 ? 'mid' : 'thin');
 
 /* THE CALENDAR'S THERMAL RAMP (Noah, 2026-09-06: "go build the thermal
    capsules") — the same cells the Exposure Ledger under this map wears, so a
@@ -84,21 +100,54 @@ export const PROFILE_MIN_W = 132;
    to deep red where hedging amplifies, sky to deep blue where it absorbs;
    the ink chosen by contrast (black on the yellow middle, white at the deep
    ends). Solid, never translucent — a low-alpha warm over black goes khaki. */
-const thermal = (value: number, maxAbs: number) => {
-  const s = heatCellStyle(value, maxAbs, 'thermal-yellow');
+const heatOn = (value: number, maxAbs: number, mode: HeatMode) => {
+  const s = heatCellStyle(value, maxAbs, mode);
   return { fill: String(s.backgroundColor ?? '#FFFFBF'), ink: String(s.color ?? '#0a0a0a') };
 };
+/* THE SIZE LANE IS THE LADDER (Noah, 2026-09-13, with the strike ladder's
+   screenshot: "I would like this ladder to be our new size strike ladder…
+   keep the flow section and let the page have both thermal and the house
+   colours"): one row per strike, the put leg growing LEFT from a centre line
+   and the call leg growing RIGHT, each a journey along the ramp from the
+   centre's quiet to the colour its own strength earns, the figure past each
+   tip, and THE SPINE — one curve through the rows leaning toward the side
+   that dominates by the strike's net, its dashed ghost the same curve at the
+   open. Drawn on the canvas at the chart's own rows, so it still lines up
+   with the price axis the way the capsules did. */
+export type ProfilePalette = 'thermal' | 'house';
+export const PALETTE_OPTIONS: DropdownOption<ProfilePalette>[] = [
+  { value: 'thermal', label: 'Thermal', hint: 'Yellow in the middle, red where hedging amplifies a move, blue where it absorbs one' },
+  { value: 'house', label: 'House', hint: 'Gold where hedging amplifies, ice where it absorbs' },
+];
+const modeOf = (p: ProfilePalette): HeatMode => (p === 'house' ? HEAT_MODE : 'thermal-yellow');
+/** The spine may lean this far from the centre line, as a share of half the lane, either way */
+const MAX_LEAN = 0.44;
+/** Room kept at each end of the lane for a leg's figure; under it the figures wait for the read line */
+const LEG_FIG_W = 40;
 const SILVER = '#C7D3E8';
 const INK = '#ededed';
 const INK_2 = '#a3a3a3';
 const INK_3 = '#7d7d7d';
 
 /** The band the head owns — no row is drawn in it */
-const HEAD_BAND = 30;
+const HEAD_TOP = 30;
+/** The head on TWO ROWS below the full tier (2026-09-16: the view tabs and the host's Expiry
+    card on the first, the lane tools on the second — one row cannot hold them all at 340) */
+const HEAD_TOP_2 = 56;
+/** The key under the head (the full and mid tiers): what the ramp, the spine, the ghost and the
+    magenta mean — one line, drawn on the canvas */
+const KEY_BAND = 16;
+/** The column heads over the rows (every tier — the partner's header: STRIKE · Δ SPOT · ◂ PUTS ·
+    CALLS ▸, and NET on the net view), drawn on the canvas */
+const COL_HEAD = 13;
 /** The lane the ▼ count sits in */
 const FOOT_BAND = 14;
-/** The strike column between the lanes */
+/** The strike column between the lanes — and the wider one that carries the Δ from spot beside
+    the strike (the full and mid tiers) */
 const COL_W = 60;
+const COL_W_WIDE = 96;
+/** The Net view's figure slot at the lane's left edge, when the lane has room for it */
+const NET_FIG_W = 58;
 /** A strike's label needs about this much line box */
 const LABEL_PITCH = 12;
 
@@ -154,6 +203,15 @@ interface ProfilePanelProps {
   rows: GexLevel[];
   /** The largest |value| in the window — the size lane's scale */
   maxAbs: number;
+  /** Per strike, the put and call hedging behind the net — the ladder's two legs. Omitted, the
+      net alone is drawn as one leg on its side. */
+  legs?: ReadonlyMap<number, { put: number; call: number }>;
+  /** Per strike, the net at the open as a ratio of now — the spine's dashed ghost */
+  openRatio?: ReadonlyMap<number, number> | null;
+  /** The ramp the legs and the flow wear — the thermal by default, or the house gold and
+      ice. The host's choice (Terrain's desk bar carries the card: a rail's head is 132px
+      on a three-up desk and cannot hold another card). */
+  palette?: ProfilePalette;
   /** The chain's strike spacing — what one strike is worth in pixels */
   step: number;
   levels: PanelLevels;
@@ -183,6 +241,12 @@ interface ProfilePanelProps {
       width on release. Omitted, the panel fills its flex share (the Map). */
   width?: number;
   onWidth?: (px: number) => void;
+  /** The width the host rests this panel at (`profileRestWidth`) — the grip's double-click
+      goes back to it, not to the floor */
+  restWidth?: number;
+  /** A card the host stands in the head beside the view tabs (Terrain's Expiry, 2026-09-16:
+      "the expiry should be at the top next to the ladder and net buttons") */
+  headCard?: ReactNode;
   /** Given, the head carries an × — a panel you can turn on from a toolbar and
       not off from itself is a panel that feels stuck to the page. */
   onClose?: () => void;
@@ -204,13 +268,26 @@ interface Hover {
 }
 
 const ProfilePanel = ({
-  rows, maxAbs, step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
-  ticker, width, onWidth, onClose, closeHint = 'Hide this panel', className = '',
+  rows, maxAbs, legs, openRatio = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
+  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', className = '',
 }: ProfilePanelProps) => {
+  const mode = modeOf(palette);
+  const thermal = (value: number, max: number) => heatOn(value, max, mode);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const placedRef = useRef<Placed[]>([]);
   const [hover, setHover] = useState<Hover | null>(null);
+  /* THE VIEW of the size lane (Noah, 2026-09-16, on the partner's Net tab: "I actually like his
+     net gamma mini bars, they do read, just change their colors"): the ladder — the legs and the
+     spine — or the net: each strike's net as a figure and a row of dashes, one per tenth of the
+     largest net on screen, walking the ramp the legs wear (ember where hedging amplifies, glacier
+     where it absorbs). */
+  const [view, setView] = useState<'ladder' | 'net'>('ladder');
+  /* where the rows start this frame — the head, plus the key when it is drawn */
+  const headBandRef = useRef(HEAD_TOP);
+  /* whether the rows PRINT their figures this frame — the card carries them only when they
+     cannot (the partner's rule: the card once the numbers no longer fit) */
+  const figuresRef = useRef(true);
   /* Where the plot ends and the chart's time-axis band begins — the read line's
      home — and how wide the panel is, which decides what the line and the head
      can hold (a docked Terrain pane's panel is 132px; the Map's is 42% of the box) */
@@ -275,7 +352,7 @@ const ProfilePanel = ({
     if (!root) return;
     const startX = e.clientX;
     const startSplit = liveSplit;
-    const lanesW = Math.max(1, root.getBoundingClientRect().width - COL_W);
+    const lanesW = Math.max(1, root.getBoundingClientRect().width - colW);
     let last = startSplit;
     const move = (ev: PointerEvent) => {
       last = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, startSplit + (ev.clientX - startX) / lanesW));
@@ -318,9 +395,30 @@ const ProfilePanel = ({
   const settledRef = useRef(true);
   /* Bumped when the data changes so the frame loop redraws even if nothing moved */
   const dataRev = useRef(0);
+  /* THE PALETTE GLIDE (Noah, 2026-09-16: "have the thermal to house transition of coloring be
+     smooth, right now it just changes really quickly"): the loop paints every colour as a MIX of
+     the ramp it is leaving and the ramp it is going to, the mix gliding 0 → 1 on the capsules'
+     own time constant (~330ms to settle). Each ramp is read on its own magnitude curve and the
+     two RESULTS are mixed, so a cell never crosses a curve neither ramp has. Turned back
+     mid-glide, the mix simply reverses from where it stands. */
+  const paletteRef = useRef<{ from: HeatMode; to: HeatMode; mix: number }>({ from: mode, to: mode, mix: 1 });
+  useEffect(() => {
+    const pal = paletteRef.current;
+    if (pal.to === mode) return;
+    if (pal.from === mode && pal.mix < 1) {
+      pal.from = pal.to;
+      pal.to = mode;
+      pal.mix = 1 - pal.mix;
+    } else {
+      pal.from = pal.to;
+      pal.to = mode;
+      pal.mix = 0;
+    }
+    settledRef.current = false;
+  }, [mode]);
   useEffect(() => {
     dataRev.current++;
-  }, [rows, maxAbs, step, levels, flow, lane, focusPrice, vp]);
+  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, vp, view]);
 
   const showSize = lane !== 'flow';
   const showFlow = lane !== 'size';
@@ -329,6 +427,11 @@ const ProfilePanel = ({
   const split = useSplitPref();
   const [dragSplit, setDragSplit] = useState<number | null>(null);
   const liveSplit = dragSplit ?? split;
+  /* THE TIER, for the head, the sash and the card — the draw loop reads the same rule off its
+     own width each frame */
+  const panelW = foot?.w ?? 0;
+  const tier = profileTier(panelW);
+  const colW = tier === 'thin' ? COL_W : COL_W_WIDE;
 
   /* THE FRAME LOOP — draw when the chart's mapping, the size or the data moved */
   useEffect(() => {
@@ -367,10 +470,40 @@ const ProfilePanel = ({
       const key = `${W}|${Htot}|${H}|${y0.toFixed(1)}|${pitch.toFixed(2)}|${spotY.toFixed(1)}|${hv?.strike ?? ''}|${dataRev.current}`;
       if (key === lastKey && settledRef.current) return;
       lastKey = key;
+      /* THE TIER this frame, off the panel's own width: the column's width, and whether the key
+         is drawn under the head (the ladder view, above thin) — the rows start under both */
+      const tierNow = profileTier(W);
+      const colW = tierNow === 'thin' ? COL_W : COL_W_WIDE;
+      const keyOn = showSize && tierNow !== 'thin';
+      const headTop = tierNow === 'full' ? HEAD_TOP : HEAD_TOP_2;
+      const HEAD_BAND = headTop + (keyOn ? KEY_BAND : 0) + COL_HEAD;
+      headBandRef.current = HEAD_BAND;
       /* Ease one capsule toward its target length and colour; says whether it got there */
       const anim = animRef.current;
       const touched = new Set<string>();
       let settled = true;
+      /* THE PALETTE'S MIX THIS FRAME — every colour below reads `ramp` and `heat`, never a mode */
+      const pal = paletteRef.current;
+      if (pal.mix < 1) {
+        pal.mix += (1 - pal.mix) * k;
+        if (pal.mix > 0.995) pal.mix = 1;
+        else settled = false;
+      }
+      type Rgb = [number, number, number];
+      const mixRgb = (a: Rgb, b: Rgb): Rgb => [Math.round(a[0] + (b[0] - a[0]) * pal.mix), Math.round(a[1] + (b[1] - a[1]) * pal.mix), Math.round(a[2] + (b[2] - a[2]) * pal.mix)];
+      const ramp = (sign: 1 | -1, t: number): Rgb =>
+        pal.mix >= 1 ? heatRampColorFor(sign, t, pal.to) : mixRgb(heatRampColorFor(sign, t, pal.from), heatRampColorFor(sign, t, pal.to));
+      const rgbOf = (fill: string): Rgb => {
+        const m = /(\d+),\s*(\d+),\s*(\d+)/.exec(fill);
+        return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [255, 255, 191];
+      };
+      const heat = (value: number, max: number) => {
+        const to = heatOn(value, max, pal.to);
+        if (pal.mix >= 1) return to;
+        const from = heatOn(value, max, pal.from);
+        const [rr, gg, bb] = mixRgb(rgbOf(from.fill), rgbOf(to.fill));
+        return { fill: `rgb(${Math.round(rr)},${Math.round(gg)},${Math.round(bb)})`, ink: pal.mix >= 0.5 ? to.ink : from.ink };
+      };
       /* `h` is the capsule's height, eased too (2026-09-06: a zoom-in made the
          rows taller in one frame — the one jolt the length tween left) */
       const ease = (id: string, len: number, fill: string, dot: number, h: number) => {
@@ -410,16 +543,22 @@ const ProfilePanel = ({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, Htot);
 
-      /* THE LANES */
+      /* THE LANES. THE COLUMN COMES FIRST when only the size lane draws (Noah, 2026-09-16: "I
+         want his layout verbatim, just with our colors" — the partner's STRIKE · Δ SPOT at the
+         left, the lane after); with both lanes it stands between them as before. */
       const both = showSize && showFlow;
+      const colFirst = showSize && !showFlow;
       /* the size lane takes its share of the two, the flow lane the rest */
-      const sizeW = both ? Math.round((W - COL_W) * liveSplit) : W - COL_W;
-      const sizeL = showSize ? 0 : -1;
-      const sizeR = showSize ? sizeW : -1;
-      const colL = showSize ? sizeW : 0;
-      const colR = colL + COL_W;
+      const sizeW = both ? Math.round((W - colW) * liveSplit) : W - colW;
+      const sizeL = showSize ? (colFirst ? colW : 0) : -1;
+      const sizeR = showSize ? (colFirst ? W : sizeW) : -1;
+      const colL = colFirst ? 0 : showSize ? sizeW : 0;
+      const colR = colL + colW;
       const flowL = showFlow ? colR : -1;
       const flowR = showFlow ? W : -1;
+      /* THE LADDER'S NET COLUMN at the lane's right edge (the partner's wide row: STRIKE · Δ ·
+         legs · NET) when the lane has the room */
+      const netCol = view === 'ladder' && showSize && sizeR - sizeL >= 300 ? 60 : 0;
 
       /* THE ROWS on screen, and the ones culled above and below */
       const barH = Math.max(4, Math.min(22, Math.round(pitch * 0.62)));
@@ -455,10 +594,115 @@ const ProfilePanel = ({
           ctx.fillRect(0, row.y - pitch / 2, W, pitch);
         }
       }
+      /* THE SUPREME'S ROW washed in its magenta across the panel (the partner's row) */
+      {
+        const row = placed.find(r => near(r.strike, levels.supreme));
+        if (row) {
+          ctx.fillStyle = rgba(SUPREME, 0.13);
+          ctx.fillRect(0, row.y - pitch / 2, W, pitch);
+        }
+      }
+
+      /* THE KEY under the head (the full and mid tiers, the ladder view): the ramp's two poles
+         with their words, the spine, the ghost at the open, the supreme's magenta */
+      if (keyOn) {
+        const ky = headTop + KEY_BAND / 2 + 0.5;
+        let kx = 8;
+        const swatch = (sign: 1 | -1, w: number) => {
+          const g = ctx.createLinearGradient(kx, 0, kx + w, 0);
+          const [r0, g0, b0] = ramp(sign, 0.15);
+          const [r1, g1, b1] = ramp(sign, 0.9);
+          g.addColorStop(0, `rgb(${r0},${g0},${b0})`);
+          g.addColorStop(1, `rgb(${r1},${g1},${b1})`);
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.roundRect(kx, ky - 3, w, 6, 2);
+          ctx.fill();
+          kx += w + 4;
+        };
+        const word = (t: string, ink = INK_2) => {
+          ctx.font = `500 8.5px ${SANS}`;
+          ctx.fillStyle = ink;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(t, kx, ky);
+          kx += ctx.measureText(t).width + 8;
+        };
+        const full = tierNow === 'full';
+        swatch(1, 14);
+        word(full ? 'puts amplify' : 'puts');
+        swatch(-1, 14);
+        word(full ? 'calls absorb' : 'calls');
+        ctx.strokeStyle = 'rgba(237,237,237,0.85)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(kx, ky);
+        ctx.lineTo(kx + 12, ky);
+        ctx.stroke();
+        kx += 16;
+        word(full ? 'the spine now' : 'now');
+        ctx.save();
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = 'rgba(237,237,237,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(kx, ky);
+        ctx.lineTo(kx + 12, ky);
+        ctx.stroke();
+        ctx.restore();
+        kx += 16;
+        word(full ? 'at the open' : 'open');
+        ctx.fillStyle = SUPREME;
+        ctx.fillRect(kx, ky - 3, 6, 6);
+        kx += 10;
+        word('supreme', SUPREME);
+      }
+      /* THE COLUMN HEADS over the rows — the partner's header row in the house's letters: the
+         lane's name centred over it (◂ PUTS · CALLS ▸, or NET on the net view), STRIKE over the
+         column with Δ SPOT at its right when the column is wide, the flow lane's name over it */
+      {
+        const hy = HEAD_BAND - COL_HEAD / 2 + 0.5;
+        ctx.font = `600 7.5px ${MONO}`;
+        ctx.fillStyle = INK_3;
+        ctx.textBaseline = 'middle';
+        if (showSize) {
+          if (view === 'net') {
+            ctx.textAlign = 'left';
+            ctx.fillText('NET GAMMA', sizeL + 8, hy);
+            ctx.fillStyle = INK_3;
+            ctx.font = `7.5px ${MONO}`;
+            ctx.fillText('puts · calls', sizeL + 8 + ctx.measureText('NET GAMMA ').width + 8, hy);
+            ctx.font = `600 7.5px ${MONO}`;
+          } else {
+            ctx.textAlign = 'center';
+            ctx.fillText('◂ PUTS · CALLS ▸', sizeL + (sizeR - netCol - sizeL) / 2, hy);
+            if (netCol) {
+              ctx.textAlign = 'right';
+              ctx.fillText('NET', sizeR - 6, hy);
+            }
+          }
+        }
+        ctx.textAlign = 'left';
+        ctx.fillText('STRIKE', colL + 6, hy);
+        if (colW === COL_W_WIDE && view === 'ladder') {
+          ctx.textAlign = 'right';
+          ctx.fillText('Δ SPOT', colR - 6, hy);
+        }
+        if (showFlow) {
+          ctx.textAlign = 'left';
+          ctx.fillText('A MOVE FORCES', flowL + 6, hy);
+        }
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(2, HEAD_BAND - 0.5);
+        ctx.lineTo(W - 2, HEAD_BAND - 0.5);
+        ctx.stroke();
+      }
 
       /* The column's ground, the dividers, the panel's edge */
       ctx.fillStyle = 'rgba(255,255,255,0.025)';
-      ctx.fillRect(colL, HEAD_BAND, COL_W, H - HEAD_BAND - FOOT_BAND);
+      ctx.fillRect(colL, HEAD_BAND, colW, H - HEAD_BAND - FOOT_BAND);
       ctx.strokeStyle = 'rgba(255,255,255,0.08)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -555,8 +799,8 @@ const ProfilePanel = ({
         ctx.setLineDash([3, 3]);
         ctx.strokeStyle = rgba(FLIP, 0.7);
         ctx.beginPath();
-        ctx.moveTo(showSize ? 4 : colR, yy);
-        ctx.lineTo(showFlow ? W - 4 : colL, yy);
+        ctx.moveTo(4, yy);
+        ctx.lineTo(W - 4, yy);
         ctx.stroke();
         ctx.restore();
         ctx.font = `9px ${MONO}`;
@@ -566,8 +810,9 @@ const ProfilePanel = ({
           ctx.textAlign = 'right';
           ctx.fillText(`flip ${fmtStrike(levels.flip)}`, W - 6, yy - 2);
         } else {
-          ctx.textAlign = 'left';
-          ctx.fillText(`flip ${fmtStrike(levels.flip)}`, 6, yy - 2);
+          /* the caption at the lane's right end — the figures live at its left */
+          ctx.textAlign = 'right';
+          ctx.fillText(`flip ${fmtStrike(levels.flip)}`, W - 6, yy - 2);
         }
       }
 
@@ -642,32 +887,220 @@ const ProfilePanel = ({
         return ctx.measureText(text).width;
       };
 
-      /* THE SIZE LANE — capsules growing from the column outward */
-      const barEnd = new Map<number, number>();
-      if (showSize) {
-        const span = Math.max(1, sizeR - sizeL - 10);
-        let onMax = 0;
-        for (const r of placed) onMax = Math.max(onMax, Math.abs(r.value));
-        if (!onMax) onMax = maxAbs || 1;
+      /* THE SIZE LANE IS THE LADDER — a centre line, the put leg growing left
+         and the call leg right, each a journey along the ramp; the figures
+         past the tips when the lane has room; the spine through the rows */
+      /* THE SIGN'S SHADE — one colour per side off the ramp the legs wear (the partner's flat
+         inks, ours): the put pole where hedging amplifies, the call pole where it absorbs */
+      const sideInk = (sign: 1 | -1) => {
+        const [rr, gg, bb] = ramp(sign, 0.8);
+        return `rgb(${rr},${gg},${bb})`;
+      };
+      if (showSize && view === 'net') {
+        /* THE NET VIEW — THE PARTNER'S ROW, VERBATIM, IN OUR INKS (Noah, 2026-09-16): the strike
+           in the column at the left, the net figure right after it in the sign's colour, and the
+           dashes on their own line UNDER the figure — one dash per share of the largest net on
+           screen, in the same colour; when the chart's pitch is too tight for two lines the
+           dashes sit beside the figure. The length eases the way the legs do. */
+        const laneW = sizeR - sizeL;
+        const twoLine = pitch >= 24;
+        const figures = laneW >= 90 && barH >= 8;
+        figuresRef.current = figures;
+        const x0 = sizeL + 8;
+        const DASH = 5;
+        const DASH_H = 3;
+        const GAP = 3;
+        ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${MONO}`;
+        const figW = figures ? Math.ceil(ctx.measureText('−$999.9M').width) : 0;
+        const dashX0 = twoLine || !figures ? x0 : x0 + figW + 8;
+        const track = Math.max(DASH, sizeR - 8 - dashX0);
+        const maxN = Math.max(1, Math.floor((track + GAP) / (DASH + GAP)));
+        /* THE ROW IS THE STRIKE'S TOTAL, SPLIT (Noah, with the partner's Net view up close: "the
+           net gamma should look like this, in our colors"): ONE row of dashes under the figure —
+           the put gamma's share first in the put side's ink, the call gamma's after it in the
+           call side's, the row's whole length the strike's total against the largest total on
+           screen (fourteen dashes at most). No legs known, the net alone in its sign's ink. */
+        const legOf = (k: number, v: number) => {
+          const l = legs?.get(k);
+          if (l) return { put: Math.abs(l.put), call: Math.abs(l.call) };
+          return v >= 0 ? { put: Math.abs(v), call: 0 } : { put: 0, call: Math.abs(v) };
+        };
+        let totalMax = 0;
         for (const r of placed) {
-          if (r.value === 0) continue;
-          const target = Math.max(barH, (Math.abs(r.value) / onMax) * span);
-          const t = ease(`s:${r.strike}`, target, thermal(r.value, onMax).fill, barH, barH);
-          const len = t.len;
-          const x = sizeR - len;
-          barEnd.set(r.strike, x);
-          capsule(x, r.y, len, t.fill, ringFor(r.strike), t.h);
-          const fig = fmtUsd(Math.abs(r.value));
-          const lvl = levelAt(r.strike);
-          if (lvl && x - 8 - chipW(lvl.words) < 6 && barH >= 10) {
-            /* No room beside the end: the name inside at the outer end, the figure at the inner end */
-            insideNamed.add(r.strike);
-            figureIn(lvl.words, x, len, r.y, t.ink, 'left', NAME_FONT);
-            ctx.font = NAME_FONT;
-            const nw = ctx.measureText(lvl.words).width;
-            if (nw + figW(fig) + 20 <= len) figureIn(fig, x, len, r.y, t.ink, 'right');
-          } else {
-            figureIn(fig, x, len, r.y, t.ink, 'left');
+          const l = legOf(r.strike, r.value);
+          totalMax = Math.max(totalMax, l.put + l.call);
+        }
+        if (!totalMax) totalMax = maxAbs || 1;
+        for (const r of placed) {
+          const l = legOf(r.strike, r.value);
+          const total = l.put + l.call;
+          if (total <= 0) continue;
+          const sign: 1 | -1 = r.value >= 0 ? 1 : -1;
+          /* the shares in dashes, the leading side never rounded away */
+          let nPut = Math.round((l.put / totalMax) * 14);
+          let nCall = Math.round((l.call / totalMax) * 14);
+          if (nPut + nCall === 0) {
+            if (sign > 0) nPut = 1;
+            else nCall = 1;
+          }
+          const over = nPut + nCall - maxN;
+          if (over > 0) {
+            if (nPut >= nCall) nPut -= over;
+            else nCall -= over;
+          }
+          const n = nPut + nCall;
+          const target = n * (DASH + GAP) - GAP;
+          const e = ease(`n:${r.strike}`, target, '', 0, DASH_H);
+          const figY = twoLine ? r.y - 5 : r.y;
+          const dashY = twoLine ? Math.round(r.y + 4) : Math.round(r.y - DASH_H / 2);
+          if (figures && r.value !== 0) {
+            ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${MONO}`;
+            ctx.fillStyle = sideInk(sign);
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${sign > 0 ? '' : '−'}${fmtUsd(Math.abs(r.value))}`, x0, figY + 0.5);
+          }
+          for (let i = 0; i < n; i++) {
+            const dx = dashX0 + i * (DASH + GAP);
+            const w = Math.min(DASH, e.len - i * (DASH + GAP));
+            if (w <= 0) break;
+            ctx.fillStyle = sideInk(i < nPut ? 1 : -1);
+            ctx.fillRect(dx, dashY, w, DASH_H);
+          }
+          const ring = ringFor(r.strike);
+          if (ring) {
+            ctx.strokeStyle = ring;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(dashX0 - 2.5, dashY - 2, e.len + 5, DASH_H + 4, 2);
+            ctx.stroke();
+          }
+        }
+      } else if (showSize) {
+        /* the legs' lane stops short of the NET column when one is drawn */
+        const laneW = sizeR - netCol - sizeL;
+        const mid = sizeL + laneW / 2;
+        const figures = laneW >= 180 && barH >= 10;
+        figuresRef.current = figures;
+        const reach = Math.max(8, laneW / 2 - (figures ? LEG_FIG_W : 6) - 4);
+        const legH = Math.max(3, Math.min(9, Math.round(barH * 0.55)));
+        /* the legs' scale is the largest leg ON SCREEN, the spine's the largest |net| — both live, like the capsules' were */
+        let legMax = 0;
+        let netMax = 0;
+        const legOf = (k: number, v: number) => {
+          const l = legs?.get(k);
+          if (l) return { put: Math.abs(l.put), call: Math.abs(l.call) };
+          /* no legs known: the net alone on its side — positive is put-dominant */
+          return v >= 0 ? { put: Math.abs(v), call: 0 } : { put: 0, call: Math.abs(v) };
+        };
+        for (const r of placed) {
+          const l = legOf(r.strike, r.value);
+          legMax = Math.max(legMax, l.put, l.call);
+          netMax = Math.max(netMax, Math.abs(r.value));
+        }
+        if (!legMax) legMax = maxAbs || 1;
+        if (!netMax) netMax = maxAbs || 1;
+        /* the centre line */
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(mid) + 0.5, HEAD_BAND);
+        ctx.lineTo(Math.round(mid) + 0.5, H - FOOT_BAND);
+        ctx.stroke();
+        const rampAt = (sign: 1 | -1, t: number) => {
+          const [rr, gg, bb] = ramp(sign, Math.max(0, Math.min(1, t)));
+          return `rgb(${rr},${gg},${bb})`;
+        };
+        /** A leg: the ramp from the centre's quiet (t = 0) to the tip (t = its strength) */
+        const leg = (side: 'put' | 'call', yMid: number, len: number, s: number, h: number, ring: string | null) => {
+          if (len < 0.5) return;
+          const sign: 1 | -1 = side === 'put' ? 1 : -1;
+          const x0 = side === 'put' ? mid - len : mid;
+          const x1 = side === 'put' ? mid : mid + len;
+          const grad = ctx.createLinearGradient(mid, 0, side === 'put' ? mid - len : mid + len, 0);
+          grad.addColorStop(0, rampAt(sign, 0));
+          grad.addColorStop(1 / 3, rampAt(sign, s / 3));
+          grad.addColorStop(2 / 3, rampAt(sign, (2 * s) / 3));
+          grad.addColorStop(1, rampAt(sign, s));
+          const y = Math.round(yMid - h / 2);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(x0, y, x1 - x0, h, 2);
+          ctx.fill();
+          if (ring) {
+            ctx.strokeStyle = ring;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x0 - 0.5, y - 0.5, x1 - x0 + 1, h + 1, 2.5);
+            ctx.stroke();
+          }
+        };
+        for (const r of placed) {
+          const l = legOf(r.strike, r.value);
+          const ring = ringFor(r.strike);
+          /* the lengths ease, the way the capsules did; the colour follows the eased strength */
+          const pt = ease(`p:${r.strike}`, l.put > 0 ? Math.max(2, (l.put / legMax) * reach) : 0, '', 0, legH);
+          const ct = ease(`c:${r.strike}`, l.call > 0 ? Math.max(2, (l.call / legMax) * reach) : 0, '', 0, legH);
+          leg('put', r.y, pt.len, Math.min(1, pt.len / reach), legH, ring);
+          leg('call', r.y, ct.len, Math.min(1, ct.len / reach), legH, ring);
+          if (figures) {
+            ctx.font = `500 9px ${MONO}`;
+            ctx.fillStyle = INK;
+            ctx.textBaseline = 'middle';
+            if (l.put > 0) {
+              ctx.textAlign = 'right';
+              ctx.fillText(fmtUsd(l.put), mid - pt.len - 4, r.y + 0.5);
+            }
+            if (l.call > 0) {
+              ctx.textAlign = 'left';
+              ctx.fillText(fmtUsd(l.call), mid + ct.len + 4, r.y + 0.5);
+            }
+          }
+          /* the NET column — the strike's net at the lane's right edge in the sign's colour */
+          if (netCol && r.value !== 0 && barH >= 8) {
+            const sign: 1 | -1 = r.value >= 0 ? 1 : -1;
+            ctx.font = `700 9px ${MONO}`;
+            ctx.fillStyle = sideInk(sign);
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${sign > 0 ? '' : '−'}${fmtUsd(Math.abs(r.value))}`, sizeR - 6, r.y + 0.5);
+          }
+        }
+        /* THE SPINE — the contour through the rows, leaning toward the side that dominates
+           by the strike's net (positive net is put-dominant: it leans left); its ghost at the open */
+        if (placed.length > 1) {
+          const lean = (laneW / 2) * MAX_LEAN;
+          const pts = placed.map(r => ({ x: mid - (r.value / netMax) * lean, y: r.y })).sort((a, b) => a.y - b.y);
+          const clampX = (v: number) => Math.max(sizeL + 2, Math.min(sizeR - netCol - 2, v));
+          const hasGhost = !!openRatio && placed.some(r => openRatio.has(r.strike));
+          if (hasGhost) {
+            const gpts = placed
+              .map(r => {
+                const ratio = openRatio!.get(r.strike);
+                const x = ratio == null ? mid - (r.value / netMax) * lean : mid - Math.max(-1.6, Math.min(1.6, ratio)) * ((r.value / netMax) * lean);
+                return { x: clampX(x), y: r.y };
+              })
+              .sort((a, b) => a.y - b.y);
+            ctx.save();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'rgba(237,237,237,0.35)';
+            ctx.lineWidth = 1;
+            ctx.stroke(new Path2D(splinePath(gpts, sizeL + 2, sizeR - netCol - 2)));
+            ctx.restore();
+          }
+          ctx.strokeStyle = 'rgba(237,237,237,0.85)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke(new Path2D(splinePath(pts.map(q => ({ x: clampX(q.x), y: q.y })), sizeL + 2, sizeR - netCol - 2)));
+          /* the strike in hand, marked on the spine */
+          const mark = placed.find(r => isFocus(r.strike) || isHover(r.strike));
+          if (mark) {
+            ctx.fillStyle = '#0e0e0f';
+            ctx.strokeStyle = SILVER;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(clampX(mid - (mark.value / netMax) * lean), mark.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
           }
         }
       }
@@ -695,7 +1128,7 @@ const ProfilePanel = ({
           if (!g) continue;
           const mag = Math.abs(g.flow);
           const target = Math.max(barH, (mag / onMax) * span);
-          eased.set(r.strike, ease(`f:${r.strike}`, target, thermal(g.amplifies ? mag : -mag, onMax).fill, barH, barH));
+          eased.set(r.strike, ease(`f:${r.strike}`, target, heat(g.amplifies ? mag : -mag, onMax).fill, barH, barH));
         }
         /* The silhouette: the wedge above spot and the wedge below it, pinched to nothing at spot */
         const pts = placed.filter(r => r.rung).map(r => ({ x: x0 + Math.max(0, (eased.get(r.strike)?.len ?? barH) - barH), y: r.y }));
@@ -731,9 +1164,9 @@ const ProfilePanel = ({
           ctx.font = `600 9px ${MONO}`;
           const full = `${g.flow >= 0 ? 'buy' : 'sell'} ${fmtFlow(g.flow)}`;
           const fits = (s: string) => barH >= 10 && ctx.measureText(s).width + 12 <= len;
-          /* Flow-only: the level's chip lives at the lane's right edge; a capsule
-             that reaches it takes the name inside at its outer end instead */
-          const lvl = !showSize ? levelAt(row.strike) : undefined;
+          /* The level's chip lives at this lane's right edge; a capsule that
+             reaches it takes the name inside at its outer end instead */
+          const lvl = levelAt(row.strike);
           if (lvl && x0 + len + 8 + chipW(lvl.words) > W - 6 && barH >= 10) {
             insideNamed.add(row.strike);
             figureIn(lvl.words, x0, len, row.y, t.ink, 'right', NAME_FONT);
@@ -761,34 +1194,66 @@ const ProfilePanel = ({
         nameAt(hv?.strike);
       }
 
-      /* THE STRIKE COLUMN */
+      /* THE STRIKE COLUMN — the strike centred in the thin column; in the wide one (the full and
+         mid tiers) the strike at the left and its Δ FROM SPOT at the right, the partner's column,
+         in the direction's ink */
       ctx.textBaseline = 'middle';
-      ctx.textAlign = 'center';
-      const cx = colL + COL_W / 2;
+      const cx = colL + colW / 2;
+      const wide = colW === COL_W_WIDE;
       placed.forEach((r, i) => {
         if (!labelled(i, r.strike)) return;
         if (spotOn && Math.abs(r.y - spotY) < 9) return; // the spot chip owns that height
         const k = r.strike;
         const focus = isFocus(k);
-        ctx.font = `${focus ? '600 ' : ''}10px ${MONO}`;
-        ctx.fillStyle = focus ? SILVER : near(k, levels.callWall) ? CALL_WALL : near(k, levels.putWall) ? PUT_WALL : near(k, levels.supreme) ? SUPREME : near(k, pin) || isHover(k) ? INK : INK_2;
-        ctx.fillText(fmtStrike(k), cx, r.y);
+        /* the strike bold in the wide column (the partner's), plain in the thin one */
+        ctx.font = `${focus || wide ? '700 ' : ''}10px ${MONO}`;
+        ctx.fillStyle = focus ? SILVER : near(k, levels.callWall) ? CALL_WALL : near(k, levels.putWall) ? PUT_WALL : near(k, levels.supreme) ? SUPREME : near(k, pin) || isHover(k) ? INK : wide ? INK : INK_2;
+        ctx.textAlign = wide ? 'left' : 'center';
+        ctx.fillText(fmtStrike(k), wide ? colL + 6 : cx, r.y);
+        if (wide) {
+          if (view === 'net') {
+            /* the net view's column carries the role tag after the strike (CW · PW · SUP ★), not the Δ */
+            const tag = near(k, levels.callWall) ? { t: 'CW', c: CALL_WALL } : near(k, levels.putWall) ? { t: 'PW', c: PUT_WALL } : near(k, levels.supreme) ? { t: 'SUP ★', c: SUPREME } : null;
+            if (tag) {
+              const sw = ctx.measureText(fmtStrike(k)).width;
+              ctx.font = `700 7.5px ${MONO}`;
+              ctx.fillStyle = tag.c;
+              ctx.fillText(tag.t, colL + 6 + sw + 5, r.y + 0.5);
+            }
+          } else {
+            const d = ((k - levels.spot) / levels.spot) * 100;
+            ctx.font = `9px ${MONO}`;
+            ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : INK_3;
+            ctx.textAlign = 'right';
+            ctx.fillText(`${d > 0 ? '+' : ''}${d.toFixed(2)}%`, colR - 6, r.y);
+          }
+        }
       });
       /* Culled rows, counted */
       ctx.font = `9px ${MONO}`;
       ctx.fillStyle = INK_3;
+      ctx.textAlign = 'center';
       if (above) ctx.fillText(`▲ ${above}`, cx, HEAD_BAND + 6);
       if (below) ctx.fillText(`▼ ${below}`, cx, H - FOOT_BAND / 2 + 1);
 
-      /* THE LEVEL CHIPS — the cards' chips, on their rows */
+      /* THE LEVEL NAMES — the cards' chips at the flow lane's right edge when
+         that lane is drawn. The size lane is the ladder, so it marks a level the
+         ladder's way: a stripe on the row's left edge in the level's colour, the
+         strike label in that colour, and the name in the read line — never a
+         chip over a leg's figure. */
       const chip = (k: number, words: string, c: string) => {
         const row = placed.find(r => near(r.strike, k));
-        if (!row || insideNamed.has(row.strike)) return;
+        if (!row) return;
+        if (showSize) {
+          ctx.fillStyle = c;
+          const sh = Math.max(4, Math.round(barH) + 2);
+          /* the stripe on the panel's own left edge (the partner's), which is the column's when it comes first */
+          ctx.fillRect(colFirst ? 0 : sizeL, Math.round(row.y - sh / 2), 2, sh);
+        }
+        if (!showFlow || insideNamed.has(row.strike)) return;
         ctx.font = `500 10px ${SANS}`;
         const w = Math.ceil(ctx.measureText(words).width) + 12;
-        /* Beside the bar's end when there is room, else over it at the lane's edge */
-        const end = barEnd.get(k);
-        const x = showSize ? (end != null ? Math.max(6, end - 8 - w) : 6) : W - 6 - w;
+        const x = W - 6 - w;
         const y = Math.round(row.y - 8) + 0.5;
         ctx.fillStyle = '#0a0a0a';
         ctx.beginPath();
@@ -812,7 +1277,7 @@ const ProfilePanel = ({
         const y = Math.round(spotY - 8);
         ctx.fillStyle = INK;
         ctx.beginPath();
-        ctx.roundRect(colL + 2, y, COL_W - 4, 16, 4);
+        ctx.roundRect(colL + 2, y, colW - 4, 16, 4);
         ctx.fill();
         ctx.fillStyle = '#0a0a0a';
         ctx.font = `700 10px ${MONO}`;
@@ -829,7 +1294,8 @@ const ProfilePanel = ({
          mid-shrink simply grows again from where it was. */
       for (const [id, a] of anim) {
         if (touched.has(id)) continue;
-        if (!id.startsWith('s:') || !showSize) {
+        const isLeg = id.startsWith('p:') || id.startsWith('c:');
+        if (!isLeg || !showSize) {
           anim.delete(id);
           continue;
         }
@@ -839,21 +1305,28 @@ const ProfilePanel = ({
           anim.delete(id);
           continue;
         }
-        a.len += (a.h - a.len) * k;
-        if (a.len - a.h < 0.5) {
+        /* a leg whose strike has left the view shrinks back into the centre line, then goes */
+        a.len += (0 - a.len) * k;
+        if (a.len < 0.5) {
           anim.delete(id);
           continue;
         }
         settled = false;
         const yc = Math.min(H - FOOT_BAND - a.h / 2, Math.max(HEAD_BAND + a.h / 2, yRaw));
-        const [r, g, b] = a.c;
-        capsule(sizeR - a.len, yc, a.len, `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`, null, a.h);
+        const laneW = ((showFlow ? Math.round((W - colW) * liveSplit) : W - colW) || 1) - netCol;
+        const mid = (colFirst ? colW : 0) + laneW / 2;
+        const sign: 1 | -1 = id.startsWith('p:') ? 1 : -1;
+        const [rr, gg, bb] = ramp(sign, 0.5);
+        ctx.fillStyle = `rgba(${rr},${gg},${bb},0.6)`;
+        ctx.beginPath();
+        ctx.roundRect(sign === 1 ? mid - a.len : mid, Math.round(yc - a.h / 2), a.len, a.h, 2);
+        ctx.fill();
       }
       settledRef.current = settled;
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [rows, maxAbs, step, levels, flow, lane, focusPrice, projection, showSize, showFlow, vp, liveSplit]);
+  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, projection, showSize, showFlow, vp, liveSplit, view]);
 
   /* THE POINTER — the nearest strike by height, anywhere in the lanes */
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -862,7 +1335,7 @@ const ProfilePanel = ({
     const r = root.getBoundingClientRect();
     const y = e.clientY - r.top;
     const x = e.clientX - r.left;
-    if (y < HEAD_BAND) {
+    if (y < headBandRef.current) {
       if (hoverRef.current) setHover(null);
       return;
     }
@@ -890,43 +1363,170 @@ const ProfilePanel = ({
      hint. The swatches read the same on-screen scale the capsules use. */
   const readStrike = hover?.strike ?? focusPrice ?? null;
   const readRow = readStrike != null ? placedRef.current.find(r => near(r.strike, readStrike)) ?? null : null;
+  /* The part the strike plays, named here — the size lane marks it with a stripe and its colour, never a chip */
+  const readRole = readRow
+    ? near(readRow.strike, levels.callWall)
+      ? { words: 'Call wall', c: CALL_WALL }
+      : near(readRow.strike, levels.putWall)
+        ? { words: 'Put wall', c: PUT_WALL }
+        : near(readRow.strike, levels.supreme)
+          ? { words: 'Supreme', c: SUPREME }
+          : levels.pin != null && near(readRow.strike, levels.pin)
+            ? { words: 'Pin', c: INK_2 }
+            : null
+    : null;
   const hoverMax = placedRef.current.reduce((m, r) => Math.max(m, Math.abs(r.value)), 0) || maxAbs || 1;
+  /* the partner's footer figures: the picked strike's legs and its share of the net on screen */
+  const readLegs = readRow ? legs?.get(readRow.strike) ?? null : null;
+  const readShare = readRow ? (() => { const total = placedRef.current.reduce((s, r) => s + Math.abs(r.value), 0); return total > 0 ? (100 * Math.abs(readRow.value)) / total : null; })() : null;
   const hoverFlowMax = placedRef.current.reduce((m, r) => Math.max(m, Math.abs(r.rung?.flow ?? 0)), 0) || flow?.maxAbs || 1;
   /* WHAT THE LINE HOLDS follows the panel's width — it never wraps and it never
      clips a figure mid-number. Wide, the whole read; under ~430px the words go
      and the figures stay; under ~240px (a docked Terrain pane) the strike and
      the size, which is the one number the old rail never printed. */
-  const panelW = foot?.w ?? 0;
   const tight = panelW > 0 && panelW < 430;
   const tiny = panelW > 0 && panelW < 240;
+  /* THE CARD BELOW THE TOP TIER (Noah, 2026-09-16: the partner's ladder "carries a hover card
+     once the numbers can't fit the screen anymore"): the figures the rows cannot print, over
+     the CHART beside the pointer's row — never over the lanes (the 2026-09-06 ruling that put
+     the read line under them stands): the strike and its distance from spot, the put and call
+     legs with their dollars, the net and its word, the open interest where the book carries it,
+     and the change since the open. */
+  const cardOn = !!hover && showSize && !figuresRef.current;
+  const cardRow = cardOn && readRow ? readRow : null;
+  const cardLegs = cardRow ? legs?.get(cardRow.strike) ?? null : null;
+  const cardLevel = cardRow ? rows.find(r => near(r.strike, cardRow.strike)) ?? null : null;
+  const cardLegMax = cardRow ? placedRef.current.reduce((m, r) => { const l = legs?.get(r.strike); return l ? Math.max(m, Math.abs(l.put), Math.abs(l.call)) : m; }, 0) || 1 : 1;
+  /* the house's one since-open rule (data/levelview): the figure is a percent, a multiple, or
+     words alone — never a run of digits (the first cut printed "+164103195%") */
+  const sinceOpen = cardRow && openRatio ? sinceOpenRead(openRatio.get(cardRow.strike)) : null;
+  /* the strike KEPT by a click wears the silver ring on the row; the card says so in the read
+     line's own words (Noah, 2026-09-16: the card "on the focus status should showcase that") */
+  const cardKept = !!cardRow && focusPrice != null && near(focusPrice, cardRow.strike);
+  const cardTop = cardRow && foot ? Math.max(headBandRef.current, Math.min(cardRow.y - 44, foot.top - 132)) : 0;
+  const rampInk = (sign: 1 | -1, t: number) => {
+    const [rr, gg, bb] = heatRampColorFor(sign, Math.max(0.35, Math.min(1, t)), mode);
+    return `rgb(${rr},${gg},${bb})`;
+  };
+  const card = cardRow && (
+    <div
+      data-profile-card={cardRow.strike}
+      className="absolute z-40 pointer-events-none w-[236px] rounded-lg border border-borderMuted bg-card/95 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.5)] px-3 py-2 animate-soft-in"
+      style={{ right: 'calc(100% + 10px)', top: cardTop }}
+    >
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-[12px] font-bold tnum text-textPrimary">
+          {ticker ? `${ticker} ` : ''}
+          {fmtStrike(cardRow.strike)}
+        </span>
+        <span className={`font-mono text-[10px] tnum ${cardRow.strike > levels.spot ? 'text-bull' : cardRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
+          {cardRow.strike > levels.spot ? '+' : ''}
+          {(((cardRow.strike - levels.spot) / levels.spot) * 100).toFixed(2)}% from spot
+        </span>
+        {readRole && (
+          <span className="ml-auto text-[10px] font-medium" style={{ color: readRole.c }}>
+            {readRole.words}
+          </span>
+        )}
+      </div>
+      {cardLegs && (
+        <div className="mt-1.5 flex flex-col gap-1">
+          {(
+            [
+              ['Puts', Math.abs(cardLegs.put), 1],
+              ['Calls', Math.abs(cardLegs.call), -1],
+            ] as const
+          ).map(([name, v, sign]) => (
+            <div key={name} className="flex items-center gap-2">
+              <span className="w-8 shrink-0 font-mono text-[8px] uppercase tracking-widest text-textMuted">{name}</span>
+              <span className="flex-1 h-[5px] rounded-full bg-ink/[0.06] overflow-hidden">
+                <span className="block h-full rounded-full transition-colors duration-300" style={{ width: `${Math.round((v / cardLegMax) * 100)}%`, background: rampInk(sign, v / cardLegMax) }} />
+              </span>
+              <span className="w-14 shrink-0 text-right font-mono text-[10px] tnum text-textPrimary">{v > 0 ? fmtUsd(v) : '—'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-1.5 grid grid-cols-3 gap-2">
+        <div>
+          <div className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Net</div>
+          <div className="mt-0.5 flex items-center gap-1 font-mono text-[10px] tnum text-textPrimary">
+            {cardRow.value !== 0 && <span className="w-2 h-2 rounded-full shrink-0 transition-colors duration-300" style={{ background: thermal(cardRow.value, hoverMax).fill }} aria-hidden />}
+            {cardRow.value === 0 ? '—' : fmtUsd(Math.abs(cardRow.value))}
+          </div>
+          {cardRow.value !== 0 && <div className="text-[9px] text-textMuted">{cardRow.value > 0 ? words.pos : words.neg}</div>}
+        </div>
+        <div>
+          <div className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Open int</div>
+          <div className="mt-0.5 font-mono text-[10px] tnum text-textPrimary">{cardLevel && (cardLevel.callOI != null || cardLevel.putOI != null) ? ((cardLevel.callOI ?? 0) + (cardLevel.putOI ?? 0)).toLocaleString('en-US') : '—'}</div>
+        </div>
+        <div>
+          <div className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Since open</div>
+          {/* the figure in the direction's ink; with no figure the short words take its line */}
+          <div className={`mt-0.5 font-mono text-[10px] tnum ${sinceOpen == null ? 'text-textMuted' : sinceOpen.dir < 0 ? 'text-bear' : sinceOpen.dir > 0 ? 'text-bull' : 'text-textPrimary'}`} data-card-since>
+            {sinceOpen == null ? '—' : sinceOpen.figure ?? sinceOpen.short}
+          </div>
+          {sinceOpen?.figure && <div className="text-[9px] text-textMuted">{sinceOpen.short}</div>}
+        </div>
+      </div>
+      {/* KEPT OR NOT — the read line's own words, so the card says what the silver ring means */}
+      <div className={`mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-1.5 text-[9px] ${cardKept ? 'text-silver' : 'text-textMuted'}`} data-card-kept={cardKept ? '' : undefined}>
+        {cardKept && <span className="w-1.5 h-1.5 rounded-full bg-silver shrink-0" aria-hidden />}
+        {cardKept ? 'Kept · click to let go' : 'Click to keep'}
+      </div>
+    </div>
+  );
   const readLine = foot && (
     <div
       data-profile-read
       data-read-strike={readRow ? readRow.strike : undefined}
-      className={`absolute inset-x-0 flex items-center ${tight ? 'gap-2 px-2' : 'gap-3 px-2.5'} border-t border-borderSubtle bg-panel whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary pointer-events-none`}
+      className={`absolute inset-x-0 flex items-center ${tight ? 'gap-2 px-2' : 'gap-3 px-2.5'} border-t border-ink/[0.06] bg-panel whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary pointer-events-none`}
       style={{ top: foot.top, height: foot.h }}
     >
       {readRow ? (
         <>
           <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtStrike(readRow.strike)}</span>
+          {readRole && (
+            <span className="text-[10px] font-medium shrink-0" style={{ color: readRole.c }} data-read-role>
+              {readRole.words}
+            </span>
+          )}
           {!tiny && (
             <span className={`font-mono tnum ${readRow.strike > levels.spot ? 'text-bull' : readRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
               {readRow.strike > levels.spot ? '+' : ''}
               {(((readRow.strike - levels.spot) / levels.spot) * 100).toFixed(2)}%{tight ? '' : ' from spot'}
             </span>
           )}
-          <span className="inline-flex items-center gap-1.5">
-            {!tight && <span className="text-textMuted">Size</span>}
-            {readRow.value !== 0 && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: thermal(readRow.value, hoverMax).fill }} aria-hidden />}
-            <span className="font-mono tnum text-textPrimary">
-              {readRow.value === 0 ? '—' : tight ? fmtUsd(Math.abs(readRow.value)) : `${fmtUsd(Math.abs(readRow.value))} · ${readRow.value > 0 ? words.pos : words.neg}`}
+          {view === 'net' && readLegs ? (
+            /* the partner's footer for the picked strike: PUT · CALL · SHARE */
+            <>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-textMuted">Put</span>
+                <span className="font-mono tnum text-textPrimary">{fmtUsd(Math.abs(readLegs.put))}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-textMuted">Call</span>
+                <span className="font-mono tnum text-textPrimary">{fmtUsd(Math.abs(readLegs.call))}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-textMuted">Share</span>
+                <span className="font-mono tnum text-textPrimary">{readShare != null ? `${readShare.toFixed(1)}%` : '—'}</span>
+              </span>
+            </>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              {!tight && <span className="text-textMuted">Size</span>}
+              {readRow.value !== 0 && <span className="w-2 h-2 rounded-full shrink-0 transition-colors duration-300" style={{ background: thermal(readRow.value, hoverMax).fill }} aria-hidden />}
+              <span className="font-mono tnum text-textPrimary">
+                {readRow.value === 0 ? '—' : tight ? fmtUsd(Math.abs(readRow.value)) : `${fmtUsd(Math.abs(readRow.value))} · ${readRow.value > 0 ? words.pos : words.neg}`}
+              </span>
             </span>
-          </span>
+          )}
           {!tiny && (
             <span className="inline-flex items-center gap-1.5">
               {!tight && <span className="text-textMuted">A move here forces</span>}
               {readRow.rung && readRow.rung.flow !== 0 && (
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: thermal(readRow.rung.amplifies ? Math.abs(readRow.rung.flow) : -Math.abs(readRow.rung.flow), hoverFlowMax).fill }} aria-hidden />
+                <span className="w-2 h-2 rounded-full shrink-0 transition-colors duration-300" style={{ background: thermal(readRow.rung.amplifies ? Math.abs(readRow.rung.flow) : -Math.abs(readRow.rung.flow), hoverFlowMax).fill }} aria-hidden />
               )}
               <span className="font-mono tnum text-textPrimary">{readRow.rung && readRow.rung.flow !== 0 ? `${readRow.rung.flow >= 0 ? 'buy' : 'sell'} ${fmtFlow(readRow.rung.flow)}` : '—'}</span>
             </span>
@@ -976,12 +1576,14 @@ const ProfilePanel = ({
       {!narrow && 'How to read'}
     </button>
   );
-  /* THE HEAD'S TOOLS, at the panel's right edge so a card opens snug to it
-     (Noah, 2026-09-06): the Lanes card when the host has no row of its own
-     for it, the Vol switch, the door, the ×. */
-  const tools = (
-    <span className="ml-auto shrink-0 flex items-center gap-1 pointer-events-auto" data-profile-tools>
-      {onLane && roomForLanes && <DropdownSelect label="Lanes" value={lane} options={LANE_OPTIONS} onChange={onLane} title="What the panel draws" testId="lanes" align="end" />}
+  /* THE HEAD'S TOOLS (Noah, 2026-09-06): the Lanes card when the host has no row of its own
+     for it, the Vol switch, the door — and the ×, which keeps the first row's right edge
+     whatever the tier. Below the full tier the head is TWO ROWS: the view tabs and the host's
+     card on the first, these tools on the second (a 340 head cannot hold them all on one). */
+  const twoRowHead = tier !== 'full';
+  const laneTools = (
+    <>
+      {onLane && (roomForLanes || twoRowHead) && <DropdownSelect label="Lanes" value={lane} options={LANE_OPTIONS} onChange={onLane} title="What the panel draws" testId="lanes" align={twoRowHead ? 'start' : 'end'} size="sm" />}
       {ticker && showSize && (
         <button
           type="button"
@@ -997,18 +1599,40 @@ const ProfilePanel = ({
         </button>
       )}
       {guide}
-      {onClose && (
+    </>
+  );
+  const closeDoor = onClose && (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label={ticker ? `Hide the ${ticker} panel` : 'Hide this panel'}
+      title={closeHint}
+      className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
+      data-profile-close
+    >
+      <X className="w-3 h-3" />
+    </button>
+  );
+  /* THE VIEW TABS in the Expiry card's own clothes — the dropdown trigger's chip, the one in
+     hand wearing the silver edge (Noah, 2026-09-16: "those buttons should match the formatting
+     of the expiry button") */
+  const viewTabs = showSize && (
+    <span className="pointer-events-auto shrink-0 inline-flex items-center gap-1" data-profile-views>
+      {(['ladder', 'net'] as const).map(v => (
         <button
+          key={v}
           type="button"
-          onClick={onClose}
-          aria-label={ticker ? `Hide the ${ticker} panel` : 'Hide this panel'}
-          title={closeHint}
-          className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
-          data-profile-close
+          onClick={() => setView(v)}
+          aria-pressed={view === v}
+          data-profile-view={v}
+          className={`inline-flex items-center h-6 px-2 rounded-md border bg-chip font-mono text-[11px] font-semibold select-none transition-colors ${
+            view === v ? 'border-silver/50 text-textPrimary' : 'border-borderSubtle text-textMuted hover:border-borderMuted hover:text-textPrimary'
+          }`}
+          title={v === 'ladder' ? 'The put and call legs at each strike, the spine through them' : "Each strike's net as a figure and a row of dashes"}
         >
-          <X className="w-3 h-3" />
+          {v === 'ladder' ? 'Ladder' : 'Net'}
         </button>
-      )}
+      ))}
     </span>
   );
 
@@ -1029,7 +1653,7 @@ const ProfilePanel = ({
       {sized && onWidth && (
         <span
           onPointerDown={onGripDown}
-          onDoubleClick={() => onWidth(PROFILE_MIN_W)}
+          onDoubleClick={() => onWidth(restWidth ?? PROFILE_MIN_W)}
           role="separator"
           aria-orientation="vertical"
           aria-label="Drag to resize the panel — double-click to reset"
@@ -1049,39 +1673,50 @@ const ProfilePanel = ({
           aria-label="Drag to widen one lane and narrow the other — double-click to reset"
           title="Drag to widen one lane and narrow the other · double-click to reset"
           className="absolute inset-y-0 -ml-1 w-2 z-30 cursor-col-resize hover:bg-ink/[0.10] transition-colors"
-          style={{ left: `calc((100% - ${COL_W}px) * ${liveSplit})` }}
+          style={{ left: `calc((100% - ${colW}px) * ${liveSplit})` }}
           data-profile-split-grip
         />
       )}
       <canvas ref={canvasRef} className="absolute inset-0 block" aria-hidden />
-      {/* THE HEAD — one row: the lanes named over themselves, the tools at the
-          end so a narrow lane never hides its words */}
-      <div className="absolute inset-x-0 top-0 flex items-center px-2 pointer-events-none" style={{ height: HEAD_BAND }} data-profile-head>
-        {showSize && (
-          <span
-            className={`min-w-0 flex items-center gap-2 text-[10px] text-textMuted ${bothLanes ? 'shrink-0' : 'flex-1'}`}
-            /* the size lane's head sits over its lane, whatever the split */
-            style={bothLanes ? { width: `calc((100% - ${COL_W}px) * ${liveSplit})` } : undefined}
-            data-lane-head="size"
-          >
-            <Term k="Size at a strike" className="pointer-events-auto truncate">
-              Size · {greek}
-            </Term>
-          </span>
-        )}
-        {showFlow && (
-          <>
-            <span className="shrink-0" style={{ width: COL_W }} aria-hidden />
-            <span className="flex-1 min-w-0 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="flow">
-              <Term k="What a move forces" className="pointer-events-auto truncate">
-                What a move forces {!narrow && <span className="text-textMuted/60">· from gamma</span>}
+      {/* THE HEAD — the view tabs and the host's Expiry card first, the lanes' names after them
+          on the full tier, the tools at the end; below the full tier a second row takes the
+          tools, and the column heads under it name the lanes */}
+      <div className="absolute inset-x-0 top-0 flex flex-col px-2 pointer-events-none" style={{ height: twoRowHead ? HEAD_TOP_2 : HEAD_TOP }} data-profile-head data-head-rows={twoRowHead ? 2 : 1}>
+        <div className="flex items-center gap-1.5 min-w-0" style={{ height: HEAD_TOP }}>
+          {viewTabs}
+          {headCard && (
+            <span className="pointer-events-auto shrink-0 inline-flex" data-profile-head-card>
+              {headCard}
+            </span>
+          )}
+          {!twoRowHead && showSize && (
+            <span className="min-w-0 flex-1 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="size">
+              <Term k={view === 'net' ? 'Net at a strike' : 'Size at a strike'} className="pointer-events-auto truncate">
+                {view === 'net' ? 'Net' : 'Size'} · {greek}
+                <span className="text-textMuted/60">{view === 'net' ? ' · puts − calls' : ' · puts ◂ ▸ calls'}</span>
               </Term>
             </span>
-          </>
+          )}
+          {!twoRowHead && showFlow && (
+            <span className="min-w-0 flex-1 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="flow">
+              <Term k="What a move forces" className="pointer-events-auto truncate">
+                What a move forces <span className="text-textMuted/60">· from gamma</span>
+              </Term>
+            </span>
+          )}
+          <span className="ml-auto shrink-0 flex items-center gap-1 pointer-events-auto" data-profile-tools={twoRowHead ? undefined : ''}>
+            {!twoRowHead && laneTools}
+            {closeDoor}
+          </span>
+        </div>
+        {twoRowHead && (
+          <div className="flex items-center gap-1 pointer-events-auto" style={{ height: HEAD_TOP_2 - HEAD_TOP }} data-profile-tools>
+            {laneTools}
+          </div>
         )}
-        {tools}
       </div>
       {readLine}
+      {card}
     </div>
   );
 };

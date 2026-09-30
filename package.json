@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "test": "tsx scripts/terrain-setups-proof.ts",
     "theme:audit": "node scripts/theme-audit.mjs",
-    "proof:logic": "tsx scripts/logic-proof.ts",
-    "proof:desk": "tsx scripts/desk-proof.ts",
-    "proof": "npm run proof:logic && npm run proof:desk && npm run proof:data && npm run test",
-    "proof:data": "tsx scripts/data-proof.ts"
+    "links:check": "node scripts/check-links.mjs",
+    "phone:check": "node scripts/check-phone.mjs",
+    "brand:assets": "node scripts/make-brand-assets.mjs",
+    "landing:shots": "node scripts/make-landing-shots.mjs",
+    "logos:fetch": "node scripts/fetch-logos.mjs",
+    "review:proof": "tsx scripts/review-engine-proof.ts && tsx scripts/review-futures-proof.ts && tsx scripts/review-journal-proof.ts && tsx scripts/paper-proof.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",
@@ -33,7 +35,7 @@
     "codemirror": "^6.0.2",
     "d3-geo": "^2.0.2",
     "express": "^5.2.1",
-    "framer-motion": "^12.42.2",
+    "framer-motion": "^12.43.0",
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^0.395.0",
     "react": "^18.3.1",

@@ -48,9 +48,10 @@ const Head = ({ x, y, children, anchor = 'start' }: { x: number; y: number; chil
 
 /* ---- the shared figures ---------------------------------------------------------- */
 
-/** A contract cell: the strike, call or put in its ink, the expiry — the white line is the door */
+/** A contract cell: the strike, call or put in its ink, the expiry — silver under the pointer is the door
+    (the white line under it went on 2026-09-16) */
 export const ContractFigure = () => (
-  <Figure label="A contract cell drawn large: 505 call 09/10 with a white underline, and beside it the words that say the line is the door to the contract's card" h={54}>
+  <Figure label="A contract cell drawn large: 505 call 09/10 at rest, then 497 put 09/11 with its strike in silver as under the pointer, and beside them the words that say a contract turns silver under the pointer and opens its card" h={54}>
     <text x={14} y={30} fontSize={13} fontWeight={700} fill={INK} fontFamily={MONO}>
       505
     </text>
@@ -60,8 +61,8 @@ export const ContractFigure = () => (
     <text x={70} y={30} fontSize={8} fill={MUTED} fontFamily={MONO}>
       09/10/2026
     </text>
-    <line x1={14} x2={128} y1={36} y2={36} stroke={INK} strokeOpacity={0.7} strokeWidth={1} />
-    <text x={150} y={30} fontSize={13} fontWeight={700} fill={INK} fontFamily={MONO}>
+    {/* the second one under the pointer: the strike in silver, nothing else moves */}
+    <text x={150} y={30} fontSize={13} fontWeight={700} fill="rgb(var(--silver))" fontFamily={MONO}>
       497
     </text>
     <text x={180} y={30} fontSize={10} fill={BEAR} fontFamily={MONO}>
@@ -70,12 +71,11 @@ export const ContractFigure = () => (
     <text x={200} y={30} fontSize={8} fill={MUTED} fontFamily={MONO}>
       09/11/2026
     </text>
-    <line x1={150} x2={258} y1={36} y2={36} stroke={INK} strokeOpacity={0.7} strokeWidth={1} />
     <text x={290} y={27} fontSize={7} fill={SECOND} fontFamily={SANS}>
       the strike, the side in its ink, the expiry;
     </text>
     <text x={290} y={38} fontSize={7} fill={SECOND} fontFamily={SANS}>
-      the line under it opens the contract's card
+      silver under the pointer — click to open the contract's card
     </text>
   </Figure>
 );
@@ -372,23 +372,35 @@ export const WatchersGuide = () => (
 
 /* ---- windows -------------------------------------------------------------------- */
 
-/** The day as quarter hours, one lit */
+/** The day as quarter hours in the trader's clock's clothes (2026-09-16): equal blocks shaded by
+    volume, the parts named above, one open in silver, the busiest in magenta, now in lime */
 export const DayStripFigure = () => (
-  <Figure label="A row of small bars for the day's quarter hours, one lit in silver with its label 22:45–23:00, the newest bar in lime marked live" h={62}>
+  <Figure label="A row of equal small blocks for the day's quarter hours, shaded darker where more traded, with Pre-market, The session and After hours named above; one block silver with its label 12:45–13:00, one magenta as the busiest, the newest lime marked now" h={62}>
+    {[
+      { x: 14, name: 'Pre-market' },
+      { x: 110, name: 'The session' },
+      { x: 290, name: 'After hours' },
+    ].map(p => (
+      <text key={p.name} x={p.x} y={14} fontSize={6.5} fontWeight={500} fill={MUTED} fontFamily={SANS}>
+        {p.name}
+      </text>
+    ))}
     {Array.from({ length: 30 }, (_, i) => {
-      const h = 6 + ((i * 7) % 11) * 2;
-      const lit = i === 22;
+      const shade = 0.12 + ((i * 7) % 11) * 0.05;
+      const lit = i === 14;
+      const busiest = i === 19;
       const live = i === 29;
-      return <rect key={i} x={14 + i * 12} y={40 - h} width={8} height={h} rx={1} fill={live ? 'rgb(var(--select))' : lit ? SILVER : '#ffffff'} fillOpacity={live || lit ? 0.9 : 0.14} />;
+      const gap = i === 8 || i === 23 ? 3 : 0;
+      return <rect key={i} x={14 + i * 12 + gap} y={22} width={9} height={14} rx={1.5} fill={live ? 'rgb(var(--select))' : busiest ? SUPREME : lit ? SILVER : '#ffffff'} fillOpacity={live || lit || busiest ? 0.95 : shade} />;
     })}
-    <text x={14 + 22 * 12 + 4} y={52} textAnchor="middle" fontSize={6.5} fill={SILVER} fontFamily={MONO}>
-      22:45–23:00
+    <text x={14 + 14 * 12 + 4} y={46} textAnchor="middle" fontSize={6.5} fill={SILVER} fontFamily={MONO}>
+      12:45–13:00
     </text>
-    <text x={14 + 29 * 12 + 4} y={52} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill="#D2FF00" fontFamily={MONO}>
+    <text x={14 + 29 * 12 + 7} y={46} textAnchor="end" fontSize={6} letterSpacing={0.8} fill="#D2FF00" fontFamily={MONO}>
       NOW
     </text>
-    <text x={14} y={56} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
-      the day, a bar per quarter hour — click one to read it
+    <text x={14} y={57} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
+      the day, a block per quarter hour, darker where more traded — hover one to read it, click to open it
     </text>
   </Figure>
 );
@@ -416,16 +428,16 @@ export const ShareFigure = () => (
 
 export const WindowsGuide = () => (
   <div data-trace-guide="windows">
-    <Section title="A window">
-      <p>The day cut into quarter hours; pick one and the box shows what traded inside it, heaviest first.</p>
+    <Section title="An interval">
+      <p>The day cut into quarter hours, a block each, darker where more traded — the busiest in magenta, the one you have open in silver, the live one in lime. Hover a block to read it; click and the box shows what traded inside it, heaviest first.</p>
       <DayStripFigure />
     </Section>
     <Section title="Share of the day">
-      <p>How much of a contract's whole day landed in this one window — half or more is a burst.</p>
+      <p>How much of a contract's whole day landed in this one interval — half or more is a burst.</p>
       <ShareFigure />
     </Section>
     <Section title="Lean">
-      <p>Whether the window's volume paid the ask or hit the bid, and the same for the whole day beside it.</p>
+      <p>Whether the interval's volume paid the ask or hit the bid, and the same for the whole day beside it.</p>
       <LeanFigure />
     </Section>
     <Section title="A contract">
@@ -651,27 +663,21 @@ export const TapeRowFigure = () => (
 
 /** Where the fill landed between the bid and the ask */
 export const FillFigure = () => (
-  <Figure label="Two fills with their markets: $1.28 marked ask over a 1.20 by 1.28 quote with the dot at the offer; $1.20 marked bid over the same quote with the dot at the bid" h={76}>
+  <Figure label="Two fills in the spread: a green dot near the ask, bought; a red dot near the bid, sold" h={64}>
     {[
-      { y: 22, pos: 0.93, price: '1.28', side: 'ASK', word: 'paid the offer — someone wanted it now' },
-      { y: 54, pos: 0.07, price: '1.20', side: 'BID', word: 'hit the bid — someone took what was there' },
+      { y: 22, pos: 0.92, ink: BULL, word: 'near the ask — bought, someone paid up for it' },
+      { y: 48, pos: 0.08, ink: BEAR, word: 'near the bid — sold, someone took what was there' },
     ].map(r => (
       <g key={r.y}>
-        <text x={14} y={r.y - 5} fontSize={9} fontWeight={700} fill={INK} fontFamily={MONO}>
-          ${r.price}
-        </text>
-        <text x={46} y={r.y - 5} fontSize={7} fontWeight={600} fill={INK} fontFamily={MONO}>
-          {r.side}
-        </text>
-        <text x={14} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={MONO}>
+        <text x={14} y={r.y + 3} fontSize={7} fill={MUTED} fontFamily={MONO}>
           1.20
         </text>
-        <rect x={38} y={r.y + 4.5} width={54} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
-        <circle cx={38 + 54 * r.pos} cy={r.y + 6} r={3.5} fill={INK} />
-        <text x={98} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={MONO}>
+        <rect x={40} y={r.y - 1.5} width={80} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
+        <circle cx={40 + 80 * r.pos} cy={r.y} r={3.5} fill={r.ink} />
+        <text x={128} y={r.y + 3} fontSize={7} fill={MUTED} fontFamily={MONO}>
           1.28
         </text>
-        <text x={132} y={r.y + 2} fontSize={7} fill={SECOND} fontFamily={SANS}>
+        <text x={170} y={r.y + 3} fontSize={7} fill={SECOND} fontFamily={SANS}>
           {r.word}
         </text>
       </g>
@@ -679,22 +685,26 @@ export const FillFigure = () => (
   </Figure>
 );
 
-/** How hard the aggressor pressed — the bar's reach from the centre */
+/** Which side was hit, and how hard — the bar's reach from the centre */
 export const ConvictionFigure = () => (
-  <Figure label="Two conviction bars: a long green bar reaching right of centre, and a short red bar left of centre" h={64}>
+  <Figure label="Two conviction cells: a green BUY pill over a bar reaching far right of centre; a red SELL pill over a short bar left of centre" h={70}>
     {[
-      { y: 18, key: 'up', ink: BULL, score: 0.8, word: 'offers lifted, hard — a long bar to the right' },
-      { y: 44, key: 'down', ink: BEAR, score: -0.3, word: 'bids hit, gently — a short bar to the left' },
+      { y: 16, side: 'BUY', ink: BULL, score: 0.8, word: 'the ask was hit, hard — a long bar to the right' },
+      { y: 46, side: 'SELL', ink: BEAR, score: -0.3, word: 'the bid was hit, gently — a short bar to the left' },
     ].map(r => (
-      <g key={r.key}>
-        <rect x={14} y={r.y} width={64} height={5} rx={2.5} fill="#ffffff" fillOpacity={0.08} />
-        <rect x={45.6} y={r.y - 1} width={0.8} height={7} fill="#ffffff" fillOpacity={0.25} />
+      <g key={r.side}>
+        <rect x={14} y={r.y - 8} width={30} height={13} rx={2} fill={r.ink} fillOpacity={0.08} stroke={r.ink} strokeOpacity={0.35} strokeWidth={0.6} />
+        <text x={29} y={r.y + 1.5} textAnchor="middle" fontSize={7} fontWeight={600} fill={r.ink} fontFamily={MONO}>
+          {r.side}
+        </text>
+        <rect x={14} y={r.y + 10} width={64} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
+        <rect x={45.6} y={r.y + 9} width={0.8} height={5} fill="#ffffff" fillOpacity={0.25} />
         {r.score >= 0 ? (
-          <rect x={46} y={r.y} width={32 * r.score} height={5} rx={2.5} fill={r.ink} />
+          <rect x={46} y={r.y + 10} width={32 * r.score} height={3} rx={1.5} fill={r.ink} />
         ) : (
-          <rect x={46 + 32 * r.score} y={r.y} width={-32 * r.score} height={5} rx={2.5} fill={r.ink} />
+          <rect x={46 + 32 * r.score} y={r.y + 10} width={-32 * r.score} height={3} rx={1.5} fill={r.ink} />
         )}
-        <text x={96} y={r.y + 5} fontSize={7} fill={SECOND} fontFamily={SANS}>
+        <text x={100} y={r.y + 6} fontSize={7} fill={SECOND} fontFamily={SANS}>
           {r.word}
         </text>
       </g>
@@ -708,15 +718,12 @@ export const LiveTapeGuide = () => (
       <p>One contract traded once — when, the name, the contract, how many at what price, the dollars, and its tag.</p>
       <TapeRowFigure />
     </Section>
-    <Section title="Fill &amp; market">
-      <p>
-        What was paid, the side it crossed as a word, and under it the bid and ask it crossed into. A fill sitting on the
-        offer of a 1.20 × 1.28 market is its own argument that somebody wanted it now.
-      </p>
+    <Section title="The fill">
+      <p>Where the price landed between the bid and the ask — near the ask it was bought, near the bid sold.</p>
       <FillFigure />
     </Section>
     <Section title="Conviction">
-      <p>How hard the aggressor pressed — the bar's reach from the centre, right for offers lifted, left for bids hit.</p>
+      <p>Which side was hit, and how hard — the bar's reach from the centre.</p>
       <ConvictionFigure />
     </Section>
     <Section title="The inks">
@@ -756,6 +763,134 @@ export const SinceFigure = () => (
   </Figure>
 );
 
+/** Two names on one row of the card: the first's figure lit at the left, the fact and its note in the middle, the second's quiet at the right */
+export const CardRowFigure = () => (
+  <Figure label="One row of the card: SPY's premium $122.9M quiet on the left, the fact Premium over the note QQQ the heavier book in the middle, QQQ's $175.4M lit on the right" h={64}>
+    <text x={150} y={30} textAnchor="end" fontSize={9} fill={SECOND} fontFamily={MONO}>
+      $122.9M
+    </text>
+    <text x={210} y={26} textAnchor="middle" fontSize={7.5} fill={SECOND} fontFamily={SANS}>
+      Premium
+    </text>
+    <text x={210} y={36} textAnchor="middle" fontSize={6.5} fill={MUTED} fontFamily={SANS}>
+      QQQ the heavier book
+    </text>
+    <text x={270} y={30} fontSize={9} fontWeight={700} fill={INK} fontFamily={MONO}>
+      $175.4M
+    </text>
+    <text x={14} y={48} fontSize={7} fill={SECOND} fontFamily={SANS}>
+      the first name at the left, the second at the right; the figure that leads is lit, the other stays quiet
+    </text>
+    <text x={14} y={58} fontSize={7} fill={SECOND} fontFamily={SANS}>
+      the middle names the fact, and under it says what the two say against each other
+    </text>
+  </Figure>
+);
+
+export const CompareGuide = () => (
+  <div data-trace-guide="compare">
+    <Section title="The two names">
+      <p>Pick any two names on today's book — the two searches offer exactly those, and the arrow between them swaps the sides. The Clock and Money cards cut both names the same way, so every row compares like with like.</p>
+    </Section>
+    <Section title="The card">
+      <p>Each row is one fact printed for both names, the way a fight card is laid out: the first name's figure on the left, the fact in the middle with what the two say against each other under it, the second name's figure on the right. The figure that leads is lit; the other stays quiet. A signed figure keeps its direction ink on both sides.</p>
+      <CardRowFigure />
+    </Section>
+    <Section title="The panes">
+      <p>Each name through the session on its own pane: its spot in white, net calls in green, net puts in red, the volume on the floor — both on the page's one cut.</p>
+      <PaneLinesFigure />
+    </Section>
+    <Section title="The lists">
+      <p>Under the card, each name's six heaviest contracts by dollars — a contract turns silver under the pointer and opens its card, the bar at the row's end says which side did the buying — and its structures, the tape reconstructed, heaviest first.</p>
+      <ContractFigure />
+      <LeanFigure />
+    </Section>
+  </div>
+);
+
+/** A shelf on the board: the role in its ink, the price, the distance, the dollars, the bar and the count */
+export const ShelfFigure = () => (
+  <Figure label="Two shelf rows: RESISTANCE $492.27 +0.29% $177.6M with a red bar and 34% · 9 prints · defended 4× under it; SUPPORT $488.40 −0.50% $96.1M with a green bar" h={78}>
+    {[
+      { y: 18, role: 'RESISTANCE', ink: BEAR, price: '$492.27', dist: '+0.29%', dInk: BULL, usd: '$177.6M', bar: 1, under: '34% · 9 prints · defended 4×', note: 'dollars rested above the market — a seller waits there' },
+      { y: 52, role: 'SUPPORT', ink: BULL, price: '$488.40', dist: '−0.50%', dInk: BEAR, usd: '$96.1M', bar: 0.54, under: '18% · 12 prints · defended 2×', note: 'dollars rested below it — a buyer has leaned on it' },
+    ].map(r => (
+      <g key={r.role}>
+        <text x={14} y={r.y} fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={r.ink} fontFamily={MONO}>
+          {r.role}
+        </text>
+        <text x={72} y={r.y} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+          {r.price}
+        </text>
+        <text x={112} y={r.y} fontSize={7} fill={r.dInk} fontFamily={MONO}>
+          {r.dist}
+        </text>
+        <text x={200} y={r.y} textAnchor="end" fontSize={8} fontWeight={r.bar === 1 ? 700 : 400} fill={r.bar === 1 ? INK : SECOND} fontFamily={MONO}>
+          {r.usd}
+        </text>
+        <rect x={14} y={r.y + 6} width={90} height={2} rx={1} fill="#ffffff" fillOpacity={0.06} />
+        <rect x={14} y={r.y + 6} width={90 * r.bar} height={2} rx={1} fill={r.ink} fillOpacity={0.7} />
+        <text x={110} y={r.y + 9} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+          {r.under}
+        </text>
+        <text x={230} y={r.y + 3} fontSize={7} fill={SECOND} fontFamily={SANS}>
+          {r.note}
+        </text>
+      </g>
+    ))}
+  </Figure>
+);
+
+/** The four reads, each in its ink, with the conviction the grid draws: a word over four steps, never a figure (2026-09-19) */
+export const ReadFigure = () => (
+  <Figure label="Four reads in a row: ACCUMULATION green reading strong with four steps lit, DISTRIBUTION red reading good with three, HEDGE FLOW amber reading caution with two, ROTATION grey reading poor with one" h={62}>
+    {[
+      { x: 14, w: 'ACCUMULATION', ink: BULL, lit: 4, word: 'strong', note: 'size bought on weakness — someone building' },
+      { x: 118, w: 'DISTRIBUTION', ink: BEAR, lit: 3, word: 'good', note: 'size sold into strength — someone leaving' },
+      { x: 222, w: 'HEDGE FLOW', ink: WARN, lit: 2, word: 'caution', note: 'on an options shelf — a desk hedging' },
+      { x: 326, w: 'ROTATION', ink: MUTED, lit: 1, word: 'poor', note: 'routine turnover — no signal alone' },
+    ].map(r => (
+      <g key={r.w}>
+        <text x={r.x} y={16} fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={r.ink} fontFamily={MONO}>
+          {r.w}
+        </text>
+        <text x={r.x + 80} y={30} textAnchor="end" fontSize={6.5} fontWeight={700} fill={r.ink} fontFamily={MONO}>
+          {r.word}
+        </text>
+        {[0, 1, 2, 3].map(i => (
+          <rect key={i} x={r.x + i * 20.5} y={33} width={18.5} height={2.5} rx={1.25} fill={i < r.lit ? r.ink : '#ffffff'} fillOpacity={i < r.lit ? 0.8 : 0.06} />
+        ))}
+        <text x={r.x} y={48} fontSize={5.6} fill={SECOND} fontFamily={SANS}>
+          {r.note}
+        </text>
+      </g>
+    ))}
+    <text x={14} y={58} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
+      the bar is how sure the read is — a sized print at a shelf earns a surer read than a small one between shelves
+    </text>
+  </Figure>
+);
+
+export const DarkPoolGuide = () => (
+  <div data-trace-guide="dark-pool">
+    <Section title="The shelves">
+      <p>A shelf is a price where off-exchange dollars rested today. Below the market it reads support, above it resistance, at it a pivot; "defended" counts the times price turned there. The board at the left lists them heaviest first — a click cuts the grid to the crosses that printed on that shelf, and the Where card does the same.</p>
+      <ShelfFigure />
+    </Section>
+    <Section title="The reads">
+      <p>Every cross carries what it is most likely doing: accumulation when size is bought on weakness, distribution when size is sold into strength, hedge flow when it printed on an options shelf, rotation when it is routine turnover. Conviction is how sure that read is, said in a word: strong, good, caution or poor.</p>
+      <ReadFigure />
+    </Section>
+    <Section title="The posture and the cut">
+      <p>The posture weighs the sized crosses that build against the ones that leave. It names the side that leads, accumulating or distributing, and how far it leans in a word: strong, good or caution. When neither side leads it reads Balanced: a poor lean is no lean. The Read, Size and Where cards cut the grid; the head's "On this cut" and "Building · leaving" follow the cut, the posture and the off-exchange share are the whole session's.</p>
+      <InkFigure />
+    </Section>
+    <Section title="Where the dark money went">
+      <p>The second box is the whole market's dark tape — every name we file, by sector, the heaviest first. "% avg vol" is today's dark volume against the name's usual day; over 100% is unusual and wears the amber. A row, or a name in the sentence, puts that name on the box above.</p>
+    </Section>
+  </div>
+);
+
 export const TrackerGuide = () => (
   <div data-trace-guide="tracker">
     <Section title="A mark">
@@ -768,156 +903,6 @@ export const TrackerGuide = () => (
     </Section>
     <Section title="A contract">
       <p>The strike and side are the door to the contract's card, opened on the print you marked.</p>
-      <ContractFigure />
-    </Section>
-  </div>
-);
-
-/* ---- dark pool ---------------------------------------------------------------- */
-
-/** A shelf: the price, its role in its ink, the bar of the session's dark dollars that rested there */
-export const ShelfFigure = () => (
-  <Figure label="A liquidity shelf: the role, the price, the share bar and how many times price bounced off it" h={96}>
-    <Head x={12} y={14}>ROLE</Head>
-    <Head x={92} y={14}>PRICE</Head>
-    <Head x={168} y={14}>FROM SPOT</Head>
-    <Head x={408} y={14} anchor="end">DARK $</Head>
-    {[
-      { y: 34, role: 'RESISTANCE', ink: BEAR, price: '507.40', dist: '+0.71%', usd: '$182.0M', w: 210, note: 'defended 2×' },
-      { y: 58, role: 'PIVOT', ink: WARN, price: '503.85', dist: '+0.01%', usd: '$96.4M', w: 112, note: 'untested' },
-      { y: 82, role: 'SUPPORT', ink: BULL, price: '499.10', dist: '−0.93%', usd: '$141.3M', w: 164, note: 'defended 3×' },
-    ].map(r => (
-      <g key={r.role}>
-        <text x={12} y={r.y} fontSize={7} fontFamily={MONO} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
-          {r.role}
-        </text>
-        <text x={92} y={r.y} fontSize={9} fontFamily={MONO} fontWeight={700} fill={INK}>
-          ${r.price}
-        </text>
-        <text x={168} y={r.y} fontSize={7} fontFamily={MONO} fill={r.dist.startsWith('+') ? BULL : BEAR}>
-          {r.dist}
-        </text>
-        <rect x={224} y={r.y - 6} width={120} height={3} rx={1.5} fill="rgba(237,237,237,0.06)" />
-        <rect x={224} y={r.y - 6} width={(r.w / 210) * 120} height={3} rx={1.5} fill={r.ink} opacity={0.7} />
-        <text x={408} y={r.y} fontSize={8} fontFamily={MONO} fill={INK} textAnchor="end">
-          {r.usd}
-        </text>
-        <text x={224} y={r.y + 8} fontSize={6} fontFamily={MONO} fill={SECOND}>
-          {r.note}
-        </text>
-      </g>
-    ))}
-  </Figure>
-);
-
-/** A cross with its read: the size at the price, the intent in its ink, the classifier's bar */
-export const CrossFigure = () => (
-  <Figure label="A dark-pool cross: the shares at the price, the read in its ink, and how sure the classifier is" h={70}>
-    <Head x={12} y={14}>TIME</Head>
-    <Head x={64} y={14}>PRICE</Head>
-    <Head x={132} y={14}>SHARES</Head>
-    <Head x={214} y={14}>READ</Head>
-    <Head x={318} y={14}>CONVICTION</Head>
-    {[
-      { y: 36, t: '14:12', px: '499.12', sh: '640,000', read: 'ACCUMULATION', ink: BULL, c: 84 },
-      { y: 58, t: '13:47', px: '507.36', sh: '210,000', read: 'HEDGE FLOW', ink: WARN, c: 56 },
-    ].map(r => (
-      <g key={r.t}>
-        <text x={12} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
-          {r.t}
-        </text>
-        <text x={64} y={r.y} fontSize={9} fontFamily={MONO} fontWeight={700} fill={INK}>
-          ${r.px}
-        </text>
-        <text x={132} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
-          {r.sh}
-        </text>
-        <text x={214} y={r.y} fontSize={7} fontFamily={MONO} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
-          {r.read}
-        </text>
-        <rect x={318} y={r.y - 5} width={56} height={3} rx={1.5} fill="rgba(237,237,237,0.06)" />
-        <rect x={318} y={r.y - 5} width={(r.c / 100) * 56} height={3} rx={1.5} fill={r.ink} opacity={0.8} />
-        <text x={384} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
-          {r.c}%
-        </text>
-      </g>
-    ))}
-  </Figure>
-);
-
-export const DarkPoolGuide = () => (
-  <div data-trace-guide="dark-pool">
-    <Section title="Off-exchange">
-      <p>A dark-pool cross is size that changed hands away from the lit exchanges — an institution moving a position without showing its hand. The tape shows the print; this page shows the read: who is most likely behind it and what it means for the level it printed at.</p>
-      <CrossFigure />
-    </Section>
-    <Section title="The read">
-      <p>
-        <span className="text-bull">Accumulation</span> is size bought below the market in an up-tape — someone building. <span className="text-bear">Distribution</span> is size sold into strength while the tape weakens — someone leaving. <span className="text-warn">Hedge flow</span> printed on an options shelf and is most likely a desk hedging, not a bet. Rotation is routine and no signal on its own. The bar is how sure the classifier is.
-      </p>
-    </Section>
-    <Section title="A shelf">
-      <p>Where the dark dollars rested through the session. Below the spot a shelf is support, above it resistance, at it a pivot; the bar is its share of the session's dark dollars and the count is how many times price has already bounced off it. A shelf cuts the grid to the crosses that landed on it, and its line says how to trade against it.</p>
-      <ShelfFigure />
-    </Section>
-    <Section title="The posture">
-      <p>Net accumulation against distribution across the sized prints, in dollars weighted by conviction — accumulating past +18%, distributing past −18%, balanced between.</p>
-    </Section>
-  </div>
-);
-
-/* ---- compare ------------------------------------------------------------------ */
-
-/** A ledger row: the fact, A's figure, B's figure, the diamond on the side that carries the row */
-export const LedgerFigure = () => (
-  <Figure label="A ledger row: the fact at the left, the two names' figures at the right, the diamond on the heavier side" h={78}>
-    <Head x={12} y={14}>FACT</Head>
-    <Head x={300} y={14} anchor="end">SPY</Head>
-    <Head x={408} y={14} anchor="end">QQQ</Head>
-    {[
-      { y: 36, label: 'Net premium', a: '+$4.2M', b: '−$1.1M', aInk: BULL, bInk: BEAR, edge: 'a' },
-      { y: 58, label: 'Volume', a: '812,400', b: '1,204,900', aInk: INK, bInk: INK, edge: 'b' },
-    ].map(r => (
-      <g key={r.label}>
-        <text x={12} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
-          {r.label}
-        </text>
-        {r.edge === 'a' && (
-          <text x={262} y={r.y} fontSize={7} fill="rgb(var(--supreme))">
-            ◆
-          </text>
-        )}
-        <text x={300} y={r.y} fontSize={8} fontFamily={MONO} fontWeight={r.edge === 'a' ? 700 : 400} fill={r.aInk} textAnchor="end">
-          {r.a}
-        </text>
-        {r.edge === 'b' && (
-          <text x={362} y={r.y} fontSize={7} fill="rgb(var(--supreme))">
-            ◆
-          </text>
-        )}
-        <text x={408} y={r.y} fontSize={8} fontFamily={MONO} fontWeight={r.edge === 'b' ? 700 : 400} fill={r.bInk} textAnchor="end">
-          {r.b}
-        </text>
-      </g>
-    ))}
-  </Figure>
-);
-
-export const CompareGuide = () => (
-  <div data-trace-guide="compare">
-    <Section title="Two names">
-      <p>A and B are any two names on today's book — the searches offer exactly those, and the swap turns them around. Everything on the page reads the same cut book the other Trace pages read, so a figure here is the figure there.</p>
-    </Section>
-    <Section title="The panes">
-      <p>Each name's session on the Net Flow pane: its own candles as the spot line, net call and net put premium as the lines. The money and clock cards are shared, so both panes always answer the same question. Under each pane, the same-day money — the 0DTE desk's figures for that name.</p>
-      <PaneLinesFigure />
-    </Section>
-    <Section title="The ledger">
-      <p>One row per fact, A against B — net flow, the same-day money, the book, the footprints, the structures, the tape and the calendar. The diamond marks the side that carries the row: the larger figure, or for a lean, the more bullish one.</p>
-      <LedgerFigure />
-    </Section>
-    <Section title="The contracts">
-      <p>Each name's heaviest contracts by dollars — a row opens the contract's card — and its structures, the tape reconstructed into spreads, heaviest first.</p>
       <ContractFigure />
     </Section>
   </div>

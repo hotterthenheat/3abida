@@ -470,8 +470,38 @@ export function heatRampColor(sign: 1 | -1, t: number): RGB {
   return heatRampColorFor(sign, t, HEAT_MODE);
 }
 
-/** The same journey on any ramp — the ladder's Colours card picks the mode (2026-09-08) */
-export function heatRampColorFor(sign: 1 | -1, t: number, mode: HeatMode): RGB {
+/* ══ PAPER ═══════════════════════════════════════════════════
+   Every ramp above is cut for a DARK ground: its zero is the panel's own dark and its journey climbs toward light.
+   On paper that journey runs the wrong way — a pale gold or an ice blue is no colour at all on a soft grey, and a
+   figure printed in it fails. THE LIGHT SWEEP (2026-09-19) made a drawn figure part of the page on paper — one soft
+   grey, the page's inks — and the Map's island joined it on 2026-09-22 (Noah, with the light Map: "can we make this
+   look more appealing on light theme with the soft gray look"). So on paper the same JOURNEY BY AMOUNT runs between
+   two inks that both read on the page:
+     · a BAR or a FIGURE goes from the page's muted ink at zero to a DEEP pole — grey is small, the colour is heavy;
+       the poles are the light set's own tokens as numbers (tokens.css: ember 146 86 4, glacier 3 105 161; the
+       thermal's deep red and deep blue are dark enough as they stand);
+     · a CAPSULE, which carries its own figure, goes from a faint TINT of the pole on the page's inset grey to the
+       pole itself, and the figure's ink is chosen by measured contrast as it always was.
+   The dark ramps are untouched — a light-theme change never moves the dark theme. */
+const PAPER_MUTED: RGB = [75, 78, 86]; /* --text-muted on paper */
+const PAPER_INSET: RGB = [245, 244, 240]; /* --inset on paper, the island's ground */
+const PAPER_POLES: Record<'ember-glacier' | 'thermal-yellow', { pos: RGB; neg: RGB }> = {
+  'ember-glacier': { pos: [146, 86, 4], neg: [3, 105, 161] },
+  'thermal-yellow': { pos: [165, 0, 38], neg: [49, 54, 149] },
+};
+const paperPole = (sign: 1 | -1, mode: HeatMode): RGB => {
+  const p = PAPER_POLES[mode as keyof typeof PAPER_POLES] ?? PAPER_POLES['ember-glacier'];
+  return sign >= 0 ? p.pos : p.neg;
+};
+const mixRgb = (a: RGB, b: RGB, u: number): RGB => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
+/** A bar's or a figure's ink on paper: the muted ink at zero, the deep pole at one */
+const paperInk = (sign: 1 | -1, t: number, mode: HeatMode): RGB => mixRgb(PAPER_MUTED, paperPole(sign, mode), Math.max(0, Math.min(1, t)));
+/** A capsule's fill on paper: a faint tint of the pole at zero (never the bare ground — a quiet cell is still a cell), the pole at one */
+const paperTint = (sign: 1 | -1, t: number, mode: HeatMode): RGB => mixRgb(PAPER_INSET, paperPole(sign, mode), 0.16 + 0.84 * Math.max(0, Math.min(1, t)));
+
+/** The same journey on any ramp — the ladder's Colours card picks the mode (2026-09-08); `paper` reads the paper ink ramp */
+export function heatRampColorFor(sign: 1 | -1, t: number, mode: HeatMode, paper = false): RGB {
+  if (paper) return paperInk(sign, t, mode);
   const r = RAMPS[mode as keyof typeof RAMPS];
   const tt = Math.max(0, Math.min(1, t));
   if (!r) {
@@ -501,10 +531,14 @@ const ramp = RAMPS[HEAT_MODE as keyof typeof RAMPS];
 
 /** One cell's fill and ink. `mode` lets ONE surface read another ramp (the
     Ledger's thermal try) without moving the terminal-wide HEAT_MODE. */
-export function heatCellStyle(value: number, maxAbs: number, mode: HeatMode = HEAT_MODE): CSSProperties {
+export function heatCellStyle(value: number, maxAbs: number, mode: HeatMode = HEAT_MODE, paper = false): CSSProperties {
   const pal = mode === HEAT_MODE ? ramp : RAMPS[mode as keyof typeof RAMPS];
   const t = heatT(value, maxAbs, pal?.gamma);
 
+  if (paper) {
+    const rgb = paperTint(value >= 0 ? 1 : -1, t, mode);
+    return { backgroundColor: `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, color: inkFor(rgb) };
+  }
   if (pal) {
     const rgb = rampColor(value >= 0 ? pal.pos : pal.neg, t);
     return { backgroundColor: `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, color: inkFor(rgb) };
@@ -546,10 +580,11 @@ export function heatCellStyle(value: number, maxAbs: number, mode: HeatMode = HE
     the absorb side (calls), read at `t` rather than at the pole because the
     house pole is near-white ice and the thermal pole is a deep navy — neither
     is a line colour on a dark panel. */
-export function heatLaneInks(mode: HeatMode = HEAT_MODE, t = 0.7): { pos: string; neg: string } {
+export function heatLaneInks(mode: HeatMode = HEAT_MODE, t = 0.7, paper = false): { pos: string; neg: string } {
+  const hex = (c: RGB) => `rgb(${c[0]},${c[1]},${c[2]})`;
+  if (paper) return { pos: hex(paperInk(1, 1, mode)), neg: hex(paperInk(-1, 1, mode)) };
   const pal = RAMPS[mode as keyof typeof RAMPS];
   if (!pal) return { pos: '#ededed', neg: '#8f8f8f' };
-  const hex = (c: RGB) => `rgb(${c[0]},${c[1]},${c[2]})`;
   return { pos: hex(rampColor(pal.pos, t)), neg: hex(rampColor(pal.neg, t)) };
 }
 
@@ -558,11 +593,54 @@ export function heatLaneInks(mode: HeatMode = HEAT_MODE, t = 0.7): { pos: string
     "shouldn't the call/put chart match if we switch the heatmap to
     thermal?"). `floor` keeps a small lane visible: the house zero is the
     panel's own dark, so a lane at t=0 would vanish. */
-export function heatLaneColor(value: number, maxAbs: number, mode: HeatMode = HEAT_MODE, floor = 0.3): string {
+export function heatLaneColor(value: number, maxAbs: number, mode: HeatMode = HEAT_MODE, floor = 0.3, paper = false): string {
   const pal = RAMPS[mode as keyof typeof RAMPS];
+  if (paper) {
+    /* on paper the floor is the muted ink itself — every figure reads — so the journey starts a little up the ramp
+       only to keep a small bar from being pure grey */
+    const t = 0.15 + 0.85 * heatT(value, maxAbs, pal?.gamma);
+    const c = paperInk(value >= 0 ? 1 : -1, t, mode);
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
   if (!pal) return value >= 0 ? '#ededed' : '#8f8f8f';
   const t = floor + (1 - floor) * heatT(value, maxAbs, pal.gamma);
   const c = rampColor(value >= 0 ? pal.pos : pal.neg, t);
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+/* ══ THE LADDER'S WINDOW ON EACH RAMP ═══════════════════════
+   (2026-09-22, Noah, with the Map on both themes: "almost every color on this page reads ashy and muted… all the red
+   and greens from the put and call and the magenta"). The inks were not the problem — the pair and the magenta are the
+   pure tokens. THE SCALE WAS: a bar's length is cut at the heaviest ordinary strike, but its colour still ran to the
+   wall, so a strike at a fifth of the wall sat two thirds up the ramp — and that stretch of the house ramp is rust and
+   teal, the journey through dark a capsule with its own figure carries and a flat 9px bar cannot. And the pale end:
+   ice is white on black. So the ladder reads each side of a ramp through a WINDOW — the saturated stretch, deep to
+   bright — and reads AMOUNT AGAINST THE CUT, the same scale its lengths use: ordinary strikes span the window, the
+   walls sit at its end. On paper the window is the upper part of the paper ink ramp, quiet colour to the deep pole,
+   never the grey. The capsules, Terrain's rail and every other heat surface keep the full journey. */
+const LADDER_WINDOWS: Record<'ember-glacier' | 'thermal-yellow', { pos: [number, number]; neg: [number, number] }> = {
+  /* ember from fire to gold; glacier from azure to the sky the house glacier token is (0.75), short of the ice. The
+     window's START is set by the FIGURE: a net figure at a small amount wears the same ink as its bar and must read
+     on black at 4.5:1 — measured, fire (0.6) is 5.0:1 and azure (0.5) 4.9:1, while rust (0.5) was 3.6 and navy 3.1 */
+  'ember-glacier': { pos: [0.6, 1], neg: [0.5, 0.75] },
+  /* thermal from orange to a bright red; the cool side from a light blue to a mid blue — that ramp is ColorBrewer's
+     RdYlBu, drawn for paper, so its cool side is pastel until 0.6 and navy past 0.8, and on black only the stretch
+     between stands (measured: sky at 0.4 is 27% saturated). Both ENDS stop short of the deep poles, which are darker
+     than 4.5:1 on black (the deep red 2.4:1, the navy 2.8:1); the walls wear the bright end */
+  'thermal-yellow': { pos: [0.4, 0.75], neg: [0.6, 0.78] },
+};
+const PAPER_WINDOW: [number, number] = [0.55, 1];
+/** Where on its ramp the ladder reads an amount at `t` (0..1 against the cut) */
+export function ladderRampT(sign: 1 | -1, t: number, mode: HeatMode, paper = false): number {
+  const [a, b] = paper ? PAPER_WINDOW : (LADDER_WINDOWS[mode as keyof typeof LADDER_WINDOWS] ?? LADDER_WINDOWS['ember-glacier'])[sign >= 0 ? 'pos' : 'neg'];
+  return a + (b - a) * Math.max(0, Math.min(1, t));
+}
+/** A ladder bar's or figure's ink: the amount against the CUT, through the window, on the page's ramp */
+export function heatLadderColor(value: number, cut: number, mode: HeatMode, paper = false): string {
+  const pal = RAMPS[mode as keyof typeof RAMPS];
+  const sign: 1 | -1 = value >= 0 ? 1 : -1;
+  const u = ladderRampT(sign, heatT(value, cut, pal?.gamma), mode, paper);
+  const c = paper ? paperInk(sign, u, mode) : pal ? rampColor(sign >= 0 ? pal.pos : pal.neg, u) : ([128, 128, 128] as RGB);
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 

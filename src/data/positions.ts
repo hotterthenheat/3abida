@@ -33,10 +33,11 @@
 
 import { useMemo, useSyncExternalStore } from 'react';
 import { expiryFor, isoDate, sessionsBetween, today } from '../core/calendar';
+import Simulator from '../core/simulator';
+import { valueOn } from './positionCurve';
 import { SLEEVE_BY_KEY } from '../types/compass';
 import type { ExposureProfileData } from '../types/gex';
 import type { TrackedSetup } from '../types/tracker';
-import { syncAcrossTabs } from './crossTab';
 
 export type Right = 'C' | 'P';
 export type Side = 'long' | 'short';
@@ -52,13 +53,19 @@ export interface Position {
   /** YYYY-MM-DD */
   expiry: string;
   /** What you paid (or collected) per contract, in premium points — optional;
-      without it the card measures profit against today's value */
+      without it the return reads from `addedMark` */
   entry?: number;
+  /** THE MARK THE MOMENT IT WAS ADDED, premium points (2026-09-16) — the cost the return reads
+      from when none was typed, the way a watched contract is marked when watched. Noah: a
+      position added yesterday must show yesterday's decay; measured against TODAY'S value it
+      read flat, as if it had been added today. Absent on positions stored before this. */
+  addedMark?: number;
   source: 'you' | 'tracker';
   addedAt: number;
 }
 
-const KEY = 'slayer_positions_v1';
+/** v2 (2026-09-14): the key moved once with the watchlist's so the Weigher opened on a clean list for the walk */
+const KEY = 'slayer_positions_v2';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 function isPosition(x: unknown): x is Position {
@@ -75,6 +82,7 @@ function isPosition(x: unknown): x is Position {
     typeof p.expiry === 'string' &&
     ISO.test(p.expiry) &&
     (p.entry === undefined || (typeof p.entry === 'number' && Number.isFinite(p.entry) && p.entry >= 0)) &&
+    (p.addedMark === undefined || (typeof p.addedMark === 'number' && Number.isFinite(p.addedMark) && p.addedMark >= 0)) &&
     (p.source === 'you' || p.source === 'tracker') &&
     typeof p.addedAt === 'number'
   );
@@ -92,14 +100,6 @@ function load(): Position[] {
 
 let positions: Position[] = load();
 const listeners = new Set<() => void>();
-/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The store
-   above reads storage once and writes the whole object back, so without
-   this a second tab silently overwrites the first one's work. */
-syncAcrossTabs(KEY, () => {
-  positions = load();
-  listeners.forEach(l => l());
-});
-
 
 function commit(next: Position[]): void {
   positions = next;
@@ -129,11 +129,22 @@ export function usePositions(ticker: string | null | undefined): Position[] {
   return useMemo(() => (ticker ? all.filter(p => p.ticker === ticker) : []), [all, ticker]);
 }
 
+/** Every position on every name — the Weigher's list (2026-09-14) */
+export function useAllPositions(): Position[] {
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
+
 let seq = 0;
 const newId = () => `pos-${Date.now().toString(36)}-${(seq++).toString(36)}`;
 
-export function addPosition(p: Omit<Position, 'id' | 'addedAt' | 'source'> & { source?: Position['source'] }): Position {
-  const pos: Position = { ...p, source: p.source ?? 'you', id: newId(), addedAt: Date.now() };
+/** The contract's mark right now, by the one estimator the cards price with (positionCurve's
+    `valueOn`) — pinned on a position the moment it is added, so a new position reads flat and
+    every day after reads the true move */
+const markNow = (p: Pick<Position, 'ticker' | 'strike' | 'right' | 'expiry'>): number =>
+  Number(valueOn(p, Simulator.TICKERS[Simulator.ensureTicker(p.ticker)].currentPrice, 0).toFixed(2));
+
+export function addPosition(p: Omit<Position, 'id' | 'addedAt' | 'source' | 'addedMark'> & { source?: Position['source']; addedMark?: number }): Position {
+  const pos: Position = { ...p, source: p.source ?? 'you', addedMark: p.addedMark ?? markNow(p), id: newId(), addedAt: Date.now() };
   commit([...positions, pos]);
   return pos;
 }

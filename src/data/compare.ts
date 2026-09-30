@@ -286,6 +286,28 @@ export interface PairPoint {
   time: number;
   /** The first name's close over the second's */
   ratio: number;
+  /** The two closes the ratio was made of — the card says them, so the figure is a division a reader can check */
+  closeA: number;
+  closeB: number;
+}
+
+/** WHERE A DAY SITS AGAINST THE USUAL RANGE, IN WORDS A PERSON CAN PICTURE (Noah, 2026-09-20, on the pair: "i dont know what
+    it does") — never "+0.8σ". The usual range is the average, one usual swing each way; a day is said as how far it has
+    gone toward an edge of it, or how far past. */
+export interface PairPlace {
+  where: 'inside' | 'above' | 'below';
+  /** Which name is further ahead than on an average day — neither, on the average */
+  ahead: 'a' | 'b' | null;
+  words: string;
+}
+export function pairPlace(ratio: number, mean: number | null, sd: number | null): PairPlace | null {
+  if (mean == null || sd == null || !(sd > 0)) return null;
+  const z = (ratio - mean) / sd;
+  const side = z >= 0 ? 'top' : 'bottom';
+  const m = Math.abs(z);
+  if (m < 0.1) return { where: 'inside', ahead: null, words: 'on its average' };
+  if (m <= 1) return { where: 'inside', ahead: z > 0 ? 'a' : 'b', words: `inside the usual range · ${Math.round(m * 100)}% of the way to its ${side}` };
+  return { where: z > 0 ? 'above' : 'below', ahead: z > 0 ? 'a' : 'b', words: `${z > 0 ? 'above' : 'below'} the usual range · ${Math.round((m - 1) * 100)}% past its ${side}` };
 }
 
 export interface Pair {
@@ -324,7 +346,7 @@ export function buildPair(a: string, b: string): Pair {
     if (!s.length) continue;
     const last = s[s.length - 1];
     const cb = closeB.get(dayOf(last.time));
-    if (cb) sessions.push({ time: last.time, ratio: last.close / cb });
+    if (cb) sessions.push({ time: last.time, ratio: last.close / cb, closeA: last.close, closeB: cb });
   }
   /* The still-forming session is today's, off the average */
   const done = sessions.slice(0, -1);
@@ -334,7 +356,7 @@ export function buildPair(a: string, b: string): Pair {
   const today: PairPoint[] = [];
   for (const x of todayA) {
     const cb = bAt.get(x.time);
-    if (cb) today.push({ time: x.time, ratio: x.close / cb });
+    if (cb) today.push({ time: x.time, ratio: x.close / cb, closeA: x.close, closeB: cb });
   }
   const now = today.length ? today[today.length - 1].ratio : sessions.length ? sessions[sessions.length - 1].ratio : null;
   let mean: number | null = null;
@@ -346,14 +368,19 @@ export function buildPair(a: string, b: string): Pair {
   }
   const z = now != null && mean != null && sd != null && sd > 0 ? (now - mean) / sd : null;
   const outside = mean != null && sd != null ? done.filter(p => Math.abs(p.ratio - mean!) > sd!).length : 0;
-  const stretched = z != null && Math.abs(z) > 1;
-  const level = z != null && Math.abs(z) < 0.25;
+  /* THE SENTENCE, IN PLAIN WORDS (2026-09-20): what the figure is, what is usual, where today sits, how often it leaves */
+  const place = now != null ? pairPlace(now, mean, sd) : null;
+  const f3 = (v: number) => v.toFixed(v >= 10 ? 2 : 3);
   const sentence =
-    z == null || mean == null
+    place == null || mean == null || sd == null || now == null
       ? `Not enough sessions on the tape yet to say what is usual for ${a} against ${b}.`
-      : level
-        ? `${a} against ${b} sits where it usually does — on its ${done.length}-session average, well inside the usual band; ${outside} of those sessions closed outside it.`
-        : `${a} against ${b} sits ${Math.abs(z).toFixed(1)} standard deviations ${z >= 0 ? 'above' : 'below'} its ${done.length}-session average${stretched ? ' — outside the usual band' : ' — inside the usual band'}; ${outside} of those sessions closed outside it. ${z >= 0 ? `${a} has run ahead` : `${b} has run ahead`}${stretched ? ', further than it usually does.' : '.'}`;
+      : `One ${a} share is worth ${f3(now)} ${b} shares right now, against ${f3(mean)} on an average day over the last ${done.length} sessions. ` +
+        (place.where === 'inside'
+          ? place.ahead == null
+            ? `That is right on its average — neither name has pulled ahead of the other.`
+            : `That is inside the usual range (${f3(mean - sd)} to ${f3(mean + sd)}): ${place.ahead === 'a' ? a : b} is a little ahead of where the two usually sit, nothing unusual.`
+          : `That is ${place.where} the usual range (${f3(mean - sd)} to ${f3(mean + sd)}): ${place.ahead === 'a' ? a : b} has run further ahead of ${place.ahead === 'a' ? b : a} than it usually does.`) +
+        ` ${outside} of those ${done.length} days closed outside the range.`;
   return { a, b, sessions, today, now, mean, sd, z, outside, sentence };
 }
 

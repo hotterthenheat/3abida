@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   MAX_ALERTS, armFlow, armGexFlip, armIndicator, armLevel, armNews, armNewSupreme,
-  armPrice, armWallMove, priceAlertProblem, removeAlert, useAlerts,
+  armPrice, armWallMove, removeAlert, useAlerts,
   type Alert, type IndicatorSource, type LevelName,
 } from './alertStore';
 import { ALERT, alpha } from './paletteInk';
@@ -99,18 +99,16 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
 
   const submit = () => {
     const price = Number(draft.trim());
-    /* THE STORE SAYS WHICH THING WENT WRONG. This used to guess — anything
-       that was not "not a number" and not "the pane is full" was reported as
-       "there is already an alert there", which was wrong every time the real
-       problem was the number: 999999999 on a $500 name armed nothing and
-       explained nothing. */
-    const why = priceAlertProblem(ticker, price, spot);
-    if (why) {
-      setRefused(why);
+    if (!Number.isFinite(price) || price <= 0) {
+      setRefused('That is not a price');
+      return;
+    }
+    if (full) {
+      setRefused(capMsg);
       return;
     }
     if (!armPrice(ticker, price, spot)) {
-      setRefused(capMsg);
+      setRefused('There is already an alert there');
       return;
     }
     setDraft('');
@@ -159,7 +157,7 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
           onClick={submit}
           disabled={full}
           title={full ? capMsg : `Alert me at this price`}
-          className="shrink-0 px-2 py-1 rounded border border-borderSubtle bg-inset font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:hover:text-textSecondary transition-colors"
+          className="shrink-0 px-2 py-1 rounded border border-borderSubtle bg-inset font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-40 disabled:hover:text-textSecondary transition-colors"
         >
           Set
         </button>
@@ -211,7 +209,7 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
               <button onClick={() => toggleChip(supremeHit, () => armNewSupreme(ticker))} aria-pressed={!!supremeHit} title={supremeHit ? 'On — click to turn off' : undefined} className={chipClass(!!supremeHit)} style={chipStyle(!!supremeHit)}>
                 New supreme
               </button>
-              <button onClick={() => toggleChip(newsHit, () => armNews(ticker, Date.now()))} aria-pressed={!!newsHit} title={newsHit ? 'On — click to turn off' : 'Fires when a graded headline lands for this name'} className={chipClass(!!newsHit)} style={chipStyle(!!newsHit)}>
+              <button onClick={() => toggleChip(newsHit, () => armNews(ticker, Date.now()))} aria-pressed={!!newsHit} title={newsHit ? 'On — click to turn off' : 'Alerts when a headline lands for this name'} className={chipClass(!!newsHit)} style={chipStyle(!!newsHit)}>
                 News lands
               </button>
               {WALL_CHIPS.map(n => {

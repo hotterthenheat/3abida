@@ -14,11 +14,10 @@
 */
 
 import Simulator from '../core/simulator';
-import { expiryFor, type Expiry } from '../core/calendar';
+import { expiryFor, isoDate, type Expiry } from '../core/calendar';
 import { estimatePremium } from './compass';
-import { fmtUsd, spotChangePct } from './gex';
+import { spotChangePct } from './gex';
 import { blackScholesGreeks } from '../core/greeks';
-import { buildEarningsCalendar } from './earnings';
 import type { OptionRight } from '../types/compass';
 
 // ---- deterministic hash noise (the house pattern) ---------------------------
@@ -31,12 +30,6 @@ function hash(s: string): number {
   return h >>> 0;
 }
 const h01 = (s: string) => hash(s) / 4294967295;
-
-/* Cent arithmetic that survives binary floating point: 0.19 * 100 is
-   18.999999999999996 and floors to 18. The nudge is a hundred-thousandth of
-   a cent — far under anything a quote can express, far over the error. */
-const floorCent = (v: number) => Math.floor(v * 100 + 1e-7) / 100;
-const ceilCent = (v: number) => Math.ceil(v * 100 - 1e-7) / 100;
 
 /** Today's key, so day-stable noise rolls at midnight like the sim's quotes.
     Remembered for a second at a time: it is asked ten times per contract,
@@ -52,76 +45,6 @@ const dayKey = () => {
   }
   return dayKeyMemo;
 };
-
-/* ---- the vol a quote implies -----------------------------------------------
-   A chain that prints ONE implied vol leaves a reader looking at a wide
-   market with no way to tell whether that width is a penny or three vol
-   points — and vol points are the units an options trader prices in. So the
-   quote gets read back through the pricer at each side: the bid's vol and the
-   ask's vol bracket the mark's, and the gap between them IS the spread,
-   stated honestly.
-
-   Inverted against estimatePremium, the same estimator that produced the
-   mark — never against a different model. A Black-Scholes inversion of an
-   estimatePremium price would return numbers that fail to bracket the
-   chain's own IV, which is worse than printing nothing at all.
-
-   Bisection, not Newton: the premium is strictly increasing in vol here, so
-   a bracket always converges, while Newton divides by a vega that collapses
-   in the deep wings and returns a confident absurdity. The bracket starts at
-   the contract's own IV on the appropriate side, which is where the answer
-   provably is. Null when no vol explains the price — a bid under intrinsic
-   is a quote problem, not a vol.
-
-   AND NULL ON THE ESTIMATOR'S OWN FLOOR, which is the case bisection hides
-   rather than reports. `estimatePremium` bottoms out at PREMIUM_FLOOR, so
-   every quote at or under a nickel prices the same at 1% vol as at 12%, and
-   a bracket that keeps halving lands on its own floor and calls it 0.01%.
-   A 0DTE wing then printed "0.01 / 15.26" — a fifteen-point vol spread on a
-   two-cent market, which is not a wide market, it is a broken number. If a
-   whole vol point cannot move the premium by as much as the quote's own
-   resolution, the quote does not carry a vol, and the column says nothing
-   rather than saying that.
-*/
-const IV_CEILING = 5;
-function ivAtPrice(
-  price: number,
-  spot: number,
-  strike: number,
-  right: OptionRight,
-  tYears: number,
-  iv: number
-): number | null {
-  if (!(price > 0) || !(tYears > 0) || !(iv > 0)) return null;
-  const at = (v: number) => estimatePremium(spot, strike, right, v, tYears);
-  const mid = at(iv);
-  let lo: number;
-  let hi: number;
-  if (price <= mid) {
-    lo = 1e-4;
-    hi = iv;
-    if (price < at(lo) - 1e-9) return null;
-  } else {
-    lo = iv;
-    hi = IV_CEILING;
-    if (price > at(hi) + 1e-9) return null;
-  }
-  /* 24 halvings take a 5-wide bracket under 1e-6 — four orders finer than
-     the one decimal of a percent the column prints. */
-  for (let i = 0; i < 24 && hi - lo > 1e-6; i++) {
-    const m = (lo + hi) / 2;
-    if (at(m) < price) lo = m;
-    else hi = m;
-  }
-  const v = (lo + hi) / 2;
-  /* HALF A CENT is the quote's own resolution — the bid and the ask are both
-     rounded to the cent before they get here. A vol point that moves the
-     premium by less than that is a vol point the market cannot express, so
-     the answer above is whichever end of the flat band the bracket walked in
-     from rather than a reading. See the head of this block. */
-  if (at(Math.min(IV_CEILING, v + 0.01)) - at(Math.max(1e-4, v - 0.01)) < 0.005) return null;
-  return Number((v * 100).toFixed(2));
-}
 
 // ---- the chain --------------------------------------------------------------
 
@@ -142,10 +65,6 @@ export interface DeskContract {
   /** The quote around the mark — bid under, ask over, by a moneyness-wide spread */
   bid: number;
   ask: number;
-  /** The vol each side of the quote implies — the spread in vol points.
-      Null when no vol explains that price (a bid under intrinsic). */
-  bidIv: number | null;
-  askIv: number | null;
   /** Session extremes and reference prints for the drilldown */
   high: number;
   low: number;
@@ -219,12 +138,34 @@ export function deskExpiries(): Expiry[] {
   const out: Expiry[] = [];
   for (const dte of DESK_DTES) {
     const e = expiryFor(dte);
-    const key = e.date.toISOString().slice(0, 10);
+    const key = isoDate(e.date);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(e);
   }
   return out;
+}
+
+/** The desk's horizon (calendar days, what `expiryFor` walks) for a REAL
+    expiry date ("2026-09-18") — a deep link carries the date, never a count
+    (the Record sent sessions once and the desk read them as days: a Friday
+    print landed on the Wednesday, 2026-09-12). A listed horizon that resolves
+    to the date wins, so the rail's own door is the one that lights; otherwise
+    the first horizon inside ninety days that lands there; null past that.
+    What comes back is the RESOLVED horizon (`Expiry.dte`, the calendar days
+    to the real date) — the value the rail's options carry and the desk
+    stores — never the requested one (a "7" asked on a Saturday resolves to
+    Friday, six days out; storing 7 would list the Friday twice). */
+export function dteForDate(key: string): number | null {
+  for (const dte of DESK_DTES) {
+    const e = expiryFor(dte);
+    if (isoDate(e.date) === key) return e.dte;
+  }
+  for (let dte = 0; dte <= 90; dte++) {
+    const e = expiryFor(dte);
+    if (isoDate(e.date) === key) return e.dte;
+  }
+  return null;
 }
 
 /** A single contract's IV on the same smile the chain prices with —
@@ -284,12 +225,7 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
 
   const side = (strike: number, right: OptionRight, oi: number): DeskContract => {
     const iv = contractIv(baseIv, spot, strike, right);
-    /* The model's own price, unrounded — the quote is built around THIS, and
-       the printed mark is only its cent-rounded face. Building the quote
-       around the rounded face instead is what let a bid land above the fair
-       value on a cheap contract (see the outward rounding below). */
-    const fair = estimatePremium(spot, strike, right, iv, t);
-    const mark = Number(fair.toFixed(2));
+    const mark = Number(estimatePremium(spot, strike, right, iv, t).toFixed(2));
     const g = blackScholesGreeks(spot, strike, t, iv);
     const r = 0.05;
     const d1 = (Math.log(spot / strike) + (r + (iv * iv) / 2) * t) / (iv * Math.sqrt(t));
@@ -307,17 +243,9 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
     /* The spread widens as the contract leaves the money — a $12 ATM name is
        penny-wide, a lotto is not. Floored at a cent. */
     const m = Math.abs(strike - spot) / spot;
-    const spread = Math.max(0.01, fair * (0.015 + 0.06 * Math.min(1, m * 5)) * (0.6 + 0.8 * h01(`${seed}-spr`)));
-    /* THE QUOTE ROUNDS OUTWARD, the way a real one does: the bid falls to the
-       cent below, the ask rises to the cent above, and neither is ever nudged
-       ACROSS the fair value by a rounding step. Rounding both to nearest let
-       a bid land a hair above the model's own price on a sub-dollar contract,
-       and its implied vol then read higher than the contract's own — exactly
-       the thing the Bid IV column exists to rule out. Floor and ceiling make
-       bid < fair < ask true by construction, so bid IV < IV < ask IV is true
-       by construction too. */
-    const bid = Math.max(0, floorCent(fair - spread / 2));
-    const ask = ceilCent(fair + spread / 2);
+    const spread = Math.max(0.01, mark * (0.015 + 0.06 * Math.min(1, m * 5)) * (0.6 + 0.8 * h01(`${seed}-spr`)));
+    const bid = Math.max(0, Number((mark - spread / 2).toFixed(2)));
+    const ask = Number((mark + spread / 2).toFixed(2));
     const last = Number((bid + (ask - bid) * h01(`${seed}-fill`)).toFixed(2));
     const prevClose = Math.max(0.01, Number(estimatePremium(prevSpot, strike, right, iv, t + 1 / 252).toFixed(2)));
     const high = Number((Math.max(mark, last, prevClose) * (1 + 0.04 + 0.09 * h01(`${seed}-hi`))).toFixed(2));
@@ -365,8 +293,6 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
       rho,
       bid,
       ask,
-      bidIv: ivAtPrice(bid, spot, strike, right, t, iv),
-      askIv: ivAtPrice(ask, spot, strike, right, t, iv),
       high,
       low,
       prevClose,
@@ -406,47 +332,13 @@ export function buildDeskChain(ticker: string, dte: number, depth = 10): DeskCha
 
 // ---- the scanner ------------------------------------------------------------
 
-/*
-  THE KINDS (Noah, 2026-09-12: "add more features on the scanner like new 52
-  week low/high, gap up or down today, highest option volume, highest implied
-  volatility, upcoming earnings, daily price jumps and dips and whatever else
-  you think of that are nice and easy"). Each kind is a QUESTION asked of the
-  same roster, ranked by its own figure — and that figure is the row's fourth
-  fact, so the scanner always prints the number it sorted by.
-*/
-export type ScanPreset =
-  | 'gainers'
-  | 'losers'
-  | 'hi52'
-  | 'lo52'
-  | 'gapup'
-  | 'gapdown'
-  | 'jumps'
-  | 'dips'
-  | 'optvol'
-  | 'unusual'
-  | 'iv'
-  | 'lowiv'
-  | 'earnings'
-  | 'voliv';
+export type ScanPreset = 'gainers' | 'losers' | 'voliv';
 
-export const SCAN_PRESETS: { key: ScanPreset; label: string; hint: string; fact: string; empty: string }[] = [
-  { key: 'gainers', label: 'Gainers today', hint: 'The largest gains this session first', fact: 'Change', empty: 'No names up today' },
-  { key: 'losers', label: 'Losers today', hint: 'The largest losses this session first', fact: 'Change', empty: 'No names down today' },
-  { key: 'hi52', label: 'New 52-week highs', hint: 'Names at or nearest their 52-week high', fact: 'From 52w high', empty: 'Nothing near a high' },
-  { key: 'lo52', label: 'New 52-week lows', hint: 'Names at or nearest their 52-week low', fact: 'From 52w low', empty: 'Nothing near a low' },
-  { key: 'gapup', label: 'Gap up today', hint: 'Opened above yesterday\u2019s close, biggest gap first', fact: 'Gap', empty: 'No gaps up today' },
-  { key: 'gapdown', label: 'Gap down today', hint: 'Opened below yesterday\u2019s close, biggest gap first', fact: 'Gap', empty: 'No gaps down today' },
-  { key: 'jumps', label: 'Daily price jumps', hint: 'The sharpest single move up inside the session', fact: 'Jump', empty: 'No jumps yet today' },
-  { key: 'dips', label: 'Daily price dips', hint: 'The sharpest single move down inside the session', fact: 'Dip', empty: 'No dips yet today' },
-  { key: 'optvol', label: 'Highest option volume', hint: 'The most contracts traded across the chain', fact: 'Opt vol', empty: 'Nothing on the tape' },
-  { key: 'unusual', label: 'Unusual option volume', hint: 'Today\u2019s contracts against the name\u2019s usual day', fact: 'vs usual', empty: 'Nothing unusual' },
-  { key: 'iv', label: 'Highest implied volatility', hint: 'The priciest vol first', fact: 'IV', empty: 'Nothing on the tape' },
-  { key: 'lowiv', label: 'Lowest implied volatility', hint: 'The cheapest vol first', fact: 'IV', empty: 'Nothing on the tape' },
-  { key: 'earnings', label: 'Upcoming earnings', hint: 'Reports inside two weeks, soonest first', fact: 'Reports', empty: 'No reports in the next two weeks' },
-  { key: 'voliv', label: 'Busiest options', hint: 'The most contracts traded, the priciest vol first', fact: 'Opt vol', empty: 'Nothing on the tape' },
+export const SCAN_PRESETS: { key: ScanPreset; label: string; hint: string }[] = [
+  { key: 'gainers', label: 'Daily gainers', hint: 'Largest session gains first' },
+  { key: 'losers', label: 'Daily losers', hint: 'Largest session losses first' },
+  { key: 'voliv', label: 'Options volume · IV', hint: 'Busiest option tapes, priciest vol first' },
 ];
-export const SCAN_PRESET_KEYS = new Set<string>(SCAN_PRESETS.map(p => p.key));
 
 export interface ScanRow {
   ticker: string;
@@ -455,150 +347,41 @@ export interface ScanRow {
   /** Contracts traded today across the name's chain */
   optVolume: number;
   ivPct: number;
-  /** Today's option volume against the name's usual day, \u00d7 */
-  volVsUsual: number;
-  /** Today's open against yesterday's close, signed % (0 before the open) */
-  gapPct: number;
-  /** The sharpest single bar move up inside today's session, % */
-  jumpPct: number;
-  /** The sharpest single bar move down inside today's session, % (\u2264 0) */
-  dipPct: number;
-  hi52: number;
-  lo52: number;
-  /** Signed distance from the 52-week high (\u2264 0 unless printing a new one) */
-  fromHi52Pct: number;
-  /** Signed distance from the 52-week low (\u2265 0 unless printing a new one) */
-  fromLo52Pct: number;
-  /** Sessions until the next report; null = none inside the calendar's two weeks */
-  earnDays: number | null;
-  /** The figure this kind ranked by, formatted — the row's fourth fact */
-  fact: string;
-  /** The fact's ink: bull, bear, or the primary white */
-  factInk: 'bull' | 'bear' | 'white' | 'warn';
 }
-
-/** Today's session off the sim's bars: the open against the prior close, and
-    the sharpest bar-to-bar moves inside the day. Names not yet seeded read 0. */
-function sessionShape(ticker: string): { gapPct: number; jumpPct: number; dipPct: number } {
-  const bars = Simulator.isSeeded(ticker) ? Simulator.getCandles(ticker) : null;
-  if (!bars || bars.length < 3) return { gapPct: 0, jumpPct: 0, dipPct: 0 };
-  const interval = bars[bars.length - 1].time - bars[bars.length - 2].time || 60;
-  let start = bars.length - 1;
-  while (start > 0 && bars[start].time - bars[start - 1].time <= interval * 2) start--;
-  const prevClose = start > 0 ? bars[start - 1].close : bars[start].open;
-  const gapPct = prevClose > 0 ? ((bars[start].open - prevClose) / prevClose) * 100 : 0;
-  let jump = 0;
-  let dip = 0;
-  for (let i = Math.max(start, 1); i < bars.length; i++) {
-    const ref = bars[i - 1].close;
-    if (ref <= 0) continue;
-    jump = Math.max(jump, ((bars[i].high - ref) / ref) * 100);
-    dip = Math.min(dip, ((bars[i].low - ref) / ref) * 100);
-  }
-  return { gapPct, jumpPct: jump, dipPct: dip };
-}
-
-const pct = (v: number, dp = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
 
 export function buildScan(preset: ScanPreset, active: string): ScanRow[] {
   const quotes = Simulator.universeQuotes(active);
-  const day = dayKey();
-  /* The calendar, once per build — reports inside two weeks by name */
-  const reports = new Map<string, number>();
-  try {
-    for (const e of buildEarningsCalendar()) {
-      const cur = reports.get(e.ticker);
-      if (cur == null || e.daysOut < cur) reports.set(e.ticker, e.daysOut);
-    }
-  } catch {
-    /* a calendar that cannot build leaves every name without a date */
-  }
   const rows: ScanRow[] = quotes.map(q => {
     /* SEEDED MEANS THE HISTORY EXISTS, not the config (2026-09-06, the perf
        sweep): a roster name the Compass pump had registered and walked
        halfway counted as seeded here, and spotChangePct then finished its
-       walk synchronously \u2014 110ms inside the Weigher's open, profiled. */
+       walk synchronously — 110ms inside the Weigher's open, profiled. */
     const seeded = Simulator.isSeeded(q.ticker);
     /* Seeded names report their real simulated session; roster names not yet
        clicked awake get a day-stable read, the same contract their scan
        quote already keeps. */
     const changePct = seeded
       ? Number(spotChangePct(q.ticker).toFixed(2))
-      : Number(((h01(`${q.ticker}-${day}-chg`) - 0.5) * 6.4).toFixed(2));
+      : Number(((h01(`${q.ticker}-${dayKey()}-chg`) - 0.5) * 6.4).toFixed(2));
     const optVolume = Math.round(
-      (h01(`${q.ticker}-${day}-ovol`) * 0.7 + q.iv * 0.9) * 900_000 + 40_000
+      (h01(`${q.ticker}-${dayKey()}-ovol`) * 0.7 + q.iv * 0.9) * 900_000 + 40_000
     );
-    /* The name's usual day \u2014 its own level, so an index name is not
-       "unusual" merely for being big */
-    const usual = Math.round((0.45 + h01(`${q.ticker}-usual`) * 0.5 + q.iv * 0.6) * 900_000 + 40_000);
-    const shape = seeded ? sessionShape(q.ticker) : { gapPct: 0, jumpPct: 0, dipPct: 0 };
-    /* The 52-week range, day-stable around the name's reference price: the
-       high sits 4\u201336% over it, the low 4\u201336% under, and a name can print a
-       NEW high or low when its live price runs through the bound. */
-    const hi52 = Number((q.price * (1 + 0.04 + h01(`${q.ticker}-hi52`) * 0.32) * (1 - changePct / 100)).toFixed(2));
-    const lo52 = Number((q.price * (1 - 0.04 - h01(`${q.ticker}-lo52`) * 0.32) * (1 - changePct / 100)).toFixed(2));
-    const fromHi52Pct = ((q.price - hi52) / hi52) * 100;
-    const fromLo52Pct = ((q.price - lo52) / lo52) * 100;
     return {
       ticker: q.ticker,
       last: Number(q.price.toFixed(2)),
       changePct,
       optVolume,
       ivPct: Number((q.iv * 100).toFixed(1)),
-      volVsUsual: Number((optVolume / usual).toFixed(2)),
-      gapPct: Number(shape.gapPct.toFixed(2)),
-      jumpPct: Number(shape.jumpPct.toFixed(2)),
-      dipPct: Number(shape.dipPct.toFixed(2)),
-      hi52,
-      lo52,
-      fromHi52Pct: Number(fromHi52Pct.toFixed(2)),
-      fromLo52Pct: Number(fromLo52Pct.toFixed(2)),
-      earnDays: reports.get(q.ticker) ?? null,
-      fact: '',
-      factInk: 'white',
     };
   });
 
-  const take = (list: ScanRow[], fact: (r: ScanRow) => { text: string; ink: ScanRow['factInk'] }) =>
-    list.slice(0, 14).map(r => {
-      const f = fact(r);
-      return { ...r, fact: f.text, factInk: f.ink };
-    });
-  const chg = (r: ScanRow) => ({ text: pct(r.changePct), ink: (r.changePct >= 0 ? 'bull' : 'bear') as ScanRow['factInk'] });
-
   switch (preset) {
     case 'gainers':
-      return take(rows.filter(r => r.changePct > 0).sort((a, b) => b.changePct - a.changePct), chg);
+      return rows.filter(r => r.changePct > 0).sort((a, b) => b.changePct - a.changePct).slice(0, 14);
     case 'losers':
-      return take(rows.filter(r => r.changePct < 0).sort((a, b) => a.changePct - b.changePct), chg);
-    case 'hi52':
-      /* Nearest the high first \u2014 a name printing through it reads "new high" */
-      return take([...rows].sort((a, b) => b.fromHi52Pct - a.fromHi52Pct), r => ({ text: r.fromHi52Pct >= -0.25 ? 'new high' : pct(r.fromHi52Pct), ink: r.fromHi52Pct >= -0.25 ? 'bull' : 'white' }));
-    case 'lo52':
-      return take([...rows].sort((a, b) => a.fromLo52Pct - b.fromLo52Pct), r => ({ text: r.fromLo52Pct <= 0.25 ? 'new low' : pct(r.fromLo52Pct), ink: r.fromLo52Pct <= 0.25 ? 'bear' : 'white' }));
-    case 'gapup':
-      return take(rows.filter(r => r.gapPct > 0.05).sort((a, b) => b.gapPct - a.gapPct), r => ({ text: pct(r.gapPct), ink: 'bull' }));
-    case 'gapdown':
-      return take(rows.filter(r => r.gapPct < -0.05).sort((a, b) => a.gapPct - b.gapPct), r => ({ text: pct(r.gapPct), ink: 'bear' }));
-    case 'jumps':
-      return take(rows.filter(r => r.jumpPct > 0.05).sort((a, b) => b.jumpPct - a.jumpPct), r => ({ text: pct(r.jumpPct), ink: 'bull' }));
-    case 'dips':
-      return take(rows.filter(r => r.dipPct < -0.05).sort((a, b) => a.dipPct - b.dipPct), r => ({ text: pct(r.dipPct), ink: 'bear' }));
-    case 'optvol':
-      return take([...rows].sort((a, b) => b.optVolume - a.optVolume), r => ({ text: fmtUsd(r.optVolume).replace('$', ''), ink: 'white' }));
-    case 'unusual':
-      return take([...rows].sort((a, b) => b.volVsUsual - a.volVsUsual), r => ({ text: `${r.volVsUsual.toFixed(2)}\u00d7`, ink: r.volVsUsual >= 1.5 ? 'warn' : 'white' }));
-    case 'iv':
-      return take([...rows].sort((a, b) => b.ivPct - a.ivPct), r => ({ text: `${r.ivPct.toFixed(0)}%`, ink: 'white' }));
-    case 'lowiv':
-      return take([...rows].sort((a, b) => a.ivPct - b.ivPct), r => ({ text: `${r.ivPct.toFixed(0)}%`, ink: 'white' }));
-    case 'earnings':
-      return take(
-        rows.filter(r => r.earnDays != null).sort((a, b) => (a.earnDays ?? 99) - (b.earnDays ?? 99)),
-        r => ({ text: r.earnDays === 0 ? 'today' : r.earnDays === 1 ? 'tomorrow' : `in ${r.earnDays}d`, ink: (r.earnDays ?? 9) <= 2 ? 'warn' : 'white' })
-      );
+      return rows.filter(r => r.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, 14);
     case 'voliv':
-      return take([...rows].sort((a, b) => b.optVolume * b.ivPct - a.optVolume * a.ivPct), r => ({ text: fmtUsd(r.optVolume).replace('$', ''), ink: 'white' }));
+      return [...rows].sort((a, b) => b.optVolume * b.ivPct - a.optVolume * a.ivPct).slice(0, 14);
   }
 }
 

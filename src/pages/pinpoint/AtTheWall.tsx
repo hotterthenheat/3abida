@@ -31,7 +31,7 @@ import ScopeChip from '../../components/ui/ScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import AtTheWallBand from '../../components/gex/AtTheWall';
 import WallBoard from '../../components/gex/WallBoard';
-import { AtTheWallInner, boardH, WallBoardInner, WallPageSkeleton } from '../../components/gex/wallSkeletons';
+import { AtTheWallInner, WallBoardInner, WallPageSkeleton } from '../../components/gex/wallSkeletons';
 import { buildExposureProfile } from '../../data/exposure';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { aheadClock } from '../../data/ahead';
@@ -154,11 +154,11 @@ const AtTheWall = () => {
         </Deferred>
       </div>
 
-      {/* BOX 2 — EVERY WALL: a box of its own height, the rows sharing it (Noah,
-          2026-09-09) — capped at the five-wall row (Noah, 2026-09-10: "cap it
-          at 64"), so fewer walls make a shorter box, not taller rows */}
-      <div className="border border-borderSubtle rounded-md bg-panel flex flex-col" style={{ height: boardH(boardBoard.walls.length) }} data-wall-every data-scope-ticker={boardTicker}>
-        <Deferred index={1} fallback={<WallBoardInner rows={boardBoard.walls.length || 8} />} className="h-full min-h-0 flex flex-col animate-fade-in">
+      {/* BOX 2 — EVERY WALL: as tall as its rows, every row one fixed height (Noah,
+          2026-09-13: the box "keeps increasing and decreasing in size… the bars
+          should not be getting bigger") */}
+      <div className="border border-borderSubtle rounded-md bg-panel" data-wall-every data-scope-ticker={boardTicker}>
+        <Deferred index={1} fallback={<WallBoardInner rows={boardBoard.walls.length || 6} />} className="animate-fade-in">
           <WallBoard board={boardBoard} clock={clock} focus={focusFor(boardTicker)} onPick={strike => toggleFocus(strike, boardTicker)} scope={chipFor('board', boardTicker)} />
         </Deferred>
       </div>

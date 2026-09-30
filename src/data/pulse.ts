@@ -1,8 +1,8 @@
 /*
 ==================================================
   SLAYER TERMINAL - COMMAND COCKPIT MODEL (command.ts)
-  Dealer pressure matrix, key-levels rail, order-flow
-  delta and auto market notes, derived from the
+  Dealer pressure matrix, key-levels rail and auto
+  market notes, derived from the
   simulator. Placeholder data contract — swaps for the
   real feed later.
 ==================================================
@@ -12,11 +12,8 @@ import type { MarketSnapshot } from '../types/market';
 import type {
   PulseView,
   DealerBias,
-  DeltaByPrice,
-  DeltaPoint,
   KeyLevelRow,
   KeyLevels,
-  OrderFlowData,
   PressureRow,
 } from '../types/gex';
 
@@ -115,62 +112,6 @@ export function buildKeyLevels(snapshot: MarketSnapshot, levels: KeyLevels, pin:
   return rows.sort((a, b) => b.price - a.price);
 }
 
-// ---- order flow ---------------------------------------------------------------
-function buildOrderFlow(snapshot: MarketSnapshot): OrderFlowData {
-  const { ticker, spot, priceHistory } = snapshot;
-
-  // Cumulative delta follows intraday price impulses with deterministic noise
-  const cumulativeDelta: DeltaPoint[] = [];
-  let cum = 0;
-  for (let i = 1; i < priceHistory.length; i++) {
-    const move = priceHistory[i] - priceHistory[i - 1];
-    const noise = (h01(`${ticker}-cd-${i}`) - 0.5) * 0.4;
-    cum += (move / spot) * 8e9 + noise * 2e7;
-    cumulativeDelta.push({ minute: i, value: cum });
-  }
-
-  // Delta by price — bucketed around the session range
-  const lo = Math.min(...priceHistory);
-  const hi = Math.max(...priceHistory);
-  const BUCKETS = 12;
-  const width = (hi - lo) / BUCKETS || 1;
-  const deltaByPrice: DeltaByPrice[] = [];
-  let poc = spot;
-  let pocVol = 0;
-  for (let b = 0; b < BUCKETS; b++) {
-    const price = lo + width * (b + 0.5);
-    let value = 0;
-    let vol = 0;
-    for (let i = 1; i < priceHistory.length; i++) {
-      if (priceHistory[i] >= lo + width * b && priceHistory[i] < lo + width * (b + 1)) {
-        value += (priceHistory[i] - priceHistory[i - 1]) * 4e7;
-        vol += 1;
-      }
-    }
-    if (vol > pocVol) {
-      pocVol = vol;
-      poc = price;
-    }
-    deltaByPrice.push({ price: Number(price.toFixed(2)), value });
-  }
-
-  const netDelta = cumulativeDelta[cumulativeDelta.length - 1]?.value ?? 0;
-  const gross = Math.abs(netDelta) + 6e8 + h01(`${ticker}-gross`) * 4e8;
-  const buyVolume = (gross + netDelta) / 2;
-  const sellVolume = (gross - netDelta) / 2;
-  const vwap = priceHistory.reduce((a, p) => a + p, 0) / (priceHistory.length || 1);
-
-  return {
-    cumulativeDelta,
-    deltaByPrice,
-    buyVolume,
-    sellVolume,
-    netDelta,
-    vwap: Number(vwap.toFixed(2)),
-    poc: Number(poc.toFixed(2)),
-  };
-}
-
 // ---- auto market notes ----------------------------------------------------------
 /** One generated observation per scan, or null when nothing is notable. */
 export function makeAutoNote(snapshot: MarketSnapshot, levels: KeyLevels, bias: DealerBias): string | null {
@@ -234,7 +175,6 @@ export function buildPulseView(snapshot: MarketSnapshot): PulseView {
     pressure: rows,
     pressureMaxAbs: maxAbs,
     keyLevels: buildKeyLevels(snapshot, levels, pin),
-    orderFlow: buildOrderFlow(snapshot),
     bias,
     biasNote,
   };

@@ -26,15 +26,13 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { type BodyScrollEvent, type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../ui/houseGrid';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import type { Column } from '../ui/DataTable';
-import DataState, { type DataStateKind } from '../ui/DataState';
-import { withLeadingMark } from '../ui/Name';
 
 /** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30) */
 export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12 });
@@ -58,8 +56,9 @@ export const Champion = ({ label, ink, onOpen, children, testId }: { label: stri
   <div className="min-w-0">
     <dt className={`text-[10px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
     <dd className="mt-0.5 whitespace-nowrap" data-trace-champion={testId}>
-      <button type="button" onClick={onOpen} title="Open the contract's card" className="font-mono text-[12px] tnum font-semibold text-textPrimary hover:underline underline-offset-2 decoration-textMuted">
-        {withLeadingMark(children)}
+      {/* the door's own hover, silver (door.ts) — it underlined on hover before 2026-09-16 */}
+      <button type="button" onClick={onOpen} title="Open the contract's card" className="font-mono text-[12px] tnum font-semibold text-textPrimary hover:text-silver transition-colors">
+        {children}
       </button>
     </dd>
   </div>
@@ -104,17 +103,24 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{sub}</p>
         </div>
-        {/* FLEX-WRAP, NEVER grid-flow-col auto-cols-max. That grid CANNOT
-            wrap: on a 390px phone this strip measured 794px wide and four of
-            its six facts sat past the right edge with no horizontal scroll to
-            reach them — "sweeps · blocks", "0DTE", both champions, simply
-            absent. Every Trace page wears this one strip, so it was the same
-            four facts missing eleven times. */}
-        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-trace-facts>
+        {/* THE FACTS WRAP (the phone pass, 2026-09-13 — Noah: "make sure every
+            page and section ticks the box of mobile viewing"): a column-flow
+            grid had one row whatever the width, so on a phone the fourth fact
+            ran under the box's edge; a wrapping row keeps one line where it
+            fits and two where it does not. */}
+        <dl className="flex flex-wrap gap-x-6 gap-y-2" data-trace-facts>
           {facts}
         </dl>
       </div>
-      <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-trace-controls>
+      {/* THE CARDS LINE: one line where it fits; on a phone TWO COLUMNS, every
+          card a cell (a wrapping row put the cards wherever they landed —
+          Noah: "the buttons just randomly get compressed with no order"); the
+          right-hand group (Rail · Columns, `ml-auto`) takes a row of its own
+          at the end, still at the right. */}
+      <div
+        className="px-5 pb-2 flex items-center gap-2 flex-wrap max-sm:grid max-sm:grid-cols-2 max-sm:[&>*]:min-w-0 max-sm:[&>.ml-auto]:col-span-2 max-sm:[&>.ml-auto]:justify-end"
+        data-trace-controls
+      >
         {controls}
       </div>
       <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-trace-sentence>
@@ -146,24 +152,56 @@ export function columnsToColDefs<T>(columns: Column<T>[], hidden: Set<string>, w
     if (fixed) def.width = fixed;
     else {
       def.flex = flexes[c.key] ?? 1;
-      /* 92, not 84: the house's widest standard cell (the Lean bar) is 64px
-         and the grid's own padding is 24, so 84 guaranteed a four-pixel
-         overflow — and an overflowing cell paints a CLIPPED ELLIPSIS, a
-         single stray dot at the cell's edge that reads as a rendering
-         fault. A floor below what the house's own cells need is not a
-         floor. */
-      def.minWidth = 92;
+      def.minWidth = 84;
     }
     return def;
   });
 }
 
-/** AG Grid's no-rows overlay, in the house's own words. A COMPONENT, not the
-    HTML template it was: a template cannot carry an icon, a second line or a
-    retry, which is why the grids only ever said one of the four things. */
-const NoRows = (p: { kind?: DataStateKind; title?: string; body?: ReactNode; onRetry?: () => void }) => (
-  <DataState kind={p.kind ?? 'empty'} title={p.title} body={p.body} onRetry={p.onRetry} pad="sm" />
-);
+/* THE HEAVIEST AT REST, for every grid that grows (lifted from Intervals, 2026-09-20 — Noah, clearing the search on the
+   book: "the repositioning… seem to be quite delayed causing it to look like lagging"). A grid that GROWS WITH ITS ROWS
+   (autoHeight — the page scrolls, not the grid) draws EVERY row it holds: nothing is windowed. The book at rest is 403
+   rows × 17 columns = 6,851 cells, each a React cell, and clearing the search mounted them all in one go — measured, one
+   task of 625–668ms with the page frozen under it, and only THEN did the rows start to slide. So at rest a grid holds its
+   first 80 rows (they are already ranked — the screen's own order) and a foot says how many there are and opens the rest.
+   Never a door for fewer than 20 hidden rows: a door that hides a dozen is chrome. The reader's choice holds while the
+   page is open. The page's figures (premium, counts, the champions, the drill's list) still read EVERY row. */
+export const ROWS_AT_REST = 80;
+const CAP_SLACK = 20;
+export interface RestCap<T> {
+  shown: T[];
+  capped: boolean;
+  /** Is there a foot at all */
+  door: boolean;
+  total: number;
+  toggle: () => void;
+}
+export function useRestCap<T>(rows: T[]): RestCap<T> {
+  const [all, setAll] = useState(false);
+  const door = rows.length > ROWS_AT_REST + CAP_SLACK;
+  const capped = door && !all;
+  const shown = useMemo(() => (capped ? rows.slice(0, ROWS_AT_REST) : rows), [rows, capped]);
+  return { shown, capped, door, total: rows.length, toggle: () => setAll(v => !v) };
+}
+export const RestFoot = <T,>({ cap, noun = 'contracts', testId }: { cap: RestCap<T>; noun?: string; testId: string }) =>
+  cap.door ? (
+    <div className="px-5 py-2.5 border-t border-borderSubtle flex items-center gap-2 text-[11px] text-textSecondary" data-rest-foot={testId} data-capped={cap.capped || undefined}>
+      <span>{cap.capped ? `The first ${ROWS_AT_REST} of ${cap.total.toLocaleString('en-US')} ${noun}` : `All ${cap.total.toLocaleString('en-US')} ${noun}`}</span>
+      <span className="text-textMuted" aria-hidden>
+        ·
+      </span>
+      <button type="button" onClick={cap.toggle} className="font-semibold text-textPrimary hover:text-silver transition-colors" data-rest-door>
+        {cap.capped ? 'Show all' : `Show the first ${ROWS_AT_REST}`}
+      </button>
+    </div>
+  ) : null;
+
+/** How many rows must come or go at once for a change to be A CUT (a card, the search) rather than the tape moving */
+const CUT_JUMP = 8;
+/** The crossfade: how far the rows step back, how long that takes, how long they take to come up */
+const CUT_DIM = 0.3;
+const CUT_OUT_MS = 120;
+const CUT_IN_MS = 420;
 
 interface TraceGridProps<T> {
   rows: T[];
@@ -187,20 +225,10 @@ interface TraceGridProps<T> {
   /** Rows slide to their new place on a re-sort (off for the tape: a print a second would keep every row moving) */
   animate?: boolean;
   emptyText?: string;
-  /* THE FOUR NON-ANSWERS (components/ui/DataState). A table with no rows is
-     not automatically EMPTY: it may be still loading, unable to answer at
-     all, or broken, and a reader who cannot tell the difference will keep
-     loosening a filter that was never the problem. The grids spoke only one
-     of the four — a grey line of small caps — so every surface behind them
-     said "nothing" whatever had actually happened. */
-  state?: DataStateKind;
-  /** One line under the headline: what would put something here, or why not */
-  emptyBody?: ReactNode;
-  onRetry?: () => void;
   testId: string;
 }
 
-export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, testId }: TraceGridProps<T>) => {
+export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', testId }: TraceGridProps<T>) => {
   const gridRef = useRef<AgGridReact<T>>(null);
   const hiddenSet = hidden ?? new Set<string>();
   const columnDefs = useMemo(() => {
@@ -213,6 +241,86 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columns, hiddenSet, widths, tooltips, flexes]);
   const defaultColDef = useMemo<ColDef<T>>(() => ({ sortable: true, resizable: true, suppressMovable: true }), []);
+  /* A CUT — the search cleared, a card turned, "Show all" — IS A CROSSFADE, NEVER A SLIDE AND NEVER A SWAP (2026-09-20).
+     Two complaints from Noah, the same afternoon, on the book:
+       · first the wait: clearing the search froze the page ~650ms and THEN two dozen rows slid out to their places among
+         hundreds ("the repositioning… seem to be quite delayed"). The slide is for a RE-RANK — the same rows in a new
+         order, the eye can follow one. For a cut there is nothing to follow, so a cut never glides (`animateRows` is read
+         when the grid redraws, and every changed option is set before the rows are, so turning it off on the render that
+         lands the cut is enough; the next re-rank glides again).
+       · then, with the wait gone, the opposite: "it just abruptly changes the tape very quickly" — one frame a name's
+         rows, the next frame eighty others.
+     So a cut is HELD for a moment: the rows the grid has STEP BACK (to 0.3 over 120ms), only then is the grid given the new
+     list, and once its rows are in they COME UP to full over 420ms. OPACITY ONLY, on the standard ease — the house rule
+     for anything that holds a table (index.css: travel re-rasterises every figure every frame, and the expo curve is at
+     0.87 by 90ms, a snap on a layer this large). THE MOUNT HIDES INSIDE THE STEP BACK: eighty rows × seventeen cells take
+     ~140ms of main thread, and they are spent while the rows stand still and dim — nothing on screen is moving, so
+     nothing can stutter. What is NOT a cut (the tape ticking, a re-rank, a few rows coming or going) passes straight
+     through, untouched. Reduced motion: no hold, no fade. Only the ROWS fade; the head stays put. */
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const calm = useMemo(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+  const landed = useRef(rows);
+  const latest = useRef(rows);
+  latest.current = rows;
+  const landedAt = useRef(0);
+  const [landN, setLandN] = useState(0);
+  const cutting = !calm && Math.abs(rows.length - landed.current.length) > Math.max(CUT_JUMP, landed.current.length * 0.15);
+  /* what the grid holds: the rows it had, while they step back; else the page's rows as they come */
+  const gridRows = cutting ? landed.current : rows;
+  useEffect(() => {
+    if (!cutting) landed.current = rows;
+  });
+  const rowsBody = () => wrapRef.current?.querySelector<HTMLElement>('.ag-grid-scrolling-rows') ?? null;
+  useEffect(() => {
+    if (!cutting) return;
+    const body = rowsBody();
+    const out = body?.animate([{ opacity: Number(getComputedStyle(body).opacity) || 1 }, { opacity: CUT_DIM }], { duration: CUT_OUT_MS, easing: 'ease-out', fill: 'forwards' });
+    const id = window.setTimeout(() => {
+      landed.current = latest.current;
+      landedAt.current = performance.now();
+      setLandN(n => n + 1);
+    }, CUT_OUT_MS);
+    return () => {
+      window.clearTimeout(id);
+      /* held at the dim until the come-up takes over (below); a cut that is called off lets go */
+      if (performance.now() - landedAt.current > 50) out?.cancel();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cutting]);
+  /* THE COME-UP starts on the first frame AFTER the new rows are in — the grid mounts them in the tasks that follow the
+     commit, so the moment is read off the rows themselves (a mutation, then a frame), with a floor so an empty list that
+     never mutates still comes up */
+  useLayoutEffect(() => {
+    if (landN === 0) return;
+    const body = rowsBody();
+    if (!body) return;
+    let raf = 0;
+    let done = false;
+    const up = () => {
+      if (done) return;
+      done = true;
+      mo.disconnect();
+      window.clearTimeout(floor);
+      const from = Math.min(Number(getComputedStyle(body).opacity) || CUT_DIM, 0.5);
+      body.getAnimations().forEach(a => a.cancel());
+      body.animate([{ opacity: from }, { opacity: 1 }], { duration: CUT_IN_MS, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
+    };
+    /* two quiet frames, not one: the grid mounts a long list in two passes (measured: 35 rows, then 80), and a come-up
+       begun between them lost its first 95ms to the second */
+    const mo = new MutationObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = requestAnimationFrame(up);
+      });
+    });
+    mo.observe(body, { childList: true, subtree: true });
+    const floor = window.setTimeout(up, 420);
+    return () => {
+      cancelAnimationFrame(raf);
+      up();
+    };
+  }, [landN]);
+  const glide = animate && !cutting && performance.now() - landedAt.current > 450;
   /* The open row wears the house selection — the drill's row, wherever the click came from */
   useEffect(() => {
     const api = gridRef.current?.api;
@@ -237,7 +345,6 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
      once the reader is a screen or so deep (the tape's 600px), gliding home
      on the house curve with absolute writes each frame so a tick cannot
      shove the scroll mid-glide; reduced motion jumps. */
-  const wrapRef = useRef<HTMLDivElement | null>(null);
   const [showTop, setShowTop] = useState(false);
   /* v36 scrolls the whole grid viewport (`.ag-grid-viewport`); older builds scrolled the body */
   const viewport = () => wrapRef.current?.querySelector<HTMLElement>('.ag-grid-viewport, .ag-body-viewport') ?? null;
@@ -278,13 +385,13 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   };
 
   return (
-    <div ref={wrapRef} className="slayer-board relative border-t border-borderSubtle" style={autoHeight ? undefined : { height }} data-trace-grid={testId}>
+    <div ref={wrapRef} className="slayer-board relative border-t border-borderSubtle" style={autoHeight ? undefined : { height }} data-trace-grid={testId} data-cutting={cutting || undefined}>
       <AgGridProvider modules={GRID_MODULES}>
         <AgGridReact<T>
           ref={gridRef}
           theme={TRACE_GRID_THEME}
           domLayout={autoHeight ? 'autoHeight' : undefined}
-          rowData={rows}
+          rowData={gridRows}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           getRowId={p => rowKey(p.data)}
@@ -293,11 +400,10 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
           onBodyScroll={onBodyScroll}
           rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
           suppressCellFocus
-          animateRows={animate}
+          animateRows={glide}
           tooltipShowDelay={350}
           tooltipHideDelay={8000}
-          noRowsOverlayComponent={NoRows}
-          noRowsOverlayComponentParams={{ kind: state, title: emptyText, body: emptyBody, onRetry }}
+          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${emptyText}</span>`}
         />
       </AgGridProvider>
       {showTop && !autoHeight && (

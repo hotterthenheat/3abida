@@ -2,12 +2,15 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MarketDataProvider } from './context/MarketDataContext';
-import AppBoundary from './components/layout/AppBoundary';
 import { TrackerProvider } from './context/TrackerContext';
 import { WatchProvider } from './context/WatchContext';
 import AppShell from './components/layout/AppShell';
 import { LaunchProvider } from './components/layout/LaunchTransition';
 import { FocusProvider } from './context/FocusContext';
+import EmbedBridge from './components/layout/EmbedBridge';
+import PageMeta from './components/layout/PageMeta';
+import { NotFoundInside, NotFoundPrompt } from './pages/notFound/NotFound';
+import { EMBEDDED } from './embed';
 
 /*
   EVERY PAGE IS ITS OWN CHUNK (2026-09-06, the perf sweep). The app used to
@@ -26,45 +29,45 @@ const CompassLayout = lazy(() => import('./pages/compass/CompassLayout'));
 const CompassBoard = lazy(() => import('./pages/compass/Board'));
 const CompassSetup = lazy(() => import('./pages/compass/SetupPage'));
 const Weigher = lazy(() => import('./pages/Weigher'));
-/* THE PAPER DESK (2026-09-19): the chart as the order ticket, on paper — its own tab under the Weigher */
-const Paper = lazy(() => import('./pages/paper/Paper'));
-const PaperJournal = lazy(() => import('./pages/paper/Journal'));
-const PaperRisk = lazy(() => import('./pages/paper/Risk'));
-const Watchlist = lazy(() => import('./pages/watchlist/Watchlist'));
-const Alerts = lazy(() => import('./pages/alerts/Alerts'));
-const NotFound = lazy(() => import('./pages/NotFound'));
 /* Stocks walked into the Record (2026-09-10): the screens beside the name's news and filings */
 const Stocks = lazy(() => import('./pages/record/Stocks'));
-/* A name's own page under Stocks (2026-09-13): the whole read, not a jump to the Map */
-const StockOverview = lazy(() => import('./pages/record/StockOverview'));
 /* The News Room is gone (2026-09-09, archived in docs/news-page-reference.md) — the page starts again under the Record */
 const News = lazy(() => import('./pages/record/News'));
 /* Earnings walked under the Record (2026-09-09): the calendar and a name's page */
 const Earnings = lazy(() => import('./pages/record/Earnings'));
-const Catalysts = lazy(() => import('./pages/record/Catalysts'));
 const EarningsName = lazy(() => import('./pages/record/EarningsName'));
+const StockName = lazy(() => import('./pages/record/StockName'));
 const RecordLayout = lazy(() => import('./pages/record/RecordLayout'));
+/* PRACTICE (2026-09-26): ONE section for trading with pretend money — Paper (today's prices: pages/paper), Backtest (a
+   replayed market: pages/review) and ONE Journal for both (docs/paper-rules.md, docs/review-backtest-rules.md) */
+const PracticeLayout = lazy(() => import('./pages/practice/PracticeLayout'));
+const PaperDesk = lazy(() => import('./pages/paper/Desk'));
+const ReviewSessions = lazy(() => import('./pages/review/Sessions'));
+const ReviewDesk = lazy(() => import('./pages/review/Desk'));
+const ReviewReport = lazy(() => import('./pages/review/Report'));
+const PracticeJournal = lazy(() => import('./pages/practice/Journal'));
+const PracticeJournalTrade = lazy(() => import('./pages/practice/JournalTrade'));
+
+/** An address that moved: its parts and its search carried to the new one (the old Paper and Review addresses, 2026-09-26) */
+const Moved = ({ to }: { to: (params: Record<string, string | undefined>, search: string) => string }) => {
+  const params = useParams();
+  const { search } = useLocation();
+  return <Navigate to={to(params, search)} replace />;
+};
+/** A Review journal address opens the backtest's book */
+const withBook = (search: string): string => {
+  const q = new URLSearchParams(search);
+  q.set('book', 'backtest');
+  return `?${q.toString()}`;
+};
 const Insiders = lazy(() => import('./pages/record/Insiders'));
 const Congress = lazy(() => import('./pages/record/Congress'));
 
-/* A REDIRECT THAT DROPS THE QUERY BREAKS EVERY LINK INTO THE PAGE. React
-   Router's <Navigate to="/path"> keeps the path and throws the search and
-   the hash away — harmless while a page's state lived in localStorage, and
-   silently destructive the moment a cut, a screen or a filter lives in the
-   address. /trace/tape?order=premium&kind=sweep landed on /trace/live-tape
-   with a bare URL and the reader's own default tape, and nothing said so.
-   Every hop below goes through Keep, which carries them. */
-const Keep = ({ to }: { to: string }) => {
-  const { search, hash } = useLocation();
-  return <Navigate to={{ pathname: to, search, hash }} replace />;
-};
-
-/** An old dossier link keeps its name on the way to the Record */
+/** An old earnings link keeps its name on the way to the Dossier */
 const EarningsRedirect = () => {
   const { ticker } = useParams();
-  return <Keep to={ticker ? `/record/earnings/${ticker}` : '/record/earnings'} />;
+  return <Navigate to={ticker ? `/dossier/earnings/${ticker}` : '/dossier/earnings'} replace />;
 };
-const ProveIt = lazy(() => import('./pages/proveit/ProveIt'));
 const Tracker = lazy(() => import('./pages/Tracker'));
 /* THE SETTINGS (2026-09-12): the theme first, the rest of the desk's preferences behind it */
 const Settings = lazy(() => import('./pages/settings/Settings'));
@@ -80,21 +83,19 @@ const TraceLayout = lazy(() => import('./pages/trace/TraceLayout'));
 const LiveTape = lazy(() => import('./pages/trace/LiveTape'));
 const OptionsScreener = lazy(() => import('./pages/trace/OptionsScreener'));
 const NetFlow = lazy(() => import('./pages/trace/NetFlow'));
+/* Two names side by side on the Trace (2026-09-13) */
+const TraceCompare = lazy(() => import('./pages/trace/Compare'));
+/* The dark pool, back as its own page (2026-09-13) */
+const DarkPool = lazy(() => import('./pages/trace/DarkPool'));
 const Footprints = lazy(() => import('./pages/trace/Footprints'));
 const Watchers = lazy(() => import('./pages/trace/Watchers'));
 const TradeWindows = lazy(() => import('./pages/trace/Windows'));
 const Odte = lazy(() => import('./pages/trace/Odte'));
 const MultiLeg = lazy(() => import('./pages/trace/MultiLeg'));
 const FlowTracker = lazy(() => import('./pages/trace/FlowTracker'));
-const DarkPool = lazy(() => import('./pages/trace/DarkPool'));
-const TraceCompare = lazy(() => import('./pages/trace/Compare'));
-/* THE COMMUNITY IS ONE ROOM (2026-09-13): the room, a profile, a name's page;
-   the requests and the feedback moved to their own page at /feedback */
-const CommunityLayout = lazy(() => import('./pages/community/CommunityLayout'));
+/* THE ROOM (2026-09-13): Community is one room now — the ideas, requests and feedback
+   pages are gone; it opens after launch, behind the glass */
 const Room = lazy(() => import('./pages/community/Room'));
-const Profile = lazy(() => import('./pages/community/Profile'));
-const TickerRoom = lazy(() => import('./pages/community/TickerRoom'));
-const Feedback = lazy(() => import('./pages/Feedback'));
 
 const App = () => {
   return (
@@ -104,70 +105,91 @@ const App = () => {
         <TrackerProvider>
         <WatchProvider>
         <LaunchProvider>
-        {/* THE LANDING SITS OUTSIDE THE SHELL, so it needs its own boundary —
-            and for a long time this comment said that above a <Suspense>,
-            which catches a slow chunk and not a fault. AppBoundary is the
-            error net; the Suspense below is still the dark screen that holds
-            while the chunk travels. */}
-        <AppBoundary>
+        {/* the terminal in the landing's window takes its orders here (embed.ts); nothing outside one */}
+        <EmbedBridge />
+        {/* every page's own tab title and description (2026-09-19) */}
+        <PageMeta />
+        {/* The landing sits outside the shell, so it needs its own boundary —
+            a dark screen, never a flash of white, while its chunk travels */}
         <Suspense fallback={<div className="min-h-screen bg-canvas" aria-busy="true" />}>
         <Routes>
           {/* Public landing — full-bleed, outside the app shell. First thing a
               visitor sees; "Launch terminal" plays the gate into /pulse. */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/welcome" element={<Keep to="/" />} />
+          {/* …and the landing never loads itself inside its own window */}
+          <Route path="/" element={EMBEDDED ? <Navigate to="/pulse" replace /> : <Landing />} />
+          <Route path="/welcome" element={<Navigate to="/" replace />} />
           <Route element={<AppShell />}>
-            <Route path="/home" element={<Keep to="/pulse" />} />
+            <Route path="/home" element={<Navigate to="/pulse" replace />} />
             <Route path="/pulse" element={<Pulse />} />
             <Route path="/pulse/board" element={<PulseBoard />} />
             <Route path="/terrain" element={<Terrain />} />
-            <Route path="/live-terminal" element={<Keep to="/pulse" />} />
+            <Route path="/live-terminal" element={<Navigate to="/pulse" replace />} />
             {/* Workspace merged INTO Pulse (2026-08-17) — old links land there */}
-            <Route path="/workspace" element={<Keep to="/pulse" />} />
+            <Route path="/workspace" element={<Navigate to="/pulse" replace />} />
             <Route path="/compass" element={<CompassLayout />}>
               <Route index element={<CompassBoard />} />
-              {/* THE OPTIONS TRACKER sits under Compass the way Trace's tracker sits under Trace (Noah, 2026-09-13) */}
+              {/* THE TRACKER rides under Compass as its second page, the way the partner laid it out (Noah, 2026-09-13) */}
               <Route path="tracker" element={<Tracker embedded />} />
               {/* A setup's address: TICKER-strike-R-kind-tenor (data/compass.ts setupIdOf) */}
               <Route path=":id" element={<CompassSetup />} />
             </Route>
             <Route path="/weigher" element={<Weigher />} />
-            {/* WATCHLISTS (2026-09-21): the names a reader carries. The terminal
-                had a four-name constant in the simulator and no way to edit it. */}
-            <Route path="/watchlist" element={<Watchlist />} />
-            {/* THE ALERTS DESK (2026-09-21): the bell is for glancing, this is
-                for managing — set, alerted, and the record of both */}
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/watchlists" element={<Keep to="/watchlist" />} />
-            <Route path="/paper" element={<Paper />} />
-            <Route path="/paper/journal" element={<PaperJournal />} />
-            {/* THE RISK DESK (2026-09-21): what the open book is exposed to — the
-                question the desk and the journal both leave unanswered */}
-            <Route path="/paper/risk" element={<PaperRisk />} />
-            <Route path="/skys-vision" element={<Keep to="/compass" />} />
+            <Route path="/skys-vision" element={<Navigate to="/compass" replace />} />
             {/* THE RECORD (2026-09-09): what is on the record about a name — News
                 and Earnings moved under it, Insiders and Congress new, Stocks
                 joined 2026-09-10. The old top-level paths follow. */}
-            <Route path="/record" element={<RecordLayout />}>
-              <Route index element={<Keep to="/record/news" />} />
+            {/* REVIEW (2026-09-20): a backtest's sessions, a session's desk and its report, and the journal */}
+            {/* PRACTICE (2026-09-26): Paper · Backtest · Journal under one head — pages/practice/PracticeLayout.tsx */}
+            <Route path="/practice" element={<PracticeLayout />}>
+              <Route index element={<Navigate to="/practice/paper" replace />} />
+              <Route path="paper" element={<PaperDesk />} />
+              <Route path="backtest" element={<ReviewSessions />} />
+              {/* the same page with its first card on Futures — the landing's door to a futures session */}
+              <Route path="futures" element={<ReviewSessions />} />
+              <Route path="backtest/:id" element={<ReviewDesk />} />
+              <Route path="backtest/:id/report" element={<ReviewReport />} />
+              {/* ONE JOURNAL, TWO BOOKS: ?book=backtest reads the backtest's; a closed trade's own page under it — ← and → walk
+                  the journal's cut, which rides the address */}
+              <Route path="journal" element={<PracticeJournal />} />
+              <Route path="journal/:sessionId/:tradeId" element={<PracticeJournalTrade />} />
+            </Route>
+            {/* THE OLD ADDRESSES — Paper's and Review's, until 2026-09-26 — land where their pages went */}
+            <Route path="/paper" element={<Navigate to="/practice/paper" replace />} />
+            <Route path="/paper/live-chart" element={<Navigate to="/practice/paper" replace />} />
+            <Route path="/paper/desk" element={<Navigate to="/practice/paper" replace />} />
+            <Route path="/paper/evaluation" element={<Navigate to="/practice/paper" replace />} />
+            <Route path="/paper/journal" element={<Moved to={(_, s) => `/practice/journal${s}`} />} />
+            <Route path="/paper/journal/:sessionId/:tradeId" element={<Moved to={(p, s) => `/practice/journal/${p.sessionId}/${p.tradeId}${s}`} />} />
+            <Route path="/review" element={<Navigate to="/practice/backtest" replace />} />
+            <Route path="/review/backtest" element={<Navigate to="/practice/backtest" replace />} />
+            <Route path="/review/futures" element={<Navigate to="/practice/futures" replace />} />
+            <Route path="/review/backtest/:id" element={<Moved to={p => `/practice/backtest/${p.id}`} />} />
+            <Route path="/review/backtest/:id/report" element={<Moved to={p => `/practice/backtest/${p.id}/report`} />} />
+            <Route path="/review/journal" element={<Moved to={(_, s) => `/practice/journal${withBook(s)}`} />} />
+            <Route path="/review/journal/:sessionId/:tradeId" element={<Moved to={(p, s) => `/practice/journal/${p.sessionId}/${p.tradeId}${withBook(s)}`} />} />
+            {/* THE DOSSIER (2026-09-28, Noah: "dossier it is, rename it" — the Record's new name; the folders keep the old
+                one): the old address walks to the new, page for page */}
+            <Route path="/record" element={<Navigate to="/dossier/news" replace />} />
+            <Route path="/record/*" element={<Moved to={(p, s) => `/dossier/${p['*'] ?? ''}${s}`} />} />
+            <Route path="/dossier" element={<RecordLayout />}>
+              <Route index element={<Navigate to="/dossier/news" replace />} />
               <Route path="news" element={<News />} />
               <Route path="earnings" element={<Earnings />} />
               <Route path="earnings/:ticker" element={<EarningsName />} />
               <Route path="insiders" element={<Insiders />} />
               <Route path="congress" element={<Congress />} />
               <Route path="stocks" element={<Stocks />} />
-              <Route path="stocks/:ticker" element={<StockOverview />} />
-              <Route path="calendar" element={<Catalysts />} />
-              <Route path="*" element={<Keep to="/record/news" />} />
+              <Route path="stocks/:ticker" element={<StockName />} />
             </Route>
-            <Route path="/stocks" element={<Keep to="/record/stocks" />} />
-            <Route path="/news" element={<Keep to="/record/news" />} />
-            <Route path="/newsroom" element={<Keep to="/record/news" />} />
-            <Route path="/earnings" element={<Keep to="/record/earnings" />} />
+            <Route path="/stocks" element={<Navigate to="/dossier/stocks" replace />} />
+            <Route path="/news" element={<Navigate to="/dossier/news" replace />} />
+            <Route path="/newsroom" element={<Navigate to="/dossier/news" replace />} />
+            <Route path="/earnings" element={<Navigate to="/dossier/earnings" replace />} />
             <Route path="/earnings/:ticker" element={<EarningsRedirect />} />
-            <Route path="/prove-it" element={<ProveIt />} />
-            <Route path="/tracker" element={<Keep to="/compass/tracker" />} />
-            {/* each settings section is its own page (2026-09-12); /settings alone lands on Appearance */}
+            {/* the Watchlist's page (one night, 2026-09-13) lives on the Weigher's desk now */}
+            <Route path="/watchlist" element={<Navigate to="/weigher" replace />} />
+            <Route path="/tracker" element={<Navigate to="/compass/tracker" replace />} />
+            {/* each settings section is its own page (2026-09-12); /settings alone lands on Account (2026-09-14) */}
             <Route path="/settings/:section?" element={<Settings />} />
             <Route path="/pinpoint" element={<PinpointLayout />}>
               {/* THE BLANK CANVAS (Noah, 2026-09-05): Pinpoint restarts from
@@ -175,9 +197,9 @@ const App = () => {
                   every other path — the three-tab cut's included — lands on it
                   until the new desk exists. The Strike Pressure Ladder and the
                   Exposure Ledger live on as Pulse widgets meanwhile. */}
-              <Route index element={<Keep to="/pinpoint/map" />} />
-              <Route path="command" element={<Keep to="/pulse" />} />
-              <Route path="flow-map" element={<Keep to="/pulse" />} />
+              <Route index element={<Navigate to="/pinpoint/map" replace />} />
+              <Route path="command" element={<Navigate to="/pulse" replace />} />
+              <Route path="flow-map" element={<Navigate to="/pulse" replace />} />
               {/* THE MAP — band 2 of the roadmap, the first thing built on the canvas */}
               <Route path="map" element={<MapDesk />} />
               {/* AHEAD — from now to the bell (2026-09-06) */}
@@ -190,71 +212,53 @@ const App = () => {
               <Route path="board" element={<Board />} />
               {/* COMPARE — two names side by side (2026-09-08) */}
               <Route path="compare" element={<Compare />} />
-              <Route path="ranked-targets" element={<Keep to="/pinpoint/targets" />} />
-              <Route path="*" element={<Keep to="/pinpoint/map" />} />
+              <Route path="ranked-targets" element={<Navigate to="/pinpoint/targets" replace />} />
               {['exposure-profile', 'session', 'history', 'oi-heat', 'strike-profile', 'vanna-charm', 'expiry-ladder', 'greek-surfaces', 'pain-map', 'model-error', 'vol-lab'].map(p => (
-                <Route key={p} path={p} element={<Keep to="/pinpoint/map" />} />
+                <Route key={p} path={p} element={<Navigate to="/pinpoint/map" replace />} />
               ))}
             </Route>
             <Route path="/trace" element={<TraceLayout />}>
-              <Route index element={<Keep to="/trace/live-tape" />} />
+              <Route index element={<Navigate to="/trace/live-tape" replace />} />
               <Route path="live-tape" element={<LiveTape />} />
               <Route path="screener" element={<OptionsScreener />} />
               <Route path="net-flow" element={<NetFlow />} />
               <Route path="footprints" element={<Footprints />} />
               <Route path="watchers" element={<Watchers />} />
               {/* "Flow Alerts" until 2026-09-11 — the bell is the reader's alerts; these are the desk's watchers */}
-              <Route path="flow-alerts" element={<Keep to="/trace/watchers" />} />
-              <Route path="windows" element={<TradeWindows />} />
+              <Route path="flow-alerts" element={<Navigate to="/trace/watchers" replace />} />
+              {/* "Windows" until 2026-09-19 — Noah: "call the windows page Intervals" */}
+              <Route path="intervals" element={<TradeWindows />} />
+              <Route path="windows" element={<Navigate to="/trace/intervals" replace />} />
               <Route path="odte" element={<Odte />} />
               <Route path="multi-leg" element={<MultiLeg />} />
-              {/* Its own page since 2026-09-12 — the old feed path follows it */}
-              <Route path="dark-pool" element={<DarkPool />} />
-              <Route path="dark-feed" element={<Keep to="/trace/dark-pool" />} />
-              {/* The old scanner scaffold's slot — its promise became the screener */}
-              <Route path="scanner" element={<Keep to="/trace/screener" />} />
-              {/* Two names on everything Trace knows (2026-09-12) */}
               <Route path="compare" element={<TraceCompare />} />
+              {/* The dark pool is a page again (2026-09-13) — the tape's rail keeps the crosses too */}
+              <Route path="dark-pool" element={<DarkPool />} />
+              <Route path="dark-feed" element={<Navigate to="/trace/dark-pool" replace />} />
+              {/* The old scanner scaffold's slot — its promise became the screener */}
+              <Route path="scanner" element={<Navigate to="/trace/screener" replace />} />
               <Route path="tracker" element={<FlowTracker />} />
-              <Route path="*" element={<Keep to="/trace/live-tape" />} />
             </Route>
-            <Route path="/liquidity" element={<Keep to="/trace" />} />
+            <Route path="/liquidity" element={<Navigate to="/trace" replace />} />
             {/* Legacy section paths from before the rebrand */}
-            <Route path="/flow-desk/*" element={<Keep to="/trace" />} />
-            <Route path="/pinpoint-gex/*" element={<Keep to="/pinpoint" />} />
-            <Route path="/community" element={<CommunityLayout />}>
-              <Route index element={<Room />} />
-              <Route path="me" element={<Profile />} />
-              <Route path="u/:handle" element={<Profile />} />
-              <Route path="t/:ticker" element={<TickerRoom />} />
-              {/* the old subpages: the room, or the feedback page */}
-              <Route path="ideas" element={<Keep to="/community" />} />
-              <Route path="requests" element={<Keep to="/feedback" />} />
-              <Route path="feedback" element={<Keep to="/feedback" />} />
-              <Route path="*" element={<Keep to="/community" />} />
-            </Route>
-            {/* FEEDBACK AND BUGS, its own page (2026-09-13) */}
-            <Route path="/feedback" element={<Feedback />} />
-            <Route path="/auditor-log" element={<Keep to="/tracker" />} />
-            {/* NOTHING MATCHED (2026-09-13). Without this React Router renders
-                an empty element tree — not a 404 page, not the shell, a blank
-                screen with no way back but the URL bar. Found on /typo, and on
-                a bad child of every section that is a leaf route (/pulse/x).
-                Each section above catches its own so a near-miss lands on the
-                desk you were aiming at; this is the last resort. */}
-            {/* A PATH THAT DOES NOT EXIST SAYS SO. This used to be a
-                `Keep to="/pulse"`, which turned every typo into a different
-                page: `/paper/jurnal` showed the market dashboard as though
-                that were what had been asked for, and rewrote the address
-                bar so the reader could not even see what they had typed.
-                The redirects that MEAN something — a bare /record opening
-                the news, the thirty-odd old addresses above — are answers;
-                "I do not know what that is" is also an answer. */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="/flow-desk/*" element={<Navigate to="/trace" replace />} />
+            <Route path="/pinpoint-gex/*" element={<Navigate to="/pinpoint" replace />} />
+            <Route path="/community" element={<Room />} />
+            {/* The old tabs' paths land on the room */}
+            <Route path="/community/*" element={<Navigate to="/community" replace />} />
+            <Route path="/auditor-log" element={<Navigate to="/compass/tracker" replace />} />
+            {/* NOTHING AT THIS ADDRESS, INSIDE THE TERMINAL (2026-09-19): a wrong address UNDER a product keeps the rail and the
+                footer — the reader is a click from where they meant to be. A real page always outranks a splat, so these
+                catch only what nothing else did. (/compass/<one part> is a setup's own address and answers for itself;
+                /community/* already lands on the room.) */}
+            {['/pulse/*', '/terrain/*', '/weigher/*', '/compass/*', '/pinpoint/*', '/trace/*', '/dossier/*', '/practice/*', '/settings/*'].map(p => (
+              <Route key={p} path={p} element={<NotFoundInside />} />
+            ))}
           </Route>
+          {/* …and under nothing we have (/pricing, /login — typed by hand from a post): the house's prompt, full screen */}
+          <Route path="*" element={<NotFoundPrompt />} />
         </Routes>
         </Suspense>
-        </AppBoundary>
         </LaunchProvider>
         </WatchProvider>
         </TrackerProvider>

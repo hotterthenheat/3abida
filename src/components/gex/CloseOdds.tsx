@@ -3,49 +3,65 @@
   SLAYER TERMINAL - WHERE IT CLOSES
   (components/gex/CloseOdds.tsx)
 
-  Band 2 of the Ahead page, redrawn (2026-09-09,
-  Noah: the range above "gives a rough estimate…
-  in a nice and distinct way, then we get to where
-  it closes and the design just isn't it"). The
-  first cut was a list of twenty strike rows with a
-  bar each. This is a DRAWING in the range's own
-  hand, on the same price axis, in the same margins,
-  so the two boxes read as one story — the range
-  says where price can go by the bell, this says
-  where on that ruler the close lands:
+  Band 2 of the Ahead page. REDRAWN AS ROWS
+  (2026-09-13 evening; the partner's design — Noah:
+  "his 'where it closes' card is more aesthetically
+  pleasing… although it doesn't make sense why the
+  supreme and the #1 wear the same color. other than
+  that use his design pattern"):
 
-    THE BANDS      two runs of strikes around the
-                   likeliest, shaded like the
-                   range's bands — a 50% chance it
-                   closes inside the silver one, an
-                   80% chance inside the fainter one
-                   (said as odds since 2026-09-09:
-                   "half the time" and "four times
-                   in five" made no sense to Noah)
-    THE SHAPE      the odds as one silhouette
-                   hugging the axis, a bulge at
-                   every strike the book pulls the
-                   close toward; the dashed outline
-                   behind it is the expected move
-                   alone, so the strikes' pull is
-                   the gap between the two
-    THE STRIKES    the likeliest lit silver with its
-                   odds, the next two figured, the
-                   walls, the flip and the pin as
-                   the same dashed hairlines the
-                   range draws, named at the left
+    THE ROWS     one row per strike, the highest
+                 first: the strike, its role beside
+                 it as a small tag in the role's ink
+                 (call wall · put wall · supreme ·
+                 pin) and YOURS when you hold
+                 contracts there; a bar as long as
+                 the chance the 4:00 print lands
+                 there; the odds at the right. The
+                 three likeliest are numbered on
+                 their bars. The 50% run is washed
+                 silver and the 80% run fainter. The
+                 expected move alone is a thin tick
+                 on every bar. Spot is the house's
+                 spot rule between the strikes. A
+                 kept strike wears the silver edge.
+    THE INKS     ONE FACT ONE INK — the bar's ink
+                 says the RANK alone (the likeliest
+                 silver, #2 and #3 silver at half,
+                 the rest the quiet ink); the role
+                 lives only in its tag. His supreme
+                 row and his #1 row were both magenta
+                 and a reader could not tell the
+                 heaviest strike from the likeliest
+                 close.
+    THE SLICES   thinkorswim's Probability Analysis
+                 kept as one read under the rows —
+                 above the call wall · between the
+                 walls · below the put wall · above
+                 the flip, and the chance price
+                 touches a wall before the close.
+    THE READS    most likely · the bands · the pull ·
+                 the slices, the figures lit.
 
-  Hover a strike and the read line speaks it; click
-  keeps it as the shared strike. Under it THE READS:
-  three labelled lines — most likely · the bands ·
-  the pull — where one paragraph used to run
-  (Noah, 2026-09-09: "not intuitive at all in terms
-  of readability and understanding").
+  Hover a row and the read line speaks it; click
+  keeps it as the shared strike.
 ==================================================
 */
 
-import { Fragment, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
+import SpotRule from '../ui/SpotRule';
+import { CloseGuide } from './AheadGuide';
+import { CALL_WALL, PUT_WALL, SUPREME } from './paletteInk';
+import { fmtStrike, type AheadClock, type CloseOdd, type CloseOdds as CloseOddsData } from '../../data/ahead';
+import type { ExposureLevels } from '../../types/gex';
+
+const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
+/** The unranked bars' ink — the page's own ink, faint */
+const QUIET = 'rgb(var(--ink))';
+const PIN_INK = 'rgb(var(--text-secondary))';
+const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, pin: PIN_INK };
+const COLS = 'grid-cols-[118px_minmax(0,1fr)_64px]';
 
 /** A read with every figure lit — the strikes and the odds in the primary ink, the words around them quiet */
 const lit = (text: string): ReactNode[] =>
@@ -58,42 +74,30 @@ const lit = (text: string): ReactNode[] =>
       <Fragment key={i}>{part}</Fragment>
     )
   );
-import { CloseGuide } from './AheadGuide';
-import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
-import { fmtPrice, fmtStrike, type AheadClock, type CloseOdds as CloseOddsData } from '../../data/ahead';
-import type { ExposureLevels } from '../../types/gex';
 
-const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
-/* The range's own geometry: the same width and margins, so the two price axes sit on one line */
-const W = 1200;
-const M = { l: 12, r: 74 };
-const H = 300;
-const PM = { t: 20, b: 14 };
-/** How much of the width the silhouette may take — the level names live at the left */
-const SPAN = 0.6;
-const PIN_INK = '#8a909c';
-
-const niceStep = (range: number): number => {
-  const steps = [0.1, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100];
-  const want = range / 9;
-  return steps.find(s => s >= want) ?? steps[steps.length - 1];
-};
 const untilWords = (clock: AheadClock) => {
   if (!clock.inSession) return 'a full session';
   const h = Math.floor(clock.minutesLeft / 60);
   const m = clock.minutesLeft % 60;
   return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 };
+/** The standard normal's cumulative — Abramowitz & Stegun 7.1.26, good to 1.5e-7 */
+const Phi = (z: number): number => {
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return 0.5 * (1 + (z < 0 ? -erf : erf));
+};
+const pct = (v: number) => `${v.toFixed(v >= 10 ? 0 : 1)}%`;
+
 interface Props {
   odds: CloseOddsData;
   spot: number;
   ticker: string;
   clock: AheadClock;
-  /** The day's levels — the same hairlines the range draws. Omitted, the rows' own roles name them. */
+  /** The day's levels — for the slices. Omitted, the rows' own roles name the walls. */
   levels?: ExposureLevels;
-  /** Strikes you hold contracts on — marked at the axis */
+  /** Strikes you hold contracts on — tagged on their rows */
   yours?: Set<number>;
   focus?: number | null;
   onPick?: (price: number) => void;
@@ -105,106 +109,42 @@ interface Props {
 const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, scope, headless = false }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const { rows, top, gravity, half, most } = odds;
+  const { rows, top, gravity, half, most, sigma } = odds;
   const pullWords = gravity < 0.5 ? 'light' : gravity < 0.75 ? 'building' : 'strong';
-
-  /* THE GEOMETRY — the strikes on the price axis, the odds growing left from it */
-  const asc = useMemo(() => [...rows].sort((a, b) => a.strike - b.strike), [rows]);
-  const step = asc.length > 1 ? Math.abs(asc[1].strike - asc[0].strike) || 1 : 1;
-  const { lo, hi } = useMemo(() => {
-    if (!asc.length) return { lo: spot - 1, hi: spot + 1 };
-    let lo = asc[0].strike - step / 2;
-    let hi = asc[asc.length - 1].strike + step / 2;
-    lo = Math.min(lo, spot - step / 2);
-    hi = Math.max(hi, spot + step / 2);
-    const pad = (hi - lo) * 0.03;
-    return { lo: lo - pad, hi: hi + pad };
-  }, [asc, spot, step]);
-  const ih = H - PM.t - PM.b;
-  const y = (p: number) => PM.t + (1 - (p - lo) / (hi - lo)) * ih;
-  const axisX = W - M.r;
-  const span = (axisX - M.l) * SPAN;
-  const maxOdds = Math.max(1, ...rows.map(r => r.odds), ...rows.map(r => r.plain));
-  const xOf = (v: number) => axisX - (v / maxOdds) * span;
-  /* The silhouette: a STEPPED profile, one step per strike the height of its
-     row, hugging the axis — the volume profile's grammar. A smoothed curve
-     turned a one-point lead into a needle and hid the shape inside the band;
-     steps say exactly what each strike holds (2026-09-09). */
-  const pitch = (step / (hi - lo)) * ih;
-  const shapeOf = (pick: (r: (typeof asc)[number]) => number, closed: boolean) => {
-    if (!asc.length) return '';
-    const desc = [...asc].reverse();
-    let d = `M${axisX},${(y(desc[0].strike) - pitch / 2).toFixed(1)}`;
-    for (const r of desc) {
-      const x = xOf(pick(r)).toFixed(1);
-      d += ` L${x},${(y(r.strike) - pitch / 2).toFixed(1)} L${x},${(y(r.strike) + pitch / 2).toFixed(1)}`;
-    }
-    d += ` L${axisX},${(y(desc[desc.length - 1].strike) + pitch / 2).toFixed(1)}`;
-    return closed ? `${d} Z` : d;
-  };
-  const pulledD = shapeOf(r => r.odds, true);
-  const plainD = shapeOf(r => r.plain, false);
-  const rank = new Map(top.map((t, i) => [t.strike, i]));
-  const lead = top[0];
-  /* The next two are figured only when their label has room of its own */
-  const figured = top.filter((t, i) => i === 0 || top.slice(0, i).every(o => Math.abs(y(o.strike) - y(t.strike)) >= 12));
-
-  /* The levels that shape it — the range's hairlines, named at the left end */
-  const named = useMemo(() => {
-    const out: { price: number; name: string; ink: string }[] = [];
-    if (levels) {
-      out.push({ price: levels.callWall, name: 'call wall', ink: CALL_WALL }, { price: levels.putWall, name: 'put wall', ink: PUT_WALL }, { price: levels.flip, name: 'flip', ink: FLIP });
-      if (![levels.callWall, levels.putWall].some(k => Math.abs(k - levels.supreme) < 1e-9)) out.push({ price: levels.supreme, name: 'supreme', ink: SUPREME });
-      if (![levels.callWall, levels.putWall, levels.supreme].some(k => Math.abs(k - levels.pin) < 1e-9)) out.push({ price: levels.pin, name: 'pin', ink: PIN_INK });
-    } else {
-      for (const r of rows) if (r.role) out.push({ price: r.strike, name: r.role, ink: r.role === 'call wall' ? CALL_WALL : r.role === 'put wall' ? PUT_WALL : r.role === 'supreme' ? SUPREME : PIN_INK });
-    }
-    return out.filter(l => l.price > lo && l.price < hi);
-  }, [levels, rows, lo, hi]);
-  /* Every word at the left end — the levels' names and the bands' — in one
-     stack pushed apart, so nothing prints over anything */
-  const tags = [
-    ...named.map(l => ({ name: l.name, ty: y(l.price) - 4 })),
-    ...(most.strikes ? [{ name: 'most', ty: y(most.high + step / 2) - 4 }] : []),
-    ...(half.strikes ? [{ name: 'half', ty: y(half.high + step / 2) - 4 }] : []),
-  ].sort((a, b) => a.ty - b.ty);
-  for (let i = 1; i < tags.length; i++) if (tags[i].ty - tags[i - 1].ty < 11) tags[i].ty = tags[i - 1].ty + 11;
-  const tagY = (name: string) => tags.find(t => t.name === name)?.ty ?? 0;
-
-  /* The axis: regular ticks, giving way to the readouts */
-  const tick = niceStep(hi - lo);
-  const ticks: number[] = [];
-  for (let v = Math.ceil(lo / tick) * tick; v <= hi; v += tick) ticks.push(Number(v.toFixed(4)));
+  const desc = useMemo(() => [...rows].sort((a, b) => b.strike - a.strike), [rows]);
+  const maxOdds = Math.max(1, ...rows.map(r => r.odds));
+  const rank = new Map(top.map((t, i) => [t.strike, i + 1]));
+  const lead = top[0] as CloseOdd | undefined;
+  const inHalf = (k: number) => half.strikes > 0 && k >= half.low && k <= half.high;
+  const inMost = (k: number) => most.strikes > 0 && k >= most.low && k <= most.high;
   const hoverRow = hover != null ? rows.find(r => Math.abs(r.strike - hover) < 1e-9) ?? null : null;
   const keptRow = focus != null ? rows.find(r => Math.abs(r.strike - focus) < 1e-9) ?? null : null;
-  const readouts = [{ y: y(spot) }, ...(hoverRow ? [{ y: y(hoverRow.strike) }] : []), ...(lead ? [{ y: y(lead.strike) }] : [])];
-  const tickShown = (v: number) => readouts.every(r => Math.abs(r.y - y(v)) > 9);
-  const rightX = axisX + 6;
 
-  /* The pointer → the nearest strike by height */
-  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    const svg = svgRef.current;
-    if (!svg || !asc.length) return;
-    const r = svg.getBoundingClientRect();
-    const py = ((e.clientY - r.top) / r.height) * H;
-    let best: number | null = null;
-    let bestD = Infinity;
-    for (const row of asc) {
-      const d = Math.abs(y(row.strike) - py);
-      if (d < bestD) {
-        bestD = d;
-        best = row.strike;
-      }
-    }
-    if (best != null && bestD <= 14) {
-      if (hover !== best) setHover(best);
-    } else if (hover != null) setHover(null);
-  };
-  const readRow = hoverRow ?? keptRow;
+  /* THE SLICES — the levels' sides summed off the rows; the touch on the plain expected move (the reflection rule) */
+  const callWall = levels?.callWall ?? rows.find(r => r.role === 'call wall')?.strike ?? null;
+  const putWall = levels?.putWall ?? rows.find(r => r.role === 'put wall')?.strike ?? null;
+  const flip = levels?.flip ?? null;
+  const sumWhere = (pred: (r: CloseOdd) => boolean) => rows.filter(pred).reduce((a, r) => a + r.odds, 0);
+  const touch = (level: number): number => Math.min(100, 200 * (1 - Phi(Math.abs(level - spot) / Math.max(sigma, 1e-6))));
+  const slices = (() => {
+    const parts: string[] = [];
+    if (callWall != null) parts.push(`above the call wall ${fmtStrike(callWall)} ${pct(sumWhere(r => r.strike > callWall))}`);
+    if (callWall != null && putWall != null) parts.push(`between the walls ${pct(sumWhere(r => r.strike >= putWall && r.strike <= callWall))}`);
+    if (putWall != null) parts.push(`below the put wall ${fmtStrike(putWall)} ${pct(sumWhere(r => r.strike < putWall))}`);
+    if (flip != null) parts.push(`above the flip ${fmtStrike(flip)} ${pct(sumWhere(r => r.strike > flip))}`);
+    const touches: string[] = [];
+    if (callWall != null && callWall > spot) touches.push(`the call wall ${pct(touch(callWall))}`);
+    if (putWall != null && putWall < spot) touches.push(`the put wall ${pct(touch(putWall))}`);
+    if (keptRow && Math.abs(keptRow.strike - spot) > 1e-9 && ![callWall, putWall].some(k => k != null && Math.abs(k - keptRow.strike) < 1e-9)) touches.push(`${fmtStrike(keptRow.strike)} ${pct(touch(keptRow.strike))}`);
+    if (touches.length) parts.push(`price touches ${touches.join(', ')} before the close`);
+    return parts.join(' · ');
+  })();
+
+  const readRow = hoverRow ?? keptRow ?? lead ?? null;
   const readLine = readRow
-    ? `${fmtStrike(readRow.strike)} · a ${readRow.odds.toFixed(readRow.odds >= 10 ? 0 : 1)}% chance the close lands here · the expected move alone says ${readRow.plain.toFixed(1)}% · the strikes ${readRow.pull > 1.02 ? 'pull the close toward it' : readRow.pull < 0.98 ? 'push the close off it' : 'leave it alone'}${readRow.role ? ` · ${readRow.role}` : ''}${yours?.has(readRow.strike) ? ' · you own contracts here' : ''}${hoverRow ? (focus === readRow.strike ? ' · kept, click to let go' : ' · click to keep') : ' · kept'}`
-    : 'hover a strike · each step is one strike, its length the chance the close lands there · the dashed outline is the expected move alone';
+    ? `${fmtStrike(readRow.strike)} · a ${pct(readRow.odds)} chance the close lands here · the expected move alone says ${pct(readRow.plain)} · the strikes ${readRow.pull > 1.02 ? 'pull the close toward it' : readRow.pull < 0.98 ? 'push the close off it' : 'leave it alone'}${readRow.role ? ` · ${readRow.role}` : ''}${yours?.has(readRow.strike) ? ' · you own contracts here' : ''}${hoverRow ? (focus === readRow.strike ? ' · kept, click to let go' : ' · click to keep') : keptRow ? ' · kept' : ' · the most likely'}`
+    : 'no strikes near enough to spot to say';
+  let spotDrawn = false;
 
   return (
     <section className="relative flex flex-col min-w-0" data-close-band>
@@ -214,23 +154,23 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
       <div className={`${headless ? 'px-4 pt-3 pb-1' : 'px-5 pt-4 pb-2'} flex items-start gap-6 flex-wrap`}>
         {headless ? (
           <div className="shrink-0 h-[35px] flex items-center">
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the bands, the silhouette and the outline mean" testId="close-guide" />
+            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the runs and the slices mean" testId="close-guide" />
           </div>
         ) : (
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Where it closes</h3>
               {scope}
-              <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the bands, the silhouette and the outline mean" testId="close-guide" />
+              <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the runs and the slices mean" testId="close-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Where on the range's ruler the 4:00 print lands · the profile is the odds, the dashed outline the expected move alone</p>
+            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
           </div>
         )}
         <dl className={`grid grid-cols-4 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
           <div>
             <dt className="text-[10px] text-textMuted">Most likely</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }} data-close-top>
-              {lead ? `${fmtStrike(lead.strike)} · ${lead.odds.toFixed(0)}%` : '—'}
+              {lead ? `${fmtStrike(lead.strike)} · ${pct(lead.odds)}` : '—'}
             </dd>
           </div>
           <div>
@@ -254,111 +194,99 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
         </dl>
       </div>
 
-      {/* THE DRAWING */}
-      <div className="relative px-3" onPointerLeave={() => setHover(null)}>
-        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="The odds the close lands on each strike, as a silhouette on the price axis, with the bands it most often lands inside" onPointerMove={onMove} onClick={() => hover != null && onPick?.(hover)} style={{ cursor: onPick && hover != null ? 'pointer' : undefined }} data-close-svg>
-          {/* the price grid */}
-          {ticks.map(v => (
-            <g key={v}>
-              <line x1={M.l} x2={axisX} y1={y(v)} y2={y(v)} stroke="#ffffff" strokeOpacity={0.05} />
-              {tickShown(v) && (
-                <text x={rightX} y={y(v) + 3} fontSize={9} fill="#7c8290" fontFamily={MONO} data-axis-tick>
-                  {fmtStrike(v)}
-                </text>
+      {/* THE ROWS */}
+      <div className={`${headless ? 'px-4' : 'px-5'} pt-1 pb-2`} onPointerLeave={() => setHover(null)} data-close-rows={rows.length}>
+        <div className={`grid ${COLS} items-center gap-x-3 h-[16px] font-mono text-[9px] uppercase tracking-widest text-textSecondary`}>
+          <span>Strike</span>
+          <span>Chance the close lands here</span>
+          <span className="text-right">Odds</span>
+        </div>
+        {desc.map(r => {
+          const kept = keptRow != null && Math.abs(keptRow.strike - r.strike) < 1e-9;
+          const n = rank.get(r.strike);
+          const wash = inHalf(r.strike) ? 'bg-silver/[0.08]' : inMost(r.strike) ? 'bg-silver/[0.035]' : '';
+          /* the bar's ink is the rank's alone */
+          const barInk = n ? SILVER : QUIET;
+          const barAlpha = n === 1 ? 1 : n ? 0.5 : 0.22;
+          const drawSpot = !spotDrawn && r.strike < spot;
+          if (drawSpot) spotDrawn = true;
+          return (
+            <Fragment key={r.strike}>
+              {drawSpot && (
+                <div className="h-[18px] flex items-center px-1" data-close-spot>
+                  <SpotRule ticker={ticker} price={spot} />
+                </div>
               )}
-            </g>
-          ))}
-          {/* THE BANDS — the 80% band faint, the 50% band silver, the range's own two shades */}
-          {most.strikes > 0 && (
-            <g data-close-band-most>
-              <rect x={M.l} y={y(most.high + step / 2)} width={axisX - M.l} height={Math.max(1, y(most.low - step / 2) - y(most.high + step / 2))} fill="#ffffff" fillOpacity={0.025} />
-              <line x1={M.l} x2={axisX} y1={y(most.high + step / 2)} y2={y(most.high + step / 2)} stroke="#ffffff" strokeOpacity={0.14} strokeDasharray="2 4" />
-              <line x1={M.l} x2={axisX} y1={y(most.low - step / 2)} y2={y(most.low - step / 2)} stroke="#ffffff" strokeOpacity={0.14} strokeDasharray="2 4" />
-              <text x={M.l + 6} y={tagY('most')} fontSize={9} fill="#8a909c" fontFamily={SANS}>
-                80% chance · {fmtStrike(most.low)} – {fmtStrike(most.high)}
-              </text>
-            </g>
-          )}
-          {half.strikes > 0 && (
-            <g data-close-band-half>
-              <rect x={M.l} y={y(half.high + step / 2)} width={axisX - M.l} height={Math.max(1, y(half.low - step / 2) - y(half.high + step / 2))} fill={SILVER} fillOpacity={0.05} />
-              <line x1={M.l} x2={axisX} y1={y(half.high + step / 2)} y2={y(half.high + step / 2)} stroke={SILVER} strokeOpacity={0.5} />
-              <line x1={M.l} x2={axisX} y1={y(half.low - step / 2)} y2={y(half.low - step / 2)} stroke={SILVER} strokeOpacity={0.5} />
-              <text x={M.l + 6} y={tagY('half')} fontSize={9} fontWeight={500} fill={SILVER} fillOpacity={0.95} fontFamily={SANS}>
-                50% chance · {fmtStrike(half.low)} – {fmtStrike(half.high)}
-              </text>
-            </g>
-          )}
-          {/* the levels that shape it — the range's hairlines, named at the left end */}
-          {named.map(l => (
-            <g key={l.name} onClick={e => { e.stopPropagation(); onPick?.(l.price); }} style={{ cursor: onPick ? 'pointer' : undefined }} data-level={l.name}>
-              <line x1={M.l} x2={axisX} y1={y(l.price)} y2={y(l.price)} stroke={l.ink} strokeOpacity={focus === l.price ? 0.9 : 0.4} strokeWidth={1} strokeDasharray="3 4" />
-              <text x={M.l + 6} y={tagY(l.name)} fontSize={9} fontWeight={500} fill={l.ink} fillOpacity={0.9} fontFamily={SANS} data-level-label>
-                {l.name} {fmtStrike(l.price)}
-              </text>
-            </g>
-          ))}
-          {/* the expected move alone, as a dashed outline; the odds as the silhouette over it */}
-          {pulledD && <path d={pulledD} fill={SILVER} fillOpacity={0.26} stroke={SILVER} strokeOpacity={0.85} strokeWidth={1} strokeLinejoin="round" data-close-shape />}
-          {plainD && <path d={plainD} fill="none" stroke="#ffffff" strokeOpacity={0.38} strokeWidth={1} strokeDasharray="3 3" strokeLinejoin="round" data-close-plain />}
-          {/* the likeliest, its whole step lit, and the next two figured when they have room */}
-          {figured.map(t => {
-            const isLead = t === lead;
-            const xe = xOf(t.odds);
-            return (
-              <g key={t.strike} data-close-top-strike={rank.get(t.strike)}>
-                {isLead && <rect x={xe} y={y(t.strike) - pitch / 2 + 1} width={axisX - xe} height={Math.max(2, pitch - 2)} fill={SILVER} fillOpacity={0.9} />}
-                <text x={xe - 8} y={y(t.strike) + 3.5} textAnchor="end" fontSize={isLead ? 10.5 : 9} fontWeight={isLead ? 700 : 500} fill={isLead ? SILVER : 'rgb(var(--text-primary))'} fontFamily={MONO}>
-                  {fmtStrike(t.strike)} · {t.odds.toFixed(0)}%
-                </text>
-              </g>
-            );
-          })}
-          {/* spot: the same dotted hairline and readout the range draws */}
-          <line x1={M.l} x2={axisX} y1={y(spot)} y2={y(spot)} stroke="#ededed" strokeOpacity={0.3} strokeWidth={1} strokeDasharray="1.5 3" />
-          <text x={rightX} y={y(spot) + 3.5} fontSize={9.5} fontWeight={600} fill="#ededed" fontFamily={MONO} data-close-spot>
-            {fmtPrice(spot)}
-          </text>
-          {/* the likeliest on the axis too — unless spot's readout already sits there */}
-          {lead && Math.abs(y(lead.strike) - y(spot)) >= 10 && (
-            <text x={rightX} y={y(lead.strike) + 3.5} fontSize={9.5} fontWeight={700} fill={SILVER} fontFamily={MONO} data-close-lead-axis>
-              {fmtStrike(lead.strike)}
-            </text>
-          )}
-          {/* your strikes, at the axis */}
-          {yours && asc.filter(r => yours.has(r.strike)).map(r => <rect key={`y-${r.strike}`} x={axisX - 3} y={y(r.strike) - 3} width={6} height={6} rx={1} fill={SILVER} data-yours />)}
-          {/* the kept strike and the pointer */}
-          {keptRow && !hoverRow && <line x1={M.l} x2={axisX} y1={y(keptRow.strike)} y2={y(keptRow.strike)} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1} />}
-          {hoverRow && (
-            <g data-close-cursor>
-              <line x1={M.l} x2={axisX} y1={y(hoverRow.strike)} y2={y(hoverRow.strike)} stroke={SILVER} strokeOpacity={0.45} strokeWidth={1} />
-              <circle cx={xOf(hoverRow.odds)} cy={y(hoverRow.strike)} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.5} />
-              {rank.get(hoverRow.strike) == null && (
-                <text x={xOf(hoverRow.odds) - 8} y={y(hoverRow.strike) + 3.5} textAnchor="end" fontSize={9} fill={SILVER} fontFamily={MONO}>
-                  {fmtStrike(hoverRow.strike)} · {hoverRow.odds.toFixed(hoverRow.odds >= 10 ? 0 : 1)}%
-                </text>
-              )}
-              {(!lead || Math.abs(lead.strike - hoverRow.strike) > 1e-9) && (
-                <text x={rightX} y={y(hoverRow.strike) + 3.5} fontSize={9.5} fontWeight={600} fill={SILVER} fontFamily={MONO}>
-                  {fmtStrike(hoverRow.strike)}
-                </text>
-              )}
-            </g>
-          )}
-        </svg>
+              <button
+                type="button"
+                onClick={() => onPick?.(r.strike)}
+                onPointerEnter={() => setHover(r.strike)}
+                className={`w-full grid ${COLS} items-center gap-x-3 h-[24px] rounded px-1 text-left transition-colors hover:bg-ink/[0.05] ${wash}`}
+                style={kept ? { boxShadow: `inset 2px 0 0 0 ${SILVER}` } : undefined}
+                title={`${fmtStrike(r.strike)} · ${pct(r.odds)} · the expected move alone says ${pct(r.plain)}${r.role ? ` · ${r.role}` : ''}`}
+                data-close-row={r.strike}
+                data-close-rank={n}
+                data-close-kept={kept || undefined}
+                data-close-run={inHalf(r.strike) ? 'half' : inMost(r.strike) ? 'most' : undefined}
+              >
+                <span className="flex items-center gap-1.5 min-w-0 font-mono text-[11px] tnum whitespace-nowrap">
+                  <span className={`font-semibold ${kept ? 'text-silver' : 'text-textPrimary'}`}>{fmtStrike(r.strike)}</span>
+                  {r.role && (
+                    <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: ROLE_INK[r.role] }} data-close-role={r.role}>
+                      {r.role}
+                    </span>
+                  )}
+                  {yours?.has(r.strike) && (
+                    <span className="text-[8px] font-bold uppercase tracking-wider text-warn" data-yours>
+                      yours
+                    </span>
+                  )}
+                </span>
+                <span className="relative h-[12px]">
+                  {/* the bar and its tick glide to their new lengths on a tick (Noah, 2026-09-13: "smooth, not a quick instant change") */}
+                  <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(1, (r.odds / maxOdds) * 100)}%`, background: barInk, opacity: barAlpha, transition: 'width 520ms cubic-bezier(0.16, 1, 0.3, 1), background-color 520ms cubic-bezier(0.16, 1, 0.3, 1), opacity 520ms cubic-bezier(0.16, 1, 0.3, 1)' }} data-close-bar={r.strike} />
+                  {/* the expected move alone — a tick */}
+                  <span className="absolute top-[-2px] bottom-[-2px] w-px bg-textPrimary/50" style={{ left: `${Math.min(100, (r.plain / maxOdds) * 100)}%`, transition: 'left 520ms cubic-bezier(0.16, 1, 0.3, 1)' }} aria-hidden />
+                  {/* THE RANK IS THE BAR'S OWN HEAD (Noah, 2026-09-19, of #2 and #3: "can you see it?"): flush with the bar's end, the bar's
+                      height, the bar's round end. It was a square-cornered box 4px in and half a pixel taller than the bar — hidden on #1,
+                      whose bar is the same silver, but on the half-strength bars of #2 and #3 the bar's end showed beside it and the box
+                      stood proud of it (measured: left 4, top −0.5, 13px on a 12px bar). */}
+                  {n && (
+                    <span className="absolute inset-y-0 left-0 pl-[7px] pr-1.5 inline-flex items-center rounded-full font-mono text-[9px] font-bold leading-none text-panel" style={{ background: SILVER }} data-close-rank-tag={n}>
+                      #{n}
+                    </span>
+                  )}
+                </span>
+                <span className={`text-right font-mono text-[12px] font-semibold tnum ${n ? 'text-textPrimary' : 'text-textPrimary/80'}`}>{pct(r.odds)}</span>
+              </button>
+            </Fragment>
+          );
+        })}
+        <div className="mt-2 flex items-center gap-4 font-mono text-[9px] text-textSecondary" data-close-key>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-4 h-[6px] rounded-full bg-silver/[0.25]" /> the 50% run
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-4 h-[6px] rounded-full bg-silver/[0.10]" /> the 80% run
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-px h-3 bg-textPrimary/50" /> the expected move alone
+          </span>
+        </div>
       </div>
       {/* ONE FIXED READ LINE */}
-      <div className="px-5 h-[18px] font-mono text-[10px] text-textSecondary truncate" data-close-read>
+      <div className={`${headless ? 'px-4' : 'px-5'} h-[18px] font-mono text-[10px] text-textSecondary truncate`} data-close-read>
         {readLine}
       </div>
-      {/* THE READS — one line each, the figures lit, where one paragraph ran */}
+      {/* THE READS — one line each, the figures lit */}
       {odds.reads ? (
-        <dl className="px-5 pb-4 pt-2 grid gap-x-4 gap-y-1.5 text-[12px] leading-[17px] text-textSecondary" style={{ gridTemplateColumns: '84px minmax(0, 1fr)' }} data-close-reads>
+        <dl className={`${headless ? 'px-4' : 'px-5'} pb-4 pt-2 grid gap-x-4 gap-y-1.5 text-[12px] leading-[17px] text-textSecondary`} style={{ gridTemplateColumns: '84px minmax(0, 1fr)' }} data-close-reads>
           {(
             [
               ['Most likely', odds.reads.likely, 'likely'],
               ['The bands', odds.reads.bands, 'bands'],
               ['The pull', odds.reads.pull, 'pull'],
+              ...(slices ? ([['The slices', slices, 'slices']] as const) : []),
             ] as const
           ).map(([label, words, key]) => (
             <Fragment key={key}>
@@ -370,9 +298,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
           ))}
         </dl>
       ) : (
-        <p className="px-5 pb-4 pt-2 text-[12px] leading-[17px] text-textSecondary" data-close-reads>
-          {odds.sentence}
-        </p>
+        <p className={`${headless ? 'px-4' : 'px-5'} pb-4 pt-2 text-[12px] leading-relaxed text-textSecondary`}>{odds.sentence}</p>
       )}
     </section>
   );

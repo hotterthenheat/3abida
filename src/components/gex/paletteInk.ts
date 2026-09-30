@@ -17,6 +17,8 @@
 ==================================================
 */
 
+import { readToken } from '../../theme/theme';
+
 export const BULL = 'rgb(var(--bull))';
 export const LIME = 'rgb(var(--select))';
 export const CALL_WALL = BULL;
@@ -50,6 +52,19 @@ export { CALL_SIDE, PUT_SIDE, CHART_MINT } from './palette';
 export const alpha = (ink: string, a: number): string =>
   ink.startsWith('rgb(var(')
     ? ink.replace(/\)\s*\)$/, `) / ${a})`)
-    : `${ink}${Math.round(a * 255)
-        .toString(16)
-        .padStart(2, '0')}`;
+    : ink.startsWith('rgb(')
+      ? ink.replace(/\s*\/\s*[\d.]+\s*\)$|\)$/, ` / ${a})`)
+      : `${ink}${Math.round(a * 255)
+          .toString(16)
+          .padStart(2, '0')}`;
+
+/** A token ink resolved for a CANVAS or a CHART OPTION, which cannot read
+    var() — handed one, the chart library paints black (the Compare tape's
+    leader line, invisible on the dark terminal, 2026-09-12). Read off the
+    element whose scope should answer (a dark island resolves to the dark
+    set); a hex or a resolved rgb() passes through. Resolve at draw time, not
+    at module load: the theme can flip. */
+export const resolveInk = (ink: string, from?: Element | null): string => {
+  const m = ink.match(/^rgb\(var\((--[\w-]+)\)\s*(?:\/\s*([\d.]+))?\s*\)$/);
+  return m ? readToken(m[1], m[2] == null ? undefined : Number(m[2]), from) : ink;
+};

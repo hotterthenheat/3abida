@@ -37,6 +37,7 @@ import { expiryFor } from '../../core/calendar';
 import { buildCompassView, makeSetup } from '../../data/compass';
 import Simulator from '../../core/simulator';
 import DropdownSelect from '../../components/ui/DropdownSelect';
+import ExpiryCard from '../../components/ui/ExpiryCard';
 import type { WorkspaceCtx } from './registry';
 
 /** What a card click opens — enough to rebuild the campaign live. */
@@ -257,7 +258,17 @@ const CompassSetupsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
     <div className="h-full min-h-0 flex flex-col">
       {/* Controls in the body — the header is the drag handle. */}
       <div className="shrink-0 px-2 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap">
-        <DropdownSelect label="Expiry" value={sleeve} options={SLEEVES.map(s => ({ value: s.key, label: s.label, hint: `${s.dte} days out` }))} onChange={pickSleeve} title="How far out the contracts run" testId="setups-sleeve" />
+        <ExpiryCard
+          label="Expiry"
+          value={sleeve}
+          choices={SLEEVES.map(s => {
+            const e = expiryFor(s.dte);
+            return { value: s.key, label: `${s.label} · ${e.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, hint: s.blurb, date: e.date };
+          })}
+          onChange={pickSleeve}
+          title="How far out the contracts run"
+          testId="setups-sleeve"
+        />
         <DropdownSelect label="Scan" value={scanner} options={eligibleScanners.map(s => ({ value: s.key, label: s.label }))} onChange={setScanner} title="Which scan ranks the cards" testId="setups-scan" />
         <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted tnum whitespace-nowrap">
           {ranked.length} setup{ranked.length === 1 ? '' : 's'} · {expiryChip}

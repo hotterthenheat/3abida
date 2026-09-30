@@ -16,23 +16,6 @@
   five-factor Ranked Targets under its key), At the
   wall, Where the walls are heading (replacing Wall
   Drift under its key).
-
-  THE AUDIT (Noah, 2026-09-12: "some things we have
-  on the + add widget page don't make sense so take
-  control and you use logic to understand which
-  fits and does not"). The rule a panel has to pass:
-  it is a LIVE READING of one name or the market —
-  one question, answered on the desk's clock, in a
-  tile — and it is a copy of a page a reader can
-  open. What failed it: the Weigher, a whole
-  workstation (a chain to pick from, a contract to
-  weigh) crammed into a tile, which the page does
-  properly — gone. What the desk lacked and fits:
-  the name's Net flow, its Dark pool shelves and
-  its Tape, the Trace pages' own readings, so the
-  desk sees the flow beside the levels. Order flow
-  keeps its place and loses a door it never had a
-  page for.
 ==================================================
 */
 
@@ -43,15 +26,12 @@ import CompassSetupsWidget from './CompassSetupsWidget';
 import TargetsWidget from './TargetsWidget';
 import EarningsWidget from './EarningsWidget';
 import NewsWidget from './NewsWidget';
-import NetFlowWidget from './NetFlowWidget';
-import DarkPoolWidget from './DarkPoolWidget';
-import TapeWidget from './TapeWidget';
-import { BreadthWidget, IndicesWidget, MoversWidget, SectorsWidget } from './MarketTideWidgets';
+import WeigherChainWidget from './WeigherChainWidget';
 import { CloseWidget, RangeWidget } from './AheadWidgets';
 import AtTheWallWidget from './AtTheWallWidget';
 import WallsHeadingWidget from './WallsHeadingWidget';
 import ExposureField from '../../components/gex/ExposureField';
-import OrderFlowPanel from '../../components/gex/OrderFlowPanel';
+import { writeLedgerView, type LedgerView } from '../../components/gex/ledgerView';
 import { ChartSkeleton } from '../../components/ui/Skeleton';
 import { CloseInner, CorridorInner } from '../pinpoint/pinpointSkeletons';
 import { AtTheWallInner } from '../../components/gex/wallSkeletons';
@@ -121,11 +101,6 @@ export interface WidgetDef {
   render: (ctx: WorkspaceCtx) => ReactNode;
   /** The panel standing in its own shape for the frame it takes to mount */
   skeleton: () => ReactNode;
-  /** THE PANEL TAKES NO NAME. The market's own readings — the indices, the
-      rotation, the breadth, the movers — are about the whole tape, so a
-      scope chip offering to pin them to NVDA is a control that does nothing,
-      which is worse than no control. */
-  marketWide?: boolean;
   /** The panel has a fullscreen of its own (the live chart: the quartet, the
       editor dock, total fullscreen) — the tile head's button hands it
       `ctx.fullOpen` and the chart lifts it */
@@ -136,85 +111,21 @@ export interface WidgetDef {
       name, with the way back to Pulse; never a takeover that copes on its own.
       `prepare` sets the page up to show what the tile showed (a view pick). */
   page?: { path: string; label: string; prepare?: () => void };
+  /** THE PICTURE'S SIZE in the Add widget menu — the panel is mounted at this size and scaled into the thumb (640 × 420
+      by rest). A panel whose own toolbar wraps at 640 asks for its real tile's size (the strike ladder, 2026-09-22) */
+  thumbSize?: { w: number; h: number };
 }
 
-const MAP_VIEW = (view: 'calendar' | 'ladder') => () => {
-  try {
-    localStorage.setItem('slayer_ledger_view', view);
-  } catch {
-    /* private mode — the page opens on its last view */
-  }
-};
+/* the Map keeps its own view (gex/ledgerView.ts) — a tile that opens it "on what the tile showed" writes the MAP's pick */
+const MAP_VIEW = (view: LedgerView) => () => writeLedgerView('map', view);
 
 const chartSkeleton = () => <ChartSkeleton className="h-full" />;
 
 export const WIDGETS: WidgetDef[] = [
-  /* ---- the market, before any one name ------------------------------------
-     THE DESK HAD FIFTEEN PANELS AND EVERY ONE WAS ABOUT ONE NAME. A trader
-     opening a terminal does not start at NVDA; they start at "what kind of
-     day is this". These four answer that, and everything below them answers
-     the next question. They take no ticker, so they are the one part of the
-     desk that does not change when the name does. */
-  {
-    key: 'indices',
-    marketWide: true,
-    title: 'The indices',
-    sub: 'The four, and what insurance costs',
-    description: 'SPY, QQQ, IWM and DIA on one line with the VIX — read against each other, not one at a time. Click one to put it on the desk.',
-    w: 12,
-    h: 1,
-    minW: 5,
-    minH: 1,
-    maxH: 2, // a strip; height past this is empty surface
-    render: ctx => <IndicesWidget pickTicker={ctx.pickTicker} />,
-    skeleton: chartSkeleton,
-  },
-  {
-    key: 'sectors',
-    marketWide: true,
-    title: 'Sector rotation',
-    sub: 'Every sector around the zero line, ranked, with how many of its names agree',
-    description: "Eleven sectors ranked by today's move, drawn around a zero line so the rotation reads at a glance — with the advancer count beside each, because an average says a sector moved and the count says whether it moved together",
-    w: 5,
-    h: 4,
-    minW: 4,
-    minH: 3,
-    maxH: 6,
-    render: () => <SectorsWidget />,
-    skeleton: chartSkeleton,
-  },
-  {
-    key: 'breadth',
-    marketWide: true,
-    title: 'Breadth',
-    sub: 'How much of the tape is actually taking part',
-    description: 'Advancers against decliners across the sector universe, the A/D ratio, how many names cleared ±2%, and the market in one sentence — the fact an index hides',
-    w: 4,
-    h: 4,
-    minW: 3,
-    minH: 3,
-    maxH: 6,
-    render: () => <BreadthWidget />,
-    skeleton: chartSkeleton,
-  },
-  {
-    key: 'movers',
-    marketWide: true,
-    title: 'Movers',
-    sub: 'The widest each way, facing each other',
-    description: 'What is leading and what is lagging, side by side — a ranking only means something against the other end of it. Click a name to put it on the desk.',
-    w: 3,
-    h: 4,
-    minW: 3,
-    minH: 3,
-    maxH: 7,
-    render: ctx => <MoversWidget pickTicker={ctx.pickTicker} />,
-    skeleton: chartSkeleton,
-  },
   {
     key: 'live-chart',
     title: 'Live chart',
-    sub: 'Price with the walls, the flip and the supreme on it',
+    sub: 'Price over the hedging at every strike — the key levels are one switch away',
     description: 'Candles with walls, flip, supreme & the exposure trails — own timeframe & overlays',
     w: 8,
     h: 5,
@@ -258,6 +169,8 @@ export const WIDGETS: WidgetDef[] = [
     render: ctx => <StrikeLadderWidget ctx={ctx} />,
     skeleton: chartSkeleton,
     page: { path: '/pinpoint/map', label: 'the Map', prepare: MAP_VIEW('ladder') },
+    /* its picture at its real tile's size: at 640 its toolbar wrapped to three lines and the rows under spot fell off */
+    thumbSize: { w: 800, h: 525 },
   },
   {
     key: 'the-range',
@@ -333,23 +246,8 @@ export const WIDGETS: WidgetDef[] = [
     skeleton: () => <WallHeadingSkeleton headless fill />,
     page: { path: '/pinpoint/building', label: 'Building' },
   },
-  {
-    key: 'order-flow',
-    title: 'Order flow',
-    sub: 'Cumulative delta, and delta by price',
-    description: 'Cumulative delta & delta by price',
-    w: 4,
-    h: 5,
-    minW: 3,
-    minH: 4,
-    maxH: 8,
-    render: ctx => (
-      <div className="h-full min-h-0 p-3">
-        <OrderFlowPanel data={ctx.pulse.orderFlow} />
-      </div>
-    ),
-    skeleton: chartSkeleton,
-  },
+  /* ORDER FLOW LEFT THE DESK (Noah, 2026-09-20: "on the pulse page remove the order flow widget"). Its key, 'order-flow',
+     is retired: desks.ts hands its cell to the panel that took its place in the two preset desks, and drops it anywhere else. */
   {
     // Key kept from the old mini-feed so saved desks upgrade in place —
     // the hand-drawn row list became the ACTUAL Compass cards (Noah,
@@ -379,7 +277,7 @@ export const WIDGETS: WidgetDef[] = [
     maxH: 8,
     render: () => <EarningsWidget />,
     skeleton: chartSkeleton,
-    page: { path: '/record/earnings', label: 'Earnings' },
+    page: { path: '/dossier/earnings', label: 'Earnings' },
   },
   {
     key: 'news',
@@ -393,49 +291,24 @@ export const WIDGETS: WidgetDef[] = [
     maxH: 9,
     render: () => <NewsWidget />,
     skeleton: chartSkeleton,
-    page: { path: '/record/news', label: 'News' },
+    page: { path: '/dossier/news', label: 'News' },
   },
   {
-    key: 'net-flow',
-    title: 'Net flow',
-    sub: "Which way the name's money leans, through the session",
-    description: "The Net Flow pane on the tile's name — its own candles as the spot line, net call and net put premium as the lines, cut by money and by clock",
-    w: 6,
-    h: 5,
-    minW: 4,
+    key: 'compass-weigher',
+    /* The stored-layout key stays 'compass-weigher' — renaming it would
+       orphan every saved Pulse board. Only the words moved (the Weigher is
+       its own page now, not a Compass tab). */
+    title: 'Weigher',
+    sub: 'The deep chain and the strike weigh-up, live',
+    description: 'The Weigher desk in panel form — the deep chain & the strike weigh-up, live',
+    w: 8,
+    h: 6,
+    minW: 5,
     minH: 4,
-    maxH: 8,
-    render: ctx => <NetFlowWidget ctx={ctx} />,
-    skeleton: chartSkeleton,
-    page: { path: '/trace/net-flow', label: 'Net Flow' },
-  },
-  {
-    key: 'dark-pool',
-    title: 'Dark pool',
-    sub: 'The shelves the off-exchange dollars left, and the posture behind them',
-    description: "The name's dark-pool posture, the share of the session that printed off-exchange, the largest cross, and the liquidity shelves — support, resistance, a pivot — with how often price has bounced off each",
-    w: 5,
-    h: 4,
-    minW: 4,
-    minH: 3,
-    maxH: 7,
-    render: ctx => <DarkPoolWidget ctx={ctx} />,
-    skeleton: chartSkeleton,
-    page: { path: '/trace/dark-pool', label: 'the Dark Pool' },
-  },
-  {
-    key: 'the-tape',
-    title: 'The tape',
-    sub: "The name's rich prints as they land",
-    description: "The Live Tape cut to the tile's name — each print's contract, size at the fill, dollars, the side of the spread it hit, sweeps marked",
-    w: 5,
-    h: 5,
-    minW: 4,
-    minH: 3,
     maxH: 9,
-    render: ctx => <TapeWidget ctx={ctx} />,
+    render: ctx => <WeigherChainWidget ctx={ctx} />,
     skeleton: chartSkeleton,
-    page: { path: '/trace/live-tape', label: 'the Live Tape' },
+    page: { path: '/weigher', label: 'the Weigher' },
   },
 ];
 

@@ -28,6 +28,7 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { Bell } from 'lucide-react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
+import { jingle } from '../../core/sound';
 
 interface JingleBellProps {
   /** How many are set — a rise rings, more than none wears the ink */
@@ -46,6 +47,9 @@ const JingleBell = ({ count, ink = 'rgb(var(--warn))', lit = false, className = 
   const controls = useAnimationControls();
   const reduce = useReducedMotion();
   useEffect(() => {
+    /* a rise RINGS — out loud when the desk allows it (Settings › The desk),
+       whatever the motion setting says */
+    if (count > prev.current) jingle();
     if (count > prev.current && !reduce) {
       /* the kick, then the spring home: stiff enough to swing fast, damped
          lightly enough to cross zero three or four times before it rests */

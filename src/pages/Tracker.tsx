@@ -13,7 +13,7 @@ import { Bookmark, Trash2, ArrowUpRight } from 'lucide-react';
 import { useTracker } from '../context/TrackerContext';
 import { useMarketData } from '../context/MarketDataContext';
 import Simulator from '../core/simulator';
-import { makeSetup } from '../data/compass';
+import { gradeOfConfidence, makeSetup } from '../data/compass';
 import type { Setup, SleeveKey } from '../types/compass';
 import type { TrackedSetup } from '../types/tracker';
 import PageHeader from '../components/ui/PageHeader';
@@ -21,11 +21,15 @@ import SegmentedControl from '../components/ui/SegmentedControl';
 import Panel from '../components/ui/Panel';
 import SignalBadge from '../components/ui/SignalBadge';
 import VerdictBadge from '../components/compass/VerdictBadge';
+import GradeMeter, { GRADE_INK } from '../components/ui/GradeMeter';
 import DataTable, { type Column } from '../components/ui/DataTable';
 
+/* ONE LIST, TWO VIEWS (Noah, 2026-09-28: "what is the difference of the compass tracker between the tracked setups and
+   the tracked cons i tried to distinguish them and i really couldnt" — there was none; both tabs drew the same tracked
+   setups, once as cards and once as a table). The switch now says what it is. Contracts you WATCH live on the Weigher. */
 const TAB_OPTIONS = [
-  { value: 'setups', label: 'Tracked Setups' },
-  { value: 'contracts', label: 'Tracked Contracts' },
+  { value: 'setups', label: 'Cards' },
+  { value: 'contracts', label: 'Table' },
 ] as const;
 
 type TabKey = (typeof TAB_OPTIONS)[number]['value'];
@@ -82,6 +86,7 @@ interface TrackedCardProps {
 
 const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = false }: TrackedCardProps) => {
   const moveUp = live.expectedMovePct >= 0;
+  const read = gradeOfConfidence(live.confidence);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -118,7 +123,9 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
         </div>
       </div>
 
-      {/* Confidence bar — or the expiry notice once the contract is dead */}
+      {/* THE READ — or the expiry notice once the contract is dead. It printed "Confidence 92%" over a green bar as long as the
+          figure: a score of ours, in public (Noah, 2026-09-19: "change the tracker confidence to the four words"). Now the
+          word and the four-step meter (ui/GradeMeter.tsx); the figure stays inside the engine and only SORTS the table. */}
       {expired ? (
         <div className="px-4 py-2.5">
           <span className="font-mono text-[10px] text-textSecondary">
@@ -127,15 +134,13 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
         </div>
       ) : (
         <div className="px-4 py-2.5">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-1.5" data-tracker-read={read}>
             <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted flex items-center gap-1.5">
               Confidence <SignalBadge tone="select" dot pulse>Live</SignalBadge>
             </span>
-            <span className="font-mono text-[10px] font-semibold text-textPrimary tnum">{live.confidence}%</span>
+            <span className={`font-mono text-[11px] font-semibold ${GRADE_INK[read]}`}>{read}</span>
           </div>
-          <div className="h-1 rounded-full bg-ink/[0.06] overflow-hidden">
-            <span className="block h-full rounded-full bg-bull/95 transition-all duration-500" style={{ width: `${live.confidence}%` }} />
-          </div>
+          <GradeMeter grade={read} />
         </div>
       )}
 
@@ -167,7 +172,7 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
   );
 };
 
-// ---- Table columns for "Tracked Contracts" tab -----------------------------
+// ---- Table columns for the Table view ------------------------------------------
 
 const TABLE_COLUMNS: Column<{ tracked: TrackedSetup; live: Setup; expired: boolean }>[] = [
   {
@@ -192,7 +197,11 @@ const TABLE_COLUMNS: Column<{ tracked: TrackedSetup; live: Setup; expired: boole
     header: 'Confidence',
     align: 'right',
     sortValue: r => r.live.confidence,
-    render: r => <span className="text-textPrimary tnum">{r.live.confidence}%</span>,
+    /* the word, in its ink — the figure still sorts the column (it may order rows, never reach a digit) */
+    render: r => {
+      const g = gradeOfConfidence(r.live.confidence);
+      return <span className={`font-semibold ${GRADE_INK[g]}`}>{g}</span>;
+    },
   },
   {
     key: 'expMove',
@@ -267,12 +276,13 @@ const Tracker = ({ embedded = false }: { embedded?: boolean } = {}) => {
         <PageHeader
           breadcrumb={['Terminal', 'Tracker']}
           title="Setup Tracker"
-          subtitle="Bookmarked setups with live-updating metrics — monitor your watchlist"
+          subtitle="Every setup you track, with its live figures — as cards or as a table"
         />
       )}
 
       {/* Tabs */}
       <div className="flex items-center gap-3">
+        <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-textMuted">View</span>
         <SegmentedControl
           ariaLabel="Tracker view"
           options={TAB_OPTIONS}
@@ -280,7 +290,7 @@ const Tracker = ({ embedded = false }: { embedded?: boolean } = {}) => {
           onChange={setTab}
         />
         <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider">
-          {trackedSetups.length} tracked
+          {trackedSetups.length} tracked setup{trackedSetups.length === 1 ? '' : 's'}
         </span>
       </div>
 
@@ -318,8 +328,8 @@ const Tracker = ({ embedded = false }: { embedded?: boolean } = {}) => {
           ))}
         </div>
       ) : (
-        /* ---- Table view of tracked contracts ---- */
-        <Panel title="Tracked Contracts" flush className="w-full animate-view-in">
+        /* ---- The same setups, as a table ---- */
+        <Panel title="Tracked setups" flush className="w-full animate-view-in">
           <DataTable
             columns={TABLE_COLUMNS}
             rows={liveData}

@@ -1,0 +1,498 @@
+diff --git a/src/components/gex/ExposureField.tsx b/src/components/gex/ExposureField.tsx
+index e5e7e3b..0ff4d2d 100644
+--- a/src/components/gex/ExposureField.tsx
++++ b/src/components/gex/ExposureField.tsx
+@@ -189,7 +189,16 @@ const PALETTE_OPTIONS: DropdownOption<'thermal' | 'house'>[] = [
+    good. make a new button that allows for either the heatmap or this") —
+    the same book two ways: the calendar's capsules by strike and expiry, or
+    one row per strike with the put and call legs, the net and a bar. */
+-type LedgerView = 'calendar' | 'ladder';
++/* THE THIRD VIEW (Noah, 2026-09-19, his partner's remodel of the Map: "the
++   exposure matrix we once had… put it side by side next to the current
++   ladder"): the ladder with the matrix in its own rows — the ladder draws ONE
++   greek as bars, the matrix prints every greek's put · call · net as capsules,
++   strike for strike (ExposureLadder's `matrix`). For the flight it is a
++   ladder; between the ladder and the matrix nothing remounts — the lane
++   narrows and the capsules fade in. */
++type LedgerView = 'calendar' | 'ladder' | 'matrix';
++/** The matrix is drawn by the ladder — for the view's mount and the flight's pieces they are one */
++const isLadderView = (v: LedgerView) => v !== 'calendar';
+ /* THE MORPH BETWEEN THE VIEWS (Noah, 2026-09-13: "when going from ladder to
+    calendar we can make these long columns stretch out to reach the sides and
+    cut up into pieces to become the calendar with smoothness like butter. and
+@@ -286,6 +295,7 @@ const MorphLayer = ({ pieces, phase, toIsLadder }: { pieces: Piece[]; phase: Mor
+ const VIEW_OPTIONS: DropdownOption<LedgerView>[] = [
+   { value: 'calendar', label: 'Calendar', hint: 'Strike by expiry — every cell a capsule' },
+   { value: 'ladder', label: 'Ladder', hint: 'One row per strike — the put leg, the call leg, the net, and a bar' },
++  { value: 'matrix', label: 'Ladder and matrix', short: 'Both', hint: "The ladder's bars beside every greek's exact figures, strike for strike" },
+ ];
+ const SHOW_OPTIONS: DropdownOption<'now' | 'after'>[] = [
+   { value: 'now', label: 'Now', hint: 'The calendar as it stands' },
+@@ -329,7 +339,8 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+   /* THE VIEW — the calendar, or the ladder (one row per strike); remembered */
+   const [view, setView] = useState<LedgerView>(() => {
+     try {
+-      return localStorage.getItem('slayer_ledger_view') === 'ladder' ? 'ladder' : 'calendar';
++      const saved = localStorage.getItem('slayer_ledger_view');
++      return saved === 'ladder' || saved === 'matrix' ? saved : 'calendar';
+     } catch {
+       return 'calendar';
+     }
+@@ -430,7 +441,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+     ghostClones.current.clear();
+     for (const [col, body] of bodies) {
+       const base = body.getBoundingClientRect();
+-      pieces.push(...(from === 'ladder' ? ladderPieces(col, body, base) : calendarPieces(col, body, base)));
++      pieces.push(...(isLadderView(from) ? ladderPieces(col, body, base) : calendarPieces(col, body, base)));
+       const shown = body.querySelector<HTMLElement>('[data-morph-view]');
+       if (shown) {
+         const clone = shown.cloneNode(true) as HTMLElement;
+@@ -487,7 +498,9 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+     return undefined;
+   }, [morph?.phase]);
+   const pickView = (v: LedgerView) => {
+-    if (v !== view) setPlainSwap(!startMorph(view, v));
++    /* the ladder and the matrix are one mount: between them nothing flies and nothing fades in
++       whole — the lane narrows or widens, the capsules arrive or leave */
++    if (v !== view) setPlainSwap(isLadderView(v) && isLadderView(view) ? false : !startMorph(view, v));
+     setView(v);
+     try {
+       localStorage.setItem('slayer_ledger_view', v);
+@@ -848,7 +861,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+   const tight = 1 + extraBooks.length >= TIGHT_AT;
+   const strips = (
+     <>
+-      <DropdownSelect label="View" value={view} options={VIEW_OPTIONS} onChange={pickView} title="The calendar, or one row per strike" testId="ledger-view" />
++      <DropdownSelect label="View" value={view} options={VIEW_OPTIONS} onChange={pickView} title="The calendar, one row per strike, or the ladder beside the matrix" testId="ledger-view" />
+       {/* with names side by side the greek steps down to each column's head */}
+       <Fold open={!many} gap={8} testId="data-band-greek">
+         <DropdownMulti label="Greek" values={pick} groups={GREEK_GROUPS} onChange={setPick} emptyWord="All" title="One, some, or all five" testId="ledger-greek" align="start" />
+@@ -1146,8 +1159,15 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+                 data-morph={morph?.phase}
+               >
+                 {/* the arriving view stands hidden under the flight and fades in as it settles */}
+-                <div key={view} className={`h-full min-h-0 flex flex-col ${plainSwap ? 'animate-soft-in' : ''}`} style={{ opacity: morph && morph.phase !== 'reveal' ? 0 : 1, transition: morph?.phase === 'reveal' ? `opacity ${MORPH_GHOST_MS}ms ${EASE}` : 'none' }} data-morph-view={view} data-plain-swap={plainSwap ? '' : undefined}>
+-                  {view === 'ladder' ? (
++                <div key={isLadderView(view) ? 'ladder' : 'calendar'} className={`h-full min-h-0 flex flex-col ${plainSwap ? 'animate-soft-in' : ''}`} style={{ opacity: morph && morph.phase !== 'reveal' ? 0 : 1, transition: morph?.phase === 'reveal' ? `opacity ${MORPH_GHOST_MS}ms ${EASE}` : 'none' }} data-morph-view={view} data-plain-swap={plainSwap ? '' : undefined}>
++                  {view === 'matrix' ? (
++                    /* THE LADDER AND THE MATRIX: the ladder draws the ONE greek in the lead; the matrix
++                       prints the greeks ticked — every one of the five when a single greek is ticked,
++                       since a matrix of one greek would only repeat the ladder. A greek's name in the
++                       matrix's head leads with it: among several ticked it takes the lead, with one
++                       ticked it becomes the tick */
++                    <ExposureLadder surface={book.surface} liveSpot={book.snapshot.spot} greeks={[colGreek]} matrix={colGreeks.length >= 2 ? colGreeks : GREEKS} depth={shownDepth} rings={rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} afterBell={afterBell} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={colGreek} onLead={g => (c.host ? (greeks.length >= 2 && !many ? setLeadPick(g) : setPick([g])) : setGreeksOf(c.ticker, [g]))} />
++                  ) : view === 'ladder' ? (
+                     <ExposureLadder surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} depth={shownDepth} rings={rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} afterBell={afterBell} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} onLead={c.host ? setLeadPick : undefined} />
+                   ) : (
+                     <ExposureLedger surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} depth={shownDepth} rings={rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} afterBell={afterBell} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} fitKey={c.ticker} onFit={reportFit} />
+@@ -1168,7 +1188,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+                     data-morph-ghost={morph.from}
+                   />
+                 )}
+-                {morph && <MorphLayer pieces={morph.pieces.filter(p => p.col === c.ticker)} phase={morph.phase} toIsLadder={morph.to === 'ladder'} />}
++                {morph && <MorphLayer pieces={morph.pieces.filter(p => p.col === c.ticker)} phase={morph.phase} toIsLadder={isLadderView(morph.to)} />}
+                 {/* THE READ — this name's, glass over the right of its own book
+                     (the whole column when names are tight), in its lead greek */}
+                 {read && (
+@@ -1194,8 +1214,8 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike,
+         })}
+       </div>
+       {/* THE GUIDE IN FOCUS — over the whole calendar, the grid blurred behind it */}
+-      <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read the calendar" testId="ledger-guide">
+-        <LedgerGuide surface={surface} greek={supremeGreek} />
++      <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title={view === 'matrix' ? 'How to read the ladder and the matrix' : 'How to read the calendar'} testId="ledger-guide">
++        <LedgerGuide surface={surface} greek={supremeGreek} view={view} shown={shownIdxOf(surface)} />
+       </GuideFocus>
+     </div>
+   );
+diff --git a/src/components/gex/ExposureLadder.tsx b/src/components/gex/ExposureLadder.tsx
+index 8fd96d8..5fbb7e3 100644
+--- a/src/components/gex/ExposureLadder.tsx
++++ b/src/components/gex/ExposureLadder.tsx
+@@ -33,6 +33,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from
+ import type { HeatMode } from './heatmap';
+ import { HEAT_MODE, heatLaneColor, heatLaneInks, heatRampColorFor } from './heatmap';
+ import SpotRule from '../ui/SpotRule';
++import HeatPill from './HeatPill';
+ import { CardRow, PointerFollowCard } from '../ui/PointerCard';
+ import { fmtUsd } from '../../data/gex';
+ import { GREEKS, GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposureSurface';
+@@ -63,8 +64,33 @@ interface ExposureLadderProps {
+       it. A click on a lane's head makes it the lead. */
+   lead?: Greek;
+   onLead?: (greek: Greek) => void;
++  /** THE MATRIX BESIDE THE LADDER (Noah, 2026-09-19, his partner's remodel of
++      the Map: "the exposure matrix we once had… put it side by side next to
++      the current ladder"): the greeks printed as put · call · net capsules to
++      the right of the lane, IN THE LADDER'S OWN ROW — so a strike is one row
++      across both, the legs are summed over the same expiries, and the matrix's
++      net for the greek the ladder draws is the ladder's net to the dollar.
++      The old table (ExposureMatrix.tsx, deleted 2026-09-04 for the Wheel) read
++      one expiry lens and only three greeks; this one reads the calendar's book
++      and all five. The host passes ONE greek to draw as the ladder. Undefined
++      draws the ladder alone. A greek's name in the matrix's head is a door:
++      `onLead` leads with it and the ladder redraws for that greek. */
++  matrix?: Greek[];
+ }
+ 
++/* THE MATRIX'S MEASURES: a figure like −$288.4M at 10px bold needs 62px of
++   capsule; a greek is three of them, the air between, and the hairline's room.
++   The matrix takes at most MATRIX_SHARE of the pane — the ladder is a picture
++   and a picture needs its length — and as many greeks as that holds. A pane
++   narrower than MATRIX_MIN_PANE (names side by side) keeps the ladder alone. */
++const MATRIX_CELL = 62;
++const MATRIX_GAP = 3;
++const MATRIX_GROUP_PAD = 12;
++const MATRIX_GROUP_W = 3 * MATRIX_CELL + 2 * MATRIX_GAP + MATRIX_GROUP_PAD;
++const MATRIX_SHARE = 0.56;
++const MATRIX_MIN_PANE = 900;
++const MATRIX_LEGS = ['put', 'call', 'net'] as const;
++
+ const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
+ /* The legs' inks are the HOUSE's put and call (the profile panel's wall pills,
+    the calendar's tags) — the put side red, the call side green (Noah,
+@@ -125,7 +151,7 @@ interface Row {
+   legs: Record<Greek, { put: number; call: number; net: number }>;
+ }
+ 
+-const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, palette = 'house', afterBell = false, selectedStrike, marks, onPointer, onSelectStrike, lead: leadProp, onLead }: ExposureLadderProps) => {
++const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, palette = 'house', afterBell = false, selectedStrike, marks, onPointer, onSelectStrike, lead: leadProp, onLead, matrix }: ExposureLadderProps) => {
+   /* the lead greek — the host's pick when it is among the greeks drawn, else the first */
+   const lead: Greek = leadProp && greeks.includes(leadProp) ? leadProp : greeks[0];
+   const mode: HeatMode = palette === 'thermal' ? 'thermal-yellow' : HEAT_MODE;
+@@ -228,6 +254,9 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+   }, []);
+   const rowH = Math.max(ROW_MIN, (boxH - SPOT_H) / Math.max(1, rows.length));
+   const fontSize = Math.max(9.5, Math.min(12, rowH * 0.46));
++  /* the matrix's capsule fills its row less a hair of air; its figure follows the row's */
++  const pillH = Math.max(13, Math.min(22, rowH - 5));
++  const pillFont = Math.max(9.5, Math.min(11, rowH * 0.46));
+ 
+   const { levels } = surface;
+   const pinStrike = surface.front.strikes.find(r => r.pin)?.strike;
+@@ -254,6 +283,8 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+   const laneRef = useRef<HTMLSpanElement | null>(null);
+   const [narrow, setNarrow] = useState(false);
+   const [laneW, setLaneW] = useState<number | null>(null);
++  /* the pane's own width, settled with the tracks — what the matrix may take is a share of it */
++  const [paneW, setPaneW] = useState(0);
+   useLayoutEffect(() => {
+     const el = rootRef.current;
+     if (!el) return;
+@@ -266,7 +297,10 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+       const lane = laneRef.current;
+       if (lane) setLaneW(lane.getBoundingClientRect().width);
+       window.clearTimeout(settle);
+-      const decide = () => setNarrow(el.clientWidth > 0 && el.clientWidth < 720);
++      const decide = () => {
++        setNarrow(el.clientWidth > 0 && el.clientWidth < 720);
++        setPaneW(prev => (prev === el.clientWidth ? prev : el.clientWidth));
++      };
+       if (now) decide();
+       else settle = window.setTimeout(decide, 120);
+     };
+@@ -284,8 +318,19 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+   const DIST_W = compact ? 46 : 52;
+   const LANE = compact ? 'minmax(150px,1fr) 66px' : 'minmax(240px,1fr) 76px';
+   const groupMin = compact ? 150 + 66 + 8 : 240 + 76 + 8;
+-  const cols = one ? `${STRIKE_W}px ${DIST_W}px ${LANE}` : `${STRIKE_W}px ${DIST_W}px ${greeks.map(() => `minmax(${groupMin}px, 1fr)`).join(' ')}`;
+-  const minW = STRIKE_W + DIST_W + 16 + 24 + (one ? groupMin : greeks.length * (groupMin + 12));
++  /* THE MATRIX'S GREEKS THAT FIT — in the book's order, the ladder's own greek
++     never the one left out; what does not fit is named in the foot, never hidden */
++  const matrixShown = useMemo<Greek[]>(() => {
++    if (!matrix || matrix.length === 0 || !one || paneW < MATRIX_MIN_PANE) return [];
++    const fit = Math.max(1, Math.min(matrix.length, Math.floor((paneW * MATRIX_SHARE) / MATRIX_GROUP_W)));
++    const first = matrix.slice(0, fit);
++    if (matrix.includes(lead) && !first.includes(lead)) first[first.length - 1] = lead;
++    return GREEKS.filter(g => first.includes(g));
++  }, [matrix, one, paneW, lead]);
++  const matrixHidden = matrix && matrixShown.length > 0 ? matrix.filter(g => !matrixShown.includes(g)) : [];
++  const matrixW = matrixShown.length * MATRIX_GROUP_W;
++  const cols = one ? `${STRIKE_W}px ${DIST_W}px ${LANE}${matrixW ? ` ${matrixW}px` : ''}` : `${STRIKE_W}px ${DIST_W}px ${greeks.map(() => `minmax(${groupMin}px, 1fr)`).join(' ')}`;
++  const minW = STRIKE_W + DIST_W + 16 + 24 + (one ? groupMin + (matrixW ? matrixW + 8 : 0) : greeks.length * (groupMin + 12));
+   /* A group cell: its inner grid, the hairline, the wash on every other greek */
+   const groupClass = (i: number) => `grid items-center gap-x-2 h-full min-w-0 pl-2 -ml-1 border-l border-borderSubtle/60 ${i % 2 === 1 ? 'bg-ink/[0.02]' : ''}`;
+   /* the lane's reach: half the lane minus the room a figure needs at the bar's end */
+@@ -499,6 +544,32 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+             </span>
+           );
+         })}
++        {/* THE MATRIX, in this same row: every greek's put · call · net as a capsule on the
++            calendar's ramp — the legs against the ladder's own leg scale, the net against its net
++            scale, so a capsule's heat and the bar's length say the same thing */}
++        {matrixShown.length > 0 && (
++          <span className="flex items-stretch h-full min-w-0 animate-soft-in" data-matrix-cells>
++            {matrixShown.map(g => {
++              const l = r.legs[g];
++              return (
++                <span
++                  key={g}
++                  className={`grid items-center h-full border-l ${g === lead ? 'border-silver/40' : 'border-borderSubtle/60'}`}
++                  style={{ width: MATRIX_GROUP_W, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', columnGap: MATRIX_GAP, paddingLeft: MATRIX_GROUP_PAD - 4, paddingRight: 4 }}
++                  data-matrix-group={g}
++                >
++                  {MATRIX_LEGS.map(leg => (
++                    <span key={leg} className="block min-w-0" style={{ height: pillH }} data-matrix-cell={`${g}-${leg}`}>
++                      <HeatPill value={l[leg]} maxAbs={leg === 'net' ? maxAbs[g] : maxLegAll[g]} mode={mode} fontSize={pillFont} tight className="h-full">
++                        {fmtUsd(l[leg])}
++                      </HeatPill>
++                    </span>
++                  ))}
++                </span>
++              );
++            })}
++          </span>
++        )}
+       </div>
+     );
+   };
+@@ -557,6 +628,37 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+      secondary ink, the greeks' names in the primary. */
+   const head = (
+     <div className="shrink-0 border-b border-borderSubtle/70 font-mono uppercase tracking-widest" data-ladder-head>
++      {/* WITH THE MATRIX: a row naming the two halves — the ladder's one greek over its lane, then
++          every greek of the matrix over its three capsules. A greek's name is a door: it leads, and
++          the ladder redraws for it (silver = where you are) */}
++      {matrixShown.length > 0 && (
++        <div role="row" className="grid items-stretch gap-x-2 px-3 h-7 border-b border-borderSubtle/40 text-[10px] font-semibold text-textPrimary" style={{ gridTemplateColumns: cols }} data-matrix-head>
++          <span />
++          <span />
++          <span className="flex items-center gap-2 min-w-0 whitespace-nowrap overflow-hidden" style={{ gridColumn: 'span 2' }}>
++            <span className="text-textSecondary font-normal">The ladder</span>
++            <span className="text-silver">{GREEK_LABEL[lead]}</span>
++            <span className="font-normal text-textSecondary">· per {GREEK_UNIT[lead]}</span>
++          </span>
++          <span className="flex items-stretch min-w-0">
++            {matrixShown.map(g => (
++              <button
++                key={g}
++                type="button"
++                onClick={() => onLead?.(g)}
++                disabled={!onLead || g === lead}
++                title={g === lead ? `${GREEK_LABEL[g]} is the greek the ladder draws` : `Lead with ${GREEK_LABEL[g]} — the ladder redraws for it`}
++                className={`flex items-center gap-1.5 border-l uppercase tracking-widest font-semibold whitespace-nowrap overflow-hidden transition-colors ${g === lead ? 'border-silver/40 text-silver cursor-default' : `border-borderSubtle/60 text-textPrimary ${onLead ? 'hover:text-silver cursor-pointer' : 'cursor-default'}`}`}
++                style={{ width: MATRIX_GROUP_W, paddingLeft: MATRIX_GROUP_PAD - 4 }}
++                data-matrix-group-head={g}
++                data-lead={g === lead || undefined}
++              >
++                {GREEK_LABEL[g]} <span className="font-normal normal-case tracking-normal text-textSecondary">· per {GREEK_UNIT[g]}</span>
++              </button>
++            ))}
++          </span>
++        </div>
++      )}
+       {!one && (
+         <div role="row" className="grid items-stretch gap-x-2 px-3 h-7 border-b border-borderSubtle/40 text-[10px] font-semibold text-textPrimary" style={{ gridTemplateColumns: cols }} data-ladder-head-greeks>
+           <span />
+@@ -599,6 +701,18 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+             </span>
+           );
+         })}
++        {/* the matrix's captions: put · call · net over each greek's three capsules */}
++        {matrixShown.length > 0 && (
++          <span className="flex items-stretch min-w-0" data-matrix-head-columns>
++            {matrixShown.map(g => (
++              <span key={g} className={`grid items-center border-l ${g === lead ? 'border-silver/40' : 'border-borderSubtle/60'}`} style={{ width: MATRIX_GROUP_W, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', columnGap: MATRIX_GAP, paddingLeft: MATRIX_GROUP_PAD - 4, paddingRight: 4 }}>
++                <span className="text-right pr-1.5 transition-colors duration-700" style={{ color: laneInks.put }}>put</span>
++                <span className="text-right pr-1.5 transition-colors duration-700" style={{ color: laneInks.call }}>call</span>
++                <span className="text-right pr-1.5">net</span>
++              </span>
++            ))}
++          </span>
++        )}
+       </div>
+     </div>
+   );
+@@ -615,6 +729,17 @@ const ExposureLadder = ({ surface, liveSpot, greeks, depth, rings, hoverStrike,
+           <span className="font-bold" style={{ color: heatLaneColor(totals[g].net, Math.max(1, Math.abs(totals[g].net)), mode, 0.35) }}>net {fmtUsd(totals[g].net)}</span>
+         </span>
+       ))}
++      {/* what the matrix could not print at this width, and how to see it — never silently dropped */}
++      {matrixHidden.length > 0 && (
++        <span className="ml-auto text-[9px] text-textMuted whitespace-nowrap" data-matrix-note>
++          {matrixHidden.length <= 2 ? matrixHidden.map(g => GREEK_LABEL[g]).join(' and ') : `${matrixHidden.slice(0, -1).map(g => GREEK_LABEL[g]).join(', ')} and ${GREEK_LABEL[matrixHidden[matrixHidden.length - 1]]}`} {matrixHidden.length === 1 ? 'does' : 'do'} not fit beside the ladder at this width — pick {matrixHidden.length === 1 ? 'it' : 'one'} on the Greek card to lead with it, or go fullscreen
++        </span>
++      )}
++      {matrix && matrix.length > 0 && matrixShown.length === 0 && paneW > 0 && (
++        <span className="ml-auto text-[9px] text-textMuted whitespace-nowrap" data-matrix-note="none">
++          the matrix needs a wider pane — take a name off or widen the window
++        </span>
++      )}
+     </div>
+   );
+ 
+diff --git a/src/components/gex/LedgerGuide.tsx b/src/components/gex/LedgerGuide.tsx
+index b6d6dbb..28058e0 100644
+--- a/src/components/gex/LedgerGuide.tsx
++++ b/src/components/gex/LedgerGuide.tsx
+@@ -152,13 +152,108 @@ const ReadFigure = () => (
+   </svg>
+ );
+ 
++/** FIGURE 0 — the ladder and the matrix: the same strikes, a picture on the left, a table on the right */
++const PairFigure = () => {
++  const rows = [
++    { y: 52, k: '496', put: 22, call: 30, cells: [[WARM_1, '$0.6B'], [COOL_1, '-$0.7B'], [PALE, '-$0.1B'], [PALE, '$40M'], [COOL_1, '-$90M'], [PALE, '-$50M']] },
++    { y: 76, k: '495', put: 64, call: 42, cells: [[WARM_3, '$2.4B', '#fff'], [COOL_2, '-$1.1B'], [WARM_2, '$1.4B'], [WARM_2, '$0.3B'], [COOL_1, '-$0.1B'], [WARM_1, '$0.2B']] },
++    { y: 100, k: '494', put: 26, call: 16, cells: [[WARM_1, '$0.7B'], [COOL_1, '-$0.4B'], [WARM_1, '$0.4B'], [PALE, '$60M'], [PALE, '-$30M'], [PALE, '$30M']] },
++  ] as { y: number; k: string; put: number; call: number; cells: (string | undefined)[][] }[];
++  const MID = 104;
++  const GEX_X = [194, 222, 250];
++  const DEX_X = [282, 310, 338];
++  const W = 26;
++  return (
++    <svg viewBox="0 0 368 160" width="100%" role="img" aria-label="Three strikes drawn twice on the same rows: on the left as bars, the put side growing left and the call side growing right; on the right as capsules with put, call and net figures for two greeks" data-guide-figure="pair">
++      <Label x={MID} y={12} anchor="middle" fill={INK} size={9}>
++        the ladder · a picture
++      </Label>
++      <Label x={279} y={12} anchor="middle" fill={INK} size={9}>
++        the matrix · a table
++      </Label>
++      <Label x={MID - 30} y={28} anchor="middle" fill={WARM_2} size={8} mono>
++        ◂ puts
++      </Label>
++      <Label x={MID + 30} y={28} anchor="middle" fill={COOL_2} size={8} mono>
++        calls ▸
++      </Label>
++      <Label x={GEX_X[1] + W / 2} y={24} anchor="middle" fill={SILVER} size={8.5} mono>
++        GEX
++      </Label>
++      <Label x={DEX_X[1] + W / 2} y={24} anchor="middle" fill={INK_2} size={8.5} mono>
++        DEX
++      </Label>
++      {[GEX_X, DEX_X].map((xs, gi) =>
++        ['put', 'call', 'net'].map((w, i) => (
++          <Label key={`${gi}${w}`} x={xs[i] + W - 2} y={36} anchor="end" fill={INK_3} size={7} mono>
++            {w}
++          </Label>
++        ))
++      )}
++      <line x1={0} x2={368} y1={41.5} y2={41.5} stroke={GRID} />
++      <line x1={MID} x2={MID} y1={44} y2={110} stroke={GRID} />
++      <line x1={181.5} x2={181.5} y1={6} y2={112} stroke={GRID} />
++      {rows.map(r => (
++        <g key={r.k}>
++          <Label x={26} y={r.y} anchor="end" fill={r.k === '495' ? SUPREME : INK_2} size={9} mono>
++            {r.k}
++          </Label>
++          <rect x={MID - r.put} y={r.y - 3.5} width={r.put} height={7} rx={1.5} fill={r.k === '495' ? WARM_3 : WARM_1} />
++          <rect x={MID} y={r.y - 3.5} width={r.call} height={7} rx={1.5} fill={r.k === '495' ? COOL_3 : COOL_1} />
++          {r.cells.map((c, i) => (
++            <Cell key={i} x={(i < 3 ? GEX_X : DEX_X)[i % 3]} y={r.y} w={W} fill={c[0] as string} text={undefined} />
++          ))}
++          {r.cells.map((c, i) => (
++            <text key={`t${i}`} x={(i < 3 ? GEX_X : DEX_X)[i % 3] + W - 2.5} y={r.y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize="6.5" fontWeight="700" fill={(c[2] as string) ?? '#0a0a0a'}>
++              {c[1]}
++            </text>
++          ))}
++        </g>
++      ))}
++      {/* one strike is one row across both — the silver rule through 495 */}
++      <line x1={30} x2={366} y1={87.5} y2={87.5} stroke={SILVER} strokeOpacity="0.55" strokeDasharray="2 3" />
++      <Label x={MID} y={124} anchor="middle" fill={SILVER} size={9}>
++        ↓ compare one strike with the next
++      </Label>
++      <Label x={279} y={124} anchor="middle" fill={SILVER} size={9}>
++        read across one strike →
++      </Label>
++      <Label x={184} y={142} anchor="middle" fill={INK_3} size={9}>
++        the same row is the same strike · the same book, summed over the same dates
++      </Label>
++      <Label x={184} y={154} anchor="middle" fill={INK_3} size={9}>
++        the ladder's net and the matrix's net for that greek are one number
++      </Label>
++    </svg>
++  );
++};
++
+ interface LedgerGuideProps {
+   surface: ExposureSurface;
+   greek: Greek;
++  /** The view the guide is opened over — the ladder beside the matrix leads with how the two differ */
++  view?: 'calendar' | 'ladder' | 'matrix';
++  /** The expiries drawn (indices into the surface) — the pair's live words sum the same book the page shows */
++  shown?: number[];
+ }
+ 
+-const LedgerGuide = ({ surface, greek }: LedgerGuideProps) => {
++const GREEK_WORD: Record<Greek, string> = {
++  gex: 'how hard dealers must hedge a move',
++  dex: 'which way dealers are leaning',
++  vex: 'how a change in volatility moves them',
++  vanna: 'the stock a drop in volatility makes them buy or sell',
++  charm: 'the stock the passing day makes them buy or sell',
++};
++
++const LedgerGuide = ({ surface, greek, view = 'calendar', shown }: LedgerGuideProps) => {
+   const label = greek.toUpperCase();
++  /* THE PAIR'S LIVE WORDS: the supreme's row read across, every greek's net over the dates drawn */
++  const supremeIdx = surface.strikes.findIndex(k => Math.abs(k - surface.levels.supreme) < 1e-9);
++  const dates = shown && shown.length ? shown : surface.expiries.map((_, i) => i);
++  const across = (['gex', 'dex', 'vex', 'vanna', 'charm'] as Greek[]).map(g => ({
++    g,
++    net: supremeIdx >= 0 ? dates.reduce((s, e) => s + (surface.net[g][e]?.[supremeIdx] ?? 0), 0) : 0,
++  }));
+   const net = surface.net[greek];
+   const king = surface.king[greek];
+   const kingDate = surface.expiries[king.e]?.date ?? '';
+@@ -183,6 +278,37 @@ const LedgerGuide = ({ surface, greek }: LedgerGuideProps) => {
+ 
+   return (
+     <div className="px-3 py-3 flex flex-col gap-3" data-ledger-guide-card>
++      {view === 'matrix' && (
++        <div data-guide-pair>
++          <p className="text-[12px] font-semibold text-textPrimary">The ladder and the matrix · one book, read two ways</p>
++          <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
++            The ladder on the left is a picture. It draws one greek at a time, the put side growing left and the call side growing right, and the longer and brighter the bar the more hedging sits at that strike. Use it to compare one strike with the next: where the book is heavy, which side leads, where the walls are.
++          </p>
++          <p className="mt-1.5 text-[11.5px] leading-relaxed text-textSecondary">
++            The matrix on the right is a table. It prints every greek at once, as put, call and net, each figure in a capsule coloured by its size. Use it to read across one strike: whether the hedging there shows up in one greek alone or in all of them.
++          </p>
++          <p className="mt-1.5 text-[11.5px] leading-relaxed text-textSecondary">
++            They are the same book. A row is the same strike on both sides, both are summed over the dates on the Expiries card, and the matrix's net for the greek the ladder draws is the ladder's net to the dollar. A greek's name above the matrix is a door: click it and the ladder redraws for that greek.
++          </p>
++          <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
++            <PairFigure />
++          </div>
++          {supremeIdx >= 0 && (
++            <div className="mt-2">
++              <p className="text-[10px] text-textMuted">
++                The supreme's row today, read across · <span className="font-mono tnum font-semibold" style={{ color: SUPREME }}>{fmtStrike(surface.levels.supreme)}</span>
++              </p>
++              <ul className="mt-1 flex flex-col gap-1">
++                {across.map(({ g, net: v }) => (
++                  <li key={g} className="text-[11.5px] leading-relaxed text-textSecondary" data-guide-across={g}>
++                    <span className="font-mono text-[10px] font-semibold text-textPrimary">{g.toUpperCase()}</span> <span className="font-mono tnum text-textPrimary">{fmtUsd(v)}</span> net, {v >= 0 ? 'put-heavy' : 'call-heavy'}. It measures {GREEK_WORD[g]}.
++                  </li>
++                ))}
++              </ul>
++            </div>
++          )}
++        </div>
++      )}
+       <div>
+         <p className="text-[12px] font-semibold text-textPrimary">The grid · one strike per row, one date per column</p>
+         <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
+diff --git a/src/components/ui/DropdownSelect.tsx b/src/components/ui/DropdownSelect.tsx
+index 43b72a5..5c4e429 100644
+--- a/src/components/ui/DropdownSelect.tsx
++++ b/src/components/ui/DropdownSelect.tsx
+@@ -32,6 +32,9 @@ export interface DropdownOption<T extends string | number> {
+   label: string;
+   /** One line under the label — what picking this means */
+   hint?: string;
++  /** A shorter word for the TRIGGER only, when the label would push a toolbar onto a second row
++      (the Map's "Ladder and matrix", 2026-09-19); the card and the screen reader keep the label */
++  short?: string;
+ }
+ 
+ interface DropdownSelectProps<T extends string | number> {
+@@ -82,7 +85,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
+           )}
+           <span className="shrink-0 text-[9px] uppercase tracking-widest text-textMuted">{label}</span>
+           {/* min-w-0 + truncate: in a phone's two-column cards line the card is as wide as its cell, and a long value gives before the card does */}
+-          <span className="min-w-0 truncate text-[11px] font-semibold text-textPrimary">{current?.label ?? '—'}</span>
++          <span className="min-w-0 truncate text-[11px] font-semibold text-textPrimary">{current?.short ?? current?.label ?? '—'}</span>
+           <ChevronDown className="w-3 h-3 shrink-0 text-textMuted" />
+         </button>
+       </DropdownMenu.Trigger>

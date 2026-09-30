@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Code2, Link2, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
-import { activeList } from '../../data/watchlists';
 import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import DistanceUnitPicker from '../../components/ui/DistanceUnitPicker';
@@ -11,6 +10,9 @@ import {
   MAX_NAMED_LAYOUTS, type NamedLayoutEntry,
 } from './layouts';
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
+import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
+import { expiryFor } from '../../core/calendar';
+import ExpiryCard, { type ExpiryChoice } from '../../components/ui/ExpiryCard';
 import StrikeChart, {
   PRICE_SCALE_MIN_WIDTH,
   DEFAULT_INDICATORS,
@@ -30,23 +32,18 @@ import StrikeChart, {
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import { useFadeClose } from '../../components/ui/useFadeClose';
 import CompareControl from '../../components/gex/CompareControl';
-import { type ProfileLane } from '../../components/gex/ProfilePanel';
-import TerrainPanel, { PANEL_MIN_W, panelDefaultW, type PanelGreek, type PanelMode } from '../../components/gex/TerrainPanel';
-import type { StrikeWindow } from '../../data/exposure';
-import type { ExposureExpiry } from '../../types/gex';
+import ProfilePanel, { PALETTE_OPTIONS, PROFILE_MIN_W, profileRestWidth, type ProfileLane, type ProfilePalette } from '../../components/gex/ProfilePanel';
+import DropdownSelect from '../../components/ui/DropdownSelect';
+import { netSinceOpenRatio } from '../../data/levelview';
+import ProfileGuide from '../../components/gex/ProfileGuide';
+import GuideFocus from '../../components/ui/GuideFocus';
+import { buildFlowFromRows } from '../../data/hedgeFlow';
 import useFocusTrap from '../../components/ui/useFocusTrap';
 import { useIsBelowLg, useIsPhone } from '../../components/ui/useMediaQuery';
 import ScopeChip from '../../components/ui/ScopeChip';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
-import CompanyLogo from '../../components/ui/CompanyLogo';
-import {
-  CANDLE_THEMES,
-  chartSurface,
-  getCandleThemeKey,
-  useCandleThemeKey,
-  type CandleThemeKey,
-} from '../../components/gex/candleTheme';
+import { CANDLE_THEMES, chartGround, pageDefaultCandleKey, usePageDefaultCandleKey, type CandleThemeKey } from '../../components/gex/candleTheme';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
 import { TREND_GLYPH, buildConfluence, trendWords, type ConfluenceRow } from '../../data/confluence';
 import { OPENING_RANGES, type OpeningRange } from '../../data/sessionLevels';
@@ -176,20 +173,17 @@ export interface PaneCfg {
       Per SLOT like `ladder`: a way of reading a pane. 'size' by default,
       because the docked panel is 132px and two lanes want room. */
   lane: ProfileLane;
-  /** THE PANEL'S FACE (2026-09-12): the ladder — bars, net, OI, volume, role —
-      or the net strip, one figure per strike over the chart's timeframe.
-      Per SLOT like `ladder`: a way of reading a pane. */
-  panel: PanelMode;
-  /** The strip's greek — GEX, DEX, VEX, vanna or charm on one card */
-  panelGreek: PanelGreek;
-  /** Which contracts the panel weighs, and how many strikes around spot */
-  ladderExpiry: ExposureExpiry;
-  ladderRange: StrikeWindow;
   /** This pane's candle theme (Noah, 2026-08-25: "if i change the theme for
       1 chart it should NOT change for all the others"). A SLOT field like
       the rail: the arrangement's look, not the symbol's memory. Ours, kept
-      through the port — the partner tree paints every pane from one store. */
-  theme: CandleThemeKey;
+      through the port — the partner tree paints every pane from one store.
+      ABSENT = the pane has not been given one and wears THE PAGE'S DEFAULT
+      (candleTheme.ts pageDefaultCandleKey: Glacier on the dark terminal, Stone on
+      paper) — NOT the store's pick: the panes let go of their written 'glacier'
+      (core/storedDefaults.ts) must stay Glacier on the dark terminal whatever the
+      store holds there, or a light-theme change has moved the dark theme. A pane
+      that is given a theme keeps it on both. */
+  theme?: CandleThemeKey;
 }
 
 interface TerrainCfg {
@@ -201,6 +195,137 @@ interface TerrainCfg {
       picked — never re-applied to what is already on screen, or a reader's
       live pane would be rewritten under them by an old decision. */
   setups: SetupMap;
+  /** The rails' colours — the thermal ramp or the house gold and ice — ONE choice
+      for the desk (Noah, 2026-09-13: "let the page have both thermal and the house
+      colours"): a colour that means one thing on one pane and another next door
+      is a colour nobody can read. The card sits in the desk's own cluster. */
+  palette: ProfilePalette;
+  /** WHICH CONTRACTS THE RAILS READ (Noah, 2026-09-16, on the partner's Expiry card: the rail
+      summed the whole book, so a wall beside the live chart could be a monthly's) — ONE EXPIRY,
+      picked on the calendar card in the rail's head (the book's real dates lit — Noah, later:
+      "an actual calendar of the dates so a user doesn't feel forced to choose from three"), or
+      the whole book; one choice for the desk, and the chart's walls, the header's heaviest line,
+      the flow lane and the Net view follow it. */
+  railCut: RailCut;
+}
+
+/** A calendar expiry's days-to-expiry, or the whole book */
+export type RailCut = number | 'book';
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** The card's choices: the calendar's expiries as lit days (two horizons on one Friday are one
+    day), the book as the foot pill — built at render, since the dates are today's */
+const railCutChoices = (): ExpiryChoice<RailCut>[] => {
+  const out: ExpiryChoice<RailCut>[] = [];
+  const seen = new Set<string>();
+  for (const dte of CALENDAR_DTES) {
+    const e = expiryFor(dte);
+    const key = e.date.toISOString().slice(0, 10);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const day = `${MONTHS[e.date.getMonth()]} ${e.date.getDate()}`;
+    out.push({ value: dte, label: dte === 0 ? `Today · ${day}` : day, hint: dte === 0 ? "The contracts that expire at today's bell" : `${e.sessions} sessions out`, date: e.date });
+  }
+  out.push({ value: 'book', label: 'Every expiry', hint: 'Every expiry the name carries', date: null });
+  return out;
+};
+type RailData = ReturnType<typeof buildLadderFor> & { levels: ReturnType<typeof buildLevelsFor>; legs: Map<number, { put: number; call: number }> };
+/** The walls off a set of rows, the book's own rule (`buildLevelsFor`): the heaviest strike each
+    side of spot, the heaviest anywhere, the sign change nearest spot */
+const levelsOf = (rows: { strike: number; value: number }[], spot: number): ReturnType<typeof buildLevelsFor> => {
+  let supreme = spot;
+  let supremeAbs = 0;
+  let callWall = spot;
+  let cwAbs = 0;
+  let putWall = spot;
+  let pwAbs = 0;
+  for (const l of rows) {
+    const a = Math.abs(l.value);
+    if (a > supremeAbs) {
+      supremeAbs = a;
+      supreme = l.strike;
+    }
+    if (l.strike > spot && a > cwAbs) {
+      cwAbs = a;
+      callWall = l.strike;
+    }
+    if (l.strike < spot && a > pwAbs) {
+      pwAbs = a;
+      putWall = l.strike;
+    }
+  }
+  let flip = spot;
+  let flipDist = Infinity;
+  const asc = [...rows].sort((a, b) => a.strike - b.strike);
+  for (let i = 1; i < asc.length; i++) {
+    if (Math.sign(asc[i - 1].value) !== Math.sign(asc[i].value)) {
+      const mid = (asc[i - 1].strike + asc[i].strike) / 2;
+      const d = Math.abs(mid - spot);
+      if (d < flipDist) {
+        flipDist = d;
+        flip = mid;
+      }
+    }
+  }
+  return { spot, callWall, putWall, flip, supreme };
+};
+/** The rail's shape off rows in DESCENDING strike order: the near-spot core, its scale, the step */
+const railShape = (rows: { strike: number; value: number; callOI?: number }[], spot: number) => {
+  const spotIdx = Math.max(0, rows.findIndex(s => s.strike <= spot));
+  const core = rows.slice(Math.max(0, spotIdx - 10), spotIdx + 11);
+  let maxAbs = 1;
+  for (const r of core) maxAbs = Math.max(maxAbs, Math.abs(r.value));
+  let step = Infinity;
+  for (let i = 1; i < rows.length; i++) {
+    const d = rows[i - 1].strike - rows[i].strike;
+    if (d > 1e-9) step = Math.min(step, d);
+  }
+  if (!Number.isFinite(step) || step <= 0) step = 1;
+  return { rows, core, maxAbs, spot, step };
+};
+/** The rail's rows, its near-spot core, its walls and its legs FOR A CUT. The book is the
+    snapshot the rail has always drawn (summed across expiries); a date is that one expiry off
+    the calendar's surface (one chain built, the same engine the Map's calendar reads, so a wall
+    here is the wall the Map names for that day), the strike's open interest on one key so the
+    rail's card prints it whole, the walls reduced by the book's own rule. */
+function railForCut(ticker: string, cut: RailCut): RailData {
+  if (cut === 'book') {
+    const base = buildLadderFor(ticker);
+    const legs = new Map<number, { put: number; call: number }>();
+    try {
+      for (const n of Simulator.snapshotFor(ticker).chain) legs.set(n.strike, { put: n.putGex, call: n.callGex });
+    } catch {
+      /* no chain for this name yet — the net alone draws */
+    }
+    return { ...base, levels: buildLevelsFor(ticker), legs };
+  }
+  const spot = Simulator.TICKERS[Simulator.ensureTicker(ticker)].currentPrice;
+  const empty: RailData = { rows: [], core: [], maxAbs: 1, spot, step: 1, levels: { spot, callWall: spot, putWall: spot, flip: spot, supreme: spot }, legs: new Map() };
+  /* THE FRONT STANDS FIRST, ALWAYS (found 2026-09-16 when the days would not move — Noah: "why do
+     the net puts and calls only seem to change when I change the week and not the day?"): the
+     surface takes its FIRST expiry for the front book and prices every later one off it — the
+     Black-Scholes gamma at that expiry's time to the bell, scaled per strike to the front — so a
+     surface built from the chosen date alone wore the front's legs whatever the date, and only
+     the ticks moved the figures. Built from the front and the date, the date's own column is
+     read; a date that is today's session dedupes to the front. */
+  let surface: ReturnType<typeof buildExposureSurface> | null = null;
+  try {
+    surface = buildExposureSurface(Simulator.snapshotFor(ticker), 30, cut === 0 ? [0] : [0, cut]);
+  } catch {
+    surface = null;
+  }
+  if (!surface || surface.strikes.length === 0) return empty;
+  const e = surface.expiries.length - 1;
+  const put = surface.put.gex[e] ?? [];
+  const call = surface.call.gex[e] ?? [];
+  const net = surface.net.gex[e] ?? [];
+  const oiRow = surface.oi[e] ?? [];
+  const legs = new Map<number, { put: number; call: number }>();
+  const asc = surface.strikes.map((strike, s) => {
+    legs.set(strike, { put: put[s] ?? 0, call: call[s] ?? 0 });
+    return { strike, value: net[s] ?? 0, callOI: oiRow[s] ?? 0 };
+  });
+  const rows = [...asc].reverse();
+  return { ...railShape(rows, spot), levels: levelsOf(rows, spot), legs };
 }
 
 const TF_VALUES = new Set<string>(TIMEFRAMES.map(t => t.value));
@@ -217,41 +342,9 @@ const SCALES = new Set<string>(PRICE_SCALES.map(o => o.value));
 /* Same rule: derived from the engine's own list rather than typed twice. */
 const OR_VALUES = new Set<number>(OPENING_RANGES);
 
-/*
-  THE PANE SLOTS DIFFER ONLY BY SYMBOL AT FIRST; a reader sets the rest.
-
-  WHICH SYMBOLS, THOUGH. This used to be a four-name constant inside the
-  simulator that nobody could edit. A FRESH Terrain now opens on the name the
-  reader was actually researching, then fills the rest from their own active
-  watchlist — so the four-pane grid starts from what they carry rather than
-  from a list shipped in 2026.
-
-  A SAVED ARRANGEMENT STILL WINS, and this is the whole reason Terrain is not
-  simply told to follow the global name like the Weigher is. The Weigher's
-  job is ONE name, so a reader who picks NVDA anywhere means the Weigher. A
-  four-pane grid is a comparison the reader BUILT, and repointing a pane of
-  it because they looked at a name on another desk would destroy the thing
-  they made. This function only runs when there is nothing saved.
-*/
-const defaultPanes = (): PaneCfg[] => {
-  const carried = (() => {
-    try {
-      const list = activeList();
-      return list?.symbols ?? [];
-    } catch {
-      return [];
-    }
-  })();
-  const active = Simulator.getActiveTicker();
-  /* The active name first, then the list, then the roster — deduped, and
-     always four even if the reader's list is shorter than that. */
-  const picks: string[] = [];
-  for (const t of [active, ...carried, ...Simulator.WATCHLIST]) {
-    const sym = t?.toUpperCase();
-    if (sym && !picks.includes(sym)) picks.push(sym);
-    if (picks.length === 4) break;
-  }
-  return picks.map(ticker => ({
+/** The pane slots differ only by symbol at first; a reader sets the rest. */
+const defaultPanes = (): PaneCfg[] =>
+  Simulator.WATCHLIST.slice(0, 4).map(ticker => ({
     ticker,
     timeframe: '15m' as Timeframe,
     overlays: { ...DEFAULT_OVERLAYS },
@@ -263,20 +356,15 @@ const defaultPanes = (): PaneCfg[] => {
     sessionOr: 15 as OpeningRange,
     ladder: true,
     lane: 'size' as ProfileLane,
-    panel: 'ladder' as PanelMode,
-    panelGreek: 'gex' as PanelGreek,
-    ladderExpiry: '0DTE' as ExposureExpiry,
-    ladderRange: 10 as StrikeWindow,
-    theme: getCandleThemeKey(),
+    theme: undefined as CandleThemeKey | undefined,
     link: null,
   }));
-};
 
 /* The map starts EMPTY on a fresh install, deliberately. Seeding it from the
    four watchlist rows would mean a reader who sets a pane to 1h and then picks
    SPY gets yanked back to 15m by a setup they never chose — precisely the
    surprise the earned-by-touch rule exists to prevent. */
-const defaults = (): TerrainCfg => ({ layout: 3, panes: defaultPanes(), setups: {} });
+const defaults = (): TerrainCfg => ({ layout: 3, panes: defaultPanes(), setups: {}, palette: 'thermal', railCut: 'book' });
 
 /** One stored pane, validated field by field against a known-good default. */
 /*
@@ -326,12 +414,8 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
     sessionOr: typeof c.sessionOr === 'number' && OR_VALUES.has(c.sessionOr) ? (c.sessionOr as OpeningRange) : def.sessionOr,
     ladder: typeof c.ladder === 'boolean' ? c.ladder : def.ladder,
     ladderW:
-      typeof c.ladderW === 'number' && c.ladderW >= PANEL_MIN_W && c.ladderW < 4000 ? c.ladderW : def.ladderW,
+      typeof c.ladderW === 'number' && c.ladderW >= PROFILE_MIN_W && c.ladderW < 4000 ? c.ladderW : def.ladderW,
     lane: c.lane === 'both' || c.lane === 'size' || c.lane === 'flow' ? c.lane : def.lane,
-    panel: c.panel === 'ladder' || c.panel === 'strip' ? c.panel : def.panel,
-    panelGreek: c.panelGreek === 'gex' || c.panelGreek === 'dex' || c.panelGreek === 'vex' || c.panelGreek === 'vanna' || c.panelGreek === 'charm' ? c.panelGreek : def.panelGreek,
-    ladderExpiry: typeof c.ladderExpiry === 'string' && ['0DTE', '1D', '2D', '5D', '7D', 'OPEX', 'ALL'].includes(c.ladderExpiry) ? (c.ladderExpiry as ExposureExpiry) : def.ladderExpiry,
-    ladderRange: c.ladderRange === 10 || c.ladderRange === 15 || c.ladderRange === 20 || c.ladderRange === 30 ? c.ladderRange : def.ladderRange,
     theme: typeof c.theme === 'string' && c.theme in CANDLE_THEMES ? (c.theme as CandleThemeKey) : def.theme,
     link: c.link === 'A' || c.link === 'B' ? c.link : null,
   };
@@ -368,12 +452,14 @@ function loadCfg(): TerrainCfg {
        storage it becomes every pane's flag, the same way the one shared
        interval did. */
     const deskLadder = typeof c.ladder === 'boolean' ? (c.ladder as boolean) : undefined;
+    const palette: ProfilePalette = c.palette === 'house' ? 'house' : def.palette;
+    const railCut: RailCut = typeof c.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(c.railCut) ? c.railCut : def.railCut;
 
     if (Array.isArray(c.panes)) {
       const stored = c.panes as unknown[];
       const panes = def.panes.map((d, i) => readPane(stored[i], { ...d, ladder: deskLadder ?? d.ladder }));
       const hadSetups = !!c.setups && typeof c.setups === 'object';
-      return { layout, panes, setups: hadSetups ? readSetups(c.setups) : seedFrom(panes) };
+      return { layout, panes, setups: hadSetups ? readSetups(c.setups) : seedFrom(panes), palette, railCut };
     }
 
     // ── the flat shape, fanned out ──
@@ -392,7 +478,7 @@ function loadCfg(): TerrainCfg {
         ladder: deskLadder ?? d.ladder,
       })
     );
-    return { layout, panes, setups: seedFrom(panes) };
+    return { layout, panes, setups: seedFrom(panes), palette, railCut };
   } catch {
     return def;
   }
@@ -499,6 +585,10 @@ const PRICE_GUTTER_PX = PRICE_SCALE_MIN_WIDTH + 2;
   gives each toolbar ~577px and still wraps.
 */
 const TOOLBAR_FULL_PX = 994;
+/** The same toolbar compact — the seven timeframes as one trigger, every card its icon (measured 350) */
+const TOOLBAR_COMPACT_PX = 350;
+/** The fullscreen door when it rides the identity row: its 24px button and the row's 8px gap */
+const ROW_DOOR_PX = 32;
 
 /*
   THE STRIP'S OWN PADDING, when it is not clearing a price gutter (`p-1.5`).
@@ -784,6 +874,11 @@ interface PaneProps {
     trap has already cost one silent defect in this file.
   */
   cell?: string;
+  /** The desk's one choice of rail colours — see TerrainCfg.palette */
+  palette: ProfilePalette;
+  /** Which contracts this pane's rail reads — the desk's one choice, changed from any rail's head */
+  railCut: RailCut;
+  onRailCut: (cut: RailCut) => void;
 }
 
 const Pane = ({
@@ -791,9 +886,12 @@ const Pane = ({
   onCrosshair, registerSync, replay, onToggleReplay, onExitReplay,
   drawing, onToggleDrawing, onExitDraw,
   isActive, onActivate, paneCount, closing = false, menuOpen, onMenu,
-  boxRef, cell = '',
+  boxRef, cell = '', palette, railCut, onRailCut,
 }: PaneProps) => {
-  const { ticker, timeframe, overlays, indicators, chartStyle, clock, compares, priceScale, sessionOr, ladder, theme } = cfg;
+  const { ticker, timeframe, overlays, indicators, chartStyle, clock, compares, priceScale, sessionOr, ladder } = cfg;
+  /* its own theme, else the page's default — Glacier on the dark terminal, Stone on paper — re-read on a flip */
+  const pageDefault = usePageDefaultCandleKey();
+  const theme = cfg.theme ?? pageDefault;
   /* WHAT THE AXIS IS ACTUALLY DRAWING, from the one function that decides it.
      The chart asks the same question of the same list, so the picker's trigger
      and the price ticks can never disagree — a second `compares.some(...)`
@@ -833,6 +931,10 @@ const Pane = ({
     is whatever its content and the pane's width make it.
   */
   const stripRef = useRef<HTMLDivElement | null>(null);
+  /* This pane's own box — the section its toolbar's menus stay inside (Noah,
+     2026-09-13: "aren't in their section"); the desk's paneRefs get the same
+     element through boxRef. */
+  const paneBoxRef = useRef<HTMLDivElement | null>(null);
   const [stripH, setStripH] = useState(46);
   /* The SAME observation answers a second question: how much room the toolbar
      has. The strip is `inset-x-0` on the chart column, so its width IS the
@@ -917,11 +1019,15 @@ const Pane = ({
      Compares have been persisted-but-dead since they were added. */
 
   // Each pane reads its own book; revision keeps the levels tracking the tick
-  const levels = useMemo(
-    () => buildLevelsFor(ticker),
+  /* THE RAIL'S BOOK FOR THE DESK'S CUT (2026-09-16): rows, core, walls and legs in one read, so
+     the chart's level lines, the header's heaviest line and the rail can never name different
+     strikes for different expiries */
+  const railData = useMemo(
+    () => railForCut(ticker, railCut),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ticker, revision]
+    [ticker, revision, railCut]
   );
+  const levels = railData.levels;
   const changePct = useMemo(
     () => spotChangePct(ticker),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -937,11 +1043,7 @@ const Pane = ({
      header's three-strike read uses them too, so the line and the column can
      never name different strikes. Read even when the rail is hidden, because
      the header is not. */
-  const rail = useMemo(
-    () => buildLadderFor(ticker),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ticker, revision]
-  );
+  const rail = railData;
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
 
@@ -987,6 +1089,21 @@ const Pane = ({
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => setFocus(null), [ticker]);
 
+  /* What a move to each strike forces dealers to trade — the panel's second
+     lane, off the SAME rows the size lane draws, so the flow beside a capsule
+     is the flow of that capsule's book. */
+  const flow = useMemo(() => (rail.rows.length ? buildFlowFromRows(rail.rows, levels.spot) : null), [rail, levels.spot]);
+  /* THE LADDER'S TWO LEGS (2026-09-13): the put and call hedging behind every
+     strike's net, off the live chain, and the net at the open as a ratio of
+     now for the spine's ghost — the size lane draws the strike ladder's rows */
+  const legs = railData.legs;
+  const openRatio = useMemo(
+    () => netSinceOpenRatio(ticker),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ticker, revision]
+  );
+  /* The panel's "How to read", as a focus over this pane — the Map's own card */
+  const [guideOpen, setGuideOpen] = useState(false);
 
   /*
     THE HOVERED BAR — T-8. The chart reports its own values at the crosshair,
@@ -1003,13 +1120,20 @@ const Pane = ({
   useEffect(() => setReadout(null), [ticker, timeframe]);
 
 
-  /* One surface under the header AND the tape, so a pane is one continuous
-     black inside its frame rather than two shades meeting at a seam. */
-  const themeKey = useCandleThemeKey();
-  const themeBg = chartSurface(CANDLE_THEMES[themeKey]).bg;
-  const surface = themeBg === 'transparent' ? 'rgb(var(--panel))' : themeBg;
-  /* The strip's 55% wash of that surface — the token cannot take a hex alpha suffix */
-  const strip = themeBg === 'transparent' ? 'rgb(var(--panel) / 0.55)' : `${themeBg}8C`;
+  /* THE CHROME WEARS THIS PANE'S THEME (Noah, 2026-09-13, three cuts in one night: "the
+     tool chart should NEVER change colors" → "the only thing I specified as staying black
+     was the drawing tool bar" → "now you can change the top section to match the chart
+     theme"). The pane stamps the ground of ITS OWN theme on its box (data-chart-ground —
+     the store's theme is not this pane's, which is what painted a dark pane's strip light
+     grey the first time), and index.css re-scopes the tokens on every strip and chip inside
+     to that ground: Stone's chrome is stone with dark ink, a dark tape's is black with light
+     ink, the drawing rail stays black on either. The box itself keeps the panel black — it
+     is the frame, and the ladder beside the tape sits on it. */
+  const ground = chartGround(theme);
+  const surface = 'rgb(var(--panel))';
+  /* The strip's 55% wash of the chrome's panel — the strip carries data-chart-chrome, so the
+     token it reads is the ground's: black over a dark tape, stone over a light one */
+  const strip = 'rgb(var(--panel) / 0.55)';
 
   const up = changePct >= 0;
 
@@ -1050,6 +1174,20 @@ const Pane = ({
      written. Closing that pixel means shrinking a control that no current
      work touches; it is recorded here rather than quietly rounded away. */
   const toolbarCompact = stripW > 0 && stripW - PRICE_GUTTER_PX < TOOLBAR_FULL_PX;
+  /* THE TOOLBAR RIDES THE IDENTITY ROW WHEN THE ROW HAS THE ROOM (Noah, 2026-09-16: "if I ever
+     have enough space on the top section then this timeframe / replay all the way down to the
+     right row should take its place in the top section like we have on the singular live chart
+     for Pulse"): the identity at its fullest (the change and the confluence strip) plus a gap
+     plus the toolbar as it would draw — full or compact — plus the fullscreen door, which
+     joins the row's end then, against the strip's usable width. It never wraps inside the
+     row; short of the room it keeps its own line below the book. */
+  const inlineFull = !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_FULL_PX + ROW_DOOR_PX;
+  /* short of the full labels beside the identity, the compact toolbar rides the row before a
+     row of its own is spent (a one-up with the rail open: 1073 usable, the identity 514, the
+     full toolbar 994, the compact 350) */
+  const inlineCompact = !inlineFull && !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_COMPACT_PX + ROW_DOOR_PX;
+  const toolbarInline = inlineFull || inlineCompact;
+  const toolbarCompactShown = toolbarInline ? inlineCompact : toolbarCompact;
 
   /* ONE TOOLBAR, TWO MOUNTS (Noah, 2026-08-28: "make the row ... sit up top
      like how the fullscreen of the pulse page does"). Docked it is the
@@ -1135,7 +1273,10 @@ const Pane = ({
     <ChartToolbar
       minimal
       candles
-      compact={toolbarCompact}
+      compact={toolbarCompactShown}
+      /* Docked, the menus are the small ones, and every menu stays inside this pane (Noah, 2026-09-13) */
+      dense={!expanded}
+      menuBounds={paneBoxRef}
       spread={spread}
       alertTicker={ticker}
       alertSpot={levels.spot}
@@ -1167,6 +1308,23 @@ const Pane = ({
       replay={replay}
       onToggleReplay={onToggleReplay}
     />
+  );
+
+  /* THE FULLSCREEN DOOR, one button with two homes when docked: the corner chip at rest, or the
+     identity row's last item when the toolbar rides that row (Noah, 2026-09-16: "does the full
+     screen button look aligned to you with the rest?" — the chip stood 4px above the row's
+     centre and its 28px covered the Theme button's end). */
+  const expandDoor = (
+    <button
+      onClick={onToggleExpand}
+      aria-pressed={expanded}
+      aria-label={`Expand ${ticker} to the full screen`}
+      title="Expand this pane — F"
+      className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+      data-expand-door
+    >
+      <Maximize2 className="w-3.5 h-3.5" />
+    </button>
   );
 
   return (
@@ -1211,7 +1369,10 @@ const Pane = ({
           handlers are capture-phase, so reaching for any control inside the
           pane makes it the active one before that control does its own job. */}
       <div
-        ref={boxRef}
+        ref={el => {
+          paneBoxRef.current = el;
+          boxRef?.(el);
+        }}
         onPointerDownCapture={onActivate}
         onFocusCapture={onActivate}
         className={`relative flex flex-col overflow-hidden animate-soft-in ${
@@ -1236,6 +1397,8 @@ const Pane = ({
         style={{ animationDelay: `${index * 60}ms`, background: surface }}
         /* A dark island on any page (2026-09-12): a pane reads the dark tokens whatever the page wears */
         data-theme="dark"
+        /* …and its chrome the ground of this pane's own theme (2026-09-13) */
+        data-chart-ground={ground}
       >
         {!expanded && isActive && paneCount > 1 && (
           <span aria-hidden className="holo-ring absolute inset-0 rounded-md z-30" />
@@ -1335,7 +1498,7 @@ const Pane = ({
               cannot reach. Keyboard focus brings the strip up exactly as the
               cursor does.
             */}
-            {!expanded && (
+            {!expanded && !toolbarInline && (
               /* ── THE EXPAND BUTTON, FAR RIGHT (Noah, 2026-08-28: "push the
                  fullscreen button ... to the far right on both small chart
                  view and full chart view") — its own chip pinned to the
@@ -1343,20 +1506,14 @@ const Pane = ({
                  the identity row it used to ride at the end of. Same
                  rest-dim as the rest of the chrome, always tappable, and
                  `chrome-hover` keeps it visible on a screen with no hover
-                 to give. */
+                 to give. When the toolbar rides the identity row, the door
+                 rides it too, as its last item (below) — this chip sat 4px
+                 above that row's centre and over its Theme button. */
               <div
                 className="chrome-hover absolute top-1.5 z-30 pointer-events-auto select-none rounded-md bg-canvas/25 backdrop-blur-[3px] p-0.5 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
                 style={{ right: PRICE_GUTTER_PX + 6 }}
               >
-                <button
-                  onClick={onToggleExpand}
-                  aria-pressed={expanded}
-                  aria-label={`Expand ${ticker} to the full screen`}
-                  title="Expand this pane — F"
-                  className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                </button>
+                {expandDoor}
               </div>
             )}
             {expanded && (
@@ -1368,6 +1525,9 @@ const Pane = ({
               <div
                 className="absolute top-0 inset-x-0 z-30 select-none flex flex-wrap items-center px-3 py-2 gap-3 backdrop-blur-md backdrop-saturate-150"
                 style={{ background: strip }}
+                /* Chrome over the tape: its tokens follow the pane's ground (index.css), and
+                   the scripts' legend measures it like the identity row below */
+                data-chart-chrome
               >
                 {/* The symbol leads, Pulse-style — then a hairline, then
                     everything else spread to the far edge. */}
@@ -1446,8 +1606,7 @@ const Pane = ({
                    is simply the ticker, timeframe, and tick price") — the
                    Pulse takeover's own legend: facts on the tape, no chip, no
                    controls; the controls all moved up into the strip. */
-                <div className="pointer-events-none select-none flex items-center gap-1.5 font-mono">
-                  <CompanyLogo ticker={ticker} size={14} />
+                <div className="pointer-events-none select-none flex items-baseline gap-1.5 font-mono">
                   <span className="text-[11px] font-semibold text-textPrimary">{ticker}</span>
                   <span className="text-[10px] text-textMuted" aria-hidden>·</span>
                   <span className="text-[10px] text-textMuted">{timeframe}</span>
@@ -1459,7 +1618,7 @@ const Pane = ({
                   </span>
                 </div>
               ) : (
-              <div className="chrome-hover relative z-30 pointer-events-auto w-fit max-w-full select-none flex items-center gap-2 rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+              <div className={`chrome-hover relative z-30 pointer-events-auto max-w-full select-none flex items-center gap-2 rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 ${toolbarInline ? 'w-full' : 'w-fit'}`}>
                 {/* This strip is the one row visible at rest, so the number
                     is legible without a pointer ever touching the desk. */}
                 {showBadge && (
@@ -1557,7 +1716,19 @@ const Pane = ({
                 {mtfForm !== 'none' && confluence.length > 0 && (
                   <ConfluenceStrip rows={confluence} form={mtfForm} />
                 )}
-
+                {/* THE TOOLBAR IN THE ROW, SPREAD THE PULSE WAY (Noah, 2026-09-16: "the timeframes
+                    should be on the left side like how the Pulse page has its live charts"): the
+                    timeframes right after the identity, the cluster — replay through theme — at the
+                    far right, and the fullscreen door as the row's last item beside it ("aligned to
+                    the far right next to the full screen button"). The row spans the strip for it. */}
+                {toolbarInline && (
+                  <>
+                    <div className="flex-1 min-w-0" data-toolbar-inline>
+                      {paneToolbar(true)}
+                    </div>
+                    {expandDoor}
+                  </>
+                )}
               </div>
               )}
 
@@ -1632,8 +1803,8 @@ const Pane = ({
                   reach. DOCKED ONLY: the expanded pane pins the same toolbar
                   to the top strip instead, where it does not need a hover to
                   exist. */}
-              {!expanded && (
-                <div className="chrome-hover chrome-tap relative z-10 pointer-events-none max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+              {!expanded && !toolbarInline && (
+                <div className="chrome-hover chrome-tap relative z-10 pointer-events-none max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100" data-toolbar-row>
                   {paneToolbar(false)}
                 </div>
               )}
@@ -1655,7 +1826,6 @@ const Pane = ({
                 {compares.map(c => (
                   <span key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
                     <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
-                    <CompanyLogo ticker={c.ticker} size={12} />
                     <span className="font-mono text-[10px] font-semibold" style={{ color: c.ink }}>
                       {c.ticker}
                     </span>
@@ -1692,40 +1862,69 @@ const Pane = ({
             rewrite a preference because they picked up their phone.
           */}
           {ladder && rail.rows.length > 0 && (
-            /* THE PANEL (2026-09-12): the ladder, or the net strip over the chart's
-               timeframe — components/gex/TerrainPanel.tsx. Its face, greek,
-               expiry and window are the SLOT's, like `ladder` itself. */
-            <TerrainPanel
-              ticker={ticker}
-              revision={revision}
-              timeframe={timeframe}
-              mode={cfg.panel}
-              onMode={m => onCfg({ panel: m })}
-              greek={cfg.panelGreek}
-              onGreek={g => onCfg({ panelGreek: g })}
-              expiry={cfg.ladderExpiry}
-              onExpiry={e => onCfg({ ladderExpiry: e })}
-              range={cfg.ladderRange}
-              onRange={r => onCfg({ ladderRange: r })}
-              width={cfg.ladderW ?? 0}
+            <ProfilePanel
+              /* THE REST WIDTH follows the pane count (2026-09-16): 520 alone or expanded, 340 on
+                 two or four, 240 three across — the reader's own width once dragged */
+              width={cfg.ladderW ?? profileRestWidth(paneCount, expanded)}
+              restWidth={profileRestWidth(paneCount, expanded)}
               onWidth={w => onCfg({ ladderW: w })}
+              /* THE EXPIRY CARD in the rail's head beside the view tabs (Noah, 2026-09-16) — the
+                 desk's one cut, so a change here changes every pane */
+              headCard={<ExpiryCard label="Expiry" size="sm" value={railCut} choices={railCutChoices()} onChange={onRailCut} title="Which contracts the rails read" testId="terrain-expiry" />}
+              ticker={ticker}
+              rows={rail.rows}
+              maxAbs={rail.maxAbs}
+              legs={legs}
+              openRatio={openRatio}
+              palette={palette}
+              step={rail.step}
+              levels={levels}
+              flow={flow}
+              lane={cfg.lane}
+              onLane={l => onCfg({ lane: l })}
+              greek="GEX"
+              onGuide={() => setGuideOpen(v => !v)}
+              guideOpen={guideOpen}
               focusPrice={focus}
-              onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
+              projection={projectionRef}
               onClose={() => {
                 onCfg({ ladder: false });
-                /* A control that removes ITSELF says where focus goes: the
-                   STRIKES button, the one control that undoes this — after
-                   the commit, so the removal cannot undo the focus. */
+                /*
+                  A control that removes ITSELF has to say where focus goes.
+
+                  This button unmounts on the same click, and the browser's
+                  answer to "the focused element is gone" is <body> — so a
+                  keyboard reader is dropped to the top of the document and
+                  tabs back through the whole desk to reach anything. Focus
+                  goes to the one control that undoes this, which is what a
+                  reader would look for next.
+
+                  After the commit, not during: the button is still mounted in
+                  this tick, and focusing the target before React removes it
+                  would be undone by the removal.
+                */
                 requestAnimationFrame(() => {
                   const undo = document.querySelector<HTMLElement>('[data-strikes-toggle]');
+                  // Belt and braces. This × only exists where the rail does,
+                  // which is `lg` and up, and STRIKES is rendered across that
+                  // whole range — so the query should always find it. If a
+                  // resize ever lands between the two, leaving focus where it
+                  // is beats throwing on null.
                   if (undo?.isConnected) undo.focus();
                 });
               }}
-              closeHint="Hide this panel — R"
-              className="hidden lg:flex"
+              closeHint="Hide this rail — R"
+              onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
+              className="hidden lg:block"
             />
           )}
         </div>
+        {/* THE GUIDE IN FOCUS — over the whole pane, the pane blurred behind it */}
+        {ladder && (
+          <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read this panel" testId="profile-guide">
+            <ProfileGuide rows={rail.rows} levels={levels} flow={flow} />
+          </GuideFocus>
+        )}
       </div>
     </div>
   );
@@ -1746,7 +1945,9 @@ const Terrain = () => {
     try {
       if (!localStorage.getItem('slayer_terrain_sky1')) {
         localStorage.setItem('slayer_terrain_sky1', '1');
-        return { ...c, panes: c.panes.map(p => ({ ...p, theme: 'glacier' as const })) };
+        /* since 2026-09-19 the flip lands a pane on the STORE (whose dark pick that same day became glacier), not on a
+           typed 'glacier': a typed one would hold a first-time visitor's panes off Stone on the light page for good */
+        return { ...c, panes: c.panes.map(p => ({ ...p, theme: undefined })) };
       }
     } catch {
       /* storage unavailable — panes keep their stored themes */
@@ -2345,20 +2546,19 @@ const Terrain = () => {
         browser chrome until the reader scrolls — and the bottom of a Terrain
         pane is its time axis. Pulse already documents this; same reason here.
       */
-      /* FITS THE SCREEN (Noah, 2026-09-12: "terrain should not have a footer
-         its a charting thing it should fit the screen perfectly"): the shell
-         frames this page — no footer, no gutters, no scroll — so the desk
-         is simply the frame's whole height, on a phone and on a desk alike. */
-      className="relative px-1.5 py-1.5 flex flex-col h-full min-h-0"
-      data-terrain-desk
+      /* THE WHOLE WINDOW from `lg` (Noah, 2026-09-13, the desk bar with a dead
+         band under it: "because we removed the footer from the terrain page
+         you can fit the rest of the chart in this bottom section"): the
+         height used to subtract the 56px top bar, which the frame lost on
+         2026-09-05 — so 56px sat empty under the desk. Measured before: the
+         root 904 tall in a 960 window, the panes ending at 861. The phone
+         keeps its subtraction: it still has a bar up top. */
+      className={`relative -mx-4 lg:-mx-6 2xl:-mx-8 px-1.5 flex flex-col ${
+        isPhone
+          ? '-mt-5 -mb-16 py-1.5 h-[calc(100dvh-3rem)] min-h-0'
+          : 'lg:-mt-5 lg:-mb-16 lg:py-1.5 lg:h-screen lg:min-h-0'
+      }`}
     >
-      {/* THE HEADING A SCREEN READER NEEDS AND THE DESK DOES NOT SHOW.
-          The visible title was removed on purpose and stays gone — a line
-          naming the page you just clicked is chrome. But a document with no
-          h1 leaves anyone navigating by headings with nothing to land on,
-          and this was the only page on the terminal without one. It is here
-          and it is invisible, which costs the desk no pixels. */}
-      <h1 className="sr-only">Terrain</h1>
       {/*
         THE ARRANGEMENT CONTROLS, floating over the top-right of the grid.
 
@@ -2414,15 +2614,14 @@ const Terrain = () => {
            135px of dead runway between the bar and the price gutter while the
            bar itself sat on the volume columns. At 1024 the flag and the rail
            agree again and the gap is 3px. */
-        style={{
-          right:
-            ((expanded !== null ? panes[expanded] : panes[panes.length - 1])?.ladder && !belowLg
-              ? (expanded !== null ? panes[expanded] : panes[panes.length - 1])?.ladderW ?? panelDefaultW(expanded !== null ? 1 : cfg.layout)
-              : 0) +
-            PRICE_GUTTER_PX +
-            8,
-          bottom: TIME_AXIS_PX + 12,
-        }}
+        style={
+          expanded !== null
+            ? {
+                right: (panes[expanded]?.ladder && !belowLg ? panes[expanded]?.ladderW ?? profileRestWidth(cfg.layout, true) : 0) + PRICE_GUTTER_PX + 8,
+                bottom: TIME_AXIS_PX + 12,
+              }
+            : undefined
+        }
         /* They come and go like the pane chrome, and they were the loudest
            thing on the screen while they were here: a solid white STRIKES
            button and a solid white active count, on a desk that had just been
@@ -2448,14 +2647,36 @@ const Terrain = () => {
           root is a scrolling column rather than the viewport, so the bar
           would ride down the page while the modal stayed pinned to the glass.
         */
-        className={`chrome-hover pointer-events-none flex items-center gap-2 opacity-40 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100 ${
-          expanded !== null ? 'fixed z-[90]' : 'absolute z-30'
-        }`}
+        /*
+          THE DESK BAR, DOCKED: A ROW UNDER THE GRID (Noah, 2026-09-13, "also
+          touch the desk bar at the bottom", with a two-up desk where it lay
+          across both panes' feet — over one pane's volume columns, under the
+          other's watermark, at a 40% rest-dim that read as faint). The floating
+          placement was cut for a one-up desk, whose bottom-right corner is
+          the room ahead of the last bar; on a two-up the bar is wider than a
+          pane's plot, so it lands on whatever is there. In flow it lands on
+          nothing: the grid gives up one row (the room the bar takes is now the
+          desk's, not the tape's), the chips read at full strength on the
+          page's own ground — whatever theme the tapes wear — and the pointer
+          finds them without a hover first. FULLSCREEN KEEPS THE FLOAT: the
+          expanded pane is the whole screen and this bar rides fixed over its
+          foot with Pine and Esc, quiet at rest as before.
+        */
+        className={
+          expanded !== null
+            ? 'chrome-hover pointer-events-none flex items-center gap-2 opacity-40 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100 fixed z-[90]'
+            : 'order-last shrink-0 mt-1.5 flex items-center justify-end gap-2'
+        }
+        data-terrain-desk-bar={expanded !== null ? 'floating' : 'docked'}
+        /* Floating over the expanded pane, it is chrome over that tape and wears
+           its ground like the strip does (index.css) — dark words on Stone */
+        data-chart-chrome={expanded !== null ? '' : undefined}
+        data-chart-ground={expanded !== null ? chartGround(panes[expanded]?.theme ?? pageDefaultCandleKey()) : undefined}
       >
         <div
           role="group"
           aria-label="How many charts"
-          className="pointer-events-auto inline-flex flex-wrap items-center gap-0.5 border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] rounded-md p-0.5"
+          className="pointer-events-auto inline-flex flex-wrap items-center gap-0.5 border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] rounded-md p-0.5"
         >
           <Rows3 className="w-3.5 h-3.5 mx-1.5 text-textMuted shrink-0" aria-hidden />
           {LAYOUTS.map(n => {
@@ -2502,7 +2723,7 @@ const Terrain = () => {
           onClick={() => setCfg(prev => ({ ...prev, panes: prev.panes.map(p => ({ ...p, ladder: !anyLadder })) }))}
           aria-pressed={anyLadder}
           title={anyLadder ? 'Hide every strike rail — Shift R' : 'Show the strike rail beside every chart — Shift R'}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
+          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
             anyLadder ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
           }`}
         >
@@ -2510,9 +2731,19 @@ const Terrain = () => {
         </button>
         )}
 
+        {/* THE RAILS' COLOURS, one card for the desk (Noah, 2026-09-13) — here
+            rather than in each rail's head, which is 132px on a three-up desk
+            and cannot hold it; hidden with the rails, like the button beside it */}
+        {!belowLg && anyLadder && (
+          <span className="pointer-events-auto inline-flex" data-terrain-colours>
+            {/* the Expiry cut lives in each rail's head beside the view tabs (2026-09-16) — one desk-wide choice, changed from any pane */}
+            <DropdownSelect label="Colours" value={cfg.palette} options={PALETTE_OPTIONS} onChange={p => setCfg(prev => ({ ...prev, palette: p }))} title="What the rails' colours mean" testId="terrain-colours" />
+          </span>
+        )}
+
         {/* T-19's desk-wide ruler, in the desk's own cluster — the same four
             chips the flip strip carries on Pinpoint, one store behind both. */}
-        <span className="pointer-events-auto inline-flex rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] px-1 py-0.5">
+        <span className="pointer-events-auto inline-flex rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] px-1 py-0.5">
           <DistanceUnitPicker dense />
         </span>
 
@@ -2523,7 +2754,7 @@ const Terrain = () => {
             aria-haspopup="dialog"
             aria-expanded={layoutsOpen}
             title="Named layouts — save this arrangement, recall another"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
               layoutsOpen ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
             }`}
           >
@@ -2609,7 +2840,7 @@ const Terrain = () => {
           <button
             onClick={() => openEditor(null, `terrain:${expanded + 1}`)}
             title="Write a Pine script for this chart — the editor opens beside it"
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
             data-terrain-pine
           >
             <Code2 className="w-3 h-3" /> Pine
@@ -2625,7 +2856,7 @@ const Terrain = () => {
           return (
             <span
               title={`${words.blurb}. Session shading over the tape arrives with the futures feed.`}
-              className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider ${
+              className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider ${
                 words.label === 'RTH' ? 'text-textPrimary' : 'text-textSecondary'
               }`}
             >
@@ -2704,6 +2935,9 @@ const Terrain = () => {
             isActive={i === active}
             onActivate={() => setActiveRaw(i)}
             paneCount={cfg.layout}
+            palette={cfg.palette}
+            railCut={cfg.railCut}
+            onRailCut={c => setCfg(prev => ({ ...prev, railCut: c }))}
             menuOpen={menu?.pane === i ? menu.which : null}
             onMenu={which => setMenu(which ? { pane: i, which } : null)}
             boxRef={el => { paneRefs.current[i] = el; }}

@@ -77,9 +77,25 @@ function scaleSplit(put: number, call: number, factor: number, jitter: number): 
   return { put: P + shift, call: C - shift, net: P + C };
 }
 
-/** Strikes shown each side of spot. 30 is the whole book. */
-export type StrikeWindow = 10 | 15 | 20 | 30;
+/** Strikes shown each side of spot. 30 is the whole book. 25 is the Map's (2026-09-22); the other cards keep their
+    own lists (STRIKE_WINDOWS) */
+export type StrikeWindow = 10 | 15 | 20 | 25 | 30;
 export const STRIKE_WINDOWS: StrikeWindow[] = [10, 15, 20, 30];
+
+/** The leg texture's seed per strike and lens. Exported so the engine port's
+    reference generator (scripts/exposure-ref.ts) can hand the Python the SAME
+    jitter as an input — the live book has none, and the port's default shifts
+    nothing. Never typed twice: this IS the seed the profile below uses. */
+export function legJitter(ticker: string, strike: number, expiry: ExposureExpiry): number {
+  return h01(`${ticker}-${strike}-${expiry}-exp`);
+}
+
+/** One volume per strike across the terminal — SAME seed and formula as
+    rankedtargets.ts, until a real tape replaces both (placeholder, OI-anchored).
+    Exported for the same reason as `legJitter`. */
+export function strikeVolume(ticker: string, strike: number, oi: number): number {
+  return Math.round(oi * (0.2 + h01(`${ticker}-${strike}-tvol`) * 0.7));
+}
 
 // ---- top-level build ----------------------------------------------------------
 export function buildExposureProfile(
@@ -108,7 +124,7 @@ export function buildExposureProfile(
 
   const maxAbs = { gex: 1, dex: 1, vex: 1, vanna: 1, charm: 1 };
   const strikes: StrikeExposure[] = window.map((n: StrikeNode) => {
-    const jitter = h01(`${ticker}-${n.strike}-${expiry}-exp`);
+    const jitter = legJitter(ticker, n.strike, expiry);
     const gex = scaleSplit(n.putGex, n.callGex, factor, jitter);
     const dex = scaleSplit(n.putDex, n.callDex, factor, jitter);
     const vex = scaleSplit(n.putVex * 40, n.callVex * 40, factor, jitter); // dollar-comparable
@@ -121,9 +137,7 @@ export function buildExposureProfile(
     maxAbs.vanna = Math.max(maxAbs.vanna, Math.abs(vanna.put), Math.abs(vanna.call), Math.abs(vanna.net));
     maxAbs.charm = Math.max(maxAbs.charm, Math.abs(charm.put), Math.abs(charm.call), Math.abs(charm.net));
     const oi = n.callOI + n.putOI;
-    // SAME seed and formula as rankedtargets.ts — one volume per strike across
-    // the terminal, until a real tape replaces both (placeholder, OI-anchored)
-    const volume = Math.round(oi * (0.2 + h01(`${ticker}-${n.strike}-tvol`) * 0.7));
+    const volume = strikeVolume(ticker, n.strike, oi);
     return { strike: n.strike, pin: n.strike === pinStrike, gex, dex, vex, vanna, charm, oi, volume };
   });
 

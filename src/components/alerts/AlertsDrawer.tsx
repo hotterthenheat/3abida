@@ -47,14 +47,12 @@ import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import CompanyLogo from '../ui/CompanyLogo';
-import NewAlert from './NewAlert';
 import {
-  MAX_ALERTS, clearAlerts, clearFiredLog, firedWords, markSeenAll,
-  rearmFromRecord, removeAlert, useAllAlerts, waitingWords, type Alert, type AlertKind, type FiredRecord,
+  MAX_ALERTS, clearAlerts, clearFiredLog, firedWords, markSeenAll, rearmFromRecord, removeAlert,
+  useAllAlerts, waitingWords, type Alert, type AlertKind, type FiredRecord,
 } from '../gex/alertStore';
 import { ALERT, alpha } from '../gex/paletteInk';
 import { closeAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
-import { Name } from '../ui/Name';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -83,7 +81,7 @@ const doorOf = (a: Alert): { label: string; to: string } => {
     case 'flow':
       return { label: 'Tape', to: '/trace/live-tape' };
     case 'news':
-      return { label: 'News', to: '/record/news' };
+      return { label: 'News', to: '/dossier/news' };
     /* a script's alert opens the pane it was armed on */
     case 'script':
       return a.paneId.startsWith('terrain') ? { label: 'Terrain', to: '/terrain' }
@@ -125,7 +123,7 @@ const Card = ({ children, testId }: { children: React.ReactNode; testId?: string
 const NameHead = ({ ticker, note }: { ticker: string; note: string }) => (
   <div className="flex items-center gap-2 h-8 px-3 border-b border-borderSubtle/70 bg-ink/[0.02]" data-alert-name={ticker}>
     <CompanyLogo ticker={ticker} size={14} />
-    <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />
+    <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>
     <span className="font-mono text-[9px] tnum text-textMuted">{note}</span>
   </div>
 );
@@ -159,7 +157,7 @@ const Row = ({ kind, alerted, ticker, words, state, door, action, testId }: { ki
       </span>
       <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
         <span className="flex items-center gap-1.5 min-w-0">
-          {ticker && <Name t={ticker} size={12} className="shrink-0 font-mono text-[10px] font-bold text-textPrimary" />}
+          {ticker && <span className="shrink-0 font-mono text-[10px] font-bold text-textPrimary">{ticker}</span>}
           <span className="truncate text-[12px] text-textPrimary">{words}</span>
         </span>
         <span className={`font-mono text-[9px] tnum ${alerted ? '' : 'text-textMuted'}`} style={alerted ? { color: ALERT } : undefined}>
@@ -350,8 +348,6 @@ const AlertsDrawer = () => {
           </Shelf>
         </div>
 
-        <NewAlert onRefused={setRefused} />
-
         <p className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/70 font-mono text-[9px] leading-snug text-textMuted">
           Runs while this tab is open. Nothing is sent anywhere.
         </p>
@@ -360,17 +356,5 @@ const AlertsDrawer = () => {
     </AnimatePresence>
   );
 };
-
-/*
-  SETTING ONE FROM HERE. Every alert in the terminal is armed from the
-  surface that shows the thing — a price off the chart, a wall off the
-  levels — which is the right default and leaves one gap: a reader who
-  knows what they want has to go find a page to say it on. This is that
-  sentence, said here.
-
-  It takes the three kinds that need no context to be meaningful. A level
-  or an indicator alert without the pane it is read off would be a guess
-  at what the reader meant, so those stay where they can be pointed at.
-*/
 
 export default AlertsDrawer;

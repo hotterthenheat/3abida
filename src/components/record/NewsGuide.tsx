@@ -15,10 +15,10 @@ import type { ReactNode } from 'react';
 import NewsMap, { type HeatPoint, type MapNote, type Reach } from './NewsMap';
 import type { CityPing } from '../../data/newsroom';
 
-const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const LIME = 'rgb(var(--select))';
 const BULL = 'rgb(var(--bull))';
 const BEAR = 'rgb(var(--bear))';
+const SILVER = 'rgb(var(--silver))';
+const SUPREME = 'rgb(var(--supreme))';
 const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
 const MONO = 'ui-monospace, Menlo, monospace';
@@ -140,7 +140,7 @@ const NumbersFigure = () => {
   const cells = [
     { x: 12, y: 12, label: '1-day expected', value: '+2.1%', ink: BULL },
     { x: 150, y: 12, label: '5-day expected', value: '+3.7%', ink: BULL },
-    { x: 288, y: 12, label: 'Confidence', value: '80%', ink: INK },
+    { x: 288, y: 12, label: 'Confidence', value: 'strong', ink: BULL },
     { x: 12, y: 44, label: 'Already priced in', value: '13%', ink: INK },
     { x: 150, y: 44, label: 'Keeps working', value: '5.5 sessions', ink: INK },
     { x: 288, y: 44, label: 'The options book', value: 'fades it', ink: BEAR },
@@ -172,28 +172,93 @@ const NumbersFigure = () => {
   );
 };
 
-/* The drip: live at the right end, pulled back to a minute */
-const DripFigure = () => {
-  const track = (y: number, at: number, word: string, ink: string) => (
+/* All news: the six tabs with their counts, the hairline under the one in hand, a followed name's chip with its bell */
+const TabsFigure = () => {
+  const tabs: [string, number, number][] = [
+    ['ALL FINANCE · 24', 12, 1],
+    ['FOLLOWING · 5', 118, 0],
+    ['EARNINGS · 9', 196, 0],
+    ['DATA · 4', 272, 0],
+    ['ANALYST · 6', 322, 0],
+    ['DEALS · 5', 384, 0],
+  ];
+  return (
+    <Figure label="The six tabs in a line, ALL FINANCE · 24 underlined; under them a followed name's chip, NVDA with a silver bell, and the Follow a name door" h={64}>
+      {tabs.map(([w, x, on]) => (
+        <g key={w}>
+          <text x={x} y={18} fontSize={6.5} letterSpacing={0.8} fill={on ? INK : MUTED} fontFamily={MONO}>
+            {w}
+          </text>
+          {on === 1 && <line x1={x} x2={x + 58} y1={23} y2={23} stroke={INK} strokeWidth={1} />}
+        </g>
+      ))}
+      <line x1={0} x2={420} y1={30} y2={30} stroke="#ffffff" strokeOpacity={0.08} />
+      <text x={12} y={48} fontSize={6} letterSpacing={1} fill={MUTED} fontFamily={MONO}>
+        FOLLOWING
+      </text>
+      <rect x={56} y={38} width={62} height={16} rx={3} fill="#ffffff" fillOpacity={0.05} stroke="#ffffff" strokeOpacity={0.14} />
+      <text x={63} y={49} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+        NVDA
+      </text>
+      <path d="M 98 43 a 3 3 0 0 1 6 0 v 3 l 1.5 1.5 h -9 l 1.5 -1.5 z" fill={SILVER} />
+      <text x={110} y={49.5} fontSize={7} fill={MUTED} fontFamily={MONO}>
+        ×
+      </text>
+      <rect x={126} y={38} width={70} height={16} rx={3} fill="#ffffff" fillOpacity={0.05} stroke="#ffffff" strokeOpacity={0.14} />
+      <text x={133} y={49} fontSize={7} fill={INK} fontFamily={MONO}>
+        + Follow a name
+      </text>
+      <text x={408} y={49} textAnchor="end" fontSize={6} fill={MUTED} fontFamily={MONO}>
+        the bell rings in the alerts drawer
+      </text>
+    </Figure>
+  );
+};
+
+/* The month: three cells — a date, today's number in its round, the pills in their inks, "2 more" */
+const MonthFigure = () => {
+  const cell = (x: number, day: string, today: boolean, pills: [string, string, string][], more?: number) => (
     <g>
-      <path d={`M 14 ${y - 4} L 21 ${y} L 14 ${y + 4} Z`} fill="none" stroke={MUTED} strokeWidth={1} strokeLinejoin="round" />
-      <text x={32} y={y + 2.5} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
-        00:00
+      <rect x={x} y={8} width={130} height={92} fill="none" stroke="#ffffff" strokeOpacity={0.1} />
+      {today && <circle cx={x + 16} cy={20} r={8} fill={INK} />}
+      <text x={x + 16} y={22.5} textAnchor="middle" fontSize={7.5} fontWeight={today ? 700 : 400} fill={today ? '#0a0a0a' : INK} fontFamily={MONO}>
+        {day}
       </text>
-      <line x1={62} x2={318} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.12} strokeWidth={2} strokeLinecap="round" />
-      <circle cx={62 + 256 * at} cy={y} r={4} fill={SILVER} stroke="#0c0c0c" strokeWidth={1.5} />
-      <text x={330} y={y + 2.5} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
-        21:11
-      </text>
-      <text x={408} y={y + 2.5} textAnchor="end" fontSize={6.5} letterSpacing={1} fill={ink} fontFamily={MONO}>
-        {word}
-      </text>
+      {pills.map(([w, t, ink], i) => (
+        <g key={w}>
+          <rect x={x + 6} y={32 + i * 19} width={118} height={15} rx={2.5} fill={ink} fillOpacity={0.13} />
+          <rect x={x + 6} y={32 + i * 19} width={1.6} height={15} fill={ink} />
+          <text x={x + 12} y={42.5 + i * 19} fontSize={6.5} fontWeight={600} fill={ink} fontFamily={MONO}>
+            {w}
+          </text>
+          <text x={x + 120} y={42.5 + i * 19} textAnchor="end" fontSize={5.5} fill={ink} fillOpacity={0.8} fontFamily={MONO}>
+            {t}
+          </text>
+        </g>
+      ))}
+      {more && (
+        <text x={x + 10} y={94} fontSize={6} fill={MUTED} fontFamily={MONO}>
+          {more} more
+        </text>
+      )}
     </g>
   );
   return (
-    <Figure label="The drip bar twice: the thumb at the far right reading LIVE in lime, then pulled back to 09:45 reading AS OF 09:45 in silver" h={52}>
-      {track(16, 1, 'LIVE', LIME)}
-      {track(38, 0.46, 'AS OF 09:45', SILVER)}
+    <Figure label="Three days of the month: the 15th with Retail sales in red and TSM after the close in silver, the 16th today with FOMC in red, UK CPI in orange and 2 more, the 18th with Monthly options expiration in magenta and TSLA" h={108}>
+      {cell(6, '15', false, [
+        ['Retail sales m/m', '08:30', IMPACT.high],
+        ['TSM', 'AMC', SILVER],
+        ['WMT', 'AMC', SILVER],
+      ])}
+      {cell(145, '16', true, [
+        ['FOMC rate decision', '14:00', IMPACT.high],
+        ['UK CPI y/y', '02:00', IMPACT.medium],
+        ['Housing starts', '08:30', IMPACT.low],
+      ], 2)}
+      {cell(284, '18', false, [
+        ['Monthly options expiration', '16:00', SUPREME],
+        ['TSLA', 'AMC', SILVER],
+      ])}
     </Figure>
   );
 };
@@ -208,17 +273,24 @@ export const NewsGuide = () => (
       <p>The land warms where the news lands, the arcs are where the open story reaches, the wash is the market that is open now.</p>
       <HeatFigure />
     </Section>
+    <Section title="The tape, the kinds, the glide">
+      <p>The newest headlines cross the top of the map on a loop; it holds still under the pointer, the wheel or a drag pulls it back by hand, and the arrows at its ends step one headline at a time. A story that leaves the tape is still a row below. The pills at the map's foot pull one kind of story up everywhere. Pick a story anywhere — the tape, a pin, a row — and the map glides to its city, flat; Fit brings the world back.</p>
+    </Section>
     <Section title="The square">
       <p>How hard a story lands, on the wire and on the calendar.</p>
       <SquareFigure />
     </Section>
     <Section title="The story's numbers">
-      <p>What the model expects, how sure it is, how much the tape already has, how long it keeps working, and whether the options book agrees.</p>
+      <p>What the model expects, how sure it is, how much the tape already has, how long it keeps working, and whether the options book agrees. How sure is said in a word: strong, good, caution or poor.</p>
       <NumbersFigure />
     </Section>
-    <Section title="The drip">
-      <p>Pull the bar back to any minute of the day; the far right is live.</p>
-      <DripFigure />
+    <Section title="All news">
+      <p>Every headline, newest first, a tab per kind with its count. Follow a name and its stories gather on Following; ring its bell and the alerts drawer tells you of each one. A click opens the story beside the map.</p>
+      <TabsFigure />
+    </Section>
+    <Section title="The month">
+      <p>Every day with what prints on it: the data in its impact's ink, a name reporting in silver with its slot, the market's own dates in magenta. Open a day for its figures; the arrows walk the months and Today comes home.</p>
+      <MonthFigure />
     </Section>
   </div>
 );

@@ -29,8 +29,11 @@ interface WidgetThumbProps {
 }
 
 const WidgetThumb = ({ def, ctx, width = 116 }: WidgetThumbProps) => {
-  const scale = width / RENDER_W;
-  const height = Math.round(RENDER_H * scale);
+  /* a panel may ask for its own render size (registry `thumbSize`); the thumb keeps the panel's aspect */
+  const rw = def.thumbSize?.w ?? RENDER_W;
+  const rh = def.thumbSize?.h ?? RENDER_H;
+  const scale = width / rw;
+  const height = Math.round(rh * scale);
 
   return (
     <span
@@ -45,7 +48,7 @@ const WidgetThumb = ({ def, ctx, width = 116 }: WidgetThumbProps) => {
           // the accessibility tree — this is a picture, not a control surface.
           ref={el => el?.setAttribute('inert', '')}
           className="absolute top-0 left-0 origin-top-left pointer-events-none select-none block"
-          style={{ width: RENDER_W, height: RENDER_H, transform: `scale(${scale})` }}
+          style={{ width: rw, height: rh, transform: `scale(${scale})` }}
         >
           {def.render(ctx)}
         </span>

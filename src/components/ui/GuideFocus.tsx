@@ -23,6 +23,9 @@ import { Info, X } from 'lucide-react';
 import { CARD } from './DropdownSelect';
 
 interface GuideDoorProps {
+  /** The icon alone — for a toolbar that measured itself tight (the Map's band on a still, 2026-09-22); the words
+      stay in the title */
+  compact?: boolean;
   open: boolean;
   onClick: () => void;
   /** The tooltip — what the card explains */
@@ -32,16 +35,19 @@ interface GuideDoorProps {
 }
 
 /** The door: a quiet "How to read" with the info mark, lit while the guide is open */
-export const GuideDoor = ({ open, onClick, title, testId, className = '' }: GuideDoorProps) => (
+export const GuideDoor = ({ open, onClick, title, testId, className = '', compact = false }: GuideDoorProps) => (
   <button
     type="button"
     onClick={onClick}
     aria-pressed={open}
-    title={title}
+    title={compact ? `How to read${title ? ` — ${title}` : ''}` : title}
+    aria-label={compact ? 'How to read' : undefined}
     data-guide-door={testId}
-    className={`shrink-0 inline-flex items-center gap-1 h-6 px-1.5 rounded-md text-[10px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-pressed:text-textPrimary transition-colors ${className}`}
+    data-guide-door-compact={compact || undefined}
+    className={`shrink-0 inline-flex items-center gap-1 h-6 rounded-md text-[10px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-pressed:text-textPrimary transition-colors ${compact ? 'w-6 justify-center' : 'px-1.5'} ${className}`}
   >
-    <Info className="w-3 h-3" /> How to read
+    <Info className="w-3 h-3" />
+    {!compact && ' How to read'}
   </button>
 );
 

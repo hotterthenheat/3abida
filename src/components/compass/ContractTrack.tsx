@@ -31,11 +31,9 @@ import type { Setup } from '../../types/compass';
 import Simulator from '../../core/simulator';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import { buildSetupTrack, barsToSpan, type TrackLevel } from './trackModel';
-import ContractPremiumPane, { type PremiumLevel, type PremiumProjection, type PremiumProjectionApi } from '../gex/ContractPremiumPane';
+import ContractPremiumPane, { type PremiumLevel, type PremiumProjection } from '../gex/ContractPremiumPane';
 import ContractPick, { type ConPickRow } from './ContractPick';
-import PremiumLevelRail from './PremiumLevelRail';
 import { BULL } from '../gex/paletteInk';
-import { Name } from '../ui/Name';
 
 const MUTED_INK = 'rgb(var(--text-muted))'; // matches textMuted (the lifted AA value)
 const WARN_INK = 'rgb(var(--warn))';
@@ -47,7 +45,7 @@ const REF_INK = 'rgb(var(--text-primary))';
 const LEVEL_INK: Record<TrackLevel['status'], string> = {
   HIT: BULL,
   'IN PROGRESS': BULL,
-  PENDING: 'rgba(48,209,88,0.55)',
+  PENDING: 'rgb(var(--bull) / 0.55)', /* the token's green dimmed, not the dark literal (2026-09-16) */
   STOP: WARN_INK,
   REF: REF_INK,
 };
@@ -73,17 +71,12 @@ interface ContractTrackProps {
   onOpenContract?: (
     strike: number,
     right: import('../../types/compass').OptionRight,
-    sleeve?: import('../../types/compass').SleeveKey,
-    dte?: number
+    sleeve?: import('../../types/compass').SleeveKey
   ) => void;
-  /** This view is the one on screen — an untouched frame re-centres on its return */
-  active?: boolean;
 }
 
-const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen = false, onToggleFullscreen, loadPickRows, onOpenContract, active = true }: ContractTrackProps) => {
+const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen = false, onToggleFullscreen, loadPickRows, onOpenContract }: ContractTrackProps) => {
   const [timeframe, setTimeframe] = useState<Timeframe>('1m');
-  /* Where the pane puts a premium — the rail beside it reads this in its own frame loop */
-  const projectionRef = useRef<PremiumProjectionApi | null>(null);
 
   /* The chrome's real height, handed to the pane as reserved headroom —
      the strip WRAPS at narrow widths and a target near the top of scale was
@@ -152,12 +145,8 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
   }));
 
   return (
-    /* The tape region — edge to edge inside the caller's box, chrome floating
-       over it — and THE RAIL beside it (2026-09-12): every level as a capsule
-       on the premium axis, the Terrain panel's grammar, so TP1–4, the floor
-       and the entry read down the side instead of only as rules on the plot. */
-    <div className="relative flex-1 min-h-0 flex" data-premium-track>
-      <div ref={tapeRef} className="relative flex-1 min-w-0 min-h-0 overflow-hidden">
+    /* The tape region — edge to edge inside the caller's box, chrome floating over it */
+    <div ref={tapeRef} className="relative flex-1 min-h-0 overflow-hidden" data-premium-track>
       <ContractPremiumPane
         ticker={setup.ticker}
         strike={setup.strike}
@@ -169,8 +158,6 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
         levels={paneLevels}
         projections={projections}
         topMargin={topMargin}
-        projectionRef={projectionRef}
-        visible={active}
       />
 
       {/* ONE strip + its whisper — the stock view's slots: the capsule, the
@@ -210,7 +197,7 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
         {/* The whispers — the clock left, the off-scale rules and the modeled note right */}
         <div className="pl-3 pr-16 flex items-baseline justify-between gap-3 pointer-events-none">
           <span className="font-mono text-[10px] text-textMuted">
-            the contract's premium over {barsToSpan(track.pastMinutes)} · reference ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from <Name t={setup.ticker} size={10} />
+            the contract's premium over {barsToSpan(track.pastMinutes)} · reference ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from {setup.ticker}
             's bars, not a traded tape
           </span>
           {docked.length > 0 && (
@@ -220,9 +207,6 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
           )}
         </div>
       </div>
-      </div>
-      {/* The rail — hidden where the card is too narrow to share (below md) */}
-      <PremiumLevelRail levels={track.levels} projection={projectionRef} retired={retired} className="hidden md:block" />
     </div>
   );
 };

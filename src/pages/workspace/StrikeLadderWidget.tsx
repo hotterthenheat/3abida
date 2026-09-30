@@ -13,45 +13,57 @@
   disagree with it. No 1s pulse: the old heatmap
   "breathed" on a cosmetic modulation — a ladder
   moves only when the book does.
+
+  THE MAP'S LADDER, IN A TILE (Noah, 2026-09-22: "change
+  the strike pressure ladder on the pulse page to be
+  thermal by default and to match the formatting of the
+  pinpoint map page which it takes you to"): the ladder
+  view IS ExposureLadder, the Map's own — the read row,
+  the lane's head, the rows with their legs and figures,
+  the foot — on GEX, through the tile's expiry and its
+  strikes; THERMAL, with no Colours card on the tile (so
+  The read keeps its place on the line — the Map it
+  opens carries the switch). The expiry reads that
+  one column of the book (the calendar's own), "Every
+  expiry" all of them. The pattern strip went with the
+  old ladder: the Map carries none, the read row says
+  the strike and The read says the book.
 ==================================================
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
-import StrikePressureLadder from '../../components/gex/StrikePressureLadder';
+import ExposureLadder from '../../components/gex/ExposureLadder';
+import { type LedgerPalette } from '../../components/gex/ColoursSwitch';
 import BookRead, { ReadDoor } from '../../components/gex/BookRead';
-import { buildExposureSurface } from '../../data/exposureSurface';
+import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import KeyLevelsWidget from './KeyLevelsWidget';
 import { useFadeClose } from '../../components/ui/useFadeClose';
-import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
-import { readHeatPattern } from '../../data/gex';
-import { netSinceOpenRatio } from '../../data/levelview';
+import { type StrikeWindow } from '../../data/exposure';
+import { expiryFor } from '../../core/calendar';
 import { twinFamilyFor, twinLabel, twinPrice, twinBasis, fmtTwin, type TwinLensKey } from '../../data/indexTwins';
 /* The card's expiries, ranges and pattern strip (components/gex/ladderControls.tsx).
    The controls themselves are labelled dropdown cards — one thin line, the
    approved grammar (Noah, 2026-09-08: the desk's chip rows were outdated). */
-import { ladderExpiryOptions, LADDER_RANGES as RANGES, LadderPatternStrip } from '../../components/gex/ladderControls';
+import { ladderExpiryOptions, LADDER_RANGES as RANGES } from '../../components/gex/ladderControls';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
+import ExpiryCard, { type ExpiryChoice } from '../../components/ui/ExpiryCard';
 import { HEAT_MODE, type HeatMode } from '../../components/gex/heatmap';
 import type { ExposureExpiry } from '../../types/gex';
 import type { WorkspaceCtx } from './registry';
-import { Name } from '../../components/ui/Name';
 
 const VIEW_OPTIONS: DropdownOption<'ladder' | 'levels'>[] = [
   { value: 'ladder', label: 'Ladder', hint: 'Every strike a row — put and call hedging as bars' },
   { value: 'levels', label: 'Levels', hint: 'The walls, the pin, the flip and the supreme at a glance' },
 ];
 /* Spelled as dates on the market calendar (Noah, 2026-09-08: "it just says 1d 2d 3d") */
-const EXPIRY_OPTIONS: DropdownOption<ExposureExpiry>[] = ladderExpiryOptions();
+const EXPIRY_OPTIONS: ExpiryChoice<ExposureExpiry>[] = ladderExpiryOptions();
 const RANGE_OPTIONS: DropdownOption<number>[] = RANGES.map(r => ({ value: r, label: `${r} each side`, hint: r === 30 ? 'The whole book' : `${r} strikes above spot and ${r} below` }));
-/** The bars' inks — the house ramp or the thermal one, the same two the Ledger and Building offer */
-type LadderPalette = 'house' | 'thermal';
-const PALETTE_OPTIONS: DropdownOption<LadderPalette>[] = [
-  { value: 'house', label: 'House', hint: 'Gold where hedging amplifies, ice where it absorbs' },
-  { value: 'thermal', label: 'Thermal', hint: 'Yellow in the middle, red where hedging amplifies a move, blue where it absorbs one' },
-];
-const modeFor = (p: LadderPalette): HeatMode => (p === 'thermal' ? 'thermal-yellow' : HEAT_MODE);
+/** The bars' inks — the house ramp or the thermal one, the Map's two */
+const modeFor = (p: LedgerPalette): HeatMode => (p === 'thermal' ? 'thermal-yellow' : HEAT_MODE);
+/** GEX alone — the tile's one greek, a stable array */
+const GEX_ONLY = ['gex'] as const;
 
 const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   /* The LEVELS VIEW (Noah, 2026-08-26: Key Levels "doesnt have enough
@@ -64,13 +76,34 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   /* The instrument lens (Noah, 2026-08-18): on index families the strikes,
      the pattern read and the basis chip re-denominate — SPY · SPX · ES. */
   const [lens, setLens] = useState<TwinLensKey>('etf');
-  const [palette, setPalette] = useState<LadderPalette>('house');
+  /* THERMAL, and no switch on the card (Noah, 2026-09-22: "remove the ability to change the colours so 'the read'
+     doesn't get pushed off") — the Map it opens carries the switch */
+  const palette: LedgerPalette = 'thermal';
   const [full, setFull] = useState(false);
   /* THE READ (2026-09-12, components/gex/BookRead.tsx) — the same glass card
      the Map's book carries, over this ladder: the whole book behind the tile's
      expiry, built only while the card is up. A kept strike is the desk
      chart's focus. */
   const [readOpen, setReadOpen] = useState(false);
+  /* THE KEPT STRIKE IS THE TILE'S (Noah, 2026-09-22: "when i click a strike it jumps me out and throws me into a…
+     chart with a focused strike, i don't like that" — "it should just be the regular focus in line"): a click keeps
+     the strike in this ladder, the Map's own focus (the row sharp, the rest blurred, "click off to let go"), and the
+     desk's chart is never told. The read keeps into the same place. */
+  const [kept, setKept] = useState<number | null>(null);
+  const keep = useCallback((strike: number) => setKept(k => (k != null && Math.abs(k - strike) < 1e-9 ? null : strike)), []);
+  /* THE BAR KNOWS ITS ROOM (the Map's band rule): named while the row holds everything, then the cards bare, then The
+     read as its icon — The read never falls to a second line (Noah, 2026-09-22) */
+  const barRO = useRef<ResizeObserver | null>(null);
+  const [barW, setBarW] = useState(0);
+  const barRef = useCallback((el: HTMLDivElement | null) => {
+    barRO.current?.disconnect();
+    barRO.current = null;
+    if (!el) return;
+    setBarW(Math.round(el.getBoundingClientRect().width));
+    const ro = new ResizeObserver(entries => setBarW(Math.round(entries[0].contentRect.width)));
+    ro.observe(el);
+    barRO.current = ro;
+  }, []);
   const pointedRef = useRef<((strike: number | null) => void) | null>(null);
   const subscribePointed = useCallback((fn: (strike: number | null) => void) => {
     pointedRef.current = fn;
@@ -107,60 +140,45 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   }, [ctx.fullOpen]);
 
   // Scan-tier: ctx.snapshot is the desk's 10s reference, so the ladder holds
-  // still between sweeps and re-reads at once on a name change.
-  const data = useMemo(() => {
+  // still between sweeps and re-reads at once on a name change. THE BOOK is the
+  // Map's — the whole calendar, every strike — and the tile's picks are views of it.
+  const surface = useMemo(() => {
     try {
-      return buildExposureProfile(ctx.snapshot, expiry, range);
+      return buildExposureSurface(ctx.snapshot, 30, CALENDAR_DTES);
     } catch {
       return null;
     }
-  }, [ctx.snapshot, expiry, range]);
-  /* the book behind the read — the whole calendar at the tile's window, only while the card is up */
-  const readSurface = useMemo(() => {
-    if (!readOpen) return null;
-    try {
-      return buildExposureSurface(ctx.snapshot, range);
-    } catch {
-      return null;
-    }
-  }, [readOpen, ctx.snapshot, range]);
-
-  // The engine names the book's configuration — the strip above the ladder
-  // is its voice. Under a lens the levels convert FIRST, so the read prints
-  // the instrument's prices.
-  const pattern = useMemo(() => {
-    if (!data) return null;
-    const { levels } = data;
-    if (!fam || activeLens === 'etf') return readHeatPattern(levels);
-    const c = (v: number) => twinPrice(fam, activeLens, v, levels.spot);
-    return readHeatPattern({
-      spot: c(levels.spot),
-      flip: c(levels.flip),
-      callWall: c(levels.callWall),
-      putWall: c(levels.putWall),
-      supreme: c(levels.supreme),
+  }, [ctx.snapshot]);
+  /* THE TILE'S EXPIRY, as the book's column: the expiry on that day (the nearest the book holds), or every one */
+  const expiries = useMemo(() => {
+    if (!surface) return [];
+    if (expiry === 'ALL') return surface.expiries.map((_, i) => i);
+    const want = EXPIRY_OPTIONS.find(o => o.value === expiry)?.date?.getTime();
+    if (want == null) return [0];
+    let best = 0;
+    surface.expiries.forEach((e, i) => {
+      const d = Math.abs(expiryFor(e.dte).date.getTime() - want);
+      if (d < Math.abs(expiryFor(surface.expiries[best].dte).date.getTime() - want)) best = i;
     });
-  }, [data, fam, activeLens]);
-
-  // The ghost spine's data — net at the open vs now, per strike — on the
-  // same scan clock as the ladder.
-  const openRatio = useMemo(
-    () => netSinceOpenRatio(ctx.ticker),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ctx.snapshot, ctx.ticker]
-  );
+    return [best];
+  }, [surface, expiry]);
 
   // Strike column in the lens's terms — the ladder itself stays the ETF book.
   const strikeFormat = useMemo(() => {
-    if (!fam || activeLens === 'etf' || !data) return undefined;
-    const spot = data.levels.spot;
+    if (!fam || activeLens === 'etf' || !surface) return undefined;
+    const spot = surface.spot;
     return (s: number) => fmtTwin(twinPrice(fam, activeLens, s, spot));
-  }, [fam, activeLens, data]);
+  }, [fam, activeLens, surface]);
 
+  /* the bar's need, measured with a family's Prices in card (SPY): named ~700px, bare ~540, bare with The read as its
+     icon ~470; a name with no lens needs less and stays named longer */
+  const need = fam ? { named: 700, bare: 540 } : { named: 580, bare: 440 };
+  const barMode: 'named' | 'bare' | 'tight' = barW === 0 || barW >= need.named ? 'named' : barW >= need.bare ? 'bare' : 'tight';
+  const barBare = barMode !== 'named';
   const body = (
     <div className="h-full min-h-0 flex flex-col">
       {/* Controls sit in the body — the header is the drag handle. */}
-      <div className="shrink-0 px-2 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap">
+      <div ref={barRef} className="shrink-0 px-2 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap" data-ladder-bar-mode={barMode}>
         {full && (
           <button
             onClick={close}
@@ -169,36 +187,36 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
             <ArrowLeft className="w-3 h-3 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> Back
           </button>
         )}
-        <DropdownSelect label="View" value={view} options={VIEW_OPTIONS} onChange={setView} title="What the card shows" testId="ladder-view" />
+        <DropdownSelect label="View" value={view} options={VIEW_OPTIONS} onChange={setView} title="What the card shows" testId="ladder-view" bare={barBare} />
         {/* The ladder's own controls only steer the ladder — the Levels view
             carries its own instrument lens inside. */}
         {view === 'ladder' && (
           <>
-            <DropdownSelect label="Expiry" value={expiry} options={EXPIRY_OPTIONS} onChange={setExpiry} title="Which contracts the ladder weighs" testId="ladder-expiry" />
-            <DropdownSelect label="Strikes" value={range} options={RANGE_OPTIONS} onChange={v => setRange(v as StrikeWindow)} title="How many strikes around spot" testId="ladder-strikes" />
-            <DropdownSelect label="Colours" value={palette} options={PALETTE_OPTIONS} onChange={setPalette} title="What the bars' colours mean" testId="ladder-colours" />
+            <ExpiryCard label="Expiry" value={expiry} choices={EXPIRY_OPTIONS} onChange={setExpiry} title="Which contracts the ladder weighs" testId="ladder-expiry" bare={barBare} />
+            <DropdownSelect label="Strikes" value={range} options={RANGE_OPTIONS} onChange={v => setRange(v as StrikeWindow)} title="How many strikes around spot" testId="ladder-strikes" bare={barBare} />
             {fam && (
               <>
+                {/* the futures' level and its basis ride IN the card now — as the choices' hints — so the line keeps room for
+                    The read (2026-09-22); it used to be a note after the card */}
                 <DropdownSelect
                   label="Prices in"
                   value={activeLens}
-                  options={(['etf', 'index', 'futures'] as TwinLensKey[]).map(k => ({ value: k, label: twinLabel(fam, k) }))}
+                  options={(['etf', 'index', 'futures'] as TwinLensKey[]).map(k => ({
+                    value: k,
+                    label: twinLabel(fam, k),
+                    hint: surface ? `${fmtTwin(twinPrice(fam, k, surface.spot, surface.spot))}${k === 'futures' ? ` · +${fmtTwin(twinBasis(fam, surface.spot))} over ${fam.index}` : ''}` : undefined,
+                  }))}
                   onChange={setLens}
                   title="The instrument the strikes are priced in"
                   testId="ladder-instrument"
+                  bare={barBare}
                 />
-                {data && (
-                  <span className="font-mono text-[9px] text-textMuted tnum whitespace-nowrap">
-                    {fam.futures} {fmtTwin(twinPrice(fam, 'futures', data.levels.spot, data.levels.spot))} · +
-                    {fmtTwin(twinBasis(fam, data.levels.spot))} over {fam.index}
-                  </span>
-                )}
               </>
             )}
           </>
         )}
         <span className="ml-auto inline-flex items-center gap-1.5">
-          {view === 'ladder' && <ReadDoor open={readOpen} onClick={() => setReadOpen(v => !v)} />}
+          {view === 'ladder' && <ReadDoor open={readOpen} onClick={() => setReadOpen(v => !v)} compact={barMode === 'tight'} />}
           {full && (
             <button onClick={close} title="Exit fullscreen (Esc)" className="shrink-0 p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors">
               <Minimize2 className="w-3 h-3" />
@@ -206,32 +224,43 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
           )}
         </span>
       </div>
-      {/* The pattern strip — what the ladder below actually says. The Levels
-          view speaks for itself (its regime line is the same voice). */}
-      {view === 'ladder' && pattern && <LadderPatternStrip pattern={pattern} />}
       <div className="relative flex-1 min-h-0">
         {view === 'levels' ? (
           <KeyLevelsWidget ctx={ctx} />
-        ) : data ? (
-          <StrikePressureLadder data={data} strikeFormat={strikeFormat} openRatio={openRatio} mode={modeFor(palette)} fill onPointer={strike => pointedRef.current?.(strike)} />
+        ) : surface ? (
+          <ExposureLadder
+            surface={surface}
+            liveSpot={ctx.snapshot.spot}
+            greeks={GEX_ONLY as unknown as ('gex')[]}
+            expiries={expiries}
+            rings={range}
+            palette={palette}
+            selectedStrike={kept}
+            onPointer={cell => pointedRef.current?.(cell?.strike ?? null)}
+            onSelectStrike={keep}
+            strikeFormat={strikeFormat}
+            /* a tile shows its whole window at its default size: the rows may go to 10px (the Map keeps its 18); a tile
+               made smaller scrolls, opening on spot */
+            rowMin={10}
+          />
         ) : (
           <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted">
-            <span>No exposure for <Name t={ctx.ticker} size={12} /></span>
+            No exposure for {ctx.ticker}
           </div>
         )}
         {/* THE READ — glass over the right of the ladder, in GEX, the ladder's greek */}
-        {readOpen && view === 'ladder' && readSurface && (
+        {readOpen && view === 'ladder' && surface && (
           <BookRead
-            surface={readSurface}
+            surface={surface}
             snapshot={ctx.snapshot}
             greek="gex"
             mode={modeFor(palette)}
-            depth={expiry === '0DTE' ? 1 : 99}
+            expiries={expiries}
             afterBell={false}
             rings={range}
-            selectedStrike={ctx.focusPrice ?? null}
+            selectedStrike={kept}
             subscribePointed={subscribePointed}
-            onKeep={ctx.focusStrike}
+            onKeep={keep}
             onClose={() => setReadOpen(false)}
           />
         )}

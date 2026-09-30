@@ -126,7 +126,7 @@ export const NewsInner = ({ rows = 21 }: { rows?: number }) => (
       <Facts widths={[150, 70, 96, 130]} />
     </div>
     <div className="px-5 pb-3 flex items-center gap-2 flex-wrap">
-      <Trigger w={96} />
+      {/* Lean · Names · Sort — the kinds are the pills at the map's foot (2026-09-13) */}
       <Trigger w={116} />
       <Trigger w={128} />
       <Trigger w={104} />
@@ -137,27 +137,39 @@ export const NewsInner = ({ rows = 21 }: { rows?: number }) => (
     </div>
     <div className="grid border-t border-borderSubtle" style={{ gridTemplateColumns: `minmax(0, 1fr) ${NEWS_STORY_W}px` }}>
       <div className="min-w-0 flex flex-col border-r border-borderSubtle">
-        <div className="px-2 pt-2">
-          <div className="relative w-full" style={{ aspectRatio: '960 / 440' }}>
+        {/* the tape — the newest headlines crossing the top of the map (2026-09-13) */}
+        <div className="px-4 h-[30px] border-b border-ink/[0.06] flex items-center gap-6 overflow-hidden">
+          {[220, 180, 260, 200, 240].map((w, i) => (
+            <span key={i} className="inline-flex items-center gap-2 shrink-0">
+              <Block w={8} h={8} className="rounded-[2px]" />
+              <Line w={34} h={10} />
+              <Line w={w} h={9} />
+            </span>
+          ))}
+        </div>
+        {/* the map FILLS its box when the story beside it is the taller of the two (NewsMap's frameFor, 2026-09-19): 960 × 440 is its least height, not its shape */}
+        <div className="flex-1 flex flex-col px-2 pt-2">
+          <div className="relative w-full flex-1">
+            <div aria-hidden style={{ aspectRatio: '960 / 440' }} />
             {[[0.2, 0.36], [0.28, 0.4], [0.47, 0.3], [0.52, 0.34], [0.72, 0.42], [0.8, 0.5], [0.62, 0.58], [0.3, 0.62]].map(([x, y], i) => (
               <Skeleton key={i} className="absolute rounded-full" style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: 10 + (i % 3) * 4, height: 10 + (i % 3) * 4 }} />
             ))}
+            {/* the kinds' pills at the map's foot */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 p-1 rounded-full border border-borderSubtle">
+              {[34, 56, 60, 52, 48, 40, 54, 66].map((w, i) => (
+                <Block key={i} w={w + 24} h={24} className="rounded-full" style={{ opacity: i === 0 ? 0.6 : 0.25 }} />
+              ))}
+            </div>
           </div>
         </div>
-        {/* the drip bar, then the read line */}
-        <div className="px-4 h-[28px] border-t border-borderSubtle flex items-center gap-3">
-          <Block w={14} h={14} />
-          <Line w={26} h={9} />
-          <Skeleton className="h-[2px] flex-1 rounded-full" />
-          <Line w={26} h={9} />
-          <Line w={30} h={9} className="ml-2" />
-        </div>
-        <div className="px-4 h-[26px] border-t border-borderSubtle flex items-center">
+        {/* the read line under the map (the drip bar above it came off on 2026-09-13) */}
+        <div className="px-4 h-[26px] border-t border-ink/[0.06] flex items-center">
           <Line w={420} h={9} />
           <Line w={90} h={9} className="ml-auto" />
         </div>
       </div>
-      <div className="px-4 pt-3 pb-3 flex flex-col gap-3">
+      {/* the open story is 578px tall (measured) — under about 1,900px it is the taller of the two, and the map's box stretches to it */}
+      <div className="px-4 pt-3 pb-3 flex flex-col gap-3 min-h-[578px]">
         <div className="flex items-center gap-2">
           <Block w={16} h={16} className="rounded-full" />
           <Line w={44} h={12} />
@@ -210,46 +222,117 @@ export const NewsInner = ({ rows = 21 }: { rows?: number }) => (
   </div>
 );
 
+/** The All news box standing (2026-09-13): the head, the tabs line, the header, the wire's rows again — the afternoon's count */
+const NewsAllInner = ({ rows = 21 }: { rows?: number }) => (
+  <div data-skeleton="news-all">
+    <PlainHead title={64} sub={560} />
+    <div className="border-t border-borderSubtle">
+      <div className="px-5 h-[38px] border-b border-borderSubtle flex items-center gap-4">
+        {[128, 84, 104, 80, 60, 118].map((w, i) => (
+          <Line key={i} w={w} h={9} />
+        ))}
+      </div>
+      <div className="px-5 h-[22px] flex items-center gap-3">
+        {[30, 34, 30, 36, 60, 30, 28].map((w, i) => (
+          <Line key={i} w={w} h={8} />
+        ))}
+      </div>
+      {Array.from({ length: rows }, (_, r) => (
+        <div key={r} className="px-5 grid items-center gap-x-3 border-t border-borderSubtle/40" style={{ height: NEWS_ROW_H, gridTemplateColumns: '72px 104px 96px 72px minmax(0, 1fr) 76px 72px' }}>
+          <Line w={36} h={9} />
+          <Line w={54} h={10} />
+          <Line w={60} h={9} />
+          <Line w={40} h={8} />
+          <Line w={`${52 + ((r * 17) % 40)}%`} h={10} />
+          <Line w={40} h={10} className="ml-auto" />
+          <Line w={28} h={9} className="ml-auto" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/** The month standing (2026-09-13): the month's head, the weekdays, six weeks of cells with their pills (a cell is 96 at rest,
+    a full one runs to 111 — six rows average 101 this month), the day panel at 340 beside it, the reads across under */
+const NewsDayInner = () => (
+  <div data-skeleton="news-day">
+    <PlainHead title={60} sub={520} />
+    <div className="grid border-t border-borderSubtle" style={{ gridTemplateColumns: 'minmax(0, 1fr) 340px' }}>
+      <div className="min-w-0 border-r border-borderSubtle">
+        <div className="px-4 h-[40px] flex items-center gap-2 border-b border-borderSubtle">
+          <Block w={24} h={24} />
+          <Block w={24} h={24} />
+          <Line w={130} h={12} />
+          <Trigger w={52} />
+          <Line w={180} h={9} className="ml-2" />
+          <Line w={200} h={9} className="ml-auto" />
+          <Line w={190} h={9} />
+        </div>
+        <div className="grid grid-cols-7 h-[22px] border-b border-borderSubtle/60">
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="px-2 flex items-center">
+              <Line w={22} h={8} />
+            </div>
+          ))}
+        </div>
+        {/* two full weeks mid-month (CPI's, FOMC's) run to 111; the rest sit at 97 (measured 97 97 111 111 97 96) */}
+        {Array.from({ length: 6 }, (_, w) => (
+          <div key={w} className="grid grid-cols-7 border-b border-borderSubtle/40 last:border-b-0" style={{ height: w === 2 || w === 3 ? 111 : w === 5 ? 96 : 97 }}>
+            {Array.from({ length: 7 }, (_, d) => {
+              const pills = (w * 7 + d) % 4;
+              return (
+                <div key={d} className="px-1.5 pt-1 pb-1.5 border-r border-borderSubtle/40 last:border-r-0 flex flex-col gap-[3px]">
+                  <Block w={20} h={20} className="rounded-full" />
+                  {Array.from({ length: pills }, (_, p) => (
+                    <Skeleton key={p} className="h-[18px] w-full rounded-[3px]" />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="min-w-0">
+        <div className="px-4 h-[40px] flex items-center gap-2 border-b border-borderSubtle">
+          <Line w={110} h={12} />
+          <Line w={34} h={8} />
+          <Line w={48} h={9} className="ml-auto" />
+        </div>
+        <div className="px-4 py-8 flex justify-center">
+          <Line w={220} h={9} />
+        </div>
+      </div>
+    </div>
+    {/* four reads across: a 10px title line, then three lines of 11.5px on relaxed leading (measured 100) */}
+    <div className="grid grid-cols-4 border-t border-borderSubtle">
+      {Array.from({ length: 4 }, (_, k) => (
+        <div key={k} className={`px-5 py-3 ${k > 0 ? 'border-l border-borderSubtle/40' : ''}`}>
+          <div className="h-[15px] flex items-center">
+            <Line w={110} h={9} />
+          </div>
+          <div className="mt-1 flex flex-col">
+            {['94%', '88%', '46%'].map((w, i) => (
+              <div key={i} className="h-[19px] flex items-center">
+                <Line w={w} h={10} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 export const NewsPageSkeleton = () => (
   <>
     <div className="border border-borderSubtle rounded-md bg-panel">
       <NewsInner />
     </div>
     <div className="border border-borderSubtle rounded-md bg-panel">
-      {/* the day's head has no door and no chip: the 15px title stands 19px tall */}
-      <div className="px-5 pt-4 pb-3">
-        <div className="h-[19px] flex items-center">
-          <Line w={60} h={12} />
-        </div>
-        <SubLine w={420} />
-      </div>
-      <div className="grid border-t border-borderSubtle" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
-        <div className="border-r border-borderSubtle">
-          <div className="px-5 h-[22px] flex items-center">
-            <Line w={160} h={8} />
-          </div>
-          {/* the calendar keeps a print for ten hours after it lands — a dozen rows through the afternoon */}
-          {Array.from({ length: 12 }, (_, r) => (
-            <div key={r} className="px-5 flex items-center gap-3 border-t border-borderSubtle/40" style={{ height: NEWS_ROW_H }}>
-              <Line w={`${40 + ((r * 13) % 30)}%`} h={10} />
-              <Line w={28} h={9} className="ml-auto" />
-              <Line w={48} h={9} />
-            </div>
-          ))}
-        </div>
-        <div>
-          <div className="px-5 h-[22px] flex items-center">
-            <Line w={60} h={8} />
-          </div>
-          {Array.from({ length: 4 }, (_, r) => (
-            <div key={r} className="px-5 py-2.5 border-t border-borderSubtle/40">
-              <Line w={110} h={9} />
-              <Line w="94%" h={10} className="mt-2" />
-              <Line w="58%" h={10} className="mt-1.5" />
-            </div>
-          ))}
-        </div>
-      </div>
+      <NewsAllInner />
+    </div>
+    <div className="border border-borderSubtle rounded-md bg-panel">
+      <NewsDayInner />
     </div>
   </>
 );
@@ -606,13 +689,418 @@ export const StocksPageSkeleton = () => (
   </div>
 );
 
+/** A name's overview standing: the way back, the name with the four pillars, why now, the two pairs, the score, the record */
+/** A factor row standing: the label and its note, the figure, the lean's track (measured 47) */
+const FactorRowSk = () => (
+  <div className="px-5 h-[47px] grid items-center gap-x-4 border-t border-borderSubtle/40" style={{ gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) 96px' }}>
+    <div>
+      <Line w={160} h={10} />
+      <Line w={120} h={8} className="mt-1" />
+    </div>
+    <Line w={90} h={10} />
+    <Skeleton className="h-[4px] w-full rounded-full" />
+  </div>
+);
+/** A two-sided bar with its words over it (the call/put bar measured 35, the dark pool's 39 with its bottom padding) */
+const BarSk = ({ h }: { h: number }) => (
+  <div className="px-5 flex flex-col justify-start" style={{ height: h }}>
+    <div className="h-[15px] flex items-center justify-between">
+      <Line w={60} h={9} />
+      <Line w={220} h={8} />
+      <Line w={60} h={9} />
+    </div>
+    <Skeleton className="mt-1.5 h-[6px] w-full rounded-full" />
+  </div>
+);
+
+/** The name's page standing (2026-09-13, the second pass): thirteen boxes, each at the pieces the page measured on NVDA at rest —
+    the name 164, why 247, the trend and the money 520, the news and the numbers 457, the score 627 (three columns of 524 and the method's door),
+    the timeline with two marks, the tape's two boxes empty, the busiest pairs, the record with one filing */
+export const StockNameSkeleton = () => (
+  <>
+    <div className="border border-borderSubtle rounded-md bg-panel" data-skeleton="stock-name">
+      <div className="px-5 pt-4 pb-4 flex items-start gap-6 flex-wrap">
+        <div className="min-w-0 flex-1 flex items-center gap-3">
+          <Block w={34} h={34} className="rounded-md" />
+          <div>
+            <TitleRow title={150} chip={false} />
+            {/* the price line: 12px mono + 11px words (measured 45 for the head's two lines) */}
+            <div className="mt-0.5 h-[19px] flex items-center">
+              <Line w={260} h={9} />
+            </div>
+          </div>
+        </div>
+        <Facts widths={[60, 60, 90]} />
+      </div>
+      {/* the four pillars: a 13px figure over a 6px track (measured 30) */}
+      <div className="px-5 pb-4 grid grid-cols-4 gap-x-6">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i}>
+            <div className="flex items-center justify-between h-[20px]">
+              <Line w={70} h={8} />
+              <Line w={22} h={11} />
+            </div>
+            <Skeleton className="mt-1 h-[6px] w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="px-5 pb-4 flex items-center gap-2">
+        {[64, 68, 76, 72, 70].map((w, i) => (
+          <Skeleton key={i} className="h-6 rounded-md" style={{ width: w }} />
+        ))}
+        <Line w={120} h={9} className="ml-auto" />
+      </div>
+    </div>
+    {/* WHY NOW: three paragraphs (one wrapping to two lines) and the agreement strip (measured 106 + 74) */}
+    <div className="border border-borderSubtle rounded-md bg-panel">
+      <PlainHead title={72} sub={520} />
+      <div className="px-5 pb-3 flex flex-col gap-2">
+        <div className="h-[20px] flex items-center">
+          <Line w="88%" h={11} />
+        </div>
+        <div className="h-[20px] flex items-center">
+          <Line w="52%" h={11} />
+        </div>
+        <div className="h-[38px] flex flex-col justify-around">
+          <Line w="96%" h={11} />
+          <Line w="40%" h={11} />
+        </div>
+      </div>
+      <div className="px-5 h-[74px] border-t border-borderSubtle/40 flex flex-col justify-center gap-2">
+        <div className="flex items-center gap-2">
+          <Line w={190} h={8} />
+          {[96, 110, 100, 96].map((w, i) => (
+            <Skeleton key={i} className="h-6 rounded-md" style={{ width: w }} />
+          ))}
+        </div>
+        <Line w="46%" h={10} />
+      </div>
+    </div>
+    {/* THE TREND beside THE MONEY (measured 520 each) */}
+    <div className="grid grid-cols-2 gap-4 items-stretch">
+      <div className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+        <PlainHead title={110} sub={300} />
+        <div className="px-5 h-[90px] grid grid-cols-3 gap-x-4 content-start gap-y-2">
+          {Array.from({ length: 6 }, (_, k) => (
+            <div key={k}>
+              <Line w={64} h={8} />
+              <Line w={80} h={11} className="mt-1" />
+            </div>
+          ))}
+        </div>
+        {/* the sessions on the chart library (196) and the structure line (20), each with its bottom padding */}
+        <div className="px-5 h-[208px]">
+          <Skeleton className="h-[196px] w-full rounded-md" style={{ opacity: 0.5 }} />
+        </div>
+        <div className="px-5 h-[32px] flex items-start gap-3">
+          <Line w={220} h={10} />
+          {[28, 28, 28, 28].map((w, i) => (
+            <Skeleton key={i} className="h-5 rounded" style={{ width: w }} />
+          ))}
+          <Line w={180} h={10} className="ml-auto" />
+        </div>
+        <div className="mt-auto">
+          {Array.from({ length: 5 }, (_, k) => (
+            <FactorRowSk key={k} />
+          ))}
+        </div>
+      </div>
+      <div className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+        <PlainHead title={110} sub={300} />
+        <div className="px-5 h-[86px] grid grid-cols-4 gap-x-4 content-start gap-y-2">
+          {Array.from({ length: 8 }, (_, k) => (
+            <div key={k}>
+              <Line w={64} h={8} />
+              <Line w={80} h={11} className="mt-1" />
+            </div>
+          ))}
+        </div>
+        {/* the book on a price scale (54 + 4) */}
+        <div className="px-5 h-[58px] flex items-center">
+          <Skeleton className="h-[2px] w-full rounded-full" />
+        </div>
+        <BarSk h={35} />
+        <BarSk h={39} />
+        {/* today's tape with the dark prints under it, on the chart library: a 22px line of words, the 132px chart, the largest prints as chips (26), its bottom padding */}
+        <div className="px-5 h-[194px]">
+          <div className="h-[22px] flex items-center justify-between">
+            <Line w={300} h={8} />
+            <Line w={50} h={8} />
+          </div>
+          <Skeleton className="h-[132px] w-full rounded-md" style={{ opacity: 0.5 }} />
+          <div className="mt-1.5 h-[26px] flex items-center gap-2">
+            <Line w={70} h={8} />
+            {Array.from({ length: 5 }, (_, k) => (
+              <Skeleton key={k} className="h-6 rounded-md" style={{ width: 82 }} />
+            ))}
+          </div>
+        </div>
+        <div className="mt-auto">
+          {Array.from({ length: 5 }, (_, k) => (
+            <FactorRowSk key={k} />
+          ))}
+        </div>
+      </div>
+    </div>
+    {/* THE NEWS beside THE NUMBERS (measured 457 each) */}
+    <div className="grid grid-cols-2 gap-4 items-stretch">
+      <div className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+        <PlainHead title={110} sub={300} />
+        <div className="px-5 h-[34px] border-t border-borderSubtle/40 flex items-center gap-3">
+          <Line w={44} h={9} />
+          <Line w="60%" h={10} />
+          <Line w={48} h={8} className="ml-auto" />
+          <Line w={36} h={10} />
+        </div>
+        {/* the last six reports under their header */}
+        <div className="border-t border-borderSubtle/40">
+          <div className="px-5 h-[22px] flex items-center gap-3">
+            {[40, 24, 110, 90].map((w, k) => (
+              <Line key={k} w={w} h={8} />
+            ))}
+          </div>
+          {Array.from({ length: 6 }, (_, k) => (
+            <div key={k} className="px-5 h-[26px] flex items-center gap-3 border-t border-borderSubtle/40">
+              <Line w={40} h={9} />
+              <Line w={36} h={10} />
+              <Line w={120} h={9} />
+              <Line w={40} h={10} className="ml-auto" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-auto">
+          {Array.from({ length: 3 }, (_, k) => (
+            <FactorRowSk key={k} />
+          ))}
+          <div className="px-5 h-[36px] border-t border-borderSubtle/40 flex items-center">
+            <Line w={300} h={9} />
+            <Line w={60} h={8} className="ml-auto" />
+          </div>
+        </div>
+      </div>
+      <div className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+        <div className="px-5 pt-4 pb-3 flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="h-[19px] flex items-center">
+              <Line w={110} h={12} />
+            </div>
+            <SubLine w={300} />
+          </div>
+          <Line w={130} h={8} />
+        </div>
+        <div className="px-5 h-[86px] grid grid-cols-4 gap-x-4 content-start gap-y-2">
+          {Array.from({ length: 8 }, (_, k) => (
+            <div key={k}>
+              <Line w={64} h={8} />
+              <Line w={80} h={11} className="mt-1" />
+            </div>
+          ))}
+        </div>
+        {/* fair value on a scale (46 + 8) */}
+        <div className="px-5 h-[54px] flex items-center">
+          <Skeleton className="h-[6px] w-full rounded-full" />
+        </div>
+        <div className="mt-auto">
+          {Array.from({ length: 5 }, (_, k) => (
+            <FactorRowSk key={k} />
+          ))}
+        </div>
+      </div>
+    </div>
+    {/* HOW THE SCORE IS MADE: three columns of 524 — eighteen factors in points | the weights, the series, five moves | nine sources and the note — then the method's door */}
+    <div className="border border-borderSubtle rounded-md bg-panel">
+      <PlainHead title={172} sub={640} />
+      <div className="grid border-t border-borderSubtle/60" style={{ gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr)' }}>
+        <div className="border-r border-borderSubtle/60">
+          <div className="px-5 h-[22px] flex items-center gap-3">
+            <Line w={40} h={8} />
+            <Line w={60} h={8} className="ml-auto" />
+            <Line w={32} h={8} />
+          </div>
+          {Array.from({ length: 18 }, (_, k) => (
+            <div key={k} className="px-5 h-[26px] flex items-center gap-3 border-t border-borderSubtle/40">
+              <Line w={150 - (k % 4) * 20} h={10} />
+              <Skeleton className="ml-auto h-[4px] w-[88px] rounded-full" />
+              <Line w={30} h={10} />
+            </div>
+          ))}
+          <div className="px-5 h-[34px] border-t border-borderSubtle/60 flex items-center">
+            <Line w={150} h={9} />
+            <Line w={80} h={9} className="ml-auto" />
+          </div>
+        </div>
+        <div className="border-r border-borderSubtle/60">
+          <div className="px-5 h-[22px] flex items-center gap-3">
+            <Line w={40} h={8} />
+            <Line w={40} h={8} className="ml-auto" />
+          </div>
+          {Array.from({ length: 5 }, (_, k) => (
+            <div key={k} className="px-5 h-[26px] flex items-center gap-3 border-t border-borderSubtle/40">
+              <Line w={90} h={10} />
+              <Line w={70} h={9} className="ml-auto" />
+            </div>
+          ))}
+          {/* the series on the chart library (88) over two lines of words (measured 140) */}
+          <div className="px-5 h-[140px] border-t border-borderSubtle/40 flex flex-col justify-center gap-1.5">
+            <Skeleton className="h-[88px] w-full rounded-md" style={{ opacity: 0.5 }} />
+            <Line w="92%" h={9} />
+            <Line w="48%" h={9} />
+          </div>
+          <div className="px-5 h-[22px] border-t border-borderSubtle/40 flex items-center">
+            <Line w={220} h={8} />
+          </div>
+          {Array.from({ length: 5 }, (_, k) => (
+            <div key={k} className="px-5 h-[26px] flex items-center gap-3 border-t border-borderSubtle/40">
+              <Line w={130} h={10} />
+              <Skeleton className="ml-auto h-[4px] w-[64px] rounded-full" />
+              <Line w={40} h={10} />
+            </div>
+          ))}
+          <div className="h-[54px]" />
+        </div>
+        <div>
+          <div className="px-5 h-[22px] flex items-center gap-3">
+            <Line w={40} h={8} />
+            <Line w={40} h={8} />
+            <Line w={30} h={8} />
+          </div>
+          {Array.from({ length: 9 }, (_, k) => (
+            <div key={k} className="px-5 h-[26px] flex items-center gap-3 border-t border-borderSubtle/40">
+              <Line w={100} h={10} />
+              <Line w={26} h={8} />
+              <Line w={120} h={9} />
+            </div>
+          ))}
+          <div className="px-5 h-[57px] border-t border-borderSubtle/40 flex flex-col justify-center gap-2">
+            <Line w="94%" h={9} />
+            <Line w="70%" h={9} />
+          </div>
+          <div className="h-[211px]" />
+        </div>
+      </div>
+      <div className="px-5 h-[35px] border-t border-borderSubtle/60 flex items-center gap-2">
+        <Block w={14} h={14} />
+        <Line w={420} h={8} />
+      </div>
+    </div>
+    {/* THE TIMELINE: five lane rows in the report's grammar — the name, the figure and the chip; the strip; four facts (measured 85 each) */}
+    <div className="border border-borderSubtle rounded-md bg-panel">
+      <PlainHead title={110} sub={620} />
+      {Array.from({ length: 5 }, (_, k) => (
+        <div key={k} className="h-[85px] border-t border-borderSubtle/50 grid grid-cols-[200px_minmax(0,1fr)_auto] items-center gap-6 px-5">
+          <div>
+            <Line w={70} h={9} />
+            <Line w={24} h={13} className="mt-1" />
+            <Skeleton className="mt-1.5 h-5 w-[84px] rounded-full" />
+          </div>
+          <div>
+            <Skeleton className="h-[2px] w-full rounded-full" />
+            <div className="mt-2 flex justify-between">
+              <Line w={30} h={7} />
+              <Line w={20} h={7} />
+            </div>
+          </div>
+          <div className="grid grid-cols-[52px_72px_64px_236px] gap-x-5">
+            {[30, 40, 40, 160].map((w, i) => (
+              <div key={i}>
+                <Line w={Math.min(w, 44)} h={8} />
+                <Line w={w} h={10} className="mt-1" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    {/* THE TAPE: the biggest buys and sells, two prints each on an ordinary morning (measured 76), then the busiest pair */}
+    <div className="grid grid-cols-2 gap-4 items-stretch">
+      {[0, 1].map(i => (
+        <div key={i} className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+          <PlainHead title={100} sub={400} />
+          <div className="pb-2 mt-auto">
+            {Array.from({ length: 2 }, (_, k) => (
+              <div key={k} className="px-5 h-[34px] flex items-center gap-3 border-t border-borderSubtle/40">
+                <Line w={30} h={9} />
+                <Line w={80} h={10} />
+                <Skeleton className="h-[4px] w-[110px] rounded-full" />
+                <Line w={70} h={9} />
+                <Line w={40} h={10} className="ml-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="grid grid-cols-2 gap-4 items-stretch">
+      {[0, 1].map(i => (
+        <div key={i} className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+          <PlainHead title={96} sub={330} />
+          <div className="pb-2 mt-auto">
+            {Array.from({ length: 3 }, (_, k) => (
+              <div key={k} className="px-5 h-[34px] flex items-center gap-3 border-t border-borderSubtle/40">
+                <Line w={90} h={10} />
+                <Line w={40} h={9} />
+                <Skeleton className="h-[4px] w-[120px] rounded-full" />
+                <Line w={40} h={9} className="ml-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    {/* ON THE RECORD: one filing and its foot with the bought/sold bar (measured 22 + 38 + 48); Congress empty beside it */}
+    <div className="grid grid-cols-2 gap-4 items-stretch">
+      {[1, 0].map((rows, i) => (
+        <div key={i} className="border border-borderSubtle rounded-md bg-panel flex flex-col">
+          <PlainHead title={150} sub={300} />
+          {rows > 0 ? (
+            <>
+              <div className="px-5 h-[22px] flex items-center gap-3">
+                {[36, 30, 36, 44, 40, 52].map((w, k) => (
+                  <Line key={k} w={w} h={8} />
+                ))}
+              </div>
+              {Array.from({ length: rows }, (_, k) => (
+                <div key={k} className="px-5 h-[38px] flex items-center gap-3 border-t border-borderSubtle/40">
+                  <Line w={70} h={9} />
+                  <Line w={120} h={10} />
+                  <Line w={40} h={9} className="ml-auto" />
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="px-5 h-[39px] flex items-start pt-1">
+              <Line w={200} h={9} />
+            </div>
+          )}
+          <div className="mt-auto px-5 border-t border-borderSubtle/40 flex flex-col justify-center gap-1.5" style={{ height: rows > 0 ? 48 : 36 }}>
+            <div className="flex items-center">
+              <Line w={140} h={9} />
+              <Line w={80} h={8} className="ml-auto" />
+            </div>
+            {rows > 0 && <Skeleton className="h-[6px] w-full rounded-full" />}
+          </div>
+        </div>
+      ))}
+    </div>
+  </>
+);
+
 export const RecordPageSkeleton = ({ pathname }: { pathname: string }) => {
-  if (pathname.startsWith('/record/insiders')) return <InsidersPageSkeleton />;
-  if (pathname.startsWith('/record/congress')) return <CongressPageSkeleton />;
-  if (pathname.startsWith('/record/stocks')) return <StocksPageSkeleton />;
-  if (pathname.startsWith('/record/news')) return <NewsPageSkeleton />;
+  if (pathname.startsWith('/dossier/insiders')) return <InsidersPageSkeleton />;
+  if (pathname.startsWith('/dossier/congress')) return <CongressPageSkeleton />;
+  if (/^\/record\/stocks\/[^/]+/.test(pathname))
+    return (
+      <>
+        <div className="h-[15px] flex items-center">
+          <Line w={80} h={9} />
+        </div>
+        <StockNameSkeleton />
+      </>
+    );
+  if (pathname.startsWith('/dossier/stocks')) return <StocksPageSkeleton />;
+  if (pathname.startsWith('/dossier/news')) return <NewsPageSkeleton />;
   if (/^\/record\/earnings\/[^/]+/.test(pathname)) return <EarningsNameSkeleton />;
-  if (pathname.startsWith('/record/earnings')) return <EarningsPageSkeleton />;
+  if (pathname.startsWith('/dossier/earnings')) return <EarningsPageSkeleton />;
   return <PageSkeleton />;
 };
 

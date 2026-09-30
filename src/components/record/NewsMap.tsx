@@ -5,69 +5,175 @@
   A flat world with a pin on every city the day's
   stories come from (Noah, 2026-09-09: "most
   importantly i want a 2d map that has pins on the
-  news you click"), redrawn in the globe's own
-  colours (Noah, 2026-09-13: "it should look like
-  the Apple and Google maps globe but follow time
-  zones and night and day") — blue water, green
-  land, the sun's terminator shading the night
-  side, a meridian per hour with the local hour on
-  it, and a flat flight to the open story's city.
-  Drawn by react-simple-maps on the world-atlas
-  borders — no tiles, no key.
+  news you click"). Drawn by react-simple-maps on
+  the world-atlas borders — no tiles, no key.
 
-  Four layers, bottom to top (Noah, the same day:
-  "build the impact heat and the reach arcs also
-  do session shading and the days drip"):
+  THE HOUSE GREYS STAY (2026-09-13): the partner's
+  review asked for an Apple/Google-maps look with
+  day and night; it was built — a navy sea, a
+  grey-brown land, the night's shade following the
+  sun — and Noah reverted it the same hour ("revert
+  back to our prev map, i don't like this one"). The
+  land is the page's grey, no water, no shade. What
+  stayed from that pass is THE GLIDE: a picked story
+  pans the world to its city on the house curve,
+  flat, never a globe.
 
-    THE HEAT     the land warms where the day's
-                 news LANDS, not where it was
-                 written — every story's impact
-                 zones, summed over the current
-                 cut, on the thermal ramp's warm
-                 side, faint under everything
-    THE SESSIONS a silver wash over whichever
-                 cash market is open at the moment
-                 in view — Tokyo, London, New York
-    THE REACH    the open story's arcs from its
-                 pin to the zones it lands on, a
-                 ring on each sized by weight, in
-                 the where-you-are silver
-    THE PINS     one per city: size the count,
-                 ink the lean (bear negative, bull
-                 positive, muted neutral), a halo
-                 while something there is fresh,
-                 the silver ring on the open story
+  Layers, bottom to top:
 
-  Scroll zooms, a pull pans, Fit comes home. The
-  moment in view is the page's — live, or wherever
-  the drip bar was pulled to.
+    THE LAND     the countries; the HEAT warms the
+                 land where the day's news LANDS
+                 (every story's impact zones, summed
+                 over the cut, the thermal ramp's
+                 warm side)
+    THE SESSIONS a silver wash over whichever cash
+                 market is open at the moment in
+                 view — Tokyo, London, New York
+    THE REACH    the open story's arcs from its pin
+                 to the zones it lands on
+    THE PINS     one per city: size the count, ink
+                 the lean, a halo while something
+                 there is fresh, the silver ring on
+                 the open story
+
+  Scroll zooms, a pull pans, Fit glides home.
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { getResolvedTheme, useResolvedTheme, type Theme } from '../../theme/theme';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup, useMapContext } from 'react-simple-maps';
-import { geoCircle, geoContains } from 'd3-geo';
+import { geoArea, geoCentroid, geoContains, geoMercator } from 'd3-geo';
 import { Maximize } from 'lucide-react';
 import worldUrl from 'world-atlas/countries-110m.json?url';
 import type { CityPing, GeoZone, NewsGrade } from '../../data/newsroom';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const INK: Record<NewsGrade, string> = { THREAT: 'rgb(var(--bear))', ALLY: 'rgb(var(--bull))', WATCH: '#8a8f99' };
-/* THE GLOBE'S OWN COLOURS (Noah, 2026-09-13: "it should not be a map that's
-   black, it should look like the Apple and Google maps globe but follow time
-   zones and night and day"): blue water, green-tan land, the night side
-   shaded by the sun's own terminator. The heat (`heatFill`, the land's only
-   other fill) is mixed over the land's colour. */
+/* THE WATER IS APPLE MAPS' BLUE (Noah, 2026-09-13: "keep this exact chart
+   but just apple map colors with the blue"), sampled off maps.apple.com at a
+   world zoom, dark and light. THE LAND IS GREEN (Noah, the same day, with
+   his partner's map: "i would like the countries to be green not gray") —
+   the partner's own muted green, a dusty sage far from the direction green
+   (the bull ink is vivid), a pale sage on the light terminal; Apple's slate
+   stood for an hour between the two. The heat (`heatFill`, the land's only
+   other fill) is mixed over whichever the page wears — a warmed country
+   reads tan over the green, as it does on his map. Before this the land was
+   near-black / warm grey with no water. */
+const WATER: Record<Theme, string> = { dark: 'rgb(33,55,130)', light: 'rgb(141,213,245)' };
 const LAND_RGB: Record<Theme, [number, number, number]> = { dark: [78, 110, 76], light: [176, 196, 150] };
-const LAND_EDGE: Record<Theme, string> = { dark: '#2f4a35', light: '#7f9a72' };
-const OCEAN: Record<Theme, string> = { dark: '#163a63', light: '#a9cbe9' };
-const NIGHT = '#02030a';
+/* THE BORDERS ARE LIGHT AND THE COUNTRIES ARE NAMED (Noah, 2026-09-13, his
+   partner's reference: "this has the names of the countries and the borders
+   are white. thats what i want"): a white hairline at a fifth on the dark
+   land (a black one on the light), and every country big enough at the
+   zoom in hand wears its name at its centre, small, uppercase, muted, under
+   the pins — more names come out as the reader zooms in. */
+const LAND_EDGE: Record<Theme, string> = { dark: '#ffffff', light: '#000000' };
+const LAND_EDGE_OPACITY: Record<Theme, number> = { dark: 0.22, light: 0.26 };
+/* the names' ink: a pale grey-blue on the slate (Apple's own labels are pale), a deep grey on the off-white */
+const LABEL_INK: Record<Theme, string> = { dark: '#b4bccb', light: '#5c6270' };
+/** Steradians a country must cover to be named at zoom 1 (about Austria and up); the bar drops with the square of the zoom, and the names still have to FIT — see CountryNames */
+const LABEL_MIN_AREA = 0.002;
+/** The atlas's long names, said shorter */
+const SHORT_NAME: Record<string, string> = {
+  'United States of America': 'United States',
+  'Dem. Rep. Congo': 'DR Congo',
+  'Central African Rep.': 'C. African Rep.',
+  'Bosnia and Herz.': 'Bosnia',
+  'S. Sudan': 'South Sudan',
+  'W. Sahara': 'W. Sahara',
+  'Eq. Guinea': 'Eq. Guinea',
+  'Dominican Rep.': 'Dominican Rep.',
+  'Solomon Is.': 'Solomon Is.',
+  'Falkland Is.': 'Falklands',
+  'Fr. S. Antarctic Lands': '',
+};
 const landRgb = () => LAND_RGB[getResolvedTheme()];
 const land = () => `rgb(${landRgb().join(',')})`;
-const HOME = { center: [12, 12] as [number, number], zoom: 1 };
+/* THE PROJECTION IS MERCATOR (Noah, 2026-09-13: "make the world cover all 4
+   corners of the page and not curved at the ends"; before it was Equal Earth,
+   an oval): the one Apple and every web map draw, so the world is a rectangle
+   in the frame. The scale puts the world's full width on the frame's 960, so
+   at rest the frame shows every longitude and, centred on lat 22, the
+   latitudes −51 to 72 — the top of Norway and Alaska's north coast just in,
+   only the tip of Patagonia out. The reader pans within the world's square
+   (`WORLD`, the group's translate extent) and never past it, and a glide's
+   target is clamped the same way (`inWorld`) — d3's programmatic transform
+   skips the extent. */
+const W = 960;
+const H = 440;
+const SCALE = W / (2 * Math.PI);
+/** The world with lon 0 · lat 0 at the origin: its square is ±W/2 both ways — Mercator clips at ±85° */
+const MERCATOR = geoMercator().scale(SCALE).translate([0, 0]);
+const HALF = W / 2;
+const HOME = { center: [0, 22] as [number, number], zoom: 1 };
+type View = { center: [number, number]; zoom: number };
+
+/* THE FRAME TAKES ITS BOX'S SHAPE (Noah, 2026-09-19: "there is just a whole bunch of empty white space under the map"). The
+   drawing was a fixed 960 × 440, as wide as its column and as tall as that made it — but the column is as tall as THE STORY
+   beside it, which is 400px wide whatever the window is. So under about 1,900px the story was the taller of the two and the
+   map stopped short of its own box (measured: 110px of blank at 1600, 176 at 1440, 249 at 1280, and the landing's window is
+   narrower still). Now the frame is measured off the box: the world's whole width still, and as much more of its height as
+   the box has — never past the world's square. 960 × 440 is the FLATTEST it goes (the box keeps that as its least height), so
+   a wide window draws exactly what it drew before. */
+type Frame = { w: number; h: number };
+const REST: Frame = { w: W, h: H };
+/* THE FRAME FOLLOWS THE BOX CONTINUOUSLY (2026-09-29, Noah: the story's fold beside it made the map "wonky and jittery"):
+   it was rounded to four units to spare redraws, because every frame change re-drew the world — the drawing's own width
+   and height were the frame, and the library re-projects every country when they move (seven steps over the fold, frames
+   up to 42ms, and the frame flipping shape as the box passed square). The drawing is now ALWAYS the world's square, and the
+   frame is only the WINDOW on it (the svg's viewBox), so a frame change costs nothing but the window: the frame can follow
+   the box to the pixel, one frame a frame. */
+const frameFor = (boxW: number, boxH: number): Frame => {
+  if (!(boxW > 0 && boxH > 0)) return REST;
+  const ar = boxW / boxH;
+  if (ar >= 1) return { w: W, h: Math.min(W, Math.max(H, Math.round(W / ar))) };
+  /* a box taller than it is wide: the world's whole height, and the reader pulls east and west */
+  return { w: Math.max(240, Math.round(W * ar)), h: W };
+};
+/** The window on the world's square — the frame centred on it (the svg's viewBox) */
+const windowOf = (f: Frame) => `${((W - f.w) / 2).toFixed(2)} ${((W - f.h) / 2).toFixed(2)} ${f.w} ${f.h}`;
+/** THE WORLD'S EXTENT for the zoom, in the drawing's own units. The drawing is the whole square (0..W both ways) and the
+    zoom's viewport is that square, so the extent is the square widened by the window's slack each way: the square can
+    then slide under the window exactly as far as keeps the WINDOW inside the world, and no further. */
+const worldIn = (f: Frame): [[number, number], [number, number]] => [
+  [(f.w - W) / 2, (f.h - W) / 2],
+  [W + (W - f.w) / 2, W + (W - f.h) / 2],
+];
+/** The same view with its frame kept inside the world — a target past the edge lands on the edge */
+const inWorld = (v: View, f: Frame): View => {
+  const p = MERCATOR(v.center);
+  if (!p || !MERCATOR.invert) return v;
+  const hw = f.w / 2 / v.zoom;
+  const hh = f.h / 2 / v.zoom;
+  const x = Math.min(Math.max(p[0], -HALF + hw), HALF - hw);
+  const y = Math.min(Math.max(p[1], -HALF + hh), HALF - hh);
+  if (x === p[0] && y === p[1]) return v;
+  const c = MERCATOR.invert([x, y]);
+  return c ? { center: [c[0], c[1]], zoom: v.zoom } : v;
+};
+/** Where the frame's top edge sits at rest, in the world's units */
+const restTop = (f: Frame): number => {
+  const y0 = MERCATOR(HOME.center)?.[1] ?? 0;
+  const extra = f.h - H;
+  /* THE EXTRA HEIGHT GOES NORTH: Antarctica is not drawn, so south of Cape Horn is open water, while the north still has
+     Greenland and the Arctic coasts to show. The south takes a little (Cape Horn comes in), the north the rest, to the world's edge. */
+  const south = Math.min(Math.max(0, extra) * 0.25, 30);
+  return Math.min(Math.max(y0 - H / 2 - (Math.max(0, extra) - south), -HALF), HALF - f.h);
+};
+/** The whole world at rest, for this frame. The resting frame's is HOME itself. */
+const homeFor = (f: Frame): View => {
+  if (f.w === W && f.h === H) return HOME;
+  const c = MERCATOR.invert?.([0, restTop(f) + f.h / 2]);
+  return c ? { center: [0, c[1]], zoom: 1 } : HOME;
+};
+const sameView = (a: View, b: View) => a.zoom === b.zoom && a.center[0] === b.center[0] && a.center[1] === b.center[1];
 /** Antarctica — a fifth of the drawing for nothing on the wire */
 const ANTARCTICA = '010';
+/** The glide to a picked city: this long, on the house curve; a pan lands at least this close */
+const GLIDE_MS = 650;
+const GLIDE_ZOOM = 1.8;
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 /** One zone's summed weight over the cut — the heat under a country */
 export interface HeatPoint {
@@ -81,6 +187,12 @@ export interface Reach {
   lng: number;
   city: string;
   zones: GeoZone[];
+}
+/** A place to glide to — a new `key` starts a glide */
+export interface FlyTo {
+  lng: number;
+  lat: number;
+  key: string;
 }
 
 /* ── the sessions ─────────────────────────────────────────────────────────
@@ -101,8 +213,18 @@ export const SESSIONS: SessionDef[] = [
   { key: 'london', label: 'London', tz: 'Europe/London', open: 8 * 60, close: 16 * 60 + 30, west: -12, east: 32 },
   { key: 'newyork', label: 'New York', tz: 'America/New_York', open: 9 * 60 + 30, close: 16 * 60, west: -128, east: -64 },
 ];
+/* one formatter per market, kept — `nextOpen` reads the clock a thousand times over a weekend */
+const clockFmt = new Map<string, Intl.DateTimeFormat>();
+const fmtFor = (tz: string): Intl.DateTimeFormat => {
+  let f = clockFmt.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' });
+    clockFmt.set(tz, f);
+  }
+  return f;
+};
 const localClock = (at: Date, tz: string): { min: number; weekday: boolean } => {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' }).formatToParts(at);
+  const parts = fmtFor(tz).formatToParts(at);
   const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
   const h = Number(get('hour')) % 24;
   const m = Number(get('minute'));
@@ -115,6 +237,84 @@ export const openSessions = (at: Date): SessionDef[] =>
     const { min, weekday } = localClock(at, s.tz);
     return weekday && min >= s.open && min < s.close;
   });
+/** The next cash session to open after `at` and the moment it does — walked in five-minute steps over the next four days (a weekend and a day); null only if no market opens in that time */
+export const nextOpen = (at: Date): { session: SessionDef; at: Date } | null => {
+  const t = new Date(at);
+  t.setSeconds(0, 0);
+  t.setMinutes(Math.floor(t.getMinutes() / 5) * 5);
+  for (let i = 0; i < (4 * 24 * 60) / 5; i++) {
+    t.setMinutes(t.getMinutes() + 5);
+    for (const s of SESSIONS) {
+      const { min, weekday } = localClock(t, s.tz);
+      if (weekday && min >= s.open && min < s.open + 5) return { session: s, at: new Date(t) };
+    }
+  }
+  return null;
+};
+
+/* ── the names ────────────────────────────────────────────────────────────
+   A country's size and the centre of its main body never change — read once
+   per geography, kept for the page's life. */
+type NamedGeo = { rsmKey: string; properties?: { name?: string } } & GeoJSON.Feature;
+const labelCache = new Map<string, { name: string; area: number; at: [number, number] }>();
+const labelOf = (g: NamedGeo) => {
+  let l = labelCache.get(g.rsmKey);
+  if (!l) {
+    const raw = g.properties?.name ?? '';
+    const name = raw in SHORT_NAME ? SHORT_NAME[raw] : raw;
+    const area = geoArea(g);
+    /* the centre of the biggest polygon — a country's islands and territories would pull the centroid off its body */
+    let at = geoCentroid(g);
+    if (g.geometry.type === 'MultiPolygon') {
+      let best = -1;
+      for (const coords of g.geometry.coordinates) {
+        const part: GeoJSON.Feature<GeoJSON.Polygon> = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: coords } };
+        const a = geoArea(part);
+        if (a > best) {
+          best = a;
+          at = geoCentroid(part);
+        }
+      }
+    }
+    l = { name, area, at };
+    labelCache.set(g.rsmKey, l);
+  }
+  return l;
+};
+/** THE NAMES THAT FIT: the biggest countries first, each name placed at its
+    centre only where no name already placed would run into it (the boxes in
+    the drawing's own units, so zooming in shrinks them and lets the smaller
+    countries' names out — the reference's feel: every big name always, the
+    small ones where there is room) */
+const CountryNames = ({ shown, z, s, theme, minArea }: { shown: NamedGeo[]; z: number; s: number; theme: Theme; minArea: number }) => {
+  const { projection } = useMapContext();
+  const fs = (6.5 * s) / z;
+  const gap = (0.9 * s) / z;
+  const pad = 2.5 / z;
+  const placed: { x: number; y: number; w: number; h: number }[] = [];
+  const names: { key: string; name: string; at: [number, number] }[] = [];
+  const cands = shown.map(g => ({ key: g.rsmKey, l: labelOf(g) })).filter(c => c.l.name && c.l.area >= minArea).sort((a, b) => b.l.area - a.l.area);
+  for (const { key, l } of cands) {
+    const p = projection(l.at);
+    if (!p) continue;
+    const w = l.name.length * fs * 0.64 + (l.name.length - 1) * gap;
+    const box = { x: p[0] - w / 2 - pad, y: p[1] - fs / 2 - pad, w: w + 2 * pad, h: fs + 2 * pad };
+    if (placed.some(b => b.x < box.x + box.w && b.x + b.w > box.x && b.y < box.y + box.h && b.y + b.h > box.y)) continue;
+    placed.push(box);
+    names.push({ key, name: l.name, at: l.at });
+  }
+  return (
+    <g data-news-countries={names.length} style={{ pointerEvents: 'none' }}>
+      {names.map(n => (
+        <Marker key={`name-${n.key}`} coordinates={n.at}>
+          <text textAnchor="middle" dominantBaseline="central" fontSize={fs} fontWeight={600} letterSpacing={gap} fontFamily="ui-sans-serif, system-ui, sans-serif" fill={LABEL_INK[theme]} fillOpacity={0.85} data-news-country={n.name}>
+            {n.name.toUpperCase()}
+          </text>
+        </Marker>
+      ))}
+    </g>
+  );
+};
 
 /** A band of longitudes as a spherical polygon (the parallels densified so
     they stay parallels on the projection). d3 reads a ring on the sphere by
@@ -122,7 +322,8 @@ export const openSessions = (at: Date): SessionDef[] =>
     ring runs west along the south edge and east along the north edge
     (measured: the other way round filled the whole world). */
 const bandFeature = (west: number, east: number): GeoJSON.Feature<GeoJSON.Polygon> => {
-  const south = -56;
+  /* the whole height of the world's square — Mercator clips at ±85 */
+  const south = -84;
   const north = 84;
   const ring: [number, number][] = [];
   for (let x = east; x > west; x -= 4) ring.push([x, south]);
@@ -133,80 +334,31 @@ const bandFeature = (west: number, east: number): GeoJSON.Feature<GeoJSON.Polygo
   return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
 };
 
-/** The washes — drawn through the map's own projection so they bend with it */
+/** THE WATER — Apple's blue under everything: the sphere drawn through the map's projection, so it pans and zooms with the land */
+const Water = ({ theme }: { theme: Theme }) => {
+  const { path } = useMapContext();
+  return <path d={path({ type: 'Sphere' }) ?? undefined} fill={WATER[theme]} data-news-water={theme} />;
+};
+
+/** The washes — drawn through the map's own projection so they bend with it.
+    The silver shade over the open market's longitudes (Noah, 2026-09-13:
+    "the shaded region of the current open market like we had before") — a
+    fifth over the blue water and the slate, its edges and its name plainer
+    than the first cut's, which sat at a twentieth on black and vanished. */
 const SessionBands = ({ sessions, zoom, labelLat = 79 }: { sessions: SessionDef[]; zoom: number; labelLat?: number }) => {
   const { path } = useMapContext();
   return (
     <g data-news-sessions={sessions.map(s => s.key).join(' ')}>
       {sessions.map(s => (
         <g key={s.key}>
-          <path d={path(bandFeature(s.west, s.east)) ?? undefined} fill={SILVER} fillOpacity={0.045} stroke={SILVER} strokeOpacity={0.16} strokeWidth={0.6 / zoom} />
+          <path d={path(bandFeature(s.west, s.east)) ?? undefined} fill={SILVER} fillOpacity={0.16} stroke={SILVER} strokeOpacity={0.45} strokeWidth={0.7 / zoom} data-news-session={s.key} />
           <Marker coordinates={[(s.west + s.east) / 2, labelLat]}>
-            <text textAnchor="middle" fontSize={8 / zoom} fontFamily="ui-monospace, Menlo, monospace" letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.6}>
+            <text textAnchor="middle" fontSize={8 / zoom} fontFamily="ui-monospace, Menlo, monospace" letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.85}>
               {`${s.label.toUpperCase()} · OPEN`}
             </text>
           </Marker>
         </g>
       ))}
-    </g>
-  );
-};
-
-/* ── night and day ────────────────────────────────────────────────────────
-   The sun's position at the moment in view: its declination from the day of
-   the year, its longitude from the UTC hour (the equation of time left
-   out — it moves the terminator a few minutes, not a time zone). The night
-   is the hemisphere centred on the point opposite the sun, drawn through
-   the map's own projection so it bends with it; a wider, fainter ring is
-   the twilight. */
-const subsolar = (at: Date): [number, number] => {
-  const start = Date.UTC(at.getUTCFullYear(), 0, 0);
-  const doy = (at.getTime() - start) / 86_400_000;
-  const decl = -23.44 * Math.cos(((2 * Math.PI) / 365) * (doy + 10));
-  const utcHours = at.getUTCHours() + at.getUTCMinutes() / 60;
-  const lng = -15 * (utcHours - 12);
-  return [lng, decl];
-};
-const NightShade = ({ at }: { at: Date }) => {
-  const { path } = useMapContext();
-  const [slng, slat] = subsolar(at);
-  const anti: [number, number] = [((slng + 180 + 540) % 360) - 180, -slat];
-  const night = { type: 'Feature', properties: {}, geometry: geoCircle().center(anti).radius(90)() } as GeoJSON.Feature;
-  const dusk = { type: 'Feature', properties: {}, geometry: geoCircle().center(anti).radius(96)() } as GeoJSON.Feature;
-  return (
-    <g data-news-night={`${anti[0].toFixed(1)},${anti[1].toFixed(1)}`} pointerEvents="none">
-      <path d={path(dusk) ?? undefined} fill={NIGHT} fillOpacity={0.22} />
-      <path d={path(night) ?? undefined} fill={NIGHT} fillOpacity={0.42} />
-    </g>
-  );
-};
-
-/* ── the time zones ───────────────────────────────────────────────────────
-   A faint meridian every fifteen degrees — one hour of the sun — with the
-   local hour at the moment in view written along the top every other one. */
-const Meridians = ({ at, zoom }: { at: Date; zoom: number }) => {
-  const { path } = useMapContext();
-  const utcHours = at.getUTCHours() + at.getUTCMinutes() / 60;
-  const lines: number[] = [];
-  for (let lng = -180; lng <= 180; lng += 15) lines.push(lng);
-  return (
-    <g data-news-meridians pointerEvents="none">
-      {lines.map(lng => {
-        const feature = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lng, -56], [lng, 84]] } } as GeoJSON.Feature;
-        const hour = (((utcHours + lng / 15) % 24) + 24) % 24;
-        return (
-          <g key={lng}>
-            <path d={path(feature) ?? undefined} fill="none" stroke="#ffffff" strokeOpacity={0.09} strokeWidth={0.5 / zoom} />
-            {lng % 30 === 0 && lng > -180 && (
-              <Marker coordinates={[lng, 82]}>
-                <text textAnchor="middle" fontSize={6.5 / zoom} fontFamily="ui-monospace, Menlo, monospace" fill="#ffffff" fillOpacity={0.45}>
-                  {`${String(Math.floor(hour)).padStart(2, '0')}:00`}
-                </text>
-              </Marker>
-            )}
-          </g>
-        );
-      })}
     </g>
   );
 };
@@ -321,48 +473,73 @@ interface Props {
   heat: HeatPoint[];
   /** The open story's origin and zones, or nothing open */
   reach: Reach | null;
-  /** The moment the map shows — live, or the drip bar's */
+  /** The moment the map shows — now, re-read with the wire */
   at: Date;
+  /** THE GLIDE: a picked story's city — a new key pans the world there, flat, on the house curve */
+  flyTo?: FlyTo | null;
   /** THE FIGURE MODE (the guide, 2026-09-09): still — no zoom, no pull, no
       Fit — cropped to the northern half where the news is, the pins and
       words drawn twice their size so they read at a figure's width */
   figure?: boolean;
   notes?: MapNote[];
+  /** The live map's box — `flex-1 min-h-0` in a column lets it fill a host taller than the map's own shape */
+  className?: string;
 }
 
-const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, at, figure = false, notes = [] }: Props) => {
+const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, at, flyTo = null, figure = false, notes = [], className = '' }: Props) => {
   /* The land's ink is the theme's — a flip redraws the countries */
   const theme = useResolvedTheme();
-  const [view, setView] = useState(HOME);
-  /* THE FLIGHT (Noah, 2026-09-13: "it goes to each place like from Cali to
-     Russia, it moves in a flat manner"): when the open story changes, the map
-     pans flat to its city over half a second — the centre eased from where
-     it is to the pin, the zoom held (or lifted to 2 from the whole world so
-     the travel can be seen). Fit brings the whole world back. */
-  const flightRef = useRef(0);
-  const target = useMemo(() => (selectedCity ? pins.find(p => p.city === selectedCity) ?? null : null), [pins, selectedCity]);
-  useEffect(() => {
-    if (figure || !target) return;
-    cancelAnimationFrame(flightRef.current);
-    const from = view.center;
-    const zoom0 = view.zoom;
-    const zoom1 = Math.max(zoom0, 2);
-    const to: [number, number] = [target.lng, target.lat];
-    if (Math.abs(from[0] - to[0]) < 0.5 && Math.abs(from[1] - to[1]) < 0.5 && zoom0 === zoom1) return;
-    const t0 = performance.now();
-    const D = 560;
-    const ease = (u: number) => 1 - Math.pow(1 - u, 3);
-    const step = (now: number) => {
-      const u = Math.min(1, (now - t0) / D);
-      const e = ease(u);
-      setView({ center: [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e], zoom: zoom0 + (zoom1 - zoom0) * e });
-      if (u < 1) flightRef.current = requestAnimationFrame(step);
+  const [view, setView] = useState<View>(HOME);
+  const viewRef = useRef<View>(HOME);
+  viewRef.current = view;
+  /* THE FRAME, measured off the box (see frameFor). A reader at rest stays at rest in the new frame; one who has pulled the
+     map keeps their place, kept inside the world. The guide's figure is still: it keeps its own fixed drawing. */
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [frame, setFrame] = useState<Frame>(REST);
+  const frameRef = useRef<Frame>(REST);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el || figure) return;
+    const read = () => {
+      const next = frameFor(el.clientWidth, el.clientHeight);
+      const prev = frameRef.current;
+      if (next.w === prev.w && next.h === prev.h) return;
+      const v = viewRef.current;
+      frameRef.current = next;
+      setFrame(next);
+      setView(sameView(v, homeFor(prev)) ? homeFor(next) : inWorld(v, next));
     };
-    flightRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(flightRef.current);
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [figure]);
+  const homeView = useMemo(() => homeFor(frame), [frame]);
+  const home = sameView(view, homeView);
+  /* THE GLIDE — the view tweened from where it stands to the target over
+     GLIDE_MS on the house curve, a frame at a time; a pull by hand cancels it */
+  const glide = useRef(0);
+  const glideTo = (wanted: View) => {
+    cancelAnimationFrame(glide.current);
+    const from = viewRef.current;
+    const target = inWorld(wanted, frameRef.current);
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - t0) / GLIDE_MS);
+      const e = easeOut(t);
+      /* every frame kept inside the world too — the zoom on the way is lower than the target's, so its frame is wider */
+      setView(inWorld({ center: [from.center[0] + (target.center[0] - from.center[0]) * e, from.center[1] + (target.center[1] - from.center[1]) * e], zoom: from.zoom + (target.zoom - from.zoom) * e }, frameRef.current));
+      if (t < 1) glide.current = requestAnimationFrame(step);
+      else setView(target);
+    };
+    glide.current = requestAnimationFrame(step);
+  };
+  useEffect(() => () => cancelAnimationFrame(glide.current), []);
+  useEffect(() => {
+    if (!flyTo || figure) return;
+    glideTo({ center: [flyTo.lng, flyTo.lat], zoom: Math.max(viewRef.current.zoom, GLIDE_ZOOM) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.city, figure]);
-  const home = view.zoom === 1 && view.center[0] === HOME.center[0] && view.center[1] === HOME.center[1];
+  }, [flyTo?.key, figure]);
   /* The loudest pins draw last so they sit on top; the open one last of all */
   const ordered = useMemo(() => [...pins].sort((a, b) => (a.city === selectedCity ? 1 : b.city === selectedCity ? -1 : a.n - b.n)), [pins, selectedCity]);
   const z = figure ? 1 : view.zoom;
@@ -371,11 +548,14 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
   const sessions = useMemo(() => openSessions(at), [at]);
   /* Which country a zone sits in never changes — found once per zone, kept */
   const zoneHome = useRef(new Map<string, string | null>());
+  /* the figure names only the biggest — its width is a third of the page's */
+  const labelBar = (LABEL_MIN_AREA * (figure ? 4 : 1)) / (z * z);
   /* The reach: zones at the origin itself draw no arc (a New York story landing on New York) */
   const arcs = useMemo(() => (reach ? reach.zones.filter(zn => Math.hypot(zn.lat - reach.lat, zn.lng - reach.lng) > 0.5) : []), [reach]);
 
   const layers = (
     <>
+          <Water theme={theme} />
           <Geographies geography={worldUrl}>
             {({ geographies }: { geographies: Array<{ rsmKey: string; id: string } & GeoJSON.Feature> }) => {
               /* THE HEAT: every zone's weight lands on the country under it */
@@ -390,30 +570,34 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
                 if (where) byCountry.set(where, (byCountry.get(where) ?? 0) + h.w);
               }
               const hottest = Math.max(0, ...byCountry.values());
-              return geographies
-                .filter(g => g.id !== ANTARCTICA)
-                .map(g => {
-                  const w = byCountry.get(g.rsmKey) ?? 0;
-                  const t = hottest > 0 ? w / hottest : 0;
-                  const fill = w > 0 ? heatFill(t) : land();
-                  return (
-                    <Geography
-                      key={g.rsmKey}
-                      geography={g}
-                      fill={fill}
-                      stroke={LAND_EDGE[theme]}
-                      strokeWidth={0.5 / z}
-                      data-heat={w > 0 ? t.toFixed(2) : undefined}
-                      style={{ default: { outline: 'none', transition: 'fill 520ms cubic-bezier(0.16, 1, 0.3, 1)' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
-                    />
-                  );
-                });
+              const shown = geographies.filter(g => g.id !== ANTARCTICA);
+              return (
+                <>
+                  {shown.map(g => {
+                    const w = byCountry.get(g.rsmKey) ?? 0;
+                    const t = hottest > 0 ? w / hottest : 0;
+                    const fill = w > 0 ? heatFill(t) : land();
+                    return (
+                      <Geography
+                        key={g.rsmKey}
+                        geography={g}
+                        fill={fill}
+                        stroke={LAND_EDGE[theme]}
+                        strokeOpacity={LAND_EDGE_OPACITY[theme]}
+                        strokeWidth={0.5 / z}
+                        data-heat={w > 0 ? t.toFixed(2) : undefined}
+                        style={{ default: { outline: 'none', transition: 'fill 520ms cubic-bezier(0.16, 1, 0.3, 1)' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
+                      />
+                    );
+                  })}
+                  {/* THE NAMES — the countries big enough at this zoom whose names have room, under the pins */}
+                  <CountryNames shown={shown as NamedGeo[]} z={z} s={s} theme={theme} minArea={labelBar} />
+                </>
+              );
             }}
           </Geographies>
-          {/* NIGHT AND DAY, and the hours — the globe's own clock at the moment in view */}
-          <NightShade at={at} />
-          {!figure && <Meridians at={at} zoom={z} />}
-          <SessionBands sessions={sessions} zoom={z / s} labelLat={figure ? 60 : 79} />
+          {/* the wash's name near the frame's top at rest, over the Arctic coasts — lat 68 in the resting frame, further north in a taller one */}
+          <SessionBands sessions={sessions} zoom={z / s} labelLat={figure ? 60 : Math.min(80, MERCATOR.invert?.([0, restTop(frame) + 30])?.[1] ?? 68)} />
           {/* THE REACH */}
           {reach && arcs.length > 0 && <ReachArcs reach={reach} zones={arcs} zoom={z / s} />}
           {/* THE PINS */}
@@ -426,11 +610,12 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
               <Marker key={p.city} coordinates={[p.lng, p.lat]} onClick={() => onPick(p)} onMouseEnter={() => onHover(p)} onMouseLeave={() => onHover(null)} style={{ default: { cursor: figure ? 'default' : 'pointer' }, hover: { cursor: figure ? 'default' : 'pointer' }, pressed: { cursor: figure ? 'default' : 'pointer' } }}>
                 <g data-news-pin={p.city} data-grade={p.grade} data-open={open || undefined}>
                   {p.freshest === 'fresh' && <circle r={r + (5 * s) / z} fill={ink} fillOpacity={0.14} />}
-                  <circle r={r + (3 * s) / z} fill={ink} fillOpacity={0.22} />
-                  <circle r={r} fill={ink} fillOpacity={open || hot ? 1 : 0.9} stroke={open ? SILVER : hot ? '#ffffff' : 'rgba(255,255,255,0.35)'} strokeWidth={((open ? 2 : 1) * s) / z} />
-                  <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily="ui-monospace, Menlo, monospace" fill="#ffffff">
-                    {p.n}
-                  </text>
+                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : '#0a0a0a'} strokeWidth={((open ? 2 : 1) * s) / z} />
+                  {p.n > 1 && (
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily="ui-monospace, Menlo, monospace" fill="#0a0a0a">
+                      {p.n}
+                    </text>
+                  )}
                   <title>{`${p.city} · ${p.n} ${p.n === 1 ? 'story' : 'stories'} · ${p.topHeadline}`}</title>
                 </g>
               </Marker>
@@ -448,12 +633,34 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
   );
 
   return (
-    <div className="relative select-none" data-news-map={figure ? 'figure' : 'live'} data-zoom={z.toFixed(2)} data-heated={heat.length} data-reach={arcs.length}>
-      <ComposableMap projection="geoEqualEarth" projectionConfig={figure ? { scale: 236, center: [8, 30] } : { scale: 175 }} width={960} height={figure ? 400 : 440} style={{ width: '100%', height: 'auto', display: 'block', background: OCEAN[theme], borderRadius: 6 }} data-ocean={theme}>
+    <div ref={rootRef} className={`relative select-none ${className}`} data-news-map={figure ? 'figure' : 'live'} data-zoom={z.toFixed(2)} data-heated={heat.length} data-reach={arcs.length} data-frame={`${frame.w}x${frame.h}`}>
+      {/* THE LEAST HEIGHT: the resting frame's own shape. The host may stretch the box past it (`className`), and the drawing fills whatever it becomes. */}
+      {!figure && <div aria-hidden style={{ aspectRatio: `${W} / ${H}` }} />}
+      {/* the figure: the north from the United States to Japan, lat −15 to 71, a third of the page's width */}
+      {/* THE LIVE DRAWING IS THE WORLD'S SQUARE, always W × W — so the projection and every country's path stand still —
+          and the frame is the WINDOW on it: the svg's viewBox, centred on the square, which the zoom's centre is the
+          centre of. Changing the window costs one attribute, so it follows the box's every frame (frameFor's note). */}
+      <ComposableMap
+        projection="geoMercator"
+        projectionConfig={figure ? { scale: 196, center: [10, 40] } : { scale: SCALE }}
+        width={W}
+        height={figure ? 400 : W}
+        {...(figure ? {} : { viewBox: windowOf(frame) })}
+        preserveAspectRatio={figure ? undefined : 'xMidYMid slice'}
+        style={figure ? { width: '100%', height: 'auto', display: 'block' } : { position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
+      >
         {figure ? (
           <g>{layers}</g>
         ) : (
-          <ZoomableGroup center={view.center} zoom={view.zoom} minZoom={1} maxZoom={8} onMoveEnd={({ coordinates, zoom }) => setView({ center: coordinates as [number, number], zoom })}>
+          <ZoomableGroup
+            center={view.center}
+            zoom={view.zoom}
+            minZoom={1}
+            maxZoom={8}
+            translateExtent={worldIn(frame)}
+            onMoveStart={() => cancelAnimationFrame(glide.current)}
+            onMoveEnd={({ coordinates, zoom }) => setView({ center: coordinates as [number, number], zoom })}
+          >
             {layers}
           </ZoomableGroup>
         )}
@@ -461,7 +668,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
       {!home && !figure && (
         <button
           type="button"
-          onClick={() => setView(HOME)}
+          onClick={() => glideTo(homeView)}
           className="absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
           title="Back to the whole world"
           data-news-map-fit

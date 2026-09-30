@@ -36,11 +36,11 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
   </figure>
 );
 
-/* The chart: candles, the entry dot, a dashed target line still to be won, a banked one on its candle, the floor */
+/* The chart: candles, the entry's silver dot and rule, the target ladder at the right edge (a won rung filled, its candle arrowed), the floor's red rule */
 const ChartFigure = () => {
   const candles = [52, 50, 54, 57, 55, 60, 63, 61, 66, 64, 69, 72, 70, 74, 71, 76];
   return (
-    <Figure label="Candles rising left to right: a white dot marks the entry on its candle, a dashed green line above reads TARGET 2, a green arrow on a candle reads TARGET 1 hit, a solid red line below reads FLOOR" h={104}>
+    <Figure label="Candles rising left to right: a silver dot marks the entry on its candle with a thin silver rule running right from it, at the right edge two green ticks numbered 1 and 2 (the first filled in, its candle carrying a green arrow), and a thin red rule below running right to its figure" h={104}>
       {candles.map((c, i) => {
         const x = 14 + i * 22;
         const o = c - 3 + ((i * 7) % 5);
@@ -54,22 +54,26 @@ const ChartFigure = () => {
           </g>
         );
       })}
-      <circle cx={14 + 3 * 22 + 4} cy={90 - 57 + 9} r={2.6} fill={INK} />
-      <text x={14 + 3 * 22 + 10} y={90 - 57 + 12} fontSize={6.5} fontWeight={700} fill={INK} fontFamily={MONO}>
-        ENTRY @0.75
+      {/* the entry: a silver dot on its candle, a thin silver rule to the right edge, the premium at its end */}
+      <circle cx={14 + 3 * 22 + 4} cy={90 - 57 + 9} r={2.4} fill={SILVER} />
+      <line x1={14 + 3 * 22 + 4} x2={412} y1={90 - 57 + 9} y2={90 - 57 + 9} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1} />
+      <text x={412} y={90 - 57 + 5} textAnchor="end" fontSize={6.5} fontWeight={600} fill={SILVER} fontFamily={MONO}>
+        entry 0.75
       </text>
+      {/* the won rung's candle keeps its arrow */}
       <path d={`M ${14 + 11 * 22 + 4} ${90 - 72 - 7} l -3 4 h 6 z`} fill={BULL} />
-      <text x={14 + 11 * 22 + 10} y={90 - 72 - 6} fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={MONO}>
-        TARGET 1 ✓
+      {/* the ladder at the edge: rung 1 won (filled), rung 2 still to be won */}
+      <rect x={398} y={90 - 72 - 8} width={14} height={4} fill={BULL} />
+      <text x={394} y={90 - 72 - 4} textAnchor="end" fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={MONO}>
+        1
       </text>
-      <line x1={0} x2={360} y1={12} y2={12} stroke={BULL} strokeOpacity={0.55} strokeDasharray="3 3" />
-      <rect x={362} y={7} width={52} height={11} rx={2} fill={BULL} fillOpacity={0.6} />
-      <text x={388} y={15} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={MONO}>
-        TARGET 2
+      <rect x={402} y={11} width={10} height={2} fill={BULL} fillOpacity={0.8} />
+      <text x={398} y={15} textAnchor="end" fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={MONO}>
+        2
       </text>
-      <line x1={0} x2={360} y1={96} y2={96} stroke={BEAR} strokeWidth={1.5} strokeOpacity={0.9} />
-      <rect x={362} y={91} width={52} height={11} rx={2} fill={BEAR} />
-      <text x={388} y={99} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={MONO}>
+      {/* the floor: a thin red rule from the entry candle to its figure */}
+      <line x1={14 + 3 * 22 + 4} x2={412} y1={96} y2={96} stroke={BEAR} strokeOpacity={0.75} strokeWidth={1} />
+      <text x={412} y={103} textAnchor="end" fontSize={6.5} fontWeight={600} fill={BEAR} fontFamily={MONO}>
         FLOOR
       </text>
     </Figure>
@@ -110,24 +114,23 @@ const TargetsFigure = () => (
   </Figure>
 );
 
-/* The case: the confidence meter and its word */
+/* The case: the four-step meter and its word — no figure of ours is drawn, here or on the page (2026-09-19) */
 const CaseFigure = () => (
-  <Figure label="Three confidence meters: 82% green reading a strong case, 58% amber reading a fair case, 12% red reading a weak case" h={70}>
+  <Figure label="Four meters of four steps each: all four lit in green reading a strong case, three in green a good case, two in orange caution, one in red a poor case" h={92}>
     {[
-      { y: 18, v: 0.82, ink: BULL, word: 'a strong case' },
-      { y: 40, v: 0.58, ink: WARN, word: 'a fair case' },
-      { y: 62, v: 0.12, ink: BEAR, word: 'a weak case' },
+      { y: 18, lit: 4, ink: BULL, word: 'a strong case' },
+      { y: 40, lit: 3, ink: BULL, word: 'a good case' },
+      { y: 62, lit: 2, ink: WARN, word: 'caution' },
+      { y: 84, lit: 1, ink: BEAR, word: 'a poor case' },
     ].map(m => (
       <g key={m.word} fontFamily={MONO}>
         <text x={12} y={m.y} fontSize={6.5} letterSpacing={0.8} fill={MUTED}>
-          CONFIDENCE
+          THE CASE
         </text>
-        <rect x={80} y={m.y - 6} width={140} height={5} rx={2.5} fill="#ffffff" fillOpacity={0.06} />
-        <rect x={80} y={m.y - 6} width={140 * m.v} height={5} rx={2.5} fill={m.ink} fillOpacity={0.85} />
-        <text x={232} y={m.y} fontSize={8} fontWeight={700} fill={INK}>
-          {Math.round(m.v * 100)}%
-        </text>
-        <text x={272} y={m.y} fontSize={8} fill={m.ink}>
+        {[0, 1, 2, 3].map(i => (
+          <rect key={i} x={80 + i * 36} y={m.y - 6} width={33} height={5} rx={2.5} fill={i < m.lit ? m.ink : '#ffffff'} fillOpacity={i < m.lit ? 0.85 : 0.06} />
+        ))}
+        <text x={236} y={m.y} fontSize={8} fontWeight={700} fill={m.ink}>
           {m.word}
         </text>
       </g>
@@ -183,11 +186,11 @@ export const SetupGuide = () => (
       <ChartFigure />
     </Section>
     <Section title="The targets">
-      <p>Each target is a premium the contract can reach, with what the stock needs to do to get it there. A hit target wears a check. The floor is the stock price that ends it. A weak case earns no targets and draws no lines.</p>
+      <p>Each target is a premium the contract can reach, with what the stock needs to do to get it there. A hit target wears a check. The floor is the stock price that ends it. A poor case earns no targets and draws no lines.</p>
       <TargetsFigure />
     </Section>
     <Section title="The case">
-      <p>Confidence is how sure the engine is, as a bar and a figure. The case is its strength in one word: strong, fair or weak. The state in the head says where the setup sits in its life: proving itself, in place, trading like its trade, or retiring.</p>
+      <p>The case is how sure the engine is, said in one word: strong, good, caution or poor. The meter beside it fills one step for each. The state in the head says where the setup sits in its life: proving itself, in place, trading like its trade, or retiring.</p>
       <CaseFigure />
     </Section>
     <Section title="The contracts around it">

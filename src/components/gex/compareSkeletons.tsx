@@ -3,44 +3,58 @@
   SLAYER TERMINAL - THE COMPARE PAGE'S SKELETONS
   (components/gex/compareSkeletons.tsx)
 
-  The three boxes standing in their own shape: the
-  head-to-head (head with its three facts, the two
-  chips at the head of their own columns, ten rows
-  on the SAME column template, the sentence), the
-  two books on one ruler (the Reach card, the lane
-  heads, the drawing at its exact height, the read
-  line, the four bands within reach), and today's
-  two lines over a chart's ground with its read
-  line. Imports nothing but the kit, so the shell
-  can show them while the page's chunk is still
-  travelling; the surfaces import their geometry
-  FROM here, so the two cannot drift.
+  The four boxes standing in their own shape: the
+  head-to-head (head with its three facts, the
+  table's head row with the two chips over their own
+  columns, three captions and ten rows on the SAME
+  column template, the sentence), the two books on
+  one ruler (the four cards, the lane heads, the
+  drawing at its exact height with its spine of
+  strikes, the read line), today's two lines over a
+  chart's ground with its read line, and the pair.
+  Imports nothing but the kit, so the shell can show
+  them while the page's chunk is still travelling;
+  the surfaces import their geometry FROM here, so
+  the two cannot drift.
 ==================================================
 */
 
 import { Skeleton } from '../ui/Skeleton';
 import { Block, Box, ChartGround, Facts, Line, SubLine, TitleRow } from '../ui/skeletonKit';
 
-/* ---- geometry shared with HeadToHead.tsx / CompareAxis.tsx / CompareTapes.tsx ------- */
+/* ---- geometry shared with HeadToHead.tsx / CompareAxis.tsx / CompareRuler.tsx / CompareTapes.tsx / ComparePair.tsx ---- */
 
-/** A's value · the read · B's value */
-export const H2H_COLUMNS = 'minmax(0,1fr) 250px minmax(0,1fr)';
+/** THE TABLE (2026-09-29): the read · A · B · what the two say against each other */
+export const H2H_COLUMNS = '188px minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr)';
+/** …on a phone the verdict steps out and the read narrows */
+export const H2H_COLUMNS_NARROW = '104px minmax(0,1fr) minmax(0,1fr)';
 export const H2H_ROW_H = 30;
-/** The card's head row holds the two chips (the second, with its quote, is 28px) */
+/** A group's caption row */
+export const H2H_CAP_H = 24;
+/** The table's head row holds the two chips (the second, with its quote, is 28px) */
 export const H2H_HEAD_H = 36;
-export const H2H_KEYS = ['price', 'dealers', 'flip', 'move', 'callWall', 'putWall', 'supreme', 'watch', 'closes', 'bell'] as const;
+/** The ten reads in three groups — today · the levels · the close */
+export const H2H_GROUPS = [
+  { caption: 'Today', keys: ['price', 'dealers'] },
+  { caption: 'The levels', keys: ['flip', 'callWall', 'putWall', 'supreme', 'watch'] },
+  { caption: 'The close', keys: ['move', 'closes', 'bell'] },
+] as const;
+export type H2HKey = (typeof H2H_GROUPS)[number]['keys'][number];
 /** The drawing's height (640 since 2026-09-09 — Noah: "needs to be taller, cover more of
     the capsules"), the lane heads over it and the read line under it */
-/* A screen's worth, not more (Noah, 2026-09-13: "fix aspect ratios and the charts") */
-export const AXIS_H = 460;
+export const AXIS_H = 640;
 export const AXIS_HEADS_H = 22;
 export const AXIS_READ_H = 26;
-export const AXIS_COL_W = 76;
+/** The ruler's own column — the distances */
+export const AXIS_COL_W = 60;
+/** THE SPINE OF STRIKES (2026-09-29): a column of strike figures on each side of the ruler, so every capsule is named
+    where the Map's ladder names its strikes — the first cut printed a strike only on hover */
+export const AXIS_STRIKE_W = 46;
 /** The caption over the four bands within reach */
 export const BANDS_CAP_H = 22;
 export const BAND_KEYS = ['up1', 'up2', 'dn1', 'dn2'] as const;
 /** Today's two lines, and the read line under them */
-export const TAPES_H = 260;
+export const TAPES_H = 300;
 export const TAPES_READ_H = 26;
 /** The pair over the sessions — the drawing's height and its margins — and its read line */
 export const PAIR_H = 240;
@@ -50,46 +64,53 @@ export const PAIR_READ_H = 26;
 /* ---- box 1 ---------------------------------------------------------------------- */
 
 /** Head to head, standing */
-export const HeadToHeadInner = () => (
-  <section className="flex flex-col min-w-0" aria-hidden data-skeleton="head-to-head">
-    <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
-      <div className="min-w-0 flex-1">
-        <TitleRow title={110} chip={false} door={false} />
-        <SubLine w={560} />
-      </div>
-      <Facts widths={[118, 96, 82]} />
-    </div>
-    {/* The card's head: each chip at the head of its own column, both in the full chip's clothes */}
-    <div className="mx-5 grid items-center gap-x-4 border-b border-borderSubtle/60" style={{ gridTemplateColumns: H2H_COLUMNS, height: H2H_HEAD_H }}>
-      <div className="flex justify-end">
-        <Skeleton className="h-7 w-[176px] rounded-md" />
-      </div>
-      <div className="flex items-center justify-center gap-2">
-        <Line w={40} h={10} />
-        <Skeleton className="h-6 w-6 rounded" />
-      </div>
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-7 w-[176px] rounded-md" />
-        <Line w={176} h={10} className="ml-auto" />
-      </div>
-    </div>
-    {H2H_KEYS.map((k, i) => (
-      <div key={k} className="mx-5 grid items-center gap-x-4 border-t border-borderSubtle/40 first:border-t-0" style={{ gridTemplateColumns: H2H_COLUMNS, height: H2H_ROW_H }}>
-        <div className="flex justify-end">
-          <Line w={[150, 168, 140, 128, 156, 156, 120, 176, 96, 118][i]} h={12} />
+export const HeadToHeadInner = () => {
+  const labelW: Record<H2HKey, number> = { price: 34, dealers: 88, flip: 50, callWall: 52, putWall: 50, supreme: 74, watch: 62, move: 128, closes: 84, bell: 96 };
+  const valueW: Record<H2HKey, [number, number]> = { price: [110, 110], dealers: [168, 160], flip: [128, 122], callWall: [150, 150], putWall: [150, 150], supreme: [150, 150], watch: [176, 176], move: [128, 128], closes: [96, 96], bell: [118, 118] };
+  const noteW: Record<H2HKey, number> = { price: 92, dealers: 150, flip: 108, callWall: 110, putWall: 110, supreme: 170, watch: 150, move: 96, closes: 100, bell: 90 };
+  return (
+    <section className="flex flex-col min-w-0" aria-hidden data-skeleton="head-to-head">
+      <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <TitleRow title={110} chip={false} door={false} />
+          <SubLine w={620} />
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <Line w={[34, 88, 50, 128, 52, 50, 54, 62, 84, 96][i]} h={10} />
-          {i % 3 !== 0 && <Line w={72} h={8} />}
-        </div>
-        <Line w={[150, 168, 140, 128, 156, 156, 120, 176, 96, 118][(i + 3) % 10]} h={12} />
+        <Facts widths={[118, 96, 82]} />
       </div>
-    ))}
-    <div className="px-5 pb-4 pt-2 min-h-[44px] flex items-center">
-      <Line w="72%" h={11} />
-    </div>
-  </section>
-);
+      {/* The table's head row: the swap, each chip at the head of its own column, the clock */}
+      <div className="mx-5 grid items-center gap-x-4 border-b border-borderSubtle/60" style={{ gridTemplateColumns: H2H_COLUMNS, height: H2H_HEAD_H }}>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-6 rounded" />
+          <Line w={44} h={8} />
+        </div>
+        <Skeleton className="h-7 w-[176px] rounded-md" />
+        <Skeleton className="h-7 w-[176px] rounded-md" />
+        <div className="flex items-center justify-between">
+          <Line w={96} h={8} />
+          <Line w={150} h={8} />
+        </div>
+      </div>
+      {H2H_GROUPS.map((g, gi) => (
+        <div key={g.caption} className="contents">
+          <div className={`mx-5 flex items-end pb-1 ${gi > 0 ? 'border-t border-borderSubtle/40' : ''}`} style={{ height: H2H_CAP_H }}>
+            <Line w={g.caption.length * 7} h={8} />
+          </div>
+          {g.keys.map((k, i) => (
+            <div key={k} className={`mx-5 grid items-center gap-x-4 ${i > 0 ? 'border-t border-borderSubtle/40' : ''}`} style={{ gridTemplateColumns: H2H_COLUMNS, height: H2H_ROW_H }}>
+              <Line w={labelW[k]} h={10} />
+              <Line w={valueW[k][0]} h={12} />
+              <Line w={valueW[k][1]} h={12} />
+              <Line w={noteW[k]} h={10} />
+            </div>
+          ))}
+        </div>
+      ))}
+      <div className="px-5 pb-4 pt-2 min-h-[44px] flex items-center">
+        <Line w="72%" h={11} />
+      </div>
+    </section>
+  );
+};
 
 /* ---- box 2 ---------------------------------------------------------------------- */
 
@@ -97,6 +118,7 @@ export const HeadToHeadInner = () => (
 export const CompareAxisInner = () => {
   const rows = 15;
   const mid = 7;
+  const spine = AXIS_COL_W + 2 * AXIS_STRIKE_W;
   return (
     <section className="flex flex-col min-w-0" aria-hidden data-skeleton="compare-axis">
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
@@ -104,7 +126,7 @@ export const CompareAxisInner = () => {
           <TitleRow title={196} chip={false} />
           <SubLine w={640} />
         </div>
-        <Facts widths={[96, 60, 92, 104, 104]} />
+        <Facts widths={[60, 104, 104]} />
       </div>
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap">
         {/* Expiry · Reach · Greek · Colours — measured 163/203/103/140 (2026-09-10) */}
@@ -115,9 +137,8 @@ export const CompareAxisInner = () => {
         <Line w={220} h={9} className="ml-auto" />
       </div>
       <div className="px-5 flex items-center justify-between" style={{ height: AXIS_HEADS_H }}>
-        <Line w={150} h={10} />
-        <Line w={260} h={9} />
-        <Line w={150} h={10} />
+        <Line w={300} h={10} />
+        <Line w={300} h={10} />
       </div>
       <div className="relative" style={{ height: AXIS_H }}>
         <div className="absolute inset-y-3 left-1/2 -translate-x-1/2 rounded bg-ink/[0.025]" style={{ width: AXIS_COL_W }} />
@@ -128,14 +149,17 @@ export const CompareAxisInner = () => {
           const wr = 8 + Math.round((1 - Math.abs(r - mid + 2) / mid) ** 2 * 70);
           return (
             <div key={r} className="absolute inset-x-0" style={{ top: y - 7, height: 14 }}>
-              <Block w={`${wl * 0.42}%`} h={14} className="absolute rounded-full" style={{ right: `calc(50% + ${AXIS_COL_W / 2 + 4}px)`, opacity: 0.35 + t * 0.5 }} />
+              <Block w={`${wl * 0.4}%`} h={14} className="absolute rounded-full" style={{ right: `calc(50% + ${spine / 2 + 4}px)`, opacity: 0.35 + t * 0.5 }} />
+              {/* the spine: a strike each side, the distance in the middle */}
+              <Line w={26} h={9} className="absolute top-[2px]" style={{ right: `calc(50% + ${AXIS_COL_W / 2 + 6}px)` }} />
               <Line w={30} h={9} className="absolute left-1/2 -translate-x-1/2 top-[2px]" />
-              <Block w={`${Math.max(4, wr) * 0.42}%`} h={14} className="absolute rounded-full" style={{ left: `calc(50% + ${AXIS_COL_W / 2 + 4}px)`, opacity: 0.35 + t * 0.5 }} />
+              <Line w={26} h={9} className="absolute top-[2px]" style={{ left: `calc(50% + ${AXIS_COL_W / 2 + 6}px)` }} />
+              <Block w={`${Math.max(4, wr) * 0.4}%`} h={14} className="absolute rounded-full" style={{ left: `calc(50% + ${spine / 2 + 4}px)`, opacity: 0.35 + t * 0.5 }} />
             </div>
           );
         })}
       </div>
-      <div className="px-5 border-t border-borderSubtle flex items-center gap-3" style={{ height: AXIS_READ_H }}>
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3" style={{ height: AXIS_READ_H }}>
         <Line w={160} h={10} />
         <Line w={220} h={10} />
       </div>
@@ -160,7 +184,7 @@ export const CompareTapesInner = () => (
     <div className="border-t border-borderSubtle/60" style={{ height: TAPES_H }}>
       <ChartGround axis={60} />
     </div>
-    <div className="px-5 border-t border-borderSubtle flex items-center gap-3" style={{ height: TAPES_READ_H }}>
+    <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3" style={{ height: TAPES_READ_H }}>
       <Line w={36} h={10} />
       <Line w={90} h={10} />
       <Line w={90} h={10} />
@@ -171,7 +195,8 @@ export const CompareTapesInner = () => (
 
 /* ---- box 4 ---------------------------------------------------------------------- */
 
-/** The pair, standing: the band across the drawing, the average through it, a run of session dots */
+/** The pair, standing: the band across the drawing, the average through it, one line of sessions — no facts in the
+    head since 2026-09-29 (the read line says them; three facts beside the title wrapped it at 1440) */
 export const ComparePairInner = () => {
   const dots = 21;
   const inner = PAIR_H - PAIR_M.t - PAIR_M.b;
@@ -179,10 +204,9 @@ export const ComparePairInner = () => {
     <section className="flex flex-col min-w-0" aria-hidden data-skeleton="compare-pair">
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
-          <TitleRow title={132} chip={false} door={false} />
+          <TitleRow title={132} chip={false} />
           <SubLine w={620} />
         </div>
-        <Facts widths={[70, 120, 130]} />
       </div>
       <div className="relative border-t border-borderSubtle/60" style={{ height: PAIR_H }}>
         <Block w={`calc(100% - ${PAIR_M.l + PAIR_M.r}px)`} h={inner * 0.34} className="absolute rounded-sm opacity-40" style={{ left: PAIR_M.l, top: PAIR_M.t + inner * 0.33 }} />
@@ -201,13 +225,16 @@ export const ComparePairInner = () => {
           ))}
         </div>
       </div>
-      <div className="px-5 border-t border-borderSubtle flex items-center gap-3" style={{ height: PAIR_READ_H }}>
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3" style={{ height: PAIR_READ_H }}>
         <Line w={36} h={10} />
         <Line w={80} h={10} />
+        <Line w={100} h={10} />
         <Line w={160} h={10} />
       </div>
-      <div className="px-5 pb-4 pt-2 min-h-[44px] flex items-center">
-        <Line w="64%" h={11} />
+      {/* the pair's sentence is always two lines (63 = 8 + 2 × 19.5 + 16, measured 2026-09-29) */}
+      <div className="px-5 pb-4 pt-2 min-h-[63px] flex flex-col justify-center gap-[9px]">
+        <Line w="96%" h={11} />
+        <Line w="38%" h={11} />
       </div>
     </section>
   );

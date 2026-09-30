@@ -43,7 +43,6 @@ import { buildPositionCurve, fmtPnl, type PositionCurve } from '../../data/posit
 import { removePosition, subjectWords, type Position, type PositionRead, type Verdict } from '../../data/positions';
 import { fmtUsd } from '../../data/gex';
 import type { ExposureLevels } from '../../types/gex';
-import { TickerText } from '../ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = 'rgb(var(--bull))';
@@ -91,9 +90,24 @@ interface SketchProps {
   levels: ExposureLevels;
   strike: number;
   wantsUp: boolean;
+  /** The levels' words over their hairlines — off on the Weigher's card (Noah, 2026-09-14:
+      "delete this put call words, it's just junk on this page"); the hover card still names them */
+  labels?: boolean;
+  /** The levels' hairlines themselves — off on the Weigher's card too (Noah, later the same day,
+      on the wordless dashes beside the market's line and the ruler's: "2 different columns of
+      tickers"): the ruler under that chart is the level scale, with the walls named on its ticks */
+  levelMarks?: boolean;
+  /** THE PINNED PRICE (Robinhood's ruler, 2026-09-14): a click keeps a price — its hairline and
+      dots stay when the pointer leaves, the host reads the figures off it; a click on the kept
+      price lets it go */
+  pinned?: number | null;
+  onPin?: (price: number | null) => void;
+  /** What the soft line is — "today", or the scrubbed day's name */
+  softLabel?: string;
 }
 
-const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => {
+/** EXPORTED (2026-09-14): the Weigher's position card draws the same sketch for a watched contract */
+export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = true, levelMarks = true, pinned = null, onPin, softLabel }: SketchProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const iw = W - M.l - M.r;
@@ -124,24 +138,55 @@ const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => 
   ]
     .filter(l => l.price > lo && l.price < hi)
     .sort((a, b) => a.price - b.price);
+  /* each label takes the first row where nothing placed before it sits within 90 units —
+     three levels a point apart (a tight sim window, 2026-09-14) used to put the two walls
+     on the same row with the flip between them */
   for (let i = 1; i < levelLines.length; i++) {
-    const prev = levelLines[i - 1];
-    if (x(levelLines[i].price) - x(prev.price) < 90) levelLines[i].row = prev.row === 0 ? 1 : 0;
+    const near = (row: number) => levelLines.slice(0, i).some(l => l.row === row && x(levelLines[i].price) - x(l.price) < 90);
+    levelLines[i].row = near(0) ? 1 : 0;
   }
   const yTicks = [vMax - pad, 0, vMin + pad];
   const pt = hover != null ? points[hover] : null;
-  /* Price ticks, minus any that would print under the "now" label or the cursor's */
-  const xTicks = [lo, lo + (hi - lo) * 0.25, lo + (hi - lo) * 0.5, lo + (hi - lo) * 0.75, hi].filter(v => Math.abs(x(v) - x(spot)) > 48 && (!pt || Math.abs(x(v) - x(pt.price)) > 48));
-  const spotNow = points.reduce((b, p) => (Math.abs(p.price - spot) < Math.abs(b.price - spot) ? p : b), points[0]);
+  /* A point on both lines AT a price, read between the two samples around it — the pinned price
+     is the ruler's, set by the cent, and the nearest sample printed 134.92 under a ruler at
+     134.95 (Noah, 2026-09-14); the market's dot reads the same way */
+  const at = (price: number): (typeof points)[number] => {
+    const last = points[points.length - 1];
+    if (price <= points[0].price) return points[0];
+    if (price >= last.price) return last;
+    let i = 1;
+    while (i < points.length - 1 && points[i].price < price) i++;
+    const a = points[i - 1];
+    const b = points[i];
+    const t = b.price === a.price ? 0 : (price - a.price) / (b.price - a.price);
+    return { ...a, price, now: a.now + (b.now - a.now) * t, expiry: a.expiry + (b.expiry - a.expiry) * t };
+  };
+  const pinPt = pinned != null ? at(pinned) : null;
+  /* Price ticks, minus any that would print under the "now" label, the cursor's or the kept price's */
+  const xTicks = [lo, lo + (hi - lo) * 0.25, lo + (hi - lo) * 0.5, lo + (hi - lo) * 0.75, hi].filter(v => Math.abs(x(v) - x(spot)) > 48 && (!pt || Math.abs(x(v) - x(pt.price)) > 48) && (!pinPt || Math.abs(x(v) - x(pinPt.price)) > 48));
+  const spotNow = at(spot);
 
   /* The cursor → the nearest sampled price */
-  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+  const indexAt = (e: ReactPointerEvent<SVGSVGElement>): number | null => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg) return null;
     const r = svg.getBoundingClientRect();
     const u = ((e.clientX - r.left) / r.width) * W;
     const t = Math.max(0, Math.min(1, (u - M.l) / iw));
-    setHover(Math.round(t * (points.length - 1)));
+    return Math.round(t * (points.length - 1));
+  };
+  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    const i = indexAt(e);
+    if (i != null) setHover(i);
+  };
+  /* a click keeps the price under the pointer; a click on the kept one lets it go */
+  const onDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+    const i = indexAt(e);
+    if (i == null) return;
+    setHover(i);
+    if (!onPin) return;
+    const price = points[i].price;
+    onPin(pinned != null && Math.abs(pinned - price) < 1e-9 ? null : price);
   };
 
   const words = pt ? priceWords(pt.price, levels, wantsUp) : null;
@@ -160,7 +205,7 @@ const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => 
         data-payoff
         style={{ display: 'block', cursor: 'crosshair', touchAction: 'none' }}
         onPointerMove={onMove}
-        onPointerDown={onMove}
+        onPointerDown={onDown}
       >
         <defs>
           <clipPath id={`${clipId}-up`}>
@@ -182,17 +227,25 @@ const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => 
         {/* the fills: green above zero, red below — a shade brighter under the pointer */}
         <path d={area} fill={GREEN} clipPath={`url(#${clipId}-up)`} style={{ fillOpacity: hovering ? 0.22 : 0.14, transition: 'fill-opacity 220ms ease-out' }} />
         <path d={area} fill={RED} clipPath={`url(#${clipId}-down)`} style={{ fillOpacity: hovering ? 0.22 : 0.14, transition: 'fill-opacity 220ms ease-out' }} />
-        {/* the dealer levels — hairlines with small words at the top */}
-        {levelLines.map(l => (
+        {/* the dealer levels — hairlines with small words at the top (neither on the Weigher's card) */}
+        {levelMarks &&
+          levelLines.map(l => (
           <g key={l.label}>
-            <line x1={x(l.price)} x2={x(l.price)} y1={LABEL_ROWS[l.row] + 3} y2={H - M.b} stroke="#ffffff" strokeOpacity={0.16} strokeWidth={1} strokeDasharray="2 3" />
-            <text x={x(l.price)} y={LABEL_ROWS[l.row]} textAnchor="middle" fontSize={8.5} fill="#8a909c" fontFamily={MONO} data-level-label>
-              {l.label}
-            </text>
+            <line x1={x(l.price)} x2={x(l.price)} y1={labels ? LABEL_ROWS[l.row] + 3 : M.t} y2={H - M.b} stroke="#ffffff" strokeOpacity={0.16} strokeWidth={1} strokeDasharray="2 3" />
+            {labels && (
+              <text x={x(l.price)} y={LABEL_ROWS[l.row]} textAnchor="middle" fontSize={8.5} fill="#8a909c" fontFamily={MONO} data-level-label>
+                {l.label}
+              </text>
+            )}
           </g>
-        ))}
-        {/* today's line, then the hard line at expiry */}
-        <path d={path('now')} fill="none" stroke={SILVER} strokeWidth={1.25} strokeDasharray="3 3" style={{ strokeOpacity: hovering ? 1 : 0.8, transition: 'stroke-opacity 220ms ease-out' }} />
+          ))}
+        {/* the soft line — today's, or the scrubbed day's — then the hard line at expiry */}
+        <path d={path('now')} fill="none" stroke={SILVER} strokeWidth={1.25} strokeDasharray="3 3" style={{ strokeOpacity: hovering ? 1 : 0.8, transition: 'stroke-opacity 220ms ease-out' }} data-soft-line />
+        {softLabel && (
+          <text x={W - M.r} y={M.t - 6} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={MONO} data-soft-label>
+            ┄ {softLabel}
+          </text>
+        )}
         <path d={path('expiry')} fill="none" stroke={GREEN} strokeWidth={1.5} clipPath={`url(#${clipId}-up)`} />
         <path d={path('expiry')} fill="none" stroke={RED} strokeWidth={1.5} clipPath={`url(#${clipId}-down)`} />
         {/* your strike — a small tick on the zero line */}
@@ -209,6 +262,19 @@ const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => 
         <text x={x(spot)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} data-now-label style={{ paintOrder: 'stroke', stroke: '#0e0e0f', strokeWidth: 4 }}>
           now {spot.toFixed(2)}
         </text>
+        {/* THE PINNED PRICE — kept when the pointer leaves: a silver hairline, the dots, its price under the axis */}
+        {pinPt && (!pt || Math.abs(pt.price - pinPt.price) > 1e-9) && (
+          <g data-pin>
+            <line x1={x(pinPt.price)} x2={x(pinPt.price)} y1={M.t} y2={H - M.b} stroke={SILVER} strokeOpacity={0.6} strokeWidth={1} />
+            <circle cx={x(pinPt.price)} cy={y(pinPt.now)} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.5} />
+            <circle cx={x(pinPt.price)} cy={y(pinPt.expiry)} r={3.5} fill={pinPt.expiry >= 0 ? GREEN : RED} stroke="#0e0e0f" strokeWidth={1.5} />
+            {Math.abs(x(pinPt.price) - x(spot)) > 48 && (
+              <text x={x(pinPt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: '#0e0e0f', strokeWidth: 4 }}>
+                {pinPt.price.toFixed(2)}
+              </text>
+            )}
+          </g>
+        )}
         {/* THE CURSOR — a hairline, a dot on each line, the price under the axis */}
         {pt && (
           <g data-cursor>
@@ -243,7 +309,7 @@ const PayoffSketch = ({ curve, spot, levels, strike, wantsUp }: SketchProps) => 
             <dt className="text-[10px] text-textMuted">Today</dt>
             <dd className={`font-mono text-[11px] tnum text-right ${pt.now > 0 ? 'text-bull' : pt.now < 0 ? 'text-bear' : 'text-textPrimary'}`}>{fmtPnl(pt.now)}</dd>
           </dl>
-          <p className="mt-1.5 pt-1.5 border-t border-borderSubtle text-[10px] leading-snug text-textSecondary whitespace-nowrap">
+          <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[10px] leading-snug text-textSecondary whitespace-nowrap">
             {words.dealers}
             <br />
             <span className={words.withYou ? 'text-bull' : 'text-bear'}>{words.withYou ? 'with you' : 'against you'}</span>
@@ -273,12 +339,12 @@ const PositionCard = ({ position: p, read, spot, levels, lo, hi, focused, onShow
   const curve = buildPositionCurve(p, spot, lo, hi);
   const v = VERDICT[read.verdict];
   const title = `${p.contracts} × ${p.ticker} ${fmtStrike(p.strike)} ${p.right === 'C' ? 'call' : 'put'}${p.contracts === 1 ? '' : 's'}`;
-  const cost = curve.refIsEntry ? `paid ${curve.ref.toFixed(2)} each` : `worth ${curve.valueNow.toFixed(2)} each today`;
+  const cost = curve.refKind === 'entry' ? `paid ${curve.ref.toFixed(2)} each` : curve.refKind === 'added' ? `marked ${curve.ref.toFixed(2)} each when added` : `worth ${curve.valueNow.toFixed(2)} each today`;
   const wantsUp = (p.right === 'C') === (p.side === 'long');
   const facts: { k: string; v: string; tone?: string }[] = [
     { k: 'Where it sits', v: read.sits },
     { k: 'Breakeven at expiry', v: fmtStrike(Math.round(curve.breakeven * 100) / 100) },
-    { k: curve.refIsEntry ? 'If it expired here' : 'If it expired here, vs today', v: fmtPnl(curve.atSpot), tone: curve.atSpot > 0 ? 'text-bull' : curve.atSpot < 0 ? 'text-bear' : undefined },
+    { k: curve.refKind === 'now' ? 'If it expired here, vs today' : 'If it expired here', v: fmtPnl(curve.atSpot), tone: curve.atSpot > 0 ? 'text-bull' : curve.atSpot < 0 ? 'text-bear' : undefined },
     { k: 'Dealer gamma at your strike', v: read.gammaHere === 0 ? 'outside the window' : `${fmtUsd(read.gammaHere)}${read.through ? ` · ${read.through === 'slows it' ? 'slows a move' : 'speeds a move up'}` : ''}` },
     { k: 'Expires', v: `${fmtDate(p.expiry)} · ${read.expires}` },
   ];
@@ -290,7 +356,7 @@ const PositionCard = ({ position: p, read, spot, levels, lo, hi, focused, onShow
     >
       <header className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h4 className="text-[14px] font-semibold leading-tight text-textPrimary truncate"><TickerText text={title} size={13} /></h4>
+          <h4 className="text-[14px] font-semibold leading-tight text-textPrimary truncate">{title}</h4>
           <p className="mt-0.5 text-[11px] text-textMuted truncate">
             {p.side === 'long' ? 'You own' : 'You sold'} · {cost} · {p.source === 'tracker' ? 'from the Tracker' : 'added by you'}
           </p>

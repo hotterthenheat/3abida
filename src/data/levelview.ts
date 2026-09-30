@@ -76,6 +76,51 @@ export function netSinceOpenRatio(ticker: string): Map<number, number> | null {
   return out;
 }
 
+/*
+  THE SINCE-OPEN READ — ONE RULE FOR EVERY CARD (2026-09-16). Terrain's
+  rail card printed "+164103195%" (Noah: "do you see the crazy large number
+  on this card??? … what should we do about atrociously large numbers …
+  on crazy days"). The strike's net was next to nothing at the open, and a
+  percent of nothing is not a figure a reader can use — on a real day a
+  strike CAN go from a balanced book at the bell to hundreds of millions
+  one-sided by noon. The Map's strike card had a rule for it already; now
+  every card reads it from here, and no card prints a raw percent again:
+    · the side flipped (ratio < 0)         → words only: "flipped sides since the open"
+    · now is 20× the open or more (< 0.05) → words only: "new since the open"
+    · now is over 3× the open              → the multiple, "4.2×", building
+    · else the percent, −99 … +200, and the word by the ±15% threshold
+  Every figure is grouped with commas by construction (`toLocaleString`),
+  so a figure can never print as a run of digits even if a tier moves.
+*/
+export interface SinceOpenRead {
+  /** The figure as printed — "+37%", "-12%", "4.2×" — or null when only the words apply */
+  figure: string | null;
+  /** Which way: 1 building, −1 bleeding, 0 flat or flipped */
+  dir: 1 | -1 | 0;
+  /** The full sentence ("gamma building", "new since the open") */
+  text: string;
+  /** The same in one or two words for a narrow cell ("building", "new today") */
+  short: string;
+}
+
+/** `ratio` is the open's net over now's (`netSinceOpenRatio`). Null when there is nothing to compare. */
+export function sinceOpenRead(ratio: number | null | undefined): SinceOpenRead | null {
+  if (ratio == null || !Number.isFinite(ratio)) return null;
+  if (ratio < 0) return { figure: null, dir: 0, text: 'flipped sides since the open', short: 'flipped sides' };
+  if (ratio < 0.05) return { figure: null, dir: 1, text: 'new since the open', short: 'new today' };
+  const times = 1 / ratio;
+  if (times > 3) return { figure: `${times.toFixed(1)}×`, dir: 1, text: 'gamma building', short: 'building' };
+  const pct = Math.max(-99, (times - 1) * 100);
+  const dir: 1 | -1 | 0 = pct >= TREND_THRESHOLD ? 1 : pct <= -TREND_THRESHOLD ? -1 : 0;
+  const whole = Math.round(pct) || 0;
+  return {
+    figure: `${whole > 0 ? '+' : ''}${whole.toLocaleString('en-US')}%`,
+    dir,
+    text: dir === 1 ? 'gamma building' : dir === -1 ? 'gamma bleeding' : 'about where it opened',
+    short: dir === 1 ? 'building' : dir === -1 ? 'bleeding' : 'about flat',
+  };
+}
+
 export function buildLevelRead(ticker: string, strike: number): LevelRead | null {
   const session = sessionBars(ticker);
   if (!session) return null;

@@ -132,8 +132,10 @@ const Compare = () => {
   const cmp = useMemo(() => (sideA && sideB ? buildCompare(sideA, sideB, clock) : null), [sideA, sideB, clock]);
 
   const [guideOpen, setGuideOpen] = useState(false);
-  /* How far the ruler runs — three expected moves on the taller drawing (2026-09-09: "cover more of the capsules") */
-  const [reach, setReach] = useState<Reach>('three');
+  /* How far the ruler runs — two expected moves (2026-09-29: at three, nearly half the drawing was strikes too light to
+     draw; two is about what a day can reach, and the drawing is mostly capsules). It was three on the taller drawing
+     (2026-09-09: "cover more of the capsules"); the Reach card still goes there. */
+  const [reach, setReach] = useState<Reach>('two');
   /* The capsules' ramp — the calendar's Colours card, thermal by default (Noah,
      2026-09-10: "the house color vs thermal color button") */
   const [palette, setPalette] = useState<'thermal' | 'house'>('thermal');
@@ -227,7 +229,7 @@ const Compare = () => {
       {/* BOX 4 — THE PAIR: is today's gap usual, session by session */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-compare-pair-box>
         <Deferred index={3} fallback={<ComparePairInner />} className="animate-fade-in">
-          <ComparePair a={aTicker} b={bTicker} aInk={A_INK} bInk={B_INK} nonce={nonce} />
+          <ComparePair a={aTicker} b={bTicker} aInk={A_INK} bInk={B_INK} nonce={nonce} guideOpen={guideOpen} onGuide={() => setGuideOpen(v => !v)} />
         </Deferred>
       </div>
     </>

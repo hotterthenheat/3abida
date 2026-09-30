@@ -25,7 +25,6 @@ import * as Popover from '@radix-ui/react-popover';
 import { ChevronDown, Search, type LucideIcon } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { CARD } from './DropdownSelect';
-import { MENU_EMPTY } from './menuRoom';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 
@@ -54,10 +53,12 @@ interface DropdownSearchProps<T extends string> {
   ink?: string;
   align?: 'start' | 'end';
   testId?: string;
+  /** Opens on arrival — a card that was just ASKED for (Review's "a second name") goes straight to its search */
+  defaultOpen?: boolean;
 }
 
-const DropdownSearch = <T extends string>({ label, value, options, onChange, title, placeholder = 'Search…', icon: Icon, ink, align = 'start', testId }: DropdownSearchProps<T>) => {
-  const [open, setOpen] = useState(false);
+const DropdownSearch = <T extends string>({ label, value, options, onChange, title, placeholder = 'Search…', icon: Icon, ink, align = 'start', testId, defaultOpen = false }: DropdownSearchProps<T>) => {
+  const [open, setOpen] = useState(defaultOpen);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -135,7 +136,7 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
           </div>
           <div ref={listRef} className="max-h-64 overflow-y-auto p-1.5" role="listbox">
             {matches.length === 0 ? (
-              <div className={MENU_EMPTY}>Nothing on the board matches</div>
+              <div className="px-2.5 py-4 text-center font-mono text-[10px] text-textMuted">Nothing on the board matches</div>
             ) : (
               matches.map((o, i) => {
                 const on = o.value === value;

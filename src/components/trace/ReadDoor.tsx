@@ -3,17 +3,17 @@
   stating contracts in any way shape or form ... it should have an underline
   that allows the user to go to the in depth review of it").
 
-  The tables already speak this affordance — the contract cell's white
-  underline is the door to the in-depth card — so a sentence that names a
-  contract wears the SAME line and opens the SAME card. One affordance,
+  The tables already speak this affordance — the contract cell turns silver
+  under the pointer and opens the in-depth card — so a sentence that names a
+  contract wears the SAME hover and opens the SAME card. One affordance,
   learned once. Inline and baseline-aligned so the sentence never learns
-  it is holding a button. (White since 2026-08-30 — Noah: "i dont like how
-  the blue looks".)
+  it is holding a button. (The line under it: blue, then white from
+  2026-08-30, then gone from 2026-09-16 — Noah: "I want it gone for them all
+  but keep the holo silver hover effect".)
 */
 
 import type { ReactNode } from 'react';
 import { DOOR, DOOR_HOVER_TEXT } from './door';
-import { withLeadingMark } from '../ui/Name';
 
 const ReadDoor = ({
   onOpen,
@@ -30,7 +30,7 @@ const ReadDoor = ({
     title={title}
     className={`inline align-baseline font-semibold text-textPrimary pb-[1px] ${DOOR} ${DOOR_HOVER_TEXT}`}
   >
-    {withLeadingMark(children)}
+    {children}
   </button>
 );
 

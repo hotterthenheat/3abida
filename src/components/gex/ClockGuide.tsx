@@ -17,8 +17,10 @@ const INK_2 = 'rgb(var(--text-secondary))';
 const INK_3 = 'rgb(var(--text-muted))';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const LIVE = 'rgb(var(--select))';
-const EMBER = '#F5C542';
-const GLACIER = '#7ABDD7';
+/* the poles as tokens (2026-09-16): #F5C542 / #7ABDD7 on black, cut for paper by the light set — an SVG
+   attribute reads a var() (measured) */
+const EMBER = 'rgb(var(--ember))';
+const GLACIER = 'rgb(var(--glacier))';
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 

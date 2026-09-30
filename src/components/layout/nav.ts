@@ -1,31 +1,36 @@
 import {
   Activity,
-  Bell,
   Crosshair,
   Compass,
   Radar,
   Scale,
-  Sigma,
   ScrollText,
-  Bookmark,
-  ClipboardPen,
-  MessageSquareWarning,
   Users,
-  Telescope,
   CandlestickChart,
-  Microscope,
-  FolderKanban,
-  ClipboardCheck,
   Settings,
+  History,
+  LineChart,
+  NotebookPen,
+  Dumbbell,
   type LucideIcon,
 } from 'lucide-react';
 
-// Navigation is organised by WORKFLOW, not by product name: Discover → Analyze
-// → Manage → Review reads as the pipeline a trader actually runs, so a new
-// user knows what each tab is FOR before learning a single brand name. The
-// branded desks (Pulse, Compass, Pinpoint…) live inside those workflows.
-// Home exits via the wordmark.
-export type NavGroup = 'Discover' | 'Analyze' | 'Manage' | 'Review';
+/* THE RAIL, BY THE QUESTION A TRADER IS ASKING, IN THE ORDER THEY ASK IT (Noah, 2026-09-28: "the manage section should be
+   at the very bottom … if pulse is the first page a user is going to see then that should be at the very top … we need
+   to really fix the analyze, discover, and record sections and what belongs where"). The old captions said what you DO
+   (discover, analyze, manage) and the pages under them did not share a job. Now:
+
+     HOME       Pulse — the desk you land on — and Alerts under it, no caption
+     MARKET     what is happening and what happened: Terrain (the chart), Trace (the tape), Dossier (news, earnings,
+                insiders, Congress, stocks)
+     THE BOOK   Pinpoint — where dealer hedging pushes; the product's centre, under the house's own word for it
+     TRADE      the two pages that end in a contract: Compass (what to trade), Weigher (which contract, the watchlist,
+                your positions)
+     PRACTICE   Paper · Backtest · Journal — his name, his order
+     MORE       Community · Settings at the very bottom, no caption — doors, not work
+
+   No address moved. */
+export type NavGroup = 'Home' | 'Market' | 'The book' | 'Trade' | 'Practice' | 'More';
 
 /* EACH DESK'S OWN INK (the lock walk, Noah, 2026-09-09: "i think these icons
    can benefit from color"): a muted categorical hue per item, the News page's
@@ -36,11 +41,7 @@ export type NavGroup = 'Discover' | 'Analyze' | 'Manage' | 'Review';
 export const NAV_INK = {
   alerts: '#E9A23B',
   compass: '#4FB8B8',
-  watchlist: '#C48BD9',
   weigher: '#A78BFA',
-  /* the paper desk's straw — between the Weigher's violet and Trace's orange
-     on the wheel, and nothing the terminal means by a colour (2026-09-19) */
-  paper: '#E2C15E',
   trace: '#F0925A',
   pulse: '#E86F8A',
   terrain: '#86B98B',
@@ -49,7 +50,10 @@ export const NAV_INK = {
   tracker: '#5DBFA0',
   community: '#D98BB5',
   settings: '#C2B280',
-  proveIt: '#9AA5B8',
+  backtest: '#D4A5FF',
+  journal: '#E6B566',
+  /* PAPER (2026-09-22): the Live Chart, apart on the wheel from its neighbours above */
+  paperDesk: '#62B6CB',
 } as const;
 
 export interface NavItem {
@@ -64,159 +68,134 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  // ── Discover — find what is moving and what to trade ──
+  // ── Home ──
   {
-    path: '/compass',
-    label: 'Compass',
+    path: '/pulse',
+    label: 'Pulse',
     code: '01',
-    icon: Compass,
-    ink: NAV_INK.compass,
-    description: 'Options chooser — weeklies, swings & LEAPS weighed and graded',
-    group: 'Discover',
+    icon: Activity,
+    ink: NAV_INK.pulse,
+    description: 'The live market desk — chart, dealer pressure & key levels, arranged your way',
+    group: 'Home',
   },
+  // ── Market ──
   {
-    path: '/weigher',
-    label: 'Weigher',
+    path: '/terrain',
+    label: 'Terrain',
     code: '02',
-    icon: Scale,
-    ink: NAV_INK.weigher,
-    description: 'The weigh station — chart, chain and scanner on one desk, with what a contract has to clear',
-    group: 'Discover',
-  },
-  /* THE PAPER DESK (Noah, 2026-09-19: "put this paper trader in a tab below
-     weigher") — the chart as the order ticket: futures and options traded on
-     paper against the terminal's market state, one engine behind every hand */
-  {
-    path: '/paper',
-    label: 'Paper',
-    code: '03',
-    icon: ClipboardPen,
-    ink: NAV_INK.paper,
-    description: 'Paper trading — trade futures and options on the chart itself, against the live tape, no real money',
-    group: 'Discover',
-  },
-  /* Stocks moved under the Record (2026-09-10) — the screens are a record about a name, read beside its news and filings */
-  /* THE NAMES YOU CARRY (2026-09-21) — first in Discover, because a session
-     starts by deciding what to look at */
-  {
-    path: '/alerts',
-    label: 'Alerts',
-    code: '00',
-    icon: Bell,
-    ink: NAV_INK.alerts,
-    description: 'Everything you set and everything that has gone off — the bell, managed',
-    group: 'Manage',
-  },
-  {
-    path: '/watchlist',
-    label: 'Watchlists',
-    code: '04',
-    icon: Bookmark,
-    ink: NAV_INK.watchlist,
-    description: 'The names you are carrying — price, flip, walls and field, one row each',
-    group: 'Discover',
+    icon: CandlestickChart,
+    ink: NAV_INK.terrain,
+    description: 'Charts only — one to four books side by side, one set of controls',
+    group: 'Market',
   },
   {
     path: '/trace',
     label: 'Trace',
-    code: '04',
+    code: '03',
     icon: Radar,
     ink: NAV_INK.trace,
     description: 'Options flow & dark-pool intelligence — what the prints actually mean',
-    group: 'Discover',
-  },
-  // ── Analyze — study the tape, the dealers, the catalysts ──
-  {
-    path: '/pulse',
-    label: 'Pulse',
-    code: '05',
-    icon: Activity,
-    ink: NAV_INK.pulse,
-    description: 'The live market desk — chart, dealer pressure & key levels, arranged your way',
-    group: 'Analyze',
+    group: 'Market',
   },
   {
-    path: '/terrain',
-    label: 'Terrain',
-    code: '06',
-    icon: CandlestickChart,
-    ink: NAV_INK.terrain,
-    description: 'Charts only — one to four books side by side, one set of controls',
-    group: 'Analyze',
+    path: '/dossier',
+    label: 'Dossier',
+    code: '04',
+    icon: ScrollText,
+    ink: NAV_INK.record,
+    description: 'The file on a name — its news, its earnings, what insiders filed, what Congress disclosed, how it screens',
+    group: 'Market',
   },
+  // ── The book ──
   {
     path: '/pinpoint',
     label: 'Pinpoint',
-    code: '07',
+    code: '05',
     icon: Crosshair,
     ink: NAV_INK.pinpoint,
     description: 'GEX & dealer-positioning system',
-    group: 'Analyze',
+    group: 'The book',
   },
-  /* THE RECORD (2026-09-09): News and Earnings moved under one head with the two
-     pages the partner built — Insiders (SEC Form 4) and Congress (STOCK Act) */
+  // ── Trade ──
   {
-    path: '/record',
-    label: 'Record',
-    code: '08',
-    icon: ScrollText,
-    ink: NAV_INK.record,
-    description: 'What is on the record about a name — news, earnings, insiders, Congress',
-    group: 'Analyze',
+    path: '/compass',
+    label: 'Compass',
+    code: '06',
+    icon: Compass,
+    ink: NAV_INK.compass,
+    /* "weighed and graded" until 2026-09-19 — the rail's tooltip and the palette's hint read this, and we do not say we grade */
+    description: 'Contracts that fit the levels right now — weeklies, swings and LEAPS, the strongest first',
+    group: 'Trade',
   },
-  // ── Manage — track what you are in, build your desk, talk shop ──
+  {
+    path: '/weigher',
+    label: 'Weigher',
+    code: '07',
+    icon: Scale,
+    ink: NAV_INK.weigher,
+    description: 'Chart, chain and watchlist on one desk — pick a contract, watch it, and the record follows',
+    group: 'Trade',
+  },
+  // ── Practice ──
+  {
+    path: '/practice/paper',
+    label: 'Paper',
+    code: '08',
+    icon: LineChart,
+    ink: NAV_INK.paperDesk,
+    description: 'Trade today’s prices with pretend money — a practice account or a prop firm’s evaluation, options and futures',
+    group: 'Practice',
+  },
+  {
+    path: '/practice/backtest',
+    label: 'Backtest',
+    code: '09',
+    icon: History,
+    ink: NAV_INK.backtest,
+    description: 'Replay a past market and trade its option contracts with pretend money — test an edge',
+    group: 'Practice',
+  },
+  {
+    path: '/practice/journal',
+    label: 'Journal',
+    code: '10',
+    icon: NotebookPen,
+    ink: NAV_INK.journal,
+    description: 'Every trade you closed — paper or backtest — on its day, with your own words on it',
+    group: 'Practice',
+  },
+  // ── More ──
   {
     path: '/community',
     label: 'Community',
-    code: '10',
+    code: '11',
     icon: Users,
     ink: NAV_INK.community,
-    description: 'The room — traders, setups and the record they build',
-    group: 'Manage',
+    description: 'The room — traders, their setups & the record they build',
+    group: 'More',
   },
-  /* FEEDBACK AND BUGS, its own page (Noah, 2026-09-13) — suggestions and bug
-     reports with their votes, out of the community room */
-  {
-    path: '/feedback',
-    label: 'Feedback',
-    code: '09',
-    icon: MessageSquareWarning,
-    ink: NAV_INK.tracker,
-    description: 'Suggest what to build, report what broke — every note is read',
-    group: 'Manage',
-  },
-  /* THE SETTINGS (2026-09-12): how the terminal looks, what the desk opens
-     on, what it says out loud — the theme first */
   {
     path: '/settings',
     label: 'Settings',
-    code: '11',
+    code: '12',
     icon: Settings,
     ink: NAV_INK.settings,
     description: 'How the terminal looks, what the desk opens on, what it says out loud',
-    group: 'Manage',
-  },
-  // ── Review — audit the models and the calls ──
-  {
-    path: '/prove-it',
-    label: 'Prove It',
-    code: '12',
-    icon: Sigma,
-    ink: NAV_INK.proveIt,
-    description: 'Quantitative modeling & predictive analytics',
-    group: 'Review',
+    group: 'More',
   },
 ];
 
-export const NAV_GROUPS: NavGroup[] = ['Discover', 'Analyze', 'Manage', 'Review'];
+export const NAV_GROUPS: NavGroup[] = ['Home', 'Market', 'The book', 'Trade', 'Practice', 'More'];
 
-/** Top-bar tab metadata: the icon Noah asked for + a one-line answer to
-    "what is this tab for", shown as the dropdown header. */
-export const NAV_GROUP_META: Record<NavGroup, { icon: LucideIcon; hint: string }> = {
-  Discover: { icon: Telescope, hint: 'Find what to trade' },
-  Analyze: { icon: Microscope, hint: 'Study the tape & the dealers' },
-  Manage: { icon: FolderKanban, hint: 'Track what you are in' },
-  Review: { icon: ClipboardCheck, hint: 'Audit the models' },
+/** Each group's face: an icon, a one-line answer to "what is this group for", and its caption on the rail — null
+    for the two that stand without one (Home at the top, More at the bottom) */
+export const NAV_GROUP_META: Record<NavGroup, { icon: LucideIcon; hint: string; caption: string | null }> = {
+  Home: { icon: Activity, hint: 'The desk you land on', caption: null },
+  Market: { icon: CandlestickChart, hint: 'What the market is doing, and what happened', caption: 'Market' },
+  'The book': { icon: Crosshair, hint: 'Where dealer hedging pushes', caption: 'The book' },
+  Trade: { icon: Compass, hint: 'What to trade, and which contract', caption: 'Trade' },
+  Practice: { icon: Dumbbell, hint: 'Trade with pretend money — today’s prices or a past market — and look back', caption: 'Practice' },
+  More: { icon: Settings, hint: 'The room, and how the terminal is set', caption: null },
 };
 
 export const itemsByGroup = (group: NavGroup): NavItem[] =>

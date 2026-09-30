@@ -19,19 +19,21 @@ import { PageSkeleton } from './Skeleton';
 import { PinpointRouteSkeleton } from '../../pages/pinpoint/pinpointSkeletons';
 import { TraceRouteSkeleton } from '../../pages/trace/traceSkeletons';
 import { WeigherPageSkeleton } from '../../pages/weigherSkeleton';
-import { PaperPageSkeleton } from '../../pages/paper/paperSkeleton';
 import { CompassHeadSkeleton, CompassRouteSkeleton } from '../../pages/compassSkeleton';
 import { PulseBoardSkeleton, PulsePageSkeleton } from '../../pages/workspace/pulseSkeletons';
 import { RecordRouteSkeleton } from '../../pages/record/recordSkeletons';
+import { PracticeRouteSkeleton } from '../../pages/practice/practiceSkeletons';
 import { SettingsPageSkeleton } from '../../pages/settings/settingsSkeleton';
+import { RoomRouteSkeleton } from '../../pages/community/roomSkeleton';
 
 const RouteSkeleton = ({ pathname }: { pathname: string }) => {
+  if (pathname.startsWith('/community')) return <RoomRouteSkeleton />;
   if (pathname.startsWith('/pinpoint')) return <PinpointRouteSkeleton pathname={pathname} />;
   if (pathname.startsWith('/settings')) return <SettingsPageSkeleton section={pathname.split('/')[2]} />;
-  if (pathname.startsWith('/record')) return <RecordRouteSkeleton pathname={pathname} />;
+  if (pathname.startsWith('/dossier')) return <RecordRouteSkeleton pathname={pathname} />;
+  if (pathname.startsWith('/practice')) return <PracticeRouteSkeleton pathname={pathname} />;
   if (pathname.startsWith('/trace')) return <TraceRouteSkeleton pathname={pathname} />;
   if (pathname.startsWith('/weigher')) return <WeigherPageSkeleton />;
-  if (pathname.startsWith('/paper')) return <PaperPageSkeleton />;
   if (pathname.startsWith('/compass'))
     return (
       <>

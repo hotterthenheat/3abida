@@ -1,5 +1,4 @@
 import { Fragment, useMemo, useRef, useState } from 'react';
-import CompanyLogo from '../../ui/CompanyLogo';
 import { motion } from 'framer-motion';
 import Simulator from '../../../core/simulator';
 import { fmtUsd } from '../../../data/gex';
@@ -156,10 +155,7 @@ const MigrationMap = ({ data }: MigrationMapProps) => {
             {item.label}
           </span>
         ))}
-        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-textMuted">
-          <CompanyLogo ticker={ticker} size={11} />
-          {ticker} · net GEX
-        </span>
+        <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-textMuted">{ticker} · net GEX</span>
       </div>
 
       {/* Rows */}

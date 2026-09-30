@@ -63,7 +63,7 @@ const EarningsWidget = () => {
             <button
               key={e.ticker}
               // `from: desk` — the dossier offers a Desk door home (Noah, 2026-08-22)
-              onClick={() => navigate(`/record/earnings/${e.ticker}`, { state: { from: 'desk' } })}
+              onClick={() => navigate(`/dossier/earnings/${e.ticker}`, { state: { from: 'desk' } })}
               title={`Open the ${e.ticker} earnings dossier`}
               className="group w-full grid grid-cols-[22px_minmax(0,1fr)_96px_52px_52px_16px] items-center gap-x-2.5 px-2.5 h-11 border-b border-borderSubtle/30 text-left transition-colors hover:bg-ink/[0.03]"
             >

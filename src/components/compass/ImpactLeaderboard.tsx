@@ -1,12 +1,11 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
+import ContractLabel from '../ui/ContractLabel';
 import Term from '../ui/Term';
 import AnimatedNumber from '../ui/AnimatedNumber';
-import ContractLabel from '../ui/ContractLabel';
 import { fmtUsd } from '../../data/gex';
 import type { ImpactMetric, ImpactRow } from '../../types/compass';
-import { Name } from '../ui/Name';
 
 interface ImpactLeaderboardProps {
   /** Whose book this is — the selected card's name */
@@ -44,8 +43,6 @@ const FACTS: {
       const d = Math.abs(v) < 0.05 ? 0 : v;
       return `${d > 0 ? '+' : ''}${d.toFixed(1)}%`;
     },
-    /* Above the market green, below it red — the sign IS the information */
-    tone: r => (Math.abs(r.distPct) < 0.05 ? 'text-textPrimary' : r.distPct > 0 ? 'text-bull' : 'text-bear'),
   },
   {
     key: 'exposure',
@@ -116,7 +113,7 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Heaviest contracts</h3>
         </div>
         <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-          on <Name t={ticker} size={11} />
+          on {ticker}
           {note ? ` · ${note}` : ''} · a column head ranks by it · a row opens the contract
         </p>
       </div>
@@ -182,16 +179,13 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
             >
               {/* Identity line — rank, contract, expiry, and the door */}
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-6 shrink-0 font-mono text-[10px] text-textSecondary tnum">#{r.rank}</span>
-                {/* The name is the one thing that can't roll — it soft-fades
-                    in on change (keyed), the way the campaign title does.
-                    THE WHOLE CONTRACT IN ITS SIDE'S INK (Noah, 2026-09-12):
-                    the board card's pill, not a coloured letter on a white
-                    name — one rule, components/ui/ContractLabel. */}
+                <span className="w-6 shrink-0 font-mono text-[10px] text-textMuted tnum">#{r.rank}</span>
+                {/* The name is the one thing that can't roll — it soft-fades in on change (keyed), the way the campaign
+                    title does. The board card's pill with the name's mark (2026-09-13: the rail wears the board's pattern). */}
                 <span key={r.contract} className="min-w-0 animate-soft-in">
-                  <ContractLabel contract={r.contract} right={r.right} logo={r.contract.split(' ')[0]} size="sm" />
+                  <ContractLabel contract={r.contract} right={isCall ? 'C' : 'P'} logo={r.contract.split(' ')[0]} size="sm" />
                 </span>
-                <span className="font-mono text-[9px] text-textSecondary tnum">{r.expiry}</span>
+                <span className="font-mono text-[9px] text-textMuted">{r.expiry}</span>
                 <ArrowUpRight
                   aria-hidden="true"
                   className="ml-auto w-3 h-3 shrink-0 text-textSecondary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -202,11 +196,7 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
               <div className="mt-1 grid grid-cols-4 gap-2">
                 {FACTS.map(f => {
                   const active = f.key === metric;
-                  /* THE INFO IS GREEN, WHITE OR RED — NEVER GREY (Noah, 2026-09-12:
-                     "the info should be green white or red not the grey because
-                     its hard to see"). A signed fact wears its sign; a magnitude
-                     wears white; the ranked one is bold on top of that. */
-                  const tone = f.tone?.(r) ?? 'text-textPrimary';
+                  const tone = f.tone?.(r) ?? (active ? 'text-textPrimary' : 'text-textSecondary');
                   return (
                     <span key={f.key} className="min-w-0 flex flex-col gap-1">
                       {/* Figures ROLL between values; the exposure ink eases

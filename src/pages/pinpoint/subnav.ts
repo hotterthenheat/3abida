@@ -42,7 +42,7 @@ export const GEX_SUBPAGES: GexSubpage[] = [
   {
     path: '/pinpoint/map',
     label: 'Map',
-    subtitle: 'The day on one chart — price, the dealer levels on it, every strike on the price axis',
+    subtitle: 'The book by strike and expiry — the ladder first, then the day’s clock, how the levels held, your positions',
     icon: Map,
   },
   {

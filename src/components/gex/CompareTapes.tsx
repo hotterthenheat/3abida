@@ -12,7 +12,7 @@
   same thing: today's session, each as ONE line of
   percent from its own open, the same weight, in
   its own ink, nothing else on the plot — and under
-  them the gap, a bar per minute in the leader's
+  them the gap, a stepped band in the leader's
   ink, so who is ahead and by how much reads at a
   glance. The chart library draws it; the read line
   in the foot speaks the minute under the pointer.
@@ -20,18 +20,15 @@
 */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createChart, HistogramSeries, LineSeries, LineStyle, type IChartApi, type ISeriesApi, type LineData, type Time, type UTCTimestamp } from 'lightweight-charts';
+import { BaselineSeries, createChart, LineSeries, LineStyle, LineType, type IChartApi, type ISeriesApi, type LineData, type Time, type UTCTimestamp } from 'lightweight-charts';
 import { sessionBars } from '../../data/levelview';
-import { CANDLE_THEMES, chartSurface, getCandleThemeKey } from './candleTheme';
+import { DARK_FIGURE_SURFACE } from './candleTheme';
 import { readToken, useResolvedTheme } from '../../theme/theme';
+import { alpha, resolveInk } from './paletteInk';
 import { fmtClockLocal, localTickMarks } from './chartTime';
 import { TAPES_H, TAPES_READ_H } from './compareSkeletons';
 
 const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`;
-const rgba = (hex: string, a: number) => {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-};
 
 interface Props {
   a: string;
@@ -88,7 +85,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
   const chartRef = useRef<IChartApi | null>(null);
   const lineARef = useRef<ISeriesApi<'Line'> | null>(null);
   const lineBRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const gapRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const gapRef = useRef<ISeriesApi<'Baseline'> | null>(null);
   /* THE HOVER CARD (Noah, 2026-09-09: "i like the chart now but its not
      informational i should have a translucent hover card on hover"): the minute
      under the pointer, both prices and both percents, and the gap — beside the
@@ -100,10 +97,17 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
 
   /* Mount once — and again on a theme flip: the tapes read their inks at creation (2026-09-12) */
   const appTheme = useResolvedTheme();
+  /* ON PAPER THE CHART IS PART OF THE PAGE (the light sweep, 2026-09-19): it has no Theme menu, so on the light page it does
+     not wear the candle theme's grey — it sits on the page's soft inset with the page's inks, one grey with the box that
+     holds it. On the dark terminal it is the dark island on the panel, whatever candle theme is picked (2026-09-20: it
+     took the candle theme's ground, and a Stone pick made it a grey box on the dark page). */
+  const paper = appTheme === 'light';
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const surface = chartSurface(CANDLE_THEMES[getCandleThemeKey()]);
+    const surface = paper
+      ? { bg: readToken('--inset', undefined, host), text: readToken('--text-secondary', undefined, host), line: readToken('--ink', 0.16, host), crosshair: readToken('--ink', 0.4, host), label: readToken('--text-primary', undefined, host) }
+      : DARK_FIGURE_SURFACE; /* the page, never the candle pick (candleTheme.ts: a figure is not a tape) */
     const chart = createChart(host, {
       autoSize: true,
       layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: "'SF Pro', sans-serif", fontSize: 10, attributionLogo: true },
@@ -121,10 +125,33 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       handleScale: false,
     });
     const pctFormat = { type: 'custom' as const, formatter: (v: number) => signedPct(v), minMove: 0.01 };
-    const lineA = chart.addSeries(LineSeries, { color: aInk, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, priceFormat: pctFormat, crosshairMarkerRadius: 3 });
-    const lineB = chart.addSeries(LineSeries, { color: bInk, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, priceFormat: pctFormat, crosshairMarkerRadius: 3 });
-    lineA.createPriceLine({ price: 0, color: 'rgba(255,255,255,0.22)', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false, title: '' });
-    const gap = chart.addSeries(HistogramSeries, { priceScaleId: 'gap', priceFormat: pctFormat, priceLineVisible: false, lastValueVisible: false, base: 0 });
+    /* THE INKS ON THE CANVAS ARE RESOLVED off the plot's own box — a token
+       string handed to the library painted the leader's line black, invisible
+       on the dark terminal (Noah, 2026-09-12); the box is a dark island, so
+       the leader's "text-primary" is the island's white on either theme */
+    const lineA = chart.addSeries(LineSeries, { color: resolveInk(aInk, host), lineWidth: 2, priceLineVisible: false, lastValueVisible: true, priceFormat: pctFormat, crosshairMarkerRadius: 3 });
+    const lineB = chart.addSeries(LineSeries, { color: resolveInk(bInk, host), lineWidth: 2, priceLineVisible: false, lastValueVisible: true, priceFormat: pctFormat, crosshairMarkerRadius: 3 });
+    lineA.createPriceLine({ price: 0, color: paper ? readToken('--ink', 0.32, host) : 'rgba(255,255,255,0.22)', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false, title: '' });
+    /* THE GAP AS A STEPPED BAND, not a bar a minute (2026-09-29): four hundred one-pixel bars read as a barcode — the house
+       rule for a minute-spaced figure is the stepped baseline, filled in the leader's ink on each side of level */
+    const gapInkA = resolveInk(aInk, host);
+    const gapInkB = resolveInk(bInk, host);
+    const gap = chart.addSeries(BaselineSeries, {
+      priceScaleId: 'gap',
+      baseValue: { type: 'price', price: 0 },
+      topLineColor: gapInkA,
+      topFillColor1: alpha(gapInkA, 0.34),
+      topFillColor2: alpha(gapInkA, 0.04),
+      bottomLineColor: gapInkB,
+      bottomFillColor1: alpha(gapInkB, 0.04),
+      bottomFillColor2: alpha(gapInkB, 0.34),
+      lineWidth: 1,
+      lineType: LineType.WithSteps,
+      priceFormat: pctFormat,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
     chart.priceScale('gap').applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 }, visible: false });
     chart.subscribeCrosshairMove(param => {
       if (!param.time || !param.point) {
@@ -156,8 +183,12 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
 
   /* The inks follow the names */
   useEffect(() => {
-    lineARef.current?.applyOptions({ color: aInk });
-    lineBRef.current?.applyOptions({ color: bInk });
+    const host = hostRef.current;
+    const ia = resolveInk(aInk, host);
+    const ib = resolveInk(bInk, host);
+    lineARef.current?.applyOptions({ color: ia });
+    lineBRef.current?.applyOptions({ color: ib });
+    gapRef.current?.applyOptions({ topLineColor: ia, topFillColor1: alpha(ia, 0.34), topFillColor2: alpha(ia, 0.04), bottomLineColor: ib, bottomFillColor1: alpha(ib, 0.04), bottomFillColor2: alpha(ib, 0.34) });
   }, [aInk, bInk]);
 
   /* The data, every tick */
@@ -169,12 +200,12 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
     if (!lineA || !lineB || !gap || !chart) return;
     const da: LineData<Time>[] = [];
     const db: LineData<Time>[] = [];
-    const dg: { time: Time; value: number; color: string }[] = [];
+    const dg: LineData<Time>[] = [];
     for (const p of today.points) {
       const t = p.time as UTCTimestamp;
       if (p.a != null) da.push({ time: t, value: p.a });
       if (p.b != null) db.push({ time: t, value: p.b });
-      if (p.a != null && p.b != null) dg.push({ time: t, value: p.a - p.b, color: rgba(p.a >= p.b ? aInk : bInk, 0.55) });
+      if (p.a != null && p.b != null) dg.push({ time: t, value: p.a - p.b });
     }
     lineA.setData(da);
     lineB.setData(db);
@@ -198,7 +229,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Since the open</h3>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">
-            Today, both as percent from their own open · <span style={{ color: aInk }}>{a}</span> and <span style={{ color: bInk }}>{b}</span>, the same line each · the bars beneath are the gap, in the leader's ink
+            Today, both as percent from their own open · <span style={{ color: aInk }}>{a}</span> and <span style={{ color: bInk }}>{b}</span>, the same line each · the band beneath is the gap, in the leader's ink
           </p>
         </div>
         <dl className="grid grid-cols-3 gap-x-6">
@@ -230,12 +261,16 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       </div>
 
       {/* THE CHART, and the card over it */}
-      <div className="relative border-t border-borderSubtle/60 bg-panel" style={{ height: TAPES_H }} data-chart-ink data-theme="dark">
+      <div className={`relative border-t border-borderSubtle/60 ${paper ? 'bg-inset' : 'bg-panel'}`} style={{ height: TAPES_H }} data-chart-ink={paper ? undefined : ''} data-theme={paper ? 'light' : 'dark'} data-chart-ground={paper ? undefined : 'dark'}>
         <div ref={hostRef} className="absolute inset-0" data-tapes-chart />
         {hp && hover && (
           <div
             className="absolute z-10 pointer-events-none rounded-md border border-borderSubtle px-2.5 py-2 flex flex-col gap-1 text-[10.5px] text-textSecondary"
             style={{ left: hover.left, top: hover.top, width: CARD_W, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }}
+            /* THE CARD IS ITS OWN DARK GLASS: its ground is typed dark, so its words must be the dark set — over a light
+               ground (paper, or a Stone tape on either page) they were the box's dark ink on the dark card, unreadable */
+            data-theme="dark"
+            data-chart-glass
             data-tapes-card
           >
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtClockLocal(hp.time as UTCTimestamp)}</span>
@@ -274,7 +309,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       </div>
 
       {/* THE READ LINE — now */}
-      <div className="px-5 border-t border-borderSubtle flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
         {at ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">now</span>

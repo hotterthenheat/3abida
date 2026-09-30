@@ -4,21 +4,24 @@
   (data/newsFollows.ts)
 
   Which tickers' news the reader follows, and which
-  of them ring the bell (Noah, 2026-09-13: "you
-  should be able to choose which tickers' news to
-  follow, have alerts on for specific tickers").
-  One store, read with useSyncExternalStore, the
+  of them ring the bell (the partner's review, item
+  2: "choose which tickers' news to follow, have
+  alerts on for specific tickers"; the All news box
+  is his, ported 2026-09-13 — Noah: "i love it. i
+  want that as well but it needs to match our type
+  design and our already existing code"). One
+  store, read with useSyncExternalStore, the
   board-names store's shape, remembered in
-  localStorage. Turning a name's alerts on arms the
+  localStorage. Turning a name's bell on arms the
   shell's own news alert for it (alertStore.armNews)
-  so the bell rings the way every other alert does.
+  so it rings the way every other alert does — the
+  same alert the story's "Alert me" door sets.
 ==================================================
 */
 
 import { useSyncExternalStore } from 'react';
 import { armNews, getAlerts, removeAlert } from '../components/gex/alertStore';
 import { DEFAULT_BOARD_NAMES } from './boardNames';
-import { syncAcrossTabs } from './crossTab';
 
 const KEY = 'slayer_news_follows';
 
@@ -57,14 +60,6 @@ function load(): NewsFollow[] {
 
 let current: NewsFollow[] = load();
 const listeners = new Set<() => void>();
-/* ANOTHER TAB'S WRITE IS THIS TAB'S NEWS (data/crossTab.ts). The store
-   above reads storage once and writes the whole object back, so without
-   this a second tab silently overwrites the first one's work. */
-syncAcrossTabs(KEY, () => {
-  current = load();
-  for (const l of listeners) l();
-});
-
 const commit = (next: NewsFollow[]) => {
   current = next;
   try {
@@ -98,7 +93,7 @@ export function unfollowName(symbol: string): void {
   commit(current.filter(f => f.ticker !== t));
 }
 
-/** The bell for a name — on arms the shell's news alert, off disarms it */
+/** The bell for a name — on arms the shell's news alert, off takes it down */
 export function setFollowAlerts(symbol: string, on: boolean): void {
   const t = symbol.trim().toUpperCase();
   if (on) armNews(t, Date.now());

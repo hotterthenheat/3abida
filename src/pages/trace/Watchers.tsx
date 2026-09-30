@@ -30,8 +30,7 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -54,9 +53,6 @@ import BookDrill from '../../components/trace/BookDrill';
 import ContractCell from '../../components/trace/ContractCell';
 import { earnMarks, weightInk } from '../../components/trace/earnedInk';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
-import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
-import { useExpiryCut } from '../../components/trace/bookExpiry';
-import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import ReasonDoor from '../../components/trace/ReasonDoor';
 import ReadDoor from '../../components/trace/ReadDoor';
@@ -69,8 +65,8 @@ const num = (v: number) => v.toLocaleString('en-US');
 /* THE CARDS (the walk, 2026-09-09) */
 const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'ALL', label: 'Both', hint: 'Calls and puts' },
-  { value: 'C', label: 'Calls', hint: 'Calls only' },
-  { value: 'P', label: 'Puts', hint: 'Puts only' },
+  { value: 'C', label: 'Calls', hint: 'Calls only', tone: 'bull' },
+  { value: 'P', label: 'Puts', hint: 'Puts only', tone: 'bear' },
 ];
 const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, clip: 118, clipprem: 92, sideCol: 64, otm: 76, earn: 84 };
 const FLEXES: Record<string, number> = { reason: 3 };
@@ -103,6 +99,8 @@ const Watchers = () => {
   const [side, setSide] = useState<'ALL' | 'C' | 'P'>('ALL');
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  /* the field answers first; the grid's cut follows as a lower-priority render (the book, OptionsScreener, 2026-09-20) */
+  const cutQuery = useDeferredValue(query);
   const [guideOpen, setGuideOpen] = useState(false);
   const myReasons = useReasons();
 
@@ -113,10 +111,7 @@ const Watchers = () => {
   );
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book: heldBook, tick } = hold.value;
-  /* THE EXPIRY CUT (2026-09-12): the watchers run over the cut book */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
-  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
+  const { book, tick } = hold.value;
   const keyOf = useCallback((a: { id: string }) => a.id, []);
   const openRow = useCallback((a: { row: { key: string } }) => setOpenKey(a.row.key), []);
   const catches = useMemo(() => buildCatches(book, myReasons), [book, myReasons]);
@@ -142,14 +137,14 @@ const Watchers = () => {
   }, [rule, reasonOf]);
 
   const rows = useMemo(() => {
-    const nq = normSymbol(query);
+    const nq = normSymbol(cutQuery);
     return catches.filter(
       a =>
         (rule === 'ALL' || a.rule === rule) &&
         (side === 'ALL' || a.row.right === side) &&
         (nq === '' || normSymbol(`${a.row.ticker}${a.row.strike}${a.row.right}`).includes(nq))
     );
-  }, [catches, rule, side, query]);
+  }, [catches, rule, side, cutQuery]);
   /* every row — the grid draws only what is on screen */
   const shown = rows;
 
@@ -189,8 +184,9 @@ const Watchers = () => {
     return latest && !base.some(r => r.key === latest.row.key) ? [latest.row, ...base] : base;
   }, [shown, catches]);
 
-  /* ReactNode, not a string: the newest contract is a DOOR — the same white
-     underline the tables wear, opening the same card (Noah, 2026-08-30). */
+  /* ReactNode, not a string: the newest contract is a DOOR — the same silver
+     hover the tables wear, opening the same card (Noah, 2026-08-30; the line
+     under it gone 2026-09-16). */
   const read = useMemo<ReactNode>(() => {
     if (catches.length === 0) return <RichRead text="Nothing flagged yet today — the desk is watching." />;
     const byRule = new Map<string, number>();
@@ -250,7 +246,7 @@ const Watchers = () => {
         render: a => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={contractKey(a.row)} make={() => watchContract(a.row, 'watchers')} />
-            <span className="text-[11px] text-textPrimary">{a.time}</span>
+            <span className="text-[11px] text-textSecondary">{a.time}</span>
           </span>
         ),
       },
@@ -288,7 +284,7 @@ const Watchers = () => {
            leads with the handle you gave it. Shape says whose, hue says which. */
         render: a => {
           const meta = reasonOf(a.rule);
-          if (!meta) return <span className="text-textSecondary">—</span>;
+          if (!meta) return <span className="text-textMuted">—</span>;
           return (
             <span
               className="inline-flex items-center gap-1.5 text-[11px] text-textPrimary"
@@ -362,7 +358,7 @@ const Watchers = () => {
         align: 'right',
         sortValue: a => a.row.volOverOI,
         render: a => (
-          <span className={a.row.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
+          <span className={a.row.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>
             {a.row.volOverOI.toFixed(2)}
           </span>
         ),
@@ -373,7 +369,7 @@ const Watchers = () => {
         align: 'right',
         sortValue: a => a.row.otmPct,
         render: a => (
-          <span className="text-textPrimary">
+          <span className="text-textSecondary">
             {a.row.otmPct >= 0 ? '+' : ''}
             {a.row.otmPct.toFixed(1)}%
           </span>
@@ -386,9 +382,9 @@ const Watchers = () => {
         sortValue: a => a.row.earnDays ?? 999,
         render: a =>
           a.row.earnDays == null ? (
-            <span className="text-textSecondary">—</span>
+            <span className="text-textMuted">—</span>
           ) : (
-            <span className={a.row.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>
+            <span className={a.row.earnDays <= 5 ? 'text-warn' : 'text-textSecondary'}>
               {a.row.earnDays === 0 ? 'today' : `in ${a.row.earnDays}d`}
             </span>
           ),
@@ -428,21 +424,21 @@ const Watchers = () => {
         title="The desk watching the tape"
         sub={activeRule ? `${activeRule.label} — ${activeRule.phrase} · newest first · a row opens the contract's card` : "Every reason a contract is flagged — the desk's and yours, newest first · a row opens the contract's card"}
         testId="watchers"
-        data={{ rule, rows: rows.length, expiry: expiry ?? 'all' }}
+        data={{ rule, rows: rows.length }}
         guide={{ title: 'How to read the watchers', door: 'What a reason, the print and the side mean', body: <WatchersGuide />, testId: 'watchers-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Caught today" testId="caught">
               {num(facts.total)}
               {facts.loudName && (
-                <span className="text-textSecondary">
+                <span className="text-textMuted">
                   {' '}
                   · {facts.loudCount} {facts.loudName.toLowerCase()}
                 </span>
               )}
             </Fact>
             <Fact label="From your reasons" testId="mine">
-              <span className={facts.mine > 0 ? 'text-textPrimary' : 'text-textSecondary'}>{facts.mine}</span>
+              <span className={facts.mine > 0 ? 'text-textPrimary' : 'text-textMuted'}>{facts.mine}</span>
             </Fact>
             {champs.ask && champs.ask !== champs.all && (
               <Champion label="Top ask" ink="bull" onOpen={() => setOpenKey(champs.ask!.row.key)} testId="top-ask">
@@ -467,7 +463,6 @@ const Watchers = () => {
             <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="contracts" />
             <DropdownSelect label="Reason" value={rule} options={reasonOptions} onChange={setRule} title="Which watcher's catches" testId="watchers-reason" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="watchers-side" />
-            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="watchers-expiry" />
             <ReasonDoor book={book} />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
@@ -476,7 +471,7 @@ const Watchers = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedId} autoHeight emptyText="Nothing flagged yet" emptyBody="The desk is watching — a clip that clears the bar lands here the moment it prints." testId="watchers" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedId} autoHeight emptyText="Nothing flagged yet today — the desk is watching" testId="watchers" />
       </TraceBox>
 
       <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} clipFor={clipFor} tick={tick} />

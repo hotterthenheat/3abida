@@ -2,6 +2,7 @@ import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISerie
 import { fmtElapsed, measureSpan } from '../../data/measure';
 import { fmtDistance, type DistanceScales } from '../../data/atr';
 import { getDistanceUnit } from '../../data/distanceUnits';
+import { avwapSeries, defaultStop, handlePoints, hitKind, renderKind, type KindBar, type KindHit, type KindRender } from './drawingKinds';
 
 /*
   User drawings layer — trendlines and horizontal levels, sketched directly on
@@ -55,7 +56,24 @@ import { getDistanceUnit } from '../../data/distanceUnits';
 */
 export type DrawingKind =
   | 'trend' | 'hline' | 'measure' | 'rect' | 'channel' | 'fib' | 'note'
-  | 'vline' | 'extend' | 'arrow' | 'curve' | 'ellipse' | 'path';
+  | 'vline' | 'extend' | 'arrow' | 'curve' | 'ellipse' | 'path'
+  /* THE EVERYDAY SET (Noah, 2026-09-19, TradingView's drawing panels: "build it, rail plus the everyday tools") — twenty-one
+     more, drawn and hit in drawingKinds.ts. `ray` is back among them: it was retired on 2026-08-29 ("get rid of ray as a
+     whole"), and it returns because it was named in the list he approved — one row in a family's list now, not a button. */
+  | 'ray' | 'hray' | 'cross'
+  | 'fibext' | 'fibchannel'
+  | 'long' | 'short' | 'prange' | 'drange' | 'avwap'
+  | 'triangle' | 'circle' | 'rotrect' | 'polyline' | 'brush' | 'highlighter' | 'arrowup' | 'arrowdown'
+  | 'text' | 'callout' | 'pricelabel';
+
+/** HOW A KIND IS MADE — the gesture reads this rather than a list of its own, the same way the validator reads the shape:
+      click     one press places it (a level, a stamp, an anchored VWAP)
+      words     one press, then its words are typed
+      drag      two anchors: press-drag-release, or click-move-click; a `p3` kind then takes its third on the next press
+      dragWords two anchors, then its words (the callout: what it points at, then where it sits)
+      clicks    a press per point, sealed by a double-click
+      free      the pointer's own path while it is held down */
+export type DrawGesture = 'click' | 'words' | 'drag' | 'dragWords' | 'clicks' | 'free';
 
 /*
   AND THE PATH MAKES FOURTEEN (Noah, 2026-08-29: "it keeps plotting points
@@ -84,24 +102,54 @@ export type DrawingKind =
           nothing, and it would render as a bare square nobody can read.
 */
 const KIND_SHAPE = {
-  trend: { p2: true, p3: false, text: false },
-  hline: { p2: false, p3: false, text: false },
-  measure: { p2: true, p3: false, text: false },
-  rect: { p2: true, p3: false, text: false },
-  channel: { p2: true, p3: true, text: false },
-  fib: { p2: true, p3: false, text: false },
-  note: { p2: false, p3: false, text: true },
+  trend: { p2: true, p3: false, text: false, g: 'drag' },
+  hline: { p2: false, p3: false, text: false, g: 'click' },
+  measure: { p2: true, p3: false, text: false, g: 'drag' },
+  rect: { p2: true, p3: false, text: false, g: 'drag' },
+  channel: { p2: true, p3: true, text: false, g: 'drag' },
+  fib: { p2: true, p3: false, text: false, g: 'drag' },
+  note: { p2: false, p3: false, text: true, g: 'words' },
   /* vline anchors to a TIME; the point's price rides along unused so the
      store keeps one point shape for every kind. */
-  vline: { p2: false, p3: false, text: false },
-  extend: { p2: true, p3: false, text: false },
-  arrow: { p2: true, p3: false, text: false },
-  curve: { p2: true, p3: true, text: false },
-  ellipse: { p2: true, p3: false, text: false },
+  vline: { p2: false, p3: false, text: false, g: 'click' },
+  extend: { p2: true, p3: false, text: false, g: 'drag' },
+  arrow: { p2: true, p3: false, text: false, g: 'drag' },
+  curve: { p2: true, p3: true, text: false, g: 'drag' },
+  ellipse: { p2: true, p3: false, text: false, g: 'drag' },
   /* The path's real shape is `pts` — the validator checks that array in its
      own branch, since one boolean cannot say "two or more". */
-  path: { p2: false, p3: false, text: false },
-} as const satisfies Record<DrawingKind, { p2: boolean; p3: boolean; text: boolean }>;
+  path: { p2: false, p3: false, text: false, g: 'clicks' },
+  ray: { p2: true, p3: false, text: false, g: 'drag' },
+  hray: { p2: false, p3: false, text: false, g: 'click' },
+  cross: { p2: false, p3: false, text: false, g: 'click' },
+  fibext: { p2: true, p3: true, text: false, g: 'drag' },
+  fibchannel: { p2: true, p3: true, text: false, g: 'drag' },
+  /* a position's stop is a third anchor it is BORN with (two to one), not one the gesture asks for — see normalise */
+  long: { p2: true, p3: false, text: false, g: 'drag' },
+  short: { p2: true, p3: false, text: false, g: 'drag' },
+  prange: { p2: true, p3: false, text: false, g: 'drag' },
+  drange: { p2: true, p3: false, text: false, g: 'drag' },
+  avwap: { p2: false, p3: false, text: false, g: 'click' },
+  triangle: { p2: true, p3: true, text: false, g: 'drag' },
+  circle: { p2: true, p3: false, text: false, g: 'drag' },
+  rotrect: { p2: true, p3: true, text: false, g: 'drag' },
+  polyline: { p2: false, p3: false, text: false, g: 'clicks' },
+  brush: { p2: false, p3: false, text: false, g: 'free' },
+  highlighter: { p2: false, p3: false, text: false, g: 'free' },
+  arrowup: { p2: false, p3: false, text: false, g: 'click' },
+  arrowdown: { p2: false, p3: false, text: false, g: 'click' },
+  text: { p2: false, p3: false, text: true, g: 'words' },
+  callout: { p2: true, p3: false, text: true, g: 'dragWords' },
+  pricelabel: { p2: false, p3: false, text: false, g: 'click' },
+} as const satisfies Record<DrawingKind, { p2: boolean; p3: boolean; text: boolean; g: DrawGesture }>;
+
+export const gestureOf = (kind: DrawingKind): DrawGesture => KIND_SHAPE[kind].g;
+/** The kinds whose geometry is `pts` — a run of points rather than p1 · p2 · p3 */
+export const usesPts = (kind: DrawingKind): boolean => KIND_SHAPE[kind].g === 'clicks' || KIND_SHAPE[kind].g === 'free';
+/** The pointer's own path: hundreds of points between bars, moved whole and never reshaped */
+export const isFreehand = (kind: DrawingKind): boolean => KIND_SHAPE[kind].g === 'free';
+/** The kinds whose 1–4 width is TYPE SIZE, and that have no line to dash */
+export const isWordsKind = (kind: DrawingKind): boolean => KIND_SHAPE[kind].text || kind === 'pricelabel';
 
 /**
  * Whether a kind's gesture owes a THIRD anchor after release — the channel's
@@ -138,7 +186,7 @@ export interface Drawing {
   style?: 'solid' | 'dashed' | 'dotted';
   /** A locked mark cannot be moved or reshaped until unlocked. */
   locked?: boolean;
-  /** The path's points, in click order (pts[0] === p1). Path kind only. */
+  /** The points of a run, in order (pts[0] === p1) — the path, the polyline, the brush, the highlighter (see usesPts). */
   pts?: DrawingPoint[];
 }
 
@@ -188,6 +236,7 @@ const labelFont = (vr: number, px = LABEL_PX) => `500 ${px * vr}px ui-monospace,
 
 /** The note's four type sizes — indexed by the mark's width field (1–4). */
 const NOTE_PX = [9, 11, 13.5, 16.5] as const;
+const typePx = (width?: number): number => NOTE_PX[(width ?? 2) - 1] ?? NOTE_PX[1];
 
 /** A rounded dark wash behind a printed label — the reason every number this
     layer writes stays readable over a candle. Falls back to square corners
@@ -337,7 +386,40 @@ class DrawingsPaneRenderer {
         });
       };
 
-      const render = (d: Drawing, alpha: number) => {
+      /* What drawingKinds.ts draws with — one object a paint, its per-mark fields rewritten before each mark */
+      const R: KindRender = {
+        ctx,
+        hr,
+        vr,
+        w,
+        h,
+        X: time => {
+          const x = src.timeToX(time);
+          return x === null ? null : x * hr;
+        },
+        XE: time => {
+          const x = src.timeToXExact(time);
+          return x === null ? null : x * hr;
+        },
+        Y: price => {
+          const y = series.priceToCoordinate(price);
+          return y === null ? null : y * vr;
+        },
+        ink: MARK,
+        textInk: MARK,
+        inked: false,
+        alpha: 1,
+        draft: false,
+        bars: src.bars,
+        barsRev: src.barsRev,
+        barMinutes: src.barMinutes,
+        font: px => labelFont(vr, px),
+        typePx,
+        wash: (x, y, bw, bh, r, fill, stroke) => wash(ctx, x, y, bw, bh, r, fill, stroke),
+        dot: (x, y) => dot(ctx, x, y, 2.2 * vr),
+      };
+
+      const render = (d: Drawing, alpha: number, draft = false) => {
         /* The mark's own voice, or the layer's defaults — resolved ONCE per
            mark so every stroke and label below speaks consistently. Width 2
            maps to the layer's original 1.4px stroke. */
@@ -350,6 +432,14 @@ class DrawingsPaneRenderer {
           d.style === 'dashed' ? [7 * hr, 5 * hr] : d.style === 'dotted' ? [1.5 * hr, 3.5 * hr] : []
         );
         ctx.lineCap = d.style === 'dotted' ? 'butt' : 'round';
+
+        /* The everyday set draws itself (drawingKinds.ts) — and answers false for the first thirteen, which draw below */
+        R.ink = ink;
+        R.textInk = textInk;
+        R.inked = hexRgb(d.color) !== null;
+        R.alpha = alpha;
+        R.draft = draft;
+        if (renderKind(d, R)) return;
 
         /* The moment-marker anchors to TIME alone — the one kind with no
            price in its geometry, drawn before the price lookup the rest
@@ -680,7 +770,7 @@ class DrawingsPaneRenderer {
       };
 
       for (let i = 0; i < src.drawings.length; i++) render(src.drawings[i], i === src.selected ? 1 : 0.8);
-      if (src.draft) render(src.draft, 0.45);
+      if (src.draft) render(src.draft, 0.45, true);
       ctx.setLineDash([]);
 
       /* The selected mark wears FULL-CIRCLE handles over its anchors (Noah,
@@ -703,10 +793,23 @@ class DrawingsPaneRenderer {
           ctx.strokeStyle = 'rgba(10,10,10,0.85)';
           ctx.stroke();
         };
-        handle(d.p1);
-        handle(d.p2);
-        handle(d.p3);
-        if (d.kind === 'path') d.pts?.forEach(q => handle(q));
+        /* a kind whose handles are not simply its stored anchors says so: the brush has none, the anchored VWAP's sits on its curve */
+        const own = handlePoints(d, R);
+        if (own) {
+          for (const [hx, hy] of own) {
+            ctx.beginPath();
+            ctx.arc(hx, hy, 4.5 * vr, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${MARK},1)`;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(10,10,10,0.85)';
+            ctx.stroke();
+          }
+        } else {
+          handle(d.p1);
+          handle(d.p2);
+          handle(d.p3);
+          if (usesPts(d.kind)) d.pts?.forEach(q => handle(q));
+        }
       }
     });
   }
@@ -742,6 +845,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** T-19's rulers for the measure's ATR/σ line — set by the host per
       ticker, null until measurable. */
   distanceScales: DistanceScales = { atr: null, sigma: null };
+  /** The bars themselves — the anchored VWAP is computed off them. `barsRev` moves whenever they do, and is what its cache is keyed on. */
+  bars: KindBar[] = [];
+  barsRev = 0;
   private _paneViews: DrawingsPaneView[];
 
   constructor() {
@@ -823,6 +929,89 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (li > n - 1) return this.barTimes[n - 1] + (li - (n - 1)) * this.barStep();
     if (li < 0) return this.barTimes[0] + li * this.barStep();
     return this.barTimes[li];
+  }
+
+  /* BETWEEN THE BARS. Every anchor snaps to the bar grid, which is what lets a mark survive a timeframe switch — but a brush
+     stroke is the pointer's own path, and snapped to bars it would be a staircase. The freehand kinds read and write the
+     grid with a FRACTION: a time part way from one bar to the next, which still lands sensibly on any other timeframe. */
+  private logicalExact(time: number): number | null {
+    const ts = this.barTimes;
+    const n = ts.length;
+    if (n === 0) return null;
+    const step = this.barStep();
+    if (time >= ts[n - 1]) return n - 1 + (time - ts[n - 1]) / step;
+    if (time <= ts[0]) return (time - ts[0]) / step;
+    let lo = 0;
+    let hi = n - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (ts[mid] <= time) lo = mid;
+      else hi = mid;
+    }
+    return lo + (time - ts[lo]) / (ts[hi] - ts[lo]);
+  }
+
+  private timeAtLogicalExact(logical: number): number | null {
+    const ts = this.barTimes;
+    const n = ts.length;
+    if (n === 0) return null;
+    const step = this.barStep();
+    if (logical >= n - 1) return ts[n - 1] + (logical - (n - 1)) * step;
+    if (logical <= 0) return ts[0] + logical * step;
+    const li = Math.floor(logical);
+    return ts[li] + (logical - li) * (ts[li + 1] - ts[li]);
+  }
+
+  timeToXExact(time: number): number | null {
+    const chart = this.chart;
+    const logical = this.logicalExact(time);
+    if (chart === null || logical === null) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return chart.timeScale().logicalToCoordinate(logical as any);
+  }
+
+  xToTimeExact(x: number): number | null {
+    const chart = this.chart;
+    if (!chart || this.barTimes.length === 0) return null;
+    const ts = chart.timeScale();
+    /* the library answers with a WHOLE bar (measured: a 120px stroke came back as 20 times, one a bar) — the fraction is
+       read off its own bar spacing: where that bar and the next one sit, and how far between them the pointer is */
+    const whole = ts.coordinateToLogical(x);
+    if (whole === null) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const x0 = ts.logicalToCoordinate(whole as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const x1 = ts.logicalToCoordinate((whole + 1) as any);
+    const spacing = x0 !== null && x1 !== null ? x1 - x0 : 0;
+    return this.timeAtLogicalExact(spacing > 0 && x0 !== null ? whole + (x - x0) / spacing : whole);
+  }
+
+  /** A time moved by `k` bars, keeping its place between them — how a freehand mark is dragged whole */
+  shiftTimeExact(time: number, k: number): number | null {
+    const logical = this.logicalExact(time);
+    return logical === null ? null : this.timeAtLogicalExact(logical + k);
+  }
+
+  setBars(bars: KindBar[]): void {
+    this.bars = bars;
+    this.barsRev += 1;
+    this.barTimes = bars.map(b => b.time);
+    this.requestUpdate?.();
+  }
+
+  /** A mark made whole — called on every commit and every edit, so what is stored is what is drawn:
+        a position   is born with its stop (two to one), and the stop rides the target's right edge
+        the VWAP     keeps its anchor ON its curve, so the handle and the hit agree with the line */
+  normalise(d: Drawing): Drawing {
+    if ((d.kind === 'long' || d.kind === 'short') && d.p2) {
+      const stop = d.p3 ? d.p3.price : defaultStop(d.p1.price, d.p2.price);
+      return { ...d, p3: { time: d.p2.time, price: stop } };
+    }
+    if (d.kind === 'avwap') {
+      const s = avwapSeries(this.bars, this.barsRev, d.p1.time);
+      if (s && s.v.length) return { ...d, p1: { time: this.bars[s.i0].time, price: s.v[0] } };
+    }
+    return d;
   }
 
   setBarMinutes(mins: number): void {
@@ -914,12 +1103,50 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     };
     const chart = this.chart;
     const wCss = chart ? chart.timeScale().width() : 4000;
+    /* What drawingKinds.ts hits with — the same geometry it draws with, in CSS px */
+    const H: KindHit = {
+      x,
+      y,
+      P: pt,
+      PE: p => {
+        if (!p) return null;
+        const px = this.timeToXExact(p.time);
+        const py = series.priceToCoordinate(p.price);
+        return px === null || py === null ? null : [px, py];
+      },
+      X: time => this.timeToX(time),
+      Y: price => series.priceToCoordinate(price),
+      w: wCss,
+      h: 4000,
+      distSeg,
+      BODY,
+      AXIS,
+      bars: this.bars,
+      barsRev: this.barsRev,
+      typePx,
+    };
 
     for (let i = this.drawings.length - 1; i >= 0; i--) {
       const d = this.drawings[i];
       const a1 = pt(d.p1);
       const a2 = pt(d.p2);
       const a3 = pt(d.p3);
+
+      /* THE FREEHAND KINDS have no anchors: hundreds of points, moved whole */
+      if (isFreehand(d.kind)) {
+        if (hitKind(d, H)) return { index: i, anchor: null };
+        continue;
+      }
+
+      if (d.kind === 'polyline' && d.pts && d.pts.length >= 2) {
+        const cs = d.pts.map(q => pt(q));
+        for (let k2 = 0; k2 < cs.length; k2++) {
+          const c = cs[k2];
+          if (c && Math.hypot(x - c[0], y - c[1]) <= ANCHOR) return { index: i, anchor: k2 };
+        }
+        if (hitKind(d, H)) return { index: i, anchor: null };
+        continue;
+      }
 
       if (d.kind === 'path' && d.pts && d.pts.length >= 2) {
         /* Every point is an anchor; every segment is body. */
@@ -950,6 +1177,12 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       if (d.kind === 'vline') {
         const px = this.timeToX(d.p1.time);
         if (px !== null && Math.abs(x - px) <= AXIS) return { index: i, anchor: null };
+        continue;
+      }
+      /* the everyday set answers for its own bodies; null means it is one of the first thirteen, tested below */
+      const own = hitKind(d, H);
+      if (own !== null) {
+        if (own) return { index: i, anchor: null };
         continue;
       }
       if (!a1) continue;
@@ -1060,7 +1293,7 @@ export function loadDrawings(ticker: string): Drawing[] {
       /* Trimmed, because a note of pure whitespace is the empty note wearing
          a length. */
       if (shape.text && !(typeof x.text === 'string' && x.text.trim().length > 0)) return false;
-      if (x.kind === 'path') {
+      if (usesPts(x.kind)) {
         if (!Array.isArray(x.pts) || x.pts.length < 2) return false;
         if (x.pts.some(q => typeof q?.price !== 'number' || typeof q?.time !== 'number')) return false;
       }

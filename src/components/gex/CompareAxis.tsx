@@ -44,24 +44,24 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
 import { fmtDollars } from '../../data/ahead';
 import { GREEK_LABEL, GREEK_WORDS, REACH_OPTIONS, type Compare, type Greek, type Reach } from '../../data/compare';
-import CompanyLogo from '../ui/CompanyLogo';
 import DropdownMulti from '../ui/DropdownMulti';
 import { GREEK_PICK_OPTIONS } from './exposureView';
 import type { DistanceUnit } from '../../data/atr';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
+import ExpiryCard, { type ExpiryChoice } from '../ui/ExpiryCard';
 import { GuideDoor } from '../ui/GuideFocus';
 import { HEAT_MODE, heatLaneInks } from './heatmap';
 import { ladderExpiryOptions } from './ladderControls';
 import type { ExposureExpiry } from '../../types/gex';
 import RulerLane, { inView, layout, rulerWords, tickWords, type NodeCard } from './CompareRuler';
+import { useResolvedTheme } from '../../theme/theme';
 import { AXIS_H, AXIS_HEADS_H, AXIS_READ_H } from './compareSkeletons';
-import { Name } from '../ui/Name';
 
 /** The thermal ramp's two voices, for the words that name them */
 /* THE HEAD'S OTHER CARDS (Noah, 2026-09-10: "is 'the two books on one ruler'
    missing some top buttons … the house color vs thermal color button"): the
    Map's Expiry card and the calendar's Colours card, the same words. */
-const EXPIRY_OPTIONS: DropdownOption<ExposureExpiry>[] = ladderExpiryOptions();
+const EXPIRY_OPTIONS: ExpiryChoice<ExposureExpiry>[] = ladderExpiryOptions();
 const PALETTE_OPTIONS: DropdownOption<'thermal' | 'house'>[] = [
   { value: 'thermal', label: 'Thermal', hint: 'Yellow in the middle, red where hedging amplifies a move, blue where it absorbs one' },
   { value: 'house', label: 'House', hint: 'Gold where hedging amplifies, ice where it absorbs' },
@@ -124,10 +124,14 @@ const heavierWords = (a: ReachSide, b: ReachSide, na: string, nb: string) => {
 };
 
 const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick, expiry, onExpiry, palette, onPalette, focusA, focusB, onPick, onGuide, guideOpen, full, onFull }: Props) => {
+  const paper = useResolvedTheme() === 'light';
   /* several lanes side by side, or the one drawing */
   const all = greeks.length > 1;
   /* the sub line's two inks follow the capsules' ramp */
-  const { pos: WARM, neg: COOL } = heatLaneInks(palette === 'house' ? HEAT_MODE : 'thermal-yellow', 0.72);
+  /* the two poles AS WORDS read the tokens (2026-09-16): on black they are the ramp's own inks at 0.72
+     (tokens.css says so); on paper the light set cuts them — read off the ramp they were 3.6:1 and 4:1 */
+  const WARM = palette === 'house' ? 'rgb(var(--ember))' : 'rgb(var(--thermal-warm))';
+  const COOL = palette === 'house' ? 'rgb(var(--glacier))' : 'rgb(var(--thermal-cool))';
   const greek: Greek = greeks[0] ?? 'gex';
   const greekKey = greeks.join(',');
   const words = GREEK_WORDS[greek];
@@ -141,6 +145,8 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
   const target = Math.max(-limit, Math.min(limit, want));
   const view = inView(lay, target);
   const scale = view.scale(greek);
+  /* the strikes in view too light for a capsule — ticks at the spine, counted in the lane heads */
+  const light = view.light(greek);
 
   /* THE NODE CARD (fullscreen): one open across the box, whichever lane it is
      on; a new pair of names, another greek or leaving fullscreen closes it,
@@ -186,7 +192,6 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
     return { up: heavierWords(aUp, bUp, cmp.a.ticker, cmp.b.ticker), down: heavierWords(aDn, bDn, cmp.a.ticker, cmp.b.ticker) };
   }, [lay, cmp.a.ticker, cmp.b.ticker]);
 
-  const off = `${cmp.a.ticker} ${view.off.a} · ${cmp.b.ticker} ${view.off.b}`;
   const laneProps = { cmp, unit, reach, want, onWant: setWant, focusA, focusB, onPick, card, onCard: full ? setCard : undefined, palette };
 
   return (
@@ -205,31 +210,21 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
             {all ? (
-              <>Each strike at its distance from its own spot · <Name t={cmp.a.ticker} size={10} /> grows left, <Name t={cmp.b.ticker} size={10} /> right · one lane per greek, one window for all {greeks.length} · dashed is each flip</>
+              <>Each strike at its distance from its own spot · {cmp.a.ticker} grows left, {cmp.b.ticker} right · one lane per greek, one window for all {greeks.length} · dashed is each flip</>
             ) : (
               <>
-                Each strike at its distance from its own spot · <Name t={cmp.a.ticker} size={10} /> grows left, <Name t={cmp.b.ticker} size={10} /> right · longer is more {GREEK_LABEL[greek]} · <span style={{ color: COOL }}>{palette === 'house' ? 'ice' : 'blue'}</span> {words.neg}, <span style={{ color: WARM }}>{palette === 'house' ? 'gold' : 'orange'}</span> {words.pos} · dashed is each flip
+                Each strike at its distance from its own spot · {cmp.a.ticker} grows left, {cmp.b.ticker} right · longer is more {GREEK_LABEL[greek]} · <span style={{ color: COOL }}>{palette === 'house' ? 'ice' : 'blue'}</span> {words.neg}, <span style={{ color: WARM }}>{palette === 'house' ? 'gold' : 'orange'}</span> {words.pos} · dashed is each flip
               </>
             )}
           </p>
         </div>
-        <dl className="grid grid-cols-5 gap-x-6">
-          <div>
-            <dt className="text-[10px] text-textMuted">Ruler</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" title={unit === '$' ? 'Dollars do not compare across names, so the ruler reads percent here' : undefined}>
-              {lay.U === '%' ? (unit === '$' ? 'percent, not dollars' : 'percent') : lay.U === 'ATR' ? 'ATRs' : 'expected moves'}
-            </dd>
-          </div>
+        {/* THREE FACTS, not five (2026-09-29): what the ruler is in, and how many strikes lie beyond it, moved down to the
+            lane heads and the controls line — the head had more chrome than drawing */}
+        <dl className="grid grid-cols-3 gap-x-6">
           <div>
             <dt className="text-[10px] text-textMuted">Shown</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-axis-shown>
               {Math.abs(target) < 1e-6 ? `±${tickWords(lay.R, lay.U).replace(/^[+−]/, '')}` : `${tickWords(target - lay.R, lay.U)} to ${tickWords(target + lay.R, lay.U)}`}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] text-textMuted">Off the ruler</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textSecondary whitespace-nowrap" data-axis-off>
-              {off}
             </dd>
           </div>
           {/* WHO IS HEAVIER within reach, above spot and below it — the comparison the four rows used to say */}
@@ -265,11 +260,14 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
 
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap shrink-0" data-axis-controls>
-        <DropdownSelect label="Expiry" value={expiry} options={EXPIRY_OPTIONS} onChange={onExpiry} title="Which contracts both books weigh" testId="compare-expiry" />
+        <ExpiryCard label="Expiry" value={expiry} choices={EXPIRY_OPTIONS} onChange={onExpiry} title="Which contracts both books weigh" testId="compare-expiry" />
         <DropdownSelect label="Reach" value={reach} options={REACH_OPTIONS} onChange={onReach} title="How far the ruler runs, in the day's expected moves" testId="reach" />
         <DropdownMulti label="Greek" values={greekPick} groups={greekGroups} onChange={onGreekPick} emptyWord="All" title="One, some, or all five — a lane each, on one ruler" testId="compare-greek" align="start" />
         <DropdownSelect label="Colours" value={palette} options={PALETTE_OPTIONS} onChange={onPalette} title="What the colours mean" testId="compare-colours" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap">{rulerWords(lay.U)}</span>
+        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" title={unit === '$' ? 'Dollars do not compare across names, so the ruler reads percent here' : undefined} data-axis-ruler-words>
+          {rulerWords(lay.U)}
+          {lay.U === '%' && unit === '$' ? ' · not dollars' : ''}
+        </span>
       </div>
 
       {all ? (
@@ -282,7 +280,7 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
           data-axis-all
         >
           {greeks.map(g => (
-            <div key={g} data-theme="dark" className="min-w-0 min-h-0 flex flex-col border border-borderSubtle/60 rounded-md overflow-hidden bg-panel" data-axis-lane-box={g}>
+            <div key={g} data-theme={paper ? 'light' : 'dark'} className={`min-w-0 min-h-0 flex flex-col border border-borderSubtle/60 rounded-md overflow-hidden ${paper ? 'bg-inset' : 'bg-panel'}`} data-axis-lane-box={g}>
               <RulerLane {...laneProps} greek={g} compact />
             </div>
           ))}
@@ -290,22 +288,27 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
       ) : (
         <>
           {/* THE LANE HEADS */}
-          <div className="px-5 flex items-center justify-between font-mono text-[10px] tnum shrink-0" style={{ height: AXIS_HEADS_H }} data-axis-heads>
-            <span className="text-textSecondary inline-flex items-center gap-1.5">
-              <CompanyLogo ticker={cmp.a.ticker} size={13} />
-              <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> · {cmp.a.spot.toFixed(2)} · <span className="text-textSecondary">scaled to {fmtDollars(scale.a)} {GREEK_LABEL[greek]}</span>
+          {/* THE LANE HEADS — each name at its own end: the name, its spot, what its longest capsule is, what lies beyond
+              the ruler and what is too light to draw (one line each; the caption that stood between them is gone) */}
+          <div className="px-5 flex items-center justify-between gap-4 font-mono text-[10px] tnum shrink-0 whitespace-nowrap" style={{ height: AXIS_HEADS_H }} data-axis-heads>
+            <span className="min-w-0 truncate text-textSecondary" data-axis-head="a">
+              <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> · {cmp.a.spot.toFixed(2)} · <span className="text-textMuted">longest capsule {fmtDollars(scale.a)} {GREEK_LABEL[greek]}</span>
+              {view.off.a > 0 && <span className="text-textMuted"> · {view.off.a} beyond the ruler</span>}
+              {light.a > 0 && <span className="text-textMuted" data-axis-light="a"> · {light.a} too light, as ticks</span>}
             </span>
-            <span className="text-[9px] uppercase tracking-widest text-textMuted">longest capsule = each name's heaviest {GREEK_LABEL[greek]} strike shown</span>
-            <span className="text-textSecondary inline-flex items-center gap-1.5">
-              <span className="text-textSecondary">scaled to {fmtDollars(scale.b)} {GREEK_LABEL[greek]}</span> · {cmp.b.spot.toFixed(2)} · <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
-              <CompanyLogo ticker={cmp.b.ticker} size={13} />
+            <span className="min-w-0 truncate text-right text-textSecondary" data-axis-head="b">
+              {light.b > 0 && <span className="text-textMuted" data-axis-light="b">{light.b} too light, as ticks · </span>}
+              {view.off.b > 0 && <span className="text-textMuted">{view.off.b} beyond the ruler · </span>}
+              <span className="text-textMuted">longest capsule {fmtDollars(scale.b)} {GREEK_LABEL[greek]}</span> · {cmp.b.spot.toFixed(2)} · <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
             </span>
           </div>
 
           {/* THE DRAWING — a fixed height on the page, the rest of the screen in fullscreen */}
-          {/* A DARK ISLAND on either theme — the capsules wear the heat ramp, cut for a
-              dark ground (Noah, 2026-09-12: "these ladders need gray or black as the background") */}
-          <div data-theme="dark" className={`bg-panel ${full ? 'flex-1 min-h-0 flex flex-col' : 'shrink-0 rounded-md'}`} data-ruler-island>
+          {/* A DARK ISLAND on the dark terminal — the capsules wear the heat ramp, cut for a dark ground (Noah, 2026-09-12:
+              "these ladders need gray or black as the background"). ON PAPER it is part of the page since 2026-09-19: the
+              soft inset grey between two hairlines, and the canvas draws with its paper inks — every capsule edged, which is
+              what the dark ground was doing for the ramp's pale end (CompareRuler.tsx PAPER_INKS) */}
+          <div data-theme={paper ? 'light' : 'dark'} className={`${paper ? 'bg-inset border-y border-borderSubtle' : 'bg-panel'} ${full ? 'flex-1 min-h-0 flex flex-col' : 'shrink-0 rounded-md'}`} data-ruler-island>
             <RulerLane {...laneProps} greek={greek} height={full ? undefined : AXIS_H} />
           </div>
 

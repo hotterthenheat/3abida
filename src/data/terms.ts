@@ -67,6 +67,9 @@ export const TERMS = {
   Supreme: 'The single largest gamma strike on the whole book — the level that matters most today.',
   // ---- the Map's profile panel ----
   'Size at a strike': 'How much dealer hedging sits at this one strike. The longer the capsule, the more. Blue pushes back against a move here; orange pushes it along.',
+  'Net at a strike': 'The puts less the calls at this one strike, as a figure and a row of dashes — one dash per tenth of the largest net on screen. Orange, puts lead and hedging amplifies a move here; blue, calls lead and it absorbs one.',
+  'The wall now':
+    'How much dealer hedging sits at this strike right now, in dollars — the stock dealers must trade for a 1% move because of the options open there (the strike’s net gamma exposure). The bar is that against the biggest wall shown; the figure beside it is the amount, and “was” is what the same contracts were worth at the open.',
   'What a move forces':
     'What dealers would have to buy or sell for price to get from here to this strike, adding up every strike crossed on the way. Orange speeds the move up; blue slows it down. Always from gamma: the size lane can show delta or vega, but only gamma turns a price move into forced buying or selling.',
   // ---- contracts driving the setup ----
@@ -123,8 +126,6 @@ export const TERMS = {
     'The dollars of stock dealers must trade to stay hedged as price crosses the gamma between here and there. Positive is buying. It assumes continuous hedging at the modelled dealer sign \u2014 real desks hedge in bands.',
   'Air pocket':
     'A run of strikes between two shelves with almost no dealer gamma in them. A wall says where price stops; this says where it does NOT \u2014 there is no hedging flow in the gap to slow anything down, which is why price can cross it in seconds.',
-  'Wall conviction':
-    'How much the level deserves to be leaned on: how far it dominates the runner-up shelf on its side, how many sessions it has held the title, and how it has been tested today. A 2.4\u00d7 shelf unbroken for four days and a marginal winner look identical on a map \u2014 they are not the same object.',
   'Expiry ladder':
     'The same strikes read through each expiry at once. A wall built almost entirely of 0DTE gamma disappears at the bell; one spread across dated expiries is real structure that will still be there tomorrow \u2014 the same level on screen, opposite trades.',
   'Event markers':
@@ -174,17 +175,6 @@ export const TERMS = {
     'Drag across the tape for the move it covers: dollars, percent, bars, elapsed, and the same move stated at an annual rate so it can be read against implied volatility.',
   Annualized:
     'A move restated as the yearly rate it implies, so a 20-minute move and a two-day one can be compared — and both compared against implied volatility, which is quoted the same way. Measured in trading time, so a weekend does not count against it.',
-  MAE: 'Maximum adverse excursion — the deepest a position was ever under while it was open, in dollars. A winner with a heavy MAE was nearly a loser; a stop placed inside it would have taken you out of a trade that worked.',
-  MFE: 'Maximum favourable excursion — the most a position was ever worth while it was open. The gap between it and what was realised is what was handed back, and it is the figure that says whether the exit, not the entry, is the problem.',
-  // ---- the market's own read (the tide) ----
-  Advancers:
-    'How many names in the sector closed the count up against how many are in it. An average says a sector moved; this says whether it moved TOGETHER \u2014 a +1% sector on three of ten names is one stock, not a rotation.',
-  Breadth:
-    'How much of the market is taking part. An index can close green on four names while three hundred fall, and the index says green either way \u2014 the advance/decline count is what tells the two apart.',
-  'A/D':
-    'Advancers divided by decliners. Above 1, more names are up than down; under 0.5 the tape is falling apart underneath whatever the index is doing.',
-  'Fear gauge':
-    'What insurance on the S&P costs, as an annualised percent. It rises when the tape falls, so it is drawn green when it FALLS \u2014 cheaper insurance is the good news.',
 } as const;
 
 export type TermKey = keyof typeof TERMS;

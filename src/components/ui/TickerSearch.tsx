@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import type { TickerListing } from '../../data/tickers';
-import CompanyLogo from './CompanyLogo';
 
 type TickerModule = typeof import('../../data/tickers');
 
@@ -72,7 +71,6 @@ const TickerSearch = ({ value, onChange }: TickerSearchProps) => {
         className="flex items-center gap-2 border border-borderSubtle hover:border-borderMuted bg-panel rounded-md pl-2.5 pr-2 py-1.5 font-mono text-xs transition-colors min-w-[104px]"
       >
         <Search className="w-3.5 h-3.5 text-textMuted" />
-        <CompanyLogo ticker={value} size={14} />
         <span className="font-semibold text-textPrimary">{value}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-textMuted ml-auto transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -107,9 +105,8 @@ const TickerSearch = ({ value, onChange }: TickerSearchProps) => {
                     i === highlight ? 'bg-ink/[0.05]' : ''
                   }`}
                 >
-                  <CompanyLogo ticker={t.symbol} size={16} />
                   <span
-                    className={`font-mono text-xs font-semibold w-14 shrink-0 ${
+                    className={`font-mono text-xs font-semibold w-16 shrink-0 ${
                       t.symbol === value ? 'text-silver' : 'text-textPrimary'
                     }`}
                   >

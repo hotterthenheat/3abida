@@ -239,16 +239,18 @@ export interface FlowScreen {
   label: string;
   /** Whispered under the chip row — what the cut means, in plain English */
   hint: string;
+  /** A screen that IS a side of the market wears it under the pointer in the Screen card (DropdownSelect's `tone`) */
+  tone?: 'bull' | 'bear';
 }
 
 export const FLOW_SCREENS: FlowScreen[] = [
   { key: 'active', label: 'Most active', hint: 'The whole book, heaviest volume first' },
-  { key: 'bullish', label: 'Unusually bullish', hint: 'Calls being bought and puts being sold, ranked by premium' },
-  { key: 'bearish', label: 'Unusually bearish', hint: 'Puts being bought and calls being sold, ranked by premium' },
+  { key: 'bullish', label: 'Unusually bullish', hint: 'Calls being bought and puts being sold, ranked by premium', tone: 'bull' },
+  { key: 'bearish', label: 'Unusually bearish', hint: 'Puts being bought and calls being sold, ranked by premium', tone: 'bear' },
   { key: 'fresh', label: 'New positioning', hint: 'Volume running past open interest — positions built today' },
-  { key: 'conviction-calls', label: 'Conviction calls', hint: 'Out-of-the-money calls with heavy sweep share' },
-  { key: 'conviction-puts', label: 'Conviction puts', hint: 'Out-of-the-money puts with heavy sweep share' },
-  { key: 'cheap', label: 'Cheap calls', hint: 'Low-priced out-of-the-money calls the crowd is trading' },
+  { key: 'conviction-calls', label: 'Conviction calls', hint: 'Out-of-the-money calls with heavy sweep share', tone: 'bull' },
+  { key: 'conviction-puts', label: 'Conviction puts', hint: 'Out-of-the-money puts with heavy sweep share', tone: 'bear' },
+  { key: 'cheap', label: 'Cheap calls', hint: 'Low-priced out-of-the-money calls the crowd is trading', tone: 'bull' },
   { key: 'long-term', label: 'Long-dated', hint: 'Three months out and beyond — patient money' },
 ];
 
@@ -724,7 +726,8 @@ export function segmentFilter(r: BookContract, seg: NetFlowSegment): boolean {
   return r.sector === seg.slice('sector:'.length) && !INDEX_FUNDS.has(r.ticker);
 }
 
-export function moneynessFilter(r: BookContract, m: MoneynessKey): boolean {
+/** A contract's or a print's place against the stock — both carry the same two fields */
+export function moneynessFilter(r: Pick<BookContract, 'otmPct' | 'right'>, m: MoneynessKey): boolean {
   if (m === 'all') return true;
   if (m === 'atm') return Math.abs(r.otmPct) <= 1;
   const itm = r.right === 'C' ? r.otmPct < 0 : r.otmPct > 0;
@@ -1091,14 +1094,12 @@ let leadersCache: { key: string; leaders: NetLeader[] } | null = null;
     timeline end the pane beside the board draws with, so both read the same
     instant of the same curve. Falls back to the wall clock only when no tape
     is on screen to borrow a clock from. */
-export function buildNetLeaders(rows: BookContract[], sampleTime?: number, scope = ''): NetLeader[] {
+export function buildNetLeaders(rows: BookContract[], sampleTime?: number): NetLeader[] {
   const day = dayKey();
   const nowSec = sampleTime ?? Math.floor(now().getTime() / 1000);
   const d0 = new Date(nowSec * 1000);
   const nowMin = d0.getHours() * 60 + d0.getMinutes();
-  /* `scope` names the cut the rows came through (an expiry, 2026-09-12) — the
-     same minute on a different cut is a different board */
-  const cacheKey = `${day}-${nowMin}-${scope}-${rows.length}`;
+  const cacheKey = `${day}-${nowMin}`;
   if (leadersCache?.key === cacheKey) return leadersCache.leaders;
 
   const byTicker = new Map<string, BookContract[]>();

@@ -9,11 +9,21 @@
 ==================================================
 */
 
+import type { Grade } from './stockOverview';
 import { dayKey, h01, hPick, hRange } from '../core/rng';
 import { now } from '../core/clock';
 import { UNIVERSE, lookup, type UniverseName } from './universe';
+import { storyBody } from './newsBody';
 
 export type NewsCategory = 'Earnings' | 'Guidance' | 'Analyst' | 'Macro' | 'M&A' | 'Product' | 'Regulatory';
+
+/* HOW SURE THE READ IS, SAID IN THE FOUR WORDS (Noah, 2026-09-19: "move the news page to the four words"). The figure
+   (`confidencePct`, 42–94) stays inside the engine — it may SORT the wire ("Most sure"), it never reaches a digit. The cuts
+   are this model's own lines, not borrowed ones:
+     poor      under 55 — the line `predict` itself draws: below it the playbook says "no trade on its own"
+     strong    from 80 — rare on purpose ("when its really great"): 2 of the 24 stories on the wire the day this was set
+     good      from 70 · caution between 55 and 70          (that day: 2 strong · 13 good · 9 caution · 0 poor) */
+export const gradeOfNewsConfidence = (pct: number): Grade => (pct >= 80 ? 'strong' : pct >= 70 ? 'good' : pct >= 55 ? 'caution' : 'poor');
 
 export interface NewsPrediction {
   /** Model P(ticker closes up next session), 0–100 */
@@ -40,6 +50,11 @@ export interface NewsItem {
   /** null = macro / index-level */
   ticker: string | null;
   headline: string;
+  /** THE STORY (2026-09-28): its paragraphs under the headline — the simulator's templated copy (data/newsBody.ts); at
+      launch the provider's opening paragraphs or summary */
+  body: string[];
+  /** Where the story ran, when the provider gives it — the "Read it at …" door; none in the simulator */
+  url?: string;
   category: NewsCategory;
   /** −1…+1 */
   sentiment: number;
@@ -392,6 +407,7 @@ export function buildNewsFeed(): NewsItem[] {
     const atMs = dayStartMs + releaseMin * 60000;
     const time = `${String(Math.floor(releaseMin / 60)).padStart(2, '0')}:${String(releaseMin % 60).padStart(2, '0')}`;
     const source = hPick(`${seed}-src`, SOURCES);
+    const weekday = new Date(dayStartMs).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' });
 
     if (h('theme') < THEME_SHARE) {
       /* A theme story: the day's roll picks where the list starts, the slot
@@ -409,6 +425,7 @@ export function buildNewsFeed(): NewsItem[] {
         source,
         ticker: t.ticker,
         headline: t.text,
+        body: storyBody({ category: t.category, sentiment, headline: t.text, source, name: u, weekday }, h),
         category: t.category,
         sentiment,
         magnitude,
@@ -426,6 +443,7 @@ export function buildNewsFeed(): NewsItem[] {
         source,
         ticker: null,
         headline: t.text,
+        body: storyBody({ category: 'Macro', sentiment, headline: t.text, source, weekday }, h),
         category: 'Macro',
         sentiment,
         magnitude,
@@ -444,6 +462,7 @@ export function buildNewsFeed(): NewsItem[] {
         source,
         ticker: u.ticker,
         headline: t.make(u, h),
+        body: storyBody({ category: t.category, sentiment, headline: t.make(u, h), source, name: u, weekday }, h),
         category: t.category,
         sentiment,
         magnitude,

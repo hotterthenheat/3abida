@@ -7,7 +7,7 @@
 */
 
 import { fmtUsd } from '../../data/gex';
-import CompanyLogo from '../ui/CompanyLogo';
+import { sinceOpenRead } from '../../data/levelview';
 import { GREEKS, GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposureSurface';
 import { BULL, LONG_GAMMA, PUT_WALL, SHORT_GAMMA } from './paletteInk';
 import type { SurfaceCell } from './exposureView';
@@ -23,8 +23,9 @@ interface ExposureReadoutProps {
 }
 
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const PUT_INK = '#F5C542';
-const CALL_INK = '#7ABDD7';
+/* the side inks as tokens (2026-09-16): the dark set IS #F5C542 / #7ABDD7; the light set cuts them for paper */
+const PUT_INK = 'rgb(var(--ember))';
+const CALL_INK = 'rgb(var(--glacier))';
 
 /** The net's ink per greek — gamma speaks regime, delta speaks direction, vega, vanna and charm stay plain. */
 export const netInk = (greek: Greek, v: number): string =>
@@ -35,8 +36,9 @@ const ExposureReadout = ({ surface, cell, depth, openRatio, caption }: ExposureR
   const ex = surface.expiries[cell.e];
   if (s < 0 || !ex) return null;
   const g = surface.net.gex[cell.e][s];
-  const ratio = cell.e === 0 ? openRatio?.get(cell.strike) : undefined;
-  const since = ratio != null && Number.isFinite(ratio) && ratio > 0 ? (1 / ratio - 1) * 100 : null;
+  /* the house's one since-open rule (data/levelview, 2026-09-16) — this line printed a raw
+     percent before, which on a strike balanced at the bell runs to nine digits */
+  const since = cell.e === 0 ? sinceOpenRead(openRatio?.get(cell.strike)) : null;
   const shown = Math.min(depth, surface.expiries.length);
   const acrossCalendar = (greek: Greek) => {
     let t = 0;
@@ -61,8 +63,7 @@ const ExposureReadout = ({ surface, cell, depth, openRatio, caption }: ExposureR
   return (
     <div className="flex flex-col gap-1 min-w-[280px]">
       <div className="flex items-baseline gap-2 font-mono">
-        <span className="text-[12px] font-bold text-textPrimary tnum inline-flex items-center gap-1.5">
-          <CompanyLogo ticker={surface.ticker} size={13} />
+        <span className="text-[12px] font-bold text-textPrimary tnum">
           {surface.ticker} {fmtStrike(cell.strike)}
         </span>
         <span className="text-[9px] uppercase tracking-widest text-textSecondary">
@@ -104,11 +105,11 @@ const ExposureReadout = ({ surface, cell, depth, openRatio, caption }: ExposureR
           })}
         </div>
       </div>
-      {since != null && (
+      {since && (
         <div className="pt-1 border-t border-borderSubtle/60 font-mono text-[9px] text-textMuted tnum">
           net gamma since the open:{' '}
-          <span className={since >= 0 ? 'text-textPrimary' : 'text-textSecondary'}>
-            {since >= 0 ? 'built' : 'bled'} {Math.abs(since).toFixed(0)}%
+          <span className={since.dir >= 0 ? 'text-textPrimary' : 'text-textSecondary'}>
+            {since.figure ? `${since.figure} · ${since.short}` : since.text}
           </span>
         </div>
       )}

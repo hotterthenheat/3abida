@@ -21,20 +21,22 @@
 
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import WeigherDesk from './weigher/WeigherDesk';
+import WeigherDesk, { type WeighRequest } from './weigher/WeigherDesk';
 
 const Weigher = () => {
   const location = useLocation();
 
-  /* Trace's print drilldown jumps here with a name to weigh. Read ONCE and
-     consumed from history, the Compass pattern — a refresh must not drag the
-     desk back to a name the user has since moved off. */
-  const [incoming, setIncoming] = useState<string | null>(null);
+  /* Trace's print drilldown jumps here with a name to weigh; the Record's
+     busiest rows with a CONTRACT (name · strike · side · expiry, 2026-09-12).
+     Read ONCE and consumed from history, the Compass pattern — a refresh must
+     not drag the desk back to a name the user has since moved off. The way
+     back (`wayBack`) is the shell's and stays in the state. */
+  const [incoming, setIncoming] = useState<WeighRequest | null>(null);
   useEffect(() => {
-    const state = location.state as { weigh?: { ticker: string } } | null;
+    const state = location.state as { weigh?: WeighRequest; wayBack?: string } | null;
     if (state?.weigh?.ticker) {
-      setIncoming(state.weigh.ticker);
-      window.history.replaceState({}, '');
+      setIncoming(state.weigh);
+      window.history.replaceState(state.wayBack ? { wayBack: state.wayBack } : {}, '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -43,7 +45,7 @@ const Weigher = () => {
     /* No PageHeader at all (Noah, 2026-08-30: "way too much space up top" —
        the Trace verdict again): the desk's own strip carries the identity,
        fused onto the same line as the session pill. */
-    <WeigherDesk incomingTicker={incoming} />
+    <WeigherDesk incoming={incoming} />
   );
 };
 

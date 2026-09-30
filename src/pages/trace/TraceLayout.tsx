@@ -28,11 +28,10 @@ import { useGlideHold } from '../../components/ui/useGlideHold';
 import { TRACE_SUBPAGES } from './subnav';
 
 /* The Live Tape carries its own ticker/contract search, the flow-book pages
-   sweep the whole universe, the Tracker lists the reader's marks across
-   every name with its own names-only search, and Compare carries two
-   pickers of its own — a single-ticker picker would mislead on all of them.
-   The Dark Pool reads one name, so it keeps the shell's picker. */
-const NO_PICKER = /^\/trace\/(live-tape|screener|net-flow|footprints|watchers|windows|odte|multi-leg|tracker|compare)/;
+   sweep the whole universe, and the Tracker lists the reader's marks across
+   every name with its own names-only search — a single-ticker picker would
+   mislead on all of them. */
+const NO_PICKER = /^\/trace\/(live-tape|dark-pool|screener|net-flow|footprints|watchers|windows|odte|multi-leg|compare|tracker)/;
 
 const TraceLayout = () => {
   const { activeTicker, changeTicker } = useMarketData();

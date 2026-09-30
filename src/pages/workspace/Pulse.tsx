@@ -37,9 +37,6 @@ import {
   type WidgetInstance,
 } from './desks';
 import type { MarketSnapshot } from '../../types/market';
-import { Name } from '../../components/ui/Name';
-import DataState from '../../components/ui/DataState';
-import ConfirmButton from '../../components/ui/ConfirmButton';
 
 /* THE DESK'S WIDTH, MEASURED BEFORE THE FIRST PAINT (Noah, 2026-09-12:
    "everytime i re-enter the page and the cards start sliding into their
@@ -533,7 +530,7 @@ const Pulse = () => {
          with the URL bar RETRACTED, so a chart sized to it hides its own
          price axis under the browser chrome on arrival. 3.5rem is the top
          bar, the same constant Terrain uses. */
-      <div className="-mx-4 -mt-5 -mb-16 flex h-[calc(100dvh-3.5rem)] flex-col">
+      <div className="-mx-4 -mt-5 -mb-16 flex h-[calc(100dvh-3rem)] flex-col">
         {pulsedCtx ? (
           <LiveChartWidget
             /* Remounts on a name change so the chart rebuilds cleanly rather
@@ -613,20 +610,14 @@ const Pulse = () => {
                       <span className={`w-1 h-1 rounded-full shrink-0 ${active === name ? 'bg-select' : 'bg-silver/50'}`} aria-hidden="true" />
                       {name}
                     </button>
-                    {/* THE SECOND CLICK (ui/ConfirmButton). A saved desk is an
-                        arrangement someone built; one click on a hover-revealed
-                        trash icon took it with nothing asked. Armed, the icon
-                        turns into the word — there is no mistaking it. */}
-                    <ConfirmButton
-                      onConfirm={() => deleteDesk(name)}
-                      confirm={`Delete ${name}?`}
-                      title={`Delete the ${name} desk`}
-                      testId={`desk-delete-${name}`}
-                      armedClassName="!opacity-100 !w-auto px-1.5 border border-bear/60 text-bear font-mono text-[9px] uppercase tracking-wider"
-                      className="w-4 h-4 inline-flex items-center justify-center rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:!text-bear"
+                    <button
+                      onClick={() => deleteDesk(name)}
+                      aria-label={`Delete the ${name} desk`}
+                      title="Delete this desk"
+                      className="w-4 h-4 inline-flex items-center justify-center rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:!text-bear transition-opacity"
                     >
                       <Trash2 className="w-3 h-3" />
-                    </ConfirmButton>
+                    </button>
                   </span>
                 ))}
               </span>
@@ -659,7 +650,7 @@ const Pulse = () => {
               type="submit"
               disabled={!newName.trim() || isPreset(newName.trim())}
               title={isPreset(newName.trim()) ? 'Preset names are reserved' : 'Save'}
-              className="p-1 rounded text-textSecondary hover:text-textPrimary transition-colors"
+              className="p-1 rounded text-textSecondary hover:text-textPrimary disabled:opacity-30 transition-colors"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
@@ -824,18 +815,13 @@ const Pulse = () => {
                         its own name. stopPropagation on mousedown so using
                         the picker never starts a panel drag. */}
                     <span className="ml-auto shrink-0 flex items-center gap-1.5" onMouseDown={e => e.stopPropagation()}>
-                      {/* A market-wide panel has no name to scope — offering
-                          to pin the indices to NVDA is a control that does
-                          nothing, which is worse than no control at all. */}
-                      {!def.marketWide && (
-                        <ScopeChip
-                          ticker={inst.ticker ?? activeTicker}
-                          linked={inst.ticker === undefined}
-                          onPick={pickFor(inst)}
-                          onToggleLink={() => toggleLink(inst)}
-                          quote
-                        />
-                      )}
+                      <ScopeChip
+                        ticker={inst.ticker ?? activeTicker}
+                        linked={inst.ticker === undefined}
+                        onPick={pickFor(inst)}
+                        onToggleLink={() => toggleLink(inst)}
+                        quote
+                      />
                       {(def.ownFull || def.page) && (
                         <button
                           onClick={() => (def.ownFull ? setFullReq({ id: inst.id, token: Date.now() }) : openPage(def.page!, inst))}
@@ -879,16 +865,9 @@ const Pulse = () => {
                           })}
                         </Deferred>
                       ) : (
-                        /* UNAVAILABLE, not empty (ui/DataState): the desk has
-                           no series for this name, which is not something a
-                           reader can fix by waiting or by widening anything. */
-                        <DataState
-                          kind="unavailable"
-                          className="h-full"
-                          pad="sm"
-                          title="No series"
-                          body={<>The desk carries nothing for {inst.ticker ? <Name t={inst.ticker} size={12} /> : 'this name'} — pick another.</>}
-                        />
+                        <span className="flex h-full items-center justify-center font-mono text-[10px] text-textMuted uppercase tracking-widest">
+                          No data for {inst.ticker}
+                        </span>
                       );
                     })()}
                   </div>

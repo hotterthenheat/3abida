@@ -12,15 +12,16 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { DOCK_ROOM } from '../../data/editorDock';
+import { readDeskPrefs } from '../../data/deskPrefs';
 import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import CompareControl from '../../components/gex/CompareControl';
-import { CANDLE_THEMES, chartSurface, useCandleThemeKey } from '../../components/gex/candleTheme';
+import { chartGround, useCandleThemeKey } from '../../components/gex/candleTheme';
 import StrikeChart, {
   DEFAULT_INDICATORS,
   DEFAULT_OVERLAYS,
@@ -36,7 +37,6 @@ import { buildLevelRead } from '../../data/levelview';
 const fmtFocus = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 import TickerQuickPick from '../../components/gex/TickerQuickPick';
 import SpotPrice from '../../components/gex/SpotPrice';
-import CompanyLogo from '../../components/ui/CompanyLogo';
 import { buildPrints } from '../../data/gex';
 import { buildExposureProfile } from '../../data/exposure';
 import StrikeExposureBand, { type BandMetric } from '../../components/gex/StrikeExposureBand';
@@ -73,7 +73,8 @@ export interface LiveChartWidgetProps {
 
 const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
   const { flowTape } = useMarketData();
-  const [timeframe, setTimeframe] = useState<Timeframe>('1m');
+  /* opens on the desk's timeframe when the reader set one (Settings › The desk) */
+  const [timeframe, setTimeframe] = useState<Timeframe>(() => readDeskPrefs().opensOn.timeframe ?? '1m');
   const [overlays, setOverlays] = useState<ChartOverlays>(DEFAULT_OVERLAYS);
   const [compares, setCompares] = useState<CompareEntry[]>([]);
   const [chartStyle, setChartStyle] = useState<ChartStyle>('candles');
@@ -120,14 +121,21 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
   const removeCompare = (t: string, mode: CompareMode) =>
     setCompares(cs => cs.filter(c => !(c.ticker === t && c.mode === mode)));
 
-  const themeKey = useCandleThemeKey();
-  const themeBg = chartSurface(CANDLE_THEMES[themeKey]).bg;
   /* Panel black, not inset — the desk widget's chrome is #0a0a0a, and a
      #070707 body against it read as a second shade (Noah, 2026-08-23:
-     "i see 2 different shades"). One black, header to tape. */
-  const surface = themeBg === 'transparent' ? 'rgb(var(--panel))' : themeBg;
-  /* The strip's 55% wash of that surface — the token cannot take a hex alpha suffix */
-  const strip = themeBg === 'transparent' ? 'rgb(var(--panel) / 0.55)' : `${themeBg}8C`;
+     "i see 2 different shades"). One black, header to tape. The tape paints
+     its own theme inside the chart; the strip and the legend over it wear
+     that theme's GROUND (Noah, 2026-09-13: "change the top section to match
+     the chart theme") — the tile stamps it, index.css re-scopes their tokens. */
+  const surface = 'rgb(var(--panel))';
+  const themeKey = useCandleThemeKey();
+  const ground = chartGround(themeKey);
+  /* The tile's body — the section its toolbar's menus stay inside (2026-09-13) */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  /* The strip's 55% wash of the chrome's panel — the strip carries data-chart-chrome, so the
+     token it reads is the ground's: black over a dark tape, stone over a light one. Under the
+     tape on a phone (soleChart) there is no tape behind it, so it goes opaque there. */
+  const strip = soleChart ? 'rgb(var(--panel))' : 'rgb(var(--panel) / 0.55)';
 
   // Dark-pool prints for the DP overlay. Deterministic per ticker and pinned to
   // it (PulseBoard's contract), so the lines don't wander with the 1s pulse —
@@ -219,10 +227,13 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
       and fullscreen keep the plain relative box the floating bar needs.
     */
     <div
+      ref={bodyRef}
       className={`relative h-full min-h-0 ${soleChart ? 'flex flex-col' : ''}`}
       style={{ background: surface }}
       /* A DARK ISLAND on any page (2026-09-12): the tape, its strip and its legend read the dark tokens */
       data-theme="dark"
+      /* …and the strip and the legend the ground of the tape's theme (2026-09-13) */
+      data-chart-ground={ground}
     >
       {/* Controls sit in the body, not the header — the header is the drag
           handle, and a click there would start dragging the panel. The 4-way
@@ -323,7 +334,11 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
         )}
         {/* Spread, the TradingView grammar: timeframes pinned left, every
             other control pushed to the right edge. */}
-        <div className="flex-1 min-w-0">
+        {/* ITS FLOOR IS ITS OWN ROW (the phone pass, 2026-09-13, the Weigher's
+            lesson): `min-w-0` let the phone strip squeeze this toolbar beside
+            the symbol capsule into a three-row pile; at its one-row width it
+            wraps under the capsule instead and spreads across that row. */}
+        <div className="flex-1 min-w-fit">
           <ChartToolbar
             minimal
             candles
@@ -331,10 +346,13 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
                put it past the bottom of a window that does not scroll. */
             menuSide={soleChart ? 'top' : 'bottom'}
             compact={soleChart}
-            /* `spread` shoves the right cluster to the far edge — meaningless
-               on a strip narrower than its own contents, where it only opens
-               a gap nobody can reach past. */
-            spread={!soleChart}
+            /* Docked, the menus are the small ones, and every menu stays inside the tile (Noah, 2026-09-13) */
+            dense={!full}
+            menuBounds={bodyRef}
+            /* `spread` shoves the right cluster to the far edge — on the phone
+               strip too, now that the toolbar has a row of its own there
+               (2026-09-13): the interval left, the cluster right. */
+            spread
             timeframe={timeframe}
             onTimeframe={setTimeframe}
             overlays={overlays}
@@ -427,7 +445,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
         <button
           onClick={() => setSuperFull(false)}
           title="Back to fullscreen — the toolbar returns (Esc); or reach the top edge for it"
-          className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-borderSubtle bg-canvas/40 backdrop-blur-[3px] font-mono text-[9px] uppercase tracking-widest text-textSecondary opacity-40 hover:opacity-100 hover:text-textPrimary transition-opacity"
+          className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[9px] uppercase tracking-widest text-textSecondary opacity-40 hover:opacity-100 hover:text-textPrimary transition-opacity"
           data-total-esc
         >
           Esc · the toolbar
@@ -464,8 +482,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
           }`}
           data-chart-chrome
         >
-          <div className="flex items-center gap-1.5">
-            <CompanyLogo ticker={ctx.ticker} size={14} />
+          <div className="flex items-baseline gap-1.5">
             <span className="text-[11px] font-semibold text-textPrimary">{ctx.ticker}</span>
             <span className="text-[10px] text-textMuted" aria-hidden>·</span>
             <span className="text-[10px] text-textMuted">{timeframe}</span>
@@ -480,7 +497,6 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
           {compares.map(c => (
             <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
               <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
-              <CompanyLogo ticker={c.ticker} size={12} />
               <span className="text-[10px] font-semibold" style={{ color: c.ink }}>
                 {c.ticker}
               </span>

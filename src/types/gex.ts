@@ -197,30 +197,6 @@ export interface KeyLevelRow {
   pressure: number;
 }
 
-export interface DeltaPoint {
-  /** Minutes into the session */
-  minute: number;
-  value: number;
-}
-
-export interface DeltaByPrice {
-  price: number;
-  /** Signed delta traded at this price bucket, dollars */
-  value: number;
-}
-
-export interface OrderFlowData {
-  cumulativeDelta: DeltaPoint[];
-  deltaByPrice: DeltaByPrice[];
-  buyVolume: number;
-  sellVolume: number;
-  /** Net delta over the session, dollars */
-  netDelta: number;
-  vwap: number;
-  /** Point of control — price bucket with the most traded volume */
-  poc: number;
-}
-
 export interface MarketNote {
   /** HH:MM:SS */
   time: string;
@@ -234,7 +210,6 @@ export interface PulseView {
   /** Max |pressure| across rows for bar scaling */
   pressureMaxAbs: number;
   keyLevels: KeyLevelRow[];
-  orderFlow: OrderFlowData;
   bias: DealerBias;
   biasNote: string;
 }

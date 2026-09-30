@@ -18,21 +18,14 @@ export interface ChooserColumn {
   group?: string;
 }
 
-/**
- * @param defaultHidden Columns a table opens CLOSED — the facts a compound
- *   cell already shows, which keep their own column only so a reader can sort
- *   by them. Applied on a first visit only: once the reader has opened one,
- *   the stored set is their answer and the default never argues with it.
- */
-export function useHiddenColumns(storageKey: string, defaultHidden?: string[]) {
+export function useHiddenColumns(storageKey: string) {
   const [hidden, setHidden] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw === null) return new Set(defaultHidden ?? []);
-      const arr: unknown = JSON.parse(raw);
+      const arr: unknown = raw ? JSON.parse(raw) : [];
       return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []);
     } catch {
-      return new Set(defaultHidden ?? []);
+      return new Set();
     }
   });
   useEffect(() => {

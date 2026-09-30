@@ -28,7 +28,8 @@ import {
 import { AlertTriangle, ArrowUpRight, Bookmark, Check, Info, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Simulator from '../../core/simulator';
-import { getCandleTheme, useCandleThemeKey, candleSeriesOptions, chartSurface } from '../gex/candleTheme';
+import { chartGround, getCandleTheme, useCandleThemeKey, candleSeriesOptions, chartSurface } from '../gex/candleTheme';
+import { useIsPhone } from '../ui/useMediaQuery';
 import { useResolvedTheme } from '../../theme/theme';
 import { LOCAL_TIME, localTickMarks } from '../gex/chartTime';
 import ChartToolbar from '../gex/ChartToolbar';
@@ -50,15 +51,18 @@ import { processState, PROCESS_META } from './setupProcess';
 import { SetupGuide } from './SetupGuide';
 import ContractTrack from './ContractTrack';
 import SetupDrivers from './SetupDrivers';
-import { buildCompassView, buildSetupDrivers, estimatePremium, sleeveForDte } from '../../data/compass';
-import { listExpiriesFor } from '../../data/optionChain';
-import { expiryWords } from '../ui/ExpiryCalendar';
+import { buildCompassView, buildSetupDrivers, estimatePremium, gradeOfConfidence } from '../../data/compass';
+import GradeMeter, { GRADE_INK } from '../ui/GradeMeter';
 import ContractPick, { type ConPickRow } from './ContractPick';
+import { SetupMarksPrimitive, type SetupMarks } from './setupMarksPrimitive';
+import { CardRow, PointerFollowCard } from '../ui/PointerCard';
+import { resolveInk } from '../gex/paletteInk';
 import { spotForPremium } from './trackModel';
 import { useFadeClose } from '../ui/useFadeClose';
 import { useTracker } from '../../context/TrackerContext';
 import {
   SCANNERS,
+  SLEEVES,
   isScannerEligible,
   type DriverRow,
   type OptionRight,
@@ -66,13 +70,8 @@ import {
   type Setup,
   type SleeveKey,
 } from '../../types/compass';
-import { Name } from '../ui/Name';
 
-/* THE PREMIUM CHART OPENS FIRST (Noah, 2026-09-12: "the first chart that comes
-   out is the stock one that is incorrect the first chart should be the options
-   chart that we have called 'premium'"). Session memory keeps the reader's last
-   choice after that. */
-let lastChartView: 'stock' | 'premium' = 'premium';
+let lastChartView: 'stock' | 'premium' = 'stock';
 
 /* The lens said out loud (Noah, 2026-08-30: cards "dont state wether
    something is a 0dte, weekly, discounted etc so they all look the same...
@@ -89,14 +88,12 @@ interface CampaignAnalysisProps {
   scanner: ScannerKey;
   /** The tenor — it decides which exit-clock copy the floor panel speaks */
   sleeve: SleeveKey;
-  /** The exact listed expiry the setup was priced at, calendar days (the calendar walk, 2026-09-12) */
-  dte?: number;
   /** Provenance: when this page opened — the numbers that earned the click are frozen from then */
   gradedAt?: string;
   /** Open another contract on the same name — a driver row, or the capsule's
-      pick (which may carry a different tenor and date). The page's route does
-      the rest (pages/compass/SetupPage.tsx, 2026-09-11); the way back lives there too. */
-  onOpenContract?: (strike: number, right: OptionRight, sleeve?: SleeveKey, dte?: number) => void;
+      pick (which may carry a different tenor). The page's route does the rest
+      (pages/compass/SetupPage.tsx, 2026-09-11); the way back lives there too. */
+  onOpenContract?: (strike: number, right: OptionRight, sleeve?: SleeveKey) => void;
 }
 
 /** The driver list sweeps on the scan tier — structure must not vibrate with every tick. */
@@ -186,6 +183,12 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  /* THE SETUP'S MARKS (2026-09-28): the entry rule, the floor rule and the target ladder at the right edge, drawn on
+     the chart's own canvas (setupMarksPrimitive.ts) — no full-width lines, no axis capsules, no words over candles */
+  const marksRef = useRef<SetupMarksPrimitive | null>(null);
+  const marksDataRef = useRef<SetupMarks | null>(null);
+  const lastCloseRef = useRef<number | null>(null);
+  const [card, setCard] = useState<{ kind: string; price: number; x: number; y: number } | null>(null);
   /** Structural level chips (CW/PW/flip/supreme) — separate from the campaign's
       own TP/floor lines so the two layers never fight over one ref. */
   const structLinesRef = useRef<IPriceLine[]>([]);
@@ -263,6 +266,33 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
     candleRef.current = candles;
     volumeRef.current = volume;
     markersRef.current = createSeriesMarkers(candles);
+    const marks = new SetupMarksPrimitive();
+    candles.attachPrimitive(marks);
+    marksRef.current = marks;
+
+    /* THE POINTER ON A MARK — within 6px of a rule or a rung, past where it starts: the card says what it is */
+    chart.subscribeCrosshairMove(p => {
+      const d = marksDataRef.current;
+      if (!p.point || !d) {
+        setCard(null);
+        if (marks.data?.hot) marks.setData({ ...marks.data, hot: null });
+        return;
+      }
+      const xEntry = d.entry ? chart.timeScale().timeToCoordinate(d.entry.time as Time) : null;
+      const past = xEntry == null || p.point.x >= xEntry - 4;
+      const near = (price: number) => {
+        const y = candles.priceToCoordinate(price);
+        return y != null && Math.abs(y - p.point!.y) <= 6;
+      };
+      let hit: { kind: string; price: number } | null = null;
+      for (const t of d.targets) if (near(t.price)) hit = { kind: `target-${t.level}`, price: t.price };
+      if (!hit && d.entry && past && near(d.entry.price)) hit = { kind: 'entry', price: d.entry.price };
+      if (!hit && d.floor && past && near(d.floor.price)) hit = { kind: 'floor', price: d.floor.price };
+      const hot = hit?.kind ?? null;
+      if (marks.data && marks.data.hot !== hot) marks.setData({ ...marks.data, hot });
+      const r = container.getBoundingClientRect();
+      setCard(hit ? { ...hit, x: r.left + p.point.x, y: r.top + p.point.y } : null);
+    });
 
     /* The frame belongs to the user after first touch (Noah, 2026-08-09 —
        "only on first open/load... after that its on the user"). The library
@@ -283,6 +313,7 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
       candleRef.current = null;
       volumeRef.current = null;
       markersRef.current = null;
+      marksRef.current = null;
       linesRef.current = [];
       structLinesRef.current = [];
       loadedRef.current = { ticker: '', tf: '', length: 0 };
@@ -389,6 +420,7 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
 
     const loaded = loadedRef.current;
     const reframe = loaded.ticker !== setup.ticker || loaded.tf !== timeframe;
+    lastCloseRef.current = bars[bars.length - 1].close;
     if (reframe || Math.abs(bars.length - loaded.length) > 1) {
       candleSeries.setData(bars.map(toCandle));
       volumeSeries.setData(bars.map(toVolume));
@@ -403,6 +435,7 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
       const last = bars[bars.length - 1];
       candleSeries.update(toCandle(last));
       volumeSeries.update(toVolume(last));
+      lastCloseRef.current = last.close;
       loaded.length = bars.length;
     }
   }, [setup.ticker, revision, timeframe]);
@@ -419,39 +452,22 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
     const bucketSec = tfMinutes(timeframe) * 60;
     const bucket = (t: number) => (bucketSec <= 60 ? t : Math.floor(t / bucketSec) * bucketSec);
     const markers: SeriesMarker<Time>[] = [];
+    /* NO WORDS OVER THE CANDLES (Noah, 2026-09-28): the entry is a silver dot on its candle — its rule and figure are
+       the primitive's; a won target keeps its arrow, a broken floor its arrow; the card says the rest */
+    const silver = resolveInk('rgb(var(--silver))', containerRef.current);
     if (entry) {
-      markers.push({
-        time: bucket(entry.time) as UTCTimestamp,
-        position: call ? 'belowBar' : 'aboveBar',
-        color: '#ededed',
-        shape: 'circle',
-        text: `ENTRY @${entry.mid.toFixed(2)}`,
-        size: 1,
-      });
+      /* the entry's candle wears a silver arrow the trade's way — up for a call, down for a put; its rule and chip are the primitive's */
+      markers.push({ time: bucket(entry.time) as UTCTimestamp, position: call ? 'belowBar' : 'aboveBar', color: silver, shape: call ? 'arrowUp' : 'arrowDown', text: '', size: 1 });
     }
     for (const h of hits) {
-      markers.push({
-        time: bucket(h.time) as UTCTimestamp,
-        position: call ? 'aboveBar' : 'belowBar',
-        color: '#30D158',
-        shape: call ? 'arrowUp' : 'arrowDown',
-        text: `TARGET ${h.level} ✓`,
-        size: 1,
-      });
+      markers.push({ time: bucket(h.time) as UTCTimestamp, position: call ? 'aboveBar' : 'belowBar', color: '#30D158', shape: call ? 'arrowUp' : 'arrowDown', text: '', size: 1 });
     }
     if (brk) {
-      markers.push({
-        time: bucket(brk.time) as UTCTimestamp,
-        position: call ? 'belowBar' : 'aboveBar',
-        color: '#FF3B30',
-        shape: call ? 'arrowDown' : 'arrowUp',
-        text: 'FLOOR ✗',
-        size: 1,
-      });
+      markers.push({ time: bucket(brk.time) as UTCTimestamp, position: call ? 'belowBar' : 'aboveBar', color: '#FF3B30', shape: call ? 'arrowDown' : 'arrowUp', text: '', size: 1 });
     }
     markers.sort((a, b) => (a.time as number) - (b.time as number));
     plugin.setMarkers(markers);
-  }, [entry, hits, brk, setup.right, timeframe]);
+  }, [entry, hits, brk, setup.right, timeframe, themeKey]);
 
   // Campaign levels — UN-BANKED TP milestones, the floor, and the strike.
   // A hit TP's line comes DOWN: the banked rung lives on its candle marker
@@ -464,46 +480,29 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
     const lines: IPriceLine[] = [];
     const banked = new Set(hits.map(h => h.level));
 
-    // A retired campaign draws NO future business: un-banked TP lines come
-    // down with the thesis; what was banked already lives on its candles.
-    if (!brk) {
-      setup.priceTargets.forEach((price, i) => {
-        if (banked.has(i + 1)) return;
-        lines.push(
-          candleSeries.createPriceLine({
-            price,
-            color: 'rgba(48,209,88,0.55)',
-            title: `TARGET ${i + 1}`,
-            lineStyle: LineStyle.Dashed,
-            lineWidth: 1,
-            axisLabelVisible: true,
-            axisLabelColor: 'rgba(48,209,88,0.6)',
-            axisLabelTextColor: '#0a0a0a',
-          })
-        );
-      });
-    }
-
-    // Broken: the floor freezes where it broke (the live value drifts with
-    // spot, but the post-mortem must show the line that ended the setup).
-    // NO RUNGS, NO FLOOR (Noah, 2026-08-30): a fading low-confidence thesis
-    // earned zero TPs, and a floor under a trade nobody is in is furniture —
-    // the chart stays bare. A broken floor still shows: post-mortems keep
-    // their evidence.
-    if (setup.takeProfits.length > 0 || brk) {
-      lines.push(
-        candleSeries.createPriceLine({
-          price: brk ? brk.floor : setup.invalidationPrice,
-          color: 'rgba(255,59,48,0.9)',
-          title: brk ? 'FLOOR ✗' : 'FLOOR',
-          lineStyle: LineStyle.Solid,
-          lineWidth: 2,
-          axisLabelVisible: true,
-          axisLabelColor: '#FF3B30',
-          axisLabelTextColor: '#0a0a0a',
-        })
-      );
-    }
+    /* THE MARKS (2026-09-28) — the entry rule from its candle, the floor rule (frozen where it broke; NO RUNGS, NO FLOOR
+       for a thesis that earned zero targets — Noah, 2026-08-30 — a broken floor still shows), and the target ladder at
+       the right edge, a won rung filled in; a retired setup draws no future rungs. All on the chart's own canvas. */
+    const entryPrice = (() => {
+      if (!entry) return null;
+      const raw = Simulator.getCandles(setup.ticker) ?? [];
+      let best: (typeof raw)[number] | null = null;
+      for (const b of raw) if (b.time <= entry.time && (!best || b.time > best.time)) best = b;
+      return best?.close ?? raw[0]?.close ?? null;
+    })();
+    const marksData: SetupMarks = {
+      entry: entry && entryPrice != null ? { time: entry.time as UTCTimestamp, price: entryPrice, mid: entry.mid } : null,
+      floor: setup.takeProfits.length > 0 || brk ? { price: brk ? brk.floor : setup.invalidationPrice, brokeAt: brk ? (brk.time as UTCTimestamp) : null } : null,
+      targets: brk ? setup.priceTargets.map((price, i) => ({ level: i + 1, price, won: banked.has(i + 1) })).filter(t => t.won) : setup.priceTargets.map((price, i) => ({ level: i + 1, price, won: banked.has(i + 1) })),
+      silver: resolveInk('rgb(var(--silver))', containerRef.current),
+      bg: chartSurface(getCandleTheme()).bg === 'transparent' ? '#0a0a0a' : chartSurface(getCandleTheme()).bg,
+      bull: '#30D158',
+      bear: '#FF3B30',
+      ink: chartSurface(getCandleTheme()).light ? '#14151a' : '#ededed',
+      hot: null,
+    };
+    marksDataRef.current = marksData;
+    marksRef.current?.setData(marksData);
 
     lines.push(
       candleSeries.createPriceLine({
@@ -542,10 +541,27 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
     if (len > 0) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 120), to: len + 4 });
   };
 
+  /* THE CARD on a mark: what it is, its price, how far from spot — the house's pointer card */
+  const spotNow = lastCloseRef.current;
+  const cardWords = card
+    ? (() => {
+        const t = card.kind.startsWith('target-') ? marksDataRef.current?.targets.find(x => `target-${x.level}` === card.kind) : undefined;
+        const name = t ? `Target ${t.level}` : card.kind === 'entry' ? 'Entry' : 'Floor';
+        const dist = spotNow ? ((card.price - spotNow) / spotNow) * 100 : null;
+        const state = t ? (t.won ? 'won' : 'still to be won') : card.kind === 'entry' ? `premium ${marksDataRef.current?.entry?.mid.toFixed(2) ?? ''}` : marksDataRef.current?.floor?.brokeAt ? 'broke — the setup ended here' : `the case ends ${setup.right === 'C' ? 'below' : 'above'} it`;
+        return { name, dist, state };
+      })()
+    : null;
   return (
-    <div className="absolute inset-0" data-chart-ink>
+    <div className="absolute inset-0" data-chart-ink data-chart-ground={chartGround(themeKey)}>
       <div ref={containerRef} className="absolute inset-0" />
       <ResetViewControl onReset={resetView} />
+      {card && cardWords && (
+        <PointerFollowCard start={{ x: card.x, y: card.y }} width={188} testId="data-setup-mark-card" testValue={card.kind} title={cardWords.name} aside={cardWords.state}>
+          <CardRow k="Price" v={card.price.toFixed(2)} />
+          {cardWords.dist != null && <CardRow k="From spot" v={`${cardWords.dist >= 0 ? '+' : '−'}${Math.abs(cardWords.dist).toFixed(2)}%`} sub={cardWords.dist >= 0 ? 'above' : 'below'} />}
+        </PointerFollowCard>
+      )}
     </div>
   );
 };
@@ -556,13 +572,17 @@ const CampaignAnalysis = ({
   spot,
   scanner,
   sleeve,
-  dte,
   gradedAt,
   onOpenContract,
 }: CampaignAnalysisProps) => {
   const { trackSetup, untrackSetup, isTracked } = useTracker();
   const navigate = useNavigate();
   const tracked = isTracked(setup.id);
+  /* The charts' strips wear the ground of the tape's theme (index.css re-scopes their
+     tokens under the stamp below; 2026-09-13) */
+  const chartThemeKey = useCandleThemeKey();
+  /* A phone gets the compact strip and the small menus (the phone pass, 2026-09-13) */
+  const isPhone = useIsPhone();
   /* Untrack plays the door's unfold BACKWARDS before the unmount (Noah,
      2026-08-29: "the reverse of the entry"). useFadeClose so the removal is
      a timer, never an animation-completion wait — the wedge law. */
@@ -670,31 +690,25 @@ const CampaignAnalysis = ({
      scanner swept across every eligible tenor, each row sleeve-tagged
      (Noah, 2026-08-30). LAZY: the sweeps run when the capsule opens, not
      per tick; useCallback identity keys the menu's cache. */
-  /* THE NAME'S OWN DATES (the calendar walk, 2026-09-12): the capsule sweeps
-     every expiry this name lists — dailies on an index name, Fridays and
-     monthlies on a stock — and each row carries its date, so a pick lands on
-     a page priced at that exact expiry. */
   const loadTickerCons = useCallback((): ConPickRow[] => {
     const snapshot = Simulator.snapshotFor(setup.ticker);
     const universe = Simulator.universeQuotes(setup.ticker);
     const out: ConPickRow[] = [];
-    for (const e of listExpiriesFor(setup.ticker)) {
-      const sl = sleeveForDte(e.dte);
-      if (!isScannerEligible(scanner, sl)) continue;
+    for (const sl of SLEEVES) {
+      if (!isScannerEligible(scanner, sl.key)) continue;
       try {
-        const view = buildCompassView(snapshot, scanner, universe, sl, e.dte);
+        const view = buildCompassView(snapshot, scanner, universe, sl.key);
         for (const s of view.groups.flatMap(g => g.setups)) {
           if (s.ticker !== setup.ticker) continue;
-          const key = `${s.strike}-${s.right}-${e.dte}`;
+          const key = `${s.strike}-${s.right}-${sl.key}`;
           if (out.some(r => r.key === key)) continue;
           out.push({
             key,
             strike: s.strike,
             right: s.right,
-            sleeve: sl,
-            dte: e.dte,
+            sleeve: sl.key,
             title: s.contract,
-            tag: expiryWords(e),
+            tag: sl.label,
             sub: `$${s.mid.toFixed(2)}`,
           });
         }
@@ -708,34 +722,34 @@ const CampaignAnalysis = ({
 
   const drivers = useMemo(() => {
     const st = driversRef.current;
-    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${sleeve}-${dte ?? ''}`;
+    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${sleeve}`;
     const now = Date.now();
     if (st.key !== key || now - st.at >= DRIVERS_SCAN_MS) {
       st.key = key;
       st.at = now;
       try {
-        st.rows = buildSetupDrivers(Simulator.snapshotFor(setup.ticker), c, sleeve, 8, dte);
+        st.rows = buildSetupDrivers(Simulator.snapshotFor(setup.ticker), c, sleeve);
       } catch {
         st.rows = [];
       }
     }
     return st.rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup.ticker, setup.strike, setup.right, sleeve, dte, revision]);
+  }, [setup.ticker, setup.strike, setup.right, sleeve, revision]);
 
   /* WHERE IT SITS ON TODAY'S BOARD — the same sweep the board runs, on the
      drivers' scan clock, so the Why tab can say "#3 of 17" or plainly that it
-     is not on the board (a user-named contract from the Weigher). */
+     is not on the board (a contract named by hand from the Weigher). */
   const rankRef = useRef<{ key: string; at: number; rank: number | null; of: number }>({ key: '', at: 0, rank: null, of: 0 });
   const boardPlace = useMemo(() => {
     const st = rankRef.current;
-    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${scanner}-${sleeve}-${dte ?? ''}`;
+    const key = `${setup.ticker}-${setup.strike}-${setup.right}-${scanner}-${sleeve}`;
     const now = Date.now();
     if (st.key !== key || now - st.at >= DRIVERS_SCAN_MS) {
       st.key = key;
       st.at = now;
       try {
-        const flat = buildCompassView(Simulator.snapshotFor(setup.ticker), scanner, Simulator.universeQuotes(setup.ticker), sleeve, dte)
+        const flat = buildCompassView(Simulator.snapshotFor(setup.ticker), scanner, Simulator.universeQuotes(setup.ticker), sleeve)
           .groups.flatMap(g => g.setups)
           .sort((a, b) => b.score - a.score);
         const i = flat.findIndex(x => x.ticker === setup.ticker && x.right === setup.right && Math.abs(x.strike - setup.strike) < 1e-9);
@@ -748,7 +762,7 @@ const CampaignAnalysis = ({
     }
     return { rank: st.rank, of: st.of };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup.ticker, setup.strike, setup.right, scanner, sleeve, dte, revision]);
+  }, [setup.ticker, setup.strike, setup.right, scanner, sleeve, revision]);
 
   const breakTimeLabel = floorBreak
     ? new Date(floorBreak.time * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -774,15 +788,11 @@ const CampaignAnalysis = ({
   /* Fullscreen chart takeover — the Pulse contract verbatim: 'contents'
      wrapper keeps the grid slot when docked, fullscreen lifts the SAME panel
      (no remount, the chart keeps its view), Esc exits, page scroll locks. */
-  const [chartFull, setChartFull] = useState(false);
   /* The card speaks in tabs (Noah, 2026-08-17: "so over information doesnt
-     hit the user") — Setup = the trade's structure, with its premium, fair
-     value and expected move (moved in from Contract, Noah 2026-09-12: "the
-     premium fair value and expected move should be in the setup"); Contract =
-     the instrument's own facts; WHY WE CHOSE THIS = the case for the pick
-     (Noah, same day: "the rest of the tab should be more focused on why we
-     even chose this con as a top setup … make a new tab on why we chose this"). */
-  const [cardTab, setCardTab] = useState<'campaign' | 'contract' | 'why'>('campaign');
+     hit the user") — Campaign = the trade's structure, Contract = the
+     instrument's dollars. The verdict strip and confidence stay persistent. */
+  /* THE CASE FIRST (Noah, 2026-09-28: "the 'why we chose this' should be the first view of the right card") */
+  const [cardTab, setCardTab] = useState<'campaign' | 'contract' | 'why'>('why');
   /* The chart slot has two instruments (Noah, 2026-08-17: "i want a button
      ... that allows us to go to that chart"): Stock = the underlying's tape
      (the campaign map), Premium = the contract's modeled premium track
@@ -817,19 +827,6 @@ const CampaignAnalysis = ({
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!chartFull) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setChartFull(false);
-    };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [chartFull]);
-
   /* Ladder inversions: each premium rung, restated as the underlying level
      that pays it — priced by THE model that minted the mid (one-pricer rule). */
   const iv = setup.greeks.iv / 100;
@@ -852,10 +849,15 @@ const CampaignAnalysis = ({
   /* ---- the words the page speaks (the walk, 2026-09-11): a state, a case, targets — never a thesis, a conviction or a milestone ---- */
   const state = processState(setup);
   const stateMeta = PROCESS_META[state];
-  const caseWord = setup.score >= 93 ? 'strong' : setup.score >= 85 ? 'fair' : 'weak';
-  const caseInk = setup.score >= 93 ? 'text-bull' : setup.score >= 85 ? 'text-warn' : 'text-bear';
+  /* THE CASE, IN THE FOUR WORDS (Noah, 2026-09-19: "move both places to the four words as well"). The page spoke its own
+     three — strong · fair · weak — beside a "Confidence 82%"; both were ONE figure said twice (confidence is the score on
+     another scale), so they are one fact now: the word and the four-step meter, no digit. The cuts are the ones this page
+     always had (data/compass.ts gradeOfConfidence): strong where it was strong, good where it said fair, and "weak" told
+     apart as caution or poor. The Tracker reads the same function, so the two cannot disagree. */
+  const caseWord = gradeOfConfidence(setup.confidence);
+  const caseInk = GRADE_INK[caseWord];
   const sideWord = setup.right === 'C' ? 'a call, bullish' : 'a put, bearish';
-  const tenorWord = `${SLEEVE_LABEL[sleeve] ?? sleeve} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `expires ${setup.expiryDate.slice(5).replace('-', '/')} · ${Math.round(setup.sessionsLeft)} sessions left`}`;
+  const tenorWord = `${SLEEVE_LABEL[sleeve] ?? sleeve} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `${Math.round(setup.sessionsLeft)} ${Math.round(setup.sessionsLeft) === 1 ? 'session' : 'sessions'} left`}`;
   const kindLabel = SCANNERS.find(s => s.key === scanner)?.label ?? scanner;
   const targetsWord = retired
     ? `${hitCount} of ${c.takeProfits.length} hit before the break`
@@ -878,7 +880,7 @@ const CampaignAnalysis = ({
             <CompanyLogo ticker={setup.ticker} size={34} />
             <div className="min-w-0">
               <div className="h-6 flex items-center gap-2.5">
-                <h3 className={`text-[15px] font-semibold leading-tight ${setup.right === 'C' ? 'text-bull' : 'text-bear'}`}>{setup.contract}</h3>
+                <h3 className={`min-w-0 truncate text-[15px] font-semibold leading-tight ${setup.right === 'C' ? 'text-bull' : 'text-bear'}`}>{setup.contract}</h3>
                 {retired ? (
                   <SignalBadge tone="bear">Retired</SignalBadge>
                 ) : (
@@ -901,23 +903,15 @@ const CampaignAnalysis = ({
               </p>
             </div>
           </div>
-          <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-setup-facts>
+          <dl className="flex flex-wrap gap-x-6 gap-y-2" data-setup-facts>
             <Fact label="Premium" testId="premium">
               <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
             </Fact>
-            <Fact label="Confidence" testId="confidence">
-              <span className="inline-flex items-center gap-2">
-                <span className="w-16 h-1.5 rounded-full bg-ink/[0.06] overflow-hidden">
-                  <span
-                    className={`block h-full rounded-full transition-[width,background-color] duration-700 ease-out ${setup.confidence >= 70 ? 'bg-bull/90' : setup.confidence >= 45 ? 'bg-warn/80' : 'bg-bear/80'}`}
-                    style={{ width: `${setup.confidence}%` }}
-                  />
-                </span>
-                <AnimatedNumber value={setup.confidence} format={v => `${Math.round(v)}%`} flash />
-              </span>
-            </Fact>
             <Fact label="The case" testId="case">
-              <span className={caseInk}>{caseWord}</span>
+              <span className="inline-flex items-center gap-2" data-case={caseWord}>
+                <GradeMeter grade={caseWord} className="w-16" />
+                <span className={caseInk}>{caseWord}</span>
+              </span>
             </Fact>
             <Fact label="Targets" testId="targets">
               {targetsWord}
@@ -964,18 +958,18 @@ const CampaignAnalysis = ({
             chart and rebuilt it from nothing. Fullscreen lifts the whole
             stack, so the lift never remounts either chart. The same strip
             rides both, slot for slot. */}
-        <div className={chartFull ? 'fixed inset-0 z-[80] bg-canvas flex flex-col' : 'contents'} data-theme="dark">
+        {/* NO FULLSCREEN HERE (Noah, 2026-09-28: "compass chart should not have the option to become a full chart") — the
+            chart is the setup's evidence beside its card, never a takeover; Terrain is the page for a whole chart */}
+        <div className="contents" data-theme="dark">
           <div
-            className={
-              chartFull
-                ? 'flex-1 w-full flex flex-col min-h-0'
-                : 'xl:col-span-7 min-w-0 animate-soft-in-slow flex flex-col border border-borderSubtle rounded-md bg-panel overflow-hidden'
-            }
+            className="xl:col-span-7 min-w-0 animate-soft-in-slow flex flex-col border border-borderSubtle rounded-md bg-panel overflow-hidden"
             data-setup-chart={chartView}
             /* A dark island on any page (2026-09-12): both charts and their strips read the dark tokens */
             data-theme="dark"
+            /* …and the strips the ground of the tape's theme (2026-09-13) */
+            data-chart-ground={chartGround(chartThemeKey)}
           >
-            <div className={chartFull ? 'flex flex-col flex-grow min-h-0' : 'flex flex-col flex-1 min-h-[500px]'}>
+            <div className="flex flex-col flex-1 min-h-[500px]">
               <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)]" data-setup-chart-stack>
                 {/* THE STOCK VIEW */}
                 <div
@@ -986,8 +980,7 @@ const CampaignAnalysis = ({
                   <div ref={stockTapeRef} className="relative flex-1 min-h-0 overflow-hidden">
                     <CampaignChart setup={c} revision={revision} entry={entry} hits={tpHits} brk={floorBreak} timeframe={timeframe} overlays={overlays} topMargin={stockTopMargin} />
                     {/* ONE strip + its whisper: the capsule, the Stock/Premium door,
-                        then the chart's own toolbar. pr-14 keeps the far-right expand
-                        door off the price axis. */}
+                        then the chart's own toolbar. pr-14 keeps the strip's end off the price axis. */}
                     <div ref={stockChromeRef} className="absolute top-0 inset-x-0 z-20" data-chart-chrome>
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-2 pr-14 py-1 select-none">
                         {/* The SAME capsule as the premium view — the contract, stepping
@@ -1009,8 +1002,11 @@ const CampaignAnalysis = ({
                           value={chartView}
                           onChange={setChartView}
                         />
-                        <div className="flex-1 min-w-0">
-                          <ChartToolbar minimal candles spread overlayKeys={['levels', 'volume']} timeframe={timeframe} onTimeframe={setTimeframe} overlays={overlays} onOverlays={setOverlays} fullscreen={chartFull} onToggleFullscreen={() => setChartFull(f => !f)} />
+                        {/* Its floor is its own row (the phone pass, 2026-09-13, the Weigher's lesson): at its one-row width the
+                            toolbar wraps under the capsule and the tabs instead of piling up beside them; a phone gets the
+                            compact strip and the small menus */}
+                        <div className="flex-1 min-w-fit">
+                          <ChartToolbar minimal candles spread compact={isPhone} dense={isPhone} overlayKeys={['levels', 'volume']} timeframe={timeframe} onTimeframe={setTimeframe} overlays={overlays} onOverlays={setOverlays} />
                         </div>
                       </div>
                       <div className="pl-3 pr-16 pointer-events-none">
@@ -1031,9 +1027,6 @@ const CampaignAnalysis = ({
                     retired={retired}
                     loadPickRows={loadTickerCons}
                     onOpenContract={onOpenContract}
-                    fullscreen={chartFull}
-                    onToggleFullscreen={() => setChartFull(f => !f)}
-                    active={chartView === 'premium'}
                     actions={
                       <CardTabs
                         ariaLabel="Chart view"
@@ -1068,9 +1061,10 @@ const CampaignAnalysis = ({
               </div>
               <CardTabs
                 options={[
+                  /* the case as a page of its own (Noah, 2026-09-13, with his partner's card) — and the first view (2026-09-28) */
+                  { value: 'why', label: 'Why we chose this' },
                   { value: 'campaign', label: 'Setup' },
                   { value: 'contract', label: 'Contract' },
-                  { value: 'why', label: 'Why we chose this' },
                 ]}
                 value={cardTab}
                 onChange={setCardTab}
@@ -1083,28 +1077,6 @@ const CampaignAnalysis = ({
                 AnimatedNumber keeps rolling instead of remounting. */}
             <div className="flex-1 p-3 grid border-t border-borderSubtle">
               <div className={`col-start-1 row-start-1 flex flex-col gap-4 transition-opacity duration-300 ${cardTab === 'campaign' ? 'opacity-100' : 'invisible opacity-0'}`}>
-                {/* THE THREE NUMBERS A SETUP IS PRICED ON — premium, fair value,
-                    expected move — at the top of the Setup tab (Noah, 2026-09-12) */}
-                <div className="grid grid-cols-3 gap-2" data-setup-pricing>
-                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
-                      <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
-                    </div>
-                  </div>
-                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
-                      <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
-                    </div>
-                  </div>
-                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
-                    <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>
-                      <AnimatedNumber value={setup.expectedMovePct} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`} />
-                    </div>
-                  </div>
-                </div>
                 <div className="border border-borderSubtle rounded-md overflow-hidden">
                   <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
                     <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{c.takeProfits.length > 0 ? 'Targets' : 'Targets — none, the case is fading'}</span>
@@ -1120,7 +1092,7 @@ const CampaignAnalysis = ({
                         <th className="text-left font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
                         <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
                         <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
-                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5"><Name t={setup.ticker} size={10} /> needs</th>
+                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">{setup.ticker} needs</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-borderSubtle">
@@ -1183,6 +1155,8 @@ const CampaignAnalysis = ({
                   </p>
                 </div>
 
+                {/* The case itself moved to its own tab, "Why we chose this" (2026-09-13) — the foot of the Setup tab is the floor alone */}
+
                 {/* What retires it — the FROZEN floor (the merged `c`), the same
                     number the table's last row holds. */}
                 <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
@@ -1198,23 +1172,24 @@ const CampaignAnalysis = ({
               </div>
 
               <div className={`col-start-1 row-start-1 flex flex-col gap-4 transition-opacity duration-300 ${cardTab === 'contract' ? 'opacity-100' : 'invisible opacity-0'}`}>
-                {/* THE QUOTE — the instrument's own facts, kept here (the pricing trio moved to Setup, 2026-09-12) */}
-                <div className="grid grid-cols-4 gap-2" data-contract-quote>
+                <div className="grid grid-cols-3 gap-2">
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Bid</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${setup.bid.toFixed(2)}</div>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
+                      <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
+                    </div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Ask</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${setup.ask.toFixed(2)}</div>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
+                      <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
+                    </div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Spread</div>
-                    <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.liquidityLabel === 'Tight' ? 'text-bull' : setup.liquidityLabel === 'Wide' ? 'text-bear' : 'text-textPrimary'}`}>{setup.liquiditySpread.replace(' spread', '')}</div>
-                  </div>
-                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expires</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum whitespace-nowrap">{setup.expiry === '0DTE' ? 'today' : setup.expiryDate.slice(5).replace('-', '/')} <span className="text-[10px] text-textSecondary">· {Math.round(setup.sessionsLeft)} sess.</span></div>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
+                    <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>
+                      <AnimatedNumber value={setup.expectedMovePct} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`} />
+                    </div>
                   </div>
                 </div>
 
@@ -1230,17 +1205,21 @@ const CampaignAnalysis = ({
                 </div>
               </div>
 
-              {/* WHY WE CHOSE THIS (Noah, 2026-09-12) — the case for the pick, in
-                  the order a reader asks: which lens found it, how strong the
-                  case is, the read in words, the numbers behind it, where it
-                  sits on today's board, and what would retire it. */}
+              {/* WHY WE CHOSE THIS — the case as a page of its own (Noah, 2026-09-13, with his partner's card: "i like the why we
+                  chose this as another section as well and not a little bottom section"), in the order a reader asks: which lens
+                  found it, how strong the case is, the read in words, the numbers behind it, where it sits on today's board, and
+                  what would make us wrong. */}
               <div className={`col-start-1 row-start-1 flex flex-col gap-3 transition-opacity duration-300 ${cardTab === 'why' ? 'opacity-100' : 'invisible opacity-0'}`} data-setup-why>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <SignalBadge tone={stateMeta.tone} dot pulse={stateMeta.pulse}>
-                    {state}
-                  </SignalBadge>
+                  {retired ? (
+                    <SignalBadge tone="bear">Retired</SignalBadge>
+                  ) : (
+                    <SignalBadge tone={stateMeta.tone} dot pulse={stateMeta.pulse}>
+                      {state}
+                    </SignalBadge>
+                  )}
                   <span className={`font-mono text-[11px] font-semibold ${caseInk}`}>a {caseWord} case</span>
-                  <span className="font-mono text-[10px] tnum text-textPrimary">{setup.confidence}% confidence</span>
+                  <GradeMeter grade={caseWord} className="w-14" />
                   <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap">found by {kindLabel}</span>
                 </div>
                 <div className="flex items-start gap-2 border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
@@ -1279,7 +1258,7 @@ const CampaignAnalysis = ({
                           ink: boardPlace.rank != null ? 'text-textPrimary' : 'text-warn',
                         },
                       ].map(row => (
-                        <tr key={row.k}>
+                        <tr key={row.k} data-why-row={row.k}>
                           <td className="px-3 py-1.5 align-top font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap w-28">{row.k}</td>
                           <td className={`px-3 py-1.5 text-[11px] leading-snug ${row.ink}`}>{row.v}</td>
                         </tr>
@@ -1293,7 +1272,7 @@ const CampaignAnalysis = ({
                     <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">What would make us wrong</span>
                   </div>
                   <p className="text-[11px] text-textPrimary leading-snug">
-                    A close {setup.right === 'C' ? 'below' : 'above'} <span className="font-mono font-semibold tnum text-warn">${c.invalidationPrice.toFixed(2)}</span> — {c.invalidationReason.toLowerCase()} gives way and the thesis is gone.{' '}
+                    A close {setup.right === 'C' ? 'below' : 'above'} <span className="font-mono font-semibold tnum text-warn">${c.invalidationPrice.toFixed(2)}</span> — {c.invalidationReason.toLowerCase()} gives way and the case is gone.{' '}
                     {c.takeProfits.length === 0 ? 'The case is already fading: no targets were earned.' : `${c.takeProfits.length} ${c.takeProfits.length === 1 ? 'target was' : 'targets were'} earned by the math; ${hitCount} ${hitCount === 1 ? 'has' : 'have'} been hit.`}
                   </p>
                 </div>
@@ -1301,8 +1280,9 @@ const CampaignAnalysis = ({
                   type="button"
                   onClick={() => navigate('/compass', { state: { tickerFilter: setup.ticker } })}
                   className="self-start inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                  data-why-board
                 >
-                  <ArrowUpRight className="w-3 h-3" /> See <Name t={setup.ticker} size={10} /> on the board
+                  <ArrowUpRight className="w-3 h-3" /> See <CompanyLogo ticker={setup.ticker} size={12} /> {setup.ticker} on the board
                 </button>
               </div>
             </div>

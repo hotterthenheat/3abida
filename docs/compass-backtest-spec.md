@@ -12,8 +12,10 @@ Cite B's section numbers below (§).
 Scope guard: per project decision, **only Compass is being backtested.** Pulse /
 Pinpoint / Trace math in the docs matters to us only as *inputs* to the
 FeatureSnapshot. The backtest protocol itself lives under the doc's "Prove It"
-chapter (§10, §22) — the protocol applies to any harness; the Prove It page
-itself stays untouched.
+chapter (§10, §22) — the protocol applies to any harness. (The Prove It PAGE
+was deleted on 2026-09-17 — Noah: "a page lingering from long ago and has no
+use case for now"; the protocol lives on here, and the backtest's own
+admin-only room, "the runs", is where its results are read.)
 
 ---
 

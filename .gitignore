@@ -36,7 +36,7 @@ build/
 Thumbs.db
 
 # Scratch / screenshot scripts
-_shot*.mjs
+_shot.mjs
 _scratch*
 
 # Map tiles — GENERATED, and far past GitHub's 100MB file ceiling
@@ -45,3 +45,11 @@ _scratch*
 #     public/tiles/nyc.pmtiles --bbox=-74.35,40.45,-73.55,41.00 --maxzoom=15
 # Production serves these from a host/CDN, not the repo.
 public/tiles/
+
+# graphify's knowledge graph of this repo (installed 2026-09-19): kept out of git until it has earned a place
+graphify-out/
+
+# the Python engine's own environment and caches
+engine/.venv/
+engine/**/__pycache__/
+engine/.pytest_cache/

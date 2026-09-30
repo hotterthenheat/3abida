@@ -43,7 +43,7 @@ const NewsWidget = () => {
           return (
             <button
               key={n.id}
-              onClick={() => navigate('/record/news', { state: { selectedId: n.id } })}
+              onClick={() => navigate('/dossier/news', { state: { selectedId: n.id } })}
               title="Open on the News page"
               className="w-full flex flex-col gap-1 px-2.5 py-2 border-b border-borderSubtle/30 text-left transition-colors hover:bg-ink/[0.03]"
             >

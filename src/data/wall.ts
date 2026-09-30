@@ -488,6 +488,10 @@ export function buildWallContext(
 /** The odds at one strike, walls and trapdoors alike */
 export const oddsAt = (strike: number, ctx: WallContext): WallOdds => wallOdds(strike, ctx);
 
+/** The shelves each name listed last time — a listed shelf stays while it holds this share of the line */
+const listedShelves = new Map<string, Set<number>>();
+const SHELF_STAY = 0.75;
+
 export function buildWallBoard(
   snapshot: MarketSnapshot,
   profile: ExposureProfileData,
@@ -508,8 +512,17 @@ export function buildWallBoard(
      a strike the reader focuses is still read), plus the named levels,
      nearest first */
   const set = new Set<number>();
-  for (const s of strikes) if (Math.abs(s.gex.net) >= SHELF_SHARE * heaviest) set.add(s.strike);
+  /* A SHELF STAYS LISTED (2026-09-13; Noah: the board "just keeps increasing
+     and decreasing in size"): the book breathes a few percent a bar, so a
+     shelf near the third-of-the-biggest line flickered on and off the board.
+     Once listed, a shelf stays while it holds three quarters of the line. */
+  const kept = listedShelves.get(ticker) ?? new Set<number>();
+  for (const s of strikes) {
+    const share = Math.abs(s.gex.net) / Math.max(1, heaviest);
+    if (share >= SHELF_SHARE || (kept.has(s.strike) && share >= SHELF_SHARE * SHELF_STAY)) set.add(s.strike);
+  }
   for (const k of [profile.levels.callWall, profile.levels.putWall, profile.levels.supreme]) if (strikes.some(s => s.strike === k)) set.add(k);
+  listedShelves.set(ticker, new Set(set));
   const walls = [...set]
     .filter(k => Math.abs(k - spot) > 1e-9)
     .map(k => wallOdds(k, ctx))

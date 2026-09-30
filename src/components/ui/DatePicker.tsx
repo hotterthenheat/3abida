@@ -116,7 +116,7 @@ const DatePicker = ({ selected, onPick, onClose }: DatePickerProps) => {
                 disabled
                   ? 'text-textMuted/25 cursor-not-allowed'
                   : isSelected
-                    ? 'bg-textPrimary text-[#0a0a0a] font-semibold'
+                    ? 'bg-textPrimary text-panel font-semibold'
                     : isToday
                       ? 'text-select font-semibold hover:bg-ink/[0.06]'
                       : 'text-textSecondary hover:bg-ink/[0.06] hover:text-textPrimary'

@@ -15,6 +15,7 @@
 
 import { Compass as CompassIcon } from 'lucide-react';
 import { Block, ChartGround, Facts, Line, PanelHeader, SubLine, TitleRow, Trigger } from '../components/ui/skeletonKit';
+import { PageSkeleton } from '../components/ui/Skeleton';
 
 /** The shell head as static chrome — the page's icon and name over its line (CompassLayout renders the real one) */
 export const CompassHeadSkeleton = () => (
@@ -26,14 +27,16 @@ export const CompassHeadSkeleton = () => (
         </span>
         <span className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</span>
       </div>
-      <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The setups found this sweep, graded and ranked — Active while the structure holds, Watch while it proves itself</p>
+      <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The setups found this sweep, the strongest first — Active while the structure holds, Watch while it proves itself</p>
     </div>
   </header>
 );
 
-/** Under the shell: the board for /compass, a setup's page for /compass/<id> */
+/** Under the shell: the board for /compass, the Tracker's page for /compass/tracker (2026-09-13), a setup's page for /compass/<id> */
 export const CompassRouteSkeleton = ({ pathname }: { pathname: string }) =>
-  /^\/compass\/[^/]+/.test(pathname) ? (
+  /^\/compass\/tracker/.test(pathname) ? (
+    <PageSkeleton />
+  ) : /^\/compass\/[^/]+/.test(pathname) ? (
     <>
       <div className="h-[15px] flex items-center" aria-hidden data-skeleton="setup-back">
         <Line w={84} h={10} />
@@ -151,7 +154,8 @@ export const CampaignSkeleton = () => (
         </div>
       </div>
       {/* Premium · Confidence · The case · Targets · Breaks at · Liquidity — measured 2026-09-11 */}
-      <Facts widths={[41, 91, 43, 118, 86, 123]} />
+      {/* five facts since 2026-09-19: Confidence and The case were one figure said twice, and are one fact now (the meter and its word, measured 108) */}
+      <Facts widths={[41, 108, 118, 86, 123]} />
     </div>
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch h-[649px]">
       <div className="xl:col-span-7 min-w-0 flex flex-col border border-borderSubtle rounded-md bg-panel overflow-hidden">

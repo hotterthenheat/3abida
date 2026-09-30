@@ -7,14 +7,16 @@ import type { NewsCategory } from '../../data/news';
   the supreme magenta (engine standout). The hue names the beat; the ± exp number beside it
   still carries the direction. Shared by the News page and the desk widget.
 */
+/* AS TOKENS (2026-09-16): the seven hues live in theme/tokens.css — the dark set is these pastels,
+   the light set cuts each to 5.6:1 or better on white (printed on paper they were 1.5:1 to 1.9:1) */
 export const CAT_COLOR: Record<NewsCategory, string> = {
-  Earnings: '#E8C468', // amber — the numbers print
-  Guidance: '#7EA6F0', // cornflower — forward-looking
-  Analyst: '#9B8FE8', // periwinkle — opinion
-  Macro: '#6ECFC4', // teal — the big picture
-  'M&A': '#E89AC0', // pink — deals
-  Product: '#7DD3A8', // sage — launches
-  Regulatory: '#D98F8F', // muted rose — friction
+  Earnings: 'rgb(var(--cat-earnings))', // amber — the numbers print
+  Guidance: 'rgb(var(--cat-guidance))', // cornflower — forward-looking
+  Analyst: 'rgb(var(--cat-analyst))', // periwinkle — opinion
+  Macro: 'rgb(var(--cat-macro))', // teal — the big picture
+  'M&A': 'rgb(var(--cat-ma))', // pink — deals
+  Product: 'rgb(var(--cat-product))', // sage — launches
+  Regulatory: 'rgb(var(--cat-regulatory))', // muted rose — friction
 };
 
 const CatTag = ({ category, size = 10 }: { category: NewsCategory; size?: 9 | 10 }) => (

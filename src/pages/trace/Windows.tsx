@@ -15,8 +15,8 @@
 ==================================================
 */
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useCallback, useDeferredValue, useMemo, useState, type ReactNode } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -31,15 +31,13 @@ import type { Column } from '../../components/ui/DataTable';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import RichRead from '../../components/ui/RichRead';
+import Working, { useBeat } from '../../components/ui/Working';
 import BookDrill from '../../components/trace/BookDrill';
 import ContractCell from '../../components/trace/ContractCell';
 import ReadDoor from '../../components/trace/ReadDoor';
 import { earnMarks, weightInk } from '../../components/trace/earnedInk';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
-import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
-import { useExpiryCut } from '../../components/trace/bookExpiry';
-import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import DayStrip from '../../components/trace/DayStrip';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
@@ -53,25 +51,29 @@ const num = (v: number) => v.toLocaleString('en-US');
 type CutKey = 'all' | 'bursts' | 'ask' | 'bid';
 
 const CUTS: { key: CutKey; label: string; hint: string }[] = [
-  { key: 'all', label: 'Everything', hint: 'Every contract that traded in this window, heaviest first' },
+  { key: 'all', label: 'Everything', hint: 'Every contract that traded in this interval, heaviest first' },
   { key: 'bursts', label: 'Bursts', hint: 'Half the contract’s whole day or more landed right here' },
-  { key: 'ask', label: 'Lifted the ask', hint: 'Window flow that paid up — buyers' },
-  { key: 'bid', label: 'Hit the bid', hint: 'Window flow that sold down — writers' },
+  { key: 'ask', label: 'Lifted the ask', hint: 'Flow in the interval that paid up — buyers' },
+  { key: 'bid', label: 'Hit the bid', hint: 'Flow in the interval that sold down — writers' },
 ];
 
 /* THE CARDS (the walk, 2026-09-09) */
 const CUT_OPTIONS: DropdownOption<CutKey>[] = CUTS.map(c => ({ value: c.key, label: c.label, hint: c.hint }));
 const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'ALL', label: 'Both', hint: 'Calls and puts' },
-  { value: 'C', label: 'Calls', hint: 'Calls only' },
-  { value: 'P', label: 'Puts', hint: 'Puts only' },
+  { value: 'C', label: 'Calls', hint: 'Calls only', tone: 'bull' },
+  { value: 'P', label: 'Puts', hint: 'Puts only', tone: 'bear' },
 ];
 const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, wvol: 112, share: 120, lean: 96, daylean: 96, earn: 84 };
+/** The rows the grid holds at rest — the heaviest; the foot opens the rest (2026-09-16) */
+const HEAVIEST_AT_REST = 80;
+/** No door for fewer hidden rows than this — a door that hides a dozen rows is chrome */
+const CAP_SLACK = 20;
 const TOOLTIPS: Record<string, string> = {
   wvol: "The contract's volume inside this quarter hour",
-  share: 'How much of its whole day landed in this window — half or more is a burst',
-  wprem: 'The money that printed in the window',
-  lean: 'Whether the window paid the ask or hit the bid',
+  share: 'How much of its whole day landed in this interval — half or more is a burst',
+  wprem: 'The money that printed in the interval',
+  lean: 'Whether the interval paid the ask or hit the bid',
   daylean: "The same for the contract's whole day",
 };
 
@@ -81,6 +83,8 @@ const Windows = () => {
   const [cut, setCut] = useState<CutKey>('all');
   const [side, setSide] = useState<'ALL' | 'C' | 'P'>('ALL');
   const [query, setQuery] = useState('');
+  /* the field answers first; the grid's cut follows as a lower-priority render (the book, OptionsScreener, 2026-09-20) */
+  const cutQuery = useDeferredValue(query);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -91,11 +95,14 @@ const Windows = () => {
   );
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book: heldBook, tick } = hold.value;
-  /* THE EXPIRY CUT (2026-09-12): the day's windows over the cut book */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
-  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
-  const keyOf = useCallback((s: { key: string }) => s.key, []);
+  const { book, tick } = hold.value;
+  /* THE ROW'S IDENTITY IS THE CONTRACT, NOT THE CONTRACT-IN-THIS-WINDOW (Noah, 2026-09-16: "the
+     click on the windows is very delayed to show on the tape, why is that?"). Keyed by the slice
+     (`${contract}-${window}`), every row was NEW to the grid on a window change: it tore down
+     297 rows × 19 cells and built 305 more in one 611ms task, then animated them in — the first
+     row changed a full second after the click while the label changed in 53. Keyed by the
+     contract, the grid refreshes the cells it has: 281ms, no long task. */
+  const keyOf = useCallback((s: { row: { key: string } }) => s.row.key, []);
   const openRow = useCallback((s: { row: { key: string } }) => setOpenKey(s.row.key), []);
   const windows = useMemo(() => intervalWindows(book), [book]);
 
@@ -103,10 +110,12 @@ const Windows = () => {
   const latestIdx = windows.length >= 2 ? windows[windows.length - 2].idx : windows[windows.length - 1]?.idx ?? 0;
   const winIdx = winSel === 'latest' ? latestIdx : Math.min(winSel, windows.length - 1);
   const win = windows[winIdx];
+  /* one beat of the working mark when the reader changes the interval — see the grid below */
+  const switching = useBeat(winIdx);
 
   const slices = useMemo(() => {
     const all = buildIntervalSlices(book, winIdx);
-    const nq = normSymbol(query);
+    const nq = normSymbol(cutQuery);
     return all.filter(s => {
       if (side !== 'ALL' && s.row.right !== side) return false;
       if (nq !== '' && !normSymbol(`${s.row.ticker}${s.row.strike}${s.row.right}`).includes(nq)) return false;
@@ -115,7 +124,7 @@ const Windows = () => {
       if (cut === 'bid') return s.askPct <= 42;
       return true;
     });
-  }, [book, winIdx, cut, side, query]);
+  }, [book, winIdx, cut, side, cutQuery]);
 
   /* Three registers per column — components/trace/earnedInk.ts. Window facts
      and whole-day facts each measure their own crowd. */
@@ -148,7 +157,7 @@ const Windows = () => {
         </ReadDoor>
         <RichRead
           text={`, [[${num(loud.vol)}]] contracts — ${loud.shareOfDayPct.toFixed(0)}% of its whole day${
-            win.live ? '. This window is still filling' : ''
+            win.live ? '. This interval is still filling' : ''
           }.`}
         />
       </>
@@ -192,7 +201,7 @@ const Windows = () => {
         align: 'right',
         sortValue: s => s.row.otmPct,
         render: s => (
-          <span className="text-textPrimary">
+          <span className="text-textSecondary">
             {s.row.otmPct >= 0 ? '+' : ''}
             {s.row.otmPct.toFixed(1)}%
           </span>
@@ -200,7 +209,7 @@ const Windows = () => {
       },
       {
         key: 'wvol',
-        header: 'This window',
+        header: 'This interval',
         align: 'right',
         sortValue: s => s.vol,
         render: s => <span className={weightInk(s.vol, marks.wvol)}>{num(s.vol)}</span>,
@@ -222,7 +231,7 @@ const Windows = () => {
                   style={{ width: `${Math.min(100, s.shareOfDayPct)}%` }}
                 />
               </span>
-              <span className={`tnum ${hot ? 'font-bold text-textPrimary' : 'text-textPrimary'}`}>
+              <span className={`tnum ${hot ? 'font-bold text-textPrimary' : 'text-textSecondary'}`}>
                 {s.shareOfDayPct.toFixed(0)}%
               </span>
             </span>
@@ -238,7 +247,7 @@ const Windows = () => {
       },
       {
         key: 'wprem',
-        header: 'Window $',
+        header: 'Interval $',
         align: 'right',
         sortValue: s => s.premium,
         render: s => <span className={weightInk(s.premium, marks.wprem)}>{fmtUsd(s.premium)}</span>,
@@ -268,7 +277,7 @@ const Windows = () => {
         header: 'Sweep',
         align: 'right',
         sortValue: s => s.sweepPct,
-        render: s => <span className={s.sweepPct >= 40 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{s.sweepPct}%</span>,
+        render: s => <span className={s.sweepPct >= 40 ? 'text-textPrimary' : 'text-textSecondary'}>{s.sweepPct}%</span>,
       },
       {
         key: 'floor',
@@ -279,9 +288,9 @@ const Windows = () => {
         // the window.
         render: s =>
           s.floorPct === 0 ? (
-            <span className="text-textSecondary">—</span>
+            <span className="text-textMuted">—</span>
           ) : (
-            <span className={s.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{s.floorPct}%</span>
+            <span className={s.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textSecondary'}>{s.floorPct}%</span>
           ),
       },
       {
@@ -289,7 +298,7 @@ const Windows = () => {
         header: 'Multi',
         align: 'right',
         sortValue: s => s.multiPct,
-        render: s => <span className={s.multiPct >= 30 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{s.multiPct}%</span>,
+        render: s => <span className={s.multiPct >= 30 ? 'text-textPrimary' : 'text-textSecondary'}>{s.multiPct}%</span>,
       },
       {
         key: 'voloi',
@@ -297,7 +306,7 @@ const Windows = () => {
         align: 'right',
         sortValue: s => s.volOverOI,
         render: s => (
-          <span className={s.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
+          <span className={s.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>
             {s.volOverOI.toFixed(2)}
           </span>
         ),
@@ -337,9 +346,9 @@ const Windows = () => {
         sortValue: s => s.row.earnDays ?? 999,
         render: s =>
           s.row.earnDays == null ? (
-            <span className="text-textSecondary">—</span>
+            <span className="text-textMuted">—</span>
           ) : (
-            <span className={s.row.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>
+            <span className={s.row.earnDays <= 5 ? 'text-warn' : 'text-textSecondary'}>
               {s.row.earnDays === 0 ? 'today' : `in ${s.row.earnDays}d`}
             </span>
           ),
@@ -374,8 +383,15 @@ const Windows = () => {
   );
   const { hidden, toggle, showAll, hideAll } = useHiddenColumns('slayer_windows_cols');
   const chooserCols = useMemo(() => columns.map(c => ({ key: c.key, label: typeof c.header === 'string' ? c.header : c.key })), [columns]);
-  const selectedKey = openKey ? (slices.find(s => s.row.key === openKey)?.key ?? null) : null;
-  const stepBtn = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
+  const selectedKey = openKey && slices.some(s => s.row.key === openKey) ? openKey : null;
+  /* THE HEAVIEST AT REST (the same day): the grid grows with its rows, so every row it holds is
+     drawn — 297 rows × 19 columns is 5,600 cells to refresh on every window change. At rest it
+     holds the 80 heaviest; the foot says how many there are and opens the rest. The reader's
+     choice holds across windows. Never a door for fewer than 20 hidden rows. */
+  const [allRows, setAllRows] = useState(false);
+  const capped = !allRows && slices.length > HEAVIEST_AT_REST + CAP_SLACK;
+  const shown = useMemo(() => (capped ? slices.slice(0, HEAVIEST_AT_REST) : slices), [slices, capped]);
+  const stepBtn = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors';
 
   return (
     <>
@@ -386,12 +402,12 @@ const Windows = () => {
         title="A quarter hour of the day"
         sub={`${activeCut.label} — ${activeCut.hint} · a row opens the contract's card`}
         testId="windows"
-        data={{ cut, window: win?.label, rows: slices.length, expiry: expiry ?? 'all' }}
-        guide={{ title: 'How to read the windows', door: 'What a window, a burst and the share of the day mean', body: <WindowsGuide />, testId: 'windows-guide', open: guideOpen, onOpen: setGuideOpen }}
+        data={{ cut, window: win?.label, rows: slices.length, shown: shown.length }}
+        guide={{ title: 'How to read the intervals', door: 'What an interval, a burst and the share of the day mean', body: <WindowsGuide />, testId: 'windows-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
-            <Fact label="In the window" testId="window">
-              {num(facts.total)} <span className="text-textSecondary">contracts ·</span> {fmtUsd(facts.prem)}
+            <Fact label="In the interval" testId="window">
+              {num(facts.total)} <span className="text-textMuted">contracts ·</span> {fmtUsd(facts.prem)}
               {win?.live && (hold.paused ? <span className="ml-2 text-[9px] uppercase tracking-widest text-warn">held</span> : <span className="ml-2 text-[9px] uppercase tracking-widest text-select animate-live-breathe">still filling</span>)}
             </Fact>
             <Fact label="Names" testId="names">
@@ -419,22 +435,22 @@ const Windows = () => {
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
             {/* THE WINDOW: back, the label, forward, and Latest to follow the newest complete one */}
             <span className="inline-flex items-center gap-1.5" data-windows-nav>
-              <button type="button" onClick={() => setWinSel(Math.max(0, winIdx - 1))} disabled={winIdx === 0} aria-label="Previous window" className={stepBtn}>
+              <button type="button" onClick={() => setWinSel(Math.max(0, winIdx - 1))} disabled={winIdx === 0} aria-label="Previous interval" className={stepBtn}>
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <span className="inline-flex items-center gap-2 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono">
-                <span className="text-[9px] uppercase tracking-widest text-textMuted">Window</span>
+                <span className="text-[9px] uppercase tracking-widest text-textMuted">Interval</span>
                 <span className="text-[11px] font-semibold tnum text-textPrimary">{win?.label ?? '—'}</span>
                 {win?.live && (hold.paused ? <span className="text-[9px] uppercase tracking-widest text-warn">held</span> : <span className="text-[9px] uppercase tracking-widest text-select animate-live-breathe">live</span>)}
               </span>
-              <button type="button" onClick={() => setWinSel(Math.min(windows.length - 1, winIdx + 1))} disabled={winIdx >= windows.length - 1} aria-label="Next window" className={stepBtn}>
+              <button type="button" onClick={() => setWinSel(Math.min(windows.length - 1, winIdx + 1))} disabled={winIdx >= windows.length - 1} aria-label="Next interval" className={stepBtn}>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => setWinSel('latest')}
                 aria-pressed={winSel === 'latest'}
-                title="Follow the newest complete window"
+                title="Follow the newest complete interval"
                 className={`h-7 px-2.5 rounded-md border font-mono text-[9px] uppercase tracking-widest transition-colors ${winSel === 'latest' ? 'border-silver/50 bg-silver/[0.06] text-textPrimary' : 'border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`}
                 data-windows-latest
               >
@@ -442,9 +458,8 @@ const Windows = () => {
               </button>
             </span>
             <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
-            <DropdownSelect label="Cut" value={cut} options={CUT_OPTIONS} onChange={setCut} title="Which of the window's flow" testId="windows-cut" />
+            <DropdownSelect label="Cut" value={cut} options={CUT_OPTIONS} onChange={setCut} title="Which of the interval's flow" testId="windows-cut" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="windows-side" />
-            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="windows-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
@@ -452,7 +467,29 @@ const Windows = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight emptyText="Nothing in this window" emptyBody="No contract traded inside it on this cut — try a wider window or a looser card." testId="windows" />
+        {/* no row animation: a window change re-sorts every row, and 300 rows sliding is motion, not information.
+            THE BEAT (Noah, 2026-09-19): the swap lands in one frame, "way too quick for the user to even figure out that
+            the page switched" — so the house's working mark stands over the grid for one short beat, naming the interval
+            it is bringing in (ui/Working.tsx useBeat, the one exception to "no wait is ever invented"). The strip and the
+            head above stay clear: the reader sees what they pressed. */}
+        <div className="relative" data-interval-body={switching ? 'switching' : 'rest'}>
+          {switching && (
+            <div className="absolute inset-0 z-10 flex justify-center pt-14 bg-panel/90 backdrop-blur-[1px] animate-fade-in" data-interval-switching>
+              <Working delay={0} stacked label={win?.label} />
+            </div>
+          )}
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight animate={false} emptyText="Nothing traded in this interval on this cut" testId="windows" />
+        </div>
+        {/* THE FOOT: how many the window holds, and the door to the rest (or back to the heaviest) */}
+        {slices.length > HEAVIEST_AT_REST + CAP_SLACK && (
+          <div className="px-5 py-2.5 border-t border-borderSubtle flex items-center gap-2 text-[11px] text-textSecondary" data-windows-more={capped ? 'rest' : 'all'}>
+            <span>{capped ? `The ${HEAVIEST_AT_REST} heaviest of ${num(slices.length)} contracts` : `All ${num(slices.length)} contracts`}</span>
+            <span className="text-textMuted" aria-hidden>·</span>
+            <button type="button" onClick={() => setAllRows(v => !v)} className="font-semibold text-textPrimary hover:text-silver transition-colors" data-windows-more-door>
+              {capped ? 'Show all' : `Show the ${HEAVIEST_AT_REST} heaviest`}
+            </button>
+          </div>
+        )}
       </TraceBox>
 
       <BookDrill list={slices.map(s => s.row)} openKey={openKey} onOpen={setOpenKey} tick={tick} />

@@ -38,18 +38,29 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { X } from 'lucide-react';
 import { fmtDollars } from '../../data/ahead';
 import { GREEK_LABEL, GREEK_WORDS, distanceIn, sharedUnit, type Compare, type CompareSide, type Greek, type Reach } from '../../data/compare';
-import CompanyLogo from '../ui/CompanyLogo';
 import { GREEKS } from '../../data/exposureSurface';
 import type { DistanceUnit } from '../../data/atr';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
 import { HEAT_MODE, heatCellStyle, type HeatMode } from './heatmap';
-import { AXIS_COL_W, AXIS_READ_H } from './compareSkeletons';
-import { Name } from '../ui/Name';
+import { AXIS_COL_W, AXIS_READ_H, AXIS_STRIKE_W } from './compareSkeletons';
+import { useResolvedTheme } from '../../theme/theme';
 
 const SILVER = '#C7D3E8';
 const INK = '#ededed';
 const INK_2 = '#a3a3a3';
 const INK_3 = '#7d7d7d';
+
+/* THE RULER ON PAPER (the light sweep, 2026-09-19 — Noah, with the light Compare page: a black box across a white card).
+   It was a dark island on either theme by his 2026-09-12 word ("these ladders need gray or black as the background");
+   that night's sweep made a drawn figure part of the page on paper. The canvas cannot read tokens, so it carries two
+   sets: DARK_INKS is every value it always drew with, to the digit (a light-theme change never moves the dark theme);
+   PAPER_INKS is the same drawing for the page's soft inset grey — the neutral inks near-black, the grid and the column
+   in the page's ink, the level chips on white in the deep green/red/magenta the light page uses, and ONE addition: every
+   capsule takes a hairline EDGE, because the heat ramp's quiet end is a pale yellow that a light ground swallows — the
+   edge is what his "gray or black" background was doing for it. The heat ramp itself is untouched. */
+interface RulerInks { wash: string; col: string; colEdge: string; grid: string; ink: string; ink2: string; ink3: string; spotRule: string; onInk: string; chipGround: string; silver: string; edge: string | null; call: string; put: string; supreme: string; flip: string }
+const DARK_INKS: RulerInks = { wash: 'rgba(255,255,255,0.04)', col: 'rgba(255,255,255,0.025)', colEdge: 'rgba(255,255,255,0.08)', grid: 'rgba(255,255,255,0.05)', ink: INK, ink2: INK_2, ink3: INK_3, spotRule: 'rgba(237,237,237,0.3)', onInk: '#0a0a0a', chipGround: '#0a0a0a', silver: SILVER, edge: null, call: CALL_WALL, put: PUT_WALL, supreme: SUPREME, flip: FLIP };
+const PAPER_INKS: RulerInks = { wash: 'rgba(14,15,17,0.06)', col: 'rgba(14,15,17,0.04)', colEdge: 'rgba(14,15,17,0.16)', grid: 'rgba(14,15,17,0.09)', ink: '#0e0f11', ink2: '#26282d', ink3: '#40434a', spotRule: 'rgba(14,15,17,0.4)', onInk: '#ffffff', chipGround: '#ffffff', silver: '#3a4f7a', edge: 'rgba(14,15,17,0.3)', call: '#008c38', put: '#dc2020', supreme: '#a300b3', flip: '#5b6472' };
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 export const PAD = 14;
@@ -122,6 +133,13 @@ const REACH_MOVES: Record<Reach, number | null> = { one: 1, two: 2, three: 3, al
     past what an 8px figure needs. The first cut let the pitch take them to 4px
     and every capsule on a tight pair stood empty. */
 export const barHFor = (pitch: number) => Math.max(11, Math.min(22, Math.round(pitch * 0.72)));
+/** THE CAPSULE FLOOR (2026-09-29): a strike lighter than this share of its side's heaviest in view is not drawn as a
+    capsule — a capsule shrunk to a dot was the barcode the house banned on its charts, and at three expected moves
+    nearly half the drawing was dots. It is drawn as a hairline TICK at the spine instead: a strike is here, nothing on
+    it. The walls and the supreme always draw as capsules. Eight percent: under that a capsule on the page's lane is
+    shorter than its own four-character figure needs (measured at 4% the circles stayed; at 7% a figure-less stub or
+    two). A share, not a length, so the lane heads' count of ticks (inView) and the drawing agree. */
+export const LIGHT_SHARE = 0.08;
 
 /** The ruler and both books on it, in the chosen greek — pure; where the window sits and how tall it is are the frame's business */
 export function layout(cmp: Compare, unit: DistanceUnit, reach: Reach, greek: Greek): Layout {
@@ -176,7 +194,18 @@ export function inView(L: Layout, offset: number) {
   };
   const a = on(L.a);
   const b = on(L.b);
-  return { a, b, scale: (greek: Greek) => ({ a: scale(a, L.a, greek), b: scale(b, L.b, greek) }), off: { a: L.a.rows.length - a.length, b: L.b.rows.length - b.length } };
+  /* the strikes in view too light to draw as capsules — ticks at the spine (LIGHT_SHARE) */
+  const light = (rows: RulerRow[], S: SideLayout, greek: Greek) => {
+    const m = scale(rows, S, greek);
+    return rows.filter(r => r.value !== 0 && Math.abs(r.value) / m < LIGHT_SHARE && !near(r.strike, S.side.levels.callWall) && !near(r.strike, S.side.levels.putWall) && !near(r.strike, S.supreme)).length;
+  };
+  return {
+    a,
+    b,
+    scale: (greek: Greek) => ({ a: scale(a, L.a, greek), b: scale(b, L.b, greek) }),
+    off: { a: L.a.rows.length - a.length, b: L.b.rows.length - b.length },
+    light: (greek: Greek) => ({ a: light(a, L.a, greek), b: light(b, L.b, greek) }),
+  };
 }
 
 interface Hover {
@@ -223,6 +252,10 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
   const heat: HeatMode = palette === 'house' ? HEAT_MODE : 'thermal-yellow';
   const heatRef = useRef(heat);
   heatRef.current = heat;
+  /* the page's theme, for the frame loop — a flip is part of the frame's key, so the canvas repaints on it */
+  const paper = useResolvedTheme() === 'light';
+  const paperRef = useRef(paper);
+  paperRef.current = paper;
   const cards = !!onCard;
   const myCard = card && card.lane === greek ? card : null;
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -302,7 +335,8 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       if (W < 120 || H < 80) return;
       const hv = hoverRef.current;
       const cs = cardStateRef.current;
-      const key = `${W}|${H}|${hv?.side ?? ''}${hv?.strike ?? ''}|${dataRev.current}|${wantRef.current.toFixed(4)}|${cs ? `${cs.side}${cs.strike}@${cs.x}` : ''}|${overSpotRef.current ? 's' : ''}`;
+      const K = paperRef.current ? PAPER_INKS : DARK_INKS;
+      const key = `${paperRef.current ? 'paper' : 'dark'}|${W}|${H}|${hv?.side ?? ''}${hv?.strike ?? ''}|${dataRev.current}|${wantRef.current.toFixed(4)}|${cs ? `${cs.side}${cs.strike}@${cs.x}` : ''}|${overSpotRef.current ? 's' : ''}`;
       if (key === lastKey && settledRef.current) return;
       lastKey = key;
       const dt = lastTs.current ? Math.min(64, ts - lastTs.current) : 16;
@@ -351,13 +385,27 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
 
+      /* THE SPINE (2026-09-29): the ruler's column of distances in the middle, and on the page a column of STRIKE FIGURES
+         on each side of it — every capsule named where the Map's ladder names its strikes (the first cut named a strike
+         only on hover). The compact lanes keep the bare column. */
       const colW = compact ? Math.min(AXIS_COL_W, Math.max(52, W * 0.14)) : AXIS_COL_W;
+      const strikeW = compact ? 0 : AXIS_STRIKE_W;
       const cx = W / 2;
       const colL = cx - colW / 2;
       const colR = cx + colW / 2;
-      const laneA = { from: colL - 4, to: 6 }; // grows left
-      const laneB = { from: colR + 4, to: W - 6 }; // grows right
-      const span = Math.max(1, laneA.from - laneA.to - 10);
+      const spineL = colL - strikeW;
+      const spineR = colR + strikeW;
+      const laneA = { from: spineL - 4, to: 6 }; // grows left
+      const laneB = { from: spineR + 4, to: W - 6 }; // grows right
+      /* THE CHIPS' GUTTER (Noah, 2026-09-20, with a flip chip lying over the end of the longest capsule and the name inside
+         it: "they are not organized and overlap"). A capsule could run to within 10px of its lane's outer edge — and the
+         longest always does, by the ruler's own rule — which is exactly where the flip's chip stands, and the walls sit
+         beside the flip more often than not. So the outer edge of each lane is kept for the chips: no capsule enters it, the
+         flip's chip always stands in it, and a wall's chip finds room beside even the longest capsule instead of being
+         pushed inside it. Not on the compact lanes (they print no flip chip) nor on a lane too narrow to spare it. */
+      const laneW = laneA.from - laneA.to;
+      const GUTTER = compact || laneW < 420 ? 0 : 88;
+      const span = Math.max(1, laneW - 10 - GUTTER);
       const yOf = (d: number) => PAD + ((off + L.R - d) / (2 * L.R)) * (H - 2 * PAD);
       /* ONE CAPSULE HEIGHT FOR BOTH SIDES, the smaller, from the drawing's own height */
       const pitchOf = (S: SideLayout) => (S.minGap / (2 * L.R)) * (H - 2 * PAD);
@@ -386,7 +434,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
         const rows = hv.side === 'a' ? placedA : placedB;
         const row = rows.find(p => near(p.strike, hv.strike));
         if (row) {
-          ctx.fillStyle = 'rgba(255,255,255,0.04)';
+          ctx.fillStyle = K.wash;
           const pitch = Math.max(barH + 4, 12);
           if (hv.side === 'a') ctx.fillRect(0, row.y - pitch / 2, colL, pitch);
           else ctx.fillRect(colR, row.y - pitch / 2, W - colR, pitch);
@@ -394,9 +442,9 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       }
 
       /* The column's ground and its edges */
-      ctx.fillStyle = 'rgba(255,255,255,0.025)';
+      ctx.fillStyle = K.col;
       ctx.fillRect(colL, 0, colW, H);
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = K.colEdge;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(colL + 0.5, 0);
@@ -414,7 +462,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       /* The ruler's ticks: a gridline across both lanes, the distance in the column */
       const ticks: number[] = [];
       for (let d = Math.ceil((off - reach) / L.step) * L.step; d <= off + reach + 1e-9; d += L.step) ticks.push(Math.abs(d) < 1e-9 ? 0 : Number(d.toFixed(6)));
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = K.grid;
       ctx.beginPath();
       for (const d of ticks) {
         const yy = Math.round(yOf(d)) + 0.5;
@@ -429,22 +477,22 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       for (const d of ticks) {
         if (near(d, 0)) continue;
         ctx.font = `${compact ? 9 : 10}px ${MONO}`;
-        ctx.fillStyle = INK_2;
+        ctx.fillStyle = K.ink2;
         ctx.fillText(tickWords(d, L.U), cx, yOf(d));
       }
       /* Spot: a rule across both lanes, a solid chip in the column */
       if (Math.abs(off) <= reach) {
         const y0 = Math.round(yOf(0)) + 0.5;
-        ctx.strokeStyle = 'rgba(237,237,237,0.3)';
+        ctx.strokeStyle = K.spotRule;
         ctx.beginPath();
         ctx.moveTo(0, y0);
         ctx.lineTo(W, y0);
         ctx.stroke();
-        ctx.fillStyle = INK;
+        ctx.fillStyle = K.ink;
         ctx.beginPath();
         ctx.roundRect(colL + 4, y0 - 8, colW - 8, 16, 4);
         ctx.fill();
-        ctx.fillStyle = '#0a0a0a';
+        ctx.fillStyle = K.onInk;
         ctx.font = `700 ${compact ? 9 : 10}px ${MONO}`;
         ctx.fillText('spot', cx, y0 + 0.5);
       }
@@ -456,6 +504,8 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
         ctx.beginPath();
         ctx.roundRect(x, y, len, h, rad);
         ctx.fill();
+        /* on paper every capsule has an edge (see PAPER_INKS); the kept and the hovered one wear their ring over it */
+        if (!ring && K.edge) ring = K.edge;
         if (ring) {
           ctx.strokeStyle = ring;
           ctx.lineWidth = 1;
@@ -485,33 +535,54 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
            one point smaller under 13 — never a chip over the figure (Noah, 2026-09-09) */
         const NAME_IN = barH >= 13 ? NAME : `500 8px ${SANS}`;
         const levelOf = new Map<number, { words: string; c: string }>();
-        levelOf.set(s.levels.callWall, { words: 'Call wall', c: CALL_WALL });
-        levelOf.set(s.levels.putWall, { words: 'Put wall', c: PUT_WALL });
+        levelOf.set(s.levels.callWall, { words: 'Call wall', c: K.call });
+        levelOf.set(s.levels.putWall, { words: 'Put wall', c: K.put });
         /* The supreme is the chosen greek's heaviest strike — the Map's rule */
-        if (!near(S.supreme, s.levels.callWall) && !near(S.supreme, s.levels.putWall)) levelOf.set(S.supreme, { words: 'Supreme', c: SUPREME });
+        if (!near(S.supreme, s.levels.callWall) && !near(S.supreme, s.levels.putWall)) levelOf.set(S.supreme, { words: 'Supreme', c: K.supreme });
         const levelAt = (kk: number) => {
           for (const [lk, v] of levelOf) if (near(lk, kk)) return v;
           return undefined;
         };
         const chipsLater: { words: string; c: string; x: number; y: number; w: number }[] = [];
+        /* THE FLIP'S CHIP IS PLACED FIRST, so a wall's chip can step aside for it: where the two would touch, the wall's name
+           goes inside its capsule (the rule it already had for "no room beside"), and one that cannot is moved clear */
+        const flipInView = S.flipD != null && s.flip != null && Math.abs(S.flipD - off) <= reach;
+        const flipWords = flipInView && !compact ? `flip ${fmtStrike(s.flip!)}` : null;
+        const flipW = flipWords ? chipOf(flipWords) : 0;
+        const flipChip = flipWords ? { x: left ? 6 : W - 6 - flipW, y: yOf(S.flipD!), w: flipW } : null;
+        const hitsFlip = (x0: number, w0: number, y0: number) => flipChip != null && Math.abs(y0 - flipChip.y) < 18 && x0 < flipChip.x + flipChip.w + 6 && x0 + w0 > flipChip.x - 6;
+        const clearOfFlip = (x0: number, w0: number, y0: number) => (hitsFlip(x0, w0, y0) && flipChip ? (left ? flipChip.x + flipChip.w + 6 : flipChip.x - 6 - w0) : x0);
 
         for (const p of placed) {
           if (p.value === 0) continue;
+          const lvl = levelAt(p.strike);
+          const isFocus = focus != null && near(focus, p.strike);
+          const isHover = hv != null && hv.side === side && near(hv.strike, p.strike);
+          /* TOO LIGHT TO DRAW: a hairline tick at the spine, never a dot (LIGHT_SHARE) */
+          if (!lvl && Math.abs(p.value) / onMax < LIGHT_SHARE) {
+            const yy = Math.round(p.y) + 0.5;
+            const tx = left ? laneA.from : laneB.from;
+            ctx.strokeStyle = isFocus ? K.silver : isHover ? K.ink : K.ink3;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(tx, yy);
+            ctx.lineTo(left ? tx - 8 : tx + 8, yy);
+            ctx.stroke();
+            continue;
+          }
           const target = Math.max(barH, (Math.abs(p.value) / onMax) * span);
           const len = ease(`${side}:${p.strike}`, target, barH);
           const x = left ? laneA.from - len : laneB.from;
           const t = thermal(p.value, onMax, heatRef.current);
-          const isFocus = focus != null && near(focus, p.strike);
-          const isHover = hv != null && hv.side === side && near(hv.strike, p.strike);
-          capsule(x, p.y, len, barH, t.fill, isFocus ? SILVER : isHover ? rgba(SILVER, 0.6) : null);
+          capsule(x, p.y, len, barH, t.fill, isFocus ? K.silver : isHover ? rgba(K.silver, 0.6) : null);
           const fig = fmtDollars(Math.abs(p.value));
-          const lvl = levelAt(p.strike);
           const outerX = left ? x + 6 : x + len - 6;
           const innerX = left ? x + len - 6 : x + 6;
           const outerAlign: CanvasTextAlign = left ? 'left' : 'right';
           const innerAlign: CanvasTextAlign = left ? 'right' : 'left';
           const chipW = lvl ? chipOf(lvl.words) : 0;
-          const roomBeside = lvl ? (left ? x - 8 - chipW >= 6 : x + len + 8 + chipW <= W - 6) : false;
+          const besideX = left ? x - 8 - chipW : x + len + 8;
+          const roomBeside = lvl ? (left ? besideX >= 6 : besideX + chipW <= W - 6) && !hitsFlip(besideX, chipW, p.y) : false;
           if (lvl && !roomBeside) {
             if (barH >= 10 && textW(lvl.words, NAME_IN) + 12 <= len) {
               ctx.font = NAME_IN;
@@ -524,7 +595,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                 ctx.fillText(fig, innerX, p.y + 0.5);
               }
             } else {
-              chipsLater.push({ words: lvl.words, c: lvl.c, x: left ? Math.max(6, x) : Math.min(W - 6 - chipW, x + len - chipW), y: p.y, w: chipW });
+              chipsLater.push({ words: lvl.words, c: lvl.c, x: clearOfFlip(left ? Math.max(6, x) : Math.min(W - 6 - chipW, x + len - chipW), chipW, p.y), y: p.y, w: chipW });
             }
           } else {
             if (canPrint && textW(fig, FIG) + 12 <= len) {
@@ -533,7 +604,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
               ctx.textAlign = outerAlign;
               ctx.fillText(fig, outerX, p.y + 0.5);
             }
-            if (lvl) chipsLater.push({ words: lvl.words, c: lvl.c, x: left ? x - 8 - chipW : x + len + 8, y: p.y, w: chipW });
+            if (lvl) chipsLater.push({ words: lvl.words, c: lvl.c, x: besideX, y: p.y, w: chipW });
           }
         }
 
@@ -543,7 +614,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
           const yy = Math.round(fy) + 0.5;
           ctx.save();
           ctx.setLineDash([3, 3]);
-          ctx.strokeStyle = rgba(FLIP, 0.7);
+          ctx.strokeStyle = rgba(K.flip, 0.7);
           ctx.beginPath();
           if (left) {
             ctx.moveTo(6, yy);
@@ -554,17 +625,13 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
           }
           ctx.stroke();
           ctx.restore();
-          if (!compact) {
-            const words = `flip ${fmtStrike(s.flip)}`;
-            const w = chipOf(words);
-            chipsLater.push({ words, c: FLIP, x: left ? 6 : W - 6 - w, y: fy, w });
-          }
+          if (flipChip && flipWords) chipsLater.push({ words: flipWords, c: K.flip, x: flipChip.x, y: flipChip.y, w: flipChip.w });
         }
 
         /* The chips — the walls beside their capsules' ends, the flip at the edge */
         for (const c of chipsLater) {
           const y = Math.round(c.y - 8) + 0.5;
-          ctx.fillStyle = '#0a0a0a';
+          ctx.fillStyle = K.chipGround;
           ctx.beginPath();
           ctx.roundRect(c.x, y, c.w, 16, 8);
           ctx.fill();
@@ -581,6 +648,38 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       };
       drawSide(L.a, placedA, onMaxA, 'a');
       drawSide(L.b, placedB, onMaxB, 'b');
+
+      /* THE SPINE OF STRIKES: every row's strike beside the ruler, the Map's ladder way — the walls, the supreme, the
+         hovered and the kept strike always print; another figure is skipped only where it would sit on one already
+         printed (a dense pair, NVDA's 50-cent strikes, prints every other) */
+      const drawStrikes = (S: SideLayout, placed: PlacedRow[], side: SideKey) => {
+        if (strikeW <= 0) return;
+        const left = side === 'a';
+        const focus = left ? focusRef.current.a : focusRef.current.b;
+        const keptOf = (p: PlacedRow) => focus != null && near(focus, p.strike);
+        const hotOf = (p: PlacedRow) => hv != null && hv.side === side && near(hv.strike, p.strike);
+        const must = (p: PlacedRow) => keptOf(p) || hotOf(p) || roleOf(S, p.strike) != null;
+        const MIN = 11;
+        const printed: number[] = [];
+        const x = left ? colL - 5 : colR + 5;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = left ? 'right' : 'left';
+        const print = (p: PlacedRow) => {
+          if (p.y < PAD || p.y > H - PAD) return;
+          if (printed.some(py => Math.abs(py - p.y) < MIN)) return;
+          printed.push(p.y);
+          const kept = keptOf(p);
+          const hot = hotOf(p);
+          ctx.fillStyle = kept ? K.silver : hot ? K.ink : K.ink2;
+          ctx.font = kept || hot ? `700 10px ${MONO}` : `10px ${MONO}`;
+          ctx.fillText(fmtStrike(p.strike), x, p.y + 0.5);
+        };
+        const rows = [...placed].sort((p, q) => p.y - q.y);
+        rows.filter(must).forEach(print);
+        rows.filter(p => !must(p)).forEach(print);
+      };
+      drawStrikes(L.a, placedA, 'a');
+      drawStrikes(L.b, placedB, 'b');
       ctx.restore();
 
       /* THE CARD RIDES ITS CAPSULE — placed on the row each frame, beside the
@@ -604,12 +703,12 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
 
       /* Off the ruler, counted, in the margins — and the way back to spot when it has slid out */
       ctx.font = `9px ${MONO}`;
-      ctx.fillStyle = INK_3;
+      ctx.fillStyle = K.ink3;
       ctx.textBaseline = 'middle';
       for (const [S, left] of [[L.a, true], [L.b, false]] as [SideLayout, boolean][]) {
         const c = counts(S);
         ctx.textAlign = left ? 'right' : 'left';
-        const cxx = left ? colL - 6 : colR + 6;
+        const cxx = left ? spineL - 6 : spineR + 6;
         if (c.up) ctx.fillText(`▲ ${c.up}`, cxx, PAD - 4);
         if (c.down) ctx.fillText(`▼ ${c.down}`, cxx, H - PAD + 4);
       }
@@ -618,7 +717,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       if (Math.abs(off) > reach) {
         const wy = off > 0 ? H - PAD + 4 : PAD - 4;
         spotWordRef.current = { x: cx, y: wy };
-        ctx.fillStyle = overSpotRef.current ? INK : INK_2;
+        ctx.fillStyle = overSpotRef.current ? K.ink : K.ink2;
         ctx.font = `700 9px ${MONO}`;
         ctx.textAlign = 'center';
         ctx.fillText(off > 0 ? '▼ spot' : '▲ spot', cx, wy);
@@ -781,14 +880,12 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
            to distinguish the respected tickers here") — the left name and its
            scale, the greek, the right scale and its name */
         <div className="px-2 flex items-center justify-between font-mono text-[9px] tnum whitespace-nowrap" style={{ height: 22 }} data-lane-caption>
-          <span className="truncate inline-flex items-center gap-1.5">
-            <CompanyLogo ticker={cmp.a.ticker} size={12} />
-            <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> <span className="text-textSecondary">{fmtDollars(scale.a)}</span>
+          <span className="truncate">
+            <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> <span className="text-textMuted">{fmtDollars(scale.a)}</span>
           </span>
           <span className="font-bold uppercase tracking-widest text-textSecondary">{GREEK_LABEL[greek]}</span>
-          <span className="truncate inline-flex items-center gap-1.5">
-            <span className="text-textSecondary">{fmtDollars(scale.b)}</span> <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
-            <CompanyLogo ticker={cmp.b.ticker} size={12} />
+          <span className="truncate">
+            <span className="text-textMuted">{fmtDollars(scale.b)}</span> <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
           </span>
         </div>
       )}
@@ -814,6 +911,8 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
             ref={cardRef}
             className="absolute left-0 top-0 z-20 rounded-md border border-borderSubtle px-3 py-2.5 select-text cursor-default"
             style={{ width: CARD_W, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', opacity: 0, pointerEvents: 'none', transition: 'opacity 160ms ease-out' }}
+            data-theme="dark"
+            data-chart-glass
             onPointerDown={e => e.stopPropagation()}
             onDoubleClick={e => e.stopPropagation()}
             data-node-card={`${myCard.side}:${myCard.strike}`}
@@ -829,8 +928,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                 const alignRight = (which === 's') === (myCard.side === 'a');
                 return (
                   <span key={which} className={`min-w-0 flex flex-col leading-tight ${alignRight ? 'items-end text-right' : 'items-start'}`} style={{ gridRow: 1, gridColumn: (which === 's') === (myCard.side === 'a') ? 2 : 3 }} data-card-head={which}>
-                    <span className="font-mono text-[12px] font-bold tnum text-textPrimary whitespace-nowrap inline-flex items-center gap-1.5">
-                      <CompanyLogo ticker={L.side.ticker} size={13} />
+                    <span className="font-mono text-[12px] font-bold tnum text-textPrimary whitespace-nowrap">
                       {L.side.ticker} {r ? fmtStrike(r.strike) : '—'}
                     </span>
                     <span className="text-[9.5px] whitespace-nowrap">
@@ -883,16 +981,15 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                 );
               })}
             </div>
-            <div className="mt-2 pt-1.5 border-t border-borderSubtle text-[9px] text-textMuted whitespace-nowrap truncate">a click anywhere or Esc closes · the capsule again lets the strike go</div>
+            <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[9px] text-textMuted whitespace-nowrap truncate">a click anywhere or Esc closes · the capsule again lets the strike go</div>
           </div>
         )}
       </div>
-      <div className={`${compact ? 'px-2 text-[10px]' : 'px-5 text-[10.5px]'} border-t border-borderSubtle flex items-center gap-3 whitespace-nowrap overflow-hidden text-textSecondary`} style={{ height: AXIS_READ_H }} data-axis-read data-read-strike={row ? row.strike : undefined}>
+      <div className={`${compact ? 'px-2 text-[10px]' : 'px-5 text-[10.5px]'} border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-textSecondary`} style={{ height: AXIS_READ_H }} data-axis-read data-read-strike={row ? row.strike : undefined}>
         {row && S && readSide ? (
           compact ? (
             <>
-              <span className="font-mono font-bold tnum text-textPrimary inline-flex items-center gap-1.5">
-                <CompanyLogo ticker={S.side.ticker} size={12} />
+              <span className="font-mono font-bold tnum text-textPrimary">
                 {S.side.ticker} {fmtStrike(row.strike)}
               </span>
               <span className="font-mono tnum text-textPrimary truncate">
@@ -901,8 +998,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
             </>
           ) : (
             <>
-              <span className="font-mono text-[11px] font-bold tnum text-textPrimary inline-flex items-center gap-1.5">
-                <CompanyLogo ticker={S.side.ticker} size={13} />
+              <span className="font-mono text-[11px] font-bold tnum text-textPrimary">
                 {S.side.ticker} {fmtStrike(row.strike)}
               </span>
               <span className={`font-mono tnum ${row.d > 0 ? 'text-bull' : row.d < 0 ? 'text-bear' : 'text-textMuted'}`}>{tickWords(row.d, lay.U)}</span>
@@ -915,7 +1011,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
               {roleOf(S, row.strike) && <span className="text-textPrimary">{roleOf(S, row.strike)}</span>}
               {other && O && (
                 <span className="text-textMuted">
-                  · nearest on <Name t={O.side.ticker} size={10} className="text-textSecondary" />: <span className="font-mono tnum text-textPrimary">{fmtStrike(other.strike)}</span> <span className="font-mono tnum">{tickWords(other.d, lay.U)}</span> ·{' '}
+                  · nearest on <span className="text-textSecondary">{O.side.ticker}</span>: <span className="font-mono tnum text-textPrimary">{fmtStrike(other.strike)}</span> <span className="font-mono tnum">{tickWords(other.d, lay.U)}</span> ·{' '}
                   <span className="font-mono tnum text-textPrimary">{fmtDollars(Math.abs(other.value))}</span> {other.value > 0 ? words.pos : words.neg}
                   {roleOf(O, other.strike) ? ` · ${roleOf(O, other.strike)}` : ''}
                 </span>

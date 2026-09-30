@@ -27,8 +27,8 @@ export const Block = ({ w, h, className = '', style }: { w: number | string; h: 
   <Skeleton className={className} style={{ width: w, height: h, ...style }} />
 );
 
-/** A DropdownSelect trigger's footprint: h-7, rounded-md */
-export const Trigger = ({ w, className = '' }: { w: number; className?: string }) => <Skeleton className={`h-7 rounded-md ${className}`} style={{ width: w }} />;
+/** A DropdownSelect trigger's footprint: h-7 (28) by rest, rounded-md — h 24 for the small size a card head wears */
+export const Trigger = ({ w, h = 28, className = '' }: { w: number; h?: number; className?: string }) => <Skeleton className={`rounded-md ${className}`} style={{ width: w, height: h }} />;
 
 /** A ScopeChip's footprint (the mark · SPY · chevron | link, 2026-09-09): 103 × 24 */
 export const ScopeChipMark = ({ className = '' }: { className?: string }) => <Skeleton className={`h-6 w-[103px] rounded-md ${className}`} />;

@@ -3,8 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Slayer Terminal — Institutional Options GEX Analytics</title>
-  <meta name="description" content="Professional-grade options order flow, market-maker hedging dynamics, and institutional liquidity tracking.">
+  <!-- THE HEAD A LINK PREVIEW READS (2026-09-19). X, iMessage and Slack do not run the app — they read THIS file — so the
+       landing's own title, description and picture are written here, in the landing's own words (plain English, and never
+       "options": the brand is market-wide). Once the app is up, components/layout/PageMeta.tsx gives every page its own
+       title and description. The picture is a photograph of the landing (scripts/make-brand-assets.mjs).
+       THE ADDRESS below is taken from the contact email's domain — confirm it before launch. -->
+  <title>Slayer Terminal — Trade what you can see</title>
+  <meta name="description" content="Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings. Every page explains itself in plain English.">
+  <meta name="theme-color" content="#050505">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Slayer Terminal">
+  <meta property="og:title" content="Slayer Terminal — Trade what you can see">
+  <meta property="og:description" content="Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.">
+  <meta property="og:url" content="https://slayerterminal.com/">
+  <meta property="og:image" content="https://slayerterminal.com/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Slayer Terminal landing page: Trade what you can see.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@JoinSlayer">
+  <meta name="twitter:title" content="Slayer Terminal — Trade what you can see">
+  <meta name="twitter:description" content="Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.">
+  <meta name="twitter:image" content="https://slayerterminal.com/og.jpg">
   <!-- THE THEME BEFORE THE FIRST PAINT (2026-09-12): the reader's choice is read
        from the same key theme/theme.ts keeps, and the attribute tokens.css
        switches on is set here, synchronously, before any stylesheet resolves —
@@ -17,15 +41,38 @@
         if (c === 'light' || c === 'dark') t = c;
         else if (c === 'system') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       } catch (e) {}
+      /* THE TERMINAL IN THE LANDING'S WINDOW (src/embed.ts): the page outside names the theme */
+      try {
+        if (window.self !== window.top && /[?&]embed\b/.test(location.search)) {
+          var m = /[?&]theme=(light|dark)\b/.exec(location.search);
+          if (m) t = m[1];
+        }
+      } catch (e) {}
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
+
+  <!-- THE GROUND BEFORE ANYTHING LOADS (2026-09-20 — Noah: "a white screen for about 5-7 seconds until my page actually shows").
+       The page's ground came from the stylesheet, and in development the stylesheet arrives INSIDE the script — so until the
+       whole app had loaded there was nothing but the browser's white. These few lines are in the page itself: the theme's own
+       ground from the first frame (the attribute is set just above), so a slow load is never a white one — on a cold dev
+       server, and for a visitor on a slow connection once we are live. The mark is for a wait that is REAL: it fades in only
+       after 450ms, so a fast load never flickers it, and the app replaces it the moment it mounts (it sits inside #root). The
+       two grounds are tokens.css's --canvas for each theme. -->
+  <style>
+    html { background: #050505; }
+    html[data-theme='light'] { background: #f1f0ec; }
+    #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; color: #7d7d7d; opacity: 0; animation: boot-in 0.4s ease-out 0.45s forwards; }
+    html[data-theme='light'] #boot { color: #40434a; }
+    @keyframes boot-in { to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { #boot { animation-duration: 0.01s; } }
+  </style>
 
   <!-- SF Pro (self-hosted variable font — the site's one and only family) -->
   <link rel="preload" href="/fonts/SF-Pro.var.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 <body class="bg-canvas">
-  <div id="root"></div>
+  <div id="root"><div id="boot" aria-hidden="true">&gt;_ slayer_terminal</div></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

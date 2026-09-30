@@ -1,7 +1,9 @@
 import React, { createContext, startTransition, useContext, useState, useEffect, useRef } from 'react';
 import Simulator from '../core/simulator';
+import { readDeskPrefs } from '../data/deskPrefs';
 import Ledger from '../core/ledger';
 import { enrichPrint } from '../data/tape';
+import { announceFeedTick } from '../data/feedTicks';
 import type { FlowPrint } from '../types/trace';
 import type { ExecuteResult, LedgerStats, MarketSnapshot, TickerSymbol, TradeRecord } from '../types/market';
 
@@ -38,7 +40,12 @@ interface MarketDataContextValue {
 const MarketDataContext = createContext<MarketDataContextValue | null>(null);
 
 export const MarketDataProvider = ({ children }: { children: React.ReactNode }) => {
-  const [activeTicker, setActiveTickerState] = useState<TickerSymbol>(Simulator.getActiveTicker());
+  /* THE NAME THE TERMINAL OPENS ON (Settings › The desk › Opens on, 2026-09-12):
+     the reader's pick when they made one, else where the simulator left off */
+  const [activeTicker, setActiveTickerState] = useState<TickerSymbol>(() => {
+    const pick = readDeskPrefs().opensOn.ticker;
+    return pick ? Simulator.setActiveTicker(pick) : Simulator.getActiveTicker();
+  });
   const [marketData, setMarketData] = useState<MarketSnapshot | null>(null);
   const [flowTape, setFlowTape] = useState<StampedPrint[]>([]);
   /* The print id counter lives in a ref, not in state: it must never reset on
@@ -113,6 +120,8 @@ export const MarketDataProvider = ({ children }: { children: React.ReactNode }) 
         absorbTape(data);
         updateLedgerState();
       });
+      /* 3. What acts on every tick wherever the reader is — a paper account's working orders (data/feedTicks.ts) */
+      announceFeedTick();
     });
   };
 

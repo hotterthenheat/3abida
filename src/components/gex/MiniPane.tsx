@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import CompanyLogo from '../ui/CompanyLogo';
 import { Maximize2 } from 'lucide-react';
 import {
   createChart,
@@ -13,7 +12,7 @@ import {
 } from 'lightweight-charts';
 import Simulator from '../../core/simulator';
 import { DARK_POOL } from './palette';
-import { getCandleTheme, useCandleThemeKey, candleSeriesOptions, chartSurface } from './candleTheme';
+import { chartGround, getCandleTheme, useCandleThemeKey, candleSeriesOptions, chartSurface } from './candleTheme';
 import { useResolvedTheme } from '../../theme/theme';
 import { LOCAL_TIME, localTickMarks } from './chartTime';
 import TickerQuickPick from './TickerQuickPick';
@@ -208,10 +207,7 @@ const MiniPane = ({ ticker, spot, changePercent, prints, revision, onChangeTicke
         {onChangeTicker ? (
           <TickerQuickPick ticker={ticker} onPick={onChangeTicker} />
         ) : (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold text-textPrimary">
-            <CompanyLogo ticker={ticker} size={14} />
-            {ticker}
-          </span>
+          <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>
         )}
         <span className="font-mono text-[11px] font-semibold text-textPrimary tnum">${spot.toFixed(2)}</span>
         <span className={`font-mono text-[10px] tnum ${up ? 'text-bull' : 'text-bear'}`}>
@@ -231,7 +227,7 @@ const MiniPane = ({ ticker, spot, changePercent, prints, revision, onChangeTicke
           </button>
         )}
       </div>
-      <div className="relative h-[248px] bg-panel" onDoubleClick={resetView} data-chart-ink data-theme="dark">
+      <div className="relative h-[248px] bg-panel" onDoubleClick={resetView} data-chart-ink data-theme="dark" data-chart-ground={chartGround(themeKey)}>
         <div ref={containerRef} className="absolute inset-0" />
         <ResetViewControl onReset={resetView} pillClass="right-14 bottom-7" />
       </div>

@@ -24,7 +24,8 @@ export const GRID_THEME = themeQuartz.withParams({
   backgroundColor: 'rgb(var(--panel))',
   foregroundColor: 'rgb(var(--text-primary))',
   headerBackgroundColor: 'rgb(var(--chip))',
-  headerTextColor: 'rgb(var(--text-secondary))',
+  /* grey on the dark terminal, black on paper (tokens.css --grid-head, the light sweep 2026-09-19) */
+  headerTextColor: 'rgb(var(--grid-head))',
   headerFontSize: 9,
   headerFontWeight: 600,
   headerHeight: 30,

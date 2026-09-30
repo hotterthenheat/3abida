@@ -53,6 +53,8 @@ import CompanyLogo from './CompanyLogo';
 import TickerLookup from './TickerLookup';
 import useFocusTrap from './useFocusTrap';
 import { useAnchoredMenu } from './useAnchoredMenu';
+import { MorphingInfinity, useWorking } from './Working';
+import { useNameArriving } from '../gex/useSeeded';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /** Matches the `w-72` on the menu — the placement keeps its far edge on screen */
@@ -85,6 +87,7 @@ interface ScopeChipProps {
 
 const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp, onOpenChange, title, full = false }: ScopeChipProps) => {
   const [selfOpen, setSelfOpen] = useState(false);
+  const arriving = useWorking(useNameArriving(ticker));
   const open = openProp ?? selfOpen;
   const setOpen = (next: boolean) => {
     onOpenChange?.(next);
@@ -190,7 +193,13 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
             </span>
           </>
         )}
-        <ChevronDown className={`w-3 h-3 text-textMuted transition-transform ${open ? 'rotate-180' : ''}`} />
+        {/* THE NAME IS STILL ARRIVING (ui/Working.tsx): the panel keeps its shape and its last numbers, and the chip that names
+            it says so — the mark takes the chevron's own 12px, so nothing on the head moves. Only if the wait lasts. */}
+        {arriving ? (
+          <MorphingInfinity viewBox="4 4 16 16" className="w-3 h-3 text-textSecondary" data-scope-arriving />
+        ) : (
+          <ChevronDown className={`w-3 h-3 text-textMuted transition-transform ${open ? 'rotate-180' : ''}`} />
+        )}
       </button>
       {hasLink && (
         <button

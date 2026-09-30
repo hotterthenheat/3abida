@@ -5,9 +5,8 @@
   2026-08-19: "save a Pulse layout and come back
   to it instead of rebuilding it").
 
-  Curated PRESETS ship as starting desks — Market
-  Structure, The Day Ahead, Flow, 0DTE, The Tape,
-  Levels, The Wire — and the user can
+  Three curated PRESETS ship as starting desks —
+  Market Structure, Flow, 0DTE — and the user can
   save any arrangement under their own name. Every
   desk, preset or custom, autosaves its own working
   state as you go (the house "it saves as you go"
@@ -61,18 +60,6 @@ const assemble = (cells: { inst: WidgetInstance; l: Layout }[]): SavedWorkspace 
 
 /** Curated starting desks, in the order the rail shows them. */
 export const PRESETS: Record<string, SavedWorkspace> = {
-  /* THE MARKET, FIRST. The desk opened on a chart of one name, which answers
-     the second question a trader has. This one answers the first: the strip
-     across the top, then the rotation, the breadth and the movers, then the
-     name's own chart underneath. */
-  'The Market': assemble([
-    cell('indices-1', 'indices', 0, 0, 12, 1),
-    cell('sectors-1', 'sectors', 0, 1, 5, 4),
-    cell('breadth-1', 'breadth', 5, 1, 4, 4),
-    cell('movers-1', 'movers', 9, 1, 3, 4),
-    cell('live-chart-1', 'live-chart', 0, 5, 8, 5),
-    cell('top-setups-1', 'top-setups', 8, 5, 4, 5),
-  ]),
   // The session-opening pair top row, the strike-by-strike inventory beneath
   // (Noah, 2026-08-17; the dealer positioning map that sat beneath is gone
   // from the terminal, 2026-09-03)
@@ -89,58 +76,48 @@ export const PRESETS: Record<string, SavedWorkspace> = {
     cell('ranked-targets-1', 'ranked-targets', 0, 5, 5, 6),
     cell('at-the-wall-1', 'at-the-wall', 5, 5, 7, 6),
   ]),
-  // What's hitting the tape, against the chart, with the walls heading and the setups it feeds
+  // The chart with the wire beside it (order flow sat there until 2026-09-20), the walls heading and the setups beneath
   Flow: assemble([
     cell('live-chart-1', 'live-chart', 0, 0, 7, 5),
-    cell('order-flow-1', 'order-flow', 7, 0, 5, 5),
+    cell('news-1', 'news', 7, 0, 5, 5),
     cell('wall-drift-1', 'wall-drift', 0, 5, 6, 4),
     cell('top-setups-1', 'top-setups', 6, 5, 6, 4),
   ]),
-  // Today's expiry: the ladder big, the order flow beside it, the
-  // strike-by-strike inventory beneath
+  // Today's expiry: the ladder big, where the day closes beside it (order flow
+  // sat there until 2026-09-20), the strike-by-strike inventory beneath
   '0DTE': assemble([
     cell('gex-heatmap-1', 'gex-heatmap', 0, 0, 7, 6),
-    cell('order-flow-1', 'order-flow', 7, 0, 5, 6),
+    cell('where-it-closes-1', 'where-it-closes', 7, 0, 5, 6),
     cell('exposure-matrix-1', 'exposure-matrix', 0, 6, 12, 4),
-  ]),
-  // THE TAPE (2026-09-12, more presets): the name's flow beside its chart —
-  // the prints, the lean through the session, the dark shelves
-  'The Tape': assemble([
-    cell('live-chart-1', 'live-chart', 0, 0, 7, 5),
-    cell('the-tape-1', 'the-tape', 7, 0, 5, 5),
-    cell('net-flow-1', 'net-flow', 0, 5, 6, 5),
-    cell('dark-pool-1', 'dark-pool', 6, 5, 6, 5),
-  ]),
-  // LEVELS: every named level and where it is heading — the agenda, the
-  // walls' drift, the ladder, where the close lands
-  Levels: assemble([
-    cell('ranked-targets-1', 'ranked-targets', 0, 0, 5, 5),
-    cell('wall-drift-1', 'wall-drift', 5, 0, 7, 5),
-    cell('gex-heatmap-1', 'gex-heatmap', 0, 5, 7, 6),
-    cell('where-it-closes-1', 'where-it-closes', 7, 5, 5, 6),
-  ]),
-  // THE WIRE: the calendar and the news beside the setups they feed
-  'The Wire': assemble([
-    cell('news-1', 'news', 0, 0, 4, 6),
-    cell('earnings-1', 'earnings', 4, 0, 4, 6),
-    cell('top-setups-1', 'top-setups', 8, 0, 4, 6),
   ]),
 };
 
 /** One line per preset for the hover peek — what the desk is FOR. */
 export const PRESET_BLURBS: Record<string, string> = {
-  'The Market': 'What kind of day this is, before any one name — the indices on one line, the rotation, the breadth underneath them, and the movers each way.',
   'Market Structure': 'The session opener — chart and pressure ladder up top (levels ride inside the ladder), the strike-by-strike inventory beneath.',
   'The Day Ahead': 'From now to the close — the range and where it closes up top, the agenda and the wall in focus beneath.',
-  Flow: 'What is hitting the tape, against the chart, with where the walls are heading and the setups it feeds.',
-  '0DTE': 'Today’s expiry — the pressure ladder big with its levels view, the order flow beside it, strike-by-strike inventory beneath.',
-  'The Tape': 'The name’s flow beside its chart — the prints as they land, which way its money leans through the session, and the dark shelves.',
-  Levels: 'Every named level and where it is heading — the agenda, the walls’ drift, the ladder, and where the close lands.',
-  'The Wire': 'The calendar and the wire beside the setups they feed — reports, headlines and the scan’s cards.',
+  Flow: 'The chart with the wire beside it, and beneath them where the walls are heading and the setups it feeds.',
+  '0DTE': 'Today’s expiry — the pressure ladder big with its levels view, where the day closes beside it, strike-by-strike inventory beneath.',
 };
 
 export const PRESET_NAMES = Object.keys(PRESETS);
 export const isPreset = (name: string) => name in PRESETS;
+
+/* A PANEL THAT LEFT THE TERMINAL, IN A DESK SOMEONE ALREADY HAS (2026-09-20, order flow). A saved desk is the reader's own
+   arrangement, so it is not reset to the new template: in the two PRESET desks the retired panel's cell is handed, where
+   it stands and at the size it was given, to the panel the template now has there — unless the reader already put that
+   panel on the desk, in which case the old one is simply dropped. In a desk of the reader's own making it is dropped
+   (sanitize, below) and the grid closes up. Without this the Flow desk opened with a hole beside its chart. */
+const RETIRED: Record<string, Record<string, string>> = {
+  Flow: { 'order-flow': 'news' },
+  '0DTE': { 'order-flow': 'where-it-closes' },
+};
+function handOver(name: string, ws: SavedWorkspace): SavedWorkspace {
+  const heirs = RETIRED[name];
+  if (!heirs || !Array.isArray(ws.instances)) return ws;
+  const has = new Set(ws.instances.map(w => w?.key));
+  return { ...ws, instances: ws.instances.map(w => (w && heirs[w.key] && !has.has(heirs[w.key]) ? { ...w, key: heirs[w.key] } : w)) };
+}
 
 /** Drop widgets whose keys left the registry; ground off-grid coords; and
     re-apply every panel's size bounds from the registry — a desk saved
@@ -202,8 +179,8 @@ export function loadDesks(): DeskStore {
 
   // Seed any preset that's missing (first run, or a preset added later)
   for (const name of PRESET_NAMES) if (!store.desks[name]) store.desks[name] = clone(PRESETS[name]);
-  // Sanitize everything that came off disk
-  for (const name of Object.keys(store.desks)) store.desks[name] = sanitize(store.desks[name]);
+  // Sanitize everything that came off disk — a retired panel's cell handed over first (RETIRED, above)
+  for (const name of Object.keys(store.desks)) store.desks[name] = sanitize(handOver(name, store.desks[name]));
   if (!store.desks[store.active]) store.active = PRESET_NAMES[0];
   return store;
 }

@@ -29,6 +29,7 @@
 */
 
 import { useSyncExternalStore } from 'react';
+import { EMBEDDED, EMBED_THEME } from '../embed';
 
 export type ThemeChoice = 'dark' | 'light' | 'system';
 export type Theme = 'dark' | 'light';
@@ -39,6 +40,8 @@ export const THEME_KEY = 'slayer_theme';
 const CHOICES: ThemeChoice[] = ['dark', 'light', 'system'];
 
 function loadChoice(): ThemeChoice {
+  /* in the landing's window the page outside names the theme (embed.ts) */
+  if (EMBED_THEME) return EMBED_THEME;
   try {
     const raw = localStorage.getItem(THEME_KEY);
     if (raw && (CHOICES as string[]).includes(raw)) return raw as ThemeChoice;
@@ -85,10 +88,13 @@ export const getResolvedTheme = (): Theme => resolved;
 export function setThemeChoice(next: ThemeChoice): void {
   if (next === choice) return;
   choice = next;
-  try {
-    localStorage.setItem(THEME_KEY, next);
-  } catch {
-    /* non-fatal */
+  /* the landing's window shares the visitor's storage — a tour never rewrites their theme (embed.ts) */
+  if (!EMBEDDED) {
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      /* non-fatal */
+    }
   }
   const before = resolved;
   resolved = resolve(choice);

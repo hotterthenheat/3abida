@@ -161,20 +161,14 @@ const Ledger = (() => {
 
     const grossGains = wins.reduce((sum, t) => sum + t.pnl, 0);
     const grossLosses = Math.abs(closedTrades.filter(t => t.status === 'LOSS').reduce((sum, t) => sum + t.pnl, 0));
-    /* NO LOSSES IS NOT A RATIO, and it is certainly not the dollar figure
-       this used to hand back — an account up $5,000 with a clean sheet
-       reported a "profit factor" of 5000. Infinity is the same answer the
-       journal's own statsOf gives, and the surfaces that print it already
-       know to render that as ∞; two stats modules disagreeing about the
-       same word is how a reader learns not to trust either. */
-    const profitFactor = grossLosses > 0 ? grossGains / grossLosses : grossGains > 0 ? Infinity : 0;
+    const profitFactor = grossLosses === 0 ? grossGains : grossGains / grossLosses;
 
     const avgAccuracy = closedTrades.reduce((sum, t) => sum + t.accuracy, 0) / total;
     const totalPnL = closedTrades.reduce((sum, t) => sum + t.pnl, 0);
 
     return {
       winRate: Math.round(winRate),
-      profitFactor: Number.isFinite(profitFactor) ? Number(profitFactor.toFixed(2)) : profitFactor,
+      profitFactor: Number(profitFactor.toFixed(2)),
       avgAccuracy: Math.round(avgAccuracy),
       totalPnL: Number(totalPnL.toFixed(2)),
       count: total

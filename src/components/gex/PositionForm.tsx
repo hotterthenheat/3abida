@@ -19,7 +19,6 @@ import * as Popover from '@radix-ui/react-popover';
 import { CARD } from '../ui/DropdownSelect';
 import ExpiryPicker from '../ui/ExpiryPicker';
 import { addPosition, updatePosition, todayExpiry, type Position, type Right, type Side } from '../../data/positions';
-import { Name } from '../ui/Name';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SILVER_FILL = 'rgb(var(--silver-fill))'; /* the silver as a SURFACE — a filled pill with the dark word on it, the holo flat form on either ground */
@@ -51,7 +50,10 @@ const Field = ({ label, children, width }: { label: string; children: ReactNode;
 
 const inputCls = 'h-8 px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60 transition-colors';
 
-const Pills = <T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) => (
+/* A pill that IS a side of the market wears it under the pointer — Call green, Put red — the rule every Calls/Puts card
+   follows (DropdownSelect's `tone`; Noah, 2026-09-19). The picked pill stays silver: silver is where you are. */
+const PILL_HOVER = { plain: 'hover:text-textPrimary hover:bg-ink/[0.05]', bull: 'hover:text-bull hover:bg-bull/[0.12]', bear: 'hover:text-bear hover:bg-bear/[0.12]' } as const;
+const Pills = <T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string; tone?: 'bull' | 'bear' }[]; onChange: (v: T) => void; label: string }) => (
   <span role="group" aria-label={label} className="inline-flex h-8 rounded-md border border-borderSubtle p-[2px] gap-[2px]">
     {options.map(o => (
       <button
@@ -59,8 +61,9 @@ const Pills = <T extends string>({ value, options, onChange, label }: { value: T
         type="button"
         aria-pressed={o.value === value}
         onClick={() => onChange(o.value)}
-        className="px-2.5 rounded-[4px] text-[11px] font-medium transition-colors"
-        style={o.value === value ? { background: SILVER_FILL, color: '#0a0a0a' } : { color: 'rgb(var(--text-secondary))' }}
+        data-tone={o.tone}
+        className={`px-2.5 rounded-[4px] text-[11px] font-medium transition-colors ${o.value === value ? '' : `text-textSecondary ${PILL_HOVER[o.tone ?? 'plain']}`}`}
+        style={o.value === value ? { background: SILVER_FILL, color: '#0a0a0a' } : undefined}
       >
         {o.label}
       </button>
@@ -108,7 +111,7 @@ const PositionForm = ({ ticker, position, defaultStrike, trigger, align = 'end' 
       <Popover.Portal>
         <Popover.Content align={align} sideOffset={6} collisionPadding={12} className={`${CARD} p-0 outline-none`} style={{ width: 560 }} data-position-form>
           <div className="px-4 pt-3 pb-2 border-b border-borderSubtle/70 flex items-baseline gap-2">
-            <span className="text-[13px] font-semibold text-textPrimary">{position ? 'Change this position' : <>New position on <Name t={ticker} size={13} /></>}</span>
+            <span className="text-[13px] font-semibold text-textPrimary">{position ? 'Change this position' : `New position on ${ticker}`}</span>
             <span className="ml-auto text-[10px] text-textMuted">premium in points per share, as your broker shows it</span>
           </div>
           <form
@@ -122,7 +125,7 @@ const PositionForm = ({ ticker, position, defaultStrike, trigger, align = 'end' 
               <input className={inputCls} inputMode="decimal" value={draft.strike} onChange={e => set('strike', e.target.value)} data-field="strike" autoFocus />
             </Field>
             <Field label="Call or put">
-              <Pills label="Call or put" value={draft.right} options={[{ value: 'C', label: 'Call' }, { value: 'P', label: 'Put' }]} onChange={v => set('right', v)} />
+              <Pills label="Call or put" value={draft.right} options={[{ value: 'C', label: 'Call', tone: 'bull' }, { value: 'P', label: 'Put', tone: 'bear' }]} onChange={v => set('right', v)} />
             </Field>
             <Field label="Own or sold">
               <Pills label="Own or sold" value={draft.side} options={[{ value: 'long', label: 'You own' }, { value: 'short', label: 'You sold' }]} onChange={v => set('side', v)} />
@@ -134,7 +137,8 @@ const PositionForm = ({ ticker, position, defaultStrike, trigger, align = 'end' 
               <ExpiryPicker value={draft.expiry} onChange={v => set('expiry', v)} testId="expiry" width={150} />
             </Field>
             <Field label="What you paid (optional)" width={140}>
-              <input className={inputCls} inputMode="decimal" placeholder="e.g. 2.10" value={draft.entry} onChange={e => set('entry', e.target.value)} data-field="entry" />
+              {/* blank: the position is marked at this tick's price and the return reads from there (2026-09-16) */}
+              <input className={inputCls} inputMode="decimal" placeholder="e.g. 2.10" title="Leave it blank and the position is marked at this tick's price — its return reads from there" value={draft.entry} onChange={e => set('entry', e.target.value)} data-field="entry" />
             </Field>
             <div className="basis-full flex items-center justify-end gap-2 pt-1">
               <Popover.Close asChild>
@@ -142,7 +146,7 @@ const PositionForm = ({ ticker, position, defaultStrike, trigger, align = 'end' 
                   Cancel
                 </button>
               </Popover.Close>
-              <button type="submit" disabled={!valid} data-save-position className="h-8 px-4 rounded-full text-[12px] font-semibold transition-opacity" style={{ background: SILVER_FILL, color: '#0a0a0a' }}>
+              <button type="submit" disabled={!valid} data-save-position className="h-8 px-4 rounded-full text-[12px] font-semibold disabled:opacity-40 transition-opacity" style={{ background: SILVER_FILL, color: '#0a0a0a' }}>
                 {position ? 'Save' : 'Add'}
               </button>
             </div>

@@ -13,7 +13,12 @@ export interface TickerListing {
   name: string;
 }
 
-export const NASDAQ_TICKERS = raw as TickerListing[];
+/* The json carries a few names with HTML entities in them ("McDonald&#39;s
+   Corporation" printed as such on the Insiders grid, the partner's review
+   2026-09-13) — read once, they are plain words from here on. */
+const ENTITY: Record<string, string> = { '&#39;': "'", '&apos;': "'", '&amp;': '&', '&quot;': '"', '&#34;': '"' };
+const plain = (s: string) => s.replace(/&(?:#39|apos|amp|quot|#34);/g, m => ENTITY[m] ?? m);
+export const NASDAQ_TICKERS = (raw as TickerListing[]).map(t => (/&(?:#\d+|\w+);/.test(t.name) ? { ...t, name: plain(t.name) } : t));
 
 const bySymbol = new Map(NASDAQ_TICKERS.map(t => [t.symbol, t]));
 // NYSE S&P members fill the json's gap; the json wins where both know a name.

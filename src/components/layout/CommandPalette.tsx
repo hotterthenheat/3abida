@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Working from '../ui/Working';
 import { useNavigate } from 'react-router-dom';
-import useFocusTrap from '../ui/useFocusTrap';
 import { Activity, ArrowRightLeft, CornerDownLeft, Crosshair, Users } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
 import { GEX_SUBPAGES } from '../../pages/pinpoint/subnav';
 import { TRACE_SUBPAGES } from '../../pages/trace/subnav';
-import { COMMUNITY_SUBPAGES } from '../../pages/community/subnav';
 import { RECORD_SUBPAGES } from '../../pages/record/subnav';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
+import { armDrawTool, canArmDrawTool, searchDrawTools } from '../gex/drawTools';
 
 type TickerModule = typeof import('../../data/tickers');
 
@@ -19,15 +19,12 @@ interface CommandPaletteProps {
 
 interface PaletteAction {
   id: string;
-  group: 'Navigate' | 'Ticker';
+  group: 'Navigate' | 'Ticker' | 'Draw';
   label: string;
   hint: string;
   run: () => void;
   icon?: React.ReactNode;
 }
-
-/* One id for the list and its rows — the field points at both. */
-const LIST_ID = 'palette-matches';
 
 const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const navigate = useNavigate();
@@ -36,8 +33,6 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const [highlight, setHighlight] = useState(0);
   const [tickMod, setTickMod] = useState<TickerModule | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(open, cardRef);
 
   // The full ticker universe (S&P 500 + NASDAQ listings) — lazy, its chunk is
   // ~300KB and ⌘K is the desk's only terminal-ticker control (Noah,
@@ -50,7 +45,8 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     const nav: PaletteAction[] = NAV_ITEMS.map(item => ({
       id: `nav-${item.path}`,
       group: 'Navigate',
-      label: item.label,
+      /* Practice's pages say whose they are ("Practice → Journal"): their names alone could be anything's */
+      label: item.group === 'Practice' ? `${item.group} → ${item.label}` : item.label,
       hint: item.description,
       icon: <item.icon className="w-3.5 h-3.5" />,
       run: () => navigate(item.path),
@@ -71,23 +67,19 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: <Activity className="w-3.5 h-3.5" />,
       run: () => navigate(page.path),
     }));
-    const communitySubs: PaletteAction[] = COMMUNITY_SUBPAGES.map(page => ({
-      id: `nav-${page.path}`,
-      group: 'Navigate',
-      label: `Community → ${page.label}`,
-      hint: page.subtitle,
-      icon: <Users className="w-3.5 h-3.5" />,
-      run: () => navigate(page.path),
-    }));
     const recordSubs: PaletteAction[] = RECORD_SUBPAGES.map(page => ({
       id: `nav-${page.path}`,
       group: 'Navigate',
-      label: `Record → ${page.label}`,
+      label: `Dossier → ${page.label}`,
       hint: page.subtitle,
       icon: <page.icon className="w-3.5 h-3.5" />,
       run: () => navigate(page.path),
     }));
-    return [...nav, ...gexSubs, ...recordSubs, ...flowSubs, ...communitySubs];
+    /* Compass's second page (2026-09-13): the Tracker left the Manage group for the tree under Compass */
+    const compassSubs: PaletteAction[] = [
+      { id: 'nav-/compass/tracker', group: 'Navigate', label: 'Compass → Tracker', hint: 'The setups you keep, live', icon: <Activity className="w-3.5 h-3.5" />, run: () => navigate('/compass/tracker') },
+    ];
+    return [...nav, ...gexSubs, ...compassSubs, ...recordSubs, ...flowSubs];
   }, [navigate]);
 
   // Ticker actions live outside the label filter: with a query they ARE the
@@ -115,30 +107,35 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     }));
   }, [query, tickMod, changeTicker, activeTicker]);
 
-  /* A MATCH ON THE NAME BEATS A MATCH ON THE BLURB. Unranked, the catalog's
-     own order decided, and every page's one-line hint is fair game: typing
-     "weigh" put COMPASS first, because its hint reads "weeklies, swings and
-     LEAPS weighed and graded", and Enter — the thing a reader does straight
-     after typing a page's name — took them to the wrong desk. Name first,
-     then a name that contains it, then the blurb; ties keep catalog order. */
-  const score = (a: PaletteAction, q: string): number => {
-    const label = a.label.toLowerCase();
-    if (label === q) return 0;
-    if (label.startsWith(q)) return 1;
-    if (label.includes(q)) return 2;
-    return 3;
-  };
+  /* THE DRAWING TOOLS, BY NAME (2026-09-19): "fib ext", Enter, and the tool is in hand on the chart the pointer was last over
+     (gex/drawTools.tsx). Only with a query — thirty-four more rows at rest would bury the pages — and only on a page that
+     has a chart to draw on. */
+  const drawActions = useMemo<PaletteAction[]>(() => {
+    const q = query.trim();
+    if (!open || !q || !canArmDrawTool()) return [];
+    return searchDrawTools(q)
+      .slice(0, 6)
+      .map(t => ({
+        id: `draw-${t.tool}`,
+        group: 'Draw' as const,
+        label: `Draw → ${t.label}`,
+        hint: 'take the tool in hand',
+        icon: <span className="text-[14px] inline-flex">{t.icon}</span>,
+        run: () => {
+          armDrawTool(t.tool);
+        },
+      }));
+  }, [query, open]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [...actions, ...tickerActions];
-    const hits = actions
-      .map((a, i) => ({ a, i, s: score(a, q) }))
-      .filter(({ a, s }) => s < 3 || a.hint.toLowerCase().includes(q))
-      .sort((x, y) => x.s - y.s || x.i - y.i)
-      .map(({ a }) => a);
-    return [...hits, ...tickerActions];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actions, tickerActions, query]);
+    return [
+      ...actions.filter(a => a.label.toLowerCase().includes(q) || a.hint.toLowerCase().includes(q)),
+      ...drawActions,
+      ...tickerActions,
+    ];
+  }, [actions, tickerActions, drawActions, query]);
 
   useEffect(() => {
     if (open) {
@@ -182,43 +179,19 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] px-4" onKeyDown={onKeyDown}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
-      {/* THE PALETTE IS A DIALOG AND HAD NEVER SAID SO. It is the terminal's
-          keyboard-first surface, and it was the one modal in the app without
-          a role, without aria-modal and without a focus trap — so a screen
-          reader announced nothing and Tab walked straight out of it into the
-          page behind. Modal.tsx has carried all three since it was written;
-          this now borrows the same trap rather than growing a second one. */}
-      <div
-        ref={cardRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command palette"
-        data-command-palette
-        className="relative w-full max-w-lg border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black overflow-hidden animate-slide-in"
-      >
-        {/* A COMBOBOX, WHICH IS WHAT IT HAS ALWAYS BEHAVED LIKE. Focus never
-            leaves the field — the arrows move a highlight through a list the
-            field owns — and that is exactly the pattern a screen reader
-            cannot follow without being told: it announced the typing and
-            nothing else, so a reader pressing Down four times and Enter was
-            navigating the terminal blind. `aria-activedescendant` names the
-            row the highlight is on, and each row is an option that says
-            whether it is the selected one. Same wiring gex/CompareControl
-            already uses; a placeholder is not a label, so the field has one. */}
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Type a command or destination…"
-          role="combobox"
-          aria-label="Command or destination"
-          aria-expanded
-          aria-autocomplete="list"
-          aria-controls={LIST_ID}
-          aria-activedescendant={filtered[highlight] ? `${LIST_ID}-opt-${highlight}` : undefined}
-          className="w-full bg-transparent px-4 py-3 text-sm text-textPrimary placeholder:text-textMuted focus:outline-none border-b border-borderSubtle"
-        />
-        <div id={LIST_ID} role="listbox" aria-label="Matches" className="max-h-72 overflow-y-auto py-1.5">
+      <div className="relative w-full max-w-lg border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black overflow-hidden animate-slide-in">
+        <div className="relative">
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Type a command or destination…"
+            className="w-full bg-transparent pl-4 pr-10 py-3 text-sm text-textPrimary placeholder:text-textMuted focus:outline-none border-b border-borderSubtle"
+          />
+          {/* the names arrive as their own chunk on the first open; typed before they land, the search says it is on its way (ui/Working.tsx) */}
+          <Working active={open && !tickMod && query.trim().length > 0} className="absolute right-3.5 top-1/2 -translate-y-1/2" />
+        </div>
+        <div className="max-h-72 overflow-y-auto py-1.5">
           {filtered.length === 0 && (
             <div className="px-4 py-6 text-center font-mono text-[11px] text-textMuted">No matches</div>
           )}
@@ -226,23 +199,13 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
             const showGroup = action.group !== lastGroup;
             lastGroup = action.group;
             return (
-              /* `presentation` on the wrapper and the heading: a listbox's
-                 children have to be options, and a stray div between them
-                 makes the count a reader hears wrong. */
-              <div key={action.id} role="presentation">
+              <div key={action.id}>
                 {showGroup && (
-                  <div role="presentation" className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted select-none">
+                  <div className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted select-none">
                     {action.group}
                   </div>
                 )}
                 <button
-                  id={`${LIST_ID}-opt-${i}`}
-                  role="option"
-                  aria-selected={i === highlight}
-                  /* The field keeps the focus, so nothing in the list may
-                     take it — a Tab that lands on row forty is a reader
-                     lost inside a list they cannot see the top of. */
-                  tabIndex={-1}
                   onClick={() => runAction(action)}
                   onMouseEnter={() => setHighlight(i)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${

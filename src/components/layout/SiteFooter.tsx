@@ -8,9 +8,10 @@
 
   `home` changes only the link plumbing, never the
   look: on the landing, #pricing/#faq are in-page
-  anchors and Pulse plays the launch gate; in the
-  terminal they route back to the landing's
-  sections and Pulse is a plain navigation.
+  anchors and every door into the terminal plays the
+  launch gate; in the terminal they route back to the
+  landing's sections and the doors are plain
+  navigations.
 ==================================================
 */
 
@@ -18,42 +19,40 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useLaunch } from './LaunchTransition';
 
+/* THE LINKS, WALKED (2026-09-19). What was wrong: "Launch Terminal" and "Log in / Sign up" both went to "/", the front page
+   — on the front page itself they did nothing, and there is no sign-in to go to yet; "Pulse" was listed twice; Terrain, a
+   whole product, was not listed at all; "FAQ" is called Questions everywhere else. Now every row goes where it says, the
+   products are the side rail's own, in its order, and the sign-in row comes back WITH the sign-in (launch). */
 const FOOTER_COLS = [
   {
     title: 'Products',
     links: [
-      { label: 'Pulse', to: '/pulse' },
       { label: 'Compass', to: '/compass' },
       { label: 'Weigher', to: '/weigher' },
       { label: 'Trace', to: '/trace' },
+      { label: 'Pulse', to: '/pulse' },
+      { label: 'Terrain', to: '/terrain' },
       { label: 'Pinpoint', to: '/pinpoint' },
-      { label: 'Prove It', to: '/prove-it' },
-      { label: 'Record', to: '/record' },
-      { label: 'Tracker', to: '/compass/tracker' },
+      { label: 'Dossier', to: '/dossier' },
     ],
   },
   {
     title: 'Company',
     links: [
       { label: 'Pricing', to: '#pricing' },
-      { label: 'FAQ', to: '#faq' },
+      { label: 'Questions', to: '#faq' },
       { label: 'Community', to: '/community' },
-      { label: 'Feedback', to: '/feedback' },
       { label: 'Contact', to: 'mailto:info@slayerterminal.com' },
     ],
   },
   {
-    /* BOTH OF THESE POINTED AT `/`. "Launch Terminal" sent a reader on the
-       landing page back to the landing page, and in-app it sent them OUT of
-       the terminal they were already in; "Log in / Sign up" pointed at the
-       same nowhere and promised an account system this build does not have,
-       which is the fake functionality the house rule exists to keep out.
-       The column now carries the three doors that are real. */
-    title: 'Access',
+    title: 'Terminal',
     links: [
-      { label: 'Launch Terminal', to: '/pulse' },
+      { label: 'Launch terminal', to: '/pulse' },
+      { label: 'Tracker', to: '/compass/tracker' },
       { label: 'Settings', to: '/settings' },
-      { label: 'Data sources', to: '/settings/sources' },
+      { label: 'Keyboard shortcuts', to: '/settings/keyboard' },
+      { label: 'Front page', to: '/' },
     ],
   },
 ];
@@ -91,7 +90,24 @@ const FooterLink = ({
       </Link>
     );
   }
-  if (to === '/pulse' && home) {
+  /* on the front page, "Front page" is the way back to its top */
+  if (to === '/' && home) {
+    return (
+      <a
+        href="/"
+        className={className}
+        onClick={e => {
+          e.preventDefault();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
+  /* from the front page every door into the terminal plays the launch gate — it was only Pulse's, and the other
+     products cut straight to a half-loaded page */
+  if (home) {
     return (
       <a
         href={to}
@@ -125,7 +141,7 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
           <span className="inline-block w-[6px] h-[12px] ml-1 bg-textPrimary align-middle animate-cursor-blink" />
         </span>
         <p className="mt-3 text-[12px] text-textSecondary leading-relaxed max-w-[36ch]">
-          The options terminal. Compass finds the setup, Pinpoint reads the flow.
+          The trading terminal. Compass finds the setup, Pinpoint reads the flow.
         </p>
         <a
           href="https://x.com/JoinSlayer"
@@ -163,7 +179,8 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
     <div className="border-t border-borderSubtle/60">
       <div className="px-6 md:px-10 py-5 max-w-6xl mx-auto flex flex-col md:flex-row gap-2 md:items-center">
         <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">
-          © 2026 Slayer Terminal · Compass · Pinpoint
+          {/* the year is the calendar's, not a number typed once (2026-09-19) — it read 2026 by hand and would have on 1 January too */}
+          © {new Date().getFullYear()} Slayer Terminal · Compass · Pinpoint
         </span>
         <span className="md:ml-auto font-mono text-[10px] tracking-wide text-textMuted">
           For informational purposes only. Not investment advice. Preview data is simulated.

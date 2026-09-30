@@ -124,7 +124,7 @@ const ReadFigure = () => (
     ))}
     <line x1={50} x2={368} y1={27.5} y2={27.5} stroke={GRID} />
     {/* A wall that stays: heavy across the row */}
-    <Label x={40} y={48} anchor="end" fill="#30D158" size={9} mono>
+    <Label x={40} y={48} anchor="end" fill="rgb(var(--bull))" size={9} mono>
       495
     </Label>
     {COLS.map((c, i) => (
@@ -200,6 +200,13 @@ const LedgerGuide = ({ surface, greek }: LedgerGuideProps) => {
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
           <ReadFigure />
         </div>
+      </div>
+      {/* THE LADDER (2026-09-21, the net bar and its tick, on Noah's "the tick has no legend") */}
+      <div>
+        <p className="text-[12px] font-semibold text-textPrimary">The ladder · one row per strike</p>
+        <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
+          The Ladder view up top is the same book as one row per strike. With one greek drawn, each row shows the put side growing left from the centre line and the call side growing right, with their figures. With several drawn, each greek gets its own pane and each row one bar: the net at that strike, growing left when puts lead and right when calls lead. Each pane's bars are scaled so nine strikes in ten fit, and the pane's head says what a full bar stands for. The few past it are the walls: they run to the lane's end and wear a small tick, and their net figure says by how much. Panes are not on one scale, so a bar in GEX and a bar of the same length in DEX are not the same money. The pane in the silver ring is the lead: the line above the ladder and its verdict follow it. Click a pane's name to lead with it.
+        </p>
       </div>
       <div className="border-t border-borderSubtle/60 pt-2.5">
         <p className="text-[10px] text-textMuted">Today's calendar, in words</p>

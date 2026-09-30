@@ -30,7 +30,6 @@
 */
 
 import { useMemo, useState, type ReactNode } from 'react';
-import CompanyLogo from '../ui/CompanyLogo';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import { WallGuide } from './WallGuide';
@@ -243,8 +242,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-wall-controls>
         <DropdownSelect label="Wall" value={wall.strike} options={options} onChange={onPick} title="Which wall to read" testId="wall-pick" />
-        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-wall-updated>
-          <CompanyLogo ticker={ticker} size={11} />
+        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-wall-updated>
           {ticker} · updated {updatedAt} · every 10s
         </span>
       </div>
@@ -270,8 +268,9 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       </div>
 
       {/* THE REASONS */}
-      <div className="px-5 pb-2" data-wall-reasons>
-        <div className="grid items-center gap-x-4 h-[14px] text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: REASON_COLUMNS }}>
+      {/* On a phone the reasons scroll sideways inside their box at a readable width (the phone pass, 2026-09-13) */}
+      <div className="px-5 pb-2 max-lg:overflow-x-auto" data-wall-reasons>
+        <div className="grid items-center gap-x-4 h-[14px] text-[9px] uppercase tracking-widest text-textMuted max-lg:min-w-[560px]" style={{ gridTemplateColumns: REASON_COLUMNS }}>
           <span>Reason</span>
           <span>The fact</span>
           <span className="whitespace-nowrap">
@@ -280,7 +279,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
           <span>In words</span>
         </div>
         {wall.factors.map(f => (
-          <div key={f.key} className="grid items-center gap-x-4 h-[28px] border-t border-borderSubtle/40" style={{ gridTemplateColumns: REASON_COLUMNS }} data-wall-factor={f.key}>
+          <div key={f.key} className="grid items-center gap-x-4 h-[28px] border-t border-borderSubtle/40 max-lg:min-w-[560px]" style={{ gridTemplateColumns: REASON_COLUMNS }} data-wall-factor={f.key}>
             <span className="text-[11px] text-textSecondary truncate">{f.label}</span>
             <span className="font-mono text-[11px] tnum text-textPrimary truncate" style={f.key === 'weight' && wall.weight > 0 ? { color: COOL } : undefined}>
               {f.fact}

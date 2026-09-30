@@ -10,6 +10,7 @@
 */
 
 import { dayKey, hGauss, h01, hRange } from '../core/rng';
+import { isoDate } from '../core/calendar';
 import { tickerSentiment } from './news';
 import { UNIVERSE } from './universe';
 import type { Sector } from './universe';
@@ -235,6 +236,10 @@ export interface ActiveContract {
   fromSpotPct: number;
   /** Move needed by expiry to break even on the mid, % */
   breakevenPct: number;
+  /** The contract's expiry as a date key ("2026-09-18") — a row is carried to
+      the Weigher as THE contract, and the desk resolves the date on its own
+      calendar (2026-09-12; a count of sessions was read there as days) */
+  expiry: string;
 }
 
 export interface EarningsDossier {
@@ -319,6 +324,8 @@ export function buildEarningsDossier(ticker: string, tick = 0): EarningsDossier 
   // busiest puts by volume, with only market facts on them. ATM trades
   // heaviest; activity decays with distance from spot.
   const expiryLabel = weekDayLabel(event.weekIdx, 5).label.slice(4); // "07/25"
+  /* the report week's Friday, as a date the Weigher can list its chain by */
+  const expiryKey = isoDate(weekDayDate(event.weekIdx, 5));
   const straddleCost = (px * im) / 100;
 
   const mkActive = (right: 'CALL' | 'PUT', distPct: number, seed: string): ActiveContract => {
@@ -351,6 +358,7 @@ export function buildEarningsDossier(ticker: string, tick = 0): EarningsDossier 
       ivPct,
       fromSpotPct: Number((((strike - px) / px) * 100).toFixed(1)),
       breakevenPct: Number(breakevenPct.toFixed(1)),
+      expiry: expiryKey,
     };
   };
 

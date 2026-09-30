@@ -43,11 +43,9 @@
 */
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
-import CompanyLogo from '../ui/CompanyLogo';
 import { createPortal } from 'react-dom';
 import { ArrowUpRight, X } from 'lucide-react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
-import CardTabs from '../ui/CardTabs';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import JingleBell from '../ui/JingleBell';
 import { TargetsGuide } from './TargetsGuide';
@@ -150,6 +148,10 @@ const RowCard = ({ t, at, inSession, onClose }: { t: Target; at: CardAt; inSessi
       className="fixed z-[120] rounded-md border border-borderSubtle px-3 py-2.5 select-text"
       style={{ width: CARD_W, left: pos?.left ?? 0, top: pos?.top ?? 0, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', opacity: pos ? 1 : 0, transition: 'opacity 160ms ease-out' }}
       onPointerDown={e => e.stopPropagation()}
+      /* a typed dark glass, portalled onto the page: its words are the dark set on either theme (on the light page they were
+         the page's black on the dark card — the light sweep, 2026-09-19) */
+      data-theme="dark"
+      data-chart-glass
       data-target-card-node={t.strike}
     >
       {/* THE HEAD: the strike, what it is, where it is */}
@@ -203,7 +205,7 @@ const RowCard = ({ t, at, inSession, onClose }: { t: Target; at: CardAt; inSessi
         </CardLine>
         {t.beside && <CardLine label="Beside it">{t.beside}</CardLine>}
       </dl>
-      <div className="mt-2 pt-1.5 border-t border-borderSubtle text-[10px] text-textMuted whitespace-nowrap truncate" data-card-driver>
+      <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[10px] text-textMuted whitespace-nowrap truncate" data-card-driver>
         <span className="font-mono tnum text-textPrimary">#{t.rank}</span> {DRIVER_WORDS[t.driver]} · <span className="font-mono tnum text-textPrimary">{pct(t.reach)}</span> reached ×{' '}
         <span className="font-mono tnum text-textPrimary">{fmtDollars(t.stake)}</span> at stake
       </div>
@@ -350,23 +352,8 @@ interface Props {
   watch?: ReactNode;
 }
 
-/* LIST OR TABLE (Noah, 2026-09-13: "I think we should have a list version and
-   table version"): the table is the rows under the first three; the list is
-   every strike as its own card, the first three's card, in the same order */
-export type TargetsView = 'table' | 'list';
-const VIEW_OPTIONS = [
-  { value: 'table', label: 'Table' },
-  { value: 'list', label: 'List' },
-] as const;
-let viewMemory: TargetsView = 'table';
-
 const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow, updatedAt, yours, armedAt, onChart, onAlert, focus, onPick, scope, watch }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
-  const [view, setViewState] = useState<TargetsView>(viewMemory);
-  const setView = (v: TargetsView) => {
-    viewMemory = v;
-    setViewState(v);
-  };
   const [hover, setHover] = useState<number | null>(null);
   /* THE CARD: one open at a time; a click anywhere, a scroll or Esc closes it.
      The document hears the click first (capture), so the row's own handler
@@ -434,7 +421,7 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">Every strike in the order it matters today — how likely price gets there × how much happens if it does</p>
         </div>
-        <dl className="grid grid-cols-4 gap-x-6">
+        <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
             <dt className="text-[10px] text-textMuted">Watch first</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: lead?.role ? ROLE_INK[lead.role] : 'rgb(var(--text-primary))' }} data-watch-first>
@@ -462,11 +449,7 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-targets-controls>
         <DropdownSelect label="Ranked by" value={order} options={ORDER_OPTIONS} onChange={onOrder} title="The order of the list" testId="targets-order" />
         <DropdownSelect label="Strikes" value={window} options={WINDOW_OPTIONS} onChange={v => onWindow(v as StrikeWindow)} title="How many strikes around spot" testId="targets-strikes" />
-        <span className="ml-1" data-targets-view>
-          <CardTabs options={VIEW_OPTIONS} value={view} onChange={setView} ariaLabel="List or table" />
-        </span>
-        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-targets-updated>
-          <CompanyLogo ticker={ticker} size={11} />
+        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-targets-updated>
           {ticker} · {agenda.targets.length} strikes · updated {updatedAt} · every 10s
         </span>
         {watch}
@@ -480,30 +463,9 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
         <span className="text-[12px] leading-snug text-textSecondary">{agenda.sentence.replace(/^Watch /, '')}</span>
       </div>
 
-      {view === 'list' ? (
-        /* THE LIST — every strike as its card, in the order chosen */
-        <div className="px-5 pt-3 pb-3 grid grid-cols-3 gap-3" data-targets-list>
-          {agenda.targets.map((t, i) => (
-            <Card
-              key={t.strike}
-              t={t}
-              n={i + 1}
-              pick={i === 0}
-              kept={focus != null && Math.abs(focus - t.strike) < 1e-9}
-              yours={yours?.get(t.strike)}
-              armed={armedAt(t.strike)}
-              inSession={clock.inSession}
-              marketPer1Pct={agenda.marketPer1Pct}
-              onPick={onPick}
-              onChart={onChart}
-              onAlert={onAlert}
-            />
-          ))}
-        </div>
-      ) : (
-        <>
       {/* THE THREE */}
-      <div className="px-5 pt-3 pb-3 grid grid-cols-3 gap-3" data-targets-three>
+      {/* The three cards under each other on a phone (the phone pass, 2026-09-13) */}
+      <div className="px-5 pt-3 pb-3 grid grid-cols-1 sm:grid-cols-3 gap-3" data-targets-three>
         {three.map((t, i) => (
           <Card
             key={t.strike}
@@ -580,8 +542,6 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
           })}
         </div>
       </div>
-        </>
-      )}
       {card && cardTarget && <RowCard t={cardTarget} at={card} inSession={clock.inSession} onClose={() => setCard(null)} />}
       <p className="px-5 pb-4 pt-2 text-[12px] leading-relaxed text-textSecondary" data-targets-foot>
         {lead ? `${fmtStrike(lead.strike)} is ${reachedWord} ${pct(lead.reach)} of the time. ` : ''}

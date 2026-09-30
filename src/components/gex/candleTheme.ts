@@ -10,6 +10,7 @@
 */
 
 import { useSyncExternalStore } from 'react';
+import { getResolvedTheme, subscribeTheme, type Theme } from '../../theme/theme';
 
 export interface CandleTheme {
   up: string;
@@ -25,11 +26,23 @@ export interface CandleTheme {
   /** Chart surface tint. Absent = transparent, the house canvas shows through.
       `light` marks a LIGHT ground (Stone, 2026-09-11): the chart's own ink
       (the axis text, the scale borders, the crosshair — see `chartSurface`)
-      flips to dark cuts, and the store stamps `<html data-chart-ground>` so
-      every strip the hosts float over the tape flips with it (index.css).
+      flips to dark cuts, and every host stamps `data-chart-ground` from
+      `chartGround()` on the box that holds its chrome, so the strips and
+      chips over the tape wear the tape's ground by CSS (index.css) — the
+      drawing rail alone stays black (Noah, 2026-09-13).
       The overlays drawn ON the tape (dark-pool dashes, level lines, trail
       alphas) still assume a dark surface — their pass is separate. */
-  canvas?: { bg: string; grid: string; light?: boolean };
+  canvas?: {
+    bg: string;
+    grid: string;
+    light?: boolean;
+    /** THE SAME GROUND, CUT FOR THE LIGHT PAGE (Noah, 2026-09-19, the hour Stone became the light page's default: "the
+        charts need to be a lighter gray"). Stone's grey was mixed to sit on a BLACK page, where it is the one light thing;
+        on a white page the same grey is the darkest thing in the room. So on the light page the ground is a paler grey —
+        the candles, the inks and the theme's name are the same. On the dark page nothing moves (his Terrain picture:
+        QQQ on Stone beside SPY on black). index.css lifts the chrome's light set to match, under `html[data-theme=light]`. */
+    bgOnLightPage?: string;
+  };
 }
 
 /** Everything a chart paints its frame with, on the theme's ground */
@@ -71,7 +84,7 @@ export function candleSeriesOptions(t: CandleTheme) {
 export function chartSurface(t: CandleTheme): ChartSurface {
   const light = t.canvas?.light === true;
   return {
-    bg: t.canvas?.bg ?? 'transparent',
+    bg: (getResolvedTheme() === 'light' ? t.canvas?.bgOnLightPage : undefined) ?? t.canvas?.bg ?? 'transparent',
     grid: t.canvas?.grid ?? 'rgba(255,255,255,0.03)',
     text: light ? '#3b3e45' : '#7d7d7d',
     line: light ? 'rgba(0,0,0,0.18)' : '#1c1c1c',
@@ -80,6 +93,16 @@ export function chartSurface(t: CandleTheme): ChartSurface {
     light,
   };
 }
+
+/* A FIGURE IS NOT A TAPE (Noah, 2026-09-20, the pair grey on his dark page: "you fixed the light theme but those changes
+   went into the dark theme so the dark theme has a light background" — the second time). The candle theme is THE CANDLES'
+   — the tapes that draw candles and carry (or share) the Theme menu. A chart with no candles — the small figure chart
+   (record/SessionsChart: the pair, the simulated returns, the stock page's sessions) and "Since the open" — used to take
+   the candle theme's GROUND all the same, so a Stone pick made for the tapes turned every figure on the dark terminal
+   grey. They follow THE PAGE and nothing else now: paper on the light page, and on the dark terminal THIS surface — the
+   dark island on the panel, which is exactly what they were under the default (Glacier has no ground of its own), so
+   nobody on the default sees a change. The values are chartSurface's own for a dark theme without a ground. */
+export const DARK_FIGURE_SURFACE: ChartSurface = { bg: 'transparent', grid: 'rgba(255,255,255,0.03)', text: '#7d7d7d', line: '#1c1c1c', crosshair: 'rgba(255,255,255,0.3)', label: '#262626', light: false };
 
 export const CANDLE_THEMES = {
   // Neutral, premium — near-white up / slate down (the launch default)
@@ -221,7 +244,7 @@ export const CANDLE_THEMES = {
     wickDown: '#000000',
     volUp: 'rgba(104,135,222,0.38)',
     volDown: 'rgba(0,0,0,0.28)',
-    canvas: { bg: '#BEBDB8', grid: 'rgba(0,0,0,0.06)', light: true },
+    canvas: { bg: '#BEBDB8', bgOnLightPage: '#DDDCD7', grid: 'rgba(0,0,0,0.06)', light: true },
   },
 } as const satisfies Record<string, CandleTheme>;
 
@@ -233,7 +256,7 @@ export type CandleThemeKey = keyof typeof CANDLE_THEMES;
 /* Each with one line for the Theme menu's list (2026-09-11: the menu shows the
    chart itself in the hovered theme, the Pulse widget-preview grammar) */
 export const CANDLE_THEME_OPTIONS: { value: CandleThemeKey; label: string; hint: string }[] = [
-  { value: 'glacier', label: 'Glacier', hint: 'Glacier blue up, slate down — the house default' },
+  { value: 'glacier', label: 'Glacier', hint: 'Glacier blue up, slate down — the default on the dark theme' },
   { value: 'foil', label: 'Foil', hint: 'The holo foil laid flat — chrome up, pale violet down' },
   { value: 'chrome', label: 'Chrome', hint: 'Liquid metal — ice silver up, gunmetal down' },
   { value: 'velvet', label: 'Velvet', hint: 'Warm ivory up, muted violet down' },
@@ -245,12 +268,21 @@ export const CANDLE_THEME_OPTIONS: { value: CandleThemeKey; label: string; hint:
   { value: 'whipsaw', label: 'Whipsaw', hint: 'Periwinkle up, royal purple down, on deep violet' },
   { value: 'contrast', label: 'Contrast', hint: 'Green up, violet down, on pure black' },
   { value: 'wire', label: 'Wire', hint: 'Hollow white up, solid white down — a wireframe' },
-  { value: 'stone', label: 'Stone', hint: 'Blue up, black down, on a stone-grey ground — the light one' },
+  { value: 'stone', label: 'Stone', hint: 'Blue up, black down, on a stone-grey ground — the default on the light theme' },
 ];
 
 // ---- store ------------------------------------------------------------------
 
+/* A PICK PER PAGE THEME (Noah, 2026-09-19, the light sweep: "the chart backgrounds should be the 'stone' one on default
+   for the light theme"). A black tape on a white page is a hole in the paper; Stone is the tape cut for a light room. So
+   the store keeps TWO picks — the one made on the dark page (the old key, untouched) and the one made on the light page —
+   and answers with the pick of the page theme that is up. Glacier is the dark page's default, Stone the light page's; a
+   flip of the page re-inks every chart through the same listeners a pick does. A pick made on one page never moves the
+   other: everyone already holds a stored 'glacier' from the day it became the default, and one shared key would have
+   read that as a choice and kept Stone off the light page for good. */
 const STORAGE_KEY = 'slayer_candle_theme';
+const LIGHT_STORAGE_KEY = 'slayer_candle_theme_light';
+const PAGE_DEFAULT: Record<Theme, CandleThemeKey> = { dark: 'glacier', light: 'stone' };
 /* One-time flip to the baby-blue tape (2026-08-29, "yes it should be baby
    blue" — supersedes the same-day foil flip, whose flag is left inert): a
    stored older pick would silently keep the new default invisible. Runs
@@ -272,39 +304,65 @@ function loadKey(): CandleThemeKey {
   return 'glacier';
 }
 
-/* THE GROUND ON THE DOCUMENT (2026-09-11): `<html data-chart-ground="light">`
-   while a light theme is on, so the DOM over the tape — the strips the hosts
-   float (data-chart-chrome) and everything inside a chart's own box
-   (data-chart-ink) — flips to dark inks by CSS (index.css) without every
-   host learning the theme. The dark family stamps "dark", the default look. */
-function stampGround(key: CandleThemeKey): void {
-  if (typeof document === 'undefined') return;
-  document.documentElement.dataset.chartGround = chartSurface(CANDLE_THEMES[key]).light ? 'light' : 'dark';
+function loadLightKey(): CandleThemeKey {
+  try {
+    const raw = localStorage.getItem(LIGHT_STORAGE_KEY);
+    if (raw && raw in CANDLE_THEMES) return raw as CandleThemeKey;
+  } catch {
+    /* storage unavailable — fall through to default */
+  }
+  return PAGE_DEFAULT.light;
 }
 
-let currentKey: CandleThemeKey = loadKey();
-stampGround(currentKey);
+/* THE GROUND ON THE HOST (2026-09-11 as a stamp on <html> from the store;
+   re-cut 2026-09-13 PER HOST): each chart host puts `data-chart-ground` on
+   the box that holds its chrome, from the theme IT resolved — Terrain's pane
+   from its own theme, the Pulse tile and the Weigher from the store — and
+   index.css re-scopes the tokens on every strip and chip inside (the
+   data-chart-chrome blocks, the chart's own data-chart-ink box) to that
+   ground, so a Stone pane's chrome is stone with dark ink while the pane
+   beside it on Glacier keeps black with light ink. A stamp on <html> could
+   not do that: a Terrain pane holds a theme the store does not. */
+export function chartGround(key: CandleThemeKey): 'light' | 'dark' {
+  return chartSurface(CANDLE_THEMES[key]).light ? 'light' : 'dark';
+}
+
+const picks: Record<Theme, CandleThemeKey> = { dark: loadKey(), light: loadLightKey() };
 const listeners = new Set<() => void>();
 
+/** The tape a page opens on when nothing was picked: Glacier on the dark terminal, Stone on paper */
+export function pageDefaultCandleKey(): CandleThemeKey {
+  return PAGE_DEFAULT[getResolvedTheme()];
+}
+/** The same, reactive to a flip of the page */
+export function usePageDefaultCandleKey(): CandleThemeKey {
+  return useSyncExternalStore(subscribeTheme, pageDefaultCandleKey, pageDefaultCandleKey);
+}
+
+/** The candle theme of the page theme that is up */
 export function getCandleThemeKey(): CandleThemeKey {
-  return currentKey;
+  return picks[getResolvedTheme()];
 }
 
 export function getCandleTheme(): CandleTheme {
-  return CANDLE_THEMES[currentKey];
+  return CANDLE_THEMES[getCandleThemeKey()];
 }
 
+/** A pick belongs to the page theme it was made on */
 export function setCandleTheme(key: CandleThemeKey): void {
-  if (key === currentKey) return;
-  currentKey = key;
-  stampGround(key);
+  const page = getResolvedTheme();
+  if (key === picks[page]) return;
+  picks[page] = key;
   try {
-    localStorage.setItem(STORAGE_KEY, key);
+    localStorage.setItem(page === 'light' ? LIGHT_STORAGE_KEY : STORAGE_KEY, key);
   } catch {
     /* non-fatal */
   }
   listeners.forEach(fn => fn());
 }
+
+/* the page flipped: the other pick is the answer now, and every chart re-inks */
+subscribeTheme(() => listeners.forEach(fn => fn()));
 
 function subscribe(fn: () => void): () => void {
   listeners.add(fn);

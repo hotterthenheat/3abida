@@ -32,7 +32,23 @@ export interface DropdownOption<T extends string | number> {
   label: string;
   /** One line under the label — what picking this means */
   hint?: string;
+  /** A choice that IS a direction — calls or puts, bullish or bearish, building or leaving — wears it under the pointer:
+      the row washes green or red and its word takes the ink (Noah, 2026-09-19, on the Weigher's Side card: "these cards
+      should turn red or green on hover for directional visual understanding"). Red and green are direction and nothing
+      else in this house, so only a choice that is one gets a tone; "Both" and "Every read" stay the plain wash. At rest
+      the row is unchanged — silver's check still says where you are. */
+  tone?: 'bull' | 'bear';
+  /** A choice that is the absence of one ("Not said") — the trigger prints it in the secondary ink, so a set choice
+      reads as set (the journal's tags, 2026-09-22) */
+  quiet?: boolean;
 }
+
+/* whole class strings, so Tailwind sees them */
+const ROW_WASH = {
+  plain: 'data-[highlighted]:bg-ink/[0.06] data-[highlighted]:text-textPrimary',
+  bull: 'data-[highlighted]:bg-bull/[0.12] data-[highlighted]:text-bull',
+  bear: 'data-[highlighted]:bg-bear/[0.12] data-[highlighted]:text-bear',
+} as const;
 
 interface DropdownSelectProps<T extends string | number> {
   /** The control's name, printed small before the current choice */
@@ -53,12 +69,18 @@ interface DropdownSelectProps<T extends string | number> {
   ink?: string;
   /** A data-* hook for probes */
   testId?: string;
+  /** The trigger's height: 28 by rest; `sm` is 24 — for a card head's 32px line, where the
+      full size touched the borders (Noah, 2026-09-14) */
+  size?: 'md' | 'sm';
+  /** The card WITHOUT its printed name — for a line that measured itself too short for four named cards (the Weigher's
+      chain head on a laptop, 2026-09-20). The name stays in the tooltip, the aria-label and the open card's heading. */
+  bare?: boolean;
 }
 
 /** The card every dropdown on the terminal opens — one surface, one shadow, one radius */
 export const CARD = 'z-[90] rounded-lg border border-borderSubtle bg-chip shadow-[0_16px_48px_rgba(0,0,0,0.65)] animate-soft-in';
 
-const DropdownSelect = <T extends string | number>({ label, value, options, onChange, title, align = 'start', icon: Icon, ink, testId }: DropdownSelectProps<T>) => {
+const DropdownSelect = <T extends string | number>({ label, value, options, onChange, title, align = 'start', icon: Icon, ink, testId, size = 'md', bare = false }: DropdownSelectProps<T>) => {
   const current = options.find(o => o.value === value);
   return (
     <DropdownMenu.Root modal={false}>
@@ -67,7 +89,8 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
           type="button"
           data-dropdown={testId ?? label}
           aria-label={`${label}: ${current?.label ?? ''}`}
-          className="group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
+          title={bare ? label : undefined}
+          className={`group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
           style={ink ? ({ '--ink': ink } as CSSProperties) : undefined}
         >
           {Icon && (
@@ -77,9 +100,13 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
               data-dropdown-icon
             />
           )}
-          <span className="text-[9px] uppercase tracking-widest text-textMuted">{label}</span>
-          <span className="text-[11px] font-semibold text-textPrimary">{current?.label ?? '—'}</span>
-          <ChevronDown className="w-3 h-3 text-textMuted" />
+          {!bare && <span className="shrink-0 text-[9px] uppercase tracking-widest text-textMuted">{label}</span>}
+          {/* min-w-0 + truncate: in a phone's two-column cards line the card is as wide as its cell, and a long value gives before the card does */}
+          {/* the trigger wears the choice's tone — a Yes reads green, a No red, the way its row did (2026-09-22) */}
+          <span className={`min-w-0 truncate text-[11px] font-semibold ${current?.tone === 'bull' ? 'text-bull' : current?.tone === 'bear' ? 'text-bear' : current?.quiet ? 'text-textSecondary' : 'text-textPrimary'}`} data-tone={current?.tone ?? (current?.quiet ? 'quiet' : undefined)}>
+            {current?.label ?? '—'}
+          </span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-textMuted" />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -96,7 +123,8 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
               <DropdownMenu.RadioItem
                 key={String(o.value)}
                 value={String(o.value)}
-                className="group flex items-start gap-2 rounded-md px-2 py-1.5 outline-none cursor-pointer text-textSecondary data-[highlighted]:bg-ink/[0.06] data-[highlighted]:text-textPrimary data-[state=checked]:text-textPrimary transition-colors"
+                data-tone={o.tone}
+                className={`group flex items-start gap-2 rounded-md px-2 py-1.5 outline-none cursor-pointer text-textSecondary ${ROW_WASH[o.tone ?? 'plain']} data-[state=checked]:text-textPrimary transition-colors`}
               >
                 <span className="mt-[2px] w-3 h-3 shrink-0 flex items-center justify-center">
                   <DropdownMenu.ItemIndicator>

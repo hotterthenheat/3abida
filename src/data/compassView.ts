@@ -20,23 +20,18 @@ export type BoardLayout = 'cards' | 'table';
 
 export interface CompassView {
   sleeve: SleeveKey;
-  /** The listed expiry the board is set to, YYYY-MM-DD (the calendar walk,
-      2026-09-12); null = the sleeve's canonical date. The sleeve is DERIVED
-      from it (sleeveForDte) and kept beside it for the kinds' eligibility. */
-  expiry: string | null;
   scanner: ScannerKey;
   layout: BoardLayout;
   /** null = every name */
   tickerFilter: string | null;
   selectedId: string | null;
-  /** A contract the reader actually CHOSE — clicked or opened — as opposed to
-      the #1 the rail falls back to. The sidebar's "Inside the contract" page
-      exists only once this is set (Noah, 2026-09-12: "logically you can't be
-      inside the con if you haven't picked it"). */
+  /** THE CONTRACT THE READER IS INSIDE (2026-09-13): the last setup page landed on — the sidebar's
+      "Inside the contract" points at it and keeps it across the board and the Tracker until another
+      contract takes its place (Noah: "it should stay there until another con takes its place") */
   chosenId: string | null;
 }
 
-let view: CompassView = { sleeve: 'odte', expiry: null, scanner: 'top-setups', layout: 'cards', tickerFilter: null, selectedId: null, chosenId: null };
+let view: CompassView = { sleeve: 'odte', scanner: 'top-setups', layout: 'cards', tickerFilter: null, selectedId: null, chosenId: null };
 const subs = new Set<() => void>();
 
 export const setCompassView = (patch: Partial<CompassView>): void => {

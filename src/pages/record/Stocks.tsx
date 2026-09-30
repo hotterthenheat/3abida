@@ -53,25 +53,29 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import Sparkline from '../../components/compass/Sparkline';
 import { SectorMark } from '../../components/trace/SectorMark';
 import { StocksGuide } from '../../components/record/StocksGuide';
-import { useMarketData } from '../../context/MarketDataContext';
 import { useBoardNames } from '../../data/boardNames';
 import { buildSectorBoard, buildStockBoard, type SectorRow, type StockPick, type StockSleeves, type StockVerdict } from '../../data/stocks';
+import { gradeOfComposite, type Grade } from '../../data/stockOverview';
 import { SECTORS, type Sector } from '../../data/universe';
 import { ROTATION_SECTORS } from './recordSkeletons';
 
-type ScreenPick = 'all' | StockVerdict;
+type ScreenPick = 'all' | Grade;
 type SectorPick = 'all' | Sector;
 type NamesPick = 'all' | 'board';
 
 /** User-facing screen words — the data's read, never an instruction */
-const SCREEN_WORD: Record<StockVerdict, string> = { ACCUMULATE: 'STRONG', HOLD: 'MIXED', AVOID: 'WEAK' };
-const SCREEN_DOT: Record<StockVerdict, string> = { ACCUMULATE: 'bg-bull', HOLD: 'bg-ink/30', AVOID: 'bg-bear' };
+/* strong · good · caution · poor (Noah, 2026-09-19): the same four words the name's own page says, off the same
+   cuts (stockOverview.ts `gradeOfComposite`), never a figure of ours. STRONG wears a ring: it is the rare one. */
+const gradeOfPick = (p: StockPick): Grade => gradeOfComposite(p.composite);
+const SCREEN_DOT: Record<Grade, string> = { strong: 'bg-bull ring-2 ring-bull/30', good: 'bg-bull', caution: 'bg-warn', poor: 'bg-bear' };
+const GRADE_RANK: Grade[] = ['strong', 'good', 'caution', 'poor'];
 
 const SCREEN_OPTIONS: DropdownOption<ScreenPick>[] = [
-  { value: 'all', label: 'Every screen', hint: 'Strong, mixed and weak' },
-  { value: 'ACCUMULATE', label: 'Strong', hint: 'All four sleeves point the same way' },
-  { value: 'HOLD', label: 'Mixed', hint: 'The sleeves disagree — a catalyst decides' },
-  { value: 'AVOID', label: 'Weak', hint: 'The data argues against the name' },
+  { value: 'all', label: 'Every screen', hint: 'Strong, good, caution and poor' },
+  { value: 'strong', label: 'Strong', hint: 'Nearly everything lines up at once — rare on purpose' },
+  { value: 'good', label: 'Good', hint: 'All four sleeves point the same way' },
+  { value: 'caution', label: 'Caution', hint: 'The sleeves disagree — a catalyst decides' },
+  { value: 'poor', label: 'Poor', hint: 'The data argues against the name' },
 ];
 const SECTOR_OPTIONS: DropdownOption<SectorPick>[] = [{ value: 'all', label: 'Every sector', hint: 'The ten sectors the universe files' }, ...SECTORS.map(s => ({ value: s, label: s }))];
 const NAMES_OPTIONS: DropdownOption<NamesPick>[] = [
@@ -137,8 +141,8 @@ const sleeveCell =
 const ScreenCell = ({ data }: ICellRendererParams<StockPick>) =>
   data ? (
     <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-textPrimary">
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${SCREEN_DOT[data.verdict]}`} />
-      {SCREEN_WORD[data.verdict]}
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${SCREEN_DOT[gradeOfPick(data)]}`} />
+      {gradeOfPick(data).toUpperCase()}
     </span>
   ) : null;
 
@@ -183,7 +187,6 @@ const SectorCard = ({ s, rank, leader, top, on, onToggle }: { s: SectorRow; rank
 /* ---- the page ------------------------------------------------------------------ */
 
 const Stocks = () => {
-  const { changeTicker } = useMarketData();
   const navigate = useNavigate();
   const boardNames = useBoardNames();
   const [screen, setScreen] = useState<ScreenPick>('all');
@@ -200,7 +203,7 @@ const Stocks = () => {
   /* The cards cut the board; the Filter keeps from the cut */
   const cut = useMemo(() => {
     const board = new Set(boardNames);
-    return picks.filter(p => (screen === 'all' || p.verdict === screen) && (sector === 'all' || p.sector === sector) && (names === 'all' || board.has(p.ticker)));
+    return picks.filter(p => (screen === 'all' || gradeOfPick(p) === screen) && (sector === 'all' || p.sector === sector) && (names === 'all' || board.has(p.ticker)));
   }, [picks, screen, sector, names, boardNames]);
 
   /* THE FILTER reads the names on the cut; any pick matching keeps the row. Names
@@ -222,10 +225,12 @@ const Stocks = () => {
   }, [cut, filter]);
 
   const facts = useMemo(() => {
-    const strong = rows.filter(p => p.verdict === 'ACCUMULATE').length;
-    const weak = rows.filter(p => p.verdict === 'AVOID').length;
+    const count = (g: Grade) => rows.filter(p => gradeOfPick(p) === g).length;
+    const strong = count('strong');
+    const good = count('good');
+    const weak = count('poor');
     const breadth = rows.length ? Math.round((rows.filter(p => p.sleeves.momentum > 50).length / rows.length) * 100) : 0;
-    return { names: rows.length, strong, mixed: rows.length - strong - weak, weak, breadth };
+    return { names: rows.length, strong, good, mixed: rows.length - strong - good - weak, weak, breadth };
   }, [rows]);
 
   /* The leader is never called a laggard in the same breath: rank and direction are different axes */
@@ -245,7 +250,7 @@ const Stocks = () => {
           ' — no sector is falling on both windows'
         )}
         . <span className="text-textPrimary font-semibold">{facts.breadth}%</span> of the names here sit above their trend;{' '}
-        <span className="text-bull font-semibold">{facts.strong}</span> screen strong, <span className="text-bear font-semibold">{facts.weak}</span> weak.
+        <span className="text-bull font-semibold">{facts.strong + facts.good}</span> read good or better, <span className="text-bear font-semibold">{facts.weak}</span> poor.
       </>
     ),
     [top, sectors, laggards, facts]
@@ -262,7 +267,7 @@ const Stocks = () => {
       { headerName: 'Numbers', colId: 'quality', valueGetter: p => p.data?.sleeves.quality ?? 0, width: 104, cellRenderer: sleeveCell('quality'), headerTooltip: 'Quality — margins, growth and the balance sheet; above the 50 line green, below red' },
       { headerName: 'Money', colId: 'flow', valueGetter: p => p.data?.sleeves.flow ?? 0, width: 104, cellRenderer: sleeveCell('flow'), headerTooltip: 'Flow — what the options and dark-pool money is doing; above the 50 line green, below red' },
       { headerName: 'News', colId: 'news', valueGetter: p => p.data?.sleeves.news ?? 0, width: 104, cellRenderer: sleeveCell('news'), headerTooltip: "The wire's lean on the name; above the 50 line green, below red" },
-      { headerName: 'Screen', field: 'verdict', width: 100, cellRenderer: ScreenCell, comparator: (a: StockVerdict, b: StockVerdict) => ['ACCUMULATE', 'HOLD', 'AVOID'].indexOf(a) - ['ACCUMULATE', 'HOLD', 'AVOID'].indexOf(b), headerTooltip: 'The four sleeves rolled into one word — strong, mixed or weak; what the data says, never an instruction' },
+      { headerName: 'Screen', field: 'verdict', width: 100, cellRenderer: ScreenCell, comparator: (_a: StockVerdict, _b: StockVerdict, na, nb) => GRADE_RANK.indexOf(na.data ? gradeOfPick(na.data) : 'poor') - GRADE_RANK.indexOf(nb.data ? gradeOfPick(nb.data) : 'poor'), headerTooltip: 'The four sleeves rolled into one word — strong, mixed or weak; what the data says, never an instruction' },
       { headerName: 'Why', field: 'thesis', flex: 2, minWidth: 260, cellRenderer: WhyCell, sortable: false, headerTooltip: 'What is for the name, what is against it — hover for the whole line' },
     ],
     []
@@ -284,11 +289,11 @@ const Stocks = () => {
     el.classList.add('animate-soft-in');
   }, [cutKey]);
 
-  /* A click opens the name's own page (Noah, 2026-09-13: "stop sending me to the pinpoint page") */
+  /* A row opens the name's own page (the partner's review, 2026-09-13: "stop
+     sending me to the pinpoint page") — the Map is a door on that page */
   const open = (e: RowClickedEvent<StockPick>) => {
     if (!e.data) return;
-    changeTicker(e.data.ticker);
-    navigate(`/record/stocks/${e.data.ticker}`);
+    navigate(`/dossier/stocks/${e.data.ticker}`);
   };
 
   return (
@@ -304,14 +309,14 @@ const Stocks = () => {
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            The trend, the numbers, the money and the news, each read against the 50 line and rolled into one screen · strongest first · the rotation ranks the sectors the same way · a row opens the name on the Map
+            The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map
           </p>
         </div>
-        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1">
+        <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
             <dt className="text-[10px] text-textMuted">Names</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-stocks-names>
-              {facts.names} <span className="text-textMuted">·</span> <span className="text-bull">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-textSecondary">{facts.mixed} mixed</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} weak</span>
+              {facts.names} <span className="text-textMuted">·</span> <span className="text-bull font-semibold">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-bull">{facts.good} good</span> <span className="text-textMuted">·</span> <span className="text-warn">{facts.mixed} caution</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} poor</span>
             </dd>
           </div>
           <div>

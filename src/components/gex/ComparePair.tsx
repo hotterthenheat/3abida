@@ -3,46 +3,57 @@
   SLAYER TERMINAL - THE PAIR
   (components/gex/ComparePair.tsx)
 
-  Is today's gap between the two names normal, or
-  stretched? One name's close over the other's,
-  session by session over what the tape holds, as
-  a drawing (2026-09-09, Noah on the first cut:
-  "just a white line with nothing to see"):
+  WHICH OF THE TWO HAS BEEN STRONGER — and is today's
+  gap between them normal, or stretched? One name's
+  price divided by the other's, one point a day.
 
-    the USUAL BAND   a shaded band, the average
-                     through it, both named on the
-                     right with their values
-    the SESSIONS     a dot each on the line — the
-                     ones that closed outside the
-                     band lit warm, so how often it
-                     leaves the band is visible
-    TODAY            the silver point at the end,
-                     its value and its distance from
-                     the average in a chip beside it
-    the DIRECTION    "SPY ahead" up, "QQQ ahead"
-                     down, in the margins — so the
-                     line's slope has a meaning
+  REBUILT 2026-09-20 (Noah, with the box in front of
+  him: "it has no interactivity at all and i dont
+  know what it does") onto the house's small chart —
+  the library's crosshair, a card under the pointer,
+  words a person can picture ("62% of the way to the
+  top of the usual range"), never a sigma.
 
-  Hover a session and the read line names it.
+  REDRAWN 2026-09-29 (the partner: "hard to read and
+  not visually appealing"; Noah: "hes not wrong").
+  What was wrong, measured at 1440: the head wrapped
+  — three facts beside the title pushed the two
+  subtitle lines onto each other; the line changed
+  ink at its average, which read as two lines; the
+  days outside the range floated ABOVE the line as
+  red dots; three wide named tags ("usual high
+  1.267") collided on the price scale. So:
+
+    ONE LINE     silver, one ink end to end
+    THE RANGE    a soft band across the plot with the
+                 average dashed through it — a room
+                 the line lives in, not three more
+                 lines; its names inside the plot at
+                 the left, the figures alone on the
+                 axis
+    THE DAYS     a day that closed outside the range
+                 is a small warm mark ON the line;
+                 today a silver one, named
+    THE HEAD     the title and one line of words; the
+                 three facts live in the read line
+                 under the chart, which already said
+                 them
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { buildPair, type Pair } from '../../data/compare';
+import { useMemo } from 'react';
+import { buildPair, pairPlace, type Pair } from '../../data/compare';
+import SessionsChart, { type ChartBand, type ChartLine, type ChartMark, type ChartPoint } from '../record/SessionsChart';
+import { GuideDoor } from '../ui/GuideFocus';
 import { THERMAL_WARM } from './paletteInk';
-import { PAIR_H, PAIR_M, PAIR_READ_H } from './compareSkeletons';
+import { PAIR_H, PAIR_READ_H } from './compareSkeletons';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const INK = 'rgb(var(--text-primary))';
-const INK_2 = 'rgb(var(--text-secondary))';
-const INK_3 = 'rgb(var(--text-muted))';
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 const WARM = THERMAL_WARM;
 
 const fmtRatio = (v: number) => v.toFixed(v >= 10 ? 2 : 3);
-const signedSd = (z: number) => (Math.abs(z) < 0.05 ? '0.0σ' : `${z > 0 ? '+' : '−'}${Math.abs(z).toFixed(1)}σ`);
-const dayWords = (t: number) => new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const fmtClose = (v: number) => v.toFixed(2);
+const dayWords = (t: number) => new Date(t * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
 interface Props {
   a: string;
@@ -51,220 +62,161 @@ interface Props {
   bInk: string;
   /** Bumped on the scan cadence — the pair does not need every tick */
   nonce: number;
+  /** The page's guide, from this box's head */
+  guideOpen?: boolean;
+  onGuide?: () => void;
 }
 
-const ComparePair = ({ a, b, aInk, bInk, nonce }: Props) => {
+const ComparePair = ({ a, b, aInk, bInk, nonce, guideOpen = false, onGuide }: Props) => {
   const pair: Pair = useMemo(() => buildPair(a, b), [a, b, nonce]); // eslint-disable-line react-hooks/exhaustive-deps
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const [W, setW] = useState(1200);
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    setW(host.clientWidth || 1200);
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) setW(Math.max(320, Math.round(e.contentRect.width)));
-    });
-    ro.observe(host);
-    return () => ro.disconnect();
-  }, []);
-  const [hover, setHover] = useState<number | null>(null);
 
-  /* THE GEOMETRY — every completed session on an even step, today one step past the last */
+  /* every completed session, and today's point one step past the last */
   const done = pair.sessions.length > 1 ? pair.sessions.slice(0, -1) : pair.sessions;
-  const hasNow = pair.now != null;
-  const n = done.length + (hasNow ? 1 : 0);
-  const M = PAIR_M;
-  const H = PAIR_H;
-  const x0 = M.l;
-  const x1 = W - M.r;
-  const xOf = (i: number) => (n <= 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * i) / (n - 1));
-  const values = [...done.map(p => p.ratio), ...(hasNow ? [pair.now as number] : [])];
-  if (pair.mean != null && pair.sd != null) values.push(pair.mean + pair.sd * 1.25, pair.mean - pair.sd * 1.25);
-  let lo = values.length ? Math.min(...values) : 0;
-  let hi = values.length ? Math.max(...values) : 1;
-  if (!(hi > lo)) {
-    lo -= 0.01;
-    hi += 0.01;
-  }
-  const pad = (hi - lo) * 0.08;
-  lo -= pad;
-  hi += pad;
-  const yOf = (v: number) => M.t + ((hi - v) / (hi - lo)) * (H - M.t - M.b);
-  const zOf = (v: number) => (pair.mean != null && pair.sd ? (v - pair.mean) / pair.sd : null);
-  const outside = (v: number) => {
-    const z = zOf(v);
-    return z != null && Math.abs(z) > 1;
-  };
-  const path = done.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(i).toFixed(1)} ${yOf(p.ratio).toFixed(1)}`).join(' ');
-  const nowX = xOf(n - 1);
-  const nowY = hasNow ? yOf(pair.now as number) : 0;
-  const lastX = done.length ? xOf(done.length - 1) : nowX;
-  const lastY = done.length ? yOf(done[done.length - 1].ratio) : nowY;
-  const nowZ = hasNow ? zOf(pair.now as number) : null;
-  /* Date ticks: about eight across, the first and the last always */
-  const step = Math.max(1, Math.ceil(done.length / 8));
-  const ticks = done.map((p, i) => ({ i, t: p.time })).filter((d, k, arr) => k % step === 0 || k === arr.length - 1);
+  const last = pair.sessions[pair.sessions.length - 1];
+  const todayAt = pair.today[pair.today.length - 1] ?? (pair.sessions.length > 1 ? last : undefined);
+  const hasBand = pair.mean != null && pair.sd != null && pair.sd > 0;
+  const top = hasBand ? (pair.mean as number) + (pair.sd as number) : null;
+  const bottom = hasBand ? (pair.mean as number) - (pair.sd as number) : null;
+  const isOutside = (v: number) => top != null && bottom != null && (v > top || v < bottom);
 
-  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    let best = -1;
-    let bestD = Infinity;
-    for (let i = 0; i < n; i++) {
-      const d = Math.abs(xOf(i) - x);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
+  const byTime = useMemo(() => {
+    const m = new Map<number, { ratio: number; closeA: number; closeB: number; today: boolean }>();
+    for (const p of done) m.set(p.time, { ...p, today: false });
+    if (todayAt && pair.now != null) m.set(todayAt.time, { ratio: pair.now, closeA: todayAt.closeA, closeB: todayAt.closeB, today: true });
+    return m;
+  }, [done, todayAt, pair.now]);
+  const points: ChartPoint[] = useMemo(() => [...byTime.entries()].sort((x, y) => x[0] - y[0]).map(([time, p]) => ({ time, value: p.ratio })), [byTime]);
+  /* the usual range: its edges named inside the plot with the figure alone on the axis, the average dashed through it */
+  const lines: ChartLine[] = useMemo(
+    () =>
+      top != null && bottom != null && pair.mean != null
+        ? [
+            { price: top, color: SILVER, title: 'usual high', style: 'solid', name: 'plot', line: false },
+            { price: pair.mean, color: SILVER, title: 'average', style: 'dashed', name: 'plot' },
+            { price: bottom, color: SILVER, title: 'usual low', style: 'solid', name: 'plot', line: false },
+          ]
+        : [],
+    [top, bottom, pair.mean]
+  );
+  const bands: ChartBand[] = useMemo(() => (top != null && bottom != null ? [{ from: bottom, to: top, color: SILVER }] : []), [top, bottom]);
+  /* the marks sit ON the line: a warm one for a day that closed outside the range, a silver one for today */
+  const marks: ChartMark[] = useMemo(() => {
+    const out: ChartMark[] = [];
+    for (const [time, p] of byTime) {
+      if (p.today) out.push({ time, color: SILVER, shape: 'circle', on: true, size: 0.45, word: 'today', text: 'today, still moving' });
+      else if (isOutside(p.ratio)) out.push({ time, color: WARM, shape: 'circle', on: true, size: 0.32, text: 'closed outside the usual range' });
     }
-    if (best < 0 || bestD > 40) {
-      if (hover != null) setHover(null);
-      return;
-    }
-    if (hover !== best) setHover(best);
-  };
-  const onLeave = () => setHover(null);
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byTime, top, bottom]);
 
-  const band = pair.mean != null && pair.sd != null ? `${fmtRatio(pair.mean - pair.sd)} – ${fmtRatio(pair.mean + pair.sd)}` : '—';
-  const sits = pair.z == null ? '—' : `${signedSd(pair.z)} · ${Math.abs(pair.z) > 1 ? 'outside the band' : 'inside the band'}`;
-  const hovered = hover == null ? null : hover < done.length ? { time: done[hover].time, ratio: done[hover].ratio, today: false } : hasNow ? { time: pair.today[pair.today.length - 1]?.time ?? pair.sessions[pair.sessions.length - 1]?.time ?? 0, ratio: pair.now as number, today: true } : null;
-  const readZ = hovered ? zOf(hovered.ratio) : null;
-  const outsideCount = done.filter(p => outside(p.ratio)).length;
-  /* The now chip must not cover the average's label: step it off when the two would meet */
-  const chipY = hasNow && pair.mean != null && Math.abs(nowY - yOf(pair.mean)) < 14 ? nowY + (nowY >= yOf(pair.mean) ? 14 : -14) : nowY;
+  /* the scale holds the line AND the usual range, with a little air — the library's own fit left the line a flat thread */
+  const range = useMemo<readonly [number, number] | undefined>(() => {
+    if (!points.length) return undefined;
+    const vs = points.map(p => p.value);
+    if (top != null && bottom != null) vs.push(top, bottom);
+    const lo = Math.min(...vs);
+    const hi = Math.max(...vs);
+    const air = Math.max((hi - lo) * 0.06, 1e-4);
+    return [lo - air, hi + air];
+  }, [points, top, bottom]);
+  const outsideCount = done.filter(p => isOutside(p.ratio)).length;
+  const nowPlace = pair.now != null ? pairPlace(pair.now, pair.mean, pair.sd) : null;
+  const band = top != null && bottom != null ? `${fmtRatio(bottom)} – ${fmtRatio(top)}` : '—';
 
   return (
-    <section className="flex flex-col min-w-0" data-compare-pair data-z={pair.z?.toFixed(2)}>
-      <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
+    <section className="flex flex-col min-w-0" data-compare-pair data-place={nowPlace?.where}>
+      {/* THE HEAD — the title, what the line is, and the guide's door; the figures are the read line's */}
+      <div className="px-5 pt-4 pb-3 flex items-start gap-6">
         <div className="min-w-0 flex-1">
-          <div className="h-6 flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The pair</h3>
+          <div className="h-6 flex items-center gap-3 min-w-0">
+            <h3 className="shrink-0 text-[15px] font-semibold leading-tight text-textPrimary">The pair</h3>
+            <span className="min-w-0 truncate text-[11px] text-textSecondary">which of the two has been stronger, and whether today's gap is normal</span>
+            {onGuide && <GuideDoor open={guideOpen} onClick={onGuide} title="What the line, the range and the marks mean" testId="pair-guide" />}
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            {a} over {b}, close by close · up is <span style={{ color: aInk }}>{a}</span> ahead, down is <span style={{ color: bInk }}>{b}</span> ahead · the band is the usual range · sessions outside it lit <span style={{ color: WARM }}>warm</span> · today in <span style={{ color: SILVER }}>silver</span>
+            {a}'s price divided by {b}'s, one point a day · up, <span style={{ color: aInk }}>{a}</span> is gaining · down, <span style={{ color: bInk }}>{b}</span> is gaining · the band is the usual range · hover any day
           </p>
         </div>
-        <dl className="grid grid-cols-3 gap-x-6">
-          <div>
-            <dt className="text-[10px] text-textMuted">Now</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-pair-now>
-              {pair.now == null ? '—' : fmtRatio(pair.now)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] text-textMuted">Usual band · {done.length} sessions</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-pair-band>
-              {band}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] text-textMuted">Today sits</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: pair.z != null && Math.abs(pair.z) > 1 ? SILVER : INK }} data-pair-sits>
-              {sits}
-            </dd>
-          </div>
-        </dl>
       </div>
 
-      {/* THE DRAWING */}
-      <div ref={hostRef} className="relative border-t border-borderSubtle/60 select-none" style={{ height: PAIR_H }} data-pair-chart>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block" onPointerMove={onMove} onPointerLeave={onLeave} role="img" aria-label={`${a} over ${b}, session by session, against its usual band`}>
-          {/* the usual band and the average, named on the right */}
-          {pair.mean != null && pair.sd != null && (
-            <g data-pair-band-shape>
-              <rect x={x0} y={yOf(pair.mean + pair.sd)} width={Math.max(0, x1 - x0)} height={Math.max(1, yOf(pair.mean - pair.sd) - yOf(pair.mean + pair.sd))} fill={SILVER} fillOpacity={0.09} />
-              <line x1={x0} x2={x1} y1={yOf(pair.mean + pair.sd)} y2={yOf(pair.mean + pair.sd)} stroke={SILVER} strokeOpacity={0.35} strokeDasharray="3 3" />
-              <line x1={x0} x2={x1} y1={yOf(pair.mean - pair.sd)} y2={yOf(pair.mean - pair.sd)} stroke={SILVER} strokeOpacity={0.35} strokeDasharray="3 3" />
-              <line x1={x0} x2={x1} y1={yOf(pair.mean)} y2={yOf(pair.mean)} stroke={SILVER} strokeOpacity={0.7} strokeDasharray="1 3" />
-              {/* The band's edges and the average, 10px: the figures the read hangs on (the lock walk, 2026-09-09) */}
-              <text x={x1 + 6} y={yOf(pair.mean + pair.sd)} fontFamily={MONO} fontSize="10" fill={INK_2} dominantBaseline="middle">
-                {fmtRatio(pair.mean + pair.sd)}
-              </text>
-              <text x={x1 + 6} y={yOf(pair.mean - pair.sd)} fontFamily={MONO} fontSize="10" fill={INK_2} dominantBaseline="middle">
-                {fmtRatio(pair.mean - pair.sd)}
-              </text>
-              <text x={x1 + 6} y={yOf(pair.mean)} fontFamily={MONO} fontSize="10" fill={SILVER} fillOpacity={0.9} dominantBaseline="middle">
-                avg {fmtRatio(pair.mean)}
-              </text>
-            </g>
-          )}
-          {/* which way is which */}
-          <text x={x0 + 4} y={M.t - 8} fontFamily={SANS} fontSize="9" fill={aInk} fillOpacity={0.9} letterSpacing="0.08em">
-            ▲ {a.toUpperCase()} AHEAD
-          </text>
-          <text x={x0 + 4} y={H - M.b + 2} fontFamily={SANS} fontSize="9" fill={bInk} fillOpacity={0.9} letterSpacing="0.08em" dominantBaseline="hanging">
-            ▼ {b.toUpperCase()} AHEAD
-          </text>
-          {/* the sessions */}
-          {path && <path d={path} fill="none" stroke={INK} strokeOpacity={0.85} strokeWidth={1.5} strokeLinejoin="round" data-pair-line />}
-          {done.map((p, i) => {
-            const out = outside(p.ratio);
-            const hot = hover === i;
-            return (
-              <g key={p.time} data-pair-session={i} data-outside={out || undefined}>
-                <circle cx={xOf(i)} cy={yOf(p.ratio)} r={hot ? 4.5 : out ? 3.5 : 2.6} fill={out ? WARM : 'rgb(var(--panel))'} stroke={out ? WARM : INK_2} strokeWidth={1.2} />
-                {hot && <line x1={xOf(i)} x2={xOf(i)} y1={M.t} y2={H - M.b} stroke={SILVER} strokeOpacity={0.4} />}
-              </g>
-            );
-          })}
-          {/* today */}
-          {hasNow && (
-            <g data-pair-today>
-              {done.length > 0 && <line x1={lastX} y1={lastY} x2={nowX} y2={nowY} stroke={SILVER} strokeWidth={2} strokeLinecap="round" />}
-              <circle cx={nowX} cy={nowY} r={hover === n - 1 ? 6 : 5} fill={SILVER} stroke="#0a0a0a" strokeWidth={1.5} />
-              {hover === n - 1 && <line x1={nowX} x2={nowX} y1={M.t} y2={H - M.b} stroke={SILVER} strokeOpacity={0.4} />}
-              <rect x={x1 + 4} y={chipY - 9} width={M.r - 10} height={18} rx={4} fill={SILVER} />
-              <text x={x1 + 4 + (M.r - 10) / 2} y={chipY + 0.5} fontFamily={MONO} fontSize="10" fontWeight="700" fill="#0a0a0a" textAnchor="middle" dominantBaseline="middle">
-                {fmtRatio(pair.now as number)}
-                {nowZ != null ? ` ${signedSd(nowZ)}` : ''}
-              </text>
-            </g>
-          )}
-          {/* the dates */}
-          {ticks.map(d => (
-            <text key={d.t} x={xOf(d.i)} y={H - 8} fontFamily={MONO} fontSize="9" fill={INK_3} textAnchor="middle">
-              {dayWords(d.t)}
-            </text>
-          ))}
-          {hasNow && (
-            <text x={nowX} y={H - 8} fontFamily={MONO} fontSize="9" fontWeight="700" fill={SILVER} textAnchor="middle">
-              now
-            </text>
-          )}
-        </svg>
+      {/* THE CHART — the library's, with its crosshair and a card under the pointer */}
+      <div className="relative border-t border-borderSubtle/60 px-3 pt-3 pb-2" style={{ height: PAIR_H }} data-pair-chart data-points={points.length}>
+        {points.length > 1 ? (
+          <SessionsChart
+            /* the average and the range's lines are read when the chart is made: a new pair is a new chart */
+            key={`${a}|${b}|${pair.mean?.toFixed(4) ?? 'none'}`}
+            points={points}
+            kind="line"
+            ink={SILVER}
+            lines={lines}
+            bands={bands}
+            marks={marks}
+            height={PAIR_H - 20}
+            clock="day"
+            scale="ratio"
+            range={range}
+            cardW={244}
+            cardH={96}
+            testId="pair"
+            card={h => {
+              const p = byTime.get(h.time);
+              if (!p) return <span className="text-textMuted">no session here</span>;
+              const place = pairPlace(p.ratio, pair.mean, pair.sd);
+              return (
+                <>
+                  <span className="font-mono text-[11px] font-bold tnum text-textPrimary">
+                    {p.today ? 'Today' : dayWords(h.time)}
+                    {p.today && <span className="ml-1.5 font-normal text-[9px] uppercase tracking-widest" style={{ color: SILVER }}>still moving</span>}
+                  </span>
+                  <span className="font-mono text-[10.5px] tnum text-textSecondary">
+                    {a} <span className="text-textPrimary">{fmtClose(p.closeA)}</span> ÷ {b} <span className="text-textPrimary">{fmtClose(p.closeB)}</span> = <span className="font-bold text-textPrimary">{fmtRatio(p.ratio)}</span>
+                  </span>
+                  {place && (
+                    <span className="text-[10.5px] leading-snug" style={{ color: place.where === 'inside' ? undefined : WARM }}>
+                      {place.words}
+                    </span>
+                  )}
+                  {place && <span className="text-[10px] text-textMuted">{place.ahead === 'a' ? `${a} further ahead of ${b} than on an average day` : place.ahead === 'b' ? `${b} further ahead of ${a} than on an average day` : 'right where the two usually sit'}</span>}
+                </>
+              );
+            }}
+          />
+        ) : (
+          <div className="h-full flex items-center justify-center text-[11px] text-textMuted">not enough sessions on the tape yet</div>
+        )}
       </div>
 
-      {/* THE READ LINE */}
-      <div className="px-5 border-t border-borderSubtle flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: PAIR_READ_H }} data-pair-read>
-        {hovered ? (
-          <>
-            <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{hovered.today ? 'now' : dayWords(hovered.time)}</span>
-            <span className="font-mono tnum text-textPrimary">
-              {a} / {b} {fmtRatio(hovered.ratio)}
-            </span>
-            {readZ != null && (
-              <span>
-                <span className="font-mono tnum text-textPrimary">{signedSd(readZ)}</span> from the average · {Math.abs(readZ) > 1 ? <span style={{ color: WARM }}>outside the usual band</span> : 'inside the usual band'}
-              </span>
-            )}
-            <span>{hovered.ratio >= (pair.mean ?? hovered.ratio) ? `${a} ahead of usual` : `${b} ahead of usual`}</span>
-            <span className="ml-auto text-textMuted">{hovered.today ? 'today' : 'the session under the pointer'}</span>
-          </>
-        ) : pair.now != null ? (
+      {/* THE READ LINE — where today stands, at rest: the ratio, the usual range, where today sits, the days outside;
+          the day under the pointer is the card's */}
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: PAIR_READ_H }} data-pair-read>
+        {pair.now != null ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">now</span>
-            <span className="font-mono tnum text-textPrimary">
-              {a} / {b} {fmtRatio(pair.now)}
+            <span className="font-mono tnum text-textPrimary" data-pair-now>
+              {a} ÷ {b} {fmtRatio(pair.now)}
             </span>
-            {pair.z != null && (
-              <span>
-                <span className="font-mono tnum text-textPrimary">{signedSd(pair.z)}</span> from the average · {Math.abs(pair.z) > 1 ? <span style={{ color: WARM }}>outside the usual band</span> : 'inside the usual band'}
+            {hasBand && (
+              <span className="font-mono tnum text-textMuted" data-pair-band>
+                usual {band} · {done.length} sessions
               </span>
             )}
-            <span className="text-textMuted">
-              {outsideCount} of {done.length} sessions closed outside it
+            {nowPlace && (
+              <span style={{ color: nowPlace.where === 'inside' ? undefined : WARM }} data-pair-sits>
+                {nowPlace.words}
+              </span>
+            )}
+            {/* the two marks, named where their count is said */}
+            {hasBand && (
+              <span className="inline-flex items-center gap-1.5 text-textMuted">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: WARM }} aria-hidden />
+                {outsideCount} of {done.length} days closed outside
+              </span>
+            )}
+            <span className="ml-auto inline-flex items-center gap-1.5 text-textMuted">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: SILVER }} aria-hidden />
+              today
             </span>
-            <span className="ml-auto text-textMuted">hover a session</span>
           </>
         ) : (
           <span className="text-textMuted">not enough sessions on the tape yet</span>

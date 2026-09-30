@@ -27,7 +27,8 @@
 
 import { Fragment } from 'react';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { Block, Box, ChartGround, Facts, Line, ScopeChipMark, SubLine, TitleRow, Trigger } from '../../components/ui/skeletonKit';
+import { readLedgerView } from '../../components/gex/ledgerView';
+import { Block, Box, Facts, Line, ScopeChipMark, SubLine, TitleRow, Trigger } from '../../components/ui/skeletonKit';
 import { BuildingPageSkeleton } from '../../components/gex/buildingSkeletons';
 import { WallPageSkeleton } from '../../components/gex/wallSkeletons';
 import { TargetsPageSkeleton } from '../../components/gex/targetsSkeletons';
@@ -63,112 +64,116 @@ export const PinpointShellSkeleton = ({ pathname }: { pathname: string }) => {
 
 /* ---- the Map ------------------------------------------------------------------- */
 
-const MAP_H = 'calc(100vh - 184px)';
-
-/** The Map's box: the chart toolbar, the sentence row with its three dropdowns, the chart beside the profile panel */
-export const MapBoxSkeleton = () => (
-  <div className="relative border border-borderSubtle rounded-md overflow-hidden" style={{ height: MAP_H, minHeight: 560 }} aria-hidden data-skeleton="map-box">
-    <div className="flex flex-col h-full min-h-0">
-      {/* the chart toolbar, 38 */}
-      <div className="shrink-0 flex items-center gap-2 flex-wrap px-2 py-1.5 bg-panel border-b border-borderSubtle">
-        <ScopeChipMark />
-        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-0.5">
-            {[32, 32, 34, 34, 34, 34, 32, 34].map((w, i) => (
-              <Block key={i} w={w} h={25} className="rounded" />
-            ))}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Block w={112} h={25} className="rounded" />
-            <Block w={96} h={25} className="rounded" />
-            <Block w={103} h={25} className="rounded" />
-          </span>
-          <span className="w-px h-4 bg-borderSubtle" />
-          <Block w={117} h={25} className="rounded" />
-          <Block w={89} h={25} className="rounded" />
-          <Block w={30} h={22} className="rounded" />
-        </div>
-      </div>
-      {/* the sentence row, 43 */}
-      <div className="shrink-0 px-2.5 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2">
-        <Block w={67} h={21} className="rounded" />
-        <div className="min-w-0 flex-1 flex flex-col gap-[5px] py-[2px]">
-          <Line w="72%" />
-          <Line w="46%" />
-        </div>
-        <span className="shrink-0 inline-flex items-center gap-1.5 ml-1">
-          <Line w={40} />
-          <Block w={110} h={24} className="rounded-full" />
-        </span>
-        <span className="ml-auto shrink-0 inline-flex items-center gap-2">
-          <Trigger w={112} />
-          <Trigger w={103} />
-        </span>
-      </div>
-      {/* the chart, the whole box (the strike panel left the Map on 2026-09-13) */}
-      <div className="relative flex-1 min-h-0 flex">
-        <div className="relative flex-1 min-w-0" style={{ background: '#0a0a0a' }}>
-          <ChartGround axis={74} />
-        </div>
-      </div>
+/* THE MAP OPENS ON THE EXPOSURE MATRIX (Noah, 2026-09-28, with the August picture): its first box stands in as that table —
+   the band (the chip, Expiry, Strikes, the replay door), the two head rows (a greek over three legs), one row per strike
+   with a figure and its thin bar in every cell, the spot rule in the middle. Twenty strikes each side, 27px rows. */
+const CalendarGrid = () => (
+  <div className="flex-1 min-h-0 flex flex-col">
+    <div className="shrink-0 flex items-center gap-5 px-3 py-2 border-b border-borderSubtle/60 h-[34px]">
+      <Line w={30} h={13} />
+      <Line w={120} />
+      <Line w={70} />
+      <Line w={80} />
+      <Line w={180} className="ml-auto" />
     </div>
-  </div>
-);
-
-/** The greek board under the Map: five strips side by side — a head, a net line, the strike rows, the foot */
-export const BoardInner = ({ panels = 5 }: { panels?: number }) => (
-  <div className="h-full min-h-0 flex flex-col" aria-hidden data-skeleton="greek-board">
-    <div className="flex-1 min-h-0 flex">
-      {Array.from({ length: panels }, (_, p) => (
-        <div key={p} className="flex-1 min-w-0 flex flex-col border-r border-borderSubtle last:border-r-0">
-          <div className="shrink-0 flex items-center gap-1 px-1.5 py-1 border-b border-borderSubtle">
-            <ScopeChipMark />
-            <Trigger w={62} />
-            <Trigger w={58} />
-            <Line w={44} className="ml-auto" />
+      <div className="flex-1 min-h-0 grid" style={{ gridTemplateColumns: '66px repeat(8, minmax(0, 1fr))', gridTemplateRows: '22px 22px repeat(20, minmax(18px, 1fr)) 18px repeat(20, minmax(18px, 1fr))' }}>
+        <div className="row-span-2 px-2 flex items-end pb-1 border-b border-borderSubtle">
+          <Line w={36} h={9} />
+        </div>
+        <div className="col-span-8 px-2 flex items-center justify-center border-l border-borderSubtle">
+          <Line w={90} h={9} />
+        </div>
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={`h-${i}`} className={`px-2 flex items-center justify-end border-b border-borderSubtle ${i === 0 ? 'border-l' : ''}`}>
+            <Line w={64} h={9} />
           </div>
-          <div className="shrink-0 flex items-center gap-2 px-2 h-6 border-b border-borderSubtle/70">
-            <Line w={22} h={8} />
-            <Line w={54} h={9} />
-            <Line w={70} h={8} />
-          </div>
-          <div className="shrink-0 flex items-center gap-4 px-2 h-6 border-b border-borderSubtle">
-            <Line w={34} h={8} />
-            <Line w={60} h={8} />
-          </div>
-          <div className="flex-1 min-h-0 flex flex-col justify-center gap-[6px] px-2 py-2">
-            {Array.from({ length: 22 }, (_, r) => (
-              <div key={r} className="flex items-center gap-3 h-[22px]">
-                <Line w={28} h={10} />
-                <div className="flex-1 flex flex-col gap-[3px]">
-                  <Line w={`${34 + ((r * 13) % 30)}%`} h={10} />
-                  <Line w={`${20 + ((r * 7) % 40)}%`} h={3} />
+        ))}
+        {/* The real window: twenty strikes each side of spot (the ledger's floor), 18px rows */}
+        {Array.from({ length: 41 }, (_, r) =>
+          r === 20 ? (
+            <div key="spot" className="col-span-9 px-2 flex items-center gap-1.5">
+              <span className="h-px flex-grow bg-gradient-to-r from-ink/[0.04] via-ink/[0.14] to-ink/[0.18]" />
+              <Line w={24} h={9} />
+              <Block w={48} h={15} className="rounded-[3px]" />
+              <span className="h-px w-3 shrink-0 bg-ink/[0.18]" />
+            </div>
+          ) : (
+            [
+              <div key={`s-${r}`} className="px-2 flex items-center">
+                <Line w={30} h={11} />
+              </div>,
+              ...Array.from({ length: 8 }, (_, c) => (
+                <div key={`c-${r}-${c}`} className={`min-w-0 px-[3px] py-[2px] ${c === 0 ? 'border-l border-borderSubtle/60' : ''}`}>
+                  <Skeleton className="h-full w-full rounded-full" style={{ opacity: 0.45 + 0.55 * (1 - Math.abs(r - 20) / 20) }} />
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="shrink-0 flex items-center gap-3 px-2 h-6 border-t border-borderSubtle">
-            <Line w={50} h={8} />
-            <Line w={44} h={8} />
-          </div>
-        </div>
-      ))}
-    </div>
-    <div className="shrink-0 flex items-center gap-3 px-3 h-9 border-t border-borderSubtle">
-      <Line w={44} h={8} />
-      <Block w={140} h={24} className="rounded" />
-      <Block w={60} h={24} className="rounded" />
-      <Block w={56} h={24} className="rounded" />
-      <Block w={54} h={24} className="rounded" />
-      <Line w={160} className="ml-auto" />
-      <Block w={120} h={24} className="rounded" />
-      <Line w={170} />
-    </div>
+              )),
+            ]
+          )
+        )}
+      </div>
   </div>
 );
-export const BoardBoxSkeleton = () => (
-  <div className="border border-borderSubtle rounded-md overflow-hidden flex flex-col" style={{ height: MAP_H, minHeight: 560 }}>
-    <BoardInner />
+export const CalendarInner = () => (
+  <div className="h-full min-h-0 flex flex-col" aria-hidden data-skeleton="calendar-box" data-skeleton-view={readLedgerView('map')}>
+    <div className="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-1.5 border-b border-borderSubtle">
+      <ScopeChipMark />
+      <Trigger w={103} />
+      <Trigger w={170} />
+      <Trigger w={158} />
+      <Trigger w={101} />
+      <Trigger w={140} />
+      <Block w={232} h={32} className="ml-auto rounded-md" />
+      <Block w={85} h={24} className="rounded-md" />
+      <Block w={28} h={28} className="rounded" />
+    </div>
+    {readLedgerView('map') === 'calendar' ? (
+      <CalendarGrid />
+    ) : (
+    <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="grid" style={{ gridTemplateColumns: '84px repeat(15, minmax(0, 1fr))' }}>
+        <div className="row-span-2 px-2 flex items-end pb-1.5 border-b border-borderSubtle">
+          <Line w={36} h={9} />
+        </div>
+        {[0, 1, 2, 3, 4].map(g => (
+          <div key={`g-${g}`} className="col-span-3 px-2 pt-2 pb-1 flex items-center justify-center border-l border-borderSubtle">
+            <Line w={78} h={9} />
+          </div>
+        ))}
+        {Array.from({ length: 15 }, (_, i) => (
+          <div key={`l-${i}`} className={`px-2 py-1 flex items-center justify-end border-b border-borderSubtle ${i % 3 === 0 ? 'border-l border-borderSubtle' : ''}`}>
+            <Line w={24} h={8} />
+          </div>
+        ))}
+        {Array.from({ length: 41 }, (_, r) =>
+          r === 20 ? (
+            <div key="spot" className="col-span-16 px-2 h-[26px] flex items-center gap-1.5">
+              <span className="h-px flex-grow bg-gradient-to-r from-ink/[0.04] via-ink/[0.14] to-ink/[0.18]" />
+              <Line w={24} h={9} />
+              <Block w={48} h={15} className="rounded-[3px]" />
+              <span className="h-px w-3 shrink-0 bg-ink/[0.18]" />
+            </div>
+          ) : (
+            [
+              <div key={`s-${r}`} className="px-2 h-[27px] flex items-center border-b border-borderSubtle/30 border-r border-borderSubtle/40 bg-inset">
+                <Line w={30} h={10} />
+              </div>,
+              ...Array.from({ length: 15 }, (_, c) => (
+                <div key={`c-${r}-${c}`} className={`px-2 h-[27px] flex flex-col items-end justify-center gap-1 border-b border-borderSubtle/30 ${c % 3 === 0 ? 'border-l border-borderSubtle/50' : ''}`}>
+                  <Line w={44} h={9} />
+                  <Skeleton className="h-[3px] rounded-full" style={{ width: `${18 + ((r * 7 + c * 5) % 30)}px`, opacity: 0.6 }} />
+                </div>
+              )),
+            ]
+          )
+        )}
+      </div>
+    </div>
+    )}
+  </div>
+);
+export const CalendarBoxSkeleton = ({ className = 'h-[870px]' }: { className?: string }) => (
+  <div className={`border border-borderSubtle rounded-md overflow-hidden flex flex-col ${className}`}>
+    <CalendarInner />
   </div>
 );
 
@@ -235,92 +240,89 @@ export const ReportBoxSkeleton = () => (
   </Box>
 );
 
-/** Your positions: the toolbar and the note (empty), the way the box opens */
-export const PositionsInner = () => (
-    <section className="flex flex-col min-w-0" aria-hidden data-skeleton="positions-box">
-      <div className="flex items-center gap-3 flex-wrap px-5 pt-4 pb-3">
-        <div className="min-w-0 h-[37px] flex flex-col justify-between py-[2px]">
-          <Line w={105} h={13} />
-          <Line w={80} />
-        </div>
-        <Block w={132} h={32} className="rounded-full" />
-      </div>
-      <div className="px-5 pb-5 max-w-[64ch] h-[74px] flex flex-col justify-between py-[3px]">
-        <Line w="100%" />
-        <Line w="92%" />
-        <Line w="60%" />
-      </div>
-    </section>
-);
-export const PositionsBoxSkeleton = () => (
-  <Box className="overflow-hidden">
-    <PositionsInner />
-  </Box>
-);
-
+/* The Map opens on the calendar since 2026-09-12 (the chart box is gone — Terrain and Pulse carry
+   it); Your positions left for the Weigher's desk on 2026-09-14 */
 export const MapPageSkeleton = () => (
   <>
-    <MapBoxSkeleton />
-    <BoardBoxSkeleton />
+    <CalendarBoxSkeleton />
     <DayBoxSkeleton />
     <ReportBoxSkeleton />
-    <PositionsBoxSkeleton />
   </>
 );
 
 /* ---- Ahead --------------------------------------------------------------------- */
 
-/** The range: head with four facts, the one control (If vol), the price pane at its aspect, the half hours' head and pane, the sentences */
+/** The range: head with four facts, the one control (If vol), the price scale at its aspect (the names above, the track with its
+    band and posts, the figures under, the bracket's words — redrawn on one scale 2026-09-13), the half hours' head and pane, the sentences */
 export const CorridorInner = () => (
-  <div className="flex flex-col" aria-hidden data-skeleton="range">
-    <div className="px-5 pt-4 pb-2 flex items-start gap-6 flex-wrap">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3">
-          <Line w={88} h={15} />
-          <ScopeChipMark />
-          <Line w={80} />
+    <section className="relative flex flex-col min-w-0" aria-hidden data-skeleton="corridor-box">
+      <div className="px-5 pt-4 pb-2 flex items-start gap-6 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <TitleRow title={92} />
+          <SubLine w={620} />
         </div>
-        <Line w={420} className="mt-1.5" />
+        <Facts widths={[118, 130, 140, 128]} />
       </div>
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
-        {[120, 110, 110, 120].map((w, i) => (
-          <div key={i}>
-            <Line w={64} h={9} />
-            <Line w={w} h={13} className="mt-1" />
+      <div className="relative">
+        <div className="px-3">
+          <div className="relative w-full" style={{ aspectRatio: '1200 / 114' }} data-skeleton="scale">
+            <div className="absolute inset-x-0 top-[2%] h-[9%] flex items-center justify-around px-[10%]">
+              {[88, 70, 46, 96, 64].map((w, i) => (
+                <Line key={i} w={w} h={8} />
+              ))}
+            </div>
+            <div className="absolute left-[8%] right-[8%] top-[48%] h-px bg-ink/[0.15]" />
+            <div className="absolute left-[30%] right-[32%] top-[43%] h-[11%] rounded-sm bg-silver/[0.1]" />
+            {[18, 30, 44, 55, 68, 82].map(l => (
+              <div key={l} className="absolute top-[32%] h-[33%] w-px bg-ink/[0.2]" style={{ left: `${l}%` }} />
+            ))}
+            <div className="absolute inset-x-0 top-[70%] h-[8%] flex items-center justify-between px-[4%]">
+              {Array.from({ length: 9 }, (_, i) => (
+                <Line key={i} w={30} h={8} />
+              ))}
+            </div>
+            <div className="absolute left-1/2 -translate-x-1/2 top-[92%]">
+              <Line w={210} h={7} />
+            </div>
           </div>
-        ))}
-      </div>
-    </div>
-    <div className="px-5 pt-2">
-      <div className="relative h-[150px] mx-8">
-        <Skeleton className="absolute left-0 right-0 top-[64px] h-[10px] rounded-full" />
-        <Skeleton className="absolute left-[30%] w-[38%] top-[62px] h-[14px] rounded-full" />
-        <Block w={58} h={26} className="absolute left-[48%] top-[56px] -translate-x-1/2 rounded-md" />
-        {[18, 30, 62, 78].map((l, i) => (
-          <Skeleton key={i} className="absolute w-[2px] h-[50px] top-[40px]" style={{ left: `${l}%` }} />
-        ))}
-      </div>
-      <Line w="70%" className="mt-2" />
-    </div>
-    <div className="px-5 pt-4 pb-4">
-      <Line w={360} h={9} />
-      <div className="mt-2 relative h-[170px] rounded-md border border-borderSubtle/60">
-        <span className="absolute left-0 right-0 top-1/2 h-px bg-ink/15" />
-        <div className="absolute inset-x-12 top-2 bottom-5 flex items-stretch gap-[6px]">
-          {Array.from({ length: 13 }, (_, i) => {
-            const h = 8 + ((i * 17) % 40);
-            const up = i % 3 !== 1;
-            return (
-              <div key={i} className="relative flex-1">
-                <Skeleton className="absolute left-[15%] right-[15%] rounded-[3px]" style={{ [up ? 'bottom' : 'top']: '50%', height: `${h}%` }} />
-              </div>
-            );
-          })}
         </div>
       </div>
-      <Line w="60%" className="mt-4" />
-    </div>
-  </div>
+      {/* the range's sentence under its scale — two lines, since it carries the last sessions' record */}
+      <div className="px-5 pt-2 h-[47px] flex flex-col justify-center gap-[8px]">
+        <Line w="92%" h={11} />
+        <Line w="40%" h={11} />
+      </div>
+      {/* the dealers' head line: the caps name, three facts, the If vol card at the right */}
+      <div className="px-5 pt-4 h-[44px] flex items-center gap-5">
+        <Line w={330} h={9} />
+        <Line w={150} h={9} />
+        <Line w={170} h={9} />
+        <Line w={96} h={9} />
+        <Skeleton className="h-7 w-[168px] rounded-md ml-auto" />
+      </div>
+      {/* the pane (2026-09-13 evening): the middle line, a bar per half hour hanging from it, the hours under */}
+      <div className="px-5 pt-2">
+        <div className="relative h-[210px] rounded-md border border-borderSubtle/60">
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-ink/[0.12]" />
+          <div className="absolute inset-x-12 top-3 bottom-8 flex items-stretch gap-[6px]">
+            {Array.from({ length: 13 }, (_, i) => (
+              <div key={i} className="relative flex-1 min-w-0">
+                <Block w="70%" h={`${8 + i * 2.3}%`} className="absolute left-[15%] top-1/2 rounded-[3px]" style={{ opacity: 0.5 }} />
+                <Line w={28} h={7} className="absolute left-1/2 -translate-x-1/2 -bottom-[16px]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="px-5 h-[18px] flex items-center">
+        <Line w={200} h={9} />
+      </div>
+      {/* two lines: the clock's sentence, the vol move's */}
+      <div className="px-5 pb-4 pt-2 h-[67px] flex flex-col justify-center gap-[9px]">
+        <Line w="88%" h={11} />
+        <Line w="70%" h={11} />
+      </div>
+    </section>
 );
 export const CorridorBoxSkeleton = () => (
   <Box>
@@ -328,41 +330,64 @@ export const CorridorBoxSkeleton = () => (
   </Box>
 );
 
-/** Where it closes: the head with four facts, the drawing at the range's aspect — the two bands
-    across it, the silhouette hugging the axis — the read line, the sentence (redrawn 2026-09-09) */
+/** Where it closes: the head with four facts, the rows (redrawn 2026-09-13 evening on the partner's rows) — a 16px
+    header, 25 rows of 24 with a bell of bar lengths and the spot rule between them, the key line — the read line, the four reads */
 export const CloseInner = () => (
-  <div className="flex flex-col" aria-hidden data-skeleton="close">
+  <section className="relative flex flex-col min-w-0" aria-hidden data-skeleton="close-box">
     <div className="px-5 pt-4 pb-2 flex items-start gap-6 flex-wrap">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3">
-          <Line w={110} h={15} />
-          <ScopeChipMark />
-          <Line w={80} />
-        </div>
-        <Line w={460} className="mt-1.5" />
+        <TitleRow title={118} />
+        <SubLine w={560} />
       </div>
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
-        {[90, 100, 100, 120].map((w, i) => (
-          <div key={i}>
-            <Line w={64} h={9} />
-            <Line w={w} h={13} className="mt-1" />
-          </div>
-        ))}
-      </div>
+      <Facts widths={[80, 96, 96, 150]} />
     </div>
-    <div className="px-5 pt-1 pb-4">
-      {Array.from({ length: 21 }, (_, i) => {
-        const t = 1 - Math.abs(i - 9) / 10;
+    <div className="px-5 pt-1 pb-2">
+      <div className="h-[16px] grid grid-cols-[118px_minmax(0,1fr)_64px] gap-x-3 items-center">
+        <Line w={40} h={8} />
+        <Line w={170} h={8} />
+        <Line w={28} h={8} className="justify-self-end" />
+      </div>
+      {/* the rows are the book's — 21 to 26 as the window rolls; 23 stands in */}
+      {Array.from({ length: 23 }, (_, i) => {
+        const share = Math.exp(-0.5 * ((i - 10.5) / 4) ** 2);
         return (
-          <div key={i} className="grid grid-cols-[96px_minmax(0,1fr)_64px] items-center gap-x-3 h-[24px] px-1">
-            <Line w={34} h={11} />
-            <Skeleton className="h-[12px] rounded-full" style={{ width: `${Math.max(2, t * t * 100)}%` }} />
-            <Line w={30} h={11} className="ml-auto" />
-          </div>
+          <Fragment key={i}>
+            {i === 11 && (
+              <div className="h-[18px] flex items-center px-1">
+                <Line w="100%" h={1} />
+              </div>
+            )}
+            <div className="grid grid-cols-[118px_minmax(0,1fr)_64px] gap-x-3 items-center h-[24px] px-1">
+              <Line w={28} h={11} />
+              <Block w={`${Math.max(4, share * 100)}%`} h={12} className="rounded-full" style={{ opacity: i === 10 ? 0.9 : 0.35 }} />
+              <Line w={30} h={11} className="justify-self-end" />
+            </div>
+          </Fragment>
         );
       })}
+      <div className="mt-2 h-[14px] flex items-center gap-4">
+        <Line w={70} h={8} />
+        <Line w={70} h={8} />
+        <Line w={110} h={8} />
+      </div>
     </div>
-  </div>
+    <div className="px-5 h-[18px] flex items-center">
+      <Line w={320} h={9} />
+    </div>
+    {/* the four reads: most likely · the bands · the pull · the slices */}
+    <div className="px-5 pb-4 pt-2 grid gap-x-4 gap-y-1.5" style={{ gridTemplateColumns: '84px minmax(0, 1fr)' }}>
+      {[[52, '34%'], [46, '58%'], [40, '50%'], [48, '72%']].map(([l, w], i) => (
+        <Fragment key={i}>
+          <div className="h-[17px] flex items-center">
+            <Line w={l as number} h={9} />
+          </div>
+          <div className="h-[17px] flex items-center">
+            <Line w={w as string} h={11} />
+          </div>
+        </Fragment>
+      ))}
+    </div>
+  </section>
 );
 export const CloseBoxSkeleton = () => (
   <Box>

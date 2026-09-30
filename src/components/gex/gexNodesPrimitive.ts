@@ -389,11 +389,11 @@ class TrailsPaneRenderer {
 
       const drawLabel = (lvl: { strike: number; value: number }, color: string) => {
         const y = series.priceToCoordinate(lvl.strike);
-        if (y === null) return;
+        // Off the pane's top there is no line to name — the words go with it
+        if (y === null || y < 0) return;
         const pct = Math.round((Math.abs(lvl.value) / total) * 100);
         const strikeLabel = lvl.strike % 1 === 0 ? lvl.strike.toFixed(0) : lvl.strike.toFixed(2);
         const text = `${strikeLabel} · ${pct}%`;
-        const yPix = y * vr;
 
         // Dark backing pad so the label survives whatever sits behind it
         const w = ctx.measureText(text).width;
@@ -405,6 +405,15 @@ class TrailsPaneRenderer {
         const padX = 4 * hr * scale;
         const padY = 2.5 * vr * scale;
         const boxH = 12 * vr * scale;
+        /* UNDER THE HOST'S CHROME, NEVER BEHIND IT (Noah, 2026-09-14: the top
+           wall's "430 · 17%" over the strip's fullscreen door): the label's box
+           stops at the chrome's edge and slides down to sit under it — the line
+           stays where the price is. The autoscale keeps the walls clear of the
+           band by rest; this is for a tape the reader has scaled by hand. */
+        let yPix = y * vr;
+        const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
+        const boxTop = yPix - boxH / 2 - padY / 2;
+        if (boxTop < floor) yPix += floor - boxTop;
         ctx.fillStyle = 'rgba(5,5,5,0.72)';
         ctx.fillRect(xRight - w - padX, yPix - boxH / 2 - padY / 2, w + padX * 2, boxH + padY);
         ctx.fillStyle = color;
@@ -471,6 +480,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
    * data to every reader of this class.
    */
   labelPx = 9.5;
+  /** The host's floating chrome, CSS px from the pane's top to its lowest edge — the strike
+      chips never paint behind it (set by the chart as it measures the strip; 0 = no chrome) */
+  chromeInset = 0;
   /** The field's own clock, seconds between snapshots — beads per bar = barSec / stepSec */
   stepSec = 60;
   /** The level view's strike — its beads lead, the field steps back. */

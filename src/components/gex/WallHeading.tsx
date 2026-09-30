@@ -35,10 +35,21 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import { HeadingGuide } from './BuildingGuide';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
+import { useResolvedTheme } from '../../theme/theme';
 import { HEADING_AXIS_H, HEADING_M, HEADING_ORDER, HEADING_ROW_H, HEADING_TOP, HEADING_W } from './buildingSkeletons';
 import { fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Building, WallHeading as Level } from '../../data/building';
 
+/* THE FIGURE ON PAPER (the light sweep, 2026-09-19 — Noah: "the arrows and paths arent visible here to well"). It already
+   sat on the page's ground, but it was DRAWN for black: the travel and the tie at a third of the ink's voice (a bright
+   ink on black carries at 30%; a deep ink on white does not), the grid in white (no grid on paper at all), and the
+   "hollow" marks filled with a typed near-black — on paper the dashed ring and the diamond were solid black blobs.
+   Two sets: DARK_K is every value the figure always had, to the digit (a light-theme change never moves the dark
+   theme); PAPER_K is the same drawing at full voice — whole inks, a heavier line, a larger arrowhead, the hollows filled
+   with the panel, a grid of the page's ink. */
+const DARK_K = { hole: '#0a0a0a', openFill: 'none', grid: '#ffffff', colA: 0.045, rowA: 0.055, tick: '#7c8290', key: '#8a909c', note: '#7d7d7d', tie: 0.3, travel: 0.35, go: 0.75, lineW: 1.25, open: 0.65, ring: 0.8, chal: 0.75, label: 0.7, closeLabel: 0.85, arrow: 0.8, arrowSize: 5 };
+const PAPER_K = { hole: 'rgb(var(--panel))', openFill: 'rgb(var(--panel))', grid: 'rgb(var(--ink))', colA: 0.09, rowA: 0.1, tick: 'rgb(var(--text-secondary))', key: 'rgb(var(--text-secondary))', note: 'rgb(var(--text-muted))', tie: 0.75, travel: 0.85, go: 1, lineW: 1.75, open: 1, ring: 1, chal: 1, label: 1, closeLabel: 1, arrow: 1, arrowSize: 5.5 };
+const useFigureInks = () => (useResolvedTheme() === 'light' ? PAPER_K : DARK_K);
 const MONO = 'ui-monospace, Menlo, monospace';
 const SANS = 'ui-sans-serif, system-ui, sans-serif';
 const NAME_INK: Record<Level['name'], string> = { 'Call wall': CALL_WALL, 'Put wall': PUT_WALL, Supreme: SUPREME, Flip: FLIP };
@@ -58,22 +69,25 @@ const niceStep = (raw: number) => {
 };
 
 /** One mark in the key, drawn the way the row draws it */
-const Key = ({ kind, children }: { kind: 'open' | 'now' | 'close' | 'challenger'; children: ReactNode }) => (
+const Key = ({ kind, children }: { kind: 'open' | 'now' | 'close' | 'challenger'; children: ReactNode }) => {
+  const K = useFigureInks();
+  return (
   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
     <svg width={12} height={12} aria-hidden>
       {kind === 'now' ? (
-        <circle cx={6} cy={6} r={4} fill="#8a909c" />
+        <circle cx={6} cy={6} r={4} fill={K.key} />
       ) : kind === 'close' ? (
-        <circle cx={6} cy={6} r={4} fill="#0a0a0a" stroke="#8a909c" strokeWidth={1.25} strokeDasharray="2.2 2.2" />
+        <circle cx={6} cy={6} r={4} fill={K.hole} stroke={K.key} strokeWidth={1.25} strokeDasharray="2.2 2.2" />
       ) : kind === 'challenger' ? (
-        <rect x={2.6} y={2.6} width={6.8} height={6.8} transform="rotate(45 6 6)" fill="#0a0a0a" stroke="#8a909c" strokeWidth={1.25} />
+        <rect x={2.6} y={2.6} width={6.8} height={6.8} transform="rotate(45 6 6)" fill={K.hole} stroke={K.key} strokeWidth={1.25} />
       ) : (
-        <circle cx={6} cy={6} r={3} fill="none" stroke="#8a909c" strokeWidth={1.25} />
+        <circle cx={6} cy={6} r={3} fill="none" stroke={K.key} strokeWidth={1.25} />
       )}
     </svg>
     {children}
   </span>
-);
+  );
+};
 
 interface Props {
   data: Building;
@@ -88,6 +102,7 @@ interface Props {
 }
 
 const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Props) => {
+  const K = useFigureInks();
   const [hover, setHover] = useState<Level['name'] | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -192,8 +207,8 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
         <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? '100%' : undefined} preserveAspectRatio="xMidYMid meet" className="block" role="img" aria-label="The call wall, supreme, flip and put wall on the strike axis: where each stood at the open, where it is now, and where today's pace puts it" onPointerMove={onMove} data-heading-figure>
           <defs>
             {levels.map(l => (
-              <marker key={l.name} id={`wh-arrow-${l.name.replace(/\s/g, '')}`} viewBox="0 0 8 8" refX={6.5} refY={4} markerWidth={5} markerHeight={5} orient="auto">
-                <path d="M0,1 L7,4 L0,7 Z" fill={NAME_INK[l.name]} fillOpacity={0.8} />
+              <marker key={l.name} id={`wh-arrow-${l.name.replace(/\s/g, '')}`} viewBox="0 0 8 8" refX={6.5} refY={4} markerWidth={K.arrowSize} markerHeight={K.arrowSize} orient="auto">
+                <path d="M0,1 L7,4 L0,7 Z" fill={NAME_INK[l.name]} fillOpacity={K.arrow} />
               </marker>
             ))}
           </defs>
@@ -201,16 +216,16 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
           {/* the axis ticks, behind everything */}
           {ticks.map(k => (
             <g key={k}>
-              <line x1={x(k)} x2={x(k)} y1={TOP - 10} y2={H - AXIS_H + 2} stroke="#ffffff" strokeOpacity={0.045} />
-              <text x={x(k)} y={H - 6} textAnchor="middle" fontSize={9} fill="#7c8290" fontFamily={MONO}>
+              <line x1={x(k)} x2={x(k)} y1={TOP - 10} y2={H - AXIS_H + 2} stroke={K.grid} strokeOpacity={K.colA} />
+              <text x={x(k)} y={H - 6} textAnchor="middle" fontSize={9} fill={K.tick} fontFamily={MONO}>
                 {fmtStrike(k)}
               </text>
             </g>
           ))}
 
           {/* spot — the dotted white rule through every row */}
-          <line x1={x(spot)} x2={x(spot)} y1={TOP - 12} y2={H - AXIS_H + 2} stroke="#ededed" strokeOpacity={0.5} strokeDasharray="1 3" />
-          <text x={x(spot)} y={TOP - 16} textAnchor="middle" fontSize={9} fontWeight={600} fill="#ededed" fontFamily={MONO} data-heading-spot>
+          <line x1={x(spot)} x2={x(spot)} y1={TOP - 12} y2={H - AXIS_H + 2} stroke="rgb(var(--text-primary))" strokeOpacity={0.5} strokeDasharray="1 3" />
+          <text x={x(spot)} y={TOP - 16} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO} data-heading-spot>
             {fmtStrike(spot)}
           </text>
 
@@ -228,13 +243,13 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
             return (
               <g key={l.name} opacity={dim ? 0.32 : 1} style={{ transition: 'opacity 220ms cubic-bezier(0.16,1,0.3,1)' }} data-level={l.name}>
                 {/* the row's own hairline and its name */}
-                <line x1={M.l} x2={W - M.r} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.055} />
+                <line x1={M.l} x2={W - M.r} y1={y} y2={y} stroke={K.grid} strokeOpacity={K.rowA} />
                 <text x={M.l - 14} y={y + 3.5} textAnchor="end" fontSize={10.5} fontWeight={600} fill={ink} fontFamily={SANS}>
                   {l.name}
                 </text>
 
                 {l.now == null ? (
-                  <text x={x((lo + hi) / 2)} y={y + 3.5} textAnchor="middle" fontSize={9.5} fill="#7d7d7d" fontFamily={SANS}>
+                  <text x={x((lo + hi) / 2)} y={y + 3.5} textAnchor="middle" fontSize={9.5} fill={K.note} fontFamily={SANS}>
                     none {l.name === 'Call wall' ? 'overhead' : 'underneath'} on this book
                   </text>
                 ) : (
@@ -243,16 +258,16 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
                         wall lands, in which case the dashed ring already says so */}
                     {ch && ch.strike !== l.close && (
                       <g data-challenger={ch.strike}>
-                        <line x1={x(ch.strike)} x2={x(l.now)} y1={y} y2={y} stroke={ink} strokeOpacity={0.3} strokeDasharray="2 3" />
+                        <line x1={x(ch.strike)} x2={x(l.now)} y1={y} y2={y} stroke={ink} strokeOpacity={K.tie} strokeWidth={K.lineW === 1.25 ? undefined : 1.25} strokeDasharray="2 3" />
                         {/* a diamond, so it can never be read as the open's hollow dot */}
-                        <rect x={x(ch.strike) - 3.4} y={y - 3.4} width={6.8} height={6.8} transform={`rotate(45 ${x(ch.strike)} ${y})`} fill="#0a0a0a" stroke={ink} strokeOpacity={0.75} strokeWidth={1.25} />
-                        <text x={x(ch.strike)} y={y + 15} textAnchor="middle" fontSize={8.5} fill={ink} fillOpacity={0.7} fontFamily={MONO}>
+                        <rect x={x(ch.strike) - 3.4} y={y - 3.4} width={6.8} height={6.8} transform={`rotate(45 ${x(ch.strike)} ${y})`} fill={K.hole} stroke={ink} strokeOpacity={K.chal} strokeWidth={K.lineW === 1.25 ? 1.25 : 1.5} />
+                        <text x={x(ch.strike)} y={y + 15} textAnchor="middle" fontSize={8.5} fill={ink} fillOpacity={K.label} fontFamily={MONO}>
                           {fmtStrike(ch.strike)}
                         </text>
                       </g>
                     )}
                     {/* the travel: open → now → close */}
-                    {spanTo - spanFrom > 1 && <line x1={spanFrom} x2={spanTo} y1={y} y2={y} stroke={ink} strokeOpacity={0.35} strokeWidth={1.25} />}
+                    {spanTo - spanFrom > 1 && <line x1={spanFrom} x2={spanTo} y1={y} y2={y} stroke={ink} strokeOpacity={K.travel} strokeWidth={K.lineW} />}
                     {moves && (
                       <line
                         x1={x(l.now)}
@@ -260,29 +275,31 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
                         y1={y}
                         y2={y}
                         stroke={ink}
-                        strokeOpacity={0.75}
-                        strokeWidth={1.25}
+                        strokeOpacity={K.go}
+                        strokeWidth={K.lineW}
                         strokeDasharray="3 3"
                         markerEnd={`url(#wh-arrow-${l.name.replace(/\s/g, '')})`}
                       />
                     )}
                     {/* at the open — hollow */}
-                    {l.open != null && moved && <circle cx={x(l.open)} cy={y} r={3} fill="none" stroke={ink} strokeOpacity={0.65} strokeWidth={1.25} data-mark="open" />}
-                    {l.open != null && moved && (
-                      <text x={x(l.open)} y={y - 9} textAnchor="middle" fontSize={8.5} fill={ink} fillOpacity={0.7} fontFamily={MONO}>
+                    {l.open != null && moved && <circle cx={x(l.open)} cy={y} r={3} fill={K.openFill} stroke={ink} strokeOpacity={K.open} strokeWidth={K.lineW === 1.25 ? 1.25 : 1.5} data-mark="open" />}
+                    {/* …its strike, unless the level is heading back to where it opened: the ring's own label stands there, and the
+                        two were printed one over the other ("480" on "480", seen 2026-09-19) */}
+                    {l.open != null && moved && !(moves && l.close === l.open) && (
+                      <text x={x(l.open)} y={y - 9} textAnchor="middle" fontSize={8.5} fill={ink} fillOpacity={K.label} fontFamily={MONO}>
                         {fmtStrike(l.open)}
                       </text>
                     )}
                     {/* by the close — a dashed ring */}
-                    {moves && <circle cx={x(l.close!)} cy={y} r={4} fill="#0a0a0a" stroke={ink} strokeOpacity={0.8} strokeWidth={1.25} strokeDasharray="2.2 2.2" data-mark="close" />}
+                    {moves && <circle cx={x(l.close!)} cy={y} r={4} fill={K.hole} stroke={ink} strokeOpacity={K.ring} strokeWidth={K.lineW === 1.25 ? 1.25 : 1.5} strokeDasharray="2.2 2.2" data-mark="close" />}
                     {moves && (
-                      <text x={x(l.close!)} y={y - 10} textAnchor="middle" fontSize={9} fontWeight={600} fill={ink} fillOpacity={0.85} fontFamily={MONO}>
+                      <text x={x(l.close!)} y={y - 10} textAnchor="middle" fontSize={9} fontWeight={600} fill={ink} fillOpacity={K.closeLabel} fontFamily={MONO}>
                         {fmtStrike(l.close!)}
                       </text>
                     )}
                     {/* now — the filled dot, always the loudest mark on the row */}
                     <circle cx={x(l.now)} cy={y} r={5} fill={ink} data-mark="now" />
-                    <text x={x(l.now)} y={y - 11} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="#ededed" fontFamily={MONO} data-heading-now>
+                    <text x={x(l.now)} y={y - 11} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="rgb(var(--text-primary))" fontFamily={MONO} data-heading-now>
                       {fmtStrike(l.now)}
                     </text>
                   </>

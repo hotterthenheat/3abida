@@ -13,10 +13,6 @@
                          there now, what today added
                          or took off (calls · puts),
                          the day's shape, the word
-    WHAT BUILDING MEANS  the words defined, and the
-                         strikes loaded today as
-                         readable information rows
-                         (2026-09-13)
     WHERE THE WALLS      the four levels at the open,
     ARE HEADING          now, and by the close at
                          today's pace, with the
@@ -37,13 +33,14 @@ import { useMarketData } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import ScopeChip from '../../components/ui/ScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
-import BuildingLedger, { type BuildOrder, type BuildPalette } from '../../components/gex/BuildingLedger';
+import BuildingLedger, { type BuildOrder, type BuildShow } from '../../components/gex/BuildingLedger';
 import WallHeading from '../../components/gex/WallHeading';
-import BuildingInfo, { BuildingInfoInner } from '../../components/gex/BuildingInfo';
 import { BuildingLedgerSkeleton, BuildingPageSkeleton, WallHeadingSkeleton } from '../../components/gex/buildingSkeletons';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import { aheadClock } from '../../data/ahead';
+import { fmtDistance, impliedDaySigma, sessionAtr } from '../../data/atr';
 import { buildBuilding } from '../../data/building';
+import { useDistanceUnit } from '../../data/distanceUnits';
 import { readSessionClock } from '../../data/moc';
 import { usePositions } from '../../data/positions';
 import type { MarketSnapshot } from '../../types/market';
@@ -57,8 +54,8 @@ let scopesMemory: Scopes = {};
 /* The ledger's choices, held across route changes, reset on reload */
 let orderMemory: BuildOrder = 'strike';
 let windowMemory: StrikeWindow = 15;
-/* The Ledger's default palette, so the two capsule surfaces agree */
-let paletteMemory: BuildPalette = 'thermal';
+/* The movers alone by default — the steady strikes fold away (2026-09-13) */
+let showMemory: BuildShow = 'moved';
 
 const hhmmss = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 
@@ -84,11 +81,13 @@ const Building = () => {
     windowMemory = w;
     setWindowState(w);
   };
-  const [palette, setPaletteState] = useState<BuildPalette>(paletteMemory);
-  const setPalette = (p: BuildPalette) => {
-    paletteMemory = p;
-    setPaletteState(p);
+  const [show, setShowState] = useState<BuildShow>(showMemory);
+  const setShow = (s: BuildShow) => {
+    showMemory = s;
+    setShowState(s);
   };
+  /* THE DISTANCE FROM SPOT under every strike, in the shell's own ruler */
+  const unit = useDistanceUnit();
 
   /* THE CLOCK — New York time, re-read every 15s; the pace runs on it */
   const [clockRaw, setClockRaw] = useState(() => readSessionClock());
@@ -179,6 +178,8 @@ const Building = () => {
 
   const ledgerTicker = tickerFor('ledger');
   const headingTicker = tickerFor('heading');
+  const scales = { atr: sessionAtr(Simulator.getCandles(ledger.ticker) ?? []), sigma: impliedDaySigma(ledger.spot, Simulator.TICKERS[ledger.ticker]?.iv ?? 0) };
+  const distanceOf = (strike: number) => fmtDistance(strike - ledger.spot, ledger.spot, unit, scales);
 
   return (
     <>
@@ -193,8 +194,9 @@ const Building = () => {
             onOrder={setOrder}
             window={window}
             onWindow={setWindow}
-            palette={palette}
-            onPalette={setPalette}
+            show={show}
+            onShow={setShow}
+            distanceOf={distanceOf}
             updatedAt={scan.at}
             yours={ledgerTicker === activeTicker ? yours : undefined}
             focus={focusFor(ledgerTicker)}
@@ -205,16 +207,9 @@ const Building = () => {
         </Deferred>
       </div>
 
-      {/* BOX 2 — WHAT BUILDING MEANS, and the strikes loaded today, as information (2026-09-13) */}
-      <div className="border border-borderSubtle rounded-md bg-panel" data-build-info data-scope-ticker={ledgerTicker}>
-        <Deferred index={1} fallback={<BuildingInfoInner />} className="animate-fade-in">
-          <BuildingInfo data={ledger} ticker={ledgerTicker} clock={clock} focus={focusFor(ledgerTicker)} onPick={price => toggleFocus(price, ledgerTicker)} />
-        </Deferred>
-      </div>
-
-      {/* BOX 3 — WHERE THE WALLS ARE HEADING */}
+      {/* BOX 2 — WHERE THE WALLS ARE HEADING */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-heading data-scope-ticker={headingTicker}>
-        <Deferred index={2} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
+        <Deferred index={1} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
           <WallHeading data={heading} clock={clock} scope={chipFor('heading', headingTicker)} />
         </Deferred>
       </div>

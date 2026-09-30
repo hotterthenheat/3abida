@@ -1,0 +1,109 @@
+/*
+==================================================
+  SLAYER TERMINAL - BILLING'S SEAM (data/billing.ts)
+
+  What the Billing page reads: the plan, its
+  standing, the card behind it, the invoices. THE
+  SHAPE our server will hand back from Stripe
+  (the customer, the subscription, the payment
+  method, the invoice list) — never card numbers:
+  Stripe's hosted Checkout takes a new card and
+  Stripe's Customer Portal changes it, sees the
+  invoices and cancels; this page shows what
+  Stripe knows and opens those two doors. Until
+  the keys are in (roadmap step 5) the state is a
+  sample on this machine, so the page is the
+  launch page, not a placeholder (Noah,
+  2026-09-12: "the preview of how things would
+  look after apis are plugged in and stripe is
+  purchased").
+==================================================
+*/
+
+import { useSyncExternalStore } from 'react';
+
+export type PlanKey = 'pinpoint' | 'compass' | 'lifetime';
+
+/** The tiers as the landing prices them. Noah, 2026-09-19: Pinpoint $75 and Compass $180 (they were $125 and $275). */
+export const PLANS: { key: PlanKey; name: string; kicker: string; price: string; period: string; monthly: number | null }[] = [
+  { key: 'pinpoint', name: 'Pinpoint', kicker: 'The dealer-GEX terminal', price: '$75', period: 'a month', monthly: 75 },
+  { key: 'compass', name: 'Compass', kicker: 'Everything included', price: '$180', period: 'a month', monthly: 180 },
+  { key: 'lifetime', name: 'Lifetime', kicker: 'Everything, forever', price: 'Custom', period: 'one payment', monthly: null },
+];
+export const planOf = (key: PlanKey) => PLANS.find(p => p.key === key) ?? PLANS[1];
+
+export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing';
+
+export interface Invoice {
+  id: string;
+  /** ISO date */
+  date: string;
+  plan: PlanKey;
+  amount: number;
+  status: 'paid' | 'open' | 'void';
+}
+
+export interface Billing {
+  plan: PlanKey;
+  status: SubscriptionStatus;
+  /** ISO date — the next charge, or the end of a canceled term */
+  renewsOn: string;
+  /** what Stripe shows of the card, never the number */
+  card: { brand: string; last4: string; expMonth: number; expYear: number } | null;
+  invoices: Invoice[];
+}
+
+const KEY = 'slayer_billing';
+
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const monthsFrom = (n: number) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() + n);
+  return iso(d);
+};
+
+/** The sample: on Compass since four months, renewing in a month, a Visa on file */
+export const SAMPLE_BILLING: Billing = {
+  plan: 'compass',
+  status: 'active',
+  renewsOn: monthsFrom(1),
+  card: { brand: 'Visa', last4: '4242', expMonth: 8, expYear: 2028 },
+  invoices: [0, -1, -2, -3].map((m, i) => ({ id: `in_${1000 - i}`, date: monthsFrom(m), plan: 'compass' as const, amount: planOf('compass').monthly ?? 0, status: 'paid' as const })),
+};
+
+let billing: Billing = (() => {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return SAMPLE_BILLING;
+    const b = JSON.parse(raw) as Partial<Billing>;
+    return { ...SAMPLE_BILLING, ...b, invoices: SAMPLE_BILLING.invoices };
+  } catch {
+    return SAMPLE_BILLING;
+  }
+})();
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+
+/** A plan switch — at launch this is Stripe Checkout (up) or the Portal (down); the sample just moves */
+export function setPlan(plan: PlanKey): void {
+  billing = { ...billing, plan, status: 'active' };
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ plan: billing.plan, status: billing.status, renewsOn: billing.renewsOn, card: billing.card }));
+  } catch {
+    /* storage off — the choice lives for the session */
+  }
+  listeners.forEach(fn => fn());
+}
+
+export const useBilling = (): Billing => useSyncExternalStore(subscribe, () => billing, () => SAMPLE_BILLING);
+
+/** "Oct 12, 2026" */
+export function fmtDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}

@@ -62,13 +62,15 @@ export const BAR_CLOCKS: readonly {
   key: string;
   spec: AltBarSpec | null;
   label: string;
+  /** The chip's word in the dense menu (a docked pane's), the label as its hover name */
+  short: string;
   blurb: string;
 }[] = [
-  { key: 'time', spec: null, label: 'Time', blurb: 'Bars close on the clock — the timeframe strip decides.' },
-  { key: 'r50', spec: { kind: 'range', size: 0.5 }, label: 'Range $0.50', blurb: 'A bar closes when it spans half a dollar.' },
-  { key: 'r200', spec: { kind: 'range', size: 2 }, label: 'Range $2', blurb: 'A bar closes when it spans two dollars.' },
-  { key: 'v10k', spec: { kind: 'volume', size: 10_000 }, label: 'Volume 10k', blurb: 'A bar closes when 10,000 shares have traded.' },
-  { key: 'v50k', spec: { kind: 'volume', size: 50_000 }, label: 'Volume 50k', blurb: 'A bar closes when 50,000 shares have traded.' },
+  { key: 'time', spec: null, label: 'Time', short: 'Time', blurb: 'Bars close on the clock — the timeframe strip decides.' },
+  { key: 'r50', spec: { kind: 'range', size: 0.5 }, label: 'Range $0.50', short: '$0.50', blurb: 'A bar closes when it spans half a dollar.' },
+  { key: 'r200', spec: { kind: 'range', size: 2 }, label: 'Range $2', short: '$2', blurb: 'A bar closes when it spans two dollars.' },
+  { key: 'v10k', spec: { kind: 'volume', size: 10_000 }, label: 'Volume 10k', short: '10k', blurb: 'A bar closes when 10,000 shares have traded.' },
+  { key: 'v50k', spec: { kind: 'volume', size: 50_000 }, label: 'Volume 50k', short: '50k', blurb: 'A bar closes when 50,000 shares have traded.' },
 ];
 
 export const isBarClock = (v: unknown): v is string =>

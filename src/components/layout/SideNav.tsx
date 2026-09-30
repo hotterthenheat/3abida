@@ -38,15 +38,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, Search } from 'lucide-react';
 import JingleBell from '../ui/JingleBell';
+import Fold from '../ui/Fold';
+import Avatar from '../ui/Avatar';
+import { useProfile } from '../../data/profile';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useLaunch } from './LaunchTransition';
 import CompanyLogo from '../ui/CompanyLogo';
 import { NAV_GROUPS, NAV_GROUP_META, NAV_INK, itemsByGroup } from './nav';
-import { GEX_SUBPAGES } from '../../pages/pinpoint/subnav';
-import { RECORD_SUBPAGES } from '../../pages/record/subnav';
-import { TRACE_SUBPAGES } from '../../pages/trace/subnav';
+import { subpagesFor } from './navTree';
+import MobileMenu from './MobileMenu';
 import { useCompassView } from '../../data/compassView';
 import { lookup } from '../../data/universe';
 import { readSessionClock } from '../../data/moc';
@@ -54,6 +56,7 @@ import { useAllAlerts, useUnseenAll } from '../gex/alertStore';
 import { toggleAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
 import { beginGlide, endGlide } from '../../core/glide';
 import { alpha } from '../gex/paletteInk';
+import { EMBEDDED } from '../../embed';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const COLLAPSED_KEY = 'slayer_sidenav_collapsed';
@@ -65,22 +68,11 @@ const BAR_H = 18;
 /** A nested page row's pitch — the tree fill is computed from it, not measured */
 const SUB_H = 26;
 
-/** The pages nested under a product while you are inside it */
-const SUBPAGES: Record<string, { path: string; label: string }[]> = {
-  '/pinpoint': GEX_SUBPAGES.map(p => ({ path: p.path, label: p.label })),
-  '/record': RECORD_SUBPAGES.map(p => ({ path: p.path, label: p.label })),
-  /* Trace's nine moved here from its fused strip (Noah, 2026-09-09: "should we
-     have the different subtabs on the sub-bar or stay on the top section") */
-  '/trace': TRACE_SUBPAGES.map(p => ({ path: p.path, label: p.label })),
-  /* The paper desk and the record it keeps (2026-09-19) */
-  '/paper': [
-    { path: '/paper', label: 'The desk' },
-    { path: '/paper/journal', label: 'Journal' },
-    { path: '/paper/risk', label: 'Risk' },
-  ],
-};
+/* which pages sit under each product is navTree.ts — the phone's menu reads the same list */
 
 const readCollapsed = () => {
+  /* in the landing's window the rail opens folded, so the page has the width — and unwritten (embed.ts) */
+  if (EMBEDDED) return true;
   try {
     return localStorage.getItem(COLLAPSED_KEY) === '1';
   } catch {
@@ -100,9 +92,14 @@ interface Tip {
 
 const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const { activeTicker, marketData } = useMarketData();
+  /* the contract the reader is inside — Compass's tree keeps its row (see subpagesFor) */
+  const { chosenId } = useCompassView();
+  const profile = useProfile();
   const { launch } = useLaunch();
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const [clock, setClock] = useState(() => readSessionClock());
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false }));
   const asideRef = useRef<HTMLElement | null>(null);
@@ -116,22 +113,6 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const setTotal = allAlerts.reduce((n, a) => n + a.alerts.filter(x => !x.firedAt).length, 0);
   const unseen = useUnseenAll();
   const drawerOpen = useAlertsDrawer();
-  /* COMPASS'S PAGES ON THE TREE (Noah, 2026-09-12: "there are multiple pages
-     inside compass like the analysis page but it does not show that on the
-     side tab but it should and it should be named 'inside the contract' but
-     it should only come when you choose a contract because logically you
-     can't be inside the con if you haven't picked it"). The board is always
-     there; the contract's page joins the tree the moment a contract is chosen
-     — a card clicked, a row opened, a page landed on — and points at THAT
-     contract. */
-  const { chosenId } = useCompassView();
-  const subpagesFor = (path: string): { path: string; label: string }[] | undefined => {
-    if (path === '/compass') {
-      /* The options tracker rides under Compass like Trace's tracker under Trace (Noah, 2026-09-13) */
-      return [{ path: '/compass', label: 'The board' }, ...(chosenId ? [{ path: `/compass/${chosenId}`, label: 'Inside the contract' }] : []), { path: '/compass/tracker', label: 'Tracker' }];
-    }
-    return SUBPAGES[path];
-  };
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -152,10 +133,12 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     const to = main ? { mainWidth: main.getBoundingClientRect().width + (width - next) } : null;
     beginGlide(700, 'frame', to);
     setCollapsed(c => {
-      try {
-        localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1');
-      } catch {
-        /* private mode — the choice lives for the session */
+      if (!EMBEDDED) {
+        try {
+          localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1');
+        } catch {
+          /* private mode — the choice lives for the session */
+        }
       }
       return !c;
     });
@@ -226,7 +209,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       }}
       onMouseEnter={e => showTip(e, 'Home')}
       onMouseLeave={hideTip}
-      className={`shrink-0 flex items-center gap-2.5 h-[52px] select-none ${collapsed ? 'justify-center px-0' : 'px-3.5'}`}
+      className={`shrink-0 flex items-center gap-2.5 h-[52px] select-none ${collapsed ? 'pl-3 pr-0' : 'px-3.5'}`}
       data-brand
     >
       <span className="holo-bg w-7 h-7 rounded-[8px] shrink-0 flex items-center justify-center font-mono text-[11px] font-bold text-[#0a0a0a]" aria-hidden>
@@ -246,7 +229,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       aria-label={`Watching ${activeTicker} ${priceText} — switch`}
       onMouseEnter={e => showTip(e, `${activeTicker} ${priceText} ${changeText} · ⌘K to switch`)}
       onMouseLeave={hideTip}
-      className="mx-auto w-8 h-8 rounded-lg border border-borderSubtle bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
+      className="ml-[10px] w-8 h-8 rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
     </button>
@@ -257,7 +240,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       data-subject
       aria-label={`Watching ${activeTicker} — switch`}
       title={name ? `${name} · ⌘K to switch` : '⌘K to switch'}
-      className="group w-full h-[34px] rounded-lg border border-borderSubtle bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
+      className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
       <span className="text-[12px] font-semibold text-textPrimary" data-subject-ticker>
@@ -293,7 +276,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
          wears the nav rows' own current-desk look: the pill, primary
          medium text, the bell in its ink. */
       className={`group relative flex items-center gap-2.5 h-[30px] rounded-lg text-[13px] text-left transition-colors ${
-        collapsed ? 'w-8 mx-auto justify-center' : 'w-full px-2.5'
+        collapsed ? 'w-8 ml-[10px] justify-center' : 'w-full px-2.5'
       } ${drawerOpen ? 'bg-ink/[0.06] text-textPrimary font-medium' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'}`}
       aria-label="Alerts"
     >
@@ -314,12 +297,12 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           row's end when open. */}
       {collapsed
         ? unseen > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-[4px] bg-[#FF3B30] text-white font-mono text-[8px] font-bold leading-[14px] text-center tnum" data-alerts-count>
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-[4px] bg-bear text-white font-mono text-[8px] font-bold leading-[14px] text-center tnum" data-alerts-count>
               {unseen > 9 ? '9+' : unseen}
             </span>
           )
         : unseen > 0 ? (
-            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-md bg-[#FF3B30] text-white font-mono text-[10px] font-bold leading-[18px] text-center tnum" data-alerts-count>
+            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-md bg-bear text-white font-mono text-[10px] font-bold leading-[18px] text-center tnum" data-alerts-count>
               {unseen > 99 ? '99+' : unseen}
             </span>
           ) : setTotal > 0 ? (
@@ -330,26 +313,43 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     </button>
   );
 
-  const groups = NAV_GROUPS.map((group, gi) => {
+  /* THE TREE FOLDS (Noah, 2026-09-28: "clicking it once gives a dropdown but when you click it again it should bring it
+     back up"): a section's pages drop down when you enter it; a click on the section's row while you are inside folds
+     them, another unfolds them — no navigation on those clicks. A section you leave forgets the fold, so coming back
+     opens it again. */
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setFolded(f => {
+      const next = Object.fromEntries(Object.entries(f).filter(([path]) => pathname.startsWith(path)));
+      return Object.keys(next).length === Object.keys(f).length ? f : next;
+    });
+  }, [pathname]);
+
+  /* THE RAIL'S ORDER (2026-09-28, nav.ts): Home (Pulse) stands ABOVE the Alerts row with no caption; the captioned
+     groups scroll under; More (Community · Settings) is pinned to the foot of the list with no caption */
+  const groupBlocks = NAV_GROUPS.map((group, gi) => {
     const meta = NAV_GROUP_META[group];
+    const first = gi === 1;
+    const last = gi === NAV_GROUPS.length - 1;
     return (
-      <div key={group} className={`flex flex-col gap-[2px] ${gi > 0 ? 'mt-5' : 'mt-1'}`} data-nav-group={group}>
+      <div key={group} className={`flex flex-col gap-[2px] ${gi === 0 ? '' : first ? 'mt-1' : last ? 'mt-auto pt-5' : 'mt-5'}`} data-nav-group={group}>
         {!collapsed ? (
-          <span className="px-2.5 pb-1 text-[10px] uppercase tracking-[0.1em] text-textMuted" title={meta.hint}>
-            {group}
-          </span>
+          meta.caption && (
+            <span className="px-2.5 pb-1 text-[10px] uppercase tracking-[0.1em] text-textMuted" title={meta.hint}>
+              {meta.caption}
+            </span>
+          )
         ) : (
-          gi > 0 && <span className="mx-3 mb-2 border-t border-borderSubtle" aria-hidden />
+          gi > 1 && <span className="mx-3 mb-2 border-t border-ink/[0.08]" aria-hidden />
         )}
         {itemsByGroup(group).map(item => {
           const inside = pathname.startsWith(item.path);
-          const subs = !collapsed && inside ? subpagesFor(item.path) : undefined;
-          /* The LONGEST matching page is the one you are on — the board's path
-             is a prefix of the contract's, so a prefix test alone would light
-             the board while the reader is inside the contract */
-          const activeIdx = subs
-            ? subs.reduce((best, s, i) => (pathname.startsWith(s.path) && (best < 0 || s.path.length > subs[best].path.length) ? i : best), -1)
-            : -1;
+          const tree = !collapsed && inside ? subpagesFor(item.path, pathname, chosenId) : undefined;
+          const open = !!tree && !folded[item.path];
+          const subs = tree;
+          /* the page you are on is the LONGEST nested path the pathname starts with — The board (/compass) is a prefix of every
+             Compass page, so the first match lit it on a contract's page and on the Tracker (Noah, 2026-09-13) */
+          const activeIdx = subs ? subs.reduce((best, s, i) => (pathname.startsWith(s.path) && (best < 0 || s.path.length > subs[best].path.length) ? i : best), -1) : -1;
           const link = (
             <NavLink
               key={item.path}
@@ -358,10 +358,17 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
               data-nav-current={inside || undefined}
               onMouseEnter={e => showTip(e, item.label)}
               onMouseLeave={hideTip}
+              onClick={e => {
+                /* inside a section with pages: the row folds and unfolds its tree instead of leaving the page */
+                if (!tree) return;
+                e.preventDefault();
+                setFolded(f => ({ ...f, [item.path]: !f[item.path] }));
+              }}
+              aria-expanded={tree ? open : undefined}
               className={`group relative flex items-center gap-2.5 h-[30px] rounded-lg text-[13px] transition-colors ${
-                collapsed ? 'w-8 mx-auto justify-center' : 'px-2.5'
+                collapsed ? 'w-8 ml-[10px] justify-center' : 'px-2.5'
               } ${inside ? 'bg-ink/[0.06] text-textPrimary font-medium' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'}`}
-              title={collapsed ? undefined : item.description}
+              title={collapsed ? undefined : tree ? `${item.description} — click to ${open ? 'fold' : 'unfold'} its pages` : item.description}
               aria-label={item.label}
             >
               {/* Each desk's icon takes its own ink (nav.ts NAV_INK) on hover and on the desk you are on;
@@ -373,6 +380,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
                 data-nav-icon
               />
               {!collapsed && <span className="truncate">{item.label}</span>}
+              {/* the fold's chevron — only on a section with pages, only while you are in it */}
+              {tree && <ChevronDown className={`ml-auto w-3 h-3 shrink-0 text-textMuted transition-transform duration-200 ${open ? '' : '-rotate-90'}`} aria-hidden data-nav-fold={open ? 'open' : 'folded'} />}
             </NavLink>
           );
           if (!subs) return link;
@@ -382,6 +391,9 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           return (
             <div key={item.path} className="flex flex-col" data-nav-open={item.path}>
               {link}
+              {/* THE FOLD GLIDES (Noah, 2026-09-28: "dropdown and back up should also be smoother"): the house's Fold —
+                  the rows' height and opacity over 220ms, nothing mounted or unmounted on a click */}
+              <Fold axis="y" open={open} testId="data-nav-tree-fold">
               <div className="relative ml-[23px] mt-1 mb-1" data-nav-tree>
                 <span className="absolute left-0 top-0 bottom-0 w-px bg-ink/[0.12]" aria-hidden />
                 {activeIdx >= 0 && (
@@ -419,14 +431,24 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
                   })}
                 </div>
               </div>
+              </Fold>
             </div>
           );
         })}
       </div>
     );
   });
+  const [home, ...groups] = groupBlocks;
 
   const width = collapsed ? SIDENAV_RAIL_W : SIDENAV_W;
+  /* ANCHORED TO THE LEFT CORNER THROUGH THE GLIDE (Noah, 2026-09-14: the collapse "jitters
+     super fast and leaves its corner really quickly before returning back to it"): the rail's
+     rows used to CENTRE their icon (`mx-auto`, `justify-center`) — and the classes flip the
+     moment the width starts its 300ms glide, so every icon leapt to the middle of a bar still
+     236 wide and slid back as it narrowed. Each row now sets a fixed left inset that centres
+     its box in the 52px rail — the mark at 12, a 32px box at 10, the 24px picture at 14 — and
+     nothing depends on the width in flight. Opening was always fine: the open rows sit at the
+     left by nature. */
 
   return (
     <>
@@ -440,7 +462,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
              frame after the aside settles and lays its items out on the next */
           if (e.target === asideRef.current && e.propertyName === 'width') requestAnimationFrame(() => requestAnimationFrame(endGlide));
         }}
-        className="relative hidden md:flex shrink-0 h-full flex-col bg-panel border-r border-borderSubtle transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="relative hidden md:flex shrink-0 h-full flex-col bg-panel border-r border-ink/[0.07] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width }}
         data-sidenav
         data-collapsed={collapsed || undefined}
@@ -452,7 +474,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           aria-label={collapsed ? 'Open the sidebar' : 'Collapse the sidebar to icons'}
           title={collapsed ? 'Open the sidebar' : 'Collapse to icons'}
           data-sidenav-toggle
-          className="absolute -right-[11px] top-[15px] z-10 w-[22px] h-[22px] rounded-full border border-borderMuted bg-card text-textMuted hover:text-textPrimary hover:border-silver/60 shadow-md shadow-black/50 flex items-center justify-center transition-colors"
+          className="absolute -right-[11px] top-[15px] z-10 w-[22px] h-[22px] rounded-full border border-ink/[0.12] bg-card text-textMuted hover:text-textPrimary hover:border-silver/60 shadow-md shadow-black/50 flex items-center justify-center transition-colors"
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
@@ -470,13 +492,38 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
         {brand}
         <div className={`shrink-0 flex flex-col gap-1 pb-1 ${collapsed ? 'px-0' : 'px-3'}`}>
           {subject}
-          <div className={collapsed ? '' : '-mx-1'}>{alertsRow}</div>
+          <div className={collapsed ? '' : '-mx-1'}>
+            {home}
+            {alertsRow}
+          </div>
         </div>
         <nav ref={navRef} className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-1 flex flex-col ${collapsed ? 'px-0' : 'px-2'}`} aria-label="Terminal">
           {groups}
         </nav>
+        {/* WHO IS AT THE DESK (2026-09-12): the reader's picture and name at the
+            foot, a door to their account; the rail keeps the picture alone */}
+        <NavLink
+          to="/settings/account"
+          title={collapsed ? undefined : 'Your account'}
+          onMouseEnter={e => showTip(e, `${profile.name} · @${profile.handle} · your account`)}
+          onMouseLeave={hideTip}
+          className={({ isActive }) =>
+            `shrink-0 flex items-center gap-2.5 border-t border-ink/[0.07] transition-colors ${collapsed ? 'pl-[14px] pr-0 py-2' : 'px-3.5 py-2'} ${
+              isActive ? 'bg-ink/[0.05]' : 'hover:bg-ink/[0.03]'
+            }`
+          }
+          data-sidenav-me
+        >
+          <Avatar profile={profile} size={24} />
+          {!collapsed && (
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[12px] font-semibold text-textPrimary">{profile.name}</span>
+              <span className="block truncate font-mono text-[10px] text-textMuted">@{profile.handle}</span>
+            </span>
+          )}
+        </NavLink>
         <div
-          className={`shrink-0 flex items-center gap-2 border-t border-borderSubtle bg-ink/[0.02] ${collapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-3'}`}
+          className={`shrink-0 flex items-center gap-2 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[10px] pr-0 py-3' : 'px-3.5 py-3'}`}
           title={collapsed ? `${clock.label} · ${time}` : undefined}
           onMouseEnter={e => showTip(e, `Simulated data · ${clock.label} · ${time}`)}
           onMouseLeave={hideTip}
@@ -501,16 +548,20 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             data-nav-tip
             role="tooltip"
             style={{ position: 'fixed', left: tip.x, top: tip.y }}
-            className="z-[90] -translate-y-1/2 pointer-events-none whitespace-nowrap px-2 py-1 rounded-md border border-borderMuted bg-card/95 backdrop-blur-md text-[11px] text-textPrimary shadow-lg shadow-black/50 animate-fade-in"
+            className="z-[90] -translate-y-1/2 pointer-events-none whitespace-nowrap px-2 py-1 rounded-md border border-ink/[0.1] bg-card/95 backdrop-blur-md text-[11px] text-textPrimary shadow-lg shadow-black/50 animate-fade-in"
           >
             {tip.label}
           </div>,
           document.body
         )}
 
-      {/* THE PHONE STRIP — the subject and the search, nothing else */}
-      <div className="md:hidden fixed inset-x-0 top-0 z-40 h-12 flex items-center gap-3 px-3 bg-canvas/80 backdrop-blur-md border-b border-borderSubtle">
-        <span className="holo-bg w-6 h-6 rounded-md flex items-center justify-center font-mono text-[10px] font-bold text-[#0a0a0a]">&gt;_</span>
+      {/* THE PHONE STRIP — the menu, the subject and the search. THE MENU (2026-09-19): the rail is off under 768px and nothing
+          stood in for it — the only way between pages on a phone was to know the palette and type a page's name. The house
+          mark opens it: the same groups, products and pages as the rail, as a sheet (MobileMenu.tsx). */}
+      <div className="md:hidden fixed inset-x-0 top-0 z-40 h-12 flex items-center gap-2.5 px-2.5 bg-canvas/80 backdrop-blur-md border-b border-borderSubtle">
+        <button type="button" onClick={() => setMenuOpen(true)} aria-label="Menu" aria-haspopup="dialog" aria-expanded={menuOpen} className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-borderSubtle text-textSecondary" data-mobile-menu-door>
+          <Menu className="w-4 h-4" />
+        </button>
         <button onClick={onOpenPalette} className="inline-flex items-center gap-2 rounded-md border border-borderMuted bg-chip px-2.5 py-1">
           <CompanyLogo ticker={activeTicker} size={16} />
           <span className="text-[12px] font-semibold text-textPrimary">{activeTicker}</span>
@@ -520,6 +571,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           <Search className="w-3.5 h-3.5" />
         </button>
       </div>
+      <MobileMenu open={menuOpen} onClose={closeMenu} />
     </>
   );
 };

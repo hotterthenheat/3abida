@@ -19,11 +19,15 @@ import { Compass as CompassIcon } from 'lucide-react';
 import { CompassRouteSkeleton } from '../compassSkeleton';
 import ScrollHome from '../../components/layout/ScrollHome';
 
-export const COMPASS_LINE = 'The setups found this sweep, graded and ranked — Active while the structure holds, Watch while it proves itself';
+/* "graded and ranked" until 2026-09-19: we do not say we grade, anywhere a reader can see (Noah: "reword graded"; memory: no-public-grades) */
+export const COMPASS_LINE = 'The setups found this sweep, the strongest first — Active while the structure holds, Watch while it proves itself';
+/** The Tracker's line under the same head (its second page since 2026-09-13) */
+export const TRACKER_LINE = 'The setups you keep, live — every figure moving with the tape, and a door back into each one';
 
 const CompassLayout = () => {
   const location = useLocation();
   const outlet = useOutlet();
+  const line = location.pathname.startsWith('/compass/tracker') ? TRACKER_LINE : COMPASS_LINE;
   return (
     <>
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-compass-shell>
@@ -34,7 +38,7 @@ const CompassLayout = () => {
             </span>
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{COMPASS_LINE}</p>
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{line}</p>
         </div>
       </header>
       {/* A cross-fade, no travel (the Trace shell's verdict): opacity is the only thing that moves */}

@@ -132,7 +132,7 @@ const SHAPE_POINTS = 40;
 const fmtContracts = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString('en-US')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmtDollars(v)}`;
 
-const sideWords = (v: number) => (v < 0 ? 'call-heavy, dealers push back on moves here' : 'put-heavy, dealers push moves along here');
+export const sideWords = (v: number) => (v < 0 ? 'call-heavy, so dealers push back on moves here' : 'put-heavy, so dealers push moves along here');
 
 /** Today's snapshots by the bars' own session cut — the same cut every session feature uses */
 export function todaySnapshots(snaps: readonly GexSnapshot[], bars: readonly Candle[]): GexSnapshot[] {
@@ -224,27 +224,37 @@ export function buildBuilding(
     maxChange = Math.max(maxChange, Math.abs(callAdded), Math.abs(putAdded));
   }
 
-  /* The words, once the scale is known */
+  /* THE WORDS, once the scale is known — the verdict first, then the change,
+     then what stands there (Noah, 2026-09-13: "easily understandable…
+     word wise as well"); the strike itself is printed by the surface */
   const whenWords = (w: BuildRow['when']) => (w === 'early' ? 'mostly early in the day' : w === 'middle' ? 'mostly through the middle of the day' : w === 'late' ? 'mostly late in the day' : '');
+  const day = clock.inSession ? 'today' : 'in the last session';
   for (const r of rows) {
-    const head = `${fmtStrike(r.strike)}${r.role ? ` · ${r.role}` : ''} · ${fmtDollars(r.now)} of hedging now, ${sideWords(r.now)}`;
+    const stand = `now ${fmtDollars(r.now)}, ${sideWords(r.now)}`;
     if (!hasOi) {
-      r.words = `${head} · no open interest on this feed yet`;
+      r.words = `No open interest on this feed yet — ${stand}.`;
       continue;
     }
-    const change = `${clock.inSession ? 'today' : 'last session'} ${signed(r.sizeChange)} (${fmtContracts(r.dCall)} calls, ${fmtContracts(r.dPut)} puts)`;
-    const pace = clock.inSession && r.verdict !== 'steady' ? ` · ${signed(r.byClose)} ${r.byClose >= 0 ? 'more' : 'further'} by the close at today's pace` : '';
-    const tail =
-      r.verdict === 'switched'
-        ? ` · it changed sides today: was ${r.open < 0 ? 'call-heavy' : 'put-heavy'}`
-        : r.verdict === 'new'
-          ? ' · nothing sat here at the open'
-          : r.verdict === 'steady'
-            ? ' · steady'
-            : r.when
-              ? ` · ${whenWords(r.when)}`
-              : '';
-    r.words = `${head} · ${change}${tail}${pace}`;
+    const dominant = Math.abs(r.callAdded) >= Math.abs(r.putAdded) ? 'calls' : 'puts';
+    const change = `${signed(r.sizeChange)} ${day} (${fmtContracts(r.dCall)} calls, ${fmtContracts(r.dPut)} puts)`;
+    const when = r.when ? `, ${whenWords(r.when)}` : '';
+    const pace = clock.inSession && r.verdict !== 'steady' ? ` At today's pace ${signed(r.byClose)} ${r.byClose >= 0 ? 'more' : 'further'} by the close.` : '';
+    switch (r.verdict) {
+      case 'building':
+        r.words = `Building, ${dominant}. ${change}${when} — ${stand}.${pace}`;
+        break;
+      case 'draining':
+        r.words = `Draining, ${dominant}. ${change}${when} — ${stand}.${pace}`;
+        break;
+      case 'switched':
+        r.words = `Changed sides, now ${r.now < 0 ? 'calls' : 'puts'}; it was ${r.open < 0 ? 'call-heavy' : 'put-heavy'} at the open. ${change} — ${stand}.${pace}`;
+        break;
+      case 'new':
+        r.words = `New ${day}: nothing sat here at the open. ${change} — ${stand}.${pace}`;
+        break;
+      default:
+        r.words = `Steady. ${change} — ${stand}.`;
+    }
   }
 
   const built = rows.reduce((a, r) => a + Math.max(0, r.sizeChange), 0);

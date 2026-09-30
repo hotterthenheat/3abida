@@ -246,7 +246,7 @@ export const EarningsGuide = () => (
       <ReplayFigure />
     </Section>
     <Section title="On the record">
-      <p>The name's page ends with what its insiders did and what Congress reported in it — the rest of the Record, read for one name.</p>
+      <p>The name's page ends with what its insiders did and what Congress reported in it — the rest of the Dossier, read for one name.</p>
       <RecordFigure />
     </Section>
   </div>

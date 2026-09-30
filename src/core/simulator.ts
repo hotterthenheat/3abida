@@ -19,6 +19,7 @@ import type {
 } from '../types/market';
 import { blackScholesGreeks } from './greeks';
 import { dayKey } from './rng';
+import { lookup as universeLookup } from '../data/universe';
 import type { UniverseQuote } from '../types/compass';
 
 const Simulator = (() => {
@@ -32,7 +33,11 @@ const Simulator = (() => {
     SPY: { basePrice: 500, currentPrice: 500, iv: 0.15, step: 1 },
     QQQ: { basePrice: 440, currentPrice: 440, iv: 0.18, step: 1 },
     AAPL: { basePrice: 190, currentPrice: 190, iv: 0.20, step: 0.5 },
-    NVDA: { basePrice: 120, currentPrice: 120, iv: 0.35, step: 0.5 }
+    NVDA: { basePrice: 120, currentPrice: 120, iv: 0.35, step: 0.5 },
+    /* THE THIRD FUND (2026-09-22): IWM was nobody's — a hash priced it at $382, a stock's price, where the backtest's tape
+       and the Russell futures the paper desk prices off it (RTY = IWM × 10) need the fund's own. Registered, not
+       watched: it seeds the first time something asks for it, like any name. */
+    IWM: { basePrice: 221.7, currentPrice: 221.7, iv: 0.21, step: 1 }
   };
 
   /** Core watchlist that always populates the opportunity feed. */
@@ -81,76 +86,7 @@ const Simulator = (() => {
     return { ticker: base.ticker, price, iv: base.iv, step: stepFor(price) };
   }
 
-  /* THE NAME SURVIVES A REFRESH (2026-09-21). It lived in this variable
-     alone, so a reader three desks deep into NVDA who reloaded — or whose
-     tab was restored — landed back on SPY with no way to tell what had
-     happened. Every other choice the terminal makes for you is remembered
-     (the theme, the paper prefs, the alerts, the watchlist); the name you
-     are looking at is the most consequential of them and was the one that
-     was not. Read once, guarded: a blocked or empty store just means SPY,
-     and a stored name the roster no longer carries is ignored rather than
-     registered, so a stale key cannot conjure a ticker. */
-  const ACTIVE_KEY = 'slayer_active_ticker';
-  const storedActive = ((): string | null => {
-    try {
-      const v = localStorage.getItem(ACTIVE_KEY);
-      return v && /^[A-Z.:-]{1,12}$/.test(v) ? v : null;
-    } catch {
-      return null;
-    }
-  })();
-  let activeTicker = storedActive ?? 'SPY';
-
-  /* ---- THE MARKET IS CONTINUOUS ACROSS A REFRESH --------------------------
-     Every price in here is a fresh 22-session random walk from basePrice,
-     rolled with Math.random() at load. That is fine for a chart nobody has a
-     stake in and ruinous the moment someone does: a paper position records
-     its entry against one run's price and is marked against the NEXT run's,
-     so pressing F5 moved a long NQ from +$23 to −$7,332 on an entry that had
-     not changed. The blotter, the journal and the risk desk all read those
-     marks, so one keystroke made every number on the desk fiction.
-
-     So the last price of every name is remembered, and a reload RESUMES from
-     it: the seeded history walks home to that price instead of to basePrice,
-     the live tick carries on from there, and a position is marked against
-     the same market it was opened in. basePrice is untouched, so the day's
-     change carries over too — it used to reset on every reload as well.
-
-     Scoped to the session day: come back tomorrow and the market has moved,
-     which is the one time a jump is the truth. */
-  const MARKS_KEY = 'slayer_sim_marks_v1';
-  const simDayKey = (): string => new Date().toISOString().slice(0, 10);
-  const resumedMarks: Record<string, number> = (() => {
-    try {
-      const raw = localStorage.getItem(MARKS_KEY);
-      if (!raw) return {};
-      const p = JSON.parse(raw) as { day?: string; marks?: Record<string, number> };
-      if (p.day !== simDayKey() || !p.marks || typeof p.marks !== 'object') return {};
-      const out: Record<string, number> = {};
-      for (const [k, v] of Object.entries(p.marks)) {
-        if (/^[A-Z.:-]{1,12}$/.test(k) && typeof v === 'number' && Number.isFinite(v) && v > 0) out[k] = v;
-      }
-      return out;
-    } catch {
-      return {};
-    }
-  })();
-
-  let marksSavedAt = 0;
-  function saveMarks(force = false): void {
-    const now = Date.now();
-    if (!force && now - marksSavedAt < 4000) return;
-    marksSavedAt = now;
-    try {
-      const marks: Record<string, number> = {};
-      for (const [sym, cfg] of Object.entries(TICKERS)) marks[sym] = cfg.currentPrice;
-      localStorage.setItem(MARKS_KEY, JSON.stringify({ day: simDayKey(), at: now, marks }));
-    } catch {
-      /* A blocked store just means the market restarts on reload, as it did
-         before this existed — the desk still works, the P&L just jumps. */
-    }
-  }
-
+  let activeTicker = 'SPY';
   const priceHistory: Record<string, number[]> = {};
   const historyLimit = 100;
 
@@ -166,11 +102,6 @@ const Simulator = (() => {
   // Net-GEX-per-strike snapshots, kept as deep as the candle buffer so the
   // chart's exposure trails cover the full visible history.
   const gexHistory: Record<string, GexSnapshot[]> = {};
-  /** Sessions whose book is recorded every bar while seeding — today and the
-      one before it, which is everything the live reads and replay touch. */
-  const DENSE_SESSIONS = 2;
-  /** One book every this many bars in the sessions before those. */
-  const SPARSE_EVERY = 4;
   const RECENT_GEX_BARS = SESSIONS * SESSION_BARS;
   const GEX_LIMIT = RECENT_GEX_BARS + 600;
 
@@ -228,29 +159,6 @@ const Simulator = (() => {
     return entry;
   }
 
-  /*
-    THE SEED'S ALLOCATIONS (2026-09-13, the load sweep).
-
-    evolveBook runs once per bar and walks 61 strikes inside, so the seed for
-    one name goes round this loop ~520,000 times. Three things in it were
-    allocating on every single pass and none of them had to:
-
-      the breather   declared as a closure INSIDE the loop body, so half a
-                     million functions were built and collected to multiply
-                     two numbers. It is the same function every time — it is
-                     out here now.
-      the alive Set  a fresh Set every bar plus 61 adds, to answer a question
-                     that is two numeric comparisons (see below).
-      the magnets    gexAwareStep built a pair of {strike, s} objects, then an
-                     array, then filtered and sorted it, once a bar, to pick
-                     the nearer of two candidates.
-
-    None of this changes a number the simulator produces — the same values in
-    the same order, including every Math.random() call — it just stops the
-    garbage collector doing laps during the one second the gate is up.
-  */
-  const breathe = () => 1 + (Math.random() - 0.5) * 0.05; // order-flow breathing
-
   function evolveBook(sym: string, spot: number, blend = BOOK_BLEND): void {
     const cfg = TICKERS[sym];
     const step = cfg.step;
@@ -260,15 +168,10 @@ const Simulator = (() => {
       blend = 1; // first call seeds the book outright
     }
     const base = Math.round(spot / step) * step;
-    /* The live window is a contiguous run on the step grid, so "is this strike
-       still alive?" is two comparisons rather than a Set built fresh every bar
-       (see THE SEED'S ALLOCATIONS below). Every key in the book was created by
-       this same loop off a base that is always a multiple of step, so nothing
-       inside the range can be off-grid and miss the rebuild. */
-    const lo = r2(base - BOOK_RANGE * step);
-    const hi = r2(base + BOOK_RANGE * step);
+    const alive = new Set<number>();
     for (let i = -BOOK_RANGE; i <= BOOK_RANGE; i++) {
       const strike = r2(base + i * step);
+      alive.add(strike);
       const want = freshOI(strike, spot, step);
       const cur = book.get(strike);
       if (!cur) {
@@ -279,13 +182,14 @@ const Simulator = (() => {
           putOI: Math.round(want.putOI * scale),
         });
       } else {
-        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * breathe()));
-        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * breathe()));
+        const flow = () => 1 + (Math.random() - 0.5) * 0.05; // order-flow breathing
+        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * flow()));
+        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * flow()));
       }
     }
     // strikes price left behind: positions unwind gradually, then fall away
     for (const [k, e] of book) {
-      if (k >= lo && k <= hi) continue;
+      if (alive.has(k)) continue;
       e.callOI = Math.round(e.callOI * 0.985);
       e.putOI = Math.round(e.putOI * 0.985);
       if (e.callOI < 120 && e.putOI < 120) book.delete(k);
@@ -315,8 +219,8 @@ const Simulator = (() => {
     const refWall = (20000 * 2.4 * 100 * price * price * 0.01 * 0.54) / (2.5066 * denom);
 
     const base = Math.round(price / step) * step;
-    let aboveStrike = 0, aboveS = 0, hasAbove = false;
-    let belowStrike = 0, belowS = 0, hasBelow = false;
+    let nearAbove: { strike: number; s: number } | null = null;
+    let nearBelow: { strike: number; s: number } | null = null;
     let localNet = 0;
     for (let i = -8; i <= 8; i++) {
       const strike = r2(base + i * step);
@@ -330,39 +234,31 @@ const Simulator = (() => {
       localNet += v;
       const s = Math.min(1, Math.abs(v) / refWall);
       if (s < 0.22) continue; // not a real shelf
-      if (strike > price && (!hasAbove || strike < aboveStrike)) { aboveStrike = strike; aboveS = s; hasAbove = true; }
-      if (strike < price && (!hasBelow || strike > belowStrike)) { belowStrike = strike; belowS = s; hasBelow = true; }
+      if (strike > price && (!nearAbove || strike < nearAbove.strike)) nearAbove = { strike, s };
+      if (strike < price && (!nearBelow || strike > nearBelow.strike)) nearBelow = { strike, s };
     }
 
     // base random step; quiet zones (no shelf either side) run ~35% hotter
-    const inNoMansLand = !hasAbove && !hasBelow;
+    const inNoMansLand = !nearAbove && !nearBelow;
     const range = cfg.basePrice * cfg.iv * 0.0035 * (0.4 + Math.random()) * (inNoMansLand ? 1.35 : 1);
     let move = (Math.random() - 0.5) * 2 * range * scale;
 
-    // pin: the nearest strong shelf pulls when price is within ~2.5 strikes.
-    // The old sort put `above` first, so a tie still resolves to `above`.
-    let magnetStrike = 0, magnetS = 0, hasMagnet = false;
-    if (hasAbove && hasBelow) {
-      const useAbove = Math.abs(aboveStrike - price) <= Math.abs(belowStrike - price);
-      magnetStrike = useAbove ? aboveStrike : belowStrike;
-      magnetS = useAbove ? aboveS : belowS;
-      hasMagnet = true;
-    } else if (hasAbove) { magnetStrike = aboveStrike; magnetS = aboveS; hasMagnet = true; }
-    else if (hasBelow) { magnetStrike = belowStrike; magnetS = belowS; hasMagnet = true; }
-    if (hasMagnet && Math.abs(magnetStrike - price) < step * 2.5) {
-      move += (magnetStrike - price) * 0.05 * magnetS;
+    // pin: the nearest strong shelf pulls when price is within ~2.5 strikes
+    const magnet = [nearAbove, nearBelow]
+      .filter((w): w is { strike: number; s: number } => w !== null)
+      .sort((a, b) => Math.abs(a.strike - price) - Math.abs(b.strike - price))[0];
+    if (magnet && Math.abs(magnet.strike - price) < step * 2.5) {
+      move += (magnet.strike - price) * 0.05 * magnet.s;
     }
 
     // barrier: absorb most of any overshoot through a strong shelf; rare clean break
     const next = price + move;
-    const hasWall = move > 0 ? hasAbove : hasBelow;
-    const wallStrike = move > 0 ? aboveStrike : belowStrike;
-    const wallS = move > 0 ? aboveS : belowS;
-    if (hasWall && ((move > 0 && next > wallStrike) || (move < 0 && next < wallStrike))) {
+    const wall = move > 0 ? nearAbove : nearBelow;
+    if (wall && ((move > 0 && next > wall.strike) || (move < 0 && next < wall.strike))) {
       const breakout = Math.random() > 0.975;
       if (!breakout) {
-        const through = next - wallStrike;
-        move = wallStrike - price + through * (1 - 0.85 * wallS);
+        const through = next - wall.strike;
+        move = wall.strike - price + through * (1 - 0.85 * wall.s);
       } else {
         move *= 1.6; // wall breaks: the move runs
       }
@@ -396,10 +292,6 @@ const Simulator = (() => {
     i: number;
     overnightGap: number;
     homeK: number;
-    /* Where the walk has to END. basePrice for a roster name so a card and
-       its chart price the same market; the RESUMED price when this tab has
-       been here before, so the history joins the live tick without a step. */
-    homeTo: number;
   }
   const seedJobs: Record<string, SeedJob> = {};
 
@@ -423,13 +315,14 @@ const Simulator = (() => {
        remaining gap per bar) steers the walk to end ≈ basePrice while the
        book evolves ON the corrected path — wall physics stay coherent, and
        the watchlist keeps its unpulled drift (a feature: it reads live). */
-    /* A resumed name is pulled home too, whatever roster it is on: its last
-       bar has to meet the price the desk is already marking against. */
-    const resumed = resumedMarks[sym];
-    const homeTo = resumed ?? cfg.basePrice;
-    const homeK = resumed != null || SCAN_ROSTER.some(r => r.ticker === sym) ? 0.0015 : 0;
+    /* A UNIVERSE name is quoted too (2026-09-12): the Record prices its pages
+       off the universe quote, so its walk lands there as well — Linde seeded
+       at $452 used to end at $356, and the busiest $480 call arrived on the
+       Weigher a hundred dollars out of the money. */
+    const quoted = SCAN_ROSTER.some(r => r.ticker === sym) || !!universeLookup(sym);
+    const homeK = quoted ? 0.0015 : 0;
     evolveBook(sym, cfg.basePrice, 1); // seed the book at the journey's start
-    return { sym, bars: [], snaps: [], close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK, homeTo };
+    return { sym, bars: [], snaps: [], close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK };
   }
 
   /** Walk the job forward until the budget is spent or the history is whole. Returns true when done. */
@@ -442,7 +335,7 @@ const Simulator = (() => {
       while (job.i < SESSION_BARS) {
         const open = job.close;
         const move = gexAwareStep(sym, job.close);
-        const pull = job.homeK > 0 ? (job.homeTo - job.close) * job.homeK : 0;
+        const pull = job.homeK > 0 ? (cfg.basePrice - job.close) * job.homeK : 0;
         const close = r2(job.close + move + pull);
         job.close = close;
         const wig = cfg.basePrice * cfg.iv * 0.0012 * Math.random();
@@ -455,18 +348,7 @@ const Simulator = (() => {
           volume: Math.round(2000 + Math.random() * 18000),
         });
         evolveBook(sym, close);
-        /* THE BOOK IS SAMPLED, NOT PHOTOGRAPHED EVERY MINUTE (2026-09-13, the
-           launch sweep). A snapshot is 61 strikes of Black-Scholes and the
-           seed took one per bar for all 22 sessions — 8,580 of them, and the
-           two most expensive things in a cold boot were computing them
-           (534ms) and folding them into timeframes (432ms), measured on
-           /terrain. Nothing reads month-old exposure at one-minute
-           resolution: the strips take the tail, the trails aggregate, and
-           replay carries the last book forward (see data/replay.ts). So the
-           recent sessions stay per-bar and the older ones are sampled —
-           8,580 snapshots become 2,740 for the same history. The LIVE path
-           below is untouched: from here on it is one a bar, always. */
-        if (job.s >= SESSIONS - DENSE_SESSIONS || job.i % SPARSE_EVERY === 0) job.snaps.push(computeGexSnapshot(sym, close, job.t));
+        job.snaps.push(computeGexSnapshot(sym, close, job.t));
         job.t += BAR_SECONDS;
         job.i++;
         if (until !== Infinity && ++checks % 16 === 0 && performance.now() >= until) return false;
@@ -493,7 +375,7 @@ const Simulator = (() => {
        one session — versus 15% everywhere without it. First click now
        prices the SAME market the card did. */
     if (job.homeK > 0 && bars.length > 0) {
-      const gap = r2(job.homeTo - close);
+      const gap = r2(cfg.basePrice - close);
       if (Math.abs(gap) > 0.005) {
         const K = Math.min(SESSION_BARS, bars.length);
         for (let j = 0; j < K; j++) {
@@ -505,7 +387,7 @@ const Simulator = (() => {
           b.high = r2(b.high + Math.max(adjO, adjC));
           b.low = r2(b.low + Math.min(adjO, adjC));
         }
-        close = job.homeTo;
+        close = cfg.basePrice;
       }
     }
     cfg.currentPrice = close;
@@ -537,25 +419,6 @@ const Simulator = (() => {
   }
 
   /*
-    HOW FAR THROUGH A NAME'S WALK WE ARE, 0..1 (2026-09-13).
-
-    The launch gate used to hold for a flat 1,350ms and fill a bar on a CSS
-    animation of exactly that length — a progress bar that was not measuring
-    anything, over a wait that was not waiting for anything. The seed job
-    already knows precisely where it is (session s, bar i, of SESSIONS ×
-    SESSION_BARS), so the gate can show the real number and leave the moment
-    the walk is whole instead of on a timer.
-  */
-  function seedProgress(symbolRaw: string): number {
-    const sym = symbolRaw.toUpperCase();
-    if (candleHistory[sym]) return 1;
-    const job = seedJobs[sym];
-    if (!job) return 0;
-    /* never quite 1 until candleHistory has it — 1 means "you can read it" */
-    return Math.min(0.999, (job.s * SESSION_BARS + job.i) / (SESSIONS * SESSION_BARS));
-  }
-
-  /*
     THE SEED'S HOT PATH (2026-09-06, the perf sweep — Noah: "opening the pulse
     page… opening the weigher… stutters"). Seeding one name walks 22 sessions ×
     390 bars and takes a GEX snapshot at every bar: 8,580 chains × 61 strikes ×
@@ -579,12 +442,6 @@ const Simulator = (() => {
     deltaCall: number;
     deltaPut: number;
     vega: number;
-    /* Vanna and charm ride the same memo (2026-09-13): both are functions
-       of d1/d2 alone at a fixed horizon and vol, so they are scale-free in
-       (spot, strike) exactly as delta is — one evaluation per bucket. */
-    vanna: number;
-    charmCall: number;
-    charmPut: number;
   }
   const unitGreeks: Map<number, Map<number, UnitGreeks>> = new Map();
   function unitAt(spot: number, strike: number, iv: number): UnitGreeks {
@@ -597,7 +454,7 @@ const Simulator = (() => {
     let u = byZ.get(z);
     if (u === undefined) {
       const g = calculateGreeks(1, Math.exp(-z / GAMMA_Q), GAMMA_T, iv);
-      u = { gamma: g.gamma, deltaCall: g.deltaCall, deltaPut: g.deltaPut, vega: g.vega, vanna: g.vanna, charmCall: g.charmCall, charmPut: g.charmPut };
+      u = { gamma: g.gamma, deltaCall: g.deltaCall, deltaPut: g.deltaPut, vega: g.vega };
       byZ.set(z, u);
     }
     return u;
@@ -606,7 +463,7 @@ const Simulator = (() => {
     return unitAt(spot, strike, iv).gamma / spot;
   }
 
-  // Net GEX, DEX, VEX, vanna and charm (all-expiry proxy) per strike at a given price, captured as one snapshot
+  // Net GEX, DEX and VEX (all-expiry proxy) per strike at a given price, captured as one snapshot
   function computeGexSnapshot(sym: string, spot: number, time: number): GexSnapshot {
     const config = TICKERS[sym];
     const step = config.step;
@@ -629,10 +486,7 @@ const Simulator = (() => {
       const putGex = entry.putOI * gamma * scale * 0.53;
       const dex = entry.callOI * 100 * u.deltaCall * spot * -0.55 + entry.putOI * 100 * u.deltaPut * spot * -0.53;
       const vex = (entry.callOI * -0.55 + entry.putOI * -0.53) * 100 * u.vega * spot;
-      /* the StrikeNode's own footing: vanna per one point of vol, charm per session */
-      const vanna = (entry.callOI * -0.55 + entry.putOI * -0.53) * 100 * u.vanna * 0.01 * spot;
-      const charm = ((entry.callOI * -0.55 * u.charmCall + entry.putOI * -0.53 * u.charmPut) * 100 * spot) / 252;
-      levels.push({ strike, value: callGex + putGex, dex, vex, vanna, charm, callOI: entry.callOI, putOI: entry.putOI });
+      levels.push({ strike, value: callGex + putGex, dex, vex, callOI: entry.callOI, putOI: entry.putOI });
     }
     return { time, levels };
   }
@@ -714,15 +568,16 @@ const Simulator = (() => {
       TICKERS[sym] = { basePrice: q.price, currentPrice: q.price, iv: q.iv, step: q.step };
     } else {
       const h = symbolHash(sym);
-      const basePrice = Number((15 + (h % 58500) / 100).toFixed(2)); // ~15..600
+      /* A UNIVERSE name seeds from the universe's own quote (2026-09-12): the
+         Record priced Linde's busiest contracts off the universe's $452 while
+         a hash here made the Weigher's chain a $77 stock — the same schism as
+         the roster's, one page's contract graded on another page's market. */
+      const known = universeLookup(sym);
+      const basePrice = known ? known.px : Number((15 + (h % 58500) / 100).toFixed(2)); // ~15..600
       const iv = 0.15 + ((h >>> 5) % 45) / 100; // ~0.15..0.60
       const step = basePrice >= 100 ? 1 : 0.5;
       TICKERS[sym] = { basePrice, currentPrice: basePrice, iv, step };
     }
-    /* Where this name was when the tab last closed. basePrice keeps its own
-       job — the session's anchor, so the day's change survives too. */
-    const resumed = resumedMarks[sym];
-    if (resumed != null) TICKERS[sym].currentPrice = resumed;
   }
 
   /** Register a config for any symbol on demand (synthesized for non-core tickers). */
@@ -989,17 +844,6 @@ const Simulator = (() => {
   }
 
   // Simulate one tick
-  /* The last word before the tab goes. `pagehide` fires on close, reload and
-     a bfcache suspend where `beforeunload` does not, and `visibilitychange`
-     catches a phone being backgrounded — between them the resumed price is
-     never more than one tick stale. */
-  if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', () => saveMarks(true));
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') saveMarks(true);
-    });
-  }
-
   function tick(callback?: (data: MarketSnapshot) => void): void {
     Object.keys(TICKERS).forEach(ticker => {
       const config = TICKERS[ticker];
@@ -1021,11 +865,6 @@ const Simulator = (() => {
 
       updateCandles(ticker);
     });
-
-    /* Remember where the market got to — throttled, so a tick a second does
-       not write localStorage a second. The pagehide handler below takes the
-       last one, which is the one a returning reader resumes from. */
-    saveMarks();
 
     /* No feed until the active name's history is whole (it seeds in slices
        at boot — see the pump at the end of the module) */
@@ -1111,17 +950,10 @@ const Simulator = (() => {
       if (!TICKERS[s]) registerTicker(s);
     },
     seedAsync,
-    seedProgress,
     /** True once a name's history exists — no seeding side effect */
     isSeeded: (sym: string): boolean => !!candleHistory[sym.toUpperCase()],
     setActiveTicker: (t: string): string => {
       activeTicker = ensureTicker(t);
-      try {
-        localStorage.setItem(ACTIVE_KEY, activeTicker);
-      } catch {
-        /* A private window or a blocked store loses the name on reload and
-           keeps working — the choice is a convenience, never a dependency. */
-      }
       return activeTicker;
     },
     getActiveTicker: (): string => activeTicker,
@@ -1147,6 +979,9 @@ const Simulator = (() => {
     },
     tick,
     getGreeks: calculateGreeks,
+    /** The indicator math alone, for the engine port's reference generator
+        (scripts/indicators-ref.ts) — the same function every snapshot reads. */
+    getIndicators,
     /** The live harness's answer to "what is the market right now" for the
         scan universe. Engine modules (Compass) take this as an ARGUMENT
         instead of reading the simulator themselves — a replay harness passes

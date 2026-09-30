@@ -47,7 +47,6 @@ import { EarningsGuide } from '../../components/record/EarningsGuide';
 import { stateOf, type VolState } from '../../components/earnings/volState';
 import { buildEarningsCalendar, weekDayDate, weekDayLabel, type EarningsEvent } from '../../data/earnings';
 import { macroWindow, type MacroDate } from '../../data/events';
-import { Name } from '../../components/ui/Name';
 
 type WeekPick = '0' | '1' | 'both';
 type ShowPick = 'all' | VolState;
@@ -88,7 +87,9 @@ export const SlotMark = ({ slot, className = 'w-3 h-3' }: { slot: EarningsEvent[
 const Fact = ({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) => (
   <div>
     <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
-    <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-earnings-fact={testId}>
+    {/* one line on a desk; on a phone a busy day ("NIO before the open · GS after the close · COST after the close") is 355px
+        of one line and pushed the page sideways (the phone sweep, 2026-09-19) — there it wraps */}
+    <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary sm:whitespace-nowrap" data-earnings-fact={testId}>
       {children}
     </dd>
   </div>
@@ -206,7 +207,7 @@ const Earnings = () => {
   const today = events.filter(e => e.daysOut === 0);
 
   const weeks: (0 | 1)[] = week === 'both' ? [0, 1] : [Number(week) as 0 | 1];
-  const open = (t: string) => navigate(`/record/earnings/${t}`);
+  const open = (t: string) => navigate(`/dossier/earnings/${t}`);
 
   const sentence = useMemo(() => {
     const parts = [`${events.length} reports over two weeks`, `${rich} priced rich, ${fair} fair, ${cheap} cheap`];
@@ -247,9 +248,9 @@ const Earnings = () => {
               <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Who reports</h3>
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the doors, the price and the words mean" testId="earnings-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">The fortnight's reports · the figure on every name is the move its options charge · click a name for its page</p>
+            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The fortnight's reports · the figure on every name is the move its options charge · click a name for its page</p>
           </div>
-          <dl className="grid grid-cols-4 gap-x-6">
+          <dl className="flex flex-wrap gap-x-6 gap-y-2">
             <Fact label="Reports" testId="reports">
               {events.length} <span className="text-textMuted">· two weeks</span>
             </Fact>
@@ -259,7 +260,7 @@ const Earnings = () => {
             <Fact label="Biggest move" testId="biggest">
               {biggest ? (
                 <>
-                  <Name t={biggest.ticker} size={12} /> ±{biggest.impliedMovePct.toFixed(1)}% <span className="text-textMuted">· {biggest.dateLabel}</span>
+                  {biggest.ticker} ±{biggest.impliedMovePct.toFixed(1)}% <span className="text-textMuted">· {biggest.dateLabel}</span>
                 </>
               ) : (
                 <span className="text-textMuted">—</span>
@@ -270,7 +271,7 @@ const Earnings = () => {
                 today.map((e, i) => (
                   <span key={e.ticker}>
                     {i > 0 && <span className="text-textMuted"> · </span>}
-                    <Name t={e.ticker} size={11} /> <span className="text-textMuted">{slotWord(e)}</span>
+                    {e.ticker} <span className="text-textMuted">{slotWord(e)}</span>
                   </span>
                 ))
               ) : (
@@ -328,9 +329,14 @@ const Earnings = () => {
             )}
           </div>
         ) : (
-          <div key={`board-${week}-${show}`} className="border-t border-borderSubtle animate-soft-in" data-earnings-board>
+          <div
+            key={`board-${week}-${show}`}
+            /* On a phone the five-day board scrolls sideways inside its box at a readable width (the phone pass, 2026-09-13) */
+            className="border-t border-borderSubtle animate-soft-in max-lg:overflow-x-auto"
+            data-earnings-board
+          >
             {weeks.map(weekIdx => (
-              <div key={weekIdx} className="grid grid-cols-5 gap-px bg-borderSubtle/60 border-b border-borderSubtle/60 last:border-0">
+              <div key={weekIdx} className="grid grid-cols-5 gap-px bg-borderSubtle/60 border-b border-borderSubtle/60 last:border-0 max-lg:min-w-[640px]">
                 {WEEKDAYS.map(wd => {
                   const { label, isToday } = weekDayLabel(weekIdx, wd);
                   const dayEvents = shown.filter(e => e.weekIdx === weekIdx && e.weekday === wd);
@@ -386,7 +392,7 @@ const Earnings = () => {
       <div className="border border-borderSubtle rounded-md overflow-hidden bg-panel" data-earnings-grid>
         <div className="px-5 pt-4 pb-3">
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Every report</h3>
-          <p className="mt-0.5 text-[11px] text-textSecondary whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
             Both weeks · {show === 'all' ? 'every report' : `the reports priced ${PRICED_WORD[show]}`} · soonest first · click a row for the name's page
           </p>
         </div>

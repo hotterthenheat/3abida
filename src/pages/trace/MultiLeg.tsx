@@ -14,9 +14,9 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, CalendarDays } from 'lucide-react';
+import { ArrowUpRight, X } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { buildSpreadFlow, spreadLegRow, SPREAD_KINDS, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
@@ -25,9 +25,6 @@ import BookDrill from '../../components/trace/BookDrill';
 import { earnMarks, weightInk } from '../../components/trace/earnedInk';
 import { DOOR, DOOR_HOVER_TEXT } from '../../components/trace/door';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
-import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
-import { useExpiryCut } from '../../components/trace/bookExpiry';
-import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import ReadDoor from '../../components/trace/ReadDoor';
@@ -39,7 +36,6 @@ import { structureKey, watchStructure } from '../../context/WatchContext';
 import RichRead from '../../components/ui/RichRead';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { StructureGuide } from '../../components/trace/TraceGuide';
-import Modal from '../../components/ui/Modal';
 
 const num = (v: number) => v.toLocaleString('en-US');
 
@@ -50,7 +46,7 @@ const MONEY_OPTIONS: DropdownOption<'ALL' | 'DEBIT' | 'CREDIT'>[] = [
   { value: 'DEBIT', label: 'Paid', hint: 'Structures that cost money to put on' },
   { value: 'CREDIT', label: 'Collected', hint: 'Structures that paid the trader to put on' },
 ];
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 204, exp: 130, size: 80, net: 100, legs: 64, kind: 108 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 170, exp: 130, size: 80, net: 100, legs: 64 };
 const TOOLTIPS: Record<string, string> = {
   strategy: 'The shape — its dot is its kind, never a verdict',
   strikes: 'Every strike the structure prints, in order; a strike is the door to that leg',
@@ -77,7 +73,7 @@ const KIND_META = Object.fromEntries(SPREAD_KINDS.map(k => [k.key, k])) as Recor
 >;
 
 const riskCell = (v: number | 'uncapped' | null, tone: 'loss' | 'profit') => {
-  if (v === null) return <span className="text-textSecondary">—</span>;
+  if (v === null) return <span className="text-textMuted">—</span>;
   if (v === 'uncapped')
     return <span className={`font-bold ${tone === 'loss' ? 'text-warn' : 'text-bull'}`}>Uncapped</span>;
   return <span className={tone === 'loss' ? 'text-bear' : 'text-bull'}>{fmtUsd(v)}</span>;
@@ -91,6 +87,16 @@ const doorBtn =
 const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => void }) => {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+
   const go = (fn: () => void) => {
     onClose();
     fn();
@@ -103,39 +109,34 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
     </div>
   );
 
-  /* THE HOUSE MODAL, not a hand-rolled one (ui/Modal). This card had its own
-     scrim, its own Escape listener and its own close button — and therefore
-     none of what the house's modal had learned: no scroll lock, no focus
-     trap, no portal. A second grammar for the same gesture is how a design
-     system dies, one card at a time. */
   return (
-    <Modal
-      open
-      onClose={onClose}
-      ariaLabel={`${trade.ticker} ${KIND_META[trade.kind].label}`}
-      widthClass="max-w-[480px]"
-      /* THE HEAD CARRIES WEIGHT AT BOTH ENDS (Noah, 2026-08-30: "clean up
-         this box a bit"): who it is on the left — logo, ticker, the
-         structure as a pill — and when/where on the right, beside the
-         close. The old line ran four registers together and trailed off
-         after the name. */
-      header={
-        <span className="flex items-center gap-2.5 min-w-0">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative w-full max-w-[480px] border border-borderMuted bg-panel/90 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 p-4 animate-soft-in">
+        {/* THE HEAD CARRIES WEIGHT AT BOTH ENDS (Noah, 2026-08-30: "clean up
+            this box a bit"): who it is on the left — logo, ticker, the
+            structure as a pill — and when/where on the right, beside the
+            close. The old line ran four registers together and trailed off
+            after the name. */}
+        <div className="flex items-center gap-2.5 mb-2.5">
           <CompanyLogo ticker={trade.ticker} size={20} />
           <span className="font-mono text-sm font-bold text-textPrimary">{trade.ticker}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.06] px-2 py-0.5 font-mono text-[10px] font-semibold text-textPrimary whitespace-nowrap">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.06] px-2 py-0.5 font-mono text-[10px] font-semibold text-textPrimary">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: KIND_DOT[trade.kind] }} />
             {KIND_META[trade.kind].label}
           </span>
-        </span>
-      }
-      headerActions={
-        <span className="font-mono text-[10px] text-textSecondary tnum whitespace-nowrap">
-          {trade.time} · spot ${trade.spot.toFixed(2)}
-        </span>
-      }
-    >
-      <div>
+          <span className="ml-auto font-mono text-[10px] text-textMuted tnum whitespace-nowrap">
+            {trade.time} · spot ${trade.spot.toFixed(2)}
+          </span>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         <div className="text-[12px] text-textSecondary leading-snug mb-3">
           <RichRead text={KIND_META[trade.kind].read} />
         </div>
@@ -153,7 +154,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
               <span className={`font-semibold ${l.right === 'C' ? 'text-bull' : 'text-bear'}`}>
                 {l.right === 'C' ? 'call' : 'put'}
               </span>
-              <span className="text-[10px] text-textSecondary">
+              <span className="text-[10px] text-textMuted">
                 {l.expiry} · {l.dte}d
               </span>
               <span className="ml-auto tnum text-textPrimary">@ ${l.fill.toFixed(2)}</span>
@@ -213,7 +214,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
           </button>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 };
 
@@ -235,6 +236,8 @@ const MultiLeg = () => {
   const [kind, setKind] = useState<SpreadKind | 'ALL'>('ALL');
   const [money, setMoney] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const [query, setQuery] = useState('');
+  /* the field answers first; the grid's cut follows as a lower-priority render (the book, OptionsScreener, 2026-09-20) */
+  const cutQuery = useDeferredValue(query);
   const [drill, setDrill] = useState<SpreadTrade | null>(null);
   /* The tape card for ONE leg. Held as (structure, leg key) so ↑/↓ inside the
      card steps between that structure's own legs and nothing else. */
@@ -249,15 +252,12 @@ const MultiLeg = () => {
   );
   // The shared hold (see LiveHold): structures and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ trades: liveTrades, tick: marketData }), [liveTrades, marketData]), activeTicker);
-  const { trades: heldTrades, tick } = hold.value;
-  /* THE EXPIRY CUT (2026-09-12): a structure sits on its near leg's expiry */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldTrades, t => t.expiry);
-  const trades = useMemo(() => cutExpiry(heldTrades), [heldTrades, cutExpiry]);
+  const { trades, tick } = hold.value;
   const keyOf = useCallback((t: { id: string }) => t.id, []);
   const openRow = useCallback((t: SpreadTrade) => setDrill(t), []);
 
   const rows = useMemo(() => {
-    const nq = normSymbol(query);
+    const nq = normSymbol(cutQuery);
     return trades.filter(
       t =>
         (kind === 'ALL' || t.kind === kind) &&
@@ -267,7 +267,7 @@ const MultiLeg = () => {
           normSymbol(t.ticker).includes(nq) ||
           t.legs.some(l => normSymbol(`${t.ticker}${l.strike}${l.right}`).includes(nq)))
     );
-  }, [trades, kind, money, query]);
+  }, [trades, kind, money, cutQuery]);
   /* every row — the grid draws only what is on screen */
   const shown = rows;
   const legRows = useMemo(() => (legTrade ? legTrade.legs.map((_, i) => spreadLegRow(legTrade, i)) : []), [legTrade]);
@@ -336,7 +336,7 @@ const MultiLeg = () => {
         render: t => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={structureKey(t)} make={() => watchStructure(t, 'multi-leg')} noun="structure" />
-            <span className="text-[11px] text-textPrimary">{t.time}</span>
+            <span className="text-[11px] text-textSecondary">{t.time}</span>
           </span>
         ),
       },
@@ -366,20 +366,16 @@ const MultiLeg = () => {
         key: 'strikes',
         header: 'Strikes',
         sortValue: t => t.legs[0].strike,
-        /* Every strike is its own door to the tape, white-underlined like the
+        /* Every strike is its own door to the tape, silver under the pointer like the
            contract cell on every other flow page (Noah, 2026-08-30). The ROW
            still opens the structure card — that is this page's own fact — so
            each strike stops the click from reaching it. One button per DISTINCT
            strike, which is exactly what strikesLabel prints. */
         render: t => (
-          /* leading-none + align-middle: the cell inherits the table's 36px
-             line height, which makes this one line taller than the row and
-             clips the strikes' own white underlines — the doors' whole
-             affordance. The same trap the contract cell was in. */
-          <span className="inline-flex items-baseline gap-1 font-mono tnum leading-none align-middle">
+          <span className="inline-flex items-baseline gap-1 font-mono tnum">
             {distinctStrikes(t).map(({ strike, legIdx }, n) => (
               <span key={legIdx} className="inline-flex items-baseline">
-                {n > 0 && <span className="text-textSecondary mx-1">/</span>}
+                {n > 0 && <span className="text-textMuted mx-1">/</span>}
                 <button
                   onClick={e => {
                     e.stopPropagation();
@@ -405,8 +401,8 @@ const MultiLeg = () => {
            up the tails and left the DATES ragged — the wrong thing anchored. */
         sortValue: t => t.dte,
         render: t => (
-          <span className="text-textPrimary text-[11px]">
-            {t.expiry} <span className="text-textSecondary">· {t.dte}d</span>
+          <span className="text-textSecondary text-[11px]">
+            {t.expiry} <span className="text-textMuted">· {t.dte}d</span>
           </span>
         ),
       },
@@ -425,7 +421,7 @@ const MultiLeg = () => {
         render: t => (
           <span className="text-textPrimary">
             ${Math.abs(t.net).toFixed(2)}{' '}
-            <span className="text-[10px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
+            <span className="text-[10px] text-textMuted">{t.net >= 0 ? 'debit' : 'credit'}</span>
           </span>
         ),
       },
@@ -475,7 +471,7 @@ const MultiLeg = () => {
         align: 'right',
         sortValue: t => t.theta,
         render: t => (
-          <span className="text-textPrimary">
+          <span className="text-textSecondary">
             {t.theta >= 0 ? '+' : ''}
             {t.theta.toFixed(2)}
           </span>
@@ -486,7 +482,7 @@ const MultiLeg = () => {
         header: 'Stock',
         align: 'right',
         sortValue: t => t.spot,
-        render: t => <span className="text-textPrimary">${t.spot.toFixed(2)}</span>,
+        render: t => <span className="text-textSecondary">${t.spot.toFixed(2)}</span>,
       },
       {
         key: 'legs',
@@ -529,21 +525,21 @@ const MultiLeg = () => {
         title="The tape as structures"
         sub={`${activeKind ? `${activeKind.label} — ${activeKind.read}` : 'Every structure on the tape today, newest first'} · a row opens the structure with each leg`}
         testId="multi-leg"
-        data={{ kind, rows: rows.length, expiry: expiry ?? 'all' }}
+        data={{ kind, rows: rows.length }}
         guide={{ title: 'How to read the structures', door: 'What a shape, its strikes and its risk mean', body: <StructureGuide />, testId: 'multi-leg-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Structures today" testId="structures">
               {num(trades.length)}
               {facts.loudKind && (
-                <span className="text-textSecondary">
+                <span className="text-textMuted">
                   {' '}
                   · {facts.loudCount} {facts.loudKind.toLowerCase()}
                 </span>
               )}
             </Fact>
             <Fact label="Paid · collected" testId="money">
-              {facts.paid} <span className="text-textSecondary">·</span> {facts.collected}
+              {facts.paid} <span className="text-textMuted">·</span> {facts.collected}
             </Fact>
             {champs.paid && champs.paid !== champs.all && (
               <Champion label="Largest paid" ink="bull" onOpen={() => setDrill(champs.paid!)} testId="paid">
@@ -568,7 +564,6 @@ const MultiLeg = () => {
             <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="structures" />
             <DropdownSelect label="Shape" value={kind} options={SHAPE_OPTIONS} onChange={setKind} title="Which structures" testId="multi-leg-shape" />
             <DropdownSelect label="Money" value={money} options={MONEY_OPTIONS} onChange={setMoney} title="Paid to put on, or collected" testId="multi-leg-money" />
-            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only structures whose near leg sits on one expiry — or every expiry" testId="multi-leg-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
@@ -576,7 +571,7 @@ const MultiLeg = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight emptyText="No structures on this cut" emptyBody="Nothing printed as a spread, a fly or a condor under these cards today." testId="multi-leg" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight emptyText="No structures on this cut today" testId="multi-leg" />
       </TraceBox>
 
       {drill && <SpreadCard trade={drill} onClose={() => setDrill(null)} />}

@@ -2,11 +2,9 @@ import {
   useCallback, useEffect, useMemo, useRef, useReducer, useState,
   useSyncExternalStore,
   type MutableRefObject, type PointerEvent as ReactPointerEvent, useLayoutEffect,
+  type ReactNode,
 } from 'react';
-import {
-  AlignJustify, ArrowUpRight, Check, Circle, Equal, Eraser, Minus, MousePointer2, MoveDiagonal,
-  MoveVertical, Ruler, Spline, Square, StickyNote, Trash2, TrendingUp,
-} from 'lucide-react';
+import { Eraser, MousePointer2, Trash2 } from 'lucide-react';
 import {
   createChart,
   AreaSeries,
@@ -33,7 +31,7 @@ import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
 import ScriptLegend from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
-import { LOCAL_TIME, localTickMarks } from './chartTime';
+import { LOCAL_TIME, NY_TIME, localTickMarks, nyTickMarks } from './chartTime';
 import {
   aggregateCandles,
   aggregateSnapshots,
@@ -45,14 +43,18 @@ import {
   type Timeframe,
 } from '../../data/timeframe';
 import { GexTrailsPrimitive } from './gexNodesPrimitive';
+import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { commitArm, evaluateAlert, markFired, useAlerts, type AlertContext, type IndicatorSource } from './alertStore';
 import { newsPulse } from '../../data/news';
 import { exposureNowFor } from '../../data/gex';
 import { ChevronsLeft, ChevronsUp, GripVertical, Lock, PanelLeft, PanelTop, Pencil, Type, Unlock } from 'lucide-react';
-import { DrawingsPrimitive, loadDrawings, needsThirdAnchor, saveDrawings, type Drawing, type DrawingKind } from './drawingsPrimitive';
+import { DrawingsPrimitive, gestureOf, isFreehand, isWordsKind, loadDrawings, needsThirdAnchor, saveDrawings, usesPts, type Drawing, type DrawingKind } from './drawingsPrimitive';
+import DrawRailTools, { DrawSheet } from './DrawRailTools';
+import { drawToolLabel, registerDrawChart, rememberDrawTool, touchDrawChart } from './drawTools';
 import {
-  getCandleTheme,
+  CANDLE_THEMES,
+  chartGround,
   useCandleThemeKey,
   candleSeriesOptions,
   chartSurface,
@@ -171,66 +173,7 @@ const PANE_LABEL_LOOK: Record<string, { text: string; bg: string; fg: string }> 
   volDrift: { text: 'Vol drift', bg: 'rgba(70,60,110,0.35)', fg: '#DCD6F0' },
 };
 
-/*
-  The rail's thirteen, grouped the way a reader thinks: the lines they trade
-  against, the shapes that mark areas, and the marks that carry their own
-  words or numbers. Order inside a group is reach-for frequency.
-*/
-const DRAW_TOOL_GROUPS: { name: string; tools: { tool: DrawingKind; icon: JSX.Element; label: string }[] }[] = [
-  {
-    name: 'Lines',
-    tools: [
-      {
-      tool: 'trend',
-      /* TradingView's own glyph (Noah, 2026-08-28) — the diagonal with a
-         circle on each end, which is also exactly what the placed mark's
-         anchors look like now. */
-      icon: (
-        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
-          <circle cx="3.4" cy="12.6" r="1.8" />
-          <circle cx="12.6" cy="3.4" r="1.8" />
-          <line x1="4.9" y1="11.1" x2="11.1" y2="4.9" />
-        </svg>
-      ),
-      label: 'Trend',
-    },
-      { tool: 'extend', icon: <MoveDiagonal className="w-3.5 h-3.5" />, label: 'Extended' },
-      { tool: 'arrow', icon: <ArrowUpRight className="w-3.5 h-3.5" />, label: 'Arrow' },
-      {
-        tool: 'path',
-        /* TV's path glyph — dotted zigzag with the head. */
-        icon: (
-          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
-            <circle cx="2.6" cy="12.6" r="1.3" />
-            <circle cx="6.8" cy="6.2" r="1.3" />
-            <path d="M7.6 7.4 L10 10 L13.4 3.4" />
-            <path d="M13.6 2.6 L13.9 5.4 M13.6 2.6 L10.9 3.1" strokeWidth="1.1" />
-          </svg>
-        ),
-        label: 'Path',
-      },
-      { tool: 'hline', icon: <Minus className="w-3.5 h-3.5" />, label: 'Level' },
-      { tool: 'vline', icon: <MoveVertical className="w-3.5 h-3.5" />, label: 'Moment' },
-    ],
-  },
-  {
-    name: 'Shapes',
-    tools: [
-      { tool: 'rect', icon: <Square className="w-3.5 h-3.5" />, label: 'Box' },
-      { tool: 'ellipse', icon: <Circle className="w-3.5 h-3.5" />, label: 'Ellipse' },
-      { tool: 'channel', icon: <Equal className="w-3.5 h-3.5" />, label: 'Channel' },
-      { tool: 'curve', icon: <Spline className="w-3.5 h-3.5" />, label: 'Curve' },
-    ],
-  },
-  {
-    name: 'Marks',
-    tools: [
-      { tool: 'fib', icon: <AlignJustify className="w-3.5 h-3.5" />, label: 'Fib' },
-      { tool: 'measure', icon: <Ruler className="w-3.5 h-3.5" />, label: 'Measure' },
-      { tool: 'note', icon: <StickyNote className="w-3.5 h-3.5" />, label: 'Note' },
-    ],
-  },
-];
+/* The drawing tools themselves — their families, names and glyphs — are drawTools.tsx; the rail's buttons are DrawRailTools.tsx. */
 
 /** What the user chose to draw — every overlay is independent. */
 export interface ChartOverlays {
@@ -495,13 +438,6 @@ const timeWords = (t: number) => {
   const d = new Date(t * 1000);
   return `${dayWords(t)} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
-/** The chart's own replay plays by bars — the pace card's choices */
-const BAR_PACES = [
-  { value: 2, label: 'Two bars a second', hint: 'A minute bar every half second' },
-  { value: 5, label: 'Five bars a second', hint: 'Quick — a session of minutes in about eighty seconds' },
-  { value: 10, label: 'Ten bars a second', hint: 'Fast' },
-  { value: 1, label: 'A bar a second', hint: 'Slow' },
-];
 
 export function displayBars(ticker: string, mins: number, alt?: AltBarSpec | null): Candle[] {
   if (alt) return buildAltBars(Simulator.getSecondsBars(ticker), alt);
@@ -510,7 +446,11 @@ export function displayBars(ticker: string, mins: number, alt?: AltBarSpec | nul
 
 export const DEFAULT_OVERLAYS: ChartOverlays = {
   trails: true,
-  levels: true,
+  /* OFF to begin with, on every chart (Noah, 2026-09-19: "every chart should have key levels off to begin with for the
+     overlays, even the landing page one"): a chart opens as the tape and the exposure field, with nothing named on it, and the
+     walls, the flip and the supreme are one switch away in the Overlays menu. Stored panes are carried over once
+     (core/storedDefaults.ts). */
+  levels: false,
   darkpool: false,
   volume: true,
   /* OFF by default, and not out of caution — the tape has no history. It
@@ -580,6 +520,39 @@ export interface PriceProjection {
   plotHeight(): number;
   /** The time axis's height, for a neighbour that has to stop above it. */
   axisHeight(): number;
+}
+
+export interface ChartTape {
+  /** One-minute bars, oldest first, up to the host's clock */
+  bars: Candle[];
+  /** The name's annual vol on the tape's day — what the vol pane and the distance scales read */
+  iv: number;
+  /** What this tape's drawings are kept under */
+  key: string;
+  /** 'ny': the axis and the crosshair speak New York whatever clock the reader chose in Settings — a tape that IS the
+      market's day (a backtest). Read once, when the chart is made. */
+  clock?: 'ny';
+  /** What a price is printed to, where cents are not it (a future: gold in tenths, silver in thousandths) */
+  precision?: { decimals: number; tick: number };
+}
+/** What a host's layer is handed: the chart, and the series that carries price NOW (a style swap replaces it — ask each
+    time, never keep it) */
+/** A long or a short mark, as a trade: where it gets in, where it takes profit, where it stops (see `onTradeMark`) */
+export interface TradeMark {
+  kind: 'long' | 'short';
+  entry: number;
+  target: number;
+  stop: number;
+}
+export interface ChartLayerApi {
+  chart: () => IChartApi | null;
+  series: () => ISeriesApi<SeriesType> | null;
+  host: () => HTMLElement | null;
+  /** Prices the scale has to keep in view (an open position's lines, and the room a target or a stop is pulled into) —
+      read by the same provider that keeps the walls on screen; a hand-set scale is left alone */
+  room: (prices: number[]) => void;
+  /** The chart's way home (ResetViewControl) — for a layer whose own right-click card stands in for the reset card */
+  reset: () => void;
 }
 
 interface StrikeChartProps {
@@ -666,6 +639,20 @@ interface StrikeChartProps {
   pickTime?: boolean;
   onPickTime?: (time: number) => void;
   onExitReplay?: () => void;
+  /** A TAPE OF ITS OWN (Review's backtest, 2026-09-20 — Noah: "my top row button layout is not the same. i cant see my
+      toolbar and other things that might be deemed helpful during backtesting"). The backtest drew its own small chart, so
+      it had none of this one's tools: the drawing rail, the indicators, the chart styles, the scales, the export. Given a
+      tape, THIS chart draws the host's bars instead of the simulator's — one-minute bars up to the host's clock, real
+      epochs — and everything that works off bars works as it does live. What needs THE BOOK (key levels, trails, the
+      exposure overlays) has no history on a replayed tape yet, so it reads nothing there; the host leaves those switches
+      out of its toolbar. Drawings are kept under the tape's own key, so a backtest's lines are not the live chart's. */
+  tape?: ChartTape;
+  /** Something of the host's drawn OVER the plot, with the chart in hand (Review's open position and its target and stop) */
+  layer?: (api: ChartLayerApi) => ReactNode;
+  /** A LONG OR A SHORT DRAWN IS A TRADE (2026-09-22, the partner's tradable position tool): with a long or a short mark
+      selected, its bar offers "Place it", and the host is handed the mark's entry, target and stop — the host says what
+      order that is. None: the bar offers nothing. */
+  onTradeMark?: (mark: TradeMark) => void;
   /** The live price on the right scale as a soft two-line card — the price, a
       rule, and the time left in the current bar — in place of the library's
       flat last-value tag. Off by default; Terrain turns it on. */
@@ -765,6 +752,7 @@ export interface CrosshairBar {
 export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 
 // Wall / flip / supreme overlay colors (independent of candle theme)
+import { defaultStop } from './drawingKinds';
 import { BULL, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
 
 // Level lines are created once per overlay/ticker, then their prices are
@@ -985,6 +973,9 @@ const StrikeChart = ({
   pickTime = false,
   onPickTime,
   onExitReplay,
+  tape,
+  layer,
+  onTradeMark,
   priceTag = false,
   onCrosshair,
   syncRegister,
@@ -992,6 +983,14 @@ const StrikeChart = ({
   projectionRef,
   exportRef,
 }: StrikeChartProps) => {
+  /* WHERE THE BARS COME FROM — the simulator, or the host's tape. Every read below goes through these four. */
+  const tapeRef = useRef<ChartTape | undefined>(tape);
+  tapeRef.current = tape;
+  const barsFor = (mins: number, alt?: AltBarSpec | null): Candle[] => (tapeRef.current ? aggregateCandles(tapeRef.current.bars, Math.max(1, mins)) : displayBars(ticker, mins, alt));
+  const baseBars = (): Candle[] => tapeRef.current?.bars ?? Simulator.getCandles(ticker) ?? [];
+  const bookHistory = () => (tapeRef.current ? [] : (Simulator.getGexHistory(ticker) ?? []));
+  const nameIv = (): number | undefined => (tapeRef.current ? tapeRef.current.iv : Simulator.TICKERS[Simulator.ensureTicker(ticker)]?.iv);
+  const drawKey = tape?.key ?? ticker;
   /* NO TICK UNDER THE HAND (Noah, 2026-08-30: "i was in the middle of a drag
      and it practically ignored me and changed my view"). Measured with the
      button held down on the chart: the 1.5s tick's rebuild — candles,
@@ -1050,6 +1049,14 @@ const StrikeChart = ({
   /* The app's theme moves the ground of a theme without a canvas of its own (2026-09-12) */
   const appTheme = useResolvedTheme();
   const themeKey = themeKeyProp ?? globalThemeKey;
+  /* THE THEME THIS CHART PAINTS, wherever it is read (2026-09-13; Noah: "if I try to change
+     the theme color of the charts on Pulse or Terrain it doesn't work but on the Weigher it
+     works fine"): eight places below used to call the STORE's `themeRef.current`, so a pane
+     holding its own theme (Terrain's prop) repainted with the app-wide one — the pick changed
+     the pane's setting and the toolbar's word, never the candles. A ref, so a callback that
+     runs later still paints the theme this render resolved. */
+  const themeRef = useRef<CandleTheme>(CANDLE_THEMES[themeKey]);
+  themeRef.current = CANDLE_THEMES[themeKey];
   /* Read straight from the store rather than taken as a prop: alerts belong to
      the SYMBOL, and two panes showing the same symbol must draw the same set.
      The drawings store is read the same way, from this same component. */
@@ -1059,6 +1066,11 @@ const StrikeChart = ({
   const altSpec = useMemo(() => barClockSpec(barClock), [barClock]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  /* THE HOST'S CHROME BAND (Noah, 2026-09-14: "the top section seems to be overlapped by the
+     430 number"): CSS px from the box's top to the lowest floating block over its upper third —
+     every host marks its strip `data-chart-chrome`, measured here the way the scripts legend
+     measures. The strike chips clamp their words under it on a hand-scaled tape. */
+  const chromeInsetRef = useRef(0);
   /* Read at CREATE time by the mount effect, which must not take `compact` as
      a dep — that effect builds the whole chart, and rebuilding it on a prop
      change would drop the reader's pan, zoom and drawings. An effect below
@@ -1157,6 +1169,8 @@ const StrikeChart = ({
       built from, kept in refs so the time-scale subscription can read them
       without being torn down and rebuilt on every tick. */
   const lastBarTimeRef = useRef(0);
+  /** The host tape's last ONE-MINUTE bar at the last load — how a jump of the host's clock is told from a tick */
+  const tapeLastRef = useRef(0);
   /* What the price card's countdown measures against: the bar time we last
      saw, when we saw it in REAL ms, and the observed real gap between the
      last two arrivals. `realMs: 0` means "not yet observed" and the countdown
@@ -1172,6 +1186,18 @@ const StrikeChart = ({
       once at chart creation) — a focused strike must never sit off-screen. */
   const focusPriceRef = useRef<number | null>(focusPrice);
   const levelsRef = useRef<KeyLevels>(levels);
+  /** What a host's layer asked the scale to keep in view (ChartLayerApi.room) */
+  const roomRef = useRef<number[]>([]);
+  const layerRoom = useCallback((prices: number[]) => {
+    roomRef.current = prices;
+    /* fitted again with what it now has to hold — only a scale that is fitting itself; one set by hand is the reader's */
+    try {
+      const scale = chartRef.current?.priceScale('right');
+      if (scale?.options().autoScale) scale.applyOptions({ autoScale: true });
+    } catch {
+      /* asked by a layer on its way out, after the chart itself has gone */
+    }
+  }, []);
   const barCountRef = useRef(0);
   /* THE HISTORY ON DEMAND (2026-09-06, the perf sweep): a world (name ·
      interval · clock) opens on its recent bars; the reader scrolling to
@@ -1225,7 +1251,10 @@ const StrikeChart = ({
   const pendingThirdRef = useRef<Drawing | null>(null);
   /* The path under construction — clicks append here; a double-click seals
      it. Cleared when the hand changes tools or leaves draw mode. */
-  const pathDraftRef = useRef<{ time: number; price: number }[] | null>(null);
+  const pathDraftRef = useRef<{ kind: DrawingKind; pts: { time: number; price: number }[] } | null>(null);
+  /* A FREEHAND stroke in the hand (the brush, the highlighter): the pointer's own path while it is held down, kept BETWEEN
+     the bars (the primitive's exact grid) so a stroke is a stroke and not a staircase. */
+  const freeRef = useRef<{ kind: DrawingKind; pts: { time: number; price: number }[]; x: number; y: number } | null>(null);
   /* CLICK-MOVE-CLICK, armed (Noah, 2026-08-29: "on the first click it plops
      the entire thing down which is wrong. what it should do is on the first
      click ... be the first end of the line then it drags visibly until you
@@ -1239,7 +1268,12 @@ const StrikeChart = ({
   const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
   /** Where a note is being typed, in both spaces: chart coords to commit,
       client coords to float the input at. Null = no note in progress. */
-  const [noteAt, setNoteAt] = useState<{ time: number; price: number; x: number; y: number } | null>(null);
+  /* Three kinds take words now — the note, the text, the callout — and the callout brings the two anchors it was drawn with (`base`). */
+  const [noteAt, setNoteAt] = useState<{ time: number; price: number; x: number; y: number; kind: DrawingKind; base?: Drawing } | null>(null);
+  /** Every tool, as a sheet (DrawRailTools) — the rail's search door, and the whole toolbar on a narrow pane */
+  const [sheetOpen, setSheetOpen] = useState(false);
+  /** The chart's box — what the rail's lists and the sheet are portalled into */
+  const [boxEl, setBoxEl] = useState<HTMLDivElement | null>(null);
   /* 'select' is the rail's pointer — not a DrawingKind, because it MAKES no
      drawing: it picks one up. The default, so entering draw mode never
      scribbles a trend on the first accidental drag. */
@@ -1271,6 +1305,7 @@ const StrikeChart = ({
     if (drawing) return;
     dragRef.current = null;
     pendingThirdRef.current = null;
+    freeRef.current = null;
     setNoteAt(null);
     drawingsRef.current?.setDraft(null);
     deselect();
@@ -1678,7 +1713,7 @@ const StrikeChart = ({
     (original: () => { priceRange: { minValue: number; maxValue: number } | null } | null) => {
       const base = original();
       const lv = levelsRef.current;
-      const extras = [lv.putWall, lv.callWall, lv.supreme, lv.spot, focusPriceRef.current ?? NaN].filter(v =>
+      const extras = [lv.putWall, lv.callWall, lv.supreme, lv.spot, focusPriceRef.current ?? NaN, ...roomRef.current].filter(v =>
         Number.isFinite(v)
       );
       const range = base?.priceRange ?? null;
@@ -1691,10 +1726,60 @@ const StrikeChart = ({
         if (v > max) max = v;
       }
       const pad = Math.max((max - min) * 0.08, 0.01);
+      /* No pixel margin for the chrome here: the scale's own 20% top margin already lands the
+         highest wall ~130px under a 36px strip at rest (measured 2026-09-14) — the overlap Noah
+         saw was a hand-scaled tape, which the strike chips' clamp answers. */
       return { priceRange: { minValue: min - pad, maxValue: max + pad } };
     },
     []
   );
+
+  /* THE CHROME BAND, MEASURED: on mount, when this box resizes, and when a chrome block over it
+     changes size (the strip wraps to a second row). A changed band goes to the strike chips
+     (the primitive), which clamp their words under it. */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const watched = new Set<Element>();
+    const chromeObs = new ResizeObserver(() => schedule());
+    const measure = () => {
+      const box = el.getBoundingClientRect();
+      if (box.height === 0) return;
+      let low = 0;
+      document.querySelectorAll<HTMLElement>('[data-chart-chrome]').forEach(c => {
+        const r = c.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return;
+        const overlaps = r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.top + box.height / 3;
+        if (!overlaps) return;
+        low = Math.max(low, r.bottom - box.top);
+        if (!watched.has(c)) {
+          watched.add(c);
+          chromeObs.observe(c);
+        }
+      });
+      const inset = Math.round(low);
+      if (inset === chromeInsetRef.current) return;
+      chromeInsetRef.current = inset;
+      const trails = trailsRef.current;
+      if (trails) {
+        trails.chromeInset = inset;
+        trails.requestUpdate?.();
+      }
+    };
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    };
+    const obs = new ResizeObserver(schedule);
+    obs.observe(el);
+    schedule();
+    return () => {
+      cancelAnimationFrame(raf);
+      obs.disconnect();
+      chromeObs.disconnect();
+    };
+  }, [autoscaleProvider]);
 
   /* Build the main series for a style. Always returned as the nominal
      'Candlestick' handle — every consumer routes data through toMain and
@@ -1766,7 +1851,7 @@ const StrikeChart = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const s0 = chartSurface(getCandleTheme());
+    const s0 = chartSurface(themeRef.current);
     const chart = createChart(container, {
       autoSize: true,
       layout: {
@@ -1781,7 +1866,7 @@ const StrikeChart = ({
         attributionLogo: true,
       },
       // The reader's clock, not Greenwich's — see chartTime.ts.
-      localization: LOCAL_TIME,
+      localization: tapeRef.current?.clock === 'ny' ? NY_TIME : LOCAL_TIME,
       // No grid (Noah, 2026-08-22): the nodes and the levels ARE the
       // structure; a grid behind them competes with the ribbons
       grid: {
@@ -1795,14 +1880,14 @@ const StrikeChart = ({
       // price-line titles, and ate the date off every dark-pool print near spot.
       // 68 + 4 + 2 clear. Charts without the capsule keep the default 0.
       rightPriceScale: { borderColor: s0.line, minimumWidth: priceTag ? PRICE_SCALE_MIN_WIDTH : 0 },
-      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: localTickMarks },
+      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
       crosshair: {
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
         horzLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
       },
     });
 
-    const candles = makeMain(chart, styleRef.current, getCandleTheme());
+    const candles = makeMain(chart, styleRef.current, themeRef.current);
     styleBuiltRef.current = styleRef.current;
 
     const volume = chart.addSeries(HistogramSeries, {
@@ -1824,6 +1909,7 @@ const StrikeChart = ({
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
 
     const trails = new GexTrailsPrimitive();
+    trails.chromeInset = chromeInsetRef.current;
     candles.attachPrimitive(trails);
     /* Dev only: the perf probes read each chart's visible range and loaded
        bar count off `window.__charts` (the axis is canvas, not DOM). */
@@ -2072,7 +2158,7 @@ const StrikeChart = ({
     const sessionPrim = sessionPrimRef.current;
     const conePrim = conePrimRef.current;
     chart.removeSeries(prev);
-    const next = makeMain(chart, chartStyle, getCandleTheme());
+    const next = makeMain(chart, chartStyle, themeRef.current);
     if (trails) next.attachPrimitive(trails);
     if (drawingsPrim) next.attachPrimitive(drawingsPrim);
     /* A style swap replaces the SERIES, and a primitive is attached to the
@@ -2423,12 +2509,12 @@ const StrikeChart = ({
     }
 
     const mins = tfMinutes(timeframe);
-    const bars = displayBars(ticker, mins);
+    const bars = barsFor(mins);
     const rvPoints = realizedVol(bars, mins * 60);
     /* The implied line is drawn only where realised is, so the pane never shows
        a lone flat line hanging over an empty half — the two are read as a PAIR,
        and a spread against nothing is not a spread. */
-    const ivPoints = impliedVolLine(Simulator.TICKERS[ticker]?.iv, rvPoints);
+    const ivPoints = impliedVolLine(nameIv(), rvPoints);
     rv.setData(rvPoints.map(p => ({ time: p.time as UTCTimestamp, value: p.value })));
     iv.setData(ivPoints.map(p => ({ time: p.time as UTCTimestamp, value: p.value })));
 
@@ -2543,7 +2629,7 @@ const StrikeChart = ({
     if (active.length === 0) return;
     /* The same window as the candles — a line that ran further left than
        the tape would widen the time scale and throw showRecent's arithmetic */
-    const bars = windowOf(displayBars(ticker, mins, altSpec), full);
+    const bars = windowOf(barsFor(mins, altSpec), full);
     if (bars.length === 0) return;
     /* The formulas live in data/indicators.ts — one copy, shared with the
        confluence strip and every other summariser (the walls' lesson). This
@@ -2622,7 +2708,7 @@ const StrikeChart = ({
     if (replayRef.current) return;
     const mins = tfMinutes(timeframe);
     const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
-    const bars = windowOf(displayBars(ticker, mins, altSpec), full).map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume }));
+    const bars = windowOf(barsFor(mins, altSpec), full).map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume }));
     setPaneBars(paneId, bars, ticker, String(timeframe));
     if (bars.length === 0) {
       tearDown();
@@ -2736,7 +2822,7 @@ const StrikeChart = ({
          the reader had put in log, and only sometimes: this branch runs on the
          compare signature, not on the picker. */
       chart.applyOptions({
-        leftPriceScale: { visible: compares.some(c => c.mode === 'scale'), borderColor: chartSurface(getCandleTheme()).line },
+        leftPriceScale: { visible: compares.some(c => c.mode === 'scale'), borderColor: chartSurface(themeRef.current).line },
       });
       // TV proportions: the tape keeps ~3/4 of the window, the compare pane
       // rides below at ~1/4 (lightweight-charts defaults to an even split)
@@ -2796,7 +2882,7 @@ const StrikeChart = ({
   // Recolor the candle series AND the chart surface in place when the theme
   // picker changes — gallery themes carry their own background tint.
   useEffect(() => {
-    const t = getCandleTheme();
+    const t = themeRef.current;
     const main = candleSeriesRef.current;
     if (main) {
       // Recolor IN the active style's vocabulary — baseline keeps its fixed
@@ -2832,6 +2918,14 @@ const StrikeChart = ({
     });
   }, [themeKey, appTheme, mainNonce]);
 
+  /* a host's tape may be priced finer or coarser than cents — and a style swap makes a new series, which forgets */
+  const tapeDecimals = tape?.precision?.decimals;
+  const tapeTick = tape?.precision?.tick;
+  useEffect(() => {
+    if (tapeDecimals == null || tapeTick == null) return;
+    candleSeriesRef.current?.applyOptions({ priceFormat: { type: 'price', precision: tapeDecimals, minMove: tapeTick } });
+  }, [tapeDecimals, tapeTick, mainNonce]);
+
   // Candle data + trails: full load on ticker/timeframe/theme change, incremental
   // per tick (theme forces a reload because volume bars carry per-bar colors)
   useEffect(() => {
@@ -2842,12 +2936,12 @@ const StrikeChart = ({
     const trails = trailsRef.current;
     if (!chart || !candleSeries || !volumeSeries || !trails) return;
 
-    const base = Simulator.getCandles(ticker);
+    const base = baseBars();
     if (!base || base.length === 0) return;
 
-    const theme = getCandleTheme();
+    const theme = themeRef.current;
     const mins = tfMinutes(timeframe);
-    const all = displayBars(ticker, mins, altSpec);
+    const all = barsFor(mins, altSpec);
     /* This world's key, and whether the reader has asked for its whole
        history (onRange sets it); the recent window otherwise */
     const key = `${ticker}|${timeframe}|${barClock}`;
@@ -2858,7 +2952,7 @@ const StrikeChart = ({
     barCountRef.current = bars.length;
     /* A rule clock reads the seconds tape, so it wears T-14's chip too. */
     setLiveFrom(altSpec || mins < 1 ? bars[0]?.time ?? 0 : null);
-    drawingsRef.current?.setBarTimes(bars.map(b => b.time));
+    drawingsRef.current?.setBars(bars);
     /* The measure counts BARS and annualizes off them, so the layer has to
        know what a bar is worth here — set beside the times it belongs with,
        so a timeframe change can never move one without the other. Rule bars
@@ -2869,13 +2963,21 @@ const StrikeChart = ({
        measure box and the flip strip cannot disagree about the day's range. */
     drawingsRef.current?.setDistanceScales({
       atr: sessionAtr(base),
-      sigma: impliedDaySigma(base.length ? base[base.length - 1].close : 0, Simulator.TICKERS[ticker]?.iv ?? 0),
+      sigma: impliedDaySigma(base.length ? base[base.length - 1].close : 0, nameIv() ?? 0),
     });
 
     const loaded = loadedRef.current;
     const newWorld = loaded.ticker !== ticker || loaded.timeframe !== timeframe || loaded.clock !== barClock;
     const changed = newWorld || loaded.theme !== themeKey || loaded.full !== full;
     let armTimer = 0;
+
+    /* A HOST'S TAPE CAN JUMP. The live tape moves a tick at a time, so the path below only ever rewrites the last bar; a
+       backtest's clock is dragged half an hour on, or sent to the next day's open, and every bar between has to land — and
+       the bucket that was forming when it left has to be finished. More than a minute on (or any way back) reloads the
+       series; the view holds, as it does for a theme. */
+    const baseLast = base[base.length - 1].time;
+    const jumped = !!tapeRef.current && tapeLastRef.current > 0 && (baseLast < tapeLastRef.current || baseLast - tapeLastRef.current > 60);
+    tapeLastRef.current = tapeRef.current ? baseLast : 0;
 
     lastCloseRef.current = bars.length ? bars[bars.length - 1].close : null;
     if (bars.length) {
@@ -2889,7 +2991,7 @@ const StrikeChart = ({
     }
 
 
-    if (changed) {
+    if (changed || jumped) {
       /* THE FIRST PAINT CARRIES THE RECENT BARS (2026-09-06, the perf sweep):
          a month of one-minute bars is 8,580 points, and the library checks
          every one of them on setData — the single largest cost of opening a
@@ -2976,7 +3078,7 @@ const StrikeChart = ({
     // per 30m/1h bar was a row of pearls): every 5 minutes of real history
     // is a bead, tiled across its bar by its time — six to a 30m bar, twelve
     // to an hour. More beads, same data.
-    const baseGex = Simulator.getGexHistory(ticker);
+    const baseGex = bookHistory();
     const trailMins = Math.min(mins, TRAIL_TEXTURE_MINUTES);
     /* Trails place their beads by TIME on a five-minute texture; a rule
        clock's axis only carries the times its bars happened to start at, so
@@ -3088,7 +3190,7 @@ const StrikeChart = ({
       prim.setLines([]);
       return;
     }
-    prim.setLines(sessionLines(buildSessionLevels(Simulator.getCandles(ticker) ?? [], sessionOr)));
+    prim.setLines(sessionLines(buildSessionLevels(baseBars(), sessionOr)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, revision, sessionOr, overlays.session, replay, mainNonce, altSpec]);
 
@@ -3126,10 +3228,10 @@ const StrikeChart = ({
       return;
     }
     const mins = tfMinutes(timeframe);
-    const bars = displayBars(ticker, mins);
+    const bars = barsFor(mins);
     const starts = sessionStarts(bars, mins);
     const sess = starts.length > 0 ? bars.slice(starts[starts.length - 1]) : [];
-    const iv = Simulator.TICKERS[Simulator.ensureTicker(ticker)]?.iv ?? 0;
+    const iv = nameIv() ?? 0;
     /* Elapsed counts THROUGH the last bar — a bar covers its interval. */
     const elapsed = sess.length > 0 ? (sess[sess.length - 1].time - sess[0].time) / 60 + mins : 0;
     prim.setData({
@@ -3171,12 +3273,12 @@ const StrikeChart = ({
     }
     const cal = eventsCalRef.current;
     const mins = tfMinutes(timeframe);
-    const bars = displayBars(ticker, mins);
+    const bars = barsFor(mins);
     // eslint-disable-next-line no-console
-    console.log('[events-debug]', JSON.stringify(buildTapeEvents({ bars: Simulator.getCandles(ticker) ?? [], prints: flowPrints ?? [], earnings: cal.earnings, macro: cal.macro, todayIso: cal.todayIso }).map(e => ({ k: e.kind, t: e.time, m: e.minutesAhead, l: e.label }))), 'cal', JSON.stringify({ e: cal.earnings?.ticker, macro: cal.macro.length }));
+    console.log('[events-debug]', JSON.stringify(buildTapeEvents({ bars: baseBars(), prints: flowPrints ?? [], earnings: cal.earnings, macro: cal.macro, todayIso: cal.todayIso }).map(e => ({ k: e.kind, t: e.time, m: e.minutesAhead, l: e.label }))), 'cal', JSON.stringify({ e: cal.earnings?.ticker, macro: cal.macro.length }));
     prim.setData({
       events: buildTapeEvents({
-        bars: Simulator.getCandles(ticker) ?? [],
+        bars: baseBars(),
         prints: flowPrints ?? [],
         earnings: cal.earnings,
         macro: cal.macro,
@@ -3558,7 +3660,7 @@ const StrikeChart = ({
       /* Deliberately WITHOUT the pane's rule clock: the alert was armed on
          this timeframe's TIME bars and keeps watching them, whatever the
          pane is currently drawing. */
-      const bars = displayBars(ticker, mins);
+      const bars = barsFor(mins);
       const last = (pts: readonly (number | null)[]) => {
         const p = pts[pts.length - 1];
         return typeof p === 'number' && Number.isFinite(p) ? p : null;
@@ -3644,8 +3746,8 @@ const StrikeChart = ({
 
     if (replay) {
       const mins = tfMinutes(timeframe);
-      const bars = displayBars(ticker, mins);
-      const snaps = aggregateSnapshots(Simulator.getGexHistory(ticker) ?? [], Math.min(mins, TRAIL_TEXTURE_MINUTES));
+      const bars = barsFor(mins);
+      const snaps = aggregateSnapshots(bookHistory(), Math.min(mins, TRAIL_TEXTURE_MINUTES));
       if (bars.length < 40) return;
       replayDataRef.current = { bars, snaps, maxAbs: snapshotsMaxAbs(snaps) };
       /* Driven from outside: start where the host's clock points, and never
@@ -3772,7 +3874,7 @@ const StrikeChart = ({
       chart.unsubscribeCrosshairMove(onHover);
       setPickFade(null);
       const tagOn = priceTag && !replay;
-      const sx = chartSurface(getCandleTheme());
+      const sx = chartSurface(themeRef.current);
       chart.applyOptions({
         crosshair: {
           vertLine: { color: sx.crosshair, width: 1, style: 3, labelBackgroundColor: sx.label },
@@ -3811,7 +3913,7 @@ const StrikeChart = ({
     // series until a real position arrives, and never fast-append onto a
     // series that hasn't been sliced yet.
     if (replayIdx < 31) return;
-    const theme = getCandleTheme();
+    const theme = themeRef.current;
     const idx = Math.max(1, Math.min(replayIdx, data.bars.length));
     const fresh = replayAppliedRef.current === 0;
     if (idx === replayAppliedRef.current + 1 && replayAppliedRef.current >= 1) {
@@ -3871,15 +3973,17 @@ const StrikeChart = ({
   // ---- drawings -------------------------------------------------------------
   // Per-ticker load; marks are the user's, so they persist across sessions
   useEffect(() => {
-    shapesRef.current = loadDrawings(ticker);
+    shapesRef.current = loadDrawings(drawKey);
     drawingsRef.current?.setDrawings([...shapesRef.current]);
   }, [ticker]);
 
   const commitDrawing = useCallback(
-    (d: Drawing) => {
+    (raw: Drawing) => {
+      /* made whole first (the primitive's normalise): a position is born with its stop, the VWAP's anchor sits on its curve */
+      const d = drawingsRef.current?.normalise(raw) ?? raw;
       shapesRef.current = [...shapesRef.current, d];
       drawingsRef.current?.setDrawings(shapesRef.current);
-      saveDrawings(ticker, shapesRef.current);
+      saveDrawings(drawKey, shapesRef.current);
       /* THE TOOL EMPTIES INTO YOUR HAND (Noah, 2026-08-28: "when i try to
          drag the line i just created it instead created another line...
          trading view doesnt have that type of bug"). Placing a mark drops
@@ -3922,7 +4026,7 @@ const StrikeChart = ({
       if (i === null) return;
       shapesRef.current = shapesRef.current.map((d, idx) => (idx === i ? { ...d, ...patch } : d));
       drawingsRef.current?.setDrawings(shapesRef.current);
-      saveDrawings(ticker, shapesRef.current);
+      saveDrawings(drawKey, shapesRef.current);
       forceMark();
     },
     [selectedIdx, ticker]
@@ -3949,10 +4053,27 @@ const StrikeChart = ({
     window.addEventListener('pointerup', up, { once: true });
   };
 
+  /* A TOOL TAKEN IN HAND — by the rail, a family's list, the sheet or the command palette. Its family's button wears it from now on. */
+  const pickTool = useCallback(
+    (kind: DrawingKind) => {
+      setDrawTool(kind);
+      rememberDrawTool(kind);
+      setSheetOpen(false);
+      if (!drawing) onEnterDraw?.();
+    },
+    [drawing, onEnterDraw]
+  );
+  const pickToolRef = useRef(pickTool);
+  pickToolRef.current = pickTool;
+  /* the command palette arms a tool on the chart the pointer was last over (drawTools.tsx) */
+  const chartId = useRef(Symbol('chart')).current;
+  const canDraw = !!onEnterDraw;
+  useEffect(() => (canDraw ? registerDrawChart(chartId, kind => pickToolRef.current(kind)) : undefined), [canDraw, chartId]);
+
   const clearDrawings = useCallback(() => {
     shapesRef.current = [];
     drawingsRef.current?.setDrawings([]);
-    saveDrawings(ticker, []);
+    saveDrawings(drawKey, []);
     deselect();
   }, [ticker, deselect]);
 
@@ -3968,6 +4089,16 @@ const StrikeChart = ({
     return { time, price };
   };
   const pointAt = (e: ReactPointerEvent<HTMLDivElement>) => pointFromClient(e.clientX, e.clientY);
+  /** The same point, kept BETWEEN the bars — the freehand kinds */
+  const exactPointAt = (e: ReactPointerEvent<HTMLDivElement>): { time: number; price: number } | null => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const candleSeries = candleSeriesRef.current;
+    const prim = drawingsRef.current;
+    if (!rect || !candleSeries || !prim) return null;
+    const time = prim.xToTimeExact(e.clientX - rect.left);
+    const price = candleSeries.coordinateToPrice(e.clientY - rect.top);
+    return time === null || price === null ? null : { time, price };
+  };
 
   /*
     A MARK IS NEVER STATIC (Noah, 2026-08-28: "when i exit the toolbar and
@@ -4003,7 +4134,7 @@ const StrikeChart = ({
       if (pt) applyEdit(pt);
     };
     const up = () => {
-      if (editRef.current?.moved) saveDrawings(ticker, shapesRef.current);
+      if (editRef.current?.moved) saveDrawings(drawKey, shapesRef.current);
       editRef.current = null;
       window.removeEventListener('pointermove', move);
     };
@@ -4016,7 +4147,7 @@ const StrikeChart = ({
       if (idx !== null && shapesRef.current[idx]) {
         shapesRef.current = shapesRef.current.filter((_, i) => i !== idx);
         drawingsRef.current?.setDrawings(shapesRef.current);
-        saveDrawings(ticker, shapesRef.current);
+        saveDrawings(drawKey, shapesRef.current);
       }
       drawingsRef.current?.setSelected(null);
       return null;
@@ -4079,6 +4210,13 @@ const StrikeChart = ({
         drawingsRef.current?.setDraft({ ...base, p2: p });
         return;
       }
+      /* the callout's second press is where its words will sit — they are typed next, the draft staying up behind the input */
+      if (gestureOf(base.kind) === 'dragWords') {
+        e.preventDefault();
+        drawingsRef.current?.setDraft({ ...base, p2: p });
+        setNoteAt({ time: p.time, price: p.price, x: e.clientX, y: e.clientY, kind: base.kind, base: { ...base, p2: p } });
+        return;
+      }
       drawingsRef.current?.setDraft(null);
       commitDrawing({ ...base, p2: p });
       return;
@@ -4094,11 +4232,13 @@ const StrikeChart = ({
       commitDrawing({ ...base, p3: p });
       return;
     }
-    if (drawTool === 'hline' || drawTool === 'vline') {
+    /* HOW THE KIND IS MADE is the primitive's table (gestureOf), not a list kept here */
+    const gesture = gestureOf(drawTool);
+    if (gesture === 'click') {
       commitDrawing({ kind: drawTool, p1: p });
       return;
     }
-    if (drawTool === 'note') {
+    if (gesture === 'words') {
       /*
         The words come from a floating input at the click; Enter commits it.
 
@@ -4112,18 +4252,25 @@ const StrikeChart = ({
         events and their focus change with it.
       */
       e.preventDefault();
-      setNoteAt({ time: p.time, price: p.price, x: e.clientX, y: e.clientY });
+      setNoteAt({ time: p.time, price: p.price, x: e.clientX, y: e.clientY, kind: drawTool });
       return;
     }
-    if (drawTool === 'path') {
+    if (gesture === 'free') {
+      const q = exactPointAt(e);
+      if (!q) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      freeRef.current = { kind: drawTool, pts: [q], x: e.clientX, y: e.clientY };
+      return;
+    }
+    if (gesture === 'clicks') {
       /* THE PATH PLOTS BY CLICKS (Noah, 2026-08-29: "it keeps plotting
          points as you click and stop when you double click") — each press
          adds a point; the draft's tail rides the cursor; the double-click
          handler below seals it with the head. */
-      const run = pathDraftRef.current ?? [];
+      const run = pathDraftRef.current?.kind === drawTool ? pathDraftRef.current.pts : [];
       run.push(p);
-      pathDraftRef.current = run;
-      drawingsRef.current?.setDraft({ kind: 'path', p1: run[0], pts: [...run, p] });
+      pathDraftRef.current = { kind: drawTool, pts: run };
+      drawingsRef.current?.setDraft({ kind: drawTool, p1: run[0], pts: [...run, p] });
       return;
     }
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -4135,18 +4282,18 @@ const StrikeChart = ({
   };
 
   const onDrawDblClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (drawTool !== 'path' || !pathDraftRef.current) return;
+    if (drawTool === 'select' || gestureOf(drawTool) !== 'clicks' || !pathDraftRef.current) return;
     /* The seal — and the wrapper's own dblclick is resetView, which must
        not fire under a finished path. */
     e.stopPropagation();
     e.preventDefault();
-    const run = pathDraftRef.current;
+    const { kind: runKind, pts: run } = pathDraftRef.current;
     pathDraftRef.current = null;
     drawingsRef.current?.setDraft(null);
     /* The double-click's two presses plotted the final point twice —
        consecutive same-bar points collapse to one. */
     const pts = run.filter((q, i2, arr) => i2 === 0 || q.time !== arr[i2 - 1].time);
-    if (pts.length >= 2) commitDrawing({ kind: 'path', p1: pts[0], pts });
+    if (pts.length >= 2) commitDrawing({ kind: runKind, p1: pts[0], pts });
   };
 
   const applyEdit = (p: { time: number; price: number }) => {
@@ -4158,7 +4305,7 @@ const StrikeChart = ({
     if (shapesRef.current[ed.index]?.locked) return;
     let next: Drawing;
     if (ed.anchor !== null) {
-      if (ed.orig.kind === 'path' && ed.orig.pts) {
+      if (usesPts(ed.orig.kind) && ed.orig.pts) {
         const pts = ed.orig.pts.map((q, k2) => (k2 === ed.anchor ? p : q));
         next = { ...ed.orig, pts, p1: pts[0] };
       } else {
@@ -4188,11 +4335,18 @@ const StrikeChart = ({
         return t === null ? q : { time: t, price: q.price + dPrice };
       };
       next = { ...ed.orig, p1: shift(ed.orig.p1)!, p2: shift(ed.orig.p2), p3: shift(ed.orig.p3) };
-      if (ed.orig.kind === 'path' && ed.orig.pts) {
-        const pts = ed.orig.pts.map(q => shift(q) ?? q);
+      if (usesPts(ed.orig.kind) && ed.orig.pts) {
+        /* a freehand stroke's points sit BETWEEN bars: they move by the same k bars and keep their place between them */
+        const free = isFreehand(ed.orig.kind);
+        const pts = ed.orig.pts.map(q => {
+          if (!free) return shift(q) ?? q;
+          const t = prim.shiftTimeExact(q.time, k);
+          return t === null ? q : { time: t, price: q.price + dPrice };
+        });
         next = { ...next, pts, p1: pts[0] };
       }
     }
+    next = prim.normalise(next);
     ed.moved = true;
     shapesRef.current = shapesRef.current.map((d, i) => (i === ed.index ? next : d));
     prim.setDrawings(shapesRef.current);
@@ -4233,10 +4387,22 @@ const StrikeChart = ({
       if (p) drawingsRef.current?.setDraft({ ...pendingSecondRef.current, p2: p });
       return;
     }
-    /* The path's tail rides the pointer between clicks. */
-    if (drawTool === 'path' && pathDraftRef.current) {
+    /* A freehand stroke grows with the pointer — a point every couple of pixels, capped so a long scribble stays a light mark */
+    if (freeRef.current) {
+      const f = freeRef.current;
+      if (Math.hypot(e.clientX - f.x, e.clientY - f.y) < 2 || f.pts.length >= 800) return;
+      const q = exactPointAt(e);
+      if (!q) return;
+      f.pts.push(q);
+      f.x = e.clientX;
+      f.y = e.clientY;
+      drawingsRef.current?.setDraft({ kind: f.kind, p1: f.pts[0], pts: [...f.pts] });
+      return;
+    }
+    /* The run's tail rides the pointer between clicks (the path, the polyline). */
+    if (pathDraftRef.current && pathDraftRef.current.kind === drawTool) {
       const p = pointAt(e);
-      if (p) drawingsRef.current?.setDraft({ kind: 'path', p1: pathDraftRef.current[0], pts: [...pathDraftRef.current, p] });
+      if (p) drawingsRef.current?.setDraft({ kind: pathDraftRef.current.kind, p1: pathDraftRef.current.pts[0], pts: [...pathDraftRef.current.pts, p] });
       return;
     }
     /* Width phase: the draft is the base plus a p3 riding the pointer. */
@@ -4255,7 +4421,7 @@ const StrikeChart = ({
   /* A tool change or a mode exit abandons an unsealed path — half a path
      committing itself would be a mark nobody asked for. */
   useEffect(() => {
-    if (drawTool !== 'path' && pathDraftRef.current) {
+    if (pathDraftRef.current && pathDraftRef.current.kind !== drawTool) {
       pathDraftRef.current = null;
       drawingsRef.current?.setDraft(null);
     }
@@ -4279,8 +4445,15 @@ const StrikeChart = ({
   const onDrawUp = (e?: ReactPointerEvent<HTMLDivElement>) => {
     if (editRef.current) {
       /* An edit is already applied live; release just makes it stored. */
-      if (editRef.current.moved) saveDrawings(ticker, shapesRef.current);
+      if (editRef.current.moved) saveDrawings(drawKey, shapesRef.current);
       editRef.current = null;
+      return;
+    }
+    if (freeRef.current) {
+      const f = freeRef.current;
+      freeRef.current = null;
+      drawingsRef.current?.setDraft(null);
+      if (f.pts.length >= 2) commitDrawing({ kind: f.kind, p1: f.pts[0], pts: f.pts });
       return;
     }
     const d = dragRef.current;
@@ -4307,6 +4480,12 @@ const StrikeChart = ({
       drawingsRef.current?.setDraft(d);
       return;
     }
+    /* the callout was dragged from what it points at to where it sits — its words are typed there next */
+    if (gestureOf(d.kind) === 'dragWords' && e) {
+      drawingsRef.current?.setDraft(d);
+      setNoteAt({ time: d.p2.time, price: d.p2.price, x: e.clientX, y: e.clientY, kind: d.kind, base: d });
+      return;
+    }
     drawingsRef.current?.setDraft(null);
     commitDrawing(d);
   };
@@ -4320,12 +4499,17 @@ const StrikeChart = ({
           frameless ? '' : 'border border-borderSubtle bg-inset rounded-md'
         }`}
         style={{ minHeight: height }}
+        ref={setBoxEl}
+        onPointerEnter={() => touchDrawChart(chartId)}
         /* Everything in this box sits on the chart's ground — the dark island
            every chart is (data-theme, theme/tokens.css; Noah, 2026-09-12:
-           "the charts to by default always be black"), re-scoped to a light
-           candle canvas's inks by index.css [data-chart-ground='light'] */
+           "the charts to by default always be black"), and the box stamps
+           the ground of the theme THIS chart resolved, so the pills and the
+           legend inside wear it (index.css [data-chart-ground]); the drawing
+           rail alone stays black (Noah, 2026-09-13). */
         data-theme="dark"
         data-chart-ink
+        data-chart-ground={chartGround(themeKey)}
         onDoubleClick={resetView}
         onMouseMove={e => {
           /* The event lane's hover — resolved here because canvas glyphs
@@ -4360,6 +4544,8 @@ const StrikeChart = ({
           </>
         )}
         <div ref={containerRef} className={`absolute inset-0 ${picking ? 'cursor-crosshair' : ''}`} onPointerDownCapture={onSleepingMarkDown} data-pick-time={picking ? '' : undefined} data-replay-idx={replay ? replayIdx : undefined} data-replay-len={replay ? (replayDataRef.current?.bars.length ?? 0) : undefined} data-replay-time={replay && replayTime != null ? replayTime : undefined} data-replay-debug={replay ? replayDebug : undefined} />
+        {/* THE HOST'S LAYER (Review's position, target and stop) — over the plot, under the chrome */}
+        {layer?.({ chart: () => chartRef.current, series: () => candleSeriesRef.current as ISeriesApi<SeriesType> | null, host: () => containerRef.current, room: layerRoom, reset: resetView })}
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
         <ResetViewControl onReset={resetView} />
         {/* The scripts on this pane, named at the top left with hide and remove (2026-09-10) */}
@@ -4402,8 +4588,14 @@ const StrikeChart = ({
           <div
             ref={priceTagRef}
             aria-hidden
-            className="pointer-events-none absolute top-0 right-0 z-10 rounded-[4px] border border-borderSubtle border-l-2 border-l-white/60 pl-2 pr-1.5 py-[3px] text-right opacity-0 shadow-md shadow-black/50"
-            style={{ background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }}
+            /* THE CARD WEARS THE CHART'S GROUND, like its words (Noah, 2026-09-19, on Stone: "the price of the stock reads black
+               like its container making it seem invisible"). The words were tokens — dark on a light tape — but the card under
+               them was a black typed by hand (rgba 8,8,10) and its accent a white typed by hand, so on Stone it was black on
+               black. Panel and ink are the chart box's own (index.css [data-chart-ground]): near-black under white words on a
+               dark tape, exactly as before; stone under dark words on a light one. */
+            className="pointer-events-none absolute top-0 right-0 z-10 rounded-[4px] border border-ink/[0.07] border-l-2 border-l-ink/60 bg-panel/90 pl-2 pr-1.5 py-[3px] text-right opacity-0 shadow-md shadow-black/50"
+            style={{ backdropFilter: 'blur(3px)' }}
+            data-price-tag
           >
             <div className="font-mono text-[12px] font-bold leading-[14px] tnum text-textPrimary" />
             <div className="font-mono text-[9px] leading-[11px] tnum text-textMuted" />
@@ -4427,6 +4619,8 @@ const StrikeChart = ({
             onClick={() => setRailPrefs({ open: true })}
             title="Show the drawing tools"
             aria-label="Show the drawing tools"
+            /* Black on any tape, like the rail it opens (index.css) */
+            data-chart-rail
             className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md text-textSecondary hover:text-textPrimary shadow-lg shadow-black/40 transition-[opacity,color] duration-300 opacity-55 hover:opacity-100 ${
               rail.dock === 'left'
                 ? 'left-0 top-1/2 -translate-y-1/2 rounded-r-md border-l-0 px-1 py-2.5'
@@ -4469,11 +4663,18 @@ const StrikeChart = ({
                it cause i dont"): the 20% whisper read as gone on his screen.
                The identity row's rest-dim, 55%, is the house's "quiet but
                there"; hover, focus and drawing still bring it to full. */
+            /* BLACK ON ANY TAPE (Noah, 2026-09-13: "the only thing I specified
+               as staying black was the drawing tool bar") — the rail pins the
+               dark tokens on itself while the chrome around it follows the
+               chart's ground (index.css [data-chart-rail]). */
+            data-chart-rail
             className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md backdrop-saturate-150 rounded-md p-1 shadow-xl shadow-black/50 select-none flex items-stretch ${rail.dock === 'top' ? 'gap-px' : 'gap-0.5'} transition-opacity duration-300 ${
               drawing ? 'opacity-100' : 'opacity-55 hover:opacity-100 focus-within:opacity-100'
             } ${
               rail.dock === 'left'
-                ? 'left-1.5 top-1/2 -translate-y-1/2 w-[34px] max-h-[92%] overflow-y-auto flex-col'
+                ? /* 44 wide, not 34: a 24px ICON COLUMN and a 10px ARROW COLUMN beside it (Noah, 2026-09-19, TradingView's rail: "the arrow
+                     should appear as such") — a family's arrow sits right of its icon, and every other button keeps its icon in the icon column */
+                  'left-1.5 top-1/2 -translate-y-1/2 w-[44px] max-h-[92%] overflow-y-auto flex-col'
                 : /* Not true center (Noah, 2026-08-29: "too close to the right
                      leaving more empty space to the left") — the hosts' strip
                      clusters are asymmetric: the right one (Replay → Theme)
@@ -4500,7 +4701,7 @@ const StrikeChart = ({
               aria-label="Select"
               aria-pressed={drawTool === 'select'}
               className={`inline-flex items-center justify-center rounded transition-colors shrink-0 ${
-                rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
+                rail.dock === 'left' ? 'h-[26px] pr-[10px]' : 'w-[24px]'
               } ${
                 drawing && drawTool === 'select'
                   ? 'bg-select/15 text-select'
@@ -4509,32 +4710,9 @@ const StrikeChart = ({
             >
               <MousePointer2 className="w-3.5 h-3.5" />
             </button>
-            {DRAW_TOOL_GROUPS.map(group => (
-              <div key={group.name} className={`flex items-stretch gap-0.5 ${rail.dock === 'left' ? 'flex-col' : 'flex-row'}`}>
-                <div className={rail.dock === 'left' ? 'mx-1 my-0.5 h-px bg-borderMuted' : 'my-1 mx-0.5 w-px bg-borderMuted'} aria-hidden />
-                {group.tools.map(item => (
-                  <button
-                    key={item.tool}
-                    onClick={() => {
-                      setDrawTool(item.tool);
-                      if (!drawing) onEnterDraw?.();
-                    }}
-                    title={item.label}
-                    aria-label={item.label}
-                    aria-pressed={drawing && drawTool === item.tool}
-                    className={`inline-flex items-center justify-center rounded transition-colors shrink-0 ${
-                      rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
-                    } ${
-                      drawing && drawTool === item.tool
-                        ? 'bg-select/15 text-select'
-                        : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'
-                    }`}
-                  >
-                    {item.icon}
-                  </button>
-                ))}
-              </div>
-            ))}
+            {/* ONE BUTTON A FAMILY (Noah, 2026-09-19: "without extending the toolbar super long") — the rail was thirteen tools
+                long; it is five families, the search and the star, and holds thirty-four */}
+            <DrawRailTools dock={rail.dock} drawing={drawing} drawTool={drawTool} onPick={pickTool} host={boxEl} sheetOpen={sheetOpen} onSheet={setSheetOpen} />
             {drawing && (
               <>
                 <div className={rail.dock === 'left' ? 'mx-1 my-0.5 h-px bg-borderMuted' : 'my-1 mx-0.5 w-px bg-borderMuted'} aria-hidden />
@@ -4543,8 +4721,8 @@ const StrikeChart = ({
                   disabled={selectedIdx === null}
                   title="Delete the selected drawing"
                   aria-label="Delete selected"
-                  className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textSecondary enabled:hover:text-textPrimary enabled:hover:bg-ink/[0.04] ${
-                    rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
+                  className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textSecondary enabled:hover:text-textPrimary enabled:hover:bg-ink/[0.04] disabled:opacity-30 disabled:cursor-default ${
+                    rail.dock === 'left' ? 'h-[26px] pr-[10px]' : 'w-[24px]'
                   }`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -4554,7 +4732,7 @@ const StrikeChart = ({
                   title="Clear all drawings"
                   aria-label="Clear all drawings"
                   className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] ${
-                    rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
+                    rail.dock === 'left' ? 'h-[26px] pr-[10px]' : 'w-[24px]'
                   }`}
                 >
                   <Eraser className="w-3.5 h-3.5" />
@@ -4569,7 +4747,7 @@ const StrikeChart = ({
               title={rail.dock === 'left' ? 'Move the tools to the top' : 'Move the tools to the left side'}
               aria-label={rail.dock === 'left' ? 'Move the tools to the top' : 'Move the tools to the left side'}
               className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textMuted hover:text-textPrimary hover:bg-ink/[0.04] ${
-                rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
+                rail.dock === 'left' ? 'h-[26px] pr-[10px]' : 'w-[24px]'
               }`}
             >
               {rail.dock === 'left' ? <PanelTop className="w-3.5 h-3.5" /> : <PanelLeft className="w-3.5 h-3.5" />}
@@ -4579,19 +4757,35 @@ const StrikeChart = ({
               title="Hide the tools — the small tab at the edge brings them back"
               aria-label="Hide the tools"
               className={`inline-flex items-center justify-center rounded transition-colors shrink-0 text-textMuted hover:text-textPrimary hover:bg-ink/[0.04] ${
-                rail.dock === 'left' ? 'h-[26px]' : 'w-[24px]'
+                rail.dock === 'left' ? 'h-[26px] pr-[10px]' : 'w-[24px]'
               }`}
             >
               {rail.dock === 'left' ? <ChevronsLeft className="w-3.5 h-3.5" /> : <ChevronsUp className="w-3.5 h-3.5" />}
             </button>
           </div>
         )}
+        {/* ON A NARROW PANE THE SHEET IS THE TOOLBAR: the rail is off there, and until now the only door to drawing was the `d`
+            key — which a phone has not got. A slim tab at the edge opens every tool as a bottom sheet. */}
+        {compact && (drawing || onEnterDraw) && (
+          <button
+            onClick={() => setSheetOpen(o => !o)}
+            title="Drawing tools"
+            aria-label="Drawing tools"
+            aria-expanded={sheetOpen}
+            data-chart-rail
+            data-draw-sheet-door
+            className="absolute z-30 left-0 top-1/2 -translate-y-1/2 rounded-r-md border border-l-0 border-borderMuted bg-panel/60 backdrop-blur-md px-1 py-2.5 text-textSecondary hover:text-textPrimary shadow-lg shadow-black/40 transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+        {sheetOpen && boxEl && <DrawSheet host={boxEl} dock={rail.dock} drawTool={drawing ? drawTool : 'select'} onPick={pickTool} onClose={() => setSheetOpen(false)} />}
         {drawing && selectedIdx !== null && shapesRef.current[selectedIdx] && (() => {
           const m = shapesRef.current[selectedIdx];
           /* On a note the 1–4 width field is TYPE SIZE, not stroke — the
              picker relabels itself and previews letters; the dash picker
              hides (a note has no line to dash). */
-          const isNote = m.kind === 'note';
+          const isNote = isWordsKind(m.kind);
           /* Twenty inks in four rows (Noah, 2026-08-29: "i need more
              colors") — neutrals, warms, greens/cools, blues/violets. All
              chosen to survive the dark canvas; the reader's marks are
@@ -4769,6 +4963,21 @@ const StrikeChart = ({
               <button onClick={deleteSelected} title="Delete this mark only" className={btn(false)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
+              {/* A LONG OR A SHORT IS A TRADE: its entry, its target and its stop, handed to the desk */}
+              {onTradeMark && (m.kind === 'long' || m.kind === 'short') && m.p2 && (
+                <>
+                  <span className="mx-0.5 w-px h-4 bg-borderMuted" aria-hidden />
+                  <button
+                    onClick={() => onTradeMark({ kind: m.kind as 'long' | 'short', entry: m.p1.price, target: m.p2!.price, stop: m.p3 ? m.p3.price : defaultStop(m.p1.price, m.p2!.price) })}
+                    title={`Place this ${m.kind} — an order at its entry, its target and its stop riding it`}
+                    className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90"
+                    style={{ background: 'rgb(var(--silver-fill))', color: '#0a0a0a' }}
+                    data-chart-trade-mark={m.kind}
+                  >
+                    Place it
+                  </button>
+                </>
+              )}
             </div>
           );
         })()}
@@ -4779,10 +4988,10 @@ const StrikeChart = ({
           <div
             aria-live="polite"
             className={`absolute z-30 pointer-events-none rounded border border-borderMuted bg-panel/95 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-select shadow-lg shadow-black/40 ${
-              rail.dock === 'left' || !rail.open ? 'left-11 top-1/2 -translate-y-1/2' : 'top-11 left-[calc(50%-48px)] -translate-x-1/2'
+              rail.dock === 'left' || !rail.open ? 'left-[54px] top-1/2 -translate-y-1/2' : 'top-11 left-[calc(50%-48px)] -translate-x-1/2'
             }`}
           >
-            {drawTool === 'select' ? 'Select' : DRAW_TOOL_GROUPS.flatMap(g => g.tools).find(t => t.tool === drawTool)?.label ?? drawTool}
+            {drawTool === 'select' ? 'Select' : drawToolLabel(drawTool)}
           </div>
         )}
 
@@ -4811,8 +5020,8 @@ const StrikeChart = ({
               autoFocus
               type="text"
               maxLength={80}
-              placeholder="note, Enter to place"
-              aria-label="Note text — Enter places it on the bar you clicked"
+              placeholder={noteAt.kind === 'note' ? 'note, Enter to place' : 'words, Enter to place'}
+              aria-label="The mark's words — Enter places them where you clicked"
               className="w-[184px] px-2 py-1 rounded border border-select/60 bg-panel/95 font-mono text-[11px] text-textPrimary placeholder:text-textMuted shadow-xl shadow-black/50 outline-none"
               onKeyDown={e => {
                 /* The desk's own keys (p, d, s, the arrows) must not fire
@@ -4821,12 +5030,20 @@ const StrikeChart = ({
                 e.stopPropagation();
                 if (e.key === 'Enter') {
                   const text = (e.target as HTMLInputElement).value.trim();
-                  if (text) commitDrawing({ kind: 'note', p1: { time: noteAt.time, price: noteAt.price }, text });
+                  if (text) commitDrawing(noteAt.base ? { ...noteAt.base, text } : { kind: noteAt.kind, p1: { time: noteAt.time, price: noteAt.price }, text });
+                  drawingsRef.current?.setDraft(null);
                   setNoteAt(null);
                 }
-                if (e.key === 'Escape') setNoteAt(null);
+                if (e.key === 'Escape') {
+                  drawingsRef.current?.setDraft(null);
+                  setNoteAt(null);
+                }
               }}
-              onBlur={() => setNoteAt(null)}
+              onBlur={() => {
+                /* the callout's draft was kept up behind the input — walking away takes it down with the words */
+                if (noteAt.base) drawingsRef.current?.setDraft(null);
+                setNoteAt(null);
+              }}
             />
           </div>
         )}
@@ -4864,24 +5081,30 @@ const StrikeChart = ({
             the foot of the plot (Noah, 2026-09-08: "every replay bar on the
             terrain/pulse pages… the same functionality… including the color");
             the Map's strip drives the chart from outside instead */}
+        {/* 2026-09-20: a card that FLOATS above the time axis (ReplayStrip's head note) — the axis stays readable under it,
+            and the wrapper lets the pointer through to the plot either side of the card */}
+        {/* …and at the foot of the PRICE pane, so an indicator's own pane under it is never covered (PaneFoot, 2026-09-20) */}
         {replay && !external && (
-          <div className="absolute bottom-0 inset-x-0 z-30">
+          <PaneFoot chart={() => chartRef.current}>
             <ReplayStrip
               phase={ownPhase}
               pos={Math.max(0, replayIdx - 1)}
               length={Math.max(1, (replayDataRef.current?.bars.length ?? 1) - 1)}
               words={ownPhase === 'play' ? timeWords(replayDataRef.current?.bars[Math.max(0, Math.min(replayIdx, replayDataRef.current?.bars.length ?? 1) - 1)]?.time ?? 0) : undefined}
               marks={replayMarks}
-              paces={BAR_PACES}
+              /* the chart's own replay plays by ITS bars: the multiple is candles a second (ReplayStrip's pace note) */
+              paceUnit="bars"
               playing={replayPlaying}
               onPlay={setReplayPlaying}
               pace={replaySpeed}
               onPace={setReplaySpeed}
               onSeek={i => setReplayIdx(Math.max(31, Math.min(replayDataRef.current?.bars.length ?? 31, Math.round(i) + 1)))}
               onExit={() => onExitReplay?.()}
-              className="border-t border-b-0"
+              step={1}
+              counter={`${Math.max(1, replayIdx)} / ${replayDataRef.current?.bars.length ?? 0}`}
+              wordsAt={i => timeWords(replayDataRef.current?.bars[Math.max(0, Math.min((replayDataRef.current?.bars.length ?? 1) - 1, Math.round(i)))]?.time ?? 0)}
             />
-          </div>
+          </PaneFoot>
         )}
       </div>
     </div>

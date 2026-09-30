@@ -46,7 +46,7 @@ const RowFigure = () => {
       <Label x={14} y={36} fill={INK} size={14} mono weight={600}>
         525
       </Label>
-      <rect x={14} y={48} width={74} height={15} rx={7.5} fill="rgba(48,209,88,0.1)" stroke="rgba(48,209,88,0.2)" />
+      <rect x={14} y={48} width={74} height={15} rx={7.5} fill="rgb(var(--bull) / 0.1)" stroke="rgb(var(--bull) / 0.2)" />
       <Label x={51} y={55.5} anchor="middle" fill={GREEN} size={8.5} weight={500}>
         held 3 of 4
       </Label>

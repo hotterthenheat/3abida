@@ -3,100 +3,59 @@
   SLAYER TERMINAL - THE MAP
   (pages/pinpoint/MapDesk.tsx)
 
-  Band 2 of the Pinpoint roadmap (2026-09-05, the
-  blank canvas): the day's chart with the dealer
-  levels drawn on it — the walls, the pin, the
-  supreme, the flip, the trails of the chosen greek
-  — under one thin toolbar, with one line under the
-  toolbar: what the book says today.
+  The book by expiry, FIRST (Noah, 2026-09-12:
+  "remove this entire section from the pinpoint
+  map page. the first thing that should be shown
+  is the heatmap and this is already shown in
+  multiple pages like the terrain and pulse
+  pages"). The day-on-one-chart box that opened
+  this page since band 2 (the tape with the dealer
+  levels drawn on it, the strike rail fused to its
+  price axis as one profile panel, its own head,
+  fullscreen, drawing rail and replay pick) is
+  GONE — Terrain and Pulse carry that chart. What
+  is left is the read, top to bottom: the Exposure
+  Ledger (the same book by expiry, as a heatmap or
+  a ladder), the Trader's Clock, the Wall Report
+  Card, your positions. One strike shared across
+  them (FocusContext); each box can step onto its
+  own name; the replay runs the boxes on a minute
+  grid from the calendar's own strip.
 
-  THE STRIKE PANEL LEFT THE MAP (Noah, 2026-09-13:
-  "please remove this from my pinpoint page, makes
-  no sense to have it in pulse, terrain and now
-  here"). The chart takes the whole box; the
-  strikes live in the board under it — the Greek
-  Board (components/gex/GreekBoard.tsx), up to
-  five Net strips side by side, one greek each,
-  "where you just see the gex/dex/vex/vanna/charm
-  easily because it's an information thing".
-
-  NOTHING HERE IS NEW MACHINERY, deliberately. The
-  chart is the terminal's own StrikeChart (Pulse's
-  and Terrain's); the book is `buildExposureProfile`
-  — the same one the Strike Pressure Ladder widget
-  reads — under the toolbar's expiry; the sentence
-  is the same engine read the ladder card carries.
-  The Map is a COMPOSITION: canvas first, settings
-  as a toolbar, prose as the last resort, one
-  strike everywhere.
-
-  The strike a reader clicks on the board is THE
-  strike (FocusContext): the chart draws it as the
-  focus line, the shell wears it as the chip, and
-  Targets lights it.
+  NOTHING HERE IS NEW MACHINERY. The book is
+  `buildExposureProfile` — the same one the Strike
+  Pressure Ladder widget reads — under the calendar's
+  expiries, greek and window. The Calendar (the
+  Exposure Ledger) is band 3 of the blank canvas.
 ==================================================
 */
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { DOCK_ROOM } from '../../data/editorDock';
-import { motion } from 'framer-motion';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Play } from 'lucide-react';
 import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import ScopeChip from '../../components/ui/ScopeChip';
-import StrikeChart, { DEFAULT_INDICATORS, DEFAULT_OVERLAYS, type ChartIndicators, type ChartOverlays, type ChartStyle, type PriceProjection } from '../../components/gex/StrikeChart';
-import ChartToolbar from '../../components/gex/ChartToolbar';
-import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import { Deferred } from '../../components/ui/Skeleton';
-import { ChartGround } from '../../components/ui/skeletonKit';
-import { BoardInner, DayInner, MapPageSkeleton, PositionsInner, ReportInner } from './pinpointSkeletons';
-import GreekBoard from '../../components/gex/GreekBoard';
+import { CalendarInner, DayInner, MapPageSkeleton, ReportInner } from './pinpointSkeletons';
+import ExposureField from '../../components/gex/ExposureField';
 import TraderClock from '../../components/gex/TraderClock';
 import WallReportCard from '../../components/gex/WallReportCard';
 import ReplayStrip from '../../components/gex/ReplayStrip';
-import { barsAt, barTimeAt, replayDay, replayMinute, replayRangeAt, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
-/*
-  THE POSITIONS BOOK BRINGS ag-grid WITH IT (2026-09-14, Noah: "terrain and
-  pinpoint and a few other areas dont load"). Importing it here statically put
-  1,128KB of grid library on the Map's critical path — a data grid, parsed and
-  compiled before a page whose subject is a chart could draw. On this machine
-  that is invisible; on a CPU four times slower, which is any laptop or phone,
-  parsing is 55% of the page's whole load and the Map took ten seconds to show
-  a level.
-
-  It is already the LAST box on the page and already behind <Deferred> by 34
-  frames, so nothing about when it appears changes — the chunk just arrives
-  with it instead of ahead of everything else.
-*/
-const PositionsBook = lazy(() => import('../../components/gex/PositionsBook'));
-import { ladderExpiryOptions, LadderPatternStrip } from '../../components/gex/ladderControls';
+import { barsAt, replayDay, replayMinute, replayRange, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
+import { readPosition, usePositions } from '../../data/positions';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
-import { GREEK_OPTIONS, type Greek } from '../../data/compare';
-import { readHeatPattern } from '../../data/gex';
-import { twinFamilyFor, twinLabel, twinPrice, twinBasis, fmtTwin, type TwinLensKey } from '../../data/indexTwins';
-import type { Timeframe } from '../../data/timeframe';
 import type { ExposureExpiry } from '../../types/gex';
 import type { Candle, MarketSnapshot } from '../../types/market';
 import { useOnScreen } from '../../components/ui/useOnScreen';
 
-/** The book sweeps on its own cadence — the chart's trails must not vibrate with every tick. */
+/** The book sweeps on its own cadence — the boxes must not vibrate with every tick. */
 const SCAN_INTERVAL_MS = 10_000;
-/* THE HEAD'S CHOICES, as dropdown cards with one plain line each (the approved
-   Targets grammar, 2026-09-05). The chart's own controls — timeframes,
-   Indicators, Alerts, Candles, fullscreen — come from ChartToolbar, the same
-   head Pulse and Terrain wear, so the top of every chart reads the same. */
-/* Spelled as dates on the market calendar (Noah, 2026-09-08) — one list with the desk's ladder */
-const EXPIRY_OPTIONS: DropdownOption<ExposureExpiry>[] = ladderExpiryOptions();
-/* THE GREEK is one pick now (2026-09-13): it chooses the chart's trails. The
-   board under the map carries every greek at once, one panel each. */
-const GREEK_DROP: DropdownOption<Greek>[] = GREEK_OPTIONS.map(g => ({ value: g.value, label: g.label, hint: g.hint }));
-/* THE WINDOW IS THE WHOLE BOOK (Noah, 2026-09-05): thirty strikes each side
-   are built once; the chart draws whatever of them it has on screen. */
+/* THE WINDOW IS THE WHOLE BOOK (Noah, 2026-09-05): thirty strikes each side are
+   built once; the boxes draw whatever of them they need. */
 const WINDOW: StrikeWindow = 30;
-/** The Map owns its first screen: the top bar, the shell's head (2026-09-09:
-    the house head) and the page's padding — and the board under it takes a
-    screen of its own */
-const MAP_H = 'calc(100vh - 184px)';
+/** Your positions read against the 0DTE book — the same book the ladder tile draws */
+const POSITIONS_EXPIRY: ExposureExpiry = '0DTE';
 
 /*
   EACH BOX CAN HOLD ITS OWN NAME (Noah, 2026-09-06: "i should be able to change
@@ -105,15 +64,14 @@ const MAP_H = 'calc(100vh - 184px)';
   chip unlinks it, then it reads its own snapshot (the simulator's pure read,
   refreshed on the scan cadence) and its chip wears the name. Held across route
   changes within a session and reset on reload, so every visit starts as one.
-  The board's panels carry their own chips (GreekBoard).
 */
-type BoxKey = 'map' | 'day' | 'report';
+type BoxKey = 'calendar' | 'day' | 'report';
 type Scopes = Partial<Record<BoxKey, string>>;
 let scopesMemory: Scopes = {};
 
 const MapDesk = () => {
-  const { marketData, flowTape, activeTicker, changeTicker } = useMarketData();
-  const { focus, focusOn } = useFocus();
+  const { marketData, activeTicker, changeTicker } = useMarketData();
+  const { focus, toggleFocus, focusOn } = useFocus();
 
   /* Which boxes have stepped off the frame, and onto which name */
   const [scopes, setScopesState] = useState<Scopes>(scopesMemory);
@@ -126,53 +84,23 @@ const MapDesk = () => {
       return next;
     });
 
-  /* The chart folds in the newest bar on every tick — the same counter Terrain keeps */
-  const revRef = useRef(0);
-  const revision = useMemo(() => ++revRef.current, [marketData]);
-
-  /* THE TOOLBAR'S STATE — the book's lens */
-  const [expiry, setExpiry] = useState<ExposureExpiry>('0DTE');
-  const [greek, setGreek] = useState<Greek>('gex');
-  /* 15m FIRST (Noah, 2026-09-06, the screenshot he sent: "i want this to be
-     the first view a person sees when they enter the page") — the whole
-     session on the tape; 1m is one click away on the head. */
-  const [timeframe, setTimeframe] = useState<Timeframe>('15m');
-  const [lens, setLens] = useState<TwinLensKey>('etf');
-  /* The chart's own settings, owned by the shared head (ChartToolbar) */
-  const [overlays, setOverlays] = useState<ChartOverlays>(DEFAULT_OVERLAYS);
-  const [chartStyle, setChartStyle] = useState<ChartStyle>('candles');
-  const [indicators, setIndicators] = useState<ChartIndicators>(DEFAULT_INDICATORS);
-  /* Draw mode on the chart — the rail's tools arm it, Esc or Done leaves it */
-  const [drawing, setDrawing] = useState(false);
-  /* FULLSCREEN IS THE SAME BOX, MOVED — not a second copy in a portal. One
-     body, one chart: the box animates between its place in the page and the
-     whole viewport (framer `layout`), so the chart stays mounted and nothing
-     jumps or vanishes. */
-  const [full, setFull] = useState(false);
-  const close = () => setFull(false);
-  useEffect(() => {
-    if (!full) return;
-    const onKey = (e: KeyboardEvent) => {
-      // A modal over the takeover took the key already (Modal marks it)
-      if (e.key === 'Escape' && !e.defaultPrevented) setFull(false);
-    };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [full]);
+  /* ONE LENS PER PAGE (Noah, 2026-09-08, "do the sync"): the calendar's Greek is
+     the page's — the calendar's "All" is the five greeks side by side.
+     THE MAP OPENS ON ALL FIVE (Noah, 2026-09-21: "the initial render of the
+     pinpoint map page should be the 5 box setup always") — the ladder with a
+     pane a greek, the net bar in each; the pick is the page's for the visit,
+     never stored, so every visit opens the same way. */
+  const [greekPick, setGreekPick] = useState<string[]>(['all']);
 
   /* REPLAY (2026-09-08): one position on today's session — seconds from the
-     open — and every box that follows the frame reads the book as it stood
-     then (data/replay.ts). The strip under the head is the transport; the
-     chart's own replay follows the same clock; the frame grid is five
-     seconds, so the bars turn rather than step. Esc, a name change, or
-     "Back to live" ends it. Boxes pinned to another name stay live. */
-  const [replay, setReplay] = useState<{ phase: 'pick' } | { phase: 'play'; range: ReplayRange; pos: number; playing: boolean; pace: number } | null>(null);
+     open — and every box reads the book as it stood then (data/replay.ts).
+     The strip on the calendar's band is the transport; it starts from the open
+     (the chart whose bar picked the minute is gone from this page). Esc, a
+     name change, or "Back to live" ends it. Boxes pinned to another name stay
+     live. */
+  const [replay, setReplay] = useState<{ phase: 'play'; range: ReplayRange; pos: number; playing: boolean; pace: number } | null>(null);
   const replayOn = replay != null;
-  const playing = replay?.phase === 'play' ? replay : null;
+  const playing = replay;
 
   /* Scan-tier snapshot: the book sweeps every SCAN_INTERVAL_MS (a name change is immediate) */
   const [scan, setScan] = useState<MarketSnapshot | null>(null);
@@ -191,7 +119,7 @@ const MapDesk = () => {
 
   /* THE OWN-NAME SNAPSHOTS — one per name a box has stepped onto, rebuilt on
      the scan cadence like the frame's own. A pure read of the simulator. */
-  const pinnedKey = [scopes.map, scopes.day, scopes.report].filter(Boolean).join('|');
+  const pinnedKey = [scopes.calendar, scopes.day, scopes.report].filter(Boolean).join('|');
   const ownSnaps = useMemo(() => {
     const m = new Map<string, MarketSnapshot>();
     if (!scan || !pinnedKey) return m;
@@ -205,15 +133,12 @@ const MapDesk = () => {
     }
     return m;
   }, [scan, pinnedKey]);
-  /* WHILE PICKING, only the line moves (2026-09-11): the book rewinds once a
-     bar is picked, the way the other charts' replays do. */
-  const moment = playing ? { range: playing.range, pos: playing.pos } : null;
-  const range = moment?.range ?? null;
-  const framePos = moment && range ? snapPos(moment.pos, range.length) : 0;
-  const replaySnap = useMemo(() => (range && scan ? snapshotAt(scan, range, framePos) : null), [range, scan, framePos]);
-  /* THE MINUTE GRID for the boxes under the map (2026-09-11): the board, the
-     clock and the report read the book once per replayed minute — their
-     surfaces are the page's heaviest. The chart keeps the five-second grid. */
+
+  /* The session on hand for the replay, and the book at the position — THE
+     MINUTE GRID (2026-09-11): the calendar, the clock and the report read the
+     book once per replayed minute; their surfaces are the page's heaviest. */
+  const range = playing?.range ?? null;
+  const framePos = playing && range ? snapPos(playing.pos, range.length) : 0;
   const minutePos = Math.floor(framePos / 60) * 60;
   const replaySnapMinute = useMemo(() => (range && scan ? snapshotAt(scan, range, minutePos) : null), [range, scan, minutePos]);
   const replayBars = useMemo(() => (range ? barsAt(range, minutePos) : undefined), [range, minutePos]);
@@ -221,7 +146,7 @@ const MapDesk = () => {
     if (!playing?.playing || !range) return;
     const id = window.setInterval(() => {
       setReplay(r => {
-        if (!r || r.phase !== 'play' || !r.playing) return r;
+        if (!r || !r.playing) return r;
         const next = r.pos + r.pace * 0.25;
         return next >= range.length ? { ...r, pos: range.length, playing: false } : { ...r, pos: next };
       });
@@ -238,47 +163,75 @@ const MapDesk = () => {
   }, [replayOn]);
   /* A replay was recorded in one name's world — a new name ends it */
   useEffect(() => setReplay(null), [scan?.ticker]);
-  /* Replay opens on the PICK: the chart's cursor turns silver and the bar you
-     click is the minute the replay starts from, paused (the TradingView way) */
-  const toggleReplay = () => setReplay(r => (r ? null : { phase: 'pick' }));
-  const pickTime = (time: number) => {
+  /* Replay opens at the OPEN, paused — the strip's own scrubber takes it from there */
+  const startReplay = () => {
     if (!scan) return;
-    const at = replayRangeAt(scan.ticker, time);
-    if (!at) return;
-    setReplay({ phase: 'play', range: at.range, pos: at.pos, playing: false, pace: 60 });
+    const r = replayRange(scan.ticker);
+    if (!r) return;
+    setReplay({ phase: 'play', range: r, pos: 0, playing: false, pace: 60 });
   };
+  /** The calendar's transport: the door to start, then the strip with the position */
+  const replayBar = replay ? (
+    <ReplayStrip
+      compact
+      phase={replay.phase}
+      pos={playing?.pos ?? 0}
+      length={playing?.range.length ?? 0}
+      day={playing ? replayDay(playing.range) : undefined}
+      playing={playing?.playing ?? false}
+      onPlay={p => setReplay(r => (r ? { ...r, playing: p } : r))}
+      pace={playing?.pace ?? 60}
+      onPace={pace => setReplay(r => (r ? { ...r, pace } : r))}
+      onSeek={pos => setReplay(r => (r ? { ...r, pos } : r))}
+      onExit={() => setReplay(null)}
+    />
+  ) : (
+    <button
+      type="button"
+      onClick={startReplay}
+      title="Replay today's session from the open — every box on the page reads the book as it stood"
+      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+      data-map-replay
+    >
+      <Play className="w-3 h-3" /> Replay
+    </button>
+  );
 
-  /** The snapshot a box reads: the frame's (rewound while replaying — the map on
-      the five-second grid, the boxes under it on the minute), or its own */
-  const snapFor = (key: BoxKey | 'board'): MarketSnapshot | null => {
+  /* THE NAMES BESIDE THE CALENDAR'S REWIND WITH IT (2026-09-13): a column's
+     book is its name's own session at the replayed minute — a name with no
+     session on hand stays live */
+  const columnSnap = useCallback(
+    (t: string): MarketSnapshot => {
+      const live = Simulator.snapshotFor(t);
+      if (!range) return live;
+      const own = replayRange(t);
+      return own ? snapshotAt(live, own, Math.min(minutePos, own.length)) : live;
+    },
+    [range, minutePos]
+  );
+  /** The snapshot a box reads: the frame's (rewound to the minute while replaying), or its own */
+  const snapFor = (key: BoxKey): MarketSnapshot | null => {
     if (!scan) return null;
-    const t = key === 'board' ? undefined : scopes[key];
-    if (!t || t === scan.ticker) return (key === 'map' ? replaySnap : replaySnapMinute) ?? scan;
+    const t = scopes[key];
+    if (!t || t === scan.ticker) return replaySnapMinute ?? scan;
     return ownSnaps.get(t) ?? scan;
   };
-  /* A BOX NOBODY SEES HOLDS STILL while the replay runs (2026-09-11): the
-     board, the clock and the report sit under the map — below the fold, or
-     behind the fullscreen chart — and rebuilding them on every replayed minute
-     was the frame the chart stuttered on. Off screen, a box keeps the moment
-     it last showed; scrolled into view, it catches up on its next render. */
-  const [boardRef, boardOn] = useOnScreen<HTMLDivElement>();
+  /* A BOX NOBODY SEES HOLDS STILL while the replay runs (2026-09-11): off
+     screen, a box keeps the moment it last showed; scrolled into view, it
+     catches up on its next render. What it reads arrives DEFERRED. */
+  const [calRef, calOn] = useOnScreen<HTMLDivElement>();
   const [dayRef, dayOn] = useOnScreen<HTMLDivElement>();
   const [reportRef, reportOn] = useOnScreen<HTMLDivElement>();
-  const heldRef = useRef<{ board: MarketSnapshot | null; day: MarketSnapshot | null; report: MarketSnapshot | null; bars: Candle[] | undefined }>({ board: null, day: null, report: null, bars: undefined });
-  const shown = (key: 'board' | 'day' | 'report', on: boolean): MarketSnapshot | null => {
+  const heldRef = useRef<{ calendar: MarketSnapshot | null; day: MarketSnapshot | null; report: MarketSnapshot | null; bars: Candle[] | undefined }>({ calendar: null, day: null, report: null, bars: undefined });
+  const shown = (key: BoxKey, on: boolean): MarketSnapshot | null => {
     const fresh = snapFor(key);
     if (!replayOn || on || !heldRef.current[key]) heldRef.current[key] = fresh;
     return heldRef.current[key];
   };
-  /* Fullscreen lays the map over the whole viewport — the boxes under it are
-     still "in" the viewport to an observer, but nobody sees them. And what
-     they do read arrives DEFERRED: React renders the map's frame first and
-     the boxes' rebuild in a later, interruptible pass. */
-  const mapSnap = snapFor('map');
-  const boardSnap = useDeferredValue(shown('board', boardOn && !full));
-  const daySnap = useDeferredValue(shown('day', dayOn && !full));
-  const reportSnap = useDeferredValue(shown('report', reportOn && !full));
-  if (!replayOn || (reportOn && !full) || !heldRef.current.bars) heldRef.current.bars = replayBars;
+  const calSnap = useDeferredValue(shown('calendar', calOn));
+  const daySnap = useDeferredValue(shown('day', dayOn));
+  const reportSnap = useDeferredValue(shown('report', reportOn));
+  if (!replayOn || reportOn || !heldRef.current.bars) heldRef.current.bars = replayBars;
   const reportBars = useDeferredValue(heldRef.current.bars);
   /** The shared strike belongs to ONE name — a box on another name never draws it */
   const focusFor = (t: string) => (focus && focus.ticker === t ? focus.price : null);
@@ -293,195 +246,74 @@ const MapDesk = () => {
     />
   );
 
-  /* THE BOOK under the toolbar's lens — the ladder widget's own builder */
+  /* THE BOOK the positions read against — the frame's, at the replayed minute */
+  const frameSnap = replaySnapMinute ?? scan;
   const data = useMemo(() => {
-    if (!mapSnap) return null;
+    if (!frameSnap) return null;
     try {
-      return buildExposureProfile(mapSnap, expiry, WINDOW);
+      return buildExposureProfile(frameSnap, POSITIONS_EXPIRY, WINDOW);
     } catch {
       return null;
     }
-  }, [mapSnap, expiry]);
+  }, [frameSnap]);
 
-  /* The sentence — the engine's read of the book, in the lens's own prices */
-  const fam = mapSnap ? twinFamilyFor(mapSnap.ticker) : null;
-  const activeLens: TwinLensKey = fam ? lens : 'etf';
-  const pattern = useMemo(() => {
-    if (!data) return null;
-    const { levels } = data;
-    if (!fam || activeLens === 'etf') return readHeatPattern(levels);
-    const c = (v: number) => twinPrice(fam, activeLens, v, levels.spot);
-    return readHeatPattern({ spot: c(levels.spot), flip: c(levels.flip), callWall: c(levels.callWall), putWall: c(levels.putWall), supreme: c(levels.supreme) });
-  }, [data, fam, activeLens]);
-
-  /* Where the chart puts a price — kept for the chart's own readers */
-  const projectionRef = useRef<PriceProjection | null>(null);
-  const ticker = mapSnap?.ticker ?? activeTicker;
+  const ticker = frameSnap?.ticker ?? activeTicker;
   const focusPrice = focusFor(ticker);
+  const calTicker = calSnap?.ticker ?? ticker;
   const dayTicker = daySnap?.ticker ?? ticker;
   const reportTicker = reportSnap?.ticker ?? ticker;
 
-  /* The page stands in as its own boxes while the first read walks in
+  /* YOUR POSITIONS on this name (roadmap step 6): read against the 0DTE book,
+     once per scan; the ledger's marks and the box read the same map */
+  const positions = usePositions(ticker);
+  const reads = useMemo(() => new Map(data ? positions.map(p => [p.id, readPosition(p, data)]) : []), [positions, data]);
+  const marks = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const p of positions) {
+      const s = reads.get(p.id)?.sentence ?? '';
+      m.set(p.strike, m.has(p.strike) ? `${m.get(p.strike)}\n${s}` : s);
+    }
+    return m;
+  }, [positions, reads]);
+
+  /* The page stands in as its own four boxes while the first read walks in
      (Noah, 2026-09-08: a stock skeleton "doesn't take the shape of its
      container") — the same shapes the route's fallback and the deferred
-     mounts use, so nothing on the page moves when the map lands. */
-  if (!scan || !mapSnap || !data) return <MapPageSkeleton />;
-
-  const body = (isFull: boolean) => (
-    <div className="flex flex-col h-full min-h-0" data-map>
-      {/* THE HEAD — one thin line over the chart. Left: the map's scope chip.
-          Right: the chart's own head, the same ChartToolbar Pulse and Terrain
-          wear (timeframes, Indicators, Alerts, Candles, fullscreen). */}
-      <div className="shrink-0 flex items-center gap-2 flex-wrap px-2 py-1.5 bg-panel border-b border-borderSubtle/70" data-map-toolbar>
-        <span data-map-scope>{chipFor('map', ticker)}</span>
-        <div className="flex-1 min-w-0">
-          <ChartToolbar
-            minimal
-            candles
-            spread
-            timeframe={timeframe}
-            onTimeframe={setTimeframe}
-            overlays={overlays}
-            onOverlays={setOverlays}
-            chartStyle={chartStyle}
-            onChartStyle={setChartStyle}
-            indicators={indicators}
-            onIndicators={setIndicators}
-            paneId="pinpoint:map"
-            alertTicker={ticker}
-            alertSpot={data.levels.spot}
-            fullscreen={isFull}
-            onToggleFullscreen={() => (isFull ? close() : setFull(true))}
-            replay={replayOn}
-            onToggleReplay={toggleReplay}
-          />
-        </div>
-      </div>
-      {/* THE REPLAY STRIP — "select a bar" first, then the transport, while the page is rewound */}
-      {replay && (
-        <ReplayStrip
-          phase={replay.phase}
-          pos={playing?.pos ?? 0}
-          length={range?.length ?? 0}
-          day={range ? replayDay(range) : undefined}
-          playing={playing?.playing ?? false}
-          onPlay={p => setReplay(r => (r && r.phase === 'play' ? { ...r, playing: p } : r))}
-          pace={playing?.pace ?? 60}
-          onPace={pace => setReplay(r => (r && r.phase === 'play' ? { ...r, pace } : r))}
-          onSeek={pos => setReplay(r => (r && r.phase === 'play' ? { ...r, pos } : r))}
-          onExit={() => setReplay(null)}
-        />
-      )}
-      {/* THE SENTENCE ROW — the one line of prose the page keeps, with the
-          instrument whose prices it prints right after it, and at the far
-          right the two choices that shape the levels and the trails (Expiry ·
-          Greek). */}
-      {pattern && (
-        <LadderPatternStrip
-          pattern={pattern}
-          after={
-            fam ? (
-              <span role="group" aria-label="Prices in" className="shrink-0 inline-flex items-center gap-1.5 ml-1" data-instrument>
-                <span className="text-[10px] text-textMuted">prices in</span>
-                <span className="inline-flex h-6 rounded-full border border-borderSubtle p-[2px] gap-[2px]">
-                  {(['etf', 'index', 'futures'] as TwinLensKey[]).map(k => (
-                    <button
-                      key={k}
-                      aria-pressed={activeLens === k}
-                      onClick={() => setLens(k)}
-                      title={k === 'etf' ? 'Prices as the fund trades' : k === 'index' ? `Prices as the index, ${fam.index}` : `Prices as the futures, ${fam.futures} ${fmtTwin(twinPrice(fam, 'futures', data.levels.spot, data.levels.spot))} — ${fmtTwin(twinBasis(fam, data.levels.spot))} over ${fam.index}`}
-                      className="px-2 rounded-full text-[10px] font-medium transition-colors"
-                      style={activeLens === k ? { background: 'rgb(var(--silver-fill))', color: '#0a0a0a' } : { color: 'rgb(var(--text-secondary))' }}
-                    >
-                      {twinLabel(fam, k)}
-                    </button>
-                  ))}
-                </span>
-              </span>
-            ) : null
-          }
-          right={
-            <span className="inline-flex items-center gap-2" data-axis-controls>
-              <DropdownSelect label="Expiry" value={expiry} options={EXPIRY_OPTIONS} onChange={setExpiry} title="Which contracts the levels are read from" testId="expiry" align="end" />
-              <DropdownSelect label="Greek" value={greek} options={GREEK_DROP} onChange={setGreek} title="Which greek the chart's trails follow" testId="greek" align="end" />
-            </span>
-          }
-        />
-      )}
-      {/* THE MAP — the tape, the whole box */}
-      {/* A dark island on any page (2026-09-12): the tape reads the dark tokens */}
-      <div className="relative flex-1 min-h-0 flex bg-panel" data-theme="dark">
-        <div className="relative flex-1 min-w-0" key={ticker}>
-          {/* The chart mounts a frame after the page paints, behind its skeleton
-              (2026-09-06, the perf sweep) */}
-          <Deferred fallback={<ChartGround axis={74} />} className="h-full animate-fade-in">
-            <StrikeChart
-              ticker={ticker}
-              paneId="pinpoint:map"
-              revision={revision}
-              /* The tape is the frame's name's — a box on another name draws none */
-              flowPrints={ticker === activeTicker ? flowTape : []}
-              levels={data.levels}
-              timeframe={timeframe}
-              overlays={overlays}
-              chartStyle={chartStyle}
-              indicators={indicators}
-              focusPrice={focusPrice}
-              projectionRef={projectionRef}
-              height={isFull ? 600 : 420}
-              railTopOk={isFull}
-              priceTag
-              frameless
-              /* THE DRAWING TOOLS, wired like Pulse's chart (2026-09-06) —
-                 drawings are saved per name and every chart of that name
-                 draws them */
-              drawing={drawing}
-              onEnterDraw={() => setDrawing(true)}
-              onExitDraw={() => setDrawing(false)}
-              /* The chart's replay on the Map's clock — one scrubber for the page;
-                 first the pick, the bar you click being the minute it starts from */
-              replay={replay?.phase === 'play'}
-              replayTime={playing && range ? barTimeAt(range, framePos) : null}
-              onExitReplay={() => setReplay(null)}
-              pickTime={replay?.phase === 'pick'}
-              onPickTime={pickTime}
-              /* The trails read the Greek the head picks (2026-09-06, Noah: "if
-                 gex is changed to dex then the exposure should change") */
-              trailsGreek={greek === 'vanna' || greek === 'charm' ? 'gex' : greek}
-            />
-          </Deferred>
-        </div>
-      </div>
-    </div>
-  );
+     mounts use, so nothing on the page moves when the book lands. */
+  if (!scan || !data) return <MapPageSkeleton />;
 
   return (
     <>
-      <motion.div
-        layout
-        /* Measure for the layout move ONLY when the box moves (fullscreen on or
-           off) — by default framer re-measures on every render, a forced layout
-           of the whole page on each tick and each replay frame (2026-09-11) */
-        layoutDependency={full}
-        transition={{ layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
-        data-map-box
-        data-full={full ? 'true' : 'false'}
-        className={full ? 'fixed inset-0 z-[80] bg-panel flex flex-col' : 'relative border border-borderSubtle rounded-md overflow-hidden'}
-        /* full: the script editor's dock takes the right edge while it is open (data/editorDock.ts) */
-        style={full ? DOCK_ROOM : { height: MAP_H, minHeight: 560 }}
-      >
-        {body(full)}
-      </motion.div>
-      {/* BAND 3 — THE GREEK BOARD: the strikes under the map, up to five Net
-          strips side by side, one greek each (2026-09-13). Each panel wears
-          its own scope chip; the strike a panel pins is the same shared strike
-          the chart lights. A screen of its own, so every row is readable. */}
-      {/* The boxes under the map mount one per frame behind their skeletons
-          (2026-09-06, the perf sweep) — they are below the fold, and building
-          them inside the click was half the page's cost. */}
-      <div ref={boardRef} className="border border-borderSubtle rounded-md overflow-hidden flex flex-col bg-panel" style={{ height: MAP_H, minHeight: 560 }} data-greek-board-box data-on-screen={boardOn}>
-        <Deferred index={1} frames={22} fallback={<BoardInner />} className="h-full min-h-0 flex flex-col animate-fade-in">
-          <GreekBoard snapshot={boardSnap ?? scan} frameTicker={activeTicker} onFrameTicker={changeTicker} revision={revision} timeframe={timeframe} expiry={expiry} />
+      {/* THE CALENDAR, FIRST — the same book by expiry, the Exposure Ledger with
+          its one-row toolbar (greek · expiries · strikes · palette · Now | After
+          the bell · the read · fullscreen) and the replay's transport. The host
+          names the book, so the ledger's head carries no name or search. The
+          strike a capsule pins is the same shared strike every box lights. */}
+      {/* 870px = the whole default window (±20 strikes at the ledger's 18px
+          floor) with the toolbar and the read line, no scrolling — the lock
+          walk's first fix (Noah, 2026-09-09: "the heatmap length is a bit
+          short so make it taller"; at 600 only 25 of the 40 rows showed) */}
+      <div ref={calRef} className="border border-borderSubtle rounded-md overflow-hidden h-[870px] flex flex-col" data-calendar data-scope-ticker={calTicker} data-on-screen={calOn}>
+        <Deferred index={0} frames={0} fallback={<CalendarInner />} className="h-full min-h-0 flex flex-col animate-fade-in">
+          <ExposureField
+            snapshot={calSnap ?? scan}
+            toolbar="band"
+            lead={chipFor('calendar', calTicker)}
+            greeks={greekPick}
+            onGreeks={setGreekPick}
+            fullMode="move"
+            fresh={replayOn && calTicker === ticker}
+            after={calTicker === ticker ? replayBar : undefined}
+            selectedStrike={focusFor(calTicker)}
+            marks={calTicker === ticker ? marks : undefined}
+            onSelectStrike={price => toggleFocus(price, calTicker)}
+            /* NAMES SIDE BY SIDE (2026-09-12): up to four books on the one band; a
+               kept strike belongs to its own name */
+            multi
+            selectedStrikeFor={focusFor}
+            onSelectStrikeFor={(t, price) => toggleFocus(price, t)}
+            snapshotFor={columnSnap}
+          />
         </Deferred>
       </div>
       {/* THE DAY — the two tools nobody ships (roadmap step 5, 2026-09-05):
@@ -491,27 +323,20 @@ const MapDesk = () => {
       {/* No overflow clip here: the clock's hover card rises above the strip and a
           long phase sentence would be cut at the box's top edge */}
       <div ref={dayRef} className="border border-borderSubtle rounded-md bg-panel" data-day data-scope-ticker={dayTicker} data-on-screen={dayOn}>
-        <Deferred index={2} frames={26} fallback={<DayInner />} className="animate-fade-in">
-          <TraderClock snapshot={daySnap ?? scan} scope={chipFor('day', dayTicker)} at={moment && dayTicker === ticker ? replayMinute(framePos) : undefined} />
+        <Deferred index={1} frames={22} fallback={<DayInner />} className="animate-fade-in">
+          <TraderClock snapshot={daySnap ?? scan} scope={chipFor('day', dayTicker)} at={playing && dayTicker === ticker ? replayMinute(framePos) : undefined} />
         </Deferred>
       </div>
       {/* HOW THE LEVELS HELD TODAY — full width, in the approved grammar: the
           page grows rather than cramming (Noah, 2026-09-05) */}
       <div ref={reportRef} className="border border-borderSubtle rounded-md overflow-hidden bg-panel" data-report data-scope-ticker={reportTicker} data-on-screen={reportOn}>
-        <Deferred index={3} frames={30} fallback={<ReportInner />} className="animate-fade-in">
-          <WallReportCard snapshot={reportSnap ?? scan} focus={focusFor(reportTicker)} onPick={price => focusOn(price, reportTicker)} scope={chipFor('report', reportTicker)} bars={moment && reportTicker === ticker ? reportBars : undefined} />
+        <Deferred index={2} frames={26} fallback={<ReportInner />} className="animate-fade-in">
+          <WallReportCard snapshot={reportSnap ?? scan} focus={focusFor(reportTicker)} onPick={price => toggleFocus(price, reportTicker)} scope={chipFor('report', reportTicker)} bars={playing && reportTicker === ticker ? reportBars : undefined} />
         </Deferred>
       </div>
-      {/* YOUR POSITIONS — the book made personal (roadmap step 6): what this
-          map means for the contracts you actually hold. The last question in
-          the read, so the last box on the page. */}
-      <div className="border border-borderSubtle rounded-md overflow-hidden bg-panel">
-        <Deferred index={4} frames={34} fallback={<PositionsInner />} className="animate-fade-in">
-          <Suspense fallback={<PositionsInner />}>
-            <PositionsBook profile={data} focus={focusPrice} onPick={price => focusOn(price, ticker)} />
-          </Suspense>
-        </Deferred>
-      </div>
+      {/* YOUR POSITIONS left this page for the Weigher's desk (Noah, 2026-09-14: "this is a
+          feature a weigher section should have and not a pinpoint map section") — the map keeps
+          the marks the positions leave on its ladder (`marks` above) */}
     </>
   );
 };

@@ -8,7 +8,7 @@
 ==================================================
 */
 
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import Simulator from '../../core/simulator';
 import ThemePreview from './ThemePreview';
 import { createPortal } from 'react-dom';
@@ -58,12 +58,15 @@ import AlertsMenu from './AlertsMenu';
 import { useAlerts } from './alertStore';
 import JingleBell from '../ui/JingleBell';
 import { BAR_CLOCKS } from '../../data/altBars';
-import { type MenuSide } from '../ui/menuPlacement';
+import { MENU_EDGE, type MenuSide } from '../ui/menuPlacement';
 import { OPENING_RANGES, type OpeningRange } from '../../data/sessionLevels';
 
 interface ChartToolbarProps {
   timeframe: Timeframe;
   onTimeframe: (tf: Timeframe) => void;
+  /** Only these intervals — a chart whose tape cannot make one must not offer it (Review's backtest replays one-minute
+      bars: no 15s; and a year of them is too few weeks for a weekly) */
+  timeframes?: Timeframe[];
   overlays: ChartOverlays;
   onOverlays: (next: ChartOverlays) => void;
   /** Minimal mode: timeframes + overlays only (expanded flow-board charts). */
@@ -92,6 +95,29 @@ interface ChartToolbarProps {
    * an eighth of the screen where the first attempt took a quarter.)
    */
   compact?: boolean;
+  /** THE INTERVALS STAY BUTTONS in a compact strip — one press from any other, TradingView's way (the desks, 2026-09-22:
+      "you can change timeframes easily"); compact then only sheds the dropdowns' words */
+  keepIntervals?: boolean;
+  /**
+   * THE SMALL MENUS — for a DOCKED pane (Noah, 2026-09-13, three menus open
+   * over a two-up Terrain desk: "on non full screen views be sure to make
+   * this dropdown boxes smaller"). Every row is one line with its sentence
+   * as the hover name; the price scale and the bar clock are one row of
+   * chips each (the Opening range's grammar); the Theme menu is the list
+   * alone — the 620px preview card is fullscreen's. The controls are the
+   * same, only the room they take. Off by default: the Weigher's card and a
+   * takeover keep the full menus.
+   */
+  dense?: boolean;
+  /**
+   * THE PANE'S BOX — every menu this strip opens stays inside it (Noah,
+   * 2026-09-13, the right-hand pane's menus hanging into the left one:
+   * "aren't in their section"), and the dense Theme menu sizes its preview to
+   * fit it. A host on a desk of several panes passes its own box; a chart
+   * that owns the screen or a card can leave it out, and the window bounds
+   * the menus as before.
+   */
+  menuBounds?: RefObject<HTMLElement | null>;
   /** Stack the strip top-to-bottom — the floating toolbox docked to a side
       edge (Noah, 2026-08-23). Ignores `spread`. */
   vertical?: boolean;
@@ -162,6 +188,10 @@ interface ChartToolbarProps {
      port — unwired callers keep following the app-wide store. */
   themeKey?: CandleThemeKey;
   onThemeKey?: (key: CandleThemeKey) => void;
+  /** What rides the strip RIGHT AFTER THE INTERVALS, a hairline before it — a desk's full screen puts its RP&L and UP&L
+      there (Noah, 2026-09-22: "put the p and l buttons in between timeframes and the indicator button on the top … on full
+      screen of course"). A spread strip's gap starts after it, so a top-docked rail still centres in what is left. */
+  afterIntervals?: ReactNode;
 }
 
 const TIMEFRAME_OPTIONS = TIMEFRAMES.map(t => ({ value: t.value, label: t.label }));
@@ -175,12 +205,15 @@ export const TimeframeStrip = ({
   value,
   onChange,
   vertical = false,
+  only,
 }: {
   value: Timeframe;
   onChange: (tf: Timeframe) => void;
   vertical?: boolean;
+  only?: Timeframe[];
 }) => {
   const uid = useId();
+  const options = only ? TIMEFRAME_OPTIONS.filter(o => only.includes(o.value)) : TIMEFRAME_OPTIONS;
   return (
     <div
       role="group"
@@ -192,7 +225,7 @@ export const TimeframeStrip = ({
          fit. */
       className={`inline-flex gap-0.5 ${vertical ? 'flex-col items-stretch' : 'flex-wrap items-center'}`}
     >
-      {TIMEFRAME_OPTIONS.map(opt => {
+      {options.map(opt => {
         const active = opt.value === value;
         return (
           <button
@@ -317,6 +350,7 @@ const Dropdown = ({
   onToggle,
   menuSide = 'bottom',
   title,
+  bounds,
   children,
 }: {
   label: string;
@@ -326,12 +360,14 @@ const Dropdown = ({
   menuSide?: MenuSide;
   /** Hover name — carries the words when a compact trigger drops its label. */
   title?: string;
+  /** The box the menu stays inside — the host's pane (see `menuBounds`). */
+  bounds?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) => {
   /* The placement plumbing lives in useAnchoredMenu now — the symbol
      quick-pick and the compare '+' need the same thing, and this was the only
      copy that had it. */
-  const { anchorRef, placed, menuRef } = useAnchoredMenu<HTMLButtonElement>(open, menuSide);
+  const { anchorRef, placed, menuRef } = useAnchoredMenu<HTMLButtonElement>(open, menuSide, undefined, 'end', bounds);
 
   const Caret = MENU_SIDE_CARET[placed?.side ?? menuSide];
   return (
@@ -411,8 +447,12 @@ const ChartToolbar = ({
   minimal = false,
   candles = false,
   overlayKeys,
+  timeframes,
   spread = false,
   compact = false,
+  keepIntervals = false,
+  dense = false,
+  menuBounds,
   vertical = false,
   menuSide = 'bottom',
   fullscreen = false,
@@ -437,6 +477,7 @@ const ChartToolbar = ({
   alertTicker,
   alertSpot = 0,
   onTotalFullscreen,
+  afterIntervals,
 }: ChartToolbarProps) => {
   const storeThemeKey = useCandleThemeKey();
   const themeKey = themeKeyProp ?? storeThemeKey;
@@ -514,6 +555,17 @@ const ChartToolbar = ({
      one until the pointer moves), drawn on the chart's own name — the alerts'
      name where the host gave one, the desk's active name otherwise */
   const [themePreview, setThemePreview] = useState<CandleThemeKey | null>(null);
+  /* THE DENSE THEME MENU'S MEASURE (Noah, 2026-09-13: "i still want the
+     preview image just smaller to fit that specific section and not bleed
+     out"): the list narrows to 168px and the preview takes what the pane's
+     width leaves beside it — 240px at most, 150 at least — so the whole
+     menu sits inside the pane. Read at render: the strip re-renders when a
+     menu opens, which is when the number matters. */
+  const denseRoom = dense ? (menuBounds?.current?.getBoundingClientRect().width ?? 0) : 0;
+  const themeListW = dense ? 168 : 212;
+  const themePreviewW = dense ? Math.max(150, Math.min(240, (denseRoom || 480) - themeListW - 2 * MENU_EDGE - 22)) : 352;
+  const themePreviewH = dense ? Math.round((themePreviewW * 200) / 352) : 200;
+  const themeMenuW = dense ? themeListW + themePreviewW + 22 : 620;
   useEffect(() => {
     if (openMenu !== 'candles') setThemePreview(null);
   }, [openMenu]);
@@ -533,10 +585,15 @@ const ChartToolbar = ({
       className={`flex ${
         vertical
           ? 'flex-col items-stretch gap-1'
-          : `items-center gap-2 flex-wrap ${spread && !compact ? 'w-full' : ''}`
+          : /* Spread works in compact too now (2026-09-13): the Weigher's
+               docked strip hands this toolbar a row of its own when it wraps,
+               and packed left it left the expand door mid-row. It used to be
+               `spread && !compact`, when compact meant "no room to spread
+               across" — the host's wrapper now grows to the row, so there is. */
+            `items-center gap-2 flex-wrap ${spread ? 'w-full' : ''}`
       }`}
     >
-      {compact ? (
+      {compact && !keepIntervals ? (
         /* The current interval IS the trigger, the way every mobile charting
            app does it — the label is the answer to "what am I looking at" and
            the menu is the answer to "what else can I look at". */
@@ -544,11 +601,11 @@ const ChartToolbar = ({
           label={TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label ?? String(timeframe)}
           open={openMenu === 'timeframe'}
           onToggle={() => setOpenMenu(m => (m === 'timeframe' ? null : 'timeframe'))}
-          menuSide={menuSide}
+          menuSide={menuSide} bounds={menuBounds}
           title="Timeframe"
         >
           <div role="group" aria-label="Timeframe">
-            {TIMEFRAME_OPTIONS.map(opt => {
+            {(timeframes ? TIMEFRAME_OPTIONS.filter(o => timeframes.includes(o.value)) : TIMEFRAME_OPTIONS).map(opt => {
               const active = opt.value === timeframe;
               return (
                 <button
@@ -570,7 +627,13 @@ const ChartToolbar = ({
           </div>
         </Dropdown>
       ) : (
-        <TimeframeStrip value={timeframe} onChange={onTimeframe} vertical={vertical} />
+        <TimeframeStrip value={timeframe} onChange={onTimeframe} vertical={vertical} only={timeframes} />
+      )}
+      {afterIntervals && !vertical && (
+        <>
+          <span className="w-px h-4 shrink-0 bg-borderSubtle" aria-hidden />
+          {afterIntervals}
+        </>
       )}
 
       {/* Spread mode: the divider stops being a line and becomes the spacer
@@ -581,14 +644,14 @@ const ChartToolbar = ({
         className={
           vertical
             ? 'h-px w-4 self-center bg-borderSubtle'
-            : spread && !compact
+            : spread
               ? /* it fills the gap rather than pushing from it (ml-auto), so it
                    has a width — the chart's top-docked drawing rail centres
                    itself in this box (StrikeChart useToolbarGap, 2026-09-12) */
                 'flex-1 min-w-0'
               : 'w-px h-4 shrink-0 bg-borderSubtle'
         }
-        data-toolbar-gap={spread && !compact && !vertical ? '' : undefined}
+        data-toolbar-gap={spread && !vertical ? '' : undefined}
         aria-hidden
       />
 
@@ -682,7 +745,7 @@ const ChartToolbar = ({
               title="Indicators"
               open={openMenu === 'indicators'}
               onToggle={() => setOpenMenu(m => (m === 'indicators' ? null : 'indicators'))}
-              menuSide={menuSide}
+              menuSide={menuSide} bounds={menuBounds}
             >
               <div className="p-1.5 flex flex-col gap-0.5">
                 {INDICATOR_ITEMS.map((item, idx) => {
@@ -762,7 +825,7 @@ const ChartToolbar = ({
               title="Alerts"
               open={openMenu === 'alerts'}
               onToggle={() => setOpenMenu(m => (m === 'alerts' ? null : 'alerts'))}
-              menuSide={menuSide}
+              menuSide={menuSide} bounds={menuBounds}
             >
               <AlertsMenu ticker={alertTicker} spot={alertSpot} tf={timeframe} />
             </Dropdown>
@@ -774,7 +837,7 @@ const ChartToolbar = ({
               title={onPriceScale ? 'Chart style & price scale' : 'Chart style'}
               open={openMenu === 'style'}
               onToggle={() => setOpenMenu(m => (m === 'style' ? null : 'style'))}
-              menuSide={menuSide}
+              menuSide={menuSide} bounds={menuBounds}
             >
               {/*
                 TWO SECTIONS, ONE TRIGGER — the tape's SHAPE and the AXIS it
@@ -805,7 +868,7 @@ const ChartToolbar = ({
                       onChartStyle(opt.value);
                       setOpenMenu(null);
                     }}
-                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded font-mono text-[11px] transition-colors ${
+                    className={`flex items-center gap-2.5 px-2.5 ${dense ? 'py-1' : 'py-1.5'} rounded font-mono text-[11px] transition-colors ${
                       opt.value === chartStyle
                         ? 'bg-ink/[0.06] text-textPrimary font-semibold'
                         : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'
@@ -819,7 +882,43 @@ const ChartToolbar = ({
                     {opt.value === chartStyle && <Check className="w-3 h-3 ml-auto text-select" />}
                   </button>
                 ))}
-                {onPriceScale && (
+                {/* DENSE: the four scales as one row of chips under their
+                    word, the full name and its line as the hover name — the
+                    Opening range's grammar (a docked pane's menu) */}
+                {onPriceScale && dense && (
+                  <div className="mt-1 pt-1.5 px-2.5 pb-1 border-t border-borderSubtle flex items-center gap-2">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted shrink-0">Price scale</span>
+                    <span
+                      role="group"
+                      aria-label="Price scale"
+                      className={`ml-auto inline-flex items-center gap-0.5 rounded border border-borderMuted p-0.5 ${priceScaleLock ? 'opacity-60' : ''}`}
+                    >
+                      {PRICE_SCALES.map(opt => {
+                        const live = (priceScaleLock?.mode ?? priceScale) === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            disabled={!!priceScaleLock}
+                            onClick={() => {
+                              onPriceScale(opt.value);
+                              setOpenMenu(null);
+                            }}
+                            aria-pressed={live}
+                            title={priceScaleLock ? `${priceScaleLock.reason} — the axis is held` : `${opt.label} — ${opt.blurb}`}
+                            className={`px-1.5 py-0.5 rounded font-mono text-[10px] tnum transition-colors ${priceScaleLock ? 'cursor-not-allowed' : ''} ${
+                              live
+                                ? 'bg-ink/[0.16] text-textPrimary font-semibold'
+                                : `text-textSecondary ${priceScaleLock ? '' : 'hover:text-textPrimary hover:bg-ink/[0.06]'}`
+                            }`}
+                          >
+                            {opt.short}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </div>
+                )}
+                {onPriceScale && !dense && (
                   <>
                     <span className="mt-1 mb-0.5 px-2.5 pt-1.5 border-t border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textMuted">
                       Price scale
@@ -871,7 +970,39 @@ const ChartToolbar = ({
                     )}
                   </>
                 )}
-                {onBarClock && (
+                {/* DENSE: the five clocks as one row of chips, the same way */}
+                {onBarClock && dense && (
+                  <div className="mt-1 pt-1.5 px-2.5 pb-1 border-t border-borderSubtle flex items-center gap-2">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted shrink-0">Bar clock</span>
+                    <span role="group" aria-label="Bar clock" className="ml-auto inline-flex items-center gap-0.5 rounded border border-borderMuted p-0.5">
+                      {BAR_CLOCKS.map(opt => {
+                        const on = (barClock ?? 'time') === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            onClick={() => {
+                              onBarClock(opt.key);
+                              setOpenMenu(null);
+                            }}
+                            aria-pressed={on}
+                            title={`${opt.label} — ${opt.blurb}`}
+                            className={`px-1.5 py-0.5 rounded font-mono text-[10px] tnum transition-colors ${
+                              on ? 'bg-ink/[0.16] text-textPrimary font-semibold' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'
+                            }`}
+                          >
+                            {opt.short}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </div>
+                )}
+                {onBarClock && dense && (barClock ?? 'time') !== 'time' && (
+                  <p className="px-2.5 pt-1 font-mono text-[9px] leading-relaxed text-textMuted">
+                    Rule bars fold the live seconds tape — no history before connect, and the interval-based overlays sit out.
+                  </p>
+                )}
+                {onBarClock && !dense && (
                   <>
                     <span className="mt-1 mb-0.5 px-2.5 pt-1.5 border-t border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textMuted">
                       Bar clock
@@ -912,11 +1043,12 @@ const ChartToolbar = ({
                     <div className="mt-1 pt-1 border-t border-borderSubtle" />
                     <button
                       onClick={onExportPng}
-                      className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded font-mono text-[11px] text-left text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
+                      title={dense ? 'This pane as an image — levels, drawings, watermark' : undefined}
+                      className={`flex items-center gap-2 w-full px-2.5 ${dense ? 'py-1' : 'py-1.5'} rounded font-mono text-[11px] text-left text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03] transition-colors`}
                     >
                       <span className="flex flex-col min-w-0">
                         <span>Export PNG</span>
-                        <span className="text-[9px] text-textMuted">This pane as an image — levels, drawings, watermark</span>
+                        {!dense && <span className="text-[9px] text-textMuted">This pane as an image — levels, drawings, watermark</span>}
                       </span>
                     </button>
                   </>
@@ -941,7 +1073,7 @@ const ChartToolbar = ({
         title="Overlays"
         open={openMenu === 'overlays'}
         onToggle={() => setOpenMenu(m => (m === 'overlays' ? null : 'overlays'))}
-        menuSide={menuSide}
+        menuSide={menuSide} bounds={menuBounds}
       >
         <div className="p-1.5 flex flex-col gap-0.5">
           {overlayItems.map(item => {
@@ -962,9 +1094,10 @@ const ChartToolbar = ({
                 aria-checked={on}
                 aria-disabled={heldByClock}
                 disabled={heldByClock}
-                title={heldByClock ? 'Needs time bars — the pane is on a rule clock' : undefined}
+                title={heldByClock ? 'Needs time bars — the pane is on a rule clock' : dense ? item.hint : undefined}
                 onClick={() => !heldByClock && onOverlays({ ...overlays, [item.key]: !on })}
-                className={`flex items-start gap-2.5 px-2.5 py-2 rounded text-left transition-colors ${
+                /* Dense: one line, the sentence as the hover name */
+                className={`flex ${dense ? 'items-center py-1' : 'items-start py-2'} gap-2.5 px-2.5 rounded text-left transition-colors ${
                   heldByClock ? 'opacity-40 cursor-default' : 'hover:bg-ink/[0.03]'
                 }`}
               >
@@ -979,9 +1112,11 @@ const ChartToolbar = ({
                   <span className={`block font-mono text-[11px] font-semibold ${on && !heldByClock ? 'text-textPrimary' : 'text-textSecondary'}`}>
                     {item.label}
                   </span>
-                  <span className="block text-[10px] text-textSecondary leading-snug">
-                    {heldByClock ? 'Needs time bars — held while the rule clock is on' : item.hint}
-                  </span>
+                  {!dense && (
+                    <span className="block text-[10px] text-textSecondary leading-snug">
+                      {heldByClock ? 'Needs time bars — held while the rule clock is on' : item.hint}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -1036,7 +1171,7 @@ const ChartToolbar = ({
         icon={<Palette className="w-3 h-3 text-[#BBB2E8]" />}
         open={openMenu === 'candles'}
         onToggle={() => setOpenMenu(m => (m === 'candles' ? null : 'candles'))}
-        menuSide={menuSide}
+        menuSide={menuSide} bounds={menuBounds}
       >
         {/* THE CHART ITSELF IN EVERY THEME (Noah, 2026-09-11: "an actual high
             quality image of the layout on the chart like how we have it for
@@ -1044,8 +1179,14 @@ const ChartToolbar = ({
             names down the left, the hovered theme drawn on the right by the
             chart engine on today's bars for this name, one CTA under it. The
             swatch stays on each row as its mark. */}
-        <div className="w-[620px] flex" data-theme-menu>
-          <div className="w-[212px] shrink-0 max-h-[380px] overflow-y-auto border-r border-borderSubtle">
+        {/* DENSE (a docked pane): the same card, cut to the pane — the list
+            at 168px with the line as the hover name, the preview sized to
+            what the pane leaves beside it (themePreviewW above). */}
+        <div className="flex" style={{ width: themeMenuW }} data-theme-menu data-dense={dense ? '' : undefined}>
+          <div
+            className={`shrink-0 overflow-y-auto border-r border-borderSubtle ${dense ? 'max-h-[320px]' : 'max-h-[380px]'}`}
+            style={{ width: themeListW }}
+          >
             {CANDLE_THEME_OPTIONS.map(opt => {
               const t: CandleTheme = CANDLE_THEMES[opt.value];
               const hollowUp = t.borderUp !== undefined && t.borderUp !== t.up;
@@ -1056,7 +1197,8 @@ const ChartToolbar = ({
                   onClick={() => pickTheme(opt.value)}
                   onMouseEnter={() => setThemePreview(opt.value)}
                   onFocus={() => setThemePreview(opt.value)}
-                  className={`w-full text-left flex items-center gap-2.5 px-3 py-2 border-b border-borderSubtle/40 last:border-0 transition-colors ${shown ? 'bg-ink/[0.06]' : 'hover:bg-ink/[0.03]'}`}
+                  title={dense ? opt.hint : undefined}
+                  className={`w-full text-left flex items-center gap-2.5 px-3 ${dense ? 'py-1.5' : 'py-2'} border-b border-borderSubtle/40 last:border-0 transition-colors ${shown ? 'bg-ink/[0.06]' : 'hover:bg-ink/[0.03]'}`}
                   data-theme-option={opt.value}
                 >
                   <span className="inline-flex h-4 w-7 shrink-0 items-center justify-center gap-[3px] rounded-[3px] border border-ink/10" style={{ background: t.canvas?.bg ?? '#111214' }}>
@@ -1065,22 +1207,24 @@ const ChartToolbar = ({
                   </span>
                   <span className="flex flex-col min-w-0">
                     <span className={`text-[12px] font-semibold ${opt.value === themeKey ? 'text-silver' : 'text-textPrimary'}`}>{opt.label}</span>
-                    <span className="text-[10px] text-textMuted truncate">{opt.hint}</span>
+                    {!dense && <span className="text-[10px] text-textMuted truncate">{opt.hint}</span>}
                   </span>
                   {opt.value === themeKey && <Check className="w-3 h-3 ml-auto shrink-0 text-silver" />}
                 </button>
               );
             })}
           </div>
-          <div className="flex-1 min-w-0 p-3 flex flex-col gap-2">
-            <ThemePreview ticker={previewTicker} timeframe={timeframe} themeKey={themePreview ?? themeKey} width={352} height={200} />
-            <span className="text-[12px] font-semibold text-textPrimary">{shownTheme.label}</span>
-            <span className="text-[10px] text-textSecondary leading-snug">
-              {shownTheme.hint} · today's bars on {previewTicker}, drawn by the chart itself
+          <div className={`flex-1 min-w-0 flex flex-col ${dense ? 'p-2.5 gap-1.5' : 'p-3 gap-2'}`}>
+            <ThemePreview ticker={previewTicker} timeframe={timeframe} themeKey={themePreview ?? themeKey} width={themePreviewW} height={themePreviewH} />
+            <span className={`font-semibold text-textPrimary ${dense ? 'text-[11px]' : 'text-[12px]'}`}>{shownTheme.label}</span>
+            <span className={`text-textSecondary leading-snug ${dense ? 'text-[9px]' : 'text-[10px]'}`}>
+              {dense ? shownTheme.hint : `${shownTheme.hint} · today's bars on ${previewTicker}, drawn by the chart itself`}
             </span>
             <button
               onClick={() => pickTheme(shownTheme.value)}
-              className="mt-auto w-full py-1.5 rounded holo-bg text-[#0a0a0a] hover:brightness-105 font-mono text-[10px] font-semibold uppercase tracking-wider transition-all"
+              className={`mt-auto w-full rounded holo-bg text-[#0a0a0a] hover:brightness-105 font-mono font-semibold uppercase tracking-wider transition-all ${
+                dense ? 'py-1 text-[9px]' : 'py-1.5 text-[10px]'
+              }`}
               data-theme-use
             >
               {shownTheme.value === themeKey ? `${shownTheme.label} is on` : `Use ${shownTheme.label}`}

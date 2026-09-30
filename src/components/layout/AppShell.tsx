@@ -1,45 +1,20 @@
-import { Component, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { RotateCcw } from 'lucide-react';
 import SideNav from './SideNav';
 import CommandPalette from './CommandPalette';
 import SiteFooter from './SiteFooter';
 import RouteSkeleton from '../ui/RouteSkeleton';
-/*
-  THE EDITOR IS NOT PART OF THE BOOT (2026-09-13, the load sweep). Importing
-  this dock here statically pulled CodeMirror, the Pine interpreter and the
-  script library — and through the library, lightweight-charts and StrikeChart
-  — into the entry chunk: ~700KB of the 1,506KB every page downloaded, parsed
-  and compiled before it could draw, for a panel that renders `null` until
-  somebody opens it.
-
-  The open flag has to be read OUT HERE for the split to mean anything: the
-  dock is rendered unconditionally, so a lazy() around it would resolve on the
-  first render and load the chunk anyway. data/editorDock is a bare
-  useSyncExternalStore with no dependencies of its own, so asking it costs
-  nothing and the editor now arrives when it is opened.
-*/
-import { useEditorDock } from '../../data/editorDock';
-const EditorDock = lazy(() => import('../scripts/EditorDock'));
-/* THE PAPER DESK'S CLOCK AND ITS FILLS (2026-09-19): the engine and the market
-   state travel only when the desk has something live (a flag the engine
-   writes beside its book) or the reader is on it — the same rule as the
-   editor: nothing of it in the entry chunk. */
-const PaperToasts = lazy(() => import('./PaperToasts'));
-const PAPER_LIVE_FLAG = 'slayer_paper_live';
-const paperIsLive = (): boolean => {
-  try {
-    return localStorage.getItem(PAPER_LIVE_FLAG) === '1';
-  } catch {
-    return false;
-  }
-};
+import EditorDockGate from '../scripts/EditorDockGate';
 import AlertsDrawer from '../alerts/AlertsDrawer';
 import AlertWatcher from '../alerts/AlertWatcher';
 import AlertToasts from '../alerts/AlertToasts';
+import PaperRunner from '../paper/PaperRunner';
 import ScrollHome from './ScrollHome';
 import WayBack from './WayBack';
+import { useIsBelowLg } from '../ui/useMediaQuery';
+import { OPEN_PALETTE_EVENT } from './paletteDoor';
+import { FaultView, isLoadFault, reloadOnceForStaleBuild } from '../ui/Fault';
 
 /** A page crash must never black-screen the terminal — it renders a readable
     fault panel instead. Recovers via the resetKey prop (NOT a React key: a key
@@ -56,32 +31,25 @@ class RouteBoundary extends Component<{ children: ReactNode; resetKey: string },
       this.setState({ error: null });
     }
   }
+  componentDidCatch(error: Error) {
+    /* a page's code asked for by a name the server no longer has (a deploy under an open tab): nothing is wrong, so it
+       reloads itself — once (ui/Fault.tsx) */
+    if (isLoadFault(error) && navigator.onLine !== false) reloadOnceForStaleBuild();
+  }
   render() {
     if (!this.state.error) return this.props.children;
+    /* WHAT THE READER IS TOLD is ui/Fault.tsx (2026-09-19): it used to say "tell us in Community → Feedback", a page that
+       was removed on 2026-09-13, under a lime button — lime is the live ink, not a button's */
     return (
-      <div className="border border-bear/30 bg-bear/[0.04] rounded-lg p-8 flex flex-col items-start gap-3">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-bear">Page fault</span>
-        <p className="text-[13px] text-textSecondary leading-relaxed max-w-lg">
-          This page hit an error and stopped rendering. The rest of the terminal is fine — reload the
-          page, or head back to Pulse. If it keeps happening, tell us in Community → Feedback.
-        </p>
-        <code className="font-mono text-[11px] text-textMuted break-all">{this.state.error.message}</code>
-        <div className="mt-2 flex items-center gap-3">
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-borderMuted font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" /> Reload
-          </button>
-          <Link
-            to="/pulse"
-            onClick={() => this.setState({ error: null })}
-            className="inline-flex items-center px-3 py-1.5 rounded-md font-mono text-[11px] font-semibold uppercase tracking-wider text-[#0a0a0a] bg-[#D2FF00]"
-          >
+      <FaultView
+        error={this.state.error}
+        scope="page"
+        back={
+          <Link to="/pulse" onClick={() => this.setState({ error: null })} className="inline-flex items-center h-9 px-4 rounded-md border border-borderMuted text-[12.5px] font-medium text-textPrimary hover:bg-ink/[0.05]">
             Back to Pulse
           </Link>
-        </div>
-      </div>
+        }
+      />
     );
   }
 }
@@ -105,8 +73,6 @@ const FULL_PAGE_DETOURS = ['/pulse/board'];
 
 const AppShell = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
-  /* Read out here, not inside the dock — see the import note above. */
-  const editorOpen = useEditorDock().open;
   const location = useLocation();
   const transitionKey = FULL_PAGE_DETOURS.includes(location.pathname)
     ? location.pathname
@@ -123,8 +89,13 @@ const AppShell = () => {
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+    /* a page may offer the palette as a button (paletteDoor.ts) — the not-found page's search */
+    window.addEventListener(OPEN_PALETTE_EVENT, openPalette);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener(OPEN_PALETTE_EVENT, openPalette);
+    };
+  }, [openPalette]);
 
   /* Only the CHART pages stay framed to the viewport. The table pages scroll
      with the page like the Live Tape (Noah, 2026-08-30) — they left this set. */
@@ -136,23 +107,23 @@ const AppShell = () => {
      a slight scroll down"). The trick is calc-free: main's height is definite,
      so a child's h-full resolves to exactly the viewport remainder — the desk
      fills the first screenful, and the footer sits just past the fold. */
-  /* The Paper desk wears the Weigher's frame (2026-09-19): the tab below it, the same screenful */
-  const weigherFrame = location.pathname.startsWith('/weigher') || location.pathname.startsWith('/paper');
-  /* Once the desk has been opened this session, or has a book, its clock rides the shell */
-  const [paperWanted, setPaperWanted] = useState(paperIsLive);
-  useEffect(() => {
-    if (location.pathname.startsWith('/paper')) setPaperWanted(true);
-  }, [location.pathname]);
-  /* Terrain is a charting desk: it fits the screen exactly and carries no
-     footer (Noah, 2026-09-12) — the frame with no gutters at all. */
-  const terrainFrame = location.pathname.startsWith('/terrain');
-  const framePage = bleedPage || weigherFrame || terrainFrame;
+  /* …and NOT below `lg` (the phone pass, 2026-09-13): a phone's screenful
+     cannot hold four cards, and a tablet's column beside the sidebar is 532px
+     — so the desk stacks into a column there and the page scrolls like any
+     other. */
+  /* …and since 2026-09-14 NOT AT ALL: the Weigher is a page like the others — its top row
+     (the chart and the chain) is a window whose height the sash sets, its bottom row (the
+     watchlist and the position) grows with its rows, and the page scrolls (Noah: the fixed
+     frame could not hold the position card). */
+  const framePage = bleedPage;
 
   return (
     /* THE FRAME (Noah, 2026-09-05, direction B): the terminal's ONE subject
        and its navigation live in a sidebar on the left; the page owns the
        rest of the width. The top bar is gone. */
-    <div className="h-screen flex flex-row bg-canvas text-textPrimary overflow-hidden">
+    /* h-dvh over h-screen: on a phone 100vh is the height with the address bar AWAY, and this frame never lets the document
+       scroll, so the bar never leaves — the last ~80px of every page sat under it (index.css, "a touch screen's two traps") */
+    <div className="h-screen h-dvh flex flex-row bg-canvas text-textPrimary overflow-hidden">
       <SideNav onOpenPalette={openPalette} />
       {/* The Trace flow pages are a FIXED FRAME, not a scroll: main stops
           scrolling, every layer fills its parent exactly, and the page's own
@@ -171,7 +142,11 @@ const AppShell = () => {
           main reserves its scrollbar gutter on every Trace page so a page
           without a scrollbar is not 15px wider than one with. */}
       <main
-        className={`flex-1 min-w-0 min-h-0 h-full ${bleedPage || terrainFrame ? 'overflow-hidden' : 'overflow-y-auto'} ${
+        /* max-md:pt-12 — the phone strip (SideNav, fixed, h-12) used to sit on
+           the first 48px of every page; the page head began under it (the
+           phone pass, 2026-09-13). Pulse's and Terrain's phone layouts
+           subtract the same 3rem from the viewport. */
+        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 ${bleedPage ? 'overflow-hidden' : 'overflow-y-auto'} ${
           location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''
         }`}
       >
@@ -210,15 +185,7 @@ const AppShell = () => {
                  definite height), shrink-0 so the footer below cannot squeeze
                  it — the overflow IS the slight scroll. Tight top like Trace
                  (Noah, 2026-08-30: "way too much space up top"). */
-              className={`${
-                terrainFrame
-                  ? 'p-0 gap-0 h-full min-h-0 overflow-hidden'
-                  : bleedPage
-                  ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-0 gap-4 h-full min-h-0 overflow-hidden'
-                  : weigherFrame
-                    ? 'px-4 lg:px-6 2xl:px-8 pt-2 pb-3 gap-2.5 h-full min-h-0 overflow-hidden shrink-0'
-                    : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'
-              } flex flex-col flex-grow`}
+              className={`${bleedPage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-0 gap-4 h-full min-h-0 overflow-hidden' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
             >
               <RouteBoundary resetKey={location.pathname}>
                 {/* A page's code travels on its first visit (App's lazy routes);
@@ -230,33 +197,27 @@ const AppShell = () => {
             </div>
             {/* The landing's footer ends every main page (Noah, 2026-08-23) —
                 except Trace (Noah, 2026-08-30: "the trace page shouldnt have
-                a footer at all"): the tape runs to the floor. */}
-            {/* Trace runs to the floor with no footer; the Weigher keeps its
-                footer one slight scroll past the fold (Noah, 2026-08-30). */}
-            {!location.pathname.startsWith('/trace') && !terrainFrame && <SiteFooter />}
+                a footer at all"): the tape runs to the floor — and Terrain
+                (Noah, 2026-09-13: "for the terrain page remove the footer"):
+                the chart runs to the floor. The Weigher keeps its footer one
+                slight scroll past the fold (Noah, 2026-08-30). */}
+            {!location.pathname.startsWith('/trace') && !location.pathname.startsWith('/terrain') && <SiteFooter />}
           </motion.div>
         </AnimatePresence>
       </main>
       {/* THE SCRIPT EDITOR (2026-09-10): docked at the right of a full-screen
           chart, the takeover narrowed to leave it room — see data/editorDock.ts */}
-      {editorOpen && (
-        <Suspense fallback={null}>
-          <EditorDock />
-        </Suspense>
-      )}
+      <EditorDockGate />
       {/* EVERY ALERT IN ONE PLACE (2026-09-10): the sidebar's bell opens it
           at the right, over any page — see data/alertsDrawer.ts */}
       <AlertsDrawer />
       {/* HEAR IT EVERYWHERE (2026-09-10): every name's alerts watched on every
           page, and a firing shown wherever the reader is */}
       <AlertWatcher />
+      {/* A PAPER ACCOUNT'S ORDERS, WATCHED ON EVERY PAGE (2026-09-22) — a stop fills while the reader is elsewhere, and the
+          chip above says so (data/paper/store.ts) */}
+      <PaperRunner />
       <AlertToasts />
-      {/* PAPER FILLS, HEARD EVERYWHERE (2026-09-19): a stop left on the chart is watched on every page, and its fill shown wherever the reader is */}
-      {paperWanted && (
-        <Suspense fallback={null}>
-          <PaperToasts muted={location.pathname.startsWith('/paper')} />
-        </Suspense>
-      )}
       <CommandPalette open={paletteOpen} onClose={closePalette} />
     </div>
   );

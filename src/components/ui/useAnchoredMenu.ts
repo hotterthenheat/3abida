@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { placeMenu, type MenuBox, type MenuSide } from './menuPlacement';
 
 /*
@@ -48,7 +48,11 @@ export function useAnchoredMenu<T extends HTMLElement, M extends HTMLElement = H
       Omitted, the placement assumes MENU_MIN_WIDTH — see placeMenu. */
   menuWidth?: number,
   /** Which edges meet — see placeMenu's `align`. Default 'end'. */
-  align: 'start' | 'end' = 'end'
+  align: 'start' | 'end' = 'end',
+  /** The box the menu stays inside — a pane on a desk of several (see
+      placeMenu's `bounds`). Read at every placement, so a pane that moves or
+      resizes while the menu is open is followed. */
+  bounds?: RefObject<HTMLElement | null>
 ) {
   const anchorRef = useRef<T | null>(null);
   const [placed, setPlaced] = useState<{ box: MenuBox; side: MenuSide } | null>(null);
@@ -88,8 +92,9 @@ export function useAnchoredMenu<T extends HTMLElement, M extends HTMLElement = H
   const measure = useCallback(() => {
     const el = anchorRef.current;
     if (!el) return;
-    setPlaced(placeMenu(el.getBoundingClientRect(), menuSide, window.innerWidth, window.innerHeight, width, align));
-  }, [menuSide, width, align]);
+    const frame = bounds?.current?.getBoundingClientRect();
+    setPlaced(placeMenu(el.getBoundingClientRect(), menuSide, window.innerWidth, window.innerHeight, width, align, frame && frame.width > 0 ? frame : undefined));
+  }, [menuSide, width, align, bounds]);
 
   /** Put this on the menu element itself when the width is not passed in. */
   const menuRef = useRef<M | null>(null);

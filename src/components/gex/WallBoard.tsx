@@ -13,26 +13,25 @@
   the shared strike in the shell. Rows are
   subgrids, so the wash is one band.
 
-  THE ROWS SHARE THE BOX (the lock walk, Noah,
-  2026-09-09: "make every wall on the strikes show
-  taller and cover the full box when it becomes
-  taller"): the box is up to BOARD_H tall and the
-  walls split what the head and the sentence leave —
-  five walls stand ~64px each, nine ~36px, never
-  under 24 (past that the grid scrolls). The type,
-  the beam and the made-of bar grow with the row,
-  the calendar's way, so a tall row is not a thin
-  line lost in space. AND NEVER PAST 64 (Noah,
-  2026-09-10, four walls at 85px: "it became HUGE"):
-  the box itself is sized by `boardH(n)`, so four
-  walls make a shorter box, not taller rows.
+  EVERY ROW IS ONE HEIGHT (2026-09-13; Noah: the box
+  "just keeps increasing and decreasing in size and
+  it's way too big… the made-of bars, wall etc
+  should not be getting bigger"): the rows used to
+  share a box of up to 480px and grow with it —
+  type, beam and bar — so every change in the wall
+  count re-sized everything. Now a row is 30px, the
+  type 11/10px, the beam 6×52, the bar 8px, and the
+  box is as tall as its rows. A shelf near the line
+  stays listed while it holds three quarters of it
+  (data/wall.ts), so the count itself stops
+  flickering.
 ==================================================
 */
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ROLE_INK } from './AtTheWall';
 import { heatLaneColor } from './heatmap';
-import { BOARD_COLUMNS as COLUMNS, BOARD_HEAD_H, boardRows } from './wallSkeletons';
+import { BOARD_COLUMNS as COLUMNS, boardRows } from './wallSkeletons';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { WallBoard as Board } from '../../data/wall';
 
@@ -43,8 +42,13 @@ const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
     2026-09-08: "everything is gray and practically unable to read") */
 const madeOfInk = (weight: number, max: number) => heatLaneColor(-Math.abs(weight), max, 'thermal-yellow', 0.35);
 const pct = (v: number) => `${Math.round(v * 100)}%`;
-const ROW_MIN = 24;
-const ROW_GAP = 3;
+/* the one row's sizes */
+const fig = '11px';
+const small = '10px';
+const tagSize = '8px';
+const beamH = 6;
+const beamW = 52;
+const barInset = '11px';
 
 interface Props {
   board: Board;
@@ -59,33 +63,8 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
   const max = Math.max(1, ...board.walls.map(w => w.weightEff));
   const n = board.walls.length;
 
-  /* HOW TALL A ROW IS — read off the grid, so the type and the bars can grow with it */
-  const gridRef = useRef<HTMLDivElement | null>(null);
-  const [rowH, setRowH] = useState(ROW_MIN);
-  useLayoutEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const read = () => {
-      const h = el.clientHeight;
-      const next = Math.max(ROW_MIN, (h - BOARD_HEAD_H - ROW_GAP * Math.max(1, n)) / Math.max(1, n));
-      setRowH(prev => (Math.abs(prev - next) < 0.5 ? prev : next));
-    };
-    read();
-    const ro = new ResizeObserver(read);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [n]);
-  /* 0 at a 24px row, 1 from 64px: the scale the type and the bars follow */
-  const s = Math.max(0, Math.min(1, (rowH - ROW_MIN) / 40));
-  const fig = `${(11 + 2 * s).toFixed(1)}px`;
-  const small = `${(10 + 2 * s).toFixed(1)}px`;
-  const tagSize = `${(8 + 1.5 * s).toFixed(1)}px`;
-  const beamH = Math.round(6 + 4 * s);
-  const beamW = Math.round(52 + 28 * s);
-  const barInset = `${Math.round(rowH * 0.34)}px`;
-
   return (
-    <section className="relative flex flex-col min-w-0 h-full min-h-0" data-wall-board data-row-h={rowH.toFixed(1)}>
+    <section className="relative flex flex-col min-w-0" data-wall-board data-rows={n}>
       <div className="shrink-0 px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
@@ -97,8 +76,8 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
           </p>
         </div>
       </div>
-      <div className="flex-1 min-h-0 px-5 pb-2 overflow-auto" data-wall-rows onPointerLeave={() => setHover(null)}>
-        <div ref={gridRef} className="grid h-full min-w-[900px] items-center gap-x-3 gap-y-[3px]" style={{ gridTemplateColumns: COLUMNS, gridTemplateRows: boardRows(n) }}>
+      <div className="px-5 pb-2 overflow-x-auto" data-wall-rows onPointerLeave={() => setHover(null)}>
+        <div className="grid min-w-[900px] items-center gap-x-3 gap-y-[3px]" style={{ gridTemplateColumns: COLUMNS, gridTemplateRows: boardRows(n) }}>
           <div className="text-[9px] uppercase tracking-widest text-textMuted">Wall</div>
           <div className="text-[9px] uppercase tracking-widest text-textMuted text-right">{clock.inSession ? 'Reached' : 'Reached next'}</div>
           <div className="text-[9px] uppercase tracking-widest text-textMuted text-right">Holds</div>

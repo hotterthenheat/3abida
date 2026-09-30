@@ -122,13 +122,34 @@ export function placeMenu(
    * its own pane, the way every native dropdown under a left-hand control
    * does. Both are still clamped to the window at both ends.
    */
-  align: 'start' | 'end' = 'end'
+  align: 'start' | 'end' = 'end',
+  /**
+   * THE BOX THE MENU MAY NOT LEAVE, when it is smaller than the window.
+   *
+   * A pane on a desk of two or four is a section of its own, and a menu that
+   * reaches past its edge opens over the neighbour (Noah, 2026-09-13, the
+   * Alerts and Candles menus of the right-hand pane hanging into the left one:
+   * "aren't in their section"). Given, every clamp below — both horizontal
+   * ends, the room above and below, the flip — reads this box's edges where it
+   * read the window's; the window is still the outer bound, since a frame can
+   * itself run off screen. Omitted, the frame IS the window and every caller
+   * places exactly as before.
+   */
+  bounds?: AnchorRect
 ): { box: MenuBox; side: MenuSide } {
   let s = side;
-  const below = vh - rect.bottom - MENU_OFFSET - MENU_EDGE;
-  const above = rect.top - MENU_OFFSET - MENU_EDGE;
-  const roomRight = vw - rect.right - MENU_OFFSET - MENU_EDGE;
-  const roomLeft = rect.left - MENU_OFFSET - MENU_EDGE;
+  const frame: AnchorRect = bounds
+    ? {
+        left: Math.max(0, bounds.left),
+        top: Math.max(0, bounds.top),
+        right: Math.min(vw, bounds.right),
+        bottom: Math.min(vh, bounds.bottom),
+      }
+    : { left: 0, top: 0, right: vw, bottom: vh };
+  const below = frame.bottom - rect.bottom - MENU_OFFSET - MENU_EDGE;
+  const above = rect.top - frame.top - MENU_OFFSET - MENU_EDGE;
+  const roomRight = frame.right - rect.right - MENU_OFFSET - MENU_EDGE;
+  const roomLeft = rect.left - frame.left - MENU_OFFSET - MENU_EDGE;
 
   /* Flip only when the other side is genuinely better. `above > below` rather
      than `above >= MENU_MIN_USEFUL`: in a window too short for either, staying
@@ -164,9 +185,17 @@ export function placeMenu(
     The width is `menuWidth`, not MENU_MIN_WIDTH: assuming the minimum keeps
     exactly that much on screen and lets everything wider hang off the edge.
   */
-  const farRight = Math.max(MENU_EDGE, vw - menuWidth - MENU_EDGE);
-  const anchorRight = (v: number) => Math.min(Math.max(MENU_EDGE, v), farRight);
-  const anchorLeft = (v: number) => Math.min(Math.max(MENU_EDGE, v), farRight);
+  /* In the frame's terms: a LEFT edge may sit from the frame's left edge in to
+     a menu-width short of its right; a RIGHT offset (from the window's right)
+     may sit from the frame's right edge in to a menu-width short of its left.
+     A frame narrower than the menu keeps the near edge honest and lets the
+     far one go — the same choice the window clamp made. */
+  const leftMin = frame.left + MENU_EDGE;
+  const leftMax = Math.max(leftMin, frame.right - menuWidth - MENU_EDGE);
+  const rightMin = vw - frame.right + MENU_EDGE;
+  const rightMax = Math.max(rightMin, vw - frame.left - menuWidth - MENU_EDGE);
+  const anchorRight = (v: number) => Math.min(Math.max(rightMin, v), rightMax);
+  const anchorLeft = (v: number) => Math.min(Math.max(leftMin, v), leftMax);
 
   const hAnchor = align === 'start' ? { left: anchorLeft(rect.left) } : { right: anchorRight(vw - rect.right) };
   if (s === 'bottom') {
@@ -175,12 +204,12 @@ export function placeMenu(
   if (s === 'top') {
     return {
       side: s,
-      box: { ...hAnchor, bottom: Math.max(MENU_EDGE, vh - rect.top + MENU_OFFSET), maxHeight: cap(above) },
+      box: { ...hAnchor, bottom: Math.max(vh - frame.bottom + MENU_EDGE, vh - rect.top + MENU_OFFSET), maxHeight: cap(above) },
     };
   }
   /* Side-docked: the menu hangs from the trigger's TOP edge, so the room left
      is everything below that. */
-  const beside = vh - rect.top - MENU_EDGE;
+  const beside = frame.bottom - rect.top - MENU_EDGE;
   if (s === 'right') {
     return { side: s, box: { left: anchorLeft(rect.right + MENU_OFFSET), top: rect.top, maxHeight: cap(beside) } };
   }

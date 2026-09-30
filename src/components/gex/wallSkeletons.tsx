@@ -25,25 +25,19 @@ export const REASON_COLUMNS = '150px minmax(0,1fr) 112px minmax(0,1.3fr)';
 export const REASON_KEYS = ['weight', 'tests', 'build', 'expiry', 'speed', 'prints', 'vol'] as const;
 /** Wall · reached · holds · made of · tested · expires · if it breaks · if it holds */
 export const BOARD_COLUMNS = '140px 80px 112px minmax(140px,1fr) 128px 88px 104px 104px';
-/** The board's box at its tallest (the lock walk, Noah 2026-09-09: "make every
-    wall on the strikes show taller and cover the full box") — the rows share
-    this height. CAPPED (Noah, 2026-09-10, four walls at 85px each: "it became
-    HUGE" → "cap it at 64"): a row never stands taller than the five-wall
-    height, so with fewer walls the box ends sooner instead of stretching. */
-export const BOARD_H = 480;
 /** The column-head row of the board's grid */
 export const BOARD_HEAD_H = 14;
-/** A row at its tallest — the five-wall height Noah approved */
-export const BOARD_ROW_MAX = 64;
+/** A ROW IS ONE FIXED HEIGHT (2026-09-13; Noah: the box "keeps increasing and
+    decreasing in size and it's way too big… the made-of bars, wall etc should
+    not be getting bigger"): the rows once shared a box of up to 480px and
+    grew with it, type, beam and bar — now every row is 30px and the box is
+    as tall as its rows. The lock walk's "cover the full box" (2026-09-09) and
+    the 64px cap (2026-09-10) are both retired by this. */
+export const BOARD_ROW_H = 30;
 /** The gap between rows (the grid's gap-y) */
 export const BOARD_ROW_GAP = 3;
-/** Everything in the box that is not a row: the head, the rows' bottom pad, the
-    sentence, the borders — measured at 480 with seven walls (rows 45.9px). */
-export const BOARD_CHROME = 124;
-/** The box's height for n walls: the rows at their tallest, or BOARD_H, whichever is less */
-export const boardH = (n: number) => Math.min(BOARD_H, BOARD_CHROME + BOARD_HEAD_H + Math.max(1, n) * (BOARD_ROW_MAX + BOARD_ROW_GAP));
-/** The row template: the column heads, then every wall sharing what is left, never under 24px */
-export const boardRows = (n: number) => `${BOARD_HEAD_H}px repeat(${Math.max(1, n)}, minmax(24px, 1fr))`;
+/** The row template: the column heads, then every wall at the one height */
+export const boardRows = (n: number) => `${BOARD_HEAD_H}px repeat(${Math.max(1, n)}, ${BOARD_ROW_H}px)`;
 export const PATHS_W = 1200;
 export const PATHS_H = 130;
 export const PATHS_M = { l: 44, r: 44 };
@@ -160,10 +154,10 @@ export const AtTheWallInner = () => {
 
 /* ---- box 2 ---------------------------------------------------------------------- */
 
-/** Every wall, standing: the head, the grid on the SAME column template with the rows
-    sharing the box's height (BOARD_H), the sentence */
-export const WallBoardInner = ({ rows = 8 }: { rows?: number }) => (
-  <section className="flex flex-col min-w-0 h-full min-h-0" aria-hidden data-skeleton="wall-board">
+/** Every wall, standing: the head, the grid on the SAME column template at the
+    one row height, the sentence */
+export const WallBoardInner = ({ rows = 6 }: { rows?: number }) => (
+  <section className="flex flex-col min-w-0" aria-hidden data-skeleton="wall-board">
     <div className="shrink-0 px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
       <div className="min-w-0 flex-1">
         <div className="h-6 flex items-center gap-3">
@@ -175,8 +169,8 @@ export const WallBoardInner = ({ rows = 8 }: { rows?: number }) => (
         </div>
       </div>
     </div>
-    <div className="flex-1 min-h-0 px-5 pb-2 overflow-x-auto">
-      <div className="grid h-full min-w-[900px] items-center gap-x-3 gap-y-[3px]" style={{ gridTemplateColumns: BOARD_COLUMNS, gridTemplateRows: boardRows(rows) }}>
+    <div className="px-5 pb-2 overflow-x-auto">
+      <div className="grid min-w-[900px] items-center gap-x-3 gap-y-[3px]" style={{ gridTemplateColumns: BOARD_COLUMNS, gridTemplateRows: boardRows(rows) }}>
         {[28, 52, 36, 118, 74, 66, 60, 56].map((w, i) => (
           <div key={`h-${i}`} className={`h-[14px] flex items-center ${i === 1 || i === 2 || i === 4 || i === 5 ? 'justify-end' : ''}`}>
             <Skeleton className="h-2" style={{ width: w }} line />
@@ -196,8 +190,8 @@ export const WallBoardInner = ({ rows = 8 }: { rows?: number }) => (
               <Skeleton className="h-[8px] w-[52px] rounded-full" />
             </div>
             <div className="h-full relative flex items-center">
-              <span className="absolute inset-y-[32%] left-0 right-14 rounded-full bg-ink/[0.04]" />
-              <Skeleton className="absolute inset-y-[32%] left-0 rounded-full" style={{ width: `${[64, 48, 30, 22, 14, 10, 8][r % 7]}%` }} />
+              <span className="absolute inset-y-[11px] left-0 right-14 rounded-full bg-ink/[0.04]" />
+              <Skeleton className="absolute inset-y-[11px] left-0 rounded-full" style={{ width: `${[64, 48, 30, 22, 14, 10, 8][r % 7]}%` }} />
               <Skeleton className="absolute right-0 h-2.5 w-9" line />
             </div>
             <div className="h-full flex items-center justify-end">
@@ -224,12 +218,13 @@ export const WallBoardInner = ({ rows = 8 }: { rows?: number }) => (
 
 /* ---- the page ------------------------------------------------------------------- */
 
-export const WallPageSkeleton = ({ rows = 8 }: { rows?: number }) => (
+/* six walls stand in — the book's own count runs five to nine */
+export const WallPageSkeleton = ({ rows = 6 }: { rows?: number }) => (
   <>
     <div className="border border-borderSubtle rounded-md bg-panel" data-wall>
       <AtTheWallInner />
     </div>
-    <div className="border border-borderSubtle rounded-md bg-panel flex flex-col" style={{ height: boardH(rows) }} data-wall-every>
+    <div className="border border-borderSubtle rounded-md bg-panel" data-wall-every>
       <WallBoardInner rows={rows} />
     </div>
   </>

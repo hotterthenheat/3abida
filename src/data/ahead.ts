@@ -43,6 +43,7 @@
 */
 
 import { impliedDaySigma } from './atr';
+import { lastSessionSupreme, moveIntoClose, ofLast, rangeFrom, recentSessions, sessionSoFar } from './aheadHistory';
 import { sessionBars } from './levelview';
 import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
 import { buildVannaCharm } from './vannacharm';
@@ -212,15 +213,45 @@ export function buildCorridor(snapshot: MarketSnapshot, profile: ExposureProfile
     }
   }
 
+  /* THE SENTENCE SAYS WHAT THE DRAWING CANNOT (2026-09-13; the partner's
+     review: the words restated the chart's numbers): the range against what
+     price actually did — how often the last sessions stayed inside a range
+     this wide (from this minute on, in session), and where the last session's
+     high and low stopped against today's walls. The flip's split stays: it
+     is the drawing's one meaning, not a number on it. */
   const splitWords =
     flipInside == null
       ? ''
       : fastSide === 'below'
         ? ` Below ${fmtStrike(flipInside)} moves run; above it they slow.`
         : ` Above ${fmtStrike(flipInside)} moves run; below it they slow.`;
-  const lid = high.why === 'the call wall' ? ` The call wall at ${fmtStrike(callWall)} is the lid.` : '';
-  const floor = low.why === 'the put wall' ? ` The put wall at ${fmtStrike(putWall)} is the floor.` : '';
-  const sentence = `${clock.inSession ? 'Likely to hold' : 'When it opens, likely to hold'} between ${fmtPrice(low.price)} and ${fmtPrice(high.price)}.${lid}${floor}${splitWords}`;
+  const width = high.price - low.price;
+  const past = recentSessions(snapshot.ticker, 5, clock.inSession);
+  let held = '';
+  if (past.length) {
+    if (clock.inSession && clock.nowMin != null) {
+      const from = clock.nowMin;
+      const ranges = past.map(s => rangeFrom(s, from)).filter((v): v is number => v != null);
+      if (ranges.length) {
+        const inside = ranges.filter(r => r <= width + 1e-9).length;
+        held = ` From ${hhmm(from)} to the close, price stayed inside a range this wide in ${ofLast(inside, ranges.length)}; they ran ${fmtStrike(Math.min(...ranges))} to ${fmtStrike(Math.max(...ranges))}.`;
+      }
+    } else {
+      const ranges = past.map(s => s.high - s.low);
+      const inside = ranges.filter(r => r <= width + 1e-9).length;
+      held = ` Price stayed inside a range this wide in ${ofLast(inside, ranges.length)}; the last ran ${fmtStrike(ranges[0])}.`;
+    }
+  }
+  const against = clock.inSession ? sessionSoFar(snapshot.ticker, true) : past[0];
+  let wallWords = '';
+  if (against) {
+    const upGap = callWall - against.high;
+    const downGap = against.low - putWall;
+    const upWords = upGap >= 0 ? `stopped ${fmtStrike(upGap)} under the call wall at ${fmtStrike(callWall)}` : `went ${fmtStrike(-upGap)} through the call wall at ${fmtStrike(callWall)}`;
+    const downWords = downGap >= 0 ? `held ${fmtStrike(downGap)} above the put wall at ${fmtStrike(putWall)}` : `went ${fmtStrike(-downGap)} through the put wall at ${fmtStrike(putWall)}`;
+    wallWords = ` ${clock.inSession ? "So far today the high" : "The last session's high"} ${upWords}, and ${clock.inSession ? 'the' : 'its'} low ${downWords}.`;
+  }
+  const sentence = `${clock.inSession ? 'Likely to hold' : 'When it opens, likely to hold'} between ${fmtPrice(low.price)} and ${fmtPrice(high.price)}, a ${fmtStrike(width)}-point range.${held}${wallWords}${splitWords}`;
 
   return { spot, sigma, sigmaDay, likely: { low, high }, outer, flip: flipInside, fastSide, cone, path, sentence };
 }
@@ -360,18 +391,32 @@ export function buildCloseOdds(profile: ExposureProfileData, spot: number, sigma
   /* THE READS, one per line — the likeliest strikes, the two bands as odds,
      then who is pulling and what the clock does (2026-09-09: "half the time"
      and "four times in five" read as riddles — the bands are 50% and 80%) */
+  /* EACH READ CARRIES A COMPARISON THE DRAWING CANNOT (2026-09-13): where the
+     last close (or spot, in session) sits against the runs; how many of the
+     recent sessions a 50% run this wide would have caught, from their open;
+     how far the last session closed from its own heaviest strike. */
   let reads: CloseReads | null = null;
   if (lead) {
     const at = (r: CloseOdd) => `${fmtStrike(r.strike)} at ${r.odds.toFixed(0)}%`;
-    const likely = `${at(lead)}${top[1] ? `, then ${at(top[1])}` : ''}${top[2] ? ` and ${at(top[2])}` : ''}`;
-    const bands = `a 50% chance it closes between ${fmtStrike(half.low)} and ${fmtStrike(half.high)} · an 80% chance between ${fmtStrike(most.low)} and ${fmtStrike(most.high)}`;
+    const past = recentSessions(profile.ticker, 5, clock.inSession);
+    const step = rows.length > 1 ? Math.abs(rows[0].strike - rows[1].strike) || 1 : 1;
+    const inRun = (p: number, b: CloseBand) => (b.strikes ? p >= b.low - step / 2 && p <= b.high + step / 2 : false);
+    const mark = clock.inSession ? spot : past[0]?.close ?? null;
+    const markWords = mark == null ? '' : ` · ${clock.inSession ? `spot at ${fmtPrice(mark)}` : `the last close, ${fmtPrice(mark)},`} sits ${inRun(mark, half) ? 'inside the 50% run' : inRun(mark, most) ? 'inside the 80% run, outside the 50%' : 'outside both runs'}`;
+    const likely = `${at(lead)}${top[1] ? `, then ${at(top[1])}` : ''}${top[2] ? ` and ${at(top[2])}` : ''}${markWords}`;
+    const halfWidth = half.strikes ? half.high - half.low + step : 0;
+    const caught = past.length && halfWidth > 0 ? past.filter(s => Math.abs(s.close - s.open) <= halfWidth / 2 + 1e-9).length : null;
+    const record = caught != null ? ` · from their open, a 50% run this wide would have caught the close in ${ofLast(caught, past.length)}` : '';
+    const bands = `a 50% chance it closes between ${fmtStrike(half.low)} and ${fmtStrike(half.high)} · an 80% chance between ${fmtStrike(most.low)} and ${fmtStrike(most.high)}${record}`;
     const who = lead.role
       ? `the ${lead.role} at ${fmtStrike(lead.strike)} draws the close toward it`
       : lead.pull > 1.02
         ? `the strikes around ${fmtStrike(lead.strike)} draw the close toward it`
         : `the expected move alone puts it at ${fmtStrike(lead.strike)} — no strike is pulling`;
+    const last = lastSessionSupreme(profile.ticker, clock.inSession);
+    const lastWords = last ? ` · the last session closed ${last.away < step / 2 ? 'on' : `${fmtStrike(Number(last.away.toFixed(2)))} from`} its own heaviest strike, ${fmtStrike(last.strike)}` : '';
     const when = clock.inSession ? 'the odds tighten as the close nears' : "a whole day's range is in play until the open";
-    reads = { likely, bands, pull: `${who} · ${when}` };
+    reads = { likely, bands, pull: `${who}${lastWords} · ${when}` };
   }
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const sentence = reads ? `Most likely ${reads.likely}. There is ${reads.bands.replace(' · ', ', and ')}. ${cap(reads.pull.replace(' · ', '; '))}.` : 'No strikes near enough to spot to say.';
@@ -504,7 +549,15 @@ export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfile
       /* no chain yet */
     }
     const moves = shifts.map(s => `the ${s.label.toLowerCase().replace(/\s*node\b/, '')} moves ${fmtStrike(s.current)} → ${fmtStrike(s.projected)}`);
-    const sentence = `If vol ${volWords(volPoints)}, dealers must ${flow >= 0 ? 'buy' : 'sell'} about ${fmtDollars(flow)} of stock to stay hedged${moves.length ? `, and ${moves.join(', ')}` : ', and the levels stay where they are'}.`;
+    /* against the clock's own figure — a relation, not a restatement (2026-09-13) */
+    const ratio = Math.abs(flow) / Math.max(1, Math.abs(toClose));
+    const span = clock.inSession ? 'the rest of the session' : 'the whole session';
+    const clockVerb = toClose >= 0 ? 'buys' : 'sells';
+    const fraction = ratio >= 0.45 ? 'half' : ratio >= 0.3 ? 'a third' : ratio >= 0.2 ? 'a quarter' : `${Math.max(1, Math.round(ratio * 100))}%`;
+    const rel = Math.abs(toClose) < 1 ? '' : ratio >= 1.15 ? `${ratio.toFixed(1)}× what the clock ${clockVerb} over ${span}` : ratio >= 0.85 ? `about what the clock ${clockVerb} over ${span}` : `${fraction} of what the clock ${clockVerb} over ${span}`;
+    const sameWay = flow >= 0 === toClose >= 0;
+    const relWords = rel ? ` — ${rel}, ${sameWay ? 'pushing the same way' : 'pushing the other way'}` : '';
+    const sentence = `If vol ${volWords(volPoints)}, dealers must ${flow >= 0 ? 'buy' : 'sell'} about ${fmtDollars(flow)} of stock to stay hedged${relWords}${moves.length ? `; ${moves.join(', ')}` : '; the levels stay where they are'}.`;
     vol = { points: volPoints, flow, shifts, sentence };
   }
 
@@ -514,7 +567,18 @@ export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfile
      has to go — forced, not a view, and it leans on price. */
   const verb = toClose >= 0 ? 'buy' : 'sell';
   const lean = toClose >= 0 ? 'A tailwind for any rally into the close.' : 'A headwind for any rally into the close.';
-  const sentence = `${clock.inSession ? 'Into the close' : 'Over the next session'} dealers must ${verb} about ${fmtDollars(toClose)} of stock to stay hedged${biggest ? `, most of it ${hhmm(biggest.from)} to ${hhmm(biggest.to)}` : ''}. ${lean}${bellShare != null ? ` ${bellShare}% of the hedging expires at 4:00.` : ''}`;
+  /* what the last half hour actually did in the sessions on hand — the
+     clock's lean against the record (2026-09-13) */
+  const past = recentSessions(snapshot.ticker, 5, clock.inSession);
+  const moves = past.map(s => moveIntoClose(s, 30)).filter((v): v is number => v != null);
+  let record = '';
+  if (moves.length >= 2) {
+    const fell = moves.filter(m => m < 0).length;
+    const rose = moves.length - fell;
+    const avg = moves.reduce((a, m) => a + Math.abs(m), 0) / moves.length;
+    record = ` In their last half hour the last ${moves.length} sessions ${fell > rose ? `fell ${fell} times and rose ${rose}` : rose > fell ? `rose ${rose} times and fell ${fell}` : `split ${rose} up and ${fell} down`}, moving ${fmtStrike(Number(avg.toFixed(2)))} on average.`;
+  }
+  const sentence = `${clock.inSession ? 'Into the close' : 'Over the next session'} dealers must ${verb} about ${fmtDollars(toClose)} of stock to stay hedged${biggest ? `, most of it ${hhmm(biggest.from)} to ${hhmm(biggest.to)}` : ''}. ${lean}${record}${bellShare != null ? ` ${bellShare}% of the hedging expires at 4:00.` : ''}`;
 
   return { blocks, toClose, biggest, bellShare, vol, sentence };
 }

@@ -3,36 +3,30 @@
   SLAYER TERMINAL - DAY STRIP (the Windows page's
   session instrument)
 
-  The day cut into 96 quarter-hours, drawn as ONE
-  fixed instrument (Noah, 2026-09-03: "i love the
-  idea of the horizontal box bar and how it shows
-  the 15 min window and what went down but the ui
-  design of it is throwing me off. it looks too
-  generic and basic"). The old strip was a row of
-  identical grey blocks capped at 14px, so it never
-  spanned the page and its hour labels were spread
-  across the full width, decoupled from the bars
-  they named.
+  The day cut into 96 quarter-hours, IN THE TRADER'S
+  CLOCK'S CLOTHES (Noah, 2026-09-16: "instead of the
+  long rectangles… make it more of the formatting of
+  the trader's clock — simpler, concise, straight to
+  the point, and it's hoverable"): one row of equal
+  blocks, each block's shade the window's volume,
+  the day's parts named above the row with a breath
+  between them, the hours under it, and the clock's
+  card on hover. The 2026-09-03 instrument — bars on
+  a baseline with a pinned readout — is gone.
 
-  What it is now:
-    · a FIXED DAY — midnight to midnight, every slot
-      at its true x, the future empty above the
-      baseline, so the shape never changes through
-      the session and a time is always in the same
-      place;
-    · the regular session as a faint band between
-      the open and the close, so pre-market, hours
-      and after-hours read at a glance;
-    · bars on the volume floor's three registers
-      (quiet cool grey, the loud quintile brighter,
-      the day's busiest window magenta), on a
-      square-root scale so the quiet bulk still
-      shows;
-    · the picked window on a silver column (where
-      you are), the live window breathing lime under
-      a "now" hairline (status), held = amber;
-    · a readout pinned top-right that reads the
-      picked window, or the hovered one.
+  What a block says:
+    · its SHADE is the window's volume against the
+      loud bar (the 80th percentile, so the ordinary
+      bulk spreads across the shades and one burst
+      does not flatten the day);
+    · the day's busiest window wears the SUPREME
+      magenta — a magnitude wears one ink;
+    · the window you have open wears the silver
+      (where you are); the live one the lime, held =
+      amber; the windows still to come sit quieter;
+    · hover a block: its card — the window, its part
+      of the day, the contracts, its share of the
+      day; click: the page opens that window.
 ==================================================
 */
 
@@ -43,7 +37,22 @@ import { earnMarks } from './earnedInk';
 const SLOTS = 96;
 const MIN_PER_SLOT = 1440 / SLOTS;
 const num = (v: number) => v.toLocaleString('en-US');
-const pct = (minute: number) => `${(minute / 1440) * 100}%`;
+const pct = (minute: number) => (minute / 1440) * 100;
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+const LIVE = 'rgb(var(--select))';
+const SUPREME = 'rgb(var(--supreme))';
+const SILVER = 'rgb(var(--silver))';
+const WARN = 'rgb(var(--warn))';
+
+/* THE DAY'S PARTS — named above the row, a breath between them (the clock's phases) */
+const PARTS: { key: string; from: number; to: number; name: string }[] = [
+  { key: 'night', from: 0, to: 240, name: 'Overnight' },
+  { key: 'pre', from: 240, to: 570, name: 'Pre-market' },
+  { key: 'session', from: 570, to: 960, name: 'The session' },
+  { key: 'after', from: 960, to: 1440, name: 'After hours' },
+];
+const partAt = (min: number) => PARTS.find(p => min >= p.from && min < p.to) ?? PARTS[PARTS.length - 1];
 
 /* Hour marks at their true x; the open and the close speak louder. */
 const TICKS: { min: number; label: string; edge?: boolean }[] = [
@@ -55,12 +64,6 @@ const TICKS: { min: number; label: string; edge?: boolean }[] = [
   { min: 960, label: '16:00', edge: true },
   { min: 1200, label: '20:00' },
 ];
-const OPEN = 570;
-const CLOSE = 960;
-
-/* The volume floor's registers (NetFlowPane's VOL_RGB 150,168,196). */
-const QUIET = 'bg-[rgba(150,168,196,0.24)] group-hover/slot:bg-[rgba(150,168,196,0.5)]';
-const LOUD = 'bg-[rgba(150,168,196,0.82)] group-hover/slot:bg-[rgba(150,168,196,0.95)]';
 
 const DayStrip = ({
   windows,
@@ -76,116 +79,133 @@ const DayStrip = ({
   const [hover, setHover] = useState<number | null>(null);
   const marks = useMemo(() => earnMarks(windows, w => w.totalVol), [windows]);
   const max = Math.max(marks.top === Infinity ? 1 : marks.top, 1);
-  /* The height's ceiling is the LOUD bar (the 80th percentile), not the
-     champion: measured on a live day, one 160k burst over a 60–80k bulk
-     put every ordinary window in the bottom third and the strip read as a
-     flat barcode. Against the loud bar the bulk spreads over the height,
-     the loud quintile touches the ceiling, and the champion is told by its
-     magenta — a magnitude wears one ink; the ink, not the height, crowns it. */
+  /* The shade's ceiling is the LOUD bar (the 80th percentile), not the champion: one burst over
+     the day's bulk would put every ordinary window in the faintest shade — the loud quintile
+     reaches the top shade, and the champion is told by its magenta. */
   const ceiling = Math.max(marks.bar === Infinity ? max : marks.bar, 1);
+  const dayTotal = useMemo(() => windows.reduce((a, w) => a + w.totalVol, 0), [windows]);
+  /* A FIXED DAY — the page hands the strip only the windows up to now; the slots still to come
+     stand empty and faint at their own x, so a time is always in the same place and the hours
+     under the row name the blocks over them */
+  const byIdx = useMemo(() => new Map(windows.map(w => [w.idx, w] as const)), [windows]);
   const live = windows.find(w => w.live);
   const nowMin = live ? (live.idx + 1) * MIN_PER_SLOT : null;
-  const shown = windows[hover ?? selectedIdx] ?? windows[selectedIdx];
+  const liveIdx = live?.idx ?? null;
 
-  const readout = shown
-    ? `${shown.label} · ${num(shown.totalVol)} contracts${
-        shown.totalVol >= max ? ' · busiest of the day' : ''
-      }${shown.live ? (paused ? ' · held' : ' · still filling') : ''}`
-    : '';
+  /* THE CARD — the hovered window's */
+  const shown = hover != null ? windows[hover] : null;
+  const cardPct = shown ? ((shown.idx + 0.5) / SLOTS) * 100 : 0;
+  const cardOnRight = shown ? shown.idx < SLOTS * 0.6 : true;
 
   return (
-    <div className="relative select-none" onMouseLeave={() => setHover(null)}>
-      <div className="relative h-11" role="tablist" aria-label="Session windows">
-        {/* The room: regular hours as a faint band, its edges the open and the close. */}
-        <div
-          aria-hidden
-          className="absolute inset-y-0 bg-ink/[0.045] border-x border-borderMuted"
-          style={{ left: pct(OPEN), width: pct(CLOSE - OPEN) }}
-        />
-        {/* Baseline */}
-        <div aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-borderMuted" />
-
-        {windows.map(w => {
-          const sel = w.idx === selectedIdx;
-          const champ = w.totalVol >= max && w.totalVol > 0;
-          const loud = w.totalVol >= marks.bar;
-          const fill = champ
-            ? 'bg-supreme'
-            : w.live
-              ? paused
-                ? 'bg-warn/70'
-                : 'bg-select animate-live-breathe'
-              : sel
-                ? 'bg-silver'
-                : loud
-                  ? LOUD
-                  : QUIET;
-          /* LINEAR against the loud bar (see `ceiling`); a floor keeps the
-             quietest window visible. */
-          const h = w.totalVol > 0 ? 6 + 94 * Math.min(1, w.totalVol / ceiling) : 0;
-          return (
-            <button
-              key={w.idx}
-              role="tab"
-              aria-selected={sel}
-              aria-label={`${w.label} · ${num(w.totalVol)} contracts`}
-              onClick={() => onSelect(w.idx)}
-              onMouseEnter={() => setHover(w.idx)}
-              className={`group/slot absolute inset-y-0 ${sel ? 'bg-silver/[0.10]' : ''}`}
-              style={{ left: pct(w.idx * MIN_PER_SLOT), width: pct(MIN_PER_SLOT) }}
-            >
-              <span
-                className={`absolute bottom-0 left-0 right-px rounded-t-[1px] transition-colors ${fill}`}
-                style={{ height: `${h}%` }}
-              />
-            </button>
-          );
-        })}
-
-        {/* NOW — a hairline at the live window's leading edge. */}
-        {nowMin !== null && (
-          <div
-            aria-hidden
-            className={`absolute inset-y-0 w-px ${paused ? 'bg-warn/70' : 'bg-select/80'}`}
-            style={{ left: pct(nowMin) }}
-          />
-        )}
-
-        {/* The readout, pinned — glass enough to whisper over whatever it covers. */}
-        {readout && (
-          <span className="pointer-events-none absolute top-0.5 right-0 z-10 px-1.5 py-0.5 rounded border border-borderSubtle bg-panel/70 backdrop-blur-sm font-mono text-[9px] tnum whitespace-nowrap text-textSecondary">
-            <span className={hover !== null && hover !== selectedIdx ? 'text-textPrimary' : 'text-silver'}>
-              {readout}
-            </span>
-          </span>
-        )}
-      </div>
-
-      {/* The axis: every mark at its own x, the open and close brighter, "now" in status ink. */}
-      <div className="relative h-4 font-mono text-[8px] uppercase tracking-widest text-textMuted tnum">
-        {TICKS.map(t => {
-          // "now" owns its neighbourhood: a fixed mark within a label's width of it steps aside.
-          const near = nowMin !== null && Math.abs(t.min - nowMin) < 45;
-          if (near) return null;
+    <div className="relative select-none" data-day-strip>
+      {/* THE PARTS — named above the row, each at its part's start; the last at its own start too */}
+      <div className="relative h-5" data-strip-parts>
+        {PARTS.map(p => {
+          const inPart = nowMin != null && nowMin > p.from && nowMin <= p.to;
           return (
             <span
-              key={t.min}
-              className={`absolute top-0 flex flex-col items-center ${t.edge ? 'text-textSecondary' : ''}`}
-              style={{ left: pct(t.min), transform: t.min === 0 ? 'none' : 'translateX(-50%)' }}
+              key={p.key}
+              data-part-name={p.key}
+              className={`absolute top-0 text-[11px] font-medium whitespace-nowrap ${inPart ? '' : 'text-textMuted'}`}
+              style={{ left: `${pct(p.from)}%`, ...(inPart ? { color: SILVER } : {}) }}
+              title={`${hhmm(p.from)}–${hhmm(p.to)}`}
             >
-              <span className={`w-px h-1 ${t.edge ? 'bg-ink/30' : 'bg-ink/15'}`} />
-              <span className="mt-px leading-none">{t.label}</span>
+              {p.name}
             </span>
           );
         })}
-        {nowMin !== null && (
-          <span
-            className={`absolute top-0 flex flex-col items-center ${paused ? 'text-warn' : 'text-select'}`}
-            style={{ left: pct(nowMin), transform: nowMin > 1400 ? 'translateX(-100%)' : 'translateX(-50%)' }}
+      </div>
+
+      <div className="relative" onPointerLeave={() => setHover(null)}>
+        {/* THE ROW — 96 quarter-hour blocks; shade = the window's volume, magenta = the busiest,
+            silver = the one open, lime = now */}
+        <div className="flex gap-[2px] h-[22px]" role="tablist" aria-label="The day as quarter-hour intervals, shaded by how much traded in each">
+          {Array.from({ length: SLOTS }, (_, i) => {
+            const min = i * MIN_PER_SLOT;
+            const boundary = i > 0 && partAt(min - MIN_PER_SLOT).key !== partAt(min).key;
+            const w = byIdx.get(i);
+            if (!w)
+              return <span key={i} aria-hidden data-window-future={i} className={`flex-1 min-w-0 rounded-[2px] ${boundary ? 'ml-[3px]' : ''}`} style={{ background: 'rgb(var(--text-primary) / 0.08)', opacity: 0.5 }} />;
+            const sel = w.idx === selectedIdx;
+            const champ = w.totalVol >= max && w.totalVol > 0;
+            const isNow = w.idx === liveIdx;
+            const future = liveIdx != null && w.idx > liveIdx;
+            const hovered = hover === w.idx;
+            const dim = hover != null && !hovered;
+            /* the shade: the ink's wash, the window's volume against the loud bar; brighter under the pointer */
+            const alpha = Math.min(0.85, 0.1 + 0.6 * Math.min(1, w.totalVol / ceiling) + (hovered ? 0.25 : 0));
+            const background = isNow ? (paused ? WARN : LIVE) : champ ? SUPREME : sel ? SILVER : `rgb(var(--text-primary) / ${alpha})`;
+            return (
+              <button
+                key={w.idx}
+                type="button"
+                role="tab"
+                aria-selected={sel}
+                aria-label={`${w.label} · ${num(w.totalVol)} contracts`}
+                data-window={w.idx}
+                data-window-role={isNow ? 'now' : champ ? 'busiest' : sel ? 'open' : undefined}
+                onPointerEnter={() => setHover(w.idx)}
+                onClick={() => onSelect(w.idx)}
+                className={`flex-1 min-w-0 rounded-[2px] transition-[opacity,background-color] duration-200 ${boundary ? 'ml-[3px]' : ''} ${isNow && !paused ? 'animate-live-breathe' : ''}`}
+                style={{
+                  background,
+                  opacity: dim ? 0.55 : future ? 0.5 : 1,
+                  boxShadow: isNow ? `0 0 0 1px ${paused ? WARN : LIVE}` : sel ? `0 0 0 1px ${SILVER}` : undefined,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* THE HOURS under the row, the open and the close brighter, "now" in the status ink */}
+        <div className="relative h-4 mt-1 font-mono text-[9px] tnum text-textMuted">
+          {TICKS.map(t => {
+            // "now" owns its neighbourhood: a fixed mark within a label's width of it steps aside.
+            if (nowMin !== null && Math.abs(t.min - nowMin) < 45) return null;
+            return (
+              <span key={t.min} className={`absolute top-0 ${t.edge ? 'text-textSecondary' : ''}`} style={{ left: `${pct(t.min)}%`, transform: t.min === 0 ? undefined : 'translateX(-50%)' }}>
+                {t.label}
+              </span>
+            );
+          })}
+          {nowMin !== null && (
+            <span className="absolute top-0 font-semibold" style={{ left: `${pct(nowMin)}%`, transform: nowMin > 1400 ? 'translateX(-100%)' : 'translateX(-50%)', color: paused ? WARN : LIVE }} data-strip-now>
+              {paused ? 'held' : 'now'}
+            </span>
+          )}
+        </div>
+
+        {/* THE CARD — the hovered window: when, which part of the day, how much, its share of the day */}
+        {shown && (
+          <div
+            data-window-card={shown.idx}
+            className="absolute z-10 pointer-events-none rounded-lg border border-borderMuted bg-card/95 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.5)] px-3 py-2 w-[260px] animate-soft-in"
+            style={{ left: `${cardPct}%`, bottom: 'calc(100% + 6px)', transform: cardOnRight ? 'translateX(12px)' : 'translateX(calc(-100% - 12px))' }}
           >
-            <span className={`w-px h-1 ${paused ? 'bg-warn/70' : 'bg-select/80'}`} />
-            <span className="mt-px leading-none">{paused ? 'held' : 'now'}</span>
-          </span>
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono text-[12px] font-semibold tnum" style={{ color: shown.idx === selectedIdx ? SILVER : undefined }}>
+                {shown.label}
+              </span>
+              <span className="text-[11px] font-medium text-textPrimary">{partAt(shown.idx * MIN_PER_SLOT).name}</span>
+              {shown.live && (
+                <span className="ml-auto font-mono text-[9px] uppercase tracking-widest" style={{ color: paused ? WARN : LIVE }}>
+                  {paused ? 'held' : 'still filling'}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-[11px] leading-snug text-textSecondary">
+              <span className="font-mono tnum text-textPrimary">{num(shown.totalVol)}</span> contracts
+              {dayTotal > 0 && shown.totalVol > 0 && <> · {((100 * shown.totalVol) / dayTotal).toFixed(1)}% of the day</>}
+              {shown.totalVol >= max && shown.totalVol > 0 && (
+                <>
+                  {' '}
+                  · <span style={{ color: SUPREME }}>the busiest of the day</span>
+                </>
+              )}
+            </p>
+            <span className="block mt-1 text-[10px] text-textMuted">{shown.idx === selectedIdx ? 'open — its contracts are the table below' : 'click to open this interval'}</span>
+          </div>
         )}
       </div>
     </div>

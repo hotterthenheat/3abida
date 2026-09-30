@@ -33,51 +33,35 @@
 */
 
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronRight, Maximize2, Minimize2, Scale } from 'lucide-react';
-import {
-  CHAIN_COLUMNS,
-  CHAIN_FAMILIES,
-  DEFAULT_COLS,
-  fmtCount,
-  fmtStrike,
-  inChainFocus,
-  type ChainCol,
-  type ChainDensity,
-  type ChainFocus,
-  type ChainScale,
-  NEAR_BAND,
-} from '../../data/chainColumns';
-import { type ColDef, type ICellRendererParams, type RowClassRules, type RowClickedEvent, type RowDoubleClickedEvent } from 'ag-grid-community';
+import { ChevronDown, Maximize2, Minimize2, Plus, Scale } from 'lucide-react';
+import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
+import ExpiryCard, { type ExpiryChoice } from '../../components/ui/ExpiryCard';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
-import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
-import { isoDate } from '../../core/calendar';
-import { listExpiriesFor, listingPatternFor, nearestListedExpiry } from '../../data/optionChain';
-import { spotForPremium } from '../../components/compass/trackModel';
 import CardTabs from '../../components/ui/CardTabs';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import { Fact } from '../../components/trace/TraceBox';
 import { WeigherGuide } from '../../components/weigher/WeigherGuide';
-import { processState, PROCESS_META } from '../../components/compass/setupProcess';
 import { TimeframeStrip } from '../../components/gex/ChartToolbar';
+import { chartGround, useCandleThemeKey } from '../../components/gex/candleTheme';
 import Simulator from '../../core/simulator';
 import { onGlide } from '../../core/glide';
 import { DOCK_ROOM } from '../../data/editorDock';
 import { useMarketData } from '../../context/MarketDataContext';
 import { buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
-import { buildCompassView, estimatePremium, makeSetup, sleeveForDte } from '../../data/compass';
+import { estimatePremium } from '../../data/compass';
 import {
   SCAN_PRESETS,
-  SCAN_PRESET_KEYS,
   buildDeskChain,
   buildScan,
   contractIvFor,
+  dteForDate,
+  deskExpiries,
   marketMood,
   marketSession,
   type DeskChain,
@@ -85,6 +69,21 @@ import {
   type ScanPreset,
   type ScanRow,
 } from '../../data/weigherDesk';
+import { expiryFor, isoDate, today } from '../../core/calendar';
+import { addToWatchlist, closeWatched, hasOpenWatched, removeWatched, returnsOf, spotOf, tickWatchlist, useWatchlist, watchedFor } from '../../data/watchlist';
+import type { WatchedContract } from '../../types/watchlist';
+import { costOf, valueOn } from '../../data/positionCurve';
+import { readPosition, removePosition, useAllPositions, type Position, type Verdict } from '../../data/positions';
+import { buildBook } from '../../data/bookAtStrike';
+import BookBlock from '../../components/weigher/BookBlock';
+import PositionForm from '../../components/gex/PositionForm';
+import PositionDeskCard from '../../components/weigher/PositionDeskCard';
+import { monthDay, ListGrid, type ListRow } from '../../components/weigher/PositionsList';
+import { buildExposureProfile } from '../../data/exposure';
+import type { ExposureProfileData } from '../../types/gex';
+import { useIsBelowLg } from '../../components/ui/useMediaQuery';
+import { DESK_TOP_DEFAULT, clampDeskTop, deskRows, readDeskTop, saveDeskTop } from './deskSplit';
+import { readDeskPrefs } from '../../data/deskPrefs';
 import StrikeChart, {
   DEFAULT_INDICATORS,
   DEFAULT_OVERLAYS,
@@ -93,18 +92,15 @@ import StrikeChart, {
   type ChartStyle,
 } from '../../components/gex/StrikeChart';
 import ChartToolbar from '../../components/gex/ChartToolbar';
-import { weighContract, type WeighYourOwn, type ContractVerdict } from '../../core/contractScore';
-import RichRead from '../../components/ui/RichRead';
-import SignalBadge from '../../components/ui/SignalBadge';
 import TickerQuickPick from '../../components/gex/TickerQuickPick';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
 import ContractPremiumPane from '../../components/gex/ContractPremiumPane';
 import { useFadeClose } from '../../components/ui/useFadeClose';
 import Term from '../../components/ui/Term';
+import { fmtStrike, CHAIN_COLUMNS, DEFAULT_COLS, COLUMN_GROUPS, ChainCard } from '../../components/weigher/ChainGrid';
 import type { Timeframe } from '../../data/timeframe';
-import type { OptionRight, Setup } from '../../types/compass';
-import { Name } from '../../components/ui/Name';
+import type { OptionRight } from '../../types/compass';
 
 /* Still v2 on purpose: the desk went static (2026-08-30) and the stored
    `layout` field simply stopped being read — but the tickers, columns, depth
@@ -131,47 +127,50 @@ const DESK_DEPTHS = [100, 150, 250, 400] as const;
    became one line of labelled cards each, the house grammar (Noah, 2026-09-05:
    dropdown cards, never chip rows). */
 const SIDE_OPTIONS: DropdownOption<OptionRight>[] = [
-  { value: 'C', label: 'Calls', hint: 'The right to buy' },
-  { value: 'P', label: 'Puts', hint: 'The right to sell' },
+  { value: 'C', label: 'Calls', hint: 'The right to buy', tone: 'bull' },
+  { value: 'P', label: 'Puts', hint: 'The right to sell', tone: 'bear' },
 ];
+/* THE CHAIN HEAD'S ROOM, in px of card (measured 2026-09-20 with the longest everyday values — a five-letter name, a
+   "Sep 22 · Tue" expiry, "Mark, Delta +4"): the whole line on one row needs ~760; the four NAMED cards on a row of their
+   own need ~590; under that they go bare (~395). A little air on each so a longer value does not break the row. */
+const CHAIN_ONE_ROW_PX = 790;
+const CHAIN_NAMED_ROW_PX = 610;
+
 const REACH_OPTIONS: DropdownOption<number>[] = DESK_DEPTHS.map(d => ({ value: d, label: `±${d}`, hint: `${d} strikes each side of the market` }));
-export { CHAIN_COLUMNS, DEFAULT_COLS, type ChainCol, type ChainDensity, type ChainFocus, type ChainScale } from '../../data/chainColumns';
-
-/* FILTERING A LADDER BY REMOVING ROWS THROWS AWAY THE LADDER — see the note
-   on inChainFocus in data/chainColumns. These are the words the card says. */
-const FOCUS_OPTIONS: DropdownOption<ChainFocus>[] = [
-  { value: 'all', label: 'Every strike', hint: 'Nothing dimmed' },
-  { value: 'itm', label: 'In the money', hint: 'Strikes the tape is already past' },
-  { value: 'otm', label: 'Out of the money', hint: 'Strikes the tape has yet to reach' },
-  { value: 'near', label: 'Near the money', hint: `Within ${(NEAR_BAND * 100).toFixed(0)}% of the market` },
+/** What the desk's list card lists: THE WATCHLIST first (Noah, 2026-09-14 — Robinhood's list
+    on the desk: every watched contract, marked when added, tracked as if bought), then the
+    scanner's three cuts. The card opens on the watchlist whenever anything is watched. */
+type ListKind = ScanPreset | 'watchlist';
+/** Which of the bottom row's three cards stand folded to their heads (kept in `slayer_weigher_folds`):
+    Your positions · the Watchlist · The position */
+type Folds = { positions: boolean; watchlist: boolean; position: boolean };
+const KIND_OPTIONS: DropdownOption<ListKind>[] = [
+  { value: 'watchlist', label: 'Watchlist', hint: 'The contracts you watch — marked when added, tracked as if bought' },
+  { value: 'gainers', label: 'Gainers today', hint: 'The largest gains this session first', tone: 'bull' },
+  { value: 'losers', label: 'Losers today', hint: 'The largest losses this session first', tone: 'bear' },
+  { value: 'voliv', label: 'Busiest options', hint: 'The most contracts traded, the priciest vol first' },
 ];
-
-const DENSITY_OPTIONS: DropdownOption<ChainDensity>[] = [
-  { value: 'comfortable', label: 'Comfortable', hint: 'Roomy rows, the default chain' },
-  { value: 'compact', label: 'Compact', hint: 'More strikes on the screen at once' },
-];
-/* Every kind the scanner asks (data/weigherDesk SCAN_PRESETS — Noah, 2026-09-12:
-   52-week highs and lows, gaps, jumps and dips, option volume, IV, earnings…) */
-const KIND_OPTIONS: DropdownOption<ScanPreset>[] = SCAN_PRESETS.map(p => ({ value: p.key, label: p.label, hint: p.hint }));
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fmtDay = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 
 interface DeskState {
   ticker: string;
   dte: number;
   lens: 'stock' | 'contract';
   right: OptionRight;
-  preset: ScanPreset;
+  preset: ListKind;
   depth: number;
   /** Which catalog columns the chain shows, in catalog order */
   cols: string[];
-  /** Which half of the ladder stays lit — the rest dims in place */
-  focus: ChainFocus;
-  density: ChainDensity;
 }
 
 /* An old record may still carry `layout`/`rowsV`/`colsV` from the movable
    era — parsed and ignored here, and the next save sheds them for good. */
 function loadDesk(): DeskState {
-  const def: DeskState = { ticker: 'SPY', dte: 2, lens: 'stock', right: 'C', preset: 'gainers', depth: 150, cols: DEFAULT_COLS, focus: 'all', density: 'comfortable' };
+  const def: DeskState = { ticker: 'SPY', dte: 2, lens: 'stock', right: 'C', preset: 'watchlist', depth: 150, cols: DEFAULT_COLS };
+  /* the list card opens on the watchlist whenever anything is watched — Robinhood's list is
+     always the first thing on the page; the reader's cut holds for the session after that */
+  const opensOnList = (d: DeskState): DeskState => (hasOpenWatched() ? { ...d, preset: 'watchlist' } : d);
   try {
     const raw = localStorage.getItem(DESK_KEY);
     if (!raw) return def;
@@ -180,18 +179,17 @@ function loadDesk(): DeskState {
     // an empty or unknown set falls back to the default chain.
     const storedCols = Array.isArray(c.cols) ? (c.cols as string[]) : null;
     const cols = storedCols ? CHAIN_COLUMNS.map(x => x.key).filter(k => storedCols.includes(k)) : [];
-    return {
+    return opensOnList({
       ticker: typeof c.ticker === 'string' && c.ticker ? c.ticker : def.ticker,
-      /* Any horizon the calendar can list — snapped to the name's own dates on the desk */
-      dte: typeof c.dte === 'number' && Number.isFinite(c.dte) && c.dte >= 0 && c.dte <= 400 ? Math.round(c.dte) : def.dte,
+      /* any horizon inside ninety days — a contract's own expiry, carried in
+         by a deep link, is kept across a refresh (2026-09-12) */
+      dte: typeof c.dte === 'number' && Number.isInteger(c.dte) && c.dte >= 0 && c.dte <= 90 ? c.dte : def.dte,
       lens: c.lens === 'contract' ? 'contract' : 'stock',
       right: c.right === 'P' ? 'P' : 'C',
-      preset: typeof c.preset === 'string' && SCAN_PRESET_KEYS.has(c.preset) ? (c.preset as ScanPreset) : 'gainers',
+      preset: c.preset === 'losers' || c.preset === 'voliv' || c.preset === 'gainers' || c.preset === 'watchlist' ? c.preset : def.preset,
       depth: typeof c.depth === 'number' && (DESK_DEPTHS as readonly number[]).includes(c.depth) ? c.depth : def.depth,
       cols: cols.length ? cols : [...def.cols],
-      focus: FOCUS_OPTIONS.some(o => o.value === c.focus) ? (c.focus as ChainFocus) : def.focus,
-      density: c.density === 'compact' ? 'compact' : def.density,
-    };
+    });
   } catch {
     return def;
   }
@@ -207,22 +205,44 @@ function loadDesk(): DeskState {
 const DeskCard = ({
   title,
   actions,
+  under,
   children,
+  fold,
 }: {
   title?: string;
   actions?: React.ReactNode;
+  /** A SECOND HEAD ROW, under the title's (the chain's cards when the card is too narrow for one line — see
+      `CHAIN_ONE_ROW_PX`): one block with the first, so the rule between the head and the body moves under it */
+  under?: React.ReactNode;
   children: React.ReactNode;
+  /** A card that folds to its head (the three cards of the bottom row, 2026-09-14): the chevron
+      beside the title. The two list cards fold through their column's rows (the cell shrinks,
+      the card is clipped); a card that folds ITSELF (`self` — the position card, whose row is as
+      tall as it is) glides its body from its height to nothing and stands at its own height. */
+  fold?: { open: boolean; onToggle: () => void; testId?: string; self?: boolean };
 }) => (
-  <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle bg-panel">
+  <div className={`${fold?.self ? '' : 'h-full '}flex flex-col overflow-hidden rounded-md border border-ink/[0.07] bg-panel`} data-folded={fold && !fold.open ? '' : undefined}>
     {/* min-h, not h: a crowded actions strip (the chain's) wraps, and the
         header must GROW with it — with a fixed height the wrapped chips
         slid under the table and its sticky header ate their clicks. */}
-    <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-borderSubtle/70">
+    <div className={`shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 ${under ? '' : 'border-b border-ink/[0.05]'}`}>
       {/* The title takes its NATURAL width and keeps it — flex-1 here let the
           chain's loaded strip squeeze it down to "C…". The actions take the
           remainder and wrap; the header grows to fit them. (The drag grip
           that lived here died with the movable desk, 2026-08-30.) */}
       <div className="select-none flex items-center gap-2 pl-2.5 self-stretch shrink-0">
+        {fold && (
+          <button
+            type="button"
+            onClick={fold.onToggle}
+            aria-expanded={fold.open}
+            title={fold.open ? 'Fold the card to its head' : 'Open the card'}
+            className="inline-flex items-center justify-center w-4 h-4 -ml-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+            data-fold={fold.testId}
+          >
+            <ChevronDown className={`w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${fold.open ? '' : '-rotate-90'}`} />
+          </button>
+        )}
         {title && (
           <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">{title}</span>
         )}
@@ -232,348 +252,36 @@ const DeskCard = ({
           header (Noah, 2026-08-25: "the chain ticker should have the same
           dropdown as the chart ticker" — it always was the same menu, just
           decapitated). Wide strips wrap instead; the header grows. */}
-      {/* THE CARDS HUG THE TITLE (Noah, 2026-09-12: "you see how far apart the
-          ticker name is from the other black space and that only happens when
-          the left nav bar is open"): the strip flows on from the title instead
-          of being pushed to the far edge — when it wraps under a narrow column,
-          the first line no longer strands the ticker alone at the right. What
-          belongs at the edge (the expand door) carries its own ml-auto. */}
       {actions && (
-        <span className="flex flex-1 flex-wrap items-center justify-start gap-1.5 min-w-0">{actions}</span>
+        <span className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-1.5 min-w-0">{actions}</span>
       )}
     </div>
-    <div className="flex-grow min-h-0">{children}</div>
+    {under && (
+      <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-2.5 pb-1.5 border-b border-ink/[0.05]" data-card-under>
+        {under}
+      </div>
+    )}
+    {fold?.self ? (
+      /* the body on one grid row, 1fr open and 0fr folded — the same glide the left column's rows
+         ride; the content stays mounted (the chart, the ruler, the tab keep their state) and is
+         clipped while folded */
+      <div className="flex-grow min-h-0 grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ gridTemplateRows: fold.open ? '1fr' : '0fr' }} data-fold-body>
+        <div className="min-h-0 overflow-hidden">{children}</div>
+      </div>
+    ) : (
+      <div className="flex-grow min-h-0">{children}</div>
+    )}
   </div>
 );
 
 /* ---- the chain card -------------------------------------------------------- */
-/* THIRTY-ONE NAMES IN ONE LIST IS NOT A CATALOG, IT IS A WALL. The card now
-   sections by family, in the order a chain is read: the quote, then the
-   session behind it, then the greeks, the odds, the value split, and what
-   traded. Within a family the catalog's own order holds, which is also the
-   order the columns appear in — so picking down the card builds the chain
-   left to right. */
-const COLUMN_GROUPS: MultiGroup[] = CHAIN_FAMILIES.map(title => ({
-  title,
-  options: CHAIN_COLUMNS.filter(c => c.family === title).map(c => ({ value: c.key, label: c.label })),
-})).filter(g => g.options.length > 0);
-
-/* ---- the chain as a grid ----------------------------------------------------
-   THE HOUSE GRID (the walk, 2026-09-11): AG Grid on the house theme at 30px
-   rows — only the rows in the window exist, so a ±400 chain scrolls and
-   re-inks like a short one (the Trace walk's scroll fix, the one Noah asked
-   for here: "the sidebar drag being laggy"). The market's hairline and
-   Pulse's inline weigh-up ride as FULL-WIDTH rows; the picked strike is the
-   grid's selection (index.css .slayer-chain re-inks it, no re-render); the
-   chain still opens centred on the market and the back-to-price pill still
-   floats up when the spot row leaves the window. The progressive first paint
-   (forty rows, then sixty a frame) is gone with the table: the grid never
-   renders a row nobody can see. */
-const CHAIN_THEMES: Record<ChainDensity, typeof GRID_THEME> = {
-  comfortable: GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, cellHorizontalPadding: 8 }),
-  /* Compact keeps the TYPE and loses the air: the figures are already at 10px
-     and shrinking them further would buy rows by making the chain unreadable,
-     which is not a density, it is a squeeze. */
-  compact: GRID_THEME.withParams({ rowHeight: 23, headerHeight: 24, fontSize: 11, cellHorizontalPadding: 6 }),
-};
-const CHAIN_COL: ColDef<ChainGridRow> = { sortable: false, resizable: true, suppressMovable: true };
-type ChainGridRow =
-  | { kind: 'row'; key: string; c: DeskContract; dim?: boolean }
-  | { kind: 'divider'; key: string; spot: number }
-  | { kind: 'drill'; key: string; c: DeskContract };
-const CHAIN_ROW_H: Record<ChainDensity, number> = { comfortable: 30, compact: 23 };
-/* The dimmed rows keep their place and lose their weight — a class, so the
-   focus changes without re-rendering a cell (index.css .chain-dim) */
-const CHAIN_ROW_CLASS: RowClassRules<ChainGridRow> = { 'chain-dim': p => p.data?.kind === 'row' && !!p.data.dim };
-const DIVIDER_H = 22;
-const DRILL_H = 210;
-
-/* The strike cell — the chevron turns on the picked row (CSS, off the selection) */
-const StrikeCell = ({ data }: ICellRendererParams<ChainGridRow>) =>
-  data?.kind === 'row' ? (
-    <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold tnum text-textPrimary" data-chain-strike>
-      <ChevronRight aria-hidden className="w-3 h-3 shrink-0 text-textMuted" data-chain-chevron />
-      {fmtStrike(data.c.strike)}
-    </span>
-  ) : null;
-
-/* A catalog column's cell: the fact in its ink */
-const factCell =
-  (col: ChainCol, scale: ChainScale) =>
-  ({ data }: ICellRendererParams<ChainGridRow>) => {
-    if (data?.kind !== 'row') return null;
-    const v = col.render(data.c, scale);
-    /* Every figure in the primary ink (Noah, 2026-09-12: "the grey text is hard
-       to see") — a direction fact keeps its own colour, the mark stays bold */
-    const text = (
-      <span className={`relative font-mono whitespace-nowrap tnum ${v.bold ? 'text-[11px] font-bold' : 'text-[10px]'} ${v.ink ?? 'text-textPrimary'}`}>{v.text}</span>
-    );
-    if (v.bar == null || v.bar <= 0) return text;
-    /* THE BAR SITS BEHIND THE NUMBER, not beside it. A separate sparkline
-       column costs a column; a background fill costs nothing and is read at
-       the same glance as the figure it belongs to. It is pinned to the right
-       so the bars grow toward the strike, which is where the eye already is. */
-    return (
-      <span className="relative flex items-center justify-end w-full h-full">
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-[3px] right-0 rounded-[2px] bg-textSecondary/[0.16] pointer-events-none"
-          style={{ width: `${Math.max(2, Math.min(100, v.bar * 100))}%` }}
-        />
-        {text}
-      </span>
-    );
-  };
-
-/* The two full-width rows: the market's hairline, and (Pulse) the weigh-up
-   unfolding under the picked strike — its height is its content's, measured
-   once it paints and handed to the grid */
-const FullRow = (p: ICellRendererParams<ChainGridRow>) => {
-  const data = p.data;
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (data?.kind !== 'drill' || !ref.current) return;
-    const el = ref.current;
-    const set = () => {
-      const h = Math.ceil(el.getBoundingClientRect().height);
-      if (h > 0 && p.node.rowHeight !== h) {
-        p.node.setRowHeight(h);
-        p.api.onRowHeightChanged();
-      }
-    };
-    set();
-    const ro = new ResizeObserver(set);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [data, p.node, p.api]);
-  if (!data) return null;
-  if (data.kind === 'divider') {
-    return (
-      <div className="h-full px-2 flex items-center select-none" data-chain-divider>
-        <span className="flex-1 h-px bg-textPrimary/25" />
-        <span className="mx-2 font-mono text-[9px] font-semibold tnum text-textPrimary bg-ink/[0.06] rounded px-1.5 py-0.5">{data.spot.toFixed(2)}</span>
-        <span className="flex-1 h-px bg-textPrimary/25" />
-      </div>
-    );
-  }
-  return (
-    <div ref={ref} className="bg-silver/[0.04] animate-soft-in" data-chain-drill>
-      <div className="px-3 py-2.5 border-b border-borderSubtle/70 flex flex-col gap-3">
-        <WeighGrids c={data.c} />
-      </div>
-    </div>
-  );
-};
-
-/* memo, deliberately: this is the desk's whale — 301 rows by up to 29
-   columns. It re-renders when its OWN facts change (a chain sweep, a
-   selection, a column pick) and sits out everything else. */
-export const ChainCard = memo(function ChainCard({
-  chain,
-  right,
-  sel,
-  onSelect,
-  cols,
-  centerKey,
-  inlineDrill,
-  focus = 'all',
-  density = 'comfortable',
-}: {
-  chain: DeskChain;
-  right: OptionRight;
-  sel: number | null;
-  onSelect: (strike: number, clicks?: number) => void;
-  cols: ChainCol[];
-  /** Changes when the ladder itself changes (name, expiry, depth) — the cue
-      to re-centre the scroll on the market. A moving spot alone must NOT
-      re-centre; it would fight the user's own scrolling every tick. */
-  centerKey: string;
-  /** Pulse's grammar (Noah, 2026-08-26: "it drops down just right under
-      that strike and not all the way at the bottom") — the selected row
-      unfolds its weigh-up inline, Robinhood-style. The desk page leaves
-      this off; its weigh-up owns the bottom-right card. */
-  inlineDrill?: boolean;
-  /** Which half of the ladder stays lit. The rest dims IN PLACE — see the
-      note on FOCUS_OPTIONS for why a chain must never drop rows. */
-  focus?: ChainFocus;
-  density?: ChainDensity;
-}) {
-  const gridRef = useRef<AgGridReact<ChainGridRow>>(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [away, setAway] = useState<'above' | 'below' | null>(null);
-  const [ready, setReady] = useState(false);
-
-  /* High strikes at the top, like a price axis; the market's hairline slots
-     between the strikes that bracket it; the weigh-up under the picked one */
-  const { rows, dividerIdx } = useMemo(() => {
-    const contracts = chain.rows.map(r => (right === 'C' ? r.call : r.put));
-    const ordered = [...contracts].reverse();
-    const out: ChainGridRow[] = [];
-    let divider = -1;
-    ordered.forEach((c, i) => {
-      out.push({ kind: 'row', key: `s${c.strike}`, c, dim: !inChainFocus(c, chain.spot, focus) });
-      if (inlineDrill && sel != null && Math.abs(c.strike - sel) < 1e-9) out.push({ kind: 'drill', key: `d${c.strike}`, c });
-      const next = ordered[i + 1];
-      if (c.strike > chain.spot && next && next.strike <= chain.spot) {
-        divider = out.length;
-        out.push({ kind: 'divider', key: 'divider', spot: chain.spot });
-      }
-    });
-    return { rows: out, dividerIdx: divider };
-  }, [chain, right, sel, inlineDrill, focus]);
-
-  /* The maxima the bars are read against — this expiry's own, not the
-     session's and not the family's. Recomputed with the chain, so switching
-     expiry re-scales the column rather than leaving it flat against a LEAPS
-     open interest it can never approach. */
-  const chainScale = useMemo<ChainScale>(() => {
-    let maxVolume = 0;
-    let maxOi = 0;
-    for (const r of rows) {
-      if (r.kind !== 'row' || r.dim) continue;
-      if (r.c.volume > maxVolume) maxVolume = r.c.volume;
-      if (r.c.oi > maxOi) maxOi = r.c.oi;
-    }
-    return { maxVolume, maxOi };
-  }, [rows]);
-
-  const columnDefs = useMemo<ColDef<ChainGridRow>[]>(
-    () => [
-      { colId: 'strike', headerName: 'Strike', width: 84, cellRenderer: StrikeCell, resizable: false },
-      ...cols.map<ColDef<ChainGridRow>>(col => ({
-        colId: col.key,
-        headerName: col.head,
-        headerTooltip: col.label,
-        flex: 1,
-        minWidth: 68,
-        type: 'rightAligned',
-        cellRenderer: factCell(col, chainScale),
-      })),
-    ],
-    [cols, chainScale]
-  );
-
-  /* A density is a row HEIGHT, and the grid measured every row on the way in;
-     it re-measures only when asked. A focus is a row CLASS, and the class
-     rules run on a row's draw. Both changes are user-driven and rare, so
-     both are told explicitly rather than folded into the row data and hoped
-     for. */
-  useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api || !ready) return;
-    api.resetRowHeights();
-  }, [density, ready]);
-  useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api || !ready) return;
-    api.redrawRows();
-  }, [focus, ready]);
-
-  /* The picked strike is the grid's selection — synced, never clicked into
-     (a click is the desk's: one weighs, two chart) */
-  useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api || !ready) return;
-    api.forEachNode(n => {
-      const on = n.data?.kind === 'row' && sel != null && Math.abs(n.data.c.strike - sel) < 1e-9;
-      if (n.isSelected() !== on) n.setSelected(on);
-    });
-  }, [sel, rows, ready]);
-
-  const viewport = () => wrapRef.current?.querySelector<HTMLElement>('.ag-grid-viewport, .ag-body-viewport') ?? null;
-  /* Once the spot row leaves the window, the pill floats up with the live
-     price and an arrow pointing back the way it went (Noah, 2026-08-25) */
-  const locate = useCallback(() => {
-    const api = gridRef.current?.api;
-    if (!api || dividerIdx < 0) return setAway(null);
-    const node = api.getDisplayedRowAtIndex(dividerIdx);
-    if (!node || node.rowTop == null) return setAway(null);
-    const range = api.getVerticalPixelRange();
-    const mid = node.rowTop + (node.rowHeight ?? DIVIDER_H) / 2;
-    setAway(mid < range.top + 34 ? 'above' : mid > range.bottom - 8 ? 'below' : null);
-  }, [dividerIdx]);
-  const centerOnSpot = useCallback(
-    (smooth: boolean) => {
-      const api = gridRef.current?.api;
-      if (!api || dividerIdx < 0) return;
-      const node = api.getDisplayedRowAtIndex(dividerIdx);
-      const vp = viewport();
-      if (!smooth || !node || node.rowTop == null || !vp) {
-        api.ensureIndexVisible(dividerIdx, 'middle');
-        return;
-      }
-      vp.scrollTo({ top: Math.max(0, node.rowTop - vp.clientHeight / 2 + (node.rowHeight ?? DIVIDER_H) / 2), behavior: 'smooth' });
-    },
-    [dividerIdx]
-  );
-  /* A new ladder (name, expiry, depth) opens centred on the market */
-  useEffect(() => {
-    if (!ready) return;
-    centerOnSpot(false);
-    locate();
-  }, [centerKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div ref={wrapRef} className="slayer-board slayer-chain relative h-full" data-chain-grid={centerKey}>
-      <AgGridProvider modules={GRID_MODULES}>
-        <AgGridReact<ChainGridRow>
-          ref={gridRef}
-          theme={CHAIN_THEMES[density]}
-          rowData={rows}
-          columnDefs={columnDefs}
-          defaultColDef={CHAIN_COL}
-          getRowId={p => p.data.key}
-          isFullWidthRow={p => p.rowNode.data?.kind !== 'row'}
-          fullWidthCellRenderer={FullRow}
-          getRowHeight={p => (p.data?.kind === 'divider' ? DIVIDER_H : p.data?.kind === 'drill' ? DRILL_H : CHAIN_ROW_H[density])}
-          rowClassRules={CHAIN_ROW_CLASS}
-          /* One click weighs, two chart: the grid hands the single click through
-             as 1 and the double through its own event as 2 (a second click's
-             detail is not relied on — the grid may fold it into the double) */
-          onRowClicked={(e: RowClickedEvent<ChainGridRow>) => {
-            if (e.data?.kind !== 'row') return;
-            if (((e.event as MouseEvent | null)?.detail ?? 1) > 1) return;
-            onSelect(e.data.c.strike, 1);
-          }}
-          onRowDoubleClicked={(e: RowDoubleClickedEvent<ChainGridRow>) => {
-            if (e.data?.kind !== 'row') return;
-            onSelect(e.data.c.strike, 2);
-          }}
-          rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: false }}
-          suppressCellFocus
-          animateRows={false}
-          /* The scrollbar's room is reserved from the first sizing pass, so the
-             flex columns never lay out under it (the last column was clipped) */
-          alwaysShowVerticalScroll
-          onFirstDataRendered={() => setReady(true)}
-          onBodyScroll={locate}
-          onViewportChanged={locate}
-          tooltipShowDelay={350}
-        />
-      </AgGridProvider>
-      {away && (
-        <button
-          onClick={() => centerOnSpot(true)}
-          title="Back to the market price"
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 inline-flex items-center gap-1.5 rounded-full border border-ink/10 px-3 py-1 font-mono text-[10px] font-semibold tnum text-textPrimary backdrop-blur-[3px] transition-colors hover:bg-ink/[0.08]"
-          style={{ background: 'rgb(var(--panel) / 0.85)' }}
-          data-chain-away={away}
-        >
-          {away === 'above' ? <ArrowUp className="w-3 h-3 text-textSecondary" aria-hidden /> : <ArrowDown className="w-3 h-3 text-textSecondary" aria-hidden />}${chain.spot.toFixed(2)}
-        </button>
-      )}
-    </div>
-  );
-});
-
 /* ---- the scanner as a grid -------------------------------------------------- */
 const SCAN_THEME = GRID_THEME.withParams({ rowHeight: 34, headerHeight: 28, fontSize: 11 });
 const SCAN_COL: ColDef<ScanRow> = { sortable: false, resizable: false, suppressMovable: true };
-const FACT_INK: Record<ScanRow['factInk'], string> = { bull: 'text-bull', bear: 'text-bear', warn: 'text-warn', white: 'text-textPrimary' };
+const SCAN_EMPTY: Record<ScanPreset, string> = { gainers: 'No names up today', losers: 'No names down today', voliv: 'Nothing on the tape' };
 
 export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }: { rows: ScanRow[]; ticker: string; preset: ScanPreset; onPick: (t: string) => void }) {
   const gridRef = useRef<AgGridReact<ScanRow>>(null);
-  const kind = SCAN_PRESETS.find(p => p.key === preset) ?? SCAN_PRESETS[0];
   const columnDefs = useMemo<ColDef<ScanRow>[]>(
     () => [
       {
@@ -605,21 +313,10 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
             </span>
           ) : null,
       },
-      /* THE KIND'S OWN FIGURE — the number this kind ranked by, in its ink
-         (a gap up green, a report tomorrow amber, a volume plain white) */
-      {
-        colId: 'fact',
-        headerName: kind.fact,
-        width: 104,
-        type: 'rightAligned',
-        headerTooltip: kind.hint,
-        cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className={`font-mono text-[11px] font-semibold tnum ${FACT_INK[data.factInk]}`}>{data.fact}</span> : null),
-      },
-      /* No grey figures anywhere on the scanner (Noah, 2026-09-12) */
-      { colId: 'optvol', headerName: 'Opt vol', width: 84, type: 'rightAligned', headerTooltip: "Contracts traded today across the name's chain", cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textPrimary">{fmtUsd(data.optVolume).replace('$', '')}</span> : null) },
-      { colId: 'iv', headerName: 'IV', width: 60, type: 'rightAligned', cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textPrimary">{data.ivPct.toFixed(0)}%</span> : null) },
+      { colId: 'optvol', headerName: 'Opt vol', width: 88, type: 'rightAligned', headerTooltip: "Contracts traded today across the name's chain", cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textSecondary">{fmtUsd(data.optVolume).replace('$', '')}</span> : null) },
+      { colId: 'iv', headerName: 'IV', width: 64, type: 'rightAligned', cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textSecondary">{data.ivPct.toFixed(0)}%</span> : null) },
     ],
-    [kind]
+    []
   );
   /* The desk's name wears the house selection — synced once the grid has
      its rows (the first effect fires before the grid exists) */
@@ -648,364 +345,19 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
           animateRows={false}
           onFirstDataRendered={() => setReady(true)}
           tooltipShowDelay={350}
-          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${kind.empty}</span>`}
+          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${SCAN_EMPTY[preset]}</span>`}
         />
       </AgGridProvider>
     </div>
   );
 });
 
-/** One labeled figure in the drilldown - silver label, bright number. */
-const StatCell = ({ label, value, term, ink }: { label: string; value: string; term?: string; ink?: string }) => (
-  <span className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[9px] uppercase tracking-widest text-silver whitespace-nowrap">
-      {term ? <Term k={term as never}>{label}</Term> : label}
-    </span>
-    <span className={`font-mono text-[11px] font-semibold tnum ${ink ?? 'text-textPrimary'}`}>{value}</span>
-  </span>
-);
-
-/** The weigh-up's two sections — Stats and The Greeks — shared verbatim by
-    the desk's Strike card and Pulse's inline drilldown, so the two surfaces
-    can never drift apart. A fragment on purpose: hosts that SPREAD the
-    sections (justify-evenly) need them as direct children. */
-const WeighGrids = ({ c }: { c: DeskContract }) => (
-  <>
-        <div className="flex flex-col gap-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">Stats</span>
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2.5">
-            <StatCell label="Bid" value={`$${c.bid.toFixed(2)}`} />
-            <StatCell label="Mark" term="Mark" value={`$${c.mark.toFixed(2)}`} />
-            <StatCell label="High" value={`$${c.high.toFixed(2)}`} />
-            <StatCell label="Last trade" value={`$${c.last.toFixed(2)}`} />
-            <StatCell label="Volume" term="Volume" value={fmtCount(c.volume)} />
-            <StatCell label="Ask" value={`$${c.ask.toFixed(2)}`} />
-            <StatCell label="Prev close" value={`$${c.prevClose.toFixed(2)}`} />
-            <StatCell label="Low" value={`$${c.low.toFixed(2)}`} />
-            <StatCell label="IV" term="IV" value={`${c.iv.toFixed(2)}%`} />
-            <StatCell label="Open interest" term="Open interest" value={fmtCount(c.oi)} />
-            <StatCell label="Breakeven" term="Breakeven" value={`$${c.breakeven.toFixed(2)}`} />
-            <StatCell
-              label="From spot"
-              value={`${c.fromSpotPct >= 0 ? '+' : ''}${c.fromSpotPct.toFixed(1)}%`}
-              ink={c.fromSpotPct >= 0 ? 'text-bull' : 'text-bear'}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">The Greeks</span>
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2.5">
-            <StatCell label="Delta" term="Delta" value={c.delta.toFixed(4)} />
-            <StatCell label="Gamma" term="Gamma" value={c.gamma.toFixed(4)} />
-            <StatCell label="Theta / day" term="Theta" value={c.theta.toFixed(4)} />
-            <StatCell label="Vega" term="Vega" value={c.vega.toFixed(4)} />
-            <StatCell label="Rho" term="Rho" value={c.rho.toFixed(4)} />
-          </div>
-        </div>
-  </>
-);
-
 /* States, never orders (the Compass ruling): BUY/WATCH/FADE are internal
    loop vocabulary; the reader sees the state — and THE CASE in one word
    (the walk, 2026-09-11: "High conviction" was a buzzword; the setup page
    says strong / fair / weak off the same score, so this card does too). */
-const CASE_WORD = (score: number) => (score >= 93 ? 'strong' : score >= 85 ? 'fair' : 'weak');
-const CASE_INK = (score: number) => (score >= 93 ? 'text-bull' : score >= 85 ? 'text-warn' : 'text-bear');
-const SLEEVE_WORD: Record<string, string> = { odte: 'same-day', weekly: 'weekly', swing: 'swing', leaps: 'long-dated' };
 const DOOR_CLS =
   'inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
-/* TRANSFORM, never width (Noah, 2026-08-29: "the confidence bars are moving
-   very laggy") — width is a LAYOUT property, and a layout animation under
-   this desk's per-second churn drops frames; scaleX rides the compositor
-   (the Trace live-meter law, applied here). Geometry takes the raw float. */
-const METER_GLIDE = 'transition-[transform,background-color] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]';
-
-/* The strike's weigh-up gets its OWN quadrant instead of unfolding inside
-   the chain (Noah, 2026-08-26: "to differ from robinhood legend... the empty
-   section in the bottom right be the information for the strike you click").
-   Every pick lands on a soft fade - keyed remount, the Compass mode-swap
-   recipe - and the content spreads to FILL the card rather than huddling at
-   the top. Facts only; the greeks stay magnitudes with no direction ink.
-
-   THREE TABS (Noah, 2026-09-12: "this is a weigher based on the parameters we
-   will set so it should be the same as compass's but … people might have had
-   their own cons and wanted our thoughts with our parameters"):
-     Contract — the instrument's own facts, cleaned up and fuller
-     Setup    — the take profits, the fair value, the works the Compass page
-                carries, for THIS contract
-     Verdict  — whether we like it or would fade it, and the reasoning */
-export type ContractTab = 'contract' | 'setup' | 'verdict';
-export const CONTRACT_TABS: readonly { value: ContractTab; label: string }[] = [
-  { value: 'contract', label: 'Contract' },
-  { value: 'setup', label: 'Setup' },
-  { value: 'verdict', label: 'Verdict' },
-];
-
-const VERDICT_WORDS: Record<ContractVerdict, { words: string; ink: string }> = {
-  BUY: { words: 'We like it', ink: 'text-bull' },
-  WATCH: { words: 'We are watching it', ink: 'text-warn' },
-  FADE: { words: 'We would fade it', ink: 'text-bear' },
-};
-const signedPctWord = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
-
-/** A group of facts under one whisper head — the Contract tab's grammar */
-const FactGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-1.5">
-    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">{title}</span>
-    <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2">{children}</div>
-  </div>
-);
-
-export const StrikeCard = ({
-  c,
-  contractKey,
-  weigh,
-  grade,
-  boardRank,
-  onOpenSetup,
-  onSeeBoard,
-  tab,
-  spot,
-}: {
-  c: DeskContract | null;
-  contractKey: string;
-  weigh: WeighYourOwn | null;
-  /** THE state — from makeSetup, the same engine that grades the board. */
-  grade: Setup | null;
-  /** This contract's place on today's board for its sleeve; null = not on it. */
-  boardRank: number | null;
-  onOpenSetup: () => void;
-  onSeeBoard: () => void;
-  tab: ContractTab;
-  /** The underlying, live — the Setup tab's "needs" column speaks in it */
-  spot: number;
-}) => {
-  if (!c || !weigh || !grade) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center gap-1.5 select-none animate-soft-in">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted">
-          Nothing weighed yet
-        </span>
-        <span className="font-mono text-[9px] text-textSecondary">
-          Click a strike in the chain — its read lands here; a double click puts it on the chart
-        </span>
-      </div>
-    );
-  }
-  const state = processState(grade);
-  const verdict = VERDICT_WORDS[weigh.contract.verdict];
-
-  /* THE SETUP'S OWN MATH — the Compass page's, verbatim: each premium rung
-     restated as the stock price that pays it, by THE pricer that minted the
-     mid (one-pricer rule). */
-  const iv = grade.greeks.iv / 100;
-  const sessions = Math.max(grade.sessionsLeft, 0.5);
-  const priceAt = (s: number, sess: number) => estimatePremium(s, grade.strike, grade.right, iv, Math.max(sess, 0.05) / 252);
-  const needFor = (target: number) => spotForPremium(target, grade.right, priceAt, sessions, spot);
-
-  return (
-    <div className="h-full overflow-y-auto animate-soft-in" data-contract-tab={tab}>
-      <div className="min-h-full flex flex-col gap-3 px-3.5 py-2.5">
-        {tab === 'contract' && (
-          <div key={`con-${contractKey}`} className="flex flex-col gap-3 animate-soft-in" data-contract-read>
-            <FactGroup title="The quote">
-              <StatCell label="Bid" value={`$${c.bid.toFixed(2)}`} />
-              <StatCell label="Mark" term="Mark" value={`$${c.mark.toFixed(2)}`} />
-              <StatCell label="Ask" value={`$${c.ask.toFixed(2)}`} />
-              <StatCell label="Last trade" value={`$${c.last.toFixed(2)}`} />
-              <StatCell label="Net change" value={`${c.netChange >= 0 ? '+' : '-'}$${Math.abs(c.netChange).toFixed(2)} (${signedPctWord(c.netChangePct)})`} ink={c.netChange >= 0 ? 'text-bull' : 'text-bear'} />
-              <StatCell label="Prev close" value={`$${c.prevClose.toFixed(2)}`} />
-              <StatCell label="High" value={`$${c.high.toFixed(2)}`} />
-              <StatCell label="Low" value={`$${c.low.toFixed(2)}`} />
-              <StatCell label="Bid size" value={fmtCount(c.bidSize)} />
-              <StatCell label="Ask size" value={fmtCount(c.askSize)} />
-            </FactGroup>
-            <FactGroup title="The odds">
-              <StatCell label="ITM odds" term="ITM odds" value={`${c.itmOdds.toFixed(0)}%`} />
-              <StatCell label="Touch odds" term="Touch odds" value={`${c.touchOdds.toFixed(0)}%`} />
-              <StatCell label="Profit odds" term="Profit odds" value={`${c.profitOddsLong.toFixed(0)}%`} />
-              <StatCell label="Breakeven" term="Breakeven" value={`$${c.breakeven.toFixed(2)}`} />
-              <StatCell label="To breakeven" term="To breakeven" value={signedPctWord(c.toBreakevenPct)} ink={c.toBreakevenPct >= 0 ? 'text-bull' : 'text-bear'} />
-            </FactGroup>
-            <FactGroup title="The value">
-              <StatCell label="Intrinsic" term="Intrinsic value" value={`$${c.intrinsic.toFixed(2)}`} />
-              <StatCell label="Extrinsic" term="Extrinsic value" value={`$${c.extrinsic.toFixed(2)}`} />
-              <StatCell label="IV" term="IV" value={`${c.iv.toFixed(1)}%`} />
-              <StatCell label="Volume" term="Volume" value={fmtCount(c.volume)} />
-              <StatCell label="Open interest" term="Open interest" value={fmtCount(c.oi)} />
-              <StatCell label="From spot" value={signedPctWord(c.fromSpotPct)} ink={c.fromSpotPct >= 0 ? 'text-bull' : 'text-bear'} />
-              <StatCell label="Expires" value={`${grade.expiryDate.slice(5).replace('-', '/')} · ${Math.round(grade.sessionsLeft)} sess.`} />
-              <StatCell label="1σ move" value={`±${grade.sigmaMovePct}%`} />
-            </FactGroup>
-            <FactGroup title="The Greeks">
-              <StatCell label="Delta" term="Delta" value={c.delta.toFixed(4)} />
-              <StatCell label="Gamma" term="Gamma" value={c.gamma.toFixed(4)} />
-              <StatCell label="Theta / day" term="Theta" value={c.theta.toFixed(4)} />
-              <StatCell label="Vega" term="Vega" value={c.vega.toFixed(4)} />
-              <StatCell label="Rho" term="Rho" value={c.rho.toFixed(4)} />
-            </FactGroup>
-          </div>
-        )}
-
-        {tab === 'setup' && (
-          <div key={`setup-${contractKey}`} className="flex flex-col gap-3 animate-soft-in" data-contract-setup>
-            {/* The three numbers a setup is priced on — the Compass page's trio */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
-                <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${grade.mid.toFixed(2)}</div>
-              </div>
-              <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
-                <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${grade.liveMid.toFixed(2)}</div>
-              </div>
-              <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
-                <div className={`mt-1 font-mono text-sm font-semibold tnum ${grade.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>{signedPctWord(grade.expectedMovePct)}</div>
-              </div>
-            </div>
-            {/* The targets — the Compass page's strict table, for this contract */}
-            <div className="border border-borderSubtle rounded-md overflow-hidden">
-              <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
-                <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{grade.takeProfits.length > 0 ? 'Targets' : 'Targets — none, the case is fading'}</span>
-              </div>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-borderSubtle">
-                    <th className="text-left font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
-                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
-                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
-                    <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5"><Name t={grade.ticker} size={10} /> needs</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borderSubtle">
-                  {[...grade.takeProfits].reverse().map(tp => {
-                    const hit = tp.status === 'HIT';
-                    const working = tp.status === 'IN PROGRESS';
-                    const need = hit ? null : needFor(tp.target);
-                    return (
-                      <tr key={tp.level} data-setup-target={tp.level} data-status={tp.status}>
-                        <td className="px-3 py-2">
-                          <span className={`inline-flex items-center gap-1.5 font-mono text-[11px] ${hit ? 'text-bull font-semibold' : working ? 'text-textPrimary font-semibold' : 'text-textPrimary'}`}>
-                            {hit && <Check className="w-3 h-3" />}
-                            Target {tp.level}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-[12px] font-semibold tnum text-textPrimary">${tp.target.toFixed(2)}</td>
-                        <td className={`px-3 py-2 text-right font-mono text-[11px] tnum ${hit ? 'text-bull' : 'text-textPrimary'}`}>+{tp.expectedPct}%</td>
-                        <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textPrimary">{need != null ? need.toFixed(2) : '—'}</td>
-                      </tr>
-                    );
-                  })}
-                  <tr>
-                    <td className="px-3 py-2"><span className="font-mono text-[11px] text-textPrimary">Entry</span></td>
-                    <td className="px-3 py-2 text-right font-mono text-[12px] font-semibold tnum text-textPrimary">${grade.mid.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
-                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2"><span className="font-mono text-[11px] font-semibold text-bear">{grade.right === 'C' ? 'Floor' : 'Ceiling'}</span></td>
-                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
-                    <td className="px-3 py-2 text-right font-mono text-[11px] tnum text-textSecondary">—</td>
-                    <td className="px-3 py-2 text-right font-mono text-[12px] font-semibold tnum text-textPrimary whitespace-nowrap">{grade.right === 'C' ? 'below' : 'above'} {grade.invalidationPrice.toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="px-3 py-2 border-t border-borderSubtle text-[10px] leading-snug text-textPrimary">
-                {grade.invalidationReason}. A close through it retires the setup{grade.expiry === '0DTE' ? ' — and nothing here outlives today\u2019s close anyway' : ` — otherwise it runs to ${grade.expiryDate.slice(5).replace('-', '/')}`}.
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <StatCell label="1σ move" value={`±${grade.sigmaMovePct}%`} />
-              <StatCell label="Swing target" value={`$${grade.swingTarget.price.toFixed(2)} · +${grade.swingTarget.pct}%`} ink="text-bull" />
-              <StatCell label="Scalp exit" value={`$${grade.scalpExit.price.toFixed(2)} · +${grade.scalpExit.pct}%`} ink="text-bull" />
-            </div>
-          </div>
-        )}
-
-        {tab === 'verdict' && (
-          /* NO key on the container (Noah, 2026-08-29: "transition between
-             different cons should have the confidence bars be a smooth
-             transition") — the DOM persists across contract switches so the
-             bars GLIDE (METER_GLIDE), and only the PROSE crossfades. */
-          <div className="flex flex-col justify-evenly gap-2 flex-1" data-contract-verdict>
-            <div key={`v-${contractKey}`} className="flex items-center gap-2 flex-wrap animate-soft-in">
-              <span className={`font-mono text-[13px] font-bold ${verdict.ink}`} data-verdict={weigh.contract.verdict}>{verdict.words}</span>
-              <SignalBadge tone={PROCESS_META[state].tone} dot pulse={PROCESS_META[state].pulse}>
-                {state}
-              </SignalBadge>
-              <span className={`font-mono text-[10px] font-semibold ${CASE_INK(grade.score)}`}>a {CASE_WORD(grade.score)} case</span>
-              <span className="font-mono text-[10px] tnum text-textPrimary">{grade.confidence}%</span>
-              <span className="ml-auto font-mono text-[9px] text-textSecondary whitespace-nowrap">graded as a {SLEEVE_WORD[grade.sleeve] ?? grade.sleeve} contract</span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The contract itself</span>
-              {weigh.contract.factors.map(f => (
-                <div key={f.key} className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-28 shrink-0 font-mono text-[9px] uppercase tracking-wider text-textSecondary">{f.label}</span>
-                    <span className="flex-1 h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
-                      <span
-                        className={`block h-full w-full rounded-full origin-left ${METER_GLIDE} ${
-                          f.score >= 60 ? 'bg-bull/85' : f.score >= 40 ? 'bg-ink/30' : 'bg-bear/75'
-                        }`}
-                        style={{ transform: `scaleX(${f.score / 100})` }}
-                      />
-                    </span>
-                  </div>
-                  <p key={contractKey} className="pl-28 text-[11px] text-textPrimary leading-snug animate-soft-in">
-                    <RichRead text={f.detail} />
-                  </p>
-                </div>
-              ))}
-            </div>
-            {/* Edge speaks for the trade, risk against it — the labels wear
-                their sides (Noah, 2026-08-29: "edge and risk should be color
-                coded"). Crossfades with the prose; the sentences stay bright. */}
-            <div key={`er-${contractKey}`} className="grid grid-cols-1 gap-1.5 pt-1.5 border-t border-borderSubtle/60 animate-soft-in">
-              <p className="text-[11px] leading-snug">
-                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-bull mr-2">Edge</span>
-                <span className="text-textPrimary"><RichRead text={weigh.contract.edge} /></span>
-              </p>
-              <p className="text-[11px] leading-snug">
-                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-bear mr-2">Risk</span>
-                <span className="text-textPrimary"><RichRead text={weigh.contract.risk} /></span>
-              </p>
-              <p className="text-[11px] leading-snug">
-                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-textSecondary mr-2">Why</span>
-                <span className="text-textPrimary"><RichRead text={grade.whyText} /></span>
-              </p>
-            </div>
-            {/* The absence answered — the very question that exposed the two
-                engines. On the board: say where. Off it: say why plainly. */}
-            <div key={`bd-${contractKey}`} className="pt-1.5 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap animate-soft-in">
-              {boardRank != null ? (
-                <span className="font-mono text-[10px] text-textPrimary">
-                  On today's Compass board · <span className="font-semibold tnum">#{boardRank}</span>
-                </span>
-              ) : (
-                <span className="font-mono text-[10px] text-textSecondary">
-                  Not on today's board — it lists only the strongest few
-                </span>
-              )}
-              <span className="ml-auto flex items-center gap-1.5">
-                <button onClick={onOpenSetup} className={DOOR_CLS}>
-                  <ArrowUpRight className="w-3 h-3" />
-                  Setup page
-                </button>
-                <button onClick={onSeeBoard} className={DOOR_CLS}>
-                  <ArrowUpRight className="w-3 h-3" />
-                  The board
-                </button>
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 /** One chain row, with the spot rule under it when it brackets the market.
     Clicking it puts the strike ON THE SCALE - the Strike card carries the
     weigh-up now, so the ladder itself stays clean. */
@@ -1122,7 +474,17 @@ const TickPump = memo(function TickPump({ onTick }: { onTick: () => void }) {
 });
 
 /* ---- the desk -------------------------------------------------------------- */
-const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => {
+/** What a deep link may carry: a name alone (Trace's "Weigh it"), or THE
+    contract — the Record's busiest rows (2026-09-12): the side and the
+    expiry DATE ("2026-09-18") pick the chain, the strike picks the row */
+export interface WeighRequest {
+  ticker: string;
+  strike?: number;
+  right?: 'C' | 'P';
+  expiry?: string;
+}
+
+const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
   /* TWO TIERS, the Pulse rule (Noah, 2026-08-27: "i dont ever have this
      problem with the pulse page"): the light tick runs every snapshot and
      feeds the cheap live readouts — prices, the mood, the charts' bar
@@ -1132,6 +494,9 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
   const [tick, setTick] = useState(0);
   const [scanTick, setScanTick] = useState(0);
   const lastScanRef = useRef(0);
+  /* The chart's chrome wears the ground of the tape's theme (the store's, on this desk —
+     index.css re-scopes the strip's tokens under the stamp; 2026-09-13) */
+  const chartThemeKey = useCandleThemeKey();
   /* Both tiers publish as TRANSITIONS (Noah, 2026-08-30): the scan tick
      rebuilds a 301-row chain and the scanner — a 54–103ms render measured
      at idle. As urgent updates those blocked the very click they landed
@@ -1187,12 +552,10 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     };
   }, [applyTick]);
 
-  const { activeTicker, changeTicker } = useMarketData();
   const [desk, setDesk] = useState<DeskState>(loadDesk);
   const [sel, setSel] = useState<number | null>(null);
-  /* Which face of the contract card is up (Noah, 2026-09-12: contract · setup · verdict) */
-  const [conTab, setConTab] = useState<ContractTab>('contract');
-  const [timeframe, setTimeframe] = useState<Timeframe>('1m');
+  /* opens on the desk's timeframe when the reader set one (Settings › The desk) */
+  const [timeframe, setTimeframe] = useState<Timeframe>(() => readDeskPrefs().opensOn.timeframe ?? '1m');
   const [overlays, setOverlays] = useState<ChartOverlays>(DEFAULT_OVERLAYS);
   const [chartStyle, setChartStyle] = useState<ChartStyle>('candles');
   const [indicators, setIndicators] = useState<ChartIndicators>(DEFAULT_INDICATORS);
@@ -1205,27 +568,35 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     }
   }, [desk]);
 
-  const { ticker, dte, lens, right, preset, depth, cols, focus, density } = desk;
+  const { ticker, dte, lens, right, preset, depth, cols } = desk;
   const patch = (p: Partial<DeskState>) => setDesk(d => ({ ...d, ...p }));
 
   const mood = useMemo(() => marketMood(), [tick]);
   const session = useMemo(() => marketSession(), [tick]);
   const chain = useMemo(() => buildDeskChain(ticker, dte, depth), [ticker, dte, depth, scanTick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const scan = useMemo(() => buildScan(preset, ticker), [preset, ticker, scanTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const scan = useMemo(() => (preset === 'watchlist' ? [] : buildScan(preset, ticker)), [preset, ticker, scanTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const levels = useMemo(() => buildLevelsFor(ticker), [ticker, tick]);
   const changePct = useMemo(() => spotChangePct(ticker), [ticker, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prints = useMemo(() => buildPrints(ticker, levels.spot), [ticker]); // eslint-disable-line react-hooks/exhaustive-deps
-  /* THE NAME'S OWN DATES (Noah, 2026-09-12: "only show the dates that these
-     tickers have cause every ticker may have different option dates") — the
-     calendar lists exactly what this name trades, and a stored horizon that
-     the name does not list snaps to the nearest one it does. */
-  const expiries = useMemo(() => listExpiriesFor(ticker), [ticker, scanTick]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const snapped = nearestListedExpiry(ticker, dte).dte;
-    if (snapped !== dte) setDesk(d => ({ ...d, dte: snapped }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker]);
+  /* The rail's expiries — and the one a deep link asked for when the rail
+     does not list it (a contract's own Friday), in date order */
+  const expiries = useMemo(() => {
+    const rail = deskExpiries();
+    if (rail.some(e => e.dte === dte)) return rail;
+    return [...rail, expiryFor(dte)].sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [dte]);
+  /* The expiries as dates (Noah, 2026-09-08 on the Map: "it just says 1d 2d 3d") */
+  const expiryOptions = useMemo<ExpiryChoice<number>[]>(
+    () =>
+      expiries.map(e => ({
+        value: e.dte,
+        label: e.dte === 0 ? `Today · ${fmtDay(e.date)}` : `${fmtDay(e.date)} · ${e.weekday}`,
+        hint: e.dte === 0 ? 'The contracts that expire at the bell' : `${e.dte} days out · ${e.sessions} ${e.sessions === 1 ? 'session' : 'sessions'}`,
+        date: e.date,
+      })),
+    [expiries]
+  );
   const shownCols = useMemo(() => CHAIN_COLUMNS.filter(c => cols.includes(c.key)), [cols]);
   // One array per chain per side — the picker's memo depends on this identity.
   const sideContracts = useMemo(() => chain.rows.map(r => (right === 'C' ? r.call : r.put)), [chain, right]);
@@ -1236,6 +607,19 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
      underneath. One card at a time; its grid cell goes blank behind the
      takeover so no chart runs twice. */
   const [full, setFull] = useState<'chart' | 'chain' | null>(null);
+  /* the chain card's measured width — what its head lays itself out by (see `chainHead`); read before the first paint,
+     so the head never opens broken and then mends itself */
+  const chainRO = useRef<ResizeObserver | null>(null);
+  const [chainW, setChainW] = useState(0);
+  const chainBoxRef = useCallback((el: HTMLDivElement | null) => {
+    chainRO.current?.disconnect();
+    chainRO.current = null;
+    if (!el) return;
+    setChainW(Math.round(el.getBoundingClientRect().width));
+    const ro = new ResizeObserver(entries => setChainW(Math.round(entries[0].contentRect.width)));
+    ro.observe(el);
+    chainRO.current = ro;
+  }, []);
   const [guideOpen, setGuideOpen] = useState(false);
   const { closing, close } = useFadeClose(() => setFull(null));
   useEffect(() => {
@@ -1268,43 +652,54 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
     return row ? (right === 'C' ? row.call : row.put) : null;
   }, [chain, sel, right]);
 
-  /* TWO WAYS, ONE NAME (2026-09-21). The desk kept its own ticker and the
-     terminal kept another, so a reader who picked NVDA in the palette or off
-     a watchlist arrived here still looking at whatever they last weighed —
-     the one desk in the terminal whose entire job is ONE name was the one
-     that would not follow. Picking here now names the terminal, and the
-     terminal naming itself moves the desk (below). The desk still remembers
-     its name across a reload; the two just agree about what it is. */
   const pickTicker = (t: string) => {
     if (t === ticker) return;
     Simulator.ensureTicker(t);
     setSel(null);
-    patch({ ticker: t, lens: 'stock', dte: nearestListedExpiry(t, dte).dte });
-    changeTicker(t);
+    setListSel(null);
+    patch({ ticker: t, lens: 'stock' });
   };
 
-  /* The other direction: the terminal's name moves the desk. A deep link
-     (below) still wins for the arrival it describes, because it is a more
-     specific instruction than "the name the terminal is on". */
-  useEffect(() => {
-    if (!activeTicker || activeTicker === ticker) return;
-    Simulator.ensureTicker(activeTicker);
-    setSel(null);
-    patch({ ticker: activeTicker, lens: 'stock', dte: nearestListedExpiry(activeTicker, dte).dte });
+  /* A deep link arrives with a name (Trace's "Weigh it") — or with a CONTRACT
+     (the Record's busiest rows, 2026-09-12). It repoints the desk once; after
+     that the desk's own pickers own the ticker again, and the stored desk
+     state carries it to the next visit. A contract also sets the side and the
+     nearest listed expiry, and asks for its strike. */
+  const [pendingPick, setPendingPick] = useState<{ ticker: string; dte: number; strike: number } | null>(null);
+  /* THE LIST'S PICK — the row the reader pressed on the positions or the watchlist card; the card draws it until the
+     reader presses a strike on the chain or moves the desk to another name (declared here so those pickers can let it go) */
+  const [listSel, setListSel] = useState<string | null>(null);
+  /* POINT THE DESK AT A CONTRACT — the deep link's move, and a watchlist row's (2026-09-14) */
+  const pointTo = useCallback(
+    (req: WeighRequest) => {
+      const t = req.ticker;
+      Simulator.ensureTicker(t);
+      setSel(null);
+      /* the contract's OWN expiry, as the desk's horizon for that date — listed
+         on the rail when the rail has it, added to the rail when it does not */
+      const near = req.expiry ? dteForDate(req.expiry) : null;
+      setPendingPick(req.strike == null ? null : { ticker: t, dte: near ?? dte, strike: req.strike });
+      patch({ ticker: t, lens: 'stock', ...(req.right ? { right: req.right } : {}), ...(near != null ? { dte: near } : {}) });
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTicker]);
-
-  /* A deep link arrives with a name (Trace's "Weigh it"). It repoints the
-     desk once; after that the desk's own pickers own the ticker again, and
-     the stored desk state carries it to the next visit. */
+    [dte]
+  );
   useEffect(() => {
-    if (!incomingTicker || incomingTicker === ticker) return;
-    Simulator.ensureTicker(incomingTicker);
-    setSel(null);
-    patch({ ticker: incomingTicker, lens: 'stock' });
-    changeTicker(incomingTicker);
+    if (incoming) pointTo(incoming);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingTicker]);
+  }, [incoming]);
+  /* The pick lands once the chain for THAT name and expiry is up — on the
+     row's own strike when the chain lists it, else the nearest listed one */
+  const [reveal, setReveal] = useState<{ strike: number; n: number } | null>(null);
+  useEffect(() => {
+    if (!pendingPick || pendingPick.ticker !== ticker || pendingPick.dte !== dte || !chain.rows.length) return;
+    const want = pendingPick.strike;
+    const nearest = chain.rows.reduce((best, r) => (Math.abs(r.strike - want) < Math.abs(best.strike - want) ? r : best), chain.rows[0]);
+    setPendingPick(null);
+    setSel(nearest.strike);
+    /* and the chain scrolls to it, its weigh-up open — not to the market */
+    setReveal(r => ({ strike: nearest.strike, n: (r?.n ?? 0) + 1 }));
+  }, [pendingPick, chain, ticker, dte]);
 
   /* ONE click weighs, TWO clicks chart (Noah, 2026-08-26: "a double click of
      the chain should change the live chart to the contract one and one click
@@ -1316,6 +711,8 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
      needs to know whether the first click of a pair CLOSED the row. */
   const lastToggle = useRef<{ strike: number; off: boolean; at: number } | null>(null);
   const pickStrike = useCallback((strike: number, clicks = 1) => {
+    /* the reader's own press on the chain — the card follows the chain again */
+    setListSel(null);
     if (clicks >= 2) {
       /* A quick re-click on the OPEN row arrives as the second click of a
          double (e.detail 2): the first click closed the row, and treating the
@@ -1439,7 +836,10 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
          spans the card, so its right cluster used to land on the axis
          column; a right inset the width of that column keeps every control
          inside the plot, where the tape is, and off the numbers. */
-      className="absolute top-0 inset-x-0 z-20 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-2 pr-[76px] py-1 select-none"
+      /* pr-[68px], down from 76 (2026-09-13): the axis column is 54, so 14px
+         stays clear of it — and the 8px is what keeps the whole strip on ONE
+         row at 1905 now that the toolbar no longer squeezes (below). */
+      className="absolute top-0 inset-x-0 z-20 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-2 pr-[68px] py-1 select-none"
       /* Floating chrome the chart's scripts legend measures and sits under (2026-09-10) */
       data-chart-chrome
     >
@@ -1454,6 +854,20 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
           {contractIdentity}
           {lensTabs}
           <TimeframeStrip value={timeframe} onChange={setTimeframe} />
+          {/* The premium lens has no toolbar to carry the door, so it stands alone at the end */}
+          <span className="ml-auto flex items-center gap-1.5">
+            {full === 'chart' ? (
+              <button
+                onClick={close}
+                title="Exit fullscreen (Esc)"
+                className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+              >
+                <Minimize2 className="w-3 h-3" />
+              </button>
+            ) : (
+              fullBtn('chart')
+            )}
+          </span>
         </>
       ) : (
         <>
@@ -1465,19 +879,20 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
               becomes the spacer, Indicators · Alerts · Candles · Overlays · Theme
               land at the right edge beside the expand door. Compact (the card)
               stays packed — there is no room to spread across. */}
-          {/* ONE ROW, OR ONE MORE — never a stack (Noah, 2026-09-12: "when the
-              left tab is out there's a bunch of space on the top that makes it
-              look bad"). The toolbar used to sit in a flex-1 slot that the
-              identity and the lens door squeezed to a sliver on the half-width
-              card when the sidebar was open, and its controls wrapped one per
-              line down the tape. A floor on the slot makes the toolbar wrap AS
-              A WHOLE onto the strip's next line, still horizontal; and the
-              compact card packs its controls instead of spreading them. */}
-          <div className="flex-[1_1_360px] min-w-[300px] max-w-full">
+          {/* ITS FLOOR IS ITS OWN ROW (Noah, 2026-09-13, the card at ~1130px:
+              "as the page gets slightly smaller the top section just gets
+              completely discombobulated"): this wrapper was `min-w-0`, so
+              when the identity and the tabs left it less than a row's worth,
+              it shrank to one icon's width and the toolbar's own wrap stacked
+              its six controls into a COLUMN, with the identity centred beside
+              it. `min-w-fit` keeps the floor at the toolbar's one-row width
+              (capped at the strip's own), so it wraps to a row of its own
+              under the identity instead — two tidy rows, then one again. */}
+          <div className="flex-1 min-w-fit">
             <ChartToolbar
               minimal
               candles
-              spread={full === 'chart'}
+              spread
               alertTicker={ticker}
               alertSpot={levels.spot}
               compact={full !== 'chart'}
@@ -1491,29 +906,24 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
               onIndicators={setIndicators}
               paneId="weigher"
               fullscreen={full === 'chart'}
+              /* THE DOOR RIDES THE TOOLBAR (2026-09-13): it used to stand alone
+                 after it with `ml-auto`, so when the toolbar wrapped to a row
+                 of its own the door was left behind on the first row, or
+                 dropped to a third. As the toolbar's last control it goes
+                 wherever the toolbar goes — and in fullscreen it is the
+                 minimize door at the strip's far right, as before. */
+              onToggleFullscreen={full === 'chart' ? close : () => setFull('chart')}
             />
           </div>
         </>
       )}
-      <span className="ml-auto flex items-center gap-1.5">
-        {full === 'chart' ? (
-          <button
-            onClick={close}
-            title="Exit fullscreen (Esc)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
-          >
-            <Minimize2 className="w-3 h-3" />
-          </button>
-        ) : (
-          fullBtn('chart')
-        )}
-      </span>
     </div>
   );
 
   const chartBody = (
-    /* A dark island on any page (2026-09-12): the tape and its strip read the dark tokens */
-    <div className="relative h-full bg-panel" data-theme="dark">
+    /* A dark island on any page (2026-09-12): the tape and its strip read the dark tokens —
+       and the strip the ground of the tape's theme (2026-09-13) */
+    <div className="relative h-full bg-panel" data-theme="dark" data-chart-ground={chartGround(chartThemeKey)}>
       <div className="absolute inset-0">
         {lens === 'contract' && selected ? (
           /* Keyed remount: stepping strikes lands the new premium tape on a
@@ -1538,6 +948,11 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
               levels={levels}
               timeframe={timeframe}
               keepView
+              /* THE WHEEL BELONGS TO THE PAGE over the docked chart (2026-09-14, Noah: "the scroll
+                 bar doesn't work at all" — the desk scrolls now, and the chart ate every wheel
+                 over the top-left 40% of the screen); fullscreen keeps the wheel zoom, as Terrain
+                 below lg does — the same trade, see `pageScroll` */
+              pageScroll={full !== 'chart'}
               overlays={overlays}
               chartStyle={chartStyle}
               indicators={indicators}
@@ -1556,31 +971,26 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
      chain should have its own ticker search" — the same state as the chart's
      picker, so either one repoints both), then Side · Expiry (as dates, the
      Map's spelling) · Reach (the strike distance is a choice, not a cap) ·
-     Focus (which half stays lit) · Density · Columns (the catalog, in catalog
-     order), and the expected move as a fact. The strip wraps rather than
-     scrolls: a control you cannot see is a control you do not have. */
-  const chainActions = (
-    <span className="flex items-center gap-1.5 flex-wrap">
-      <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />
-      <DropdownSelect label="Side" value={right} options={SIDE_OPTIONS} onChange={v => patch({ right: v })} title="Calls or puts" testId="weigher-side" />
-      <ExpiryCalendar value={isoDate(chain.expiry.date)} expiries={expiries} onChange={e => patch({ dte: e.dte })} pattern={listingPatternFor(ticker)} title="Which contracts the chain lists — the dates this name trades" testId="weigher-expiry" />
-      <DropdownSelect label="Reach" value={depth} options={REACH_OPTIONS} onChange={v => patch({ depth: v })} title="How many strikes each side of the market" testId="weigher-reach" />
-      <DropdownSelect
-        label="Focus"
-        value={focus}
-        options={FOCUS_OPTIONS}
-        onChange={v => patch({ focus: v })}
-        title="Which strikes stay lit — the rest dim where they are, so the ladder keeps its shape"
-        testId="weigher-focus"
-      />
-      <DropdownSelect
-        label="Density"
-        value={density}
-        options={DENSITY_OPTIONS}
-        onChange={v => patch({ density: v })}
-        title="How much room each strike gets"
-        testId="weigher-density"
-      />
+     Columns (the catalog, in catalog order), and the expected move as a fact.
+
+     THE HEAD KNOWS ITS ROOM (Noah, 2026-09-20, with the landing's picture of this desk: "the chain buttons of top … are
+     screwed up"). Measured: the line needs ~760px of card, and the card has 491 at 1280, 571 at 1440 and 643 at 1600 —
+     on every laptop the cards broke into a ragged second line inside their own strip and the fullscreen door fell to a
+     third. So, by the card's measured width: ONE ROW where it fits (as it always was on a wide screen); else TWO — the
+     chain's identity on the title's row (whose chain · the move it is charging for · the door at the row's end) and the
+     four cards on a row of their own; and where even four NAMED cards do not fit a row, the cards drop their printed
+     names (`bare` — the name stays in the tooltip and the open card's heading) rather than break again. */
+  const chainName = <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />;
+  const chainMove = (
+    <span className="font-mono text-[9px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
+      ±{chain.expectedMovePct.toFixed(1)}%
+    </span>
+  );
+  const chainCards = (bare: boolean) => (
+    <>
+      <DropdownSelect label="Side" value={right} options={SIDE_OPTIONS} onChange={v => patch({ right: v })} title="Calls or puts" testId="weigher-side" bare={bare} />
+      <ExpiryCard label="Expiry" value={chain.expiry.dte} choices={expiryOptions} onChange={v => patch({ dte: v })} free={{ days: 90, toValue: d => dteForDate(isoDate(d)) }} title="Which contracts the chain lists" testId="weigher-expiry" bare={bare} />
+      <DropdownSelect label="Reach" value={depth} options={REACH_OPTIONS} onChange={v => patch({ depth: v })} title="How many strikes each side of the market" testId="weigher-reach" bare={bare} />
       <DropdownMulti
         label="Columns"
         values={cols}
@@ -1590,75 +1000,235 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
         title="Which facts the chain shows"
         testId="weigher-columns"
         align="end"
+        bare={bare}
       />
-      <span className="font-mono text-[10px] tnum whitespace-nowrap" title="The move the options are charging for by this expiry">
-        <span className="text-textMuted uppercase tracking-widest text-[9px] mr-1">move</span>
-        <span className="text-textPrimary font-semibold">±{chain.expectedMovePct.toFixed(1)}%</span>
-      </span>
+    </>
+  );
+  const chainActions = (
+    <span className="flex items-center gap-1.5 flex-wrap">
+      {chainName}
+      {chainCards(false)}
+      {chainMove}
     </span>
   );
+  const chainHead: 'one' | 'two' | 'bare' = chainW === 0 || chainW >= CHAIN_ONE_ROW_PX ? 'one' : chainW >= CHAIN_NAMED_ROW_PX ? 'two' : 'bare';
 
-  /* The desk's judgment for the strike on the scale — the same scorer the
-     Compass runs. Recomputed when the pick or the chain's sweep changes. */
-  /* THE STATE — the board's own engine grading this exact contract (the
-     dteOverride path makeSetup grew for user-named cons). Same cadence as
-     the quality weigh: re-graded when the chain sweeps or the pick moves. */
-  const compassGrade = useMemo(() => {
-    if (sel == null) return null;
-    const cfg = Simulator.TICKERS[ticker];
-    if (!cfg) return null;
-    return makeSetup(ticker, cfg.currentPrice, sel, right, 'top-setups', cfg.iv, sleeveForDte(chain.expiry.dte), chain.expiry.dte);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, right, ticker, chain]);
-
-  /* Is this con on today's board? The SAME sweep Compass runs for this
-     sleeve, checked at pick time — a snapshot answer for a snapshot
-     question ("why isn't it there?"). */
-  /* THE BOARD IS SWEPT ONCE PER CHAIN, NOT ONCE PER CLICK (Noah, 2026-08-30:
-     "very delayed to answer the dropdown"). This used to run the ENTIRE
-     Compass board — every name in the universe, every setup scored — on
-     every strike pick, purely to look up one contract's rank. The sweep now
-     lives on the chain's cadence (and off the click path, since the scan
-     tick is a transition); a pick is a find over the flat list. */
-  const boardFlat = useMemo(
+  /* THE WEIGH-UP IS GONE (Noah, 2026-09-14): the Compass grade, the board's rank and the
+     doors to the setup page left the card with it — the card is the contract's page now */
+  /* THE WATCHLIST ON THE DESK (2026-09-14 — Noah, with Robinhood's list and its contract page:
+     the bottom-left card lists every watched contract, the bottom-right reads the one picked).
+     The store's housekeeping — today's close, the bell — rides the desk's tick; the rows are
+     priced on the sweep, like the chain. */
+  const watchlist = useWatchlist();
+  useEffect(() => {
+    tickWatchlist();
+  }, [tick]);
+  /* ONE LIST, TWO KINDS OF ROWS (2026-09-14): the contracts you watch and the positions you own
+     or sold (the Map's "Your positions", moved here) — priced on the sweep, open rows first,
+     newest first */
+  const positions = useAllPositions();
+  /* TWO CARDS (Noah, 2026-09-14: "one is just a random watchlist position whilst the other is
+     YOUR position"): the positions you own or sold in one, the contracts you watch in the other
+     — the same rows, priced on the sweep, newest first, a watched row's settled ones last */
+  const ownRows = useMemo<ListRow[]>(
     () =>
-      sel == null
-        ? null
-        : buildCompassView(
-            Simulator.snapshotFor(ticker),
-            'top-setups',
-            Simulator.universeQuotes(ticker),
-            sleeveForDte(chain.expiry.dte)
-          ).groups.flatMap(g => g.setups),
-    // `sel != null` on purpose: the board is needed while anything is picked,
-    // and must not be re-swept because the pick moved a strike.
+      positions
+        .map<ListRow>(p => {
+          const value = valueOn(p, spotOf(p.ticker), 0);
+          const sign = p.side === 'long' ? 1 : -1;
+          /* against what was typed, else the mark when it was added (positionCurve costOf, 2026-09-16) */
+          const cost = costOf(p);
+          const total = cost ? (value - cost.value) * sign * 100 * p.contracts : null;
+          const totalR = cost && cost.value > 0 ? ((value - cost.value) / cost.value) * sign : null;
+          return { kind: 'own', id: p.id, p, value, total, totalR };
+        })
+        .sort((a, b) => (b.kind === 'own' ? b.p.addedAt : 0) - (a.kind === 'own' ? a.p.addedAt : 0)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sel != null, ticker, chain]
+    [positions, scanTick]
   );
-  const boardRank = useMemo(() => {
-    if (sel == null || !boardFlat) return null;
-    const i = boardFlat.findIndex(x => x.ticker === ticker && x.right === right && Math.abs(x.strike - sel) < 1e-9);
-    return i >= 0 ? i + 1 : null;
-  }, [boardFlat, sel, right, ticker]);
-
-  const navigate = useNavigate();
-  const openSetupPage = useCallback(() => {
-    if (sel == null) return;
-    navigate('/compass', {
-      state: { monitor: { ticker, strike: sel, right, scanner: 'top-setups', sleeve: sleeveForDte(chain.expiry.dte), dte: chain.expiry.dte } },
+  const watchRows = useMemo<ListRow[]>(() => {
+    const rank = (w: WatchedContract) => (w.status === 'open' ? 0 : 1);
+    return [...watchlist].sort((a, b) => rank(a) - rank(b) || b.addedAt - a.addedAt).map<ListRow>(w => ({ kind: 'watch', id: w.id, w, r: returnsOf(w) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlist, scanTick]);
+  const listRows = useMemo<ListRow[]>(() => [...ownRows, ...watchRows], [ownRows, watchRows]);
+  const watchReq = useMemo(() => (sel != null ? { ticker, strike: sel, right, expiry: isoDate(chain.expiry.date) } : null), [ticker, sel, right, chain.expiry.date]);
+  /* the picked contract's watched row — open, or its latest settled one */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const watched = useMemo(() => (watchReq ? watchedFor(watchReq) : null), [watchReq, watchlist]);
+  const watching = watched?.status === 'open';
+  /* THE ROW THE CARD DRAWS: the row the reader pressed on a list, while the desk is on its name — else the picked
+     contract's own row (an open watched one first, then a position) — else none.
+     A PRESSED ROW ALWAYS OPENS (Noah, 2026-09-20, a TSLA 244P that "just refuses to open anything up"; 2026-09-28, "the
+     'your positions' doesnt allow me to view the right card … but the watchlist does"): the chain could not point at
+     those contracts — a strike it does not list (TSLA steps by 2.50), an expiry it no longer carries (a position from
+     Sep 21 on Sep 28) — and the card, matching the row against the CHAIN's contract, found nothing and said "Not on your
+     list" under the very row that was pressed. The card prices a row from the row, not from the chain: the pressed row
+     is drawn whatever strike or date the desk settled on. The reader's own press on a strike of the chain, or a move to
+     another name, lets the pick go and the card follows the chain again (pickStrike, pickTicker). */
+  const cardRow = useMemo<ListRow | null>(() => {
+    const chosen = listSel ? listRows.find(r => r.id === listSel) : null;
+    if (chosen && (chosen.kind === 'watch' ? chosen.w : chosen.p).ticker === ticker) return chosen;
+    const same = (r: ListRow) => {
+      const c = r.kind === 'watch' ? r.w : r.p;
+      return !!watchReq && c.ticker === watchReq.ticker && c.right === watchReq.right && c.expiry === watchReq.expiry && Math.abs(c.strike - watchReq.strike) < 1e-9;
+    };
+    return listRows.find(r => same(r) && (r.kind === 'own' || r.w.status === 'open')) ?? listRows.find(r => same(r)) ?? null;
+  }, [listRows, listSel, watchReq, ticker]);
+  /* THE DOOR: watch the picked contract — the store marks it at this tick's price — and the
+     list card turns to the watchlist, where its row now stands selected */
+  const watchIt = useCallback(() => {
+    if (!watchReq) return;
+    if (!watching) addToWatchlist(watchReq);
+    patch({ preset: 'watchlist' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchReq, watching]);
+  const pickRow = useCallback(
+    (row: ListRow) => {
+      const c = row.kind === 'watch' ? row.w : row.p;
+      setListSel(row.id);
+      pointTo({ ticker: c.ticker, strike: c.strike, right: c.right, expiry: c.expiry });
+    },
+    [pointTo]
+  );
+  /* THE TRASH BIN on a list row (Noah, 2026-09-14): a watched contract leaves the list, a
+     position is removed — the row glides out (animateRows) and the card follows the list */
+  const removeRow = useCallback((row: ListRow) => {
+    if (row.kind === 'watch') removeWatched(row.w.id);
+    else removePosition(row.p.id);
+    setListSel(s => (s === row.id ? null : s));
+  }, []);
+  /* THE BOTTOM ROW'S CARDS FOLD to their heads (Noah, 2026-09-14): a folded list card gives its
+     room to the other; both folded, the column is two heads; THE POSITION CARD folds too (Noah:
+     "make the position page collapsable as well") — its body glides away and the row settles on
+     the column's floor. Kept in this browser. The rows glide between the two states
+     (grid-template-rows transitions in Chromium). */
+  const [folds, setFolds] = useState<Folds>(() => {
+    try {
+      const raw = localStorage.getItem('slayer_weigher_folds');
+      const v = raw ? (JSON.parse(raw) as Partial<Folds>) : {};
+      return { positions: v.positions === true, watchlist: v.watchlist === true, position: v.position === true };
+    } catch {
+      return { positions: false, watchlist: false, position: false };
+    }
+  });
+  const toggleFold = useCallback((key: keyof Folds) => {
+    setFolds(f => {
+      const next = { ...f, [key]: !f[key] };
+      try {
+        localStorage.setItem('slayer_weigher_folds', JSON.stringify(next));
+      } catch {
+        /* storage off — the fold lives for the session */
+      }
+      return next;
     });
+  }, []);
+  const columnRows = `${folds.positions ? 'minmax(33px, 0fr)' : 'minmax(0, 1fr)'} ${folds.watchlist ? 'minmax(33px, 0fr)' : 'minmax(0, 1fr)'}`;
+  /* A POSITION JUST ADDED lands on the desk: the form saved it, the list has it — its row is
+     picked so the card turns to it on the soft fade (Noah: "smooth as butter") */
+  const knownPositions = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const ids = new Set(positions.map(p => p.id));
+    const known = knownPositions.current;
+    knownPositions.current = ids;
+    if (!known) return;
+    const fresh = positions.find(p => !known.has(p.id));
+    const row = fresh ? listRows.find(r => r.id === fresh.id) : null;
+    if (row) pickRow(row);
+  }, [positions, listRows, pickRow]);
+  /* THE DOOR ON EVERY CHAIN ROW (Noah, 2026-09-14): the strikes of this ladder that are on the
+     list, and the +: it picks the strike, watches it if it is not watched yet, and turns the
+     list card to the watchlist — the position lands in the card the moment it is entered */
+  const expiryIso = isoDate(chain.expiry.date);
+  const watchedStrikes = useMemo(() => new Set(watchlist.filter(w => w.status === 'open' && w.ticker === ticker && w.right === right && w.expiry === expiryIso).map(w => w.strike)), [watchlist, ticker, right, expiryIso]);
+  const watchFromChain = useCallback(
+    (strike: number) => {
+      setSel(strike);
+      if (!watchedStrikes.has(strike)) addToWatchlist({ ticker, strike, right, expiry: expiryIso });
+      patch({ preset: 'watchlist' });
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, ticker, sel, right, chain]);
-  const seeBoard = useCallback(
-    () => navigate('/compass', { state: { tickerFilter: ticker } }),
-    [navigate, ticker]
+    [watchedStrikes, ticker, right, expiryIso]
   );
 
-  const weighed = useMemo(
-    () => (sel != null ? weighContract(Simulator.snapshotFor(ticker), right, sel, chain.expiry.dte) : null),
+  /* THE DAY'S DEALER MAP for the name — the position card's sketch draws its walls and flip
+     on the price axis and its read speaks against it (the Positions panel reads every
+     position against the 0DTE book, thirty strikes each side); rebuilt on the sweep */
+  const profile = useMemo<ExposureProfileData | null>(() => {
+    try {
+      return buildExposureProfile(Simulator.snapshotFor(ticker), '0DTE', 30);
+    } catch {
+      return null;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sel, right, ticker, chain]
+  }, [ticker, scanTick]);
+  /* OUR TWO CENTS (Noah, 2026-09-28, his partner: "or else it would just be a robinhood watchlist all over again"):
+     THE BOOK for the desk's name — every strike's shape, lean, part, record, close odds and change (data/bookAtStrike.ts)
+     — read by the chain's column and the strike's third block; and the lists' HEDGING word, the position card's own
+     verdict for every row, a profile per name on the scan */
+  const book = useMemo(() => (profile ? buildBook(ticker, profile) : null), [profile, ticker]);
+  const bookAt = useCallback((strike: number) => book?.rows.get(strike) ?? null, [book]);
+  const drillBook = useCallback((c: DeskContract) => <BookBlock read={bookAt(c.strike)} c={c} />, [bookAt]);
+  const profilesRef = useRef(new Map<string, ExposureProfileData | null>());
+  useEffect(() => {
+    profilesRef.current.clear();
+  }, [scanTick]);
+  const hedgeOf = useCallback(
+    (row: ListRow): Verdict | null => {
+      const c = row.kind === 'watch' ? row.w : row.p;
+      const open = row.kind === 'watch' ? row.w.status === 'open' : c.expiry >= isoDate(today());
+      if (!open) return null;
+      let prof: ExposureProfileData | null | undefined = c.ticker === ticker ? profile : profilesRef.current.get(c.ticker);
+      if (prof === undefined) {
+        try {
+          prof = buildExposureProfile(Simulator.snapshotFor(c.ticker), '0DTE', 30);
+        } catch {
+          prof = null;
+        }
+        profilesRef.current.set(c.ticker, prof);
+      }
+      if (!prof) return null;
+      const pos: Position = row.kind === 'own' ? row.p : { id: row.w.id, ticker: row.w.ticker, strike: row.w.strike, right: row.w.right, side: 'long', contracts: row.w.size, expiry: row.w.expiry, entry: row.w.addedMark, source: 'you', addedAt: row.w.addedAt };
+      return readPosition(pos, prof).verdict;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ticker, profile, scanTick]
   );
+
+  /* THE SASH (Noah, 2026-09-14: "build it with the sash"): the WINDOW's height — the chart and
+     the chain — dragged on a sash in the gap under it, double-click to reset, kept in this
+     browser in pixels (deskSplit.ts — the skeleton reads the same number); the row under it
+     grows with its cards and the page scrolls. Only where the desk is a frame; on a phone the
+     cards stack at their own heights. The desk already stashes its ticks while a pointer is
+     down, so the drag is never re-rendered under the hand. */
+  const belowLg = useIsBelowLg();
+  const [top, setTop] = useState<number>(readDeskTop);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const onSashDown = useCallback((e: React.PointerEvent) => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    e.preventDefault();
+    const move = (ev: PointerEvent) => {
+      const r = frame.getBoundingClientRect();
+      setTop(clampDeskTop(ev.clientY - r.top));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      setTop(v => {
+        saveDeskTop(v);
+        return v;
+      });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  }, []);
+  const resetSash = useCallback(() => {
+    setTop(DESK_TOP_DEFAULT);
+    saveDeskTop(DESK_TOP_DEFAULT);
+  }, []);
 
   const chainBody = (
     <ChainCard
@@ -1668,9 +1238,12 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
       sel={sel}
       onSelect={pickStrike}
       cols={shownCols}
-      focus={focus}
-      density={density}
       centerKey={`${ticker}:${dte}:${depth}`}
+      reveal={reveal}
+      watched={watchedStrikes}
+      onWatch={watchFromChain}
+      book={bookAt}
+      drillExtra={drillBook}
     />
   );
 
@@ -1744,10 +1317,10 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</h1>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chain, the read and the chart mean" testId="weigher-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Chart, chain and scanner on one desk — pick a name, pick a contract, read what it has to clear</p>
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Chart, chain and watchlist on one desk — pick a name, pick a contract, watch it</p>
         </div>
         <dl
-          className="flex flex-wrap items-start gap-x-6 gap-y-1"
+          className="flex flex-wrap gap-x-6 gap-y-2"
           data-shell-facts
           title={session === 'overnight' ? 'Overnight — New York is closed; the read follows the Nasdaq session (QQQ)' : 'Trading hours — the read follows the Nasdaq session (QQQ)'}
         >
@@ -1784,75 +1357,157 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
           load-bearing — without it a wide chain row or a tall read would
           push its track past the split and the frame would silently stop
           being the frame. */}
-      <div className="relative flex-1 min-h-0 mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5" data-weigher-frame>
-        <div className="min-h-0 min-w-0">
+      {/* ON A PHONE, A COLUMN (the phone pass, 2026-09-13 — Noah: "charts
+          should stay… our product should be phone small level"): the four
+          cards under each other at a readable height each — the chart at
+          three fifths of the screen, the chain a screen, the scanner three
+          fifths — and the page scrolls (the shell drops the viewport frame
+          below md). Four cells in a 390px frame were four unreadable ones. */}
+      {/* THE WINDOW AND THE ROW UNDER IT (2026-09-14): the chart and the chain in a window at the
+          reader's height (the sash), the watchlist and the position in a row that grows with
+          its cards — the page scrolls, like every other page. The phone's column never sees the
+          style; its cards stack at their own heights. */}
+      <div
+        ref={frameRef}
+        className="relative mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5 max-lg:grid-cols-1 max-lg:grid-rows-none max-lg:auto-rows-auto"
+        style={belowLg ? undefined : { gridTemplateRows: deskRows(top) }}
+        data-weigher-frame
+        data-desk-top={belowLg ? undefined : top}
+      >
+        <div className="min-h-0 min-w-0 max-lg:h-[60vh]">
           {/* NOT a DeskCard: the chart card has no header row — the strip
               inside chartBody is its whole chrome (Noah, 2026-08-29: one
               row, translucent, tape edge to edge). */}
-          <div className="h-full relative overflow-hidden rounded-md border border-borderSubtle bg-panel">
+          <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07] bg-panel">
             {full === 'chart' ? <div className="h-full" /> : chartBody}
           </div>
         </div>
 
-        <div className="min-h-0 min-w-0">
+        <div ref={chainBoxRef} className="min-h-0 min-w-0 max-lg:h-[100vh]" data-chain-head={chainHead}>
           <DeskCard
             title="Chain"
             actions={
-              <>
-                {chainActions}
-                <span className="ml-auto">{fullBtn('chain')}</span>
-              </>
+              chainHead === 'one' ? (
+                <>
+                  {chainActions}
+                  {fullBtn('chain')}
+                </>
+              ) : (
+                /* the row's whole width: the chain's identity beside its title, the door at the row's end */
+                <span className="flex flex-1 items-center gap-1.5 min-w-0">
+                  {chainName}
+                  {chainMove}
+                  <span className="ml-auto inline-flex">{fullBtn('chain')}</span>
+                </span>
+              )
             }
+            under={chainHead === 'one' ? undefined : chainCards(chainHead === 'bare')}
           >
             {full === 'chain' ? <div className="h-full" /> : chainBody}
           </DeskCard>
         </div>
 
-        <div className="min-h-0 min-w-0">
-          <DeskCard title="Scanner" actions={<DropdownSelect label="Kind" value={preset} options={KIND_OPTIONS} onChange={v => patch({ preset: v })} title="Which names to look at today" testId="weigher-kind" align="end" />}>
-            {/* THE HOUSE GRID (the walk, 2026-09-11) — the roster as an AG Grid
-                window: the head pinned, the rows in the house's clothes, the
-                desk's name in the where-you-are selection; a row puts that
-                name on the desk. */}
-            <ScanGrid rows={scan} ticker={ticker} preset={preset} onPick={pickTicker} />
-          </DeskCard>
+        <div className="min-h-0 min-w-0 grid gap-2.5 min-h-[438px] transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ gridTemplateRows: columnRows }} data-left-column data-folds={`${folds.positions ? 'p' : ''}${folds.watchlist ? 'w' : ''}${folds.position ? 'c' : ''}`}>
+          {/* TWO CARDS IN THE LEFT COLUMN (Noah, 2026-09-14): YOUR POSITIONS — the ones you own
+              or sold, the Map's form to add one — over THE WATCHLIST, the contracts you watch
+              (its List control turns it into the scanner's roster). Both feed the position card
+              beside them; the picked row wears the selection in whichever card holds it. THE
+              TWO ARE EQUAL WINDOWS (Noah: "should have equal lengths… if they exceed this
+              height the rest should be scrollable inside of the boxes"): the column takes the
+              row's height — the position card's, or 438 at the least — split in two, and each
+              grid scrolls inside its card. */}
+          <div className="min-h-0" data-positions-card>
+            <DeskCard
+              title="Your positions"
+              fold={{ open: !folds.positions, onToggle: () => toggleFold('positions'), testId: 'positions' }}
+              actions={
+                /* ADD A POSITION — the Map's form, here now: strike · call or put · own or sold · contracts · expires · what you paid */
+                <PositionForm
+                  ticker={ticker}
+                  /* a strike THE CHAIN LISTS: the money rounded to a dollar (244 on a name that steps by 2.50) made positions
+                     no chain row could answer to */
+                  defaultStrike={sel ?? (chain.rows.length ? chain.rows.reduce((best, r) => (Math.abs(r.strike - levels.spot) < Math.abs(best.strike - levels.spot) ? r : best), chain.rows[0]).strike : Math.round(levels.spot))}
+                  align="end"
+                  trigger={
+                    /* the small size — a 28px control filled the head's 32px line to the borders (Noah, 2026-09-14) */
+                    <button className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" title="Add a position you own or sold — its simulated returns land in the card" data-add-position>
+                      <Plus className="w-3 h-3" />
+                      Add a position
+                    </button>
+                  }
+                />
+              }
+            >
+              <ListGrid rows={ownRows} selectedId={cardRow?.id ?? null} onPick={pickRow} onRemove={removeRow} hedgeOf={hedgeOf} emptyText="No positions yet — add one you own or sold" testId="positions" />
+            </DeskCard>
+          </div>
+          <div className="min-h-0" data-watchlist-card>
+            <DeskCard
+              title={preset === 'watchlist' ? 'Watchlist' : 'Scanner'}
+              fold={{ open: !folds.watchlist, onToggle: () => toggleFold('watchlist'), testId: 'watchlist' }}
+              actions={<DropdownSelect label="List" value={preset} options={KIND_OPTIONS} onChange={v => patch({ preset: v })} title="What this card lists" testId="weigher-kind" align="end" size="sm" />}
+            >
+              {/* THE HOUSE GRID (the walk, 2026-09-11) — the roster as an AG Grid
+                  window: the head pinned, the rows in the house's clothes, the
+                  desk's name in the where-you-are selection; a row puts that
+                  name on the desk. The watchlist wears the same window: a row
+                  puts that CONTRACT on the desk. */}
+              {/* the swap between the list and a scanner's cut lands on the house's soft fade (Noah: "smooth as butter") */}
+              <div key={preset} className="h-full animate-soft-in-slow" data-list-view={preset}>
+                {preset === 'watchlist' ? <ListGrid rows={watchRows} selectedId={cardRow?.id ?? null} onPick={pickRow} onRemove={removeRow} hedgeOf={hedgeOf} emptyText="Nothing watched yet — press + on a strike in the chain" testId="watchlist" /> : <ScanGrid rows={scan} ticker={ticker} preset={preset} onPick={pickTicker} />}
+              </div>
+            </DeskCard>
+          </div>
         </div>
 
-        <div className="min-h-0 min-w-0">
+        {/* THE POSITION CARD stands at its own height (self-start): the row is as tall as it is — or
+            as the column's 438 floor when it is folded or empty — never a stretched card with a
+            folded body */}
+        <div className="min-h-0 min-w-0 self-start" data-position-card>
           <DeskCard
-            title="The contract"
+            title="The position"
+            fold={{ open: !folds.position, onToggle: () => toggleFold('position'), testId: 'position', self: true }}
             actions={
-              <>
-                {selected && sel != null && (
-                  <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tnum text-textPrimary whitespace-nowrap">
-                    <CompanyLogo ticker={ticker} size={14} />
-                    <span className={right === 'C' ? 'text-bull' : 'text-bear'}>
-                      <Name t={ticker} size={12} /> {fmtStrike(sel)}
-                      {right}
-                    </span>
-                    <span className="text-textSecondary">· {chain.expiry.dte === 0 ? 'today' : `${chain.expiry.dte}d`}</span>
-                  </span>
-                )}
-                <span className="ml-auto">
-                  <CardTabs ariaLabel="The contract's faces" options={CONTRACT_TABS} value={conTab} onChange={setConTab} />
+              cardRow || (selected && sel != null) ? (
+                /* the card's own contract where it draws a row — its strike AND its date, which the chain may not list
+                   (a position from Sep 21 pressed on Sep 28 said "· 2d", the chain's, 2026-09-28) */
+                <span className="font-mono text-[10px] font-semibold tnum text-textSecondary whitespace-nowrap" data-position-head>
+                  {(() => {
+                    const c = cardRow ? (cardRow.kind === 'watch' ? cardRow.w : cardRow.p) : null;
+                    return c ? `${c.ticker} ${fmtStrike(c.strike)}${c.right} · ${monthDay(c.expiry)}` : `${ticker} ${fmtStrike(sel!)}${right} · ${chain.expiry.dte}d`;
+                  })()}
                 </span>
-              </>
+              ) : undefined
             }
           >
-            <StrikeCard
-              c={selected}
-              weigh={weighed}
-              grade={compassGrade}
-              boardRank={boardRank}
-              onOpenSetup={openSetupPage}
-              onSeeBoard={seeBoard}
+            <PositionDeskCard
+              picked={selected}
+              row={cardRow}
+              profile={profile}
+              onWatch={watchIt}
+              onClose={cardRow?.kind === 'watch' ? () => closeWatched(cardRow.w.id) : undefined}
+              onRemove={cardRow?.kind === 'watch' ? () => removeWatched(cardRow.w.id) : undefined}
+              onRemovePosition={cardRow?.kind === 'own' ? () => removePosition(cardRow.p.id) : undefined}
               contractKey={`${ticker}-${sel ?? 'none'}-${right}-${chain.expiry.dte}`}
-              tab={conTab}
-              spot={Simulator.TICKERS[ticker]?.currentPrice ?? chain.spot}
             />
           </DeskCard>
         </div>
 
+        {/* THE SASH, in the gap under the window — invisible until the pointer finds it, like
+            every sash on the desk */}
+        {!belowLg && (
+          <span
+            onPointerDown={onSashDown}
+            onDoubleClick={resetSash}
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Drag to make the chart and the chain taller or shorter — double-click to reset"
+            title="Drag to resize the window · double-click to reset"
+            className="absolute inset-x-0 h-2.5 z-30 cursor-row-resize hover:bg-ink/[0.10] transition-colors"
+            style={{ top }}
+            data-weigher-sash
+          />
+        )}
       </div>
 
       {/* Portal, not a plain fixed div: the cards' backdrop-blur creates a
@@ -1885,7 +1540,7 @@ const WeigherDesk = ({ incomingTicker }: { incomingTicker?: string | null }) => 
             <div className="flex-1 min-h-0 border border-borderSubtle bg-panel rounded-lg overflow-hidden flex flex-col">
               {/* ONE row (Noah, 2026-08-29: the Back button was the second
                   one) — the chain's own controls, and the minimize door. */}
-              <div className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 border-b border-borderSubtle/70">
+              <div className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 border-b border-ink/[0.05]">
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5 min-w-0">{chainActions}</span>
                 <button
                   onClick={close}

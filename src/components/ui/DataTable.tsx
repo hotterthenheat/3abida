@@ -1,7 +1,6 @@
 import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ChevronDown, ChevronUp } from 'lucide-react';
-import DataState, { type DataStateKind } from './DataState';
 
 /** Rows the first paint carries — about a screen; the window takes over from there */
 const FIRST_ROWS = 36;
@@ -37,10 +36,6 @@ interface DataTableProps<T> {
   /** Scroll container height, e.g. "320px" */
   maxHeight?: string;
   emptyText?: string;
-  /** Which of the four non-answers this is — see ui/DataState */
-  emptyState?: DataStateKind;
-  emptyBody?: React.ReactNode;
-  onRetry?: () => void;
   /** Floating door home once the reader is a screen or so deep — the Live
       Tape's back-to-top grammar, aimed at THIS table's own scroller. */
   backToTop?: boolean;
@@ -114,13 +109,10 @@ const DataTable = <T,>({
   selectedKey,
   initialSort,
   maxHeight,
-  emptyText,
+  emptyText = 'No data',
   backToTop = false,
   rowClass,
   freezeColumns = false,
-  emptyState,
-  emptyBody,
-  onRetry,
 }: DataTableProps<T>) => {
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(initialSort ?? null);
 
@@ -354,13 +346,8 @@ const DataTable = <T,>({
         <tbody>
           {sortedRows.length === 0 ? (
             <tr>
-              {/* The house's four non-answers, not a bare string (ui/DataState).
-                  The old default here was literally "No data", which is the
-                  exact conflation that component exists to prevent: a reader
-                  cannot tell a filter that is too tight from a desk that
-                  cannot answer, and only one of those is worth waiting on. */}
-              <td colSpan={columns.length} className="p-0">
-                <DataState kind={emptyState ?? 'empty'} title={emptyText} body={emptyBody} onRetry={onRetry} pad="sm" />
+              <td colSpan={columns.length} className="px-3 py-8 text-center font-mono text-[11px] text-textMuted">
+                {emptyText}
               </td>
             </tr>
           ) : (

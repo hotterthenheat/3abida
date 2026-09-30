@@ -18,38 +18,47 @@
 
 import { Scale } from 'lucide-react';
 import { Block, ChartGround, Facts, Line, Trigger } from '../components/ui/skeletonKit';
+import { deskRows, readDeskTop } from './weigher/deskSplit';
 
 /* the desk's cards are panels now (the 55% wash read as a grey slab on paper) */
 const CARD_FILL = 'rgb(var(--panel))';
 
-const Card = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-0 min-w-0">
-    <div className="h-full flex flex-col overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD_FILL }}>
+const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
+  <div className={`min-h-0 min-w-0 ${className}`}>
+    <div className="h-full flex flex-col overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD_FILL, minHeight: 'inherit' }}>
       {children}
     </div>
   </div>
 );
 
-/** A desk card's head: the title at the left, its cards at the right — 33px with a line of h-7 cards in it */
-const Head = ({ title = 48, children }: { title?: number; children?: React.ReactNode }) => (
-  <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-borderSubtle/70">
+/** A desk card's head: the title at the left (after the fold chevron's 16px box on the cards that fold), its
+    cards at the right — 33px with a line of h-7 cards in it */
+const Head = ({ title = 48, fold = false, children }: { title?: number; fold?: boolean; children?: React.ReactNode }) => (
+  <div className="shrink-0 flex items-center gap-2 pr-2.5 py-0.5 min-h-8 border-b border-ink/[0.05]">
     <div className="flex items-center gap-2 pl-2.5 self-stretch shrink-0">
+      {fold && (
+        <span className="inline-flex items-center justify-center w-4 h-4 -ml-1">
+          <Line w={10} h={10} />
+        </span>
+      )}
       <Line w={title} h={10} />
     </div>
     <span className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-1.5 min-w-0">{children}</span>
   </div>
 );
 
-/** A grid window's head and rows in the house's clothes */
+/** A grid window's head and rows in the house's clothes — h-0 + flex-grow: the rows fill the card's window and
+    never push it (the real AG Grid's body is a zero-height flex child too; without it the two list cards'
+    column stood 542 where the desk's stands 438) */
 const Rows = ({ cols, rows, rowH, headH }: { cols: number[]; rows: number; rowH: number; headH: number }) => (
-  <div className="flex-grow min-h-0 overflow-hidden">
-    <div className="flex items-center gap-3 px-2 border-b border-borderSubtle" style={{ height: headH }}>
+  <div className="flex-grow h-0 min-h-0 overflow-hidden">
+    <div className="flex items-center gap-3 px-2 border-b border-ink/[0.06]" style={{ height: headH }}>
       {cols.map((w, i) => (
         <Line key={i} w={w} h={8} className={i > 0 ? 'ml-auto' : ''} />
       ))}
     </div>
     {Array.from({ length: rows }, (_, r) => (
-      <div key={r} className="flex items-center gap-3 px-2 border-b border-borderSubtle/50" style={{ height: rowH, opacity: 1 - Math.min(0.55, Math.abs(r - Math.floor(rows / 2)) * 0.06) }}>
+      <div key={r} className="flex items-center gap-3 px-2 border-b border-ink/[0.04]" style={{ height: rowH, opacity: 1 - Math.min(0.55, Math.abs(r - Math.floor(rows / 2)) * 0.06) }}>
         {cols.map((w, i) => (
           <Line key={i} w={w + 6} h={i === 0 ? 11 : 10} className={i > 0 ? 'ml-auto' : ''} />
         ))}
@@ -70,14 +79,15 @@ export const WeigherPageSkeleton = () => (
           <span className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</span>
           <Line w={72} h={12} />
         </div>
-        <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Chart, chain and scanner on one desk — pick a name, pick a contract, read what it has to clear</p>
+        <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Chart, chain and watchlist on one desk — pick a name, pick a contract, watch it</p>
       </div>
       <Facts widths={[110, 118]} />
     </header>
-    <div className="relative flex-1 min-h-0 mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-2.5">
+    {/* the window at the reader's own height (the sash, 2026-09-14), the bottom row as tall as its cards — the stand-in lands where the desk lands */}
+    <div className="relative mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5" style={{ gridTemplateRows: deskRows(readDeskTop()) }}>
       {/* the chart, its strip floating over the top: the name capsule, Stock/Premium, the toolbar */}
       <div className="min-h-0 min-w-0">
-        <div className="h-full relative overflow-hidden rounded-md border border-borderSubtle" style={{ background: CARD_FILL }}>
+        <div className="h-full relative overflow-hidden rounded-md border border-ink/[0.07]" style={{ background: CARD_FILL }}>
           <div className="absolute inset-0">
             <ChartGround />
           </div>
@@ -108,17 +118,27 @@ export const WeigherPageSkeleton = () => (
         </Head>
         <Rows cols={[40, 40, 40, 30, 50, 34, 34]} rows={15} rowH={30} headH={29} />
       </Card>
-      {/* the scanner: the Kind card over 34px rows */}
-      <Card>
-        <Head title={58}>
-          <Trigger w={150} />
-        </Head>
-        <Rows cols={[70, 40, 50, 50, 24]} rows={8} rowH={34} headH={28} />
-      </Card>
-      {/* the contract, empty until a strike is weighed */}
-      <Card>
-        <Head title={88} />
-        <div className="flex-grow min-h-0 flex flex-col items-center justify-center gap-1.5">
+      {/* the left column: YOUR POSITIONS (Add a position) over THE WATCHLIST (the List card) — two EQUAL windows over
+          34px rows, the column the row's height or 438 at the least (the desk's rule) */}
+      <div className="min-h-0 min-w-0 grid grid-rows-2 gap-2.5 min-h-[438px]">
+        <Card className="min-h-0">
+          <Head title={92} fold>
+            <Trigger w={106} h={24} />
+          </Head>
+          <Rows cols={[120, 60, 40, 60, 66]} rows={6} rowH={34} headH={28} />
+        </Card>
+        <Card className="min-h-0">
+          <Head title={66} fold>
+            <Trigger w={122} h={24} />
+          </Head>
+          <Rows cols={[120, 60, 40, 60, 66]} rows={6} rowH={34} headH={28} />
+        </Card>
+      </div>
+      {/* the position, empty until a contract is watched — it stands at its own height (it folds), the empty
+          state's 404px floor (+ the 32px head + two border lines) reaching the column's 438 */}
+      <Card className="self-start">
+        <Head title={80} fold />
+        <div className="flex-grow min-h-[404px] flex flex-col items-center justify-center gap-1.5">
           <Line w={150} h={11} />
           <Line w={330} h={9} />
         </div>

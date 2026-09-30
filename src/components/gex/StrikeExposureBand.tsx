@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ascendingSpotIndex, barGap, labelStride, layoutBand, spotX } from './strikeBand';
-import { BULL, CALL_WALL, SUPREME, PUT_WALL, SPOT } from './palette';
+/* the TOKEN inks (paletteInk), not the hex palette: inline colours and SVG attributes only, and the hex
+   pair printed the dark theme's green/red on paper at 2:1 (2026-09-16) */
+import { BULL, CALL_WALL, SUPREME, PUT_WALL, SPOT } from './paletteInk';
 import { fmtUsd } from '../../data/gex';
 import type { ExposureProfileData } from '../../types/gex';
 

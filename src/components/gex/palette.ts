@@ -50,5 +50,8 @@ export const ALERT = '#FF9500';
 
 /* The per-side inks (his Greek Surfaces / Compare pages) — decoration-tier
    categorical pair, deliberately outside the bull/bear semantic family. */
-export const CALL_SIDE = '#7ABDD7'; // glacier — the call side (followed the ember/glacier ramp, 2026-08-29)
-export const PUT_SIDE = '#F5C542'; // honey gold — the put side
+/* the two sides AS TOKENS (2026-09-16): on black the dark set is #7ABDD7 / #F5C542 exactly; on paper the
+   light set cuts them (the attribution panel printed the dark inks on white). Inline styles only —
+   a canvas cannot read a var(). */
+export const CALL_SIDE = 'rgb(var(--glacier))'; // glacier — the call side (followed the ember/glacier ramp, 2026-08-29)
+export const PUT_SIDE = 'rgb(var(--ember))'; // honey gold — the put side

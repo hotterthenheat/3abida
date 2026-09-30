@@ -31,7 +31,6 @@
 */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import CompanyLogo from '../ui/CompanyLogo';
 import { PanelRightClose, PanelRightOpen, X } from 'lucide-react';
 import { GREEK_LABEL } from '../../data/compare';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
@@ -78,11 +77,16 @@ interface BookReadProps {
   /** The ladder's ramp — the Colours card (house or thermal): every net figure here wears it, as the ladder's net column and foot do (Noah, 2026-09-12: "shouldn't the book's net be the heat or cooled colour?") */
   mode?: HeatMode;
   /** How far along the calendar the ladder reads, and whether today's column is out */
-  depth: number;
+  /** The expiry columns the host draws, as surface indices — the read sums the same book the views show */
+  expiries: number[];
   afterBell: boolean;
   rings: StrikeWindow;
   /** The strike the reader kept (a click) */
   selectedStrike?: number | null;
+  /** The whole column, not a panel over its right — a name beside two or more others has no room for both */
+  fill?: boolean;
+  /** On its way out: the host fades the card over 200ms, then unmounts it on a timer (the house's close rule) */
+  closing?: boolean;
   /** The strike under the pointer, as the ladder or the calendar reports it — only this card listens */
   subscribePointed: (fn: (strike: number | null) => void) => () => void;
   onKeep?: (strike: number) => void;
@@ -148,23 +152,26 @@ const Head = ({ children }: { children: ReactNode }) => (
   <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-textMuted">{children}</div>
 );
 
-/** THE READ's door — beside the guide's on every book; lit while the card is up */
-export const ReadDoor = ({ open, onClick }: { open: boolean; onClick: () => void }) => (
+/** THE READ's door — beside the guide's on every book; lit while the card is up.
+    `compact` = the icon alone, for a column's head beside other names (the
+    words stay in the title); `name` says whose read the door opens. */
+export const ReadDoor = ({ open, onClick, compact = false, name, testId = 'data-ledger-read' }: { open: boolean; onClick: () => void; compact?: boolean; name?: string; testId?: string }) => (
   <button
     onClick={onClick}
     aria-pressed={open}
-    title={open ? 'Close the read (Esc)' : "The book's read — the net, the levels, the heaviest strikes and what they did, the strike under the pointer, the move to the close"}
-    className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+    aria-label={open ? `Close ${name ? `${name}'s` : 'the'} read` : `${name ? `${name}'s` : 'The'} read`}
+    title={open ? `Close ${name ? `${name}'s` : 'the'} read (Esc)` : `${name ? `${name}'s` : "The book's"} read — the net, the levels, the heaviest strikes and what they did, the strike under the pointer, the move to the close`}
+    className={`inline-flex items-center gap-1.5 h-7 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${compact ? 'w-7 justify-center' : 'px-2.5'} ${
       open ? 'border-silver/50 text-silver bg-silver/[0.08]' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
     }`}
-    data-ledger-read
+    {...{ [testId]: name ?? '' }}
   >
     {open ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
-    The read
+    {!compact && 'The read'}
   </button>
 );
 
-const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, depth, afterBell, rings, selectedStrike, subscribePointed, onKeep, onClose }: BookReadProps) => {
+const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, expiries, afterBell, rings, selectedStrike, fill = false, closing = false, subscribePointed, onKeep, onClose }: BookReadProps) => {
   const [win, setWin] = useState('15m');
   const [pointed, setPointed] = useState<number | null>(null);
   const [recent, setRecent] = useState<number[]>([]);
@@ -189,8 +196,9 @@ const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, depth, afterBell
     const all = surface.expiries.map((_, i) => i);
     const todayIdx = surface.expiries.findIndex(e => e.dte === 0);
     const live = afterBell && todayIdx >= 0 ? all.filter(i => i !== todayIdx) : all;
-    return live.slice(0, Math.max(1, depth));
-  }, [surface, afterBell, depth]);
+    const kept = live.filter(i => expiries.includes(i));
+    return kept.length ? kept : live.slice(0, 1);
+  }, [surface, afterBell, expiries]);
   const at = (g: Greek, s: number, side: 'put' | 'call' | 'net') => shownIdx.reduce((a, e) => a + (surface[side][g][e]?.[s] ?? 0), 0);
   const idxOf = (strike: number) => surface.strikes.indexOf(strike);
 
@@ -295,16 +303,18 @@ const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, depth, afterBell
 
   return (
     <aside
-      className="absolute inset-y-0 right-0 z-20 w-[400px] max-w-[62%] flex flex-col border-l border-borderMuted bg-card/85 backdrop-blur-md backdrop-saturate-150 shadow-[-16px_0_48px_rgba(0,0,0,0.45)] animate-soft-in"
-      aria-label="The read"
-      data-book-read
+      className={`absolute inset-y-0 right-0 z-20 flex flex-col bg-card/85 backdrop-blur-md backdrop-saturate-150 animate-soft-in transition-opacity duration-200 motion-reduce:transition-none ${
+        fill ? 'w-full' : 'w-[400px] max-w-[62%] border-l border-borderMuted shadow-[-16px_0_48px_rgba(0,0,0,0.45)]'
+      } ${closing ? 'opacity-0 pointer-events-none' : ''}`}
+      aria-label={`${surface.ticker}'s read`}
+      data-book-read={surface.ticker}
+      data-read-fill={fill || undefined}
     >
       {/* THE HEAD — whose read, in which greek, over which window */}
-      <div className="shrink-0 flex items-center gap-2 px-3.5 h-10 border-b border-borderSubtle/70">
-        <CompanyLogo ticker={surface.ticker} size={14} />
+      <div className="shrink-0 flex items-center gap-2 px-3.5 h-10 border-b border-borderSubtle/70 min-w-0">
         <span className="font-mono text-[11px] font-bold text-textPrimary">{surface.ticker}</span>
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{label} · {shownIdx.length === 1 ? surface.expiries[shownIdx[0]]?.date : `${shownIdx.length} expiries`}</span>
-        <span className="ml-auto inline-flex items-center gap-0.5" role="group" aria-label="Window" data-read-window>
+        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted truncate">{label} · {shownIdx.length === 1 ? surface.expiries[shownIdx[0]]?.date : `${shownIdx.length} expiries`}</span>
+        <span className="ml-auto shrink-0 inline-flex items-center gap-0.5" role="group" aria-label="Window" data-read-window>
           {WINDOWS.map(w => {
             const on = w.key === win;
             const dead = history ? history[WINDOWS.indexOf(w)] == null : true;
@@ -327,7 +337,7 @@ const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, depth, afterBell
         </button>
       </div>
       {/* THE RAIL — the sections' names, the one in view lit */}
-      <div className="shrink-0 flex items-center gap-1 px-2.5 h-8 border-b border-borderSubtle/50" data-read-rail>
+      <div className="shrink-0 flex items-center gap-1 px-2.5 h-8 border-b border-borderSubtle/50 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-read-rail>
         {SECTIONS.map(s => (
           <button
             key={s.id}

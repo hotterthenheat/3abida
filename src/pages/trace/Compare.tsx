@@ -1,526 +1,681 @@
 /*
 ==================================================
   SLAYER TERMINAL - COMPARE (Trace)
-
-  Two names side by side, on everything Trace
-  knows (Noah, 2026-09-12: "a compare page that
-  ties in net flow, 0dte, multi leg and everything
-  else together — keep in mind our UI design
-  system"). One box in the house grammar: the head
-  with each name's lean and the champions between
-  them, one line of cards (the hold, name A, "vs",
-  name B, a swap, the expiry cut), the sentence —
-  then the body in three bands:
-
-  THE PANES — each name's session on its own
-  NetFlowPane (the Net Flow page's pane in ticker
-  mode), the money and clock cards shared so both
-  panes always answer the same question; under
-  each, the same-day money — the 0DTE desk's
-  figures for that name.
-
-  THE LEDGER — every fact the flow pages carry,
-  A against B, one row per fact: net premium and
-  its halves, the same-day money, the book (its
-  contracts, volume, dollars, lean, sweeps, what
-  was built today), the footprints (interest
-  added and shed overnight), the structures
-  (count, paid against collected, their dollars),
-  the tape (prints, dollars, sweeps) and the
-  calendar. The heavier side of each row is marked.
-
-  THE CONTRACTS — each name's heaviest contracts
-  (a row opens the card) and its structures.
-
-  Everything reads the same cut book the other
-  pages read, so a figure here is the figure there.
+  Two names, side by side (2026-09-13; Noah, with
+  his partner's page: "take this information and
+  recreate it with our own type design"). ONE box
+  in the house grammar: the head with both nets
+  and the same-day money as facts and the page's
+  champions among them, the cards line — the hold,
+  the two name searches with the swap between
+  them, the Clock and Money cards that cut BOTH
+  names the same way — the sentence, then the
+  body: each name's session on a Net Flow pane,
+  the fight card of rows (the first name's figure
+  on the left, the fact in the middle with what
+  the two say against each other under it, the
+  second name's on the right — the leading figure
+  lit), and under it each name's six heaviest
+  contracts and its structures. Every figure comes
+  off the day book, the spreads and the tape the
+  other Trace pages read (data/traceCompare.ts).
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeftRight, CalendarDays } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeftRight } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
-import { buildFlowBook, buildNetFlowView, buildSpreadFlow, SPREAD_KINDS, type MoneynessKey, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
+import { buildFlowBook, buildSpreadFlow, SPREAD_KINDS, type MoneynessKey, type SpreadTrade } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
+import { buildTraceCompare, buildTraceSide, signedUsd, type TraceSide } from '../../data/traceCompare';
 import type { SleeveKey } from '../../types/compass';
-import type { BookContract, FlowPrint } from '../../types/trace';
+import type { BookContract } from '../../types/trace';
 import CompanyLogo from '../../components/ui/CompanyLogo';
-import ContractLabel from '../../components/ui/ContractLabel';
+import DropdownSelect from '../../components/ui/DropdownSelect';
 import RichRead from '../../components/ui/RichRead';
-import ExpiryCalendar, { expiryWords } from '../../components/ui/ExpiryCalendar';
+import ScopeChip from '../../components/ui/ScopeChip';
 import BookDrill from '../../components/trace/BookDrill';
-import { bookExpiryIso, useExpiryCut } from '../../components/trace/bookExpiry';
-import FlowSearch from '../../components/trace/FlowSearch';
+import ContractCell from '../../components/trace/ContractCell';
 import LeanCell from '../../components/trace/LeanCell';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
-import NetFlowPane, { paneTimes } from '../../components/trace/NetFlowPane';
+import NetFlowPane, { CLOCK_OPTIONS, MONEY_OPTIONS, paneTimes } from '../../components/trace/NetFlowPane';
 import ReadDoor from '../../components/trace/ReadDoor';
 import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
 import { CompareGuide } from '../../components/trace/TraceGuide';
-import { isoDate } from '../../core/calendar';
-import { Name } from '../../components/ui/Name';
-import DataState from '../../components/ui/DataState';
+import { CMP_COLUMNS, CMP_LIST_HEAD_H, CMP_LIST_ROW_H, CMP_LISTED, CMP_PANE_H, CMP_ROW_H, CMP_SECTION_H } from './traceSkeletons';
+import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 
 const num = (v: number) => v.toLocaleString('en-US');
-const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
-const dirInk = (v: number) => (v > 0 ? 'text-bull' : v < 0 ? 'text-bear' : 'text-textPrimary');
+/* The index twins, the Pinpoint Compare's own pairing (data/compare `partnerFor`) — kept
+   here so the Trace chunk does not carry that page's engines for four names */
+const TWINS: Record<string, string> = { SPY: 'QQQ', QQQ: 'SPY', IWM: 'SPY', DIA: 'SPY' };
 
-/** The Multi-Leg page's categorical dots — a shape is a kind, never a verdict */
-const KIND_DOT: Record<SpreadKind, string> = {
-  vertical: '#7EA6F0',
-  condor: '#9B8FE8',
-  butterfly: '#E8C468',
-  straddle: '#6ECFC4',
-  strangle: '#E89AC0',
-  calendar: '#E0D080',
-  ratio: '#93B87A',
-};
-const KIND_LABEL = Object.fromEntries(SPREAD_KINDS.map(k => [k.key, k.label])) as Record<SpreadKind, string>;
+/* The two names are the page's own, remembered across route changes within a session */
+let aMemory: string | null = null;
+let bMemory: string | null = null;
 
-/* ---- one name's whole account ------------------------------------------------ */
-
-interface Side {
-  ticker: string;
-  spot: number;
-  rows: BookContract[];
-  net: number;
-  netCall: number;
-  netPut: number;
-  /** the same-day money */
-  odteNet: number;
-  odteCall: number;
-  odtePut: number;
-  odteVol: number;
-  odteCount: number;
-  count: number;
-  volume: number;
-  premium: number;
-  callSharePct: number;
-  askPct: number;
-  sweepPct: number;
-  iv: number;
-  builtToday: number;
-  oiAdded: number;
-  oiShed: number;
-  structures: SpreadTrade[];
-  debit: number;
-  credit: number;
-  structurePrem: number;
-  prints: FlowPrint[];
-  tapePrem: number;
-  tapeSweeps: number;
-  earnDays: number | null;
-  heaviest: BookContract[];
-}
-
-function account(ticker: string, rows: BookContract[], trades: SpreadTrade[], tape: FlowPrint[], nowSec: number): Side {
-  const own = rows.filter(r => r.ticker === ticker);
-  const day = buildNetFlowView(own, 'all', 'all', [nowSec], Infinity, ticker);
-  const odte = buildNetFlowView(own, 'all', 'all', [nowSec], 1, ticker);
-  const volume = own.reduce((a, r) => a + r.volume, 0) || 0;
-  const premium = own.reduce((a, r) => a + r.premium, 0);
-  const callPrem = own.reduce((a, r) => a + (r.right === 'C' ? r.premium : 0), 0);
-  const w = (pick: (r: BookContract) => number) => (volume > 0 ? own.reduce((a, r) => a + pick(r) * r.volume, 0) / volume : 0);
-  const structures = trades.filter(t => t.ticker === ticker);
-  const prints = tape.filter(p => p.ticker === ticker);
-  const earn = own.map(r => r.earnDays).filter((d): d is number => d != null);
-  return {
-    ticker,
-    spot: own[0]?.spot ?? Simulator.TICKERS[ticker]?.currentPrice ?? 0,
-    rows: own,
-    net: day.ncp - day.npp,
-    netCall: day.ncp,
-    netPut: day.npp,
-    odteNet: odte.ncp - odte.npp,
-    odteCall: odte.ncp,
-    odtePut: odte.npp,
-    /* the same-day contracts' own volume and count, straight off the rows */
-    odteVol: own.filter(r => r.dte <= 1).reduce((a, r) => a + r.volume, 0),
-    odteCount: own.filter(r => r.dte <= 1).length,
-    count: own.length,
-    volume,
-    premium,
-    callSharePct: premium > 0 ? Math.round((callPrem / premium) * 100) : 0,
-    askPct: Math.round(w(r => r.askPct)),
-    sweepPct: Math.round(w(r => r.sweepPct)),
-    iv: w(r => r.iv),
-    builtToday: own.filter(r => r.volOverOI >= 1.5).length,
-    oiAdded: own.reduce((a, r) => a + Math.max(0, r.deltaOI), 0),
-    oiShed: own.reduce((a, r) => a + Math.max(0, -r.deltaOI), 0),
-    structures,
-    debit: structures.filter(t => t.net >= 0).length,
-    credit: structures.filter(t => t.net < 0).length,
-    structurePrem: structures.reduce((a, t) => a + t.premium, 0),
-    prints,
-    tapePrem: prints.reduce((a, p) => a + p.premium, 0),
-    tapeSweeps: prints.filter(p => p.sweep).length,
-    earnDays: earn.length ? Math.min(...earn) : null,
-    heaviest: [...own].sort((a, b) => b.premium - a.premium).slice(0, 6),
-  };
-}
-
-/* ---- the ledger ------------------------------------------------------------------- */
+/** A row's figure: the leader lit, the other quiet; a signed fact keeps its direction ink on both sides */
+const Fig = ({ children, lit, ink }: { children: ReactNode; lit: boolean; ink?: string }) => (
+  <span className={`font-mono text-[12px] tnum whitespace-nowrap ${lit ? 'font-semibold' : ''} ${ink ?? (lit ? 'text-textPrimary' : 'text-textSecondary')}`}>{children}</span>
+);
+const Sub = ({ children }: { children: ReactNode }) => <span className="text-[10.5px] text-textSecondary whitespace-nowrap">{children}</span>;
+const dirInk = (v: number) => (v > 0 ? 'text-bull' : v < 0 ? 'text-bear' : 'text-textMuted');
 
 interface Row {
+  key: string;
   label: string;
-  hint: string;
-  a: ReactNode;
-  b: ReactNode;
-  /** who carries the row: the larger side, or the more bullish for a lean */
-  edge: 'a' | 'b' | null;
+  /** What the two say against each other, one clause */
+  note: string;
+  /** Which side leads on this fact — lit; null when the fact has no leader */
+  lead: 'a' | 'b' | null;
+  cell: (s: TraceSide, lit: boolean) => ReactNode;
 }
 
-const larger = (a: number, b: number): 'a' | 'b' | null => (a === b ? null : a > b ? 'a' : 'b');
+const Compare = () => {
+  const { marketData, activeTicker, changeTicker, flowTape } = useMarketData();
+  const navigate = useNavigate();
+  const [aPick, setAPickState] = useState<string | null>(aMemory);
+  const [bPick, setBPickState] = useState<string | null>(bMemory);
+  const setAPick = (t: string | null) => {
+    aMemory = t;
+    setAPickState(t);
+  };
+  const setBPick = (t: string | null) => {
+    bMemory = t;
+    setBPickState(t);
+  };
+  /* ONE CUT FOR BOTH — a comparison on two cuts compares nothing */
+  const [tenor, setTenor] = useState<SleeveKey | 'all'>('all');
+  const [mny, setMny] = useState<MoneynessKey>('all');
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
-function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
-  const money = (v: number) => <span className={dirInk(v)}>{signed(v)}</span>;
-  const plain = (v: ReactNode) => <span className="text-textPrimary">{v}</span>;
-  return [
+  /* THE ROW'S FOCUS (Noah, 2026-09-13: "the focus statuses we have in Pulse — on click it
+     blurs the rest and only focuses on that specific row"): the ladder's own contract — a
+     click keeps the row, sharp and lifted in the house's kept look, and everything else
+     on the card softens behind ONE blurred scrim (only its opacity animates; the blur is
+     held 460ms past the let-go so it never snaps); the same row again, a click anywhere
+     outside, or Escape lets go; another row moves it. */
+  const [keptRow, setKeptRow] = useState<string | null>(null);
+  const pinned = keptRow != null;
+  const [scrim, setScrim] = useState(false);
+  useEffect(() => {
+    if (pinned) {
+      setScrim(true);
+      return;
+    }
+    const t = window.setTimeout(() => setScrim(false), 460);
+    return () => window.clearTimeout(t);
+  }, [pinned]);
+  useEffect(() => {
+    if (!pinned) return;
+    const onClick = (ev: MouseEvent) => {
+      const t = ev.target as Element | null;
+      if (t?.closest('[data-compare-row],[data-dropdown],[data-dropdown-card],[role="menu"],[data-guide-door],[data-popover-card],button,a,input,select,textarea')) return;
+      setKeptRow(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !openKey) setKeptRow(null);
+    };
+    document.addEventListener('click', onClick);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [pinned, openKey]);
+
+  const quotes = useMemo(
+    () => Simulator.universeQuotes(activeTicker),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeTicker, marketData]
+  );
+  const liveBook = useMemo(() => buildFlowBook(quotes), [quotes]);
+  const liveSpreads = useMemo(() => buildSpreadFlow(quotes), [quotes]);
+  /* The shared hold (see LiveHold): the book, the structures, the tape and the panes' tick freeze together */
+  const hold = useHold(useMemo(() => ({ book: liveBook, spreads: liveSpreads, tape: flowTape, tick: marketData }), [liveBook, liveSpreads, flowTape, marketData]), activeTicker);
+  const { book, spreads, tape, tick } = hold.value;
+
+  /* Only names on today's book can be compared — busiest first, so the defaults are the names that matter */
+  const names = useMemo(() => {
+    const vol = new Map<string, number>();
+    for (const r of book) vol.set(r.ticker, (vol.get(r.ticker) ?? 0) + r.volume);
+    return [...vol.entries()].sort((x, y) => y[1] - x[1]).map(e => e[0]);
+  }, [book]);
+  const onBook = (t: string | null | undefined): t is string => !!t && names.includes(t);
+  const aTicker = onBook(aPick) ? aPick : onBook(activeTicker) ? activeTicker : names[0] ?? 'SPY';
+  /* Never the same name twice: the second falls to the first's twin, else the next busiest */
+  const twin = TWINS[aTicker];
+  const bTicker = onBook(bPick) && bPick !== aTicker ? bPick : onBook(twin) && twin !== aTicker ? twin : names.find(t => t !== aTicker) ?? aTicker;
+
+  /* Both names read at the tape's last bar — the same instant, the leaders board's rule */
+  const sampleAt = useMemo(() => paneTimes('SPY').slice(-1), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sideA = useMemo(() => buildTraceSide(book, spreads, tape, aTicker, tenor, mny, sampleAt), [book, spreads, tape, aTicker, tenor, mny, sampleAt]);
+  const sideB = useMemo(() => buildTraceSide(book, spreads, tape, bTicker, tenor, mny, sampleAt), [book, spreads, tape, bTicker, tenor, mny, sampleAt]);
+  const cmp = useMemo(() => buildTraceCompare(sideA, sideB), [sideA, sideB]);
+  const { a, b } = cmp;
+
+  /* The first chip follows the frame until it holds a name (the Pinpoint Compare's rule);
+     a swap moves the frame when it follows */
+  const aFollows = aPick === null;
+  const onSwap = () => {
+    if (aFollows) changeTicker(bTicker);
+    else setAPick(bTicker);
+    setBPick(aTicker);
+  };
+  /* A name in the sentence or a champion is a door onto Net Flow's pane, on this clock */
+  const toNetFlow = useCallback((t: string) => navigate('/trace/net-flow', { state: { ticker: t, tenor } }), [navigate, tenor]);
+
+  /* ---- the rows ---------------------------------------------------------------- */
+  const higher = (pick: (s: TraceSide) => number): 'a' | 'b' | null => (pick(a) > pick(b) ? 'a' : pick(b) > pick(a) ? 'b' : null);
+  const louder = (pick: (s: TraceSide) => number) => higher(s => Math.abs(pick(s)));
+  const who = (lead: 'a' | 'b' | null) => (lead === 'a' ? a : lead === 'b' ? b : null);
+  /** "SPY the busier" / "the same" */
+  const the = (lead: 'a' | 'b' | null, words: string, same = 'the same') => {
+    const w = who(lead);
+    return w ? `${w.ticker} ${words}` : same;
+  };
+  const ratio = (pick: (s: TraceSide) => number) => {
+    const hi = Math.max(pick(a), pick(b));
+    const lo = Math.min(pick(a), pick(b));
+    return lo > 0 ? `${(hi / lo).toFixed(1)}×` : null;
+  };
+  const leanWords = (s: TraceSide) => (Math.abs(s.book.askPct - 50) < 6 ? 'mid' : s.book.askPct >= 50 ? 'at the ask' : 'on the bid');
+  const reportWords = (s: TraceSide) => (s.earnDays == null ? 'not reporting' : s.earnDays === 0 ? 'reports today' : s.earnDays === 1 ? 'reports tomorrow' : `in ${s.earnDays} sessions`);
+  /* Two bearish names have no bullish one — the leader is the less bearish */
+  const leansWords = cmp.bullish.net >= 0 ? 'the more bullish' : 'the less bearish';
+  const nearer = (): 'a' | 'b' | null => {
+    if (a.earnDays == null && b.earnDays == null) return null;
+    if (a.earnDays == null) return 'b';
+    if (b.earnDays == null) return 'a';
+    return a.earnDays < b.earnDays ? 'a' : b.earnDays < a.earnDays ? 'b' : null;
+  };
+
+  const sections: { title: string; rows: Row[] }[] = [
     {
-      group: 'Net flow',
+      title: 'Net flow',
       rows: [
-        { label: 'Net premium', hint: 'Calls bought and puts sold against the reverse, day to now', a: money(A.net), b: money(B.net), edge: larger(A.net, B.net) },
-        { label: 'Net calls', hint: 'Net call premium, day to now', a: money(A.netCall), b: money(B.netCall), edge: larger(A.netCall, B.netCall) },
-        { label: 'Net puts', hint: 'Net put premium, day to now', a: money(A.netPut), b: money(B.netPut), edge: larger(A.netPut, B.netPut) },
-      ],
-    },
-    {
-      group: 'Same-day money',
-      rows: [
-        { label: '0DTE net', hint: 'The same-day contracts’ net premium', a: money(A.odteNet), b: money(B.odteNet), edge: larger(A.odteNet, B.odteNet) },
         {
-          label: '0DTE calls · puts',
-          hint: 'Net call and net put premium on the same-day contracts',
-          a: (
-            <>
-              <span className="text-bull">{signed(A.odteCall)}</span> <span className="text-textSecondary">·</span> <span className="text-bear">{signed(A.odtePut)}</span>
-            </>
-          ),
-          b: (
-            <>
-              <span className="text-bull">{signed(B.odteCall)}</span> <span className="text-textSecondary">·</span> <span className="text-bear">{signed(B.odtePut)}</span>
-            </>
-          ),
-          edge: null,
+          key: 'net',
+          label: 'Net premium',
+          note: a.net === b.net ? 'the same lean' : `${cmp.bullish.ticker} leans ${leansWords}`,
+          lead: higher(s => s.net),
+          cell: (s, lit) => <Fig lit={lit} ink={dirInk(s.net)}>{signedUsd(s.net)}</Fig>,
         },
-        { label: '0DTE volume', hint: 'Contracts traded on the same-day expiry', a: plain(`${num(A.odteVol)} · ${A.odteCount} cons`), b: plain(`${num(B.odteVol)} · ${B.odteCount} cons`), edge: larger(A.odteVol, B.odteVol) },
+        {
+          key: 'calls',
+          label: 'Net calls',
+          note: the(louder(s => s.netCall), 'the louder on calls'),
+          lead: louder(s => s.netCall),
+          cell: (s, lit) => <Fig lit={lit} ink={dirInk(s.netCall)}>{signedUsd(s.netCall)}</Fig>,
+        },
+        {
+          key: 'puts',
+          label: 'Net puts',
+          note: the(louder(s => s.netPut), 'the louder on puts'),
+          lead: louder(s => s.netPut),
+          cell: (s, lit) => <Fig lit={lit} ink={dirInk(s.netPut)}>{signedUsd(s.netPut)}</Fig>,
+        },
       ],
     },
     {
-      group: 'The book',
+      title: 'Same-day money',
       rows: [
-        { label: 'Contracts traded', hint: 'Contracts on the book today', a: plain(num(A.count)), b: plain(num(B.count)), edge: larger(A.count, B.count) },
-        { label: 'Volume', hint: 'Contracts traded, day to now', a: plain(num(A.volume)), b: plain(num(B.volume)), edge: larger(A.volume, B.volume) },
-        { label: 'Premium', hint: 'Dollars traded, day to now', a: plain(fmtUsd(A.premium)), b: plain(fmtUsd(B.premium)), edge: larger(A.premium, B.premium) },
         {
+          key: 'odte',
+          label: 'Same-day net',
+          note: a.odte.net === b.odte.net ? 'the same lean today' : `${(a.odte.net > b.odte.net ? a : b).ticker} ${Math.max(a.odte.net, b.odte.net) >= 0 ? 'the more bullish' : 'the less bearish'} today`,
+          lead: higher(s => s.odte.net),
+          cell: (s, lit) => <Fig lit={lit} ink={dirInk(s.odte.net)}>{signedUsd(s.odte.net)}</Fig>,
+        },
+        {
+          key: 'odteSides',
+          label: 'Same-day calls · puts',
+          note: 'expiring today or tomorrow',
+          lead: null,
+          cell: s => (
+            <>
+              <Fig lit={false} ink={dirInk(s.odte.calls)}>{signedUsd(s.odte.calls)}</Fig>
+              <Sub>·</Sub>
+              <Fig lit={false} ink={dirInk(s.odte.puts)}>{signedUsd(s.odte.puts)}</Fig>
+            </>
+          ),
+        },
+        {
+          key: 'odteVol',
+          label: 'Same-day volume',
+          note: the(higher(s => s.odte.vol), 'the busier today'),
+          lead: higher(s => s.odte.vol),
+          cell: (s, lit) => (
+            <>
+              <Fig lit={lit}>{num(s.odte.vol)}</Fig>
+              <Sub>· {s.odte.count} contracts</Sub>
+            </>
+          ),
+        },
+      ],
+    },
+    {
+      title: 'The book',
+      rows: [
+        {
+          key: 'count',
+          label: 'Contracts traded',
+          note: the(higher(s => s.book.count), 'spread over more contracts'),
+          lead: higher(s => s.book.count),
+          cell: (s, lit) => <Fig lit={lit}>{num(s.book.count)}</Fig>,
+        },
+        {
+          key: 'volume',
+          label: 'Volume',
+          note: (() => {
+            const l = higher(s => s.book.volume);
+            const r = ratio(s => s.book.volume);
+            return l && r ? `${who(l)!.ticker} ${r} the volume` : the(l, 'the more traded');
+          })(),
+          lead: higher(s => s.book.volume),
+          cell: (s, lit) => <Fig lit={lit}>{num(s.book.volume)}</Fig>,
+        },
+        {
+          key: 'premium',
+          label: 'Premium',
+          note: the(higher(s => s.book.premium), 'the heavier book'),
+          lead: higher(s => s.book.premium),
+          cell: (s, lit) => <Fig lit={lit}>{fmtUsd(s.book.premium)}</Fig>,
+        },
+        {
+          key: 'split',
           label: 'Calls · puts',
-          hint: 'The premium’s split between calls and puts',
-          a: (
+          note: the(higher(s => s.book.callShare), 'the more call-heavy', 'the same split'),
+          lead: null,
+          cell: s => (
             <>
-              <span className="text-bull">{A.callSharePct}%</span> <span className="text-textSecondary">·</span> <span className="text-bear">{100 - A.callSharePct}%</span>
+              <Fig lit={false} ink="text-bull">{s.book.callShare}%</Fig>
+              <Sub>·</Sub>
+              <Fig lit={false} ink="text-bear">{100 - s.book.callShare}%</Fig>
             </>
           ),
-          b: (
-            <>
-              <span className="text-bull">{B.callSharePct}%</span> <span className="text-textSecondary">·</span> <span className="text-bear">{100 - B.callSharePct}%</span>
-            </>
-          ),
-          edge: null,
         },
-        { label: 'Lean', hint: 'Whether the volume paid the ask or hit the bid, volume-weighted', a: <LeanCell askPct={A.askPct} />, b: <LeanCell askPct={B.askPct} />, edge: larger(A.askPct, B.askPct) },
-        { label: 'Swept', hint: 'The share of the volume that swept across exchanges', a: plain(`${A.sweepPct}%`), b: plain(`${B.sweepPct}%`), edge: larger(A.sweepPct, B.sweepPct) },
-        { label: 'Implied vol', hint: 'Volume-weighted implied volatility across the book', a: plain(`${A.iv.toFixed(0)}%`), b: plain(`${B.iv.toFixed(0)}%`), edge: larger(A.iv, B.iv) },
-        { label: 'Built today', hint: 'Contracts trading past their open interest — positions built today', a: plain(num(A.builtToday)), b: plain(num(B.builtToday)), edge: larger(A.builtToday, B.builtToday) },
+        {
+          key: 'lean',
+          label: 'Lean',
+          note: leanWords(a) === leanWords(b) ? `both ${leanWords(a)}` : `${a.ticker} ${leanWords(a)}, ${b.ticker} ${leanWords(b)}`,
+          lead: null,
+          cell: s => <LeanCell askPct={s.book.askPct} />,
+        },
+        {
+          key: 'swept',
+          label: 'Swept',
+          note: the(higher(s => s.book.sweptPct), 'the more swept'),
+          lead: higher(s => s.book.sweptPct),
+          cell: (s, lit) => <Fig lit={lit}>{s.book.sweptPct}%</Fig>,
+        },
+        {
+          key: 'iv',
+          label: 'Implied vol',
+          note: the(higher(s => s.book.iv), 'the richer'),
+          lead: higher(s => s.book.iv),
+          cell: (s, lit) => <Fig lit={lit}>{s.book.iv}%</Fig>,
+        },
+        {
+          key: 'built',
+          label: 'Built today',
+          note: a.book.builtToday === 0 && b.book.builtToday === 0 ? 'nothing built past its interest' : the(higher(s => s.book.builtToday), 'built the more'),
+          lead: higher(s => s.book.builtToday),
+          cell: (s, lit) => (
+            <>
+              <Fig lit={lit}>{num(s.book.builtToday)}</Fig>
+              <Sub>past their interest</Sub>
+            </>
+          ),
+        },
       ],
     },
     {
-      group: 'Footprints',
-      rows: [
-        { label: 'Interest added', hint: 'Open interest built overnight', a: <span className="text-bull">+{num(A.oiAdded)}</span>, b: <span className="text-bull">+{num(B.oiAdded)}</span>, edge: larger(A.oiAdded, B.oiAdded) },
-        { label: 'Interest shed', hint: 'Open interest unwound overnight', a: <span className="text-bear">−{num(A.oiShed)}</span>, b: <span className="text-bear">−{num(B.oiShed)}</span>, edge: larger(A.oiShed, B.oiShed) },
-      ],
-    },
-    {
-      group: 'Structures',
-      rows: [
-        { label: 'Structures', hint: 'Multi-leg structures on the tape today', a: plain(num(A.structures.length)), b: plain(num(B.structures.length)), edge: larger(A.structures.length, B.structures.length) },
-        { label: 'Paid · collected', hint: 'Debit structures against credit structures', a: plain(`${A.debit} · ${A.credit}`), b: plain(`${B.debit} · ${B.credit}`), edge: null },
-        { label: 'Structure dollars', hint: 'Premium across the structures', a: plain(fmtUsd(A.structurePrem)), b: plain(fmtUsd(B.structurePrem)), edge: larger(A.structurePrem, B.structurePrem) },
-      ],
-    },
-    {
-      group: 'The tape',
-      rows: [
-        { label: 'Prints', hint: 'Rich prints on the live tape', a: plain(num(A.prints.length)), b: plain(num(B.prints.length)), edge: larger(A.prints.length, B.prints.length) },
-        { label: 'Tape dollars', hint: 'Premium across those prints', a: plain(fmtUsd(A.tapePrem)), b: plain(fmtUsd(B.tapePrem)), edge: larger(A.tapePrem, B.tapePrem) },
-        { label: 'Sweeps', hint: 'Prints that swept across exchanges', a: plain(num(A.tapeSweeps)), b: plain(num(B.tapeSweeps)), edge: larger(A.tapeSweeps, B.tapeSweeps) },
-      ],
-    },
-    {
-      group: 'The calendar',
+      title: 'Footprints',
       rows: [
         {
+          key: 'added',
+          label: 'Interest added',
+          note: the(higher(s => s.interest.added), 'added the more overnight'),
+          lead: higher(s => s.interest.added),
+          cell: (s, lit) => (
+            <Fig lit={lit} ink={s.interest.added > 0 ? 'text-bull' : 'text-textMuted'}>
+              {s.interest.added > 0 ? `+${num(s.interest.added)}` : '0'}
+            </Fig>
+          ),
+        },
+        {
+          key: 'shed',
+          label: 'Interest shed',
+          note: the(higher(s => -s.interest.shed), 'shed the more'),
+          lead: higher(s => -s.interest.shed),
+          cell: (s, lit) => (
+            <Fig lit={lit} ink={s.interest.shed < 0 ? 'text-bear' : 'text-textMuted'}>
+              {s.interest.shed < 0 ? `−${num(-s.interest.shed)}` : '0'}
+            </Fig>
+          ),
+        },
+      ],
+    },
+    {
+      title: 'Structures',
+      rows: [
+        {
+          key: 'structures',
+          label: 'Structures',
+          note: the(higher(s => s.structures.count), 'the more structures'),
+          lead: higher(s => s.structures.count),
+          cell: (s, lit) => <Fig lit={lit}>{num(s.structures.count)}</Fig>,
+        },
+        {
+          key: 'paid',
+          label: 'Paid · collected',
+          note: 'debits paid against credits collected',
+          lead: null,
+          cell: s => (
+            <>
+              <Fig lit={false} ink="text-bull">{s.structures.paid}</Fig>
+              <Sub>·</Sub>
+              <Fig lit={false} ink="text-bear">{s.structures.collected}</Fig>
+            </>
+          ),
+        },
+        {
+          key: 'structDollars',
+          label: 'Structure dollars',
+          note: the(higher(s => s.structures.dollars), 'the bigger structures'),
+          lead: higher(s => s.structures.dollars),
+          cell: (s, lit) => <Fig lit={lit}>{fmtUsd(s.structures.dollars)}</Fig>,
+        },
+      ],
+    },
+    {
+      title: 'The tape',
+      rows: [
+        {
+          key: 'prints',
+          label: 'Prints',
+          note: the(higher(s => s.tape.prints), 'the busier tape'),
+          lead: higher(s => s.tape.prints),
+          cell: (s, lit) => <Fig lit={lit}>{num(s.tape.prints)}</Fig>,
+        },
+        {
+          key: 'tapeDollars',
+          label: 'Tape dollars',
+          note: the(higher(s => s.tape.dollars), 'the more money on the tape'),
+          lead: higher(s => s.tape.dollars),
+          cell: (s, lit) => <Fig lit={lit}>{fmtUsd(s.tape.dollars)}</Fig>,
+        },
+        {
+          key: 'sweeps',
+          label: 'Sweeps',
+          note: the(higher(s => s.tape.sweeps), 'the more sweeps'),
+          lead: higher(s => s.tape.sweeps),
+          cell: (s, lit) => <Fig lit={lit}>{num(s.tape.sweeps)}</Fig>,
+        },
+      ],
+    },
+    {
+      title: 'The calendar',
+      rows: [
+        {
+          key: 'earnings',
           label: 'Earnings',
-          hint: 'The name’s next report, when it sits inside the book’s runway',
-          a: A.earnDays == null ? <span className="text-textSecondary">not reporting</span> : <span className={A.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>{A.earnDays === 0 ? 'today' : `in ${A.earnDays}d`}</span>,
-          b: B.earnDays == null ? <span className="text-textSecondary">not reporting</span> : <span className={B.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>{B.earnDays === 0 ? 'today' : `in ${B.earnDays}d`}</span>,
-          edge: null,
+          note: (() => {
+            const l = nearer();
+            if (a.earnDays == null && b.earnDays == null) return 'neither reports soon';
+            if (a.earnDays == null || b.earnDays == null) return `${who(l)!.ticker} alone reports`;
+            return l ? `${who(l)!.ticker} reports first` : 'the same session';
+          })(),
+          lead: nearer(),
+          cell: (s, lit) => <Fig lit={lit}>{reportWords(s)}</Fig>,
         },
       ],
     },
   ];
-}
 
-/* ---- the page --------------------------------------------------------------------- */
-
-const Compare = () => {
-  const { marketData, activeTicker, flowTape } = useMarketData();
-  const [mny, setMny] = useState<MoneynessKey>('all');
-  const [tenor, setTenor] = useState<SleeveKey | 'all'>('all');
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const [guideOpen, setGuideOpen] = useState(false);
-
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
-  const liveTrades = useMemo(
-    () => buildSpreadFlow(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
-  /* ONE hold for the whole page: the book, the structures, the tape and the tick freeze together */
-  const hold = useHold(useMemo(() => ({ book: liveBook, trades: liveTrades, tape: flowTape as FlowPrint[], tick: marketData }), [liveBook, liveTrades, flowTape, marketData]), activeTicker);
-  const { book, trades, tape, tick } = hold.value;
-
-  /* THE NAMES — only names the book carries can be compared; the searches
-     offer exactly those. A typed fragment holds the last real name. */
-  const names = useMemo(() => new Set(book.map(r => r.ticker)), [book]);
-  const [aQuery, setAQuery] = useState<string>(() => (names.has(activeTicker) ? activeTicker : 'SPY'));
-  const [bQuery, setBQuery] = useState<string>(() => (activeTicker === 'QQQ' ? 'SPY' : 'QQQ'));
-  const lastA = useRef(aQuery);
-  const lastB = useRef(bQuery);
-  const A = names.has(aQuery) ? aQuery : lastA.current;
-  const B = names.has(bQuery) ? bQuery : lastB.current;
-  lastA.current = A;
-  lastB.current = B;
-  const swap = () => {
-    setAQuery(B);
-    setBQuery(A);
-  };
-
-  /* THE EXPIRY CUT — the dates either name's book carries */
-  const pairRows = useMemo(() => book.filter(r => r.ticker === A || r.ticker === B), [book, A, B]);
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(pairRows, r => r.expiry);
-  const cutRows = useMemo(() => cutExpiry(pairRows), [pairRows, cutExpiry]);
-  const cutTrades = useMemo(() => (expiry ? trades.filter(t => bookExpiryIso(t.expiry) === expiry) : trades), [trades, expiry]);
-  const cutTape = useMemo(() => (expiry ? tape.filter(p => bookExpiryIso(p.expiry) === expiry) : tape), [tape, expiry]);
-
-  /* The pane's clock — sampled where the pane samples, so the ledger and the lines agree */
-  const nowSec = useMemo(() => paneTimes(A).slice(-1)[0], [A]);
-  const sideA = useMemo(() => account(A, cutRows, cutTrades, cutTape, nowSec), [A, cutRows, cutTrades, cutTape, nowSec]);
-  const sideB = useMemo(() => account(B, cutRows, cutTrades, cutTape, nowSec), [B, cutRows, cutTrades, cutTape, nowSec]);
-  const bands = useMemo(() => ledger(sideA, sideB), [sideA, sideB]);
-
-  const heavier = sideA.premium >= sideB.premium ? sideA : sideB;
-  const busier = sideA.prints.length >= sideB.prints.length ? sideA : sideB;
-  const moreBullish = sideA.net >= sideB.net ? sideA : sideB;
-
-  useEffect(() => setOpenKey(null), [A, B]);
-
-  const read = useMemo<ReactNode>(() => {
-    const lean = (s: Side) => `${s.net >= 0 ? 'bullish' : 'bearish'} at ${signed(s.net)}`;
-    return (
-      <>
-        <RichRead text={`${chosen ? `On ${expiryWords(chosen)}, ` : ''}${A} leans ${lean(sideA)} while ${B} leans ${lean(sideB)}. `} />
-        <RichRead text={`${heavier.ticker} carries the heavier book — [[${fmtUsd(heavier.premium)}]] across ${heavier.count} contracts on ${num(heavier.volume)} volume — and ${busier.ticker} the busier tape, ${busier.prints.length} prints for ${fmtUsd(busier.tapePrem)}. `} />
-        <RichRead text={`Same-day money: ${A} ${signed(sideA.odteNet)}, ${B} ${signed(sideB.odteNet)}.`} />
-      </>
-    );
-  }, [A, B, sideA, sideB, heavier, busier, chosen]);
-
-  const drillList = useMemo(() => [...sideA.heaviest, ...sideB.heaviest], [sideA.heaviest, sideB.heaviest]);
-  const openRow = useCallback((r: BookContract) => setOpenKey(r.key), []);
-
-  const head = (s: Side, which: 'A' | 'B') => (
-    <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle" data-compare-head={which}>
-      <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">{which}</span>
-      <CompanyLogo ticker={s.ticker} size={16} />
-      <span className="font-mono text-[12px] font-bold text-textPrimary">{s.ticker}</span>
-      <span className="font-mono text-[11px] tnum text-textPrimary">${s.spot.toFixed(2)}</span>
-      <span className={`ml-auto font-mono text-[11px] tnum font-semibold ${dirInk(s.net)}`}>{signed(s.net)} net</span>
-    </div>
+  /* ---- the sentence: the names are doors ---------------------------------------- */
+  const sentence = cmp.parts.map((p, i) =>
+    typeof p === 'string' ? (
+      <RichRead key={i} text={p} />
+    ) : (
+      <ReadDoor key={i} onOpen={() => toNetFlow(p.name)} title={`${p.name} on Net Flow's pane`}>
+        {p.name}
+      </ReadDoor>
+    )
   );
 
-  const contracts = (s: Side) => (
-    <div className="flex flex-col" data-compare-contracts={s.ticker}>
-      {s.heaviest.length === 0 && (
-        <DataState kind="empty" title="Nothing on the book" body={<>No contract on <Name t={s.ticker} size={12} /> carries weight on this cut.</>} pad="sm" />
-      )}
-      {s.heaviest.map(r => (
-        <button key={r.key} type="button" onClick={() => openRow(r)} className={`flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 text-left transition-colors ${openKey === r.key ? 'bg-silver/[0.06]' : 'hover:bg-silver/[0.04]'}`} title="Open the contract's card">
-          <ContractLabel contract={`${r.ticker} ${r.strike}${r.right}`} right={r.right} logo={r.ticker} size="sm" />
-          <span className="font-mono text-[10px] tnum text-textPrimary">{r.expiry} · {r.dte}d</span>
-          <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(r.premium)}</span>
-          <span className="font-mono text-[10px] tnum text-textPrimary w-16 text-right">{num(r.volume)} vol</span>
-          <LeanCell askPct={r.askPct} />
+  /* THE CARD'S COLUMNS ON A PHONE (the phone pass, 2026-09-13): the fact's
+     250px middle left the two figures 30px each at 390 and they ran off both
+     edges; a 112px middle (the label and its note truncate) gives each side
+     ~110px, which the figures need. */
+  const narrow = useIsBelowLg();
+  const columns = narrow ? 'minmax(0,1fr) 112px minmax(0,1fr)' : CMP_COLUMNS;
+
+  /* ---- the lists under the rows ---------------------------------------------------- */
+  const listed = useMemo(() => [...a.rows.slice(0, CMP_LISTED), ...b.rows.slice(0, CMP_LISTED)], [a.rows, b.rows]);
+  const kindOf = (t: SpreadTrade) => SPREAD_KINDS.find(k => k.key === t.kind)?.label ?? t.kind;
+
+  const Lists = ({ s, side }: { s: TraceSide; side: 'a' | 'b' }) => (
+    <div className="min-w-0" data-compare-lists={side}>
+      {/* THE HEAVIEST CONTRACTS — by dollars, a row opens the card */}
+      <div className="px-5 flex items-center gap-2 border-b border-borderSubtle/60 paper-band" style={{ height: CMP_LIST_HEAD_H }}>
+        <CompanyLogo ticker={s.ticker} size={14} />
+        <span className="text-[12px] font-semibold text-textPrimary whitespace-nowrap">{s.ticker}'s heaviest contracts</span>
+        <span className="text-[10.5px] text-textMuted whitespace-nowrap truncate">· by dollars · a row opens the card</span>
+      </div>
+      {s.rows.slice(0, CMP_LISTED).map(r => (
+        <button
+          key={r.key}
+          type="button"
+          onClick={() => setOpenKey(openKey === r.key ? null : r.key)}
+          /* On a phone the row keeps the contract, the dollars and the lean; the days and the volume go (the phone pass, 2026-09-13) */
+          className={`w-full px-5 grid grid-cols-[minmax(0,1fr)_40px_76px_84px_64px] max-sm:grid-cols-[minmax(0,1fr)_76px_64px] items-center gap-x-3 border-b border-borderSubtle/40 text-left transition-colors ${openKey === r.key ? 'bg-silver/[0.06]' : 'hover:bg-silver/[0.04]'}`}
+          style={{ height: CMP_LIST_ROW_H }}
+          data-compare-contract={r.key}
+        >
+          <span className="min-w-0 flex items-center">
+            <ContractCell strike={r.strike} right={r.right} expiry={r.expiry} />
+          </span>
+          <span className="font-mono text-[10px] tnum text-textMuted text-right max-sm:hidden">{r.dte}d</span>
+          <span className="font-mono text-[12px] tnum font-semibold text-textPrimary text-right">{fmtUsd(r.premium)}</span>
+          <span className="font-mono text-[10.5px] tnum text-textSecondary text-right whitespace-nowrap max-sm:hidden">{num(r.volume)} vol</span>
+          <span className="flex justify-end">
+            <LeanCell askPct={r.askPct} />
+          </span>
         </button>
       ))}
-    </div>
-  );
-
-  const structures = (s: Side) => (
-    <div className="flex flex-col" data-compare-structures={s.ticker}>
-      {s.structures.length === 0 && <span className="px-3 py-4 font-mono text-[10px] uppercase tracking-widest text-textSecondary">No structures on <Name t={s.ticker} size={12} /> on this cut</span>}
-      {[...s.structures]
-        .sort((a, b) => b.premium - a.premium)
-        .slice(0, 5)
-        .map(t => (
-          <div key={t.id} className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: KIND_DOT[t.kind] }} />
-            <span className="font-mono text-[11px] font-semibold text-textPrimary w-20">{KIND_LABEL[t.kind]}</span>
-            <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{t.strikesLabel}</span>
-            <span className="font-mono text-[10px] tnum text-textPrimary">{t.expiry} · {t.dte}d</span>
-            <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">
-              ${Math.abs(t.net).toFixed(2)} <span className="text-[10px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
-            </span>
-            <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{fmtUsd(t.premium)}</span>
-          </div>
-        ))}
+      {s.rows.length === 0 && (
+        <div className="px-5 flex items-center font-mono text-[10px] uppercase tracking-widest text-textMuted" style={{ height: CMP_LIST_ROW_H }}>
+          Nothing on this cut
+        </div>
+      )}
+      {/* THE STRUCTURES — the tape reconstructed, heaviest first */}
+      <div className="px-5 flex items-center gap-2 border-y border-borderSubtle/60 paper-band" style={{ height: CMP_LIST_HEAD_H }}>
+        <CompanyLogo ticker={s.ticker} size={14} />
+        <span className="text-[12px] font-semibold text-textPrimary whitespace-nowrap">{s.ticker}'s structures</span>
+        <span className="text-[10.5px] text-textMuted whitespace-nowrap truncate">· the tape reconstructed · heaviest first</span>
+      </div>
+      {s.structures.list.slice(0, CMP_LISTED).map(t => (
+        <div
+          key={t.id}
+          /* On a phone: the kind, the strikes and the dollars; the expiry and the debit/credit go */
+          className="px-5 grid grid-cols-[96px_minmax(0,1fr)_120px_96px_76px] max-sm:grid-cols-[96px_minmax(0,1fr)_76px] items-center gap-x-3 border-b border-borderSubtle/40 hover:bg-silver/[0.04] transition-colors"
+          style={{ height: CMP_LIST_ROW_H }}
+          data-compare-structure={t.id}
+          title={SPREAD_KINDS.find(k => k.key === t.kind)?.read}
+        >
+          <span className="text-[11.5px] font-semibold text-textPrimary whitespace-nowrap">{kindOf(t)}</span>
+          <span className="font-mono text-[12px] tnum font-semibold text-textPrimary whitespace-nowrap truncate">{t.strikesLabel}</span>
+          <span className="font-mono text-[10px] tnum text-textMuted whitespace-nowrap max-sm:hidden">
+            {t.expiry} · {t.dte}d
+          </span>
+          <span className="font-mono text-[11px] tnum text-right whitespace-nowrap max-sm:hidden">
+            <span className="text-textPrimary">${Math.abs(t.net).toFixed(2)}</span> <span className={t.net >= 0 ? 'text-bull' : 'text-bear'}>{t.net >= 0 ? 'debit' : 'credit'}</span>
+          </span>
+          <span className="font-mono text-[12px] tnum font-semibold text-textPrimary text-right">{fmtUsd(t.premium)}</span>
+        </div>
+      ))}
+      {s.structures.list.length === 0 && (
+        <div className="px-5 flex items-center font-mono text-[10px] uppercase tracking-widest text-textMuted" style={{ height: CMP_LIST_ROW_H }}>
+          No structures on this cut today
+        </div>
+      )}
     </div>
   );
 
   return (
-    <>
-      <TraceBox
-        title="Two names, side by side"
-        sub="Net flow, the same-day money, the structures, the book and the tape — A against B, on the same cut every other Trace page reads · pick either name, swap them, cut them to one expiry"
-        testId="compare"
-        data={{ a: A, b: B, expiry: expiry ?? 'all' }}
-        guide={{ title: 'How to read the comparison', door: 'What the panes, the ledger and the marks mean', body: <CompareGuide />, testId: 'compare-guide', open: guideOpen, onOpen: setGuideOpen }}
-        facts={
-          <>
-            <Fact label={`${A} net`} testId="a-net">
-              <span className={dirInk(sideA.net)}>{signed(sideA.net)}</span>
-            </Fact>
-            <Fact label={`${B} net`} testId="b-net">
-              <span className={dirInk(sideB.net)}>{signed(sideB.net)}</span>
-            </Fact>
-            <Fact label="Same-day" testId="odte" title="The same-day contracts' net premium, A · B">
-              <span className={dirInk(sideA.odteNet)}>{signed(sideA.odteNet)}</span> <span className="text-textSecondary">·</span> <span className={dirInk(sideB.odteNet)}>{signed(sideB.odteNet)}</span>
-            </Fact>
-            <Champion label="Leans bullish" ink="bull" onOpen={() => (moreBullish.ticker === A ? setBQuery(A) : setAQuery(B))} testId="bullish">
-              {moreBullish.ticker} · {signed(moreBullish.net)}
-            </Champion>
-            <Champion label="Heavier book" ink="supreme" onOpen={() => openRow(heavier.heaviest[0])} testId="heavier">
-              {heavier.ticker} · {fmtUsd(heavier.premium)}
-            </Champion>
-            <Champion label="Busier tape" ink="warn" onOpen={() => openRow(busier.heaviest[0] ?? heavier.heaviest[0])} testId="busier">
-              {busier.ticker} · {busier.prints.length} prints
-            </Champion>
-          </>
-        }
-        controls={
-          <>
-            <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <span className="inline-flex items-center gap-1.5" data-compare-pick="a">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">A</span>
-              <FlowSearch value={aQuery} onChange={v => setAQuery(v)} rows={book} countNoun="contracts" tickersOnly />
-            </span>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">vs</span>
-            <span className="inline-flex items-center gap-1.5" data-compare-pick="b">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">B</span>
-              <FlowSearch value={bQuery} onChange={v => setBQuery(v)} rows={book} countNoun="contracts" tickersOnly />
-            </span>
-            <button type="button" onClick={swap} title="Swap the two names" aria-label="Swap the two names" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-compare-swap>
+    <TraceBox
+      title="Two names, side by side"
+      sub="Net flow, the same-day money, the book, the footprints, the structures and the tape — the first name against the second, on the same cut every other Trace page reads · pick either name, swap them, cut them to one clock"
+      testId="compare"
+      data={{ a: aTicker, b: bTicker, clock: tenor, money: mny }}
+      guide={{ title: 'How to read the card', door: 'What the rows, the panes and the lists mean', body: <CompareGuide />, testId: 'compare-guide', open: guideOpen, onOpen: setGuideOpen }}
+      facts={
+        <>
+          <Fact label={`${a.ticker} net`} testId="a-net">
+            <span className={dirInk(a.net)}>{signedUsd(a.net)}</span>
+          </Fact>
+          <Fact label={`${b.ticker} net`} testId="b-net">
+            <span className={dirInk(b.net)}>{signedUsd(b.net)}</span>
+          </Fact>
+          <Fact label="Same-day money" testId="same-day">
+            <span className={dirInk(a.odte.net)}>{signedUsd(a.odte.net)}</span> <span className="text-textMuted">·</span> <span className={dirInk(b.odte.net)}>{signedUsd(b.odte.net)}</span>
+          </Fact>
+          <Champion label={`Leans ${leansWords}`} ink={cmp.bullish.net >= 0 ? 'bull' : 'bear'} onOpen={() => toNetFlow(cmp.bullish.ticker)} testId="bullish">
+            {cmp.bullish.ticker} · {signedUsd(cmp.bullish.net)}
+          </Champion>
+          <Champion label="Heavier book" ink="supreme" onOpen={() => toNetFlow(cmp.heavier.ticker)} testId="heavier">
+            {cmp.heavier.ticker} · {fmtUsd(cmp.heavier.book.premium)}
+          </Champion>
+          <Fact label="Busier tape" testId="busier">
+            {cmp.busier.ticker} <span className="text-textMuted">·</span> {num(cmp.busier.tape.prints)} prints
+          </Fact>
+        </>
+      }
+      controls={
+        <>
+          <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
+          {/* On a phone's two-column cards line the pair takes the whole row (the phone pass, 2026-09-13) */}
+          <span className="flex items-center gap-1.5 max-sm:col-span-2" data-compare-names>
+            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">A</span>
+            {/* The two chips wear the same clothes (Noah, 2026-09-09): the first in the full following look
+                with its silver link, the second its own name with no link at all */}
+            <ScopeChip ticker={aTicker} linked={aFollows} full quote onToggleLink={() => setAPick(aFollows ? aTicker : null)} onPick={next => (aFollows ? changeTicker(next) : setAPick(next))} />
+            <button
+              type="button"
+              onClick={onSwap}
+              title="Swap the two names"
+              aria-label="Swap the two names"
+              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+              data-compare-swap
+            >
               <ArrowLeftRight className="w-3.5 h-3.5" />
             </button>
-            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="compare-expiry" />
-          </>
-        }
-        sentence={read}
-      >
-        {/* THE PANES */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-borderSubtle" data-compare-panes>
-          {[sideA, sideB].map((s, i) => (
-            <div key={s.ticker + i} className={`flex flex-col ${i === 0 ? 'lg:border-r border-borderSubtle' : ''}`}>
-              {head(s, i === 0 ? 'A' : 'B')}
-              <div className="h-[340px] p-2">
-                <NetFlowPane book={cutRows} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={s.ticker} tenor={tenor} onTenor={setTenor} dteMax={Infinity} />
-              </div>
-              {/* the same-day money under the pane — the 0DTE desk's figures for the name */}
-              <div className="flex items-center gap-4 px-3 h-8 border-t border-b border-borderSubtle font-mono text-[10px] tnum" data-compare-odte={s.ticker}>
-                <span className="uppercase tracking-widest text-textSecondary">Same-day</span>
-                <span className={dirInk(s.odteNet)}>{signed(s.odteNet)} net</span>
-                <span className="text-bull">{signed(s.odteCall)} calls</span>
-                <span className="text-bear">{signed(s.odtePut)} puts</span>
-                <span className="ml-auto text-textPrimary">
-                  {num(s.odteVol)} vol · {s.odteCount} cons
+            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">B</span>
+            <ScopeChip ticker={bTicker} quote onPick={next => setBPick(next)} title="The second name — pick another" />
+          </span>
+          {/* The two cuts as labelled cards — ONE pair for both names */}
+          <DropdownSelect label="Clock" value={tenor} options={CLOCK_OPTIONS} onChange={setTenor} title="How far out the contracts run — both names" testId="compare-clock" />
+          <DropdownSelect label="Money" value={mny} options={MONEY_OPTIONS} onChange={setMny} title="Which strikes against the stock — both names" testId="compare-money" />
+        </>
+      }
+      sentence={sentence}
+    >
+      {/* THE PANES — each name through the session, on the page's one cut */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 border-t border-borderSubtle p-2" data-compare-panes>
+        {[a, b].map((s, i) => (
+          <div key={s.ticker} style={{ height: CMP_PANE_H }} className="min-w-0" data-compare-pane={i === 0 ? 'a' : 'b'}>
+            <NetFlowPane book={book} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={s.ticker} tenor={tenor} onTenor={setTenor} dteMax={Infinity} cutCards={false} />
+          </div>
+        ))}
+      </div>
+
+      {/* THE CARD — the first name's figure at the left, the fact in the middle with what the two say
+          against each other under it, the second name's at the right; the leading figure lit */}
+      <div className="border-t border-borderSubtle pt-1 pb-2 paper-inset" data-compare-card data-compare-focus={pinned ? '' : undefined}>
+        <div className="mx-5 grid items-center gap-x-4" style={{ gridTemplateColumns: columns, height: CMP_SECTION_H }}>
+          <span className="flex items-center justify-end gap-1.5" data-compare-head="a">
+            <CompanyLogo ticker={a.ticker} size={14} />
+            <span className="font-mono text-[11px] font-bold text-textPrimary">{a.ticker}</span>
+          </span>
+          {/* THE SPINE (Noah, 2026-09-19, the light sweep: "i cant make out of any borders and too much blinding white for the
+              side by side comparision"): the middle column stands on the inset ground with an edge each side, all the way
+              down. THE GROUNDS ARE TURNED ROUND: the two names sit on the soft inset ground and the SPINE is the panel's
+              white — the one bright column is the narrow one that holds the words, not the two wide wings; the sections
+              are bands of the ink's wash. ALL OF IT IS PAPER-ONLY (index.css `paper-*`): on the dark terminal not a pixel moves —
+              the first cut used ordinary classes and laid faint bands and a darker ground on the dark page too. */}
+          <span className="self-stretch flex items-center justify-center paper-panel paper-edge-x font-mono text-[9px] uppercase tracking-widest text-textMuted" data-compare-spine>against</span>
+          <span className="flex items-center gap-1.5" data-compare-head="b">
+            <CompanyLogo ticker={b.ticker} size={14} />
+            <span className="font-mono text-[11px] font-bold text-textPrimary">{b.ticker}</span>
+            {/* The ladder's why: whose row it is and how to let go */}
+            <span className={`ml-auto font-mono text-[8px] uppercase tracking-widest whitespace-nowrap max-sm:hidden ${pinned ? 'text-textSecondary' : 'text-textMuted'}`} data-compare-why>
+              {pinned ? 'in focus · click anywhere outside to let go' : 'click a row to keep it'}
+            </span>
+          </span>
+        </div>
+        <div className="relative">
+          {/* THE FOCUS SCRIM — one layer for the blur and the dim; only its opacity animates (the ladder's own) */}
+          <div
+            aria-hidden
+            data-compare-scrim={pinned ? '' : undefined}
+            className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${pinned ? 'opacity-100' : 'opacity-0'}`}
+            /* the scrim is the PANEL at 66% — black over the dark terminal as it always was, paper over paper (it was a typed black: a grey veil on white) */
+            style={{ backdropFilter: `blur(${scrim ? 3 : 0}px)`, WebkitBackdropFilter: `blur(${scrim ? 3 : 0}px)`, background: 'rgb(var(--panel) / 0.66)' }}
+          />
+        {sections.map(sec => (
+          <Fragment key={sec.title}>
+            {/* The section's name in the primary ink (Noah, 2026-09-13: "this section should have white font") */}
+            <div className="mx-5 flex items-center border-t border-borderSubtle/60 paper-indent paper-band paper-bold font-mono text-[9px] uppercase tracking-widest text-textPrimary" style={{ height: CMP_SECTION_H }} data-compare-section={sec.title}>
+              {sec.title}
+            </div>
+            {sec.rows.map(r => (
+              <div
+                key={r.key}
+                /* the kept row is lifted above the scrim in the house's kept look; the rest wash under the pointer */
+                className={`group mx-5 grid items-center gap-x-4 rounded border-t border-borderSubtle/40 transition-colors duration-150 cursor-pointer ${
+                  keptRow === r.key ? 'relative z-30 bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'
+                }`}
+                style={{ gridTemplateColumns: columns, height: CMP_ROW_H }}
+                onClick={() => setKeptRow(k => (k === r.key ? null : r.key))}
+                title={keptRow === r.key ? 'Let go of this row' : 'Keep this row in focus'}
+                data-compare-row={r.key}
+                data-lead={r.lead ?? undefined}
+                data-kept={keptRow === r.key || undefined}
+              >
+                <span className="min-w-0 flex items-center justify-end gap-2 whitespace-nowrap overflow-hidden" data-compare-a>
+                  {r.cell(a, r.lead === 'a')}
+                </span>
+                <span className="min-w-0 self-stretch flex flex-col items-center justify-center leading-none paper-panel paper-edge-x">
+                  <span className="text-[11px] text-textSecondary group-hover:text-textPrimary transition-colors duration-150 whitespace-nowrap">{r.label}</span>
+                  <span className="mt-[3px] text-[9.5px] text-textMuted group-hover:text-textSecondary transition-colors duration-150 whitespace-nowrap truncate max-w-full" data-compare-note>
+                    {r.note}
+                  </span>
+                </span>
+                <span className="min-w-0 flex items-center gap-2 whitespace-nowrap overflow-hidden" data-compare-b>
+                  {r.cell(b, r.lead === 'b')}
                 </span>
               </div>
-            </div>
-          ))}
+            ))}
+          </Fragment>
+        ))}
         </div>
+      </div>
 
-        {/* THE LEDGER */}
-        <div data-compare-ledger>
-          <div className="grid grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] items-center px-5 h-8 border-b border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary">
-            <span>Fact</span>
-            <span className="inline-flex items-center gap-1.5 justify-end">
-              <CompanyLogo ticker={A} size={12} /> {A}
-            </span>
-            <span className="inline-flex items-center gap-1.5 justify-end">
-              <CompanyLogo ticker={B} size={12} /> {B}
-            </span>
-          </div>
-          {bands.map(band => (
-            <div key={band.group}>
-              <div className="px-5 pt-2.5 pb-1 text-[10px] font-semibold text-textPrimary">{band.group}</div>
-              {band.rows.map(r => (
-                <div key={r.label} className="grid grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] items-center px-5 h-8 border-t border-borderSubtle/50 font-mono text-[11px] tnum" title={r.hint} data-compare-row={r.label}>
-                  <span className="text-textPrimary">{r.label}</span>
-                  <span className={`flex items-center justify-end gap-1.5 ${r.edge === 'a' ? 'font-bold' : ''}`}>
-                    {r.edge === 'a' && <span className="text-supreme" aria-label="carries the row">◆</span>}
-                    {r.a}
-                  </span>
-                  <span className={`flex items-center justify-end gap-1.5 ${r.edge === 'b' ? 'font-bold' : ''}`}>
-                    {r.edge === 'b' && <span className="text-supreme" aria-label="carries the row">◆</span>}
-                    {r.b}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {/* THE CONTRACTS AND THE STRUCTURES */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-borderSubtle mt-2" data-compare-contracts-band>
-          {[sideA, sideB].map((s, i) => (
-            <div key={s.ticker + i} className={`${i === 0 ? 'lg:border-r border-borderSubtle' : ''}`}>
-              <div className="px-3 pt-3 pb-1.5 flex items-center gap-2">
-                <CompanyLogo ticker={s.ticker} size={14} />
-                <h3 className="text-[11px] font-semibold text-textPrimary">{s.ticker}'s heaviest contracts</h3>
-                <span className="text-[10px] text-textSecondary">· by dollars · a row opens the card</span>
-              </div>
-              {contracts(s)}
-              <div className="px-3 pt-3 pb-1.5 flex items-center gap-2">
-                <CompanyLogo ticker={s.ticker} size={14} />
-                <h3 className="text-[11px] font-semibold text-textPrimary">{s.ticker}'s structures</h3>
-                <span className="text-[10px] text-textSecondary">· the tape reconstructed · heaviest first</span>
-              </div>
-              {structures(s)}
-            </div>
-          ))}
-        </div>
-        <div className="px-5 py-2 text-[10px] text-textSecondary border-t border-borderSubtle">
-          Only names on today's book can be compared — the searches offer exactly those. <ReadDoor onOpen={() => setAQuery(activeTicker)} title="Put the terminal's name on A">Put {activeTicker} on A</ReadDoor>.
-        </div>
-      </TraceBox>
-
-      <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} tick={tick} />
-    </>
+      {/* THE LISTS — each name's heaviest contracts and its structures, side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-borderSubtle lg:divide-x divide-borderSubtle paper-inset" data-compare-lists-box>
+        <Lists s={a} side="a" />
+        <Lists s={b} side="b" />
+      </div>
+      <p className="px-5 flex items-center border-t border-borderSubtle text-[11px] text-textMuted" style={{ height: 40 }} data-compare-foot>
+        Only names on today's book can be compared — a name off it falls back to the frame's, or to the busiest.
+      </p>
+      <BookDrill list={listed} openKey={openKey} onOpen={setOpenKey} tick={tick} />
+    </TraceBox>
   );
 };
 

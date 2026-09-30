@@ -13,7 +13,6 @@
   7. A full map at the cap stays small enough to be worth keeping
 */
 import {
-  OVERLAY_KEYS,
   SETUP_CAP,
   applySetup,
   captureSetup,
@@ -80,12 +79,7 @@ const withJunk = readSetup(
 );
 check(
   'and an extra key is dropped rather than carried',
-  /* AGAINST THE REAL KEY SET, not a number. This read `=== 4` while the
-     overlay list grew to twelve, so the proof had been failing on a
-     correct reader for however long that took — and a failing proof
-     nobody can act on is a proof nobody runs. */
-  !!withJunk?.overlays && !('ghost' in withJunk.overlays) && Object.keys(withJunk.overlays).length === OVERLAY_KEYS.length,
-  `${Object.keys(withJunk?.overlays ?? {}).length} of ${OVERLAY_KEYS.length}`
+  !!withJunk?.overlays && !('ghost' in withJunk.overlays) && Object.keys(withJunk.overlays).length === 4
 );
 
 // 5. a symbol cannot compare against itself

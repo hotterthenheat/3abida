@@ -61,7 +61,9 @@ interface ExposureLedgerProps {
   liveSpot?: number;
   /** The greeks drawn, in the book's order — one, some, or all five (a stable array) */
   greeks: Greek[];
-  depth: number;
+  /** The expiry columns the host wants, as surface indices, nearest first (its window after the bell and its
+      ceiling); this box cuts them to what fits its width */
+  expiries: number[];
   /** Strikes each side of spot — the head's window */
   rings: number;
   /** A strike another surface is hovering (the ladder) — its row washes here too */
@@ -75,13 +77,28 @@ interface ExposureLedgerProps {
   marks?: ReadonlyMap<number, string>;
   onPointer?: (cell: SurfaceCell | null, clientX: number, clientY: number) => void;
   onSelectStrike?: (strike: number) => void;
+  /** WHAT FITS, reported upward (2026-09-14): how many expiries this pane can print at its
+      measured width with its greeks — null while unmeasured or on unmount. The band takes the
+      least across its names and offers no deeper choice. */
+  fitKey?: string;
+  /** On paper (the light page): the island's grey, the page's inks, the tint ramp — the host says so */
+  paper?: boolean;
+  onFit?: (key: string, expiries: number | null) => void;
 }
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const PUT_INK = '#F5C542';
-const CALL_INK = '#7ABDD7';
+/* the side inks as tokens (2026-09-16): the dark set IS #F5C542 / #7ABDD7; the light set cuts them for paper */
+const PUT_INK = 'rgb(var(--ember))';
+const CALL_INK = 'rgb(var(--glacier))';
 /** The strike and its tag slot — "497.50" plus two short tags on one right edge */
-const STRIKE_W = 104;
+export const STRIKE_W = 104;
+/** The narrowest cell that still prints a figure ("272M"). Under it the colour stood alone — and
+    an empty capsule "reads as a website bug/flaw" (Noah, 2026-09-14, three names through Oct 26),
+    so it is never drawn: the ledger draws only the columns that fit its box, and the band's
+    Expiries card offers only those (see `onFit`). */
+export const CELL_MIN_W = 42;
+/** How many columns a pane this wide can print figures in */
+export const columnsThatFit = (paneW: number) => Math.max(1, Math.floor((paneW - STRIKE_W) / CELL_MIN_W));
 /** A row never thinner than this — past it the grid scrolls */
 const ROW_MIN = 18;
 const SPOT_H = 18;
@@ -112,7 +129,7 @@ interface Focus {
 const Read = ({ k, v, ink, bold }: { k: string; v: string; ink?: string; bold?: boolean }) => (
   <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
     <span className="text-[8px] uppercase tracking-widest text-textMuted">{k}</span>
-    <span className={`text-[11px] tnum ${bold ? 'font-bold' : ''}`} style={{ color: ink ?? '#EDEDED' }}>
+    <span className={`text-[11px] tnum ${bold ? 'font-bold' : ''}`} style={{ color: ink ?? 'rgb(var(--text-primary))' }}>
       {v}
     </span>
   </span>
@@ -142,15 +159,17 @@ interface LedgerCellProps {
   fontSize: number;
   figure: Figure;
   mode?: HeatMode;
+  paper?: boolean;
   /** The pinned cell — the one the focus mode keeps sharp */
   pinned?: boolean;
   onHover: (f: Focus | null, x: number, y: number) => void;
   onPick: (f: Focus) => void;
 }
 
-const LedgerCell = memo(({ strike, e, g, v, maxAbs, date, first, wash, isKing, ring, star, fontSize, figure, mode, pinned, onHover, onPick }: LedgerCellProps) => (
+const LedgerCell = memo(({ strike, e, g, v, maxAbs, date, first, wash, isKing, ring, star, fontSize, figure, mode, paper, pinned, onHover, onPick }: LedgerCellProps) => (
   <div
     data-cell
+    data-cell-key={`${g}|${e}|${strike}`}
     data-pinned={pinned ? '' : undefined}
     className={`min-w-0 px-[3px] py-[2px] ${first ? 'border-l border-borderSubtle/60' : ''} ${wash}`}
     onPointerEnter={ev => onHover({ strike, e, greek: g }, ev.clientX, ev.clientY)}
@@ -164,6 +183,7 @@ const LedgerCell = memo(({ strike, e, g, v, maxAbs, date, first, wash, isKing, r
       className={`h-full ${isKing ? 'font-bold' : ''}`}
       fontSize={fontSize}
       mode={mode}
+      paper={paper}
       tight={figure !== 'full'}
       selected={!!ring}
       ringColor={ring}
@@ -177,16 +197,66 @@ const LedgerCell = memo(({ strike, e, g, v, maxAbs, date, first, wash, isKing, r
   </div>
 ));
 
-const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, palette = 'house', afterBell = false, selectedStrike, marks, onPointer, onSelectStrike }: ExposureLedgerProps) => {
+const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrike, palette = 'house', afterBell = false, selectedStrike, marks, onPointer, onSelectStrike, fitKey, onFit, paper = false }: ExposureLedgerProps) => {
   const mode = palette === 'thermal' ? ('thermal-yellow' as const) : undefined;
-  /* THE COLUMNS, as surface indices — after the bell today's is gone and the
-     next `depth` expiries step forward: the book at the next open. */
+  /* ON PAPER the calendar is part of the page (2026-09-22): the island's soft grey, the page's inks, the tint ramp on
+     the capsules (heatmap.ts, PAPER); the host stamps the theme and the ground, this only has to say `paper` */
+  const ground = paper ? 'bg-inset' : 'bg-panel';
+
+  /* THE ROWS FILL THE HEIGHT — measured so the figure inside can scale with them (and the
+     columns are cut to the width, below) */
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const read = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      setBox(prev => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    /* A FRAME AFTER THE COMMIT (2026-09-06, the perf sweep): read inside it,
+       the two sizes forced the desk's whole layout early — 16ms of every
+       open on the profiler. The grid stays invisible for that one frame
+       (see the body below) so the figures never pop from 9px to 13px. And
+       not per frame of a sidebar glide either: once, when it ends. */
+    const first = requestAnimationFrame(read);
+    const ro = new ResizeObserver(() => afterGlide(read));
+    ro.observe(el);
+    /* …unless the host has promised where it is going (the desk's tiles,
+       2026-09-12): then once at the START, for that width, so the figures fit
+       the destination from the first frame of the glide */
+    const off = onGlide(
+      () => {
+        const w = promisedWidth(el);
+        if (w != null) setBox(prev => (prev.w === w ? prev : { w, h: prev.h }));
+      },
+      () => undefined
+    );
+    return () => {
+      cancelAnimationFrame(first);
+      ro.disconnect();
+      off();
+    };
+  }, []);
+  /* ONLY THE COLUMNS THAT FIT (Noah, 2026-09-14): the expiries this box can print at CELL_MIN_W
+     with its greeks side by side — the cut every other count below rides on. Unmeasured, no cut
+     (the grid is invisible for that frame anyway). */
+  const fitExpiries = box.w > 0 ? Math.max(1, Math.floor(columnsThatFit(box.w) / Math.max(1, greeks.length))) : null;
+  useEffect(() => {
+    if (!onFit || !fitKey) return;
+    onFit(fitKey, fitExpiries);
+    return () => onFit(fitKey, null);
+  }, [onFit, fitKey, fitExpiries]);
+
+  /* THE COLUMNS, as surface indices — the host's window (today gone after the bell, its ceiling), cut here to what
+     fits: the book at the next open when the host says so */
   const todayIdx = surface.expiries.findIndex(e => e.dte === 0);
   const shownIdx = useMemo(() => {
-    const all = surface.expiries.map((_, i) => i);
-    const live = afterBell && todayIdx >= 0 ? all.filter(i => i !== todayIdx) : all;
-    return live.slice(0, Math.max(1, depth));
-  }, [surface, afterBell, todayIdx, depth]);
+    const live = expiries.filter(i => i >= 0 && i < surface.expiries.length);
+    const list = live.length ? live : [Math.max(0, todayIdx)];
+    return list.slice(0, Math.max(1, fitExpiries ?? Infinity));
+  }, [surface, expiries, todayIdx, fitExpiries]);
   // Descending, the ledger's way — the window's rings each side of spot
   const { above, below } = useMemo(() => {
     const desc = [...surface.strikes].sort((a, b) => b - a);
@@ -231,52 +301,20 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
     [surface, shownIdx, strikes]
   );
 
-  /* THE ROWS FILL THE HEIGHT — measured so the figure inside can scale with them */
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  useLayoutEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-    const read = () => {
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      setBox(prev => (prev.w === w && prev.h === h ? prev : { w, h }));
-    };
-    /* A FRAME AFTER THE COMMIT (2026-09-06, the perf sweep): read inside it,
-       the two sizes forced the desk's whole layout early — 16ms of every
-       open on the profiler. The grid stays invisible for that one frame
-       (see the body below) so the figures never pop from 9px to 13px. And
-       not per frame of a sidebar glide either: once, when it ends. */
-    const first = requestAnimationFrame(read);
-    const ro = new ResizeObserver(() => afterGlide(read));
-    ro.observe(el);
-    /* …unless the host has promised where it is going (the desk's tiles,
-       2026-09-12): then once at the START, for that width, so the figures fit
-       the destination from the first frame of the glide */
-    const off = onGlide(
-      () => {
-        const w = promisedWidth(el);
-        if (w != null) setBox(prev => (prev.w === w ? prev : { w, h: prev.h }));
-      },
-      () => undefined
-    );
-    return () => {
-      cancelAnimationFrame(first);
-      ro.disconnect();
-      off();
-    };
-  }, []);
   const rowH = Math.max(ROW_MIN, (box.h - HEAD_H - SPOT_H) / Math.max(1, strikes.length));
   // The figure scales with the row AND must fit the column: "-$272.1M" is eight
   // mono glyphs at ~0.62em each inside the capsule's 16px of padding (All at
   // 24 columns on a 1900 screen truncated at 13px — measured 2026-09-05).
   const cellW = (box.w - STRIKE_W) / Math.max(1, cols);
-  const fontSize = clamp(Math.min(rowH * 0.46, (cellW - 22) / (8 * 0.68)), 9, 13);
+  /* the floor is 10px, not 9 (the partner, 2026-09-14: the figures "difficult to see") — a 20px
+     row held 9px type; a short figure at 10px bold is 32px in a 42px cell, the full one 65 in 71 */
+  const fontSize = clamp(Math.min(rowH * 0.46, (cellW - 22) / (8 * 0.68)), 10, 13);
   /* Under 71px the full figure no longer fits at 9px (All at forty columns
-     on a page-width calendar): print the short one on half the padding, and
-     under 42px nothing — the colour is the read, the read line carries the
-     figure. The date heads lose their "· 2d" the same way. */
-  const figure: Figure = cellW >= 71 ? 'full' : cellW >= 42 ? 'short' : 'none';
+     on a page-width calendar): print the short one on half the padding. Under
+     CELL_MIN_W the colour would stand alone — unreachable now that the columns
+     are cut to the width (the branch stays for the unmeasured frame). The date
+     heads lose their "· 2d" the same way. */
+  const figure: Figure = cellW >= 71 ? 'full' : cellW >= CELL_MIN_W ? 'short' : 'none';
   const narrowHead = cellW < 60;
   const rowsTemplate = [
     `${HEAD_H / 2}px ${HEAD_H / 2}px`,
@@ -442,7 +480,8 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
     <div className="h-full min-h-0 flex flex-col" data-ledger>
       {/* THE READ LINE — one fixed line, never a card under the pointer */}
       <div className="shrink-0 flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-2 border-b border-borderSubtle/60 font-mono select-none" data-readline>
-        <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
+        {/* max-sm:flex-wrap — on a phone the read line folds instead of running off the box (the phone pass, 2026-09-13) */}
+        <span className="inline-flex items-baseline gap-2 whitespace-nowrap max-sm:flex-wrap">
           <span className="text-[13px] font-bold text-textPrimary tnum">{fmtStrike(focus.strike)}</span>
           {role && <span className="text-[8px] uppercase tracking-widest text-textSecondary">{role}</span>}
           <span className="text-[10px] text-textSecondary">
@@ -459,14 +498,14 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
           )}
           {isKingCell && <span className="text-[8px] uppercase tracking-widest text-textSecondary">★ heaviest cell</span>}
         </span>
-        <span className="inline-flex items-baseline gap-3 whitespace-nowrap">
+        <span className="inline-flex items-baseline gap-3 whitespace-nowrap max-sm:flex-wrap">
           <span className="text-[8px] uppercase tracking-widest text-textSecondary">
             {GREEK_LABEL[focus.greek]} <span className="text-textMuted/70 normal-case tracking-normal">· $ per {GREEK_UNIT[focus.greek]}</span>
           </span>
           <Read k="put" v={fmtUsd(putV)} ink={PUT_INK} />
           <Read k="call" v={fmtUsd(callV)} ink={CALL_INK} />
           {/* the net figure in the ramp the capsule wears (the ladder's rule, 2026-09-12); the verdict's WORDS keep the regime inks */}
-          <Read k="net" v={fmtUsd(netV)} ink={heatLaneColor(netV, surface.maxAbs[focus.greek], mode ?? HEAT_MODE, 0.35)} bold />
+          <Read k="net" v={fmtUsd(netV)} ink={heatLaneColor(netV, surface.maxAbs[focus.greek], mode ?? HEAT_MODE, 0.35, paper)} bold />
         </span>
         <span className="text-[9px] tracking-wide whitespace-nowrap" style={{ color: verdictInk }}>
           {verdict}
@@ -491,7 +530,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
              stall) · this 94 in and 101 out · easing the radius on the scrim
              instead 85 and 89 — re-blurring the backdrop every frame costs
              more than the fade is worth. */
-          style={{ backdropFilter: `blur(${scrim ? 3 : 0}px)`, WebkitBackdropFilter: `blur(${scrim ? 3 : 0}px)`, background: 'rgba(10,10,10,0.66)' }}
+          style={{ backdropFilter: `blur(${scrim ? 3 : 0}px)`, WebkitBackdropFilter: `blur(${scrim ? 3 : 0}px)`, background: paper ? 'rgb(var(--inset) / 0.66)' : 'rgba(10,10,10,0.66)' }}
         />
         <div
           ref={boxRef}
@@ -503,19 +542,23 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
             palette FADES the new grid in rather than snapping (Noah, 2026-09-05:
             "a smooth transition between changes … same with the heatmap") */}
         <div
-          key={`${greeks.join(',')}-${shownIdx.join('|')}-${rings}-${palette}-${afterBell ? 'after' : 'now'}`}
+          /* THE PALETTE IS NOT IN THE KEY (2026-09-13; Noah: the ladder's "trans from thermal colour
+             to house colour" for the calendar too): keyed on it, a Colours switch remounted every
+             cell and the new ramp snapped in; on the same cells the pill's own 700ms colour
+             transition carries each fill and ink from one ramp to the other, the ladder's way */
+          key={`${greeks.join(',')}-${shownIdx.join('|')}-${rings}-${afterBell ? 'after' : 'now'}`}
           data-ledger-focus={pinned ? '' : undefined}
           className="grid min-h-full animate-fade-in"
           style={{ gridTemplateColumns: `${STRIKE_W}px repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: rowsTemplate }}
         >
           {/* HEAD — sticky under scroll */}
-          <div className="sticky top-0 z-10 bg-panel px-2 flex items-end pb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary border-b border-borderSubtle" style={{ gridRow: 'span 2' }}>
+          <div className={`sticky top-0 z-10 ${ground} px-2 flex items-end pb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary border-b border-borderSubtle`} style={{ gridRow: 'span 2' }}>
             Strike
           </div>
           {greeks.map(g => (
             <div
               key={`g-${g}`}
-              className="sticky top-0 z-10 bg-panel px-2 flex items-center justify-center font-mono text-[10px] font-bold uppercase tracking-widest text-textPrimary border-l border-borderSubtle"
+              className={`sticky top-0 z-10 ${ground} px-2 flex items-center justify-center font-mono text-[10px] font-bold uppercase tracking-widest text-textPrimary border-l border-borderSubtle`}
               style={{ gridColumn: `span ${shownIdx.length}` }}
             >
               {GREEK_LABEL[g]} <span className="ml-1 font-normal text-textMuted">· {GREEK_UNIT[g]}</span>
@@ -529,7 +572,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
                   key={`h-${g}-${exp.dte}`}
                   data-exp-head
                   data-pinned-col={pinned && pinned.greek === g && pinned.e === e ? '' : undefined}
-                  className={`sticky z-10 bg-panel ${narrowHead ? 'px-1 overflow-hidden' : 'px-2'} flex items-center justify-end font-mono text-[9px] uppercase tracking-wider text-textSecondary border-b border-borderSubtle whitespace-nowrap ${
+                  className={`sticky z-10 ${ground} ${narrowHead ? 'px-1 overflow-hidden' : 'px-2'} flex items-center justify-end font-mono text-[9px] uppercase tracking-wider text-textSecondary border-b border-borderSubtle whitespace-nowrap ${
                     ci === 0 ? 'border-l' : ''
                   } ${(pinned ? pinned.greek === g && pinned.e === e : hovered && hovered.greek === g && hovered.e === e) ? 'text-textPrimary' : ''}`}
                   style={{ top: HEAD_H / 2 }}
@@ -560,7 +603,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
                 data-pinned-row={isPinnedRow ? '' : undefined}
                 onClick={() => onSelectStrike?.(strike)}
                 className={`px-2 flex items-center gap-1.5 overflow-hidden font-mono text-[11px] tnum cursor-pointer ${rowWash} ${
-                  isPinnedRow ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]' : isSupremeRow ? 'font-bold' : 'text-textPrimary'
+                  isPinnedRow ? `text-silver font-bold ${paper ? '' : 'shadow-[inset_2px_0_0_0_rgba(199,211,232,0.7)]'}` : isSupremeRow ? 'font-bold' : 'text-textPrimary'
                 }`}
                 style={!isPinnedRow && isSupremeRow ? { color: SUPREME } : undefined}
                 data-supreme-row={isSupremeRow ? '' : undefined}
@@ -607,6 +650,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, depth, rings, hoverStrike, 
                       fontSize={fontSize}
                       figure={figure}
                       mode={mode}
+                      paper={paper}
                       pinned={isPinned}
                       onHover={onHoverCell}
                       onPick={onPickCell}

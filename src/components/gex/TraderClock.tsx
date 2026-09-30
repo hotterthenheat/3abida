@@ -334,7 +334,8 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
                 data-phase-name={p.key}
                 aria-pressed={keptPhase?.key === p.key}
                 onClick={() => onNameClick(p.key)}
-                className={`absolute top-0 text-[11px] font-medium whitespace-nowrap transition-colors ${nameCls}`}
+                /* The close's name, ten minutes wide at the far right, ran 8px past a phone's strip — it goes there (the phone pass, 2026-09-13) */
+                className={`absolute top-0 text-[11px] font-medium whitespace-nowrap transition-colors ${nameCls} ${last ? 'max-lg:hidden' : ''}`}
                 style={{
                   left: `${pct(turn ? p.to : p.from)}%`,
                   transform: turn ? 'translateX(calc(-100% - 6px))' : last ? 'translateX(2px)' : undefined,

@@ -9,6 +9,7 @@
 ==================================================
 */
 
+import type { Grade } from './stockOverview';
 import Simulator from '../core/simulator';
 import { dayKey, h01, hPick, hRange } from '../core/rng';
 import type { MarketSnapshot } from '../types/market';
@@ -157,10 +158,25 @@ function levelUsage(role: LevelRole, price: number, defended: number, sharePct: 
   return `Two-way shelf at $${p} — institutions rotating, not committing. Trade the break: direction follows whichever side absorbs.`;
 }
 
+/* HOW SURE A PRINT'S READ IS, SAID IN THE FOUR WORDS (Noah, 2026-09-19: "move conviction to the four words as well"). The grid
+   printed "71%" over a bar as long as the figure, the head sentence "at 71% conviction", the stock page "72% sure". The
+   figure stays here — it weighs the posture and sorts the column — and never reaches a digit. The cuts are `classify`'s own
+   tiers below, not borrowed ones:
+     poor      under 55 — the ceiling of routine rotation, the tier whose read says "no signal by itself"
+     good      from 68 — the floor of the full case: size, the side of the market and the tape all agreeing
+     strong    from 85 — only the top of that tier. Rare on purpose ("when its really great")
+     caution   between 55 and 68 — a sized print that only leans, or a likely hedge
+   The word wears the READ's ink (accumulation green, distribution red, hedge amber, rotation grey), as the figure did: the
+   read is a side, and a strong read of SELLING in the four words' green would say the opposite of the word beside it. */
+export const gradeOfConviction = (conviction: number): Grade => (conviction >= 85 ? 'strong' : conviction >= 68 ? 'good' : conviction >= 55 ? 'caution' : 'poor');
+
+/** The line a print has to clear to count as SIZED — the top quarter or so by shares */
+const SIZED_PERCENTILE = 0.72;
+
 function classify(
   seedBase: string,
   vsSpotPct: number,
-  sizePercentile: number,
+  sized: boolean,
   atLevel: boolean,
   sessionUp: boolean
 ): { intent: DarkPoolIntent; conviction: number; read: string } {
@@ -168,7 +184,6 @@ function classify(
   // prints above spot into strength = someone leaving into liquidity. Small or
   // mid prints at VWAP-ish levels are rotation; prints glued to option shelves
   // are most likely hedge flow, not directional conviction.
-  const sized = sizePercentile > 0.72;
   const below = vsSpotPct < -0.08;
   const above = vsSpotPct > 0.08;
 
@@ -209,6 +224,28 @@ function classify(
     read: 'Routine off-exchange rotation — no signal by itself; watch whether it clusters at a shelf.',
   };
 }
+
+/* THE POSTURE, SAID IN WORDS (Noah, 2026-09-19: "move the dark pool posture to the four words as well"). The posture printed
+   as a side and a figure — "Accumulating +79%", "accumulating · +79" — and the figure is our own index (sized prints, each
+   weighed by how sure its read is), so it never reaches a digit. It is TWO facts and both stay, as words:
+     WHICH SIDE LEADS   accumulating · distributing · balanced — a direction, in the direction's ink, on the line it always
+                        had (18 either way). It is not a grade: distribution is not "poor", it is what a put buyer wants.
+     HOW FAR IT LEANS   the four words, off |net|. The cuts are this model's own lines, not borrowed ones:
+                          poor      under 18 — the same line: a poor lean IS "balanced", so the page says Balanced and no more
+                          strong    from 80 — nine of every ten weighed dollars on one side. Rare on purpose ("when its really
+                                    great"): the first cut, 60, called 41 of the 110 names strong; 80 calls 16
+                          good      from 50 — three dollars to one · caution between 18 and 50
+                        (the simulator's books are few and lopsided — median lean 56 — so re-read these on the live spread)
+   The figure still weighs a contract (core/contractScore.ts), quantizes the close read (data/moc.ts) and sets the LENGTH of
+   the stock page's selling ←→ buying bar. */
+export const gradeOfPosture = (netPosturePct: number): Grade => {
+  const lean = Math.abs(netPosturePct);
+  return lean >= 80 ? 'strong' : lean >= 50 ? 'good' : lean >= 18 ? 'caution' : 'poor';
+};
+export const POSTURE_WORD: Record<Posture, string> = { ACCUMULATING: 'Accumulating', DISTRIBUTING: 'Distributing', BALANCED: 'Balanced' };
+/** The posture in one phrase — "accumulating · strong", or "balanced" alone (a poor lean is no lean) */
+export const postureRead = (view: Pick<DarkPoolView, 'posture' | 'netPosturePct'>): string =>
+  view.posture === 'BALANCED' ? 'balanced' : `${POSTURE_WORD[view.posture].toLowerCase()} · ${gradeOfPosture(view.netPosturePct)}`;
 
 export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
   const { ticker, spot, priceHistory, changePercent } = snapshot;
@@ -265,7 +302,8 @@ export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
     const notional = size * price;
     const vsSpotPct = ((price - spot) / spot) * 100;
     const atLevel = nearShelf && Math.abs(price - shelf.price) / shelf.price < 0.001;
-    const cls = classify(pSeed, vsSpotPct, sizePercentile, atLevel, sessionUp);
+    const sized = sizePercentile > SIZED_PERCENTILE;
+    const cls = classify(pSeed, vsSpotPct, sized, atLevel, sessionUp);
     const minutesAgo = Math.floor(Math.pow(h01(`${pSeed}-t`), 1.3) * 380);
     const ts = new Date(now - minutesAgo * 60000);
     return {
@@ -278,6 +316,7 @@ export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
       venue: hPick(`${pSeed}-v`, VENUES),
       vsSpotPct,
       atLevel,
+      sized,
       ...cls,
     };
   }).sort((a, b) => (a.time < b.time ? 1 : -1));

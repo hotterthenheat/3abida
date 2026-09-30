@@ -39,6 +39,9 @@ export default {
         // Noah was squinting. 7d7d7d reads ~5.2:1 and stays clearly quieter
         // than textSecondary, so labels still whisper; they just stop mumbling.
         textMuted: token('text-muted'),
+        // grey on the dark terminal, the page's black on paper (tokens.css, the light sweep 2026-09-19)
+        tabRest: token('tab-rest'),
+        textFigure: token('text-figure'),
 
         // THE INK a wash is made of — white on dark, near-black on light. Every
         // `bg-white/[0.06]` hover wash became `bg-ink/[0.06]` (2026-09-12).
@@ -55,9 +58,6 @@ export default {
         // purpose — see CHART_MINT in components/gex/palette.ts.
         bull: token('bull'),
         bear: token('bear'),
-        /* the solid action fills, contrast-checked against their own type */
-        bullSolid: token('bull-solid'),
-        bearSolid: token('bear-solid'),
         // True orange — caution reads clearly apart from green and hot red
         warn: token('warn'),
         // Interface accent — neon lime, ~17:1 on canvas. Interface only, never data.

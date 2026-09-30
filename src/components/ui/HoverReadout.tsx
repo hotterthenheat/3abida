@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface HoverReadoutProps {
@@ -27,6 +27,18 @@ const EDGE = 8;
 const HoverReadout = ({ x, y, children }: HoverReadoutProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 240, h: 130 });
+  /* TRANSLUCENT, AND IT GLIDES (Noah, 2026-09-12, on the book ladder's card:
+     "it should be translucent and much smoother"): the card is glass over
+     the surface it reads (the house hover-card rule), it soft-fades in, and
+     once it has landed a change of anchor — the next row, the next capsule
+     — glides on the house curve instead of jumping. The glide is armed one
+     frame after mount so the first placement (and the flip the measure may
+     ask for) never slides in from somewhere else. */
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -49,8 +61,9 @@ const HoverReadout = ({ x, y, children }: HoverReadoutProps) => {
       ref={ref}
       /* z-[90]: above the fullscreen takeovers (z-[80]) — a card that hides
          under the surface it explains is no card (2026-09-03). */
-      className="pointer-events-none fixed z-[90] max-w-[320px] rounded-md border border-borderMuted bg-chip px-3 py-2 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.75),0_4px_10px_-6px_rgba(0,0,0,0.55)]"
-      style={{ left, top }}
+      className="pointer-events-none fixed z-[90] max-w-[320px] rounded-lg border border-borderMuted/80 bg-card/80 backdrop-blur-md backdrop-saturate-150 px-3 py-2 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.75),0_4px_10px_-6px_rgba(0,0,0,0.55)] animate-soft-in motion-reduce:transition-none"
+      style={{ left, top, transition: settled ? 'left 180ms cubic-bezier(0.16,1,0.3,1), top 180ms cubic-bezier(0.16,1,0.3,1)' : 'none' }}
+      data-hover-readout
     >
       {children}
     </div>,

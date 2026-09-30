@@ -68,6 +68,9 @@ export interface HeatPillProps {
   mode?: HeatMode;
   /** Half the side padding — a narrow cell (the Ledger's All at forty columns) keeps its short figure */
   tight?: boolean;
+  /** On paper (the light page): the tint ramp, a faint colour on the page's grey — the surface says so, never the pill
+      itself, because the surfaces that stay dark islands on the light page keep the dark ramp */
+  paper?: boolean;
   title?: string;
   onClick?: () => void;
 }
@@ -84,6 +87,14 @@ const SELECTION_INK = 'rgb(var(--select))';
    of the scale. Same trick the old supreme cell used. */
 const ring = (ink: string) => `inset 0 0 0 1.5px ${ink}, inset 0 0 0 3px rgb(var(--panel) / 0.8)`;
 
+/* THE FIGURE LIFTED OFF ITS FILL (the partner, 2026-09-14: "the numbers on the capsules are
+   difficult to see"): the ink pair is fixed by the contrast maths in heatmap.ts (≥4.11:1 at the
+   crossover, no better pair exists), so the lift comes from WEIGHT — bold, not semibold — and a
+   faint halo in the other ink under every glyph, which is what carries a 10px figure across the
+   mid-luminance fills where the ratio is at its floor. */
+const HALO_UNDER_DARK_INK = '0 0 1.5px rgba(255,255,255,0.45)';
+const HALO_UNDER_LIGHT_INK = '0 0 2px rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.5)';
+
 const HeatPill = ({
   value,
   maxAbs,
@@ -95,16 +106,18 @@ const HeatPill = ({
   fontSize,
   mode,
   tight = false,
+  paper = false,
   title,
   onClick,
 }: HeatPillProps) => {
-  const heat = heatCellStyle(value, maxAbs, mode);
+  const heat = heatCellStyle(value, maxAbs, mode, paper);
+  const halo = heat.color === '#0a0a0a' ? HALO_UNDER_DARK_INK : HALO_UNDER_LIGHT_INK;
   return (
     <span
       title={title}
       onClick={onClick}
-      style={{ ...heat, ...(selected ? { boxShadow: ring(ringColor ?? SELECTION_INK) } : null), ...(fontSize ? { fontSize } : null) }}
-      className={`flex min-w-0 items-center justify-end gap-1 rounded-full ${tight ? 'px-1' : 'px-2'} font-mono text-[10px] font-semibold tnum leading-none transition-colors duration-700 ${
+      style={{ ...heat, textShadow: halo, ...(selected ? { boxShadow: ring(ringColor ?? SELECTION_INK) } : null), ...(fontSize ? { fontSize } : null) }}
+      className={`flex min-w-0 items-center justify-end gap-1 rounded-full ${tight ? 'px-1' : 'px-2'} font-mono text-[10px] font-bold tnum leading-none transition-colors duration-700 ${
         onClick ? 'cursor-pointer' : ''
       } ${className}`}
     >

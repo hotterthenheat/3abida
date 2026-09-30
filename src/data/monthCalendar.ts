@@ -3,25 +3,25 @@
   SLAYER TERMINAL - THE MONTH ON THE RECORD
   (data/monthCalendar.ts)
 
-  The Day's calendar as a MONTH (Noah, 2026-09-13:
-  "you should also have a calendar that looks like
-  this, now with this UI but the same concept, so
-  people can change the days and see what's coming
-  up"): every weekday of a month with what prints
-  on it — the macro releases on their usual
-  schedule (CPI in the second week, the jobs report
-  on the first Friday, FOMC on its Wednesday, the
-  weekly claims every Thursday, the month-end GDP
-  and PCE, monthly expiration on the third Friday)
-  and the earnings reports the calendar names —
-  the same reporters data/earnings.ts lists for the
-  next two weeks, and a seeded pick of the rest of
-  the universe across the month.
+  The Day's calendar as a MONTH (the partner's
+  copy, ported 2026-09-13 — Noah: "i love it. i
+  want that as well"): every day of a month with
+  what prints on it — the macro releases on their
+  usual schedule (CPI in the second week, the jobs
+  report on the first Friday, FOMC on its
+  Wednesday, the weekly claims every Thursday, the
+  month-end GDP and PCE, monthly expiration on the
+  third Friday) and the earnings reports the
+  calendar names — the same reporters
+  data/earnings.ts lists for the next two weeks,
+  and a seeded pick of the rest of the universe
+  across the month.
 
   Deterministic per month, so a day reads the same
   every time it is opened. Forecasts and previous
   readings are seeded the way the econ calendar's
-  are.
+  are. A SEAM: the feed's own calendar replaces the
+  rules at launch, the shape stays.
 ==================================================
 */
 
@@ -37,7 +37,7 @@ export interface CalEvent {
   id: string;
   kind: CalKind;
   date: Date;
-  /** "08:30" — New York */
+  /** "08:30" — New York; an earnings report says its slot in words */
   time: string;
   title: string;
   impact: CalImpact;
@@ -95,7 +95,7 @@ const businessOnOrAfter = (d: Date): Date => {
 const nthBusinessDay = (year: number, month: number, n: number): Date => {
   const d = new Date(year, month, 1);
   let count = 0;
-  while (true) {
+  for (;;) {
     if (d.getDay() !== 0 && d.getDay() !== 6) {
       count++;
       if (count === n) return new Date(d);
@@ -156,7 +156,7 @@ const RULES: MacroRule[] = [
 
 const fmtUnit = (v: number, unit?: string) => (unit === 'K' ? `${Math.round(v)}K` : unit === 'M' ? `${v.toFixed(2)}M` : unit === '%' ? `${v.toFixed(1)}%` : v.toFixed(1));
 
-/** Every macro print of the month */
+/** Every macro print of the month, and the market's own dates */
 function macroEvents(year: number, month: number): CalEvent[] {
   const out: CalEvent[] = [];
   RULES.forEach((r, i) => {
@@ -181,7 +181,6 @@ function macroEvents(year: number, month: number): CalEvent[] {
       });
     });
   });
-  /* the market's own dates */
   const opex = nthWeekday(year, month, 5, 3);
   out.push({ id: `market-opex-${year}-${month}`, kind: 'market', date: new Date(year, month, opex.getDate(), 16, 0), time: '16:00', title: 'Monthly options expiration', impact: 'medium', region: 'USD' });
   const lastDay = new Date(year, month + 1, 0);
@@ -198,7 +197,6 @@ function earningsEvents(year: number, month: number): CalEvent[] {
   const out: CalEvent[] = [];
   const taken = new Set<string>();
   const t0 = now();
-  /* the named reporters: daysOut sessions from today */
   for (const e of buildEarningsCalendar()) {
     const d = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate());
     let sessions = e.daysOut;
@@ -222,7 +220,6 @@ function earningsEvents(year: number, month: number): CalEvent[] {
       impliedMovePct: e.impliedMovePct,
     });
   }
-  /* the rest of the universe, seeded by name and month */
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   for (const u of UNIVERSE) {
     if (taken.has(u.ticker)) continue;
@@ -254,7 +251,7 @@ function earningsEvents(year: number, month: number): CalEvent[] {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-/** The month as six weeks of days, Sunday first, every event on its day */
+/** The month as weeks of days, Sunday first, every event on its day */
 export function buildMonthCalendar(year: number, month: number): MonthCalendar {
   const today = now();
   const events = [...macroEvents(year, month), ...earningsEvents(year, month)].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -277,7 +274,7 @@ export function buildMonthCalendar(year: number, month: number): MonthCalendar {
       cursor.setDate(cursor.getDate() + 1);
     }
     weeks.push(week);
-    /* five weeks when the sixth is all next month */
+    /* five weeks when the sixth would be all next month */
     if (w >= 4 && cursor.getMonth() !== month && cursor.getDate() > 7) break;
   }
   return { year, month, label: `${MONTHS[month]} ${year}`, weeks, events };

@@ -24,9 +24,9 @@ export const AGENDA_MIN_W = 1200;
 export const CARD_H = 158;
 export const ROW_H = 32;
 export const AXIS_W = 1200;
-export const AXIS_H = 190;
+export const AXIS_H = 150;
 export const AXIS_M = { l: 44, r: 44 };
-export const AXIS_BASE = 148;
+export const AXIS_BASE = 112;
 
 /* ---- box 1 ---------------------------------------------------------------------- */
 
@@ -72,7 +72,7 @@ export const TargetsInner = ({ rows = 28 }: { rows?: number }) => (
           <Skeleton className="h-2.5 w-[520px] max-w-full" line />
         </div>
       </div>
-      <dl className="grid grid-cols-4 gap-x-6">
+      <dl className="flex flex-wrap gap-x-6 gap-y-2">
         {[[58, 60], [92, 72], [110, 60], [70, 68]].map(([dt, dd], i) => (
           <div key={i}>
             <div className="h-[15px] flex items-center">

@@ -48,17 +48,15 @@ import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { fmtDollars } from '../../data/ahead';
 import { bracketLabel, buildCongress } from '../../data/congress';
+import { When } from '../../components/record/when';
 import { buildEarningsDossier, type ActiveContract, type EarningsDossier } from '../../data/earnings';
 import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { PRICED_INK, PRICED_WORD, SlotMark, slotWord } from './Earnings';
-import { Name } from '../../components/ui/Name';
-import DataState from '../../components/ui/DataState';
 
 const AXIS = { stroke: 'transparent', tick: { fill: 'rgb(var(--text-secondary))', fontSize: 10, fontFamily: 'inherit' } };
 const GRID = { stroke: 'rgba(255,255,255,0.05)', vertical: false };
 const BEAR = 'rgb(var(--bear))';
 const WHITE_DIM = 'rgba(237,237,237,0.28)';
-const ago = (d: number) => (d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`);
 
 const TooltipShell = ({ children }: { children: React.ReactNode }) => <div className="border border-borderMuted bg-panel rounded-md px-2.5 py-2 shadow-xl shadow-black/60 font-mono text-[11px] text-textPrimary">{children}</div>;
 
@@ -190,12 +188,31 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
 /* ---- a busy contract ------------------------------------------------------------ */
 /* Facts only — the contract's own arithmetic, no "why" (Noah, 2026-08-19: "we simply
    provide information like bloomberg"). The volume bar ranks it against the busiest. */
-const ActiveRow = ({ c, maxVol }: { c: ActiveContract; maxVol: number }) => (
-  <div className="px-5 py-2.5 border-t border-borderSubtle/40 flex flex-col gap-1" data-name-contract={c.id}>
+/* THE ROW IS A DOOR (Noah, 2026-09-12: "should these bring the user to another
+   page?") — to the Weigher with THE CONTRACT picked (name · strike · side ·
+   expiry), the house's workstation for one contract; the Weigher's own Compass
+   button is the next step, so the row stays one door. Silver on hover like
+   every door, the destination named at the row's end before the click. */
+const ActiveRow = ({ c, maxVol, onOpen, onWarm }: { c: ActiveContract; maxVol: number; onOpen: () => void; onWarm?: () => void }) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    onMouseEnter={onWarm}
+    onFocus={onWarm}
+    title="Weigh this contract"
+    className="group/door w-full text-left px-5 py-2.5 border-t border-borderSubtle/40 flex flex-col gap-1 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors"
+    data-name-contract={c.id}
+    data-contract-strike={c.strike}
+    data-contract-right={c.right}
+  >
     <div className="flex items-baseline gap-2">
-      <span className="font-mono text-[12px] font-bold text-textPrimary">{c.label}</span>
+      <span className="font-mono text-[12px] font-bold text-textPrimary group-hover/door:text-silver group-focus-visible/door:text-silver transition-colors">{c.label}</span>
       <span className="ml-auto font-mono text-[12px] font-semibold text-textPrimary tnum">
         ~<AnimatedNumber value={c.mid} format={v => `$${v.toFixed(2)}`} />
+      </span>
+      <span className="inline-flex items-center gap-1 pl-2 font-mono text-[9px] uppercase tracking-widest text-textMuted group-hover/door:text-silver group-focus-visible/door:text-silver transition-colors" data-contract-door>
+        <ArrowUpRight className="w-3 h-3" />
+        Weigh it
       </span>
     </div>
     <div className="flex items-center gap-2">
@@ -214,7 +231,7 @@ const ActiveRow = ({ c, maxVol }: { c: ActiveContract; maxVol: number }) => (
       {c.fromSpotPct === 0 ? 'at the money' : `${c.fromSpotPct > 0 ? '+' : ''}${c.fromSpotPct}% from spot`} · breaks even {c.right === 'CALL' ? '+' : '−'}
       {c.breakevenPct}% by expiry
     </span>
-  </div>
+  </button>
 );
 
 /* ---- the page ------------------------------------------------------------------- */
@@ -233,13 +250,16 @@ const EarningsName = () => {
   }, []);
   const dossier = useMemo(() => buildEarningsDossier(ticker, scanTick), [ticker, scanTick]);
   const T = ticker.toUpperCase();
+  /* A busiest row → the Weigher with THE contract picked, this page as the way back */
+  const weigh = (c: ActiveContract) =>
+    navigate('/weigher', { state: { weigh: { ticker: T, strike: c.strike, right: c.right === 'CALL' ? 'C' : 'P', expiry: c.expiry }, wayBack: location.pathname } });
   /* ON THE RECORD — the other two pages read for this one name */
   const insiders = useMemo(() => insiderFlow(T, 90), [T]);
   const congress = useMemo(() => buildCongress(180).trades.filter(t => t.ticker === T).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo), [T]);
 
   const back = (
     <div className="flex items-center gap-4" data-name-back>
-      <Link to="/record/earnings" className="group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+      <Link to="/dossier/earnings" className="group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
         <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> The calendar
       </Link>
       {fromDesk && (
@@ -286,10 +306,11 @@ const EarningsName = () => {
             <CompanyLogo ticker={e.ticker} size={34} />
             <div className="min-w-0">
               <div className="h-6 flex items-center gap-2.5">
-                <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">{e.name}</h3>
-                <Name t={e.ticker} size={13} className="font-mono text-[11px] font-bold text-textSecondary" />
+                <h3 className="min-w-0 truncate text-[15px] font-semibold leading-tight text-textPrimary">{e.name}</h3>
+                <span className="font-mono text-[11px] font-bold text-textSecondary">{e.ticker}</span>
               </div>
-              <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate inline-flex items-center gap-1.5">
+              {/* max-lg:flex-wrap — an inline-flex line does not truncate, it spills; on a phone it folds instead (the phone pass, 2026-09-13) */}
+              <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate inline-flex items-center gap-1.5 max-lg:flex-wrap">
                 Reports {e.dateLabel} <SlotMark slot={e.slot} className="w-3 h-3" /> {slotWord(e)}
                 <span className="text-textMuted">·</span>
                 <span className={e.confirmed ? 'text-textMuted' : 'text-warn'}>{e.confirmed ? 'the company has confirmed the date' : 'the date is still an estimate'}</span>
@@ -336,7 +357,7 @@ const EarningsName = () => {
           <Door onWarm={() => Simulator.ensureTicker(e.ticker)} onClick={() => navigate('/compass', { state: { tickerFilter: e.ticker } })}>
             Compass
           </Door>
-          <Door onClick={() => navigate('/record/news')}>The wire</Door>
+          <Door onClick={() => navigate('/dossier/news')}>The wire</Door>
         </div>
       </div>
 
@@ -346,7 +367,7 @@ const EarningsName = () => {
       </Box>
 
       {/* THE RECEIPTS */}
-      <div className="grid grid-cols-2 gap-4 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         <Box title="Beats and misses" sub={`Earnings per share, the estimate against the actual · beat ${epsBeats} of 8 on earnings, ${revBeats} of 8 on revenue`} testId="beats">
           <div className="px-5 pb-4">
             <div className="h-[132px]">
@@ -435,19 +456,21 @@ const EarningsName = () => {
         </dl>
       </Box>
 
-      {/* THE BUSIEST CONTRACTS — a pair shares one bottom edge (Noah, 2026-09-09) */}
-      <div className="grid grid-cols-2 gap-4 items-stretch">
-        <Box title="Busiest calls" sub="The three busiest by volume into the print · refreshes every ten seconds" testId="calls">
+      {/* THE BUSIEST CONTRACTS — a pair shares one bottom edge (Noah, 2026-09-09);
+          every row a door to the Weigher with the contract picked, and the way
+          back to this page on the shell's pill (2026-09-12) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <Box title="Busiest calls" sub="The three busiest by volume into the print · refreshes every ten seconds · click one to weigh it" testId="calls">
           <div className="pb-2">
             {dossier.activeCalls.map(c => (
-              <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} />
+              <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} onWarm={() => Simulator.ensureTicker(T)} onOpen={() => weigh(c)} />
             ))}
           </div>
         </Box>
-        <Box title="Busiest puts" sub="The three busiest by volume into the print · refreshes every ten seconds" testId="puts">
+        <Box title="Busiest puts" sub="The three busiest by volume into the print · refreshes every ten seconds · click one to weigh it" testId="puts">
           <div className="pb-2">
             {dossier.activePuts.map(c => (
-              <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} />
+              <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} onWarm={() => Simulator.ensureTicker(T)} onOpen={() => weigh(c)} />
             ))}
           </div>
         </Box>
@@ -458,31 +481,32 @@ const EarningsName = () => {
           used to leave the boxes different lengths (Noah, 2026-09-09: "do you
           think thats a design flaw to push publicly?" — it was). The rows sit at
           the top, the door at the foot, the room between reads as room. */}
-      <div className="grid grid-cols-2 gap-4 items-stretch" data-name-record>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch" data-name-record>
         <Box title="What its insiders did" sub={`Open-market trades in the last 90 days · ${insiders.trades.length ? insiders.signal : 'nothing filed'}`} testId="insiders">
           {marketInsiders.length === 0 ? (
-            <DataState kind="empty" title="Nothing on the record" body="No open-market insider trade in this stock was filed in the last 90 days." pad="sm" />
+            <div className="px-5 pb-5 pt-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the record in 90 days</div>
           ) : (
             <>
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 64px 80px 80px 72px' }}>
+              {/* Below lg: when, who, the trade and its value — the shares and the plan go (the phone pass, 2026-09-13) */}
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]">
                 <span>When</span>
                 <span>Who</span>
                 <span>Trade</span>
-                <span className="text-right">Shares</span>
+                <span className="text-right max-lg:hidden">Shares</span>
                 <span className="text-right">Value</span>
-                <span className="text-right">Chose to?</span>
+                <span className="text-right max-lg:hidden">Chose to?</span>
               </div>
               {marketInsiders.map(t => (
-                <div key={t.id} className="px-5 h-[38px] grid items-center gap-x-3 border-t border-borderSubtle/40" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 64px 80px 80px 72px' }} data-name-insider={t.id}>
-                  <span className="font-mono text-[10px] tnum text-textSecondary">{ago(t.daysAgo)}</span>
+                <div key={t.id} className="px-5 h-[38px] grid items-center gap-x-3 border-t border-borderSubtle/40 grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]" data-name-insider={t.id}>
+                  <When days={t.daysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.person}</span>
                     <span className="text-[9px] text-textMuted truncate">{t.role}</span>
                   </span>
                   <span className={`font-mono text-[10px] ${t.kind === 'BUY' ? 'text-bull' : 'text-bear'}`}>{t.kind === 'BUY' ? 'Bought' : 'Sold'}</span>
-                  <span className="text-right font-mono text-[10px] tnum text-textPrimary">{Math.round(t.shares).toLocaleString('en-US')}</span>
+                  <span className="text-right font-mono text-[10px] tnum text-textPrimary max-lg:hidden">{Math.round(t.shares).toLocaleString('en-US')}</span>
                   <span className="text-right font-mono text-[10px] tnum font-semibold text-textPrimary">{fmtDollars(t.value)}</span>
-                  <span className={`text-right font-mono text-[8px] uppercase tracking-widest ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
+                  <span className={`text-right font-mono text-[8px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
                     {t.plan === 'discretionary' ? 'chosen' : t.plan === 'plan' ? 'planned' : 'unstated'}
                   </span>
                 </div>
@@ -492,7 +516,7 @@ const EarningsName = () => {
                   bought <span className={insiders.bought > 0 ? 'text-bull' : 'text-textMuted'}>{insiders.bought > 0 ? fmtDollars(insiders.bought) : 'nothing'}</span> · sold{' '}
                   <span className={insiders.sold > 0 ? 'text-bear' : 'text-textMuted'}>{insiders.sold > 0 ? fmtDollars(insiders.sold) : 'nothing'}</span>
                 </span>
-                <Link to="/record/insiders" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every insider
                 </Link>
               </div>
@@ -501,19 +525,20 @@ const EarningsName = () => {
         </Box>
         <Box title="What Congress reported" sub="STOCK Act reports naming this stock in the last 180 days" testId="congress">
           {congress.length === 0 ? (
-            <DataState kind="empty" title="Nothing on the record" body="No STOCK Act report named this stock in the last 180 days." pad="sm" />
+            <div className="px-5 pb-5 pt-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the record in 180 days</div>
           ) : (
             <>
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 88px 132px 64px' }}>
+              {/* On a phone: filed, member, type — the amount and the lag go (the phone pass, 2026-09-13) */}
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]">
                 <span>Filed</span>
                 <span>Member</span>
                 <span>Type</span>
-                <span>Amount disclosed</span>
-                <span className="text-right">Lag</span>
+                <span className="max-lg:hidden">Amount disclosed</span>
+                <span className="text-right max-lg:hidden">Lag</span>
               </div>
               {congress.slice(0, 6).map(t => (
-                <div key={t.id} className="px-5 h-[38px] grid items-center gap-x-3 border-t border-borderSubtle/40" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 88px 132px 64px' }} data-name-congress={t.id}>
-                  <span className="font-mono text-[10px] tnum text-textSecondary">{ago(t.filedDaysAgo)}</span>
+                <div key={t.id} className="px-5 h-[38px] grid items-center gap-x-3 border-t border-borderSubtle/40 grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]" data-name-congress={t.id}>
+                  <When days={t.filedDaysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.member.name}</span>
                     <span className="text-[9px] text-textMuted truncate">
@@ -521,14 +546,14 @@ const EarningsName = () => {
                     </span>
                   </span>
                   <span className={`font-mono text-[10px] ${t.type === 'Purchase' ? 'text-bull' : t.type === 'Exchange' ? 'text-textMuted' : 'text-bear'}`}>{t.type === 'Purchase' ? 'Purchase' : t.type === 'Exchange' ? 'Exchange' : t.type === 'Sale (Partial)' ? 'Sale · partial' : 'Sale'}</span>
-                  <span className="font-mono text-[10px] tnum text-textPrimary truncate">{bracketLabel(t.bracket)}</span>
-                  <span className={`text-right font-mono text-[10px] tnum ${t.late ? 'text-bear' : 'text-textSecondary'}`}>
+                  <span className="font-mono text-[10px] tnum text-textPrimary truncate max-lg:hidden">{bracketLabel(t.bracket)}</span>
+                  <span className={`text-right font-mono text-[10px] tnum max-lg:hidden ${t.late ? 'text-bear' : 'text-textSecondary'}`}>
                     {t.lagDays}d{t.late ? ' late' : ''}
                   </span>
                 </div>
               ))}
               <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center font-mono text-[10px]" data-name-foot="congress">
-                <Link to="/record/congress" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every report
                 </Link>
               </div>
