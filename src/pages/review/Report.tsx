@@ -24,29 +24,23 @@ import SessionsChart, { type ChartPoint } from '../../components/record/Sessions
 import type { Column } from '../../components/ui/DataTable';
 import { accountOf, cutsOf, decayPerDay, stampOf, statsOf, type Trade } from '../../data/review/engine';
 import { contractWords } from '../../data/review/quotes';
-import { futAccountOf, futCutsOf, type FutTrade } from '../../data/review/futuresEngine';
-import { futMomentWords, futPrice, futProduct } from '../../data/review/futuresTape';
-import { isFutures, useAnySession } from '../../data/review/store';
+import { useSession } from '../../data/review/store';
 import { dateOf, dayWords } from '../../data/review/tape';
 import { dirInk, heldWords, momentWords, pct, rWords, usd, usdSigned } from '../../components/review/words';
 
 const ENDED: Record<Trade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', scaled: 'Scaled out' };
-const FUT_ENDED: Record<FutTrade['how'], string> = { closed: 'Closed by you', target: 'Target hit', stopped: 'Stopped out', rolled: 'Closed at the roll', scaled: 'Scaled out' };
 
 const Report = () => {
   const { id } = useParams();
-  /* ONE REPORT, TWO KINDS OF SESSION: the figures are the same (statsOf reads what any closed trade has), the cuts and the
-     columns are each kind's own — an option's by its days to expiry and its delta, a future's by its side and its hour */
-  const session = useAnySession(id);
+  const session = useSession(id);
   /* the tab carries the session's name, never its id (layout/PageMeta) */
   useEffect(() => {
     sayPage(session ? `${session.name} · Report` : null);
     return () => sayPage(null);
   }, [session?.name]); // eslint-disable-line react-hooks/exhaustive-deps
-  const fut = isFutures(session) ? session : null;
-  const trades = useMemo<(Trade | FutTrade)[]>(() => (!session ? [] : isFutures(session) ? [...futAccountOf(session).trades] : [...accountOf(session).trades]).sort((a, b) => stampOf(a.closed) - stampOf(b.closed)), [session]);
+  const trades = useMemo<Trade[]>(() => (!session ? [] : [...accountOf(session).trades]).sort((a, b) => stampOf(a.closed) - stampOf(b.closed)), [session]);
   const stats = useMemo(() => statsOf(trades), [trades]);
-  const cuts = useMemo<{ title: string; rows: { label: string; n: number; winRate: number; net: number; avgR: number | null }[] }[]>(() => (fut ? futCutsOf(trades as FutTrade[]) : cutsOf(trades as Trade[])), [trades, fut]);
+  const cuts = useMemo<{ title: string; rows: { label: string; n: number; winRate: number; net: number; avgR: number | null }[] }[]>(() => cutsOf(trades), [trades]);
   /* the running total, a point a day a trade closed on (noon: the same date in every reader's zone) */
   const curve = useMemo<ChartPoint[]>(() => {
     const byDay = new Map<string, number>();
@@ -74,22 +68,6 @@ const Report = () => {
     []
   );
 
-  const futColumns = useMemo<Column<FutTrade>[]>(
-    () => [
-      { key: 'contract', header: 'Contract', sortValue: t => t.contract, render: t => <span className="font-semibold text-textPrimary">{t.contract}</span> },
-      { key: 'side', header: 'Side', sortValue: t => (t.long ? 1 : 0), render: t => <span className={`font-semibold ${t.long ? 'text-bull' : 'text-bear'}`}>{t.long ? 'Long' : 'Short'}</span> },
-      { key: 'qty', header: 'Size', align: 'right', sortValue: t => t.qty, render: t => <span className="text-textPrimary">{t.qty}</span> },
-      { key: 'in', header: 'In', sortValue: t => stampOf(t.opened), render: t => <span className="text-textSecondary">{futMomentWords(t.opened.day, t.opened.minute)} · {futPrice(futProduct(t.symbol), t.avgIn)}</span> },
-      { key: 'out', header: 'Out', sortValue: t => stampOf(t.closed), render: t => <span className="text-textSecondary">{futMomentWords(t.closed.day, t.closed.minute)} · {futPrice(futProduct(t.symbol), t.avgOut)}</span> },
-      { key: 'points', header: 'Points', align: 'right', sortValue: t => (t.avgOut - t.avgIn) * (t.long ? 1 : -1), render: t => <span className="text-textSecondary">{futPrice(futProduct(t.symbol), (t.avgOut - t.avgIn) * (t.long ? 1 : -1))}</span> },
-      { key: 'risk', header: 'Planned risk', align: 'right', sortValue: t => t.risk ?? -1, render: t => <span className="text-textSecondary">{t.risk != null ? usd(t.risk, 0) : 'no stop'}</span> },
-      { key: 'held', header: 'Held', align: 'right', sortValue: t => t.heldMin, render: t => <span className="text-textSecondary">{heldWords(t.heldMin)}</span> },
-      { key: 'how', header: 'Ended', sortValue: t => t.how, render: t => <span className="text-textSecondary">{FUT_ENDED[t.how]}</span> },
-      { key: 'pnl', header: 'Made or lost', align: 'right', sortValue: t => t.pnl, render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[10px] font-normal opacity-80">{t.r != null ? rWords(t.r) : 'no R'}</span></span> },
-    ],
-    []
-  );
-
   if (!session)
     return (
       <div className="border border-borderSubtle rounded-md bg-panel px-6 py-14 text-center" data-review-report="missing">
@@ -105,13 +83,13 @@ const Report = () => {
   const rulesWords = [r?.maxOpen ? `${r.maxOpen} open at once` : '', r?.maxRiskPct ? `${r.maxRiskPct * 100}% of the account a trade` : '', r?.dailyLossPct ? `the day stops at −${r.dailyLossPct * 100}%` : ''].filter(Boolean).join(' · ');
   const sentence =
     stats.n === 0
-      ? `No trade has closed in this session yet. The report fills in as trades close — ${fut ? 'by hand, a target, a stop, or the roll' : 'a sale, a target, a stop, or the bell'}.`
+      ? `No trade has closed in this session yet. The report fills in as trades close — a sale, a target, a stop, or the bell.`
       : `${stats.n} closed ${stats.n === 1 ? 'trade' : 'trades'}, ${stats.wins} won. A winner made ${usd(stats.avgWin)} on average and a loser gave back ${usd(Math.abs(stats.avgLoss))}, so a trade taken this way has been worth ${usdSigned(stats.expectancy)} (${rWords(stats.expectancyR)}) each. The deepest the running total fell from a high was ${usd(stats.maxDrawdown)}.`;
 
   return (
     <TraceBox
       title={`The report · ${session.name}`}
-      sub={`From ${dayWords(session.startDay, true)} to where the clock stands, ${fut ? futMomentWords(session.cursor.day, session.cursor.minute) : momentWords(session.cursor)} · closed trades only — what is still open is on the desk${rulesWords ? ` · run under your rules: ${rulesWords}` : ''}`}
+      sub={`From ${dayWords(session.startDay, true)} to where the clock stands, ${momentWords(session.cursor)} · closed trades only — what is still open is on the desk${rulesWords ? ` · run under your rules: ${rulesWords}` : ''}`}
       testId="review-report"
       data={{ trades: stats.n }}
       facts={
@@ -186,11 +164,7 @@ const Report = () => {
         </div>
       )}
 
-      {fut ? (
-        <TraceGrid rows={cap.shown as FutTrade[]} columns={futColumns} rowKey={t => t.id} autoHeight animate={false} widths={{ side: 80, qty: 70, points: 100, risk: 120, held: 110 }} flexes={{ in: 1.3, out: 1.3 }} emptyText="No closed trades yet" testId="review-report" />
-      ) : (
-        <TraceGrid rows={cap.shown as Trade[]} columns={columns} rowKey={t => t.id} autoHeight animate={false} widths={{ qty: 70, dte: 150, delta: 100, held: 110, decay: 120 }} flexes={{ in: 1.3, out: 1.3 }} emptyText="No closed trades yet" testId="review-report" />
-      )}
+      <TraceGrid rows={cap.shown} columns={columns} rowKey={t => t.id} autoHeight animate={false} widths={{ qty: 70, dte: 150, delta: 100, held: 110, decay: 120 }} flexes={{ in: 1.3, out: 1.3 }} emptyText="No closed trades yet" testId="review-report" />
       <RestFoot cap={cap} noun="trades" testId="review-report" />
     </TraceBox>
   );

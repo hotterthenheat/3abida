@@ -14,9 +14,7 @@
     an arrow in, an arrow out   at the minute of each,
                                 with the price paid
                                 and the price taken
-    lines                       a future's entry, its
-                                target and its stop;
-                                an option's way out
+    lines                       an option's way out
                                 only when it was
                                 PINNED TO THE NAME — a
                                 way out priced on the
@@ -49,10 +47,8 @@ import { chartGround, useCandleThemeKey } from '../gex/candleTheme';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import { readToken } from '../../theme/theme';
 import type { Excursion } from '../../data/review/excursion';
-import { futDayBars, futPrice, futProduct } from '../../data/review/futuresTape';
 import { instantOf, nameOf, type JournalRow } from '../../data/review/journal';
 import { PATHS_KEPT, candlesOfPath } from '../../data/paper/engine';
-import { futWords, paperFut } from '../../data/paper/products';
 import { baseIvAt, dayBars, dayIndex, nextDay, prevDay } from '../../data/review/tape';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import type { KeyLevels } from '../../types/gex';
@@ -167,10 +163,6 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
   const tape = useMemo<ChartTape>(() => {
     if (row.paper) {
       const bars = path ? candlesOfPath(path) : [];
-      if (row.fut) {
-        const p = paperFut(symbol);
-        return { bars, iv: p.vol, key: `journal:${row.key}`, precision: { decimals: p.decimals, tick: p.tick } };
-      }
       return { bars, iv: 0.2, key: `journal:${row.key}` };
     }
     const days: string[] = [];
@@ -180,10 +172,6 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
     for (let d: string | null = t.opened.day, n = 0; d && n < 60; d = nextDay(d), n++) {
       days.push(d);
       if (d === t.closed.day || dayIndex(d) >= dayIndex(t.closed.day)) break;
-    }
-    if (row.fut) {
-      const p = futProduct(symbol);
-      return { bars: days.flatMap(d => futDayBars(symbol, d)), iv: p.vol, key: `journal:${row.key}`, clock: 'ny', precision: { decimals: p.decimals, tick: p.tick } };
     }
     return { bars: days.flatMap(d => dayBars(symbol, d)), iv: baseIvAt(symbol, t.closed.day), key: `journal:${row.key}`, clock: 'ny' };
   }, [row.key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -197,17 +185,15 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
   /* AN ARROW A FILL (the ladder): every way in and every piece going out, on the candle it happened in */
   const marks = useMemo(() => {
     const onBar = (t: number) => t - (t % bucket);
-    const price = (v: number) => (row.fut ? (row.paper ? futWords(symbol, v) : futPrice(futProduct(symbol), v)) : v.toFixed(2));
     const many = row.t.legs.length > 2;
     return row.t.legs.map(l => {
-      const going = row.fut ? (l as { exit?: boolean }).exit === true : l.side === 'sell';
-      return { time: onBar(barOf(l)), buy: l.side === 'buy', text: `${going ? 'Out' : 'In'} ${many ? `${l.qty} × ` : ''}${price(l.price)}` };
+      const going = l.side === 'sell';
+      return { time: onBar(barOf(l)), buy: l.side === 'buy', text: `${going ? 'Out' : 'In'} ${many ? `${l.qty} × ` : ''}${l.price.toFixed(2)}` };
     });
   }, [row.key, bucket]); // eslint-disable-line react-hooks/exhaustive-deps
   const levels = useMemo<Level[]>(() => {
     const out: Level[] = [];
-    if (row.fut) out.push({ price: row.t.avgIn, ink: '--text-primary', title: 'in', dashed: false });
-    /* every level that has a place on THIS chart: a future's, and an option's where it was pinned to the name */
+    /* every level that has a place on THIS chart: an option's way out where it was pinned to the name */
     const here = (ws: Excursion['targets']) => ws.filter(w => w.of !== 'contract');
     here(excursion.targets).forEach((w, i, all) => out.push({ price: w.price, ink: '--bull', title: all.length > 1 ? `target ${i + 1}` : 'target', dashed: true }));
     here(excursion.stops).forEach((w, i, all) => out.push({ price: w.price, ink: '--bear', title: all.length > 1 ? `stop ${i + 1}` : 'stop', dashed: true }));
@@ -220,7 +206,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
   return (
     <div className="flex flex-col min-w-0" data-journal-tape={row.key}>
       <div className="min-h-9 px-4 py-1 flex items-center gap-3 border-b border-borderSubtle/70">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">{row.fut ? 'The contract while it was on' : 'The name while it was on'}</span>
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">The name while it was on</span>
         {/* a phone's head has room for the title and the card, not for the line between them */}
         <span className="min-w-0 font-mono text-[9px] uppercase tracking-widest text-textMuted truncate max-sm:hidden">{row.paper ? 'the hour before · the trade · as the desk drew it' : 'the day before · the trade · the rest of its last day'}</span>
         <span className="ml-auto">

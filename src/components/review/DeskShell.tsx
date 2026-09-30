@@ -4,17 +4,13 @@
   (components/review/DeskShell.tsx)
 
   ONE SHELL, TWO DESKS (Noah, 2026-09-20: "lift it into
-  one place"). The options desk was settled rule by rule
-  over a day, and the futures desk was written the night
-  after as its twin — the same shell typed twice, so a
-  ruling on one would have had to be remembered on the
-  other. This is that shell, once. A desk (pages/review/
-  Desk.tsx, FuturesDesk.tsx) now only says WHAT ITS KIND
-  IS: the names on it with their tapes and what is drawn
-  over them, its clock, its account's figures, the cards
-  at its right (a chain and a ticket; a contract and a
-  ticket), and its book's rows. Everything Noah ruled on
-  lives here, for both:
+  one place") — the backtest's options desk (pages/review/
+  Desk.tsx) and Paper's live one (pages/paper/Desk.tsx).
+  A desk only says WHAT IT IS: the names on it with their
+  tapes and what is drawn over them, its clock, its
+  account's figures, the cards at its right, and its
+  book's rows. Everything Noah ruled on lives here, for
+  both:
 
   THE HOUSE CHART, AND ITS TOP ROW ("my prev terrain and
   pulse top bar look is not the same… i cant see my
@@ -195,21 +191,6 @@ const PANEL_PX = 440;
 const TAPE_FLOOR_PX = 760;
 /** The least each chart keeps for the two to stand side by side */
 const SPLIT_PANE_PX = 560;
-/* A CARD THAT GROWS TO FILL ITS COLUMN (the Live Chart's order on a future, `data-review-ticket-card="grow"`) is as tall as
-   the column — so its OWN height is read from what is in it: each child at its own height (a column's child the same way,
-   all the way down), the gaps between them and the padding round them. Never the stretch: the desk's height is worked out
-   from the order's, and a stretched order read as its own would grow the desk a little more every time it was read. */
-function ownHeight(el: HTMLElement): number {
-  const cs = getComputedStyle(el);
-  if (!/flex/.test(cs.display) || !cs.flexDirection.startsWith('column')) return el.offsetHeight;
-  const px = (v: string) => parseFloat(v) || 0;
-  const kids = ([...el.children] as HTMLElement[]).filter(k => {
-    const s = getComputedStyle(k);
-    return s.display !== 'none' && s.position !== 'absolute' && s.position !== 'fixed';
-  });
-  return px(cs.paddingTop) + px(cs.paddingBottom) + px(cs.borderTopWidth) + px(cs.borderBottomWidth) + kids.reduce((a, k) => a + ownHeight(k), 0) + px(cs.rowGap) * Math.max(0, kids.length - 1);
-}
-
 /** A grid's shapes (Paper's layouts): how its panes are laid out, as the grid's classes */
 export type GridLayout = '1' | '2h' | '2v' | '3' | '4';
 export const GRID_PANES: Record<GridLayout, number> = { '1': 1, '2h': 2, '2v': 2, '3': 3, '4': 4 };
@@ -262,7 +243,7 @@ export interface DeskName {
   symbol: string;
   /** Its long name — a tooltip's */
   title: string;
-  /** What it is called where it stands alone: the ticker, or a future's front month (ESM6) */
+  /** What it is called where it stands alone: the ticker */
   label: string;
   priceWords: string;
   /** Since the day's open, in percent */
@@ -301,7 +282,7 @@ export interface DeskFact {
 
 interface DeskShellProps {
   session: { id: string; name: string; startDay?: string };
-  kind?: 'futures' | 'paper';
+  kind?: 'paper';
   onRename?: (name: string) => void;
   /** The line under the session's name */
   subline?: string;
@@ -333,10 +314,6 @@ interface DeskShellProps {
   onSwitch: (symbol: string) => void;
   /** What the name switch is, for a screen reader */
   switchLabel: string;
-  /** A capsule's logo and the pane's — a future is named by its letters already */
-  logos?: boolean;
-  /** What says a name holds something: how many (options), or that it does (a future holds one position a product) */
-  heldAs?: 'count' | 'dot';
 
   /** THE CHART: where its settings are kept, and what this kind of tape can make */
   prefsKey: string;
@@ -366,9 +343,6 @@ interface DeskShellProps {
   nextDayTitle?: string;
   /** The desk's own jumps, between Go to and Next day */
   doors?: (hands: DeskHands) => ReactNode;
-  /** What stands BESIDE THE CHART, inside the tape — the Live Chart's ladder on a future: the chart gives it the room while
-      it stands and takes it back when it goes (page and full screen alike) */
-  chartSide?: ReactNode;
   /** The desk's own keys, by `KeyboardEvent.key` */
   keys?: Record<string, (hands: DeskHands) => void>;
   /** Over the tape: what this kind of day has to say (an option's bell) */
@@ -407,7 +381,7 @@ export const DeskMissing = () => (
   </div>
 );
 
-const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: ownStrip, picker, foot, revision, grid, account, names, active, onSwitch, switchLabel, logos = false, heldAs = 'count', prefsKey, paneIds, timeframes, overlayKeys, clock, goToTitle = '', nextDayTitle = '', doors, chartSide, keys: ownKeys, notice, full, onFull, fullBleed = false, sideWidth = PANEL_PX, side, sideMinPx, panelWord, panelTitle, tab, onTab, counts, book }: DeskShellProps) => {
+const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: ownStrip, picker, foot, revision, grid, account, names, active, onSwitch, switchLabel, prefsKey, paneIds, timeframes, overlayKeys, clock, goToTitle = '', nextDayTitle = '', doors, keys: ownKeys, notice, full, onFull, fullBleed = false, sideWidth = PANEL_PX, side, sideMinPx, panelWord, panelTitle, tab, onTab, counts, book }: DeskShellProps) => {
   const navigate = useNavigate();
   const themeKey = useCandleThemeKey();
   const [playing, setPlaying] = useState(false);
@@ -512,12 +486,9 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
     const ro = new ResizeObserver(() => set());
     const set = () => {
       const ticketEl = grid.querySelector<HTMLElement>('[data-review-ticket-card]');
-      const grows = ticketEl?.dataset.reviewTicketCard === 'grow';
-      /* a growing card's rows change size without the card doing so: they are watched too, as they come */
-      if (ticketEl && grows) for (const k of ticketEl.children) [k, ...k.children].forEach(x => ro.observe(x));
       const top = grid.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop;
       const fit = main.clientHeight - top - DESK_FOOT_PX;
-      const right = sideMinPx + 10 + (ticketEl ? (grows ? ownHeight(ticketEl) : ticketEl.offsetHeight) : 0);
+      const right = sideMinPx + 10 + (ticketEl ? ticketEl.offsetHeight : 0);
       /* the TAPE's height: the desk's, less the book's floor. The book may grow past its floor; the tape does not shrink. */
       grid.style.setProperty('--tape-h', `${Math.round(Math.max(DESK_MIN_PX, fit, right)) - 10 - BOOK_PX}px`);
     };
@@ -527,13 +498,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
     if (ticketEl) ro.observe(ticketEl);
     const above = grid.previousElementSibling;
     if (above) ro.observe(above);
-    /* …and a row that comes or goes (a limit's price, a second target) is read again */
-    const mo = ticketEl?.dataset.reviewTicketCard === 'grow' ? new MutationObserver(() => set()) : null;
-    if (mo && ticketEl) mo.observe(ticketEl, { childList: true, subtree: true });
-    return () => {
-      ro.disconnect();
-      mo?.disconnect();
-    };
+    return () => ro.disconnect();
   }, [full, session.id, sideMinPx]);
   useLayoutEffect(() => {
     const el = headRef.current;
@@ -644,20 +609,17 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
             {names.map(n => {
               const here = n === on;
               return (
-                <button key={n.symbol} type="button" role="tab" aria-selected={here} onClick={() => onSwitch(n.symbol)} title={here ? `${n.title} — on the desk` : `Put ${n.title} on the desk — ${on.symbol} keeps running`} className={`inline-flex items-center gap-1.5 h-6 ${logos ? 'pl-1.5 pr-2' : 'px-2'} rounded-md border font-mono text-[11px] tnum transition-colors ${here ? 'border-silver/50 bg-silver/[0.10]' : 'border-borderSubtle hover:border-borderMuted'}`} data-review-name={n.symbol} data-on={here ? '' : undefined}>
+                <button key={n.symbol} type="button" role="tab" aria-selected={here} onClick={() => onSwitch(n.symbol)} title={here ? `${n.title} — on the desk` : `Put ${n.title} on the desk — ${on.symbol} keeps running`} className={`inline-flex items-center gap-1.5 h-6 pl-1.5 pr-2 rounded-md border font-mono text-[11px] tnum transition-colors ${here ? 'border-silver/50 bg-silver/[0.10]' : 'border-borderSubtle hover:border-borderMuted'}`} data-review-name={n.symbol} data-on={here ? '' : undefined}>
                   {/* side by side each chart says its own price and day: here the switch is the name and what is open in it */}
-                  {logos && (here || compact) && !split && <CompanyLogo ticker={n.symbol} size={13} />}
+                  {(here || compact) && !split && <CompanyLogo ticker={n.symbol} size={13} />}
                   <span className={`font-bold ${here ? 'text-silver' : 'text-textSecondary'}`}>{n.symbol}</span>
                   {(here || compact) && !split && <span className={here ? 'text-textPrimary' : 'text-textSecondary'}>{n.priceWords}</span>}
                   {!split && <span className={`text-[10px] font-semibold ${dayInk(n.dayPct)}`}>{dayWordsOf(n.dayPct)}</span>}
-                  {n.held > 0 &&
-                    (heldAs === 'dot' ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-silver" title={`A position is open in ${n.symbol}`} />
-                    ) : (
-                      <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver text-[8px] font-bold leading-[14px] text-center" title={`${n.held} open in ${n.symbol}`}>
-                        {n.held}
-                      </span>
-                    ))}
+                  {n.held > 0 && (
+                    <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver text-[8px] font-bold leading-[14px] text-center" title={`${n.held} open in ${n.symbol}`}>
+                      {n.held}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -754,7 +716,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
           </button>
         </span>
       </div>
-      {/* the chart, and what the desk stands beside it (`chartSide`) */}
+      {/* the chart */}
       <div className="flex-1 min-h-[430px] lg:min-h-0 flex min-w-0">
       <div className="relative flex-1 min-w-0 flex flex-col bg-panel" data-theme="dark" data-chart-ground={chartGround(themeKey)}>
         {/* ONE CHART — OR, IN THE TAKEOVER, THE SESSION'S TWO SIDE BY SIDE. Keyed by the name: the other name's tape is a
@@ -908,7 +870,6 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
         )}
         {said && <div className="absolute inset-x-0 top-3 z-30 flex justify-center px-3 pointer-events-none">{said}</div>}
       </div>
-      {chartSide}
       </div>
     </div>
   );

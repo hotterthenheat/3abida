@@ -11,9 +11,8 @@
 
     the path     what the trade was worth at each
                  minute it was on, in dollars, fees in
-                 — an option at the BID it could have
-                 been sold into (so decay is in it), a
-                 future at the minute's close
+                 — at the BID it could have been sold
+                 into (so decay is in it)
     the best     the most it was up, and when
     the worst    the most it was down, and when
     kept         what was taken of the best
@@ -21,13 +20,9 @@
   and the ways out that rode it — the target and the
   stop as they last stood — so the page can draw them.
 
-  HONEST ABOUT WHAT A BAR CANNOT SAY. A future's best
-  and worst read the HIGHS and LOWS inside each minute
-  (a stop lives there), but never a minute one of the
-  trade's own fills happened in: what came before a
-  fill, or after it, inside that bar was not the
-  trade's at that size. An option has one quote a
-  minute, so its best is the best bid a minute showed.
+  HONEST ABOUT WHAT A MINUTE CANNOT SAY. An option has
+  one quote a minute, so its best is the best bid a
+  minute showed.
 
   AT ITS TRUE SIZE (2026-09-20, the ladder): a trade
   that scaled in or out is walked from its LEGS — every
@@ -50,11 +45,8 @@
 */
 
 import { MULT, stampOf, type Session, type Trade } from './engine';
-import type { FutSession, FutTrade } from './futuresEngine';
-import { FUT_LAST_MIN, futBarAt, futBarTime, futProduct } from './futuresTape';
 import { instantOf, type JournalRow } from './journal';
 import { contractKey, quoteAt } from './quotes';
-import { paperFut } from '../paper/products';
 import { LAST_MIN, barTime, nextDay, spotAt } from './tape';
 
 export interface PathPoint {
@@ -64,9 +56,9 @@ export interface PathPoint {
   held: number;
   /** What the trade was worth against its cost, in dollars, fees in */
   pnl: number;
-  /** The contract's bid — or the future's price */
+  /** The contract's bid */
   value: number;
-  /** Where the NAME stood (an option's underlying; the same as `value` for a future) */
+  /** Where the NAME stood (the option's underlying) */
   name: number;
 }
 export interface WayOut {
@@ -76,8 +68,8 @@ export interface WayOut {
   /** It trailed; it was moved to what was paid */
   trailed?: boolean;
   movedToCost?: boolean;
-  /** What the price is a price OF: the contract, the name (an option pinned to it), or the future itself */
-  of: 'contract' | 'name' | 'future';
+  /** What the price is a price OF: the contract, or the name (a way out pinned to it) */
+  of: 'contract' | 'name';
   /** What it would have made, in dollars — null where that depends on the minute it is reached (a pin on the name) */
   pnl: number | null;
 }
@@ -152,51 +144,6 @@ function ofOption(s: Session, t: Trade): Excursion {
   return finish(points, t.pnl, t.qty, waysOut('limit'), waysOut('stop'));
 }
 
-function ofFuture(s: FutSession, t: FutTrade): Excursion {
-  const prod = futProduct(t.symbol);
-  const pv = prod.pointValue;
-  const exits = t.legs.filter(l => l.exit);
-  const feeOut = exits.reduce((a, l) => a + l.fee, 0) / Math.max(1, exits.reduce((a, l) => a + l.qty, 0));
-  const walk = minutesOf(t.opened, t.closed, FUT_LAST_MIN);
-  let cash = 0;
-  /* signed: a long holds +, a short − */
-  let held = 0;
-  let li = 0;
-  let best = { pnl: -Infinity, time: 0 };
-  let worst = { pnl: Infinity, time: 0 };
-  const points: PathPoint[] = walk.map(({ day, minute }, i) => {
-    const last = i === walk.length - 1;
-    let filledHere = false;
-    while (li < t.legs.length && at(t.legs[li].at) <= at({ day, minute })) {
-      const l = t.legs[li++];
-      cash += (l.side === 'sell' ? 1 : -1) * l.price * pv * l.qty - l.fee;
-      held += l.side === 'sell' ? -l.qty : l.qty;
-      filledHere = true;
-    }
-    const bar = futBarAt(t.symbol, day, minute);
-    const close = last ? t.avgOut : (bar?.close ?? t.avgIn);
-    const time = futBarTime(day, minute) + 60;
-    const worth = (price: number) => cash + price * pv * held - feeOut * Math.abs(held);
-    const pnl = last ? t.pnl : worth(close);
-    /* inside the bar: the high and the low were the trade's only on minutes none of its own fills happened in */
-    const inside = !filledHere && !last && !!bar;
-    const hi = inside ? worth(held > 0 ? bar!.high : bar!.low) : pnl;
-    const lo = inside ? worth(held > 0 ? bar!.low : bar!.high) : pnl;
-    if (hi > best.pnl) best = { pnl: hi, time };
-    if (lo < worst.pnl) worst = { pnl: lo, time };
-    return { time, held: Math.abs(held), pnl, value: close, name: close };
-  });
-  const dir = t.long ? 1 : -1;
-  const rode = s.orders.filter(o => o.exit && o.kind !== 'market' && o.price != null && o.status !== 'refused' && o.symbol === t.symbol && within(o.placed, t.opened, t.closed));
-  const fee = feeOut || 0;
-  const waysOut = (kind: 'limit' | 'stop'): WayOut[] =>
-    rode
-      .filter(o => o.kind === kind)
-      .map<WayOut>(o => ({ price: o.price!, qty: o.qty, of: 'future', pnl: (o.price! - t.avgIn) * dir * pv * o.qty - fee * o.qty * 2, trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined }))
-      .sort((a, b) => Math.abs(a.price - t.avgIn) - Math.abs(b.price - t.avgIn));
-  return finish(points, t.pnl, t.qty, waysOut('limit'), waysOut('stop'), best, worst);
-}
-
 function finish(points: PathPoint[], made: number, size: number, targets: WayOut[], stops: WayOut[], bestIn?: { pnl: number; time: number }, worstIn?: { pnl: number; time: number }): Excursion {
   let best = bestIn ?? { pnl: -Infinity, time: 0 };
   let worst = worstIn ?? { pnl: Infinity, time: 0 };
@@ -227,27 +174,12 @@ function ofPaper(r: Extract<JournalRow, { paper: true }>): Excursion {
     points.push({ time, held: t.qty, pnl, value, name });
   }
   const inWindow = (at: number) => at >= t.opened.at && at <= t.closed.at;
-  let targets: WayOut[] = [];
-  let stops: WayOut[] = [];
-  if (r.fut) {
-    const ft = r.t as Extract<JournalRow, { paper: true; fut: true }>['t'];
-    const pv = paperFut(ft.symbol).pointValue;
-    const dir = ft.long ? 1 : -1;
-    const exits = ft.legs.filter(l => l.exit);
-    const fee = exits.reduce((a, l) => a + l.fee, 0) / Math.max(1, exits.reduce((a, l) => a + l.qty, 0));
-    const rode = r.s.fut.orders.filter(o => o.exit && o.kind !== 'market' && o.price != null && o.status !== 'refused' && o.symbol === ft.symbol && inWindow(o.placed.at));
-    const ways = (kind: 'limit' | 'stop') => rode.filter(o => o.kind === kind).map<WayOut>(o => ({ price: o.price!, qty: o.qty, of: 'future', pnl: (o.price! - ft.avgIn) * dir * pv * o.qty - fee * o.qty * 2, trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined })).sort((a, b) => Math.abs(a.price - ft.avgIn) - Math.abs(b.price - ft.avgIn));
-    targets = ways('limit');
-    stops = ways('stop');
-  } else {
-    const ot = r.t as Extract<JournalRow, { paper: true; fut: false }>['t'];
-    const key = contractKey(ot.contract);
-    const rode = r.s.opt.orders.filter(o => o.side === 'sell' && o.kind !== 'market' && o.price != null && o.status !== 'refused' && contractKey(o.contract) === key && inWindow(o.placed.at));
-    const worth = (price: number, qty: number) => (price - ot.avgIn) * MULT * qty - r.s.fee * qty * 2;
-    const ways = (kind: 'limit' | 'stop') => rode.filter(o => o.kind === kind).map<WayOut>(o => (o.on === 'name' ? { price: o.price!, qty: o.qty, of: 'name', pnl: null, trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined } : { price: o.price!, qty: o.qty, of: 'contract', pnl: worth(o.price!, o.qty), trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined })).sort((a, b) => (kind === 'limit' ? a.price - b.price : b.price - a.price));
-    targets = ways('limit');
-    stops = ways('stop');
-  }
+  const key = contractKey(t.contract);
+  const rode = r.s.opt.orders.filter(o => o.side === 'sell' && o.kind !== 'market' && o.price != null && o.status !== 'refused' && contractKey(o.contract) === key && inWindow(o.placed.at));
+  const worth = (price: number, qty: number) => (price - t.avgIn) * MULT * qty - r.s.fee * qty * 2;
+  const ways = (kind: 'limit' | 'stop') => rode.filter(o => o.kind === kind).map<WayOut>(o => (o.on === 'name' ? { price: o.price!, qty: o.qty, of: 'name', pnl: null, trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined } : { price: o.price!, qty: o.qty, of: 'contract', pnl: worth(o.price!, o.qty), trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined })).sort((a, b) => (kind === 'limit' ? a.price - b.price : b.price - a.price));
+  const targets = ways('limit');
+  const stops = ways('stop');
   const best = h ? { pnl: h.best, time: Math.floor(h.bestAt / 1000) } : undefined;
   const worst = h ? { pnl: h.worst, time: Math.floor(h.worstAt / 1000) } : undefined;
   return finish(points, t.pnl, t.qty, targets, stops, best, worst);
@@ -258,7 +190,7 @@ export function excursionOf(r: JournalRow): Excursion {
   const key = `${r.key}:${instantOf(r, r.t.closed)}:${r.t.pnl}`;
   let e = cache.get(key);
   if (!e) {
-    e = r.paper ? ofPaper(r) : r.fut ? ofFuture(r.s, r.t) : ofOption(r.s, r.t);
+    e = r.paper ? ofPaper(r) : ofOption(r.s, r.t);
     cache.set(key, e);
   }
   return e;

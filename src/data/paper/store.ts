@@ -70,7 +70,6 @@ import {
   optRebase,
   optSetBreakeven,
   optSetTrail,
-  retireFutures,
   tick,
   type EvalPlan,
   type OptDraft,
@@ -131,7 +130,7 @@ export interface PaperState {
 const isAccount = (v: unknown): v is PaperAccount => {
   if (typeof v !== 'object' || v === null) return false;
   const a = v as Record<string, unknown>;
-  return typeof a.id === 'string' && typeof a.startCash === 'number' && typeof a.opt === 'object' && typeof a.fut === 'object' && typeof a.ledger === 'object';
+  return typeof a.id === 'string' && typeof a.startCash === 'number' && typeof a.opt === 'object' && typeof a.ledger === 'object';
 };
 function load(): Pick<PaperState, 'accounts' | 'inHand'> {
   if (typeof localStorage === 'undefined' || EMBEDDED) return { accounts: [], inHand: null };
@@ -285,12 +284,10 @@ function tickAll(m: PaperMarket): void {
   const heard: PaperToast[] = [];
   const many = state.accounts.filter(a => a.status === 'open').length > 1;
   const accounts = state.accounts.map(a => {
-    /* THE FUTURES THAT WERE: anything an earlier page left open or working there is retired, once — on the real feed too,
-       where the page's own closing does not run (engine.ts retireFutures) */
-    let next = staleDone ? a : retireFutures(a, m);
+    let next = a;
     if (!staleDone && SIM_FEED) next = closeStale(next, m);
     if (next.status !== 'open') {
-      /* a finished account is not ticked — but what was retired from it above is still kept */
+      /* a finished account is not ticked — but what was closed in it above is still kept */
       if (next !== a) changed = true;
       return next;
     }

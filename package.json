@@ -16,7 +16,7 @@
     "brand:assets": "node scripts/make-brand-assets.mjs",
     "landing:shots": "node scripts/make-landing-shots.mjs",
     "logos:fetch": "node scripts/fetch-logos.mjs",
-    "review:proof": "tsx scripts/review-engine-proof.ts && tsx scripts/review-futures-proof.ts && tsx scripts/review-journal-proof.ts && tsx scripts/paper-proof.ts"
+    "review:proof": "tsx scripts/review-engine-proof.ts && tsx scripts/review-journal-proof.ts && tsx scripts/paper-proof.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

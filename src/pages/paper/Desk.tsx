@@ -514,8 +514,6 @@ const PaperDesk = () => {
         active={name}
         onSwitch={() => undefined}
         switchLabel="The name on the desk"
-        logos
-        heldAs="count"
         prefsKey="slayer_paper_chart"
         paneIds={['paper:main', 'paper:second']}
         timeframes={isPaperIndex(name) ? INDEX_TIMEFRAMES : NAME_TIMEFRAMES}

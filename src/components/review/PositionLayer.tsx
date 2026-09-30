@@ -73,15 +73,6 @@
   and the position are told apart by the stroke and by
   their chips, never by the ink alone.
 
-  A FUTURE IS PLAIN (`plain`, 2026-09-20). What is
-  traded IS what the chart draws, so a way out's price
-  is its level: nothing behind it to work back from,
-  nothing that drifts, nothing to pin. A long is green
-  and a short is red by its `tone`; a line pulled ABOVE
-  the price is a long's target and a short's stop; the
-  dollars are points × the point's worth, exact. The
-  same chips, the same drag, the same ×.
-
   THE SERIES IS ASKED FOR EVERY FRAME, NEVER KEPT: a
   chart-style swap replaces it, and every line hung
   on the old one goes with it — the layer notices and
@@ -163,13 +154,10 @@ export interface ChartPosition {
   bid: number;
   /** No bid to sell into right now */
   dead: boolean;
-  /** The chip's words, where they are not an option contract's (a future: "ESM6 · long") */
+  /** The chip's words, where they are not the contract's short name */
   label?: string;
-  /** The badge's colour, where it is not a call's green and a put's red (a future: long green, short red) */
+  /** The badge's colour, where it is not a call's green and a put's red */
   tone?: 'bull' | 'bear';
-  /** PLAIN only: long or short, and where it trades now — what makes a pulled line a target or a stop */
-  long?: boolean;
-  last?: number;
   /** THE LADDER: what a further pull off this chip would do, per kind — the first of its kind, one more level, or nothing
       (three targets and two stops is the ladder; a level of one contract has nothing to give) */
   room?: Record<'target' | 'stop', 'first' | 'more' | null>;
@@ -263,8 +251,6 @@ export interface PositionLayerProps {
   fills: Fill[];
   /** Fills already placed by the host, instead of `fills` */
   marks?: ChartMark[];
-  /** What is traded IS what the chart draws (a future): a way out's price is its level — see the head note */
-  plain?: { pointValue: number; decimals: number };
   positions: ChartPosition[];
   brackets: ChartBracket[];
   /** The resting orders that are not ways out (see the head note) */
@@ -384,7 +370,7 @@ const softTint = (token: string, from: Element | null): string => {
 /** The room the scale keeps beyond every line of an open position, as a share of the name's price */
 const ROOM_PCT = 0.006;
 
-const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, positions, brackets, entries = [], marketShut = false, onClosePosition, onAmend, onRebase, onCancelOrder, onAttach, bidAtSpot, onTrail, onBreakeven, menu }: PositionLayerProps) => {
+const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, positions, brackets, entries = [], marketShut = false, onClosePosition, onAmend, onRebase, onCancelOrder, onAttach, bidAtSpot, onTrail, onBreakeven, menu }: PositionLayerProps) => {
   /* the inks are read off an element under the CHART'S OWN token set (index.css re-scopes `data-chart-ink` to the tape's
      ground): pale silver on a dark tape, deep steel on Stone */
   const inkRef = useRef<HTMLSpanElement | null>(null);
@@ -582,7 +568,6 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
     for (const p of positions) {
       /* solid, in the colour of what it is up or down (the head note, 2026-09-22) — the ways out are dashed */
       want.set(`in:${p.key}`, line(p.spotIn, p.pnl >= 0 ? '--bull' : '--bear', LineStyle.Solid, '', true));
-      if (plain) continue; // a future has no strike
       want.set(`k:${p.key}`, line(p.contract.strike, '--text-muted', LineStyle.SparseDotted, p.contract.short != null ? `${p.contract.strike}${p.contract.right} bought` : `${short(p.contract, ticker)} strike`, false));
       /* a spread has two strikes: past the one SOLD it makes nothing more */
       if (p.contract.short != null) want.set(`k2:${p.key}`, line(p.contract.short, '--text-muted', LineStyle.SparseDotted, `${p.contract.short}${p.contract.right} sold — it makes no more past here`, false));
@@ -647,11 +632,11 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
     if (!d || d.id !== `o:${b.orderId}`) return;
     dragRef.current = null;
     /* what it waits on decides what a drag sets: a level of the name, or what the contract would bid with the name there */
-    const price = plain ? d.level : b.on === 'name' ? Math.round(d.level * 100) / 100 : bidAtSpot(b.contract, d.level);
+    const price = b.on === 'name' ? Math.round(d.level * 100) / 100 : bidAtSpot(b.contract, d.level);
     setDrag(null);
     /* back where it was until the order says otherwise: a move that is not taken leaves the line where it stood */
     if (b.level != null) linesRef.current.get(d.id)?.applyOptions({ price: b.level });
-    if (price > 0 && Math.abs(price - b.price) >= (plain ? 1e-9 : 0.01)) onAmend(b.orderId, price);
+    if (price > 0 && Math.abs(price - b.price) >= 0.01) onAmend(b.orderId, price);
   };
 
   /* ---- dragging a resting order to a new price ---- */
@@ -681,7 +666,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
     setDrag(null);
     /* back where it was until the order says otherwise: a move the engine refuses leaves the line where it stood */
     if (x.level != null) linesRef.current.get(d.id)?.applyOptions({ price: x.level });
-    if (price > 0 && Math.abs(price - x.price) >= (plain ? 1e-9 : 0.01)) onAmend(x.orderId, price);
+    if (price > 0 && Math.abs(price - x.price) >= 0.01) onAmend(x.orderId, price);
   };
 
   /* ---- pulling a target or a stop off the position's own chip ---- */
@@ -701,8 +686,8 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
     if (level == null || !(level > 0)) return;
     /* an option: what the contract would bid with the name there — more than now is a target. A future: the level itself,
        and ABOVE where it trades is a long's target and a short's stop */
-    const price = plain ? level : bidAtSpot(p.contract, level);
-    const kind = plain ? ((level > (p.last ?? p.avg)) === (p.long ?? true) ? 'target' : 'stop') : price > p.bid ? 'target' : 'stop';
+    const price = bidAtSpot(p.contract, level);
+    const kind = price > p.bid ? 'target' : 'stop';
     const token = kind === 'target' ? '--bull' : '--bear';
     const color = readToken(token, undefined, inkRef.current ?? undefined);
     const label = softGround(inkRef.current) ? { axisLabelColor: softTint(token, inkRef.current), axisLabelTextColor: color } : {};
@@ -711,11 +696,11 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
     d.kind = kind;
     d.price = price;
     d.level = level;
-    d.pinned = !plain && e.shiftKey;
+    d.pinned = e.shiftKey;
     dragRef.current = { id: `new:${p.key}`, level };
     /* the dollars are for the contracts THIS level would speak for: all of them the first time, a share of them after */
     const n = p.take ? p.take[kind] || p.qty : p.qty;
-    setPull({ key: p.key, kind, price, money: plain ? (level - p.avg) * (p.long === false ? -1 : 1) * plain.pointValue * n : (price - p.avg) * 100 * n, level, pinned: !plain && e.shiftKey, room: p.room ? p.room[kind] : 'first' });
+    setPull({ key: p.key, kind, price, money: (price - p.avg) * 100 * n, level, pinned: e.shiftKey, room: p.room ? p.room[kind] : 'first' });
   };
   const onChipUp = (p: ChartPosition) => {
     const d = pullRef.current;
@@ -725,13 +710,13 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
     if (dragRef.current?.id === `new:${p.key}`) dragRef.current = null;
     setPull(null);
     /* a pull that ends on the bid itself is nothing: neither a target nor a stop would wait there */
-    if (d.line && d.price > 0 && (plain ? Math.abs(d.price - (p.last ?? p.avg)) > 0 : Math.abs(d.price - p.bid) >= 0.01)) {
+    if (d.line && d.price > 0 && Math.abs(d.price - p.bid) >= 0.01) {
       if (d.pinned) onAttach(p.contract, d.kind, Math.round(d.level * 100) / 100, 'name');
       else onAttach(p.contract, d.kind, d.price);
     }
   };
 
-  const dp = plain?.decimals ?? 2;
+  const dp = 2;
   /* ONE BAR A CHIP (the head note): blocks of solid colour side by side, the dark words on them — index.css's `.fill-*`,
      which goes soft (the ink on a tint) over a light tape (2026-09-26); the words take the block's ink */
   const chipBase = 'group absolute right-2 top-0 h-[20px] inline-flex items-stretch rounded-[3px] font-mono text-[11px] tnum whitespace-nowrap pointer-events-auto select-none shadow-[0_3px_10px_rgba(0,0,0,0.45)]';
@@ -769,7 +754,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
               onPointerMove={e => onChipMove(e, p)}
               onPointerUp={() => onChipUp(p)}
               onPointerCancel={() => onChipUp(p)}
-              title={plain ? 'Pull up or down to put a target or a stop on it' : 'Pull up or down to put a target or a stop on it — hold Shift to pin it to the name’s price'}
+              title="Pull up or down to put a target or a stop on it — hold Shift to pin it to the name’s price"
               className={`${chipIn} cursor-ns-resize touch-none ${pull?.key === p.key ? 'ring-2 ring-silver/70' : ''}`}
               style={{ visibility: 'hidden' }}
               data-chart-position={p.key}
@@ -782,9 +767,9 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
               </span>
               {/* its contracts, on its side's colour — a future says its side, an option which contract it is */}
               <span className={`${block} font-bold border-l border-black/25 ${fill(side)}`} data-chip-qty>
-                {plain ? `${p.qty} ${p.long === false ? 'short' : 'long'}` : `${p.qty} × ${p.label ?? short(p.contract, ticker)}`}
+                {`${p.qty} × ${p.label ?? short(p.contract, ticker)}`}
               </span>
-              <button type="button" onClick={() => onClosePosition(p.contract, p.qty)} disabled={p.dead || marketShut} title={marketShut ? 'The market is shut — open the next day' : p.dead ? 'No bid to sell into right now' : plain ? 'Flat, now — at the market' : 'Sell all of it at the bid, now'} aria-label={`Close ${contractWords(p.contract)}`} className={`${xCell} rounded-r-[3px]`} data-chart-close>
+              <button type="button" onClick={() => onClosePosition(p.contract, p.qty)} disabled={p.dead || marketShut} title={marketShut ? 'The market is shut — open the next day' : p.dead ? 'No bid to sell into right now' : 'Sell all of it at the bid, now'} aria-label={`Close ${contractWords(p.contract)}`} className={`${xCell} rounded-r-[3px]`} data-chart-close>
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -815,8 +800,8 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
             const pinned = b.on === 'name';
             const tone = b.kind === 'target' ? 'bull' : 'bear';
             /* what it would make or lose there — while it is under the hand, where the hand has it */
-            const money = held ? (plain ? (drag!.level - (positions.find(q => contractKey(q.contract) === contractKey(b.contract))?.avg ?? drag!.level)) * (positions.find(q => contractKey(q.contract) === contractKey(b.contract))?.long === false ? -1 : 1) * plain.pointValue * b.qty : null) : b.money;
-            const figure = plain ? (held ? drag!.level : b.price).toFixed(dp) : pinned ? `${ticker} ${(held ? drag!.level : b.price).toFixed(2)}` : (held ? drag!.price : b.price).toFixed(2);
+            const money = held ? null : b.money;
+            const figure = pinned ? `${ticker} ${(held ? drag!.level : b.price).toFixed(2)}` : (held ? drag!.price : b.price).toFixed(2);
             const handle = {
               onPointerDown: (e: ReactPointerEvent<HTMLElement>) => onGripDown(e as unknown as ReactPointerEvent<HTMLButtonElement>, b),
               onPointerMove: (e: ReactPointerEvent<HTMLElement>) => onGripMove(e as unknown as ReactPointerEvent<HTMLButtonElement>, b),
@@ -849,25 +834,23 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
                     </button>
                   )}
                   {/* the pin is an option's: a future's way out is a price of the thing itself — nothing drifts */}
-                  {!plain && (
-                    <button
-                      type="button"
-                      onClick={() => onRebase(b.orderId, pinned ? 'contract' : 'name')}
-                      disabled={!pinned && b.level == null}
-                      aria-pressed={pinned}
-                      title={pinned ? `Pinned to ${ticker}’s price: the line holds, the dollars drift as the contract decays. Press to set it on the contract’s price again` : b.level == null ? `No price of ${ticker} gives this today — nothing to pin it to` : `Pin it to ${ticker}’s price — the line stops drifting as the contract decays; the dollars drift instead`}
-                      aria-label={pinned ? `Set the ${b.kind} on the contract’s price` : `Pin the ${b.kind} to ${ticker}’s price`}
-                      className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors disabled:opacity-30 ${pinned ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
-                      data-chart-pin={pinned ? 'name' : 'contract'}
-                    >
-                      <Pin className="w-3 h-3" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onRebase(b.orderId, pinned ? 'contract' : 'name')}
+                    disabled={!pinned && b.level == null}
+                    aria-pressed={pinned}
+                    title={pinned ? `Pinned to ${ticker}’s price: the line holds, the dollars drift as the contract decays. Press to set it on the contract’s price again` : b.level == null ? `No price of ${ticker} gives this today — nothing to pin it to` : `Pin it to ${ticker}’s price — the line stops drifting as the contract decays; the dollars drift instead`}
+                    aria-label={pinned ? `Set the ${b.kind} on the contract’s price` : `Pin the ${b.kind} to ${ticker}’s price`}
+                    className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors disabled:opacity-30 ${pinned ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
+                    data-chart-pin={pinned ? 'name' : 'contract'}
+                  >
+                    <Pin className="w-3 h-3" />
+                  </button>
                 </span>
                 {/* THE BAR: the grip and what it would make or lose there take the hand — drag to move it */}
                 <span
                   {...handle}
-                  title={plain || pinned ? `Drag to move the ${b.kind} — it waits for ${ticker} at that price` : `Drag to move the ${b.kind} — it is set to what the contract would bid with the name at that price`}
+                  title={pinned ? `Drag to move the ${b.kind} — it waits for ${ticker} at that price` : `Drag to move the ${b.kind} — it is set to what the contract would bid with the name at that price`}
                   aria-label={`Move the ${b.kind}`}
                   className={`inline-flex items-stretch rounded-l-[3px] cursor-ns-resize touch-none ${fill(tone)}`}
                   data-chart-grip={b.kind}
@@ -875,7 +858,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
                   {grip}
                   <span className={`${block} font-semibold`} title={pinned ? `What it would make if ${ticker} got there this minute — it changes as the contract decays` : undefined} data-chip-money>
                     <span className="mr-1.5 font-bold" data-chip-word>{`${b.kind === 'target' ? 'TP' : 'SL'}${b.nth ?? ''}`}</span>
-                    {money == null ? (pinned && !plain ? `about ${drag!.price.toFixed(2)}` : figure) : `${pinned && !plain ? '≈' : ''}${usdSigned(money, 2)}`}
+                    {money == null ? (pinned ? `about ${drag!.price.toFixed(2)}` : figure) : `${pinned ? '≈' : ''}${usdSigned(money, 2)}`}
                   </span>
                 </span>
                 <span className={`${block} border-l border-black/25 fill-count`} title={`${b.qty} ${b.qty === 1 ? 'contract' : 'contracts'}`} data-chip-qty>
@@ -894,7 +877,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, plain, p
                 {/* OUT OF THE PICTURE (shown by the frame loop): which way the line is, and where the name would have to be */}
                 <span hidden className="ml-1 self-center px-1 rounded-[3px] bg-panel text-[10px] text-textMuted" data-chip-off>
                   <span data-chip-arrow aria-hidden="true" />
-                  {b.level == null ? ' out of reach' : pinned || plain ? '' : ` ${ticker} ${b.level.toFixed(2)}`}
+                  {b.level == null ? ' out of reach' : pinned ? '' : ` ${ticker} ${b.level.toFixed(2)}`}
                 </span>
               </div>
             );

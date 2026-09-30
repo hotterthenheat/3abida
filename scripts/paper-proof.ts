@@ -2,14 +2,13 @@
   PAPER — THE ENGINE AGAINST ITS RULES PAGE (docs/paper-rules.md)
 
   A made-up market handed to the engine one tick at a time: the names' prices are set by hand, the clock is set by hand,
-  and every rule the page states is walked and checked. Paper trades OPTIONS, AND ONLY OPTIONS, since 2026-09-30: the
-  futures an old account traded are read for its cash and its journal, retired once, and never added to — that is
-  walked here too. Run: npx tsx scripts/paper-proof.ts (npm run review:proof runs it with the backtest's).
+  and every rule the page states is walked and checked. Paper trades OPTIONS, AND ONLY OPTIONS, since 2026-09-30.
+  Run: npx tsx scripts/paper-proof.ts (npm run review:proof runs it with the backtest's).
 */
 
 import { addDays, bellOf, dayBeginsAt, dayEndsAt, flatByOf, nyAt, nyInstant, tradingDayOf, yearsToExpiry } from '../src/data/paper/clock';
-import { EVAL_PLANS, bankedOf, closeStale, daysTradedOf, endEvaluation, evalRead, flattenAll, futBookOf, newAccount, optBookOf, optClose, optPlace, optRefusal, retireFutures, tick, viewOf, type FutFill, type PaperAccount, type PaperMarket } from '../src/data/paper/engine';
-import { indexForRetired, indexOfFund, isPaperIndex, isRetiredFuture, paperIndex } from '../src/data/paper/products';
+import { EVAL_PLANS, bankedOf, closeStale, endEvaluation, evalRead, flattenAll, newAccount, optBookOf, optClose, optPlace, optRefusal, tick, viewOf, type PaperAccount, type PaperMarket } from '../src/data/paper/engine';
+import { indexOfFund, isPaperIndex, paperIndex } from '../src/data/paper/products';
 import { expiriesAt, priceWith, type ContractId } from '../src/data/review/quotes';
 import type { Candle } from '../src/types/market';
 
@@ -172,31 +171,6 @@ ix = optPlace(ix, market(), { contract: spx, side: 'buy', qty: 1, kind: 'market'
 ok('an index option is bought like a name’s: at the ask, a hundred to the point, the fee on top', optBookOf(ix).positions.length === 1 && near(viewOf(ix, market()).cash, 25_000 - qs.ask * 100 - 0.65), `ask ${qs.ask}`);
 ix = optPlace(ix, market(), { contract: spx, side: 'sell', qty: 1, kind: 'market' });
 ok('…and sold at the bid', optBookOf(ix).positions.length === 0 && optBookOf(ix).trades.length === 1 && optBookOf(ix).trades[0].avgOut === market().optQuote(spx).bid);
-
-/* ================= the futures that were ================= */
-ok('ES, NQ and RTY are no longer traded — a desk that showed one opens on the index it followed', isRetiredFuture('es') && indexForRetired('ES') === 'SPX' && indexForRetired('mnq') === 'NDX' && indexForRetired('RTY') === 'RUT' && indexForRetired('SPY') === null && indexForRetired('SPX') === null);
-now = nyInstant(TUE, 11 * 60);
-const fresh = newAccount({ id: 'p5', kind: 'practice', name: 'Had futures', startCash: 25_000, now });
-ok('an account that never traded a future is handed back as it came', retireFutures(fresh, market()) === fresh);
-const then = { at: now - 3_600_000, day: TUE };
-const oldFill = (id: string, side: 'buy' | 'sell', qty: number, price: number, fee: number, exit: boolean): FutFill => ({ id, orderId: null, at: then, symbol: 'ES', contract: 'ESZ6', side, qty, price, fee, how: 'market', exit, bar: Math.floor(then.at / 1000), life: 'L0' });
-const old: PaperAccount = {
-  ...fresh,
-  fut: {
-    orders: [{ id: 'o9', placed: then, symbol: 'ES', contract: 'ESZ6', side: 'sell', qty: 2, kind: 'limit', price: 5100, exit: true, tif: 'gtc', status: 'working', life: 'L0' }],
-    /* a round trip closed (+10 points on one), and two still open from 5,012.25 */
-    fills: [oldFill('f1', 'buy', 1, 5000, 2, false), oldFill('f2', 'sell', 1, 5010, 2, true), oldFill('f3', 'buy', 2, 5012.25, 4, false)],
-  },
-  marks: { ES: 5020 },
-};
-ok('what an old account banked in futures is still in its cash', near(viewOf(old, market()).cash, 25_000 + 500 - 8));
-const retired = retireFutures(old, market());
-const shut = futBookOf(retired).trades.find(t => t.how === 'rule');
-ok('what was still open is closed once, at the last price the account saw, with no fee', futBookOf(retired).positions.length === 0 && !!shut && shut.avgOut === 5020 && retired.fut.fills[retired.fut.fills.length - 1].fee === 0);
-ok('…and what was working is cancelled, in the account’s words', retired.fut.orders.every(o => o.status !== 'working') && retired.fut.orders[0].why === 'Paper trades options only now' && retired.log[0].kind === 'page' && retired.log[0].words.includes('options only'));
-ok('the account is worth what it was at that price: the cash has the close in it', near(viewOf(retired, market()).cash, 25_000 + 500 + (5020 - 5012.25) * 50 * 2 - 8));
-ok('its futures trades stay in its record — counted, added up, and their days still days traded', viewOf(retired, market()).closedCount === 2 && near(viewOf(retired, market()).closed, viewOf(retired, market()).cash - 25_000) && daysTradedOf(retired).includes(TUE));
-ok('retired once: a second look changes nothing', retireFutures(retired, market()) === retired);
 
 /* ================= an evaluation: options, and only options ================= */
 now = nyInstant(TUE, 9 * 60 + 45);

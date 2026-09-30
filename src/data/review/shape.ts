@@ -77,11 +77,11 @@ export function shapeOf(r: JournalRow, ex: Excursion, entry: JournalEntry): Trad
   const pnl = t.pnl;
   const best = Math.max(0, ex.best.pnl);
   const worstAbs = Math.max(0, -ex.worst.pnl);
-  /* what was at risk: an option's cost (its 1R), a future's planned risk — or, with no stop, the trade's own reach */
-  const risk = r.fut ? r.t.risk : r.t.cost;
+  /* what was at risk: an option's cost (its 1R) — or, with nothing paid, the trade's own reach */
+  const risk = r.t.cost;
   const hasRisk = risk != null && risk > 0;
   const base = hasRisk ? (risk as number) : Math.max(1, best, worstAbs, Math.abs(pnl));
-  const riskWord = hasRisk ? (r.fut ? 'the planned risk' : 'what it cost') : 'its own reach';
+  const riskWord = hasRisk ? 'what it cost' : 'its own reach';
 
   /* KEPT */
   const keptV = best > 0 ? clamp01(ex.kept ?? 0) : 0;
@@ -107,7 +107,7 @@ export function shapeOf(r: JournalRow, ex: Excursion, entry: JournalEntry): Trad
       : { key: 'result', value: clamp01((pnl / base + 1) / 2), figure: usdSigned(pnl, 0), words: `${usdSigned(pnl, 0)} · ${pct(Math.abs(pnl) / base)} of ${riskWord}` };
   /* ENTRY */
   const names = ex.points.map(p => p.name).filter(v => Number.isFinite(v));
-  const spotIn = r.fut ? r.t.avgIn : r.t.spotIn;
+  const spotIn = r.t.spotIn;
   let entryAxis: ShapeAxis = { key: 'entry', value: 0.5, figure: '—', words: 'no path to read the way in against' };
   if (names.length > 1) {
     const lo = Math.min(spotIn, ...names);

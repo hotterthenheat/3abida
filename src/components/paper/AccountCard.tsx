@@ -323,7 +323,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
         </div>
         {ev ? <FloorBar ev={ev} worth={v.equity} /> : <TiedBar v={v} />}
         <span className="font-mono text-[10px] tnum text-textMuted" data-paper-counts>
-          {open} open · {working} working · {v.closedCount} closed · <span className={dirInk(v.closed)}>{usdSigned(v.closed, 0)}</span> closed
+          {open} open · {working} working · {v.optTrades.length} closed · <span className={dirInk(v.closed)}>{usdSigned(v.closed, 0)}</span> closed
         </span>
       </div>
     </div>

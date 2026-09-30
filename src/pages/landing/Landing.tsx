@@ -201,11 +201,9 @@ const STEPS: TourStep[] = [
   /* PRACTICE (Review until 2026-09-26, when paper trading and backtesting became one section), the eighth room. PAPER
      TRADING LEADS since 2026-09-26 (Noah: "i want the paper trading live to be the first one … change the practice headline
      to lead with paper trading"); until then OPTIONS BACKTESTING led (2026-09-20: "i want the emphasis to be put on the
-     'options backtesting'… because thats not something you see everyday"), and it still stands second, with FUTURES beside
-     it (the same night: "i also want to have backtesting/paper trading for regular futures"). PAPER IS OPTIONS ONLY since
-     2026-09-30 ("on the paper trading remove all the futures and make it strictly Options trading"): the futures stay in
-     the backtest, so the Futures row below is a replay, not the live desk. The brand above stays
-     market-wide. Its pictures are the desks IN USE — the photographer starts an account or a session by the form's own
+     'options backtesting'… because thats not something you see everyday"), and it still stands second. OPTIONS ONLY since
+     2026-09-30: Paper first ("on the paper trading remove all the futures and make it strictly Options trading"), then the
+     futures backtest, taken out the same day. The brand above stays market-wide. Its pictures are the desks IN USE — the photographer starts an account or a session by the form's own
      doors, plays it forward and trades it (scripts/make-landing-shots.mjs). The lines were read against TradeZella
      ("Backtest your strategy in plain English", "replay it by hand, bar by bar"), Option Omega ("Backtest it. Automate
      it.") and ORATS ("Options Backtester") first: none of theirs are here. */
@@ -224,7 +222,6 @@ const STEPS: TourStep[] = [
       { title: 'Paper trading, live', says: 'A practice account or a prop firm’s evaluation on today’s prices — options only, ordered from the chain, on the live feed.', path: '/practice/paper' },
       { title: 'Options, off the real chain', says: 'Pick any contract as it was quoted that minute. A same-day one loses value while you watch.', path: '/practice/backtest' },
       { title: 'Targets and stops that know decay', says: 'Set them on the contract’s price, or pin them to the stock’s. The chart shows where each one sits right now.' },
-      { title: 'Futures, replayed', says: 'ES, NQ, oil, gold and silver on a past day, long or short, on margin. Every fill leans against you, never for you.', path: '/practice/futures' },
       { title: 'Your own rules', says: 'How many positions, what a trade may risk, where the day stops. A trade that breaks one is refused.' },
       { title: 'The journal', says: 'Every closed trade on its chart: what it did while you held it, your tags, your words.', path: '/practice/journal' },
     ],
@@ -257,7 +254,7 @@ const IT_NEVER = ['Tells you what to buy or sell', 'Places an order. It is not a
 type Hold = string | { text: string; soon: true };
 const PLAN_HOLDS: Record<PlanKey, { holds: Hold[]; featured?: boolean }> = {
   pinpoint: { holds: ['Pulse, your desk of live panels', 'Terrain, the levels on the chart', 'Pinpoint, the book by strike and by date', 'Trace, the tape and the dark pool', 'Alerts on any level'] },
-  compass: { holds: ['Everything in Pinpoint', 'Compass, contracts that fit the levels', 'The Weigher, for any contract you name', 'The Record: news, earnings, insiders, Congress, stocks', 'Review, options backtesting with futures beside it', 'Your own scripts on the charts', { text: "Community, the traders' room", soon: true }], featured: true },
+  compass: { holds: ['Everything in Pinpoint', 'Compass, contracts that fit the levels', 'The Weigher, for any contract you name', 'The Record: news, earnings, insiders, Congress, stocks', 'Review, options backtesting', 'Your own scripts on the charts', { text: "Community, the traders' room", soon: true }], featured: true },
   lifetime: { holds: ['Everything in Compass, for good', 'One payment, nothing recurring', 'A one-to-one session to set up your desk', 'New tools before anyone else'] },
 };
 

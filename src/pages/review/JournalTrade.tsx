@@ -57,12 +57,10 @@ import TradeTape from '../../components/review/TradeTape';
 import { dirInk, heldWords, pct, rWords, usd, usdSigned } from '../../components/review/words';
 import { decayPerDay } from '../../data/review/engine';
 import { excursionOf, type WayOut } from '../../data/review/excursion';
-import { futPrice, futProduct } from '../../data/review/futuresTape';
 import { ENDED, OUT_WORD, cutFromQuery, dayMinOf, entryOf, inCut, nameOf, piecesWords, titleOf, whenWords, type JournalEntry, type JournalRow } from '../../data/review/journal';
 import { useJournalSource, type JournalKind } from '../../data/review/journalSource';
 import { contractWords } from '../../data/review/quotes';
 import { dayWords } from '../../data/review/tape';
-import { futWords } from '../../data/paper/products';
 import { fmtClockLocal, fmtStampLocal } from '../../components/gex/chartTime';
 
 const QUESTIONS: { key: 'why' | 'saw' | 'again'; ask: string; hint: string }[] = [
@@ -72,20 +70,17 @@ const QUESTIONS: { key: 'why' | 'saw' | 'again'; ask: string; hint: string }[] =
 ];
 const barDoor = 'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
 
-/** A future's price in its own print — a paper future may be one the backtest does not list (the Russell pair) */
-const futAt = (row: JournalRow, v: number): string => (row.fut ? (row.paper ? futWords(row.t.symbol, v) : futPrice(futProduct(row.t.symbol), v)) : v.toFixed(2));
-
 /** "at 11:42" on the trade's own day, "Jun 23, 11:42" on another */
 const momentOf = (time: number, sameDay: boolean) => (sameDay ? `at ${fmtClockLocal(time as UTCTimestamp, 'ny')}` : fmtStampLocal(time as UTCTimestamp, 'ny'));
 
 const wayOutWords = (row: JournalRow, w: WayOut): string => {
   const how = `${w.trailed ? ' · trailed' : ''}${w.movedToCost ? ' · moved to what was paid' : ''}`;
   if (w.of === 'name') return `when ${nameOf(row)} reached ${w.price.toFixed(2)}${how}`;
-  const at = futAt(row, w.price);
+  const at = w.price.toFixed(2);
   return `${w.pnl != null ? `${at} · ${usdSigned(w.pnl, 0)}` : at}${how}`;
 };
 /** A ladder's rungs, nearest first: "1.20 (2 ×) · 1.60 (2 ×)" */
-const rungsWords = (row: JournalRow, ws: WayOut[]): string => ws.map(w => `${w.of === 'name' ? `${nameOf(row)} ${w.price.toFixed(2)}` : futAt(row, w.price)} (${[`${w.qty} ×`, w.trailed ? 'trailed' : '', w.movedToCost ? 'moved to what was paid' : ''].filter(Boolean).join(', ')})`).join(' · ');
+const rungsWords = (row: JournalRow, ws: WayOut[]): string => ws.map(w => `${w.of === 'name' ? `${nameOf(row)} ${w.price.toFixed(2)}` : w.price.toFixed(2)} (${[`${w.qty} ×`, w.trailed ? 'trailed' : '', w.movedToCost ? 'moved to what was paid' : ''].filter(Boolean).join(', ')})`).join(' · ');
 
 /** A closed trade's page, in one journal — the backtest's or the paper accounts' */
 export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
@@ -214,14 +209,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
           <ArrowLeft className="w-3 h-3" /> The journal
         </Link>
         <div className="min-w-0 flex items-center gap-3 flex-wrap">
-          {row.fut ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[13px]">
-              <span className="font-semibold text-textPrimary">{row.t.contract}</span>
-              <span className={`font-semibold ${row.t.long ? 'text-bull' : 'text-bear'}`}>{row.t.long ? 'long' : 'short'}</span>
-            </span>
-          ) : (
-            <ContractLabel contract={contractWords(row.t.contract)} right={row.t.contract.right} logo={row.t.contract.ticker} />
-          )}
+          <ContractLabel contract={contractWords(row.t.contract)} right={row.t.contract.right} logo={row.t.contract.ticker} />
           <span className={`font-mono text-[22px] font-semibold tnum ${dirInk(row.t.pnl)}`} data-journal-result>
             {usdSigned(row.t.pnl)} <span className="text-[11px] font-normal opacity-80">{row.t.r != null ? rWords(row.t.r) : 'no stop · no R'}</span>
           </span>
@@ -260,7 +248,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
           <div className={`${card} min-w-0 flex-1 flex flex-col`} data-journal-shape data-shape-area={shape.area.toFixed(2)}>
             <div className={`${head} flex-wrap h-auto min-h-9 py-1.5`}>
               <span className={headWord}>The shape of it</span>
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">six reads of the trade · {row.paper ? 'as the ticks had it' : row.fut ? 'each minute’s close' : 'at the bid you could have sold into'}{usual ? ' · your usual behind it' : ''}</span>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">six reads of the trade · {row.paper ? 'as the ticks had it' : 'at the bid you could have sold into'}{usual ? ' · your usual behind it' : ''}</span>
             </div>
             <div className="px-5 pt-3 pb-5 flex-1 flex flex-col justify-center gap-4">
               <div className="grid gap-x-8 gap-y-4 items-center md:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
@@ -302,31 +290,18 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
                 {row.s.name}
               </Link>
             </div>
-            {row.fut ? (
-              <dl className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
-                <Fact label="In">{whenWords(row, row.t.opened)} · {futAt(row, row.t.avgIn)}</Fact>
-                {/* the figures that carry a direction wear it (2026-09-22: "all i see is black and white"): the way out
-                    and the points in the trade's own ink, the risk in the warn ink */}
-                <Fact label="Out">{whenWords(row, row.t.closed)} · <span className={dirInk(row.t.pnl)}>{futAt(row, row.t.avgOut)}</span></Fact>
-                <Fact label="Side · size">{row.t.long ? 'Long' : 'Short'} · {row.t.qty}</Fact>
-                <Fact label="Points it made"><span className={dirInk(row.t.pnl)}>{futAt(row, (row.t.avgOut - row.t.avgIn) * (row.t.long ? 1 : -1))}</span></Fact>
-                <Fact label="Planned risk · entry to stop">{row.t.risk != null ? <span className="text-warn">{usd(row.t.risk, 0)}</span> : 'No stop rode it'}</Fact>
-                <Fact label="Held">{heldWords(row.t.heldMin, dayMinOf(row))}</Fact>
-              </dl>
-            ) : (
-              <dl className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
-                <Fact label="In">{whenWords(row, row.t.opened)} · {row.t.avgIn.toFixed(2)}</Fact>
-                {/* the figures that carry a direction wear it (2026-09-22: "all i see is black and white"): the way out in
-                    the trade's own ink, the name's move in its own, the decay in the warn ink — it is a cost paid */}
-                <Fact label="Out">{whenWords(row, row.t.closed)} · <span className={dirInk(row.t.pnl)}>{row.t.avgOut.toFixed(2)}</span></Fact>
-                <Fact label="Size · what it cost">{row.t.qty} · {usd(row.t.cost)}</Fact>
-                <Fact label="Expiry · days left at entry">{dayWords(row.t.contract.expiry)} · {row.t.dteIn}d</Fact>
-                <Fact label="Delta · vol at entry">{row.t.deltaIn.toFixed(2)} · {Math.round(row.t.ivIn * 100)}%</Fact>
-                <Fact label="The name, in → out">{row.t.spotIn.toFixed(2)} → <span className={dirInk(row.t.spotOut - row.t.spotIn)}>{row.t.spotOut.toFixed(2)}</span></Fact>
-                <Fact label="Held">{heldWords(row.t.heldMin, dayMinOf(row))}</Fact>
-                <Fact label="Decay it paid a day"><span className="text-warn">{usd(decayPerDay(row.t))}</span></Fact>
-              </dl>
-            )}
+            <dl className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
+              <Fact label="In">{whenWords(row, row.t.opened)} · {row.t.avgIn.toFixed(2)}</Fact>
+              {/* the figures that carry a direction wear it (2026-09-22: "all i see is black and white"): the way out in
+                  the trade's own ink, the name's move in its own, the decay in the warn ink — it is a cost paid */}
+              <Fact label="Out">{whenWords(row, row.t.closed)} · <span className={dirInk(row.t.pnl)}>{row.t.avgOut.toFixed(2)}</span></Fact>
+              <Fact label="Size · what it cost">{row.t.qty} · {usd(row.t.cost)}</Fact>
+              <Fact label="Expiry · days left at entry">{dayWords(row.t.contract.expiry)} · {row.t.dteIn}d</Fact>
+              <Fact label="Delta · vol at entry">{row.t.deltaIn.toFixed(2)} · {Math.round(row.t.ivIn * 100)}%</Fact>
+              <Fact label="The name, in → out">{row.t.spotIn.toFixed(2)} → <span className={dirInk(row.t.spotOut - row.t.spotIn)}>{row.t.spotOut.toFixed(2)}</span></Fact>
+              <Fact label="Held">{heldWords(row.t.heldMin, dayMinOf(row))}</Fact>
+              <Fact label="Decay it paid a day"><span className="text-warn">{usd(decayPerDay(row.t))}</span></Fact>
+            </dl>
           </div>
 
           {/* IT LEFT IN PIECES (the ladder): every fill of the trade, in order — the ways in, and each piece going out */}
@@ -338,12 +313,12 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
               </div>
               <div className="px-4 py-1.5 flex flex-col">
                 {row.t.legs.map((l, i) => {
-                  const going = row.fut ? (l as { exit?: boolean }).exit === true : l.side === 'sell';
+                  const going = l.side === 'sell';
                   return (
                     <div key={i} className="flex items-baseline gap-3 h-8 border-b border-borderSubtle/60 last:border-0 font-mono text-[11px] tnum">
                       <span className="w-[112px] shrink-0 text-textMuted">{whenWords(row, l.at)}</span>
                       <span className="text-textPrimary">
-                        {going ? 'Out' : 'In'} {l.qty} × <span className="text-textSecondary">{futAt(row, l.price)}</span>
+                        {going ? 'Out' : 'In'} {l.qty} × <span className="text-textSecondary">{l.price.toFixed(2)}</span>
                       </span>
                       {l.out && <span className={`ml-auto ${l.out === 'target' ? 'text-bull' : l.out === 'stop' ? 'text-bear' : 'text-textSecondary'}`}>{OUT_WORD[l.out]}</span>}
                     </div>

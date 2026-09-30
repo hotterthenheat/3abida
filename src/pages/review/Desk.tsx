@@ -25,8 +25,8 @@
   frame, the takeover with its panel, two charts side by
   side, the clock's bar and the keys are
   components/review/DeskShell.tsx — one shell for this
-  desk and the futures desk, with every ruling made on it
-  in ITS head note. This file says what an OPTIONS desk
+  desk and Paper's, with every ruling made on it in ITS
+  head note. This file says what an OPTIONS desk
   is: its names and their tapes, what is drawn over them,
   the chain, the ticket, the bell, and the book's rows.
 
@@ -113,8 +113,7 @@ import { dirInk, momentWords, pct, rWords, usd, usdSigned } from '../../componen
 import { accountOf, bankedOf, dayStateOf, floorOf, ladderRoom, ladderTake, nameGoesUp, namesOf, refusal, statsOf, type Account, type Order, type Trade } from '../../data/review/engine';
 import PnlBadges from '../../components/review/PnlBadges';
 import { chainAt, contractDay, contractKey, contractWords, dteAt, expiriesAt, longLeg, quoteAt, quoteWith, spotForAsk, spotForBid, type ContractId, type Right } from '../../data/review/quotes';
-import { amendOrder, attachBracket, breakevenOrder, cancelOrder, closePosition, isFutures, moveClock, placeOrder, rebaseOrder, renameSession, trailOrder, useAnySession, useSession } from '../../data/review/store';
-import FuturesDesk from './FuturesDesk';
+import { amendOrder, attachBracket, breakevenOrder, cancelOrder, closePosition, moveClock, placeOrder, rebaseOrder, renameSession, trailOrder, useSession } from '../../data/review/store';
 import { DAY_MIN, LAST_MIN, baseIvAt, clockWords, dayBars, dayWords, nextDay, prevDay, reviewName } from '../../data/review/tape';
 import type { Timeframe } from '../../data/timeframe';
 import type { Candle } from '../../types/market';
@@ -443,7 +442,7 @@ const Desk = () => {
         )}
       </div>
       {/* THE ORDER IS THE PAPER DESK'S (components/paper/OptionsChain ChainOrder — 2026-09-26, Noah: "make the contract
-          orders look the same on the backtesting section for both options and futures"): the same size row, the two
+          orders look the same on the backtesting section"): the same size row, the two
           buttons, the limit box, the spread, the brackets — fed the replayed minute's quotes and this session's refusals */}
       {picked && pickedQuote ? (
         <div className="px-4 pb-3" data-review-ticket={contractWords(picked)}>
@@ -517,7 +516,6 @@ const Desk = () => {
       active={ticker}
       onSwitch={n => switchTo(n)}
       switchLabel="The name on the desk"
-      logos
       prefsKey="slayer_review_chart"
       paneIds={['review:main', 'review:second']}
       timeframes={REVIEW_TIMEFRAMES}
@@ -572,10 +570,4 @@ const Desk = () => {
   );
 };
 
-/* A SESSION IS ONE KIND OR THE OTHER (docs/review-futures-rules.md): the same address opens the desk of its kind */
-const DeskOfKind = () => {
-  const { id } = useParams();
-  return isFutures(useAnySession(id)) ? <FuturesDesk /> : <Desk />;
-};
-
-export default DeskOfKind;
+export default Desk;

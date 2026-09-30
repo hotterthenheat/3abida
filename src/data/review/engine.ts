@@ -61,8 +61,8 @@
   ride a stop: BREAKEVEN (the first target's fill moves
   it to what was paid) and TRAILING (it keeps the
   distance it was set at from the best price since,
-  checked before it is moved). The arithmetic the
-  futures engine shares is data/review/ladder.ts.
+  checked before it is moved). The ladder's arithmetic
+  is data/review/ladder.ts, which Paper shares.
 
   THE READER'S OWN RULES ARE HARD BLOCKS (his word:
   "build it, hard blocks"). Set when the session
@@ -187,7 +187,7 @@ export interface Session {
 
 export const DEFAULT_FEE = 0.65;
 export const MULT = 100;
-/** A moment as one number, for order. 2,000 a day: an option's day is 390 minutes, a future's 1,380 (futuresTape.ts) */
+/** A moment as one number, for order. 2,000 a day: an option's day is 390 minutes */
 export const stampOf = (m: Moment): number => dayIndex(m.day) * 2000 + m.minute;
 export const sameMoment = (a: Moment, b: Moment) => a.day === b.day && a.minute === b.minute;
 const cents = (v: number) => Math.round(v * 100) / 100;
@@ -846,8 +846,7 @@ export interface Stats {
   best: number;
   worst: number;
 }
-/** What the report's figures need of a closed trade — an option's or a future's. A future entered without a stop has no R
-    (futuresEngine.ts), and the R figures are taken over the trades that have one. */
+/** What the report's figures need of a closed trade. A trade with no R is left out of the R figures. */
 export interface Scored {
   pnl: number;
   r: number | null;

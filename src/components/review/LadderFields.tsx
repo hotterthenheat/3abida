@@ -25,9 +25,9 @@
   press, how many contracts are left with no stop.
   With one contract there is nothing to split.
 
-  Both tickets use it (an option's and a future's); the
-  words that differ — what a price is a price OF — are
-  the ticket's. A level left empty is simply not
+  Both desks' orders use it (the backtest's and Paper's);
+  the words that differ — what a price is a price OF —
+  are the order's. A level left empty is simply not
   placed. The rules are the two rules pages'; the
   engine refuses, in words, what the fields cannot.
 ==================================================

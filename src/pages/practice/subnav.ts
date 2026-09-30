@@ -22,7 +22,7 @@ export const PRACTICE_SUBPAGES: PracticeSubpage[] = [
   {
     path: '/practice/backtest',
     label: 'Backtest',
-    subtitle: 'Replay a past market minute by minute and trade it with pretend money — a name’s option contracts off the chain as it stood, or futures long and short',
+    subtitle: 'Replay a past market minute by minute and trade it with pretend money — a name’s option contracts off the chain as it stood',
     icon: History,
   },
   {

@@ -20,14 +20,8 @@
   "+ A second name", becomes the card when pressed —
   opening straight onto its search — and an × beside it
   takes it away again.
-  OPTIONS OR FUTURES is the first card (2026-09-20, his
-  word: "backtesting/paper trading for regular futures
-  ndx, spx, oil, gold silver"). It changes what the Name
-  cards list (the products: ES · MES · NQ · MNQ · CL · GC
-  · SI), what the fee is, and one rule's words — a
-  future has no cost, so "what a trade may cost" becomes
-  what it may RISK, entry to stop. The list under it
-  holds both kinds; a futures row says so.
+  OPTIONS ONLY since 2026-09-30: the futures card and
+  its products went with the futures backtest.
   The rules are three — how many positions may be open
   at once, what one trade may cost, where the day
   stops. They are chosen HERE and nowhere else: the
@@ -38,7 +32,7 @@
 */
 
 import { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import RenameDoor from '../../components/review/RenameDoor';
 import TraceBox, { Fact, TraceGrid } from '../../components/trace/TraceBox';
@@ -47,10 +41,8 @@ import DropdownSearch from '../../components/ui/DropdownSearch';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import DayCard from '../../components/review/DayCard';
 import type { Column } from '../../components/ui/DataTable';
-import { accountOf, namesOf, statsOf, DEFAULT_FEE, type SessionRules } from '../../data/review/engine';
-import { futAccountOf } from '../../data/review/futuresEngine';
-import { FUT_PRODUCTS, futMomentWords, futProduct } from '../../data/review/futuresTape';
-import { createFutSession, createSession, deleteSession, isFutures, renameSession, runAgain, useSessions, type AnySession } from '../../data/review/store';
+import { accountOf, namesOf, statsOf, DEFAULT_FEE, type Session, type SessionRules } from '../../data/review/engine';
+import { createSession, deleteSession, renameSession, runAgain, useSessions } from '../../data/review/store';
 import { REVIEW_NAMES, dayWords, reviewName, tapeDays } from '../../data/review/tape';
 import { dirInk, momentWords, pct, usd, usdSigned } from '../../components/review/words';
 
@@ -60,18 +52,6 @@ const FEES: DropdownOption<number>[] = [
   { value: DEFAULT_FEE, label: '$0.65 a contract', hint: 'What most brokers charge, each way' },
   { value: 0, label: 'No fee', hint: 'A broker that charges nothing for contracts' },
   { value: 1, label: '$1.00 a contract', hint: 'A dearer broker, or exchange fees on top' },
-];
-type Kind = 'options' | 'futures';
-const KINDS: DropdownOption<Kind>[] = [
-  { value: 'options', label: 'Options', hint: 'Calls, puts and spreads off a name’s chain, as it stood that minute' },
-  { value: 'futures', label: 'Futures', hint: 'ES · NQ · oil · gold · silver — long or short, on margin, nearly round the clock' },
-];
-const FUT_OPTIONS = FUT_PRODUCTS.map(f => ({ value: f.symbol, label: f.symbol, hint: `${f.name} · $${f.pointValue.toLocaleString('en-US')} a point`, keywords: f.name }));
-/* −1 = each product's usual fee (a micro's is a quarter of its big brother's) */
-const FUT_FEES: DropdownOption<number>[] = [
-  { value: -1, label: 'The usual', hint: '$2.00 a contract each way · $0.50 for a micro' },
-  { value: 0, label: 'No fee', hint: 'A broker that charges nothing' },
-  { value: 4, label: '$4.00 a contract', hint: 'A dearer broker, all in' },
 ];
 const NAME_OPTIONS = REVIEW_NAMES.map(n => ({ value: n.ticker, label: n.ticker, hint: n.name, logo: n.ticker, keywords: n.name }));
 /* THE READER'S OWN RULES — 0 is "no rule". Hard blocks on a way in, never on a way out (data/review/engine). */
@@ -89,7 +69,7 @@ const DAY_RULES: DropdownOption<number>[] = [
 ];
 
 interface Row {
-  s: AnySession;
+  s: Session;
   equity: number;
   net: number;
   trades: number;
@@ -101,17 +81,8 @@ const Sessions = () => {
   const navigate = useNavigate();
   const sessions = useSessions();
   const days = tapeDays();
-  /* /review/futures is this page with its first card already on Futures (the landing's door) */
-  const [kind, setKind] = useState<Kind>(useLocation().pathname.endsWith('/futures') ? 'futures' : 'options');
-  const [optA, setOptA] = useState('SPY');
-  const [optB, setOptB] = useState('');
-  const [futA, setFutA] = useState('ES');
-  const [futB, setFutB] = useState('');
-  const [futFee, setFutFee] = useState(-1);
-  const fut = kind === 'futures';
-  /* the two Name cards hold whichever kind is in hand */
-  const [ticker, setTicker, second, setSecond] = fut ? ([futA, setFutA, futB, setFutB] as const) : ([optA, setOptA, optB, setOptB] as const);
-  const nameOptions = fut ? FUT_OPTIONS : NAME_OPTIONS;
+  const [ticker, setTicker] = useState('SPY');
+  const [second, setSecond] = useState('');
   /** The "second name" card has been asked for (it may still be empty) */
   const [adding, setAdding] = useState(false);
   const [maxOpen, setMaxOpen] = useState(0);
@@ -125,7 +96,7 @@ const Sessions = () => {
   const rows = useMemo<Row[]>(
     () =>
       sessions.map(s => {
-        const a = isFutures(s) ? futAccountOf(s) : accountOf(s);
+        const a = accountOf(s);
         const st = statsOf(a.trades);
         return { s, equity: a.equity, net: a.equity - s.startCash, trades: st.n, winRate: st.winRate, open: a.positions.length };
       }),
@@ -135,13 +106,8 @@ const Sessions = () => {
 
   const tickers = second && second !== ticker ? [ticker, second] : [ticker];
   const rules: SessionRules = { maxOpen: maxOpen || undefined, maxRiskPct: maxRisk || undefined, dailyLossPct: dayStop || undefined };
-  const ruleWords = [maxOpen ? `no more than ${maxOpen} ${maxOpen === 1 ? 'position' : 'positions'} open at once` : '', maxRisk ? (fut ? `no trade risking over ${maxRisk * 100}% of the account, entry to stop` : `no trade over ${maxRisk * 100}% of the account`) : '', dayStop ? `the day is over at −${dayStop * 100}%` : ''].filter(Boolean);
+  const ruleWords = [maxOpen ? `no more than ${maxOpen} ${maxOpen === 1 ? 'position' : 'positions'} open at once` : '', maxRisk ? `no trade over ${maxRisk * 100}% of the account` : '', dayStop ? `the day is over at −${dayStop * 100}%` : ''].filter(Boolean);
   const start = () => {
-    if (fut) {
-      const f = createFutSession({ name: `${tickers.join(' + ')} from ${dayWords(startDay)}`, tickers, rules, startCash: cash, fee: futFee < 0 ? null : futFee, startDay });
-      navigate(`/practice/backtest/${f.id}`);
-      return;
-    }
     const s = createSession({ name: `${tickers.join(' + ')} from ${dayWords(startDay)}`, ticker, tickers, rules, startCash: cash, fee, startDay });
     navigate(`/practice/backtest/${s.id}`);
   };
@@ -155,16 +121,15 @@ const Sessions = () => {
         render: r => (
           <span className="inline-flex items-center gap-2 min-w-0">
             <span className="inline-flex items-center gap-1 shrink-0">
-              {(isFutures(r.s) ? r.s.tickers : namesOf(r.s)).map(t => (
+              {namesOf(r.s).map(t => (
                 <CompanyLogo key={t} ticker={t} size={15} />
               ))}
             </span>
             <span className="font-semibold text-textPrimary truncate">{r.s.name}</span>
-            {isFutures(r.s) && <span className="shrink-0 px-1 rounded border border-borderSubtle font-mono text-[8px] leading-[14px] uppercase tracking-widest text-textMuted">futures</span>}
           </span>
         ),
       },
-      { key: 'clock', header: 'The clock stands at', sortValue: r => r.s.cursor.day, render: r => <span className="text-textSecondary">{isFutures(r.s) ? futMomentWords(r.s.cursor.day, r.s.cursor.minute) : momentWords(r.s.cursor)}</span> },
+      { key: 'clock', header: 'The clock stands at', sortValue: r => r.s.cursor.day, render: r => <span className="text-textSecondary">{momentWords(r.s.cursor)}</span> },
       { key: 'start', header: 'Started with', align: 'right', sortValue: r => r.s.startCash, render: r => <span className="text-textSecondary">{usd(r.s.startCash, 0)}</span> },
       { key: 'equity', header: 'Worth now', align: 'right', sortValue: r => r.equity, render: r => <span className="text-textPrimary">{usd(r.equity)}</span> },
       { key: 'net', header: 'Up or down', align: 'right', sortValue: r => r.net, render: r => <span className={`font-semibold ${dirInk(r.net)}`}>{usdSigned(r.net)}</span> },
@@ -207,11 +172,11 @@ const Sessions = () => {
     [navigate]
   );
 
-  const nameWords = (t: string) => (fut ? futProduct(t).name : reviewName(t).name);
+  const nameWords = (t: string) => reviewName(t).name;
   return (
     <TraceBox
       title="Your sessions"
-      sub="A session replays one name, or two — a stock’s option chain, or futures — from a day you pick · the clock only moves forward · every fill is kept"
+      sub="A session replays one name, or two — its option chain as it stood — from a day you pick · the clock only moves forward · every fill is kept"
       testId="review-sessions"
       data={{ sessions: sessions.length }}
       facts={
@@ -225,11 +190,10 @@ const Sessions = () => {
       }
       controls={
         <>
-          <DropdownSelect label="Trade" value={kind} options={KINDS} onChange={setKind} title="What the session trades: a name’s option contracts, or futures" testId="review-kind" />
-          <DropdownSearch label={fut ? 'Product' : 'Name'} value={ticker} options={nameOptions} onChange={setTicker} title={fut ? 'The future this session trades' : 'The name this session trades'} placeholder={fut ? 'Search a product…' : 'Search a ticker or a company…'} testId="review-name" />
+          <DropdownSearch label="Name" value={ticker} options={NAME_OPTIONS} onChange={setTicker} title="The name this session trades" placeholder="Search a ticker or a company…" testId="review-name" />
           {adding || second ? (
             <span className="inline-flex items-center gap-0.5">
-              <DropdownSearch label="And" value={second === ticker ? '' : second} options={nameOptions.filter(o => o.value !== ticker)} onChange={setSecond} title="A second one on the same clock and the same account — two at most" placeholder={fut ? 'Search a product…' : 'Search a ticker or a company…'} testId="review-name-2" defaultOpen={!second} />
+              <DropdownSearch label="And" value={second === ticker ? '' : second} options={NAME_OPTIONS.filter(o => o.value !== ticker)} onChange={setSecond} title="A second one on the same clock and the same account — two at most" placeholder="Search a ticker or a company…" testId="review-name-2" defaultOpen={!second} />
               <button
                 type="button"
                 onClick={() => {
@@ -246,15 +210,15 @@ const Sessions = () => {
             </span>
           ) : (
             <button type="button" onClick={() => setAdding(true)} title="Optional — trade two names on the same clock and the same account" className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary transition-colors" data-review-name-2-add>
-              <Plus className="w-3 h-3" /> {fut ? 'A second product' : 'A second name'}
+              <Plus className="w-3 h-3" /> A second name
             </button>
           )}
           <DropdownSelect label="Start with" value={cash} options={CASH} onChange={setCash} title="The pretend money the session starts with" testId="review-cash" />
           <DayCard label="From" value={startDay} onChange={setStartDay} title="The day the clock starts on" testId="review-start" />
-          {fut ? <DropdownSelect label="Fee" value={futFee} options={FUT_FEES} onChange={setFutFee} title="What each contract costs to trade, each way" testId="review-fee" /> : <DropdownSelect label="Fee" value={fee} options={FEES} onChange={setFee} title="What each contract costs to trade, each way" testId="review-fee" />}
+          <DropdownSelect label="Fee" value={fee} options={FEES} onChange={setFee} title="What each contract costs to trade, each way" testId="review-fee" />
           {/* YOUR RULES — hard blocks, chosen here and nowhere else */}
           <DropdownSelect label="Open at once" value={maxOpen} options={OPEN_RULES} onChange={setMaxOpen} title="Your rule: how many positions may be open at once — a buy past it is refused" testId="review-rule-open" />
-          <DropdownSelect label={fut ? 'A trade may risk' : 'A trade may cost'} value={maxRisk} options={fut ? RISK_RULES.map(o => (o.value ? { ...o, hint: 'Entry to stop, times the point’s worth — so an order has to carry a stop' } : o)) : RISK_RULES} onChange={setMaxRisk} title={fut ? 'Your rule: the most one trade may risk, entry to stop, as a share of what the account is worth' : 'Your rule: the most one trade may cost, as a share of what the account is worth'} testId="review-rule-risk" />
+          <DropdownSelect label="A trade may cost" value={maxRisk} options={RISK_RULES} onChange={setMaxRisk} title="Your rule: the most one trade may cost, as a share of what the account is worth" testId="review-rule-risk" />
           <DropdownSelect label="Stop the day at" value={dayStop} options={DAY_RULES} onChange={setDayStop} title="Your rule: down this much since the open, the day is over — no new positions until the next one" testId="review-rule-day" />
           <button type="button" onClick={start} className="inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: '#0a0a0a' }} data-review-start>
             <Play className="w-3 h-3" /> Start the session
@@ -264,10 +228,8 @@ const Sessions = () => {
       sentence={
         <>
           A new session opens <span className="text-textPrimary font-semibold">{tickers.map(nameWords).join(' and ')}</span>
-          {tickers.length > 1 ? ' on one clock and one account,' : ''} {fut ? 'at 18:00 New York the evening before' : 'at the bell of'} <span className="text-textPrimary font-semibold">{dayWords(startDay, true)}</span> with <span className="text-textPrimary font-semibold">{usd(cash, 0)}</span>.{' '}
-          {fut
-            ? 'You play the day forward and trade it long or short, on margin. One price, no bid and ask — so a market order fills a tick against you, a limit only when traded through, and a target and a stop in the same minute is the stop.'
-            : 'You play the day forward, pick a contract off the chain as it stood, and trade it at its real bid and ask — long calls and puts, paid in cash.'}{' '}
+          {tickers.length > 1 ? ' on one clock and one account,' : ''} at the bell of <span className="text-textPrimary font-semibold">{dayWords(startDay, true)}</span> with <span className="text-textPrimary font-semibold">{usd(cash, 0)}</span>.{' '}
+          You play the day forward, pick a contract off the chain as it stood, and trade it at its real bid and ask — long calls and puts, paid in cash.{' '}
           {ruleWords.length > 0 ? (
             <>
               Your rules: <span className="text-textPrimary font-semibold">{ruleWords.join(' · ')}</span>. A buy that breaks one is refused, a way out never is — and they cannot be changed once the session starts.

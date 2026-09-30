@@ -14,9 +14,8 @@ export const pct = (v: number): string => `${Math.round(v * 100)}%`;
 export const dirInk = (v: number): string => (Math.abs(v) < 0.005 ? 'text-textSecondary' : v > 0 ? 'text-bull' : 'text-bear');
 /** "Mar 14 · 10:42" */
 export const momentWords = (m: Moment): string => `${dayWords(m.day)} · ${clockWords(m.minute)}`;
-/** Session minutes as a trader would say them. `dayMin`: the minutes in a trading day of that kind — an option's 390, a
-    future's 1,380 (a future held twenty hours was read as "3.5 sessions"). Days, not "1.0 sessions" (Noah's picture of the
-    journal, 2026-09-20). */
+/** Session minutes as a trader would say them. `dayMin`: the minutes in a trading day of that kind — a replayed day's 390, a
+    paper account's real 1,440. Days, not "1.0 sessions" (Noah's picture of the journal, 2026-09-20). */
 export const heldWords = (min: number, dayMin = 390): string => {
   if (min < 60) return `${Math.max(1, Math.round(min))}m`;
   if (min < dayMin) return `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`;

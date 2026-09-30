@@ -30,11 +30,10 @@
                  — a tag taken off a list stays on the
                  trades that carry it.
 
-  Both kinds of session write here. A ROW says which
-  kind it is; what a journal needs of a trade (when,
-  what, which way, how it ended, what it made) is
-  asked through the helpers below, never by reaching
-  into one kind's fields.
+  What a journal needs of a trade (when, what, which
+  way, how it ended, what it made) is asked through
+  the helpers below, never by reaching into a row's
+  fields.
 
   A SECOND JOURNAL, THE SAME PAGES (2026-09-22, Noah:
   "there should be 2 different journals, 1 for the
@@ -43,7 +42,7 @@
   its moments are real instants (`at`), not a replayed
   day's minute, and its account keeps its words under
   its own key (data/paper/store.ts). The helpers answer
-  for it the way they answer for the other two, so the
+  for it the way they answer for a backtest trade, so the
   journal's pages serve both journals — each reading
   only its own rows (`paperRowsOf`, `rowsOf`).
 ==================================================
@@ -51,13 +50,10 @@
 
 import { useSyncExternalStore } from 'react';
 import { accountOf, type Session, type Trade } from './engine';
-import { futAccountOf, type FutSession, type FutTrade } from './futuresEngine';
-import { futBarTime, futMomentWords, futPrice, futProduct } from './futuresTape';
 import { contractWords } from './quotes';
 import { barTime, clockWords, dayWords } from './tape';
-import { futBookOf as paperFutBookOf, optBookOf as paperOptBookOf, type FutTrade as PaperFutTrade, type OptTrade as PaperOptTrade, type PaperAccount, type PaperMoment } from '../paper/engine';
+import { optBookOf as paperOptBookOf, type OptTrade as PaperOptTrade, type PaperAccount, type PaperMoment } from '../paper/engine';
 import { nyMomentWords } from '../paper/clock';
-import { futWords, paperFut } from '../paper/products';
 
 export interface JournalEntry {
   /** One of the reader's setups */
@@ -78,17 +74,13 @@ export interface DayNote {
   review?: string;
 }
 
-export type JournalRow =
-  | { key: string; s: Session; t: Trade; fut: false; paper?: undefined }
-  | { key: string; s: FutSession; t: FutTrade; fut: true; paper?: undefined }
-  | { key: string; s: PaperAccount; t: PaperOptTrade; fut: false; paper: true }
-  | { key: string; s: PaperAccount; t: PaperFutTrade; fut: true; paper: true };
+export type JournalRow = { key: string; s: Session; t: Trade; paper?: undefined } | { key: string; s: PaperAccount; t: PaperOptTrade; paper: true };
 type Moment = Trade['closed'] | PaperMoment;
 
 /** Every closed trade of every session, newest first */
-export const rowsOf = (sessions: (Session | FutSession)[]): JournalRow[] =>
+export const rowsOf = (sessions: Session[]): JournalRow[] =>
   sessions
-    .flatMap<JournalRow>(s => ((s as FutSession).kind === 'futures' ? futAccountOf(s as FutSession).trades.map(t => ({ key: `${s.id}:${t.id}`, s: s as FutSession, t, fut: true as const })) : accountOf(s as Session).trades.map(t => ({ key: `${s.id}:${t.id}`, s: s as Session, t, fut: false as const }))))
+    .flatMap<JournalRow>(s => accountOf(s).trades.map(t => ({ key: `${s.id}:${t.id}`, s, t })))
     .sort((a, b) => instantOf(b, b.t.closed) - instantOf(a, a.t.closed));
 
 /** Every closed trade of every PAPER account, newest first — with the words kept under the journal's own key put back on
@@ -98,46 +90,40 @@ export const paperRowsOf = (accounts: PaperAccount[], words: { entries: Record<s
     .flatMap<JournalRow>(a0 => {
       /* the words kept under the journal's key, over any the account carries of its own (the sample accounts do) */
       const a = { ...a0, journal: { ...a0.journal, ...words.entries[a0.id] }, days: { ...a0.days, ...words.days[a0.id] } };
-      return [...paperOptBookOf(a).trades.map(t => ({ key: `${a.id}:${t.id}`, s: a, t, fut: false as const, paper: true as const })), ...paperFutBookOf(a).trades.map(t => ({ key: `${a.id}:${t.id}`, s: a, t, fut: true as const, paper: true as const }))];
+      return paperOptBookOf(a).trades.map(t => ({ key: `${a.id}:${t.id}`, s: a, t, paper: true as const }));
     })
     .sort((a, b) => instantOf(b, b.t.closed) - instantOf(a, a.t.closed));
 
-/* WHEN, as a real New York instant. The two kinds of session count their minutes from different opens (an option's from
-   09:30, a future's from 18:00 the evening before), so minute 319 of a futures day (23:19) sorted between two afternoon
-   option trades — "newest first" has to compare instants, not minutes.
+/* WHEN, as a real New York instant ("newest first" compares instants, not a replayed day's minutes).
    THE MOMENT IS THE END OF ITS MINUTE, as the desk's clock says it ("in at 09:31" is the bar that began at 09:30): a bar's
    stamp is when it BEGAN, so a minute is added — and a figure drawn from these reads the same clock as the facts beside it.
    A PAPER moment is the instant itself — no minute to add. */
 export const instantOf = (r: JournalRow, m: Moment): number => {
   if (r.paper) return Math.floor((m as PaperMoment).at / 1000);
   const x = m as Trade['closed'];
-  return (r.fut ? futBarTime(x.day, x.minute) : barTime(x.day, x.minute)) + 60;
+  return barTime(x.day, x.minute) + 60;
 };
 export const whenWords = (r: JournalRow, m: Moment): string => {
   if (r.paper) return nyMomentWords((m as PaperMoment).at);
   const x = m as Trade['closed'];
-  return r.fut ? futMomentWords(x.day, x.minute) : `${dayWords(x.day)} · ${clockWords(x.minute)}`;
+  return `${dayWords(x.day)} · ${clockWords(x.minute)}`;
 };
-/** The minutes in a trading day of the row's kind — what "held" is counted against: an option's 390, a future's 1,380, a
-    paper trade's real day */
-export const dayMinOf = (r: JournalRow): number => (r.paper ? 1440 : r.fut ? 1380 : 390);
-/** The name it was a trade IN: the ticker, or the product */
-export const nameOf = (r: JournalRow): string => (r.fut ? r.t.symbol : r.t.contract.ticker);
-/** What it is called in a sentence: "SPY 518C Jul 2", "ESU6 long" */
-export const titleOf = (r: JournalRow): string => (r.fut ? `${r.t.contract} ${r.t.long ? 'long' : 'short'}` : contractWords(r.t.contract));
-/** The way it needed the name to go: a call and a long up, a put and a short down */
-export const directionOf = (r: JournalRow): 'up' | 'down' => (r.fut ? (r.t.long ? 'up' : 'down') : r.t.contract.right === 'C' ? 'up' : 'down');
-export const ENDED: Record<Trade['how'] | FutTrade['how'] | PaperOptTrade['how'] | PaperFutTrade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', closed: 'Closed by you', rolled: 'Closed at the roll', scaled: 'Scaled out', rule: 'Closed by the rules', page: 'Closed with the page' };
+/** The minutes in a trading day of the row's kind — what "held" is counted against: an option's 390, a paper trade's real day */
+export const dayMinOf = (r: JournalRow): number => (r.paper ? 1440 : 390);
+/** The name it was a trade IN */
+export const nameOf = (r: JournalRow): string => r.t.contract.ticker;
+/** What it is called in a sentence: "SPY 518C Jul 2" */
+export const titleOf = (r: JournalRow): string => contractWords(r.t.contract);
+/** The way it needed the name to go: a call up, a put down */
+export const directionOf = (r: JournalRow): 'up' | 'down' => (r.t.contract.right === 'C' ? 'up' : 'down');
+export const ENDED: Record<Trade['how'] | PaperOptTrade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', scaled: 'Scaled out', rule: 'Closed by the rules', page: 'Closed with the page' };
 /** A piece a trade left in, in a word */
-export const OUT_WORD: Record<'target' | 'stop' | 'hand' | 'bell' | 'roll' | 'rule' | 'page', string> = { target: 'target', stop: 'stop', hand: 'by hand', bell: 'the bell', roll: 'the roll', rule: 'the rules', page: 'the page closing' };
+export const OUT_WORD: Record<'target' | 'stop' | 'hand' | 'bell' | 'rule' | 'page', string> = { target: 'target', stop: 'stop', hand: 'by hand', bell: 'the bell', rule: 'the rules', page: 'the page closing' };
 /** "Scaled out · target, target, stop" — how each piece left, in order */
 export const piecesWords = (r: JournalRow): string => r.t.legs.filter(l => l.out).map(l => OUT_WORD[l.out!]).join(', ');
-/** How it ended, in the three ways a reader sorts by: their own hand, the target, the stop — the bell and the roll are the market's */
+/** How it ended, in the three ways a reader sorts by: their own hand, the target, the stop — the bell and the rules are the market's */
 export type EndedCut = 'hand' | 'target' | 'stop' | 'market' | 'pieces';
-export const endedCutOf = (r: JournalRow): EndedCut => (r.t.how === 'scaled' ? 'pieces' : r.t.how === 'target' ? 'target' : r.t.how === 'stopped' ? 'stop' : r.t.how === 'expired' || r.t.how === 'rolled' || r.t.how === 'rule' || r.t.how === 'page' ? 'market' : 'hand');
-/** A price as its own desk prints it: a future on its tick, a contract to the cent */
-export const priceWordsOf = (r: JournalRow, v: number): string => (r.fut ? (r.paper ? futWords(r.t.symbol, v) : futPrice(futProduct(r.t.symbol), v)) : v.toFixed(2));
-export const longNameOf = (r: JournalRow): string => (r.fut ? (r.paper ? paperFut(r.t.symbol).name : futProduct(r.t.symbol).name) : r.t.contract.ticker);
+export const endedCutOf = (r: JournalRow): EndedCut => (r.t.how === 'scaled' ? 'pieces' : r.t.how === 'target' ? 'target' : r.t.how === 'stopped' ? 'stop' : r.t.how === 'expired' || r.t.how === 'rule' || r.t.how === 'page' ? 'market' : 'hand');
 
 /** A trade's entry — the first journal's one note is the first answer until that answer is written */
 export const entryOf = (r: JournalRow): JournalEntry => {
@@ -153,7 +139,6 @@ export const hasTags = (e: JournalEntry): boolean => !!e.setup || (e.mistakes?.l
 export interface JournalCut {
   session: string;
   name: string;
-  kind: 'all' | 'options' | 'futures';
   way: 'all' | 'up' | 'down';
   result: 'all' | 'won' | 'lost';
   ended: 'all' | EndedCut;
@@ -163,12 +148,11 @@ export interface JournalCut {
   /** Words to find in the reader's own */
   find: string;
 }
-export const CUT_AT_REST: JournalCut = { session: 'all', name: 'all', kind: 'all', way: 'all', result: 'all', ended: 'all', tags: [], notes: 'all', find: '' };
+export const CUT_AT_REST: JournalCut = { session: 'all', name: 'all', way: 'all', result: 'all', ended: 'all', tags: [], notes: 'all', find: '' };
 export const tagKeysOf = (e: JournalEntry): string[] => [...(e.setup ? [`setup:${e.setup}`] : []), ...(e.mistakes ?? []).map(m => `mistake:${m}`), ...(e.plan ? [`plan:${e.plan}`] : [])];
 export function inCut(r: JournalRow, c: JournalCut): boolean {
   if (c.session !== 'all' && r.s.id !== c.session) return false;
   if (c.name !== 'all' && nameOf(r) !== c.name) return false;
-  if (c.kind !== 'all' && (c.kind === 'futures') !== r.fut) return false;
   if (c.way !== 'all' && directionOf(r) !== c.way) return false;
   if (c.result !== 'all' && (c.result === 'won' ? r.t.pnl <= 0 : r.t.pnl > 0)) return false;
   if (c.ended !== 'all' && endedCutOf(r) !== c.ended) return false;
@@ -199,7 +183,6 @@ export function cutFromQuery(search: string): JournalCut {
   return {
     session: q.get('session') ?? 'all',
     name: q.get('name') ?? 'all',
-    kind: one('kind', ['all', 'options', 'futures'] as const, 'all'),
     way: one('way', ['all', 'up', 'down'] as const, 'all'),
     result: one('result', ['all', 'won', 'lost'] as const, 'all'),
     ended: one('ended', ['all', 'hand', 'target', 'stop', 'market', 'pieces'] as const, 'all'),
@@ -264,11 +247,11 @@ const cell = (v: string | number | null | undefined): string => {
 };
 /** The rows as CSV — what a spreadsheet opens. `extra` carries what only the page has computed (the best and the worst). */
 export function csvOf(rows: JournalRow[], extra: (r: JournalRow) => { best: number | null; worst: number | null }): string {
-  const head = ['Closed (New York)', 'Opened (New York)', 'Session', 'Kind', 'Name', 'Contract', 'Way', 'Size', 'In', 'Out', 'Ended', 'Made or lost', 'R', 'Held (minutes)', 'Best while held', 'Worst while held', 'Setup', 'Mistakes', 'Followed the plan', 'Why I took it', 'What I saw', 'What I would do again'];
+  const head = ['Closed (New York)', 'Opened (New York)', 'Session', 'Name', 'Contract', 'Way', 'Size', 'In', 'Out', 'Ended', 'Made or lost', 'R', 'Held (minutes)', 'Best while held', 'Worst while held', 'Setup', 'Mistakes', 'Followed the plan', 'Why I took it', 'What I saw', 'What I would do again'];
   const lines = rows.map(r => {
     const e = entryOf(r);
     const x = extra(r);
-    return [whenWords(r, r.t.closed), whenWords(r, r.t.opened), r.s.name, r.fut ? 'Futures' : 'Options', nameOf(r), titleOf(r), directionOf(r) === 'up' ? 'Up' : 'Down', r.t.qty, r.t.avgIn, r.t.avgOut, ENDED[r.t.how], r.t.pnl.toFixed(2), r.t.r != null ? r.t.r.toFixed(2) : '', r.t.heldMin, x.best != null ? x.best.toFixed(2) : '', x.worst != null ? x.worst.toFixed(2) : '', e.setup ?? '', (e.mistakes ?? []).join('; '), e.plan ?? '', e.why ?? '', e.saw ?? '', e.again ?? '']
+    return [whenWords(r, r.t.closed), whenWords(r, r.t.opened), r.s.name, nameOf(r), titleOf(r), directionOf(r) === 'up' ? 'Up' : 'Down', r.t.qty, r.t.avgIn, r.t.avgOut, ENDED[r.t.how], r.t.pnl.toFixed(2), r.t.r != null ? r.t.r.toFixed(2) : '', r.t.heldMin, x.best != null ? x.best.toFixed(2) : '', x.worst != null ? x.worst.toFixed(2) : '', e.setup ?? '', (e.mistakes ?? []).join('; '), e.plan ?? '', e.why ?? '', e.saw ?? '', e.again ?? '']
       .map(cell)
       .join(',');
   });

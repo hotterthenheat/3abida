@@ -19,9 +19,10 @@
                        day is THE CALENDAR DAY the trade
                        closed on, New York's (the desk's
                        RP&L counts a trading day that turns
-                       at 17:00; a journal's calendar is a
-                       calendar: a Friday-night future is
-                       Friday's here, Monday's there — the
+                       at the 16:00 bell; a journal's
+                       calendar is a calendar: a trade closed
+                       after Friday's bell is Friday's here,
+                       Monday's there — the
                        redesign of 2026-09-26, after the
                        first cut called Sep 28 "today" on a
                        Friday night)
@@ -233,8 +234,7 @@ const WEEKDAYS: [number, string, string][] = [
   [6, 'Sat', 'Saturdays'],
   [0, 'Sun', 'Sundays'],
 ];
-/** BY WEEKDAY of the calendar day it closed on — every weekday, so an empty one says so; a weekend day only when it has one
-    (a future closed on a Sunday evening) */
+/** BY WEEKDAY of the calendar day it closed on — every weekday, so an empty one says so; a weekend day only when it has one */
 export function byWeekday(rows: JournalRow[]): Lane[] {
   const by = groupBy(rows, r => String(noon(calendarDayOf(r)).getDay()));
   return WEEKDAYS.filter(([d]) => d >= 1 && d <= 5 || (by.get(String(d))?.length ?? 0) > 0).map(([d, label, many]) => laneOf(String(d), label, `Closed on ${many}`, by.get(String(d)) ?? []));
@@ -244,10 +244,10 @@ export function byName(rows: JournalRow[]): Lane[] {
   const by = groupBy(rows, nameOf);
   return [...by.entries()].map(([name, list]) => laneOf(name, name, `Traded in ${name}`, list)).sort((a, b) => b.n - a.n || Math.abs(b.net) - Math.abs(a.net) || (a.key < b.key ? -1 : 1));
 }
-/** LONG OR SHORT — a call is a way up and a put a way down, as the journal's cut reads them (journal.ts directionOf) */
+/** CALLS OR PUTS — a call is a way up and a put a way down, as the journal's cut reads them (journal.ts directionOf) */
 export function bySide(rows: JournalRow[]): Lane[] {
   const by = groupBy(rows, directionOf);
-  return [laneOf('up', 'Long · calls', 'Needed it to go up — a long future, a call', by.get('up') ?? []), laneOf('down', 'Short · puts', 'Needed it to go down — a short future, a put', by.get('down') ?? [])];
+  return [laneOf('up', 'Calls', 'Needed it to go up — a call', by.get('up') ?? []), laneOf('down', 'Puts', 'Needed it to go down — a put', by.get('down') ?? [])];
 }
 /** BY SETUP — the reader's own tag on each trade, the most used first; the untagged last, as one lane */
 export function bySetup(rows: JournalRow[]): Lane[] {

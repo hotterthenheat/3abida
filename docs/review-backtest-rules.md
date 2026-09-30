@@ -4,16 +4,12 @@
 Journal (`/practice/journal`, whose **Backtest** book is this journal, `?book=backtest`; the paper accounts have the other
 book). The old `/review/*` addresses land where their pages went.
 
-**The Order card is the paper desk's (2026-09-26 — Noah: "make the contract orders look the same on the backtesting section
-for both options and futures").** The futures desk's Order is `components/paper/OrderPanel` `FutOrderPanel` — Market ·
-Limit · Stop, the position line, the size row (− n + and 1 · 3 · 5 · 10 · 15), **Buy · Sell** in one press each, Join bid ·
-Join ask · Close position · Reverse · Cancel orders · Flatten all · Cancel all, the brackets as **distances in points from
-the fill** (kept between orders under `slayer_review_brackets_v1`), size to a share of the account at risk, the foot. The
-options desk's Order is the paper chain's `ChainOrder` — the size row, **Buy @ Ask · Buy @ Lmt** (or, held, **Sell @ Bid ·
+**The Order is the paper desk's (2026-09-26 — Noah: "make the contract orders look the same on the backtesting section").**
+The options desk's Order is the paper chain's `ChainOrder` — the size row, **Buy @ Ask · Buy @ Lmt** (or, held, **Sell @ Bid ·
 Sell @ Lmt**, All, Buy more), the limit box with Mid, the Spread pick, the folded Target / Stop on the contract's or the
 name's price. What differs from the live desk is only where the prices and the refusals come from: the replayed minute
-and this session's rules. A market future fills a tick against you here, so the brackets measure from that fill. The
-older tickets (`OrderTicket`, `FuturesTicket`) are gone; a stop to close a held option is pulled off its chip on the chart.
+and this session's rules. The older tickets (`OrderTicket`, `FuturesTicket`) are gone, and the futures backtest with its
+own desk went on 2026-09-30; a stop to close a held option is pulled off its chip on the chart.
 
 Written 2026-09-20, before the code (Noah: "a genuine papertrading section where a user can backtest their edge… options
 papertrading"). One page, plain words. `src/data/review/engine.ts` implements exactly this; when a rule changes, it

@@ -35,10 +35,8 @@
                    with Sell to close at the bid or a limit,
                    and Buy more.
 
-  The pieces come from the Order card (components/paper/
-  OrderPanel — since 2026-09-30 the backtest's futures
-  card alone; Paper trades options only): the size, the
-  two-way button, the price box.
+  Its pieces are components/paper/OrderPieces: the
+  size, the two-way button, the price box.
 ==================================================
 */
 
@@ -49,7 +47,7 @@ import { ChainCard, CHAIN_COLUMNS, COLUMN_GROUPS } from '../weigher/ChainGrid';
 import { card, head, headWord } from '../review/DeskShell';
 import LadderFields, { LADDER_AT_REST, bracketOf, type LadderDraft } from '../review/LadderFields';
 import { dirInk, usd, usdSigned } from '../review/words';
-import { Act, BracketsHead, Pills, PriceBox, SizeRow, labelCls, whyWords } from './OrderPanel';
+import { Act, BracketsHead, Pills, PriceBox, SizeRow, labelCls, whyWords } from './OrderPieces';
 import { MULT, type OrderKind } from '../../data/review/engine';
 import { contractWords, legsOf, longLeg, spreadWidth, strikeWords, type ContractId, type Quote, type Right } from '../../data/review/quotes';
 import type { OptDraft } from '../../data/paper/engine';
@@ -197,7 +195,7 @@ const intoView = (el: HTMLElement | null) => {
 const quiet = 'h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-35 disabled:cursor-not-allowed transition-colors';
 
 /** THE ORDER — inside a strike's dropdown on the live paper desk, and the backtest's Order card (2026-09-26, Noah: "make the
-    contract orders look the same on the backtesting section for both options and futures"): one composition, two desks */
+    contract orders look the same on the backtesting section"): one composition, two desks */
 export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: Pick<DeskContract, 'strike' | 'right'>; ticker: string; expiry: string; spot: number; desk: ChainOrderDesk; /** The small "Order" word at its head — off inside a card that already says it */ word?: boolean }) => {
   const base: ContractId = { ticker, strike: c.strike, right: c.right, expiry };
   const pos = desk.heldAt(c.strike);

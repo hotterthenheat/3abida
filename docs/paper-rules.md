@@ -9,10 +9,8 @@ a rule changes, it changes here first.
 
 **Since 2026-09-30 Paper trades options, and only options** (2026-09-30: "on the paper trading remove all the futures and
 make it strictly Options trading"): calls, puts and debit spreads, on a stock, a fund or an index, off the chain. The
-futures stay where they are traded against the past — the backtest (`review-futures-rules.md`, `/practice/futures`) —
-and left the live account with everything that was theirs: the Order card beside the chart, the ladder, the reversal,
-the margin, and the 17:00 day. An evaluation is an options evaluation. What an account traded in futures before then is
-kept, read and never added to (below, "The futures that were").
+futures went with everything that was theirs — the Order card beside the chart, the ladder, the reversal, the margin and
+the 17:00 day — and the futures backtest went the same day. An evaluation is an options evaluation.
 
 ## What it is
 
@@ -43,8 +41,8 @@ account and an evaluation are offered the same names. (The futures that led the 
 2026-09-30.)
 
 **The Order card and the ladder** were a future's (2026-09-22) and went with the futures on 2026-09-30: an option is
-ordered from its chain (below). The Order card's pieces — the size, the two-way button, the price box — are the chain's,
-and the card itself is the backtest's futures desk's now.
+ordered from its chain (below). The Order card's pieces — the size, the two-way button, the price box — are the chain's
+(`components/paper/OrderPieces`).
 
 **Orders on the chart.** A position and its ways out are solid chips on their lines (on a LIGHT tape — Stone — the
 solid goes soft: the direction's ink on a tint of it, the way-out's count and the ✕ black, the axis labels the same; on a
@@ -246,21 +244,6 @@ would write nonsense into it.
 A fill, a stop, a target, an expiry, a day that ended, a failed or passed evaluation — each is said **where the reader is,
 on any page**: a chip at the window's top right beside the alerts' own, for a few seconds, that opens the Live Chart. A chime
 rings where Settings says alerts are heard out loud.
-
-## The futures that were
-
-Until 2026-09-30 Paper also traded **ES, MES, NQ, MNQ, RTY and M2K**, priced off the funds (SPY × 10 plus 12 points, QQQ
-× 41 plus 45, IWM × 10 plus 6), on margin, a tick against the reader. Since then:
-
-- **Nothing new.** No card, ladder or chart offers a future; the engine has no way to place one.
-- **What was closed stays.** An account's closed futures trades are in its cash, its record, its journal and its days
-  traded — the account is worth what it was. The contracts' terms are kept in
-  `src/data/paper/products.ts` for reading them.
-- **What was still open or working is retired, once.** The first tick that sees such an account closes a position at the
-  last price the account saw it at, with no fee, and cancels a working order — each in the account's own words ("Paper
-  trades options only now"), and a line in its log. An account that never traded a future is handed back as it came.
-- **A desk that showed a future opens on the index it followed**: ES and MES on SPX, NQ and MNQ on NDX, RTY and M2K on
-  RUT — the same market, now with a chain beside it.
 
 ## The journal
 

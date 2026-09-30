@@ -144,8 +144,6 @@ const App = () => {
               <Route index element={<Navigate to="/practice/paper" replace />} />
               <Route path="paper" element={<PaperDesk />} />
               <Route path="backtest" element={<ReviewSessions />} />
-              {/* the same page with its first card on Futures — the landing's door to a futures session */}
-              <Route path="futures" element={<ReviewSessions />} />
               <Route path="backtest/:id" element={<ReviewDesk />} />
               <Route path="backtest/:id/report" element={<ReviewReport />} />
               {/* ONE JOURNAL, TWO BOOKS: ?book=backtest reads the backtest's; a closed trade's own page under it — ← and → walk
@@ -162,7 +160,7 @@ const App = () => {
             <Route path="/paper/journal/:sessionId/:tradeId" element={<Moved to={(p, s) => `/practice/journal/${p.sessionId}/${p.tradeId}${s}`} />} />
             <Route path="/review" element={<Navigate to="/practice/backtest" replace />} />
             <Route path="/review/backtest" element={<Navigate to="/practice/backtest" replace />} />
-            <Route path="/review/futures" element={<Navigate to="/practice/futures" replace />} />
+            <Route path="/review/futures" element={<Navigate to="/practice/backtest" replace />} />
             <Route path="/review/backtest/:id" element={<Moved to={p => `/practice/backtest/${p.id}`} />} />
             <Route path="/review/backtest/:id/report" element={<Moved to={p => `/practice/backtest/${p.id}/report`} />} />
             <Route path="/review/journal" element={<Moved to={(_, s) => `/practice/journal${withBook(s)}`} />} />

@@ -83,7 +83,7 @@ import { fmtStampLocal } from '../../components/gex/chartTime';
 import { dirInk, heldWords, pct, rWords, usd, usdSigned } from '../../components/review/words';
 import { statsOf } from '../../data/review/engine';
 import { excursionOf } from '../../data/review/excursion';
-import { ENDED, csvOf, dayMinOf, instantOf, priceWordsOf, titleOf, whenWords, type DayNote, type JournalRow } from '../../data/review/journal';
+import { ENDED, csvOf, dayMinOf, instantOf, titleOf, whenWords, type DayNote, type JournalRow } from '../../data/review/journal';
 import { PERIODS, byHour, byName, bySetup, bySide, bySize, byWeekday, calendarDayOf, dayTotals, isPeriod, monthOf, monthWords, runningOf, rowsIn, spanOf, type Period } from '../../data/review/journalFigures';
 import { useJournalSource, type JournalKind } from '../../data/review/journalSource';
 import { contractWords } from '../../data/review/quotes';
@@ -114,13 +114,7 @@ const Swap = ({ out, late, className = '', style, children, ...rest }: { out: bo
   );
 };
 
-const FutLabel = ({ r }: { r: Extract<JournalRow, { fut: true }> }) => (
-  <span className="inline-flex items-center gap-1.5 font-mono text-[11px]">
-    <span className="font-semibold text-textPrimary">{r.t.contract}</span>
-    <span className={`font-semibold ${r.t.long ? 'text-bull' : 'text-bear'}`}>{r.t.long ? 'long' : 'short'}</span>
-  </span>
-);
-const Contract = ({ r }: { r: JournalRow }) => (r.fut ? <FutLabel r={r} /> : <ContractLabel contract={contractWords(r.t.contract)} right={r.t.contract.right} logo={r.t.contract.ticker} size="sm" />);
+const Contract = ({ r }: { r: JournalRow }) => <ContractLabel contract={contractWords(r.t.contract)} right={r.t.contract.right} logo={r.t.contract.ticker} size="sm" />;
 
 /** The two books, as the switch names them */
 const BOOKS: readonly { value: JournalKind; label: string }[] = [
@@ -273,7 +267,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
       { key: 'account', header: source.containerWord === 'account' ? 'Account' : 'Session', sortValue: r => r.s.name, render: r => <span className="text-textSecondary truncate">{r.s.name}</span> },
       { key: 'contract', header: 'Contract', sortValue: r => titleOf(r), render: r => <Contract r={r} /> },
       { key: 'qty', header: 'Size', align: 'right', sortValue: r => r.t.qty, render: r => <span className="text-textPrimary">{r.t.qty}</span> },
-      { key: 'inout', header: 'In → out', align: 'right', render: r => <span className="text-textSecondary">{priceWordsOf(r, r.t.avgIn)} → {priceWordsOf(r, r.t.avgOut)}</span> },
+      { key: 'inout', header: 'In → out', align: 'right', render: r => <span className="text-textSecondary">{r.t.avgIn.toFixed(2)} → {r.t.avgOut.toFixed(2)}</span> },
       { key: 'held', header: 'Held', align: 'right', sortValue: r => r.t.heldMin / dayMinOf(r), render: r => <span className="text-textSecondary">{heldWords(r.t.heldMin, dayMinOf(r))}</span> },
       {
         key: 'worst',
