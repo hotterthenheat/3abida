@@ -116,7 +116,12 @@ const Simulator = (() => {
     callOI: number;
     putOI: number;
   }
+  /* KEYED BY WHOLE CENTS (2026-09-30, the perf pass): a strike like 512.5 is a heap number, and a Map keyed by heap numbers
+     hashes and compares every lookup the slow way — the seed makes ~140 of them a bar, 1.2 million a name. The same strike
+     as an integer count of cents (51250) is a small integer, looked up the fast way. `cents` is exact here: every strike is
+     already rounded to the cent (r2). */
   const oiBook: Record<string, Map<number, BookEntry>> = {};
+  const cents = (strike: number) => Math.round(strike * 100);
   const BOOK_RANGE = 30; // strikes maintained each side of spot
   const BOOK_BLEND = 0.012; // per-bar migration toward the fresh profile (~1h half-life)
 
@@ -157,28 +162,30 @@ const Simulator = (() => {
       blend = 1; // first call seeds the book outright
     }
     const base = Math.round(spot / step) * step;
-    const alive = new Set<number>();
+    /* the live window, in cents: every key is a strike on the step grid, so "inside the window" IS "one of this bar's
+       strikes" — no Set of them built every bar */
+    const lo = cents(r2(base - BOOK_RANGE * step));
+    const hi = cents(r2(base + BOOK_RANGE * step));
     for (let i = -BOOK_RANGE; i <= BOOK_RANGE; i++) {
       const strike = r2(base + i * step);
-      alive.add(strike);
       const want = freshOI(strike, spot, step);
-      const cur = book.get(strike);
+      const cur = book.get(cents(strike));
       if (!cur) {
         // a strike entering the tradable window starts small — OI builds, it doesn't teleport
         const scale = blend >= 1 ? 1 : 0.2;
-        book.set(strike, {
+        book.set(cents(strike), {
           callOI: Math.round(want.callOI * scale),
           putOI: Math.round(want.putOI * scale),
         });
       } else {
-        const flow = () => 1 + (Math.random() - 0.5) * 0.05; // order-flow breathing
-        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * flow()));
-        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * flow()));
+        // order-flow breathing: ±2.5% on each side
+        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * (1 + (Math.random() - 0.5) * 0.05)));
+        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * (1 + (Math.random() - 0.5) * 0.05)));
       }
     }
     // strikes price left behind: positions unwind gradually, then fall away
     for (const [k, e] of book) {
-      if (alive.has(k)) continue;
+      if (k >= lo && k <= hi) continue;
       e.callOI = Math.round(e.callOI * 0.985);
       e.putOI = Math.round(e.putOI * 0.985);
       if (e.callOI < 120 && e.putOI < 120) book.delete(k);
@@ -213,7 +220,7 @@ const Simulator = (() => {
     let localNet = 0;
     for (let i = -8; i <= 8; i++) {
       const strike = r2(base + i * step);
-      const e = book.get(strike);
+      const e = book.get(cents(strike));
       if (!e) continue;
       const z = (strike - price) / denom;
       const gamma = Math.exp(-z * z / 2) / (2.5066 * denom);
@@ -233,9 +240,8 @@ const Simulator = (() => {
     let move = (Math.random() - 0.5) * 2 * range * scale;
 
     // pin: the nearest strong shelf pulls when price is within ~2.5 strikes
-    const magnet = [nearAbove, nearBelow]
-      .filter((w): w is { strike: number; s: number } => w !== null)
-      .sort((a, b) => Math.abs(a.strike - price) - Math.abs(b.strike - price))[0];
+    let magnet = nearAbove;
+    if (nearBelow && (!magnet || Math.abs(nearBelow.strike - price) < Math.abs(magnet.strike - price))) magnet = nearBelow;
     if (magnet && Math.abs(magnet.strike - price) < step * 2.5) {
       move += (magnet.strike - price) * 0.05 * magnet.s;
     }
@@ -275,6 +281,8 @@ const Simulator = (() => {
     sym: string;
     bars: Candle[];
     snaps: GexSnapshot[];
+    /** Every bar's book, packed: the callOI and putOI of the 61 strikes around that bar's spot (packBook) */
+    oi: Int32Array;
     close: number;
     t: number;
     s: number;
@@ -311,7 +319,7 @@ const Simulator = (() => {
     const quoted = SCAN_ROSTER.some(r => r.ticker === sym) || !!universeLookup(sym);
     const homeK = quoted ? 0.0015 : 0;
     evolveBook(sym, cfg.basePrice, 1); // seed the book at the journey's start
-    return { sym, bars: [], snaps: [], close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK };
+    return { sym, bars: [], snaps: [], oi: new Int32Array(SESSIONS * SESSION_BARS * PACKED), close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK };
   }
 
   /** Walk the job forward until the budget is spent or the history is whole. Returns true when done. */
@@ -337,7 +345,15 @@ const Simulator = (() => {
           volume: Math.round(2000 + Math.random() * 18000),
         });
         evolveBook(sym, close);
-        job.snaps.push(computeGexSnapshot(sym, close, job.t));
+        const at = job.snaps.length * PACKED;
+        packBook(sym, close, job.oi, at);
+        const snap = packedSnapshot(sym, close, job.t, job.oi, at);
+        /* the name on screen has its whole history read the moment a chart opens (the trails): when its seed walks in
+           slices, its levels are built here, inside them, not all at once in the chart's first frame. A seed someone
+           is waiting on (no budget) stays lazy — whoever reads the levels builds them, and a page that only wanted the
+           candles (Net Flow's pane) never pays for them. */
+        if (sym === activeTicker && until !== Infinity) void snap.levels;
+        job.snaps.push(snap);
         job.t += BAR_SECONDS;
         job.i++;
         if (until !== Infinity && ++checks % 16 === 0 && performance.now() >= until) return false;
@@ -449,6 +465,67 @@ const Simulator = (() => {
     return u;
   }
 
+  /*
+    THE HISTORY'S SNAPSHOTS ARE BUILT WHEN THEY ARE READ (2026-09-30, the perf pass). A seeded name used to carry 8,580
+    finished snapshots — 523,000 level objects, every figure in them a boxed number: 76MB of heap a name, the watchlist
+    alone ~290MB, a Compass board of cards past a gigabyte, and the seed's time mostly spent making them. What a snapshot
+    IS, though, is the book at that bar and the spot it was read at — the figures are arithmetic on those. So the seed
+    keeps the book (61 strikes × call and put OI, as integers, packed in one array a name) and each snapshot builds its
+    levels the first time anything reads them, by the same arithmetic as computeGexSnapshot, and keeps them. The names
+    nobody draws never build theirs. The name ON SCREEN, whose charts read its whole history the moment they open, has
+    its levels built inside its seed's own slices (stepSeed), not in one go inside a chart's first frame.
+    Same numbers, to the last bit (checked the day it landed: seven names seeded on a fixed random stream hashed the
+    same, eager and packed), at a twelfth of the memory for a name off screen (6MB, from 76MB) and under half the seed
+    (~125ms a name, from ~300).
+  */
+  const WINDOW = 30; // strikes each side of spot in a snapshot — computeGexSnapshot's ±30
+  const PACKED = (2 * WINDOW + 1) * 2;
+  /** The book around `spot`, as the snapshot reads it, written into `oi` from `at` */
+  function packBook(sym: string, spot: number, oi: Int32Array, at: number): void {
+    const step = TICKERS[sym].step;
+    const book = oiBook[sym];
+    const baseStrike = Math.round(spot / step) * step;
+    for (let i = -WINDOW, j = at; i <= WINDOW; i++, j += 2) {
+      const strike = r2(baseStrike + i * step);
+      const entry = book.get(cents(strike)) ?? freshOI(strike, spot, step);
+      oi[j] = entry.callOI;
+      oi[j + 1] = entry.putOI;
+    }
+  }
+  /** The levels of a packed snapshot — computeGexSnapshot's arithmetic on the book as it was packed */
+  function levelsOf(spot: number, step: number, iv: number, oi: Int32Array, at: number): GexSnapshot['levels'] {
+    const baseStrike = Math.round(spot / step) * step;
+    const scale = 100 * spot * spot * 0.01;
+    const levels: GexSnapshot['levels'] = [];
+    for (let i = -WINDOW, j = at; i <= WINDOW; i++, j += 2) {
+      const strike = r2(baseStrike + i * step);
+      const callOI = oi[j];
+      const putOI = oi[j + 1];
+      const u = unitAt(spot, strike, iv);
+      const gamma = u.gamma / spot;
+      const callGex = callOI * gamma * scale * -0.55;
+      const putGex = putOI * gamma * scale * 0.53;
+      const dex = callOI * 100 * u.deltaCall * spot * -0.55 + putOI * 100 * u.deltaPut * spot * -0.53;
+      const vex = (callOI * -0.55 + putOI * -0.53) * 100 * u.vega * spot;
+      levels.push({ strike, value: callGex + putGex, dex, vex, callOI, putOI });
+    }
+    return levels;
+  }
+  /** A snapshot whose levels are built on first read, then kept (an own, enumerable property to every reader) */
+  function packedSnapshot(sym: string, spot: number, time: number, oi: Int32Array, at: number): GexSnapshot {
+    const { step, iv } = TICKERS[sym];
+    let levels: GexSnapshot['levels'] | null = null;
+    return {
+      time,
+      get levels() {
+        return (levels ??= levelsOf(spot, step, iv, oi, at));
+      },
+      set levels(v) {
+        levels = v;
+      },
+    };
+  }
+
   // Net GEX, DEX and VEX (all-expiry proxy) per strike at a given price, captured as one snapshot
   function computeGexSnapshot(sym: string, spot: number, time: number): GexSnapshot {
     const config = TICKERS[sym];
@@ -463,10 +540,13 @@ const Simulator = (() => {
        net short calls (−0.55) and net short puts (−0.53). */
     const scale = 100 * spot * spot * 0.01;
     const levels: GexSnapshot['levels'] = [];
+    let byZ = unitGreeks.get(iv);
+    if (!byZ) unitGreeks.set(iv, (byZ = new Map()));
     for (let i = -30; i <= 30; i++) {
       const strike = r2(baseStrike + i * step);
-      const entry = book.get(strike) ?? freshOI(strike, spot, step);
-      const u = unitAt(spot, strike, iv);
+      const entry = book.get(cents(strike)) ?? freshOI(strike, spot, step);
+      const z = Math.round(Math.log(spot / strike) * GAMMA_Q);
+      const u = byZ.get(z) ?? unitAt(spot, strike, iv);
       const gamma = u.gamma / spot;
       const callGex = entry.callOI * gamma * scale * -0.55;
       const putGex = entry.putOI * gamma * scale * 0.53;
@@ -678,7 +758,7 @@ const Simulator = (() => {
 
       // OI comes from the persistent book — walls have memory. Fallback for
       // strikes outside the maintained window (spot far from book center).
-      const entry = book.get(strike) ?? freshOI(strike, spot, step);
+      const entry = book.get(cents(strike)) ?? freshOI(strike, spot, step);
       const callOI = entry.callOI;
       const putOI = entry.putOI;
 
