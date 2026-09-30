@@ -321,6 +321,11 @@
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
 }
+/* the border's two layers: the panel's own ink stays put, the foil under it pans */
+@keyframes holo-pan-border {
+  0% { background-position: 0% 0%, 0% 50%; }
+  100% { background-position: 0% 0%, 100% 50%; }
+}
 
 @keyframes holo-glow-shift {
   0% { box-shadow: 0 0 18px -6px rgba(168, 196, 232, 0.55); }
@@ -329,11 +334,38 @@
   100% { box-shadow: 0 0 18px -6px rgba(178, 200, 226, 0.55); }
 }
 
+/* THE FOIL SETTLES (2026-09-30, the perf pass). A background that pans cannot be handed to the compositor: every frame
+   of an endless holo-pan restyled and repainted every foil on screen, on every page, for as long as it was open —
+   measured with the page sitting still, the Settings page was 7% busy and 0.8% without it, the Journal 14% and 1.2%.
+   So the foil pans when it appears — out and back, twice — and then holds; a pointer on it slides it across and back.
+   The foil itself never goes: at rest it is the gradient the reduced-motion reader already saw, and the resting
+   position IS the pan's last frame (0% 50%), so nothing jumps when it stops. In the components layer, so a foil that
+   carries its own transition utility (Pulse's holo buttons: transition-all for their hover brightness) keeps it. */
+@layer components {
+  .holo-bg,
+  .holo-text,
+  .holo-bar,
+  .holo-border,
+  .holo-ring {
+    background-position: 0% 50%;
+    transition: background-position 1.4s ease-in-out;
+  }
+  .holo-bg:hover,
+  .holo-text:hover,
+  .holo-bar:hover,
+  :hover > .holo-ring {
+    background-position: 100% 50%;
+  }
+  .holo-border:hover {
+    background-position: 0% 0%, 100% 50%;
+  }
+}
+
 /* Filled surface — active pills, CTAs, badges. Pair with dark ink text. */
 .holo-bg {
   background-image: var(--holo-gradient-bright);
   background-size: 250% 250%;
-  animation: holo-pan 4.5s ease-in-out infinite alternate;
+  animation: holo-pan 4.5s ease-in-out 2 alternate;
 }
 
 /* Gradient ink — brand marks, hero numbers, standout labels. */
@@ -343,14 +375,14 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: holo-pan 4.5s ease-in-out infinite alternate;
+  animation: holo-pan 4.5s ease-in-out 2 alternate;
 }
 
 /* Meter fills & thin rails — same foil, denser pan so short bars still shift. */
 .holo-bar {
   background-image: var(--holo-gradient);
   background-size: 350% 350%;
-  animation: holo-pan 3.5s ease-in-out infinite alternate;
+  animation: holo-pan 3.5s ease-in-out 2 alternate;
 }
 
 /* 1px living border — gradient rides the border-box under a panel-dark pad. */
@@ -362,12 +394,14 @@
   background-origin: border-box;
   background-clip: padding-box, border-box;
   background-size: 100% 100%, 250% 250%;
-  animation: holo-pan 4.5s ease-in-out infinite alternate;
+  background-position: 0% 0%, 0% 50%;
+  animation: holo-pan-border 4.5s ease-in-out 2 alternate;
 }
 
-/* Breathing chrome halo for the highest-emphasis cards/CTAs. */
+/* Breathing chrome halo for the highest-emphasis cards/CTAs — it breathes when it appears, then rests on its first breath */
 .holo-glow {
-  animation: holo-glow-shift 5s ease-in-out infinite alternate;
+  box-shadow: 0 0 18px -6px rgba(168, 196, 232, 0.55);
+  animation: holo-glow-shift 5s ease-in-out 2 alternate;
 }
 
 /* The foil as a RING ONLY — for surfaces that carry their own background
@@ -385,7 +419,7 @@
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  animation: holo-pan 4.5s ease-in-out infinite alternate;
+  animation: holo-pan 4.5s ease-in-out 2 alternate;
 }
 
 /* THE RING, FIRMER (Noah, 2026-09-21, the Map's lead lane: "the border color for the active box… seems too muted"):
@@ -490,8 +524,11 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
   to { transform: rotate(360deg); }
 }
 
+/* It TICKS, once a second (2026-09-30, the perf pass): the hand is an SVG group, and an SVG group is never handed to the
+   compositor — a smooth sweep repainted the clock sixty times a second, forever. At 14px a tick and a sweep read the
+   same; a tick costs one paint a second. */
 .animate-clock-sweep {
-  animation: clock-sweep 60s linear infinite;
+  animation: clock-sweep 60s steps(60) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

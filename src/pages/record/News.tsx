@@ -166,9 +166,12 @@ const NewsTape = ({ tape, selectedId, onPick }: { tape: GeoNewsEvent[]; selected
         x -= halfW;
         if (targetRef.current != null) targetRef.current -= halfW;
       }
+      /* only a move is written: an unchanged transform is still a style change, and the tape holds still under a
+         pointer (2026-09-30, the perf pass — a data attribute written every frame, which nothing read, restyled the
+         strip sixty times a second on top) */
+      if (x === xRef.current && strip.style.transform) return;
       xRef.current = x;
       strip.style.transform = `translate3d(${x.toFixed(2)}px,0,0)`;
-      strip.dataset.tapeX = String(Math.round(x));
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
