@@ -979,9 +979,6 @@ const Simulator = (() => {
     },
     tick,
     getGreeks: calculateGreeks,
-    /** The indicator math alone, for the engine port's reference generator
-        (scripts/indicators-ref.ts) — the same function every snapshot reads. */
-    getIndicators,
     /** The live harness's answer to "what is the market right now" for the
         scan universe. Engine modules (Compass) take this as an ARGUMENT
         instead of reading the simulator themselves — a replay harness passes

@@ -49,7 +49,3 @@ public/tiles/
 # graphify's knowledge graph of this repo (installed 2026-09-19): kept out of git until it has earned a place
 graphify-out/
 
-# the Python engine's own environment and caches
-engine/.venv/
-engine/**/__pycache__/
-engine/.pytest_cache/

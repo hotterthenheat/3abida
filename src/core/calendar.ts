@@ -18,8 +18,7 @@ import { now } from './clock';
 /** US equity market holidays. Same list moc.ts used privately — now shared.
     EXTENDED BACK TO 2016 (2026-09-17): the replay walks the tape from 2016, and a
     calendar that knew only 2026 would have counted Good Friday 2019 as a session.
-    The Python engine (engine/slayer_core/calendar.py) carries the SAME list, held
-    to this one by scripts/calendar-ref.ts. The one-offs are real: 2018-12-05 (the
+    The one-offs are real: 2018-12-05 (the
     Bush day of mourning) and 2025-01-09 (Carter). Juneteenth is observed from
     2022. Early closes (the day after Thanksgiving, Christmas Eve) are NOT here —
     the tape itself shows when trading stopped, and the harness reads it there. */
