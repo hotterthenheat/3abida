@@ -74,11 +74,15 @@ export const SETUP_KEYS = ['timeframe', 'overlays', 'indicators', 'chartStyle', 
   too (TS2353). Add a fifth overlay to StrikeChart and this file fails the
   build, instead of silently never persisting it.
 */
-const OVERLAY_KEYS = Object.keys({
+/* EXPORTED so the proof counts the real set rather than a number typed
+   once. It was `=== 4` in there while this list grew to twelve, and a
+   proof that has to be edited every time the thing it guards changes is a
+   proof that stops being run. */
+export const OVERLAY_KEYS = Object.keys({
   trails: 0, levels: 0, darkpool: 0, volume: 0, flow: 0, netDrift: 0, volDrift: 0, dexStrike: 0, session: 0, cone: 0, events: 0, alerts: 0,
 } satisfies Record<keyof ChartOverlays, number>) as (keyof ChartOverlays)[];
 
-const INDICATOR_KEYS = Object.keys({
+export const INDICATOR_KEYS = Object.keys({
   ema9: 0, ema21: 0, ema50: 0, vwap: 0, bb: 0, vwapBands: 0, sma: 0, rsi: 0, macd: 0, atrPane: 0,
 } satisfies Record<keyof ChartIndicators, number>) as (keyof ChartIndicators)[];
 
