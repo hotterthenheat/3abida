@@ -50,13 +50,32 @@ export interface NyTime {
 }
 
 let fmt: Intl.DateTimeFormat | null = null;
-const WEEKDAYS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const HOUR_MS = 3_600_000;
+/* NEW YORK'S OFFSET, ONCE AN HOUR (2026-09-30, the perf pass). Asking Intl for the wall clock is slow — a few microseconds
+   a call — and the journal's sample month asked it ~100,000 times on the way in: 830ms of a 1.1s freeze. But New York's
+   distance from UTC only changes at daylight saving, and that always lands on a whole UTC hour (02:00 local is 06:00 or
+   07:00 UTC). So Intl is asked once per UTC hour for the offset, and the wall clock is arithmetic from there — the same
+   answer to the second. */
+const offsetByHour = new Map<number, number>();
+function nyOffset(ms: number): number {
+  const hour = Math.floor(ms / HOUR_MS);
+  let off = offsetByHour.get(hour);
+  if (off === undefined) {
+    fmt ??= new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const at = hour * HOUR_MS;
+    const p: Record<string, string> = {};
+    for (const x of fmt.formatToParts(new Date(at))) p[x.type] = x.value;
+    off = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour) % 24, Number(p.minute), Number(p.second)) - at;
+    if (offsetByHour.size > 20_000) offsetByHour.clear();
+    offsetByHour.set(hour, off);
+  }
+  return off;
+}
+const two = (n: number) => (n < 10 ? `0${n}` : String(n));
 /** New York's wall clock at an instant (ms) */
 export function nyAt(ms: number): NyTime {
-  fmt ??= new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const p: Record<string, string> = {};
-  for (const x of fmt.formatToParts(new Date(ms))) p[x.type] = x.value;
-  return { date: `${p.year}-${p.month}-${p.day}`, minutes: (Number(p.hour) % 24) * 60 + Number(p.minute), seconds: Number(p.second), weekday: WEEKDAYS[p.weekday] ?? 0 };
+  const d = new Date(ms + nyOffset(ms));
+  return { date: `${d.getUTCFullYear()}-${two(d.getUTCMonth() + 1)}-${two(d.getUTCDate())}`, minutes: d.getUTCHours() * 60 + d.getUTCMinutes(), seconds: d.getUTCSeconds(), weekday: d.getUTCDay() };
 }
 
 /** A date as the calendar's Date (local noon — isTradingDay and isoDate read its local fields) */

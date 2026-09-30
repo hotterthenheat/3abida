@@ -208,4 +208,4 @@ export function sampleAccounts(): PaperAccount[] {
   return built;
 }
 /** An account's closed trades' ids, oldest first */
-const tradeIdsOf = (a: PaperAccount): string[] => optBookOf(a).trades.sort((x, y) => x.opened.at - y.opened.at).map(t => t.id);
+const tradeIdsOf = (a: PaperAccount): string[] => [...optBookOf(a).trades].sort((x, y) => x.opened.at - y.opened.at).map(t => t.id);

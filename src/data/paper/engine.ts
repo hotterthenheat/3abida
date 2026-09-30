@@ -344,7 +344,21 @@ export interface OptTrade {
 }
 const outOf = (how: OptFillHow, target: boolean): OptLeg['out'] => (how === 'expired' ? 'bell' : how === 'rule' ? 'rule' : how === 'page' ? 'page' : how === 'stop' ? 'stop' : target ? 'target' : 'hand');
 
-export function optBookOf(a: PaperAccount): { positions: OptPosition[]; trades: OptTrade[] } {
+type OptBook = { positions: OptPosition[]; trades: OptTrade[] };
+/* THE BOOK, ONCE PER CHANGE (2026-09-30, the perf pass). The book is a pure read of the account's fills and orders, and a
+   tick asks for it five or six times (the view, the held and closed trades' drawings, the events, the bell) — every time
+   walking every fill again. An account is never changed in place (a change is a new fills or orders array), so the book
+   is kept against the arrays it was read from and handed back until one of them changes. What it hands back is shared:
+   a reader that wants it in another order copies it first. */
+const books = new WeakMap<OptFill[], { orders: OptOrder[]; book: OptBook }>();
+export function optBookOf(a: PaperAccount): OptBook {
+  const kept = books.get(a.opt.fills);
+  if (kept && kept.orders === a.opt.orders) return kept.book;
+  const book = readOptBook(a);
+  books.set(a.opt.fills, { orders: a.opt.orders, book });
+  return book;
+}
+function readOptBook(a: PaperAccount): OptBook {
   interface Open {
     first: OptFill;
     qty: number;
