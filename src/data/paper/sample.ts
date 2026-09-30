@@ -8,7 +8,8 @@
   for the september calendar as static data so when i
   present it to my partner he doesnt see a whole bunch of
   blank stuff"). Two accounts — a practice account and
-  a 50K evaluation — MADE BY THE ENGINE ITSELF on a
+  a 50K evaluation — trading OPTIONS, the only thing
+  Paper trades (2026-09-30), MADE BY THE ENGINE ITSELF on a
   made-up September market: minute candles walked from a
   seed, orders placed and closed the way the desk places
   them (afterHand round every hand action, as the store
@@ -33,9 +34,8 @@
 */
 
 import { useSyncExternalStore } from 'react';
-import { EVAL_PLANS, afterHand, futBookOf, futClose, futPlace, newAccount, optBookOf, optClose, optPlace, tick, type PaperAccount, type PaperMarket } from './engine';
+import { EVAL_PLANS, afterHand, newAccount, optBookOf, optClose, optPlace, tick, type PaperAccount, type PaperMarket } from './engine';
 import { addDays, nyInstant, yearsToExpiry } from './clock';
-import { futOfFund, paperFut } from './products';
 import { expiriesAt, priceWith, type ContractId } from '../review/quotes';
 import type { DayNote, JournalEntry } from '../review/journal';
 import type { Candle } from '../../types/market';
@@ -82,7 +82,6 @@ const HOLIDAY = '2026-09-07';
 const OPEN_MIN = 9 * 60;
 const CLOSE_MIN = 16 * 60;
 const FUNDS = ['SPY', 'QQQ'] as const;
-const FUTURES: Record<string, string> = { ES: 'SPY', MES: 'SPY', NQ: 'QQQ', MNQ: 'QQQ' };
 /** A seeded 0..1 — the same September every time */
 const rng = (seed: number) => () => {
   seed = (seed * 16807) % 2147483647;
@@ -101,13 +100,9 @@ export function sampleAccounts(): PaperAccount[] {
   let day = FIRST;
   let minute = OPEN_MIN;
   let now = nyInstant(day, minute);
-  /* the day's candles by symbol, walked a minute at a time; a future's are its fund's, turned */
+  /* the day's candles by name, walked a minute at a time */
   let bars: Record<string, Candle[]> = {};
-  const turn = (b: Candle, symbol: string): Candle => {
-    const p = paperFut(symbol);
-    return { ...b, open: futOfFund(p, b.open), high: futOfFund(p, b.high), low: futOfFund(p, b.low), close: futOfFund(p, b.close) };
-  };
-  /** One more minute of tape: a candle a fund, turned for its futures; the names move to its close */
+  /** One more minute of tape: a candle a fund; the names move to its close */
   const walk = () => {
     const time = Math.floor(now / 1000);
     for (const f of FUNDS) {
@@ -118,7 +113,6 @@ export function sampleAccounts(): PaperAccount[] {
       const c = b + (r() - 0.5) * step;
       const candle: Candle = { time, open: +o.toFixed(2), high: +(Math.max(o, a, b, c) + r() * step * 0.3).toFixed(2), low: +(Math.min(o, a, b, c) - r() * step * 0.3).toFixed(2), close: +c.toFixed(2), volume: Math.round(2000 + r() * 6000) };
       (bars[f] ??= []).push(candle);
-      for (const [sym, fund] of Object.entries(FUTURES)) if (fund === f) (bars[sym] ??= []).push(turn(candle, sym));
       px[f] = candle.close;
     }
     minute += 1;
@@ -129,7 +123,6 @@ export function sampleAccounts(): PaperAccount[] {
     life: 'SAMPLE',
     optQuote: (c: ContractId) => priceWith(c, px[c.ticker], yearsToExpiry(c.expiry, now), 0.15),
     optQuoteAt: (c: ContractId, spot: number) => priceWith(c, spot, yearsToExpiry(c.expiry, now), 0.15),
-    fut: (s: string) => futOfFund(paperFut(s), px[paperFut(s).fund]),
     bar: () => Math.floor(now / 1000),
     candles: (t: string) => bars[t] ?? [],
     open: () => true,
@@ -142,62 +135,49 @@ export function sampleAccounts(): PaperAccount[] {
 
   while (day <= LAST) {
     const wd = new Date(`${day}T12:00:00`).getDay();
-    const sundayEvening = day === '2026-09-20';
-    if ((wd >= 1 && wd <= 5 && day !== HOLIDAY) || sundayEvening) {
+    if (wd >= 1 && wd <= 5 && day !== HOLIDAY) {
       /* the day opens with a small gap, and its tape starts an hour before the first trade could */
-      const from = sundayEvening ? 18 * 60 : OPEN_MIN;
-      const to = sundayEvening ? 21 * 60 : CLOSE_MIN;
       for (const f of FUNDS) px[f] = +(px[f] * (1 + (r() - 0.5) * 0.006)).toFixed(2);
       bars = {};
       lean = { SPY: 0, QQQ: 0 };
-      minute = from;
+      minute = OPEN_MIN;
       now = nyInstant(day, minute);
       /* one to four trades a day, the morning mostly; the evaluation trades from Sep 8 */
-      const n = sundayEvening ? 1 : 1 + Math.floor(r() * 3.6);
-      let at = from + 20 + Math.floor(r() * 30);
-      for (let i = 0; i < n && at < to - 45; i++) {
+      const n = 1 + Math.floor(r() * 3.6);
+      let at = OPEN_MIN + 50 + Math.floor(r() * 30);
+      for (let i = 0; i < n && at < CLOSE_MIN - 45; i++) {
         while (minute < at) walk();
-        const onEval = !sundayEvening && day >= '2026-09-08' && r() < 0.4;
+        const onEval = day >= '2026-09-08' && r() < 0.4;
         let a = onEval ? evaluation : practice;
         a = tick(a, market()).account;
         const hold = 6 + Math.floor(r() * 30);
         /* the tape leans with the trade on most of them, against it on the rest — an edge, not a certainty */
         const edge = r() < 0.56 ? 0.9 : -0.85;
-        const pick = r();
-        if (!onEval && !sundayEvening && pick < 0.3) {
-          /* a SPY call or put, a week or two out */
-          const exp = (expiriesAt('SPY', day).find(e => e.dte >= 5) ?? expiriesAt('SPY', day)[0]).iso;
-          const call = r() < 0.55;
-          const c: ContractId = { ticker: 'SPY', strike: Math.round(px.SPY), right: call ? 'C' : 'P', expiry: exp };
-          const qty = 1 + Math.floor(r() * 3);
-          a = hand(a, (x, m) => optPlace(x, m, { contract: c, side: 'buy', qty, kind: 'market' }));
-          lean.SPY = (call ? 1 : -1) * edge;
-          for (let k = 0; k < hold; k++) {
-            walk();
-            a = tick(a, market()).account;
-          }
-          lean.SPY = 0;
-          a = hand(a, (x, m) => optClose(x, m, c, qty));
-        } else {
-          const symbol = onEval ? (r() < 0.6 ? 'ES' : 'MNQ') : pick < 0.65 ? 'ES' : 'NQ';
-          const fund = FUTURES[symbol];
-          const qty = onEval ? (symbol === 'ES' ? 1 : 2 + Math.floor(r() * 3)) : 1 + Math.floor(r() * 2);
-          const long = r() < 0.55;
-          a = hand(a, (x, m) => futPlace(x, m, { symbol, side: long ? 'buy' : 'sell', qty, kind: 'market' }));
-          lean[fund] = (long ? 1 : -1) * edge;
-          for (let k = 0; k < hold; k++) {
-            walk();
-            a = tick(a, market()).account;
-          }
-          lean[fund] = 0;
-          a = hand(a, (x, m) => futClose(x, m, symbol));
+        /* THE CONTRACT: SPY most days, QQQ on the rest; a call or a put at the money — or, now and then on the practice
+           account, a vertical bought for a debit (the strike sold two out). The practice account holds a week or two; the
+           evaluation trades the near expiries, inside its plan's contracts. */
+        const fund = r() < 0.65 ? 'SPY' : 'QQQ';
+        const up = r() < 0.55;
+        const list = expiriesAt(fund, day);
+        const exp = (onEval ? (list.find(e => e.dte >= 1) ?? list[0]) : (list.find(e => e.dte >= 5) ?? list[0])).iso;
+        const strike = Math.round(px[fund]);
+        const spread = !onEval && r() < 0.2;
+        const c: ContractId = { ticker: fund, strike, right: up ? 'C' : 'P', expiry: exp, ...(spread ? { short: up ? strike + 2 : strike - 2 } : {}) };
+        const qty = onEval ? 1 + Math.floor(r() * 3) : 1 + Math.floor(r() * (spread ? 4 : 3));
+        a = hand(a, (x, m) => optPlace(x, m, { contract: c, side: 'buy', qty, kind: 'market' }));
+        lean[fund] = (up ? 1 : -1) * edge;
+        for (let k = 0; k < hold; k++) {
+          walk();
+          a = tick(a, market()).account;
         }
+        lean[fund] = 0;
+        a = hand(a, (x, m) => optClose(x, m, c, qty));
         if (onEval) evaluation = a;
         else practice = a;
         at = minute + 10 + Math.floor(r() * 50);
       }
       /* the rest of the day's tape, so a late trade's chart has its afternoon */
-      while (minute < to) walk();
+      while (minute < CLOSE_MIN) walk();
     }
     day = addDays(day, 1);
   }
@@ -229,4 +209,4 @@ export function sampleAccounts(): PaperAccount[] {
   return built;
 }
 /** An account's closed trades' ids, oldest first */
-const tradeIdsOf = (a: PaperAccount): string[] => [...futBookOf(a).trades, ...optBookOf(a).trades].sort((x, y) => x.opened.at - y.opened.at).map(t => t.id);
+const tradeIdsOf = (a: PaperAccount): string[] => optBookOf(a).trades.sort((x, y) => x.opened.at - y.opened.at).map(t => t.id);

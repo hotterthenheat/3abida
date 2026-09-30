@@ -29,9 +29,10 @@
 import { useSyncExternalStore } from 'react';
 import type { GridLayout } from '../../components/review/DeskShell';
 import type { Timeframe } from '../timeframe';
+import { indexForRetired } from './products';
 
 export interface DeskPaneSpec {
-  /** A name (its options) or a future */
+  /** A name — a stock, a fund or an index — whose options the pane trades */
   name: string;
   timeframe: Timeframe;
 }
@@ -58,13 +59,17 @@ export const PANES_OF: Record<GridLayout, number> = { '1': 1, '2h': 2, '2v': 2, 
 const LADDER: Timeframe[] = ['1m', '5m', '15m', '1h', '30m', '1D'];
 
 const deskAtRest = (name = 'SPY'): SavedDesk => ({ id: 'd1', name: 'Main', layout: '1', panes: [{ name, timeframe: '1m' }], active: 0, sync: { name: false, timeframe: false, crosshair: true } });
+/* A PANE THAT SHOWED A FUTURE shows the index it followed (ES → SPX, NQ → NDX, RTY → RUT): Paper trades options only
+   since 2026-09-30, and the index is the same market the reader was watching, now with a chain beside it */
+const optionsName = (name: string): string => indexForRetired(name) ?? name;
+const onOptions = (d: SavedDesk): SavedDesk => (d.panes.some(p => optionsName(p.name) !== p.name) ? { ...d, panes: d.panes.map(p => ({ ...p, name: optionsName(p.name) })) } : d);
 function load(): DesksState {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null') as DesksState | null;
-    if (raw && Array.isArray(raw.desks) && raw.desks.length) return { desks: raw.desks, current: raw.desks.some(d => d.id === raw.current) ? raw.current : raw.desks[0].id, quick: typeof raw.quick === 'number' ? raw.quick : undefined };
+    if (raw && Array.isArray(raw.desks) && raw.desks.length) return { desks: raw.desks.map(onOptions), current: raw.desks.some(d => d.id === raw.current) ? raw.current : raw.desks[0].id, quick: typeof raw.quick === 'number' ? raw.quick : undefined };
     /* the desk before it had desks: its one name carries over */
     const old = JSON.parse(localStorage.getItem(LEGACY) ?? 'null') as { name?: string } | null;
-    const first = deskAtRest(old?.name ?? 'SPY');
+    const first = deskAtRest(optionsName(old?.name ?? 'SPY'));
     return { desks: [first], current: first.id };
   } catch {
     const first = deskAtRest();

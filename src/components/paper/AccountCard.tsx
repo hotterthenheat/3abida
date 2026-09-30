@@ -10,18 +10,18 @@
   leaves more room for the chart to move closer to the
   top"). What the strip said, as a card:
 
-    PRACTICE     WORTH first — cash, the options at the
-                 mark, the futures up or down — then
-                 today and all time in their direction's
-                 ink, what is free, what is open; and a
-                 bar of what is TIED UP (the options'
-                 worth and the margin held)
+    PRACTICE     WORTH first — cash and the options at
+                 the mark — then today and all time in
+                 their direction's ink, what is free,
+                 what is open; and a bar of what is TIED
+                 UP in options (Paper trades nothing else
+                 since 2026-09-30, so nothing is margined)
     EVALUATION   the figure that INVERTS: ROOM TO THE
                  FLOOR first (in the warn ink when a
                  quarter of the allowance or less is
                  left), then what it is worth, the day
                  and the day's room, the contract count,
-                 the days traded, the clock to 16:59 —
+                 the days traded, the clock to 15:59 —
                  and one bar from the floor to the target
 
   THE ACCOUNT IN HAND is the card's head: the picker
@@ -107,22 +107,18 @@ const FloorBar = ({ ev, worth }: { ev: EvalRead; worth: number }) => {
   );
 };
 
-/** WHAT IS TIED UP of what the account is worth: the options' worth and the margin held */
+/** WHAT IS TIED UP of what the account is worth: the options held, at the mark */
 const TiedBar = ({ v }: { v: PaperView }) => {
   const worth = Math.max(1, v.equity);
   const opt = Math.max(0, v.optValue);
-  const margin = Math.max(0, v.marginHeld);
   const w = (x: number) => `${Math.min(100, (x / worth) * 100).toFixed(2)}%`;
   return (
     <div className="w-full" data-paper-tied>
       <div className="relative h-[5px] rounded-full bg-ink/[0.08] overflow-hidden flex" aria-hidden="true">
         <span className="h-full bg-silver/70" style={{ width: w(opt) }} />
-        <span className="h-full bg-textMuted/60" style={{ width: w(margin) }} />
       </div>
       <div className="mt-1 font-mono text-[9px] tnum text-textMuted">
-        tied up <span className="text-textSecondary">{usd(opt + margin, 0)}</span> of {usd(v.equity, 0)}
-        {opt > 0 && <span> · options {usd(opt, 0)}</span>}
-        {margin > 0 && <span> · margin {usd(margin, 0)}</span>}
+        tied up in options <span className="text-textSecondary">{usd(opt, 0)}</span> of {usd(v.equity, 0)}
       </div>
     </div>
   );
@@ -151,11 +147,11 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
   const [ending, setEnding] = useState(false);
   const status = STATUS[a.status];
   const options: DropdownOption<string>[] = accounts.map(x => ({ value: x.id, label: x.name, hint: `${x.kind === 'practice' ? 'Practice' : 'An evaluation'} · ${STATUS[x.status].word.toLowerCase()}${x.status === 'open' ? '' : x.statusWhy ? ` — ${x.statusWhy}` : ''}` }));
-  const open = v.opt.length + v.fut.length;
-  const working = [...a.opt.orders, ...a.fut.orders].filter(o => o.status === 'working').length;
+  const open = v.opt.length;
+  const working = a.opt.orders.filter(o => o.status === 'working').length;
   const tight = ev ? ev.room <= ev.plan.maxLoss * 0.25 : false;
   const flatIn = ev ? ev.flatBy - now : 0;
-  const flatWords = !ev ? '' : ev.inFlatWindow ? 'flat into the close' : nyAt(ev.flatBy).date === nyAt(now).date ? untilWords(flatIn) : `${new Date(ev.flatBy).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })} 16:59`;
+  const flatWords = !ev ? '' : ev.inFlatWindow ? 'flat into the close' : nyAt(ev.flatBy).date === nyAt(now).date ? untilWords(flatIn) : `${new Date(ev.flatBy).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })} 15:59`;
   const running = accounts.find(x => x.kind === 'evaluation' && x.status === 'open') ?? null;
 
   return (
@@ -167,7 +163,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           {status.word}
         </span>
         {a.sandbox && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary" title="Fees off, and futures fill at the price — practice with nothing in the way">
+          <span className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary" title="Fees off — practice with nothing in the way">
             Sandbox
           </span>
         )}
@@ -200,7 +196,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                   {onPractice && (
                     <>
                       <p className="text-[12px] font-medium text-textPrimary">A practice account</p>
-                      <p className="mt-1 text-[11px] leading-snug text-textMuted">Options and futures, from the size you pick. The practice account you have now is closed at the market first, and stays in the list.</p>
+                      <p className="mt-1 text-[11px] leading-snug text-textMuted">Options — calls, puts and debit spreads — from the size you pick. The practice account you have now is closed at the market first, and stays in the list.</p>
                       <div className="mt-2.5 grid grid-cols-4 gap-1.5">
                         {PRACTICE_SIZES.map(size => (
                           <button
@@ -222,7 +218,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                   {onEvaluation && (
                     <div className={onPractice ? 'mt-3 pt-3 border-t border-borderSubtle/70' : ''}>
                       <p className="text-[12px] font-medium text-textPrimary">An evaluation</p>
-                      <p className="mt-1 text-[11px] leading-snug text-textMuted">A prop firm’s test: futures only, a floor that follows the best close, a day’s limit, two trading days, no day more than half the profit, flat by 16:59 New York.</p>
+                      <p className="mt-1 text-[11px] leading-snug text-textMuted">A prop firm’s test, on options: a floor that follows the best close, a day’s limit, a cap on the contracts open at once, two trading days, no day more than half the profit, flat by 15:59 New York.</p>
                       {/* the plans as a small table — a head row says what each figure is (PlanRows) */}
                       <div className="mt-2.5">
                         <PlanRows
@@ -270,9 +266,9 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           {a.status !== 'open' && a.statusWhy ? (
             <span className={a.status === 'failed' ? 'text-bear' : a.status === 'passed' ? 'text-bull' : 'text-textSecondary'}>{a.statusWhy}</span>
           ) : ev ? (
-            `Futures only · the floor follows ${ev.plan.trailing === 'eod' ? 'the best close' : 'the best moment, open trades in'} · flat by 16:59 New York`
+            `Options · the floor follows ${ev.plan.trailing === 'eod' ? 'the best close' : 'the best moment, open trades in'} · flat by 15:59 New York`
           ) : (
-            `Options and futures · $${a.fee.toFixed(2)} an option each way · the account carries from day to day`
+            `Options · $${a.fee.toFixed(2)} a contract each way · the account carries from day to day`
           )}
         </p>
         <div className="grid grid-cols-3 gap-x-4 gap-y-3" data-paper-facts>
@@ -290,14 +286,14 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
               <Cell label="Today" testId="paper-today" title={`The day’s own floor is ${usd(ev.dayFloor, 0)} — reach it and the day is over`} sub={<span className={ev.dayOver ? 'text-warn' : undefined}>{ev.dayOver ? 'the day is over' : `${usd(Math.max(0, ev.dayRoom), 0)} left today`}</span>}>
                 <span className={dirInk(v.today)}>{usdSigned(v.today, 0)}</span>
               </Cell>
-              <Cell label="Contracts" testId="paper-contracts" title="Big contracts open — ten micros are one">
-                <span className={ev.contractsOpen >= ev.plan.contracts ? 'text-warn' : ''}>{+ev.contractsOpen.toFixed(1)}</span> <span className="text-textMuted">of {ev.plan.contracts}</span>
+              <Cell label="Contracts" testId="paper-contracts" title="Option contracts open — a spread counts once">
+                <span className={ev.contractsOpen >= ev.plan.contracts ? 'text-warn' : ''}>{ev.contractsOpen}</span> <span className="text-textMuted">of {ev.plan.contracts}</span>
               </Cell>
               <Cell label="Days traded" testId="paper-days" title={`The target counts once ${ev.plan.minDays} trading ${ev.plan.minDays === 1 ? 'day has' : 'days have'} a closed trade`}>
                 {ev.daysTraded} <span className="text-textMuted">of {ev.plan.minDays}</span>
               </Cell>
               {a.status === 'open' && (
-                <Cell label="Flat by 16:59" testId="paper-flat-by">
+                <Cell label="Flat by 15:59" testId="paper-flat-by">
                   <span className={ev.inFlatWindow || flatIn < 15 * 60_000 ? 'text-warn' : ''}>{flatWords}</span>
                 </Cell>
               )}
@@ -316,7 +312,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
               <Cell label="All time" testId="paper-all-time">
                 <span className={dirInk(v.allTime)}>{usdSigned(v.allTime)}</span>
               </Cell>
-              <Cell label="Free" testId="paper-free" title="Cash, plus what the futures are up or down, less the margin they hold — what pays for an option or margins a future">
+              <Cell label="Free" testId="paper-free" title="The cash — what pays for an option; nothing is margined">
                 {usd(v.free)}
               </Cell>
               <Cell label="Open, up or down" testId="paper-open">
@@ -327,7 +323,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
         </div>
         {ev ? <FloorBar ev={ev} worth={v.equity} /> : <TiedBar v={v} />}
         <span className="font-mono text-[10px] tnum text-textMuted" data-paper-counts>
-          {open} open · {working} working · {v.optTrades.length + v.futTrades.length} closed · <span className={dirInk(v.closed)}>{usdSigned(v.closed, 0)}</span> closed
+          {open} open · {working} working · {v.closedCount} closed · <span className={dirInk(v.closed)}>{usdSigned(v.closed, 0)}</span> closed
         </span>
       </div>
     </div>

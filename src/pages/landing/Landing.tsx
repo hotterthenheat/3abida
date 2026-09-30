@@ -202,7 +202,9 @@ const STEPS: TourStep[] = [
      TRADING LEADS since 2026-09-26 (Noah: "i want the paper trading live to be the first one … change the practice headline
      to lead with paper trading"); until then OPTIONS BACKTESTING led (2026-09-20: "i want the emphasis to be put on the
      'options backtesting'… because thats not something you see everyday"), and it still stands second, with FUTURES beside
-     it (the same night: "i also want to have backtesting/paper trading for regular futures"). The brand above stays
+     it (the same night: "i also want to have backtesting/paper trading for regular futures"). PAPER IS OPTIONS ONLY since
+     2026-09-30 ("on the paper trading remove all the futures and make it strictly Options trading"): the futures stay in
+     the backtest, so the Futures row below is a replay, not the live desk. The brand above stays
      market-wide. Its pictures are the desks IN USE — the photographer starts an account or a session by the form's own
      doors, plays it forward and trades it (scripts/make-landing-shots.mjs). The lines were read against TradeZella
      ("Backtest your strategy in plain English", "replay it by hand, bar by bar"), Option Omega ("Backtest it. Automate
@@ -214,15 +216,15 @@ const STEPS: TourStep[] = [
     name: 'Practice',
     /* the headline leads with paper trading, as the room's first row does (Noah, 2026-09-26) */
     lead: 'Paper trade today’s prices, or replay a past day’s.',
-    rest: 'A practice account or a prop firm’s evaluation on the live feed — options off the chain, futures long or short, the same order card and ladder as the desk, and nothing reaches a broker. Or a past day played back a minute at a time, the whole option chain with its bid and ask at every strike, so it can be traded in calls, puts and spreads with the decay in every price. One journal keeps every closed trade.',
+    rest: 'A practice account or a prop firm’s evaluation on the live feed — calls, puts and spreads off the chain, a target and a stop on each, and nothing reaches a broker. Or a past day played back a minute at a time, the whole option chain with its bid and ask at every strike, so it can be traded in calls, puts and spreads with the decay in every price. One journal keeps every closed trade.',
     /* paper trading leads the room (Noah, 2026-09-26: "i want the paper trading live to be the first one") — its still
        is the options desk in use, not the start page (the photographer's `photo=1` window, embed.ts) */
     path: '/practice/paper',
     rows: [
-      { title: 'Paper trading, live', says: 'A practice account or a prop firm’s evaluation on today’s prices — the same order card, chain and ladder, on the live feed.', path: '/practice/paper' },
+      { title: 'Paper trading, live', says: 'A practice account or a prop firm’s evaluation on today’s prices — options only, ordered from the chain, on the live feed.', path: '/practice/paper' },
       { title: 'Options, off the real chain', says: 'Pick any contract as it was quoted that minute. A same-day one loses value while you watch.', path: '/practice/backtest' },
       { title: 'Targets and stops that know decay', says: 'Set them on the contract’s price, or pin them to the stock’s. The chart shows where each one sits right now.' },
-      { title: 'Futures, long or short', says: 'ES, NQ, oil, gold and silver, nearly round the clock, on margin. Every fill leans against you, never for you.', path: '/practice/futures' },
+      { title: 'Futures, replayed', says: 'ES, NQ, oil, gold and silver on a past day, long or short, on margin. Every fill leans against you, never for you.', path: '/practice/futures' },
       { title: 'Your own rules', says: 'How many positions, what a trade may risk, where the day stops. A trade that breaks one is refused.' },
       { title: 'The journal', says: 'Every closed trade on its chart: what it did while you held it, your tags, your words.', path: '/practice/journal' },
     ],

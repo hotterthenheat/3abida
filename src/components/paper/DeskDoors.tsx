@@ -5,11 +5,8 @@
 
   The doors in the tape's top row, where the desk puts
   its own (DeskShell's `doors`), in the house toolbar's
-  button:
-
-    THE LADDER   a future's price ladder beside the chart,
-                 opened and closed here (silver while it
-                 stands) — its own X and Esc close it too
+  button. (The futures ladder's door went with the futures,
+  2026-09-30: Paper trades options only.)
 
     THE LAYOUT   one chart · two across · two down ·
                  three (one tall) · four — a glyph each,
@@ -24,7 +21,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown, Columns2, Grid2x2, LayoutPanelLeft, Plus, Rows2, Rows3, Square, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Columns2, Grid2x2, LayoutPanelLeft, Plus, Rows2, Square, Trash2 } from 'lucide-react';
 import { barDoor, type GridLayout } from '../review/DeskShell';
 import { CARD } from '../ui/DropdownSelect';
 import { currentDesk, deleteDesk, newDesk, renameDesk, setLayout, setSync, switchDesk, useDesks, type SavedDesk } from '../../data/paper/desks';
@@ -36,14 +33,6 @@ const LAYOUTS: { value: GridLayout; label: string; icon: typeof Square }[] = [
   { value: '3', label: 'Three — one tall at the left', icon: LayoutPanelLeft },
   { value: '4', label: 'Four', icon: Grid2x2 },
 ];
-
-/** THE LADDER'S DOOR — a future's only; hidden under `lg`, where the ladder has no room beside the chart */
-export const LadderDoor = ({ open, onToggle, compact }: { open: boolean; onToggle: () => void; compact: boolean }) => (
-  <button type="button" onClick={onToggle} aria-pressed={open} title={open ? 'Close the ladder' : 'The ladder — a price a row beside the chart: press one to place an order there'} aria-label={open ? 'Close the ladder' : 'Open the ladder'} className={`${barDoor} max-lg:hidden ${open ? 'text-silver' : ''}`} data-paper-ladder-door={open ? 'open' : 'shut'}>
-    <Rows3 className="w-3.5 h-3.5" />
-    {!compact && 'Ladder'}
-  </button>
-);
 
 export const LayoutDoors = ({ compact }: { compact: boolean }) => {
   const desk = currentDesk(useDesks());

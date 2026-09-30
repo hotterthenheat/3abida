@@ -18,7 +18,7 @@ const HEADS: readonly { word: string; title: string }[] = [
   { word: 'Target', title: 'The profit that passes it' },
   { word: 'Loss limit', title: 'The most it may lose in all — a floor that follows the best close' },
   { word: 'Daily limit', title: 'The most it may lose in one day' },
-  { word: 'Contracts', title: 'The most contracts open at once — ten micros are one' },
+  { word: 'Contracts', title: 'The most option contracts open at once — a spread counts once' },
 ];
 
 /** A plan's four figures, in the heads' order */

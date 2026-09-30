@@ -19,18 +19,17 @@
     what is listed         the backtest's expiry list,
                            from today; today's leaves at
                            16:00
-    a future's price       the fund × the index's ratio +
-                           a fixed carry, on its tick
     an index               SPX · NDX · RUT (2026-09-22): the
                            fund × the same ratio, no carry —
                            its level, its candles, its vol and
                            its strike spacing; its options are
-                           a name's, on the same pricer
-    a future's candles     the fund's own, turned into
-                           the future's price (for the
-                           chart), kept up a bar at a time
+                           a name's, on the same pricer; its
+                           candles are its fund's, turned
     the chart's moment     the instant of the newest bar —
                            where a fill's arrow is drawn
+
+  NO FUTURE IS PRICED HERE (2026-09-30): Paper trades
+  options, and only options (products.ts).
 
   THE SIMULATOR IS A NEW MARKET ON EVERY PAGE LOAD
   (core/simulator.ts: Math.random, a month seeded per
@@ -48,7 +47,7 @@ import type { DeskChain, DeskContract } from '../weigherDesk';
 import type { Expiry } from '../../core/calendar';
 import { dteAt, expiriesAt, priceWith, type ContractId, type ListedExpiry, type Quote } from '../review/quotes';
 import { bellOf, nyAt, sessionFrom, yearsToExpiry } from './clock';
-import { futOfFund, indexOfFund, paperFut, paperIndex } from './products';
+import { indexOfFund, paperIndex } from './products';
 
 /** The feed is the simulator: a new market every page load, trading round the clock */
 export const SIM_FEED = true;
@@ -247,15 +246,10 @@ export function liveDeskChain(ticker: string, expiry: string, ms: number, each =
   };
 }
 
-/* ---- a future (the products: data/paper/products.ts) ---- */
-export { PAPER_FUTURES, PAPER_INDEXES, bigOf, frontOn, futOfFund, futWords, isMicro, isPaperFuture, isPaperIndex, paperFut, paperIndex, type PaperFutProduct } from './products';
-/** Where the future trades now */
-export const futNow = (symbol: string): number => {
-  const p = paperFut(symbol);
-  return futOfFund(p, spotOf(p.fund));
-};
+/* ---- the indexes (data/paper/products.ts) ---- */
+export { PAPER_INDEXES, isPaperIndex, paperIndex } from './products';
 
-/* CANDLES MADE FROM A FUND'S (a future's, an index's), kept up a bar at a time: the simulator appends a bar and rewrites
+/* CANDLES MADE FROM A FUND'S (an index's), kept up a bar at a time: the simulator appends a bar and rewrites
    the last one in place, so only the tail is turned again; a shifted buffer (its oldest bar dropped) is turned whole. A
    fresh array each time — the chart compares what it is handed. */
 const turnedCache = new Map<string, { first: number; bars: Candle[] }>();
@@ -272,11 +266,6 @@ function turned(key: string, fund: string, turn: (b: Candle) => Candle): Candle[
   for (let i = bars.length; i < src.length; i++) bars.push(turn(src[i]));
   turnedCache.set(key, { first: src[0].time, bars });
   return bars;
-}
-/** THE FUTURE'S CANDLES: its fund's, at the future's price — the fund's volume scaled to a contract's, a stand-in like the rest */
-export function futCandles(symbol: string): Candle[] {
-  const p = paperFut(symbol);
-  return turned(`fut:${p.symbol}`, p.fund, b => ({ time: b.time, open: futOfFund(p, b.open), high: futOfFund(p, b.high), low: futOfFund(p, b.low), close: futOfFund(p, b.close), volume: Math.round(b.volume / 40) }));
 }
 /** AN INDEX'S CANDLES: its fund's, at the index's level — an index trades nothing itself, so the fund's volume stands in */
 export function indexCandles(symbol: string): Candle[] {

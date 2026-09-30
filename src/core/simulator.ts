@@ -35,7 +35,7 @@ const Simulator = (() => {
     AAPL: { basePrice: 190, currentPrice: 190, iv: 0.20, step: 0.5 },
     NVDA: { basePrice: 120, currentPrice: 120, iv: 0.35, step: 0.5 },
     /* THE THIRD FUND (2026-09-22): IWM was nobody's — a hash priced it at $382, a stock's price, where the backtest's tape
-       and the Russell futures the paper desk prices off it (RTY = IWM × 10) need the fund's own. Registered, not
+       and the Russell index the paper desk prices off it (RUT = IWM × 10) need the fund's own. Registered, not
        watched: it seeds the first time something asks for it, like any name. */
     IWM: { basePrice: 221.7, currentPrice: 221.7, iv: 0.21, step: 1 }
   };

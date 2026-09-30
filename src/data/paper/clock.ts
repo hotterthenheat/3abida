@@ -11,10 +11,13 @@
 
     New York's wall clock at an instant, and the
     instant of a New York wall-clock time
-    THE TRADING DAY a moment belongs to — 17:00 to
-      17:00, the futures day every prop firm counts
-      by: 20:00 Tuesday is Wednesday's, the weekend is
-      Monday's, a market holiday the next session's
+    THE TRADING DAY a moment belongs to — the OPTIONS
+      session's, ending at the 16:00 bell (2026-09-30,
+      when Paper became options only: it was the
+      futures day, 17:00 to 17:00, which no options
+      trader counts by). 16:30 Tuesday is Wednesday's,
+      the weekend is Monday's, a market holiday the
+      next session's
     the time an option has left — the sessions after
       today up to its expiry, and what is left of
       today's 09:30–16:00 (the backtest's own
@@ -27,8 +30,12 @@ import { isTradingDay, isoDate, sessionsBetween } from '../../core/calendar';
 /** The minutes after midnight New York's clock names: the open, the bell, the flat-by and the roll */
 export const OPEN_MIN = 9 * 60 + 30;
 export const BELL_MIN = 16 * 60;
-export const FLAT_MIN = 16 * 60 + 59;
-export const ROLL_MIN = 17 * 60;
+/** An evaluation is flat a minute before the bell — nothing is carried into the close */
+export const FLAT_MIN = BELL_MIN - 1;
+/** THE DAY ROLLS AT THE BELL. Options stop trading at 16:00, a contract expiring today settles then, and a day order is done
+    then — so that is where one trading day ends and the next begins. (It was 17:00, the futures day, until Paper traded
+    options only.) */
+export const ROLL_MIN = BELL_MIN;
 export const SESSION_MIN = BELL_MIN - OPEN_MIN;
 
 export interface NyTime {
@@ -81,14 +88,14 @@ export function nyInstant(date: string, minutes: number): number {
   return at;
 }
 
-/** THE TRADING DAY a moment belongs to: the one that ends after it (17:00 New York is the edge) */
+/** THE TRADING DAY a moment belongs to: the one that ends after it (16:00 New York — the bell — is the edge) */
 export function tradingDayOf(ms: number): string {
   const t = nyAt(ms);
   return sessionFrom(t.minutes >= ROLL_MIN ? addDays(t.date, 1) : t.date);
 }
-/** When a trading day ends: 17:00 New York on its date */
+/** When a trading day ends: the 16:00 bell on its date */
 export const dayEndsAt = (day: string): number => nyInstant(day, ROLL_MIN);
-/** When it began: 17:00 on the session before it */
+/** When it began: the bell of the session before it */
 export function dayBeginsAt(day: string): number {
   let d = addDays(day, -1);
   for (let i = 0; i < 12 && !isTradingDay(dateAt(d)); i++) d = addDays(d, -1);
@@ -96,7 +103,7 @@ export function dayBeginsAt(day: string): number {
 }
 /** 16:00 New York on a date — when a contract expiring that day settles */
 export const bellOf = (date: string): number => nyInstant(date, BELL_MIN);
-/** 16:59 New York on a trading day — an evaluation's flat-by */
+/** 15:59 New York on a trading day — an evaluation's flat-by, a minute before the bell */
 export const flatByOf = (day: string): number => nyInstant(day, FLAT_MIN);
 
 /** Years of trading time an option has left at an instant: the sessions after today up to its expiry, and the share of

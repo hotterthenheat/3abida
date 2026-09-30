@@ -16,7 +16,7 @@ export const PRACTICE_SUBPAGES: PracticeSubpage[] = [
   {
     path: '/practice/paper',
     label: 'Paper',
-    subtitle: 'Trade today’s prices with pretend money — a practice account or a prop firm’s evaluation, options off the chain and futures long or short',
+    subtitle: 'Trade today’s prices with pretend money — a practice account or a prop firm’s evaluation, options only: calls, puts and spreads off the chain',
     icon: LineChart,
   },
   {

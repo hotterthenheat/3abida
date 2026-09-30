@@ -11,9 +11,10 @@
   what it is, where it came in and where it is now, what
   it is up or down, WHERE IT BREAKS EVEN (fees both ways
   in), the target and the stop riding it with the reward
-  to the risk — and the two hands a trader reaches for
-  there: Reverse (a future) and Close. Two lines at the
-  most; the rest are in the book.
+  to the risk — and the hand a trader reaches for there:
+  Close. (Reverse went with the futures, 2026-09-30 —
+  a long option has no other way to be turned.) Two
+  lines at the most; the rest are in the book.
 
   The chip on the chart's line (PositionLayer) still says
   what it is up or down beside the price; this is the
@@ -21,12 +22,12 @@
 ==================================================
 */
 
-import { ArrowLeftRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { dirInk, rWords, usdSigned } from '../review/words';
 
 export interface BarLine {
   key: string;
-  /** "Long 2 · ESZ6" · "1 × SPY 495C" */
+  /** "1 × SPY 495C" */
   label: string;
   tone: 'bull' | 'bear';
   /** The figures, in order: in at, now, breaks even, the ways out, reward to risk */
@@ -34,8 +35,6 @@ export interface BarLine {
   pnl: number;
   r: number | null;
   onClose: () => void;
-  /** A future's: close and open the same size the other way */
-  onReverse?: () => void;
   /** Why the hands wait (another tab holds the account, the account is closed) */
   locked?: string | null;
 }
@@ -60,11 +59,6 @@ const PositionBar = ({ lines }: { lines: BarLine[] }) => {
             </span>
           ))}
           <span className="ml-1 inline-flex items-center gap-1 shrink-0">
-            {l.onReverse && (
-              <button type="button" onClick={l.onReverse} disabled={!!l.locked} title={l.locked ?? 'Reverse — close it and open the same size the other way, at the market'} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-paper-reverse={l.key}>
-                <ArrowLeftRight className="w-3 h-3" /> Reverse
-              </button>
-            )}
             <button type="button" onClick={l.onClose} disabled={!!l.locked} title={l.locked ?? 'Close all of it at the market — what is working on it goes first'} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-textSecondary hover:text-bear hover:border-bear/50 disabled:opacity-30 transition-colors" data-paper-bar-close={l.key}>
               <X className="w-3 h-3" /> Close
             </button>

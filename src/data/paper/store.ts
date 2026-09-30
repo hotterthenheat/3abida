@@ -53,7 +53,7 @@ import { chime } from '../../core/sound';
 import { onFeedTick } from '../feedTicks';
 import { contractKey, type ContractId, type Quote } from '../review/quotes';
 import type { DayNote, JournalEntry } from '../review/journal';
-import { LIFE, SIM_FEED, barNowOf, candlesOf, futCandles, futNow, isPaperFuture, optionQuote, paperFut, spotForBidNow } from './feed';
+import { LIFE, SIM_FEED, barNowOf, candlesOf, optionQuote, spotForBidNow } from './feed';
 import { dayWords, nyAt } from './clock';
 import {
   afterHand,
@@ -61,13 +61,6 @@ import {
   endEvaluation,
   flattenAll,
   flattenByHand,
-  futAmend,
-  futAttach,
-  futCancel,
-  futClose,
-  futPlace,
-  futSetBreakeven,
-  futSetTrail,
   newAccount,
   optAmend,
   optAttach,
@@ -77,9 +70,9 @@ import {
   optRebase,
   optSetBreakeven,
   optSetTrail,
+  retireFutures,
   tick,
   type EvalPlan,
-  type FutDraft,
   type OptDraft,
   type PaperAccount,
   type PaperEvent,
@@ -113,9 +106,8 @@ export function liveMarket(now = Date.now()): PaperMarket {
       return q;
     },
     optQuoteAt: (c: ContractId, spot: number) => optionQuote(c, now, spot),
-    fut: (symbol: string) => futNow(symbol),
-    bar: (ticker: string) => barNowOf(isPaperFuture(ticker) ? paperFut(ticker).fund : ticker),
-    candles: (ticker: string) => (isPaperFuture(ticker) ? futCandles(ticker) : candlesOf(ticker)),
+    bar: (ticker: string) => barNowOf(ticker),
+    candles: (ticker: string) => candlesOf(ticker),
     /* THE SIMULATED FEED NEVER SHUTS (the rules page, "The prices") — the real feed's hours come in here */
     open: () => true,
   };
@@ -293,9 +285,15 @@ function tickAll(m: PaperMarket): void {
   const heard: PaperToast[] = [];
   const many = state.accounts.filter(a => a.status === 'open').length > 1;
   const accounts = state.accounts.map(a => {
-    let next = a;
+    /* THE FUTURES THAT WERE: anything an earlier page left open or working there is retired, once — on the real feed too,
+       where the page's own closing does not run (engine.ts retireFutures) */
+    let next = staleDone ? a : retireFutures(a, m);
     if (!staleDone && SIM_FEED) next = closeStale(next, m);
-    if (next.status !== 'open') return next;
+    if (next.status !== 'open') {
+      /* a finished account is not ticked — but what was retired from it above is still kept */
+      if (next !== a) changed = true;
+      return next;
+    }
     const r = tick(next, m);
     for (const e of r.events) {
       if (e.kind === 'roll') continue;
@@ -381,26 +379,22 @@ function act(id: string, fn: (a: PaperAccount, m: PaperMarket) => PaperAccount):
   return true;
 }
 export const placeOptOrder = (id: string, d: OptDraft) => act(id, (a, m) => optPlace(a, m, d));
-export const placeFutOrder = (id: string, d: FutDraft) => act(id, (a, m) => futPlace(a, m, d));
-/** EVERY WORKING ORDER AT ONCE — the Order card's Cancel orders (one future's, or one contract's) and Cancel all (the
-    account's); what a cancel takes with it (the other side of a group) goes the way a single cancel would take it */
-export const cancelWorking = (id: string, only?: { symbol?: string; contract?: string }) =>
+/** EVERY WORKING ORDER AT ONCE — Cancel all (the account's), or one contract's; what a cancel takes with it (the other side
+    of a group) goes the way a single cancel would take it */
+export const cancelWorking = (id: string, only?: { contract?: string }) =>
   act(id, (a, m) => {
     let x = a;
     for (const o of a.opt.orders) if (o.status === 'working' && (!only || (only.contract != null && contractKey(o.contract) === only.contract))) x = optCancel(x, m, o.id);
-    for (const o of a.fut.orders) if (o.status === 'working' && (!only || (only.symbol != null && o.symbol === only.symbol))) x = futCancel(x, m, o.id);
     return x;
   });
-/** A working order goes — either book's */
-export const cancelOrder = (id: string, orderId: string) => act(id, (a, m) => (a.opt.orders.some(o => o.id === orderId) ? optCancel(a, m, orderId) : futCancel(a, m, orderId)));
-export const amendOrder = (id: string, orderId: string, price: number) => act(id, (a, m) => (a.opt.orders.some(o => o.id === orderId) ? optAmend(a, m, orderId, price) : futAmend(a, m, orderId, price)));
+/** A working order goes */
+export const cancelOrder = (id: string, orderId: string) => act(id, (a, m) => optCancel(a, m, orderId));
+export const amendOrder = (id: string, orderId: string, price: number) => act(id, (a, m) => optAmend(a, m, orderId, price));
 export const attachOpt = (id: string, c: ContractId, kind: 'target' | 'stop', price: number, on?: 'name') => act(id, (a, m) => optAttach(a, m, c, kind, price, on));
-export const attachFut = (id: string, symbol: string, kind: 'target' | 'stop', price: number) => act(id, (a, m) => futAttach(a, m, symbol, kind, price));
-export const trailOrder = (id: string, orderId: string, on: boolean, by?: number) => act(id, (a, m) => (a.opt.orders.some(o => o.id === orderId) ? optSetTrail(a, m, orderId, on, by) : futSetTrail(a, m, orderId, on, by)));
-export const breakevenOrder = (id: string, orderId: string, on: boolean) => act(id, (a, m) => (a.opt.orders.some(o => o.id === orderId) ? optSetBreakeven(a, m, orderId, on) : futSetBreakeven(a, m, orderId, on)));
+export const trailOrder = (id: string, orderId: string, on: boolean, by?: number) => act(id, (a, m) => optSetTrail(a, m, orderId, on, by));
+export const breakevenOrder = (id: string, orderId: string, on: boolean) => act(id, (a, m) => optSetBreakeven(a, m, orderId, on));
 export const rebaseOrder = (id: string, orderId: string, to: 'name' | 'contract') => act(id, (a, m) => optRebase(a, m, orderId, to, (c, bid) => spotForBidNow(c, m.now, bid)));
 export const closeOpt = (id: string, c: ContractId, qty: number) => act(id, (a, m) => optClose(a, m, c, qty));
-export const closeFut = (id: string, symbol: string) => act(id, (a, m) => futClose(a, m, symbol));
 /** Flat, now: everything open closed at the market, everything working cancelled */
 export const flattenAccount = (id: string) => act(id, (a, m) => flattenByHand(a, m));
 export const endEval = (id: string) => act(id, (a, m) => endEvaluation(a, m));
@@ -428,7 +422,7 @@ export function startEvaluation(plan: EvalPlan): string | null {
 }
 export const setInHand = (id: string) => state.accounts.some(a => a.id === id) && commit({ inHand: id }, true);
 export const renameAccount = (id: string, name: string) => state.holding && commit({ accounts: state.accounts.map(a => (a.id === id ? { ...a, name: name.trim() || a.name } : a)) }, true);
-/** The sandbox: fees off, futures fill at the price — practice only */
+/** The sandbox: fees off — practice only */
 export const setSandbox = (id: string, on: boolean) => state.holding && commit({ accounts: state.accounts.map(a => (a.id === id && a.kind === 'practice' ? { ...a, sandbox: on || undefined } : a)) }, true);
 
 /* ================================================================== */

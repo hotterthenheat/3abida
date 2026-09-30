@@ -9,23 +9,20 @@
   yourself so add that and make that our new ticker
   selection for the paper live chart only").
 
-  THE PARTNER'S ORDER: the futures first, by their front
-  month, each with the exchange's own name for it and
-  where it trades now; then the stocks and funds with
-  their names. OURS ON TOP OF IT: ONE search box over all
-  of it — a ticker, a company, a future's name ("nasdaq"
-  finds NQ, MNQ and QQQ) — the arrow keys walking the
-  matches and Enter picking, the one on the chart in the
-  silver that means where you are.
-
-  THE INDEX OPTIONS sit between the two, as on the
-  partner's: SPX, NDX and RUT, each with where it stands
-  (our feed carries them since the same evening — made
-  from their funds, data/paper/products.ts). An evaluation
-  trades futures only: the index options and the stocks
-  are not offered there, and the card says so. A stock's
-  price is not shown: asking for one starts the simulator
-  on that name.
+  WHAT IS OFFERED IS A NAME WHOSE OPTIONS PAPER TRADES
+  (2026-09-30: "make it strictly Options trading" — the
+  futures that led the partner's list are gone from it,
+  and from Paper). THE INDEX OPTIONS first — SPX, NDX and
+  RUT, each with where it stands (made from their funds,
+  data/paper/products.ts) — then the stocks and funds
+  with their names. OURS ON TOP OF IT: ONE search box
+  over all of it — a ticker, a company, an index's name
+  ("nasdaq" finds NDX and QQQ) — the arrow keys walking
+  the matches and Enter picking, the one on the chart in
+  the silver that means where you are. A practice
+  account and an evaluation are offered the same list:
+  both trade options. A stock's price is not shown:
+  asking for one starts the simulator on that name.
 ==================================================
 */
 
@@ -34,23 +31,14 @@ import * as Popover from '@radix-ui/react-popover';
 import { ChevronDown, Search } from 'lucide-react';
 import CompanyLogo from '../ui/CompanyLogo';
 import { CARD } from '../ui/DropdownSelect';
-import { PAPER_FUTURES, frontOn, type PaperIndex } from '../../data/paper/products';
+import type { PaperIndex } from '../../data/paper/products';
 import { REVIEW_NAMES } from '../../data/review/tape';
 
 const SILVER = 'rgb(var(--silver))';
-/** The exchange's own names — what a futures trader reads on every platform (ours stay searchable) */
-const CME_NAMES: Record<string, string> = {
-  ES: 'E-mini S&P 500',
-  MES: 'Micro E-mini S&P 500',
-  NQ: 'E-mini Nasdaq-100',
-  MNQ: 'Micro E-mini Nasdaq-100',
-  RTY: 'E-mini Russell 2000',
-  M2K: 'Micro E-mini Russell 2000',
-};
 
 interface Row {
   value: string;
-  /** What the row is called — a future's front month ("ESZ6"), a stock's ticker */
+  /** What the row is called — the index's or the stock's ticker */
   code: string;
   name: string;
   /** What else a search finds it by */
@@ -60,40 +48,32 @@ interface Row {
 }
 
 interface Props {
-  /** The name on the chart: a future's product ("ES") or a stock's ticker */
+  /** The name on the chart: an index's or a stock's ticker — whose options the desk trades */
   value: string;
   onChange: (name: string) => void;
-  /** An evaluation: futures only */
-  futuresOnly: boolean;
-  /** The account's trading day — which month is the front one */
-  day: string;
-  /** Where a future trades now */
-  futPrice: (symbol: string) => number;
   /** The indexes whose options the feed carries, and where one stands now */
   indexes: PaperIndex[];
   indexPrice: (symbol: string) => number;
 }
 
-const TickerPicker = ({ value, onChange, futuresOnly, day, futPrice, indexes, indexPrice }: Props) => {
+const TickerPicker = ({ value, onChange, indexes, indexPrice }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  const futures: Row[] = PAPER_FUTURES.map(p => ({ value: p.symbol, code: frontOn(p.symbol, day), name: CME_NAMES[p.symbol] ?? p.name, keywords: `${p.symbol} ${p.name} ${p.fund} futures`, price: open ? futPrice(p.symbol) : null, decimals: p.decimals }));
   const indexRows: Row[] = indexes.map(x => ({ value: x.symbol, code: x.symbol, name: `${x.name} options`, keywords: `${x.symbol} ${x.name} index options ${x.fund}`, price: open ? indexPrice(x.symbol) : null, decimals: 2 }));
   const stocks: Row[] = useMemo(() => REVIEW_NAMES.map(n => ({ value: n.ticker, code: n.ticker, name: n.name, keywords: n.ticker, price: null, decimals: 2 })), []);
   const q = query.trim().toLowerCase();
   const hit = (r: Row) => !q || r.code.toLowerCase().includes(q) || r.value.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.keywords.toLowerCase().includes(q);
   const groups = [
-    { key: 'futures', title: 'Futures · front month', rows: futures.filter(hit) },
-    { key: 'indexes', title: 'Index options · the chain', rows: futuresOnly ? [] : indexRows.filter(hit) },
-    { key: 'stocks', title: 'Stocks & funds · their options', rows: futuresOnly ? [] : stocks.filter(hit) },
+    { key: 'indexes', title: 'Index options · the chain', rows: indexRows.filter(hit) },
+    { key: 'stocks', title: 'Stocks & funds · their options', rows: stocks.filter(hit) },
   ];
   /** Every match in the order the card shows them — what the arrow keys walk */
   const flat = groups.flatMap(g => g.rows);
-  const current = [...futures, ...indexRows, ...stocks].find(r => r.value === value);
+  const current = [...indexRows, ...stocks].find(r => r.value === value);
 
   useEffect(() => {
     setHighlight(0);
@@ -160,7 +140,7 @@ const TickerPicker = ({ value, onChange, futuresOnly, day, futPrice, indexes, in
                 ref={inputRef}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder={futuresOnly ? 'Search a future…' : 'Search a ticker, a company or a future…'}
+                placeholder="Search a ticker, a company or an index…"
                 aria-label="Search what to put on the chart"
                 className="w-full bg-transparent font-mono text-[12px] text-textPrimary placeholder:text-textMuted focus:outline-none"
                 data-paper-ticker-search
@@ -168,18 +148,16 @@ const TickerPicker = ({ value, onChange, futuresOnly, day, futPrice, indexes, in
             </div>
           </div>
           <div ref={listRef} className="max-h-[420px] overflow-y-auto overscroll-contain py-1.5" role="listbox" aria-label="What to put on the chart">
-            {flat.length === 0 && !(futuresOnly && !q) ? (
+            {flat.length === 0 ? (
               <div className="px-4 py-6 text-center font-mono text-[10px] text-textMuted" data-paper-ticker-none>
-                Nothing matches — try a ticker, a company or a future
+                Nothing matches — try a ticker, a company or an index
               </div>
             ) : (
               groups.map(g =>
-                g.rows.length === 0 && !(g.key === 'stocks' && futuresOnly) ? null : (
+                g.rows.length === 0 ? null : (
                   <div key={g.key} className="pb-1" data-paper-ticker-group={g.key}>
                     <div className="px-4 pt-2 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{g.title}</div>
-                    {g.key === 'stocks' && futuresOnly ? (
-                      <div className="px-4 pb-2 text-[11px] text-textMuted">An evaluation trades futures only — no index options, no stocks.</div>
-                    ) : (
+                    {(
                       g.rows.map(r => {
                         index += 1;
                         const i = index;

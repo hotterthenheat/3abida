@@ -143,7 +143,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: '08',
     icon: LineChart,
     ink: NAV_INK.paperDesk,
-    description: 'Trade today’s prices with pretend money — a practice account or a prop firm’s evaluation, options and futures',
+    description: 'Trade today’s prices with pretend money — a practice account or a prop firm’s evaluation, in options: calls, puts and spreads',
     group: 'Practice',
   },
   {

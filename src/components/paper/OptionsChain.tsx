@@ -13,8 +13,9 @@
 
     CALLS | PUTS   the switch that IS the direction, at the
                    chain's head — filled green or red, the
-                   way Buy and Sell are on a future — with
-                   the expiry and the Columns card beside it
+                   way Buy and Sell are on an order card —
+                   with the expiry and the Columns card
+                   beside it
     THE CHAIN      the Weigher's own grid (components/
                    weigher/ChainGrid): its columns, the
                    market's line between two strikes, the
@@ -34,8 +35,9 @@
                    with Sell to close at the bid or a limit,
                    and Buy more.
 
-  A future keeps its Order card (components/paper/
-  OrderPanel), whose pieces this borrows: the size, the
+  The pieces come from the Order card (components/paper/
+  OrderPanel — since 2026-09-30 the backtest's futures
+  card alone; Paper trades options only): the size, the
   two-way button, the price box.
 ==================================================
 */

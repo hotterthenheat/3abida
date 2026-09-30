@@ -11,20 +11,22 @@
                          name: in at, now, where it breaks
                          even with the fees both ways, the
                          ways out riding it and the reward
-                         to the risk — Reverse and Close
-    THE RIGHT-CLICK      what can be done AT A PRICE: a
-                         limit or a stop there, the market,
-                         a target or a stop put there on
-                         what is open, half or all of it
-                         closed, a reversal, what is working
+                         to the risk — and Close
+    THE RIGHT-CLICK      what can be done AT A PRICE OF THE
+                         NAME: a target or a stop put there
+                         on a contract held, all of it
+                         closed, a call or a put bought at
+                         the money, what is working
                          cancelled — at the quick size
-    A DRAWN LONG/SHORT   placed as an order: a future's at
-                         its entry (the market, a limit, or
-                         a stop that buys the break), the
-                         target and the stop riding it; an
-                         option's is a call or a put on the
-                         name, its target and its stop set
-                         ON THE NAME at the drawing's levels
+    A DRAWN LONG/SHORT   placed as an order: a call for a
+                         long and a put for a short, the
+                         strike nearest the entry, its
+                         target and its stop set ON THE
+                         NAME at the drawing's levels
+
+  OPTIONS ONLY since 2026-09-30 — the futures' half of
+  each of the three (a reversal, a limit or a stop at a
+  price, a drawn short sold) went with them.
 
   Every one goes through the store's hands (data/paper/
   store.ts), so the engine says no in its own words.
@@ -39,10 +41,8 @@ import type { BarLine } from '../../components/paper/PositionBar';
 import { usd } from '../../components/review/words';
 import { MULT, nameGoesUp } from '../../data/review/engine';
 import { contractWords, type ContractId, type Quote } from '../../data/review/quotes';
-import { onTick } from '../../data/review/futuresTape';
-import type { PaperAccount, PaperMarket, PaperView, FutDraft, OptDraft } from '../../data/paper/engine';
-import { isPaperFuture, paperFut, futWords, frontOn } from '../../data/paper/products';
-import { amendOrder, attachFut, attachOpt, cancelOrder, closeFut, closeOpt, placeFutOrder, placeOptOrder } from '../../data/paper/store';
+import type { PaperAccount, PaperMarket, PaperView, OptDraft } from '../../data/paper/engine';
+import { attachOpt, cancelOrder, closeOpt, placeOptOrder } from '../../data/paper/store';
 import { setQuick } from '../../data/paper/desks';
 
 export interface Hands {
@@ -63,7 +63,6 @@ export interface Hands {
   spotOf: (name: string) => number;
 }
 
-const sign = (long: boolean) => (long ? 1 : -1);
 
 /* ================================================================== */
 /*  THE POSITION'S BAR                                                  */
@@ -71,42 +70,6 @@ const sign = (long: boolean) => (long ? 1 : -1);
 
 export function positionLines(h: Hands, name: string): BarLine[] {
   const { account, v, lock } = h;
-  if (isPaperFuture(name)) {
-    const prod = paperFut(name);
-    return v.fut
-      .filter(p => p.symbol === name)
-      .map(p => {
-        /* breaks even where the points pay for the fees both ways: what is held came in with its fees, and goes out with as many */
-        const feeEach = account.sandbox ? 0 : prod.fee;
-        const even = p.avg + sign(p.long) * ((p.fees + feeEach * p.qty) / (prod.pointValue * p.qty));
-        const exits = account.fut.orders.filter(o => o.status === 'working' && o.exit && o.symbol === name && o.price != null);
-        const tgt = exits.filter(o => o.kind === 'limit').sort((a, b) => Math.abs(a.price! - p.avg) - Math.abs(b.price! - p.avg))[0];
-        const stp = exits.filter(o => o.kind === 'stop').sort((a, b) => Math.abs(a.price! - p.avg) - Math.abs(b.price! - p.avg))[0];
-        const facts: BarLine['facts'] = [
-          { label: 'in', value: futWords(name, p.avg) },
-          { label: 'now', value: futWords(name, p.last) },
-          { label: 'even', value: futWords(name, onTick(prod, even)) },
-        ];
-        if (tgt) facts.push({ label: 'target', value: futWords(name, tgt.price!), ink: 'text-bull' });
-        if (stp) facts.push({ label: 'stop', value: futWords(name, stp.price!), ink: 'text-bear' });
-        if (tgt && stp) {
-          const reward = Math.abs(tgt.price! - p.avg);
-          const risk = Math.abs(p.avg - stp.price!);
-          if (risk > 0) facts.push({ label: 'reward to risk', value: (reward / risk).toFixed(2) });
-        }
-        return {
-          key: p.key,
-          label: `${p.long ? 'Long' : 'Short'} ${p.qty} · ${p.contract}`,
-          tone: p.long ? ('bull' as const) : ('bear' as const),
-          facts,
-          pnl: p.pnl,
-          r: p.r,
-          onClose: () => closeFut(account.id, name),
-          onReverse: () => placeFutOrder(account.id, { symbol: name, side: p.long ? 'sell' : 'buy', qty: p.qty * 2, kind: 'market' }),
-          locked: lock ?? (account.status !== 'open' ? 'This account is closed' : null),
-        };
-      });
-  }
   return v.opt
     .filter(p => p.contract.ticker === name)
     .map(p => {
@@ -172,47 +135,6 @@ export function chartMenu(h: Hands, name: string): (price: number) => ChartMenu 
     const off = lock ?? (account.status !== 'open' ? 'This account is closed' : null);
     const sections: ChartMenuSection[] = [];
     let head: ReactNode;
-    if (isPaperFuture(name)) {
-      const prod = paperFut(name);
-      const at = onTick(prod, raw);
-      const last = m.fut(name);
-      const atW = futWords(name, at);
-      head = <MenuHead at={atW} q={q} unit={q === 1 ? 'contract' : 'contracts'} />;
-      const place = (d: Omit<FutDraft, 'qty' | 'symbol'> & { qty?: number }) => () => placeFutOrder(account.id, { symbol: name, qty: q, ...d });
-      const below = at < last;
-      const here: ChartMenuItem[] = [
-        below
-          ? { label: `Buy ${q} limit at ${atW}`, hint: 'Waits under the price — it buys a dip to here', tone: 'bull', off, run: place({ side: 'buy', kind: 'limit', price: at }), testId: 'buy-limit' }
-          : { label: `Buy ${q} stop at ${atW}`, hint: 'Waits over the price — it buys the break of here', tone: 'bull', off, run: place({ side: 'buy', kind: 'stop', price: at }), testId: 'buy-stop' },
-        below
-          ? { label: `Sell ${q} stop at ${atW}`, hint: 'Waits under the price — it sells the breakdown through here', tone: 'bear', off, run: place({ side: 'sell', kind: 'stop', price: at }), testId: 'sell-stop' }
-          : { label: `Sell ${q} limit at ${atW}`, hint: 'Waits over the price — it sells a rally to here', tone: 'bear', off, run: place({ side: 'sell', kind: 'limit', price: at }), testId: 'sell-limit' },
-      ];
-      sections.push({ items: here });
-      sections.push({ title: 'Now', items: [
-        { label: `Buy ${q} at the market`, tone: 'bull', off, run: place({ side: 'buy', kind: 'market' }), testId: 'buy-market' },
-        { label: `Sell ${q} at the market`, tone: 'bear', off, run: place({ side: 'sell', kind: 'market' }), testId: 'sell-market' },
-      ] });
-      const pos = v.fut.find(p => p.symbol === name);
-      if (pos) {
-        const targetSide = pos.long ? at > last : at < last;
-        const items: ChartMenuItem[] = [
-          targetSide
-            ? { label: `Target here — ${atW}`, hint: 'Takes the position out when it trades through here', tone: 'bull', off, run: () => attachFut(account.id, name, 'target', at), testId: 'target-here' }
-            : { label: `Stop here — ${atW}`, hint: 'Takes the position out if it trades here', tone: 'bear', off, run: () => attachFut(account.id, name, 'stop', at), testId: 'stop-here' },
-        ];
-        if (pos.qty >= 2) items.push({ label: `Close half — ${Math.floor(pos.qty / 2)}`, off, run: () => placeFutOrder(account.id, { symbol: name, side: pos.long ? 'sell' : 'buy', qty: Math.floor(pos.qty / 2), kind: 'market' }), testId: 'close-half' });
-        items.push({ label: `Close all ${pos.qty}`, off, run: () => closeFut(account.id, name), testId: 'close-all' });
-        items.push({ label: `Reverse — go ${pos.long ? 'short' : 'long'} ${pos.qty}`, off, run: () => placeFutOrder(account.id, { symbol: name, side: pos.long ? 'sell' : 'buy', qty: pos.qty * 2, kind: 'market' }), testId: 'reverse' });
-        const stops = account.fut.orders.filter(o => o.status === 'working' && o.exit && o.kind === 'stop' && o.symbol === name);
-        const even = onTick(prod, pos.avg);
-        if (stops.length && (pos.long ? last > even : last < even)) items.push({ label: `Stops to where you got in — ${futWords(name, even)}`, off, run: () => stops.forEach(o => amendOrder(account.id, o.id, even)), testId: 'stops-even' });
-        sections.push({ title: `The ${pos.long ? 'long' : 'short'} ${pos.qty} · ${pos.contract}`, items });
-      }
-      const working = account.fut.orders.filter(o => o.status === 'working' && o.symbol === name);
-      if (working.length) sections.push({ items: [{ label: `Cancel ${working.length} working on ${name}`, off, run: () => working.forEach(o => cancelOrder(account.id, o.id)), testId: 'cancel-working' }] });
-      return { head, sections };
-    }
     /* AN OPTION PANE: the chart is the NAME's, so a price here is a level of the name */
     const at = Math.round(raw * 100) / 100;
     const spot = h.spotOf(name);
@@ -266,25 +188,6 @@ export interface MarkPlan {
 export function planOfMark(h: Hands, name: string, mark: TradeMark, qty: number): MarkPlan {
   const { account, m, lock } = h;
   const long = mark.kind === 'long';
-  if (isPaperFuture(name)) {
-    const prod = paperFut(name);
-    const last = m.fut(name);
-    const entry = onTick(prod, mark.entry);
-    const target = onTick(prod, mark.target);
-    const stop = onTick(prod, mark.stop);
-    const near = Math.abs(entry - last) <= prod.tick;
-    const kind: FutDraft['kind'] = near ? 'market' : long ? (entry < last ? 'limit' : 'stop') : entry > last ? 'limit' : 'stop';
-    const how = kind === 'market' ? 'at the market' : kind === 'limit' ? `limit at ${futWords(name, entry)}` : `stop at ${futWords(name, entry)} — it ${long ? 'buys the break' : 'sells the breakdown'}`;
-    const risk = Math.abs(entry - stop) * prod.pointValue * qty;
-    const reward = Math.abs(target - entry) * prod.pointValue * qty;
-    const draft: FutDraft = { symbol: name, side: long ? 'buy' : 'sell', qty, kind, price: kind === 'market' ? undefined : entry, bracket: { targets: [{ price: target, qty }], stops: [{ price: stop, qty }] } };
-    return {
-      words: `${long ? 'Buy' : 'Sell'} ${qty} ${frontOn(name, account.day)} ${how} · target ${futWords(name, target)} · stop ${futWords(name, stop)}`,
-      money: `Risks ${usd(risk, 0)} to make ${usd(reward, 0)}${risk > 0 ? ` · ${(reward / risk).toFixed(2)} to 1` : ''}`,
-      place: n => placeFutOrder(account.id, { ...draft, qty: n, bracket: { targets: [{ price: target, qty: n }], stops: [{ price: stop, qty: n }] } }),
-      refused: lock,
-    };
-  }
   /* an option: a call for a long, a put for a short — the strike nearest the entry, its ways out ON THE NAME */
   const exp = h.expiryOf(name);
   if (!exp) return { words: `No expiry is listed for ${name} now`, money: null, place: () => undefined, refused: 'Nothing listed' };

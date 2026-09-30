@@ -1,9 +1,20 @@
 /*
 ==================================================
-  SLAYER TERMINAL - PAPER · THE ORDER CARD
+  SLAYER TERMINAL - THE ORDER CARD'S PIECES, AND A
+  FUTURE'S ORDER CARD
   (components/paper/OrderPanel.tsx)
 
-  The Live Chart's Order card, laid out the way the prop
+  SINCE 2026-09-30 PAPER TRADES OPTIONS ONLY, so the
+  futures card below is no longer on the Live Chart: it
+  is THE BACKTEST'S (pages/review/FuturesDesk.tsx), which
+  still replays futures. What the Live Chart takes from
+  this file is its PIECES — the size, the two-way button,
+  the price box, the brackets' head — which a strike's
+  dropdown in the options chain is built from
+  (components/paper/OptionsChain). The card as it was
+  laid out, for the desk that still uses it:
+
+  A future's Order card, laid out the way the prop
   firms' platforms lay theirs (Noah, 2026-09-22, with a
   picture of TopstepX: "they dont give it random buzzword
   names like 'the ticket' just simply Order"; then, of the
@@ -64,7 +75,20 @@ import LadderFields, { LADDER_AT_REST, bracketOf, type LadderDraft } from '../re
 import { dirInk, usd, usdSigned } from '../review/words';
 import type { OrderKind, Side } from '../../data/review/engine';
 import { onTick, type FutProduct } from '../../data/review/futuresTape';
-import type { FutDraft } from '../../data/paper/engine';
+import type { LadderBracket } from '../../data/review/ladder';
+
+/** A future's order, as this card drafts it — the backtest's futures desk takes it from here (Paper traded futures, and
+    kept this type, until 2026-09-30; its own engine lives in data/review/futuresEngine.ts) */
+export interface FutDraft {
+  symbol: string;
+  side: Side;
+  qty: number;
+  kind: OrderKind;
+  price?: number;
+  tif?: 'day' | 'gtc';
+  bracket?: LadderBracket;
+  tag?: string;
+}
 
 const SILVER_FILL = 'rgb(var(--silver-fill))';
 /** The sizes a press away — TopstepX's row */

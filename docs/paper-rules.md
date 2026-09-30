@@ -7,6 +7,13 @@ only backtest on past data"). One page, plain words. `src/data/paper/engine.ts` 
 its seam onto the live prices, and `scripts/paper-proof.ts` checks one against the other (`npm run review:proof`). When
 a rule changes, it changes here first.
 
+**Since 2026-09-30 Paper trades options, and only options** (2026-09-30: "on the paper trading remove all the futures and
+make it strictly Options trading"): calls, puts and debit spreads, on a stock, a fund or an index, off the chain. The
+futures stay where they are traded against the past — the backtest (`review-futures-rules.md`, `/practice/futures`) —
+and left the live account with everything that was theirs: the Order card beside the chart, the ladder, the reversal,
+the margin, and the 17:00 day. An evaluation is an options evaluation. What an account traded in futures before then is
+kept, read and never added to (below, "The futures that were").
+
 ## What it is
 
 A **paper account** trades the terminal's **live prices** with pretend money. Nothing reaches a broker. It is not the
@@ -22,50 +29,32 @@ can be called practice"). The old addresses (`/paper/*`, `/review/*`) land where
 
 Paper is **the Live Chart** (2026-09-22 — Noah: "i think we got too carried away and lost focus"; the first
 Evaluation and Journal pages were taken out the same evening) **and, since 2026-09-25, its Journal** (below). The chart — one to four panes — fills the left; the right
-column holds **the account** (the card that says which account is in hand and where it stands) and, under it, **the Order
-card** on a future or **the chain** on a stock or an index; under the chart are its **positions, orders and trades**.
+column holds **the account** (the card that says which account is in hand and where it stands) and, under it, **the
+chain** of the name on the chart; under the chart are its **positions, orders and trades**.
 Nothing stands over the chart, so it starts at the top of the page. Its top left says **whose it is and at what interval —
-"ES · 1m", no box round it** — then its **RP&L and UP&L**. Its **full screen fills the screen edge to edge** (the chart and
+"SPY · 1m", no box round it** — then its **RP&L and UP&L**. Its **full screen fills the screen edge to edge** (the chart and
 the right column's cards on hairlines, no padding round them), and there the RP&L and UP&L ride **the top strip, between
-the intervals and the indicators**. The account card keeps its own height and the Order card or the chain fills the rest
-of the column; the column is **440px on a future and 560px on a chain** ("build it with the wider column").
+the intervals and the indicators**. The account card keeps its own height and the chain fills the rest of the column; the
+column is **560px** ("build it with the wider column").
 
-**What is on the chart** is picked at the head of the chart from one list, in the partner's order: the futures by their
-front month, each with the exchange's name for it and where it trades, then the index options (SPX, NDX, RUT), then the
-stocks and funds — with one search over all of it (a ticker, a company, a future's name). An evaluation lists the futures
-only.
+**What is on the chart** is picked at the head of the chart from one list: the indexes whose options are traded (SPX,
+NDX, RUT), then the stocks and funds — with one search over all of it (a ticker, a company or an index). A practice
+account and an evaluation are offered the same names. (The futures that led the list, by their front month, left it on
+2026-09-30.)
 
-**The Order card** (a future's) is laid out the way a prop firm's platform lays it (TopstepX): the contract, where the position stands
-and the last price on one line; **Market · Limit · Stop** (a price box that steps a tick for the last two); **the size**
-(− n + and 1 · 3 · 5 · 10 · 15 — one size for the whole desk: the chart's right-click card uses it too); **Buy +n and
-Sell −n** side by side, one press each; **Join bid · Join ask**, **Close position · Reverse · Cancel orders**, **Flatten
-all · Cancel all**; and **the brackets**, always in sight. On a future the brackets are **distances in points from the
-fill** — above a buy's, below a sell's — so either button carries them, and they are kept for the next order; a market
-order's fill is a tick against the press, so that is what they are measured from. At the foot: what a press sets aside
-and costs, or the engine's own words for why it would be refused.
-
-**The ladder** (a future's, 2026-09-22 — Noah: "show me ours on the live chart for futures but it should be something that
-you can exit out of with ease"): a price a row, opened from the chart head's **Ladder** door and standing **beside the
-chart** — the chart gives it the room and takes it back when it goes. A press in **Buy** or **Sell** places the desk's size
-at that row: at the price, the market; under it, a limit to buy and a stop to sell; over it, a stop to buy and a limit to
-sell — carrying **the Order card's brackets**, the same as its own buttons. The reader's working orders sit on their rows
-(a stop marked "s"); a press on one cancels it. **Volume** is what traded at each price this session (a bar's volume spread
-over its range), and with a position open, **P&L** is what it would be up or down with the price at that row, the entry
-underlined. There is no book to show: the simulated feed has none, so no column pretends to. A press the engine would
-refuse says why at its foot. **It closes three ways**: its X, Esc inside it (never the full screen's Esc, a menu's or a
-drawing's), or the door again; it stays as it was left. On a phone or a narrow screen there is no room for it beside the
-chart, and neither it nor its door shows.
+**The Order card and the ladder** were a future's (2026-09-22) and went with the futures on 2026-09-30: an option is
+ordered from its chain (below). The Order card's pieces — the size, the two-way button, the price box — are the chain's,
+and the card itself is the backtest's futures desk's now.
 
 **Orders on the chart.** A position and its ways out are solid chips on their lines (on a LIGHT tape — Stone — the
 solid goes soft: the direction's ink on a tint of it, the way-out's count and the ✕ black, the axis labels the same; on a
 dark tape nothing moved — Noah, 2026-09-26: "too dark/thick/solid" · "should be black not a navy blue" · "the gray x
 should also become black"; index.css `.fill-bull` / `.fill-bear` / `.fill-count`). **The three chips read apart** (his
 "these cards need to look unique"): a way out says its word before its money — **TP** on a target, **SL** on a stop, TP2 /
-SL2 on a second rung — and **the position's chip alone wears the silver ring** (where you are; black on a light tape), a
-future's saying its side ("1 long"), an option's its contract ("1 × 194C"); **an order waiting to open a
-position** (or add to one) is its own chip — **Buy limit · Buy stop · Sell limit · Sell stop**, in its side's colour on an
-outline, its contracts and a × that cancels it — on a dotted line, and it drags to a new price (a stop is never let
-through the market). An option's buy waits where the name would have to stand for the contract's ask to come down to it.
+SL2 on a second rung — and **the position's chip alone wears the silver ring** (where you are; black on a light tape),
+saying its contract ("1 × 194C"); **an order waiting to open a position** (or add to one) is its own chip — **Buy
+limit**, in its side's colour on an outline, its contracts and a × that cancels it — on a dotted line, and it drags to a
+new price. An option's buy waits where the name would have to stand for the contract's ask to come down to it.
 
 **A stock's or an index's options are ordered from the chain** (2026-09-22 — Noah: "obviously the order is not a buy
 limit or a sell limit but rather a put or call and you would need the actual options chain to see the vol, decay etc like
@@ -83,14 +72,15 @@ the price in the chain is the price a press gets:
   dropdown brings its order into view inside the chain.
 - A strike the account holds says **HELD** on its row, and its dropdown turns to the position: what it is up or down,
   **what it loses a day**, **Sell −n @ the bid** or **@ a limit**, **All n**, and **Buy n more @ the ask**.
-- With no Order card beside a chain, **Cancel all** (while an order is working) and **Flatten** sit on the account card.
+- There is no Order card beside the chain: **Cancel all** (while an order is working) and **Flatten** sit on the account
+  card.
 
 Two kinds of account:
 
 - **Practice** — the reader's own. It starts with the money they choose ($10,000 · $25,000 · $50,000 · $100,000),
-  carries from day to day, and trades options and futures. A new one can be started at any time; the old one is closed at
+  carries from day to day, and trades options. A new one can be started at any time; the old one is closed at
   the market first and stays in the account list, with its trades.
-- **An evaluation** — a prop firm's test. Futures only, a set of rules that end the day or end the test, and a target
+- **An evaluation** — a prop firm's test, in options: a set of rules that end the day or end the test, and a target
   that passes it. One can run at a time. A finished one — passed, failed, or ended by the reader — is kept with its
   record.
 
@@ -104,7 +94,7 @@ two starts.
 **Today the feed is the terminal's simulator.** It trades round the clock, and it is a new market on every page load —
 so the rules below say what happens at the page's edges (below, "When the page closes"). When the real feed is wired in,
 `src/data/paper/feed.ts` is the one file that changes, and the market's hours become the exchange's: options 09:30 to
-16:00 New York, futures 18:00 to 17:00. Until then the page says "Simulated feed" wherever a figure is shown.
+16:00 New York. Until then the page says "Simulated feed" wherever a figure is shown.
 
 ### Options
 
@@ -119,33 +109,16 @@ so the rules below say what happens at the page's edges (below, "When the page c
 - What can be traded: **long calls and puts**, and **vertical spreads bought for a debit** (a bull call spread, a bear put
   spread) — the backtest's contracts, paid in cash. Spreads sold for a credit are the third round's (below).
 - **Index options** (2026-09-22 — Noah: "we will have index options so make our price feed carry that"): **SPX, NDX and
-  RUT**, each made from its fund at the ratio its futures use and no carry — SPX is SPY × 10, NDX is QQQ × 41, RUT is
-  IWM × 10 — so ES trades over SPX by exactly its 12 points of carry. Strikes every 5 points (SPX, RUT) and 25 (NDX); a
-  contract every session, as the funds list; the same pricer on the index's level and its fund's vol; a hundred to the
-  point; settled in cash at the bell. An index is never asked of the simulator by its own name: its level and its candles
-  are its fund's, turned. Only the Live Chart offers them; an evaluation does not (futures only).
-
-### Futures
-
-| Product | What it is | Priced off | A point is worth | Tick | A tick is worth | Day margin |
-| --- | --- | --- | --- | --- | --- | --- |
-| ES | S&P 500 futures | SPY × 10, plus 12 points | $50 | 0.25 | $12.50 | $1,500 |
-| MES | the micro | the same | $5 | 0.25 | $1.25 | $150 |
-| NQ | Nasdaq 100 futures | QQQ × 41, plus 45 points | $20 | 0.25 | $5.00 | $2,200 |
-| MNQ | the micro | the same | $2 | 0.25 | $0.50 | $220 |
-| RTY | Russell 2000 futures | IWM × 10, plus 6 points | $50 | 0.10 | $5.00 | $1,000 |
-| M2K | the micro | the same | $5 | 0.10 | $0.50 | $100 |
-
-- The price is the fund's live price times the index's ratio, plus a **fixed carry** (the house's index lens uses the same
-  ratios; its carry drifts a little, this one does not, so a futures chart never jumps when the fund crosses a dollar).
-  On the product's tick. The chart of a future is the fund's own candles, turned into the future's price.
-- Oil, gold and silver are on the backtest, not here: the live feed has nothing to price them off.
+  RUT**, each made from its fund at a fixed ratio — SPX is SPY × 10, NDX is QQQ × 41, RUT is IWM × 10. Strikes every 5
+  points (SPX, RUT) and 25 (NDX); a contract every session, as the funds list; the same pricer on the index's level and its
+  fund's vol; a hundred to the point; settled in cash at the bell. An index is never asked of the simulator by its own
+  name: its level and its candles are its fund's, turned. A practice account and an evaluation trade them alike.
 
 ## Orders and fills
 
 Orders are checked **on every tick of the feed** (today, every second and a half).
 
-**Options** — the backtest's table, on the live quote:
+The backtest's table, on the live quote:
 
 | Order | Fills when | At |
 | --- | --- | --- |
@@ -157,49 +130,42 @@ Orders are checked **on every tick of the feed** (today, every second and a half
 
 A **dead quote gives no fill** (a zero bid, or a spread wider than 60% of the mark). The order waits.
 
-**Futures** — the backtest's rules, leaning against the reader the same way:
-
-| Order | Fills when | At |
-| --- | --- | --- |
-| Market | at once | the price, **one tick against you** |
-| Limit buy at L (sell: the mirror) | the price trades **through** L, a tick under it — a touch is not a fill | L |
-| Stop at S (a way out, or a way in: a buy stop above the price buys the break) | the price reaches S | S, one tick against you — or the price, if it jumped past S |
-
-- **The ladder of ways out** is the backtest's, unchanged (`review-backtest-rules.md`, `review-futures-rules.md`): up to
-  three targets and two stops a position, as one group; a fill on one side makes the other side give up that many
+- **The ladder of ways out** is the backtest's, unchanged (`review-backtest-rules.md`): up to three targets and two stops
+  a position, as one group; a fill on one side makes the other side give up that many
   contracts, the furthest first; flat, everything goes; a market order out by hand is never spoken for. **Breakeven** and
   **trailing** ride a stop as they do there — a trailing stop is checked where it stands on a tick, and only then moved by
   it.
-- **A reversal** (futures): an order past flat closes the position and opens the rest the other way, as on the backtest.
-- **Fees**: options $0.65 a contract each way (both legs of a spread); futures $2.00 ($0.50 for a micro).
-- **A day order** is cancelled at the end of the trading day (17:00 New York). A GTC order waits until it fills or is
-  cancelled — and, on the simulated feed, until the page closes.
+- **Fees**: $0.65 a contract each way (both legs of a spread).
+- **A day order** is cancelled at the end of the trading day (the 16:00 bell, New York). A GTC order waits until it fills
+  or is cancelled — and, on the simulated feed, until the page closes.
 - **Expiry**: at 16:00 New York on its expiry date, a held option settles at what it is worth in the money, at the name's
-  price then; what was working on it is cancelled.
+  price then; what was working on it is cancelled. **It settles on its own day**: the settlement is written at the bell,
+  before the day rolls there, so a contract that is next seen after the bell (a Friday's, on Monday) is still Friday's —
+  in Friday's close, its trades and its days traded, never in the day the bell began.
 
 ## Money
 
 - **Cash** — what the account started with, plus everything closed, less every fee. Buying an option spends cash.
-- **Worth** — cash, plus what the options held would sell for at the bid, plus what the futures held are up or down.
-- **Margin** — a future sets its day margin aside (the table above). It is not spent; it is held.
-- **Free** — cash, plus what the futures are up or down, less the margin held: what can pay for an option or margin a
-  new future. A way in that needs more than is free is refused, in words.
+- **Worth** — cash, plus the options held at the mark (the middle of the bid and the ask).
+- **Free** — the cash: an option is paid for, never margined, so nothing is held back from it. A way in that needs more
+  than is free is refused, in words.
 - **Today** — what the account is up or down since this trading day began. **All time** — since the account began.
 
 ## The day
 
-- A **trading day** runs from **17:00 New York to 17:00 the next day** (the futures day, and the one every prop firm
-  counts by). A moment belongs to the trading day that ends after it: 10:00 Tuesday is Tuesday's; 20:00 Tuesday is
-  Wednesday's; the weekend belongs to Monday's; a market holiday to the next session's.
-- At 17:00 the day **rolls**: day orders are cancelled, the day's closing figures are written down, the next day begins
-  from what the account is worth then.
+- A **trading day** runs from **the 16:00 bell, New York, to the next session's bell** — the options day (until
+  2026-09-30 it was the futures day, 17:00 to 17:00). A moment belongs to the trading day that ends after it: 10:00
+  Tuesday is Tuesday's; 16:30 Tuesday is Wednesday's; Friday after the bell and the weekend belong to Monday's; a market
+  holiday to the next session's.
+- At the bell the day **rolls**: what expired settles first (on its own day, above), then day orders are cancelled, the
+  day's closing figures are written down, and the next day begins from what the account is worth then.
 
 ## An evaluation
 
 An evaluation is a practice run at a prop firm's test. **Its rules are hard blocks and hard stops**, and none of them ever
 refuses a way **out** of a position.
 
-| Plan | Starts at | Target | Most it may lose (trailing) | Most a day may lose | Contracts at once |
+| Plan | Starts at | Target | Most it may lose (trailing) | Most a day may lose | Option contracts at once |
 | --- | --- | --- | --- | --- | --- |
 | 50K | $50,000 | +$3,000 | $2,000 | $1,000 | 5 |
 | 100K | $100,000 | +$6,000 | $3,000 | $2,000 | 10 |
@@ -212,9 +178,11 @@ $2,000 · a day $1,000 · 5 at once") that Noah read and could not follow (2026-
 
 And on every plan:
 
-- **Futures only.** An option is refused, in words.
-- **Contracts at once** counts the big contracts: ten micros are one. A way in that would carry the count over the plan's
-  is refused.
+- **Options** — calls, puts and debit spreads, on a stock, a fund or an index, off the same chain as a practice account.
+  (Until 2026-09-30 an evaluation traded futures only.)
+- **Contracts at once** counts option contracts as they are bought: a call or a put is one, and **a debit spread is one**
+  — its sold leg covers the bought leg, it is not a second position. What is held counts; a way in that would carry the
+  count over the plan's is refused, and a limit that would carry it over when it fills is cancelled then, in words.
 - **The floor** — the most it may lose is measured from the account's high mark, and follows it up: the floor is the
   high mark less the allowance. **End of day** (how the plans start): the high mark is the best closing balance of a day.
   **Intraday** (the engine's other setting, which no page offers since the Evaluation page went): the high mark is the
@@ -222,10 +190,11 @@ And on every plan:
   The floor is enforced **as it happens**: worth at or under the floor, and the evaluation is **failed** — everything is
   closed at the market, what was working is cancelled, and the account is shut.
 - **The day's limit** — worth at or under the day's start less the plan's day allowance, and **the day is over**:
-  everything is closed at the market, what was working is cancelled, and no way in is taken until the next trading day.
-  It is not a fail.
-- **Flat by 16:59 New York.** At 16:59 everything open is closed at the market and what is working is cancelled; from
-  16:59 to the roll at 17:00, no way in is taken. Nothing is carried into the next day.
+  everything is closed at the market, what was working is cancelled, and no way in is taken until the day rolls at the
+  16:00 bell. It is not a fail.
+- **Flat by 15:59 New York.** At 15:59 everything open is closed at the market and what is working is cancelled; from
+  15:59 to the bell, no way in is taken — a way out still is. Nothing is held into the bell, so an evaluation never holds
+  a contract through its expiry, and nothing is carried into the next day.
 - **Minimum days**: the target counts once the account has traded on at least **2 trading days** (a day counts when a
   trade closed on it).
 - **One day may not be most of it**: when the target is reached, the best day's profit has to be at most **half** of the
@@ -234,8 +203,6 @@ And on every plan:
 - **Passed** is written at the roll that closes a day on or over the target, with the minimum days traded and the best-day
   rule met. A passed evaluation is shut; its record stays.
 - The reader may **end** an evaluation at any time. It is written down as ended — not passed, not failed.
-- **The liquidation line**: with a future open, the chart draws the price at which the account would reach the nearer of
-  the floor and the day's limit, if nothing else moved — exact with one position open, and labelled that way with more.
 
 ## Tilt watch (round 3)
 
@@ -249,13 +216,10 @@ the account:
 Three of these inside ten minutes, and **no new way in is taken for fifteen minutes**. A way out is never refused. The
 reader can end the pause early; the account says it was ended early.
 
-## Realistic fills and the sandbox (round 3)
+## The sandbox
 
-- **Queued limits** (a switch, on by default in an evaluation): a resting futures limit joins the back of the line at its
-  price — the contracts showing there when it was placed — and fills only once enough has traded at that price to clear
-  them. The feed publishes a bar's volume, not every print, so the line is **an estimate**, and the order says so.
-- **The sandbox** (practice only): fees off, and futures fill at the price with no tick against you. The account says so
-  in its head.
+- **The sandbox** (practice only): fees off. The account says so in its head. (Queued limits, planned for round 3, were
+  a future's and went with them.)
 
 ## When the page closes (the simulated feed)
 
@@ -283,6 +247,21 @@ A fill, a stop, a target, an expiry, a day that ended, a failed or passed evalua
 on any page**: a chip at the window's top right beside the alerts' own, for a few seconds, that opens the Live Chart. A chime
 rings where Settings says alerts are heard out loud.
 
+## The futures that were
+
+Until 2026-09-30 Paper also traded **ES, MES, NQ, MNQ, RTY and M2K**, priced off the funds (SPY × 10 plus 12 points, QQQ
+× 41 plus 45, IWM × 10 plus 6), on margin, a tick against the reader. Since then:
+
+- **Nothing new.** No card, ladder or chart offers a future; the engine has no way to place one.
+- **What was closed stays.** An account's closed futures trades are in its cash, its record, its journal and its days
+  traded — the account is worth what it was. The contracts' terms are kept in
+  `src/data/paper/products.ts` for reading them.
+- **What was still open or working is retired, once.** The first tick that sees such an account closes a position at the
+  last price the account saw it at, with no fee, and cancels a working order — each in the account's own words ("Paper
+  trades options only now"), and a line in its log. An account that never traded a future is handed back as it came.
+- **A desk that showed a future opens on the index it followed**: ES and MES on SPX, NQ and MNQ on NDX, RTY and M2K on
+  RUT — the same market, now with a chain beside it.
+
 ## The journal
 
 Paper has **its own journal** again, calendar first (2026-09-25 — Noah, on the partner's: "i love the calendar view as
@@ -306,8 +285,9 @@ one journal, two books, never mixed (the book rides the address, `?book=backtest
   its ink, its ground and its edge washed in that ink, deeper the bigger the day — with how many closed and won; today's
   edge is silver, the open day wears a silver ring, a small pen marks a day with words (it was a dot; "why do some of
   these have a little circle on them" — a mark that is not a figure has to say what it is). **A day is the calendar day the trade
-  closed on, New York's** — the desk's RP&L counts a trading day that turns at 17:00, but a journal's calendar is a
-  calendar: a Friday-night future is Friday's here (the first cut called Monday "today" on a Friday night).
+  closed on, New York's** — the desk's RP&L counts a trading day that turns at the 16:00 bell, but a journal's calendar
+  is a calendar: a trade closed after Friday's bell is Friday's here (the first cut called Monday "today" on a Friday
+  night).
 - **Beside the month, the period's figures** (side by side only from 1400px wide — narrower, the figures go under the
   month, because a four-figure day needs 60px of card and at 1280 a card beside the figures had 69 with its padding; under
   1024 the board scrolls inside its box at 760px): won · lost, what the winners made and the losers lost, the profit factor,
@@ -331,7 +311,7 @@ one journal, two books, never mixed (the book rides the address, `?book=backtest
   then **every trade in the period**, and the period as a CSV.
 - The period, the account, the open day and the month ride the address, so Back from a trade comes home as it was left.
 - **The sample accounts (for now).** Until launch the journal carries two sample accounts — a practice account and a 50K
-  evaluation — with a September of trades made by the engine itself on a made-up market (`src/data/paper/sample.ts`),
+  evaluation — with a September of options trades made by the engine itself on a made-up market (`src/data/paper/sample.ts`),
   so a first look at the journal is a full month, not a blank one (Noah, 2026-09-26, before showing his partner).
   Every sample trade has what a real one has: its candles, its ticks, its day, a few with words. The head offers
   **Hide the sample**, kept on this machine; `SAMPLE_JOURNAL` in that file is the switch, and it comes out before launch
