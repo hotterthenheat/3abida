@@ -240,7 +240,7 @@ const Sessions = () => {
         </>
       }
     >
-      <TraceGrid rows={rows} columns={columns} rowKey={r => r.s.id} onRowClick={r => navigate(`/practice/backtest/${r.s.id}`)} autoHeight animate={false} widths={{ doors: 176, start: 120, equity: 130, net: 130, trades: 120, win: 80, open: 80 }} emptyText="No sessions yet — start one above" testId="review-sessions" />
+      <TraceGrid rows={rows} columns={columns} rowKey={r => r.s.id} onRowClick={r => navigate(`/practice/backtest/${r.s.id}`)} autoHeight animate={false} noun="sessions" widths={{ doors: 176, start: 120, equity: 130, net: 130, trades: 120, win: 80, open: 80 }} emptyText="No sessions yet — start one above" testId="review-sessions" />
     </TraceBox>
   );
 };

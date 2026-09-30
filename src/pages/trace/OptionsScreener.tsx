@@ -398,7 +398,7 @@ const OptionsScreener = () => {
           </>
         }
       >
-        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing matches this cut" emptyBody="Loosen a card — the screen, the side, the tenor, the volume or premium floor." testId="screener" />
+        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight noun="contracts" emptyText="Nothing matches this cut" emptyBody="Loosen a card — the screen, the side, the tenor, the volume or premium floor." testId="screener" />
       </TraceBox>
       <BookDrill list={rows} openKey={openKey} onOpen={setOpenKey} tick={tick} />
     </>

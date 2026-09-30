@@ -67,7 +67,7 @@ import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNo
 import type { UTCTimestamp } from 'lightweight-charts';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
-import TraceBox, { Fact, RestFoot, TraceGrid, useRestCap } from '../../components/trace/TraceBox';
+import TraceBox, { Fact, TraceGrid } from '../../components/trace/TraceBox';
 import SessionsChart, { type ChartPoint } from '../../components/record/SessionsChart';
 import ContractLabel from '../../components/ui/ContractLabel';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
@@ -260,7 +260,6 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
 
   /* ---- every trade in the period ---- */
   const newestFirst = useMemo(() => [...rows].sort((a, b) => instantOf(b, b.t.closed) - instantOf(a, a.t.closed)), [rows]);
-  const cap = useRestCap(newestFirst);
   const columns = useMemo<Column<JournalRow>[]>(
     () => [
       { key: 'closed', header: 'Closed', sortValue: r => instantOf(r, r.t.closed), render: r => <span className="text-textSecondary">{whenWords(r, r.t.closed)}</span> },
@@ -490,8 +489,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
           <span className="font-mono text-[10px] tnum text-textMuted">{rows.length}</span>
           <span className="ml-auto font-mono text-[10px] text-textMuted truncate">a row opens the trade — its chart, what it did while you held it, your tags and your words</span>
         </div>
-        <TraceGrid rows={cap.shown} columns={columns} rowKey={r => r.key} onRowClick={openTrade} autoHeight animate={false} widths={{ qty: 64, held: 96, closed: 150, inout: 176 }} emptyText="Nothing closed in this period" testId={testId} />
-        <RestFoot cap={cap} noun="trades" testId={testId} />
+        <TraceGrid rows={newestFirst} columns={columns} rowKey={r => r.key} onRowClick={openTrade} autoHeight animate={false} widths={{ qty: 64, held: 96, closed: 150, inout: 176 }} emptyText="Nothing closed in this period" noun="trades" testId={testId} />
       </div>
       </Swap>
       <p className="px-1 font-mono text-[10px] text-textMuted">{source.foot}</p>

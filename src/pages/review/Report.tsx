@@ -18,7 +18,7 @@ import { useEffect, useMemo } from 'react';
 import { sayPage } from '../../components/layout/PageMeta';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import TraceBox, { Fact, RestFoot, TraceGrid, useRestCap } from '../../components/trace/TraceBox';
+import TraceBox, { Fact, TraceGrid } from '../../components/trace/TraceBox';
 import ContractLabel from '../../components/ui/ContractLabel';
 import SessionsChart, { type ChartPoint } from '../../components/record/SessionsChart';
 import type { Column } from '../../components/ui/DataTable';
@@ -50,7 +50,6 @@ const Report = () => {
     return session && pts.length ? [{ time: Math.floor(dateOf(session.startDay).getTime() / 1000) - 86400, value: 0 }, ...pts] : pts;
   }, [trades, session]);
   const newest = useMemo(() => [...trades].reverse(), [trades]);
-  const cap = useRestCap(newest);
 
   const columns = useMemo<Column<Trade>[]>(
     () => [
@@ -164,8 +163,7 @@ const Report = () => {
         </div>
       )}
 
-      <TraceGrid rows={cap.shown} columns={columns} rowKey={t => t.id} autoHeight animate={false} widths={{ qty: 70, dte: 150, delta: 100, held: 110, decay: 120 }} flexes={{ in: 1.3, out: 1.3 }} emptyText="No closed trades yet" testId="review-report" />
-      <RestFoot cap={cap} noun="trades" testId="review-report" />
+      <TraceGrid rows={newest} columns={columns} rowKey={t => t.id} autoHeight animate={false} widths={{ qty: 70, dte: 150, delta: 100, held: 110, decay: 120 }} flexes={{ in: 1.3, out: 1.3 }} emptyText="No closed trades yet" noun="trades" testId="review-report" />
     </TraceBox>
   );
 };

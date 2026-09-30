@@ -434,7 +434,7 @@ const Footprints = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing on this cut" emptyBody="No contract's open interest moved enough to show under these cards." testId="footprints" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight noun="contracts" emptyText="Nothing on this cut" emptyBody="No contract's open interest moved enough to show under these cards." testId="footprints" />
       </TraceBox>
 
       <BookDrill

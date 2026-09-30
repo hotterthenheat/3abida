@@ -559,11 +559,11 @@ const Desk = () => {
       counts={{ open: account.positions.length, working: working.length, closed: account.trades.length }}
       book={
         tab === 'open' ? (
-          <TraceGrid key="open" rows={account.positions} columns={openCols} rowKey={p => p.key} onRowClick={p => switchTo(p.contract.ticker, p.contract)} selectedKey={picked ? contractKey(picked) : null} autoHeight animate={false} widths={{ qty: 70, avg: 80, close: 84, mark: 130, theta: 120 }} emptyText="Nothing open — pick a contract in the chain" testId="review-open" />
+          <TraceGrid key="open" rows={account.positions} columns={openCols} rowKey={p => p.key} onRowClick={p => switchTo(p.contract.ticker, p.contract)} selectedKey={picked ? contractKey(picked) : null} autoHeight animate={false} noun="positions" widths={{ qty: 70, avg: 80, close: 84, mark: 130, theta: 120 }} emptyText="Nothing open — pick a contract in the chain" testId="review-open" />
         ) : tab === 'orders' ? (
-          <TraceGrid key="orders" rows={orders} columns={orderCols} rowKey={o => o.id} onRowClick={o => switchTo(o.contract.ticker, o.contract.expiry >= cursor.day ? o.contract : null)} autoHeight animate={false} widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="review-orders" />
+          <TraceGrid key="orders" rows={orders} columns={orderCols} rowKey={o => o.id} onRowClick={o => switchTo(o.contract.ticker, o.contract.expiry >= cursor.day ? o.contract : null)} autoHeight animate={false} noun="orders" widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="review-orders" />
         ) : (
-          <TraceGrid key="closed" rows={[...account.trades].reverse()} columns={closedCols} rowKey={t => t.id} autoHeight animate={false} widths={{ qty: 70 }} flexes={{ in: 1.4, out: 1.4 }} emptyText="No closed trades yet" testId="review-closed" />
+          <TraceGrid key="closed" rows={[...account.trades].reverse()} columns={closedCols} rowKey={t => t.id} autoHeight animate={false} noun="trades" widths={{ qty: 70 }} flexes={{ in: 1.4, out: 1.4 }} emptyText="No closed trades yet" testId="review-closed" />
         )
       }
     />

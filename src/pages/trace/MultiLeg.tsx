@@ -576,7 +576,7 @@ const MultiLeg = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight emptyText="No structures on this cut" emptyBody="Nothing printed as a spread, a fly or a condor under these cards today." testId="multi-leg" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight noun="structures" emptyText="No structures on this cut" emptyBody="Nothing printed as a spread, a fly or a condor under these cards today." testId="multi-leg" />
       </TraceBox>
 
       {drill && <SpreadCard trade={drill} onClose={() => setDrill(null)} />}

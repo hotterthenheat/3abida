@@ -499,7 +499,7 @@ const DarkPool = () => {
           </aside>
           {/* THE GRID */}
           <div className="flex-1 min-w-0">
-            <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openId != null ? String(openId) : null} autoHeight initialSort={{ key: 'time', dir: 'desc' }} state={view ? 'empty' : 'loading'} emptyText={view ? 'No crosses on this cut' : 'Awaiting prints'} emptyBody={view ? 'No dark print cleared the floor under these cards.' : 'The feed fills as the session crosses.'} testId="dark-pool" />
+            <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openId != null ? String(openId) : null} autoHeight noun="prints" initialSort={{ key: 'time', dir: 'desc' }} state={view ? 'empty' : 'loading'} emptyText={view ? 'No crosses on this cut' : 'Awaiting prints'} emptyBody={view ? 'No dark print cleared the floor under these cards.' : 'The feed fills as the session crosses.'} testId="dark-pool" />
           </div>
         </div>
       </TraceBox>
@@ -537,7 +537,7 @@ const DarkPool = () => {
         }
         sentence={leadersRead}
       >
-        <TraceGrid rows={leaderRows} columns={leaderColumns} widths={LEADER_WIDTHS} tooltips={LEADER_TOOLTIPS} rowKey={leaderKey} onRowClick={openLeader} selectedKey={activeTicker} autoHeight emptyText="Nothing printed dark" emptyBody="No name crossed off-exchange under these cards." testId="dark-pool-leaders" />
+        <TraceGrid rows={leaderRows} columns={leaderColumns} widths={LEADER_WIDTHS} tooltips={LEADER_TOOLTIPS} rowKey={leaderKey} onRowClick={openLeader} selectedKey={activeTicker} autoHeight noun="names" emptyText="Nothing printed dark" emptyBody="No name crossed off-exchange under these cards." testId="dark-pool-leaders" />
       </TraceBox>
     </>
   );

@@ -451,7 +451,7 @@ const Windows = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight emptyText="Nothing in this window" emptyBody="No contract traded inside it on this cut — try a wider window or a looser card." testId="windows" />
+        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight noun="contracts" emptyText="Nothing in this window" emptyBody="No contract traded inside it on this cut — try a wider window or a looser card." testId="windows" />
       </TraceBox>
 
       <BookDrill list={slices.map(s => s.row)} openKey={openKey} onOpen={setOpenKey} tick={tick} />

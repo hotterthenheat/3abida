@@ -177,36 +177,14 @@ export function columnsToColDefs<T>(columns: Column<T>[], hidden: Set<string>, w
    task of 625–668ms with the page frozen under it, and only THEN did the rows start to slide. So at rest a grid holds its
    first 80 rows (they are already ranked — the screen's own order) and a foot says how many there are and opens the rest.
    Never a door for fewer than 20 hidden rows: a door that hides a dozen is chrome. The reader's choice holds while the
-   page is open. The page's figures (premium, counts, the champions, the drill's list) still read EVERY row. */
+   page is open. The page's figures (premium, counts, the champions, the drill's list) still read EVERY row.
+   IN THE GRID ITSELF, BY THE GRID'S OWN PAGE (2026-09-30, the perf pass — Trace was the repo's own again and every one of
+   its pages drew every row: the Screener opened on 33,000 elements and a 550ms freeze). The rows are all handed to the
+   grid and the grid shows its first page of 80: a page is cut AFTER the grid sorts, so a column sorted by the reader
+   still shows the top 80 of EVERY row, not a sort of whichever 80 came first. A row opened from somewhere else that sits
+   past the page opens the rest. */
 export const ROWS_AT_REST = 80;
 const CAP_SLACK = 20;
-export interface RestCap<T> {
-  shown: T[];
-  capped: boolean;
-  /** Is there a foot at all */
-  door: boolean;
-  total: number;
-  toggle: () => void;
-}
-export function useRestCap<T>(rows: T[]): RestCap<T> {
-  const [all, setAll] = useState(false);
-  const door = rows.length > ROWS_AT_REST + CAP_SLACK;
-  const capped = door && !all;
-  const shown = useMemo(() => (capped ? rows.slice(0, ROWS_AT_REST) : rows), [rows, capped]);
-  return { shown, capped, door, total: rows.length, toggle: () => setAll(v => !v) };
-}
-export const RestFoot = <T,>({ cap, noun = 'contracts', testId }: { cap: RestCap<T>; noun?: string; testId: string }) =>
-  cap.door ? (
-    <div className="px-5 py-2.5 border-t border-borderSubtle flex items-center gap-2 text-[11px] text-textSecondary" data-rest-foot={testId} data-capped={cap.capped || undefined}>
-      <span>{cap.capped ? `The first ${ROWS_AT_REST} of ${cap.total.toLocaleString('en-US')} ${noun}` : `All ${cap.total.toLocaleString('en-US')} ${noun}`}</span>
-      <span className="text-textMuted" aria-hidden>
-        ·
-      </span>
-      <button type="button" onClick={cap.toggle} className="font-semibold text-textPrimary hover:text-silver transition-colors" data-rest-door>
-        {cap.capped ? 'Show all' : `Show the first ${ROWS_AT_REST}`}
-      </button>
-    </div>
-  ) : null;
 
 /** How many rows must come or go at once for a change to be A CUT (a card, the search) rather than the tape moving */
 const CUT_JUMP = 8;
@@ -254,11 +232,19 @@ interface TraceGridProps<T> {
   /** One line under the headline: what would put something here, or why not */
   emptyBody?: ReactNode;
   onRetry?: () => void;
+  /** What a row is, for the foot under a long list: "The first 80 of 412 contracts" */
+  noun?: string;
   testId: string;
 }
 
-export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, testId }: TraceGridProps<T>) => {
+export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, noun = 'rows', testId }: TraceGridProps<T>) => {
   const gridRef = useRef<AgGridReact<T>>(null);
+  /* THE REST (ROWS_AT_REST, above): a grid that grows shows its first page of 80 until the reader asks for all of them */
+  const [all, setAll] = useState(false);
+  const door = autoHeight && rows.length > ROWS_AT_REST + CAP_SLACK;
+  const capped = door && !all;
+  /* the row the rest was last opened FOR — asked once per row, so the reader can still fold the list back */
+  const openedFor = useRef<string | null>(null);
   const hiddenSet = hidden ?? new Set<string>();
   const columnDefs = useMemo(() => {
     const defs = columnsToColDefs(columns, hiddenSet, widths, tooltips, flexes);
@@ -354,11 +340,19 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   useEffect(() => {
     const api = gridRef.current?.api;
     if (!api) return;
+    let at: number | null = null;
     api.forEachNode(n => {
       const on = !!n.data && rowKey(n.data) === selectedKey;
       if (n.isSelected() !== on) n.setSelected(on);
+      if (on) at = n.rowIndex;
     });
-  }, [selectedKey, rows, rowKey]);
+    /* the open row sits past the first page (a link, the drill stepping on): the rest opens so it can be seen — once for
+       that row, so "Show the first 80" still folds it */
+    if (capped && at != null && at >= ROWS_AT_REST && openedFor.current !== selectedKey) {
+      openedFor.current = selectedKey ?? null;
+      setAll(true);
+    }
+  }, [selectedKey, rows, rowKey, capped]);
   /* A click on a control inside a cell (the watch mark, a door with its own
      action) is that control's, not the row's — React's stopPropagation never
      reaches the grid's native listener, so the row asks the target itself */
@@ -430,12 +424,27 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
           rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
           suppressCellFocus
           animateRows={glide}
+          pagination={capped}
+          paginationPageSize={ROWS_AT_REST}
+          paginationPageSizeSelector={false}
+          suppressPaginationPanel
           tooltipShowDelay={350}
           tooltipHideDelay={8000}
           noRowsOverlayComponent={NoRows}
           noRowsOverlayComponentParams={{ kind: state, title: emptyText, body: emptyBody, onRetry }}
         />
       </AgGridProvider>
+      {door && (
+        <div className="px-5 py-2.5 border-t border-borderSubtle flex items-center gap-2 text-[11px] text-textSecondary" data-rest-foot={testId} data-capped={capped || undefined}>
+          <span>{capped ? `The first ${ROWS_AT_REST} of ${rows.length.toLocaleString('en-US')} ${noun}` : `All ${rows.length.toLocaleString('en-US')} ${noun}`}</span>
+          <span className="text-textMuted" aria-hidden>
+            ·
+          </span>
+          <button type="button" onClick={() => setAll(v => !v)} className="font-semibold text-textPrimary hover:text-silver transition-colors" data-rest-door>
+            {capped ? 'Show all' : `Show the first ${ROWS_AT_REST}`}
+          </button>
+        </div>
+      )}
       {showTop && !autoHeight && (
         <button
           onClick={scrollToTop}
