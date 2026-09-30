@@ -356,7 +356,9 @@
 /* 1px living border — gradient rides the border-box under a panel-dark pad. */
 .holo-border {
   border: 1px solid transparent;
-  background-image: linear-gradient(#0a0a0a, #0a0a0a), var(--holo-gradient);
+  /* the panel's own ink, not a fixed #0a0a0a (the same value on the dark terminal): on the light one the fixed black
+     put the field's dark text on black — Trace's picked search box read as an empty black bar (2026-09-30) */
+  background-image: linear-gradient(rgb(var(--panel)), rgb(var(--panel))), var(--holo-gradient);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   background-size: 100% 100%, 250% 250%;

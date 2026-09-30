@@ -14,6 +14,7 @@
 
 import type { ReactNode } from 'react';
 import { DOOR, DOOR_HOVER_TEXT } from './door';
+import { withLeadingMark } from '../ui/Name';
 
 const ReadDoor = ({
   onOpen,
@@ -30,7 +31,7 @@ const ReadDoor = ({
     title={title}
     className={`inline align-baseline font-semibold text-textPrimary pb-[1px] ${DOOR} ${DOOR_HOVER_TEXT}`}
   >
-    {children}
+    {withLeadingMark(children)}
   </button>
 );
 

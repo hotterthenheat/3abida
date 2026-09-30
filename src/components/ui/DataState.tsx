@@ -1,6 +1,5 @@
-import { AlertTriangle, Inbox, CloudOff } from 'lucide-react';
+import { AlertTriangle, Loader2, Inbox, CloudOff } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { MorphingInfinity } from './Working';
 
 /*
 ==================================================
@@ -17,10 +16,7 @@ import { MorphingInfinity } from './Working';
 
   THE FOUR ARE DIFFERENT ANSWERS AND MUST NOT LOOK ALIKE:
 
-    loading      the answer is coming — the only one that should animate.
-                 Its mark is the house's "it is working" (ui/Working.tsx,
-                 2026-09-19), not a stock spinner: the box is on screen
-                 and what is in it is pending, which is that mark's job
+    loading      the answer is coming — the only one that should animate
     empty        the question is fine, the answer is legitimately nothing.
                  A tape with no prints over $1M is EMPTY, not broken, and
                  the copy should say what would put something here
@@ -42,6 +38,7 @@ import { MorphingInfinity } from './Working';
 export type DataStateKind = 'loading' | 'empty' | 'unavailable' | 'error';
 
 const ICON = {
+  loading: Loader2,
   empty: Inbox,
   unavailable: CloudOff,
   error: AlertTriangle,
@@ -76,7 +73,7 @@ const DEFAULT_TITLE: Record<DataStateKind, string> = {
 };
 
 const DataState = ({ kind, title, body, onRetry, pad = 'md', className = '' }: DataStateProps) => {
-  const Icon = kind === 'loading' ? null : ICON[kind];
+  const Icon = ICON[kind];
   return (
     <div
       /* `status` rather than `alert`: these appear on render and an alert
@@ -85,7 +82,12 @@ const DataState = ({ kind, title, body, onRetry, pad = 'md', className = '' }: D
       aria-live={kind === 'error' ? 'assertive' : 'polite'}
       className={`flex flex-col items-center justify-center gap-2 px-6 text-center ${PAD[pad]} ${className}`}
     >
-      {Icon ? <Icon size={18} strokeWidth={1.5} className={TONE[kind]} aria-hidden /> : <MorphingInfinity className={`w-7 h-7 ${TONE.loading}`} />}
+      <Icon
+        size={18}
+        strokeWidth={1.5}
+        className={`${TONE[kind]} ${kind === 'loading' ? 'animate-spin' : ''}`}
+        aria-hidden
+      />
       <span className={`font-mono text-[11px] uppercase tracking-widest ${TONE[kind]}`}>
         {title ?? DEFAULT_TITLE[kind]}
       </span>

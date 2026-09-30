@@ -15,7 +15,12 @@
 ==================================================
 */
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Link2, Save, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { filtersToParams, paramsToFilters } from '../../data/screenerViews';
+import { screenerCuts } from '../../data/screenerViews';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { applyFilters, buildFlowBook, DEFAULT_FILTERS, FLOW_SCREENS, runScreen, type BookFilters, type ScreenKey } from '../../data/flowBook';
@@ -36,9 +41,12 @@ import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnCh
 import LeanCell from '../../components/trace/LeanCell';
 import { SectorName } from '../../components/trace/SectorMark';
 import WatchStar from '../../components/trace/WatchStar';
-import TraceBox, { Champion, Fact, RestFoot, TraceGrid, useRestCap } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { ScreenerGuide } from '../../components/trace/TraceGuide';
 import { contractKey, watchContract } from '../../context/WatchContext';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 
 const FILTERS_KEY = 'slayer_screener_filters';
 const num = (v: number) => v.toLocaleString('en-US');
@@ -64,8 +72,8 @@ function loadFilters(): BookFilters {
 /* THE CARDS — the filters popover's chips and number boxes as labelled cards (the approved look) */
 const SIDE_OPTIONS: DropdownOption<BookFilters['side']>[] = [
   { value: 'ALL', label: 'Both', hint: 'Calls and puts' },
-  { value: 'C', label: 'Calls', hint: 'Calls only', tone: 'bull' },
-  { value: 'P', label: 'Puts', hint: 'Puts only', tone: 'bear' },
+  { value: 'C', label: 'Calls', hint: 'Calls only' },
+  { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
 const VOLUME_STEPS = [0, 1_000, 5_000, 25_000, 100_000];
 const VOLUME_OPTIONS: DropdownOption<number>[] = [
@@ -89,7 +97,7 @@ const MONEY_OPTIONS: DropdownOption<'any' | 'otm'>[] = [
 const snap = (v: number, steps: number[]) => steps.reduce((best, s) => (s <= v ? s : best), 0);
 
 /** The grid's own widths where flex would starve a cell */
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 124, prem: 92, iv: 100, sector: 176 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 , lean: 96 };
 const TOOLTIPS: Record<string, string> = {
   time: 'When the contract last printed — the star marks it for the Tracker',
   contract: 'The strike, the side and the expiry — click the row for the card',
@@ -103,11 +111,21 @@ const TOOLTIPS: Record<string, string> = {
 
 const OptionsScreener = () => {
   const { marketData, activeTicker } = useMarketData();
-  const [screen, setScreen] = useState<ScreenKey>('active');
-  const [filters, setFilters] = useState<BookFilters>(loadFilters);
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+
+  /* THE URL WINS OVER THE STORED FILTER. A link someone was SENT is a more
+     specific instruction than whatever this reader happened to be looking at
+     last, and opening a shared screen only to get your own old one back
+     would make links pointless. With no query, the stored filter stands. */
+  const fromUrl = useMemo(() => paramsToFilters(params, SLEEVES.map(x => x.key)), [params]);
+  const [screen, setScreen] = useState<ScreenKey>(
+    () => (fromUrl.screen && FLOW_SCREENS.some(x => x.key === fromUrl.screen) ? (fromUrl.screen as ScreenKey) : 'active')
+  );
+  const [filters, setFilters] = useState<BookFilters>(() => (fromUrl.any ? fromUrl.filters : loadFilters()));
+  const [query, setQuery] = useState(fromUrl.query);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const cuts = useSavedCuts();
 
   useEffect(() => {
     try {
@@ -117,6 +135,30 @@ const OptionsScreener = () => {
     }
   }, [filters]);
 
+  /* The address follows the screen. `replace` rather than push: tuning a
+     filter is not a place a reader wants twenty Back presses to walk through. */
+  useEffect(() => {
+    const next = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined);
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, screen, query]);
+
+  /* AND THE OTHER DIRECTION. Opening a saved view, pressing Back, or pasting
+     a link changes the address without touching state — so state follows it.
+     The guard is the same string comparison the writer uses, which is what
+     keeps the two effects from chasing each other: neither fires unless the
+     address and the screen actually disagree. */
+  useEffect(() => {
+    const mine = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined);
+    if (mine.toString() === params.toString()) return;
+    const next = paramsToFilters(params, SLEEVES.map(x => x.key));
+    setFilters(next.filters);
+    setQuery(next.query);
+    setScreen(next.screen && FLOW_SCREENS.some(x => x.key === next.screen) ? (next.screen as ScreenKey) : 'active');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
+
   const liveBook = useMemo(
     () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,20 +166,18 @@ const OptionsScreener = () => {
   );
   /* ONE hold for the whole page: paused, the book AND the tick freeze together */
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book, tick } = hold.value;
+  const { book: heldBook, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): the dates on the book, as a calendar */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((r: { key: string }) => r.key, []);
   const openRow = useCallback((r: { key: string }) => setOpenKey(r.key), []);
 
-  /* THE FIELD ANSWERS FIRST (2026-09-20): the search box and its card turn on the press; the grid's cut follows as a
-     lower-priority render, so a heavy list never holds the field's own frame */
-  const cutQuery = useDeferredValue(query);
   const rows = useMemo(() => {
     const cut = applyFilters(runScreen(book, screen), filters);
-    const nq = normSymbol(cutQuery);
+    const nq = normSymbol(query);
     return nq === '' ? cut : cut.filter(r => normSymbol(`${r.ticker}${r.strike}${r.right}`).includes(nq));
-  }, [book, screen, filters, cutQuery]);
-  /* the grid holds the first 80 at rest (TraceBox useRestCap); everything the page SAYS still reads every row */
-  const cap = useRestCap(rows);
+  }, [book, screen, filters, query]);
 
   /* Three registers per column — see components/trace/earnedInk.ts */
   const marks = useMemo(() => ({ vol: earnMarks(rows, r => r.volume), oi: earnMarks(rows, r => r.oi), doi: earnMarks(rows, r => r.deltaOI), prem: earnMarks(rows, r => r.premium) }), [rows]);
@@ -175,7 +215,7 @@ const OptionsScreener = () => {
         render: r => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={contractKey(r)} make={() => watchContract(r, 'screener')} />
-            <span className="text-[11px] text-textSecondary">{r.lastAt}</span>
+            <span className="text-[11px] text-textPrimary">{r.lastAt}</span>
           </span>
         ),
       },
@@ -198,7 +238,7 @@ const OptionsScreener = () => {
         align: 'right',
         sortValue: r => r.otmPct,
         render: r => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {r.otmPct >= 0 ? '+' : ''}
             {r.otmPct.toFixed(1)}%
           </span>
@@ -227,9 +267,9 @@ const OptionsScreener = () => {
         align: 'right',
         sortValue: r => r.deltaOI,
         render: r => {
-          if (r.deltaOI === 0) return <span className="text-textMuted">—</span>;
+          if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
           const a = Math.abs(r.deltaOI);
-          const tone = a >= marks.doi.top ? 'text-supreme font-bold' : a >= marks.doi.bar ? (r.deltaOI > 0 ? 'text-bull' : 'text-bear') : 'text-textSecondary';
+          const tone = a >= marks.doi.top ? 'text-supreme font-bold' : a >= marks.doi.bar ? (r.deltaOI > 0 ? 'text-bull' : 'text-bear') : 'text-textPrimary';
           return (
             <span className={tone}>
               {r.deltaOI > 0 ? '+' : ''}
@@ -258,10 +298,10 @@ const OptionsScreener = () => {
           </span>
         ),
       },
-      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOverOI, render: r => <span className={r.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>{r.volOverOI.toFixed(2)}</span> },
-      { key: 'sweep', header: 'Sweep', align: 'right', sortValue: r => r.sweepPct, render: r => <span className={r.sweepPct >= 40 ? 'text-textPrimary' : 'text-textSecondary'}>{r.sweepPct}%</span> },
-      { key: 'floor', header: 'Floor', align: 'right', sortValue: r => r.floorPct, render: r => (r.floorPct === 0 ? <span className="text-textMuted">—</span> : <span className={r.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textSecondary'}>{r.floorPct}%</span>) },
-      { key: 'multi', header: 'Multi', align: 'right', sortValue: r => r.multiPct, render: r => <span className={r.multiPct >= 30 ? 'text-textPrimary' : 'text-textSecondary'}>{r.multiPct}%</span> },
+      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOverOI, render: r => <span className={r.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{r.volOverOI.toFixed(2)}</span> },
+      { key: 'sweep', header: 'Sweep', align: 'right', sortValue: r => r.sweepPct, render: r => <span className={r.sweepPct >= 40 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{r.sweepPct}%</span> },
+      { key: 'floor', header: 'Floor', align: 'right', sortValue: r => r.floorPct, render: r => (r.floorPct === 0 ? <span className="text-textSecondary">—</span> : <span className={r.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{r.floorPct}%</span>) },
+      { key: 'multi', header: 'Multi', align: 'right', sortValue: r => r.multiPct, render: r => <span className={r.multiPct >= 30 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{r.multiPct}%</span> },
       { key: 'lean', header: 'Lean', align: 'right', sortValue: r => r.askPct, render: r => <LeanCell askPct={r.askPct} /> },
       { key: 'sector', header: 'Sector', sortValue: r => r.sector ?? '', render: r => <SectorName sector={r.sector} /> },
     ],
@@ -270,7 +310,7 @@ const OptionsScreener = () => {
 
   const { hidden, toggle, showAll, hideAll } = useHiddenColumns('slayer_screener_cols');
   const chooserCols = useMemo(() => columns.map(c => ({ key: c.key, label: typeof c.header === 'string' ? c.header : c.key })), [columns]);
-  const screenOptions = useMemo<DropdownOption<ScreenKey>[]>(() => FLOW_SCREENS.map(s => ({ value: s.key, label: s.label, hint: s.hint, tone: s.tone })), []);
+  const screenOptions = useMemo<DropdownOption<ScreenKey>[]>(() => FLOW_SCREENS.map(s => ({ value: s.key, label: s.label, hint: s.hint })), []);
   const tenorGroups = useMemo(() => [{ title: 'Tenor', options: SLEEVES.map(s => ({ value: s.key, label: s.label, hint: s.blurb })) }], []);
 
   return (
@@ -279,15 +319,15 @@ const OptionsScreener = () => {
         title="The book"
         sub={`${activeScreen.label} — ${activeScreen.hint} · every contract that traded today · a row opens the contract's card`}
         testId="screener"
-        data={{ screen, rows: rows.length }}
+        data={{ screen, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the book', door: 'What a row, the inks and the shares mean', body: <ScreenerGuide />, testId: 'screener-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Premium" testId="premium">
-              {fmtUsd(facts.prem)} <span className="text-textMuted">·</span> <span className="text-bull">calls {facts.callPct}%</span> <span className="text-textMuted">/</span> <span className="text-bear">puts {100 - facts.callPct}%</span>
+              {fmtUsd(facts.prem)} <span className="text-textSecondary">·</span> <span className="text-bull">calls {facts.callPct}%</span> <span className="text-textSecondary">/</span> <span className="text-bear">puts {100 - facts.callPct}%</span>
             </Fact>
             <Fact label="Contracts" testId="contracts">
-              {num(rows.length)} <span className="text-textMuted">· {facts.names} names</span>
+              {num(rows.length)} <span className="text-textSecondary">· {facts.names} names</span>
             </Fact>
             <Fact label="Built today" testId="fresh" title="Contracts trading past their open interest">
               {facts.fresh}
@@ -319,15 +359,46 @@ const OptionsScreener = () => {
             <DropdownSelect label="Volume" value={snap(filters.minVolume, VOLUME_STEPS)} options={VOLUME_OPTIONS} onChange={v => setFilters(f => ({ ...f, minVolume: v }))} title="The least volume a contract must carry" testId="screener-volume" />
             <DropdownSelect label="Premium" value={snap(filters.minPremium, PREMIUM_STEPS)} options={PREMIUM_OPTIONS} onChange={v => setFilters(f => ({ ...f, minPremium: v }))} title="The least money a contract must carry" testId="screener-premium" />
             <DropdownSelect label="Money" value={filters.excludeItm ? 'otm' : 'any'} options={MONEY_OPTIONS} onChange={v => setFilters(f => ({ ...f, excludeItm: v === 'otm' }))} title="Where the strikes sit against the stock" testId="screener-money" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="screener-expiry" />
+            {/* THE FILTER IS THE ADDRESS (data/savedViews): a tuned screen
+                lives in the query string, so it can be sent, bookmarked,
+                opened twice side by side, and saved by name. */}
+            <SavedCutsControl
+              store={screenerCuts}
+              query={filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString()}
+              onOpen={q => setParams(new URLSearchParams(q), { replace: true })}
+              noun="screen"
+              testId="screener"
+              onSay={cuts.say}
+              open={cuts.open}
+              onToggleOpen={cuts.toggle}
+            />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
           </>
         }
-        sentence={<RichRead text={sentence} />}
+        sentence={
+          <>
+            <SavedCutsList
+              store={screenerCuts}
+              query=""
+              onOpen={q => setParams(new URLSearchParams(q), { replace: true })}
+              noun="screen"
+              testId="screener"
+              onSay={cuts.say}
+              open={cuts.open}
+            />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-screener-said>
+                {cuts.said}
+              </p>
+            )}
+            <RichRead text={sentence} />
+          </>
+        }
       >
-        <TraceGrid rows={cap.shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing matches this cut today — loosen the cards" testId="screener" />
-        <RestFoot cap={cap} testId="screener" />
+        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing matches this cut" emptyBody="Loosen a card — the screen, the side, the tenor, the volume or premium floor." testId="screener" />
       </TraceBox>
       <BookDrill list={rows} openKey={openKey} onOpen={setOpenKey} tick={tick} />
     </>

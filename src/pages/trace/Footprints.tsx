@@ -17,7 +17,8 @@
 ==================================================
 */
 
-import { useCallback, useDeferredValue, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -42,18 +43,21 @@ import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import LeanCell from '../../components/trace/LeanCell';
-import TraceBox, { Champion, Fact, RestFoot, TraceGrid, useRestCap } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { FootprintsGuide } from '../../components/trace/TraceGuide';
+import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
+import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { isoDate } from '../../core/calendar';
 
 const num = (v: number) => v.toLocaleString('en-US');
 
 /* THE CARDS (the walk, 2026-09-09): the filters popover's chips as labelled cards */
 const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'ALL', label: 'Both', hint: 'Calls and puts' },
-  { value: 'C', label: 'Calls', hint: 'Calls only', tone: 'bull' },
-  { value: 'P', label: 'Puts', hint: 'Puts only', tone: 'bear' },
+  { value: 'C', label: 'Calls', hint: 'Calls only' },
+  { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, doi: 104, doipct: 84, builton: 104, streak: 76, spark: 76, earn: 84 };
+const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, doi: 104, doipct: 96, builton: 104, streak: 76, spark: 76, earn: 84 , lean: 96 };
 const TOOLTIPS: Record<string, string> = {
   oi: 'Open interest standing this morning',
   prevoi: 'Open interest standing yesterday morning',
@@ -69,14 +73,14 @@ const TOOLTIPS: Record<string, string> = {
    when the whole flow family got the three-register pass) and gained the
    SUPREME tier there - one magenta champion per column. */
 const dirInk = (v: number, m: InkMarks): string =>
-  Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? (v > 0 ? 'text-bull' : 'text-bear') : 'text-textSecondary';
+  Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? (v > 0 ? 'text-bull' : 'text-bear') : 'text-textPrimary';
 
 /** The prior session's 15-min volume shape — a whisper, not a second fact. */
 const PrevSpark = ({ values }: { values: number[] }) => (
   <svg width={52} height={14} aria-hidden className="block">
     {values.map((v, i) => {
       const h = Math.max(1, v * 13);
-      return <rect key={i} x={i * 2} y={14 - h} width={1.4} height={h} fill="rgba(237,237,237,0.35)" />;
+      return <rect key={i} x={i * 2} y={14 - h} width={1.4} height={h} fill="rgba(237,237,237,0.6)" />;
     })}
   </svg>
 );
@@ -96,22 +100,21 @@ const Footprints = () => {
   );
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book, tick } = hold.value;
+  const { book: heldBook, tick } = hold.value;
+  /* THE EXPIRY CUT (2026-09-12): the dates on the book, as a calendar */
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((r: { key: string }) => r.key, []);
   const openRow = useCallback((r: { key: string }) => setOpenKey(r.key), []);
 
-  /* the field answers first; the grid's cut follows (see the book, OptionsScreener) */
-  const cutQuery = useDeferredValue(query);
   const rows = useMemo(() => {
     const cut = runFootprintScreen(book, screen);
     const sided = side === 'ALL' ? cut : cut.filter(r => r.right === side);
-    const nq = normSymbol(cutQuery);
+    const nq = normSymbol(query);
     return nq === '' ? sided : sided.filter(r => normSymbol(`${r.ticker}${r.strike}${r.right}`).includes(nq));
-  }, [book, screen, side, cutQuery]);
-  /* every row the page READS; the grid holds the first 80 at rest (TraceBox useRestCap) — it grows with its rows, so
-     it draws every row it is given, not only what is on screen (measured 2026-09-20: 153 rows, a 270ms task) */
+  }, [book, screen, side, query]);
+  /* every row — the grid draws only what is on screen */
   const shown = rows;
-  const cap = useRestCap(rows);
 
   const loudestBuild = useMemo(
     () => [...book.filter(r => r.deltaOI > 0)].sort((a, b) => b.deltaOI - a.deltaOI)[0] ?? null,
@@ -221,7 +224,7 @@ const Footprints = () => {
         align: 'right',
         sortValue: r => r.otmPct,
         render: r => (
-          <span className="text-textSecondary">
+          <span className="text-textPrimary">
             {r.otmPct >= 0 ? '+' : ''}
             {r.otmPct.toFixed(1)}%
           </span>
@@ -251,14 +254,14 @@ const Footprints = () => {
            number still reads; it just stops shouting alongside a build forty
            times its size. */
         render: r => {
-          if (r.deltaOI === 0) return <span className="text-textMuted">—</span>;
+          if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
           const a = Math.abs(r.deltaOI);
           const ink =
             a >= marks.doi.top
               ? 'text-supreme font-bold'
               : a >= marks.doi.bar
                 ? `font-bold ${r.deltaOI > 0 ? 'text-bull' : 'text-bear'}`
-                : 'text-textSecondary';
+                : 'text-textPrimary';
           return (
             <span className={ink}>
               {r.deltaOI > 0 ? '+' : ''}
@@ -275,7 +278,7 @@ const Footprints = () => {
         // Ranked against the PERCENTAGES, not the contract counts — colour
         // only, so the absolute column stays the louder of the pair.
         render: r => {
-          if (r.deltaOI === 0) return <span className="text-textMuted">—</span>;
+          if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
           return (
             <span className={dirInk(r.deltaOI > 0 ? Math.abs(r.deltaOIPct) : -Math.abs(r.deltaOIPct), marks.doiPct)}>
               {r.deltaOIPct > 0 ? '+' : ''}
@@ -328,9 +331,9 @@ const Footprints = () => {
         // A build with legs — three sessions and up earns weight, not neon.
         render: r =>
           r.oiStreak === 0 ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={r.oiStreak >= 3 ? 'font-bold text-textPrimary' : 'text-textSecondary'}>{r.oiStreak}d</span>
+            <span className={r.oiStreak >= 3 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{r.oiStreak}d</span>
           ),
       },
       {
@@ -347,9 +350,9 @@ const Footprints = () => {
         // A report inside the position's runway is a risk event — warn ink.
         render: r =>
           r.earnDays == null ? (
-            <span className="text-textMuted">—</span>
+            <span className="text-textSecondary">—</span>
           ) : (
-            <span className={r.earnDays <= 5 ? 'text-warn' : 'text-textSecondary'}>
+            <span className={r.earnDays <= 5 ? 'text-warn' : 'text-textPrimary'}>
               {r.earnDays === 0 ? 'today' : `in ${r.earnDays}d`}
             </span>
           ),
@@ -390,15 +393,15 @@ const Footprints = () => {
         title="What the flow left standing"
         sub={`${activeScreen.label} — ${activeScreen.hint} · open interest is what stayed overnight · a row opens the contract's card`}
         testId="footprints"
-        data={{ screen, rows: rows.length }}
+        data={{ screen, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the footprints', door: 'What open interest, a build and a streak mean', body: <FootprintsGuide />, testId: 'footprints-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Overnight" testId="overnight">
-              <span className="text-bull">+{num(facts.added)}</span> <span className="text-textMuted">added ·</span> <span className="text-bear">−{num(facts.shed)}</span> <span className="text-textMuted">shed</span>
+              <span className="text-bull">+{num(facts.added)}</span> <span className="text-textSecondary">added ·</span> <span className="text-bear">−{num(facts.shed)}</span> <span className="text-textSecondary">shed</span>
             </Fact>
             <Fact label="Contracts" testId="contracts">
-              {facts.builds} <span className="text-textMuted">built · {facts.unwinds} unwound</span>
+              {facts.builds} <span className="text-textSecondary">built · {facts.unwinds} unwound</span>
             </Fact>
             {champs.build && champs.build !== champs.fastest && (
               <Champion label="Biggest build" ink="bull" onOpen={() => setOpenKey(champs.build!.key)} testId="build">
@@ -423,6 +426,7 @@ const Footprints = () => {
             <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
             <DropdownSelect label="Cut" value={screen} options={screenOptions} onChange={setScreen} title="Which side of the overnight ledger" testId="footprints-cut" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="footprints-side" />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="footprints-expiry" />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
@@ -430,8 +434,7 @@ const Footprints = () => {
         }
         sentence={read}
       >
-        <TraceGrid rows={cap.shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing on this cut today" testId="footprints" />
-        <RestFoot cap={cap} testId="footprints" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight emptyText="Nothing on this cut" emptyBody="No contract's open interest moved enough to show under these cards." testId="footprints" />
       </TraceBox>
 
       <BookDrill

@@ -226,9 +226,10 @@ const App = () => {
               <Route path="watchers" element={<Watchers />} />
               {/* "Flow Alerts" until 2026-09-11 — the bell is the reader's alerts; these are the desk's watchers */}
               <Route path="flow-alerts" element={<Navigate to="/trace/watchers" replace />} />
-              {/* "Windows" until 2026-09-19 — Noah: "call the windows page Intervals" */}
-              <Route path="intervals" element={<TradeWindows />} />
-              <Route path="windows" element={<Navigate to="/trace/intervals" replace />} />
+              {/* "Windows" again since 2026-09-30, when the earlier line's Trace was brought back whole ("take my entire trace
+                  from the repo i prefer mines more"); it was "Intervals" from 2026-09-19, and that address follows it */}
+              <Route path="windows" element={<TradeWindows />} />
+              <Route path="intervals" element={<Navigate to="/trace/windows" replace />} />
               <Route path="odte" element={<Odte />} />
               <Route path="multi-leg" element={<MultiLeg />} />
               <Route path="compare" element={<TraceCompare />} />

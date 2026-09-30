@@ -30,6 +30,7 @@
 */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CompanyLogo from '../ui/CompanyLogo';
 import { Check, ChevronDown } from 'lucide-react';
 import {
   Area,
@@ -51,24 +52,15 @@ import RichRead from '../ui/RichRead';
 import { flowAxisLabel, flowClock, sessionDate, type ContractFlow, type ContractPrintPoint } from '../../data/contractflow';
 import { fmtUsd } from '../../data/gex';
 import { BULL, SUPREME } from '../gex/paletteInk';
-import { useResolvedTheme } from '../../theme/theme';
+import { Name } from '../ui/Name';
 
 const ASK = BULL; // lifted the offer — the market's bull colour
-/* EVERY INK A TOKEN (the light sweep, 2026-09-19 — Noah on Trace: "first thing i notice already is the background color of
-   these 2 cards"). The two strips were black islands with typed whites, whatever the page wore. Each ink below is a
-   token, so the box's own theme stamp re-inks the whole chart (a var() in an SVG fill or stroke is read like any CSS
-   value) — and the stamp follows THE PAGE, never the candle pick: on the dark terminal it is the black island it always
-   was; on the light page it is part of the page, and the grey box that holds it shows through ("i see a light gray
-   holding a inner dark gray. make it all light gray"). It followed the candle store for an hour and turned grey on a
-   dark page that held a Stone pick — a light-theme change must never move the dark theme. */
-const BID = 'rgb(var(--bear))';
-const FENCE = 'rgb(var(--text-primary) / 0.3)'; // mid fills — undecided, sits ON the zero line
-const PRICE_LINE = 'rgb(var(--text-primary))'; // neutral "where the market is"
-const IV_LINE = 'rgb(var(--moon))'; // muted violet — a different axis, a different family (left the sky lane when the supreme took it, 2026-08-29)
-const AXIS = 'rgb(var(--text-muted))'; // axis labels were the squintiest gray on the page
-const GRID = 'rgb(var(--ink) / 0.05)';
-const HOVER_WASH = 'rgb(var(--ink) / 0.04)';
-const ZERO_LINE = 'rgb(var(--ink) / 0.2)';
+const BID = '#FF3B30';
+const FENCE = 'rgba(237,237,237,0.3)'; // mid fills — undecided, sits ON the zero line
+const PRICE_LINE = '#ededed'; // neutral "where the market is"
+const IV_LINE = '#B39DDB'; // muted violet — a different axis, a different family (left the sky lane when the supreme took it, 2026-08-29)
+const AXIS = '#7d7d7d'; // matches textMuted — axis labels were the squintiest gray on the page
+const GRID = 'rgba(255,255,255,0.05)';
 
 /* Stacked strips only read as one instrument if their plot areas align to the
    pixel. Same left axis width, and the right gutter is reserved even when the
@@ -351,9 +343,6 @@ const LedgerTooltip = ({ active, payload }: LedgerTipProps) => {
 };
 
 export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset, printMin, syncId }: FlowPanelProps) => {
-  /* the page's theme, never the candle pick: the dark terminal keeps its black island; on paper the strip is part of the page
-     and the grey box that holds it shows through — one grey (see the inks' note at the head) */
-  const paper = useResolvedTheme() === 'light';
   const { bins, maxSide, whale } = useMemo(() => buildLedger(cf.points), [cf]);
   // Points snap to the toolbar's bar interval upstream — recover it from the
   // tightest gap so brick width follows the interval control.
@@ -385,7 +374,7 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
   const s = cf.stats;
 
   return (
-    <div className={`flex flex-col gap-2 min-w-0 rounded-md px-2 py-1.5 ${paper ? '' : 'bg-panel'}`} data-theme={paper ? 'light' : 'dark'} data-flow-strip>
+    <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5" data-theme="dark">
       {/* Strip header: what it is, the window's own figures, the overlays */}
       <div className="flex items-baseline gap-2.5 flex-wrap">
         <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The contract's prints</span>
@@ -458,8 +447,8 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
             {/* IV keeps its own scale but prints no axis — the tooltip and the
                 blue ink carry it; a third printed scale would be noise */}
             {showIv && <YAxis yAxisId="iv" hide domain={['auto', 'auto']} />}
-            <Tooltip content={<LedgerTooltip />} isAnimationActive={false} cursor={{ fill: HOVER_WASH }} />
-            <ReferenceLine yAxisId="prem" y={0} stroke={ZERO_LINE} />
+            <Tooltip content={<LedgerTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <ReferenceLine yAxisId="prem" y={0} stroke="rgba(255,255,255,0.18)" />
             {/* Invisible — exists so the axis tooltip carries per-bin payloads */}
             <Bar yAxisId="prem" dataKey="hover" barSize={8} fillOpacity={0} isAnimationActive={false} />
             <Customized component={<LedgerLayer bins={bins} intervalMin={intervalMin} whale={whale} />} />
@@ -685,9 +674,6 @@ export const NetPanel = ({
   printMin,
   syncId,
 }: NetPanelProps) => {
-  /* the page's theme, never the candle pick: the dark terminal keeps its black island; on paper the strip is part of the page
-     and the grey box that holds it shows through — one grey (see the inks' note at the head) */
-  const paper = useResolvedTheme() === 'light';
   const n = cf.net;
   const u = cf.underlying;
   const endDate = sessionDate(dayOffset);
@@ -700,13 +686,16 @@ export const NetPanel = ({
   const isVolOrUsd = metric === 'underlyingVol' || isUsd;
 
   return (
-    <div className={`flex flex-col gap-2 min-w-0 rounded-md px-2 py-1.5 ${paper ? '' : 'bg-panel'}`} data-theme={paper ? 'light' : 'dark'} data-flow-strip>
+    <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5" data-theme="dark">
       {/* Strip header mirrors the prints strip: title, picker, the window's
           own figures inline — a full stat grid at 1600px was mostly gap */}
       <div className="flex items-center gap-2.5 flex-wrap">
         {/* "Tide" was the competition's word (Noah, 2026-08-30) — this panel
             reads the ticker's premium, so it says so. */}
-        <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">{ticker} net premium</span>
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary">
+          <CompanyLogo ticker={ticker} size={12} />
+          {ticker} net premium
+        </span>
         <MetricPicker value={metric} onChange={onMetric} />
         {isVolOrUsd ? (
           <span className="font-mono text-[10px] text-textMuted tnum">
@@ -758,8 +747,8 @@ export const NetPanel = ({
               <CartesianGrid stroke={GRID} vertical={false} />
               <XAxis dataKey="strike" tick={axisTick} stroke={AXIS} tickLine={false} />
               <YAxis tick={axisTick} stroke={AXIS} tickLine={false} width={Y_LEFT_W} tickFormatter={(v: number) => Math.abs(v).toLocaleString()} />
-              <Tooltip content={<StrikeTooltip />} isAnimationActive={false} cursor={{ fill: HOVER_WASH }} />
-              <ReferenceLine y={0} stroke={ZERO_LINE} />
+              <Tooltip content={<StrikeTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
               <Bar dataKey="callVol" stackId="k" fill={ASK} fillOpacity={0.75} isAnimationActive={false} />
               <Bar dataKey="putVol" stackId="k" fill={BID} fillOpacity={0.7} isAnimationActive={false} />
               {cf.strikes.some(sk => sk.isFocus) && (
@@ -790,8 +779,8 @@ export const NetPanel = ({
                 tickFormatter={(v: number) => (isUsd ? fmtUsd(Math.abs(v)) : Math.abs(v) >= 1000 ? `${Math.round(Math.abs(v) / 1000)}k` : String(Math.abs(v)))}
               />
               {showPrice && <YAxis yAxisId="px" orientation="right" tick={axisTick} stroke={AXIS} tickLine={false} width={Y_RIGHT_W} domain={['auto', 'auto']} />}
-              <Tooltip content={<BarTooltip isUsd={isUsd} />} isAnimationActive={false} cursor={{ fill: HOVER_WASH }} />
-              <ReferenceLine yAxisId="v" y={0} stroke={ZERO_LINE} />
+              <Tooltip content={<BarTooltip isUsd={isUsd} />} isAnimationActive={false} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <ReferenceLine yAxisId="v" y={0} stroke="rgba(255,255,255,0.2)" />
               {showCalls && <Bar yAxisId="v" dataKey={isUsd ? 'callPrem' : 'callVol'} stackId="u" fill={ASK} fillOpacity={0.75} isAnimationActive={false} />}
               {showPuts && <Bar yAxisId="v" dataKey={isUsd ? 'putPrem' : 'putVol'} stackId="u" fill={BID} fillOpacity={0.7} isAnimationActive={false} />}
               {showPrice && <Line yAxisId="px" type="monotone" dataKey="price" stroke={PRICE_LINE} strokeWidth={1.25} dot={false} isAnimationActive={false} />}
@@ -816,7 +805,7 @@ export const NetPanel = ({
                 tickFormatter={(v: number) => fmtUsd(v)}
               />
               {showPrice && <YAxis yAxisId="px" orientation="right" tick={axisTick} stroke={AXIS} tickLine={false} width={Y_RIGHT_W} domain={['auto', 'auto']} />}
-              <Tooltip content={<NetTooltip />} isAnimationActive={false} cursor={{ stroke: 'rgb(var(--ink) / 0.15)' }} />
+              <Tooltip content={<NetTooltip />} isAnimationActive={false} cursor={{ stroke: 'rgba(255,255,255,0.15)' }} />
               {showCalls && (
                 <Area yAxisId="prem" type="monotone" dataKey="netCall" stroke={ASK} strokeWidth={1} fill={ASK} fillOpacity={0.14} isAnimationActive={false} />
               )}
@@ -849,7 +838,7 @@ export const NetPanel = ({
             {metric === 'netPremium' ? 'Net puts' : 'Puts'}
           </Chip>
           <Chip active={showPrice} onClick={() => onShowPrice(!showPrice)}>
-            {ticker} price
+            <Name t={ticker} size={11} /> price
           </Chip>
         </div>
       )}

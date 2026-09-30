@@ -1,4 +1,4 @@
-import { Radio, Bookmark, SlidersHorizontal, Footprints, Eye, EyeOff, Clock, Zap, Layers, Scale, Columns2, type LucideIcon } from 'lucide-react';
+import { Radio, Bookmark, SlidersHorizontal, Footprints, Eye, Clock, Zap, Layers, Scale, Moon, GitCompareArrows, type LucideIcon } from 'lucide-react';
 
 /** Trace subpage registry — drives the sub-tab bar and command palette. */
 export interface TraceSubpage {
@@ -12,16 +12,8 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
   {
     path: '/trace/live-tape',
     label: 'Live Tape',
-    subtitle: 'Streaming options prints, dark-pool crosses & session flow',
+    subtitle: 'Streaming options prints & session flow',
     icon: Radio,
-  },
-  /* Back as its own page (2026-09-13, from the partner's page, in our grammar); the
-     tape's rail keeps the crosses too */
-  {
-    path: '/trace/dark-pool',
-    label: 'Dark Pool',
-    subtitle: 'Off-exchange crosses with the read attached — who is behind them, the shelves they left & where the dark money went',
-    icon: EyeOff,
   },
   // Expansion phase (Noah, 2026-08-30): the flow family grows here — the
   // screener first, net flow / OI explorer / alerts / interval / 0DTE /
@@ -52,10 +44,9 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
     icon: Eye,
   },
   {
-    /* "Intervals" since 2026-09-19 (Noah: "call the windows page Intervals"); /trace/windows redirects (App.tsx) */
-    path: '/trace/intervals',
-    label: 'Intervals',
-    subtitle: 'The day cut into quarter-hour intervals — where the volume actually landed',
+    path: '/trace/windows',
+    label: 'Windows',
+    subtitle: 'The day cut into quarter-hour windows — where the volume actually landed',
     icon: Clock,
   },
   {
@@ -70,17 +61,21 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
     subtitle: 'The tape reconstructed into structures — spreads, their legs & their defined risk',
     icon: Layers,
   },
-  /* Two names side by side (2026-09-13, from the partner's page, in our grammar):
-     the same facts every other Trace page prints, for two names on one cut */
+  // Its own page since 2026-09-12 (Noah: "make a dark pool page in trace") —
+  // the crosses left the tape's side rail the same day.
+  {
+    path: '/trace/dark-pool',
+    label: 'Dark Pool',
+    subtitle: 'Off-exchange crosses with the read attached — who is behind them, the shelves they left & where the dark money went',
+    icon: Moon,
+  },
+  // Two names on everything Trace knows (Noah, 2026-09-12)
   {
     path: '/trace/compare',
     label: 'Compare',
-    subtitle: 'Two names side by side — net flow, the same-day money, the book, the footprints, the structures & the tape, on one cut',
-    icon: Columns2,
+    subtitle: 'Two names side by side — net flow, the same-day money, the structures, the book & the tape',
+    icon: GitCompareArrows,
   },
-  // Launch trim (Noah, 2026-08-17): Dark Pool + Scanner pulled from the
-  // first launch — pages kept on disk, routes redirect to the tape (which
-  // still carries the dark-pool feed).
   {
     path: '/trace/tracker',
     label: 'Tracker',

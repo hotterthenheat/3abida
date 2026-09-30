@@ -21,9 +21,9 @@ import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bookmark, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, Copy, Crosshair, Scale } from 'lucide-react';
 import Modal from '../ui/Modal';
+import CompanyLogo from '../ui/CompanyLogo';
 import SignalBadge from '../ui/SignalBadge';
 import RichRead from '../ui/RichRead';
-import Fact from '../ui/Fact';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import FilterTabs from '../ui/FilterTabs';
 import Chip from '../ui/Chip';
@@ -41,14 +41,14 @@ import {
 import type { NetMetric } from './ContractFlowChart';
 import DatePicker from '../ui/DatePicker';
 import { weighContract } from '../../core/contractScore';
-import { gradeOfConfidence, makeSetup, sleeveForDte } from '../../data/compass';
-import GradeMeter, { GRADE_INK } from '../ui/GradeMeter';
+import { makeSetup, sleeveForDte } from '../../data/compass';
 import Simulator from '../../core/simulator';
 import VerdictBadge from '../compass/VerdictBadge';
 import { useMarketData } from '../../context/MarketDataContext';
 import type { FlowPrint, PrintSentiment } from '../../types/trace';
 import type { MarketSnapshot } from '../../types/market';
-import type { Tone } from '../ui/tones';
+import { toneBar, type Tone } from '../ui/tones';
+import { Name } from '../ui/Name';
 
 // recharts is heavy — it only loads when a print is actually opened
 const FlowPanels = lazy(() => import('./ContractFlowChart').then(m => ({ default: m.FlowPanel })));
@@ -72,6 +72,12 @@ const fixed = (v: number | undefined | null, dp = 2): string => (Number.isFinite
 const usd = (v: number | undefined | null): string => (Number.isFinite(v as number) ? fmtUsd(v as number) : '—');
 
 /** One small labelled figure inside a hero zone. */
+const Mini = ({ label, value, tone = 'text-textPrimary' }: { label: string; value: ReactNode; tone?: string }) => (
+  <span className="flex flex-col gap-0.5 min-w-0">
+    <span className="font-mono text-[8.5px] uppercase tracking-widest text-textMuted truncate">{label}</span>
+    <span className={`font-mono text-[11.5px] font-semibold tnum ${tone} truncate`}>{value}</span>
+  </span>
+);
 
 const RANGES: FlowRange[] = ['1D', '2D', '3D', '5D', '10D', '1M'];
 const INTERVALS = [1, 5, 15, 30];
@@ -419,7 +425,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               onClick={() => setDayOffset(d => Math.max(0, d - 1))}
               disabled={dayOffset === 0}
               title="Next session"
-              className="p-0.5 rounded disabled:opacity-30 transition-colors"
+              className="p-0.5 rounded transition-colors"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -453,7 +459,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             onClick={() => onStep(-1)}
             disabled={!hasPrev}
             title="Previous print (↑)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] disabled:opacity-25 transition-colors"
+            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
@@ -461,7 +467,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             onClick={() => onStep(1)}
             disabled={!hasNext}
             title="Next print (↓)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] disabled:opacity-25 transition-colors"
+            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
@@ -470,14 +476,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
       header={
         print && (
           <div className="flex items-center gap-3 flex-wrap">
-            {/* THE MASTHEAD (Noah, 2026-09-28: "the slayer terminal … logo placed on the top right or left of the page so
-                when users take screenshots and post on twitter thats what shows") — the house's wordmark, first thing on
-                the card, the sidenav's own */}
-            <span className="inline-flex items-center gap-2 pr-3 border-r border-borderSubtle shrink-0" data-print-masthead>
-              <span className="font-mono text-[12px] font-bold tracking-tight holo-text whitespace-nowrap">
-                <span className="text-textMuted">&gt;_ </span>slayer_terminal
-              </span>
-            </span>
+            <CompanyLogo ticker={print.ticker} size={18} />
             <span
               className={`inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[13px] font-semibold ${
                 print.right === 'C' ? 'border-bull/30 bg-bull/10 text-bull' : 'border-bear/30 bg-bear/10 text-bear'
@@ -496,7 +495,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <span className={`font-mono text-[10px] uppercase ${print.sweep ? 'text-warn font-semibold' : 'text-textMuted'}`}>
               {print.sweep ? 'Sweep' : print.strat === '—' ? 'Block' : print.strat}
             </span>
-            <span className="font-mono text-[10px] text-textMuted tnum">
+            <span className="font-mono text-[10px] text-textSecondary tnum">
               {print.ticker} ${fixed(print.spot)}
             </span>
           </div>
@@ -505,75 +504,108 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
     >
       {print && (
         <>
-          {/* THE HEAD OF THE CARD (2026-09-28, Noah: the three cards "look very AI generated and doesnt fit our design
-              pattern"): one quiet block in the house's grammar — the money on one line with the fill's rule, the read as
-              one sentence, the evidence as dot-leader rows with the Compass scale folded in; hairlines, no boxes */}
-          <div className="flex flex-col border border-borderSubtle rounded-md bg-inset overflow-hidden" data-print-head>
-            {/* THE MONEY — the premium, the side, where between bid and ask it filled, the fill */}
-            <div className="flex items-center gap-x-5 gap-y-2 flex-wrap px-4 py-3" data-print-money>
-              <span className="flex items-baseline gap-2.5">
-                <span className={`font-mono text-[22px] font-bold tnum leading-none ${print.premium >= 1_000_000 ? 'text-supreme' : 'text-textPrimary'}`}>{usd(print.premium)}</span>
-                <span className={`font-mono text-[13px] font-bold ${sideTone}`}>{sideLabel}</span>
+          {/* The hero — one instrument, three named zones: what traded, what it
+              means, and how the Compass grades it. Everything that used to be
+              scattered (stat boxes, floating paragraph, three stat sections,
+              the spread slider) folds in here. */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-borderSubtle border border-borderSubtle rounded-md overflow-hidden">
+            {/* THE PRINT — the money, the aggressor, where in the spread it filled */}
+            <div className="lg:col-span-4 bg-inset px-3.5 py-3 flex flex-col gap-2.5 min-w-0">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The print</span>
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className={`font-mono text-2xl font-bold tnum leading-none ${print.premium >= 1_000_000 ? 'text-supreme' : 'text-textPrimary'}`}>
+                  {usd(print.premium)}
+                </span>
+                <span className={`font-mono text-sm font-bold ${sideTone}`}>{sideLabel}</span>
                 {print.sweep && <span className="font-mono text-[10px] uppercase font-semibold text-warn">Sweep</span>}
-              </span>
+              </div>
               {/* the clearest aggressor tell — where between bid and ask it printed */}
-              <span className="flex items-center gap-2 w-[220px] max-w-full" title="Where between the bid and the ask it filled — who was in a hurry">
+              <div className="flex items-center gap-2.5 mt-auto">
                 <span className="font-mono text-[10px] tnum text-textMuted">{fixed(print.bid)}</span>
-                <span className="relative flex-1 h-[3px] rounded-full bg-ink/[0.08]">
+                <span className="relative flex-1 h-[4px] rounded-full bg-ink/[0.07]">
                   <span
-                    className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[8px] h-[8px] rounded-full ${print.side === 'ASK' ? 'bg-bull' : print.side === 'BID' ? 'bg-bear' : 'bg-ink/60'}`}
+                    className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[9px] h-[9px] rounded-full ${
+                      print.side === 'ASK' ? 'bg-bull' : print.side === 'BID' ? 'bg-bear' : 'bg-ink/60'
+                    }`}
                     style={{ left: `${print.fillPos * 100}%` }}
                   />
                 </span>
                 <span className="font-mono text-[10px] tnum text-textMuted">{fixed(print.ask)}</span>
-              </span>
-              <span className="font-mono text-[10.5px] text-textSecondary tnum whitespace-nowrap">
+              </div>
+              <span className="font-mono text-[10px] text-textSecondary tnum">
                 <RichRead text={`filled $${fixed(print.fill)} × ${num(print.size)} · ${print.time}`} />
               </span>
             </div>
-            {/* THE READ — one sentence, the terminal talks first */}
-            <p className="px-4 py-2.5 border-t border-borderSubtle/60 text-[12px] leading-relaxed text-textSecondary" data-print-read>
-              <RichRead text={printRead(print, sent)} />
-            </p>
-            {/* THE EVIDENCE — the house's dot-leader rows; the Compass scale folded in, in words (no figure of ours in public) */}
-            <div className="px-4 pt-2.5 pb-3 border-t border-borderSubtle/60 grid gap-x-8 gap-y-1.5 md:grid-cols-2 xl:grid-cols-3" data-print-facts>
-              <Fact label="Conviction" value={print.flowScore > 15 ? 'BUYERS' : print.flowScore < -15 ? 'SELLERS' : 'MIXED'} valueCls={print.flowScore > 15 ? 'text-bull' : print.flowScore < -15 ? 'text-bear' : 'text-textMuted'} />
-              <Fact label="Day ratio" value={print.ratioLabel} valueCls={print.ratioLabel === 'MID' ? 'text-textMuted' : print.ratioBidPct >= 50 ? 'text-bear' : 'text-bull'} />
-              <Fact label="OTM" value={`${print.otmPct >= 0 ? '+' : ''}${fixed(print.otmPct, 1)}%`} valueCls={print.otmPct >= 0 ? 'text-bull' : 'text-bear'} />
-              <Fact label="Volume" value={num(print.volume)} />
-              <Fact label="Open interest" value={num(print.oi)} />
-              <Fact label="Vol ÷ OI" value={`${fixed(print.volOverOI)}x`} valueCls={print.volOverOI >= 5 ? 'text-warn' : 'text-textPrimary'} />
+
+            {/* THE READ — the terminal talks first, the figures behind it after */}
+            <div className="lg:col-span-5 bg-inset px-3.5 py-3 flex flex-col gap-2.5 min-w-0">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Summary</span>
+              <p className="text-[12px] text-textSecondary leading-relaxed">
+                <RichRead text={printRead(print, sent)} />
+              </p>
+              {/* 3-up, two rows — 6-up ellipsized "OPEN INTEREST" in this zone's width */}
+              <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 mt-auto pt-1">
+                {/* Words, not the grade — the flow score is engine-internal
+                    (Noah, 2026-08-16) */}
+                <Mini
+                  label="Conviction"
+                  value={print.flowScore > 15 ? 'BUYERS' : print.flowScore < -15 ? 'SELLERS' : 'MIXED'}
+                  tone={print.flowScore > 15 ? 'text-bull' : print.flowScore < -15 ? 'text-bear' : 'text-textMuted'}
+                />
+                <Mini
+                  label="Day ratio"
+                  value={print.ratioLabel}
+                  tone={print.ratioLabel === 'MID' ? 'text-textMuted' : print.ratioBidPct >= 50 ? 'text-bear' : 'text-bull'}
+                />
+                <Mini
+                  label="OTM"
+                  value={`${print.otmPct >= 0 ? '+' : ''}${fixed(print.otmPct, 1)}%`}
+                  tone={print.otmPct >= 0 ? 'text-bull' : 'text-bear'}
+                />
+                <Mini label="Volume" value={num(print.volume)} />
+                <Mini label="Open interest" value={num(print.oi)} />
+                <Mini label="Vol ÷ OI" value={`${fixed(print.volOverOI)}x`} tone={print.volOverOI >= 5 ? 'text-warn' : 'text-textPrimary'} />
+              </div>
+            </div>
+
+            {/* THE SCALE — our moat: the contract graded, not just described */}
+            <div className="lg:col-span-3 bg-inset px-3.5 py-3 flex flex-col gap-2 min-w-0">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">On the Compass scale</span>
               {graded && weighed ? (
                 <>
-                  <Fact
-                    label="On the Compass scale"
-                    value={
-                      <span className="inline-flex items-center gap-2">
-                        <VerdictBadge verdict={graded.verdict} dot />
-                        <span className="font-mono text-[10px] font-normal text-textMuted uppercase tracking-wider">{graded.sleeve === 'odte' ? 'same-day' : graded.sleeve}</span>
-                      </span>
-                    }
-                  />
-                  <Fact
-                    label="The case"
-                    value={
-                      <span className="inline-flex items-center gap-2.5">
-                        <span data-print-case={gradeOfConfidence(graded.confidence)}>{gradeOfConfidence(graded.confidence)}</span>
-                        <span className="inline-block w-[72px]">
-                          <GradeMeter grade={gradeOfConfidence(graded.confidence)} />
-                        </span>
-                      </span>
-                    }
-                    valueCls={GRADE_INK[gradeOfConfidence(graded.confidence)]}
-                  />
-                  <Fact label="Spread + a day of theta" value={`${fixed(friction, 1)}%`} valueCls={friction > 16 ? 'text-bear' : friction > 8 ? 'text-warn' : 'text-bull'} />
+                  {/* The verdict is the BOARD's — VerdictBadge, makeSetup —
+                      and the meter runs on Confidence, the one sanctioned
+                      number. Composite stays engine-internal. */}
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <VerdictBadge verdict={graded.verdict} dot />
+                    <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider">
+                      {graded.sleeve === 'odte' ? 'same-day' : graded.sleeve}
+                    </span>
+                    <span className="ml-auto font-mono text-[10px] tnum text-textSecondary">{graded.confidence}%</span>
+                  </div>
+                  <span className="relative block h-[3px] rounded-full bg-ink/[0.06]">
+                    <span
+                      className={`absolute inset-y-0 left-0 rounded-full ${
+                        toneBar[graded.verdict === 'ENTER' ? 'bull' : graded.verdict === 'EXIT' ? 'bear' : 'warn']
+                      }`}
+                      style={{ width: `${Math.max(4, Math.min(100, graded.confidence))}%` }}
+                    />
+                  </span>
+                  <span className="font-mono text-[10px] tnum text-textSecondary mt-auto">
+                    spread + a day of theta take{' '}
+                    <span className={friction > 16 ? 'text-bear font-semibold' : friction > 8 ? 'text-warn font-semibold' : 'text-bull font-semibold'}>
+                      {fixed(friction, 1)}%
+                    </span>
+                  </span>
                 </>
               ) : (
-                <div className="md:col-span-2 xl:col-span-3 pt-1">
-                  <button onClick={() => changeTicker(print.ticker)} className="font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors text-left">
-                    The scale reads the live chain — switch the terminal to <span className="text-select font-semibold">{print.ticker}</span> to grade this contract.
-                  </button>
-                </div>
+                <button
+                  onClick={() => changeTicker(print.ticker)}
+                  className="font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors text-left"
+                >
+                  The scale reads the live chain — switch the terminal to{' '}
+                  <Name t={print.ticker} size={12} className="text-select font-semibold" /> to grade this contract.
+                </button>
               )}
             </div>
           </div>

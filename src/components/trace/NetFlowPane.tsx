@@ -42,7 +42,6 @@ import {
 } from 'lightweight-charts';
 import Simulator from '../../core/simulator';
 import { BULL, PUT_WALL } from '../gex/palette';
-import { getResolvedTheme, readToken, useResolvedTheme } from '../../theme/theme';
 import { earnMarks, weightInk, type InkMarks } from './earnedInk';
 import { fmtClockLocal, localTickMarks } from '../gex/chartTime';
 import ResetViewControl from '../gex/ResetViewControl';
@@ -62,10 +61,11 @@ import { roomBelow } from '../ui/menuRoom';
 import FlowSearch, { type SearchDoor } from './FlowSearch';
 import { SectorMark } from './SectorMark';
 import type { BookContract } from '../../types/trace';
+import { Name } from '../ui/Name';
 
 /* The pane's two cuts as cards (the walk, 2026-09-09): which strikes, and how far out */
-export const MONEY_OPTIONS: DropdownOption<MoneynessKey>[] = MONEYNESS.map(m => ({ value: m.key, label: m.label === 'All strikes' ? 'All' : m.label, hint: m.hint }));
-export const CLOCK_OPTIONS: DropdownOption<SleeveKey | 'all'>[] = [
+const MONEY_OPTIONS: DropdownOption<MoneynessKey>[] = MONEYNESS.map(m => ({ value: m.key, label: m.label === 'All strikes' ? 'All' : m.label, hint: m.hint }));
+const CLOCK_OPTIONS: DropdownOption<SleeveKey | 'all'>[] = [
   { value: 'all', label: 'All clocks', hint: 'Every tenor on the book' },
   ...SLEEVES.map(sl => ({ value: sl.key, label: sl.label, hint: sl.blurb })),
 ];
@@ -91,21 +91,7 @@ const PUTS_DIM = 'rgba(255,59,48,0.30)';
 const VOL_QUIET = 'rgba(150,168,196,0.28)';
 const VOL_LOUD = 'rgba(150,168,196,0.9)';
 const VOL_SUPREME = '#EA00FF';
-
-/* THE PANE FOLLOWS THE PAGE, AND ONLY THE PAGE (the light sweep, 2026-09-19). On the dark terminal it is the black island
-   it always was, inks untouched — whatever candle theme is picked: for an hour that night it followed the candle store,
-   and Noah's dark page, holding a Stone pick, turned its charts grey ("the changes you are making to the light theme seem
-   to be bleeding into the dark theme… should not be the case at all"). A light-theme change is never allowed to move the
-   dark theme. On the LIGHT page it is part of the page: the soft inset grey, ONE grey with no second grey inside it ("i
-   see a light gray holding a inner dark gray. make it all light gray"), the page's own inks — the price line is the
-   neutral ink at full voice (his "white, always" on black; near-black on paper), the pair the page's green and red. */
-interface PaneInks { spot: string; calls: string; puts: string; callsDim: string; putsDim: string; volQuiet: string; volLoud: string; volTop: string; axis: string; cross: string; label: string }
-const DARK_INKS: PaneInks = { spot: SPOT, calls: BULL, puts: PUT_WALL, callsDim: CALLS_DIM, putsDim: PUTS_DIM, volQuiet: VOL_QUIET, volLoud: VOL_LOUD, volTop: VOL_SUPREME, axis: '#5a5a5a', cross: 'rgba(255,255,255,0.25)', label: '#262626' };
-const LIGHT_INKS: PaneInks = { spot: '#0e0f11', calls: '#008c38', puts: '#dc2020', callsDim: 'rgba(0,140,56,0.30)', putsDim: 'rgba(220,32,32,0.30)', volQuiet: 'rgba(40,52,74,0.24)', volLoud: 'rgba(40,52,74,0.78)', volTop: '#a300b3', axis: '#26282d', cross: 'rgba(0,0,0,0.35)', label: '#26282d' };
-const paneInks = (): PaneInks => (getResolvedTheme() === 'light' ? LIGHT_INKS : DARK_INKS);
-/** The plot's ground: the page's inset on paper (read off the box, which wears the page's tokens there), the panel showing through on the dark terminal */
-const paneGround = (host: Element | null): string => (getResolvedTheme() === 'light' ? readToken('--inset', undefined, host) : 'transparent');
-const volInk = (v: number, m: InkMarks, k: PaneInks) => (v >= m.top ? k.volTop : v >= m.bar ? k.volLoud : k.volQuiet);
+const volInk = (v: number, m: InkMarks) => (v >= m.top ? VOL_SUPREME : v >= m.bar ? VOL_LOUD : VOL_QUIET);
 const TIP_VOL_BASE = 'ml-auto font-mono text-[11px] tnum';
 
 /** Today's bars for the pane's reference name — falls back to the last 240
@@ -173,7 +159,7 @@ const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegmen
         >
           {groups.map((g, gi) => (
             <div key={g} className={gi > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
-              <div className="px-2 pt-1 pb-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-textMuted">{g}</div>
+              <div className="px-2 pt-1 pb-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-textSecondary">{g}</div>
               {NET_SEGMENTS.filter(s => s.group === g).map(s => (
                 <button
                   key={s.key}
@@ -224,9 +210,6 @@ interface NetFlowPaneProps {
   onTenor?: (t: SleeveKey | 'all') => void;
   /** DTE ceiling for the cut — the 0DTE desk's default 1; ticker mode passes Infinity */
   dteMax?: number;
-  /** The Money and Clock cards in the head — off when the host's own line carries the cut
-      for more than one pane (Compare, 2026-09-13: two panes on ONE cut, one pair of cards) */
-  cutCards?: boolean;
 }
 
 const NetFlowPane = ({
@@ -245,12 +228,7 @@ const NetFlowPane = ({
   tenor = 'all',
   onTenor,
   dteMax = 1,
-  cutCards = true,
 }: NetFlowPaneProps) => {
-  /* the page's theme, and the inks cut for it (see paneInks) — read again when the page flips */
-  const appTheme = useResolvedTheme();
-  const paper = appTheme === 'light';
-  const inksNow = paneInks();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const spotRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -307,12 +285,11 @@ const NetFlowPane = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const k0 = paneInks();
     const chart = createChart(container, {
       autoSize: true,
       layout: {
-        background: { color: paneGround(container) },
-        textColor: k0.axis,
+        background: { color: 'transparent' },
+        textColor: '#5a5a5a',
         fontFamily: "'SF Pro', sans-serif",
         fontSize: 9,
         attributionLogo: false,
@@ -338,8 +315,8 @@ const NetFlowPane = ({
         tickMarkFormatter: localTickMarks,
       },
       crosshair: {
-        vertLine: { color: k0.cross, labelBackgroundColor: k0.label },
-        horzLine: { color: k0.cross, labelBackgroundColor: k0.label },
+        vertLine: { color: 'rgba(255,255,255,0.25)', labelBackgroundColor: '#262626' },
+        horzLine: { color: 'rgba(255,255,255,0.25)', labelBackgroundColor: '#262626' },
       },
     });
 
@@ -349,7 +326,7 @@ const NetFlowPane = ({
        actually keeps it in its place now, so it can wear its true ink at 1px. */
     const spot = chart.addSeries(LineSeries, {
       priceScaleId: 'left',
-      color: k0.spot,
+      color: SPOT,
       lineWidth: 1,
       priceLineVisible: false,
       lastValueVisible: false,
@@ -365,7 +342,7 @@ const NetFlowPane = ({
        money, not raw digits — $85.8M, never 85819238.00. */
     const premFormat = { type: 'custom' as const, formatter: (v: number) => fmtUsd(v), minMove: 1 };
     const calls = chart.addSeries(LineSeries, {
-      color: k0.calls,
+      color: BULL,
       lineWidth: 2,
       lineType: LineType.Simple,
       priceLineVisible: false,
@@ -373,7 +350,7 @@ const NetFlowPane = ({
       priceFormat: premFormat,
     });
     const puts = chart.addSeries(LineSeries, {
-      color: k0.puts,
+      color: PUT_WALL,
       lineWidth: 2,
       lineType: LineType.Simple,
       priceLineVisible: false,
@@ -393,7 +370,7 @@ const NetFlowPane = ({
        and the three registers do the measuring: quiet, loud, one champion. */
     const vol = chart.addSeries(HistogramSeries, {
       priceScaleId: 'vol',
-      color: k0.volQuiet,
+      color: VOL_QUIET,
       priceFormat: { type: 'volume' },
       lastValueVisible: false,
       priceLineVisible: false,
@@ -443,17 +420,16 @@ const NetFlowPane = ({
     const applyPick = (next: LinePick) => {
       if (next === picked) return;
       picked = next;
-      const k = paneInks();
       calls.applyOptions({
-        color: next === null || next === 'calls' ? k.calls : k.callsDim,
+        color: next === null || next === 'calls' ? BULL : CALLS_DIM,
         lineWidth: (next === 'calls' ? 3 : 2) as LineWidth,
       });
       puts.applyOptions({
-        color: next === null || next === 'puts' ? k.puts : k.putsDim,
+        color: next === null || next === 'puts' ? PUT_WALL : PUTS_DIM,
         lineWidth: (next === 'puts' ? 3 : 2) as LineWidth,
       });
       // White at rest, heavier white under the hand — never a different colour.
-      spot.applyOptions({ color: k.spot, lineWidth: (next === 'spot' ? 3 : 1) as LineWidth });
+      spot.applyOptions({ color: SPOT, lineWidth: (next === 'spot' ? 3 : 1) as LineWidth });
       (
         [
           ['spot', tipSpotRef.current],
@@ -578,8 +554,7 @@ const NetFlowPane = ({
        towers; the INK carries the exact ranking (marks are measured on the
        true counts) and the glide card says the true number. The height is a
        drawing, the colour and the figure are the facts. */
-    const inks = paneInks();
-    vol.setData(view.points.map(p => ({ time: p.time as UTCTimestamp, value: Math.sqrt(p.vol), color: volInk(p.vol, marks, inks) })));
+    vol.setData(view.points.map(p => ({ time: p.time as UTCTimestamp, value: Math.sqrt(p.vol), color: volInk(p.vol, marks) })));
     /* Every bar carries its own value, so the glide card's old containing-
        chunk search has nothing left to search for — it keeps the same shape
        purely as the lookup's fallback path. */
@@ -601,26 +576,12 @@ const NetFlowPane = ({
       chart.timeScale().fitContent();
     }
     loadedRef.current = { id, length: view.points.length };
-  }, [view, times, seg, mny, ref, tenor, dteMax, appTheme]);
-
-  /* THE PAGE FLIPPED: the chart that is up is re-inked in place */
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    const k = paneInks();
-    chart.applyOptions({
-      layout: { background: { color: paneGround(containerRef.current) }, textColor: k.axis },
-      crosshair: { vertLine: { color: k.cross, labelBackgroundColor: k.label }, horzLine: { color: k.cross, labelBackgroundColor: k.label } },
-    });
-    spotRef.current?.applyOptions({ color: k.spot });
-    callRef.current?.applyOptions({ color: k.calls });
-    putRef.current?.applyOptions({ color: k.puts });
-  }, [appTheme]);
+  }, [view, times, seg, mny, ref, tenor, dteMax]);
 
   /* data-menu-clip: this box clips its overflow, so the menus in its head
      size themselves to the room it leaves (ui/menuRoom). */
   return (
-    <div data-menu-clip data-theme={paper ? 'light' : 'dark'} className={`border border-borderSubtle rounded-md overflow-hidden flex flex-col h-full ${paper ? 'bg-inset' : 'bg-panel'}`}>
+    <div data-menu-clip data-theme="dark" className="border border-borderSubtle bg-panel rounded-md overflow-hidden flex flex-col h-full">
       {/* min-h, not h (the Weigher's card-head law, 2026-09-03): a 2×2 pane
           at a laptop width cannot seat the cut, the search, four chips and
           three figures on one 32px line — the strip WRAPS and grows rather
@@ -631,7 +592,7 @@ const NetFlowPane = ({
             <CompanyLogo ticker={ticker} size={16} />
             {/* With a search in the head, the field already holds the name —
                 the mark alone stands beside it; the label would say it twice. */}
-            {!onTicker && <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>}
+            {!onTicker && <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />}
           </span>
         ) : (
           <SegPick seg={seg} onSeg={onSeg} />
@@ -651,16 +612,16 @@ const NetFlowPane = ({
           />
         )}
         {/* The two cuts as labelled cards (the walk, 2026-09-09 — never chip rows) */}
-        {cutCards && <DropdownSelect label="Money" value={mny} options={MONEY_OPTIONS} onChange={onMny} title="Which strikes against the stock" testId="pane-money" />}
-        {cutCards && ticker && onTenor && <DropdownSelect label="Clock" value={tenor} options={CLOCK_OPTIONS} onChange={onTenor} title="How far out the contracts run" testId="pane-clock" />}
+        <DropdownSelect label="Money" value={mny} options={MONEY_OPTIONS} onChange={onMny} title="Which strikes against the stock" testId="pane-money" />
+        {ticker && onTenor && <DropdownSelect label="Clock" value={tenor} options={CLOCK_OPTIONS} onChange={onTenor} title="How far out the contracts run" testId="pane-clock" />}
         <span className="ml-auto flex items-center gap-2.5 font-mono text-[10px] tnum whitespace-nowrap">
-          <span style={{ color: inksNow.spot }}>{ref}</span>
+          <span style={{ color: SPOT }}>{ref}</span>
           <span>
-            <span className="text-textMuted uppercase text-[8px] tracking-wider mr-1">net calls</span>
+            <span className="text-textSecondary uppercase text-[8px] tracking-wider mr-1">net calls</span>
             <span className={view.ncp >= 0 ? 'text-bull' : 'text-bear'}>{fmtUsd(view.ncp)}</span>
           </span>
           <span>
-            <span className="text-textMuted uppercase text-[8px] tracking-wider mr-1">net puts</span>
+            <span className="text-textSecondary uppercase text-[8px] tracking-wider mr-1">net puts</span>
             <span className={view.npp >= 0 ? 'text-bear' : 'text-bull'}>{fmtUsd(view.npp)}</span>
           </span>
           <span className="text-textSecondary">{view.vol.toLocaleString('en-US')} vol</span>
@@ -684,12 +645,12 @@ const NetFlowPane = ({
           aria-hidden
           className="pointer-events-none absolute top-2 left-14 z-20 w-[168px] opacity-0 transition-opacity duration-100 border border-borderSubtle bg-panel/60 backdrop-blur-md rounded-md shadow-lg shadow-black/30 px-2.5 py-2"
         >
-          <span ref={tipTimeRef} className="block font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1">
+          <span ref={tipTimeRef} className="block font-mono text-[9px] uppercase tracking-widest text-textSecondary mb-1">
             --:--
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inksNow.spot }} />
-            <span ref={tipSpotLabelRef} className="font-mono text-[9px] uppercase tracking-wider text-textMuted">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: SPOT }} />
+            <span ref={tipSpotLabelRef} className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">
               SPY
             </span>
             <span ref={tipSpotRef} className="ml-auto font-mono text-[11px] tnum text-textPrimary">
@@ -697,22 +658,22 @@ const NetFlowPane = ({
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inksNow.calls }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Net calls</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: BULL }} />
+            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Net calls</span>
             <span ref={tipCallRef} className="ml-auto font-mono text-[11px] tnum text-bull">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inksNow.puts }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Net puts</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PUT_WALL }} />
+            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Net puts</span>
             <span ref={tipPutRef} className="ml-auto font-mono text-[11px] tnum text-bear">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inksNow.volLoud }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Volume</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: VOL_LOUD }} />
+            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Volume</span>
             <span ref={tipVolRef} className={`${TIP_VOL_BASE} text-textSecondary`}>
               —
             </span>

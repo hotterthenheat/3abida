@@ -33,6 +33,8 @@ import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../ui/houseGrid';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import type { Column } from '../ui/DataTable';
+import DataState, { type DataStateKind } from '../ui/DataState';
+import { withLeadingMark } from '../ui/Name';
 
 /** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30) */
 export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12 });
@@ -58,7 +60,7 @@ export const Champion = ({ label, ink, onOpen, children, testId }: { label: stri
     <dd className="mt-0.5 whitespace-nowrap" data-trace-champion={testId}>
       {/* the door's own hover, silver (door.ts) — it underlined on hover before 2026-09-16 */}
       <button type="button" onClick={onOpen} title="Open the contract's card" className="font-mono text-[12px] tnum font-semibold text-textPrimary hover:text-silver transition-colors">
-        {children}
+        {withLeadingMark(children)}
       </button>
     </dd>
   </div>
@@ -96,19 +98,23 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
         </GuideFocus>
       )}
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
-        <div className="min-w-0 flex-1">
+        {/* A FLOOR UNDER THE NAME (2026-09-30): `flex-1` alone is a basis of zero, so the row never wrapped and a long run
+            of facts squeezed the box's name to one word a line — "Which way the money leans" stood 49px wide and 94px
+            tall at 1440. With a floor the facts go under the name when they cannot sit beside it. */}
+        <div className="min-w-[15rem] flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h3>
             {guide && <GuideDoor open={guide.open} onClick={() => guide.onOpen(!guide.open)} title={guide.door} testId={guide.testId} />}
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{sub}</p>
         </div>
-        {/* THE FACTS WRAP (the phone pass, 2026-09-13 — Noah: "make sure every
-            page and section ticks the box of mobile viewing"): a column-flow
-            grid had one row whatever the width, so on a phone the fourth fact
-            ran under the box's edge; a wrapping row keeps one line where it
-            fits and two where it does not. */}
-        <dl className="flex flex-wrap gap-x-6 gap-y-2" data-trace-facts>
+        {/* FLEX-WRAP, NEVER grid-flow-col auto-cols-max. That grid CANNOT
+            wrap: on a 390px phone this strip measured 794px wide and four of
+            its six facts sat past the right edge with no horizontal scroll to
+            reach them — "sweeps · blocks", "0DTE", both champions, simply
+            absent. Every Trace page wears this one strip, so it was the same
+            four facts missing eleven times. */}
+        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-trace-facts>
           {facts}
         </dl>
       </div>
@@ -152,7 +158,13 @@ export function columnsToColDefs<T>(columns: Column<T>[], hidden: Set<string>, w
     if (fixed) def.width = fixed;
     else {
       def.flex = flexes[c.key] ?? 1;
-      def.minWidth = 84;
+      /* 92, not 84: the house's widest standard cell (the Lean bar) is 64px
+         and the grid's own padding is 24, so 84 guaranteed a four-pixel
+         overflow — and an overflowing cell paints a CLIPPED ELLIPSIS, a
+         single stray dot at the cell's edge that reads as a rendering
+         fault. A floor below what the house's own cells need is not a
+         floor. */
+      def.minWidth = 92;
     }
     return def;
   });
@@ -203,6 +215,13 @@ const CUT_DIM = 0.3;
 const CUT_OUT_MS = 120;
 const CUT_IN_MS = 420;
 
+/** AG Grid's no-rows overlay, in the house's own words. A COMPONENT, not the
+    HTML template it was: a template cannot carry an icon, a second line or a
+    retry, which is why the grids only ever said one of the four things. */
+const NoRows = (p: { kind?: DataStateKind; title?: string; body?: ReactNode; onRetry?: () => void }) => (
+  <DataState kind={p.kind ?? 'empty'} title={p.title} body={p.body} onRetry={p.onRetry} pad="sm" />
+);
+
 interface TraceGridProps<T> {
   rows: T[];
   columns: Column<T>[];
@@ -225,10 +244,20 @@ interface TraceGridProps<T> {
   /** Rows slide to their new place on a re-sort (off for the tape: a print a second would keep every row moving) */
   animate?: boolean;
   emptyText?: string;
+  /* THE FOUR NON-ANSWERS (components/ui/DataState). A table with no rows is
+     not automatically EMPTY: it may be still loading, unable to answer at
+     all, or broken, and a reader who cannot tell the difference will keep
+     loosening a filter that was never the problem. The grids spoke only one
+     of the four — a grey line of small caps — so every surface behind them
+     said "nothing" whatever had actually happened. */
+  state?: DataStateKind;
+  /** One line under the headline: what would put something here, or why not */
+  emptyBody?: ReactNode;
+  onRetry?: () => void;
   testId: string;
 }
 
-export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', testId }: TraceGridProps<T>) => {
+export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, testId }: TraceGridProps<T>) => {
   const gridRef = useRef<AgGridReact<T>>(null);
   const hiddenSet = hidden ?? new Set<string>();
   const columnDefs = useMemo(() => {
@@ -403,7 +432,8 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
           animateRows={glide}
           tooltipShowDelay={350}
           tooltipHideDelay={8000}
-          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${emptyText}</span>`}
+          noRowsOverlayComponent={NoRows}
+          noRowsOverlayComponentParams={{ kind: state, title: emptyText, body: emptyBody, onRetry }}
         />
       </AgGridProvider>
       {showTop && !autoHeight && (

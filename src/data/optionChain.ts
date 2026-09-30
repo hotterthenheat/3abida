@@ -1,5 +1,6 @@
 import { blackScholesGreeks, blackScholesPrice } from '../core/greeks';
-import { expiryFor, type Expiry } from '../core/calendar';
+import { expiryAt, expiryFor, isTradingDay, today, type Expiry } from '../core/calendar';
+import { UNIVERSE } from './universe';
 import { getCarry } from '../core/carry';
 import { h01, hRange } from '../core/rng';
 
@@ -266,4 +267,124 @@ export function summariseExpiries(ticker: string, spot: number, baseIv: number, 
   const board = rows.reduce((a, r) => a + r.totalOi, 0);
   for (const r of rows) r.oiSharePct = board > 0 ? (r.totalOi / board) * 100 : 0;
   return rows;
+}
+
+/*
+  ══ WHAT A NAME ACTUALLY LISTS ═══════════════════════════════════════════════
+
+  "only show the dates that these tickers have cause every ticker may have
+  different option dates" (Noah, 2026-09-12). The exchanges list three shapes:
+
+    daily    the index complex — SPY, QQQ, IWM and their kin — carries an
+             expiry EVERY session, then the Fridays, then the monthlies;
+    weekly   the liquid large caps carry the Fridays and the monthlies;
+    monthly  everything else carries only the third Fridays and the
+             quarterlies.
+
+  One function names the shape, one lists the dates — resolved to real
+  sessions (a Friday holiday expires Thursday), deduped, ascending. Every
+  expiry calendar on the terminal reads THIS list for the name it is on, so a
+  Compass sweep, the Weigher's chain and a Trace cut can never offer a date the
+  name does not trade.
+*/
+export type ListingPattern = 'daily' | 'weekly' | 'monthly';
+
+const DAILY_NAMES = new Set(['SPY', 'QQQ', 'IWM', 'DIA', 'SPX', 'NDX', 'XSP', 'RUT', 'VIX', 'TLT', 'GLD', 'SLV', 'USO', 'HYG', 'TQQQ', 'SQQQ', 'SOXL', 'SOXS', 'UVXY', 'XLF', 'XLE', 'XLK', 'EEM', 'FXI', 'KRE', 'SMH']);
+/* The weekly-listed large caps beyond the research universe — the sim's own
+   roster and the sector board's names (data/darkpool.ts SECTOR_UNIVERSE),
+   written out rather than imported so this module keeps its pure imports. */
+const WEEKLY_EXTRA = new Set([
+  'COIN', 'PLTR', 'UBER', 'MU', 'DIS', 'INTC', 'ORCL', 'MSTR', 'SMCI', 'ARM', 'SHOP', 'SQ', 'PYPL', 'ROKU', 'SNAP', 'RIVN', 'LCID', 'F', 'GM', 'NKE', 'SBUX', 'MCD', 'LOW', 'TJX', 'BABA', 'EBAY',
+  'MS', 'SCHW', 'BLK', 'V', 'MA', 'C', 'WFC', 'AXP', 'PFE', 'ABBV', 'MRK', 'TMO', 'CVS', 'ABT', 'ZTS', 'HON', 'UNP', 'DE', 'LMT', 'UPS', 'ETN', 'CSX', 'T', 'VZ', 'CMCSA', 'SPOT', 'TMUS', 'CHTR',
+  'KO', 'PEP', 'PM', 'MDLZ', 'CL', 'MNST', 'KMB', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'LNG', 'SHW', 'FCX', 'NEM', 'APD', 'NUE', 'DOW', 'ECL', 'ALB', 'EMN', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'XEL', 'PCG', 'CEG',
+  'PLD', 'AMT', 'EQIX', 'SPG', 'O', 'PSA', 'CCI', 'DLR', 'VICI', 'IRT', 'TSM', 'ASML',
+]);
+const WEEKLY_NAMES = new Set([...UNIVERSE.map(u => u.ticker), ...WEEKLY_EXTRA]);
+
+/** The listing shape a name trades — daily, weekly or monthly expiries. */
+export function listingPatternFor(ticker: string): ListingPattern {
+  const sym = ticker.toUpperCase();
+  if (DAILY_NAMES.has(sym)) return 'daily';
+  if (WEEKLY_NAMES.has(sym)) return 'weekly';
+  return 'monthly';
+}
+
+const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const fridayOnOrAfter = (d: Date) => addDays(d, (5 - d.getDay() + 7) % 7);
+const thirdFriday = (y: number, m: number) => {
+  const first = new Date(y, m, 1);
+  return addDays(first, ((5 - first.getDay() + 7) % 7) + 14);
+};
+/** Back a listed date off a holiday to the session before it */
+const toSession = (d: Date) => {
+  const out = new Date(d);
+  for (let i = 0; i < 7 && !isTradingDay(out); i++) out.setDate(out.getDate() - 1);
+  return out;
+};
+
+/**
+ * Every expiry this name lists, from `from` forward — real sessions only,
+ * deduped and ascending. The shape follows `listingPatternFor`.
+ */
+export function listExpiriesFor(ticker: string, from: Date = today()): Expiry[] {
+  const pattern = listingPatternFor(ticker);
+  const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const dates: Date[] = [];
+
+  if (pattern === 'daily') {
+    /* Every session from today through the next four */
+    let d = new Date(base);
+    let n = 0;
+    while (n < 5) {
+      if (isTradingDay(d)) {
+        dates.push(new Date(d));
+        n++;
+      }
+      d = addDays(d, 1);
+    }
+  }
+  if (pattern !== 'monthly') {
+    /* The next six Fridays */
+    let fri = fridayOnOrAfter(base);
+    for (let i = 0; i < 6; i++) {
+      dates.push(toSession(fri));
+      fri = addDays(fri, 7);
+    }
+  }
+  /* The monthlies: the next four third Fridays */
+  for (let i = 0; i < 5; i++) {
+    const m = thirdFriday(base.getFullYear(), base.getMonth() + i);
+    if (m >= base) dates.push(toSession(m));
+  }
+  /* Two quarterlies (Mar · Jun · Sep · Dec) beyond the monthlies */
+  let q = 0;
+  for (let i = 1; i <= 14 && q < 2; i++) {
+    const m = base.getMonth() + i;
+    const y = base.getFullYear() + Math.floor(m / 12);
+    if ([2, 5, 8, 11].includes(m % 12) && i > 4) {
+      dates.push(toSession(thirdFriday(y, m % 12)));
+      q++;
+    }
+  }
+  /* The January LEAPS a year out */
+  dates.push(toSession(thirdFriday(base.getFullYear() + 1, 0)));
+
+  const seen = new Set<string>();
+  const out: Expiry[] = [];
+  for (const d of dates.sort((a, b) => a.getTime() - b.getTime())) {
+    if (d < base) continue;
+    const e = expiryAt(d, base);
+    if (seen.has(e.label)) continue;
+    seen.add(e.label);
+    out.push(e);
+  }
+  return out;
+}
+
+/** The listed expiry nearest a wanted horizon — what a saved "5 days out"
+    preference lands on for a name that only lists monthlies. */
+export function nearestListedExpiry(ticker: string, dte: number, from: Date = today()): Expiry {
+  const list = listExpiriesFor(ticker, from);
+  if (list.length === 0) return expiryFor(dte, from);
+  return list.reduce((best, e) => (Math.abs(e.dte - dte) < Math.abs(best.dte - dte) ? e : best), list[0]);
 }

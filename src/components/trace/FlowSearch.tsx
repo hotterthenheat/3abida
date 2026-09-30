@@ -22,49 +22,14 @@
   back. Picking a contract, or "everything", closes.
   Typing anything drops the scope — the reader is
   searching again.
-
-  IN THE HOUSE'S CLOTHES (Noah, 2026-09-20, with a
-  picture of the old menu: "i feel as though it doesnt
-  match our new and improved ui design"). It was the
-  one control on a Trace toolbar still drawn the old
-  way — a square menu hung under the field, a "/" for
-  a name and a bare C or P for a contract, the field
-  itself a different box from the cards beside it.
-  Now:
-    · THE FIELD is one of the cards on its line (the
-      same height, ground, hairline and hover as
-      DropdownSelect's trigger); holding a filter it
-      is ARMED — the silver edge and a breath of
-      silver behind, as the Account's drop zone is —
-      and it wears the picked name's logo where the
-      glass was. (The old armed box was `.holo-border`,
-      whose fill is a typed black: on paper it was a
-      black field with black words.)
-    · THE MENU is the house card (DropdownSelect's
-      CARD, on Radix Popover — portalled, so a pane
-      that clips no longer slices it, and it keeps to
-      the window by itself): rounded rows on an inset,
-      caps headings, one figure column that lines up.
-    · A NAME TRAVELS WITH ITS LOGO; a name that opens
-      into its contracts says so with a chevron.
-    · A CONTRACT IS WRITTEN THE WAY THE TAPE UNDER IT
-      WRITES IT — name, strike, then "call" or "put"
-      in the side's ink — and because the row IS a
-      direction it wears green or red under the
-      pointer (DropdownSelect's `tone` rule).
-    · THE FILTER IN FORCE is the silver row with the
-      check: where you are.
-    · Nothing matches → the card says so, instead of
-      not opening.
 ==================================================
 */
 
-import { useMemo, useRef, useState } from 'react';
-import * as Popover from '@radix-ui/react-popover';
-import { ArrowLeft, ArrowUpRight, Check, ChevronRight, Layers, Search, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, Search, X } from 'lucide-react';
 import { fmtUsd } from '../../data/gex';
+import { roomBelow } from '../ui/menuRoom';
 import CompanyLogo from '../ui/CompanyLogo';
-import { CARD } from '../ui/DropdownSelect';
 
 /** The four facts a row must carry — FlowPrint and BookContract both do. */
 export interface FlowSearchRow {
@@ -77,15 +42,11 @@ export interface FlowSearchRow {
 export const normSymbol = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 type Suggestion =
-  | { key: string; kind: 'ticker'; ticker: string; primary: string; count: string; money: string }
-  | { key: string; kind: 'contract'; query: string; ticker: string; strike: string; primary: string; right: 'C' | 'P'; count: string; money: string }
-  | { key: string; kind: 'all'; ticker: string; primary: string; count: string; money: string }
+  | { key: string; kind: 'ticker'; ticker: string; primary: string; sub: string }
+  | { key: string; kind: 'contract'; query: string; primary: string; right: 'C' | 'P'; sub: string }
+  | { key: string; kind: 'all'; ticker: string; primary: string; sub: string }
   | { key: string; kind: 'back'; primary: string }
   | { key: string; kind: 'door'; primary: string };
-
-/* A row that IS a side of the market wears it under the pointer — DropdownSelect's rule (its `tone`), the same washes */
-const WASH = { plain: 'bg-ink/[0.06]', C: 'bg-bull/[0.12]', P: 'bg-bear/[0.12]' } as const;
-const HEADING = 'px-2 pt-1.5 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted';
 
 /** A DOOR at the foot of the menu (the 0DTE desk, 2026-09-03): the search
     can only offer what its page carries, so its last row sends the typed
@@ -135,16 +96,33 @@ const FlowSearch = ({
     setScope(null);
   };
 
+  /* The menu's room (ui/menuRoom): inside a clipping pane it scrolls rather
+     than being sliced at the pane's floor; elsewhere it stops at the window. */
+  const [menuMax, setMenuMax] = useState<number>();
+  useLayoutEffect(() => {
+    if (open) setMenuMax(roomBelow(rootRef.current));
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const tallies = useMemo(() => {
     const tick = new Map<string, { count: number; prem: number }>();
-    const con = new Map<string, { ticker: string; strike: number; count: number; prem: number; right: 'C' | 'P' }>();
+    const con = new Map<string, { ticker: string; count: number; prem: number; right: 'C' | 'P' }>();
     for (const r of rows) {
       const t = tick.get(r.ticker) ?? { count: 0, prem: 0 };
       t.count += 1;
       t.prem += r.premium;
       tick.set(r.ticker, t);
       const ck = `${r.ticker} ${r.strike}${r.right}`;
-      const c = con.get(ck) ?? { ticker: r.ticker, strike: r.strike, count: 0, prem: 0, right: r.right };
+      const c = con.get(ck) ?? { ticker: r.ticker, count: 0, prem: 0, right: r.right };
       c.count += 1;
       c.prem += r.premium;
       con.set(ck, c);
@@ -152,17 +130,14 @@ const FlowSearch = ({
     return { tick, con };
   }, [rows]);
 
-  const contractRow = ([ck, v]: [string, { ticker: string; strike: number; count: number; prem: number; right: 'C' | 'P' }]): Suggestion => ({
+  const contractRow = ([ck, v]: [string, { count: number; prem: number; right: 'C' | 'P' }]): Suggestion => ({
     key: `c-${ck}`,
     kind: 'contract',
     query: ck,
-    ticker: v.ticker,
-    strike: String(v.strike),
     primary: ck,
     right: v.right,
-    // A lone appearance says just its money — "1×" was noise.
-    count: v.count > 1 ? `${v.count}×` : '',
-    money: fmtUsd(v.prem),
+    // A lone appearance says just its money — "1× ·" was noise.
+    sub: `${v.count > 1 ? `${v.count}× · ` : ''}${fmtUsd(v.prem)}`,
   });
 
   /* Scoped: the picked ticker's own contracts, "everything" on top, a way back. */
@@ -175,14 +150,13 @@ const FlowSearch = ({
       .slice(0, 8)
       .map(contractRow);
     return [
-      { key: 'back', kind: 'back', primary: 'All names' },
+      { key: 'back', kind: 'back', primary: 'All tickers' },
       {
         key: `all-${scope}`,
         kind: 'all',
         ticker: scope,
         primary: `Everything on ${scope}`,
-        count: t ? `${t.count} ${countNoun}` : '',
-        money: t ? fmtUsd(t.prem) : '',
+        sub: t ? `${t.count} ${countNoun} · ${fmtUsd(t.prem)}` : '',
       },
       ...contracts,
     ];
@@ -194,7 +168,7 @@ const FlowSearch = ({
       .filter(([tk]) => nq === '' || normSymbol(tk).includes(nq))
       .sort((a, b) => b[1].prem - a[1].prem)
       .slice(0, tickersOnly ? 8 : nq === '' ? 5 : 4)
-      .map(([tk, v]) => ({ key: `t-${tk}`, kind: 'ticker', ticker: tk, primary: tk, count: `${v.count} ${countNoun}`, money: fmtUsd(v.prem) }));
+      .map(([tk, v]) => ({ key: `t-${tk}`, kind: 'ticker', ticker: tk, primary: tk, sub: `${v.count} ${countNoun} · ${fmtUsd(v.prem)}` }));
     const contracts: Suggestion[] = tickersOnly
       ? []
       : [...tallies.con.entries()]
@@ -255,189 +229,126 @@ const FlowSearch = ({
         e.preventDefault();
         pick(flat[clampedHi]);
       }
-    } else if (e.key === 'Escape' || e.key === 'Tab') {
-      // Tab walks on to the next control — the card does not stay open behind the reader
+    } else if (e.key === 'Escape') {
       close();
     }
   };
 
-  /* THE FILTER IN FORCE — the row that is the field's own words is where you are */
-  const inForce = (s: Suggestion): boolean => {
-    if (!active || scope) return s.kind === 'all' && normSymbol(value) === normSymbol(s.ticker);
-    if (s.kind === 'ticker') return normSymbol(s.ticker) === nq;
-    if (s.kind === 'contract') return normSymbol(s.query) === nq;
-    return false;
-  };
-  /* the name the field holds, when it holds one — its logo stands where the glass was */
-  const heldName = useMemo(() => {
-    const first = value.trim().split(' ')[0];
-    return first && tallies.tick.has(first) ? first : null;
-  }, [value, tallies]);
+  const rowClass = (idx: number) =>
+    `w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors ${
+      idx === clampedHi ? 'bg-ink/[0.06]' : 'hover:bg-ink/[0.03]'
+    }`;
 
-  const renderRow = (s: Suggestion, idx: number) => {
-    const lit = idx === clampedHi;
-    const on = inForce(s);
-    const quiet = s.kind === 'back' || s.kind === 'door';
-    return (
-      <button
-        key={s.key}
-        type="button"
-        role="option"
-        aria-selected={lit}
-        onMouseEnter={() => setHi(idx)}
-        onMouseDown={e => {
-          e.preventDefault(); // keep focus; select before the field blurs
-          pick(s);
-        }}
-        className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${lit ? WASH[s.kind === 'contract' ? s.right : 'plain'] : ''}`}
-        data-flow-search-row={s.kind}
-        data-lit={lit || undefined}
-      >
-        <span className="w-4 h-4 shrink-0 flex items-center justify-center" aria-hidden="true">
-          {s.kind === 'back' ? (
-            <ArrowLeft className="w-3 h-3 text-textMuted" />
-          ) : s.kind === 'door' ? (
-            <ArrowUpRight className="w-3 h-3 text-textMuted" />
-          ) : s.kind === 'all' ? (
-            <Layers className="w-3 h-3 text-textMuted" />
-          ) : (
-            <CompanyLogo ticker={s.ticker} size={16} />
-          )}
-        </span>
-        {s.kind === 'contract' ? (
-          /* written the way the tape under it writes a contract: the name, the strike, the side in its ink */
-          <span className="min-w-0 truncate font-mono text-[11px] leading-snug">
-            <span className={`font-semibold ${on ? 'text-silver' : 'text-textPrimary'}`}>
-              {s.ticker} {s.strike}
-            </span>{' '}
-            <span className={s.right === 'C' ? 'text-bull' : 'text-bear'}>{s.right === 'C' ? 'call' : 'put'}</span>
-          </span>
-        ) : (
-          <span className={`min-w-0 truncate font-mono text-[11px] leading-snug ${quiet ? 'text-textSecondary' : `font-semibold ${on ? 'text-silver' : 'text-textPrimary'}`}`}>{s.primary}</span>
-        )}
-        {!quiet && (
-          <span className="ml-auto shrink-0 flex items-center gap-2 pl-2 font-mono tnum">
-            {s.count && <span className="text-[9px] text-textMuted whitespace-nowrap">{s.count}</span>}
-            {/* one column of money down the card — the figures line up whatever stands before them */}
-            <span className={`w-[50px] text-right text-[11px] ${lit ? 'text-textPrimary' : 'text-textSecondary'}`}>{s.money}</span>
-            <span className="w-3 h-3 flex items-center justify-center">
-              {on ? <Check className="w-3 h-3 text-silver" /> : s.kind === 'ticker' && !tickersOnly ? <ChevronRight className="w-3 h-3 text-textMuted" /> : null}
-            </span>
-          </span>
-        )}
-      </button>
-    );
-  };
-
-  const nothing = !scope && tickers.length + contracts.length === 0;
-  const noneWords = value.trim() ? `Nothing on this page matches “${value.trim()}”` : 'Nothing on this page yet';
-  return (
-    <Popover.Root
-      open={open}
-      onOpenChange={o => {
-        if (!o) close();
+  const renderRow = (s: Suggestion, idx: number) => (
+    <button
+      key={s.key}
+      onMouseEnter={() => setHi(idx)}
+      onMouseDown={e => {
+        e.preventDefault(); // keep focus; select before the field blurs
+        pick(s);
       }}
-      modal={false}
+      className={rowClass(idx)}
     >
-      <Popover.Anchor asChild>
-        <div
-          ref={rootRef}
-          /* One of the cards on its line. Holding a filter it is ARMED: silver is "where you are", never lime
-             (Noah, 2026-08-30: "remove anything neon in this search thing to holographic silver") */
-          className={`inline-flex items-center gap-1.5 rounded-md border transition-colors font-mono ${compact ? 'h-[22px] pl-2 pr-1.5' : 'h-7 pl-2.5 pr-2'} ${
-            active ? 'border-silver bg-silver/[0.07]' : `border-borderSubtle bg-chip hover:border-borderMuted focus-within:border-silver/50 ${open ? 'border-silver/50' : ''}`
-          }`}
-          data-flow-search={active ? 'armed' : open ? 'open' : 'rest'}
-        >
-          {/* not in a pane's head (compact): the pane prints the held name's mark itself, right beside this field */}
-          {heldName && !compact ? <CompanyLogo ticker={heldName} size={16} /> : <Search className={`w-3 h-3 shrink-0 ${active ? 'text-silver' : 'text-textMuted'}`} aria-hidden="true" />}
-          <input
-            value={value}
-            onChange={e => {
-              onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9 .]/g, '').slice(0, 12));
-              setScope(null); // typing is searching again
-              setOpen(true);
-              setHi(0);
-            }}
-            onFocus={() => setOpen(true)}
-            // A click on a field that already has focus fires no focus event —
-            // after a pick-then-clear the reader would be tapping a dead box.
-            onClick={() => setOpen(true)}
-            onKeyDown={onKeyDown}
-            placeholder={tickersOnly ? 'Ticker' : 'Ticker or contract'}
-            aria-label={tickersOnly ? 'Search by ticker' : 'Search by ticker or contract'}
-            role="combobox"
-            aria-expanded={open}
-            aria-autocomplete="list"
-            className={`${compact ? 'w-[68px]' : 'w-[132px]'} bg-transparent text-[11px] font-semibold uppercase tracking-wider text-textPrimary placeholder:text-textMuted placeholder:font-normal placeholder:normal-case placeholder:tracking-normal focus:outline-none`}
-          />
-          {active && (
-            <button
-              type="button"
-              onMouseDown={e => {
-                e.preventDefault();
-                onChange('');
-                setScope(null);
-              }}
-              aria-label="Clear search"
-              className="text-silver/70 hover:text-silver transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      </Popover.Anchor>
-      <Popover.Portal>
-        <Popover.Content
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          /* the field keeps the caret: the card never takes focus, and a press on the field is not "outside" */
-          onOpenAutoFocus={e => e.preventDefault()}
-          onCloseAutoFocus={e => e.preventDefault()}
-          onInteractOutside={e => {
-            if (rootRef.current?.contains(e.target as Node)) e.preventDefault();
+      {s.kind === 'contract' ? (
+        <span className={`inline-flex w-3.5 justify-center font-mono text-[9px] font-bold ${s.right === 'C' ? 'text-bull' : 'text-bear'}`}>
+          {s.right}
+        </span>
+      ) : s.kind === 'back' ? (
+        <ArrowLeft className="w-3 h-3 text-textMuted" />
+      ) : s.kind === 'door' ? (
+        <ArrowUpRight className="w-3 h-3 text-textMuted" />
+      ) : (
+        /* a name travels with its mark (the global rule, 2026-09-12) */
+        <CompanyLogo ticker={s.ticker} size={14} />
+      )}
+      <span className={`font-mono text-[11px] ${s.kind === 'back' || s.kind === 'door' ? 'text-textSecondary' : 'font-semibold text-textPrimary'}`}>
+        {s.primary}
+      </span>
+      {s.kind !== 'back' && s.kind !== 'door' && <span className="ml-auto font-mono text-[9px] tnum text-textMuted">{s.sub}</span>}
+    </button>
+  );
+
+  return (
+    <div ref={rootRef} className="relative">
+      <div
+        /* Active = the holographic silver, not lime (Noah, 2026-08-30: "remove
+           anything neon in this search thing to holographic silver") — the
+           foil is the house's "where you are" ink; lime stays for live/status. */
+        className={`inline-flex items-center gap-1.5 rounded-md transition-colors ${compact ? 'pl-2 pr-1.5 py-[3px]' : 'pl-2.5 pr-2 py-1.5'} ${
+          active ? 'holo-border' : 'border border-borderSubtle bg-ink/[0.02] focus-within:border-borderMuted'
+        }`}
+      >
+        <Search className={`w-3 h-3 shrink-0 ${active ? 'text-silver' : 'text-textMuted'}`} />
+        <input
+          value={value}
+          onChange={e => {
+            onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9 .]/g, '').slice(0, 12));
+            setScope(null); // typing is searching again
+            setOpen(true);
+            setHi(0);
           }}
-          className={`${CARD} w-[288px] p-1.5 overflow-y-auto overscroll-contain outline-none`}
-          style={{ maxHeight: 'min(var(--radix-popover-content-available-height), 440px)' }}
-          role="listbox"
-          data-flow-search-card={scope ?? 'all'}
+          onFocus={() => setOpen(true)}
+          // A click on a field that already has focus fires no focus event —
+          // after a pick-then-clear the reader would be tapping a dead box.
+          onClick={() => setOpen(true)}
+          onKeyDown={onKeyDown}
+          placeholder={tickersOnly ? 'TICKER' : 'TICKER / CONTRACT'}
+          aria-label={tickersOnly ? 'Search by ticker' : 'Search by ticker or contract'}
+          className={`${compact ? 'w-[68px]' : 'w-[132px]'} bg-transparent font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary placeholder:text-textMuted placeholder:font-normal focus:outline-none`}
+        />
+        {active && (
+          <button
+            onMouseDown={e => {
+              e.preventDefault();
+              onChange('');
+              setScope(null);
+            }}
+            aria-label="Clear search"
+            className="text-silver/70 hover:text-silver transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+      {open && (flat.length > 0 || doorRow) && (
+        <div
+          style={{ maxHeight: menuMax }}
+          className="absolute left-0 top-full mt-1 z-40 w-[236px] overflow-y-auto overscroll-contain border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 animate-slide-in"
         >
-          {nothing && !doorRow ? (
-            <div className="px-2.5 py-4 text-center font-mono text-[10px] text-textMuted" data-flow-search-none>
-              {noneWords}
-            </div>
-          ) : scope ? (
+          {scope ? (
             <>
               {renderRow(flat[0], 0)}
-              <div className={`${HEADING} mt-1 border-t border-borderSubtle/70 pt-2`}>On {scope}</div>
+              <div className="px-2.5 pt-1.5 pb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
+                {scope}
+              </div>
               {flat.slice(1).map((s, i) => renderRow(s, i + 1))}
             </>
           ) : (
             <>
               {tickers.length > 0 && (
                 <>
-                  <div className={HEADING}>Names</div>
+                  <div className="px-2.5 pt-1.5 pb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted">Tickers</div>
                   {tickers.map((s, i) => renderRow(s, i))}
                 </>
               )}
               {contracts.length > 0 && (
                 <>
-                  <div className={`${HEADING} ${tickers.length > 0 ? 'mt-1 border-t border-borderSubtle/70 pt-2' : ''}`}>Contracts</div>
+                  <div className="px-2.5 pt-1.5 pb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
+                    Contracts
+                  </div>
                   {contracts.map((s, i) => renderRow(s, tickers.length + i))}
                 </>
               )}
-              {nothing && doorRow && (
-                <div className="px-2 pt-2 pb-1.5 font-mono text-[10px] text-textMuted" data-flow-search-none>
-                  {noneWords}
+              {doorRow && (
+                <div className={tickers.length + contracts.length > 0 ? 'border-t border-borderSubtle mt-1 pt-1' : ''}>
+                  {renderRow(doorRow, tickers.length + contracts.length)}
                 </div>
               )}
-              {doorRow && <div className={tickers.length + contracts.length > 0 || nothing ? 'mt-1 border-t border-borderSubtle/70 pt-1' : ''}>{renderRow(doorRow, tickers.length + contracts.length)}</div>}
             </>
           )}
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+        </div>
+      )}
+    </div>
   );
 };
 

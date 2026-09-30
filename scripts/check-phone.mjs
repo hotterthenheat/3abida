@@ -18,7 +18,7 @@ const BASE = process.argv[2] ?? 'http://localhost:5199';
 const ONLY = process.argv.slice(3);
 const ALL_ROUTES = [
   '/', '/pulse', '/pulse/board', '/terrain', '/compass', '/compass/tracker', '/weigher',
-  '/trace/live-tape', '/trace/dark-pool', '/trace/screener', '/trace/net-flow', '/trace/footprints', '/trace/watchers', '/trace/intervals', '/trace/odte', '/trace/multi-leg', '/trace/compare', '/trace/tracker',
+  '/trace/live-tape', '/trace/dark-pool', '/trace/screener', '/trace/net-flow', '/trace/footprints', '/trace/watchers', '/trace/windows', '/trace/odte', '/trace/multi-leg', '/trace/compare', '/trace/tracker',
   '/pinpoint/map', '/pinpoint/ahead', '/pinpoint/building', '/pinpoint/wall', '/pinpoint/targets', '/pinpoint/board', '/pinpoint/compare',
   '/dossier/news', '/dossier/earnings', '/dossier/earnings/NVDA', '/dossier/insiders', '/dossier/congress', '/dossier/stocks', '/dossier/stocks/NVDA',
   '/practice/paper', '/practice/backtest', '/practice/futures', '/practice/journal', '/practice/backtest/not-a-session',
