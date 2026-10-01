@@ -7,7 +7,7 @@ their owners and are used only to name the company whose ticker is on screen. "F
 own labels: the file is the company's artwork rather than a redrawn public-domain glyph — the ones to look at again when
 the Terms page is written.
 
-Not from here: the first 17 (the simple-icons set, CC0) and MSFT · ORCL · COIN, drawn by hand.
+Not from here: the first 17 (the simple-icons set, CC0) and MSFT · ORCL · COIN, drawn by hand; and the 63 names of the owner's own sheet (Corporate_Brand_Logo_Matrix.pdf, 2026-10-01 — every name the terminal shows by itself that had no file, SPY · QQQ · IWM · SPX · NDX · RUT among them), made by scripts/logo-sheet/ with the square each was drawn on taken away and a -dark reading where a colour sinks on black.
 
 | Ticker | Company | File | Licence | Changed |
 | --- | --- | --- | --- | --- |

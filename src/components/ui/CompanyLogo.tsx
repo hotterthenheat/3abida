@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import LOGO_DARK from '../../data/logoDark.json';
 
 interface CompanyLogoProps {
   ticker: string;
@@ -26,7 +27,8 @@ interface CompanyLogoProps {
   text; the box's baseline is its bottom edge before and after the swap.
 */
 /* A NAME WITH NO LOGO IS ASKED FOR ONCE (2026-09-19). Seventeen names had a file then (85 since 2026-09-20 — `npm run
-   logos:fetch`, docs/logo-sources.md); every other name's <img> asked the server,
+   logos:fetch`, docs/logo-sources.md; 148 since 2026-10-01, the owner's sheet adding every name the terminal shows by
+   itself); every other name's <img> asked the server,
    got nothing, and fell back to the letters — and did so again for EVERY row and EVERY mount that showed the name (a tape of
    SPY prints is hundreds of wasted requests on a phone's connection). The names that failed are remembered for the session,
    so the letters draw at once and the request is never repeated. */
@@ -62,12 +64,18 @@ const DEEP_MARKS: Record<string, string> = {
   MDLZ: '#4F2170',
 };
 
-/* A FUND HAS NO COMPANY (Noah, 2026-09-20: "for spy qqq and iwm you decide what fits best"). SPY is not State Street's
-   logo to a trader, QQQ is not Invesco's — nobody would know either at 16px, and the issuers' marks are long wordmarks.
-   THE TICKER IS THE MARK: the three letters ARE what everyone reads. So a fund keeps its letters, but as a badge that
-   was MEANT — the page's ink as a solid tile with the letters cut out of it — where a name we simply have no file for
-   wears the quiet grey tile. It is the list's anchor, and it is never asked of the server. */
-const FUND_MARKS = new Set(['SPY', 'QQQ', 'IWM', 'DIA', 'SPX', 'NDX', 'RUT', 'VIX']);
+/* A FUND HAS NO COMPANY (Noah, 2026-09-20: "for spy qqq and iwm you decide what fits best") — so a fund wore its letters
+   as a solid badge of the page's ink, never asked of the server. THE OWNER'S OWN MARKS SINCE 2026-10-01: the logo sheet
+   they drew (Corporate_Brand_Logo_Matrix.pdf — scripts/logo-sheet/) gives SPY, QQQ, IWM, SPX, NDX and RUT their files,
+   with the 57 names that wore the grey tile. The badge stays for the funds no sheet has drawn yet. */
+const FUND_MARKS = new Set(['DIA', 'VIX']);
+
+/* TWO READINGS OF ONE MARK (2026-10-01). The sheet draws every mark on a coloured square; the marks stand bare here, as
+   every logo does (no box round a logo), so a mark that was white on a dark square, or is itself navy or black, has a
+   second file for a dark ground — <SYM>-dark.svg, the names in data/logoDark.json (written with the files). Both are laid
+   in the box and `--logo-flip` (1 on a dark ground, 0 on a light one, re-scoped by every island) shows one: the same
+   switch the deep marks above run on, for marks of more than one colour. */
+const DARK_READING = new Set<string>(LOGO_DARK);
 
 const CompanyLogo = ({ ticker, size = 20, className = '' }: CompanyLogoProps) => {
   const sym = ticker.toUpperCase();
@@ -108,6 +116,21 @@ const CompanyLogo = ({ ticker, size = 20, className = '' }: CompanyLogoProps) =>
           }}
           data-logo-mark={deep ? 'deep' : 'ink'}
         />
+      ) : DARK_READING.has(sym) ? (
+        <>
+          <img
+            src={`/logos/${sym}.svg`}
+            alt=""
+            draggable={false}
+            onError={() => {
+              NO_LOGO.add(sym);
+              setFailedFor(sym);
+            }}
+            className="absolute inset-0 block h-full w-full"
+            style={{ opacity: 'calc(1 - var(--logo-flip, 1))' }}
+          />
+          <img src={`/logos/${sym}-dark.svg`} alt="" draggable={false} className="absolute inset-0 block h-full w-full" style={{ opacity: 'var(--logo-flip, 1)' }} data-logo-mark="dark" />
+        </>
       ) : (
         <img
           src={`/logos/${sym}.svg`}

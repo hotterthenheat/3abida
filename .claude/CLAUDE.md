@@ -56,9 +56,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   browser's it ran several times too fast; one that ends runs freely (something may wait for its end). Films shot
   before the fix still show the mark's foil panning fast — re-filming a page fixes it (measured 2026-10-01: the mark's
   corner changes ~0.1 a frame in those and ~0.02-0.05 in the fixed ones; 34 desk films still wait — every desk film but
-  Compass's and Trace's Live Tape, Net Flow, Dark Pool and Screener; phone films do not show the mark). They wait for
-  the owner's ticker logos (2026-10-01: the owner is supplying the 57 names on the grey letter tile and the six funds and
-  indices), so every page is filmed once, with the logos in. Live pages
+  Compass's and Trace's Live Tape, Net Flow, Dark Pool and Screener; phone films do not show the mark). They were held
+  for the owner's ticker logos, which came the same day, so every page is filmed once, with the logos in. Live pages
   move under an act: a menu's choice is made again by its words, not its place; a press that must not land on something
   (Compass's chosen card, whose second press opens its page) names it in `unless`; a pick that sets the page's focus
   (the Wall's wall) is undone by letting go of the focus, not by picking again. Never edit src while a run films: the
@@ -81,6 +80,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the tape's removed side rail, Compass's unnamed "moving", the Weigher's split list and "every page has a guide" had
   all drifted): a page that changes takes its lines in Landing.tsx STEPS and Everything.tsx ROOMS with it, and a row
   under a picture says what the picture shows.
+- Ticker logos (2026-10-01): every name the terminal shows has a mark in public/logos/{SYM}.svg, drawn by CompanyLogo.
+  The 63 the owner drew (Corporate_Brand_Logo_Matrix.pdf: the 57 names that wore the grey letter tile, SPY, QQQ, IWM,
+  SPX, NDX, RUT) are cut from the sheet by scripts/logo-sheet/ (build.py, then bare.mjs): the square each was drawn on
+  is taken away (no box round a logo), and a mark that sinks on black gets a second file, {SYM}-dark.svg, listed in
+  src/data/logoDark.json; CompanyLogo lays both and `--logo-flip` shows the one for the ground. The rest are fetched
+  (`npm run logos:fetch`, docs/logo-sources.md). Never redraw a mark by hand. The sheet spelled Eaton "FATON"; its own
+  E was put back. DIA and VIX keep the fund badge until a mark is drawn for them.
 - Prices agree across desks: a name's seeded history is drawn from its own stream for the day (core/simulator.ts
   beginSeed: `${sym}-${dayKey()}-walk`), and the day's change is measured from the last session's close
   (Simulator.dayChangePct), never from the config's base price.
