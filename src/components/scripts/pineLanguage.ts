@@ -15,6 +15,7 @@
 import { HighlightStyle, StreamLanguage, syntaxHighlighting, type StringStream } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
+import { FONT_CODE } from '../../theme/fonts';
 
 const KEYWORDS = new Set(['if', 'else', 'for', 'to', 'by', 'in', 'while', 'switch', 'and', 'or', 'not', 'var', 'varip', 'true', 'false', 'na', 'break', 'continue', 'import', 'export', 'method', 'type', 'enum']);
 const TYPES = new Set(['int', 'float', 'bool', 'string', 'color', 'series', 'simple', 'const', 'input', 'line', 'label', 'box', 'table']);
@@ -104,7 +105,7 @@ export const pineHighlight = syntaxHighlighting(
 export const pineTheme = EditorView.theme(
   {
     '&': { backgroundColor: '#0b0b0c', color: INK, fontSize: '12px', height: '100%' },
-    '.cm-scroller': { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', lineHeight: '1.65', overflow: 'auto' },
+    '.cm-scroller': { fontFamily: FONT_CODE, lineHeight: '1.65', overflow: 'auto' },
     '.cm-content': { padding: '10px 0', caretColor: SILVER },
     '.cm-line': { padding: '0 12px' },
     '&.cm-focused': { outline: 'none' },

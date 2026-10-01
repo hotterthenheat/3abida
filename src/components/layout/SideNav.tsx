@@ -22,9 +22,16 @@
   page you are on, "the completion bar feel". The
   current product is a soft pill with a silver bar
   on the panel's edge; a round notch on that edge
-  collapses it to a 52px icon rail that keeps our
-  ">_" mark (Noah: "i do love this logo though for
-  the collapsed look").
+  collapses it to a 52px icon rail that keeps the
+  mark (Noah: "i do love this logo though for the
+  collapsed look").
+
+  THE BRAND (Slayer Logo System, 2026-09-30): the
+  mark is the living >S| (brand/SlayerMark — it says
+  what the terminal is doing: idle, loading, closed,
+  an alert), the wordmark beside it is drawn, every
+  product wears its glyph, and the foot is the
+  signature, "slayer:~ $ ● simulated".
 
   Why the edge bar is ONE element on the panel and
   not a pseudo-element on each row: the rows live
@@ -57,6 +64,10 @@ import { toggleAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
 import { beginGlide, endGlide } from '../../core/glide';
 import { alpha } from '../gex/paletteInk';
 import { EMBEDDED } from '../../embed';
+import SlayerMark from '../../brand/SlayerMark';
+import Wordmark from '../../brand/Wordmark';
+import Signature from '../../brand/Signature';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const COLLAPSED_KEY = 'slayer_sidenav_collapsed';
@@ -199,7 +210,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const priceText = marketData ? `$${marketData.spot.toFixed(2)}` : '—';
   const changeText = marketData ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
 
-  /* THE MARK AND THE WORDMARK — the door home */
+  /* THE MARK AND THE WORDMARK — the door home. The mark brightens as the pointer nears it (the Logo System's own rule) */
   const brand = (
     <a
       href="/"
@@ -209,13 +220,12 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       }}
       onMouseEnter={e => showTip(e, 'Home')}
       onMouseLeave={hideTip}
+      aria-label="Slayer Terminal — home"
       className={`shrink-0 flex items-center gap-2.5 h-[52px] select-none ${collapsed ? 'pl-3 pr-0' : 'px-3.5'}`}
       data-brand
     >
-      <span className="holo-bg w-7 h-7 rounded-[8px] shrink-0 flex items-center justify-center font-mono text-[11px] font-bold text-[#0a0a0a]" aria-hidden>
-        &gt;_
-      </span>
-      {!collapsed && <span className="font-mono text-[13px] font-bold tracking-tight holo-text whitespace-nowrap">slayer_terminal</span>}
+      <SlayerMark size={28} near label="" />
+      {!collapsed && <Wordmark height={12} label="" className="translate-y-[1px]" />}
     </a>
   );
 
@@ -281,14 +291,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       aria-label="Alerts"
     >
       {/* jingles when an alert is set on any name and wears its ink while any is set (Noah, 2026-09-10) */}
-      <JingleBell
-        count={setTotal}
-        ink={NAV_INK.alerts}
-        lit={drawerOpen || unseen > 0}
-        className={`w-4 h-4 shrink-0 ${drawerOpen ? 'text-[color:var(--ink)]' : 'text-textMuted group-hover:text-[color:var(--ink)]'}`}
-        strokeWidth={drawerOpen ? 2 : 1.75}
-        style={{ '--ink': NAV_INK.alerts } as CSSProperties}
-      />
+      <JingleBell count={setTotal} ink={NAV_INK.alerts} lit={drawerOpen || unseen > 0} glyph={17} />
       {!collapsed && <span>Alerts</span>}
       {/* WHAT ALERTED AND WAS NOT LOOKED AT: the number in a small RED curved
           square (Noah, 2026-09-10: "i dont like the alert color lime … a
@@ -371,14 +374,20 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
               title={collapsed ? undefined : tree ? `${item.description} — click to ${open ? 'fold' : 'unfold'} its pages` : item.description}
               aria-label={item.label}
             >
-              {/* Each desk's icon takes its own ink (nav.ts NAV_INK) on hover and on the desk you are on;
-                  at rest it is the muted grey (Noah, 2026-09-09: thirteen inks at once was "too much color") */}
-              <item.icon
-                className={`w-4 h-4 shrink-0 transition-colors duration-200 ${inside ? 'text-[color:var(--ink)]' : 'text-textMuted group-hover:text-[color:var(--ink)]'}`}
-                strokeWidth={inside ? 2 : 1.75}
-                style={{ '--ink': item.ink } as CSSProperties}
-                data-nav-icon
-              />
+              {/* EACH PRODUCT WEARS ITS GLYPH (Slayer Logo System, 2026-09-30): silver with ONE part in its desk's ink — the
+                  brand's answer to "thirteen inks at once was too much color" (Noah, 2026-09-09), which was thirteen
+                  whole icons in colour. Settings, a door and not a product, keeps its line icon: muted at rest, its ink on
+                  hover and while you are in it. */}
+              {item.glyph ? (
+                <ProductGlyph name={item.glyph} size={17} bare className="shrink-0" />
+              ) : (
+                <item.icon
+                  className={`w-4 h-4 shrink-0 transition-colors duration-200 ${inside ? 'text-[color:var(--ink)]' : 'text-textMuted group-hover:text-[color:var(--ink)]'}`}
+                  strokeWidth={inside ? 2 : 1.75}
+                  style={{ '--ink': item.ink } as CSSProperties}
+                  data-nav-icon
+                />
+              )}
               {!collapsed && <span className="truncate">{item.label}</span>}
               {/* the fold's chevron — only on a section with pages, only while you are in it */}
               {tree && <ChevronDown className={`ml-auto w-3 h-3 shrink-0 text-textMuted transition-transform duration-200 ${open ? '' : '-rotate-90'}`} aria-hidden data-nav-fold={open ? 'open' : 'folded'} />}
@@ -522,19 +531,26 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             </span>
           )}
         </NavLink>
+        {/* THE SIGNATURE (Slayer Logo System): "slayer:~ $ ● simulated" — the data is the simulator's, and everything says
+            so until a feed is signed — over the session's own line and the clock. The rail keeps the state's dot. */}
         <div
-          className={`shrink-0 flex items-center gap-2 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[10px] pr-0 py-3' : 'px-3.5 py-3'}`}
-          title={collapsed ? `${clock.label} · ${time}` : undefined}
+          className={`shrink-0 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[22px] pr-0 py-3.5' : 'px-3.5 py-2.5'}`}
+          title={collapsed ? `slayer:~ $ simulated · ${clock.label} · ${time}` : undefined}
           onMouseEnter={e => showTip(e, `Simulated data · ${clock.label} · ${time}`)}
           onMouseLeave={hideTip}
+          data-sidenav-signature
         >
-          <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-warn border border-warn/60 rounded px-1.5 py-0.5">Sim</span>
-          {!collapsed && (
+          {collapsed ? (
+            <span className="block w-2 h-2 rounded-full" style={{ background: 'rgb(var(--silver))' }} aria-label="Simulated data" />
+          ) : (
             <>
-              <span className="min-w-0 truncate font-mono text-[10px] tnum text-textSecondary" title={clock.label} data-session-line>
-                {open ? clock.label : clock.label.toLowerCase()}
+              <Signature state="simulated" rule={false} className="text-[10.5px]" />
+              <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
+                <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
+                  {open ? clock.label : clock.label.toLowerCase()}
+                </span>
+                <span className="ml-auto text-textMuted select-none">{time}</span>
               </span>
-              <span className="ml-auto font-mono text-[10px] tnum text-textMuted select-none">{time}</span>
             </>
           )}
         </div>

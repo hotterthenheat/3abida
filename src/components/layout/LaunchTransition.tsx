@@ -11,10 +11,13 @@
   a fixed 1.35s for nothing (measured on a slow phone:
   the headline was painted at 3.7s and could not be
   read until 4.5s).
-  Caret logo + a lime progress line over black, then
-  the destination fades in beneath it. Fixed duration
-  — when a real boot sequence exists it slots into
-  the same hold.
+  The living mark in its Loading state (the pan at
+  speed, the cursor held), the wordmark typing in at
+  28 ms a character, the progress line, and the
+  signature under it — the Logo System's loading
+  screen (2026-09-30). Then the destination fades in
+  beneath it. Fixed duration — when a real boot
+  sequence exists it slots into the same hold.
 ==================================================
 */
 
@@ -22,6 +25,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { EMBEDDED } from '../../embed';
+import SlayerMark from '../../brand/SlayerMark';
+import Wordmark from '../../brand/Wordmark';
+import Signature from '../../brand/Signature';
 
 interface LaunchCtxValue {
   /** Play the gate, then navigate (defaults to the terminal's front door). */
@@ -95,24 +101,19 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] bg-canvas flex flex-col items-center justify-center gap-6"
+            className="fixed inset-0 z-[100] bg-canvas flex flex-col items-center justify-center gap-5"
             data-launch-gate
           >
-            {/* on the light page the foil is faint on white: the mark and the bar go to the ink there (index.css) —
-                Noah, 2026-09-26: "the loading screen of slayer on light mode esp the bar needs to be more apparent" */}
-            <span className="font-mono text-xl font-bold tracking-tight select-none">
-              <span className="text-textMuted">&gt; </span>
-              <span className="holo-text" data-gate-mark>slayer_terminal</span>
-              <span className="inline-block w-[10px] h-[18px] ml-1.5 bg-textPrimary align-middle animate-cursor-blink" />
-            </span>
+            <SlayerMark size={64} state="loading" label="" />
+            <Wordmark height={20} typing label="Slayer Terminal" />
             <div className="w-52 h-[2px] rounded-full bg-ink/[0.08] overflow-hidden" data-gate-track>
               {/* CSS transform fill (see .animate-gate-fill) — compositor-driven,
-                  so it never stutters while the main thread loads chunks. */}
+                  so it never stutters while the main thread loads chunks. On the light page the bar is the ink
+                  (index.css — Noah, 2026-09-26: "esp the bar needs to be more apparent"). */}
               <div className="h-full rounded-full holo-bar animate-gate-fill" />
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-textMuted select-none">
-              {caption}
-            </span>
+            <span className="sr-only">{caption}</span>
+            <Signature state="simulated" rule={false} className="text-[10.5px] select-none" />
           </motion.div>
         )}
       </AnimatePresence>

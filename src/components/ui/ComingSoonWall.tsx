@@ -182,7 +182,7 @@ const ComingSoonWall = ({ kicker, blurb, foot }: Props) => {
           </>,
           document.body
         )}
-      <div className="sticky top-12 h-[calc(100vh-140px)] min-h-[600px] flex flex-col items-center justify-center overflow-hidden" data-room-wall-card>
+      <div className="sticky top-12 h-[calc(100vh-140px-var(--demo-band,0px))] min-h-[600px] flex flex-col items-center justify-center overflow-hidden" data-room-wall-card>
         {/* a soft pool behind the words, so they read clean while the page shows at the edges —
             dark on black, white on paper (the theme's --wall-pool) */}
         <div aria-hidden className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[560px] pointer-events-none" style={{ background: 'var(--wall-pool)' }} data-room-wall-pool />

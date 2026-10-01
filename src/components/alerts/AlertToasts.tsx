@@ -33,6 +33,7 @@ import { dirInk, usdSigned } from '../review/words';
 import { chime } from '../../core/sound';
 import { ALERT, alpha } from '../gex/paletteInk';
 import { openAlertsDrawer } from '../../data/alertsDrawer';
+import { flashAlert } from '../../brand/markState';
 
 /** How long a chip stays — long enough to read on a page you were not looking at */
 export const TOAST_MS = 5000;
@@ -40,6 +41,9 @@ const AT_MOST = 4;
 
 /** A paper chip's ink: a fill is silver (where you are); an evaluation's end, its verdict's */
 const paperInk = (t: PaperToast): string => (t.kind === 'failed' ? 'rgb(var(--bear))' : t.kind === 'passed' ? 'rgb(var(--bull))' : t.kind === 'day-over' || t.kind === 'flat' || t.kind === 'rule' ? 'rgb(var(--warn))' : 'rgb(var(--silver))');
+
+/** New York's clock, to the second — when an alert fired */
+const ET_CLOCK = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
 const AlertToasts = () => {
   const names = useAllAlerts();
@@ -67,7 +71,11 @@ const AlertToasts = () => {
         fresh = true;
       }
     }
-    if (fresh) chime();
+    if (fresh) {
+      chime();
+      /* the mark's cursor flashes the warning ink twice (brand/markState.ts — "Alert: an alert fires") */
+      flashAlert();
+    }
   });
 
   /* wake when the oldest chip on screen is due to leave */
@@ -109,7 +117,8 @@ const AlertToasts = () => {
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: ALERT }} aria-hidden />
           <span className="font-bold">{x.ticker}</span>
           <span className="text-textPrimary">{firedWords(x.r.alert, x.ticker)}</span>
-          <span className="text-[9px] uppercase tracking-wider text-textMuted">alerted</span>
+          {/* when, on the market's clock — the brand's alert line ends "at 10:42:07 ET" */}
+          <span className="text-textMuted tnum">at {ET_CLOCK.format(x.r.at)} ET</span>
         </button>
       ))}
     </div>

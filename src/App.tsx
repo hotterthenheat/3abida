@@ -11,6 +11,8 @@ import EmbedBridge from './components/layout/EmbedBridge';
 import PageMeta from './components/layout/PageMeta';
 import { NotFoundInside, NotFoundPrompt } from './pages/notFound/NotFound';
 import { EMBEDDED } from './embed';
+import { FaviconFollowsMark } from './brand/favicon';
+import AlertsDoor from './components/alerts/AlertsDoor';
 
 /*
   EVERY PAGE IS ITS OWN CHUNK (2026-09-06, the perf sweep). The app used to
@@ -96,6 +98,13 @@ const FlowTracker = lazy(() => import('./pages/trace/FlowTracker'));
 /* THE ROOM (2026-09-13): Community is one room now — the ideas, requests and feedback
    pages are gone; it opens after launch, behind the glass */
 const Room = lazy(() => import('./pages/community/Room'));
+const Auth = lazy(() => import('./pages/auth/Auth'));
+const Status = lazy(() => import('./pages/outside/Status'));
+const About = lazy(() => import('./pages/outside/About'));
+const Legal = lazy(() => import('./pages/outside/Legal'));
+const Maintenance = lazy(() => import('./pages/outside/Maintenance'));
+const Invite = lazy(() => import('./pages/outside/Invite').then(m => ({ default: m.Invite })));
+const Welcome = lazy(() => import('./pages/outside/Invite').then(m => ({ default: m.Welcome })));
 
 const App = () => {
   return (
@@ -109,6 +118,9 @@ const App = () => {
         <EmbedBridge />
         {/* every page's own tab title and description (2026-09-19) */}
         <PageMeta />
+        {/* the tab's icon is the mark in its state — still, loading, alert, closed (brand/favicon.ts); not inside the
+            landing's window, whose tab is the landing's */}
+        {!EMBEDDED && <FaviconFollowsMark />}
         {/* The landing sits outside the shell, so it needs its own boundary —
             a dark screen, never a flash of white, while its chunk travels */}
         <Suspense fallback={<div className="min-h-screen bg-canvas" aria-busy="true" />}>
@@ -117,7 +129,20 @@ const App = () => {
               visitor sees; "Launch terminal" plays the gate into /pulse. */}
           {/* …and the landing never loads itself inside its own window */}
           <Route path="/" element={EMBEDDED ? <Navigate to="/pulse" replace /> : <Landing />} />
-          <Route path="/welcome" element={<Navigate to="/" replace />} />
+          {/* THE PAGES OUTSIDE THE TERMINAL (Slayer Logo System, Web and App, 2026-10-01): the account forms, an invite and its
+              welcome, status and the changelog, about, the legal pages, maintenance — each on its own frame, no rail */}
+          <Route path="/welcome" element={<Welcome />} />
+          <Route path="/i/:code" element={<Invite />} />
+          <Route path="/signup" element={<Auth />} />
+          <Route path="/signin" element={<Auth />} />
+          <Route path="/reset" element={<Auth />} />
+          <Route path="/verified" element={<Auth />} />
+          <Route path="/expired" element={<Auth />} />
+          <Route path="/status" element={<Status />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
+          <Route path="/legal/:doc" element={<Legal />} />
+          <Route path="/maintenance" element={<Maintenance />} />
           <Route element={<AppShell />}>
             <Route path="/home" element={<Navigate to="/pulse" replace />} />
             <Route path="/pulse" element={<Pulse />} />
@@ -243,6 +268,8 @@ const App = () => {
             <Route path="/flow-desk/*" element={<Navigate to="/trace" replace />} />
             <Route path="/pinpoint-gex/*" element={<Navigate to="/pinpoint" replace />} />
             <Route path="/community" element={<Room />} />
+            {/* Alerts are a drawer, not a page: their address opens it over Pulse (components/alerts/AlertsDoor.tsx) */}
+            <Route path="/alerts" element={<AlertsDoor />} />
             {/* The old tabs' paths land on the room */}
             <Route path="/community/*" element={<Navigate to="/community" replace />} />
             <Route path="/auditor-log" element={<Navigate to="/compass/tracker" replace />} />

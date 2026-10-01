@@ -16,6 +16,7 @@ import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
 import { readSessionClock } from '../../data/sessionClock';
 import { FLIP, LONG_GAMMA, SHORT_GAMMA } from '../../components/gex/paletteInk';
 import { GEX_SUBPAGES } from './subnav';
+import MarkLoad from '../../brand/MarkLoad';
 
 /*
 ==================================================
@@ -221,13 +222,13 @@ const PinpointLayout = () => {
           /* THE DESK OWNS ITS FIRST SCREEN: top bar 56 + the shell's padding
              and its head ≈ 164. Short pages stretch to a full first screen;
              the footer starts below the fold. */
-          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]"
+          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px-var(--demo-band,0px))]"
         >
           {/* A subpage opens at its head, not where the last one's scroll was (2026-09-11) */}
           <ScrollHome />
           {/* A page's code travels on its first visit; it stands in as ITS OWN
               shape under a shell head that stays put (pinpointSkeletons.tsx) */}
-          <Suspense fallback={<PinpointPageSkeleton pathname={location.pathname} />}>{outlet}</Suspense>
+          <Suspense fallback={<><MarkLoad /><PinpointPageSkeleton pathname={location.pathname} /></>}>{outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
     </>

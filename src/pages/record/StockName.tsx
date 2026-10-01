@@ -75,6 +75,7 @@ import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { bracketLabel, buildCongress } from '../../data/congress';
 import type { BookContract, FlowPrint } from '../../types/trace';
 import { StockNameSkeleton } from './recordSkeletons';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))';
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -321,10 +322,10 @@ const LevelsScale = ({ spot, putWall, flip, callWall, supreme }: { spot: number;
               {/* a wide silent hit area, so the mark is easy to hover */}
               <rect x={`calc(${x(m.price)}% - 12px)`} y={0} width={24} height={54} fill="transparent" />
               <line x1={`${x(m.price)}%`} x2={`${x(m.price)}%`} y1={isSpot ? 18 : 22} y2={isSpot ? 36 : 32} stroke={m.ink} strokeWidth={isSpot || on ? 2 : 1.25} strokeDasharray={m.key === 'flip' ? '2 2' : undefined} />
-              <text x={`${x(m.price)}%`} y={up ? 12 : 46} textAnchor="middle" fontSize={9} fontFamily="ui-monospace, Menlo, monospace" fill={m.ink} fontWeight={isSpot || on ? 700 : 500}>
+              <text x={`${x(m.price)}%`} y={up ? 12 : 46} textAnchor="middle" fontSize={9} fontFamily={FONT_SANS} fill={m.ink} fontWeight={isSpot || on ? 700 : 500}>
                 {isSpot ? m.price.toFixed(2) : m.price}
               </text>
-              <text x={`${x(m.price)}%`} y={up ? 4 : 54} textAnchor="middle" fontSize={7.5} fontFamily="ui-monospace, Menlo, monospace" letterSpacing={0.6} fill={m.ink} fillOpacity={on ? 1 : 0.75}>
+              <text x={`${x(m.price)}%`} y={up ? 4 : 54} textAnchor="middle" fontSize={7.5} fontFamily={FONT_SANS} letterSpacing={0.6} fill={m.ink} fillOpacity={on ? 1 : 0.75}>
                 {m.word.toUpperCase()}
               </text>
             </g>
@@ -363,18 +364,18 @@ const FairValueScale = ({ price, fair, vsPct }: { price: number; fair: number; v
         <rect x="0%" y={19} width={`${x(fair * 0.92)}%`} height={6} fill="rgb(var(--bull))" fillOpacity={0.14} />
         <rect x={`${x(fair * 1.08)}%`} y={19} width={`${100 - x(fair * 1.08)}%`} height={6} fill="rgb(var(--bear))" fillOpacity={0.14} />
         <line x1="50%" x2="50%" y1={16} y2={28} stroke={SILVER} strokeWidth={1.25} strokeDasharray="2 2" />
-        <text x="50%" y={40} textAnchor="middle" fontSize={9} fontFamily="ui-monospace, Menlo, monospace" fill={SILVER}>
+        <text x="50%" y={40} textAnchor="middle" fontSize={9} fontFamily={FONT_SANS} fill={SILVER}>
           fair {fair.toFixed(2)}
         </text>
         {at != null && <line x1={`${at * 100}%`} x2={`${at * 100}%`} y1={14} y2={30} stroke="rgb(var(--ink))" strokeOpacity={0.35} strokeWidth={1} />}
         <line x1={`${px}%`} x2={`${px}%`} y1={13} y2={31} stroke="rgb(var(--text-primary))" strokeWidth={2} style={{ transition: `x1 520ms ${EASE}, x2 520ms ${EASE}` }} />
-        <text x={`${px}%`} y={9} textAnchor="middle" fontSize={9} fontWeight={700} fontFamily="ui-monospace, Menlo, monospace" fill="rgb(var(--text-primary))">
+        <text x={`${px}%`} y={9} textAnchor="middle" fontSize={9} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--text-primary))">
           {price.toFixed(2)} · {pct(vsPct)}
         </text>
-        <text x="0%" y={40} textAnchor="start" fontSize={7.5} letterSpacing={0.6} fontFamily="ui-monospace, Menlo, monospace" fill="rgb(var(--bull))" fillOpacity={0.8}>
+        <text x="0%" y={40} textAnchor="start" fontSize={7.5} letterSpacing={0.6} fontFamily={FONT_SANS} fill="rgb(var(--bull))" fillOpacity={0.8}>
           CHEAP · −20%
         </text>
-        <text x="100%" y={40} textAnchor="end" fontSize={7.5} letterSpacing={0.6} fontFamily="ui-monospace, Menlo, monospace" fill="rgb(var(--bear))" fillOpacity={0.8}>
+        <text x="100%" y={40} textAnchor="end" fontSize={7.5} letterSpacing={0.6} fontFamily={FONT_SANS} fill="rgb(var(--bear))" fillOpacity={0.8}>
           RICH · +20%
         </text>
       </svg>

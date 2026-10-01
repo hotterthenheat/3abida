@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { NAV_ITEMS } from '../layout/nav';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 interface PageHeaderProps {
   breadcrumb: string[];
@@ -14,7 +15,8 @@ const PageHeader = ({ breadcrumb, title, subtitle, actions }: PageHeaderProps) =
   // Every page carries its section icon — resolved from the nav registry, so
   // no page has to pass one and nav/page identity can never drift apart.
   const section = `/${pathname.split('/')[1] ?? ''}`;
-  const Icon = NAV_ITEMS.find(i => i.path === section)?.icon;
+  const item = NAV_ITEMS.find(i => i.path === section);
+  const Icon = item?.icon;
 
   return (
     <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -32,10 +34,15 @@ const PageHeader = ({ breadcrumb, title, subtitle, actions }: PageHeaderProps) =
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {Icon && (
-            <span className="inline-flex w-6 h-6 rounded-md border border-borderSubtle bg-inset items-center justify-center shrink-0">
-              <Icon className="w-3.5 h-3.5 text-textSecondary" />
-            </span>
+          {/* a product's page wears its glyph on its tile (the Logo System's 24 px form); a door like Settings its line icon */}
+          {item?.glyph ? (
+            <ProductGlyph name={item.glyph} size={24} className="shrink-0 rounded-md" />
+          ) : (
+            Icon && (
+              <span className="inline-flex w-6 h-6 rounded-md border border-borderSubtle bg-inset items-center justify-center shrink-0">
+                <Icon className="w-3.5 h-3.5 text-textSecondary" />
+              </span>
+            )
           )}
           <h1 className="text-lg font-semibold tracking-tight text-textPrimary leading-none">{title}</h1>
         </div>

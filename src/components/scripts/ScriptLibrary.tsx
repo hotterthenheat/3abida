@@ -25,6 +25,7 @@ import type { ChartScript, PaneId, Script, ScriptInput, ScriptInputValue } from 
 import Modal from '../ui/Modal';
 import { INDICATOR_ITEMS } from '../gex/indicatorItems';
 import { MAX_SUB_PANES, SUB_PANE_ORDER, type ChartIndicators } from '../gex/StrikeChart';
+import SlayerMark from '../../brand/SlayerMark';
 
 type Shelf = 'recent' | 'favourites' | 'mine' | 'slayer' | 'technicals' | 'chart';
 type Kind = 'slayer' | 'pine' | 'chart';
@@ -337,9 +338,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
         widthClass="max-w-[1080px]"
         header={
           <div className="flex items-center gap-3 min-w-0">
-            <span className="holo-bg w-6 h-6 rounded-[6px] shrink-0 flex items-center justify-center font-mono text-[10px] font-bold text-[#0a0a0a]" aria-hidden>
-              &gt;_
-            </span>
+            <SlayerMark size={24} label="" />
             <span className="text-[15px] font-semibold leading-tight text-textPrimary">Indicators and scripts</span>
             <span className="font-mono text-[10px] text-textMuted whitespace-nowrap" data-library-count>
               {onThisPane} on this pane

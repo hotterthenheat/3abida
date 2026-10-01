@@ -22,6 +22,7 @@ import { RecordPageSkeleton } from './recordSkeletons';
 import BackToTop from '../../components/ui/BackToTop';
 import ScrollHome from '../../components/layout/ScrollHome';
 import { useGlideHold } from '../../components/ui/useGlideHold';
+import MarkLoad from '../../brand/MarkLoad';
 
 const RecordLayout = () => {
   const location = useLocation();
@@ -64,11 +65,11 @@ const RecordLayout = () => {
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           /* The same first screen Pinpoint keeps: the top bar, this head and the page's padding */
-          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]"
+          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px-var(--demo-band,0px))]"
         >
           {/* A subpage opens at its head, not where the last one's scroll was (2026-09-11) */}
           <ScrollHome />
-          <Suspense fallback={<RecordPageSkeleton pathname={location.pathname} />}>{outlet}</Suspense>
+          <Suspense fallback={<><MarkLoad /><RecordPageSkeleton pathname={location.pathname} /></>}>{outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
       {/* The page's door home once a grid runs past a screen (the Compass board's, 2026-09-11) */}

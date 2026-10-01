@@ -81,6 +81,7 @@ import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
 import { useResolvedTheme } from '../../theme/theme';
 import { CLOSE_MIN, VOL_OPTIONS, fmtDollars, fmtPrice, fmtStrike, hhmm, volWords, type AheadClock, type Corridor, type Schedule, type ScheduleBlock, type VolPoints } from '../../data/ahead';
 import type { ExposureLevels } from '../../types/gex';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = CALL_WALL;
@@ -93,8 +94,9 @@ const RED = PUT_WALL;
    tokens for paper. The level inks (walls, flip, supreme, silver) were tokens already and re-ink off the box's stamp. */
 const DARK_FIG = { spot: '#ededed', wash: '#ffffff', tick: '#7c8290', faint: '#8a909c', hole: '#0e0e0f', band: 0.12 };
 const PAPER_FIG = { spot: 'rgb(var(--text-primary))', wash: 'rgb(var(--ink))', tick: 'rgb(var(--text-secondary))', faint: 'rgb(var(--text-muted))', hole: 'rgb(var(--inset))', band: 0.16 };
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIGS = FONT_SANS;
+const SANS = FONT_SANS;
 const W = 1200;
 /* THE SCALE runs the box's width — no axis column; the prices sit under the track */
 const SM = { l: 12, r: 12 };
@@ -420,7 +422,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
               <g key={v}>
                 <motion.line initial={false} animate={{ x1: x(v), x2: x(v) }} transition={GLIDE} y1={ROW.tick} y2={ROW.tick + 4} stroke={FIG.wash} strokeOpacity={0.25} />
                 {tickShown(v) && (
-                  <motion.text initial={false} animate={{ attrX: x(v) }} transition={GLIDE} y={ROW.figure} textAnchor="middle" fontSize={9} fill={FIG.tick} fontFamily={MONO} data-axis-tick>
+                  <motion.text initial={false} animate={{ attrX: x(v) }} transition={GLIDE} y={ROW.figure} textAnchor="middle" fontSize={9} fill={FIG.tick} fontFamily={FIGS} data-axis-tick>
                     {fmtStrike(v)}
                   </motion.text>
                 )}
@@ -444,10 +446,10 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
             <motion.circle initial={false} animate={{ cx: x(spot) }} transition={GLIDE} cy={ROW.track} r={3} fill={FIG.hole} stroke={SILVER} strokeWidth={1.5} data-corridor-origin />
             {/* THE NAMES — sans in the level's ink with the price; a wall in reach carries its clock time in grey; spot's price bold and white */}
             {names.map(n => (
-              <motion.text key={n.key} initial={false} animate={{ attrX: n.cx, attrY: ROW.names[n.row] }} transition={GLIDE} textAnchor="middle" fontSize={n.spot ? 10 : 9.5} fontWeight={n.spot ? 700 : 500} fill={n.ink} fillOpacity={0.92} fontFamily={n.spot ? MONO : SANS} data-level-label={n.key}>
+              <motion.text key={n.key} initial={false} animate={{ attrX: n.cx, attrY: ROW.names[n.row] }} transition={GLIDE} textAnchor="middle" fontSize={n.spot ? 10 : 9.5} fontWeight={n.spot ? 700 : 500} fill={n.ink} fillOpacity={0.92} fontFamily={n.spot ? FIGS : SANS} data-level-label={n.key}>
                 {n.text}
                 {n.extra && (
-                  <tspan fill={FIG.faint} fontWeight={400} fontSize={9} fontFamily={MONO}>
+                  <tspan fill={FIG.faint} fontWeight={400} fontSize={9} fontFamily={FIGS}>
                     {' '}
                     · {n.extra}
                   </tspan>
@@ -456,14 +458,14 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
             ))}
             {/* THE BRACKET — one expected move each side of spot, under the ticks */}
             <motion.path initial={false} animate={{ d: `M${x(spot - sigma).toFixed(1)},${ROW.bracket - 5} V${ROW.bracket} H${x(spot + sigma).toFixed(1)} V${ROW.bracket - 5}` }} transition={GLIDE} fill="none" stroke={SILVER} strokeOpacity={0.6} strokeWidth={1} data-corridor-bracket />
-            <motion.text initial={false} animate={{ attrX: x(spot) }} transition={GLIDE} y={ROW.words} textAnchor="middle" fontSize={8} fill={FIG.faint} fontFamily={MONO} letterSpacing={1.2} data-corridor-bracket-words>
+            <motion.text initial={false} animate={{ attrX: x(spot) }} transition={GLIDE} y={ROW.words} textAnchor="middle" fontSize={8} fill={FIG.faint} fontFamily={FIGS} letterSpacing={1.2} data-corridor-bracket-words>
               ONE EXPECTED MOVE EACH SIDE · ±{fmtPrice(sigma)}
             </motion.text>
             {/* THE POINTER — a hairline at its price, the price on the axis in silver */}
             {at != null && readout != null && (
               <g data-corridor-cursor>
                 <line x1={at} x2={at} y1={ROW.postTop} y2={ROW.postBot} stroke={SILVER} strokeOpacity={0.45} strokeWidth={1} />
-                <text x={at} y={ROW.figure} textAnchor="middle" fontSize={9.5} fontWeight={600} fill={SILVER} fontFamily={MONO} data-traced-price>
+                <text x={at} y={ROW.figure} textAnchor="middle" fontSize={9.5} fontWeight={600} fill={SILVER} fontFamily={FIGS} data-traced-price>
                   {fmtPrice(readout)}
                 </text>
               </g>

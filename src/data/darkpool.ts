@@ -221,7 +221,7 @@ function classify(
   return {
     intent: 'ROTATION',
     conviction: Math.round(hRange(`${seedBase}-c5`, 35, 55)),
-    read: 'Routine off-exchange rotation — no signal by itself; watch whether it clusters at a shelf.',
+    read: 'Routine off-exchange rotation — nothing to read by itself; watch whether it clusters at a shelf.',
   };
 }
 

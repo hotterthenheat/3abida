@@ -43,7 +43,7 @@ export const SavedCutsControl = ({ store, query, noun, testId, onSay, open, onTo
     const url = `${window.location.origin}${window.location.pathname}${query ? `?${query}` : ''}`;
     try {
       await navigator.clipboard.writeText(url);
-      onSay('Link copied.');
+      onSay('Link copied. It opens on this exact view.');
     } catch {
       /* A blocked clipboard is not a failure worth a dialog — say where it is. */
       onSay(url);

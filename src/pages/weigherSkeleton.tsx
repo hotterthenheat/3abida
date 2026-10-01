@@ -16,7 +16,7 @@
 ==================================================
 */
 
-import { Scale } from 'lucide-react';
+import ProductGlyph from '../brand/ProductGlyph';
 import { Block, ChartGround, Facts, Line, Trigger } from '../components/ui/skeletonKit';
 import { deskRows, readDeskTop } from './weigher/deskSplit';
 
@@ -73,9 +73,7 @@ export const WeigherPageSkeleton = () => (
     <header className="shrink-0 flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle">
       <div className="min-w-0 flex-1">
         <div className="h-6 flex items-center gap-2.5">
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0">
-            <Scale className="w-3.5 h-3.5" />
-          </span>
+          <ProductGlyph name="weigher" size={24} className="shrink-0 rounded-md" />
           <span className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</span>
           <Line w={72} h={12} />
         </div>

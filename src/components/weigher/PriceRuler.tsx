@@ -29,10 +29,12 @@
 */
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const W = 600;
 const H = 46;
-const MONO = 'ui-monospace, Menlo, monospace';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
 const SILVER = 'rgb(var(--silver))';
 const INK = 'rgb(var(--text-primary))';
 /** The live lime — the market's own dash (the neon as a surface: the same on either ground) */
@@ -175,7 +177,7 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
         <line x1={0} x2={W} y1={32} y2={32} stroke={WASH} strokeOpacity={0.16} />
         {/* the ticks and the dollars' names */}
         {ticks.map(t => (
-          <g key={t.price} fontFamily={MONO}>
+          <g key={t.price} fontFamily={FIG}>
             <line x1={x(t.price)} x2={x(t.price)} y1={32} y2={t.kind === 'dollar' ? 20 : t.kind === 'half' ? 24 : 27.5} stroke={WASH} strokeOpacity={t.kind === 'dollar' ? 0.45 : t.kind === 'half' ? 0.3 : 0.18} strokeWidth={1} />
             {t.kind === 'dollar' && Math.abs(x(t.price) - W / 2) > 28 && (
               <text x={x(t.price)} y={43} textAnchor="middle" fontSize={8.5} fill={MUTED}>
@@ -186,7 +188,7 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
         ))}
         {/* the dealer map's levels — silver ticks with their words, stepping aside for the two pills */}
         {shown.map(m => (
-          <g key={m.label} fontFamily={MONO} data-ruler-mark={m.label}>
+          <g key={m.label} fontFamily={FIG} data-ruler-mark={m.label}>
             <line x1={x(m.price)} x2={x(m.price)} y1={16} y2={32} stroke={SILVER} strokeOpacity={0.9} strokeWidth={1} />
             {Math.abs(x(m.price) - W / 2) > 56 && (spotIn || Math.abs(x(m.price) - capX) > 52) && (
               <text x={x(m.price)} y={12} textAnchor="middle" fontSize={7} fill={SILVER} letterSpacing={0.4}>
@@ -200,7 +202,7 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
         {/* the marker: a hairline down the middle and the pill with the price under it */}
         <line x1={W / 2} x2={W / 2} y1={12} y2={38} stroke={INK} strokeWidth={1.25} />
         <rect x={W / 2 - PILL_W / 2} y={0} width={PILL_W} height={13} rx={3} fill={INK} />
-        <text x={W / 2} y={9.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={GROUND} fontFamily={MONO} data-ruler-value>
+        <text x={W / 2} y={9.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={GROUND} fontFamily={FIG} data-ruler-value>
           {value.toFixed(2)}
         </text>
         {/* THE WAY HOME — the capsule at the edge, only while the market is out of view; a click glides the ruler home and it goes */}
@@ -225,14 +227,14 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
             ) : (
               <path d={`M${capX + CAP_W / 2 - 9},4 l3,2.5 l-3,2.5`} fill="none" stroke={INK} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
             )}
-            <text x={capTextX} y={9.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+            <text x={capTextX} y={9.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
               {spot.toFixed(2)}
             </text>
           </g>
         )}
         {/* the pointer's own price, while it hovers off the marker */}
         {hoverPrice != null && !drag.current && Math.abs(x(hoverPrice) - W / 2) > 30 && (
-          <text x={x(hoverPrice)} y={43} textAnchor="middle" fontSize={8.5} fontWeight={600} fill={INK} fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--ruler-halo, 14 14 15))', strokeWidth: 4 }} data-ruler-hover>
+          <text x={x(hoverPrice)} y={43} textAnchor="middle" fontSize={8.5} fontWeight={600} fill={INK} fontFamily={FIG} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--ruler-halo, 14 14 15))', strokeWidth: 4 }} data-ruler-hover>
             {hoverPrice.toFixed(2)}
           </text>
         )}

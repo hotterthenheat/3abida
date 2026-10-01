@@ -40,6 +40,7 @@ import { useResolvedTheme } from '../../theme/theme';
 import { LOCAL_TIME, localTickMarks } from './chartTime';
 import type { OptionRight } from '../../types/compass';
 import ResetViewControl from './ResetViewControl';
+import { FONT_SANS } from '../../theme/fonts';
 
 /** A labeled rule on the premium tape — a TP, the stop, the reference. */
 export interface PremiumLevel {
@@ -114,7 +115,7 @@ const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revisio
       layout: {
         background: { color: s0.bg },
         textColor: s0.text,
-        fontFamily: "'SF Pro', sans-serif",
+        fontFamily: FONT_SANS,
         fontSize: 10,
         attributionLogo: false,
       },

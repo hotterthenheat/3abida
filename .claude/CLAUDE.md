@@ -20,3 +20,17 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   at about 4.3:1 on purpose — do not deepen them. Low-contrast by design: the chart Reset whisper pill, disabled
   buttons, calendar days that are not expiries, the landing tour's waiting steps, Terrain's receding chrome, Trace's
   breathing Live. The drawing rail stays black on either ground.
+- Brand rules (2026-10-01, from the owner's Slayer Logo System / Web and App PDFs): the mark, the 13 product glyphs
+  and the wordmark live in src/brand/ (outlines traced from the PDFs — never redraw them by hand). The mark has six
+  states (idle, loading, live, closed, alert, offline) read from src/brand/markState.ts; "live" only once a real feed
+  calls setFeedLive — the simulated feed never does. No red or green on the mark. Its S pans by transform inside a CSS
+  mask, so it never repaints (keep it that way). Below 64 px: no ">" and no brackets. A product's page head wears its
+  glyph (PageHeader, the Compass, Weigher and Practice heads and their skeletons); a sub-page (Map, Live Tape, News)
+  keeps its line icon. Holographic silver only in the S and on "Launch terminal" (.launch-pill); every other door is
+  the plain ink pill. Type: Helvetica for every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font.
+  The only monospace is the drawn wordmark; the signature ("slayer:~ $ ● simulated") and code use --font-code. Product
+  one-liners are nav.ts's (the brand's own); never write grade, score, win rate, signal (as a trade call), guaranteed,
+  confluence, market intelligence. Pages outside the terminal (status, about, legal, the account forms, invite) use
+  pages/outside/OutsideFrame; the account forms send nothing until a backend exists and say so. The demo band sits
+  over every terminal page and sets --demo-band; a page sized to the screen subtracts it. The static icons and og.jpg
+  are drawn by `npm run brand:assets` (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.

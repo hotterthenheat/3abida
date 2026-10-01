@@ -29,6 +29,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import { Bell } from 'lucide-react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { jingle } from '../../core/sound';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 interface JingleBellProps {
   /** How many are set — a rise rings, more than none wears the ink */
@@ -40,9 +41,12 @@ interface JingleBellProps {
   className?: string;
   strokeWidth?: number;
   style?: CSSProperties;
+  /** Draw the Alerts glyph (brand/ProductGlyph) at this size instead of the line bell — the rail and the menus, where
+      every product wears its glyph. The swing is the same; the glyph's dot is always the alert ink. */
+  glyph?: number;
 }
 
-const JingleBell = ({ count, ink = 'rgb(var(--warn))', lit = false, className = '', strokeWidth, style }: JingleBellProps) => {
+const JingleBell = ({ count, ink = 'rgb(var(--warn))', lit = false, className = '', strokeWidth, style, glyph }: JingleBellProps) => {
   const prev = useRef(count);
   const controls = useAnimationControls();
   const reduce = useReducedMotion();
@@ -68,6 +72,9 @@ const JingleBell = ({ count, ink = 'rgb(var(--warn))', lit = false, className = 
   const armed = count > 0;
   return (
     <motion.span animate={controls} className="inline-flex shrink-0" style={{ transformOrigin: '50% 8%' }} aria-hidden data-bell={armed ? 'armed' : 'quiet'}>
+      {glyph ? (
+        <ProductGlyph name="alerts" size={glyph} bare />
+      ) : (
       <Bell
         className={className}
         strokeWidth={strokeWidth}
@@ -78,6 +85,7 @@ const JingleBell = ({ count, ink = 'rgb(var(--warn))', lit = false, className = 
           transition: `color 0.25s ease ${armed ? '0.45s' : '0s'}`,
         }}
       />
+      )}
     </motion.span>
   );
 };

@@ -9,6 +9,7 @@ import { RECORD_SUBPAGES } from '../../pages/record/subnav';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { armDrawTool, canArmDrawTool, searchDrawTools } from '../gex/drawTools';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 type TickerModule = typeof import('../../data/tickers');
 
@@ -48,7 +49,8 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       /* Practice's pages say whose they are ("Practice → Journal"): their names alone could be anything's */
       label: item.group === 'Practice' ? `${item.group} → ${item.label}` : item.label,
       hint: item.description,
-      icon: <item.icon className="w-3.5 h-3.5" />,
+      /* a product wears its glyph here as on the rail (brand/ProductGlyph); Settings keeps its line icon */
+      icon: item.glyph ? <ProductGlyph name={item.glyph} size={15} bare /> : <item.icon className="w-3.5 h-3.5" />,
       run: () => navigate(item.path),
     }));
     const gexSubs: PaletteAction[] = GEX_SUBPAGES.map(page => ({

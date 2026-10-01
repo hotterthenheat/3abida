@@ -37,6 +37,7 @@ import { scriptStore } from '../../data/scriptStore';
 import type { PaneId, Script, ScriptVersion } from '../../types/scripts';
 import { CARD } from '../ui/DropdownSelect';
 import { pineHighlight, pineLanguage, pineTheme } from './pineLanguage';
+import SlayerMark from '../../brand/SlayerMark';
 
 /* ---- the error line ---------------------------------------------------------------- */
 
@@ -352,9 +353,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
     <div className="flex flex-col h-full min-h-0" data-script-panel>
       {/* THE HEAD — the mark, the name as a menu, what the script is, the doors */}
       <div className="flex items-center gap-3 h-11 px-3 border-b border-borderSubtle shrink-0">
-        <span className="holo-bg w-6 h-6 rounded-[6px] shrink-0 flex items-center justify-center font-mono text-[10px] font-bold text-[#0a0a0a]" aria-hidden>
-          &gt;_
-        </span>
+        <SlayerMark size={24} label="" />
         {renaming ? (
           <input
             ref={titleRef}

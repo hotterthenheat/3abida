@@ -26,6 +26,7 @@ import BackToTop from '../../components/ui/BackToTop';
 import ScrollHome from '../../components/layout/ScrollHome';
 import { useGlideHold } from '../../components/ui/useGlideHold';
 import { TRACE_SUBPAGES } from './subnav';
+import MarkLoad from '../../brand/MarkLoad';
 
 /* The Live Tape carries its own ticker/contract search, the flow-book pages
    sweep the whole universe, the Tracker lists the reader's marks across
@@ -84,7 +85,7 @@ const TraceLayout = () => {
           <ScrollHome />
           {/* A page's code travels on its first visit; it stands in as ITS OWN
               shape under a head that stays put (traceSkeletons.tsx) */}
-          <Suspense fallback={<TracePageSkeleton pathname={location.pathname} />}>{outlet}</Suspense>
+          <Suspense fallback={<><MarkLoad /><TracePageSkeleton pathname={location.pathname} /></>}>{outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
       {/* The page's door home once a grid runs past a screen (the Compass board's, 2026-09-11) */}

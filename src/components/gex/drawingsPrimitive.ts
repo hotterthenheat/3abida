@@ -3,6 +3,7 @@ import { fmtElapsed, measureSpan } from '../../data/measure';
 import { fmtDistance, type DistanceScales } from '../../data/atr';
 import { getDistanceUnit } from '../../data/distanceUnits';
 import { avwapSeries, defaultStop, handlePoints, hitKind, renderKind, type KindBar, type KindHit, type KindRender } from './drawingKinds';
+import { FONT_SANS } from '../../theme/fonts';
 
 /*
   User drawings layer — trendlines and horizontal levels, sketched directly on
@@ -231,7 +232,7 @@ const dot = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number) => 
 };
 
 const LABEL_PX = 10;
-const labelFont = (vr: number, px = LABEL_PX) => `500 ${px * vr}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+const labelFont = (vr: number, px = LABEL_PX) => `500 ${px * vr}px ${FONT_SANS}`;
 
 /** The note's four type sizes — indexed by the mark's width field (1–4). */
 const NOTE_PX = [9, 11, 13.5, 16.5] as const;

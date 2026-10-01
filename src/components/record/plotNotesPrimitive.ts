@@ -24,6 +24,7 @@
 */
 
 import type { IChartApi, IPrimitivePaneRenderer, IPrimitivePaneView, ISeriesApi, ISeriesPrimitive, SeriesAttachedParameter, SeriesType, Time } from 'lightweight-charts';
+import { FONT_SANS } from '../../theme/fonts';
 
 interface BitmapScope {
   context: CanvasRenderingContext2D;
@@ -35,7 +36,8 @@ interface DrawTarget {
   useBitmapCoordinateSpace(cb: (scope: BitmapScope) => void): void;
 }
 
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
 
 export interface PlotBand {
   from: number;
@@ -100,7 +102,7 @@ class NotesRenderer implements IPrimitivePaneRenderer {
       const ctx = scope.context;
       const hr = scope.horizontalPixelRatio;
       const vr = scope.verticalPixelRatio;
-      ctx.font = `600 ${9 * vr}px ${MONO}`;
+      ctx.font = `600 ${9 * vr}px ${FIG}`;
       ctx.textAlign = 'left';
       const H = scope.mediaSize.height * vr;
       const x = 8 * hr;

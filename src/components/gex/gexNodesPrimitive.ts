@@ -1,6 +1,7 @@
 import { heatRampColor } from './heatmap';
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
+import { FONT_SANS } from '../../theme/fonts';
 
 /*
   Exposure nodes — the ORIGINAL trail form, back by request (Noah,
@@ -382,7 +383,7 @@ class TrailsPaneRenderer {
         .filter(l => Math.abs(l.value) / total >= 0.08);
 
       const labelPx = src.labelPx;
-      ctx.font = `${Math.round(labelPx * vr)}px "SF Pro", sans-serif`;
+      ctx.font = `${Math.round(labelPx * vr)}px ${FONT_SANS}`;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       const xRight = (wCss - 8) * hr;

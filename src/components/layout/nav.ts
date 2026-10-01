@@ -13,6 +13,7 @@ import {
   Dumbbell,
   type LucideIcon,
 } from 'lucide-react';
+import type { GlyphName } from '../../brand/paths';
 
 /* THE RAIL, BY THE QUESTION A TRADER IS ASKING, IN THE ORDER THEY ASK IT (Noah, 2026-09-28: "the manage section should be
    at the very bottom … if pulse is the first page a user is going to see then that should be at the very top … we need
@@ -60,6 +61,10 @@ export interface NavItem {
   label: string;
   code: string;
   icon: LucideIcon;
+  /** The product's glyph (Slayer Logo System, 04 · Product icons) — the rail, the menus and the palette draw it
+      (brand/ProductGlyph.tsx); `icon` stays for the places that draw a line icon. Settings has none: it is a door, not a
+      product, and keeps its line icon. */
+  glyph?: GlyphName;
   /** The desk's own ink — its icon wears it (NAV_INK) */
   ink: string;
   description: string;
@@ -74,7 +79,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '01',
     icon: Activity,
     ink: NAV_INK.pulse,
-    description: 'The live market desk — chart, dealer pressure & key levels, arranged your way',
+    glyph: 'pulse',
+    description: 'The live desk: chart, dealer pressure and key levels, arranged your way',
     group: 'Home',
   },
   // ── Market ──
@@ -84,7 +90,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '02',
     icon: CandlestickChart,
     ink: NAV_INK.terrain,
-    description: 'Charts only — one to four books side by side, one set of controls',
+    glyph: 'terrain',
+    description: 'Charts only: up to four side by side, your Pine scripts, your drawings',
     group: 'Market',
   },
   {
@@ -93,7 +100,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '03',
     icon: Radar,
     ink: NAV_INK.trace,
-    description: 'Options flow & dark-pool intelligence — what the prints actually mean',
+    glyph: 'trace',
+    description: 'The live tape and what it means: dark pool, net flow, footprints, 0DTE, multi-leg',
     group: 'Market',
   },
   {
@@ -102,7 +110,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '04',
     icon: ScrollText,
     ink: NAV_INK.record,
-    description: 'The file on a name — its news, its earnings, what insiders filed, what Congress disclosed, how it screens',
+    glyph: 'dossier',
+    description: 'The file on a ticker: news, earnings, insiders, Congress trades, how it screens',
     group: 'Market',
   },
   // ── The book ──
@@ -112,7 +121,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '05',
     icon: Crosshair,
     ink: NAV_INK.pinpoint,
-    description: 'GEX & dealer-positioning system',
+    glyph: 'pinpoint',
+    description: 'Where dealer hedging holds and pushes price: walls, the flip, the range into the close',
     group: 'The book',
   },
   // ── Trade ──
@@ -122,8 +132,10 @@ export const NAV_ITEMS: NavItem[] = [
     code: '06',
     icon: Compass,
     ink: NAV_INK.compass,
-    /* "weighed and graded" until 2026-09-19 — the rail's tooltip and the palette's hint read this, and we do not say we grade */
-    description: 'Contracts that fit the levels right now — weeklies, swings and LEAPS, the strongest first',
+    glyph: 'compass',
+    /* "weighed and graded" until 2026-09-19 — the rail's tooltip and the palette's hint read this, and we do not say we grade.
+       Every line here is the Logo System's own (06 · Menu and rail, 2026-09-30): one line per product. */
+    description: 'Contracts that fit the levels right now, weeklies to LEAPS, plus the Tracker',
     group: 'Trade',
   },
   {
@@ -132,7 +144,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '07',
     icon: Scale,
     ink: NAV_INK.weigher,
-    description: 'Chart, chain and watchlist on one desk — pick a contract, watch it, and the record follows',
+    glyph: 'weigher',
+    description: 'Chain, watchlist and positions on one desk, and what each returns at every price',
     group: 'Trade',
   },
   // ── Practice ──
@@ -142,7 +155,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '08',
     icon: LineChart,
     ink: NAV_INK.paperDesk,
-    description: 'Trade today’s prices with pretend money — a practice account or a prop firm’s evaluation, in options: calls, puts and spreads',
+    glyph: 'paper',
+    description: 'Today’s prices with pretend money, or a prop firm’s evaluation',
     group: 'Practice',
   },
   {
@@ -151,7 +165,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '09',
     icon: History,
     ink: NAV_INK.backtest,
-    description: 'Replay a past market and trade its option contracts with pretend money — test an edge',
+    glyph: 'backtest',
+    description: 'Replay a past market minute by minute and trade it',
     group: 'Practice',
   },
   {
@@ -160,7 +175,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: '10',
     icon: NotebookPen,
     ink: NAV_INK.journal,
-    description: 'Every trade you closed — paper or backtest — on its day, with your own words on it',
+    glyph: 'journal',
+    description: 'Every closed trade on its chart, with your tags and your words',
     group: 'Practice',
   },
   // ── More ── (Community is off the menu until it opens, 2026-09-30; its page stays at /community)
@@ -184,7 +200,7 @@ export const NAV_GROUP_META: Record<NavGroup, { icon: LucideIcon; hint: string; 
   Market: { icon: CandlestickChart, hint: 'What the market is doing, and what happened', caption: 'Market' },
   'The book': { icon: Crosshair, hint: 'Where dealer hedging pushes', caption: 'The book' },
   Trade: { icon: Compass, hint: 'What to trade, and which contract', caption: 'Trade' },
-  Practice: { icon: Dumbbell, hint: 'Trade with pretend money — today’s prices or a past market — and look back', caption: 'Practice' },
+  Practice: { icon: Dumbbell, hint: 'Trade with pretend money, replay the past, review every trade', caption: 'Practice' },
   More: { icon: Settings, hint: 'The room, and how the terminal is set', caption: null },
 };
 

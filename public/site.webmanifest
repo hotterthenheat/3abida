@@ -1,13 +1,37 @@
 {
   "name": "Slayer Terminal",
   "short_name": "Slayer",
-  "description": "One trading terminal: live prints, where positions are stacked, the levels they make on your chart, and the news and filings behind a name.",
+  "description": "Slayer Terminal gathers what moves a price into one terminal: the prints, the positions, the levels, the filings. Most of it is public, just scattered.",
   "start_url": "/pulse",
   "display": "standalone",
   "background_color": "#050505",
   "theme_color": "#050505",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pulse",
+      "short_name": "Pulse",
+      "description": "The live desk: chart, dealer pressure and key levels, arranged your way",
+      "url": "/pulse",
+      "icons": [{ "src": "/shortcut-pulse.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Trace",
+      "short_name": "Trace",
+      "description": "The live tape and what it means: dark pool, net flow, footprints, 0DTE, multi-leg",
+      "url": "/trace",
+      "icons": [{ "src": "/shortcut-trace.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Pinpoint",
+      "short_name": "Pinpoint",
+      "description": "Where dealer hedging holds and pushes price: walls, the flip, the range into the close",
+      "url": "/pinpoint",
+      "icons": [{ "src": "/shortcut-pinpoint.png", "sizes": "96x96", "type": "image/png" }]
+    }
   ]
 }

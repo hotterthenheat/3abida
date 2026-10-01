@@ -1,5 +1,6 @@
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { ExpectedMoveCone } from '../../data/expectedMove';
+import { FONT_SANS } from '../../theme/fonts';
 
 /*
 ==================================================
@@ -210,7 +211,7 @@ class ExpectedMoveRenderer {
         const tip = cone.forward[cone.forward.length - 1];
         const tipW1 = tip.up1 - cone.forward[0].up1; // forward[0] is spot exactly
         const label = `EM ±$${tipW1.toFixed(2)}`;
-        ctx.font = `${9 * vr}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+        ctx.font = `${9 * vr}px ${FONT_SANS}`;
         ctx.textBaseline = 'middle';
         const textW = ctx.measureText(label).width;
         const boxW = textW + 4 * 2 * hr;

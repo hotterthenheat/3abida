@@ -22,14 +22,16 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'rea
 import { PointerFollowCard, CardRow } from '../ui/PointerCard';
 import { pct } from './words';
 import { SHAPE_ASKS, SHAPE_LABEL, type TradeShape as Shape } from '../../data/review/shape';
+import { FONT_SANS } from '../../theme/fonts';
 
 const W = 380;
 const H = 300;
 const CX = 190;
 const CY = 150;
 const R = 100;
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 /** The i-th axis's angle — the first straight up, then clockwise */
 const angleOf = (i: number) => ((-90 + i * 60) * Math.PI) / 180;
@@ -132,7 +134,7 @@ const TradeShapeFigure = ({ shape, usual, ink, rowKey }: Props) => {
               <text x={l.x} y={l.y1} textAnchor={l.anchor} fontSize={10} fontFamily={SANS} fill={on ? 'rgb(var(--text-primary))' : 'rgb(var(--text-secondary))'} style={{ transition: 'fill 160ms ease-out' }}>
                 {SHAPE_LABEL[a.key]}
               </text>
-              <text x={l.x} y={l.y2} textAnchor={l.anchor} fontSize={10.5} fontWeight={600} fontFamily={MONO} fill="rgb(var(--text-primary))">
+              <text x={l.x} y={l.y2} textAnchor={l.anchor} fontSize={10.5} fontWeight={600} fontFamily={FIG} fill="rgb(var(--text-primary))">
                 {a.figure}
               </text>
             </g>

@@ -18,10 +18,12 @@ import type { ReactNode } from 'react';
 import { CALL_WALL, PUT_WALL, FLIP, SUPREME } from './paletteInk';
 import { fmtDollars, fmtPrice, fmtStrike, hhmm, type AheadClock, type CloseOdds, type Corridor, type Schedule } from '../../data/ahead';
 import type { ExposureLevels } from '../../types/gex';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -64,7 +66,7 @@ const ScaleFigure = () => {
           <text x={px(p.f)} y={y - 28} textAnchor="middle" fontSize={8.5} fontWeight={500} fill={p.ink} fontFamily={SANS}>
             {p.name}
             {p.extra && (
-              <tspan fill="#8a909c" fontFamily={MONO} fontSize={8}>
+              <tspan fill="#8a909c" fontFamily={FIG} fontSize={8}>
                 {p.extra}
               </tspan>
             )}
@@ -73,16 +75,16 @@ const ScaleFigure = () => {
       ))}
       <line x1={px(0.55)} x2={px(0.55)} y1={y - 22} y2={y + 18} stroke="#ededed" strokeOpacity={0.9} strokeWidth={1.5} />
       <circle cx={px(0.55)} cy={y} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.25} />
-      <text x={px(0.55)} y={y - 40} textAnchor="middle" fontSize={9} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+      <text x={px(0.55)} y={y - 40} textAnchor="middle" fontSize={9} fontWeight={700} fill="#ededed" fontFamily={FIG}>
         110.03
       </text>
       {[0.1, 0.3, 0.5, 0.7, 0.9].map((f, i) => (
-        <text key={f} x={px(f)} y={y + 32} textAnchor="middle" fontSize={8} fill="#7c8290" fontFamily={MONO}>
+        <text key={f} x={px(f)} y={y + 32} textAnchor="middle" fontSize={8} fill="#7c8290" fontFamily={FIG}>
           {108 + i}
         </text>
       ))}
       <path d={`M${px(0.36)},${y + 40} V${y + 45} H${px(0.74)} V${y + 40}`} fill="none" stroke={SILVER} strokeOpacity={0.6} />
-      <text x={px(0.55)} y={y + 58} textAnchor="middle" fontSize={7.5} fill="#8a909c" fontFamily={MONO} letterSpacing={1.1}>
+      <text x={px(0.55)} y={y + 58} textAnchor="middle" fontSize={7.5} fill="#8a909c" fontFamily={FIG} letterSpacing={1.1}>
         ONE EXPECTED MOVE EACH SIDE · ±1.25
       </text>
       <text x={px(0.21)} y={y + 6 + 14} textAnchor="end" fontSize={8} fill="#8a909c" fontFamily={SANS}>
@@ -105,11 +107,11 @@ const ReachFigure = () => (
       <g key={p.x}>
         <rect x={p.x} y={40} width={150} height={60} rx={6} fill={SILVER} fillOpacity={0.12} stroke={SILVER} strokeOpacity={0.5} />
         <line x1={p.x} x2={p.x + 150} y1={p.wallInside ? 40 : 22} y2={p.wallInside ? 40 : 22} stroke={CALL_WALL} strokeOpacity={0.8} strokeDasharray="3 4" />
-        <text x={p.x + 150} y={(p.wallInside ? 40 : 22) - 4} textAnchor="end" fontSize={8.5} fill={CALL_WALL} fontFamily={MONO}>
+        <text x={p.x + 150} y={(p.wallInside ? 40 : 22) - 4} textAnchor="end" fontSize={8.5} fill={CALL_WALL} fontFamily={FIG}>
           call wall
         </text>
         {!p.wallInside && (
-          <text x={p.x + 150} y={36} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={MONO}>
+          <text x={p.x + 150} y={36} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={FIG}>
             expected move
           </text>
         )}
@@ -136,10 +138,10 @@ const FlowFigure = () => {
     <Figure label="The dealers' pane: buying above the middle line and selling below it, a plain bar per half hour from the line, its dollars at its end and the hour under it; the half hours gone say done, the one under way wears the silver edge">
       <rect x={6} y={6} width={408} height={124} rx={4} fill="none" stroke="#ffffff" strokeOpacity={0.1} />
       <line x1={6} x2={414} y1={mid} y2={mid} stroke="#ffffff" strokeOpacity={0.25} />
-      <text x={12} y={17} fontSize={7} fill={CALL_WALL} fontFamily={MONO} letterSpacing={1}>
+      <text x={12} y={17} fontSize={7} fill={CALL_WALL} fontFamily={FIG} letterSpacing={1}>
         BUYING
       </text>
-      <text x={12} y={mid + 46} fontSize={7} fill={PUT_WALL} fontFamily={MONO} letterSpacing={1}>
+      <text x={12} y={mid + 46} fontSize={7} fill={PUT_WALL} fontFamily={FIG} letterSpacing={1}>
         SELLING
       </text>
       {blocks.map((h, i) => {
@@ -147,19 +149,19 @@ const FlowFigure = () => {
         return (
           <g key={i}>
             {h == null ? (
-              <text x={cx} y={mid - 5} textAnchor="middle" fontSize={6.5} fill="#6b7280" fontFamily={MONO} letterSpacing={0.8}>
+              <text x={cx} y={mid - 5} textAnchor="middle" fontSize={6.5} fill="#6b7280" fontFamily={FIG} letterSpacing={0.8}>
                 DONE
               </text>
             ) : (
               <>
                 {i === 2 && <rect x={cx - 13} y={mid - 2} width={26} height={h * reach + 4} rx={3} fill="none" stroke={SILVER} strokeOpacity={0.9} strokeWidth={1} />}
                 <rect x={cx - 11} y={mid} width={22} height={h * reach} rx={2} fill={PUT_WALL} fillOpacity={i === blocks.length - 1 ? 1 : 0.8} />
-                <text x={cx} y={mid + h * reach + 10} textAnchor="middle" fontSize={7.5} fontWeight={600} fill={PUT_WALL} fontFamily={MONO}>
+                <text x={cx} y={mid + h * reach + 10} textAnchor="middle" fontSize={7.5} fontWeight={600} fill={PUT_WALL} fontFamily={FIG}>
                   ${Math.round(h * 496)}M
                 </text>
               </>
             )}
-            <text x={cx} y={122} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={MONO}>
+            <text x={cx} y={122} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={FIG}>
               {hours[i]}
             </text>
           </g>
@@ -226,7 +228,7 @@ const RowsFigure = () => {
         return (
           <g key={r.k}>
             {r.run && <rect x={6} y={ry - 1} width={408} height={14} rx={2} fill={SILVER} fillOpacity={r.run === 'half' ? 0.08 : 0.035} />}
-            <text x={14} y={ry + 9} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+            <text x={14} y={ry + 9} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
               {r.k}
             </text>
             {r.role && (
@@ -239,22 +241,22 @@ const RowsFigure = () => {
             {r.n && (
               <>
                 <rect x={barX + 3} y={ry + 1.5} width={14} height={9} rx={2} fill={SILVER} />
-                <text x={barX + 10} y={ry + 8.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={MONO}>
+                <text x={barX + 10} y={ry + 8.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={FIG}>
                   #{r.n}
                 </text>
               </>
             )}
-            <text x={406} y={ry + 9} textAnchor="end" fontSize={8.5} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+            <text x={406} y={ry + 9} textAnchor="end" fontSize={8.5} fontWeight={600} fill="#ededed" fontFamily={FIG}>
               {r.pct}
             </text>
             {spotY != null && (
               <g>
                 <line x1={14} x2={406} y1={spotY + 4} y2={spotY + 4} stroke="#ededed" strokeOpacity={0.3} />
-                <text x={56} y={spotY + 7} textAnchor="end" fontSize={6.5} fill="#8a909c" fontFamily={MONO} letterSpacing={0.8}>
+                <text x={56} y={spotY + 7} textAnchor="end" fontSize={6.5} fill="#8a909c" fontFamily={FIG} letterSpacing={0.8}>
                   SPY
                 </text>
                 <rect x={60} y={spotY - 1} width={36} height={10} rx={2} fill="#ededed" />
-                <text x={78} y={spotY + 6.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={MONO}>
+                <text x={78} y={spotY + 6.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={FIG}>
                   497.33
                 </text>
               </g>
@@ -282,7 +284,7 @@ const PullFigure = () => (
       const vals = base.map((v, i) => (i === 3 ? v * (0.7 + p.pull * 0.6) : v * (1 - p.pull * 0.45)));
       return (
         <g key={p.t}>
-          <text x={p.x + 50} y={22} textAnchor="middle" fontSize={9} fill="#ededed" fontFamily={MONO}>
+          <text x={p.x + 50} y={22} textAnchor="middle" fontSize={9} fill="#ededed" fontFamily={FIG}>
             {p.t}
           </text>
           <line x1={p.x} x2={p.x} y1={ys[0] - 8} y2={ys[ys.length - 1] + 8} stroke="#ffffff" strokeOpacity={0.15} />

@@ -13,10 +13,12 @@ import type { ReactNode } from 'react';
 import { PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Agenda } from '../../data/agenda';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 const WARM = THERMAL_WARM;
 const COOL = THERMAL_COOL;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -51,7 +53,7 @@ const OrderFigure = () => {
   ];
   return (
     <Figure label="Three strikes: the odds price gets there as one bar, what is at stake as another, their product as the rank" h={96}>
-      <g fontFamily={MONO} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
+      <g fontFamily={FIG} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
         <text x={10} y={12}>STRIKE</text>
         <text x={100} y={12}>REACHED</text>
         <text x={210} y={12}>AT STAKE</text>
@@ -62,7 +64,7 @@ const OrderFigure = () => {
         return (
           <g key={r.k}>
             <line x1={10} x2={410} y1={y - 11} y2={y - 11} stroke="#ffffff" strokeOpacity={0.05} />
-            <text x={10} y={y + 3} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+            <text x={10} y={y + 3} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
               {r.k}
             </text>
             <text x={38} y={y + 3} fontSize={6} fill={r.ink} fontFamily={SANS} letterSpacing={0.5}>
@@ -70,15 +72,15 @@ const OrderFigure = () => {
             </text>
             <rect x={100} y={y - 2} width={90} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
             <rect x={100} y={y - 2} width={90 * r.reach} height={4} rx={2} fill="#ededed" fillOpacity={0.8} />
-            <text x={196} y={y + 3} fontSize={7} fill="#ededed" fontFamily={MONO}>
+            <text x={196} y={y + 3} fontSize={7} fill="#ededed" fontFamily={FIG}>
               {pct(r.reach)}
             </text>
             <rect x={210} y={y - 2} width={110} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
             <rect x={210} y={y - 2} width={110 * r.stake} height={4} rx={2} fill={r.ink} fillOpacity={0.85} />
-            <text x={340} y={y + 3} fontSize={8.5} fontWeight={700} fill={r.rank === 1 ? SUPREME : 'rgb(var(--text-primary))'} fontFamily={MONO}>
+            <text x={340} y={y + 3} fontSize={8.5} fontWeight={700} fill={r.rank === 1 ? SUPREME : 'rgb(var(--text-primary))'} fontFamily={FIG}>
               #{r.rank}
             </text>
-            <text x={362} y={y + 3} fontSize={7} fill="#7c8290" fontFamily={MONO}>
+            <text x={362} y={y + 3} fontSize={7} fill="#7c8290" fontFamily={FIG}>
               {(r.reach * r.stake * 2.2).toFixed(1)}×
             </text>
           </g>
@@ -91,7 +93,7 @@ const OrderFigure = () => {
 /* The row, small: strike and tag, reached, the beam, the break, the build, the stake bar */
 const RowFigure = () => (
   <Figure label="One row: the strike and its tag, the odds it is reached, the beam for holds, what a break runs to, what was built today, the bar for what is at stake" h={66}>
-    <g fontFamily={MONO} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
+    <g fontFamily={FIG} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
       <text x={10} y={12}>#</text>
       <text x={30} y={12}>STRIKE</text>
       <text x={112} y={12} textAnchor="end">REACHED</text>
@@ -106,27 +108,27 @@ const RowFigure = () => (
       { y: 56, n: 5, k: '536', tag: 'TRAPDOOR', ink: WARM, reach: '84%', hold: 0, wall: false, brk: 'to 537 · $102M selling', built: 'steady', stake: 0.15, lit: false },
     ].map(r => (
       <g key={r.k}>
-        <text x={10} y={r.y + 3} fontSize={7} fill="#7c8290" fontFamily={MONO}>
+        <text x={10} y={r.y + 3} fontSize={7} fill="#7c8290" fontFamily={FIG}>
           #{r.n}
         </text>
-        <text x={30} y={r.y + 3} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+        <text x={30} y={r.y + 3} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
           {r.k}
         </text>
         <text x={54} y={r.y + 3} fontSize={5.5} fill={r.ink} fontFamily={SANS} letterSpacing={0.5}>
           {r.tag}
         </text>
-        <text x={112} y={r.y + 3} textAnchor="end" fontSize={8} fill="#ededed" fontFamily={MONO}>
+        <text x={112} y={r.y + 3} textAnchor="end" fontSize={8} fill="#ededed" fontFamily={FIG}>
           {r.reach}
         </text>
-        <text x={144} y={r.y + 3} textAnchor="end" fontSize={8} fontWeight={600} fill={r.wall ? SILVER : WARM} fontFamily={MONO}>
+        <text x={144} y={r.y + 3} textAnchor="end" fontSize={8} fontWeight={600} fill={r.wall ? SILVER : WARM} fontFamily={FIG}>
           {r.wall ? pct(r.hold) : '—'}
         </text>
         <rect x={148} y={r.y - 1.5} width={26} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
         {r.wall ? <rect x={148} y={r.y - 1.5} width={26 * r.hold} height={3} rx={1.5} fill={SILVER} fillOpacity={0.85} /> : <rect x={148} y={r.y - 1.5} width={26} height={3} rx={1.5} fill={WARM} fillOpacity={0.35} />}
-        <text x={186} y={r.y + 3} fontSize={7} fill="#a3a3a3" fontFamily={MONO}>
+        <text x={186} y={r.y + 3} fontSize={7} fill="#a3a3a3" fontFamily={FIG}>
           {r.brk.split(' · ')[0]} · <tspan fill={WARM}>{r.brk.split(' · ')[1]}</tspan>
         </text>
-        <text x={300} y={r.y + 3} fontSize={7} fill={r.lit ? 'rgb(var(--text-primary))' : '#7c8290'} fontFamily={MONO}>
+        <text x={300} y={r.y + 3} fontSize={7} fill={r.lit ? 'rgb(var(--text-primary))' : '#7c8290'} fontFamily={FIG}>
           {r.built}
         </text>
         <rect x={362} y={r.y - 2} width={48} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
@@ -157,21 +159,21 @@ const AxisFigure = () => {
       <rect x={x(0.34)} y={12} width={x(0.7) - x(0.34)} height={base - 12} fill="#ffffff" fillOpacity={0.035} />
       <line x1={20} x2={400} y1={base} y2={base} stroke="#ffffff" strokeOpacity={0.12} />
       <line x1={x(0.52)} x2={x(0.52)} y1={8} y2={base + 4} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(0.52)} y={6} textAnchor="middle" fontSize={7} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+      <text x={x(0.52)} y={6} textAnchor="middle" fontSize={7} fontWeight={600} fill="#ededed" fontFamily={FIG}>
         535.53
       </text>
       {ticks.map((k, i) => (
         <g key={i}>
           <rect x={x(k.t) - 1.5} y={base - k.h} width={3} height={k.h} rx={1} fill={k.ink} fillOpacity={0.85 - Math.abs(k.t - 0.52) * 1.2} />
           {k.r && (
-            <text x={x(k.t)} y={base - k.h - 4} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={k.r === 1 ? SUPREME : k.ink} fontFamily={MONO}>
+            <text x={x(k.t)} y={base - k.h - 4} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={k.r === 1 ? SUPREME : k.ink} fontFamily={FIG}>
               {k.r}
             </text>
           )}
         </g>
       ))}
       {[0.1, 0.3, 0.5, 0.7, 0.9].map((t, i) => (
-        <text key={i} x={x(t)} y={base + 10} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={MONO}>
+        <text key={i} x={x(t)} y={base + 10} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={FIG}>
           {531 + i * 2}
         </text>
       ))}

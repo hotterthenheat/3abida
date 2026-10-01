@@ -10,6 +10,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const BULL = 'rgb(var(--bull))';
@@ -17,8 +18,9 @@ const BEAR = 'rgb(var(--bear))';
 const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
 const SECOND = 'rgb(var(--text-secondary))';
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -36,7 +38,7 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
 );
 
 const Head = ({ x, y, children, anchor = 'start' }: { x: number; y: number; children: ReactNode; anchor?: 'start' | 'end' }) => (
-  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
     {children}
   </text>
 );
@@ -52,14 +54,14 @@ const RowFigure = () => (
     <Head x={344} y={12} anchor="end">OF STAKE</Head>
     <Head x={368} y={12}>CHOSE TO?</Head>
     <line x1={10} x2={410} y1={18} y2={18} stroke="#ffffff" strokeOpacity={0.08} />
-    <text x={10} y={40} fontSize={7.5} fill={SECOND} fontFamily={MONO}>
+    <text x={10} y={40} fontSize={7.5} fill={SECOND} fontFamily={FIG}>
       yesterday
     </text>
     <rect x={58} y={30} width={14} height={14} rx={3} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
-    <text x={65} y={40} textAnchor="middle" fontSize={4.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={65} y={40} textAnchor="middle" fontSize={4.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       BLK
     </text>
-    <text x={77} y={37} fontSize={8} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={77} y={37} fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
       BLK
     </text>
     <text x={77} y={46} fontSize={6} fill={MUTED} fontFamily={SANS}>
@@ -71,16 +73,16 @@ const RowFigure = () => (
     <text x={150} y={46} fontSize={6} fill={MUTED} fontFamily={SANS}>
       EVP
     </text>
-    <text x={236} y={40} fontSize={7.5} fill={BULL} fontFamily={MONO}>
+    <text x={236} y={40} fontSize={7.5} fill={BULL} fontFamily={FIG}>
       Bought
     </text>
-    <text x={300} y={40} textAnchor="end" fontSize={7.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={300} y={40} textAnchor="end" fontSize={7.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       $7M
     </text>
-    <text x={344} y={40} textAnchor="end" fontSize={7.5} fill={SECOND} fontFamily={MONO}>
+    <text x={344} y={40} textAnchor="end" fontSize={7.5} fill={SECOND} fontFamily={FIG}>
       2.4%
     </text>
-    <text x={368} y={40} fontSize={6} letterSpacing={1} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={368} y={40} fontSize={6} letterSpacing={1} fontWeight={700} fill={INK} fontFamily={FIG}>
       CHOSEN
     </text>
   </Figure>
@@ -95,10 +97,10 @@ const FlagFigure = () => (
       { y: 66, trade: 'Sold', ink: BEAR, flag: 'UNSTATED', flagInk: MUTED, bold: false, why: 'the filing carried no box either way' },
     ].map(r => (
       <g key={r.flag}>
-        <text x={10} y={r.y} fontSize={7.5} fill={r.ink} fontFamily={MONO}>
+        <text x={10} y={r.y} fontSize={7.5} fill={r.ink} fontFamily={FIG}>
           {r.trade}
         </text>
-        <text x={56} y={r.y} fontSize={6} letterSpacing={1} fontWeight={r.bold ? 700 : 400} fill={r.flagInk} fontFamily={MONO}>
+        <text x={56} y={r.y} fontSize={6} letterSpacing={1} fontWeight={r.bold ? 700 : 400} fill={r.flagInk} fontFamily={FIG}>
           {r.flag}
         </text>
         <text x={120} y={r.y} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -119,7 +121,7 @@ const StakeFigure = () => (
       <g key={r.word}>
         <rect x={10} y={r.y - 4} width={160} height={8} rx={2} fill="#ffffff" fillOpacity={0.08} />
         <rect x={10 + 160 * (1 - r.pct)} y={r.y - 4} width={160 * r.pct} height={8} rx={2} fill={BEAR} fillOpacity={0.85} />
-        <text x={180} y={r.y + 3} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+        <text x={180} y={r.y + 3} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={FIG}>
           {(r.pct * 100).toFixed(1)}%
         </text>
         <text x={216} y={r.y + 3} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -133,25 +135,25 @@ const StakeFigure = () => (
 /* Others: filers doing the same in one name inside thirty days */
 const ClusterFigure = () => (
   <Figure label="A thirty-day bracket under GS with three green filer marks inside it, reading 3 filers bought; beside it one mark alone reading a lone buyer" h={62}>
-    <text x={10} y={14} fontSize={8} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={10} y={14} fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
       GS
     </text>
     <line x1={10} x2={190} y1={40} y2={40} stroke="#ffffff" strokeOpacity={0.15} />
     <line x1={10} x2={10} y1={36} y2={44} stroke="#ffffff" strokeOpacity={0.3} />
     <line x1={190} x2={190} y1={36} y2={44} stroke="#ffffff" strokeOpacity={0.3} />
-    <text x={100} y={54} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+    <text x={100} y={54} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
       30 DAYS
     </text>
     {[40, 96, 150].map(x => (
       <circle key={x} cx={x} cy={40} r={4} fill={BULL} stroke="#0a0a0a" strokeWidth={1} />
     ))}
-    <text x={200} y={43} fontSize={7.5} fill={INK} fontFamily={MONO}>
+    <text x={200} y={43} fontSize={7.5} fill={INK} fontFamily={FIG}>
       3 filers
     </text>
     <text x={236} y={43} fontSize={7} fill={SECOND} fontFamily={SANS}>
       bought — a cluster
     </text>
-    <text x={320} y={14} fontSize={8} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={320} y={14} fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
       MS
     </text>
     <line x1={320} x2={410} y1={40} y2={40} stroke="#ffffff" strokeOpacity={0.15} />

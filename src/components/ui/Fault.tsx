@@ -39,7 +39,9 @@
 */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { RotateCcw } from 'lucide-react';
+import BracketCard from '../../brand/BracketCard';
+import SlayerMark from '../../brand/SlayerMark';
+import Wordmark from '../../brand/Wordmark';
 
 const STALE = /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Unable to preload CSS/i;
 /** A page's code asked for by a name the server no longer has (a deploy happened under an open tab) — or no network at all */
@@ -65,55 +67,67 @@ interface FaultViewProps {
   scope: 'page' | 'app';
   /** The way back, as the host can offer it (the shell passes a router link; the app's net cannot) */
   back?: ReactNode;
+  /** Draw the panel again without reloading the terminal — the shell's boundary offers it ("Reload panel") */
+  retry?: () => void;
 }
 
-export const FaultView = ({ error, scope, back }: FaultViewProps) => {
+/* THE WORDS ARE THE BRAND'S (Slayer Logo System, Web and App · System pages, 2026-10-01): "When it breaks, say so." A panel
+   that broke says "That didn't go through." and that the rest of the desk still works; the whole terminal stopping is
+   "Something broke on our side." Both offer the status page. The mark on the card says it too: still, without its
+   cursor, for a fault; the pan at speed for a page being fetched again. */
+export const FaultView = ({ error, scope, back, retry }: FaultViewProps) => {
   const load = isLoadFault(error);
   const offline = load && typeof navigator !== 'undefined' && navigator.onLine === false;
-  const head = offline ? 'You are offline' : load ? 'The terminal was updated' : scope === 'app' ? 'The terminal stopped' : 'This page stopped';
+  const head = offline ? 'You’re offline.' : load ? 'The terminal was updated.' : scope === 'app' ? 'Something broke on our side.' : 'That didn’t go through.';
   const says = offline
-    ? 'This page could not be fetched because there is no connection. Pages you have already opened still work. Try again once you are back online.'
+    ? 'This page needs the connection to load. Pages you have already opened still work. Try again once you are back online.'
     : load
       ? 'A newer version was published while this tab was open, so this page has to be fetched again. Reload and you are back where you were.'
       : scope === 'app'
-        ? 'Something broke and the terminal could not carry on. Reloading usually fixes it. Your board, marks and settings are safe: they are kept on this machine.'
-        : 'Something broke on this page and it could not carry on. The rest of the terminal is fine. Reload, or go back to Pulse.';
+        ? 'Try again in a minute. Your desks, marks and settings are safe: they are kept on this machine.'
+        : 'This panel hit an error. The rest of your desk still works.';
+  const ghost = 'inline-flex items-center h-10 px-5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:bg-ink/[0.05]';
   const card = (
-    <div role="alert" className="border border-borderMuted bg-panel rounded-lg p-6 sm:p-8 flex flex-col items-start gap-3 max-w-[640px]" data-fault={offline ? 'offline' : load ? 'stale' : 'error'}>
-      <span className={`font-mono text-[10px] font-bold uppercase tracking-widest ${load ? 'text-textMuted' : 'text-warn'}`}>{load ? 'One moment' : 'A fault'}</span>
-      <h1 className="text-[20px] font-semibold tracking-tight text-textPrimary leading-tight">{head}</h1>
-      <p className="text-[13.5px] text-textSecondary leading-relaxed">{says}</p>
-      <div className="mt-2 flex items-center gap-2.5 flex-wrap">
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-textPrimary text-canvas text-[12.5px] font-medium"
-          data-fault-reload
-        >
-          <RotateCcw className="w-3.5 h-3.5" aria-hidden /> {offline ? 'Try again' : 'Reload'}
-        </button>
-        {back}
-      </div>
-      {!load && (
-        <p className="mt-2 text-[12px] text-textMuted leading-relaxed">
-          If it keeps happening, send this line to{' '}
-          <a href={`mailto:info@slayerterminal.com?subject=${encodeURIComponent('A fault in the terminal')}&body=${encodeURIComponent(`${error.name}: ${error.message}\n${typeof location !== 'undefined' ? location.href : ''}`)}`} className="text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
-            info@slayerterminal.com
+    <BracketCard className="w-full max-w-[560px] p-7 sm:p-9 flex flex-col items-start gap-3" label="fault">
+      <div role="alert" className="contents" data-fault={offline ? 'offline' : load ? 'stale' : 'error'}>
+        <SlayerMark size={48} state={load && !offline ? 'loading' : 'offline'} label="" />
+        <h1 className="mt-4 text-[28px] font-light tracking-[-0.02em] text-textPrimary leading-tight">{head}</h1>
+        <p className="text-[15px] text-textSecondary leading-relaxed">{says}</p>
+        <div className="mt-3 flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => (retry && !load ? retry() : window.location.reload())}
+            className="inline-flex items-center h-10 px-5 rounded-full bg-textPrimary text-canvas text-[13.5px] font-medium hover:bg-textPrimary/90"
+            data-fault-reload
+          >
+            {offline ? 'Try again' : load ? 'Reload' : retry ? 'Reload panel' : 'Try again'}
+          </button>
+          <a href="/status" className={ghost} data-fault-status>
+            Status
           </a>
-          :
-          <code className="mt-1.5 block font-mono text-[11px] text-textSecondary break-all select-all" data-fault-line>
-            {error.name}: {error.message}
-          </code>
-        </p>
-      )}
-    </div>
+          {back}
+        </div>
+        {!load && (
+          <p className="mt-3 text-[12px] text-textMuted leading-relaxed">
+            If it keeps happening, send this line to{' '}
+            <a href={`mailto:info@slayerterminal.com?subject=${encodeURIComponent('A fault in the terminal')}&body=${encodeURIComponent(`${error.name}: ${error.message}\n${typeof location !== 'undefined' ? location.href : ''}`)}`} className="text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
+              info@slayerterminal.com
+            </a>
+            :
+            <code className="mt-1.5 block font-code text-[11px] text-textSecondary break-all select-all" data-fault-line>
+              {error.name}: {error.message}
+            </code>
+          </p>
+        )}
+      </div>
+    </BracketCard>
   );
   if (scope === 'page') return card;
   return (
     <div className="min-h-screen bg-canvas text-textPrimary flex flex-col">
       <header className="shrink-0 h-[64px] flex items-center px-5 sm:px-8">
-        <a href="/" className="font-mono text-[13px] font-bold tracking-tight">
-          <span className="text-textMuted">&gt;_ </span>slayer_terminal
+        <a href="/" className="inline-flex" aria-label="Slayer Terminal, the front page">
+          <Wordmark height={14} cursor label="" />
         </a>
       </header>
       <main className="flex-1 flex items-center justify-center px-5 pb-[12vh]">{card}</main>
@@ -138,7 +152,7 @@ export class AppBoundary extends Component<{ children: ReactNode }, { error: Err
         error={this.state.error}
         scope="app"
         back={
-          <a href="/" className="inline-flex items-center h-9 px-4 rounded-md border border-borderMuted text-[12.5px] font-medium text-textPrimary hover:bg-ink/[0.05]">
+          <a href="/" className="inline-flex items-center h-10 px-5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:bg-ink/[0.05]">
             Front page
           </a>
         }

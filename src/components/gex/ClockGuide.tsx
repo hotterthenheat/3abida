@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../theme/fonts';
 /*
 ==================================================
   SLAYER TERMINAL - HOW TO READ THE TRADER'S CLOCK
@@ -21,8 +22,9 @@ const LIVE = 'rgb(var(--select))';
    attribute reads a var() (measured) */
 const EMBER = 'rgb(var(--ember))';
 const GLACIER = 'rgb(var(--glacier))';
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
@@ -51,7 +53,7 @@ const HOURS = [
 ];
 
 const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5, mono = false, weight = 400 }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size?: number; mono?: boolean; weight?: number }) => (
-  <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? MONO : SANS} fontSize={size} fontWeight={weight} fill={fill}>
+  <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? FIG : SANS} fontSize={size} fontWeight={weight} fill={fill}>
     {children}
   </text>
 );

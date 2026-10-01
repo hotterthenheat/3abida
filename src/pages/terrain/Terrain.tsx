@@ -2556,7 +2556,7 @@ const Terrain = () => {
       className={`relative -mx-4 lg:-mx-6 2xl:-mx-8 px-1.5 flex flex-col ${
         isPhone
           ? '-mt-5 -mb-16 py-1.5 h-[calc(100dvh-3rem)] min-h-0'
-          : 'lg:-mt-5 lg:-mb-16 lg:py-1.5 lg:h-screen lg:min-h-0'
+          : 'lg:-mt-5 lg:-mb-16 lg:py-1.5 lg:h-[calc(100vh-var(--demo-band,0px))] lg:min-h-0'
       }`}
     >
       {/*

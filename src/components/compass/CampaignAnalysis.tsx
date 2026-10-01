@@ -70,6 +70,7 @@ import {
   type Setup,
   type SleeveKey,
 } from '../../types/compass';
+import { FONT_SANS } from '../../theme/fonts';
 
 let lastChartView: 'stock' | 'premium' = 'stock';
 
@@ -216,7 +217,7 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
         background: { color: s0.bg },
         // The quiet axis ink on the dark family; its dark cut on a light ground
         textColor: s0.light ? s0.text : '#5a5a5a',
-        fontFamily: "'SF Pro', sans-serif",
+        fontFamily: FONT_SANS,
         fontSize: 10,
         attributionLogo: false,
       },

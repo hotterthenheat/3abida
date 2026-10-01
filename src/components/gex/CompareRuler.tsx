@@ -44,6 +44,7 @@ import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
 import { HEAT_MODE, heatCellStyle, type HeatMode } from './heatmap';
 import { AXIS_COL_W, AXIS_READ_H, AXIS_STRIKE_W } from './compareSkeletons';
 import { useResolvedTheme } from '../../theme/theme';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = '#C7D3E8';
 const INK = '#ededed';
@@ -61,8 +62,9 @@ const INK_3 = '#7d7d7d';
 interface RulerInks { wash: string; col: string; colEdge: string; grid: string; ink: string; ink2: string; ink3: string; spotRule: string; onInk: string; chipGround: string; silver: string; edge: string | null; call: string; put: string; supreme: string; flip: string }
 const DARK_INKS: RulerInks = { wash: 'rgba(255,255,255,0.04)', col: 'rgba(255,255,255,0.025)', colEdge: 'rgba(255,255,255,0.08)', grid: 'rgba(255,255,255,0.05)', ink: INK, ink2: INK_2, ink3: INK_3, spotRule: 'rgba(237,237,237,0.3)', onInk: '#0a0a0a', chipGround: '#0a0a0a', silver: SILVER, edge: null, call: CALL_WALL, put: PUT_WALL, supreme: SUPREME, flip: FLIP };
 const PAPER_INKS: RulerInks = { wash: 'rgba(14,15,17,0.06)', col: 'rgba(14,15,17,0.04)', colEdge: 'rgba(14,15,17,0.16)', grid: 'rgba(14,15,17,0.09)', ink: '#0e0f11', ink2: '#26282d', ink3: '#40434a', spotRule: 'rgba(14,15,17,0.4)', onInk: '#ffffff', chipGround: '#ffffff', silver: '#3a4f7a', edge: 'rgba(14,15,17,0.3)', call: '#008c38', put: '#dc2020', supreme: '#a300b3', flip: '#5b6472' };
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIGS = FONT_SANS;
+const SANS = FONT_SANS;
 export const PAD = 14;
 
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
@@ -476,7 +478,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       ctx.textAlign = 'center';
       for (const d of ticks) {
         if (near(d, 0)) continue;
-        ctx.font = `${compact ? 9 : 10}px ${MONO}`;
+        ctx.font = `${compact ? 9 : 10}px ${FIGS}`;
         ctx.fillStyle = K.ink2;
         ctx.fillText(tickWords(d, L.U), cx, yOf(d));
       }
@@ -493,7 +495,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
         ctx.roundRect(colL + 4, y0 - 8, colW - 8, 16, 4);
         ctx.fill();
         ctx.fillStyle = K.onInk;
-        ctx.font = `700 ${compact ? 9 : 10}px ${MONO}`;
+        ctx.font = `700 ${compact ? 9 : 10}px ${FIGS}`;
         ctx.fillText('spot', cx, y0 + 0.5);
       }
 
@@ -530,7 +532,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
            the capsule is never under 11px now (barHFor), so a figure always
            has the height — only the length can refuse it */
         const canPrint = barH >= 11;
-        const FIG = `600 ${barH >= 13 ? 9 : 8}px ${MONO}`;
+        const FIG = `600 ${barH >= 13 ? 9 : 8}px ${FIGS}`;
         /* A name goes INSIDE a capsule that reaches the edge from 10px of row,
            one point smaller under 13 — never a chip over the figure (Noah, 2026-09-09) */
         const NAME_IN = barH >= 13 ? NAME : `500 8px ${SANS}`;
@@ -671,7 +673,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
           const kept = keptOf(p);
           const hot = hotOf(p);
           ctx.fillStyle = kept ? K.silver : hot ? K.ink : K.ink2;
-          ctx.font = kept || hot ? `700 10px ${MONO}` : `10px ${MONO}`;
+          ctx.font = kept || hot ? `700 10px ${FIGS}` : `10px ${FIGS}`;
           ctx.fillText(fmtStrike(p.strike), x, p.y + 0.5);
         };
         const rows = [...placed].sort((p, q) => p.y - q.y);
@@ -702,7 +704,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
       }
 
       /* Off the ruler, counted, in the margins — and the way back to spot when it has slid out */
-      ctx.font = `9px ${MONO}`;
+      ctx.font = `9px ${FIGS}`;
       ctx.fillStyle = K.ink3;
       ctx.textBaseline = 'middle';
       for (const [S, left] of [[L.a, true], [L.b, false]] as [SideLayout, boolean][]) {
@@ -718,7 +720,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
         const wy = off > 0 ? H - PAD + 4 : PAD - 4;
         spotWordRef.current = { x: cx, y: wy };
         ctx.fillStyle = overSpotRef.current ? K.ink : K.ink2;
-        ctx.font = `700 9px ${MONO}`;
+        ctx.font = `700 9px ${FIGS}`;
         ctx.textAlign = 'center';
         ctx.fillText(off > 0 ? '▼ spot' : '▲ spot', cx, wy);
       } else spotWordRef.current = null;

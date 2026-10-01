@@ -131,7 +131,7 @@ export const TERMS = {
   'Event markers':
     'The calendar drawn on the chart: this name\u2019s next earnings, FOMC/CPI/NFP, and the session\u2019s biggest option prints, each marked at its bar. Hover a mark for the details.',
   'RSI 14':
-    'Wilder\u2019s momentum gauge, 0\u2013100. Above 70 the move is stretched, below 30 it\u2019s washed out \u2014 and staying pinned there is itself the signal on a trend day.',
+    'Wilder\u2019s momentum gauge, 0\u2013100. Above 70 the move is stretched, below 30 it\u2019s washed out \u2014 and staying pinned there is itself the tell on a trend day.',
   'VWAP bands':
     '\u00b11\u03c3 and \u00b12\u03c3 around the session VWAP, volume-weighted \u2014 how far price sits from where the day\u2019s money actually traded.',
   'Distance unit':
@@ -150,7 +150,7 @@ export const TERMS = {
     'The list at a pane’s top-left of every alert armed on its symbol, so what’s watching is visible without opening a menu. A row lights orange when its alert fires.',
   'Value area': 'The band holding 70% of the session\u2019s volume, VAL to VAH. Inside it the market is trading acceptance; outside it, discovery.',
   'Timeframe trend':
-    'Where price sits on each interval against its own EMA21 and VWAP. Above both reads up, below both reads down, and between them reads flat — the timeframes disagreeing is itself the signal.',
+    'Where price sits on each interval against its own EMA21 and VWAP. Above both reads up, below both reads down, and between them reads flat — the timeframes disagreeing is itself the read.',
   'Max pain':
     'The settlement price that pays option holders the least in total — the OI-weighted pin. The theory: the price with the least to pay out is the one the book drifts toward into expiry.',
   'Gamma pin':

@@ -33,13 +33,13 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, CreditCard, Download, ExternalLink, FileText, Info, Keyboard, LayoutDashboard, LogOut, MonitorSmartphone, Palette, Plug, Trash2, Upload, UserRound, Volume2, type LucideIcon } from 'lucide-react';
+import { Check, ChevronDown, CreditCard, Download, ExternalLink, FileText, Info, Keyboard, LayoutDashboard, LogOut, Mail, MonitorSmartphone, Palette, Plug, Trash2, Upload, UserPlus, UserRound, Volume2, type LucideIcon } from 'lucide-react';
 import * as Switch from '@radix-ui/react-switch';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import Modal from '../../components/ui/Modal';
 import { MorphingInfinity, useBusy, useWorking } from '../../components/ui/Working';
 import Simulator from '../../core/simulator';
-import { chime } from '../../core/sound';
+import { play, type SoundKind } from '../../core/sound';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
 import { setDeskPrefs, useDeskPrefs, type ClockZone } from '../../data/deskPrefs';
 import { setProfile, useProfile, type SignInWay } from '../../data/profile';
@@ -49,6 +49,10 @@ import { CANDLE_THEME_OPTIONS, setCandleTheme, useCandleThemeKey, type CandleThe
 import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
 import type { DistanceUnit } from '../../data/atr';
 import { setThemeChoice, useResolvedTheme, useThemeChoice, type ThemeChoice } from '../../theme/theme';
+import SlayerMark from '../../brand/SlayerMark';
+import Wordmark from '../../brand/Wordmark';
+import { COMPANY } from '../../data/company';
+import { VERSION as RELEASE } from '../../data/release';
 
 /* ---- the sections ------------------------------------------------------------- */
 
@@ -60,8 +64,9 @@ import { setThemeChoice, useResolvedTheme, useThemeChoice, type ThemeChoice } fr
    is the most important, so those should be first"): the reader's own things
    — the account, the plan, the data — then how the terminal looks and works,
    then About. */
-export type SettingsSection = 'account' | 'billing' | 'data' | 'appearance' | 'desk' | 'keyboard' | 'about';
-export const SETTINGS_SECTIONS: SettingsSection[] = ['account', 'billing', 'data', 'appearance', 'desk', 'keyboard', 'about'];
+export type SettingsSection = 'account' | 'billing' | 'data' | 'appearance' | 'desk' | 'sounds' | 'invite' | 'mail' | 'keyboard' | 'about';
+/* "Sounds, invites, mail." (Slayer Logo System, Web and App · Settings, 2026-10-01): three subpages after the desk */
+export const SETTINGS_SECTIONS: SettingsSection[] = ['account', 'billing', 'data', 'appearance', 'desk', 'sounds', 'invite', 'mail', 'keyboard', 'about'];
 const isSection = (v: string | undefined): v is SettingsSection => (SETTINGS_SECTIONS as string[]).includes(v ?? '');
 const HOME_SECTION: SettingsSection = 'account';
 
@@ -71,6 +76,9 @@ const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; soon?: b
   { id: 'data', label: 'Data', icon: Plug },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'desk', label: 'The desk', icon: LayoutDashboard },
+  { id: 'sounds', label: 'Sounds', icon: Volume2 },
+  { id: 'invite', label: 'Invite a trader', icon: UserPlus },
+  { id: 'mail', label: 'Email preferences', icon: Mail },
   { id: 'keyboard', label: 'Keyboard', icon: Keyboard },
   { id: 'about', label: 'About', icon: Info },
 ];
@@ -175,17 +183,8 @@ const KEY_GROUPS: { where: string; keys: Shortcut[] }[] = [
   },
 ];
 
-/** The version the About box prints — package.json's, by hand until the build stamps it */
-const VERSION = '1.0.0';
 
 /* ---- the pieces --------------------------------------------------------------- */
-
-/** The house mark — the sidebar's `>_` chip, the door home there, the badge here */
-const Mark = ({ size = 24 }: { size?: number }) => (
-  <span className="holo-bg rounded-[7px] shrink-0 inline-flex items-center justify-center font-mono font-bold text-[#0a0a0a]" style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden>
-    &gt;_
-  </span>
-);
 
 /** A box of rows: the head, then the rows under hairlines */
 const Section = ({ id, title, line, aside, children }: { id: string; title: string; line: string; aside?: ReactNode; children: ReactNode }) => (
@@ -455,10 +454,81 @@ const AccountBox = () => {
 
 const STATUS_WORD: Record<SubscriptionStatus, string> = { active: 'active', past_due: 'payment due', canceled: 'ending', trialing: 'trial' };
 
+/* MONEY, SAID PLAINLY (Slayer Logo System, Web and App · Billing, 2026-10-01): the four notices a plan can need — the
+   upgrade a page asks for, a plan ending, a payment that failed, a plan cancelled. Each is one card: the word over it, a
+   sentence, what happens next, one or two doors. The sample plan has none of these standing, so the box can show each one
+   ("See a notice") — when Stripe's state arrives, the plan's own standing picks it. */
+type NoticeKind = 'upgrade' | 'ending' | 'failed' | 'cancelled';
+const NOTICE_OPTIONS: DropdownOption<NoticeKind | ''>[] = [
+  { value: '', label: 'None', hint: 'What a plan in good standing shows' },
+  { value: 'upgrade', label: 'Upgrade', hint: 'A page your plan does not hold' },
+  { value: 'ending', label: 'Trial ending', hint: 'A plan that ends soon' },
+  { value: 'failed', label: 'Payment failed', hint: 'A charge that did not go through' },
+  { value: 'cancelled', label: 'Cancelled', hint: 'A plan that will not renew' },
+];
+const noticeFor = (status: SubscriptionStatus): NoticeKind | '' => (status === 'past_due' ? 'failed' : status === 'canceled' ? 'cancelled' : status === 'trialing' ? 'ending' : '');
+
+const BillingNotice = ({ kind, until }: { kind: NoticeKind; until: string }) => {
+  const compass = planOf('compass');
+  const word = { upgrade: 'Upgrade', ending: 'Trial ending', failed: 'Payment failed', cancelled: 'Cancelled' }[kind];
+  const head = {
+    upgrade: 'Compass needs the Compass plan.',
+    ending: `Your plan ends on ${until}.`,
+    failed: 'Your last payment didn’t go through.',
+    cancelled: 'Your plan is cancelled.',
+  }[kind];
+  const line = {
+    upgrade: `Contracts that fit the levels right now, weeklies to LEAPS. ${compass.price} a month, cancel any time.`,
+    ending: 'Renew to keep your desks, layouts and alerts.',
+    failed: 'Update your card to keep access. We will try again in three days.',
+    cancelled: `You keep access until ${until}. Your layouts stay saved if you come back.`,
+  }[kind];
+  return (
+    <div className={`mx-5 mb-4 rounded-lg border p-4 ${kind === 'failed' ? 'border-warn/60' : 'border-borderMuted'} bg-ink/[0.02]`} data-billing-notice={kind}>
+      <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${kind === 'failed' ? 'text-warn' : 'text-textMuted'}`}>{word}</div>
+      <div className="mt-1.5 text-[15px] font-medium text-textPrimary">{head}</div>
+      <div className="mt-1 text-[12.5px] text-textSecondary">{line}</div>
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
+        {kind === 'upgrade' && (
+          <>
+            <Door onClick={() => setPlan('compass')} title="Stripe's Checkout — the difference, charged today" testId="notice-upgrade">
+              Upgrade to Compass
+            </Door>
+            <Door title="Keep the plan you have" testId="notice-not-now">
+              Not now
+            </Door>
+          </>
+        )}
+        {kind === 'ending' && (
+          <Door title="Stripe's portal — renew the plan" testId="notice-renew">
+            Renew
+          </Door>
+        )}
+        {kind === 'failed' && (
+          <Door title="Stripe's portal — the card" testId="notice-card">
+            Update card
+          </Door>
+        )}
+        {kind === 'cancelled' && (
+          <>
+            <Door title="Stripe's portal — start the plan again" testId="notice-restart">
+              Restart plan
+            </Door>
+            <Door to="/settings/data" title="Your journal and everything else on this machine, as a file" testId="notice-export">
+              Export my journal
+            </Door>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /** BILLING — the plan, the tiers, what Stripe holds, the invoices */
 const BillingBox = () => {
   const b = useBilling();
   const plan = planOf(b.plan);
+  const [seen, setSeen] = useState<NoticeKind | ''>(() => noticeFor(b.status));
   return (
     <Section id="billing" title="Billing" line="Your plan and the card behind it — the card lives with Stripe, never here" aside={<Tag>preview · sample plan</Tag>}>
       {/* THE PLAN — what you are on, its standing, the next charge */}
@@ -472,7 +542,7 @@ const BillingBox = () => {
             <Tag tone="silver">{STATUS_WORD[b.status]}</Tag>
           </div>
           <div className="mt-1 text-[11px] text-textMuted">
-            {plan.kicker} · {b.status === 'canceled' ? 'ends' : 'renews'} {fmtDate(b.renewsOn)}
+            {plan.kicker.replace(/\.$/, '')} · {b.status === 'canceled' ? 'ends' : 'renews'} {fmtDate(b.renewsOn)}
             {plan.monthly != null && ` · $${plan.monthly} then`}
           </div>
         </div>
@@ -480,6 +550,10 @@ const BillingBox = () => {
           <ExternalLink className="w-3 h-3" /> Manage billing
         </Door>
       </div>
+      {seen && <BillingNotice kind={seen} until={fmtDate(b.renewsOn)} />}
+      <Row name="See a notice" line="How billing speaks when a plan needs something — shown here on the sample plan" testId="billing-notice">
+        <DropdownSelect<NoticeKind | ''> label="Notice" value={seen} options={NOTICE_OPTIONS} onChange={setSeen} title="Show a billing notice" testId="settings-billing-notice" align="end" />
+      </Row>
       {/* THE TIERS — the landing's three, yours lit; up is Stripe's Checkout, down is the portal */}
       <div className="px-5 pb-4 border-t border-borderSubtle/60 pt-3" data-settings-row="plans">
         <div className="text-[12px] text-textPrimary">Plans</div>
@@ -536,6 +610,9 @@ const BillingBox = () => {
           Update
         </Door>
       </Row>
+      <Row name="Statement descriptor" line="What a card statement reads for the plan" testId="descriptor">
+        <span className="font-code text-[11.5px] text-textPrimary">{COMPANY.descriptor}</span>
+      </Row>
       {/* THE INVOICES — every charge, its receipt from Stripe */}
       <div className="px-5 py-3 border-t border-borderSubtle/60" data-settings-row="invoices">
         <div className="text-[12px] text-textPrimary">Invoices</div>
@@ -586,7 +663,7 @@ const fmtBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math
 function exportLocal(): void {
   const keys: Record<string, string> = {};
   for (const k of localKeys()) keys[k] = localStorage.getItem(k) ?? '';
-  const blob = new Blob([JSON.stringify({ app: 'slayer_terminal', version: VERSION, at: new Date().toISOString(), keys }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'slayer_terminal', version: RELEASE, at: new Date().toISOString(), keys }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -685,17 +762,143 @@ const DataBox = () => {
   );
 };
 
+/** The house switch — the one every on/off row wears */
+const Toggle = ({ on, onChange, label, testId }: { on: boolean; onChange: (v: boolean) => void; label: string; testId: string }) => (
+  <Switch.Root
+    checked={on}
+    onCheckedChange={onChange}
+    aria-label={label}
+    className="relative shrink-0 w-8 h-[18px] rounded-full border border-borderSubtle bg-ink/[0.06] data-[state=checked]:bg-silver data-[state=checked]:border-silver transition-colors outline-none focus-visible:ring-2 focus-visible:ring-silver/60"
+    data-settings-switch={testId}
+  >
+    <Switch.Thumb className="block w-3 h-3 rounded-full bg-textPrimary translate-x-[2px] data-[state=checked]:translate-x-[16px] data-[state=checked]:bg-panel transition-transform" />
+  </Switch.Root>
+);
+
+/* SOUNDS (Slayer Logo System, 14 · Motion and sound: "Tones, not a casino."): the four the brand names, each with its own
+   switch and a Play that sounds it whatever the switch says. The alert's switch is the one the desk always had. */
+const SOUND_ROWS: { kind: SoundKind; name: string; line: string }[] = [
+  { kind: 'alert', name: 'Alert', line: 'Two rising sine tones, 180 ms — when an alert fires, on any page' },
+  { kind: 'confirm', name: 'Confirm', line: 'One soft click, 60 ms — an alert set, a thing saved' },
+  { kind: 'signIn', name: 'Sign in', line: 'One low tone, 120 ms' },
+  { kind: 'openClose', name: 'Market open and close', line: 'One tone up at the open, one down at the close' },
+];
+
+const SoundsBox = () => {
+  const desk = useDeskPrefs();
+  const isOn = (k: SoundKind) => (k === 'alert' ? desk.alertsSound : k === 'confirm' ? desk.sounds.confirm : k === 'signIn' ? desk.sounds.signIn : desk.sounds.openClose);
+  const set = (k: SoundKind, v: boolean) => (k === 'alert' ? setDeskPrefs({ alertsSound: v }) : setDeskPrefs({ sounds: k === 'confirm' ? { confirm: v } : k === 'signIn' ? { signIn: v } : { openClose: v } }));
+  return (
+    <Section id="sounds" title="Sounds" line="Tones, not a casino — each on its own switch, kept on this machine">
+      {SOUND_ROWS.map(r => (
+        <Row key={r.kind} name={r.name} line={r.line} testId={`sound-${r.kind}`}>
+          <Door onClick={() => play(r.kind)} title={`Hear the ${r.name.toLowerCase()} sound`} testId={`play-${r.kind}`}>
+            <Volume2 className="w-3 h-3" /> Play
+          </Door>
+          <Toggle on={isOn(r.kind)} onChange={v => set(r.kind, v)} label={`${r.name} sound`} testId={`sound-${r.kind}`} />
+        </Row>
+      ))}
+    </Section>
+  );
+};
+
+/** The invite's key — four letters off the handle, the same every time (accounts will hand out the real one) */
+const inviteKey = (handle: string): string => {
+  let h = 2166136261;
+  for (const ch of handle) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return h.toString(36).toUpperCase().slice(-4).padStart(4, '7');
+};
+
+/* INVITE A TRADER (Web and App · Settings): the link with your name on it, and who came in on it. No account service
+   yet, so no one has — the list says so rather than showing anyone. */
+const InviteBox = () => {
+  const profile = useProfile();
+  const code = `${profile.handle.toLowerCase()}-${inviteKey(profile.handle)}`;
+  const link = `${window.location.host}/i/${code}`;
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/i/${code}`);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* no clipboard here — the link is on screen to select */
+    }
+  };
+  return (
+    <Section id="invite" title="Invite a trader" line="When someone you invite joins a paid plan, you both get a month of account credit" aside={<Tag>preview · accounts open at launch</Tag>}>
+      <Row name="Your link" line="It opens the demo with your name on it" testId="invite-link">
+        <code className="font-code text-[11.5px] text-textPrimary select-all" data-invite-link>
+          {link}
+        </code>
+        <Door onClick={copy} title="Copy the link" testId="invite-copy">
+          {copied ? 'Copied.' : 'Copy'}
+        </Door>
+      </Row>
+      <div className="px-5 py-4 border-t border-borderSubtle/60 text-[12px] text-textMuted" data-settings-row="invited">
+        No one yet. When someone you invite joins, they show here with their standing: invited, joined, credited.
+      </div>
+    </Section>
+  );
+};
+
+/* EMAIL PREFERENCES (Web and App · Settings): "Receipts and sign-in mail always send." Four kinds of optional mail, each a
+   switch, and one door that turns them all off. Kept on this machine — no mail is sent until accounts open. */
+type MailKind = 'alerts' | 'updates' | 'tips' | 'newsletter';
+const MAIL_KEY = 'slayer_mail_prefs';
+const MAIL_ROWS: { kind: MailKind; name: string; line: string }[] = [
+  { kind: 'alerts', name: 'Alert emails', line: 'An alert that fires while you are away, in your inbox' },
+  { kind: 'updates', name: 'Product updates', line: 'When something ships — one line and a still' },
+  { kind: 'tips', name: 'Onboarding tips', line: 'Four short notes in your first two weeks' },
+  { kind: 'newsletter', name: 'Newsletter', line: 'What shipped this week' },
+];
+const readMail = (): Record<MailKind, boolean> => {
+  const base = { alerts: true, updates: true, tips: true, newsletter: false };
+  try {
+    return { ...base, ...(JSON.parse(localStorage.getItem(MAIL_KEY) ?? '{}') as Partial<Record<MailKind, boolean>>) };
+  } catch {
+    return base;
+  }
+};
+
+const MailBox = () => {
+  const [mail, setMail] = useState(readMail);
+  const save = (next: Record<MailKind, boolean>) => {
+    setMail(next);
+    try {
+      localStorage.setItem(MAIL_KEY, JSON.stringify(next));
+    } catch {
+      /* private mode — for this visit */
+    }
+  };
+  const anyOn = Object.values(mail).some(Boolean);
+  return (
+    <Section id="mail" title="Email preferences" line="Receipts and sign-in mail always send" aside={<Tag>preview · nothing is sent yet</Tag>}>
+      {MAIL_ROWS.map(r => (
+        <Row key={r.kind} name={r.name} line={r.line} testId={`mail-${r.kind}`}>
+          <Toggle on={mail[r.kind]} onChange={v => save({ ...mail, [r.kind]: v })} label={r.name} testId={`mail-${r.kind}`} />
+        </Row>
+      ))}
+      <Row name="Unsubscribe from everything optional" line={`Receipts and sign-in links still come, from ${COMPANY.site}`} testId="mail-none">
+        <Door onClick={() => save({ alerts: false, updates: false, tips: false, newsletter: false })} title="Turn every optional mail off" testId="mail-unsubscribe">
+          {anyOn ? 'Unsubscribe' : 'Done'}
+        </Door>
+      </Row>
+    </Section>
+  );
+};
+
 /** ABOUT — the mark, the version, a word, the licences behind one door */
 const AboutBox = () => {
   const [licences, setLicences] = useState(false);
   return (
     <Section id="about" title="About" line="The terminal and its version">
       <div className="px-5 py-4 border-t border-borderSubtle/60 flex items-center gap-4" data-settings-about>
-        <Mark size={40} />
+        <SlayerMark size={40} label="" />
         <div className="min-w-0">
-          <div className="font-mono text-[13px] font-bold tracking-tight holo-text">slayer_terminal</div>
-          <div className="mt-0.5 font-mono text-[11px] tnum text-textMuted">
-            v{VERSION} · {import.meta.env.MODE}
+          <Wordmark height={13} label="Slayer Terminal" />
+          <div className="mt-1.5 font-mono text-[11px] tnum text-textMuted">
+            {RELEASE} · {import.meta.env.MODE}
           </div>
         </div>
         <div className="ml-auto shrink-0 flex items-center gap-2">
@@ -751,7 +954,7 @@ const Settings = () => {
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-settings-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <Mark />
+            <SlayerMark size={24} label="" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Settings</h1>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Your account and plan, how the terminal looks, what the desk opens on</p>
@@ -800,7 +1003,7 @@ const Settings = () => {
                 aria-current={on ? 'page' : undefined}
                 className={`flex items-center gap-2 px-2.5 h-8 rounded-md text-[12px] transition-colors text-left ${
                   on ? 'bg-ink/[0.05] text-textPrimary' : s.soon ? 'text-textMuted hover:text-textSecondary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'
-                } ${i === 3 || i === 6 ? 'xl:mt-2' : ''}`}
+                } ${i === 3 || i === 6 || i === 8 ? 'xl:mt-2' : ''}`}
                 data-settings-nav={s.id}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
@@ -852,25 +1055,15 @@ const Settings = () => {
               <DropdownSelect<string> label="Name" value={desk.opensOn.ticker ?? ''} options={OPENS_ON_NAMES} onChange={v => setDeskPrefs({ opensOn: { ticker: v || null } })} title="The name the terminal opens on" testId="settings-opens-name" align="end" />
               <DropdownSelect<string> label="Timeframe" value={desk.opensOn.timeframe ?? ''} options={OPENS_ON_TIMEFRAMES} onChange={v => setDeskPrefs({ opensOn: { timeframe: (v || null) as Timeframe | null } })} title="The timeframe every chart opens on" testId="settings-opens-timeframe" align="end" />
             </Row>
-            <Row name="Alerts out loud" line="The jingle when one is set, the chime when it alerts" testId="alerts-sound">
-              <Door onClick={chime} title="Hear the chime" testId="chime-try">
-                <Volume2 className="w-3 h-3" /> Try it
-              </Door>
-              <Switch.Root
-                checked={desk.alertsSound}
-                onCheckedChange={v => setDeskPrefs({ alertsSound: v })}
-                aria-label="Alerts out loud"
-                className="relative shrink-0 w-8 h-[18px] rounded-full border border-borderSubtle bg-ink/[0.06] data-[state=checked]:bg-silver data-[state=checked]:border-silver transition-colors outline-none focus-visible:ring-2 focus-visible:ring-silver/60"
-                data-settings-switch="alerts-sound"
-              >
-                <Switch.Thumb className="block w-3 h-3 rounded-full bg-textPrimary translate-x-[2px] data-[state=checked]:translate-x-[16px] data-[state=checked]:bg-panel transition-transform" />
-              </Switch.Root>
-            </Row>
             <Row name="Clock" line="New York's time or your own on every chart's axis and crosshair" testId="clock">
               <DropdownSelect<ClockZone> label="Clock" value={desk.clock} options={CLOCK_OPTIONS} onChange={v => setDeskPrefs({ clock: v })} title="Whose clock the axes keep" testId="settings-clock" align="end" />
             </Row>
           </Section>
           )}
+
+          {current === 'sounds' && <SoundsBox />}
+          {current === 'invite' && <InviteBox />}
+          {current === 'mail' && <MailBox />}
 
           {/* KEYBOARD */}
           {current === 'keyboard' && (

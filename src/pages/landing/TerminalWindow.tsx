@@ -22,7 +22,9 @@
   landing; re-run the script when a page changes.
 
   WHAT STAYED: the window, its bar saying where it is
-  and that the data is simulated, the tour's words
+  and that the data is simulated (since 2026-10-01 the
+  brand's demo band: "Simulated data. Nothing here is
+  live." beside the mark), the tour's words
   choosing the picture, the window turning theme with
   the page. WHAT WENT: the live frame, "take the
   controls", "open", the lime running light (lime is
@@ -44,6 +46,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Theme } from '../../theme/theme';
 import Working from '../../components/ui/Working';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 /** The desk picture's shape — what scripts/make-landing-shots.mjs photographs */
 export const SHOT_W = 1440;
@@ -116,9 +119,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
     <div data-theme={theme} data-terminal-window={here} className={`landing-window relative flex flex-col overflow-hidden rounded-[14px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
       {/* THE BAR — which page this is, and that its numbers are simulated */}
       <div className="shrink-0 h-10 pl-3.5 pr-3.5 flex items-center gap-1.5 sm:gap-3 border-b border-borderSubtle bg-panel font-mono transition-colors duration-500">
-        <span className="text-[11px] font-bold tracking-tight text-textMuted select-none" aria-hidden="true">
-          &gt;_
-        </span>
+        <ProductGlyph name="terminal" size={16} bare />
         <span className="min-w-0 flex items-center gap-1.5 text-[11px] text-textSecondary truncate" data-window-path>
           <span className="text-textMuted hidden sm:inline">terminal</span>
           {parts.map((p, i) => (
@@ -130,7 +131,12 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
             </span>
           ))}
         </span>
-        <span className="ml-auto text-[9.5px] uppercase tracking-[0.16em] text-textMuted whitespace-nowrap">simulated data</span>
+        {/* THE DEMO BAND (Slayer Logo System, Web and App · Try before you buy): "Simulated data. Nothing here is live." */}
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-textSecondary whitespace-nowrap font-sans" data-window-band>
+          <span className="w-1.5 h-1.5 rounded-full bg-silver" aria-hidden="true" />
+          <span className="hidden sm:inline">Simulated data. Nothing here is live.</span>
+          <span className="sm:hidden">Simulated</span>
+        </span>
       </div>
 
       {/* THE SCREEN */}

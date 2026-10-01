@@ -10,6 +10,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SUPREME = 'rgb(var(--supreme))';
 const BULL = 'rgb(var(--bull))';
@@ -19,8 +20,9 @@ const WARN = 'rgb(var(--warn))';
 const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
 const SECOND = 'rgb(var(--text-secondary))';
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -38,7 +40,7 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
 );
 
 const Head = ({ x, y, children, anchor = 'start' }: { x: number; y: number; children: ReactNode; anchor?: 'start' | 'end' }) => (
-  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
     {children}
   </text>
 );
@@ -62,22 +64,22 @@ const RowFigure = () => (
     <Head x={262} y={12}>NUMBERS</Head>
     <Head x={302} y={12}>MONEY</Head>
     <Head x={342} y={12}>NEWS</Head>
-    <Head x={382} y={12}>SCREEN</Head>
+    <Head x={378} y={12}>SCREEN</Head>
     <line x1={10} x2={410} y1={18} y2={18} stroke="#ffffff" strokeOpacity={0.08} />
     <rect x={10} y={30} width={14} height={14} rx={3} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
-    <text x={17} y={40} textAnchor="middle" fontSize={4} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={17} y={40} textAnchor="middle" fontSize={4} fontWeight={700} fill={INK} fontFamily={FIG}>
       NV
     </text>
-    <text x={29} y={37} fontSize={8} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={29} y={37} fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
       NVDA
     </text>
     <text x={29} y={46} fontSize={6} fill={MUTED} fontFamily={SANS}>
       NVIDIA
     </text>
-    <text x={118} y={40} textAnchor="end" fontSize={7.5} fill={INK} fontFamily={MONO}>
+    <text x={118} y={40} textAnchor="end" fontSize={7.5} fill={INK} fontFamily={FIG}>
       $138.60
     </text>
-    <text x={156} y={40} textAnchor="end" fontSize={7.5} fill={BULL} fontFamily={MONO}>
+    <text x={156} y={40} textAnchor="end" fontSize={7.5} fill={BULL} fontFamily={FIG}>
       +1.4%
     </text>
     <polyline points="170,44 176,42 182,43 188,38 194,39 200,35 206,36 212,32" fill="none" stroke={BULL} strokeWidth={1} />
@@ -85,8 +87,9 @@ const RowFigure = () => (
     <Bar x={262} y={38} w={32} v={62} />
     <Bar x={302} y={38} w={32} v={38} />
     <Bar x={342} y={38} w={32} v={70} />
-    <circle cx={385} cy={39} r={2} fill={BULL} />
-    <text x={390} y={41.5} fontSize={6.5} fontWeight={600} letterSpacing={0.6} fill={INK} fontFamily={MONO}>
+    {/* Helvetica's capitals run wider than the old monospace's (2026-10-01): the word and its dot stand a few units left */}
+    <circle cx={380} cy={39} r={2} fill={BULL} />
+    <text x={385} y={41.5} fontSize={6.5} fontWeight={600} letterSpacing={0.5} fill={INK} fontFamily={FIG}>
       STRONG
     </text>
   </Figure>
@@ -96,7 +99,7 @@ const RowFigure = () => (
 const SleeveFigure = () => (
   <Figure label="Two sleeve bars against a marked 50 line: one green past the line reading for the name, one red short of it reading against" h={70}>
     <line x1={90} x2={90} y1={12} y2={60} stroke="#ffffff" strokeOpacity={0.25} strokeDasharray="2 2" />
-    <text x={90} y={68} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+    <text x={90} y={68} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
       THE 50 LINE
     </text>
     {[
@@ -124,7 +127,7 @@ const RotationFigure = () => (
     ].map(c => (
       <g key={c.rank}>
         <rect x={c.x} y={8} width={120} height={56} rx={4} fill="#121212" stroke="#2a2a2a" strokeWidth={0.8} />
-        <text x={c.x + 8} y={24} fontSize={6} fill={MUTED} fontFamily={MONO}>
+        <text x={c.x + 8} y={24} fontSize={6} fill={MUTED} fontFamily={FIG}>
           {c.rank}
         </text>
         <text x={c.x + 22} y={24} fontSize={8} fontWeight={700} fill={INK} fontFamily={SANS}>
@@ -132,10 +135,10 @@ const RotationFigure = () => (
         </text>
         <rect x={c.x + 8} y={31} width={104} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
         <rect x={c.x + 8} y={31} width={104 * c.bar} height={4} rx={2} fill={c.ink} fillOpacity={c.ink === BEAR ? 0.8 : 1} />
-        <text x={c.x + 8} y={50} fontSize={5.5} letterSpacing={0.6} fill={c.ink} fontFamily={MONO}>
+        <text x={c.x + 8} y={50} fontSize={5.5} letterSpacing={0.6} fill={c.ink} fontFamily={FIG}>
           {c.word}
         </text>
-        <text x={c.x + 112} y={50} textAnchor="end" fontSize={5.5} fontFamily={MONO}>
+        <text x={c.x + 112} y={50} textAnchor="end" fontSize={5.5} fontFamily={FIG}>
           <tspan fill={MUTED}>1w </tspan>
           <tspan fill={c.up[0] ? BULL : BEAR}>{c.w1}</tspan>
           <tspan fill={MUTED}> · 1m </tspan>
@@ -143,7 +146,7 @@ const RotationFigure = () => (
         </text>
       </g>
     ))}
-    <text x={412} y={40} textAnchor="end" fontSize={6} fill={WARN} fontFamily={MONO}>
+    <text x={412} y={40} textAnchor="end" fontSize={6} fill={WARN} fontFamily={FIG}>
       …
     </text>
   </Figure>
@@ -159,13 +162,13 @@ const BreadthFigure = () => (
       return (
         <g key={t}>
           <circle cx={x} cy={up ? 22 : 46} r={3} fill={up ? BULL : BEAR} fillOpacity={up ? 1 : 0.8} />
-          <text x={x} y={up ? 14 : 57} textAnchor="middle" fontSize={4.5} fill={MUTED} fontFamily={MONO}>
+          <text x={x} y={up ? 14 : 57} textAnchor="middle" fontSize={4.5} fill={MUTED} fontFamily={FIG}>
             {t}
           </text>
         </g>
       );
     })}
-    <text x={266} y={31} fontSize={9} fontWeight={700} fill={BULL} fontFamily={MONO}>
+    <text x={266} y={31} fontSize={9} fontWeight={700} fill={BULL} fontFamily={FIG}>
       60%
     </text>
     <text x={266} y={42} fontSize={7} fill={SECOND} fontFamily={SANS}>

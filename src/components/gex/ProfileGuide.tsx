@@ -29,6 +29,7 @@ import { fmtFlow, type FlowLadder } from '../../data/hedgeFlow';
 import type { GexLevel } from '../../types/market';
 import type { PanelLevels } from './ProfilePanel';
 import { splinePath } from './spline';
+import { FONT_SANS } from '../../theme/fonts';
 
 const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
@@ -42,8 +43,9 @@ const COOL_3 = '#4575B4';
 const WARM_1 = '#FDAE61';
 const WARM_2 = '#F46D43';
 const WARM_3 = '#D73027';
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
@@ -53,7 +55,7 @@ const Capsule = ({ x, y, w, fill, text, ink = '#0a0a0a', h = 14 }: { x: number; 
   <g>
     <rect x={x} y={y - h / 2} width={w} height={h} rx={h / 2} fill={fill} />
     {text && (
-      <text x={x + w - 6} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fontWeight="600" fill={ink}>
+      <text x={x + w - 6} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fontWeight="600" fill={ink}>
         {text}
       </text>
     )}
@@ -67,7 +69,7 @@ const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5 }: {
 );
 
 const Strike = ({ y, children, fill = INK_2 }: { y: number; children: string; fill?: string }) => (
-  <text x={38} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fill={fill}>
+  <text x={38} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fill={fill}>
     {children}
   </text>
 );
@@ -151,10 +153,10 @@ const SizeFigure = () => {
             {r.wall && <rect x={44} y={r.y - 7} width={2} height={14} fill={wallInk(r.wall)} />}
             <rect x={MID - pl} y={r.y - H / 2} width={pl} height={H} rx={2} fill={`url(#g-put-${r.k})`} />
             <rect x={MID} y={r.y - H / 2} width={cl} height={H} rx={2} fill={`url(#g-call-${r.k})`} />
-            <text x={MID - pl - 4} y={r.y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fill={INK}>
+            <text x={MID - pl - 4} y={r.y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fill={INK}>
               ${r.put}M
             </text>
-            <text x={MID + cl + 4} y={r.y + 0.5} textAnchor="start" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fill={INK}>
+            <text x={MID + cl + 4} y={r.y + 0.5} textAnchor="start" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fill={INK}>
               ${r.call}M
             </text>
           </g>
@@ -191,7 +193,7 @@ const FlowFigure = () => {
       ))}
       {/* Spot, the chip */}
       <rect x={14} y={spotY - 8} width={46} height={16} rx={4} fill={INK} />
-      <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={MONO} fontSize="9" fontWeight="700" fill="rgb(var(--panel))">
+      <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fontWeight="700" fill="rgb(var(--panel))">
         492.40
       </text>
       <Label x={66} y={spotY} fill={INK_3}>where the market is now</Label>

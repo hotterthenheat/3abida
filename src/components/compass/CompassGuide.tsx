@@ -11,6 +11,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const BULL = 'rgb(var(--bull))';
@@ -20,7 +21,8 @@ const SUPREME = 'rgb(var(--supreme))';
 const MUTED = '#7c8290';
 const SECOND = 'rgb(var(--text-secondary))';
 const INK = 'rgb(var(--text-primary))';
-const MONO = 'ui-monospace, Menlo, monospace';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -41,46 +43,46 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
 const CardFigure = () => (
   <Figure label="One card: #1, NVDA 120P in red, the expiry chip, Top pick in magenta, a Moving chip; the one-sigma move, the session's line, the premium; Breaks above $121.26 in amber and the Open door" h={104}>
     <rect x={4} y={4} width={412} height={96} rx={5} fill="#ffffff" fillOpacity={0.015} stroke={SILVER} strokeOpacity={0.6} />
-    <text x={16} y={24} fontSize={7} fill={MUTED} fontFamily={MONO}>
+    <text x={16} y={24} fontSize={7} fill={MUTED} fontFamily={FIG}>
       #1
     </text>
     <rect x={30} y={14} width={62} height={15} rx={3} fill={BEAR} fillOpacity={0.06} stroke={BEAR} strokeOpacity={0.3} />
-    <text x={61} y={25} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={BEAR} fontFamily={MONO}>
+    <text x={61} y={25} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={BEAR} fontFamily={FIG}>
       NVDA 120P
     </text>
     <rect x={98} y={14} width={70} height={15} rx={3} fill="none" stroke="#2a2a2a" />
-    <text x={133} y={25} textAnchor="middle" fontSize={7} fill={SECOND} fontFamily={MONO}>
+    <text x={133} y={25} textAnchor="middle" fontSize={7} fill={SECOND} fontFamily={FIG}>
       0DTE · 09/11/26
     </text>
     <rect x={174} y={14} width={52} height={15} rx={3} fill={SUPREME} fillOpacity={0.1} stroke={SUPREME} strokeOpacity={0.5} />
-    <text x={200} y={25} textAnchor="middle" fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={SUPREME} fontFamily={MONO}>
+    <text x={200} y={25} textAnchor="middle" fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={SUPREME} fontFamily={FIG}>
       TOP PICK
     </text>
     <rect x={346} y={14} width={58} height={15} rx={3} fill="#ffffff" fillOpacity={0.08} />
     <circle cx={356} cy={21.5} r={2} fill={INK} />
-    <text x={382} y={25} textAnchor="middle" fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={INK} fontFamily={MONO}>
+    <text x={382} y={25} textAnchor="middle" fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={INK} fontFamily={FIG}>
       MOVING
     </text>
-    <text x={16} y={46} fontSize={6.5} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+    <text x={16} y={46} fontSize={6.5} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
       1σ MOVE
     </text>
-    <text x={16} y={60} fontSize={10} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={16} y={60} fontSize={10} fontWeight={700} fill={INK} fontFamily={FIG}>
       ±1.6%
     </text>
     <polyline points="170,62 185,56 200,58 215,50 230,52 245,44 260,47" fill="none" stroke={BULL} strokeWidth={1.2} />
     <line x1={170} x2={260} y1={62} y2={62} stroke="#ffffff" strokeOpacity={0.12} strokeDasharray="2 2" />
-    <text x={404} y={46} textAnchor="end" fontSize={6.5} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+    <text x={404} y={46} textAnchor="end" fontSize={6.5} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
       PREMIUM
     </text>
-    <text x={404} y={60} textAnchor="end" fontSize={10} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={404} y={60} textAnchor="end" fontSize={10} fontWeight={700} fill={INK} fontFamily={FIG}>
       $0.75
     </text>
     <path d="M 18 86 l 4 -7 l 4 7 z" fill="none" stroke={WARN} strokeWidth={1} />
-    <text x={30} y={87} fontSize={8} fill={WARN} fontFamily={MONO}>
+    <text x={30} y={87} fontSize={8} fill={WARN} fontFamily={FIG}>
       Breaks above <tspan fontWeight={700}>$121.26</tspan>
     </text>
     <rect x={352} y={77} width={52} height={15} rx={3} fill="none" stroke="#2a2a2a" />
-    <text x={378} y={87.5} textAnchor="middle" fontSize={6.5} letterSpacing={0.6} fill={SECOND} fontFamily={MONO}>
+    <text x={378} y={87.5} textAnchor="middle" fontSize={6.5} letterSpacing={0.6} fill={SECOND} fontFamily={FIG}>
       OPEN ↗
     </text>
   </Figure>
@@ -98,19 +100,19 @@ const StatesFigure = () => (
       <g key={c.t}>
         <rect x={c.x} y={13} width={c.w} height={18} rx={3} fill="#ffffff" fillOpacity={c.lit ? 0.08 : 0.03} stroke={c.lit ? 'none' : '#2a2a2a'} />
         <circle cx={c.x + 11} cy={22} r={2.2} fill={c.lit ? INK : MUTED} />
-        <text x={c.x + c.w / 2 + 6} y={25.5} textAnchor="middle" fontSize={7} fontWeight={700} letterSpacing={0.8} fill={c.lit ? INK : SECOND} fontFamily={MONO}>
+        <text x={c.x + c.w / 2 + 6} y={25.5} textAnchor="middle" fontSize={7} fontWeight={700} letterSpacing={0.8} fill={c.lit ? INK : SECOND} fontFamily={FIG}>
           {c.t}
         </text>
       </g>
     ))}
     {/* three short lines — as one it ran 66 past the figure's edge */}
-    <text x={334} y={16} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+    <text x={334} y={16} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
       left to right:
     </text>
-    <text x={334} y={25} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+    <text x={334} y={25} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
       proving → in place →
     </text>
-    <text x={334} y={34} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+    <text x={334} y={34} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
       trading → retiring
     </text>
   </Figure>
@@ -119,7 +121,7 @@ const StatesFigure = () => (
 /* The rail: one row of the heaviest contracts, the ranked column bright with its bar */
 const RailFigure = () => (
   <Figure label="Two rows of the heaviest contracts: #1 NVDA 125P and #2 NVDA 127.50C, four facts under their heads — gamma share lit with a bar, volume over open interest, distance from spot, exposure in its sign's ink" h={96}>
-    <g fontFamily={MONO} fontSize={6.5} fill={MUTED} letterSpacing={0.8}>
+    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.8}>
       <text x={12} y={14} fill={INK}>GAMMA</text>
       <text x={112} y={14}>VOL/OI</text>
       <text x={212} y={14}>FROM SPOT</text>
@@ -132,28 +134,28 @@ const RailFigure = () => (
       { y: 72, r: '#2', c: 'NVDA 127.50', s: 'C', g: '7.1%', v: '1.47×', d: '+1.4%', e: '−$63.0M', bar: 0.67, ink: BULL },
     ].map(row => (
       <g key={row.r}>
-        <text x={12} y={row.y} fontSize={7} fill={MUTED} fontFamily={MONO}>
+        <text x={12} y={row.y} fontSize={7} fill={MUTED} fontFamily={FIG}>
           {row.r}
         </text>
-        <text x={34} y={row.y} fontSize={9} fontWeight={600} fill={INK} fontFamily={MONO}>
+        <text x={34} y={row.y} fontSize={9} fontWeight={600} fill={INK} fontFamily={FIG}>
           {row.c}
           <tspan fill={row.ink}>{row.s}</tspan>
         </text>
-        <text x={118} y={row.y} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+        <text x={118} y={row.y} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
           0DTE
         </text>
-        <text x={12} y={row.y + 14} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+        <text x={12} y={row.y + 14} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
           {row.g}
         </text>
         <rect x={12} y={row.y + 18} width={80} height={2} rx={1} fill="#ffffff" fillOpacity={0.07} />
         <rect x={12} y={row.y + 18} width={80 * row.bar} height={2} rx={1} fill={row.ink} fillOpacity={0.8} />
-        <text x={112} y={row.y + 14} fontSize={8} fill={SECOND} fontFamily={MONO}>
+        <text x={112} y={row.y + 14} fontSize={8} fill={SECOND} fontFamily={FIG}>
           {row.v}
         </text>
-        <text x={212} y={row.y + 14} fontSize={8} fill={SECOND} fontFamily={MONO}>
+        <text x={212} y={row.y + 14} fontSize={8} fill={SECOND} fontFamily={FIG}>
           {row.d}
         </text>
-        <text x={312} y={row.y + 14} fontSize={8} fontWeight={600} fill={row.e.startsWith('−') ? BULL : BEAR} fontFamily={MONO}>
+        <text x={312} y={row.y + 14} fontSize={8} fontWeight={600} fill={row.e.startsWith('−') ? BULL : BEAR} fontFamily={FIG}>
           {row.e}
         </text>
       </g>

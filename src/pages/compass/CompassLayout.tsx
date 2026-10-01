@@ -15,9 +15,10 @@
 import { Suspense } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Compass as CompassIcon } from 'lucide-react';
 import { CompassRouteSkeleton } from '../compassSkeleton';
 import ScrollHome from '../../components/layout/ScrollHome';
+import MarkLoad from '../../brand/MarkLoad';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 /* "graded and ranked" until 2026-09-19: we do not say we grade, anywhere a reader can see (Noah: "reword graded"; memory: no-public-grades) */
 export const COMPASS_LINE = 'The setups found this sweep, the strongest first — Active while the structure holds, Watch while it proves itself';
@@ -33,9 +34,7 @@ const CompassLayout = () => {
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-compass-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0" aria-hidden="true">
-              <CompassIcon className="w-3.5 h-3.5" />
-            </span>
+            <ProductGlyph name="compass" size={24} className="shrink-0 rounded-md" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</h1>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{line}</p>
@@ -46,7 +45,7 @@ const CompassLayout = () => {
         <motion.div key={location.pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.08 } }} transition={{ duration: 0.14 }} className="flex flex-col gap-4">
           {/* A page opens at its head, not where the last one's scroll was (2026-09-11) */}
           <ScrollHome />
-          <Suspense fallback={<CompassRouteSkeleton pathname={location.pathname} />}>{outlet}</Suspense>
+          <Suspense fallback={<><MarkLoad /><CompassRouteSkeleton pathname={location.pathname} /></>}>{outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
     </>

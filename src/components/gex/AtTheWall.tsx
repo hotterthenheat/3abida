@@ -37,10 +37,12 @@ import { CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM, alpha }
 import { PATHS_H, PATHS_M, PATHS_W, REASON_COLUMNS } from './wallSkeletons';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { WallBoard, WallOdds } from '../../data/wall';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 export const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
 /* THE PAGE'S TWO WORDS IN THE CALENDAR'S INKS (Noah, 2026-09-08, "should this
@@ -111,7 +113,7 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {ticks.map(k => (
         <g key={k}>
           <line x1={x(k)} x2={x(k)} y1={14} y2={PH - 20} stroke="rgb(var(--ink))" strokeOpacity={0.05} />
-          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO}>
+          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG}>
             {fmtStrike(k)}
           </text>
         </g>
@@ -127,7 +129,7 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       )}
       {/* spot */}
       <line x1={x(spot)} x2={x(spot)} y1={12} y2={PH - 18} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO}>
+      <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
         {fmtStrike(spot)}
       </text>
       {/* the wall */}

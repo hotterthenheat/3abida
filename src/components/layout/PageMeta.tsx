@@ -52,7 +52,7 @@ import { PRACTICE_SUBPAGES } from '../../pages/practice/subnav';
 const SITE = 'Slayer Terminal';
 const LANDING = {
   title: `${SITE} — Trade what you can see`,
-  description: 'Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings. Every page explains itself in plain English.',
+  description: 'Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.',
 };
 
 interface Meta {
@@ -71,6 +71,20 @@ const TOP: Record<string, Meta> = {
   '/compass/tracker': page('Tracker', 'The setups you kept, followed to the close.', 'Compass'),
   '/weigher': page('Weigher', 'Weigh any contract before you take it: the chart, the chain and your watchlist on one desk, and what a position would return at every price.'),
   '/community': page('Community', 'The traders’ room. It opens after launch.'),
+  /* the pages outside the terminal (pages/outside, pages/auth — the Logo System's Web and App, 2026-10-01) */
+  '/status': page('Status', 'What’s up and what’s new: each part of the terminal, the market’s last 30 days and the changelog.'),
+  '/about': page('About', 'Slayer Terminal gathers what moves a price into one terminal: the prints, the positions, the levels, the filings.'),
+  '/signup': page('Make your account', 'You can keep using the demo while you decide.'),
+  '/signin': page('Sign in', 'Your desks are where you left them.'),
+  '/reset': page('Reset your password', 'We’ll send a link. It works for one hour.'),
+  '/verified': page('You’re in', 'Your email is confirmed. Start on the landing desk.'),
+  '/expired': page('That link has expired', 'Links work for one hour. Send a fresh one.'),
+  '/maintenance': page('Down for maintenance', 'Follow along on the status page.'),
+  '/legal/terms': page('Terms', 'The terms for using Slayer Terminal.', 'Legal'),
+  '/legal/privacy': page('Privacy', 'What we keep about you, why, and how to have it removed.', 'Legal'),
+  '/legal/risk': page('Risk disclosure', 'Trading options can lose money quickly, and can lose all of it.', 'Legal'),
+  '/legal/refunds': page('Refund policy', 'We don’t offer refunds, so the demo is free and runs every page.', 'Legal'),
+  '/legal/data': page('Data sources', 'What every number stands on: live, measured, derived, model or simulated.', 'Legal'),
 };
 
 /* each is the line the section itself wears under its heading (pages/settings/Settings.tsx) */
@@ -79,11 +93,14 @@ const SETTINGS: Record<string, string> = {
   billing: 'Your plan and the card behind it. The card lives with Stripe, never here.',
   data: 'What is yours on this machine (the board, the marks, the alerts, the desks, these settings) and where the feed stands.',
   appearance: 'The terminal drawn in each theme: dark, light, or whatever your machine is set to.',
-  desk: 'What every desk reads by: the ruler, the name and timeframe it opens on, the chime and the clock.',
+  desk: 'What every desk reads by: the ruler, the name and timeframe it opens on, and the clock.',
+  sounds: 'The four sounds: an alert, a confirmation, signing in, the open and the close. Each on its own switch.',
+  invite: 'Your invite link. When someone you invite joins a paid plan, you both get a month of account credit.',
+  mail: 'Which optional mail you get. Receipts and sign-in mail always send.',
   keyboard: 'Every key the terminal answers to, by where it works.',
   about: 'The terminal and its version.',
 };
-const SETTINGS_NAME: Record<string, string> = { account: 'Account', billing: 'Billing', data: 'Data', appearance: 'Appearance', desk: 'The desk', keyboard: 'Keyboard', about: 'About' };
+const SETTINGS_NAME: Record<string, string> = { account: 'Account', billing: 'Billing', data: 'Data', appearance: 'Appearance', desk: 'The desk', sounds: 'Sounds', invite: 'Invite a trader', mail: 'Email preferences', keyboard: 'Keyboard', about: 'About' };
 
 const SECTIONS: { base: string; name: string; pages: { path: string; label: string; subtitle: string }[] }[] = [
   { base: '/pinpoint', name: 'Pinpoint', pages: GEX_SUBPAGES },

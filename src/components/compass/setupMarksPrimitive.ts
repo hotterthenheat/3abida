@@ -30,6 +30,7 @@
 */
 
 import type { IChartApi, ISeriesApi, ISeriesPrimitive, SeriesAttachedParameter, Time, UTCTimestamp } from 'lightweight-charts';
+import { FONT_SANS } from '../../theme/fonts';
 
 interface BitmapScope {
   context: CanvasRenderingContext2D;
@@ -41,7 +42,8 @@ interface DrawTarget {
   useBitmapCoordinateSpace(cb: (scope: BitmapScope) => void): void;
 }
 
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
 
 export interface SetupMarks {
   /** The entry: its candle's time, the stock price then, and the premium paid */
@@ -104,7 +106,7 @@ class MarksRenderer {
         ctx.globalAlpha = 1;
       };
       const figure = (text: string, y: number, rgb: string, above = true) => {
-        ctx.font = `600 ${9 * vr}px ${MONO}`;
+        ctx.font = `600 ${9 * vr}px ${FIG}`;
         ctx.textAlign = 'right';
         ctx.textBaseline = above ? 'bottom' : 'top';
         ctx.fillStyle = rgb;
@@ -132,7 +134,7 @@ class MarksRenderer {
         const y = yOf(data.entry.price);
         if (y != null && y > 0 && y < H) {
           const word = `ENTRY ${data.entry.mid.toFixed(2)}`;
-          ctx.font = `700 ${8.5 * vr}px ${MONO}`;
+          ctx.font = `700 ${8.5 * vr}px ${FIG}`;
           const tw = ctx.measureText(word).width;
           const chipW = tw + 12 * hr;
           const chipH = 16 * vr;
@@ -164,13 +166,13 @@ class MarksRenderer {
         ctx.globalAlpha = hot ? 1 : t.won ? 0.95 : 0.8;
         ctx.fillRect(right - tickW, y - (t.won ? 2 : 1) * vr, tickW, (t.won ? 4 : 2) * vr);
         ctx.globalAlpha = 1;
-        ctx.font = `700 ${8.5 * vr}px ${MONO}`;
+        ctx.font = `700 ${8.5 * vr}px ${FIG}`;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = data.bull;
         ctx.fillText(String(t.level), right - tickW - 4 * hr, y);
         if (hot) {
-          ctx.font = `600 ${9 * vr}px ${MONO}`;
+          ctx.font = `600 ${9 * vr}px ${FIG}`;
           ctx.fillText(t.price.toFixed(2), right - tickW - 14 * hr, y);
         }
       }

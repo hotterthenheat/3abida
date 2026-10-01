@@ -18,41 +18,41 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useLaunch } from './LaunchTransition';
+import Wordmark from '../../brand/Wordmark';
+import Signature from '../../brand/Signature';
+import { PRODUCTS } from '../../brand/products';
+import { COMPANY } from '../../data/company';
+import { VERSION } from '../../data/release';
 
-/* THE LINKS, WALKED (2026-09-19). What was wrong: "Launch Terminal" and "Log in / Sign up" both went to "/", the front page
-   — on the front page itself they did nothing, and there is no sign-in to go to yet; "Pulse" was listed twice; Terrain, a
-   whole product, was not listed at all; "FAQ" is called Questions everywhere else. Now every row goes where it says, the
-   products are the side rail's own, in its order, and the sign-in row comes back WITH the sign-in (launch). */
+/* THE LINKS, WALKED (2026-09-19): every row goes where it says. THE BRAND'S FOOTER (Slayer Logo System, 14 · the footer,
+   2026-09-30): the products in the menu's order, the company, the legal pages and the one social handle. */
 const FOOTER_COLS = [
   {
     title: 'Products',
-    links: [
-      { label: 'Compass', to: '/compass' },
-      { label: 'Weigher', to: '/weigher' },
-      { label: 'Trace', to: '/trace' },
-      { label: 'Pulse', to: '/pulse' },
-      { label: 'Terrain', to: '/terrain' },
-      { label: 'Pinpoint', to: '/pinpoint' },
-      { label: 'Dossier', to: '/dossier' },
-    ],
+    links: PRODUCTS.map(p => ({ label: p.name, to: p.path })),
   },
   {
     title: 'Company',
     links: [
-      { label: 'Pricing', to: '#pricing' },
-      { label: 'Questions', to: '#faq' },
-      { label: 'Contact', to: 'mailto:info@slayerterminal.com' },
+      { label: 'About', to: '/about' },
+      { label: 'Press', to: `mailto:${COMPANY.press}` },
+      { label: 'Contact', to: `mailto:${COMPANY.info}` },
+      { label: 'Status', to: '/status' },
     ],
   },
   {
-    title: 'Terminal',
+    title: 'Legal',
     links: [
-      { label: 'Launch terminal', to: '/pulse' },
-      { label: 'Tracker', to: '/compass/tracker' },
-      { label: 'Settings', to: '/settings' },
-      { label: 'Keyboard shortcuts', to: '/settings/keyboard' },
-      { label: 'Front page', to: '/' },
+      { label: 'Terms', to: '/legal/terms' },
+      { label: 'Privacy', to: '/legal/privacy' },
+      { label: 'Risk disclosure', to: '/legal/risk' },
+      { label: 'Refund policy', to: '/legal/refunds' },
+      { label: 'Data sources', to: '/legal/data' },
     ],
+  },
+  {
+    title: 'Social',
+    links: [{ label: `${COMPANY.handle} on X`, to: COMPANY.x }],
   },
 ];
 
@@ -71,6 +71,13 @@ const FooterLink = ({
   children: ReactNode;
 }) => {
   const { launch } = useLaunch();
+  if (to.startsWith('https:')) {
+    return (
+      <a href={to} target="_blank" rel="noopener noreferrer" className={className}>
+        {children}
+      </a>
+    );
+  }
   if (to.startsWith('mailto:')) {
     return (
       <a href={to} className={className}>
@@ -127,45 +134,33 @@ const FooterLink = ({
   );
 };
 
+/** The pages outside the terminal (the front page's legal and company pages, the status page): a door there is a plain
+    link, not the launch gate */
+const OUTSIDE = /^\/(about|status|legal)/;
+
 const SiteFooter = ({ home = false }: { home?: boolean }) => (
   /* shrink-0: on the Weigher the footer shares a definite-height flex column
      with a full-viewport desk — left shrinkable, flexbox would absorb the
      whole deficit HERE and silently collapse the footer to nothing. */
-  <footer className="shrink-0 border-t border-borderSubtle">
-    <div className="px-6 md:px-10 py-14 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-10">
+  <footer className="shrink-0 border-t border-borderSubtle" data-site-footer>
+    <div className="px-6 md:px-10 pt-14 pb-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-6 gap-x-10 gap-y-10">
       <div className="col-span-2">
-        <span className="font-mono text-[13px] font-bold">
-          <span className="text-textMuted">&gt; </span>
-          <span className="text-textPrimary">slayer_terminal</span>
-          <span className="inline-block w-[6px] h-[12px] ml-1 bg-textPrimary align-middle animate-cursor-blink" />
-        </span>
-        <p className="mt-3 text-[12px] text-textSecondary leading-relaxed max-w-[36ch]">
-          The trading terminal. Compass finds the setup, Pinpoint reads the flow.
+        <Wordmark height={14} label="Slayer Terminal" />
+        <p className="mt-5 text-[17px] font-medium tracking-tight text-textPrimary">Trade what you can see.</p>
+        <p className="mt-2 text-[13px] text-textSecondary leading-relaxed max-w-[38ch]">
+          Most of what moves a price is public, just scattered. Slayer gathers it into one terminal.
         </p>
-        <a
-          href="https://x.com/JoinSlayer"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-2 font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-          </svg>
-          @JoinSlayer
-        </a>
       </div>
       {FOOTER_COLS.map(col => (
-        <div key={col.title}>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted">
-            {col.title}
-          </span>
-          <ul className="mt-3.5 flex flex-col gap-2.5">
+        <div key={col.title} className={col.title === 'Products' ? 'row-span-2' : ''}>
+          <span className="text-[11px] uppercase tracking-[0.14em] text-textMuted">{col.title}</span>
+          <ul className={`mt-3.5 grid gap-x-6 gap-y-2.5 ${col.title === 'Products' ? 'grid-cols-1' : ''}`}>
             {col.links.map(l => (
               <li key={l.label}>
                 <FooterLink
                   to={l.to}
-                  home={home}
-                  className="text-[12px] text-textSecondary hover:text-textPrimary transition-colors"
+                  home={home && !OUTSIDE.test(l.to)}
+                  className="text-[13px] text-textSecondary hover:text-textPrimary transition-colors"
                 >
                   {l.label}
                 </FooterLink>
@@ -176,14 +171,17 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
       ))}
     </div>
     <div className="border-t border-borderSubtle/60">
-      <div className="px-6 md:px-10 py-5 max-w-6xl mx-auto flex flex-col md:flex-row gap-2 md:items-center">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">
-          {/* the year is the calendar's, not a number typed once (2026-09-19) — it read 2026 by hand and would have on 1 January too */}
-          © {new Date().getFullYear()} Slayer Terminal · Compass · Pinpoint
-        </span>
-        <span className="md:ml-auto font-mono text-[10px] tracking-wide text-textMuted">
-          For informational purposes only. Not investment advice. Preview data is simulated.
-        </span>
+      <div className="px-6 md:px-10 py-6 max-w-6xl mx-auto flex flex-col gap-4">
+        <p className="max-w-[92ch] text-[12px] leading-relaxed text-textMuted">
+          Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell. Data on this site is simulated until our data licences are signed; once live,
+          each page says which numbers are live, delayed or simulated.
+        </p>
+        <div className="flex flex-col md:flex-row gap-3 md:items-center">
+          <Signature state="simulated" detail={`· demo feed · ${VERSION}`} rule={false} className="text-[11px]" />
+          <span className="md:ml-auto text-[11px] text-textMuted">
+            {/* the year is the calendar's, not a number typed once (2026-09-19) */}© {new Date().getFullYear()} {COMPANY.legalName} · {COMPANY.address}
+          </span>
+        </div>
       </div>
     </div>
   </footer>

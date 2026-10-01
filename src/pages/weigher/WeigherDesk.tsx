@@ -34,7 +34,7 @@
 
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Maximize2, Minimize2, Plus, Scale } from 'lucide-react';
+import { ChevronDown, Maximize2, Minimize2, Plus } from 'lucide-react';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
@@ -86,6 +86,7 @@ import { useFadeClose } from '../../components/ui/useFadeClose';
 import { fmtStrike, CHAIN_COLUMNS, DEFAULT_COLS, COLUMN_GROUPS, ChainCard } from '../../components/weigher/ChainGrid';
 import type { Timeframe } from '../../data/timeframe';
 import type { OptionRight } from '../../types/compass';
+import ProductGlyph from '../../brand/ProductGlyph';
 
 /* Still v2 on purpose: the desk went static (2026-08-30) and the stored
    `layout` field simply stopped being read — but the tickers, columns, depth
@@ -1290,9 +1291,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
       <header className="shrink-0 flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-weigher-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0" aria-hidden="true">
-              <Scale className="w-3.5 h-3.5" />
-            </span>
+            <ProductGlyph name="weigher" size={24} className="shrink-0 rounded-md" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</h1>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chain, the read and the chart mean" testId="weigher-guide" />
           </div>

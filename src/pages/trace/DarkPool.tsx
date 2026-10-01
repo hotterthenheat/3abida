@@ -59,7 +59,7 @@ const INTENT_OPTIONS: DropdownOption<IntentCut>[] = [
   { value: 'ACCUMULATION', label: 'Accumulation', hint: 'Size bought on weakness — someone building' },
   { value: 'DISTRIBUTION', label: 'Distribution', hint: 'Size sold into strength — someone leaving' },
   { value: 'HEDGE FLOW', label: 'Hedge flow', hint: 'Printed on an options shelf — a desk hedging' },
-  { value: 'ROTATION', label: 'Rotation', hint: 'Routine off-exchange rotation, no signal alone' },
+  { value: 'ROTATION', label: 'Rotation', hint: 'Routine off-exchange rotation, nothing to read alone' },
 ];
 type SizeKey = '0' | '25000000' | '100000000' | '250000000';
 const SIZE_OPTIONS: DropdownOption<SizeKey>[] = [

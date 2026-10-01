@@ -10,6 +10,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const BULL = 'rgb(var(--bull))';
@@ -17,8 +18,9 @@ const BEAR = 'rgb(var(--bear))';
 const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
 const SECOND = 'rgb(var(--text-secondary))';
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -36,7 +38,7 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
 );
 
 const Head = ({ x, y, children, anchor = 'start' }: { x: number; y: number; children: ReactNode; anchor?: 'start' | 'end' }) => (
-  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
     {children}
   </text>
 );
@@ -60,29 +62,29 @@ const RowFigure = () => (
     <Head x={268} y={12}>AMOUNT DISCLOSED</Head>
     <Head x={410} y={12} anchor="end">LAG</Head>
     <line x1={10} x2={410} y1={18} y2={18} stroke="#ffffff" strokeOpacity={0.08} />
-    <text x={10} y={40} fontSize={7.5} fill={SECOND} fontFamily={MONO}>
+    <text x={10} y={40} fontSize={7.5} fill={SECOND} fontFamily={FIG}>
       5d ago
     </text>
     <text x={52} y={37} fontSize={7.5} fontWeight={600} fill={INK} fontFamily={SANS}>
-      Sen. M. Ashford <tspan fontSize={6} fill={MUTED} fontFamily={MONO}>D-VT</tspan>
+      Sen. M. Ashford <tspan fontSize={6} fill={MUTED} fontFamily={FIG}>D-VT</tspan>
     </text>
     <text x={52} y={46} fontSize={6} fill={SECOND} fontFamily={SANS}>
       Finance · <tspan fill={INK}>own committee</tspan>
     </text>
     <rect x={176} y={30} width={14} height={14} rx={3} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
-    <text x={183} y={40} textAnchor="middle" fontSize={4} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={183} y={40} textAnchor="middle" fontSize={4} fontWeight={700} fill={INK} fontFamily={FIG}>
       NVDA
     </text>
-    <text x={194} y={40} fontSize={8} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={194} y={40} fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
       NVDA
     </text>
-    <text x={228} y={40} fontSize={7.5} fill={BEAR} fontFamily={MONO}>
+    <text x={228} y={40} fontSize={7.5} fill={BEAR} fontFamily={FIG}>
       Sale
     </text>
-    <text x={268} y={40} fontSize={7.5} fill={INK} fontFamily={MONO}>
+    <text x={268} y={40} fontSize={7.5} fill={INK} fontFamily={FIG}>
       $50,001 – $100,000
     </text>
-    <text x={410} y={40} textAnchor="end" fontSize={7.5} fontWeight={600} fill={BEAR} fontFamily={MONO}>
+    <text x={410} y={40} textAnchor="end" fontSize={7.5} fontWeight={600} fill={BEAR} fontFamily={FIG}>
       61d <tspan fontSize={5.5} letterSpacing={1}>LATE</tspan>
     </text>
   </Figure>
@@ -98,7 +100,7 @@ const LadderFigure = () => (
     ].map(r => (
       <g key={r.label}>
         <Ladder x={10} y={r.y} lit={r.lit} />
-        <text x={90} y={r.y + 3} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+        <text x={90} y={r.y + 3} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={FIG}>
           {r.label}
         </text>
         <text x={220} y={r.y + 3} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -119,7 +121,7 @@ const OwnerFigure = () => (
       { x: 320, word: 'DEPENDENT', ink: MUTED, why: 'a child' },
     ].map(o => (
       <g key={o.word}>
-        <text x={o.x} y={20} fontSize={6.5} letterSpacing={1.2} fill={o.ink} fontFamily={MONO}>
+        <text x={o.x} y={20} fontSize={6.5} letterSpacing={1.2} fill={o.ink} fontFamily={FIG}>
           {o.word}
         </text>
         <text x={o.x} y={33} fontSize={6.5} fill={SECOND} fontFamily={SANS}>
@@ -139,15 +141,15 @@ const LagFigure = () => (
       the trade
     </text>
     <line x1={20 + 380 * (45 / 80)} x2={20 + 380 * (45 / 80)} y1={20} y2={48} stroke={SILVER} strokeOpacity={0.6} strokeDasharray="2 2" />
-    <text x={20 + 380 * (45 / 80)} y={14} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill={SILVER} fontFamily={MONO}>
+    <text x={20 + 380 * (45 / 80)} y={14} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill={SILVER} fontFamily={FIG}>
       45 DAYS
     </text>
     <circle cx={20 + 380 * (20 / 80)} cy={34} r={3.5} fill={SECOND} />
-    <text x={20 + 380 * (20 / 80)} y={52} textAnchor="middle" fontSize={6.5} fill={SECOND} fontFamily={MONO}>
+    <text x={20 + 380 * (20 / 80)} y={52} textAnchor="middle" fontSize={6.5} fill={SECOND} fontFamily={FIG}>
       filed · 20d
     </text>
     <circle cx={20 + 380 * (61 / 80)} cy={34} r={3.5} fill={BEAR} />
-    <text x={20 + 380 * (61 / 80)} y={52} textAnchor="middle" fontSize={6.5} fontWeight={700} fill={BEAR} fontFamily={MONO}>
+    <text x={20 + 380 * (61 / 80)} y={52} textAnchor="middle" fontSize={6.5} fontWeight={700} fill={BEAR} fontFamily={FIG}>
       filed · 61d · LATE
     </text>
     <circle cx={0} cy={0} r={0} fill={BULL} />

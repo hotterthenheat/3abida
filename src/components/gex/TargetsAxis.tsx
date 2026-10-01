@@ -20,10 +20,12 @@ import { CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM } from '
 import { AXIS_BASE, AXIS_H, AXIS_M, AXIS_W } from './targetsSkeletons';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Agenda, Target } from '../../data/agenda';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
 const WARM = THERMAL_WARM;
 const COOL = THERMAL_COOL;
@@ -96,13 +98,13 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
           {/* the axis */}
           <line x1={M.l} x2={W - M.r} y1={BASE} y2={BASE} stroke="rgb(var(--ink))" strokeOpacity={0.12} />
           {ticks.map(k => (
-            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO}>
+            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG}>
               {fmtStrike(k)}
             </text>
           ))}
           {/* spot */}
           <line x1={x(spot)} x2={x(spot)} y1={12} y2={BASE + 6} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
-          <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO}>
+          <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
             {spot.toFixed(2)}
           </text>
           {/* the ticks */}
@@ -116,7 +118,7 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
                 <rect x={x(t.strike) - 8} y={BASE - TICK_MAX - 4} width={16} height={TICK_MAX + 6} fill="transparent" />
                 <rect x={x(t.strike) - 2} y={BASE - h} width={4} height={h} rx={1.5} fill={ink} fillOpacity={isLit ? 1 : 0.35 + 0.65 * t.reach} />
                 {r != null && (
-                  <text x={x(t.strike)} y={BASE - h - 6} textAnchor="middle" fontSize={9} fontWeight={700} fill={r === 1 ? SUPREME : ink} fontFamily={MONO}>
+                  <text x={x(t.strike)} y={BASE - h - 6} textAnchor="middle" fontSize={9} fontWeight={700} fill={r === 1 ? SUPREME : ink} fontFamily={FIG}>
                     {r}
                   </text>
                 )}
@@ -125,7 +127,7 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
           })}
           {/* the strike in hand */}
           {litT && (
-            <text x={x(litT.strike)} y={BASE - Math.max(4, Math.sqrt(litT.stake / maxStake) * TICK_MAX) - (rankOf.has(litT.strike) ? 17 : 6)} textAnchor="middle" fontSize={9} fill={SILVER} fontFamily={MONO}>
+            <text x={x(litT.strike)} y={BASE - Math.max(4, Math.sqrt(litT.stake / maxStake) * TICK_MAX) - (rankOf.has(litT.strike) ? 17 : 6)} textAnchor="middle" fontSize={9} fill={SILVER} fontFamily={FIG}>
               {fmtStrike(litT.strike)} · {Math.round(litT.reach * 100)}% reached · {fmtDollars(litT.stake)}
             </text>
           )}

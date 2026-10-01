@@ -24,9 +24,9 @@ import { TRACE_SUBPAGES } from './subnav';
 /** THE SKELETON'S GRID: the rest of the first screen under the box's head, cards and sentence.
     The live grid grows with its rows since 2026-09-11 and runs past the fold; above the fold
     the stand-in and the page are the same shape, so the skeleton keeps a screen's worth. */
-export const TRACE_GRID_H = 'calc(100vh - 247px)';
+export const TRACE_GRID_H = 'calc(100vh - 247px - var(--demo-band, 0px))';
 /** Windows carries the day strip above its box (60px and the gap) */
-export const WINDOWS_GRID_H = 'calc(100vh - 317px)';
+export const WINDOWS_GRID_H = 'calc(100vh - 317px - var(--demo-band, 0px))';
 
 /* ---- the head ------------------------------------------------------------------ */
 

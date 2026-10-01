@@ -27,6 +27,7 @@ import { readToken, useResolvedTheme } from '../../theme/theme';
 import { alpha, resolveInk } from './paletteInk';
 import { fmtClockLocal, localTickMarks } from './chartTime';
 import { TAPES_H, TAPES_READ_H } from './compareSkeletons';
+import { FONT_SANS } from '../../theme/fonts';
 
 const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`;
 
@@ -110,7 +111,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       : DARK_FIGURE_SURFACE; /* the page, never the candle pick (candleTheme.ts: a figure is not a tape) */
     const chart = createChart(host, {
       autoSize: true,
-      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: "'SF Pro', sans-serif", fontSize: 10, attributionLogo: true },
+      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: FONT_SANS, fontSize: 10, attributionLogo: true },
       localization: { timeFormatter: fmtClockLocal },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       /* Room above the lines: at 0.08 the leader's live chip sat over the top axis

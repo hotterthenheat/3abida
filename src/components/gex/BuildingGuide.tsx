@@ -14,10 +14,12 @@ import type { ReactNode } from 'react';
 import { BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME, alpha } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Building } from '../../data/building';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -69,7 +71,7 @@ const LedgerFigure = () => {
   };
   return (
     <Figure label="The rows, small: three movers with the strike and its distance from spot, the wall bar with today's part lit, the change, the day's line and the verdict chip; a folded line of steady strikes and the spot rule between" h={150}>
-      <g fontFamily={MONO} fontSize={6} fill="#7c8290" letterSpacing={0.4}>
+      <g fontFamily={FIG} fontSize={6} fill="#7c8290" letterSpacing={0.4}>
         <text x={COL.strike} y={14}>STRIKE</text>
         <text x={COL.bar} y={14}>THE WALL NOW</text>
         <text x={COL.change} y={14} textAnchor="end">CHANGE</text>
@@ -79,7 +81,7 @@ const LedgerFigure = () => {
       <rect x={4} y={34 - 12} width={412} height={24} rx={3} fill={SILVER} fillOpacity={0.06} />
       {rows.map(r => (
         <g key={r.strike}>
-          <text x={COL.strike} y={r.y + 1} fontSize={9.5} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+          <text x={COL.strike} y={r.y + 1} fontSize={9.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
             {r.strike}
           </text>
           {r.tag && (
@@ -87,7 +89,7 @@ const LedgerFigure = () => {
               {r.tag.text}
             </text>
           )}
-          <text x={COL.strike} y={r.y + 9.5} fontSize={6} fill="#7c8290" fontFamily={MONO}>
+          <text x={COL.strike} y={r.y + 9.5} fontSize={6} fill="#7c8290" fontFamily={FIG}>
             {r.dist} spot
           </text>
           {/* the wall bar: the base, today's part lit or hatched */}
@@ -98,7 +100,7 @@ const LedgerFigure = () => {
           ) : (
             <rect x={COL.bar + r.base} y={r.y - 6} width={r.lit} height={7} fill={BULL} />
           )}
-          <text x={COL.bar + r.base + r.lit + 4} y={r.y} fontSize={6} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+          <text x={COL.bar + r.base + r.lit + 4} y={r.y} fontSize={6} fontWeight={600} fill="#ededed" fontFamily={FIG}>
             {r.now}
             <tspan fill="#7c8290" fontWeight={400}>
               {' '}
@@ -108,12 +110,12 @@ const LedgerFigure = () => {
           <text x={COL.bar} y={r.y + 9.5} fontSize={6} fill="#7c8290" fontFamily={SANS}>
             {r.strike === '487' ? 'call-heavy · dealers push back on moves here' : 'put-heavy · dealers push moves along here'}
           </text>
-          <text x={COL.change} y={r.y + 1} fontSize={8} fontWeight={700} textAnchor="end" fill="#ededed" fontFamily={MONO}>
+          <text x={COL.change} y={r.y + 1} fontSize={8} fontWeight={700} textAnchor="end" fill="#ededed" fontFamily={FIG}>
             {r.change}
           </text>
           {dayLine(r.day, r.y - 1)}
           <rect x={COL.word} y={r.y - 6} width={r.chip.length * 4.6 + 8} height={11} rx={2} fill={r.tone} fillOpacity={0.12} stroke={r.tone} strokeOpacity={0.25} />
-          <text x={COL.word + 4} y={r.y + 2} fontSize={6} fontWeight={700} fill={r.tone} fontFamily={MONO} letterSpacing={0.6}>
+          <text x={COL.word + 4} y={r.y + 2} fontSize={6} fontWeight={700} fill={r.tone} fontFamily={FIG} letterSpacing={0.6}>
             {r.chip}
           </text>
           <text x={COL.word + r.chip.length * 4.6 + 14} y={r.y + 2} fontSize={6.5} fill="#a3a3a3" fontFamily={SANS}>
@@ -127,20 +129,20 @@ const LedgerFigure = () => {
         </pattern>
       </defs>
       {/* a folded line of steady strikes */}
-      <text x={COL.strike} y={61} fontSize={6} fill="#7c8290" fontFamily={MONO} letterSpacing={0.4}>
+      <text x={COL.strike} y={61} fontSize={6} fill="#7c8290" fontFamily={FIG} letterSpacing={0.4}>
         2 steady strikes between · 486 – 486
       </text>
       <line x1={128} x2={392} y1={59} y2={59} stroke="#ffffff" strokeOpacity={0.08} />
-      <text x={410} y={61} fontSize={6} textAnchor="end" fill="#a3a3a3" fontFamily={MONO}>
+      <text x={410} y={61} fontSize={6} textAnchor="end" fill="#a3a3a3" fontFamily={FIG}>
         show
       </text>
       {/* the spot rule */}
       <line x1={10} x2={338} y1={74} y2={74} stroke="#ededed" strokeOpacity={0.35} />
-      <text x={346} y={76.5} fontSize={6.5} fill="#a3a3a3" fontFamily={MONO} letterSpacing={0.6}>
+      <text x={346} y={76.5} fontSize={6.5} fill="#a3a3a3" fontFamily={FIG} letterSpacing={0.6}>
         SPY
       </text>
       <rect x={378} y={69} width={34} height={10} rx={2} fill="#ededed" />
-      <text x={395} y={76.5} fontSize={7} fontWeight={700} textAnchor="middle" fill="#0a0a0a" fontFamily={MONO}>
+      <text x={395} y={76.5} fontSize={7} fontWeight={700} textAnchor="middle" fill="#0a0a0a" fontFamily={FIG}>
         486.40
       </text>
       <text x={210} y={143} fontSize={7} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
@@ -167,7 +169,7 @@ const BarFigure = () => {
       <rect x={x0} y={22} width={W} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
       <rect x={x0} y={22} width={150} height={12} rx={6} fill={SILVER} fillOpacity={0.32} />
       <rect x={x0 + 150} y={22} width={80} height={12} fill={BULL} />
-      <text x={x0 + 236} y={31} fontSize={8} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+      <text x={x0 + 236} y={31} fontSize={8} fontWeight={700} fill="#ededed" fontFamily={FIG}>
         $190M <tspan fill="#7c8290" fontWeight={400} fontFamily={SANS}>net gamma</tspan> <tspan fill="#7c8290" fontWeight={400}>· was $124M</tspan>
       </text>
       <text x={x0 + 75} y={45} fontSize={7} textAnchor="middle" fill="#8a909c" fontFamily={SANS}>
@@ -182,7 +184,7 @@ const BarFigure = () => {
       <rect x={x0} y={72} width={W} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
       <rect x={x0} y={72} width={180} height={12} rx={6} fill={SILVER} fillOpacity={0.32} />
       <rect x={x0 + 180} y={72} width={60} height={12} fill="url(#build-hatch-big)" />
-      <text x={x0 + 246} y={81} fontSize={8} fontWeight={700} fill="#ededed" fontFamily={MONO}>
+      <text x={x0 + 246} y={81} fontSize={8} fontWeight={700} fill="#ededed" fontFamily={FIG}>
         $226M <tspan fill="#7c8290" fontWeight={400}>· was $301M</tspan>
       </text>
       <text x={x0 + 90} y={95} fontSize={7} textAnchor="middle" fill="#8a909c" fontFamily={SANS}>
@@ -220,10 +222,10 @@ const DayFigure = () => {
       <text x={moved[27][0]} y={56} fontSize={7.5} textAnchor="middle" fill={PUT_WALL} fontFamily={SANS}>
         the biggest drop, red
       </text>
-      <text x={x0} y={56} fontSize={7} fill="#7c8290" fontFamily={MONO}>
+      <text x={x0} y={56} fontSize={7} fill="#7c8290" fontFamily={FIG}>
         open
       </text>
-      <text x={x1} y={12} fontSize={7} textAnchor="end" fill="#7c8290" fontFamily={MONO}>
+      <text x={x1} y={12} fontSize={7} textAnchor="end" fill="#7c8290" fontFamily={FIG}>
         now
       </text>
       <polyline points={steady.map(pt).join(' ')} fill="none" stroke="#5c6270" strokeWidth={1} strokeLinejoin="round" />
@@ -257,7 +259,7 @@ const FloorFigure = () => {
         const past = r.w > floor - x0;
         return (
           <g key={r.strike}>
-            <text x={x0 - 8} y={y + 3} fontSize={8} textAnchor="end" fill="#ededed" fontFamily={MONO}>
+            <text x={x0 - 8} y={y + 3} fontSize={8} textAnchor="end" fill="#ededed" fontFamily={FIG}>
               {r.strike}
             </text>
             <rect x={x0} y={y - 3.5} width={r.w} height={7} rx={3.5} fill="#ffffff" fillOpacity={past ? 0.55 : 0.16} />
@@ -299,13 +301,13 @@ const HeadingFigure = () => {
       {[0.05, 0.25, 0.45, 0.65, 0.85].map((t, i) => (
         <g key={i}>
           <line x1={x(t)} x2={x(t)} y1={TOP - 8} y2={H - 16} stroke="#ffffff" strokeOpacity={0.05} />
-          <text x={x(t)} y={H - 5} textAnchor="middle" fontSize={7.5} fill="#7c8290" fontFamily={MONO}>
+          <text x={x(t)} y={H - 5} textAnchor="middle" fontSize={7.5} fill="#7c8290" fontFamily={FIG}>
             {480 + i * 4}
           </text>
         </g>
       ))}
       <line x1={x(spot)} x2={x(spot)} y1={TOP - 4} y2={H - 16} stroke="#ededed" strokeOpacity={0.5} strokeDasharray="1 3" />
-      <text x={x(spot)} y={TOP - 7} textAnchor="middle" fontSize={7.5} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+      <text x={x(spot)} y={TOP - 7} textAnchor="middle" fontSize={7.5} fontWeight={600} fill="#ededed" fontFamily={FIG}>
         490.10
       </text>
       {rows.map((r, i) => {

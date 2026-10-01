@@ -95,11 +95,13 @@ export default {
         'xxxs': '0.6rem',
       },
       fontFamily: {
-        // One family site-wide (2026-08-16). `mono` is kept as a token — it
-        // marks the data/instrument voice (tabular figures via index.css),
-        // not a different typeface.
-        sans: ['SF Pro', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        mono: ['SF Pro', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        // HELVETICA FOR EVERY WORD, NO HOSTED FONT (Slayer Logo System, 08 · Type, 2026-09-30) — the system's own
+        // Helvetica, Arial where there is none. `mono` stays a token: it marks the data voice (tabular figures, index.css),
+        // not a second typeface. `code` is the one real monospace — the signature, the prompt, a script — and the
+        // wordmark itself is drawn, not set (brand/Wordmark.tsx).
+        sans: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+        mono: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+        code: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', '"Liberation Mono"', 'monospace'],
       }
     },
   },

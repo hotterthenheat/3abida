@@ -12,6 +12,7 @@
 */
 
 import type { Compare } from '../../data/compare';
+import { FONT_SANS } from '../../theme/fonts';
 
 const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
@@ -24,21 +25,22 @@ const COOL_3 = '#4575B4';
 const WARM_1 = '#FDAE61';
 const WARM_2 = '#F46D43';
 const WARM_3 = '#D73027';
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Capsule = ({ x, y, w, fill, text, ink = '#0a0a0a', align = 'end' }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; align?: 'start' | 'end' }) => (
   <g>
     <rect x={x} y={y - 7} width={w} height={14} rx={7} fill={fill} />
     {text && (
-      <text x={align === 'end' ? x + w - 6 : x + 6} y={y + 0.5} textAnchor={align} dominantBaseline="middle" fontFamily={MONO} fontSize="9" fontWeight="600" fill={ink}>
+      <text x={align === 'end' ? x + w - 6 : x + 6} y={y + 0.5} textAnchor={align} dominantBaseline="middle" fontFamily={FIG} fontSize="9" fontWeight="600" fill={ink}>
         {text}
       </text>
     )}
   </g>
 );
 const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5, mono = false }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size?: number; mono?: boolean }) => (
-  <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? MONO : SANS} fontSize={size} fill={fill}>
+  <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? FIG : SANS} fontSize={size} fill={fill}>
     {children}
   </text>
 );

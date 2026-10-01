@@ -57,21 +57,28 @@
 */
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
-import { ArrowRight, Menu, Moon, Sun, X } from 'lucide-react';
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion';
+import { ArrowRight, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PLANS, type PlanKey } from '../../data/billing';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import Tour, { type TourStep } from './Tour';
+import SlayerMark from '../../brand/SlayerMark';
+import Wordmark from '../../brand/Wordmark';
+import Signature from '../../brand/Signature';
+import ProductGlyph from '../../brand/ProductGlyph';
+import { PRODUCT_GROUPS } from '../../brand/products';
 
 /** Where every door on the page leads. At launch this becomes the sign-up; today the terminal is open. */
 const DOOR = '/pulse';
-/** Flip at launch: the plan buttons turn from "try it first" into the checkout */
+/** Flip at launch, when the plans can be paid for — until then the pricing says payments open at launch */
 const CHECKOUT_OPEN = false;
 
+/* THE BAR'S THREE WORDS (Slayer Logo System, Web and App · Landing): Products opens the menu of every product, one line
+   each; Pricing and Questions are this page's own sections */
 const NAV: { label: string; href: string }[] = [
-  { label: 'The tools', href: '#tools' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Questions', href: '#faq' },
 ];
@@ -254,15 +261,22 @@ const IT_NEVER = ['Tells you what to buy or sell', 'Places an order. It is not a
 type Hold = string | { text: string; soon: true };
 const PLAN_HOLDS: Record<PlanKey, { holds: Hold[]; featured?: boolean }> = {
   pinpoint: { holds: ['Pulse, your desk of live panels', 'Terrain, the levels on the chart', 'Pinpoint, the book by strike and by date', 'Trace, the tape and the dark pool', 'Alerts on any level'] },
-  compass: { holds: ['Everything in Pinpoint', 'Compass, contracts that fit the levels', 'The Weigher, for any contract you name', 'The Record: news, earnings, insiders, Congress, stocks', 'Review, options backtesting', 'Your own scripts on the charts', { text: "Community, the traders' room", soon: true }], featured: true },
+  compass: { holds: ['Everything in Pinpoint', 'Compass, contracts that fit the levels', 'The Weigher, for any contract you name', 'Dossier: news, earnings, insiders, Congress, stocks', 'Practice: paper trading, backtesting and the journal', 'Your own scripts on the charts', { text: "Community, the traders' room", soon: true }], featured: true },
   lifetime: { holds: ['Everything in Compass, for good', 'One payment, nothing recurring', 'A one-to-one session to set up your desk', 'New tools before anyone else'] },
 };
 
+/* THE QUESTIONS — the Logo System's FAQ bank (09 · Voice / 10 · Messaging, 2026-09-30), two of the page's own kept (the
+   pictures, the address). The bank says the data comes from licensed vendors; until the licences are signed that answer
+   says what is true today first (the brand's own rule: "'Live' or 'real-time' only once the data contract says so"). No
+   refunds, said kindly, here and never as a banner. */
 const FAQ: { q: string; a: string }[] = [
+  { q: 'Alerts or signals?', a: 'Alerts. You set a level and Slayer tells you when price gets there. It never tells you what to buy or sell.' },
+  { q: 'Where does the data come from?', a: 'Today the demo runs on simulated data, and every page says so. Once our data licences are signed it comes from licensed market data vendors, and every number says what it stands on: live, measured, derived, model or simulated.' },
+  { q: 'How is it different?', a: 'It puts the prints, the positions, the levels and the filings on one screen, and says where each number comes from.' },
+  { q: 'Do I need to know options?', a: 'No. Pinpoint shows levels on a price chart. The guides explain each term in plain words.' },
   { q: 'Are the pictures on this page real?', a: 'Yes. Every one is a picture of the terminal itself, taken from the real page, not a mock-up. The numbers in them are simulated data.' },
-  { q: 'Does it tell me what to trade?', a: 'No. It shows where dealer hedging sits, and it reads a contract against that in a plain word: strong, good, caution or poor. What you do with that is yours. It is not a broker and it is not financial advice.' },
-  { q: 'Do I need to be an expert?', a: 'No. Every page explains itself in plain English: what a wall is, why the flip matters, what dealers are forced to do at each level.' },
-  { q: 'Can I get a refund?', a: 'We do not offer refunds, so please take your time and be sure before you subscribe. You can cancel whenever you like, and you keep your access until the end of the period you paid for. If a charge ever looks wrong, write to info@slayerterminal.com and a person will look into it.' },
+  { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
+  { q: 'Do you offer refunds?', a: 'We don\u2019t, so the demo is free and needs no sign-up. Try every page on it first. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
   { q: 'How do I reach you?', a: 'info@slayerterminal.com. A person reads it.' },
 ];
 
@@ -270,12 +284,12 @@ const FAQ: { q: string; a: string }[] = [
 
 const Wrap = ({ children, className = '' }: { children: ReactNode; className?: string }) => <div className={`mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10 ${className}`}>{children}</div>;
 
-/** A short rule and one small word — above every head on the page */
+/** ONE SMALL WORD OVER A SHORT BAR — above every head on the page, the Logo System's section label ("01 · Landing") */
 const Eyebrow = ({ children }: { children: ReactNode }) => (
-  <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">
-    <span className="w-8 h-px bg-textMuted/60" aria-hidden="true" />
-    {children}
-  </p>
+  <div className="flex flex-col items-start gap-2.5">
+    <p className="text-[13px] text-textMuted">{children}</p>
+    <span className="w-10 h-[3px] rounded-full bg-silver" aria-hidden="true" />
+  </div>
 );
 
 /** EVERY HEAD IS TWO LINES IN TWO TONES: what it is in ink, the turn of the thought in grey */
@@ -285,20 +299,12 @@ const TwoTone = ({ first, second, className = '' }: { first: string; second: str
   </h2>
 );
 
-/* THE DOOR'S ARROW GLIDES (Noah, 2026-09-20, on the plan buttons: "the middle ones arrow should be moving to the right smoothly in
-   and out on hover… same with the launch terminal arrows"). One class for every door with an arrow: four pixels to the right
-   under the pointer and back again on the same curve — the house's ease, so it leaves as smoothly as it arrives. A NAMED group
-   (`group/door`): an unnamed one answers to any ancestor's hover too (the tour's rows are groups). */
-const DOOR_GROUP = 'group/door';
-const DOOR_ARROW = 'transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/door:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover/door:translate-x-0';
-
-/** THE PILL. Solid: the silver foil on black, solid ink on paper (the foil is a surface, it would vanish there). Ghost: a hairline.
-    NO GROWING UNDER THE POINTER (the same day: the two ghost pills "look laggy"): a 2% scale re-draws the words at a size
-    between two pixel grids every frame, soft while it moves and snapping sharp at the end — that was the lag. The ghost
-    answers with its edge and a wash, the solid with its arrow; only a press still gives (2%, 100ms). */
+/** THE PILL (Slayer Logo System, Web and App): solid is the page's ink — the light pill on black, the black pill on paper —
+    and the foil stays on "Launch terminal" alone; ghost is a hairline. No arrows: the brand's pills say where they go in
+    words. NO GROWING UNDER THE POINTER (2026-09-20: "look laggy" — a 2% scale re-draws the words between two pixel grids
+    every frame): the ghost answers with its edge and a wash, the solid with a breath of its own ink; only a press gives. */
 const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: { children: ReactNode; onClick?: () => void; href: string; kind?: 'solid' | 'ghost'; size?: 'lg' | 'sm'; testId?: string }) => {
-  const ground = useBlockGround();
-  const fill = kind === 'solid' ? (ground === 'dark' ? 'holo-bg text-[#0a0a0a]' : 'bg-textPrimary text-canvas') : 'border border-borderMuted text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06]';
+  const fill = kind === 'solid' ? 'bg-textPrimary text-canvas hover:bg-textPrimary/90' : 'border border-borderMuted text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06]';
   return (
     <a
       href={href}
@@ -308,10 +314,9 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
         onClick();
       }}
       data-landing-door={testId}
-      className={`${DOOR_GROUP} inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 pl-6 pr-5 text-[15px]' : 'h-9 pl-4 pr-3.5 text-[13px]'} ${fill}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[15px]' : 'h-9 px-4 text-[13px]'} ${fill}`}
     >
       {children}
-      {kind === 'solid' && <ArrowRight className={`${size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} ${DOOR_ARROW}`} aria-hidden="true" />}
     </a>
   );
 };
@@ -321,25 +326,67 @@ const toAnchor = (href: string) => {
   history.replaceState(null, '', href);
 };
 
-/** THE BAR. Flat across the top of the page; once the page moves it lifts into a floating pill of
-    glass. It wears the ground that is under it, so it turns when the page does. */
+/** THE PRODUCTS MENU (Slayer Logo System, 06 · Menu and rail: "Every product, one line each. Landing and app header."):
+    the groups in the rail's order, each product on its glyph's tile with its one line. A pick opens it in the terminal. */
+const ProductsMenu = ({ onPick, compact = false }: { onPick: (path: string) => void; compact?: boolean }) => (
+  <div className={compact ? 'flex flex-col' : 'grid grid-cols-2 gap-x-10 gap-y-6'} data-landing-products>
+    {PRODUCT_GROUPS.map(g => (
+      <div key={g.caption} className={compact ? 'pt-3' : ''}>
+        <p className="text-[11px] uppercase tracking-[0.14em] text-textMuted">{g.caption}</p>
+        <ul className={compact ? 'mt-1' : 'mt-2.5 flex flex-col gap-1'}>
+          {g.products.map(p => (
+            <li key={p.name}>
+              <a
+                href={p.path}
+                onClick={e => {
+                  e.preventDefault();
+                  onPick(p.path);
+                }}
+                className={`group flex items-start gap-3 rounded-xl transition-colors hover:bg-ink/[0.05] ${compact ? 'py-2 px-1' : 'p-2 -mx-2'}`}
+                data-landing-product={p.name}
+              >
+                <ProductGlyph name={p.glyph} size={compact ? 28 : 40} className="shrink-0 rounded-[9px]" />
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-medium text-textPrimary leading-tight">{p.name}</span>
+                  {!compact && <span className="mt-0.5 block text-[13px] leading-snug text-textSecondary max-w-[30ch]">{p.line}</span>}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </div>
+);
+
+/** THE BAR. Flat across the top of the page with the wordmark; once the page moves it lifts into a floating pill of glass
+    and the wordmark gives way to the mark (the Logo System's own two frames). It wears the ground that is under it, so it
+    turns when the page does. */
 const Nav = ({ ground }: { ground: Ground }) => {
   const { a, flip } = useGround();
   const { launch } = useLaunch();
   const { scrollY } = useScroll();
   const [lifted, setLifted] = useState(false);
   useMotionValueEvent(scrollY, 'change', y => setLifted(y > 24));
-  /* THE PHONE'S MENU (2026-09-19): under 768px the bar's three links were simply gone — a visitor on a phone, which is most
+  /* THE PHONE'S MENU (2026-09-19): under 768px the bar's links were simply gone — a visitor on a phone, which is most
      of them, had no way to Pricing or the questions but to scroll for them. A button opens them as a small sheet under the
      bar, in the page's own grammar: rows on hairlines. It closes on a pick, on Escape, and on a tap outside it. */
   const [menu, setMenu] = useState(false);
+  /* the Products menu on a desk: opens under its word, closes the same ways */
+  const [products, setProducts] = useState(false);
   useEffect(() => {
-    if (!menu) return;
+    if (!menu && !products) return;
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenu(false);
+      if (e.key === 'Escape') {
+        setMenu(false);
+        setProducts(false);
+      }
     };
     const down = (e: PointerEvent) => {
-      if (!(e.target instanceof Element) || !e.target.closest('[data-landing-menu], [data-landing-menu-door]')) setMenu(false);
+      if (!(e.target instanceof Element) || !e.target.closest('[data-landing-menu], [data-landing-menu-door], [data-landing-products-panel], [data-landing-products-door]')) {
+        setMenu(false);
+        setProducts(false);
+      }
     };
     window.addEventListener('keydown', key);
     document.addEventListener('pointerdown', down, true);
@@ -347,25 +394,51 @@ const Nav = ({ ground }: { ground: Ground }) => {
       window.removeEventListener('keydown', key);
       document.removeEventListener('pointerdown', down, true);
     };
-  }, [menu]);
+  }, [menu, products]);
+  const pick = (path: string) => {
+    setMenu(false);
+    setProducts(false);
+    launch(path);
+  };
   const glide = 'transition-[max-width,background-color,border-color,box-shadow,padding] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none';
+  /* "Holographic silver · in the S and on Launch terminal only" — the foil on black, the ink on paper (a foil is a surface
+     and would vanish there) */
+  const launchFill = ground === 'dark' ? 'holo-bg text-[#0a0a0a]' : 'bg-textPrimary text-canvas';
   return (
     <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
       <div
-        className={`pointer-events-auto w-full h-[52px] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
-          lifted ? 'max-w-[860px] pl-5 pr-1.5 border-borderSubtle bg-panel/75 backdrop-blur-xl shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
+        className={`pointer-events-auto relative w-full h-[52px] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
+          lifted ? 'max-w-[700px] pl-2.5 pr-1.5 border-borderSubtle bg-panel/75 backdrop-blur-xl shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-mono text-[13px] font-bold tracking-tight whitespace-nowrap select-none text-textPrimary" aria-label="Slayer Terminal, back to the top">
-          <span className="text-textMuted">&gt;_ </span>slayer_terminal
+        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="shrink-0 inline-flex items-center select-none" aria-label="Slayer Terminal, back to the top" data-landing-brand>
+          {/* the wordmark on the open bar, the mark on the lifted pill and on a phone */}
+          <span className={lifted ? 'hidden' : 'hidden sm:inline-flex'}>
+            <Wordmark height={15} cursor label="" />
+          </span>
+          <span className={lifted ? 'inline-flex' : 'sm:hidden inline-flex'}>
+            <SlayerMark size={32} near label="" />
+          </span>
         </button>
         <nav className="hidden md:flex items-center gap-1 mx-auto" aria-label="On this page">
+          <button
+            type="button"
+            onClick={() => setProducts(o => !o)}
+            aria-expanded={products}
+            aria-controls="landing-products"
+            className={`h-8 pl-3.5 pr-2.5 inline-flex items-center gap-1 rounded-full text-[13.5px] transition-colors ${products ? 'text-textPrimary bg-ink/[0.06]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+            data-landing-products-door
+          >
+            Products
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${products ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
           {NAV.map(l => (
             <a
               key={l.href}
               href={l.href}
               onClick={e => {
                 e.preventDefault();
+                setProducts(false);
                 toAnchor(l.href);
               }}
               className="h-8 px-3.5 inline-flex items-center rounded-full text-[13.5px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
@@ -401,13 +474,30 @@ const Nav = ({ ground }: { ground: Ground }) => {
             e.preventDefault();
             launch(DOOR);
           }}
-          className={`${DOOR_GROUP} h-10 pl-4 pr-3.5 inline-flex items-center gap-1.5 rounded-full text-[13.5px] font-medium whitespace-nowrap ${ground === 'dark' ? 'holo-bg text-[#0a0a0a]' : 'bg-textPrimary text-canvas'}`}
+          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[13.5px] font-medium whitespace-nowrap ${launchFill}`}
           data-landing-door="nav"
         >
           <span className="sm:hidden">Launch</span>
           <span className="hidden sm:inline">Launch terminal</span>
-          <ArrowRight className={`w-3.5 h-3.5 ${DOOR_ARROW}`} aria-hidden="true" />
         </a>
+        {/* the panel is centred by a still wrapper — the fade's own transform would undo a translate on the same box */}
+        <div className="hidden md:block absolute top-[60px] left-1/2 -translate-x-1/2 w-[min(760px,calc(100vw-32px))]">
+          <AnimatePresence>
+            {products && (
+              <motion.div
+                id="landing-products"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] p-6"
+                data-landing-products-panel
+              >
+                <ProductsMenu onPick={pick} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
       <AnimatePresence>
         {menu && (
@@ -418,24 +508,27 @@ const Nav = ({ ground }: { ground: Ground }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 rounded-3xl border border-borderSubtle bg-panel/90 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1 pb-4"
+            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1 pb-4"
             data-landing-menu
           >
-            {NAV.map(l => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={e => {
-                  e.preventDefault();
-                  setMenu(false);
-                  toAnchor(l.href);
-                }}
-                className="flex items-center justify-between h-[52px] border-b border-borderSubtle text-[17px] text-textPrimary"
-              >
-                {l.label}
-                <ArrowRight className="w-4 h-4 text-textMuted" aria-hidden="true" />
-              </a>
-            ))}
+            <ProductsMenu onPick={pick} compact />
+            <div className="mt-3 border-t border-borderSubtle">
+              {NAV.map(l => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={e => {
+                    e.preventDefault();
+                    setMenu(false);
+                    toAnchor(l.href);
+                  }}
+                  className="flex items-center justify-between h-[52px] border-b border-borderSubtle text-[17px] text-textPrimary"
+                >
+                  {l.label}
+                  <ArrowRight className="w-4 h-4 text-textMuted" aria-hidden="true" />
+                </a>
+              ))}
+            </div>
             <a
               href={DOOR}
               onClick={e => {
@@ -443,13 +536,12 @@ const Nav = ({ ground }: { ground: Ground }) => {
                 setMenu(false);
                 launch(DOOR);
               }}
-              className={`${DOOR_GROUP} mt-4 h-12 flex items-center justify-center gap-2 rounded-full text-[15px] font-medium ${ground === 'dark' ? 'holo-bg text-[#0a0a0a]' : 'bg-textPrimary text-canvas'}`}
+              className="mt-4 h-12 flex items-center justify-center rounded-full text-[15px] font-medium bg-textPrimary text-canvas"
               data-landing-door="menu"
             >
-              Launch the terminal
-              <ArrowRight className={`w-4 h-4 ${DOOR_ARROW}`} aria-hidden="true" />
+              Try it, no sign-up
             </a>
-            <p className="mt-2.5 text-center font-mono text-[11px] text-textMuted">No sign-up. It opens on simulated data.</p>
+            <p className="mt-2.5 text-center text-[12px] text-textMuted">Opens the demo on simulated data.</p>
           </motion.nav>
         )}
       </AnimatePresence>
@@ -458,116 +550,72 @@ const Nav = ({ ground }: { ground: Ground }) => {
 };
 
 /* THE HEADLINE IS OURS (Noah, 2026-09-19). The first one — "Dealers have to hedge. See where." — turned out to sit a breath
-   from a competitor's own hero ("Dealers have to hedge… exactly where they'll be forced to"): both were the first line anyone
-   would write about this category. So the headline stopped leading with the dealers' obligation. Two of my replacements
-   missed ("The options market." · "The market shows its work."); Noah then PICKED this one from four: "Trade what you can
-   see." — short and blunt, in a trader's own voice, and true to a terminal that shows and never instructs.
+   from a competitor's own hero, so the headline stopped leading with the dealers' obligation; Noah PICKED this one from four:
+   "Trade what you can see." — short and blunt, in a trader's own voice, and true to a terminal that shows and never
+   instructs. AND IT DOES NOT SAY "OPTIONS" (the same day): the hero speaks of THE MARKET and of TRADERS.
 
-   AND IT DOES NOT SAY "OPTIONS" (Noah, the same day: "we are going to expand to futures and other things so i dont think
-   this options focused look is something we should go for"): the hero, the eyebrow, the paragraph and the footer's line speak
-   of THE MARKET and of TRADERS. A tool's own words may still say options where that is what the tool reads today.
-
-   THE MARKED WORD. The headline ends on one word over a soft bar, and the word changes letter by letter — the levels, the
-   flow, the book, the record: what the terminal puts in front of you (Terrain's chart, Trace, Pinpoint, the Record), none of
-   them a word that ties the brand to options. Still under reduced motion. */
-const WORDS = ['levels.', 'flow.', 'book.', 'record.'];
-const MarkedWord = () => {
-  const calm = useReducedMotion();
+   THE BRAND'S HERO (Slayer Logo System, Web and App · Landing, 2026-09-30): "One line, one button. The demo is the trial."
+   The line alone, its last word marked in the foil — the second line that cycled "See the levels / flow / book / record"
+   went with it — the paragraph, ONE button and the note beside it. The signature stands over it where the eyebrow was. */
+const Hero = ({ onLaunch }: { onLaunch: () => void }) => {
   const ground = useBlockGround();
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (calm) return;
-    const t = window.setInterval(() => setI(v => (v + 1) % WORDS.length), 3400);
-    return () => window.clearInterval(t);
-  }, [calm]);
-  const ink = ground === 'dark' ? 'holo-text' : 'text-silver';
   return (
-    <span className="relative inline-block whitespace-nowrap" aria-hidden="true">
-      {/* in the flow, unseen: it gives the line its width and its baseline */}
-      <span className="invisible">{WORDS[i]}</span>
-      <motion.span layout className="absolute left-0 right-0 bottom-[0.05em] h-[0.13em] rounded-full bg-silver/25" transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
-      <AnimatePresence initial={false}>
-        <motion.span key={i} className="absolute left-0 top-0" exit={{ opacity: 0, transition: { duration: 0.18 } }}>
-          {WORDS[i].split('').map((ch, k) => (
-            <motion.span
-              key={k}
-              /* EACH LETTER'S BOX IS WIDER THAN ITS LETTER (Noah, 2026-09-20: the "w" of "flow." cut off at its right edge — "actually
-                 now that i am looking they all do"). The foil is a background clipped to the text, so it is painted ONLY inside
-                 the letter's own box — and the headline's tight tracking (−0.045em) makes that box narrower than the glyph: the
-                 ink that hangs past the box's edge has no foil behind it and its colour is transparent, so it is simply not
-                 there. A "w" fills its whole advance, so it lost the most. The padding gives the foil room on both sides; the
-                 equal negative margin takes the room back, so not one letter moves. */
-              className={`inline-block px-[0.09em] -mx-[0.09em] ${ink}`}
-              initial={{ y: '0.28em', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.16 + k * 0.035, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {ch === ' ' ? ' ' : ch}
-            </motion.span>
-          ))}
-        </motion.span>
-      </AnimatePresence>
-    </span>
+    <Wrap className="pt-[120px] sm:pt-[136px] pb-10 sm:pb-14">
+      <Signature state="simulated" className="text-[12px]" />
+      <h1 className="mt-7 font-light tracking-[-0.045em] leading-[0.94] text-[clamp(3.1rem,8.2vw,8rem)] [text-wrap:balance]" data-landing-headline>
+        Trade what you can{' '}
+        {/* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */}
+        <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>see.</span>
+      </h1>
+      <div className="mt-8 sm:mt-10 flex flex-col gap-7">
+        <p className="max-w-[38rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
+          Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
+        </p>
+        <div className="flex items-center gap-x-5 gap-y-3 flex-wrap">
+          <Pill href={DOOR} onClick={onLaunch} testId="hero">
+            Try it, no sign-up
+          </Pill>
+          <p className="text-[13px] text-textMuted">Opens the demo on simulated data.</p>
+        </div>
+      </div>
+    </Wrap>
   );
 };
 
-const Hero = ({ onLaunch }: { onLaunch: () => void }) => (
-  <Wrap className="pt-[120px] sm:pt-[136px] pb-10 sm:pb-14">
-    <Eyebrow>For traders</Eyebrow>
-    <h1 aria-label="Trade what you can see. See the levels, the flow, the book and the record." className="mt-6 font-light tracking-[-0.045em] leading-[0.94] text-[clamp(3.1rem,8.2vw,8rem)]">
-      <span aria-hidden="true">Trade what you can see.</span>
-      <span className="block" aria-hidden="true">
-        <span className="text-textMuted">See the </span>
-        <MarkedWord />
-      </span>
-    </h1>
-    <div className="mt-8 sm:mt-10 flex flex-col lg:flex-row lg:items-end gap-x-16 gap-y-8">
-      <p className="max-w-[35rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
-        Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings. Every page explains itself in plain English.
-      </p>
-      <div className="lg:ml-auto flex flex-col items-start lg:items-end gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Pill href={DOOR} onClick={onLaunch} testId="hero">
-            Launch the terminal
-          </Pill>
-          <Pill href="#tools" onClick={() => toAnchor('#tools')} kind="ghost">
-            See the tools
-          </Pill>
-        </div>
-        <p className="font-mono text-[11px] text-textMuted">No sign-up. It opens on simulated data.</p>
-      </div>
-    </div>
-  </Wrap>
-);
+/* THE PLAN CARD (Slayer Logo System, Web and App · Pricing): the product's glyph on its tile and its name, the price, the
+   product's one line, what the plan holds, and one door — "Choose Pinpoint" opens the account form with the plan named
+   (pages/auth); Lifetime, on the mark, is "Talk to us". */
+const PLAN_GLYPH: Record<PlanKey, 'pinpoint' | 'compass' | null> = { pinpoint: 'pinpoint', compass: 'compass', lifetime: null };
 
-const Plan = ({ planKey, onTry }: { planKey: PlanKey; onTry: () => void }) => {
+const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey) => void }) => {
   const plan = PLANS.find(p => p.key === planKey)!;
-  const { holds, featured } = PLAN_HOLDS[planKey];
+  const { holds } = PLAN_HOLDS[planKey];
   const custom = plan.monthly == null;
+  const glyph = PLAN_GLYPH[planKey];
   return (
-    /* A BIT SMALLER (Noah, 2026-09-20: "i think the pricing cards can be a bit smaller"): the same three columns on the same rules, about a
-       fifth shorter — tighter padding and rows, the price at 52px, not 76. The price is still the biggest thing in the card. */
+    /* A BIT SMALLER (Noah, 2026-09-20: "i think the pricing cards can be a bit smaller"): tight padding and rows, the price at
+       52px. The price is still the biggest thing in the card. */
     <div className="flex flex-col py-7 lg:py-8 lg:px-8 first:lg:pl-0 last:lg:pr-0" data-landing-plan={planKey}>
-      <div className="flex items-center gap-2.5">
-        <h3 className="text-[19px] font-medium tracking-tight">{plan.name}</h3>
-        {featured && <span className="h-5 px-2 inline-flex items-center rounded-full bg-textPrimary text-canvas font-mono text-[9px] font-bold uppercase tracking-widest">All of it</span>}
+      <div className="flex items-center gap-3">
+        {glyph ? <ProductGlyph name={glyph} size={40} className="shrink-0 rounded-[9px]" /> : <SlayerMark size={40} label="" />}
+        <h3 className="text-[20px] font-medium tracking-tight">{plan.name}</h3>
       </div>
-      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-textMuted">{plan.kicker}</p>
       {/* the page's big numbers are its prices — the only figures of ours it shows */}
-      <p className="mt-5 flex items-baseline gap-2">
+      <p className="mt-6 flex items-baseline gap-2">
         <span className="text-[44px] sm:text-[52px] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
-        <span className="font-mono text-[11px] text-textMuted">{plan.period}</span>
+        {!custom && <span className="text-[15px] text-textMuted">{plan.period}</span>}
       </p>
-      <ul className="mt-6 border-t border-borderSubtle">
+      <p className="mt-4 text-[15px] leading-snug text-textSecondary max-w-[34ch]">{plan.kicker}</p>
+      <ul className="mt-5 border-t border-borderSubtle">
         {holds.map(h => {
           const text = typeof h === 'string' ? h : h.text;
           const soon = typeof h !== 'string';
           return (
             <li key={text} className="py-2.5 border-b border-borderSubtle flex items-center justify-between gap-3 text-[13.5px] leading-snug text-textSecondary" data-plan-soon={soon || undefined}>
               <span>{text}</span>
-              {/* an ORANGE CAPSULE (Noah, 2026-09-19): a solid pill, the Map's capsules' shape, in the house's orange — `warn` follows the ground,
-                  so it is a visible orange on paper too; the dark word on it is the same on both (4.6:1 on paper, 9:1 on black) */}
-              {soon && <span className="shrink-0 h-[22px] px-2.5 inline-flex items-center rounded-full bg-warn font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#0a0a0a]">Coming soon</span>}
+              {/* an ORANGE CAPSULE (Noah, 2026-09-19): a solid pill in the house's orange — `warn` follows the ground, so it is a
+                  visible orange on paper too; the dark word on it is the same on both (4.6:1 on paper, 9:1 on black) */}
+              {soon && <span className="shrink-0 h-[22px] px-2.5 inline-flex items-center rounded-full bg-warn text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#0a0a0a]">Coming soon</span>}
             </li>
           );
         })}
@@ -578,8 +626,8 @@ const Plan = ({ planKey, onTry }: { planKey: PlanKey; onTry: () => void }) => {
             Talk to us
           </Pill>
         ) : (
-          <Pill href={DOOR} onClick={onTry} kind={featured ? 'solid' : 'ghost'} testId={`plan-${planKey}`}>
-            {CHECKOUT_OPEN ? `Choose ${plan.name}` : 'Try it first'}
+          <Pill href={`/signup?plan=${planKey}`} onClick={() => onChoose(planKey)} kind="ghost" testId={`plan-${planKey}`}>
+            Choose {plan.name}
           </Pill>
         )}
       </div>
@@ -595,6 +643,9 @@ const Page = () => {
   const [barGround, setBarGround] = useState<Ground>(a);
   const open = useCallback((path: string) => launch(path), [launch]);
   const door = useCallback(() => launch(DOOR), [launch]);
+  const navigate = useNavigate();
+  /* a plan's door opens the account form with the plan named — the form is outside the terminal, so no gate */
+  const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
 
   /* a footer link from inside the terminal lands on /#pricing or /#faq — go there once the page stands */
   useEffect(() => {
@@ -672,10 +723,10 @@ const Page = () => {
           </div>
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
             {PLANS.map(p => (
-              <Plan key={p.key} planKey={p.key} onTry={door} />
+              <Plan key={p.key} planKey={p.key} onChoose={choose} />
             ))}
           </div>
-          <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.2em] text-textMuted">Prices in US dollars</p>
+          <p className="mt-5 text-[13px] text-textMuted">There are no refunds, so try every page on the demo first. Prices in US dollars.</p>
         </Wrap>
       </Block>
 
@@ -705,10 +756,10 @@ const Page = () => {
             </h2>
             <div className="mt-10 flex justify-center">
               <Pill href={DOOR} onClick={door} testId="close">
-                Launch the terminal
+                Try it, no sign-up
               </Pill>
             </div>
-            <p className="mt-4 font-mono text-[11px] text-textMuted">No sign-up. It opens on simulated data.</p>
+            <p className="mt-4 text-[13px] text-textMuted">Opens the demo on simulated data.</p>
           </div>
         </Wrap>
         <SiteFooter home />

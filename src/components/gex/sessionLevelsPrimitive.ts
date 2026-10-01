@@ -1,5 +1,6 @@
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { SessionLevelKey, SessionLevels } from '../../data/sessionLevels';
+import { FONT_SANS } from '../../theme/fonts';
 
 /*
 ==================================================
@@ -158,7 +159,7 @@ class SessionLevelsRenderer {
 
       for (const line of src.lines) {
         const fontPx = MAJOR.has(line.key) ? TAG_PX_MAJOR : TAG_PX;
-        ctx.font = `600 ${fontPx * vr}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+        ctx.font = `600 ${fontPx * vr}px ${FONT_SANS}`;
         const tagH = (fontPx + 4) * vr;
         const yc = series.priceToCoordinate(line.price);
         if (yc === null) continue;

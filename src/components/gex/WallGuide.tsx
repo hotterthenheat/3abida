@@ -14,13 +14,15 @@ import type { ReactNode } from 'react';
 import { CALL_WALL, PUT_WALL, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { WallBoard } from '../../data/wall';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /** The surface's inks: breaks is the calendar's warm side, a shelf's weight its cool side */
 const WARM = THERMAL_WARM;
 const COOL = THERMAL_COOL;
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -40,19 +42,19 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
 /* The beam, small: reached above it, holds on the left, breaks on the right, the seam at the odds */
 const BeamFigure = () => (
   <Figure label="The beam: the odds price reaches the wall above, the odds it holds as the silver share of one bar, breaks as the rest" h={74}>
-    <text x={14} y={16} fontSize={7} fill="#7c8290" fontFamily={MONO} letterSpacing={0.8}>
+    <text x={14} y={16} fontSize={7} fill="#7c8290" fontFamily={FIG} letterSpacing={0.8}>
       IF PRICE GETS THERE
     </text>
-    <text x={406} y={16} fontSize={7} textAnchor="end" fill="#7c8290" fontFamily={MONO} letterSpacing={0.8}>
+    <text x={406} y={16} fontSize={7} textAnchor="end" fill="#7c8290" fontFamily={FIG} letterSpacing={0.8}>
       REACHED BY THE CLOSE <tspan fill="#ededed">61%</tspan>
     </text>
     <rect x={14} y={26} width={392} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
     <rect x={14} y={26} width={392 * 0.72} height={12} rx={6} fill={SILVER} fillOpacity={0.85} />
     <rect x={14 + 392 * 0.72 - 1} y={26} width={2} height={12} fill="#0a0a0a" />
-    <text x={14} y={56} fontSize={9} fill={SILVER} fontFamily={MONO}>
+    <text x={14} y={56} fontSize={9} fill={SILVER} fontFamily={FIG}>
       holds 72%
     </text>
-    <text x={406} y={56} fontSize={9} textAnchor="end" fill={WARM} fontFamily={MONO}>
+    <text x={406} y={56} fontSize={9} textAnchor="end" fill={WARM} fontFamily={FIG}>
       breaks 28%
     </text>
     <text x={210} y={68} fontSize={7.5} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
@@ -74,7 +76,7 @@ const ReasonsFigure = () => {
   const mid = meterX + 30;
   return (
     <Figure label="Three reasons: a fact in mono, a meter that fills right for holding and left for breaking, and a clause" h={96}>
-      <g fontFamily={MONO} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
+      <g fontFamily={FIG} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
         <text x={10} y={12}>REASON</text>
         <text x={100} y={12}>THE FACT</text>
         <text x={mid} y={12} textAnchor="middle">
@@ -91,7 +93,7 @@ const ReasonsFigure = () => {
             <text x={10} y={y + 3} fontSize={8} fill="#a3a3a3" fontFamily={SANS}>
               {r.label}
             </text>
-            <text x={100} y={y + 3} fontSize={7} fill={i === 0 ? COOL : 'rgb(var(--text-primary))'} fontFamily={MONO}>
+            <text x={100} y={y + 3} fontSize={7} fill={i === 0 ? COOL : 'rgb(var(--text-primary))'} fontFamily={FIG}>
               {r.fact}
             </text>
             <rect x={meterX} y={y - 1.5} width={60} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
@@ -117,7 +119,7 @@ const PathsFigure = () => {
   return (
     <Figure label="The two paths on the strike axis: spot, the wall as a thick tick, a dashed arrow to the next shelf across an empty stretch, a silver arrow back toward the flip" h={104}>
       {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
-        <text key={i} x={x(t)} y={98} textAnchor="middle" fontSize={7.5} fill="#7c8290" fontFamily={MONO}>
+        <text key={i} x={x(t)} y={98} textAnchor="middle" fontSize={7.5} fill="#7c8290" fontFamily={FIG}>
           {480 + i * 5}
         </text>
       ))}
@@ -126,7 +128,7 @@ const PathsFigure = () => {
         almost nothing in between
       </text>
       <line x1={x(spot)} x2={x(spot)} y1={12} y2={86} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(spot)} y={9} textAnchor="middle" fontSize={7.5} fontWeight={600} fill="#ededed" fontFamily={MONO}>
+      <text x={x(spot)} y={9} textAnchor="middle" fontSize={7.5} fontWeight={600} fill="#ededed" fontFamily={FIG}>
         486.40
       </text>
       <rect x={x(K) - 1.5} y={18} width={3} height={62} rx={1.5} fill={CALL_WALL} fillOpacity={0.9} />

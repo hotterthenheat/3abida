@@ -754,6 +754,7 @@ export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 // Wall / flip / supreme overlay colors (independent of candle theme)
 import { defaultStop } from './drawingKinds';
 import { BULL, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
+import { FONT_SANS } from '../../theme/fonts';
 
 // Level lines are created once per overlay/ticker, then their prices are
 /* ── THE RAIL'S TWO READER PREFERENCES (Noah, 2026-08-29: "the user has a
@@ -1859,7 +1860,7 @@ const StrikeChart = ({
         // #7d7d7d on the dark family (matches textMuted, lifted 2026-07-25 for
         // legibility); its dark cut on a light ground (chartSurface)
         textColor: s0.text,
-        fontFamily: "'SF Pro', sans-serif",
+        fontFamily: FONT_SANS,
         // 9 on a phone. lightweight-charts sizes the price gutter from its
         // widest label, so this is what actually buys the tape its width back.
         fontSize: compactRef.current ? 9 : 10,
@@ -2055,7 +2056,7 @@ const StrikeChart = ({
         g.fillRect(0, 0, out.width, out.height);
         const stampIso = new Date().toISOString();
         const stamp = `${stampIso.slice(0, 10)} ${stampIso.slice(11, 16)}Z`;
-        g.font = `600 ${11 * scale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+        g.font = `600 ${11 * scale}px ${FONT_SANS}`;
         g.textBaseline = 'middle';
         g.fillStyle = 'rgba(255,255,255,0.85)';
         g.fillText(`${ticker} · ${timeframeRef.current}`, 10 * scale, pad / 2);
@@ -2065,7 +2066,7 @@ const StrikeChart = ({
         g.drawImage(shot, 0, pad);
         /* The in-plot watermark — faint, corner, the free distribution the
            directive wants from every shared screenshot. */
-        g.font = `600 ${10 * scale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+        g.font = `600 ${10 * scale}px ${FONT_SANS}`;
         g.fillStyle = 'rgba(255,255,255,0.28)';
         g.fillText('slayer_terminal', 10 * scale, out.height - 12 * scale);
         out.toBlob(blob => {

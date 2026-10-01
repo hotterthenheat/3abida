@@ -13,7 +13,7 @@
 ==================================================
 */
 
-import { Compass as CompassIcon } from 'lucide-react';
+import ProductGlyph from '../brand/ProductGlyph';
 import { Block, ChartGround, Facts, Line, SubLine, TitleRow, Trigger } from '../components/ui/skeletonKit';
 import { PageSkeleton } from '../components/ui/Skeleton';
 
@@ -22,9 +22,7 @@ export const CompassHeadSkeleton = () => (
   <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" aria-hidden data-skeleton="compass-head">
     <div className="min-w-0 flex-1">
       <div className="h-6 flex items-center gap-2.5">
-        <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0">
-          <CompassIcon className="w-3.5 h-3.5" />
-        </span>
+        <ProductGlyph name="compass" size={24} className="shrink-0 rounded-md" />
         <span className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</span>
       </div>
       <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The setups found this sweep, the strongest first — Active while the structure holds, Watch while it proves itself</p>
@@ -101,7 +99,7 @@ export const CompassPageSkeleton = () => (
           </div>
         </div>
       </div>
-      <div className="xl:col-span-4 min-w-0 flex flex-col xl:sticky xl:top-5 xl:self-start xl:h-[calc(100vh-40px)]">
+      <div className="xl:col-span-4 min-w-0 flex flex-col xl:sticky xl:top-5 xl:self-start xl:h-[calc(100vh-40px-var(--demo-band,0px))]">
         <div className="border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col w-full flex-1 min-h-0">
           <div className="px-5 pt-4 pb-3">
             <TitleRow title={150} chip={false} door={false} />

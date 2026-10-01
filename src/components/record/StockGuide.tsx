@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react';
 import type { StockOverview } from '../../data/stockOverview';
 import { gradeOf, gradeOfComposite, type Grade } from '../../data/stockOverview';
+import { FONT_SANS } from '../../theme/fonts';
 
 const BULL = 'rgb(var(--bull))';
 const BEAR = 'rgb(var(--bear))';
@@ -21,8 +22,9 @@ const SILVER = 'rgb(var(--silver))';
 const SUPREME = 'rgb(var(--supreme))';
 const MUTED = '#8a909c';
 const INK = '#ededed';
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -58,7 +60,7 @@ const PillarsFigure = () => {
   return (
     <Figure label="Four pillars, each on a four-step meter — poor, caution, good, strong — filled up to the word that holds, with the word beside it; under them the read, one of the same four words" h={140}>
       {steps.map((st, k) => (
-        <text key={st} x={x0 + k * (seg + gap) + seg / 2} y={10} textAnchor="middle" fontSize={7} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+        <text key={st} x={x0 + k * (seg + gap) + seg / 2} y={10} textAnchor="middle" fontSize={7} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
           {st.toUpperCase()}
         </text>
       ))}
@@ -70,7 +72,7 @@ const PillarsFigure = () => {
               {r.name}
             </text>
             {meter(y, r.grade)}
-            <text x={408} y={y + 3.5} textAnchor="end" fontSize={10} fontWeight={700} fill={GRADE_FILL[r.grade]} fontFamily={MONO}>
+            <text x={408} y={y + 3.5} textAnchor="end" fontSize={10} fontWeight={700} fill={GRADE_FILL[r.grade]} fontFamily={FIG}>
               {r.grade}
             </text>
           </g>
@@ -81,7 +83,7 @@ const PillarsFigure = () => {
         the read
       </text>
       {meter(127, 'good')}
-      <text x={408} y={130} textAnchor="end" fontSize={11} fontWeight={700} fill={BULL} fontFamily={MONO}>
+      <text x={408} y={130} textAnchor="end" fontSize={11} fontWeight={700} fill={BULL} fontFamily={FIG}>
         good
       </text>
     </Figure>
@@ -111,7 +113,7 @@ const FactorFigure = () => {
             <text x={12} y={y + 11} fontSize={7.5} fill={MUTED} fontFamily={SANS}>
               {r.note}
             </text>
-            <text x={290} y={y + 4} textAnchor="end" fontSize={8.5} fill={INK} fontFamily={MONO}>
+            <text x={290} y={y + 4} textAnchor="end" fontSize={8.5} fill={INK} fontFamily={FIG}>
               {r.value}
             </text>
             <rect x={x0} y={y + 1} width={w} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
@@ -141,23 +143,23 @@ const PointsFigure = () => {
             <text x={12} y={y + 4} fontSize={9} fill={INK} fontFamily={SANS}>
               {label}
             </text>
-            <text x={12 + label.length * 5.1 + 6} y={y + 4} fontSize={6} letterSpacing={1} fill={MUTED} fontFamily={MONO}>
+            <text x={12 + label.length * 5.1 + 6} y={y + 4} fontSize={6} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
               {pillar}
             </text>
             <rect x={230} y={y - 2} width={140} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
             <line x1={300} x2={300} y1={y - 4} y2={y + 6} stroke="#ffffff" strokeOpacity={0.25} />
             <rect x={v >= 0 ? 300 : 300 - w} y={y - 2} width={w} height={4} rx={2} fill={v >= 0 ? BULL : BEAR} />
-            <text x={408} y={y + 4} textAnchor="end" fontSize={7.5} fontWeight={700} letterSpacing={0.8} fill={v >= 0 ? BULL : BEAR} fontFamily={MONO}>
+            <text x={408} y={y + 4} textAnchor="end" fontSize={7.5} fontWeight={700} letterSpacing={0.8} fill={v >= 0 ? BULL : BEAR} fontFamily={FIG}>
               {v >= 0 ? 'FOR' : 'AGAINST'}
             </text>
           </g>
         );
       })}
       <line x1={12} x2={408} y1={92} y2={92} stroke="#ffffff" strokeOpacity={0.1} />
-      <text x={12} y={106} fontSize={8} fill={MUTED} fontFamily={MONO}>
+      <text x={12} y={106} fontSize={8} fill={MUTED} fontFamily={FIG}>
         <tspan fill={BULL} fontWeight={700}>2</tspan> for it · <tspan fill={BEAR} fontWeight={700}>1</tspan> against
       </text>
-      <text x={408} y={106} textAnchor="end" fontSize={8} fill={MUTED} fontFamily={MONO}>
+      <text x={408} y={106} textAnchor="end" fontSize={8} fill={MUTED} fontFamily={FIG}>
         the read <tspan fill={BULL} fontWeight={700}>good</tspan>
       </text>
     </Figure>
@@ -183,10 +185,10 @@ const ScaleFigure = () => {
         return (
           <g key={word}>
             <line x1={x} x2={x} y1={isSpot ? 23 : 27} y2={isSpot ? 41 : 37} stroke={ink} strokeWidth={isSpot ? 2 : 1.25} strokeDasharray={word === 'flip' ? '2 2' : undefined} />
-            <text x={x} y={up ? 18 : 50} textAnchor="middle" fontSize={8.5} fontWeight={isSpot ? 700 : 500} fill={ink} fontFamily={MONO}>
+            <text x={x} y={up ? 18 : 50} textAnchor="middle" fontSize={8.5} fontWeight={isSpot ? 700 : 500} fill={ink} fontFamily={FIG}>
               {price}
             </text>
-            <text x={x} y={up ? 9 : 59} textAnchor="middle" fontSize={6.5} letterSpacing={0.6} fill={ink} fillOpacity={0.75} fontFamily={MONO}>
+            <text x={x} y={up ? 9 : 59} textAnchor="middle" fontSize={6.5} letterSpacing={0.6} fill={ink} fillOpacity={0.75} fontFamily={FIG}>
               {word.toUpperCase()}
             </text>
           </g>

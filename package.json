@@ -12,7 +12,7 @@
     "theme:audit": "node scripts/theme-audit.mjs",
     "links:check": "node scripts/check-links.mjs",
     "phone:check": "node scripts/check-phone.mjs",
-    "brand:assets": "node scripts/make-brand-assets.mjs",
+    "brand:assets": "tsx scripts/make-brand-assets.ts",
     "landing:shots": "node scripts/make-landing-shots.mjs",
     "logos:fetch": "node scripts/fetch-logos.mjs",
     "review:proof": "tsx scripts/review-engine-proof.ts && tsx scripts/review-journal-proof.ts && tsx scripts/paper-proof.ts"

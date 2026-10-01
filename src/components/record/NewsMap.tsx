@@ -47,6 +47,7 @@ import { geoArea, geoCentroid, geoContains, geoMercator } from 'd3-geo';
 import { Maximize } from 'lucide-react';
 import worldUrl from 'world-atlas/countries-110m.json?url';
 import type { CityPing, GeoZone, NewsGrade } from '../../data/newsroom';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const INK: Record<NewsGrade, string> = { THREAT: 'rgb(var(--bear))', ALLY: 'rgb(var(--bull))', WATCH: '#8a8f99' };
@@ -307,7 +308,7 @@ const CountryNames = ({ shown, z, s, theme, minArea }: { shown: NamedGeo[]; z: n
     <g data-news-countries={names.length} style={{ pointerEvents: 'none' }}>
       {names.map(n => (
         <Marker key={`name-${n.key}`} coordinates={n.at}>
-          <text textAnchor="middle" dominantBaseline="central" fontSize={fs} fontWeight={600} letterSpacing={gap} fontFamily="ui-sans-serif, system-ui, sans-serif" fill={LABEL_INK[theme]} fillOpacity={0.85} data-news-country={n.name}>
+          <text textAnchor="middle" dominantBaseline="central" fontSize={fs} fontWeight={600} letterSpacing={gap} fontFamily={FONT_SANS} fill={LABEL_INK[theme]} fillOpacity={0.85} data-news-country={n.name}>
             {n.name.toUpperCase()}
           </text>
         </Marker>
@@ -353,7 +354,7 @@ const SessionBands = ({ sessions, zoom, labelLat = 79 }: { sessions: SessionDef[
         <g key={s.key}>
           <path d={path(bandFeature(s.west, s.east)) ?? undefined} fill={SILVER} fillOpacity={0.16} stroke={SILVER} strokeOpacity={0.45} strokeWidth={0.7 / zoom} data-news-session={s.key} />
           <Marker coordinates={[(s.west + s.east) / 2, labelLat]}>
-            <text textAnchor="middle" fontSize={8 / zoom} fontFamily="ui-monospace, Menlo, monospace" letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.85}>
+            <text textAnchor="middle" fontSize={8 / zoom} fontFamily={FONT_SANS} letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.85}>
               {`${s.label.toUpperCase()} · OPEN`}
             </text>
           </Marker>
@@ -615,7 +616,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
                   {p.freshest === 'fresh' && <circle r={r + (5 * s) / z} fill={ink} fillOpacity={0.14} />}
                   <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : '#0a0a0a'} strokeWidth={((open ? 2 : 1) * s) / z} />
                   {p.n > 1 && (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily="ui-monospace, Menlo, monospace" fill="#0a0a0a">
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily={FONT_SANS} fill="#0a0a0a">
                       {p.n}
                     </text>
                   )}
@@ -627,7 +628,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
           {/* THE WORDS — the guide's figures only */}
           {notes.map(n => (
             <Marker key={n.text} coordinates={[n.lng, n.lat]}>
-              <text x={n.dx ?? 0} y={n.dy ?? 30} textAnchor={n.anchor ?? 'middle'} fontSize={17} fill="#a3a3a3" fontFamily="ui-sans-serif, system-ui, sans-serif" data-news-note>
+              <text x={n.dx ?? 0} y={n.dy ?? 30} textAnchor={n.anchor ?? 'middle'} fontSize={17} fill="#a3a3a3" fontFamily={FONT_SANS} data-news-note>
                 {n.text}
               </text>
             </Marker>

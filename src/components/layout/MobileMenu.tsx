@@ -34,6 +34,10 @@ import { subpagesFor } from './navTree';
 import { useCompassView } from '../../data/compassView';
 import { useAllAlerts, useUnseenAll } from '../gex/alertStore';
 import { toggleAlertsDrawer } from '../../data/alertsDrawer';
+import ProductGlyph from '../../brand/ProductGlyph';
+import SlayerMark from '../../brand/SlayerMark';
+import Wordmark from '../../brand/Wordmark';
+import Signature from '../../brand/Signature';
 
 interface Props {
   open: boolean;
@@ -96,7 +100,12 @@ const MobileMenu = ({ open, onClose }: Props) => {
                     className={`min-w-0 flex-1 flex items-center gap-3 h-11 pl-3 text-[14px] ${inside ? 'text-textPrimary font-medium' : 'text-textSecondary'}`}
                     data-mobile-item={item.path}
                   >
-                    <item.icon className={`w-[18px] h-[18px] shrink-0 ${inside ? 'text-[color:var(--ink)]' : 'text-textMuted'}`} strokeWidth={inside ? 2 : 1.75} style={{ '--ink': item.ink } as CSSProperties} />
+                    {/* the product's glyph, as on the rail (brand/ProductGlyph); Settings keeps its line icon */}
+                    {item.glyph ? (
+                      <ProductGlyph name={item.glyph} size={20} bare className="shrink-0" />
+                    ) : (
+                      <item.icon className={`w-[18px] h-[18px] shrink-0 ${inside ? 'text-[color:var(--ink)]' : 'text-textMuted'}`} strokeWidth={inside ? 2 : 1.75} style={{ '--ink': item.ink } as CSSProperties} />
+                    )}
                     <span className="truncate">{item.label}</span>
                   </NavLink>
                   {subs && (
@@ -146,8 +155,9 @@ const MobileMenu = ({ open, onClose }: Props) => {
         className="absolute inset-y-0 left-0 w-[min(86vw,320px)] flex flex-col bg-panel border-r border-borderSubtle shadow-2xl shadow-black/60 animate-slide-in outline-none"
       >
         <div className="shrink-0 h-12 flex items-center gap-2 pl-4 pr-2 border-b border-borderSubtle">
-          <Link to="/" onClick={onClose} className="font-mono text-[13px] font-bold tracking-tight text-textPrimary" aria-label="Slayer Terminal, the front page">
-            <span className="text-textMuted">&gt;_ </span>slayer_terminal
+          <Link to="/" onClick={onClose} className="inline-flex items-center gap-2.5" aria-label="Slayer Terminal, the front page">
+            <SlayerMark size={24} label="" />
+            <Wordmark height={12} label="" />
           </Link>
           <button type="button" onClick={onClose} aria-label="Close the menu" className="ml-auto inline-flex items-center justify-center w-9 h-9 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]">
             <X className="w-4 h-4" />
@@ -165,13 +175,18 @@ const MobileMenu = ({ open, onClose }: Props) => {
             className="w-full flex items-center gap-3 h-11 px-3 rounded-lg text-[14px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]"
             data-mobile-alerts
           >
-            <JingleBell count={setTotal + unseen} lit={unseen > 0} className="w-[18px] h-[18px] shrink-0 text-textMuted" strokeWidth={1.75} />
+            <JingleBell count={setTotal + unseen} lit={unseen > 0} glyph={20} />
             <span>Alerts</span>
             {(unseen > 0 || setTotal > 0) && <span className={`ml-auto font-mono text-[11px] tnum ${unseen > 0 ? 'text-select' : 'text-textMuted'}`}>{unseen > 0 ? `${unseen} alerted` : `${setTotal} set`}</span>}
           </button>
 
           {NAV_GROUPS.filter(g => g !== 'Home').map(groupBlock)}
         </nav>
+        {/* a phone has no demo band (DemoBand.tsx): the menu's foot says what the data is */}
+        <div className="shrink-0 px-4 py-3 border-t border-borderSubtle">
+          <Signature state="simulated" rule={false} className="text-[11px]" />
+          <p className="mt-1 text-[11.5px] text-textMuted">Simulated data. Nothing here is live.</p>
+        </div>
       </div>
     </div>,
     document.body

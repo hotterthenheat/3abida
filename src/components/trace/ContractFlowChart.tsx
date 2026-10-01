@@ -53,6 +53,7 @@ import { flowAxisLabel, flowClock, sessionDate, type ContractFlow, type Contract
 import { fmtUsd } from '../../data/gex';
 import { BULL, SUPREME } from '../gex/paletteInk';
 import { Name } from '../ui/Name';
+import { FONT_SANS } from '../../theme/fonts';
 
 const ASK = BULL; // lifted the offer — the market's bull colour
 const BID = '#FF3B30';
@@ -81,13 +82,13 @@ const printLine = (min: number, yAxisId: string, withLabel: boolean) => (
     strokeDasharray="4 3"
     label={
       withLabel
-        ? { value: 'THIS PRINT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 9, fontFamily: "'SF Pro', sans-serif", offset: 8 }
+        ? { value: 'THIS PRINT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 9, fontFamily: FONT_SANS, offset: 8 }
         : undefined
     }
   />
 );
 
-const axisTick = { fill: AXIS, fontSize: 9, fontFamily: "'SF Pro', sans-serif" };
+const axisTick = { fill: AXIS, fontSize: 9, fontFamily: FONT_SANS };
 
 const Box = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded border border-borderMuted bg-panel px-2.5 py-1.5 shadow-2xl shadow-black/60 font-mono text-[10px]">
@@ -305,7 +306,7 @@ const LedgerLayer = ({ bins, intervalMin, whale }: {
           fill={SUPREME}
           fontSize={9}
           fontWeight={600}
-          fontFamily="'SF Pro', sans-serif"
+          fontFamily={FONT_SANS}
         >
           LARGEST PRINT · {fmtUsd(whale.premium)}
         </text>
@@ -757,7 +758,7 @@ export const NetPanel = ({
                   stroke={PRICE_LINE}
                   strokeOpacity={0.9}
                   strokeDasharray="4 3"
-                  label={{ value: 'THIS CONTRACT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 9, fontFamily: "'SF Pro', sans-serif", offset: 8 }}
+                  label={{ value: 'THIS CONTRACT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 9, fontFamily: FONT_SANS, offset: 8 }}
                 />
               )}
             </ComposedChart>

@@ -604,7 +604,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   className="font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors text-left"
                 >
                   The scale reads the live chain — switch the terminal to{' '}
-                  <Name t={print.ticker} size={12} className="text-select font-semibold" /> to grade this contract.
+                  <Name t={print.ticker} size={12} className="text-select font-semibold" /> to read this contract.
                 </button>
               )}
             </div>

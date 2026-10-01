@@ -34,6 +34,7 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { fmtPnl, type PositionCurve } from '../../data/positionCurve';
 import type { ExposureLevels } from '../../types/gex';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = 'rgb(var(--bull))';
@@ -48,7 +49,8 @@ const H = 176;
    collide take turns */
 const M = { l: 48, r: 14, t: 30, b: 22 };
 const LABEL_ROWS = [11, 22];
-const MONO = 'ui-monospace, Menlo, monospace';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
 
 /** What dealers do at a price, and where it sits against the nearest level */
 function priceWords(price: number, levels: ExposureLevels, wantsUp: boolean): { dealers: string; withYou: boolean; where: string } {
@@ -200,7 +202,7 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         {yTicks.map(v => (
           <g key={v}>
             <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="rgb(var(--ink))" strokeOpacity={v === 0 ? 0.22 : 0.06} strokeWidth={1} />
-            <text x={M.l - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO}>
+            <text x={M.l - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG}>
               {fmtPnl(v)}
             </text>
           </g>
@@ -214,7 +216,7 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
           <g key={l.label}>
             <line x1={x(l.price)} x2={x(l.price)} y1={labels ? LABEL_ROWS[l.row] + 3 : M.t} y2={H - M.b} stroke="rgb(var(--ink))" strokeOpacity={0.16} strokeWidth={1} strokeDasharray="2 3" />
             {labels && (
-              <text x={x(l.price)} y={LABEL_ROWS[l.row]} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={MONO} data-level-label>
+              <text x={x(l.price)} y={LABEL_ROWS[l.row]} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={FIG} data-level-label>
                 {l.label}
               </text>
             )}
@@ -223,7 +225,7 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         {/* the soft line — today's, or the scrubbed day's — then the hard line at expiry */}
         <path d={path('now')} fill="none" stroke={SILVER} strokeWidth={1.25} strokeDasharray="3 3" style={{ strokeOpacity: hovering ? 1 : 0.8, transition: 'stroke-opacity 220ms ease-out' }} data-soft-line />
         {softLabel && (
-          <text x={W - M.r} y={M.t - 6} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={MONO} data-soft-label>
+          <text x={W - M.r} y={M.t - 6} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={FIG} data-soft-label>
             ┄ {softLabel}
           </text>
         )}
@@ -236,11 +238,11 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         <circle cx={x(spot)} cy={y(spotNow.now)} r={3} fill={SILVER} stroke="rgb(var(--panel))" strokeWidth={1.5} />
         {/* the price axis */}
         {xTicks.map(v => (
-          <text key={v} x={x(v)} y={H - 6} textAnchor={v === lo ? 'start' : v === hi ? 'end' : 'middle'} fontSize={9} fill="rgb(var(--text-muted))" fontFamily={MONO} data-x-tick>
+          <text key={v} x={x(v)} y={H - 6} textAnchor={v === lo ? 'start' : v === hi ? 'end' : 'middle'} fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG} data-x-tick>
             {fmtStrike(Math.round(v * 2) / 2)}
           </text>
         ))}
-        <text x={x(spot)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} data-now-label style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
+        <text x={x(spot)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={FIG} data-now-label style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
           now {spot.toFixed(2)}
         </text>
         {/* THE PINNED PRICE — kept when the pointer leaves: a silver hairline, the dots, its price under the axis */}
@@ -250,7 +252,7 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
             <circle cx={x(pinPt.price)} cy={y(pinPt.now)} r={3} fill="rgb(var(--panel))" stroke={SILVER} strokeWidth={1.5} />
             <circle cx={x(pinPt.price)} cy={y(pinPt.expiry)} r={3.5} fill={pinPt.expiry >= 0 ? GREEN : RED} stroke="rgb(var(--panel))" strokeWidth={1.5} />
             {Math.abs(x(pinPt.price) - x(spot)) > 48 && (
-              <text x={x(pinPt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
+              <text x={x(pinPt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill={SILVER} fontFamily={FIG} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
                 {pinPt.price.toFixed(2)}
               </text>
             )}
@@ -263,7 +265,7 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
             <circle cx={x(pt.price)} cy={y(pt.now)} r={3} fill="rgb(var(--panel))" stroke={SILVER} strokeWidth={1.5} />
             <circle cx={x(pt.price)} cy={y(pt.expiry)} r={3.5} fill={pt.expiry >= 0 ? GREEN : RED} stroke="rgb(var(--panel))" strokeWidth={1.5} />
             {Math.abs(x(pt.price) - x(spot)) > 48 && (
-              <text x={x(pt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={MONO} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
+              <text x={x(pt.price)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--panel))', strokeWidth: 4 }}>
                 {pt.price.toFixed(2)}
               </text>
             )}

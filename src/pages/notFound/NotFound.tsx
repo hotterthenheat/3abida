@@ -41,6 +41,8 @@ import { useLaunch } from '../../components/layout/LaunchTransition';
 import { openPalette } from '../../components/layout/paletteDoor';
 import { metaFor } from '../../components/layout/PageMeta';
 import { productOf, suggest, type Suggestion } from './suggest';
+import ProductGlyph from '../../brand/ProductGlyph';
+import Wordmark from '../../brand/Wordmark';
 
 /** The tab's name and a `noindex` mark, for as long as the page stands. `active` lets a page that is only SOMETIMES a
     dead end wear it (Compass's setup page, when the address names no setup). */
@@ -166,7 +168,11 @@ export const NotFoundInside = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {NAV_ITEMS.map(item => (
             <Link key={item.path} to={item.path} className="group flex items-center gap-3 h-11 px-4 border-b border-borderSubtle/60 hover:bg-ink/[0.03] transition-colors" data-not-found-product={item.path}>
-              <item.icon className="w-4 h-4 shrink-0 text-textMuted group-hover:text-[color:var(--ink)] transition-colors" strokeWidth={1.75} style={{ '--ink': item.ink } as CSSProperties} />
+              {item.glyph ? (
+                <ProductGlyph name={item.glyph} size={18} bare className="shrink-0" />
+              ) : (
+                <item.icon className="w-4 h-4 shrink-0 text-textMuted group-hover:text-[color:var(--ink)] transition-colors" strokeWidth={1.75} style={{ '--ink': item.ink } as CSSProperties} />
+              )}
               <span className="text-[13px] text-textPrimary">{item.label}</span>
               <code className="ml-auto font-mono text-[10.5px] text-textMuted">{item.path}</code>
             </Link>
@@ -216,8 +222,8 @@ export const NotFoundPrompt = () => {
   return (
     <div className="min-h-screen bg-canvas text-textPrimary flex flex-col" data-not-found="prompt">
       <header className="shrink-0 h-[64px] flex items-center px-5 sm:px-8">
-        <Link to="/" className="font-mono text-[13px] font-bold tracking-tight" aria-label="Slayer Terminal, the front page">
-          <span className="text-textMuted">&gt;_ </span>slayer_terminal
+        <Link to="/" className="inline-flex" aria-label="Slayer Terminal, the front page">
+          <Wordmark height={14} cursor label="" />
         </Link>
       </header>
 
@@ -226,26 +232,24 @@ export const NotFoundPrompt = () => {
           <h1 className="sr-only">Page not found</h1>
           <div className="font-mono text-[clamp(1.05rem,2.6vw,1.6rem)] leading-[1.7] break-all" aria-hidden={!answered}>
             <p>
-              <span className="text-textMuted">&gt; </span>
+              <span className="text-textMuted">slayer:~ $ </span>
               {command.slice(0, typed)}
+              {answered && <span className="text-textSecondary" data-not-found-answer> → no such page.</span>}
               {!answered && <span className="inline-block w-[0.55em] h-[1.05em] ml-0.5 bg-textPrimary align-[-0.15em] animate-cursor-blink" />}
             </p>
             {answered && (
               <div className="animate-fade-in">
-                <p className="text-textSecondary" data-not-found-answer>
-                  no such page
-                </p>
                 {found[0] && (
                   <p className="mt-1" data-not-found-suggest>
                     <span className="text-textMuted">did you mean </span>
-                    <Link to={found[0].path} className="holo-text underline decoration-borderMuted underline-offset-[6px] hover:decoration-textPrimary" data-not-found-link={found[0].path}>
+                    <Link to={found[0].path} className="text-textPrimary underline decoration-borderMuted underline-offset-[6px] hover:decoration-textPrimary" data-not-found-link={found[0].path}>
                       {found[0].path}
                     </Link>
                     <span className="text-textMuted"> ?</span>
                   </p>
                 )}
                 <p>
-                  <span className="text-textMuted">&gt; </span>
+                  <span className="text-textMuted">slayer:~ $ </span>
                   <span className="inline-block w-[0.55em] h-[1.05em] bg-textPrimary align-[-0.15em] animate-cursor-blink" />
                 </p>
               </div>
@@ -287,16 +291,16 @@ export const NotFoundPrompt = () => {
                     e.preventDefault();
                     launch('/pulse');
                   }}
-                  className="h-12 pl-5 pr-4 inline-flex items-center gap-2 rounded-full text-[14.5px] font-medium holo-bg text-[#0a0a0a]"
+                  className="launch-pill h-12 px-6 inline-flex items-center rounded-full text-[14.5px] font-medium"
                   data-not-found-door="launch"
                 >
-                  Launch the terminal <ArrowRight className="w-4 h-4" aria-hidden />
+                  Launch terminal
                 </a>
                 <Link to="/" className="h-12 px-5 inline-flex items-center rounded-full border border-borderMuted text-[14.5px] font-medium text-textPrimary hover:bg-ink/[0.05] transition-colors" data-not-found-door="front">
                   Front page
                 </Link>
               </div>
-              <p className="mt-3 font-mono text-[11px] text-textMuted">No sign-up. It opens on simulated data.</p>
+              <p className="mt-3 text-[12px] text-textMuted">Opens the demo on simulated data.</p>
             </div>
           )}
         </div>

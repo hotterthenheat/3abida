@@ -325,6 +325,19 @@ PREPARE['/practice/backtest'] = async (page, theme, size) => {
    the desk form, so the picture shows what a press on a day gives */
 PREPARE['/practice/journal'] = async (page, theme, size) => {
   const frame = page.frameLocator('#t');
+  /* THE SAMPLE IS ONE MONTH'S (September 2026). Read in a later month (2026-10-01), "This month" and the calendar open on
+     an empty one: the picture takes the year instead, and the calendar steps back, a month at a time, to the sample's */
+  await frame.locator('[data-journal-month-prev]').waitFor({ timeout: 20000 });
+  await page.waitForTimeout(800);
+  if (!(await frame.locator('[data-journal-daybars]').count())) {
+    await frame.getByRole('group', { name: 'Which period' }).getByRole('button', { name: 'This year', exact: true }).click();
+    await page.waitForTimeout(800);
+  }
+  const traded = () => frame.locator('[data-journal-day]').evaluateAll(els => els.some(d => +d.getAttribute('data-trades') > 0));
+  for (let back = 0; back < 12 && !(await traded()); back++) {
+    await frame.locator('[data-journal-month-prev]').click();
+    await page.waitForTimeout(500);
+  }
   await frame.locator('[data-journal-daybars]').waitFor({ timeout: 20000 });
   await page.waitForTimeout(1500);
   if (size.form === 'desk') {
@@ -372,7 +385,8 @@ PREPARE['/practice/paper'] = async (page, theme, size) => {
   await page.waitForTimeout(800);
 };
 
-const browser = await chromium.launch({ channel: 'chrome' });
+/* Chrome where it is installed; else the Chromium Playwright brings (PW_CHROMIUM names another) */
+const browser = await chromium.launch({ channel: 'chrome' }).catch(() => chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}));
 let made = 0;
 let bytes = 0;
 for (const size of SIZES.filter(z => !FORMS.length || FORMS.includes(z.form))) {

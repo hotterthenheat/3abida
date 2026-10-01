@@ -62,6 +62,7 @@ import FlowSearch, { type SearchDoor } from './FlowSearch';
 import { SectorMark } from './SectorMark';
 import type { BookContract } from '../../types/trace';
 import { Name } from '../ui/Name';
+import { FONT_SANS } from '../../theme/fonts';
 
 /* The pane's two cuts as cards (the walk, 2026-09-09): which strikes, and how far out */
 const MONEY_OPTIONS: DropdownOption<MoneynessKey>[] = MONEYNESS.map(m => ({ value: m.key, label: m.label === 'All strikes' ? 'All' : m.label, hint: m.hint }));
@@ -290,7 +291,7 @@ const NetFlowPane = ({
       layout: {
         background: { color: 'transparent' },
         textColor: '#5a5a5a',
-        fontFamily: "'SF Pro', sans-serif",
+        fontFamily: FONT_SANS,
         fontSize: 9,
         attributionLogo: false,
       },

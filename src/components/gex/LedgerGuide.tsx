@@ -16,6 +16,7 @@
 
 import { fmtUsd } from '../../data/gex';
 import type { ExposureSurface, Greek } from '../../data/exposureSurface';
+import { FONT_SANS } from '../../theme/fonts';
 
 const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
@@ -30,8 +31,9 @@ const WARM_1 = '#FDAE61';
 const WARM_2 = '#F46D43';
 const WARM_3 = '#D73027';
 const PALE = '#FFFFBF';
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
@@ -40,7 +42,7 @@ const Cell = ({ x, y, w, fill, text, ink = '#0a0a0a', ring }: { x: number; y: nu
     <rect x={x} y={y - 6} width={w} height={12} rx={6} fill={fill} />
     {ring && <rect x={x - 1.5} y={y - 7.5} width={w + 3} height={15} rx={7.5} fill="none" stroke={ring} strokeWidth="1.25" />}
     {text && (
-      <text x={x + w - 5} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize="8" fontWeight="600" fill={ink}>
+      <text x={x + w - 5} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="8" fontWeight="600" fill={ink}>
         {text}
       </text>
     )}
@@ -48,7 +50,7 @@ const Cell = ({ x, y, w, fill, text, ink = '#0a0a0a', ring }: { x: number; y: nu
 );
 
 const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5, mono = false }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size?: number; mono?: boolean }) => (
-  <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? MONO : SANS} fontSize={size} fill={fill}>
+  <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? FIG : SANS} fontSize={size} fill={fill}>
     {children}
   </text>
 );

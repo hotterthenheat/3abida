@@ -118,7 +118,7 @@ const WHY_LIBRARY: Record<ScannerKey, { chips: string[]; text: (t: string, k: nu
   all: {
     chips: ['MULTI-SIGNAL', 'COMPOSITE', 'BROAD SCAN'],
     text: (t, k) =>
-      `${t} at ${k} qualifies across multiple scanner criteria — trend alignment, premium value and flow signals all pulling the same way.`,
+      `${t} at ${k} qualifies across multiple scanner criteria — trend alignment, premium value and the flow all pulling the same way.`,
   },
 };
 

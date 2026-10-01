@@ -13,6 +13,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SUPREME = 'rgb(var(--supreme))';
@@ -22,8 +23,9 @@ const WARN = 'rgb(var(--warn))';
 const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
 const SECOND = 'rgb(var(--text-secondary))';
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 export const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -41,7 +43,7 @@ export const Figure = ({ children, label, h = 110 }: { children: ReactNode; labe
 );
 
 const Head = ({ x, y, children, anchor = 'start' }: { x: number; y: number; children: ReactNode; anchor?: 'start' | 'middle' | 'end' }) => (
-  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={MONO}>
+  <text x={x} y={y} textAnchor={anchor} fontSize={6} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
     {children}
   </text>
 );
@@ -51,23 +53,23 @@ const Head = ({ x, y, children, anchor = 'start' }: { x: number; y: number; chil
 /** A contract cell: the strike, call or put in its ink, the expiry — the white line is the door */
 export const ContractFigure = () => (
   <Figure label="A contract cell drawn large: 505 call 09/10 with a white underline, and beside it the words that say the line is the door to the contract's card" h={54}>
-    <text x={14} y={30} fontSize={13} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={14} y={30} fontSize={13} fontWeight={700} fill={INK} fontFamily={FIG}>
       505
     </text>
-    <text x={44} y={30} fontSize={10} fill={BULL} fontFamily={MONO}>
+    <text x={44} y={30} fontSize={10} fill={BULL} fontFamily={FIG}>
       call
     </text>
-    <text x={70} y={30} fontSize={8} fill={MUTED} fontFamily={MONO}>
+    <text x={70} y={30} fontSize={8} fill={MUTED} fontFamily={FIG}>
       09/10/2026
     </text>
     <line x1={14} x2={128} y1={36} y2={36} stroke={INK} strokeOpacity={0.7} strokeWidth={1} />
-    <text x={150} y={30} fontSize={13} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={150} y={30} fontSize={13} fontWeight={700} fill={INK} fontFamily={FIG}>
       497
     </text>
-    <text x={180} y={30} fontSize={10} fill={BEAR} fontFamily={MONO}>
+    <text x={180} y={30} fontSize={10} fill={BEAR} fontFamily={FIG}>
       put
     </text>
-    <text x={200} y={30} fontSize={8} fill={MUTED} fontFamily={MONO}>
+    <text x={200} y={30} fontSize={8} fill={MUTED} fontFamily={FIG}>
       09/11/2026
     </text>
     <line x1={150} x2={258} y1={36} y2={36} stroke={INK} strokeOpacity={0.7} strokeWidth={1} />
@@ -92,7 +94,7 @@ export const InkFigure = () => (
       { y: 90, sample: '274,641', ink: SUPREME, bold: true, word: 'the single largest on screen' },
     ].map(r => (
       <g key={r.sample}>
-        <text x={80} y={r.y} textAnchor="end" fontSize={9} fontWeight={r.bold ? 700 : 400} fill={r.ink} fontFamily={MONO}>
+        <text x={80} y={r.y} textAnchor="end" fontSize={9} fontWeight={r.bold ? 700 : 400} fill={r.ink} fontFamily={FIG}>
           {r.sample}
         </text>
         <text x={96} y={r.y} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -114,7 +116,7 @@ export const LeanFigure = () => (
       <g key={r.y}>
         <rect x={12} y={r.y - 3} width={70} height={4} rx={2} fill={BEAR} fillOpacity={0.8} />
         <rect x={12} y={r.y - 3} width={70 * (r.ask / 100)} height={4} rx={2} fill={BULL} />
-        <text x={90} y={r.y + 1} fontSize={6.5} letterSpacing={0.8} fill={r.ask > 55 ? BULL : r.ask < 45 ? BEAR : SECOND} fontFamily={MONO}>
+        <text x={90} y={r.y + 1} fontSize={6.5} letterSpacing={0.8} fill={r.ask > 55 ? BULL : r.ask < 45 ? BEAR : SECOND} fontFamily={FIG}>
           {r.ask > 55 ? `ASK ${r.ask}%` : r.ask < 45 ? `BID ${100 - r.ask}%` : 'MID'}
         </text>
         <text x={140} y={r.y + 1} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -131,7 +133,7 @@ export const FlowSharesFigure = () => (
     <Head x={14} y={12}>SWEEP</Head>
     <Head x={150} y={12}>FLOOR</Head>
     <Head x={290} y={12}>MULTI</Head>
-    <text x={14} y={30} fontSize={11} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={14} y={30} fontSize={11} fontWeight={700} fill={INK} fontFamily={FIG}>
       64%
     </text>
     <text x={14} y={44} fontSize={6.5} fill={SECOND} fontFamily={SANS}>
@@ -140,7 +142,7 @@ export const FlowSharesFigure = () => (
     <text x={14} y={53} fontSize={6.5} fill={SECOND} fontFamily={SANS}>
       urgency, taking every offer at once
     </text>
-    <text x={150} y={30} fontSize={11} fill={SECOND} fontFamily={MONO}>
+    <text x={150} y={30} fontSize={11} fill={SECOND} fontFamily={FIG}>
       23%
     </text>
     <text x={150} y={44} fontSize={6.5} fill={SECOND} fontFamily={SANS}>
@@ -149,7 +151,7 @@ export const FlowSharesFigure = () => (
     <text x={150} y={53} fontSize={6.5} fill={SECOND} fontFamily={SANS}>
       usually institutional size
     </text>
-    <text x={290} y={30} fontSize={11} fill={SECOND} fontFamily={MONO}>
+    <text x={290} y={30} fontSize={11} fill={SECOND} fontFamily={FIG}>
       31%
     </text>
     <text x={290} y={44} fontSize={6.5} fill={SECOND} fontFamily={SANS}>
@@ -170,15 +172,15 @@ export const VolOverOiFigure = () => (
     ].map(r => (
       <g key={r.y}>
         <Head x={14} y={r.y - 10}>VOL</Head>
-        <text x={14} y={r.y + 2} fontSize={9} fill={INK} fontFamily={MONO}>
+        <text x={14} y={r.y + 2} fontSize={9} fill={INK} fontFamily={FIG}>
           {r.vol}
         </text>
         <Head x={70} y={r.y - 10}>OI</Head>
-        <text x={70} y={r.y + 2} fontSize={9} fill={SECOND} fontFamily={MONO}>
+        <text x={70} y={r.y + 2} fontSize={9} fill={SECOND} fontFamily={FIG}>
           {r.oi}
         </text>
         <Head x={130} y={r.y - 10}>VOL/OI</Head>
-        <text x={130} y={r.y + 2} fontSize={9} fontWeight={r.bold ? 700 : 400} fill={r.bold ? INK : SECOND} fontFamily={MONO}>
+        <text x={130} y={r.y + 2} fontSize={9} fontWeight={r.bold ? 700 : 400} fill={r.bold ? INK : SECOND} fontFamily={FIG}>
           {r.ratio}
         </text>
         <text x={190} y={r.y + 2} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -240,21 +242,21 @@ export const OiChangeFigure = () => (
     <Head x={200} y={12}>ΔOI</Head>
     <Head x={290} y={12}>ΔOI %</Head>
     <Head x={344} y={12}>BUILT ON</Head>
-    <text x={14} y={36} fontSize={10} fill={SECOND} fontFamily={MONO}>
+    <text x={14} y={36} fontSize={10} fill={SECOND} fontFamily={FIG}>
       576,487
     </text>
-    <text x={110} y={36} fontSize={10} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={110} y={36} fontSize={10} fontWeight={700} fill={INK} fontFamily={FIG}>
       681,730
     </text>
-    <text x={200} y={36} fontSize={10} fontWeight={700} fill={BULL} fontFamily={MONO}>
+    <text x={200} y={36} fontSize={10} fontWeight={700} fill={BULL} fontFamily={FIG}>
       +105,243
     </text>
-    <text x={290} y={36} fontSize={10} fill={BULL} fontFamily={MONO}>
+    <text x={290} y={36} fontSize={10} fill={BULL} fontFamily={FIG}>
       +18%
     </text>
     <rect x={344} y={31} width={60} height={4} rx={2} fill={BEAR} fillOpacity={0.8} />
     <rect x={344} y={31} width={40} height={4} rx={2} fill={BULL} />
-    <text x={344} y={48} fontSize={6} letterSpacing={0.8} fill={BULL} fontFamily={MONO}>
+    <text x={344} y={48} fontSize={6} letterSpacing={0.8} fill={BULL} fontFamily={FIG}>
       ASK 66%
     </text>
   </Figure>
@@ -271,7 +273,7 @@ export const StreakFigure = () => (
         {Array.from({ length: 7 }, (_, i) => (
           <rect key={i} x={14 + i * 9} y={r.y - 3 - (i < r.n ? i * 0.8 : 0)} width={6} height={6 + (i < r.n ? i * 0.8 : 0)} rx={1} fill={i < r.n ? INK : '#ffffff'} fillOpacity={i < r.n ? 0.8 : 0.08} />
         ))}
-        <text x={90} y={r.y + 3} fontSize={9} fontWeight={r.n >= 3 ? 700 : 400} fill={r.n >= 3 ? INK : SECOND} fontFamily={MONO}>
+        <text x={90} y={r.y + 3} fontSize={9} fontWeight={r.n >= 3 ? 700 : 400} fill={r.n >= 3 ? INK : SECOND} fontFamily={FIG}>
           {r.n}d
         </text>
         <text x={116} y={r.y + 3} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -332,13 +334,13 @@ export const PrintFigure = () => (
     <Head x={14} y={12}>THE PRINT</Head>
     <Head x={130} y={12}>PRINT $</Head>
     <Head x={210} y={12}>SIDE</Head>
-    <text x={14} y={34} fontSize={10} fill={INK} fontFamily={MONO}>
+    <text x={14} y={34} fontSize={10} fill={INK} fontFamily={FIG}>
       850 <tspan fontSize={8} fill={SECOND}>@ $1.24</tspan>
     </text>
-    <text x={130} y={34} fontSize={10} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={130} y={34} fontSize={10} fontWeight={700} fill={INK} fontFamily={FIG}>
       $105.4K
     </text>
-    <text x={210} y={34} fontSize={8} fill={BEAR} fontFamily={MONO}>
+    <text x={210} y={34} fontSize={8} fill={BEAR} fontFamily={FIG}>
       BID
     </text>
     <text x={260} y={30} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -382,10 +384,10 @@ export const DayStripFigure = () => (
       const live = i === 29;
       return <rect key={i} x={14 + i * 12} y={40 - h} width={8} height={h} rx={1} fill={live ? 'rgb(var(--select))' : lit ? SILVER : '#ffffff'} fillOpacity={live || lit ? 0.9 : 0.14} />;
     })}
-    <text x={14 + 22 * 12 + 4} y={52} textAnchor="middle" fontSize={6.5} fill={SILVER} fontFamily={MONO}>
+    <text x={14 + 22 * 12 + 4} y={52} textAnchor="middle" fontSize={6.5} fill={SILVER} fontFamily={FIG}>
       22:45–23:00
     </text>
-    <text x={14 + 29 * 12 + 4} y={52} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill="#D2FF00" fontFamily={MONO}>
+    <text x={14 + 29 * 12 + 4} y={52} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill="#D2FF00" fontFamily={FIG}>
       NOW
     </text>
     <text x={14} y={56} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
@@ -404,7 +406,7 @@ export const ShareFigure = () => (
       <g key={r.y}>
         <rect x={14} y={r.y - 3} width={90} height={5} rx={2} fill="#ffffff" fillOpacity={0.08} />
         <rect x={14} y={r.y - 3} width={90 * (r.pct / 100)} height={5} rx={2} fill={r.ink} />
-        <text x={112} y={r.y + 2} fontSize={9} fontWeight={r.pct >= 50 ? 700 : 400} fill={r.ink} fontFamily={MONO}>
+        <text x={112} y={r.y + 2} fontSize={9} fontWeight={r.pct >= 50 ? 700 : 400} fill={r.ink} fontFamily={FIG}>
           {r.pct}%
         </text>
         <text x={144} y={r.y + 2} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -451,10 +453,10 @@ export const StructureFigure = () => (
         <text x={28} y={r.y + 1} fontSize={8} fill={INK} fontFamily={SANS}>
           {r.kind}
         </text>
-        <text x={90} y={r.y + 1} fontSize={8} fontWeight={700} fill={INK} fontFamily={MONO}>
+        <text x={90} y={r.y + 1} fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
           {r.strikes}
         </text>
-        <text x={212} y={r.y + 1} fontSize={8} fill={SECOND} fontFamily={MONO}>
+        <text x={212} y={r.y + 1} fontSize={8} fill={SECOND} fontFamily={FIG}>
           {r.legs}
         </text>
         <text x={236} y={r.y + 1} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -476,10 +478,10 @@ export const RiskFigure = () => (
       { y: 60, loss: 'Uncapped', lossInk: 'rgb(var(--warn))', lossBold: true, profit: '$36.9K', profitInk: BULL, profitBold: false, word: 'a ratio — the loss has no floor, the loudest word here' },
     ].map(r => (
       <g key={r.y}>
-        <text x={14} y={r.y} fontSize={8.5} fontWeight={r.lossBold ? 700 : 400} fill={r.lossInk} fontFamily={MONO}>
+        <text x={14} y={r.y} fontSize={8.5} fontWeight={r.lossBold ? 700 : 400} fill={r.lossInk} fontFamily={FIG}>
           {r.loss}
         </text>
-        <text x={110} y={r.y} fontSize={8.5} fontWeight={r.profitBold ? 700 : 400} fill={r.profitInk} fontFamily={MONO}>
+        <text x={110} y={r.y} fontSize={8.5} fontWeight={r.profitBold ? 700 : 400} fill={r.profitInk} fontFamily={FIG}>
           {r.profit}
         </text>
         <text x={190} y={r.y} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -517,18 +519,18 @@ export const BoardRowFigure = () => (
       { y: 46, n: '15', t: 'META', net: '−$923.1K', ink: BEAR, bar: 0.05, bull: false, c: '$1.1M', p: '$2.0M' },
     ].map(r => (
       <g key={r.t}>
-        <text x={14} y={r.y} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+        <text x={14} y={r.y} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
           {r.n}
         </text>
-        <text x={34} y={r.y} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+        <text x={34} y={r.y} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
           {r.t}
         </text>
-        <text x={190} y={r.y} textAnchor="end" fontSize={8.5} fontWeight={r.ink === SUPREME ? 700 : 400} fill={r.ink} fontFamily={MONO}>
+        <text x={190} y={r.y} textAnchor="end" fontSize={8.5} fontWeight={r.ink === SUPREME ? 700 : 400} fill={r.ink} fontFamily={FIG}>
           {r.net}
         </text>
         <rect x={34} y={r.y + 6} width={100} height={2} rx={1} fill="#ffffff" fillOpacity={0.06} />
         <rect x={34} y={r.y + 6} width={100 * r.bar} height={2} rx={1} fill={r.bull ? BULL : BEAR} fillOpacity={0.6} />
-        <text x={140} y={r.y + 9} fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+        <text x={140} y={r.y + 9} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
           <tspan fill={BULL}>C</tspan> {r.c} · <tspan fill={BEAR}>P</tspan> {r.p}
         </text>
         <text x={230} y={r.y + 4} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -548,13 +550,13 @@ export const PaneLinesFigure = () => (
     {Array.from({ length: 40 }, (_, i) => (
       <rect key={i} x={14 + i * 9.7} y={90 - (3 + ((i * 7) % 9))} width={3} height={3 + ((i * 7) % 9)} fill={i === 11 ? SUPREME : SECOND} fillOpacity={i === 11 ? 0.9 : 0.35} />
     ))}
-    <text x={398} y={58} fontSize={6.5} fill={INK} fontFamily={MONO}>
+    <text x={398} y={58} fontSize={6.5} fill={INK} fontFamily={FIG}>
       spot
     </text>
-    <text x={398} y={32} fontSize={6.5} fill={BULL} fontFamily={MONO}>
+    <text x={398} y={32} fontSize={6.5} fill={BULL} fontFamily={FIG}>
       calls
     </text>
-    <text x={398} y={74} fontSize={6.5} fill={BEAR} fontFamily={MONO}>
+    <text x={398} y={74} fontSize={6.5} fill={BEAR} fontFamily={FIG}>
       puts
     </text>
     {/* two lines — as one it ran 64 past the figure's edge */}
@@ -595,7 +597,7 @@ export const DeskFigure = () => (
     ].map(p => (
       <g key={p.l}>
         <rect x={p.x} y={p.y} width={192} height={36} rx={3} fill="#0f0f0f" stroke="#2a2a2a" strokeWidth={0.6} />
-        <text x={p.x + 6} y={p.y + 11} fontSize={6.5} fill={INK} fontFamily={MONO}>
+        <text x={p.x + 6} y={p.y + 11} fontSize={6.5} fill={INK} fontFamily={FIG}>
           {p.l}
         </text>
         <polyline points={`${p.x + 6},${p.y + 30} ${p.x + 50},${p.y + 26} ${p.x + 100},${p.y + 22} ${p.x + 150},${p.y + 18} ${p.x + 186},${p.y + 16}`} fill="none" stroke={BULL} strokeWidth={1} />
@@ -633,22 +635,22 @@ export const TapeRowFigure = () => (
     <Head x={222} y={12}>SIZE · FILL</Head>
     <Head x={306} y={12}>PREM</Head>
     <Head x={372} y={12}>TAG</Head>
-    <text x={14} y={34} fontSize={9} fill={SECOND} fontFamily={MONO}>
+    <text x={14} y={34} fontSize={9} fill={SECOND} fontFamily={FIG}>
       18:16:04
     </text>
-    <text x={74} y={34} fontSize={9} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={74} y={34} fontSize={9} fontWeight={700} fill={INK} fontFamily={FIG}>
       NVDA
     </text>
-    <text x={126} y={34} fontSize={9} fill={INK} fontFamily={MONO}>
+    <text x={126} y={34} fontSize={9} fill={INK} fontFamily={FIG}>
       120<tspan fill={BULL}>C</tspan> <tspan fill={SECOND} fontSize={8}>19 Sep</tspan>
     </text>
-    <text x={222} y={34} fontSize={9} fill={INK} fontFamily={MONO}>
+    <text x={222} y={34} fontSize={9} fill={INK} fontFamily={FIG}>
       850 <tspan fill={SECOND} fontSize={8}>@ $1.24</tspan>
     </text>
-    <text x={306} y={34} fontSize={9} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={306} y={34} fontSize={9} fontWeight={700} fill={INK} fontFamily={FIG}>
       $105.4K
     </text>
-    <text x={372} y={34} fontSize={8} fontWeight={600} fill={WARN} fontFamily={MONO}>
+    <text x={372} y={34} fontSize={8} fontWeight={600} fill={WARN} fontFamily={FIG}>
       SWEEP
     </text>
   </Figure>
@@ -662,18 +664,18 @@ export const FillFigure = () => (
       { y: 54, pos: 0.07, price: '1.20', side: 'BID', word: 'hit the bid — someone took what was there' },
     ].map(r => (
       <g key={r.y}>
-        <text x={14} y={r.y - 5} fontSize={9} fontWeight={700} fill={INK} fontFamily={MONO}>
+        <text x={14} y={r.y - 5} fontSize={9} fontWeight={700} fill={INK} fontFamily={FIG}>
           ${r.price}
         </text>
-        <text x={46} y={r.y - 5} fontSize={7} fontWeight={600} fill={INK} fontFamily={MONO}>
+        <text x={46} y={r.y - 5} fontSize={7} fontWeight={600} fill={INK} fontFamily={FIG}>
           {r.side}
         </text>
-        <text x={14} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={MONO}>
+        <text x={14} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={FIG}>
           1.20
         </text>
         <rect x={38} y={r.y + 4.5} width={54} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.08} />
         <circle cx={38 + 54 * r.pos} cy={r.y + 6} r={3.5} fill={INK} />
-        <text x={98} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={MONO}>
+        <text x={98} y={r.y + 9} fontSize={7} fill={SECOND} fontFamily={FIG}>
           1.28
         </text>
         <text x={132} y={r.y + 2} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -744,13 +746,13 @@ export const SinceFigure = () => (
       { y: 52, then: '$4.73', now: '$3.90', chg: '−17.5%', ink: BEAR, word: 'the fill has slipped' },
     ].map(r => (
       <g key={r.y}>
-        <text x={14} y={r.y} fontSize={9} fill={SECOND} fontFamily={MONO}>
+        <text x={14} y={r.y} fontSize={9} fill={SECOND} fontFamily={FIG}>
           {r.then}
         </text>
-        <text x={110} y={r.y} fontSize={9} fill={INK} fontFamily={MONO}>
+        <text x={110} y={r.y} fontSize={9} fill={INK} fontFamily={FIG}>
           {r.now}
         </text>
-        <text x={190} y={r.y} fontSize={9} fontWeight={700} fill={r.ink} fontFamily={MONO}>
+        <text x={190} y={r.y} fontSize={9} fontWeight={700} fill={r.ink} fontFamily={FIG}>
           {r.chg}
         </text>
         <text x={260} y={r.y} fontSize={7} fill={SECOND} fontFamily={SANS}>
@@ -793,21 +795,21 @@ export const ShelfFigure = () => (
       { y: 82, role: 'SUPPORT', ink: BULL, price: '499.10', dist: '−0.93%', usd: '$141.3M', w: 164, note: 'defended 3×' },
     ].map(r => (
       <g key={r.role}>
-        <text x={12} y={r.y} fontSize={7} fontFamily={MONO} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
+        <text x={12} y={r.y} fontSize={7} fontFamily={FIG} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
           {r.role}
         </text>
-        <text x={92} y={r.y} fontSize={9} fontFamily={MONO} fontWeight={700} fill={INK}>
+        <text x={92} y={r.y} fontSize={9} fontFamily={FIG} fontWeight={700} fill={INK}>
           ${r.price}
         </text>
-        <text x={168} y={r.y} fontSize={7} fontFamily={MONO} fill={r.dist.startsWith('+') ? BULL : BEAR}>
+        <text x={168} y={r.y} fontSize={7} fontFamily={FIG} fill={r.dist.startsWith('+') ? BULL : BEAR}>
           {r.dist}
         </text>
         <rect x={224} y={r.y - 6} width={120} height={3} rx={1.5} fill="rgba(237,237,237,0.06)" />
         <rect x={224} y={r.y - 6} width={(r.w / 210) * 120} height={3} rx={1.5} fill={r.ink} opacity={0.7} />
-        <text x={408} y={r.y} fontSize={8} fontFamily={MONO} fill={INK} textAnchor="end">
+        <text x={408} y={r.y} fontSize={8} fontFamily={FIG} fill={INK} textAnchor="end">
           {r.usd}
         </text>
-        <text x={224} y={r.y + 8} fontSize={6} fontFamily={MONO} fill={SECOND}>
+        <text x={224} y={r.y + 8} fontSize={6} fontFamily={FIG} fill={SECOND}>
           {r.note}
         </text>
       </g>
@@ -828,21 +830,21 @@ export const CrossFigure = () => (
       { y: 58, t: '13:47', px: '507.36', sh: '210,000', read: 'HEDGE FLOW', ink: WARN, c: 56 },
     ].map(r => (
       <g key={r.t}>
-        <text x={12} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+        <text x={12} y={r.y} fontSize={8} fontFamily={FIG} fill={INK}>
           {r.t}
         </text>
-        <text x={64} y={r.y} fontSize={9} fontFamily={MONO} fontWeight={700} fill={INK}>
+        <text x={64} y={r.y} fontSize={9} fontFamily={FIG} fontWeight={700} fill={INK}>
           ${r.px}
         </text>
-        <text x={132} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+        <text x={132} y={r.y} fontSize={8} fontFamily={FIG} fill={INK}>
           {r.sh}
         </text>
-        <text x={214} y={r.y} fontSize={7} fontFamily={MONO} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
+        <text x={214} y={r.y} fontSize={7} fontFamily={FIG} fontWeight={600} letterSpacing={0.6} fill={r.ink}>
           {r.read}
         </text>
         <rect x={318} y={r.y - 5} width={56} height={3} rx={1.5} fill="rgba(237,237,237,0.06)" />
         <rect x={318} y={r.y - 5} width={(r.c / 100) * 56} height={3} rx={1.5} fill={r.ink} opacity={0.8} />
-        <text x={384} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+        <text x={384} y={r.y} fontSize={8} fontFamily={FIG} fill={INK}>
           {r.c}%
         </text>
       </g>
@@ -884,7 +886,7 @@ export const LedgerFigure = () => (
       { y: 58, label: 'Volume', a: '812,400', b: '1,204,900', aInk: INK, bInk: INK, edge: 'b' },
     ].map(r => (
       <g key={r.label}>
-        <text x={12} y={r.y} fontSize={8} fontFamily={MONO} fill={INK}>
+        <text x={12} y={r.y} fontSize={8} fontFamily={FIG} fill={INK}>
           {r.label}
         </text>
         {r.edge === 'a' && (
@@ -892,7 +894,7 @@ export const LedgerFigure = () => (
             ◆
           </text>
         )}
-        <text x={300} y={r.y} fontSize={8} fontFamily={MONO} fontWeight={r.edge === 'a' ? 700 : 400} fill={r.aInk} textAnchor="end">
+        <text x={300} y={r.y} fontSize={8} fontFamily={FIG} fontWeight={r.edge === 'a' ? 700 : 400} fill={r.aInk} textAnchor="end">
           {r.a}
         </text>
         {r.edge === 'b' && (
@@ -900,7 +902,7 @@ export const LedgerFigure = () => (
             ◆
           </text>
         )}
-        <text x={408} y={r.y} fontSize={8} fontFamily={MONO} fontWeight={r.edge === 'b' ? 700 : 400} fill={r.bInk} textAnchor="end">
+        <text x={408} y={r.y} fontSize={8} fontFamily={FIG} fontWeight={r.edge === 'b' ? 700 : 400} fill={r.bInk} textAnchor="end">
           {r.b}
         </text>
       </g>

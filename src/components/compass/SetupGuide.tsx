@@ -11,6 +11,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const BULL = 'rgb(var(--bull))';
@@ -19,7 +20,8 @@ const WARN = 'rgb(var(--warn))';
 const MUTED = '#7c8290';
 const SECOND = 'rgb(var(--text-secondary))';
 const INK = 'rgb(var(--text-primary))';
-const MONO = 'ui-monospace, Menlo, monospace';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="px-5 py-4 border-b border-borderSubtle/60 last:border-b-0">
@@ -57,23 +59,23 @@ const ChartFigure = () => {
       {/* the entry: a silver dot on its candle, a thin silver rule to the right edge, the premium at its end */}
       <circle cx={14 + 3 * 22 + 4} cy={90 - 57 + 9} r={2.4} fill={SILVER} />
       <line x1={14 + 3 * 22 + 4} x2={412} y1={90 - 57 + 9} y2={90 - 57 + 9} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1} />
-      <text x={412} y={90 - 57 + 5} textAnchor="end" fontSize={6.5} fontWeight={600} fill={SILVER} fontFamily={MONO}>
+      <text x={412} y={90 - 57 + 5} textAnchor="end" fontSize={6.5} fontWeight={600} fill={SILVER} fontFamily={FIG}>
         entry 0.75
       </text>
       {/* the won rung's candle keeps its arrow */}
       <path d={`M ${14 + 11 * 22 + 4} ${90 - 72 - 7} l -3 4 h 6 z`} fill={BULL} />
       {/* the ladder at the edge: rung 1 won (filled), rung 2 still to be won */}
       <rect x={398} y={90 - 72 - 8} width={14} height={4} fill={BULL} />
-      <text x={394} y={90 - 72 - 4} textAnchor="end" fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={MONO}>
+      <text x={394} y={90 - 72 - 4} textAnchor="end" fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={FIG}>
         1
       </text>
       <rect x={402} y={11} width={10} height={2} fill={BULL} fillOpacity={0.8} />
-      <text x={398} y={15} textAnchor="end" fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={MONO}>
+      <text x={398} y={15} textAnchor="end" fontSize={6.5} fontWeight={700} fill={BULL} fontFamily={FIG}>
         2
       </text>
       {/* the floor: a thin red rule from the entry candle to its figure */}
       <line x1={14 + 3 * 22 + 4} x2={412} y1={96} y2={96} stroke={BEAR} strokeOpacity={0.75} strokeWidth={1} />
-      <text x={412} y={103} textAnchor="end" fontSize={6.5} fontWeight={600} fill={BEAR} fontFamily={MONO}>
+      <text x={412} y={103} textAnchor="end" fontSize={6.5} fontWeight={600} fill={BEAR} fontFamily={FIG}>
         FLOOR
       </text>
     </Figure>
@@ -83,7 +85,7 @@ const ChartFigure = () => {
 /* The targets: the ladder, one banked in green, one working bright, the entry, the floor */
 const TargetsFigure = () => (
   <Figure label="A four-column table: Target 2 pending with the price NVDA needs, Target 1 hit with a check in green, the Entry row, and the Floor row in red with the price it breaks below" h={96}>
-    <g fontFamily={MONO} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
+    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
       <text x={12} y={12}>TARGET</text>
       <text x={200} y={12} textAnchor="end">PREMIUM</text>
       <text x={290} y={12} textAnchor="end">FROM ENTRY</text>
@@ -96,7 +98,7 @@ const TargetsFigure = () => (
       { y: 72, t: 'Entry', p: '$0.75', f: '—', n: '—', ink: SECOND, bold: false },
       { y: 92, t: 'Floor', p: '—', f: '—', n: 'below 118.90', ink: BEAR, bold: true },
     ].map(r => (
-      <g key={r.t} fontFamily={MONO}>
+      <g key={r.t} fontFamily={FIG}>
         <text x={12} y={r.y} fontSize={8} fontWeight={r.bold ? 700 : 400} fill={r.ink}>
           {r.t}
         </text>
@@ -123,7 +125,7 @@ const CaseFigure = () => (
       { y: 62, lit: 2, ink: WARN, word: 'caution' },
       { y: 84, lit: 1, ink: BEAR, word: 'a poor case' },
     ].map(m => (
-      <g key={m.word} fontFamily={MONO}>
+      <g key={m.word} fontFamily={FIG}>
         <text x={12} y={m.y} fontSize={6.5} letterSpacing={0.8} fill={MUTED}>
           THE CASE
         </text>
@@ -141,7 +143,7 @@ const CaseFigure = () => (
 /* The contracts around it: two rows, the setup's own in silver */
 const AroundFigure = () => (
   <Figure label="Two rows: THIS CONTRACT in silver, NVDA 120P, its gamma share and exposure; CALL WALL, NVDA 125C, with its figures and an Open door" h={62}>
-    <g fontFamily={MONO} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
+    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
       <text x={12} y={12}>ROLE</text>
       <text x={120} y={12}>CONTRACT</text>
       <text x={260} y={12} textAnchor="end">GAMMA</text>
@@ -149,31 +151,31 @@ const AroundFigure = () => (
     </g>
     <line x1={0} x2={420} y1={17} y2={17} stroke="#ffffff" strokeOpacity={0.08} />
     <rect x={0} y={22} width={420} height={18} fill={SILVER} fillOpacity={0.05} />
-    <text x={12} y={34} fontSize={6.5} letterSpacing={0.6} fontWeight={700} fill={SILVER} fontFamily={MONO}>
+    <text x={12} y={34} fontSize={6.5} letterSpacing={0.6} fontWeight={700} fill={SILVER} fontFamily={FIG}>
       THIS CONTRACT
     </text>
-    <text x={120} y={34} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={120} y={34} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       NVDA 120<tspan fill={BEAR}>P</tspan>
     </text>
-    <text x={260} y={34} textAnchor="end" fontSize={8} fill={INK} fontFamily={MONO}>
+    <text x={260} y={34} textAnchor="end" fontSize={8} fill={INK} fontFamily={FIG}>
       12.0%
     </text>
-    <text x={340} y={34} textAnchor="end" fontSize={8} fontWeight={700} fill={BEAR} fontFamily={MONO}>
+    <text x={340} y={34} textAnchor="end" fontSize={8} fontWeight={700} fill={BEAR} fontFamily={FIG}>
       $71.1M
     </text>
-    <text x={12} y={54} fontSize={6.5} letterSpacing={0.6} fill={SECOND} fontFamily={MONO}>
+    <text x={12} y={54} fontSize={6.5} letterSpacing={0.6} fill={SECOND} fontFamily={FIG}>
       CALL WALL
     </text>
-    <text x={120} y={54} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+    <text x={120} y={54} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       NVDA 125<tspan fill={BULL}>C</tspan>
     </text>
-    <text x={260} y={54} textAnchor="end" fontSize={8} fill={INK} fontFamily={MONO}>
+    <text x={260} y={54} textAnchor="end" fontSize={8} fill={INK} fontFamily={FIG}>
       8.7%
     </text>
-    <text x={340} y={54} textAnchor="end" fontSize={8} fontWeight={700} fill={BULL} fontFamily={MONO}>
+    <text x={340} y={54} textAnchor="end" fontSize={8} fontWeight={700} fill={BULL} fontFamily={FIG}>
       −$51.8M
     </text>
-    <text x={408} y={54} textAnchor="end" fontSize={6.5} letterSpacing={0.6} fill={SECOND} fontFamily={MONO}>
+    <text x={408} y={54} textAnchor="end" fontSize={6.5} letterSpacing={0.6} fill={SECOND} fontFamily={FIG}>
       OPEN ↗
     </text>
   </Figure>

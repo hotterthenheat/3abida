@@ -68,6 +68,7 @@ import { splinePath } from './spline';
 import type { PriceProjection } from './StrikeChart';
 import type { GexLevel } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
+import { FONT_SANS } from '../../theme/fonts';
 
 export type ProfileLane = 'both' | 'size' | 'flow';
 export const LANE_OPTIONS: DropdownOption<ProfileLane>[] = [
@@ -186,8 +187,9 @@ const splitSubscribe = (fn: () => void) => {
 const splitSnapshot = () => splitPref;
 const useSplitPref = () => useSyncExternalStore(splitSubscribe, splitSnapshot, splitSnapshot);
 
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-const SANS = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
@@ -660,7 +662,7 @@ const ProfilePanel = ({
          column with Δ SPOT at its right when the column is wide, the flow lane's name over it */
       {
         const hy = HEAD_BAND - COL_HEAD / 2 + 0.5;
-        ctx.font = `600 7.5px ${MONO}`;
+        ctx.font = `600 7.5px ${FIG}`;
         ctx.fillStyle = INK_3;
         ctx.textBaseline = 'middle';
         if (showSize) {
@@ -668,9 +670,9 @@ const ProfilePanel = ({
             ctx.textAlign = 'left';
             ctx.fillText('NET GAMMA', sizeL + 8, hy);
             ctx.fillStyle = INK_3;
-            ctx.font = `7.5px ${MONO}`;
+            ctx.font = `7.5px ${FIG}`;
             ctx.fillText('puts · calls', sizeL + 8 + ctx.measureText('NET GAMMA ').width + 8, hy);
-            ctx.font = `600 7.5px ${MONO}`;
+            ctx.font = `600 7.5px ${FIG}`;
           } else {
             ctx.textAlign = 'center';
             ctx.fillText('◂ PUTS · CALLS ▸', sizeL + (sizeR - netCol - sizeL) / 2, hy);
@@ -762,7 +764,7 @@ const ProfilePanel = ({
           if (prof.vpoc !== null) {
             const y = p.yFor(prof.vpoc);
             if (y != null && y > HEAD_BAND + 8 && y < H - FOOT_BAND) {
-              ctx.font = `7px ${MONO}`;
+              ctx.font = `7px ${FIG}`;
               ctx.fillStyle = 'rgba(226,234,244,0.55)';
               ctx.textAlign = 'left';
               ctx.textBaseline = 'bottom';
@@ -801,7 +803,7 @@ const ProfilePanel = ({
         ctx.lineTo(W - 4, yy);
         ctx.stroke();
         ctx.restore();
-        ctx.font = `9px ${MONO}`;
+        ctx.font = `9px ${FIG}`;
         ctx.fillStyle = rgba(FLIP, 0.9);
         ctx.textBaseline = 'bottom';
         if (showFlow) {
@@ -848,7 +850,7 @@ const ProfilePanel = ({
       /* Words inside a capsule from 10px of row, one point smaller under 13 —
          a name must go INSIDE a capsule that reaches the edge, whatever the
          zoom, never over its figure (Noah, 2026-09-09) */
-      const figureIn = (text: string, x: number, len: number, yMid: number, ink: string, outer: 'left' | 'right', font = `600 9px ${MONO}`) => {
+      const figureIn = (text: string, x: number, len: number, yMid: number, ink: string, outer: 'left' | 'right', font = `600 9px ${FIG}`) => {
         if (barH < 10) return;
         ctx.font = barH < 13 ? font.replace('9px', '8px') : font;
         const w = ctx.measureText(text).width;
@@ -881,7 +883,7 @@ const ProfilePanel = ({
       const insideNamed = new Set<number>();
       const NAME_FONT = `500 9px ${SANS}`;
       const figW = (text: string) => {
-        ctx.font = `600 9px ${MONO}`;
+        ctx.font = `600 9px ${FIG}`;
         return ctx.measureText(text).width;
       };
 
@@ -908,7 +910,7 @@ const ProfilePanel = ({
         const DASH = 5;
         const DASH_H = 3;
         const GAP = 3;
-        ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${MONO}`;
+        ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${FIG}`;
         const figW = figures ? Math.ceil(ctx.measureText('−$999.9M').width) : 0;
         const dashX0 = twoLine || !figures ? x0 : x0 + figW + 8;
         const track = Math.max(DASH, sizeR - 8 - dashX0);
@@ -952,7 +954,7 @@ const ProfilePanel = ({
           const figY = twoLine ? r.y - 5 : r.y;
           const dashY = twoLine ? Math.round(r.y + 4) : Math.round(r.y - DASH_H / 2);
           if (figures && r.value !== 0) {
-            ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${MONO}`;
+            ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${FIG}`;
             ctx.fillStyle = sideInk(sign);
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
@@ -1042,7 +1044,7 @@ const ProfilePanel = ({
           leg('put', r.y, pt.len, Math.min(1, pt.len / reach), legH, ring);
           leg('call', r.y, ct.len, Math.min(1, ct.len / reach), legH, ring);
           if (figures) {
-            ctx.font = `500 9px ${MONO}`;
+            ctx.font = `500 9px ${FIG}`;
             ctx.fillStyle = INK;
             ctx.textBaseline = 'middle';
             if (l.put > 0) {
@@ -1057,7 +1059,7 @@ const ProfilePanel = ({
           /* the NET column — the strike's net at the lane's right edge in the sign's colour */
           if (netCol && r.value !== 0 && barH >= 8) {
             const sign: 1 | -1 = r.value >= 0 ? 1 : -1;
-            ctx.font = `700 9px ${MONO}`;
+            ctx.font = `700 9px ${FIG}`;
             ctx.fillStyle = sideInk(sign);
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'right';
@@ -1159,7 +1161,7 @@ const ProfilePanel = ({
           if (!t) return;
           const len = t.len;
           capsule(x0, row.y, len, t.fill, ringFor(row.strike), t.h);
-          ctx.font = `600 9px ${MONO}`;
+          ctx.font = `600 9px ${FIG}`;
           const full = `${g.flow >= 0 ? 'buy' : 'sell'} ${fmtFlow(g.flow)}`;
           const fits = (s: string) => barH >= 10 && ctx.measureText(s).width + 12 <= len;
           /* The level's chip lives at this lane's right edge; a capsule that
@@ -1204,7 +1206,7 @@ const ProfilePanel = ({
         const k = r.strike;
         const focus = isFocus(k);
         /* the strike bold in the wide column (the partner's), plain in the thin one */
-        ctx.font = `${focus || wide ? '700 ' : ''}10px ${MONO}`;
+        ctx.font = `${focus || wide ? '700 ' : ''}10px ${FIG}`;
         ctx.fillStyle = focus ? SILVER : near(k, levels.callWall) ? CALL_WALL : near(k, levels.putWall) ? PUT_WALL : near(k, levels.supreme) ? SUPREME : near(k, pin) || isHover(k) ? INK : wide ? INK : INK_2;
         ctx.textAlign = wide ? 'left' : 'center';
         ctx.fillText(fmtStrike(k), wide ? colL + 6 : cx, r.y);
@@ -1214,13 +1216,13 @@ const ProfilePanel = ({
             const tag = near(k, levels.callWall) ? { t: 'CW', c: CALL_WALL } : near(k, levels.putWall) ? { t: 'PW', c: PUT_WALL } : near(k, levels.supreme) ? { t: 'SUP ★', c: SUPREME } : null;
             if (tag) {
               const sw = ctx.measureText(fmtStrike(k)).width;
-              ctx.font = `700 7.5px ${MONO}`;
+              ctx.font = `700 7.5px ${FIG}`;
               ctx.fillStyle = tag.c;
               ctx.fillText(tag.t, colL + 6 + sw + 5, r.y + 0.5);
             }
           } else {
             const d = ((k - levels.spot) / levels.spot) * 100;
-            ctx.font = `9px ${MONO}`;
+            ctx.font = `9px ${FIG}`;
             ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : INK_3;
             ctx.textAlign = 'right';
             ctx.fillText(`${d > 0 ? '+' : ''}${d.toFixed(2)}%`, colR - 6, r.y);
@@ -1228,7 +1230,7 @@ const ProfilePanel = ({
         }
       });
       /* Culled rows, counted */
-      ctx.font = `9px ${MONO}`;
+      ctx.font = `9px ${FIG}`;
       ctx.fillStyle = INK_3;
       ctx.textAlign = 'center';
       if (above) ctx.fillText(`▲ ${above}`, cx, HEAD_BAND + 6);
@@ -1278,7 +1280,7 @@ const ProfilePanel = ({
         ctx.roundRect(colL + 2, y, colW - 4, 16, 4);
         ctx.fill();
         ctx.fillStyle = '#0a0a0a';
-        ctx.font = `700 10px ${MONO}`;
+        ctx.font = `700 10px ${FIG}`;
         ctx.textAlign = 'center';
         ctx.fillText(levels.spot.toFixed(2), cx, spotY + 0.5);
       }

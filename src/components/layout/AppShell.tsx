@@ -14,6 +14,10 @@ import ScrollHome from './ScrollHome';
 import WayBack from './WayBack';
 import { OPEN_PALETTE_EVENT } from './paletteDoor';
 import { FaultView, isLoadFault, reloadOnceForStaleBuild } from '../ui/Fault';
+import MarkLoad from '../../brand/MarkLoad';
+import DemoBand from './DemoBand';
+import MarketBell from './MarketBell';
+import InstallPrompt from './InstallPrompt';
 
 /** A page crash must never black-screen the terminal — it renders a readable
     fault panel instead. Recovers via the resetKey prop (NOT a React key: a key
@@ -43,8 +47,9 @@ class RouteBoundary extends Component<{ children: ReactNode; resetKey: string },
       <FaultView
         error={this.state.error}
         scope="page"
+        retry={() => this.setState({ error: null })}
         back={
-          <Link to="/pulse" onClick={() => this.setState({ error: null })} className="inline-flex items-center h-9 px-4 rounded-md border border-borderMuted text-[12.5px] font-medium text-textPrimary hover:bg-ink/[0.05]">
+          <Link to="/pulse" onClick={() => this.setState({ error: null })} className="inline-flex items-center h-10 px-5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:bg-ink/[0.05]">
             Back to Pulse
           </Link>
         }
@@ -140,70 +145,82 @@ const AppShell = () => {
           floor differs: they are viewport-fitted, the tables scroll), and
           main reserves its scrollbar gutter on every Trace page so a page
           without a scrollbar is not 15px wider than one with. */}
-      <main
-        /* max-md:pt-12 — the phone strip (SideNav, fixed, h-12) used to sit on
-           the first 48px of every page; the page head began under it (the
-           phone pass, 2026-09-13). Pulse's and Terrain's phone layouts
-           subtract the same 3rem from the viewport. */
-        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 ${bleedPage ? 'overflow-hidden' : 'overflow-y-auto'} ${
-          location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''
-        }`}
-      >
-        {/* Keyed by top-level section only — subpage changes animate inside
-            their section layout so the header/tabs never remount */}
-        {/* NO EXIT WAIT (2026-09-06, the perf sweep — Noah: "it just pops right
-            over"): with mode="wait" the old page faded out for 80ms, the
-            column sat BLACK, then the new page faded in from nothing — the
-            skeletons it carries never got their moment. Now the old page
-            leaves at once and the new one lands on the next frame with its
-            head and its skeleton boxes already in place, the boxes filling
-            one per frame (Deferred); a 100ms fade keeps it from being a
-            hard cut. */}
-        <AnimatePresence initial={false}>
-          <motion.div
-            key={transitionKey}
-            /* Cross-fade, no travel — the same verdict as the Trace subpage
-               switch (Noah, 2026-08-30, the open-time hop): a section arriving
-               6px low and sliding home re-rasterises every row on the way. */
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.1 }}
-            className={`w-full flex flex-col ${framePage ? 'h-full' : 'min-h-full'}`}
-          >
-            {/* A section opens at its head, not where the last page's scroll was (2026-09-11) */}
-            <ScrollHome />
-            {/* A page opened from the Pulse desk carries its way back (2026-09-12) */}
-            <WayBack />
-            {/* pb-16: pages breathe at the bottom (Noah, 2026-08-17 —
-                "everything ends very close to the bottom"); flex-grow keeps
-                short pages' footer at the viewport floor, not mid-screen.
-                EXCEPTION (Noah, 2026-08-30): the Trace flow pages are
-                FULL-BLEED — no side gutters, no bottom pad, tight top. */}
-            <div
-              /* The Weigher tier: exactly one screenful (h-full off main's
-                 definite height), shrink-0 so the footer below cannot squeeze
-                 it — the overflow IS the slight scroll. Tight top like Trace
-                 (Noah, 2026-08-30: "way too much space up top"). */
-              className={`${bleedPage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-0 gap-4 h-full min-h-0 overflow-hidden' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
+      {/* THE COLUMN: the demo band over the page (DemoBand.tsx), then the page — main takes what the band leaves, so a
+          framed page's h-full is still exactly the screen's remainder */}
+      <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col">
+        <DemoBand />
+        <main
+          /* max-md:pt-12 — the phone strip (SideNav, fixed, h-12) used to sit on
+             the first 48px of every page; the page head began under it (the
+             phone pass, 2026-09-13). Pulse's and Terrain's phone layouts
+             subtract the same 3rem from the viewport. */
+          className={`flex-1 min-w-0 min-h-0 max-md:pt-12 ${bleedPage ? 'overflow-hidden' : 'overflow-y-auto'} ${
+            location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''
+          }`}
+        >
+          {/* Keyed by top-level section only — subpage changes animate inside
+              their section layout so the header/tabs never remount */}
+          {/* NO EXIT WAIT (2026-09-06, the perf sweep — Noah: "it just pops right
+              over"): with mode="wait" the old page faded out for 80ms, the
+              column sat BLACK, then the new page faded in from nothing — the
+              skeletons it carries never got their moment. Now the old page
+              leaves at once and the new one lands on the next frame with its
+              head and its skeleton boxes already in place, the boxes filling
+              one per frame (Deferred); a 100ms fade keeps it from being a
+              hard cut. */}
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={transitionKey}
+              /* Cross-fade, no travel — the same verdict as the Trace subpage
+                 switch (Noah, 2026-08-30, the open-time hop): a section arriving
+                 6px low and sliding home re-rasterises every row on the way. */
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.1 }}
+              className={`w-full flex flex-col ${framePage ? 'h-full' : 'min-h-full'}`}
             >
-              <RouteBoundary resetKey={location.pathname}>
-                {/* A page's code travels on its first visit (App's lazy routes);
-                    its skeleton holds the shape meanwhile */}
-                <Suspense fallback={<RouteSkeleton pathname={location.pathname} />}>
-                  <Outlet />
-                </Suspense>
-              </RouteBoundary>
-            </div>
-            {/* The landing's footer ends every main page (Noah, 2026-08-23) —
-                except Trace (Noah, 2026-08-30: "the trace page shouldnt have
-                a footer at all"): the tape runs to the floor — and Terrain
-                (Noah, 2026-09-13: "for the terrain page remove the footer"):
-                the chart runs to the floor. The Weigher keeps its footer one
-                slight scroll past the fold (Noah, 2026-08-30). */}
-            {!location.pathname.startsWith('/trace') && !location.pathname.startsWith('/terrain') && <SiteFooter />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+              {/* A section opens at its head, not where the last page's scroll was (2026-09-11) */}
+              <ScrollHome />
+              {/* A page opened from the Pulse desk carries its way back (2026-09-12) */}
+              <WayBack />
+              {/* pb-16: pages breathe at the bottom (Noah, 2026-08-17 —
+                  "everything ends very close to the bottom"); flex-grow keeps
+                  short pages' footer at the viewport floor, not mid-screen.
+                  EXCEPTION (Noah, 2026-08-30): the Trace flow pages are
+                  FULL-BLEED — no side gutters, no bottom pad, tight top. */}
+              <div
+                /* The Weigher tier: exactly one screenful (h-full off main's
+                   definite height), shrink-0 so the footer below cannot squeeze
+                   it — the overflow IS the slight scroll. Tight top like Trace
+                   (Noah, 2026-08-30: "way too much space up top"). */
+                className={`${bleedPage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-0 gap-4 h-full min-h-0 overflow-hidden' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
+              >
+                <RouteBoundary resetKey={location.pathname}>
+                  {/* A page's code travels on its first visit (App's lazy routes);
+                      its skeleton holds the shape meanwhile */}
+                  <Suspense
+                    fallback={
+                      <>
+                        <MarkLoad />
+                        <RouteSkeleton pathname={location.pathname} />
+                      </>
+                    }
+                  >
+                    <Outlet />
+                  </Suspense>
+                </RouteBoundary>
+              </div>
+              {/* The landing's footer ends every main page (Noah, 2026-08-23) —
+                  except Trace (Noah, 2026-08-30: "the trace page shouldnt have
+                  a footer at all"): the tape runs to the floor — and Terrain
+                  (Noah, 2026-09-13: "for the terrain page remove the footer"):
+                  the chart runs to the floor. The Weigher keeps its footer one
+                  slight scroll past the fold (Noah, 2026-08-30). */}
+              {!location.pathname.startsWith('/trace') && !location.pathname.startsWith('/terrain') && <SiteFooter />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
       {/* THE SCRIPT EDITOR (2026-09-10): docked at the right of a full-screen
           chart, the takeover narrowed to leave it room — see data/editorDock.ts */}
       <EditorDockGate />
@@ -217,6 +234,10 @@ const AppShell = () => {
           chip above says so (data/paper/store.ts) */}
       <PaperRunner />
       <AlertToasts />
+      {/* the open's tone up and the close's down, when switched on (Settings › Sounds) */}
+      <MarketBell />
+      {/* the browser's offer to put the terminal on the home screen, in the house's words */}
+      <InstallPrompt />
       <CommandPalette open={paletteOpen} onClose={closePalette} />
     </div>
   );

@@ -37,6 +37,7 @@ import { readToken, useResolvedTheme } from '../../theme/theme';
 import { alpha, resolveInk } from '../gex/paletteInk';
 import { fmtClockLocal, fmtDayLocal, fmtStampLocal, localTickMarks, nyTickMarks, type ChartClock } from '../gex/chartTime';
 import { PlotNotesPrimitive } from './plotNotesPrimitive';
+import { FONT_SANS } from '../../theme/fonts';
 
 export interface ChartPoint {
   /** Unix seconds */
@@ -249,7 +250,7 @@ const SessionsChart = ({ points, kind = 'area', ink, inkBelow, baseline = 0, bar
       : DARK_FIGURE_SURFACE; /* the page, never the candle pick (candleTheme.ts: a figure is not a tape) */
     const chart = createChart(host, {
       autoSize: true,
-      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: "'SF Pro', sans-serif", fontSize: 9, attributionLogo: false },
+      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: FONT_SANS, fontSize: 9, attributionLogo: false },
       localization: { timeFormatter: (t: Time) => (clock === 'day' ? fmtDayLocal(t, zone) : clock === 'span' ? fmtStampLocal(t, zone) : fmtClockLocal(t, zone)) },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       rightPriceScale: { borderColor: surface.line, scaleMargins: withBars ? { top: 0.1, bottom: 0.42 } : { top: 0.14, bottom: 0.08 } },

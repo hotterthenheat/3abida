@@ -26,6 +26,7 @@ import { aggregateCandles, tfMinutes, type Timeframe } from '../../data/timefram
 import { CANDLE_THEMES, candleSeriesOptions, chartSurface, type CandleThemeKey } from './candleTheme';
 import { readToken, useResolvedTheme } from '../../theme/theme';
 import { LOCAL_TIME, localTickMarks } from './chartTime';
+import { FONT_SANS } from '../../theme/fonts';
 
 /** How many bars the preview shows — enough shape to judge a palette on */
 const BARS = 48;
@@ -53,7 +54,7 @@ const ThemePreview = ({ ticker, timeframe, themeKey, width = 352, height = 200 }
     const chart = createChart(host, {
       width,
       height,
-      layout: { background: { color: s.bg === 'transparent' ? readToken('--panel', undefined, host) : s.bg }, textColor: s.light ? s.text : '#5a5a5a', fontFamily: "'SF Pro', sans-serif", fontSize: 9, attributionLogo: false },
+      layout: { background: { color: s.bg === 'transparent' ? readToken('--panel', undefined, host) : s.bg }, textColor: s.light ? s.text : '#5a5a5a', fontFamily: FONT_SANS, fontSize: 9, attributionLogo: false },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       localization: LOCAL_TIME,
       rightPriceScale: { borderColor: s.line, scaleMargins: { top: 0.08, bottom: 0.18 } },

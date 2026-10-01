@@ -31,15 +31,15 @@ export const NEWS_ROW_H = 34;
    are the same shape, so each skeleton keeps a screen's worth. */
 /** Insiders: the names-to-know strip carries six cards */
 export const NAMES_TO_KNOW = 6;
-export const INSIDERS_GRID_H = 'calc(100vh - 367px)';
+export const INSIDERS_GRID_H = 'calc(100vh - 367px - var(--demo-band, 0px))';
 /** Congress: the reports-to-know strip, the same shape */
 export const REPORTS_TO_KNOW = 6;
-export const CONGRESS_GRID_H = 'calc(100vh - 367px)';
+export const CONGRESS_GRID_H = 'calc(100vh - 367px - var(--demo-band, 0px))';
 /** The map's drawing: 960 × 440 at the box's width, beside a 400px story column */
 export const NEWS_STORY_W = 400;
 /** Stocks: the rotation strip carries the universe's ten sectors */
 export const ROTATION_SECTORS = 10;
-export const STOCKS_GRID_H = 'calc(100vh - 362px)';
+export const STOCKS_GRID_H = 'calc(100vh - 362px - var(--demo-band, 0px))';
 
 export const RecordShellSkeleton = ({ pathname }: { pathname: string }) => {
   const page = RECORD_SUBPAGES.find(p => pathname.startsWith(p.path)) ?? RECORD_SUBPAGES[0];
@@ -1108,7 +1108,7 @@ export const RecordPageSkeleton = ({ pathname }: { pathname: string }) => {
 export const RecordRouteSkeleton = ({ pathname }: { pathname: string }) => (
   <>
     <RecordShellSkeleton pathname={pathname} />
-    <div className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]" aria-busy="true" aria-label="Loading">
+    <div className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px-var(--demo-band,0px))]" aria-busy="true" aria-label="Loading">
       <RecordPageSkeleton pathname={pathname} />
     </div>
   </>

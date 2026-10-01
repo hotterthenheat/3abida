@@ -15,12 +15,13 @@
 
 import { Fragment } from 'react';
 import { Block, Facts, Line, SubLine, Trigger } from '../../components/ui/skeletonKit';
+import SlayerMark from '../../brand/SlayerMark';
 
 const Head = () => (
   <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" aria-hidden data-skeleton="settings-head">
     <div className="min-w-0 flex-1">
       <div className="h-6 flex items-center gap-2.5">
-        <span className="holo-bg w-6 h-6 rounded-[7px] shrink-0 inline-flex items-center justify-center font-mono text-[10px] font-bold text-[#0a0a0a]">&gt;_</span>
+        <SlayerMark size={24} state="idle" label="" />
         <span className="text-[15px] font-semibold leading-tight text-textPrimary">Settings</span>
       </div>
       <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">How the terminal looks, what the desk opens on, what it says out loud</p>
@@ -120,7 +121,7 @@ const SectionBox = ({ section }: { section: string }) => {
         >
           {/* the picture: a 56 disc, two lines, a door */}
           <div className="px-5 py-4 border-t border-borderSubtle/60 flex items-center gap-4">
-            <span className="holo-bg w-14 h-14 rounded-full shrink-0" />
+            <span className="w-14 h-14 rounded-full shrink-0 border-2 border-silver/50" />
             <div className="flex-1 flex flex-col gap-1.5">
               <Line w={80} h={11} />
               <Line w={360} h={10} />
@@ -205,7 +206,7 @@ const SectionBox = ({ section }: { section: string }) => {
         <Box rows={1}>
           {/* The mark, the wordmark and the version, then the licences door */}
           <div className="px-5 border-t border-borderSubtle/60 flex items-center gap-4 h-[73px]">
-            <span className="holo-bg w-10 h-10 rounded-[7px] shrink-0" />
+            <SlayerMark size={40} state="idle" label="" />
             <div className="flex flex-col gap-1.5">
               <Line w={118} h={13} />
               <Line w={92} h={10} />

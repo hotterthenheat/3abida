@@ -26,14 +26,21 @@ export interface DeskPrefs {
     /** null = each desk's own (Pulse 1m, the Map 15m …) */
     timeframe: Timeframe | null;
   };
-  /** the jingle when one arms, the chime when it fires */
+  /** the alert's two rising tones when one fires (Slayer Logo System, 14 · Motion and sound: "Alert sound · On") */
   alertsSound: boolean;
+  /** the other three sounds the brand names — a confirmation's click (on), signing in (off), the open and the close (off) */
+  sounds: { confirm: boolean; signIn: boolean; openClose: boolean };
   /** the axes' clock — New York's, or the machine's own */
   clock: ClockZone;
 }
 
 const KEY = 'slayer_desk_prefs';
-export const DEFAULT_DESK_PREFS: DeskPrefs = { opensOn: { ticker: null, timeframe: null }, alertsSound: true, clock: 'local' };
+export const DEFAULT_DESK_PREFS: DeskPrefs = {
+  opensOn: { ticker: null, timeframe: null },
+  alertsSound: true,
+  sounds: { confirm: true, signIn: false, openClose: false },
+  clock: 'local',
+};
 
 let prefs: DeskPrefs = (() => {
   try {
@@ -43,6 +50,7 @@ let prefs: DeskPrefs = (() => {
     return {
       opensOn: { ticker: p.opensOn?.ticker ?? null, timeframe: p.opensOn?.timeframe ?? null },
       alertsSound: p.alertsSound ?? true,
+      sounds: { ...DEFAULT_DESK_PREFS.sounds, ...(p.sounds ?? {}) },
       clock: p.clock === 'ny' ? 'ny' : 'local',
     };
   } catch {
@@ -58,9 +66,9 @@ const subscribe = (fn: () => void) => {
 };
 
 /** A patch — `opensOn` may name only the name or only the timeframe */
-export type DeskPrefsPatch = Partial<Omit<DeskPrefs, 'opensOn'>> & { opensOn?: Partial<DeskPrefs['opensOn']> };
+export type DeskPrefsPatch = Partial<Omit<DeskPrefs, 'opensOn' | 'sounds'>> & { opensOn?: Partial<DeskPrefs['opensOn']>; sounds?: Partial<DeskPrefs['sounds']> };
 export function setDeskPrefs(patch: DeskPrefsPatch): void {
-  prefs = { ...prefs, ...patch, opensOn: { ...prefs.opensOn, ...(patch.opensOn ?? {}) } };
+  prefs = { ...prefs, ...patch, opensOn: { ...prefs.opensOn, ...(patch.opensOn ?? {}) }, sounds: { ...prefs.sounds, ...(patch.sounds ?? {}) } };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));
   } catch {

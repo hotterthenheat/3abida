@@ -24,11 +24,12 @@ import { useSyncExternalStore } from 'react';
 
 export type PlanKey = 'pinpoint' | 'compass' | 'lifetime';
 
-/** The tiers as the landing prices them. Noah, 2026-09-19: Pinpoint $75 and Compass $180 (they were $125 and $275). */
+/** The tiers as the landing prices them. Noah, 2026-09-19: Pinpoint $75 and Compass $180 (they were $125 and $275).
+    Each plan's line is the Logo System's (Web and App · Pricing, 2026-09-30). */
 export const PLANS: { key: PlanKey; name: string; kicker: string; price: string; period: string; monthly: number | null }[] = [
-  { key: 'pinpoint', name: 'Pinpoint', kicker: 'The dealer-GEX terminal', price: '$75', period: 'a month', monthly: 75 },
-  { key: 'compass', name: 'Compass', kicker: 'Everything included', price: '$180', period: 'a month', monthly: 180 },
-  { key: 'lifetime', name: 'Lifetime', kicker: 'Everything, forever', price: 'Custom', period: 'one payment', monthly: null },
+  { key: 'pinpoint', name: 'Pinpoint', kicker: 'Where dealer hedging holds and pushes price.', price: '$75', period: '/ month', monthly: 75 },
+  { key: 'compass', name: 'Compass', kicker: 'Contracts that fit the levels right now.', price: '$180', period: '/ month', monthly: 180 },
+  { key: 'lifetime', name: 'Lifetime', kicker: 'One payment, every desk, for good.', price: 'Custom', period: 'one payment', monthly: null },
 ];
 export const planOf = (key: PlanKey) => PLANS.find(p => p.key === key) ?? PLANS[1];
 

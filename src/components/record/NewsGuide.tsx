@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react';
 import NewsMap, { type HeatPoint, type MapNote, type Reach } from './NewsMap';
 import type { CityPing } from '../../data/newsroom';
+import { FONT_SANS } from '../../theme/fonts';
 
 const BULL = 'rgb(var(--bull))';
 const BEAR = 'rgb(var(--bear))';
@@ -21,8 +22,9 @@ const SILVER = 'rgb(var(--silver))';
 const SUPREME = 'rgb(var(--supreme))';
 const MUTED = '#7c8290';
 const INK = 'rgb(var(--text-primary))';
-const MONO = 'ui-monospace, Menlo, monospace';
-const SANS = 'ui-sans-serif, system-ui, sans-serif';
+/* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
+const FIG = FONT_SANS;
+const SANS = FONT_SANS;
 const IMPACT = { high: 'rgb(var(--impact-high))', medium: 'rgb(var(--impact-medium))', low: 'rgb(var(--text-muted))' };
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
@@ -128,7 +130,7 @@ const SquareFigure = () => (
         <text x={28} y={r.y + 3} fontSize={7.5} fill={INK} fontFamily={SANS}>
           {r.head}
         </text>
-        <text x={408} y={r.y + 3} textAnchor="end" fontSize={6.5} fill={MUTED} fontFamily={MONO}>
+        <text x={408} y={r.y + 3} textAnchor="end" fontSize={6.5} fill={MUTED} fontFamily={FIG}>
           {r.word}
         </text>
       </g>
@@ -153,18 +155,18 @@ const NumbersFigure = () => {
           <text x={c.x} y={c.y} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
             {c.label}
           </text>
-          <text x={c.x} y={c.y + 13} fontSize={9.5} fontWeight={700} fill={c.ink} fontFamily={MONO}>
+          <text x={c.x} y={c.y + 13} fontSize={9.5} fontWeight={700} fill={c.ink} fontFamily={FIG}>
             {c.value}
           </text>
         </g>
       ))}
-      <text x={12} y={80} fontSize={7} fill={BEAR} fontFamily={MONO}>
+      <text x={12} y={80} fontSize={7} fill={BEAR} fontFamily={FIG}>
         down 19%
       </text>
-      <text x={210} y={80} textAnchor="middle" fontSize={5.5} letterSpacing={1} fill={MUTED} fontFamily={MONO}>
+      <text x={210} y={80} textAnchor="middle" fontSize={5.5} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
         ODDS NEXT SESSION
       </text>
-      <text x={408} y={80} textAnchor="end" fontSize={7} fontWeight={700} fill={BULL} fontFamily={MONO}>
+      <text x={408} y={80} textAnchor="end" fontSize={7} fontWeight={700} fill={BULL} fontFamily={FIG}>
         up 81%
       </text>
       <rect x={12} y={86} width={396 * 0.19} height={5} rx={2.5} fill={BEAR} fillOpacity={0.8} />
@@ -188,29 +190,29 @@ const TabsFigure = () => {
     <Figure label="The six tabs in a line, ALL FINANCE · 24 underlined; under them a followed name's chip, NVDA with a silver bell, and the Follow a name door" h={64}>
       {tabs.map(([w, x, on]) => (
         <g key={w}>
-          <text x={x} y={18} fontSize={6.5} letterSpacing={0.8} fill={on ? INK : MUTED} fontFamily={MONO}>
+          <text x={x} y={18} fontSize={6.5} letterSpacing={0.8} fill={on ? INK : MUTED} fontFamily={FIG}>
             {w}
           </text>
           {on === 1 && <line x1={x} x2={x + 58} y1={23} y2={23} stroke={INK} strokeWidth={1} />}
         </g>
       ))}
       <line x1={0} x2={420} y1={30} y2={30} stroke="#ffffff" strokeOpacity={0.08} />
-      <text x={12} y={48} fontSize={6} letterSpacing={1} fill={MUTED} fontFamily={MONO}>
+      <text x={12} y={48} fontSize={6} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
         FOLLOWING
       </text>
       <rect x={56} y={38} width={62} height={16} rx={3} fill="#ffffff" fillOpacity={0.05} stroke="#ffffff" strokeOpacity={0.14} />
-      <text x={63} y={49} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={MONO}>
+      <text x={63} y={49} fontSize={7.5} fontWeight={700} fill={INK} fontFamily={FIG}>
         NVDA
       </text>
       <path d="M 98 43 a 3 3 0 0 1 6 0 v 3 l 1.5 1.5 h -9 l 1.5 -1.5 z" fill={SILVER} />
-      <text x={110} y={49.5} fontSize={7} fill={MUTED} fontFamily={MONO}>
+      <text x={110} y={49.5} fontSize={7} fill={MUTED} fontFamily={FIG}>
         ×
       </text>
       <rect x={126} y={38} width={70} height={16} rx={3} fill="#ffffff" fillOpacity={0.05} stroke="#ffffff" strokeOpacity={0.14} />
-      <text x={133} y={49} fontSize={7} fill={INK} fontFamily={MONO}>
+      <text x={133} y={49} fontSize={7} fill={INK} fontFamily={FIG}>
         + Follow a name
       </text>
-      <text x={408} y={49} textAnchor="end" fontSize={6} fill={MUTED} fontFamily={MONO}>
+      <text x={408} y={49} textAnchor="end" fontSize={6} fill={MUTED} fontFamily={FIG}>
         the bell rings in the alerts drawer
       </text>
     </Figure>
@@ -223,23 +225,23 @@ const MonthFigure = () => {
     <g>
       <rect x={x} y={8} width={130} height={92} fill="none" stroke="#ffffff" strokeOpacity={0.1} />
       {today && <circle cx={x + 16} cy={20} r={8} fill={INK} />}
-      <text x={x + 16} y={22.5} textAnchor="middle" fontSize={7.5} fontWeight={today ? 700 : 400} fill={today ? '#0a0a0a' : INK} fontFamily={MONO}>
+      <text x={x + 16} y={22.5} textAnchor="middle" fontSize={7.5} fontWeight={today ? 700 : 400} fill={today ? '#0a0a0a' : INK} fontFamily={FIG}>
         {day}
       </text>
       {pills.map(([w, t, ink], i) => (
         <g key={w}>
           <rect x={x + 6} y={32 + i * 19} width={118} height={15} rx={2.5} fill={ink} fillOpacity={0.13} />
           <rect x={x + 6} y={32 + i * 19} width={1.6} height={15} fill={ink} />
-          <text x={x + 12} y={42.5 + i * 19} fontSize={6.5} fontWeight={600} fill={ink} fontFamily={MONO}>
+          <text x={x + 12} y={42.5 + i * 19} fontSize={6.5} fontWeight={600} fill={ink} fontFamily={FIG}>
             {w}
           </text>
-          <text x={x + 120} y={42.5 + i * 19} textAnchor="end" fontSize={5.5} fill={ink} fillOpacity={0.8} fontFamily={MONO}>
+          <text x={x + 120} y={42.5 + i * 19} textAnchor="end" fontSize={5.5} fill={ink} fillOpacity={0.8} fontFamily={FIG}>
             {t}
           </text>
         </g>
       ))}
       {more && (
-        <text x={x + 10} y={94} fontSize={6} fill={MUTED} fontFamily={MONO}>
+        <text x={x + 10} y={94} fontSize={6} fill={MUTED} fontFamily={FIG}>
           {more} more
         </text>
       )}

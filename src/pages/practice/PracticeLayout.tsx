@@ -33,6 +33,9 @@ import ScrollHome from '../../components/layout/ScrollHome';
 import { useGlideHold } from '../../components/ui/useGlideHold';
 import { SIM_FEED } from '../../data/paper/feed';
 import { TAPE_DAYS } from '../../data/review/tape';
+import { NAV_ITEMS } from '../../components/layout/nav';
+import ProductGlyph from '../../brand/ProductGlyph';
+import MarkLoad from '../../brand/MarkLoad';
 
 const Fact = ({ label, children, testId, title }: { label: string; children: React.ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0">
@@ -48,6 +51,8 @@ const PracticeLayout = () => {
   const outlet = useOutlet();
   const page = PRACTICE_SUBPAGES.find(p => location.pathname.startsWith(p.path)) ?? PRACTICE_SUBPAGES[0];
   const PageIcon = page.icon;
+  /* Paper, Backtest and the Journal are products of their own: each wears its glyph, read from the rail's own list */
+  const glyph = NAV_ITEMS.find(i => i.path === page.path)?.glyph;
   const holdRef = useGlideHold<HTMLDivElement>();
   /* a session's desk and its report are one page each: the body does not fade when only the clock's address would; a walk
      from one trade of the journal to the next is one page too (JournalTrade fades its own body) */
@@ -59,9 +64,13 @@ const PracticeLayout = () => {
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-practice-shell={page.label}>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0" aria-hidden="true">
-              <PageIcon className="w-3.5 h-3.5" />
-            </span>
+            {glyph ? (
+              <ProductGlyph name={glyph} size={24} className="shrink-0 rounded-md" />
+            ) : (
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0" aria-hidden="true">
+                <PageIcon className="w-3.5 h-3.5" />
+              </span>
+            )}
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{page.subtitle}</p>
@@ -93,7 +102,7 @@ const PracticeLayout = () => {
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={fadeKey} ref={holdRef} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }} className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]">
           <ScrollHome />
-          <Suspense fallback={<PracticePageSkeleton pathname={location.pathname} />}>{outlet}</Suspense>
+          <Suspense fallback={<><MarkLoad /><PracticePageSkeleton pathname={location.pathname} /></>}>{outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
       <BackToTop testId="practice" />
