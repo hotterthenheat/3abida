@@ -54,7 +54,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   passes before the first frame, and the act ends with nothing focused, so a film meets its own first frame. A CSS
   animation that loops for ever (Trace's LIVE breath, the mark's foil) is held and stepped on the film's clock — on the
   browser's it ran several times too fast; one that ends runs freely (something may wait for its end). Films shot
-  before 2026-10-01 17:00 still show the mark's foil panning fast — re-filming a page fixes it. Live pages
+  before the fix still show the mark's foil panning fast — re-filming a page fixes it (measured 2026-10-01: the mark's
+  corner changes ~0.1 a frame in those and ~0.02-0.05 in the fixed ones; 34 desk films still wait — every desk film but
+  Compass's and Trace's Live Tape, Net Flow, Dark Pool and Screener; phone films do not show the mark). They wait for
+  the owner's ticker logos (2026-10-01: the owner is supplying the 57 names on the grey letter tile and the six funds and
+  indices), so every page is filmed once, with the logos in. Live pages
   move under an act: a menu's choice is made again by its words, not its place; a press that must not land on something
   (Compass's chosen card, whose second press opens its page) names it in `unless`; a pick that sets the page's focus
   (the Wall's wall) is undone by letting go of the focus, not by picking again. Never edit src while a run films: the
