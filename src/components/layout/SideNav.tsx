@@ -66,7 +66,8 @@ import { alpha } from '../gex/paletteInk';
 import { EMBEDDED } from '../../embed';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
-import Signature from '../../brand/Signature';
+import Signature, { SIGNATURE_DOT } from '../../brand/Signature';
+import { readMarketState } from '../../data/marketState';
 import ProductGlyph from '../../brand/ProductGlyph';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
@@ -207,6 +208,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const name = lookup(activeTicker)?.name ?? null;
   const change = marketData?.changePercent ?? 0;
   const open = clock.phase === 'OPEN' || clock.phase === 'AUCTION';
+  /* the signature's word, read on the clock's own tick so the dot and the line never disagree */
+  const marketWord = readMarketState().word;
   const priceText = marketData ? `$${marketData.spot.toFixed(2)}` : '—';
   const changeText = marketData ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
 
@@ -531,20 +534,20 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             </span>
           )}
         </NavLink>
-        {/* THE SIGNATURE (Slayer Logo System): "slayer:~ $ ● simulated" — the data is the simulator's, and everything says
-            so until a feed is signed — over the session's own line and the clock. The rail keeps the state's dot. */}
+        {/* THE SIGNATURE (Slayer Logo System): "slayer:~ $ ● live" — the market's own word, live while it is open and
+            closed when it is shut — over the session's own line and the clock. The rail, folded, keeps the state's dot. */}
         <div
           className={`shrink-0 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[22px] pr-0 py-3.5' : 'px-3.5 py-2.5'}`}
-          title={collapsed ? `slayer:~ $ simulated · ${clock.label} · ${time}` : undefined}
-          onMouseEnter={e => showTip(e, `Simulated data · ${clock.label} · ${time}`)}
+          title={collapsed ? `slayer:~ $ ${marketWord} · ${clock.label} · ${time}` : undefined}
+          onMouseEnter={e => showTip(e, `slayer:~ $ ${marketWord} · ${clock.label} · ${time}`)}
           onMouseLeave={hideTip}
           data-sidenav-signature
         >
           {collapsed ? (
-            <span className="block w-2 h-2 rounded-full" style={{ background: 'rgb(var(--silver))' }} aria-label="Simulated data" />
+            <span className="block w-2 h-2 rounded-full" style={{ background: SIGNATURE_DOT[marketWord] }} aria-label={`slayer:~ $ ${marketWord}`} />
           ) : (
             <>
-              <Signature state="simulated" rule={false} className="text-[10.5px]" />
+              <Signature state={marketWord} rule={false} className="text-[10.5px]" />
               <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
                 <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
                   {open ? clock.label : clock.label.toLowerCase()}

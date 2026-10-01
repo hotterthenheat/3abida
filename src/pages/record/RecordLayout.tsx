@@ -65,7 +65,7 @@ const RecordLayout = () => {
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           /* The same first screen Pinpoint keeps: the top bar, this head and the page's padding */
-          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px-var(--demo-band,0px))]"
+          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]"
         >
           {/* A subpage opens at its head, not where the last one's scroll was (2026-09-11) */}
           <ScrollHome />

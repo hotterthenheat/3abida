@@ -162,7 +162,7 @@ export const TERMS = {
   Attribution:
     'The prints that built the exposure at a strike today. It answers whether the level is one institution\u2019s single order or four hundred small ones \u2014 the same wall on the map, a different thing to trade against.',
   Provenance:
-    'What a number on this page is standing on: measured came from a feed as-is, derived was computed here from measured inputs, modelled came from the simulator with no market consulted.',
+    'What a number on this page is standing on: measured came from a feed as-is, derived was computed here from measured inputs, modelled came from a model with no market consulted.',
   MACD:
     'Two EMAs\u2019 distance (12 vs 26) with its own 9-EMA signal. The histogram is the gap between them \u2014 momentum building or fading before price shows it.',
   Bollinger:

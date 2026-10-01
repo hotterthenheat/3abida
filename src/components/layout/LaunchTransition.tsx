@@ -113,7 +113,7 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
               <div className="h-full rounded-full holo-bar animate-gate-fill" />
             </div>
             <span className="sr-only">{caption}</span>
-            <Signature state="simulated" rule={false} className="text-[10.5px] select-none" />
+            <Signature rule={false} className="text-[10.5px] select-none" />
           </motion.div>
         )}
       </AnimatePresence>

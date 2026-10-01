@@ -222,7 +222,7 @@ const PinpointLayout = () => {
           /* THE DESK OWNS ITS FIRST SCREEN: top bar 56 + the shell's padding
              and its head ≈ 164. Short pages stretch to a full first screen;
              the footer starts below the fold. */
-          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px-var(--demo-band,0px))]"
+          className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]"
         >
           {/* A subpage opens at its head, not where the last one's scroll was (2026-09-11) */}
           <ScrollHome />

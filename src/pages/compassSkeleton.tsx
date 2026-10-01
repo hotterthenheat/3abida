@@ -99,7 +99,7 @@ export const CompassPageSkeleton = () => (
           </div>
         </div>
       </div>
-      <div className="xl:col-span-4 min-w-0 flex flex-col xl:sticky xl:top-5 xl:self-start xl:h-[calc(100vh-40px-var(--demo-band,0px))]">
+      <div className="xl:col-span-4 min-w-0 flex flex-col xl:sticky xl:top-5 xl:self-start xl:h-[calc(100vh-40px)]">
         <div className="border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col w-full flex-1 min-h-0">
           <div className="px-5 pt-4 pb-3">
             <TitleRow title={150} chip={false} door={false} />

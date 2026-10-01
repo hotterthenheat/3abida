@@ -416,7 +416,7 @@ const Board = () => {
         {/* The rail sits OUTSIDE the board's keyed swap on purpose — it holds
             still while the board fades through kind switches. */}
         {railSticks ? (
-          <div className="xl:col-span-4 min-w-0 flex flex-col xl:sticky xl:top-5 xl:self-start xl:h-[calc(100vh-40px-var(--demo-band,0px))]" data-compass-rail-col="sticks">
+          <div className="xl:col-span-4 min-w-0 flex flex-col xl:sticky xl:top-5 xl:self-start xl:h-[calc(100vh-40px)]" data-compass-rail-col="sticks">
             {rail}
           </div>
         ) : (

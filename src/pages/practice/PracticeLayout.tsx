@@ -78,21 +78,21 @@ const PracticeLayout = () => {
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           {which === 'paper' && (
             <>
-              <Fact label="Prices" testId="source" title={SIM_FEED ? 'The terminal’s simulator: it trades round the clock, and it is a new market every time the page loads — so what is open is closed when the page closes' : undefined}>
-                {SIM_FEED ? 'Simulated feed' : 'Live feed'}
+              <Fact label="Prices" testId="source" title={SIM_FEED ? 'It trades round the clock and starts fresh every time the page loads — so what is open is closed when the page closes' : undefined}>
+                {SIM_FEED ? 'Streaming' : 'Live feed'}
               </Fact>
               <Fact label="Clock">Today · New York</Fact>
             </>
           )}
           {which === 'backtest' && (
             <>
-              <Fact label="Prices" testId="source">Simulated tape</Fact>
+              <Fact label="Prices" testId="source">Replayed tape</Fact>
               <Fact label="History">{TAPE_DAYS} sessions · a minute a bar</Fact>
             </>
           )}
           {which === 'journal' && (
             <>
-              <Fact label="Prices" testId="source">{SIM_FEED ? 'Simulated' : 'Live feed · simulated tape'}</Fact>
+              <Fact label="Prices" testId="source">{SIM_FEED ? 'Streaming · replayed tape' : 'Live feed · replayed tape'}</Fact>
               <Fact label="Clock">New York</Fact>
             </>
           )}

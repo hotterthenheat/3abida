@@ -300,7 +300,6 @@ export const NotFoundPrompt = () => {
                   Front page
                 </Link>
               </div>
-              <p className="mt-3 text-[12px] text-textMuted">Opens the demo on simulated data.</p>
             </div>
           )}
         </div>

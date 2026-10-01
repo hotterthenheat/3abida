@@ -553,13 +553,6 @@
   .wordmark-cursor { animation: none; }
 }
 
-/* THE DEMO BAND'S HEIGHT (components/layout/DemoBand.tsx): a page sized to the screen (Terrain, the grids that run to the
-   floor, the sticky rails) takes it off, so the band never pushes the floor below the fold. Phones have no band. */
-:root { --demo-band: 0px; }
-@media (min-width: 768px) {
-  :root[data-demo-band] { --demo-band: 32px; }
-}
-
 /* "LAUNCH TERMINAL" (Slayer Logo System: "Holographic silver · in the S and on Launch terminal only"): the foil with the
    dark word on black; on paper the foil is a surface that vanishes, so there it is the ink with the paper's word */
 .launch-pill {

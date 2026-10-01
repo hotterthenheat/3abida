@@ -182,10 +182,9 @@ const MobileMenu = ({ open, onClose }: Props) => {
 
           {NAV_GROUPS.filter(g => g !== 'Home').map(groupBlock)}
         </nav>
-        {/* a phone has no demo band (DemoBand.tsx): the menu's foot says what the data is */}
+        {/* the menu's foot: the signature, in the market's own word */}
         <div className="shrink-0 px-4 py-3 border-t border-borderSubtle">
-          <Signature state="simulated" rule={false} className="text-[11px]" />
-          <p className="mt-1 text-[11.5px] text-textMuted">Simulated data. Nothing here is live.</p>
+          <Signature rule={false} className="text-[11px]" />
         </div>
       </div>
     </div>,

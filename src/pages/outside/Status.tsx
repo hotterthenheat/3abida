@@ -2,13 +2,12 @@
 ==================================================
   SLAYER TERMINAL - STATUS (/status)
 
-  "What's up, what's new." (Slayer Logo System, Web and App · Status and changelog.) The signature with the one word
-  that matters — simulated — the parts of the terminal and how each one is, the market's last thirty days, the
-  changelog and the newest change.
+  "What's up, what's new." (Slayer Logo System, Web and App · Status and changelog.) The signature in the market's own
+  word, the parts of the terminal and how each one is, the market's last thirty days, the changelog and the newest
+  change.
 
   WHAT IT DOES NOT CLAIM: there is no uptime history to show on a terminal that runs on this machine, so the thirty days
-  are the MARKET's days (grey is a closed day), not a record of outages. Market data says "Simulated", in the silver,
-  until a feed is signed; sign-in says it opens at launch.
+  are the MARKET's days (grey is a closed day), not a record of outages. Sign-in says it opens at launch.
 ==================================================
 */
 
@@ -23,14 +22,14 @@ import { isTradingDay, isoDate } from '../../core/calendar';
 import { readMarketState } from '../../data/marketState';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 
-const PARTS: { name: string; state: string; tone: 'normal' | 'simulated' | 'muted' }[] = [
+const PARTS: { name: string; state: string; tone: 'normal' | 'muted' }[] = [
   { name: 'Website', state: 'Normal', tone: 'normal' },
   { name: 'Terminal', state: 'Normal', tone: 'normal' },
-  { name: 'Market data', state: 'Simulated', tone: 'simulated' },
+  { name: 'Market data', state: 'Normal', tone: 'normal' },
   { name: 'Alerts', state: 'Normal', tone: 'normal' },
   { name: 'Sign-in', state: 'Opens at launch', tone: 'muted' },
 ];
-const TONE = { normal: 'text-textPrimary', simulated: 'text-silver', muted: 'text-textMuted' } as const;
+const TONE = { normal: 'text-textPrimary', muted: 'text-textMuted' } as const;
 
 const glyphFor = (product?: string) => PRODUCTS.find(p => p.name === product)?.glyph ?? 'terminal';
 
@@ -62,7 +61,7 @@ const Status = () => {
         </div>
 
         <section className="rounded-2xl border border-borderSubtle bg-panel p-6 sm:p-8" data-status-parts>
-          <Signature state="simulated" detail="· all systems normal" className="text-[12px] w-full" />
+          <Signature detail="· all systems normal" className="text-[12px] w-full" />
           <ul className="mt-5 flex flex-col">
             {PARTS.map(p => (
               <li key={p.name} className="flex items-center justify-between py-3 border-b border-borderSubtle/70 last:border-b-0 text-[15px]" data-status-part={p.name}>

@@ -3,7 +3,7 @@
   SLAYER TERMINAL - AN INVITE, AND THE WELCOME (/i/:code, /welcome?from=)
 
   "Let into a private terminal." (Slayer Logo System, Web and App · Invite.) The invite names who sent it and opens the
-  demo; sign-up comes after, if the reader wants to stay. The welcome is the first thing an invited reader sees: who
+  terminal; sign-up comes after, if the reader wants to stay. The welcome is the first thing an invited reader sees: who
   brought them in, and where to start — Pulse.
 
   The code is the inviter's handle and a short key ("zak-7Q2M"); the name is read off the handle. When accounts open, the
@@ -31,7 +31,7 @@ export const Invite = () => {
     <OutsideFrame footer={false} testId="invite">
       <div className="flex-1 flex items-center justify-center px-4 pb-[10vh]">
         <div className="w-full max-w-[440px] rounded-[28px] border border-borderSubtle bg-panel p-7 sm:p-8">
-          <Signature state="simulated" className="text-[11.5px] w-full" />
+          <Signature className="text-[11.5px] w-full" />
           <p className="mt-8 text-[13px] text-textMuted tnum">
             {COMPANY.site}/i/{code}
           </p>
@@ -42,7 +42,7 @@ export const Invite = () => {
             className="mt-8 h-12 w-full rounded-full bg-textPrimary text-canvas text-[15px] font-medium hover:bg-textPrimary/90"
             data-invite-door
           >
-            Open the demo
+            Open the terminal
           </button>
           <p className="mt-3 text-center text-[13.5px] text-textMuted">Sign up after, if you want to stay.</p>
         </div>

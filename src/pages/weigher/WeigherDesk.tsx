@@ -1408,7 +1408,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
                   align="end"
                   trigger={
                     /* the small size — a 28px control filled the head's 32px line to the borders (Noah, 2026-09-14) */
-                    <button className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" title="Add a position you own or sold — its simulated returns land in the card" data-add-position>
+                    <button className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" title="Add a position you own or sold — its projected returns land in the card" data-add-position>
                       <Plus className="w-3 h-3" />
                       Add a position
                     </button>

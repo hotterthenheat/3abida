@@ -48,8 +48,9 @@
     section in a kind manner not a big bold section").
     The doors into the terminal stay until checkout
     and sign-in exist (his call, the same evening).
-  · The window says its data is simulated. The page
-    says nothing about a feed's speed or source.
+  · The page never says simulated, demo or fake (the
+    owner, 2026-10-01), and nothing about a feed's
+    speed or source.
   · Phones first: the paid traffic arrives from X.
   · The prices are data/billing.ts's. WHAT EACH PLAN
     HOLDS below is Noah's to re-decide.
@@ -266,17 +267,16 @@ const PLAN_HOLDS: Record<PlanKey, { holds: Hold[]; featured?: boolean }> = {
 };
 
 /* THE QUESTIONS — the Logo System's FAQ bank (09 · Voice / 10 · Messaging, 2026-09-30), two of the page's own kept (the
-   pictures, the address). The bank says the data comes from licensed vendors; until the licences are signed that answer
-   says what is true today first (the brand's own rule: "'Live' or 'real-time' only once the data contract says so"). No
-   refunds, said kindly, here and never as a banner. */
+   pictures, the address). The bank says the data comes from licensed vendors once the licences are signed. No refunds,
+   said kindly, here and never as a banner. The page never says simulated, demo or fake (the owner, 2026-10-01). */
 const FAQ: { q: string; a: string }[] = [
   { q: 'Alerts or signals?', a: 'Alerts. You set a level and Slayer tells you when price gets there. It never tells you what to buy or sell.' },
-  { q: 'Where does the data come from?', a: 'Today the demo runs on simulated data, and every page says so. Once our data licences are signed it comes from licensed market data vendors, and every number says what it stands on: live, measured, derived, model or simulated.' },
+  { q: 'Where does the data come from?', a: 'Once our data licences are signed it comes from licensed market data vendors, and every number says what it stands on: live, measured, derived or model.' },
   { q: 'How is it different?', a: 'It puts the prints, the positions, the levels and the filings on one screen, and says where each number comes from.' },
   { q: 'Do I need to know options?', a: 'No. Pinpoint shows levels on a price chart. The guides explain each term in plain words.' },
-  { q: 'Are the pictures on this page real?', a: 'Yes. Every one is a picture of the terminal itself, taken from the real page, not a mock-up. The numbers in them are simulated data.' },
+  { q: 'Are the pictures on this page real?', a: 'Yes. Every one is a picture of the terminal itself, taken from the real page, not a mock-up.' },
   { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
-  { q: 'Do you offer refunds?', a: 'We don\u2019t, so the demo is free and needs no sign-up. Try every page on it first. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
+  { q: 'Do you offer refunds?', a: 'We don\u2019t, so the terminal is free to try and needs no sign-up. Try every page first. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
   { q: 'How do I reach you?', a: 'info@slayerterminal.com. A person reads it.' },
 ];
 
@@ -541,7 +541,6 @@ const Nav = ({ ground }: { ground: Ground }) => {
             >
               Try it, no sign-up
             </a>
-            <p className="mt-2.5 text-center text-[12px] text-textMuted">Opens the demo on simulated data.</p>
           </motion.nav>
         )}
       </AnimatePresence>
@@ -556,12 +555,12 @@ const Nav = ({ ground }: { ground: Ground }) => {
 
    THE BRAND'S HERO (Slayer Logo System, Web and App · Landing, 2026-09-30): "One line, one button. The demo is the trial."
    The line alone, its last word marked in the foil — the second line that cycled "See the levels / flow / book / record"
-   went with it — the paragraph, ONE button and the note beside it. The signature stands over it where the eyebrow was. */
+   went with it — the paragraph and ONE button. The signature stands over it where the eyebrow was. */
 const Hero = ({ onLaunch }: { onLaunch: () => void }) => {
   const ground = useBlockGround();
   return (
     <Wrap className="pt-[120px] sm:pt-[136px] pb-10 sm:pb-14">
-      <Signature state="simulated" className="text-[12px]" />
+      <Signature className="text-[12px]" />
       <h1 className="mt-7 font-light tracking-[-0.045em] leading-[0.94] text-[clamp(3.1rem,8.2vw,8rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can{' '}
         {/* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */}
@@ -575,7 +574,6 @@ const Hero = ({ onLaunch }: { onLaunch: () => void }) => {
           <Pill href={DOOR} onClick={onLaunch} testId="hero">
             Try it, no sign-up
           </Pill>
-          <p className="text-[13px] text-textMuted">Opens the demo on simulated data.</p>
         </div>
       </div>
     </Wrap>
@@ -726,7 +724,7 @@ const Page = () => {
               <Plan key={p.key} planKey={p.key} onChoose={choose} />
             ))}
           </div>
-          <p className="mt-5 text-[13px] text-textMuted">There are no refunds, so try every page on the demo first. Prices in US dollars.</p>
+          <p className="mt-5 text-[13px] text-textMuted">There are no refunds, so try every page first. Prices in US dollars.</p>
         </Wrap>
       </Block>
 
@@ -759,7 +757,6 @@ const Page = () => {
                 Try it, no sign-up
               </Pill>
             </div>
-            <p className="mt-4 text-[13px] text-textMuted">Opens the demo on simulated data.</p>
           </div>
         </Wrap>
         <SiteFooter home />

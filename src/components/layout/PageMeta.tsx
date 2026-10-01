@@ -74,7 +74,7 @@ const TOP: Record<string, Meta> = {
   /* the pages outside the terminal (pages/outside, pages/auth — the Logo System's Web and App, 2026-10-01) */
   '/status': page('Status', 'What’s up and what’s new: each part of the terminal, the market’s last 30 days and the changelog.'),
   '/about': page('About', 'Slayer Terminal gathers what moves a price into one terminal: the prints, the positions, the levels, the filings.'),
-  '/signup': page('Make your account', 'You can keep using the demo while you decide.'),
+  '/signup': page('Make your account', 'You can keep using the terminal while you decide.'),
   '/signin': page('Sign in', 'Your desks are where you left them.'),
   '/reset': page('Reset your password', 'We’ll send a link. It works for one hour.'),
   '/verified': page('You’re in', 'Your email is confirmed. Start on the landing desk.'),
@@ -83,8 +83,8 @@ const TOP: Record<string, Meta> = {
   '/legal/terms': page('Terms', 'The terms for using Slayer Terminal.', 'Legal'),
   '/legal/privacy': page('Privacy', 'What we keep about you, why, and how to have it removed.', 'Legal'),
   '/legal/risk': page('Risk disclosure', 'Trading options can lose money quickly, and can lose all of it.', 'Legal'),
-  '/legal/refunds': page('Refund policy', 'We don’t offer refunds, so the demo is free and runs every page.', 'Legal'),
-  '/legal/data': page('Data sources', 'What every number stands on: live, measured, derived, model or simulated.', 'Legal'),
+  '/legal/refunds': page('Refund policy', 'We don’t offer refunds, so the terminal is free to try and runs every page.', 'Legal'),
+  '/legal/data': page('Data sources', 'What every number stands on: live, measured, derived or model.', 'Legal'),
 };
 
 /* each is the line the section itself wears under its heading (pages/settings/Settings.tsx) */

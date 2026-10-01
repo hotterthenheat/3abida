@@ -79,7 +79,7 @@ export function useJournalSource(kind: JournalKind): JournalSource {
             today: nyAt(Date.now()).date,
             current: paper.inHand,
             sample: SAMPLE_JOURNAL ? { shown: sampleShown, set: setSampleShown } : undefined,
-            foot: 'Simulated live prices — practice, not advice. Every time on this page is New York’s; the chart is the simulator’s own clock, as the desk drew it.',
+            foot: 'Practice, not advice. Every time on this page is New York’s; the chart keeps the desk’s own clock, as the desk drew it.',
       };
     }
     const rows = rowsOf(sessions);
@@ -96,7 +96,7 @@ export function useJournalSource(kind: JournalKind): JournalSource {
               /* a replayed journal has no today of its own: its newest day stands in */
               today: rows[0] ? calendarDayOf(rows[0]) : new Date().toISOString().slice(0, 10),
               current: null,
-              foot: 'Simulated prices on a seeded tape — practice, not advice. Every time on this page is New York’s.',
+              foot: 'Practice, not advice. Every time on this page is New York’s.',
     };
   }, [kind, kind === 'paper' ? paper.accounts : sessions, words, paper.inHand, sampleShown]); // eslint-disable-line react-hooks/exhaustive-deps
 }

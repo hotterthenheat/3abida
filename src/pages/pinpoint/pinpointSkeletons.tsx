@@ -457,7 +457,7 @@ export const PinpointPageSkeleton = ({ pathname }: { pathname: string }) => {
 export const PinpointRouteSkeleton = ({ pathname }: { pathname: string }) => (
   <>
     <PinpointShellSkeleton pathname={pathname} />
-    <div className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px-var(--demo-band,0px))]" aria-busy="true" aria-label="Loading">
+    <div className="flex flex-col gap-4 flex-grow min-h-[calc(100vh-174px)]" aria-busy="true" aria-label="Loading">
       <PinpointPageSkeleton pathname={pathname} />
     </div>
   </>

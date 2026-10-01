@@ -492,7 +492,7 @@ const PaperDesk = () => {
         /* no strip over the chart: the account is the right column's first card */
         strip={false}
         picker={picker}
-        foot="Simulated live prices — practice, not advice. What is open is closed when the page closes: the simulated market is a new one on every load."
+        foot="Practice, not advice. What is open is closed when the page closes: the market starts fresh on every load."
         revision={revision}
         account={{ equity: v.equity, openPnl: v.openPnl, third: ev ? { label: 'room', value: usd(Math.max(0, ev.room), 0) } : { label: 'free', value: usd(v.free, 0) } }}
         names={[deskName]}
@@ -587,7 +587,7 @@ const HeldElsewhere = () => (
   <div className={`${card} px-5 py-3 flex items-center gap-4 flex-wrap border-warn/40`} data-paper-elsewhere>
     <div className="min-w-0 flex-1">
       <p className="text-[12px] font-medium text-textPrimary">Your paper accounts are open in another tab.</p>
-      <p className="mt-0.5 text-[11px] text-textMuted">This tab only reads them. Taking them here closes whatever is open there, at the last price that tab saw — its simulated market is not this one.</p>
+      <p className="mt-0.5 text-[11px] text-textMuted">This tab only reads them. Taking them here closes whatever is open there, at the last price that tab saw — each tab runs its own market.</p>
     </div>
     <button type="button" onClick={takeHere} className="h-8 px-4 rounded-full text-[12px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: '#0a0a0a' }} data-paper-take-here>
       Take them here

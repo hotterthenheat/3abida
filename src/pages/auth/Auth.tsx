@@ -28,7 +28,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const Card = ({ children, testId }: { children: ReactNode; testId: string }) => (
   <div className="flex-1 flex items-start sm:items-center justify-center px-4 py-8 sm:pb-[10vh]">
     <div className="w-full max-w-[400px] rounded-[32px] border border-borderSubtle bg-panel px-7 pt-7 pb-8 flex flex-col" data-auth={testId}>
-      <Signature state="simulated" className="text-[11.5px] w-full" />
+      <Signature className="text-[11.5px] w-full" />
       {children}
     </div>
   </div>
@@ -104,13 +104,13 @@ const Auth = () => {
           See the confirmed screen
         </Link>
         <div className="mt-8 flex flex-col items-center gap-3">
-          <p className="text-[13.5px] text-textMuted">Keep using the demo while you wait.</p>
-          <LaunchPill label="Open the demo" />
+          <p className="text-[13.5px] text-textMuted">Keep using the terminal while you wait.</p>
+          <LaunchPill label="Open the terminal" />
         </div>
       </>
     ) : (
       <>
-        <Head title="Make your account." line="You can keep using the demo while you decide." />
+        <Head title="Make your account." line="You can keep using the terminal while you decide." />
         {plan && (
           <p className="mt-4 text-[13.5px] text-textSecondary" data-auth-plan={planKey}>
             {plan.name} · {plan.price} {plan.period}. Payments open at launch.

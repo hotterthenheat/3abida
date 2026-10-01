@@ -94,7 +94,7 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
         id: `ticker-${t.symbol}`,
         group: 'Ticker' as const,
         label: `Set ticker → ${t.symbol}`,
-        hint: t.symbol === activeTicker ? 'active' : t.name === t.symbol ? 'switch simulation feed' : t.name,
+        hint: t.symbol === activeTicker ? 'active' : t.name === t.symbol ? 'switch feed' : t.name,
         icon: <ArrowRightLeft className="w-3.5 h-3.5" />,
         run: () => changeTicker(t.symbol),
       }));
@@ -103,7 +103,7 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       id: `ticker-${tk}`,
       group: 'Ticker' as const,
       label: `Set ticker → ${tk}`,
-      hint: tk === activeTicker ? 'active' : 'switch simulation feed',
+      hint: tk === activeTicker ? 'active' : 'switch feed',
       icon: <ArrowRightLeft className="w-3.5 h-3.5" />,
       run: () => changeTicker(tk),
     }));

@@ -5,7 +5,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
 # Project context (2026-09-30)
 - Slayer is UI-only for now: built and run on the owner's localhost, one user (the owner), no backend yet. Nothing is
   promised to anyone, so "live" wording, the sample journal and launch-readiness are not issues to raise.
-- All market data is simulated (src/core/simulator.ts). Keys, a data layer and a backend come later.
+- All market data is simulated (src/core/simulator.ts). Keys, a data layer and a backend come later. The UI never says
+  so: no "simulated", "demo" or "fake" anywhere a reader can see or hear it (the owner, 2026-10-01) — not in a label,
+  a tooltip, an aria-label, a page title or the landing. A what-if return is "projected".
 - Paper and the backtest trade options only; the futures backtest and the Python engine were removed on 2026-09-30.
 - Speed rules (2026-09-30 perf pass): no endless animation of a background, a shadow or an SVG part — those repaint
   every frame (the holo foil pans on appear and hover only; the clock ticks); opacity and transform loops are fine. Seeded simulator
@@ -28,9 +30,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   glyph (PageHeader, the Compass, Weigher and Practice heads and their skeletons); a sub-page (Map, Live Tape, News)
   keeps its line icon. Holographic silver only in the S and on "Launch terminal" (.launch-pill); every other door is
   the plain ink pill. Type: Helvetica for every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font.
-  The only monospace is the drawn wordmark; the signature ("slayer:~ $ ● simulated") and code use --font-code. Product
-  one-liners are nav.ts's (the brand's own); never write grade, score, win rate, signal (as a trade call), guaranteed,
-  confluence, market intelligence. Pages outside the terminal (status, about, legal, the account forms, invite) use
-  pages/outside/OutsideFrame; the account forms send nothing until a backend exists and say so. The demo band sits
-  over every terminal page and sets --demo-band; a page sized to the screen subtracts it. The static icons and og.jpg
-  are drawn by `npm run brand:assets` (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.
+  The only monospace is the drawn wordmark; the signature ("slayer:~ $ ● live" — the market's own word, live while it
+  is open and closed when it is shut) and code use --font-code. Product one-liners are nav.ts's (the brand's own);
+  never write grade, score, win rate, signal (as a trade call), guaranteed, confluence, market intelligence. Pages
+  outside the terminal (status, about, legal, the account forms, invite) use pages/outside/OutsideFrame; the account
+  forms send nothing until a backend exists and say so. The static icons and og.jpg are drawn by
+  `npm run brand:assets` (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.

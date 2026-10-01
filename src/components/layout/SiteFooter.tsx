@@ -173,11 +173,10 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
     <div className="border-t border-borderSubtle/60">
       <div className="px-6 md:px-10 py-6 max-w-6xl mx-auto flex flex-col gap-4">
         <p className="max-w-[92ch] text-[12px] leading-relaxed text-textMuted">
-          Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell. Data on this site is simulated until our data licences are signed; once live,
-          each page says which numbers are live, delayed or simulated.
+          Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell.
         </p>
         <div className="flex flex-col md:flex-row gap-3 md:items-center">
-          <Signature state="simulated" detail={`· demo feed · ${VERSION}`} rule={false} className="text-[11px]" />
+          <Signature detail={`· ${VERSION}`} rule={false} className="text-[11px]" />
           <span className="md:ml-auto text-[11px] text-textMuted">
             {/* the year is the calendar's, not a number typed once (2026-09-19) */}© {new Date().getFullYear()} {COMPANY.legalName} · {COMPANY.address}
           </span>

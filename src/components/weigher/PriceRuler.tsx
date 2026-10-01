@@ -159,7 +159,7 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
         width="100%"
         role="slider"
         tabIndex={0}
-        aria-label="The stock's price the returns are simulated at — drag, or use the arrow keys, a cent at a time"
+        aria-label="The stock's price the returns are projected at — drag, or use the arrow keys, a cent at a time"
         aria-valuemin={round2(spot * 0.5)}
         aria-valuemax={round2(spot * 1.5)}
         aria-valuenow={value}

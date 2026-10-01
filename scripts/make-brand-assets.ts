@@ -125,7 +125,7 @@ for (const name of ['pulse', 'trace', 'pinpoint'] as GlyphName[]) {
     h1 b{font-weight:500}
     p{margin:18px 0 0;font-size:19px;line-height:1.45;color:#a3a3a3}
     .sig{margin-top:auto;display:flex;align-items:center;gap:10px;font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;font-size:15px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.14);align-self:flex-start}
-    .dot{width:8px;height:8px;border-radius:50%;background:#c7d3e8}
+    .dot{width:8px;height:8px;border-radius:50%;background:rgb(210 255 0)}
     .still{position:absolute;left:560px;top:58px;width:760px;border-radius:12px;border:1px solid #2a2a2a;box-shadow:0 24px 80px rgba(0,0,0,0.6)}
   </style></head><body><div class="card">
     <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br brr"></span>
@@ -134,7 +134,7 @@ for (const name of ['pulse', 'trace', 'pinpoint'] as GlyphName[]) {
       <h1>Trade what you can <b>see.</b></h1>
       <p>The prints, the positions, the levels, the filings.<br>One terminal.</p>
       <div style="margin-top:22px">${wordmark}</div>
-      <div class="sig"><span>slayer:~ $</span><span class="dot"></span><span style="color:#c7d3e8">simulated</span></div>
+      <div class="sig"><span>slayer:~ $</span><span class="dot"></span><span style="color:rgb(210 255 0)">live</span></div>
     </div>
     <img class="still" src="data:image/webp;base64,${still}" alt="">
   </div></body></html>`);

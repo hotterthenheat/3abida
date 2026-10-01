@@ -21,12 +21,9 @@
   public/landing/. Nothing in them is drawn for the
   landing; re-run the script when a page changes.
 
-  WHAT STAYED: the window, its bar saying where it is
-  and that the data is simulated (since 2026-10-01 the
-  brand's demo band: "Simulated data. Nothing here is
-  live." beside the mark), the tour's words
-  choosing the picture, the window turning theme with
-  the page. WHAT WENT: the live frame, "take the
+  WHAT STAYED: the window, its bar saying where it is,
+  the tour's words choosing the picture, the window
+  turning theme with the page. WHAT WENT: the live frame, "take the
   controls", "open", the lime running light (lime is
   the LIVE ink, and a still is not live).
 
@@ -117,7 +114,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
 
   return (
     <div data-theme={theme} data-terminal-window={here} className={`landing-window relative flex flex-col overflow-hidden rounded-[14px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
-      {/* THE BAR — which page this is, and that its numbers are simulated */}
+      {/* THE BAR — which page this is */}
       <div className="shrink-0 h-10 pl-3.5 pr-3.5 flex items-center gap-1.5 sm:gap-3 border-b border-borderSubtle bg-panel font-mono transition-colors duration-500">
         <ProductGlyph name="terminal" size={16} bare />
         <span className="min-w-0 flex items-center gap-1.5 text-[11px] text-textSecondary truncate" data-window-path>
@@ -130,12 +127,6 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
               <span className={i === parts.length - 1 ? 'text-textPrimary font-semibold truncate' : 'text-textMuted truncate hidden sm:inline'}>{p.replace(/-/g, ' ')}</span>
             </span>
           ))}
-        </span>
-        {/* THE DEMO BAND (Slayer Logo System, Web and App · Try before you buy): "Simulated data. Nothing here is live." */}
-        <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-textSecondary whitespace-nowrap font-sans" data-window-band>
-          <span className="w-1.5 h-1.5 rounded-full bg-silver" aria-hidden="true" />
-          <span className="hidden sm:inline">Simulated data. Nothing here is live.</span>
-          <span className="sm:hidden">Simulated</span>
         </span>
       </div>
 

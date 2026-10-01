@@ -185,7 +185,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
         {/* 363 + the 41px foot = the same 404 */}
         <div key={contractKey} className="flex-1 min-h-[363px] flex flex-col items-center justify-center gap-1.5 px-6 text-center select-none animate-soft-in" data-contract-unwatched>
           <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted">Not on your list</span>
-          <span className="font-mono text-[9px] text-textMuted">Watch it marks the contract at this tick's price — its simulated returns land here</span>
+          <span className="font-mono text-[9px] text-textMuted">Watch it marks the contract at this tick's price — its projected returns land here</span>
         </div>
         <div className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap" data-contract-foot>
           <span className="font-mono text-[10px] text-textMuted">Not on your list — Watch it marks it at this tick's price</span>
@@ -232,7 +232,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                 contract price, and the clock */}
             <div className="flex items-end gap-4 flex-wrap" data-sim-figures>
               <div className="min-w-0">
-                <span className="block font-mono text-[9px] uppercase tracking-widest text-textMuted">Simulated return</span>
+                <span className="block font-mono text-[9px] uppercase tracking-widest text-textMuted">Projected return</span>
                 <span className={`block font-mono text-[26px] font-bold tnum leading-none mt-1 ${dirInk(retNow)}`} data-sim-return>
                   {fmtPnl(retNow)}
                 </span>
@@ -249,7 +249,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                 </span>
               </div>
               <div className="ml-auto self-start">
-                <CardTabs options={VIEWS} value={view} onChange={setView} ariaLabel="Simulated returns by date or by price" />
+                <CardTabs options={VIEWS} value={view} onChange={setView} ariaLabel="Projected returns by date or by price" />
               </div>
             </div>
 
@@ -271,7 +271,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                     scale="pnl"
                     cardW={216}
                     cardH={66}
-                    testId="sim-by-date"
+                    testId="returns-by-date"
                     card={h => {
                       const s = h.point ? worthBy.get(h.point.time) : null;
                       return (
@@ -302,13 +302,13 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
             )}
 
             {/* THE RULER — the stock's price, dragged by the cent; the map's levels stand on it */}
-            <PriceRuler value={at} onChange={setPrice} spot={spot} marks={marks} testId="sim-ruler" />
+            <PriceRuler value={at} onChange={setPrice} spot={spot} marks={marks} testId="returns-ruler" />
           </>
         ) : (
           /* Robinhood's "only available for active positions", as one quiet line */
           <div className="min-h-[96px] flex items-center justify-center rounded-md border border-borderSubtle/60 bg-ink/[0.02]" data-sim-settled>
             <span className="font-mono text-[10px] text-textMuted">
-              {w ? (w.status === 'closed' ? 'Closed by hand' : 'Settled at the bell') : `Expired ${monthDay(pos.expiry)} — settled`} — simulated returns are for open positions
+              {w ? (w.status === 'closed' ? 'Closed by hand' : 'Settled at the bell') : `Expired ${monthDay(pos.expiry)} — settled`} — projected returns are for open positions
             </span>
           </div>
         )}
