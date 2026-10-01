@@ -21,7 +21,7 @@ const Head = () => (
   <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" aria-hidden data-skeleton="settings-head">
     <div className="min-w-0 flex-1">
       <div className="h-6 flex items-center gap-2.5">
-        <SlayerMark size={24} state="idle" label="" />
+        <SlayerMark size={20} bare state="idle" label="" />
         <span className="text-[15px] font-semibold leading-tight text-textPrimary">Settings</span>
       </div>
       <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">How the terminal looks, what the desk opens on, what it says out loud</p>
@@ -206,7 +206,7 @@ const SectionBox = ({ section }: { section: string }) => {
         <Box rows={1}>
           {/* The mark, the wordmark and the version, then the licences door */}
           <div className="px-5 border-t border-borderSubtle/60 flex items-center gap-4 h-[73px]">
-            <SlayerMark size={40} state="idle" label="" />
+            <SlayerMark size={32} bare state="idle" label="" />
             <div className="flex flex-col gap-1.5">
               <Line w={118} h={13} />
               <Line w={92} h={10} />

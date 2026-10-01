@@ -1,1186 +1,266 @@
 {
  "compass-dark-desk": {
-  "d": 10.27,
-  "c": [
-   [
-    0.3,
-    "Contracts picked off today’s levels."
-   ],
-   [
-    3.5,
-    "Each one marked active, watch or fading."
-   ],
-   [
-    6.3,
-    "The heaviest contracts on the top name."
-   ]
-  ]
+  "d": 11.57
  },
  "compass-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Contracts picked off today’s levels."
-   ],
-   [
-    4.6,
-    "Each one marked active, watch or fading."
-   ]
-  ]
+  "d": 9.17
  },
  "compass-light-desk": {
-  "d": 10.27,
-  "c": [
-   [
-    0.3,
-    "Contracts picked off today’s levels."
-   ],
-   [
-    3.5,
-    "Each one marked active, watch or fading."
-   ],
-   [
-    6.3,
-    "The heaviest contracts on the top name."
-   ]
-  ]
+  "d": 11.63
  },
  "compass-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Contracts picked off today’s levels."
-   ],
-   [
-    4.6,
-    "Each one marked active, watch or fading."
-   ]
-  ]
+  "d": 9.17
  },
  "compass-tracker-dark-desk": {
-  "d": 7.27,
-  "c": [
-   [
-    0.3,
-    "What you kept, followed to the close."
-   ],
-   [
-    4.1,
-    "Each setup’s premium since you kept it."
-   ]
-  ]
+  "d": 7.27
  },
  "compass-tracker-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "What you kept, followed to the close."
-   ],
-   [
-    4.6,
-    "Each setup’s premium since you kept it."
-   ]
-  ]
+  "d": 9.17
  },
  "compass-tracker-light-desk": {
-  "d": 7.27,
-  "c": [
-   [
-    0.3,
-    "What you kept, followed to the close."
-   ],
-   [
-    4.1,
-    "Each setup’s premium since you kept it."
-   ]
-  ]
+  "d": 7.27
  },
  "compass-tracker-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "What you kept, followed to the close."
-   ],
-   [
-    4.6,
-    "Each setup’s premium since you kept it."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-congress-dark-desk": {
-  "d": 8.57,
-  "c": [
-   [
-    0.3,
-    "Trades disclosed by members of Congress."
-   ],
-   [
-    4.7,
-    "When it was traded, and how late it was filed."
-   ]
-  ]
+  "d": 8.57
  },
  "dossier-congress-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Trades disclosed by members of Congress."
-   ],
-   [
-    4.6,
-    "When it was traded, and how late it was filed."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-congress-light-desk": {
-  "d": 8.57,
-  "c": [
-   [
-    0.3,
-    "Trades disclosed by members of Congress."
-   ],
-   [
-    4.7,
-    "When it was traded, and how late it was filed."
-   ]
-  ]
+  "d": 8.57
  },
  "dossier-congress-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Trades disclosed by members of Congress."
-   ],
-   [
-    4.6,
-    "When it was traded, and how late it was filed."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-earnings-dark-desk": {
-  "d": 8.67,
-  "c": [
-   [
-    0.3,
-    "The week’s reports."
-   ],
-   [
-    3.3,
-    "And the move priced for each."
-   ]
-  ]
+  "d": 8.67
  },
  "dossier-earnings-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "The week’s reports."
-   ],
-   [
-    4.6,
-    "And the move priced for each."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-earnings-light-desk": {
-  "d": 8.67,
-  "c": [
-   [
-    0.3,
-    "The week’s reports."
-   ],
-   [
-    3.3,
-    "And the move priced for each."
-   ]
-  ]
+  "d": 8.67
  },
  "dossier-earnings-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "The week’s reports."
-   ],
-   [
-    4.6,
-    "And the move priced for each."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-insiders-dark-desk": {
-  "d": 8.57,
-  "c": [
-   [
-    0.3,
-    "Who filed, what, and when."
-   ],
-   [
-    4.7,
-    "Bought, sold or planned, name by name."
-   ]
-  ]
+  "d": 8.57
  },
  "dossier-insiders-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Who filed, what, and when."
-   ],
-   [
-    4.6,
-    "Bought, sold or planned, name by name."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-insiders-light-desk": {
-  "d": 8.57,
-  "c": [
-   [
-    0.3,
-    "Who filed, what, and when."
-   ],
-   [
-    4.7,
-    "Bought, sold or planned, name by name."
-   ]
-  ]
+  "d": 8.57
  },
  "dossier-insiders-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Who filed, what, and when."
-   ],
-   [
-    4.6,
-    "Bought, sold or planned, name by name."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-news-dark-desk": {
-  "d": 7.87,
-  "c": [
-   [
-    0.3,
-    "The wire, on a map."
-   ],
-   [
-    3.7,
-    "Each story where it happens."
-   ]
-  ]
+  "d": 7.87
  },
  "dossier-news-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "The wire, on a map."
-   ],
-   [
-    4.6,
-    "Each story where it happens."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-news-light-desk": {
-  "d": 7.87,
-  "c": [
-   [
-    0.3,
-    "The wire, on a map."
-   ],
-   [
-    3.7,
-    "Each story where it happens."
-   ]
-  ]
+  "d": 7.87
  },
  "dossier-news-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "The wire, on a map."
-   ],
-   [
-    4.6,
-    "Each story where it happens."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-stocks-dark-desk": {
-  "d": 8.37,
-  "c": [
-   [
-    0.3,
-    "A plain read of any name."
-   ],
-   [
-    3.1,
-    "Strong, good, caution or poor."
-   ]
-  ]
+  "d": 8.37
  },
  "dossier-stocks-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "A plain read of any name."
-   ],
-   [
-    4.6,
-    "Strong, good, caution or poor."
-   ]
-  ]
+  "d": 9.17
  },
  "dossier-stocks-light-desk": {
-  "d": 8.37,
-  "c": [
-   [
-    0.3,
-    "A plain read of any name."
-   ],
-   [
-    3.1,
-    "Strong, good, caution or poor."
-   ]
-  ]
+  "d": 8.37
  },
  "dossier-stocks-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "A plain read of any name."
-   ],
-   [
-    4.6,
-    "Strong, good, caution or poor."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-building-dark-desk": {
-  "d": 8.57,
-  "c": [
-   [
-    0.3,
-    "What was added to the book today."
-   ],
-   [
-    3.2,
-    "Building or fading, strike by strike."
-   ]
-  ]
+  "d": 8.57
  },
  "pinpoint-building-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "What was added to the book today."
-   ],
-   [
-    4.6,
-    "Building or fading, strike by strike."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-building-light-desk": {
-  "d": 8.57,
-  "c": [
-   [
-    0.3,
-    "What was added to the book today."
-   ],
-   [
-    3.2,
-    "Building or fading, strike by strike."
-   ]
-  ]
+  "d": 8.57
  },
  "pinpoint-building-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "What was added to the book today."
-   ],
-   [
-    4.6,
-    "Building or fading, strike by strike."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-compare-dark-desk": {
-  "d": 8.17,
-  "c": [
-   [
-    0.3,
-    "Two names, side by side on one ruler."
-   ],
-   [
-    4.1,
-    "Every level, read against the other name."
-   ]
-  ]
+  "d": 8.17
  },
  "pinpoint-compare-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Two names, side by side on one ruler."
-   ],
-   [
-    4.6,
-    "Every level, read against the other name."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-compare-light-desk": {
-  "d": 8.17,
-  "c": [
-   [
-    0.3,
-    "Two names, side by side on one ruler."
-   ],
-   [
-    4.1,
-    "Every level, read against the other name."
-   ]
-  ]
+  "d": 8.17
  },
  "pinpoint-compare-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Two names, side by side on one ruler."
-   ],
-   [
-    4.6,
-    "Every level, read against the other name."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-map-dark-desk": {
-  "d": 7.87,
-  "c": [
-   [
-    0.3,
-    "Every strike and expiry: put, call and net."
-   ],
-   [
-    3.5,
-    "Hover a strike: its open interest and heaviest expiry."
-   ]
-  ]
+  "d": 7.87
  },
  "pinpoint-map-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every strike and expiry: put, call and net."
-   ],
-   [
-    4.6,
-    "Hover a strike: its open interest and heaviest expiry."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-map-light-desk": {
-  "d": 7.87,
-  "c": [
-   [
-    0.3,
-    "Every strike and expiry: put, call and net."
-   ],
-   [
-    3.5,
-    "Hover a strike: its open interest and heaviest expiry."
-   ]
-  ]
+  "d": 7.87
  },
  "pinpoint-map-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every strike and expiry: put, call and net."
-   ],
-   [
-    4.6,
-    "Hover a strike: its open interest and heaviest expiry."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-wall-dark-desk": {
-  "d": 9.07,
-  "c": [
-   [
-    0.3,
-    "At the wall: does it hold or break?"
-   ],
-   [
-    4.6,
-    "And what happens either way."
-   ]
-  ]
+  "d": 9.07
  },
  "pinpoint-wall-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "At the wall: does it hold or break?"
-   ],
-   [
-    4.6,
-    "And what happens either way."
-   ]
-  ]
+  "d": 9.17
  },
  "pinpoint-wall-light-desk": {
-  "d": 9.07,
-  "c": [
-   [
-    0.3,
-    "At the wall: does it hold or break?"
-   ],
-   [
-    4.6,
-    "And what happens either way."
-   ]
-  ]
+  "d": 9.07
  },
  "pinpoint-wall-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "At the wall: does it hold or break?"
-   ],
-   [
-    4.6,
-    "And what happens either way."
-   ]
-  ]
+  "d": 9.17
  },
  "practice-backtest-dark-desk": {
-  "d": 8.8,
-  "c": [
-   [
-    0.3,
-    "A past day, replayed a minute at a time."
-   ],
-   [
-    4.03,
-    "Traded off the chain as it stood."
-   ]
-  ]
+  "d": 8.8
  },
  "practice-backtest-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "A past day, replayed a minute at a time."
-   ],
-   [
-    4.6,
-    "Traded off the chain as it stood."
-   ]
-  ]
+  "d": 9.17
  },
  "practice-backtest-light-desk": {
-  "d": 8.8,
-  "c": [
-   [
-    0.3,
-    "A past day, replayed a minute at a time."
-   ],
-   [
-    4.03,
-    "Traded off the chain as it stood."
-   ]
-  ]
+  "d": 8.8
  },
  "practice-backtest-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "A past day, replayed a minute at a time."
-   ],
-   [
-    4.6,
-    "Traded off the chain as it stood."
-   ]
-  ]
+  "d": 9.17
  },
  "practice-journal-dark-desk": {
-  "d": 8.93,
-  "c": [
-   [
-    0.3,
-    "Every closed trade, on its day."
-   ],
-   [
-    3.23,
-    "Open a day: its trades, and how it went."
-   ]
-  ]
+  "d": 8.93
  },
  "practice-journal-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every closed trade, on its day."
-   ],
-   [
-    4.6,
-    "Open a day: its trades, and how it went."
-   ]
-  ]
+  "d": 9.17
  },
  "practice-journal-light-desk": {
-  "d": 8.93,
-  "c": [
-   [
-    0.3,
-    "Every closed trade, on its day."
-   ],
-   [
-    3.23,
-    "Open a day: its trades, and how it went."
-   ]
-  ]
+  "d": 8.93
  },
  "practice-journal-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every closed trade, on its day."
-   ],
-   [
-    4.6,
-    "Open a day: its trades, and how it went."
-   ]
-  ]
+  "d": 9.17
  },
  "practice-paper-dark-desk": {
-  "d": 9.37,
-  "c": [
-   [
-    0.3,
-    "Options on today’s prices, with paper money."
-   ],
-   [
-    2.1,
-    "A target and a stop, pulled off the position."
-   ],
-   [
-    6.4,
-    "Every order from the chain beside it."
-   ]
-  ]
+  "d": 9.37
  },
  "practice-paper-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Options on today’s prices, with paper money."
-   ],
-   [
-    4.6,
-    "A target and a stop, pulled off the position."
-   ]
-  ]
+  "d": 9.17
  },
  "practice-paper-light-desk": {
-  "d": 9.37,
-  "c": [
-   [
-    0.3,
-    "Options on today’s prices, with paper money."
-   ],
-   [
-    2.1,
-    "A target and a stop, pulled off the position."
-   ],
-   [
-    6.4,
-    "Every order from the chain beside it."
-   ]
-  ]
+  "d": 9.37
  },
  "practice-paper-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Options on today’s prices, with paper money."
-   ],
-   [
-    4.6,
-    "A target and a stop, pulled off the position."
-   ]
-  ]
+  "d": 9.17
  },
  "pulse-board-dark-desk": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Four names at once."
-   ],
-   [
-    4.2,
-    "Each on its own timeframe and overlays."
-   ]
-  ]
+  "d": 10.9
  },
  "pulse-board-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Four names at once."
-   ],
-   [
-    4.6,
-    "Each on its own timeframe and overlays."
-   ]
-  ]
+  "d": 9.17
  },
  "pulse-board-light-desk": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Four names at once."
-   ],
-   [
-    4.2,
-    "Each on its own timeframe and overlays."
-   ]
-  ]
+  "d": 10.9
  },
  "pulse-board-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Four names at once."
-   ],
-   [
-    4.6,
-    "Each on its own timeframe and overlays."
-   ]
-  ]
+  "d": 9.17
  },
  "pulse-dark-desk": {
-  "d": 10.57,
-  "c": [
-   [
-    0.3,
-    "Your own desk of live panels."
-   ],
-   [
-    3,
-    "The hedging at every strike, row by row."
-   ],
-   [
-    6.4,
-    "Setups and the earnings week, beside it."
-   ]
-  ]
+  "d": 16
  },
  "pulse-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Your own desk of live panels."
-   ],
-   [
-    4.6,
-    "The hedging at every strike, row by row."
-   ]
-  ]
+  "d": 9.17
  },
  "pulse-light-desk": {
-  "d": 10.57,
-  "c": [
-   [
-    0.3,
-    "Your own desk of live panels."
-   ],
-   [
-    3,
-    "The hedging at every strike, row by row."
-   ],
-   [
-    6.4,
-    "Setups and the earnings week, beside it."
-   ]
-  ]
+  "d": 16
  },
  "pulse-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Your own desk of live panels."
-   ],
-   [
-    4.6,
-    "The hedging at every strike, row by row."
-   ]
-  ]
+  "d": 9.17
  },
  "terrain-dark-desk": {
-  "d": 8.97,
-  "c": [
-   [
-    0.3,
-    "Charts, and nothing in the way."
-   ],
-   [
-    2.8,
-    "The book beside the chart, strike by strike."
-   ],
-   [
-    5.4,
-    "Two names on one set of controls."
-   ]
-  ]
+  "d": 8.97
  },
  "terrain-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Charts, and nothing in the way."
-   ],
-   [
-    4.6,
-    "The book beside the chart, strike by strike."
-   ]
-  ]
+  "d": 9.17
  },
  "terrain-light-desk": {
-  "d": 8.97,
-  "c": [
-   [
-    0.3,
-    "Charts, and nothing in the way."
-   ],
-   [
-    2.8,
-    "The book beside the chart, strike by strike."
-   ],
-   [
-    5.4,
-    "Two names on one set of controls."
-   ]
-  ]
+  "d": 8.97
  },
  "terrain-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Charts, and nothing in the way."
-   ],
-   [
-    4.6,
-    "The book beside the chart, strike by strike."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-dark-pool-dark-desk": {
-  "d": 8.27,
-  "c": [
-   [
-    0.3,
-    "Off-exchange crosses, largest first."
-   ],
-   [
-    3,
-    "The levels they keep printing at."
-   ]
-  ]
+  "d": 10.2
  },
  "trace-dark-pool-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Off-exchange crosses, largest first."
-   ],
-   [
-    4.6,
-    "The levels they keep printing at."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-dark-pool-light-desk": {
-  "d": 8.27,
-  "c": [
-   [
-    0.3,
-    "Off-exchange crosses, largest first."
-   ],
-   [
-    3,
-    "The levels they keep printing at."
-   ]
-  ]
+  "d": 10.2
  },
  "trace-dark-pool-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Off-exchange crosses, largest first."
-   ],
-   [
-    4.6,
-    "The levels they keep printing at."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-live-tape-dark-desk": {
-  "d": 8.97,
-  "c": [
-   [
-    0.3,
-    "Every print, as it happens."
-   ],
-   [
-    3.2,
-    "Sweeps, blocks and dark-pool crosses."
-   ]
-  ]
+  "d": 8.97
  },
  "trace-live-tape-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every print, as it happens."
-   ],
-   [
-    4.6,
-    "Sweeps, blocks and dark-pool crosses."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-live-tape-light-desk": {
-  "d": 8.97,
-  "c": [
-   [
-    0.3,
-    "Every print, as it happens."
-   ],
-   [
-    3.2,
-    "Sweeps, blocks and dark-pool crosses."
-   ]
-  ]
+  "d": 8.97
  },
  "trace-live-tape-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every print, as it happens."
-   ],
-   [
-    4.6,
-    "Sweeps, blocks and dark-pool crosses."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-net-flow-dark-desk": {
-  "d": 8.8,
-  "c": [
-   [
-    0.3,
-    "Calls against puts, through the day."
-   ],
-   [
-    3.4,
-    "The busiest names, a click apart."
-   ]
-  ]
+  "d": 8.8
  },
  "trace-net-flow-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Calls against puts, through the day."
-   ],
-   [
-    4.6,
-    "The busiest names, a click apart."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-net-flow-light-desk": {
-  "d": 8.8,
-  "c": [
-   [
-    0.3,
-    "Calls against puts, through the day."
-   ],
-   [
-    3.4,
-    "The busiest names, a click apart."
-   ]
-  ]
+  "d": 8.8
  },
  "trace-net-flow-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Calls against puts, through the day."
-   ],
-   [
-    4.6,
-    "The busiest names, a click apart."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-screener-dark-desk": {
-  "d": 8.1,
-  "c": [
-   [
-    0.3,
-    "Every contract, filtered your way."
-   ],
-   [
-    2.9,
-    "Sorted by what you care about."
-   ]
-  ]
+  "d": 10.8
  },
  "trace-screener-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every contract, filtered your way."
-   ],
-   [
-    4.6,
-    "Sorted by what you care about."
-   ]
-  ]
+  "d": 9.17
  },
  "trace-screener-light-desk": {
-  "d": 8.1,
-  "c": [
-   [
-    0.3,
-    "Every contract, filtered your way."
-   ],
-   [
-    2.9,
-    "Sorted by what you care about."
-   ]
-  ]
+  "d": 10.8
  },
  "trace-screener-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Every contract, filtered your way."
-   ],
-   [
-    4.6,
-    "Sorted by what you care about."
-   ]
-  ]
+  "d": 9.17
  },
  "weigher-dark-desk": {
-  "d": 11.27,
-  "c": [
-   [
-    0.3,
-    "Weigh a contract before you take it."
-   ],
-   [
-    2.9,
-    "Drag the price: the return at every level."
-   ],
-   [
-    8.3,
-    "Positions and the watchlist on one desk."
-   ]
-  ]
+  "d": 11.27
  },
  "weigher-dark-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Weigh a contract before you take it."
-   ],
-   [
-    4.6,
-    "Drag the price: the return at every level."
-   ]
-  ]
+  "d": 9.17
  },
  "weigher-light-desk": {
-  "d": 11.27,
-  "c": [
-   [
-    0.3,
-    "Weigh a contract before you take it."
-   ],
-   [
-    2.9,
-    "Drag the price: the return at every level."
-   ],
-   [
-    8.3,
-    "Positions and the watchlist on one desk."
-   ]
-  ]
+  "d": 11.27
  },
  "weigher-light-phone": {
-  "d": 9.17,
-  "c": [
-   [
-    0.3,
-    "Weigh a contract before you take it."
-   ],
-   [
-    4.6,
-    "Drag the price: the return at every level."
-   ]
-  ]
+  "d": 9.17
  }
 }

@@ -34,7 +34,7 @@ const CompassLayout = () => {
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-compass-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <ProductGlyph name="compass" size={24} className="shrink-0 rounded-md" />
+            <ProductGlyph name="compass" size={18} bare className="shrink-0" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</h1>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{line}</p>

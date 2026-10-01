@@ -134,7 +134,9 @@ const OptionsChain = ({ ticker, chain, right, onRight, expiry, expiryOptions, on
           </span>
         )}
       </div>
-      <div className="relative flex-1 min-h-0 max-lg:h-[560px]" data-paper-chain-grid>
+      {/* below lg the card is a column of natural height: `flex-1` there is a basis of 0 and it beat the 560px — the grid stood
+          0px tall over its rows on a phone (2026-10-01); `flex-none` gives the height back */}
+      <div className="relative flex-1 min-h-0 max-lg:h-[560px] max-lg:flex-none" data-paper-chain-grid>
         {chain ? (
           <ChainCard chain={chain} right={right} sel={sel} onSelect={onSelect} cols={shown} centerKey={`${ticker}|${expiry}|${right}`} inlineDrill drillExtra={order} held={held} />
         ) : (

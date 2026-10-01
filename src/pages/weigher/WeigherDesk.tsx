@@ -1291,7 +1291,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
       <header className="shrink-0 flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-weigher-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <ProductGlyph name="weigher" size={24} className="shrink-0 rounded-md" />
+            <ProductGlyph name="weigher" size={18} bare className="shrink-0" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</h1>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chain, the read and the chart mean" testId="weigher-guide" />
           </div>

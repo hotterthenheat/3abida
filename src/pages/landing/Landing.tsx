@@ -57,18 +57,22 @@
 
   2026-10-01, after the owner had a look at another
   trading site's landing ("dont steal just get inspired
-  so we can be better then them"): the rooms stand over
-  the hero's window and it plays each in turn; every
-  room's heading wears its glyph; "Everything in it"
-  (Everything.tsx) lists every page, each a door; the
-  plans can be read side by side; the close wears the
-  rooms' glyphs. Nothing of theirs is copied — no words,
-  no layout — and nothing is claimed that the terminal
-  cannot show on the spot.
+  so we can be better then them"): every room's heading
+  wears its glyph; "Everything in it" (Everything.tsx)
+  lists every page, each a door; the plans can be read
+  side by side; the close wears the rooms' glyphs.
+  Nothing of theirs is copied — no words, no layout —
+  and nothing is claimed that the terminal cannot show
+  on the spot. Then, the same day: "the first thing you
+  see should be all the desks" — the hero is the wall
+  of all eight rooms, each playing a sped-up film of
+  the desk in use with only a cursor on it (Wall.tsx);
+  no box round any logo; and the one door is "Sign up
+  free" (there is no trial).
 ==================================================
 */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion';
 import { ArrowRight, Check, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -78,6 +82,7 @@ import SiteFooter from '../../components/layout/SiteFooter';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import Tour, { type TourStep } from './Tour';
 import Everything, { FEATURE_COUNT, InPlaceOf, ROOM_COUNT, SHARED_COUNT } from './Everything';
+import Wall from './Wall';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import Signature from '../../brand/Signature';
@@ -85,7 +90,8 @@ import ProductGlyph from '../../brand/ProductGlyph';
 import { PRODUCT_GROUPS } from '../../brand/products';
 import type { GlyphName } from '../../brand/paths';
 
-/** Where every door on the page leads. At launch this becomes the sign-up; today the terminal is open. */
+/** Where "Launch terminal" opens the terminal, and the page the tour's window shows before a room's words are on screen.
+    The page's own call is "Sign up free" (the account form); the terminal behind this door is where an account goes. */
 const DOOR = '/pulse';
 
 /* THE BAR'S THREE WORDS (Slayer Logo System, Web and App · Landing): Products opens the menu of every product, one line
@@ -327,9 +333,9 @@ const FAQ: { q: string; a: string }[] = [
   { q: 'Where does the data come from?', a: 'Once our data licences are signed it comes from licensed market data vendors, and every number says what it stands on: live, measured, derived or model.' },
   { q: 'How is it different?', a: 'It puts the prints, the positions, the levels and the filings on one screen, and says where each number comes from.' },
   { q: 'Do I need to know options?', a: 'No. Pinpoint shows levels on a price chart. The guides explain each term in plain words.' },
-  { q: 'Are the pictures on this page real?', a: 'Yes. Every picture and every film is the terminal itself, taken from the real page, not a mock-up.' },
+  { q: 'Are the pictures on this page real?', a: 'Yes. Every picture and every film is the terminal itself, taken from the real page, not a mock-up. The films run three times as fast as life.' },
   { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
-  { q: 'Do you offer refunds?', a: 'We don\u2019t, so the terminal is free to try and needs no sign-up. Try every page first. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
+  { q: 'Do you offer refunds?', a: 'We don\u2019t. Making an account is free, and every desk is on this page, so see what each plan holds before you pay. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
   { q: 'How do I reach you?', a: 'info@slayerterminal.com. A person reads it.' },
 ];
 
@@ -380,7 +386,7 @@ const toAnchor = (href: string) => {
 };
 
 /** THE PRODUCTS MENU (Slayer Logo System, 06 · Menu and rail: "Every product, one line each. Landing and app header."):
-    the groups in the rail's order, each product on its glyph's tile with its one line. A pick opens it in the terminal. */
+    the groups in the rail's order, each product beside its glyph (bare — no tile) with its one line. A pick opens it in the terminal. */
 const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: string) => void; onEvery: () => void; compact?: boolean }) => (
   <div>
   {/* on a desk the groups FLOW in two columns (2026-10-01): laid in rows, the Practice group's four ran the panel past a
@@ -401,7 +407,7 @@ const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: str
                 className={`group flex items-start gap-3 rounded-xl transition-colors hover:bg-ink/[0.05] ${compact ? 'py-2 px-1' : 'p-2 -mx-2'}`}
                 data-landing-product={p.name}
               >
-                <ProductGlyph name={p.glyph} size={compact ? 28 : 40} className="shrink-0 rounded-[9px]" />
+                <ProductGlyph name={p.glyph} size={compact ? 20 : 26} bare className="shrink-0 mt-[1px]" />
                 <span className="min-w-0">
                   <span className="block text-[15px] font-medium text-textPrimary leading-tight">{p.name}</span>
                   {!compact && <span className="mt-0.5 block text-[13px] leading-snug text-textSecondary max-w-[36ch]">{p.line}</span>}
@@ -435,6 +441,7 @@ const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: str
 const Nav = ({ ground }: { ground: Ground }) => {
   const { a, flip } = useGround();
   const { launch } = useLaunch();
+  const navigate = useNavigate();
   const { scrollY } = useScroll();
   const [lifted, setLifted] = useState(false);
   useMotionValueEvent(scrollY, 'change', y => setLifted(y > 24));
@@ -487,7 +494,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
             <Wordmark height={15} cursor label="" />
           </span>
           <span className={lifted ? 'inline-flex' : 'sm:hidden inline-flex'}>
-            <SlayerMark size={32} near label="" />
+            <SlayerMark size={26} bare near label="" />
           </span>
         </button>
         <nav className="hidden md:flex items-center gap-1 mx-auto" aria-label="On this page">
@@ -613,16 +620,16 @@ const Nav = ({ ground }: { ground: Ground }) => {
               ))}
             </div>
             <a
-              href={DOOR}
+              href="/signup"
               onClick={e => {
                 e.preventDefault();
                 setMenu(false);
-                launch(DOOR);
+                navigate('/signup');
               }}
               className="mt-4 h-12 flex items-center justify-center rounded-full text-[15px] font-medium bg-textPrimary text-canvas"
               data-landing-door="menu"
             >
-              Try it, no sign-up
+              Sign up free
             </a>
           </motion.nav>
         )}
@@ -636,84 +643,46 @@ const Nav = ({ ground }: { ground: Ground }) => {
    "Trade what you can see." — short and blunt, in a trader's own voice, and true to a terminal that shows and never
    instructs. AND IT DOES NOT SAY "OPTIONS" (the same day): the hero speaks of THE MARKET and of TRADERS.
 
-   THE BRAND'S HERO (Slayer Logo System, Web and App · Landing, 2026-09-30): "One line, one button. The demo is the trial."
-   The line alone, its last word marked in the foil — the second line that cycled "See the levels / flow / book / record"
-   went with it — the paragraph and ONE button. The signature stands over it where the eyebrow was.
+   THE BRAND'S HERO (Slayer Logo System, Web and App · Landing, 2026-09-30): one line, one button. The signature stands
+   over the line, its last word in the foil.
 
-   EVERY ROOM, UNDER THE HEADLINE (2026-10-01 — the owner, after a look at another trading site's landing: "why are my
-   photos just a photo and dont move so you cant see all the features"). The rooms stand in a row over the window, each on
-   its glyph; the window plays the lit room's film and, when it has played through once, the next room's — every room of
-   the terminal, in turn, before the visitor scrolls at all. A room picked by hand stays in the window. The row is the
-   window's own control, not a second door: the one button is still "Try it". The words, the row and the window rise in
-   once on arrival (index.css .landing-rise). */
-const Hero = ({ onLaunch, rooms, room, onPick, bar }: { onLaunch: () => void; rooms: TourStep[]; room: number; onPick: (i: number) => void; bar: RefObject<HTMLSpanElement> }) => {
+   EVERY DESK ON THE FIRST SCREEN (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
+   to click on each one"): under the line, the wall of all eight rooms, every one playing (Wall.tsx). On a desk the words
+   and the door come before the wall; on a phone the wall comes straight after the line, so all eight are on the first
+   screen and the words follow. THE DOOR is "Sign up free" (the owner, the same day: "theirs no try to free you can sign
+   up for free but that's it") — the account costs nothing; a plan opens the desks. */
+const Hero = ({ onSignUp, rooms, onPick }: { onSignUp: () => void; rooms: TourStep[]; onPick: (id: string) => void }) => {
   const ground = useBlockGround();
   return (
-    <Wrap className="pt-[120px] sm:pt-[136px] pb-5 sm:pb-6">
+    <Wrap className="pt-[90px] sm:pt-[104px] pb-12 sm:pb-16">
       <div className="landing-rise">
         <Signature className="text-[12px]" />
       </div>
-      <h1 className="landing-rise [--rise-delay:60ms] mt-7 font-light tracking-[-0.045em] leading-[0.94] text-[clamp(3.1rem,8.2vw,8rem)] [text-wrap:balance]" data-landing-headline>
+      <h1 className="landing-rise [--rise-delay:60ms] mt-4 sm:mt-6 font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.7rem,6.3vw,5.7rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can{' '}
         {/* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */}
         <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>see.</span>
       </h1>
-      <div className="mt-8 sm:mt-10 flex flex-col gap-7">
-        <p className="landing-rise [--rise-delay:140ms] max-w-[38rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
-          Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
-        </p>
-        <div className="landing-rise [--rise-delay:220ms] flex items-center gap-x-5 gap-y-3 flex-wrap">
-          <Pill href={DOOR} onClick={onLaunch} testId="hero">
-            Try it, no sign-up
-          </Pill>
+      <div className="flex flex-col">
+        <div className="landing-rise [--rise-delay:140ms] order-2 lg:order-1 mt-8 lg:mt-7 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-10 gap-y-6">
+          <p className="max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
+            Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
+          </p>
+          <div className="shrink-0">
+            <Pill href="/signup" onClick={onSignUp} testId="hero">
+              Sign up free
+            </Pill>
+          </div>
+        </div>
+        <div className="order-1 lg:order-2 mt-6 lg:mt-9">
+          <Wall rooms={rooms} theme={ground} onPick={onPick} />
         </div>
       </div>
-      <Rooms rooms={rooms} room={room} onPick={onPick} bar={bar} />
     </Wrap>
   );
 };
 
-/** THE ROOMS OVER THE WINDOW: each room on its glyph; the lit one is in the window, and its line fills as its film plays
-    (TerminalWindow fills it — a transform). A chip filled with the ink takes the panel for its words (theme rules). On a
-    phone the row scrolls sideways and keeps the lit room in view without moving the page. */
-const Rooms = ({ rooms, room, onPick, bar }: { rooms: TourStep[]; room: number; onPick: (i: number) => void; bar: RefObject<HTMLSpanElement> }) => {
-  const row = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const r = row.current;
-    const lit = r?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (!r || !lit || r.scrollWidth <= r.clientWidth) return;
-    r.scrollTo({ left: Math.max(0, lit.offsetLeft - (r.clientWidth - lit.offsetWidth) / 2), behavior: 'smooth' });
-  }, [room]);
-  return (
-    <div className="landing-rise [--rise-delay:300ms] mt-12 sm:mt-14">
-      <div ref={row} role="group" aria-label="The rooms in the window" className="landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-1.5 sm:gap-2 overflow-x-auto sm:flex-wrap" data-landing-rooms>
-        {rooms.map((r, i) => {
-          const on = i === room;
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => onPick(i)}
-              aria-pressed={on}
-              title={`${r.name}: ${r.lead}`}
-              className={`relative shrink-0 h-10 pl-1.5 pr-4 inline-flex items-center gap-2.5 rounded-full border overflow-hidden text-[13.5px] font-medium whitespace-nowrap transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${
-                on ? 'border-transparent bg-textPrimary text-panel' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted hover:bg-ink/[0.05]'
-              }`}
-              data-landing-room={r.id}
-            >
-              {r.glyph && <ProductGlyph name={r.glyph} size={28} className="shrink-0" />}
-              {r.name}
-              {/* how far through its film the lit room is */}
-              {on && <span ref={bar} aria-hidden="true" className="absolute left-4 right-4 bottom-[5px] h-px origin-left rounded-full bg-panel/55 will-change-transform" style={{ transform: 'scaleX(0)' }} data-landing-room-line />}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-/* THE PLAN CARD (Slayer Logo System, Web and App · Pricing): the product's glyph on its tile and its name, the price, the
+/* THE PLAN CARD (Slayer Logo System, Web and App · Pricing): the product's glyph, bare, and its name, the price, the
    product's one line, what the plan holds, and one door — "Choose Pinpoint" opens the account form with the plan named
    (pages/auth); Lifetime, on the mark, is "Talk to us". */
 const PLAN_GLYPH: Record<PlanKey, 'pinpoint' | 'compass' | null> = { pinpoint: 'pinpoint', compass: 'compass', lifetime: null };
@@ -728,7 +697,7 @@ const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey
        52px. The price is still the biggest thing in the card. */
     <div className="flex flex-col py-7 lg:py-8 lg:px-8 first:lg:pl-0 last:lg:pr-0" data-landing-plan={planKey}>
       <div className="flex items-center gap-3">
-        {glyph ? <ProductGlyph name={glyph} size={40} className="shrink-0 rounded-[9px]" /> : <SlayerMark size={40} label="" />}
+        {glyph ? <ProductGlyph name={glyph} size={28} bare className="shrink-0" /> : <SlayerMark size={30} bare label="" />}
         <h3 className="text-[20px] font-medium tracking-tight">{plan.name}</h3>
       </div>
       {/* the page's big numbers are its prices — the only figures of ours it shows */}
@@ -841,19 +810,18 @@ const Page = () => {
   const { launch } = useLaunch();
   const [barGround, setBarGround] = useState<Ground>(a);
   const open = useCallback((path: string) => launch(path), [launch]);
-  const door = useCallback(() => launch(DOOR), [launch]);
   const navigate = useNavigate();
   /* a plan's door opens the account form with the plan named — the form is outside the terminal, so no gate */
   const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
 
-  /* THE HERO'S ROOMS: which is in the window, and whether the visitor picked it (then it stays) */
-  const [room, setRoom] = useState(0);
-  const [kept, setKept] = useState(false);
-  const roomLine = useRef<HTMLSpanElement>(null);
-  const nextRoom = useCallback(() => setRoom(r => (r + 1) % HERO_ROOMS.length), []);
-  const pickRoom = useCallback((i: number) => {
-    setRoom(i);
-    setKept(true);
+  /* "Sign up free": the account form, outside the terminal */
+  const signUp = useCallback(() => navigate('/signup'), [navigate]);
+  /* a screen of the wall: its room's words in the tour, the window beside them showing it */
+  const toRoom = useCallback((id: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-tour-step="${id}"] [data-tour-head]`) ?? document.querySelector<HTMLElement>(`[data-tour-step="${id}"]`);
+    if (!el) return;
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3, behavior: calm ? 'auto' : 'smooth' });
   }, []);
 
   /* a footer link from inside the terminal lands on /#pricing or /#faq — go there once the page stands */
@@ -871,16 +839,7 @@ const Page = () => {
       <Nav ground={barGround} />
 
       {/* ── THE HERO AND THE TOUR: one ground, one live terminal ─────────────────────────── */}
-      <Tour
-        head={<Hero onLaunch={door} rooms={HERO_ROOMS} room={room} onPick={pickRoom} bar={roomLine} />}
-        steps={STEPS}
-        first={HERO_ROOMS[room].path}
-        onOpen={open}
-        onBarGround={setBarGround}
-        endSays={[`${ROOMS} rooms.`, 'One terminal.']}
-        onCycle={kept ? undefined : nextRoom}
-        cycleBar={kept ? undefined : roomLine}
-      />
+      <Tour head={<Hero onSignUp={signUp} rooms={HERO_ROOMS} onPick={toRoom} />} steps={STEPS} first={DOOR} onOpen={open} onBarGround={setBarGround} endSays={[`${ROOMS} rooms.`, 'One terminal.']} dock={false} />
 
       {/* ── EVERYTHING IN IT: every page of every room, each a door (Everything.tsx) ─────────── */}
       <Block on="a" id="everything" label="Everything in it" className="pt-[14vh] pb-[12vh] scroll-mt-10">
@@ -891,7 +850,7 @@ const Page = () => {
               <TwoTone className="mt-6" first="Every page, by room." second="Open any of them." />
             </div>
             <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2" data-everything-count>
-              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares. Each one opens in the terminal as it is, with no sign-up.
+              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares. Pick a room for its pages; each one opens in the terminal.
             </p>
           </div>
           <Everything onOpen={open} />
@@ -944,7 +903,7 @@ const Page = () => {
               <Plan key={p.key} planKey={p.key} onChoose={choose} />
             ))}
           </div>
-          <p className="mt-5 text-[13px] text-textMuted">There are no refunds, so try every page first. Prices in US dollars.</p>
+          <p className="mt-5 text-[13px] text-textMuted">Making an account is free. There are no refunds, so see what each plan holds first. Prices in US dollars.</p>
 
           {/* WHICH IS FOR ME — under each plan, in its column */}
           <div className="mt-14" data-landing-which>
@@ -1003,7 +962,7 @@ const Page = () => {
                     className="block rounded-[14px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
                     data-landing-close-room={r.id}
                   >
-                    {r.glyph && <ProductGlyph name={r.glyph} size={64} className="max-sm:w-[60px] max-sm:h-[60px]" />}
+                    {r.glyph && <ProductGlyph name={r.glyph} size={44} bare className="max-sm:w-9 max-sm:h-9" />}
                   </a>
                 </li>
               ))}
@@ -1014,8 +973,8 @@ const Page = () => {
               Seen enough? <span className="block text-textMuted">Step inside.</span>
             </h2>
             <div className="mt-10 flex justify-center">
-              <Pill href={DOOR} onClick={door} testId="close">
-                Try it, no sign-up
+              <Pill href="/signup" onClick={signUp} testId="close">
+                Sign up free
               </Pill>
             </div>
           </div>

@@ -79,7 +79,7 @@ const TraceLayout = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.08 } }}
           transition={{ duration: 0.14 }}
-          className={`flex flex-col gap-2.5 ${bleed ? 'flex-1 min-h-0' : ''}`}
+          className={`flex flex-col gap-2.5 ${bleed ? 'md:flex-1 md:min-h-0' : ''}`}
         >
           {/* A subpage opens at its head, not where the last one's scroll was (2026-09-11) */}
           <ScrollHome />

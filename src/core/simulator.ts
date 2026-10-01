@@ -7,7 +7,7 @@
 
 import type { Candle, GexSnapshot, Indicators, MarketSnapshot, StrikeNode, TapeOrder, TickerConfig, TickerSymbol, TradePlan } from '../types/market';
 import { blackScholesGreeks } from './greeks';
-import { dayKey } from './rng';
+import { dayKey, stream } from './rng';
 import { lookup as universeLookup } from '../data/universe';
 import type { UniverseQuote } from '../types/compass';
 
@@ -130,6 +130,13 @@ const Simulator = (() => {
       the step, so the rounding is exact. */
   const r2 = (x: number) => Math.round(x * 100) / 100;
 
+  /* WHERE THE WALK'S RANDOMNESS COMES FROM (2026-10-01). A name's history was walked on Math.random, so every load of
+     the terminal — and every page of the landing's films — priced the same name somewhere else: SPY at $531 on one desk
+     and $469 on the next. Now each name's history draws from its OWN stream, seeded by the name and the day (a seed job
+     swaps it in for the length of its slice, see stepSeed), so a name's past is the same on every page and every load
+     that day. What happens after — the live ticks — still draws on Math.random. */
+  let rand: () => number = Math.random;
+
   // The profile OI drifts toward: ATM-concentrated, round-number magnets.
   // Memoised on signed distance (1/2000 of spot) and roundness: the profile
   // depends on nothing else, and the seed asks for it 500,000 times a name.
@@ -179,8 +186,8 @@ const Simulator = (() => {
         });
       } else {
         // order-flow breathing: ±2.5% on each side
-        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * (1 + (Math.random() - 0.5) * 0.05)));
-        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * (1 + (Math.random() - 0.5) * 0.05)));
+        cur.callOI = Math.max(50, Math.round((cur.callOI + (want.callOI - cur.callOI) * blend) * (1 + (rand() - 0.5) * 0.05)));
+        cur.putOI = Math.max(50, Math.round((cur.putOI + (want.putOI - cur.putOI) * blend) * (1 + (rand() - 0.5) * 0.05)));
       }
     }
     // strikes price left behind: positions unwind gradually, then fall away
@@ -207,7 +214,7 @@ const Simulator = (() => {
     const cfg = TICKERS[sym];
     const book = oiBook[sym];
     const step = cfg.step;
-    if (!book) return (Math.random() - 0.5) * cfg.basePrice * cfg.iv * 0.0035;
+    if (!book) return (rand() - 0.5) * cfg.basePrice * cfg.iv * 0.0035;
 
     const sqT = Math.sqrt(0.003); // 0DTE horizon, matching the display chain
     const denom = Math.max(1e-6, price * cfg.iv * sqT);
@@ -236,8 +243,8 @@ const Simulator = (() => {
 
     // base random step; quiet zones (no shelf either side) run ~35% hotter
     const inNoMansLand = !nearAbove && !nearBelow;
-    const range = cfg.basePrice * cfg.iv * 0.0035 * (0.4 + Math.random()) * (inNoMansLand ? 1.35 : 1);
-    let move = (Math.random() - 0.5) * 2 * range * scale;
+    const range = cfg.basePrice * cfg.iv * 0.0035 * (0.4 + rand()) * (inNoMansLand ? 1.35 : 1);
+    let move = (rand() - 0.5) * 2 * range * scale;
 
     // pin: the nearest strong shelf pulls when price is within ~2.5 strikes
     let magnet = nearAbove;
@@ -250,7 +257,7 @@ const Simulator = (() => {
     const next = price + move;
     const wall = move > 0 ? nearAbove : nearBelow;
     if (wall && ((move > 0 && next > wall.strike) || (move < 0 && next < wall.strike))) {
-      const breakout = Math.random() > 0.975;
+      const breakout = rand() > 0.975;
       if (!breakout) {
         const through = next - wall.strike;
         move = wall.strike - price + through * (1 - 0.85 * wall.s);
@@ -289,6 +296,8 @@ const Simulator = (() => {
     i: number;
     overnightGap: number;
     homeK: number;
+    /** the name's own stream for the day — the same numbers every time this history is walked */
+    rng: () => number;
   }
   const seedJobs: Record<string, SeedJob> = {};
 
@@ -318,12 +327,30 @@ const Simulator = (() => {
        Weigher a hundred dollars out of the money. */
     const quoted = SCAN_ROSTER.some(r => r.ticker === sym) || !!universeLookup(sym);
     const homeK = quoted ? 0.0015 : 0;
-    evolveBook(sym, cfg.basePrice, 1); // seed the book at the journey's start
-    return { sym, bars: [], snaps: [], oi: new Int32Array(SESSIONS * SESSION_BARS * PACKED), close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK };
+    const rng = stream(`${sym}-${dayKey()}-walk`);
+    const outer = rand;
+    rand = rng;
+    try {
+      evolveBook(sym, cfg.basePrice, 1); // seed the book at the journey's start
+    } finally {
+      rand = outer;
+    }
+    return { sym, bars: [], snaps: [], oi: new Int32Array(SESSIONS * SESSION_BARS * PACKED), close: cfg.basePrice, t: alignedNow - totalSpanSec + overnightGap, s: 0, i: 0, overnightGap, homeK, rng };
   }
 
-  /** Walk the job forward until the budget is spent or the history is whole. Returns true when done. */
+  /** Walk the job forward until the budget is spent or the history is whole. Returns true when done. The walk draws on
+      the job's own stream for the length of the slice (see `rand`), and hands the live one back however it leaves. */
   function stepSeed(job: SeedJob, budgetMs: number): boolean {
+    const outer = rand;
+    rand = job.rng;
+    try {
+      return walkSeed(job, budgetMs);
+    } finally {
+      rand = outer;
+    }
+  }
+
+  function walkSeed(job: SeedJob, budgetMs: number): boolean {
     const cfg = TICKERS[job.sym];
     const sym = job.sym;
     const until = Number.isFinite(budgetMs) ? performance.now() + budgetMs : Infinity;
@@ -335,14 +362,14 @@ const Simulator = (() => {
         const pull = job.homeK > 0 ? (cfg.basePrice - job.close) * job.homeK : 0;
         const close = r2(job.close + move + pull);
         job.close = close;
-        const wig = cfg.basePrice * cfg.iv * 0.0012 * Math.random();
+        const wig = cfg.basePrice * cfg.iv * 0.0012 * rand();
         job.bars.push({
           time: job.t,
           open: r2(open),
           high: r2(Math.max(open, close) + wig),
           low: r2(Math.min(open, close) - wig),
           close,
-          volume: Math.round(2000 + Math.random() * 18000),
+          volume: Math.round(2000 + rand() * 18000),
         });
         evolveBook(sym, close);
         const at = job.snaps.length * PACKED;
@@ -360,7 +387,7 @@ const Simulator = (() => {
       }
       // overnight: gap the price, roll positions harder than intraday drift
       job.t += job.overnightGap - BAR_SECONDS;
-      job.close = r2(job.close + (Math.random() - 0.5) * cfg.basePrice * cfg.iv * 0.02);
+      job.close = r2(job.close + (rand() - 0.5) * cfg.basePrice * cfg.iv * 0.02);
       evolveBook(sym, job.close, 0.18);
       job.s++;
       job.i = 0;
@@ -620,6 +647,35 @@ const Simulator = (() => {
         gh[gh.length - 1] = computeGexSnapshot(sym, price, gh[gh.length - 1].time);
       }
     }
+  }
+
+  /* THE DAY'S CHANGE IS MEASURED FROM THE LAST CLOSE (2026-10-01). It was measured from the name's config price — the
+     anchor its month of history walked away from — so a name whose walk wandered read as if the whole wander happened
+     today: SPY "−5.99%" on a quiet afternoon. A session is the run of bars since the last overnight gap (live bars only
+     ever extend the last one), so the previous close is the bar before that gap; read once a name and kept. */
+  const lastClose: Record<string, number> = {};
+  function sessionBase(symbolRaw: string): number {
+    const sym = symbolRaw.toUpperCase();
+    const cached = lastClose[sym];
+    if (cached) return cached;
+    const cfg = TICKERS[sym];
+    const bars = candleHistory[sym];
+    if (!bars || bars.length < 2) return cfg?.basePrice ?? 0;
+    for (let i = bars.length - 1; i > 0; i--) {
+      if (bars[i].time - bars[i - 1].time > 2 * BAR_SECONDS) {
+        lastClose[sym] = bars[i - 1].close;
+        return bars[i - 1].close;
+      }
+    }
+    return cfg.basePrice;
+  }
+  /** The day's change, in percent of the last close */
+  function dayChangePct(symbolRaw: string): number {
+    const sym = symbolRaw.toUpperCase();
+    const cfg = TICKERS[sym];
+    if (!cfg) return 0;
+    const base = sessionBase(sym);
+    return base > 0 ? ((cfg.currentPrice - base) / base) * 100 : 0;
   }
 
   /** The config for a symbol never seen: its roster quote, or a hash price. */
@@ -970,7 +1026,7 @@ const Simulator = (() => {
       callback({
         ticker: activeTicker,
         spot: activeConfig.currentPrice,
-        changePercent: ((activeConfig.currentPrice - activeConfig.basePrice) / activeConfig.basePrice) * 100,
+        changePercent: dayChangePct(activeTicker),
         priceHistory: priceHistory[activeTicker],
         chain,
         indicators,
@@ -994,7 +1050,7 @@ const Simulator = (() => {
     return {
       ticker: sym,
       spot: cfg.currentPrice,
-      changePercent: ((cfg.currentPrice - cfg.basePrice) / cfg.basePrice) * 100,
+      changePercent: dayChangePct(sym),
       priceHistory: priceHistory[sym],
       chain,
       indicators,
@@ -1009,6 +1065,10 @@ const Simulator = (() => {
     TICKERS,
     WATCHLIST,
     snapshotFor,
+    /** The last session's close — what the day's change is measured from */
+    sessionBase,
+    /** The day's change, in percent of the last close */
+    dayChangePct,
     ensureTicker,
     /** The config alone — a roster quote or a hash price — without walking the history */
     register: (sym: string): void => {

@@ -265,7 +265,7 @@ const Congress = () => {
   const columnDefs = useMemo<ColDef<CongressTrade>[]>(
     () => [
       { headerName: 'Filed', field: 'filedDaysAgo', width: 126, cellRenderer: FiledCell, sort: 'asc', headerTooltip: 'The day the report was filed, and how far back that is — newest first' },
-      { headerName: 'Member', field: 'member', flex: 1.7, minWidth: 220, cellRenderer: MemberCell, comparator: (a: CongressTrade['member'], b: CongressTrade['member']) => a.name.localeCompare(b.name), headerTooltip: "Who filed it, with party and seat — and their own committee under the name when the trade sits in a sector it oversees" },
+      { headerName: 'Member', field: 'member', flex: 1.7, minWidth: 220, cellRenderer: MemberCell, cellDataType: false, comparator: (a: CongressTrade['member'], b: CongressTrade['member']) => a.name.localeCompare(b.name), headerTooltip: "Who filed it, with party and seat — and their own committee under the name when the trade sits in a sector it oversees" },
       { headerName: 'Asset', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: AssetCell, headerTooltip: 'The stock the report names — click the row to open it on the Map' },
       { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellRenderer: TypeCell, headerTooltip: 'Purchase, sale (full or partial), or an exchange' },
       { headerName: 'Owner', field: 'owner', flex: 0.7, minWidth: 96, cellRenderer: OwnerCell, headerTooltip: "Whose holding the report covers — the member's own, their spouse's, a joint account or a dependent's" },

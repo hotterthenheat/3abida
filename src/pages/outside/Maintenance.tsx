@@ -16,7 +16,7 @@ const Maintenance = () => (
   <OutsideFrame footer={false} testId="maintenance">
     <div className="flex-1 flex items-center justify-center px-5 pb-[12vh]">
       <BracketCard className="w-full max-w-[480px] p-8 sm:p-10" label="maintenance">
-        <SlayerMark size={56} state="closed" label="" />
+        <SlayerMark size={44} bare state="closed" label="" />
         <h1 className="mt-7 text-[30px] font-light tracking-[-0.02em] leading-tight">Down for maintenance until 6:00 ET.</h1>
         <p className="mt-3 text-[15px] text-textSecondary">Follow along on the status page.</p>
         <Link to="/status" className="mt-7 h-10 px-5 inline-flex items-center rounded-full border border-borderMuted text-[14px] text-textPrimary hover:bg-ink/[0.05]">

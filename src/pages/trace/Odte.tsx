@@ -227,7 +227,7 @@ const Odte = () => {
         title="The same-day money"
         sub="Net call and put premium flowing through the session — one to four panes, each with its own cut, name, money and clock · double-click a pane to reset its view"
         testId="odte"
-        className="flex-1 min-h-0"
+        className="md:flex-1 md:min-h-0"
         data={{ panes: store.count }}
         guide={{ title: 'How to read the desk', door: 'What the lines, the floor and the panes mean', body: <OdteGuide />, testId: 'odte-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
@@ -254,7 +254,8 @@ const Odte = () => {
         }
         sentence={<RichRead text={read} />}
       >
-        <div className={`${gridClass} gap-2 flex-1 min-h-0 border-t border-borderSubtle p-2`} data-odte-desk>
+        {/* on a phone the page scrolls (AppShell): each pane stands 420px tall instead of sharing a framed screen */}
+        <div className={`${gridClass} gap-2 md:flex-1 md:min-h-0 max-md:grid-rows-none max-md:auto-rows-[420px] border-t border-borderSubtle p-2`} data-odte-desk>
           {Array.from({ length: store.count }, (_, i) =>
             // Three panes: the last one stretches the full row.
             renderPane(i, store.count === 3 && i === 2 ? 'lg:col-span-2' : '')

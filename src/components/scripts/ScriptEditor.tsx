@@ -353,7 +353,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
     <div className="flex flex-col h-full min-h-0" data-script-panel>
       {/* THE HEAD — the mark, the name as a menu, what the script is, the doors */}
       <div className="flex items-center gap-3 h-11 px-3 border-b border-borderSubtle shrink-0">
-        <SlayerMark size={24} label="" />
+        <SlayerMark size={20} bare label="" />
         {renaming ? (
           <input
             ref={titleRef}

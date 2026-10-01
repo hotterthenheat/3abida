@@ -43,7 +43,7 @@ export const LEGAL_DOCS: Doc[] = [
   {
     slug: 'refunds',
     title: 'Refund policy',
-    lead: 'We don’t offer refunds. That’s why the terminal is free to try, needs no sign-up, and runs every page. Try it first, and cancel any time in Settings.',
+    lead: 'We don’t offer refunds. Making an account is free and every desk is shown on the front page, so see what each plan holds before you pay. Cancel any time in Settings.',
     sections: [{ head: 'Why there are no refunds' }, { head: 'Cancelling' }, { head: 'Billing errors' }, { head: 'Contact' }],
   },
   {

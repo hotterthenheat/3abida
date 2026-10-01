@@ -269,12 +269,14 @@ const FlowSearch = ({
   );
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <div
         /* Active = the holographic silver, not lime (Noah, 2026-08-30: "remove
            anything neon in this search thing to holographic silver") — the
            foil is the house's "where you are" ink; lime stays for live/status. */
-        className={`inline-flex items-center gap-1.5 rounded-md transition-colors ${compact ? 'pl-2 pr-1.5 py-[3px]' : 'pl-2.5 pr-2 py-1.5'} ${
+        /* ON A PHONE THE BOX IS ITS CELL'S WIDTH (2026-10-01): in the two-column cards line a 151px cell held a 188px box,
+           and its × stood past the card's edge, where no tap could reach it — the field takes what is left instead */
+        className={`inline-flex max-sm:flex max-sm:w-full items-center gap-1.5 rounded-md transition-colors ${compact ? 'pl-2 pr-1.5 py-[3px]' : 'pl-2.5 pr-2 py-1.5'} ${
           active ? 'holo-border' : 'border border-borderSubtle bg-ink/[0.02] focus-within:border-borderMuted'
         }`}
       >
@@ -294,7 +296,7 @@ const FlowSearch = ({
           onKeyDown={onKeyDown}
           placeholder={tickersOnly ? 'TICKER' : 'TICKER / CONTRACT'}
           aria-label={tickersOnly ? 'Search by ticker' : 'Search by ticker or contract'}
-          className={`${compact ? 'w-[68px]' : 'w-[132px]'} bg-transparent font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary placeholder:text-textMuted placeholder:font-normal focus:outline-none`}
+          className={`${compact ? 'w-[68px]' : 'w-[132px]'} max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 bg-transparent font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary placeholder:text-textMuted placeholder:font-normal focus:outline-none`}
         />
         {active && (
           <button

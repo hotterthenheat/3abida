@@ -7,7 +7,8 @@
 ==================================================
 */
 
-import OutsideFrame, { LaunchPill } from './OutsideFrame';
+import { Link } from 'react-router-dom';
+import OutsideFrame from './OutsideFrame';
 import ProductGlyph from '../../brand/ProductGlyph';
 import { PRODUCT_GROUPS } from '../../brand/products';
 import { COMPANY } from '../../data/company';
@@ -28,10 +29,12 @@ const About = () => (
           Pulse is the live desk, arranged your way. Trace reads the live tape: dark pool, net flow, footprints. Dossier is the full file on a ticker. Pinpoint shows
           where dealer hedging holds and pushes price. Compass finds contracts that fit the levels; Weigher shows what each returns at every price.
         </p>
-        <p>Practice lets you trade with paper money, replay the past and review every trade. It says what every number stands on. Try it, no sign-up.</p>
+        <p>Practice lets you trade with paper money, replay the past and review every trade. It says what every number stands on.</p>
       </div>
       <div className="mt-8 flex items-center gap-4 flex-wrap">
-        <LaunchPill label="Try it, no sign-up" size="lg" />
+        <Link to="/signup" className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-textPrimary text-canvas text-[14px] font-medium whitespace-nowrap hover:bg-textPrimary/90" data-about-signup>
+          Sign up free
+        </Link>
         <a href={`mailto:${COMPANY.info}`} className="text-[14px] text-textSecondary hover:text-textPrimary underline decoration-borderMuted underline-offset-4">
           {COMPANY.info}
         </a>
@@ -44,7 +47,7 @@ const About = () => (
             <ul className="mt-3 flex flex-col gap-3">
               {g.products.map(p => (
                 <li key={p.name} className="flex items-start gap-3">
-                  <ProductGlyph name={p.glyph} size={36} className="shrink-0 rounded-[8px]" />
+                  <ProductGlyph name={p.glyph} size={24} bare className="shrink-0" />
                   <span>
                     <span className="block text-[15px] font-medium text-textPrimary">{p.name}</span>
                     <span className="block text-[13.5px] leading-snug text-textSecondary">{p.line}</span>

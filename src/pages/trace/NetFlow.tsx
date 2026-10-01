@@ -127,7 +127,7 @@ const NetFlow = () => {
       title="Which way the money leans"
       sub="Every name ranked most bullish to most bearish by net premium — calls bought and puts sold against the reverse · click a name and its session goes on the pane"
       testId="net-flow"
-      className="flex-1 min-h-0"
+      className="md:flex-1 md:min-h-0"
       data={{ picked: sel, names: leaders.length, expiry: expiry ?? 'all' }}
       guide={{ title: 'How to read the board', door: 'What the board, the lines and the floor mean', body: <NetFlowGuide />, testId: 'net-flow-guide', open: guideOpen, onOpen: setGuideOpen }}
       facts={
@@ -175,9 +175,11 @@ const NetFlow = () => {
       }
       sentence={read}
     >
-      <div className="flex flex-1 min-h-0 border-t border-borderSubtle">
+      {/* ON A PHONE THE BOARD STANDS OVER THE PANE (2026-10-01): side by side at 390px the pane was squeezed to a 50px
+          sliver beside the board — its chart and its menus cut off at the screen's edge */}
+      <div className="flex max-md:flex-col md:flex-1 md:min-h-0 border-t border-borderSubtle">
         {/* THE BOARD — most bullish at the top, most bearish at the floor */}
-        <div ref={boardRef} className="w-[290px] shrink-0 border-r border-borderSubtle overflow-y-auto" data-net-board>
+        <div ref={boardRef} className="md:w-[290px] shrink-0 md:border-r max-md:border-b max-md:max-h-[306px] border-borderSubtle overflow-y-auto" data-net-board>
           {leaders.map((l, i) => {
             const isSel = l.ticker === sel;
             return (
@@ -211,7 +213,7 @@ const NetFlow = () => {
           })}
         </div>
         {/* THE PANE — the picked name's session */}
-        <div className="flex-1 min-w-0 p-2">
+        <div className="flex-1 min-w-0 p-2 max-md:h-[460px] max-md:flex-none">
           <NetFlowPane book={book} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={sel} tenor={tenor} onTenor={setTenor} dteMax={Infinity} />
         </div>
       </div>

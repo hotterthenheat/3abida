@@ -571,7 +571,7 @@ const News = () => {
           <div className="min-w-0 flex-1">
             <div className="h-6 flex items-center gap-3">
               <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The wire</h3>
-              <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the pins, the grade and the numbers mean" testId="news-guide" />
+              <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the pins, the lean and the numbers mean" testId="news-guide" />
             </div>
             <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every story on the wire today · a pin on every city a story comes from · click a pin or a row and the story opens beside the map</p>
           </div>

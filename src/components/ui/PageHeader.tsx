@@ -36,7 +36,7 @@ const PageHeader = ({ breadcrumb, title, subtitle, actions }: PageHeaderProps) =
         <div className="flex items-center gap-2">
           {/* a product's page wears its glyph on its tile (the Logo System's 24 px form); a door like Settings its line icon */}
           {item?.glyph ? (
-            <ProductGlyph name={item.glyph} size={24} className="shrink-0 rounded-md" />
+            <ProductGlyph name={item.glyph} size={18} bare className="shrink-0" />
           ) : (
             Icon && (
               <span className="inline-flex w-6 h-6 rounded-md border border-borderSubtle bg-inset items-center justify-center shrink-0">

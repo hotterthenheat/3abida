@@ -101,7 +101,10 @@ const AppShell = () => {
   }, [openPalette]);
 
   /* Only the CHART pages stay framed to the viewport. The table pages scroll
-     with the page like the Live Tape (Noah, 2026-08-30) — they left this set. */
+     with the page like the Live Tape (Noah, 2026-08-30) — they left this set.
+     FROM md UP (2026-10-01): on a phone the frame cut Net Flow under its board —
+     the pane past the fold, and no scroll to reach it — so there the page
+     scrolls like any other. */
   const bleedPage = /^\/trace\/(net-flow|odte)/.test(
     location.pathname
   );
@@ -149,7 +152,7 @@ const AppShell = () => {
            the first 48px of every page; the page head began under it (the
            phone pass, 2026-09-13). Pulse's and Terrain's phone layouts
            subtract the same 3rem from the viewport. */
-        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 ${bleedPage ? 'overflow-hidden' : 'overflow-y-auto'} ${
+        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 ${bleedPage ? 'overflow-y-auto md:overflow-hidden' : 'overflow-y-auto'} ${
           location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''
         }`}
       >
@@ -172,7 +175,7 @@ const AppShell = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.1 }}
-            className={`w-full flex flex-col ${framePage ? 'h-full' : 'min-h-full'}`}
+            className={`w-full flex flex-col ${framePage ? 'min-h-full md:h-full' : 'min-h-full'}`}
           >
             {/* A section opens at its head, not where the last page's scroll was (2026-09-11) */}
             <ScrollHome />
@@ -188,7 +191,7 @@ const AppShell = () => {
                  definite height), shrink-0 so the footer below cannot squeeze
                  it — the overflow IS the slight scroll. Tight top like Trace
                  (Noah, 2026-08-30: "way too much space up top"). */
-              className={`${bleedPage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-0 gap-4 h-full min-h-0 overflow-hidden' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
+              className={`${bleedPage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 md:pb-0 gap-4 md:h-full md:min-h-0 md:overflow-hidden' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
             >
               <RouteBoundary resetKey={location.pathname}>
                 {/* A page's code travels on its first visit (App's lazy routes);

@@ -227,7 +227,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       className={`shrink-0 flex items-center gap-2.5 h-[52px] select-none ${collapsed ? 'pl-3 pr-0' : 'px-3.5'}`}
       data-brand
     >
-      <SlayerMark size={28} near label="" />
+      <SlayerMark size={24} bare near label="" />
       {!collapsed && <Wordmark height={12} label="" className="translate-y-[1px]" />}
     </a>
   );

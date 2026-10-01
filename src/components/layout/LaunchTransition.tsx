@@ -104,7 +104,7 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
             className="fixed inset-0 z-[100] bg-canvas flex flex-col items-center justify-center gap-5"
             data-launch-gate
           >
-            <SlayerMark size={64} state="loading" label="" />
+            <SlayerMark size={52} bare state="loading" label="" />
             <Wordmark height={20} typing label="Slayer Terminal" />
             <div className="w-52 h-[2px] rounded-full bg-ink/[0.08] overflow-hidden" data-gate-track>
               {/* CSS transform fill (see .animate-gate-fill) — compositor-driven,

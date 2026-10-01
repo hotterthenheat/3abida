@@ -262,7 +262,7 @@ const Stocks = () => {
       { headerName: 'Sector', field: 'sector', width: 190, cellRenderer: SectorCell, headerTooltip: 'The sector the name files under' },
       { headerName: 'Last', field: 'price', width: 96, cellRenderer: LastCell, type: 'rightAligned', headerTooltip: 'The last price' },
       { headerName: 'Today', field: 'changePct', width: 88, cellRenderer: TodayCell, type: 'rightAligned', headerTooltip: "Today's change" },
-      { headerName: '30 days', field: 'trend', width: 100, cellRenderer: TrendCell, sortable: false, headerTooltip: 'Strength against the tape over the last thirty sessions' },
+      { headerName: '30 days', field: 'trend', width: 100, cellRenderer: TrendCell, cellDataType: false, sortable: false, headerTooltip: 'Strength against the tape over the last thirty sessions' },
       { headerName: 'Trend', colId: 'momentum', valueGetter: p => p.data?.sleeves.momentum ?? 0, width: 104, cellRenderer: sleeveCell('momentum'), headerTooltip: 'Momentum — is the price trend up and holding; above the 50 line green, below red' },
       { headerName: 'Numbers', colId: 'quality', valueGetter: p => p.data?.sleeves.quality ?? 0, width: 104, cellRenderer: sleeveCell('quality'), headerTooltip: 'Quality — margins, growth and the balance sheet; above the 50 line green, below red' },
       { headerName: 'Money', colId: 'flow', valueGetter: p => p.data?.sleeves.flow ?? 0, width: 104, cellRenderer: sleeveCell('flow'), headerTooltip: 'Flow — what the options and dark-pool money is doing; above the 50 line green, below red' },

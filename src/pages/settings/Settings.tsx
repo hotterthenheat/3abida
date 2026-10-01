@@ -462,7 +462,7 @@ type NoticeKind = 'upgrade' | 'ending' | 'failed' | 'cancelled';
 const NOTICE_OPTIONS: DropdownOption<NoticeKind | ''>[] = [
   { value: '', label: 'None', hint: 'What a plan in good standing shows' },
   { value: 'upgrade', label: 'Upgrade', hint: 'A page your plan does not hold' },
-  { value: 'ending', label: 'Trial ending', hint: 'A plan that ends soon' },
+  { value: 'ending', label: 'Plan ending', hint: 'A plan that ends soon' },
   { value: 'failed', label: 'Payment failed', hint: 'A charge that did not go through' },
   { value: 'cancelled', label: 'Cancelled', hint: 'A plan that will not renew' },
 ];
@@ -470,7 +470,9 @@ const noticeFor = (status: SubscriptionStatus): NoticeKind | '' => (status === '
 
 const BillingNotice = ({ kind, until }: { kind: NoticeKind; until: string }) => {
   const compass = planOf('compass');
-  const word = { upgrade: 'Upgrade', ending: 'Trial ending', failed: 'Payment failed', cancelled: 'Cancelled' }[kind];
+  /* "Plan ending", never "Trial ending": there is no trial — an account is free and a plan is paid for (the owner,
+     2026-10-01), and the notice's own words were already about the plan */
+  const word = { upgrade: 'Upgrade', ending: 'Plan ending', failed: 'Payment failed', cancelled: 'Cancelled' }[kind];
   const head = {
     upgrade: 'Compass needs the Compass plan.',
     ending: `Your plan ends on ${until}.`,
@@ -894,7 +896,7 @@ const AboutBox = () => {
   return (
     <Section id="about" title="About" line="The terminal and its version">
       <div className="px-5 py-4 border-t border-borderSubtle/60 flex items-center gap-4" data-settings-about>
-        <SlayerMark size={40} label="" />
+        <SlayerMark size={32} bare label="" />
         <div className="min-w-0">
           <Wordmark height={13} label="Slayer Terminal" />
           <div className="mt-1.5 font-mono text-[11px] tnum text-textMuted">
@@ -954,7 +956,7 @@ const Settings = () => {
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-settings-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <SlayerMark size={24} label="" />
+            <SlayerMark size={20} bare label="" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Settings</h1>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Your account and plan, how the terminal looks, what the desk opens on</p>

@@ -73,7 +73,7 @@ export const WeigherPageSkeleton = () => (
     <header className="shrink-0 flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle">
       <div className="min-w-0 flex-1">
         <div className="h-6 flex items-center gap-2.5">
-          <ProductGlyph name="weigher" size={24} className="shrink-0 rounded-md" />
+          <ProductGlyph name="weigher" size={18} bare className="shrink-0" />
           <span className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</span>
           <Line w={72} h={12} />
         </div>

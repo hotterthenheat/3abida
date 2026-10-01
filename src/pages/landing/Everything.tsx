@@ -9,8 +9,7 @@
   one screen at a time; this is the list it leaves out:
   every page and tool in every room, each in one line,
   and EACH ONE A DOOR — a pick opens that page in the
-  terminal, no sign-up, so nothing here is a promise
-  the visitor cannot check on the spot.
+  terminal.
 
   THE LIST IS THE TERMINAL'S OWN where the terminal
   keeps one: Pinpoint, Trace, Dossier and Practice read
@@ -20,6 +19,7 @@
   The rooms without a registry (Pulse, Compass, Terrain,
   the Weigher) and what every room shares are written
   below, in the tour's own words where it has them.
+  The glyphs stand bare — no box round a logo.
 
   THE LOOK keeps the page's grammar: rows on hairlines,
   not boxes. The rooms down the left, each on its glyph
@@ -112,7 +112,7 @@ export const ROOMS: Room[] = [
     kind: 'The scale',
     path: '/weigher',
     features: [
-      { title: 'The scanner', says: 'It finds the name; the chain beside it picks the contract.', path: '/weigher' },
+      { title: 'The scanner', says: 'It finds the name; you pick the contract off the chain beside it.', path: '/weigher' },
       { title: 'The chain', says: 'Every strike and expiry for the name.', path: '/weigher' },
       { title: 'One list', says: 'The contracts you watch and the positions you hold, together.', path: '/weigher' },
       { title: 'The position card', says: 'What a position would return at every price, on a ruler.', path: '/weigher' },
@@ -179,7 +179,7 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
         role="tablist"
         aria-label="Rooms"
         aria-orientation="vertical"
-        className="lg:col-span-4 xl:col-span-3 landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-1.5 lg:gap-0 overflow-x-auto lg:overflow-visible lg:border-t lg:border-borderSubtle"
+        className="lg:col-span-4 xl:col-span-3 landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-4 lg:gap-0 overflow-x-auto lg:overflow-visible max-lg:border-b max-lg:border-borderSubtle lg:border-t lg:border-borderSubtle"
       >
         {ROOMS.map((r, i) => {
           const on = i === at;
@@ -197,18 +197,20 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
               tabIndex={on ? 0 : -1}
               onClick={() => setAt(i)}
               onKeyDown={key}
-              className={`group relative shrink-0 flex items-center gap-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver
-                max-lg:h-10 max-lg:pl-1.5 max-lg:pr-4 max-lg:rounded-full max-lg:border
+              /* on a phone the rooms are words in a row, the lit one underlined in silver — no filled pill, no box round the
+                 glyph (the owner, 2026-10-01: "i don't think these things should be white boxed") */
+              className={`group relative shrink-0 flex items-center gap-2 lg:gap-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver
+                max-lg:h-10 max-lg:px-1 max-lg:border-b-2
                 lg:w-full lg:py-3 lg:pl-4 lg:pr-3 lg:border-b lg:border-borderSubtle ${
                   on
-                    ? 'max-lg:border-transparent max-lg:bg-textPrimary max-lg:text-panel lg:text-textPrimary lg:bg-ink/[0.04]'
-                    : 'max-lg:border-borderSubtle text-textSecondary hover:text-textPrimary lg:hover:bg-ink/[0.03]'
+                    ? 'max-lg:border-silver text-textPrimary lg:bg-ink/[0.04]'
+                    : 'max-lg:border-transparent text-textSecondary hover:text-textPrimary lg:hover:bg-ink/[0.03]'
                 }`}
               data-everything-room={r.id}
             >
               {/* silver is where you are, as in the tour's rows */}
               <span aria-hidden="true" className={`max-lg:hidden absolute left-0 top-2.5 bottom-2.5 w-[2px] rounded-full transition-colors ${on ? 'bg-silver' : 'bg-transparent'}`} />
-              <ProductGlyph name={r.glyph} size={28} className="shrink-0" />
+              <ProductGlyph name={r.glyph} size={20} bare className="shrink-0" />
               <span className="min-w-0 flex-1 text-[14.5px] font-medium whitespace-nowrap">{r.name}</span>
               <span className={`max-lg:hidden text-[12px] tnum ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{r.features.length}</span>
             </button>

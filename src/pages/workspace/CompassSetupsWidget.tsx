@@ -193,6 +193,7 @@ const CardList = memo(
             onSelect={onOpen}
             onAnalysis={onOpen}
             expiryChip={expiryChip}
+            opens
           />
         </div>
       ))}

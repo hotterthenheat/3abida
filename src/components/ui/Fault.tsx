@@ -90,7 +90,7 @@ export const FaultView = ({ error, scope, back, retry }: FaultViewProps) => {
   const card = (
     <BracketCard className="w-full max-w-[560px] p-7 sm:p-9 flex flex-col items-start gap-3" label="fault">
       <div role="alert" className="contents" data-fault={offline ? 'offline' : load ? 'stale' : 'error'}>
-        <SlayerMark size={48} state={load && !offline ? 'loading' : 'offline'} label="" />
+        <SlayerMark size={40} bare state={load && !offline ? 'loading' : 'offline'} label="" />
         <h1 className="mt-4 text-[28px] font-light tracking-[-0.02em] text-textPrimary leading-tight">{head}</h1>
         <p className="text-[15px] text-textSecondary leading-relaxed">{says}</p>
         <div className="mt-3 flex items-center gap-2.5 flex-wrap">

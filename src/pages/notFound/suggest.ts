@@ -15,8 +15,8 @@
           lives (/pinpoint/ahead, /record/insiders…)
     A GUESS FROM OUTSIDE /pricing · /login · /charts
         → the words people type by hand, mapped by hand
-          (ALIASES). /login is the honest one: there is
-          no sign-in yet, and it says so.
+          (ALIASES): /login to the sign-in form, /register
+          to the sign-up form.
 
   Everything it can suggest is READ FROM THE NAV'S OWN
   LISTS (nav.ts, the three subnavs, the settings'
@@ -65,16 +65,18 @@ export const KNOWN: Suggestion[] = [
   { path: '/#tools', label: 'The tools', where: 'Front page' },
   { path: '/#pricing', label: 'Pricing', where: 'Front page' },
   { path: '/#faq', label: 'Questions', where: 'Front page' },
+  { path: '/signup', label: 'Make your account', where: 'Account' },
+  { path: '/signin', label: 'Sign in', where: 'Account' },
 ];
 const byPath = (path: string): Suggestion => KNOWN.find(k => k.path === path) ?? { path, label: path };
 
-const NO_SIGN_IN = 'There is no sign-up yet. The terminal opens without one.';
 /** The words people type by hand → where they meant. Keys are already squashed (see `squash`). */
 const ALIASES: Record<string, { path: string; note?: string }> = {
   pricing: { path: '/#pricing' }, prices: { path: '/#pricing' }, price: { path: '/#pricing' }, plans: { path: '/#pricing' }, plan: { path: '/#pricing' }, subscribe: { path: '/#pricing' }, buy: { path: '/#pricing' }, upgrade: { path: '/#pricing' },
   faq: { path: '/#faq' }, faqs: { path: '/#faq' }, questions: { path: '/#faq' }, help: { path: '/#faq' }, support: { path: '/#faq' },
   tools: { path: '/#tools' }, features: { path: '/#tools' }, products: { path: '/#tools' }, tour: { path: '/#tools' },
-  login: { path: '/pulse', note: NO_SIGN_IN }, signin: { path: '/pulse', note: NO_SIGN_IN }, signup: { path: '/pulse', note: NO_SIGN_IN }, register: { path: '/pulse', note: NO_SIGN_IN }, join: { path: '/pulse', note: NO_SIGN_IN }, auth: { path: '/pulse', note: NO_SIGN_IN },
+  login: { path: '/signin' }, logon: { path: '/signin' }, auth: { path: '/signin' }, account: { path: '/signin' },
+  register: { path: '/signup' }, join: { path: '/signup' }, createaccount: { path: '/signup' }, getstarted: { path: '/signup' },
   app: { path: '/pulse' }, terminal: { path: '/pulse' }, dashboard: { path: '/pulse' }, launch: { path: '/pulse' }, desk: { path: '/pulse' }, start: { path: '/pulse' },
   chart: { path: '/terrain' }, charts: { path: '/terrain' }, charting: { path: '/terrain' },
   flow: { path: '/trace/live-tape' }, tape: { path: '/trace/live-tape' }, optionsflow: { path: '/trace/live-tape' },

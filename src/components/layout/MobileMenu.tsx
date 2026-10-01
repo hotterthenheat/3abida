@@ -156,7 +156,7 @@ const MobileMenu = ({ open, onClose }: Props) => {
       >
         <div className="shrink-0 h-12 flex items-center gap-2 pl-4 pr-2 border-b border-borderSubtle">
           <Link to="/" onClick={onClose} className="inline-flex items-center gap-2.5" aria-label="Slayer Terminal, the front page">
-            <SlayerMark size={24} label="" />
+            <SlayerMark size={20} bare label="" />
             <Wordmark height={12} label="" />
           </Link>
           <button type="button" onClick={onClose} aria-label="Close the menu" className="ml-auto inline-flex items-center justify-center w-9 h-9 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]">

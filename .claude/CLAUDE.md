@@ -39,20 +39,37 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   about, legal, the account forms, invite) use pages/outside/OutsideFrame; the account forms send nothing until a
   backend exists, and signing in opens the terminal. The static icons and og.jpg are drawn by `npm run brand:assets`
   (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.
-- Landing films (2026-10-01 — the owner, of the stills: "why are my photos just a photo and dont move so you cant see
-  all the features"): every page the tour names is FILMED from the real app by `npm run landing:clips`
-  (scripts/make-landing-clips.mjs — the page staged as its still, then worked by a drawn pointer; the page's clock is
-  held and stepped a frame at a time, so films are a smooth 30 fps with crisp charts; H.264 MP4, desk 2160×1500, phone
-  780×1520; it needs an ffmpeg with libx264, named by FFMPEG). The staging (SEED, PREPARE) is shared with the stills
-  in scripts/landing-stage.mjs; each film's words and timings live in src/pages/landing/clips.json, and the still
-  under a film is its first frame. The window (TerminalWindow.tsx) plays one film at a time, only on screen and with
-  the tab in front; reduced motion, Save-Data, a browser without H.264 and the visitor's pause keep the stills.
-  Re-film a page when its look changes.
-- Landing, after a study of another trading site's landing (2026-10-01 — "dont steal just get inspired"; its words and
-  layouts are not ours to reuse): the eight rooms stand as glyph pills over the hero's window, which plays each room's
-  film in turn (TerminalWindow `onCycle`; a still stands 7 s where films cannot play; none under reduced motion, Save-Data
-  or pause) and keeps a room picked by hand. "Everything in it" (landing/Everything.tsx) lists every page of every room,
-  each a door into the terminal — Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page
-  is listed by itself; write the others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the
-  cards and the plans side by side both read it. Never on the landing: reviews, ratings, member counts or results of
-  any kind (we have none), "most popular", a chat bubble (no backend).
+- Landing films (2026-10-01 — the owner: "why are my photos just a photo and dont move", then "it should just be a
+  cursor make it a sped up version of you actually using the desk"): every page the tour names is FILMED from the real
+  app by `npm run landing:clips` (scripts/make-landing-clips.mjs): the page staged as its still, then USED by a plain
+  arrow pointer at three times the page's speed — menus opened and picked, timeframes, desks and sides switched, a name
+  typed, a price dragged, a day opened — and everything it changes is changed back, so the film loops on its first
+  frame. No words, ring, bar or pause button over a film. Every film is set in the same open-market minute (AT, New
+  York's zone), so prices agree across films. The page's clock is held and stepped a frame at a time (30 fps, crisp
+  charts); H.264 MP4, desk 2160×1500, phone 780×1520; it needs an ffmpeg with libx264, named by FFMPEG; PREVIEW=1 films
+  an act small into the temp folder to check it. The staging (SEED, PREPARE, ROOM_PAGES) is in scripts/landing-stage.mjs;
+  clips.json keeps each film's length; the still under a film is its first frame. Re-film a page when its look changes,
+  and check its act still finds what it presses (the run says when a beat found nothing).
+- The landing's first screen (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
+  to click on each one"): the line, "Sign up free", and the wall of all eight rooms (landing/Wall.tsx), every one
+  playing its film's small copy (public/landing/wall/, written by landing:clips from the desk film), each a door to its
+  room in the tour; two across on a phone, where the wall comes before the words. Films play only on screen with the tab
+  in front; reduced motion, Save-Data and a browser without H.264 keep the stills. The tour's window (TerminalWindow)
+  plays one film, with no pause button and no captions. The only door is "Sign up free" — an account is free; there
+  is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs
+  and the mark stand bare (`bare`), sized to fit their line.
+- "Everything in it" (landing/Everything.tsx) lists every page of every room, each a door into the terminal —
+  Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page is listed by itself; write the
+  others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side
+  both read it. Never on the landing: reviews, ratings, member counts or results of any kind (we have none), "most
+  popular", a chat bubble (no backend). Its words and layouts are ours: another site's landing (studied 2026-10-01, "dont
+  steal just get inspired") is not ours to reuse.
+- Prices agree across desks: a name's seeded history is drawn from its own stream for the day (core/simulator.ts
+  beginSeed: `${sym}-${dayKey()}-walk`), and the day's change is measured from the last session's close
+  (Simulator.dayChangePct), never from the config's base price.
+- Phones (2026-10-01 audit): Trace's framed pages (Net Flow, 0DTE) are framed to the screen from md up only — on a phone
+  they scroll like any page (AppShell `bleedPage`), Net Flow's board over its pane, Dark Pool's shelves over its grid.
+  A grid's height on a phone is set with `max-lg:flex-none` beside its `max-lg:h-…` (a `flex-1` basis of 0 beat the
+  height and Paper's chain stood 0px tall). An AG Grid column holding an object drawn by its own cell sets
+  `cellDataType: false` (AG Grid's development panel otherwise covers the grid — and the films are shot in
+  development).

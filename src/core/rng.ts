@@ -46,3 +46,15 @@ export function dayKey(): string {
   const d = now();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
+
+/** A STREAM of uniforms [0, 1) from one seed (mulberry32) — for a walk that draws thousands of numbers and must draw the
+    same ones every time it is walked from that seed (the simulator's history: simulator.ts beginSeed) */
+export function stream(seed: string): () => number {
+  let a = hash(seed);
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}

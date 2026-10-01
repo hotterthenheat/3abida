@@ -101,7 +101,7 @@ const Status = () => {
         </section>
 
         <section className="self-start max-w-[560px] rounded-2xl border border-borderSubtle bg-panel p-6 flex items-start gap-4" data-status-whats-new>
-          <ProductGlyph name={glyphFor(news.product)} size={40} className="shrink-0 rounded-[9px]" />
+          <ProductGlyph name={glyphFor(news.product)} size={26} bare className="shrink-0" />
           <div className="min-w-0">
             <p className="text-[13px] text-textMuted">What’s new</p>
             <p className="mt-1 text-[16px] leading-snug text-textPrimary">{news.line}</p>

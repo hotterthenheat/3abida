@@ -424,9 +424,11 @@ const DarkPool = () => {
         }
         sentence={read}
       >
-        <div className="flex border-t border-borderSubtle" data-dark-pool-body>
+        {/* ON A PHONE THE SHELVES STAND OVER THE GRID (2026-10-01): side by side at 390px the grid was pushed off the screen's
+            right edge, its columns cut to "TI…" */}
+        <div className="flex max-md:flex-col border-t border-borderSubtle" data-dark-pool-body>
           {/* THE SHELVES — the session's liquidity shelves, highest first, and the open print's card under them */}
-          <aside className="w-[320px] shrink-0 border-r border-borderSubtle flex flex-col" data-dark-pool-shelves>
+          <aside className="md:w-[320px] shrink-0 md:border-r max-md:border-b border-borderSubtle flex flex-col" data-dark-pool-shelves>
             <div className="px-4 pt-3 pb-2">
               <h3 className="text-[11px] font-semibold text-textPrimary leading-tight">The shelves</h3>
               <p className="text-[10px] text-textSecondary">Where the dark dollars rested · {facts.support} support · {facts.resistance} resistance</p>

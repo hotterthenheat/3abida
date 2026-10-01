@@ -22,7 +22,7 @@ export const CompassHeadSkeleton = () => (
   <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" aria-hidden data-skeleton="compass-head">
     <div className="min-w-0 flex-1">
       <div className="h-6 flex items-center gap-2.5">
-        <ProductGlyph name="compass" size={24} className="shrink-0 rounded-md" />
+        <ProductGlyph name="compass" size={18} bare className="shrink-0" />
         <span className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</span>
       </div>
       <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The setups found this sweep, the strongest first — Active while the structure holds, Watch while it proves itself</p>

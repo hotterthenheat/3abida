@@ -10,6 +10,8 @@ import { resolve } from 'node:path';
 const landing = readFileSync(resolve(process.cwd(), 'src/pages/landing/Landing.tsx'), 'utf8');
 /** every page the tour names, in its order — read off Landing.tsx, so a page added to the tour is staged here too */
 export const ALL_PAGES = [...new Set([...landing.matchAll(/path: '(\/[a-z/-]+)'/g)].map(m => m[1]))];
+/** the rooms — the tour's numbered steps, each at the page it opens on: the eight screens of the landing's wall */
+export const ROOM_PAGES = [...landing.matchAll(/\n {4}code: '\d+',[\s\S]*?\n {4}path: '(\/[a-z/-]+)'/g)].map(m => m[1]);
 
 export const SIZES = [
   { form: 'desk', w: 1440, h: 1000, dpr: 1.5 },

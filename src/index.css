@@ -1476,11 +1476,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 .landing-rise {
   animation: landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) var(--rise-delay, 0ms) backwards;
 }
-.landing-rise-far {
-  --rise-from: 56px;
-  animation-duration: 1.2s;
-}
-/* the hero's rooms: a row that scrolls sideways on a phone, with no bar under it */
+/* the rooms of "Everything in it" (Everything.tsx): a row that scrolls sideways on a phone, with no bar under it */
 .landing-rooms {
   scrollbar-width: none;
 }

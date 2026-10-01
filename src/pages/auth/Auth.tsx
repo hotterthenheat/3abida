@@ -59,7 +59,7 @@ const Button = ({ children }: { children: ReactNode }) => (
 
 const Head = ({ title, line, glyph }: { title: string; line: string; glyph?: 'pulse' }) => (
   <div className="mt-9">
-    {glyph ? <ProductGlyph name={glyph} size={56} className="rounded-[12px]" /> : <SlayerMark size={56} label="" />}
+    {glyph ? <ProductGlyph name={glyph} size={38} bare /> : <SlayerMark size={40} bare label="" />}
     <h1 className="mt-6 text-[32px] font-light tracking-[-0.02em] leading-tight">{title}</h1>
     <p className="mt-2 text-[15px] leading-snug text-textSecondary">{line}</p>
   </div>
@@ -73,6 +73,9 @@ const Auth = () => {
   const screen = (pathname.slice(1) || 'signin') as Screen;
   const planKey = params.get('plan') as PlanKey | null;
   const plan = planKey === 'pinpoint' || planKey === 'compass' ? planOf(planKey) : null;
+  /* an invite's sign-up names who brought the reader in (Invite.tsx) */
+  const fromHandle = (params.get('from') ?? '').replace(/[^a-z0-9._]/gi, '');
+  const from = fromHandle ? fromHandle.charAt(0).toUpperCase() + fromHandle.slice(1) : null;
   const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string | null; password?: string | null }>({});
@@ -111,14 +114,21 @@ const Auth = () => {
         >
           {resent ? 'Sent again.' : 'Send it again'}
         </button>
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <p className="text-[13.5px] text-textMuted">Keep using the terminal while you wait.</p>
-          <LaunchPill label="Open the terminal" />
-        </div>
+        <Foot>
+          Confirmed it? <Link to="/signin" className="text-textSecondary hover:text-textPrimary">Sign in</Link>
+        </Foot>
       </>
     ) : (
       <>
-        <Head title="Make your account." line="You can keep using the terminal while you decide." />
+        {/* FREE TO MAKE, AND THAT IS ALL THAT IS FREE (the owner, 2026-10-01: "theirs no try to free you can sign up for free but
+            that's it") — the account costs nothing; a plan is what opens the desks */}
+        {/* with a plan chosen on the landing (?plan=), the line no longer asks for one — the plan stands under it */}
+        <Head title="Make your account." line={plan ? 'It’s free. The plan comes next.' : 'It’s free. Choose a plan when you’re ready.'} />
+        {from && (
+          <p className="mt-4 text-[13.5px] text-textSecondary" data-auth-from>
+            Brought in by {from}
+          </p>
+        )}
         {plan && (
           <p className="mt-4 text-[13.5px] text-textSecondary" data-auth-plan={planKey}>
             {plan.name} · {plan.price} {plan.period}

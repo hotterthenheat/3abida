@@ -65,7 +65,7 @@ const PracticeLayout = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
             {glyph ? (
-              <ProductGlyph name={glyph} size={24} className="shrink-0 rounded-md" />
+              <ProductGlyph name={glyph} size={18} bare className="shrink-0" />
             ) : (
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle text-textSecondary shrink-0" aria-hidden="true">
                 <PageIcon className="w-3.5 h-3.5" />

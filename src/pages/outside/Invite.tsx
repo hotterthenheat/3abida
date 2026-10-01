@@ -38,13 +38,13 @@ export const Invite = () => {
           <h1 className="mt-2 text-[30px] font-light tracking-[-0.02em] leading-tight">{name} invited you to Slayer Terminal.</h1>
           <button
             type="button"
-            onClick={() => navigate(`/welcome?from=${encodeURIComponent(code.split('-')[0])}`)}
+            onClick={() => navigate(`/signup?from=${encodeURIComponent(code.split('-')[0])}`)}
             className="mt-8 h-12 w-full rounded-full bg-textPrimary text-canvas text-[15px] font-medium hover:bg-textPrimary/90"
             data-invite-door
           >
-            Open the terminal
+            Sign up free
           </button>
-          <p className="mt-3 text-center text-[13.5px] text-textMuted">Sign up after, if you want to stay.</p>
+          <p className="mt-3 text-center text-[13.5px] text-textMuted">Making an account is free. Choose a plan when you’re ready.</p>
         </div>
       </div>
     </OutsideFrame>
@@ -70,7 +70,7 @@ export const Welcome = () => {
           </div>
           <h1 className="mt-7 text-[30px] font-light tracking-[-0.02em] leading-tight">Welcome in. Start on the landing desk.</h1>
           <div className="mt-4 flex items-start gap-3">
-            <ProductGlyph name="pulse" size={36} className="shrink-0 rounded-[8px]" />
+            <ProductGlyph name="pulse" size={24} bare className="shrink-0" />
             <p className="text-[15px] leading-snug text-textSecondary">Pulse shows the chart, dealer pressure and the key levels. Set an alert on any level and it sounds on every page.</p>
           </div>
           <LaunchPill label="Open Pulse" size="block" className="mt-8" />

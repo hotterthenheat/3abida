@@ -129,7 +129,7 @@ const PictureDrop = () => {
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[12px] text-textPrimary">
             Your picture
-            {ready && <span className="h-4 px-1.5 inline-flex items-center rounded bg-silverFill font-mono text-[8.5px] font-bold uppercase tracking-widest text-[#0a0a0a]" data-picture-preview>preview</span>}
+            {ready && <span className="h-4 px-1.5 inline-flex items-center rounded bg-silverFill font-mono text-[8.5px] font-bold uppercase tracking-widest text-[#0a0a0a]" data-picture-preview>not saved</span>}
           </div>
           <div className="text-[11px] text-textMuted">Signs your posts on Community, beside your name</div>
           {p.avatar && !staged && (

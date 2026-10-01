@@ -55,7 +55,7 @@ const InstallPrompt = () => {
   };
   return (
     <div className="fixed left-1/2 -translate-x-1/2 bottom-4 z-[85] w-[min(420px,calc(100vw-24px))] rounded-2xl border border-borderSubtle bg-panel/95 backdrop-blur-md shadow-2xl shadow-black/40 p-4 flex items-start gap-3 animate-fade-in" role="dialog" aria-label="Install Slayer" data-install-prompt>
-      <SlayerMark size={44} label="" />
+      <SlayerMark size={34} bare label="" />
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-medium text-textPrimary">Slayer</p>
         <p className="mt-0.5 text-[13px] leading-snug text-textSecondary">Put the terminal on your home screen. It opens full screen.</p>

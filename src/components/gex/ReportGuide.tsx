@@ -31,7 +31,7 @@ const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5, mon
   </text>
 );
 
-/** FIGURE 1 — one row: the level, its grade, the session strip with its ticks, the facts */
+/** FIGURE 1 — one row: the level, how often it held, the session strip with its ticks, the facts */
 const RowFigure = () => {
   const ticks = [
     { x: 138, kind: 'held' },
@@ -40,7 +40,7 @@ const RowFigure = () => {
     { x: 262, kind: 'held' },
   ];
   return (
-    <svg viewBox="0 0 368 166" width="100%" role="img" aria-label="One row of the report: the level's name and price, its grade, the session strip with green and red ticks, and the facts" data-guide-figure="row">
+    <svg viewBox="0 0 368 166" width="100%" role="img" aria-label="One row of the report: the level's name and price, how often it held, the session strip with green and red ticks, and the facts" data-guide-figure="row">
       {/* The level */}
       <Label x={14} y={18} fill={GREEN} size={9} weight={600}>
         Call wall

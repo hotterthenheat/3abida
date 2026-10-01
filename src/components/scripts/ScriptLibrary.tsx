@@ -338,7 +338,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
         widthClass="max-w-[1080px]"
         header={
           <div className="flex items-center gap-3 min-w-0">
-            <SlayerMark size={24} label="" />
+            <SlayerMark size={20} bare label="" />
             <span className="text-[15px] font-semibold leading-tight text-textPrimary">Indicators and scripts</span>
             <span className="font-mono text-[10px] text-textMuted whitespace-nowrap" data-library-count>
               {onThisPane} on this pane

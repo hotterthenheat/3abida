@@ -278,7 +278,7 @@ function buildBoard(tickers?: string[]): BoardTicker[] {
     return {
       ticker,
       spot: cfg.currentPrice,
-      changePercent: ((cfg.currentPrice - cfg.basePrice) / cfg.basePrice) * 100,
+      changePercent: Simulator.dayChangePct(ticker),
       prints: buildPrints(ticker, cfg.currentPrice),
       ladder,
       ladderMaxAbs: maxAbs,
@@ -397,8 +397,7 @@ export function buildLadderFor(
     print (`buildBoard`, above), exported so a chart header and a board cell
     can never disagree about the day. */
 export function spotChangePct(ticker: string): number {
-  const cfg = Simulator.TICKERS[Simulator.ensureTicker(ticker)];
-  return ((cfg.currentPrice - cfg.basePrice) / cfg.basePrice) * 100;
+  return Simulator.dayChangePct(Simulator.ensureTicker(ticker));
 }
 
 // ---- live pulse ------------------------------------------------------------------

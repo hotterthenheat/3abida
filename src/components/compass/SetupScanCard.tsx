@@ -34,9 +34,12 @@ interface SetupScanCardProps {
   onAnalysis: (setup: Setup) => void;
   /** MM/DD/YY of the real expiry session, resolved by the page's calendar. */
   expiryChip: string;
+  /** A card that OPENS its setup's page on the first click (Pulse's Compass widget, which has no rail for a selection to
+      point): its tooltip says so, not "Select" (2026-10-01 — it promised a selection the widget never makes). */
+  opens?: boolean;
 }
 
-const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip }: SetupScanCardProps) => {
+const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip, opens = false }: SetupScanCardProps) => {
   const state = processState(setup);
   const meta = PROCESS_META[state];
   const tpHit = hitLevel(setup);
@@ -45,8 +48,8 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
   return (
     <button
       onClick={() => onSelect(setup)}
-      aria-pressed={selected}
-      title={selected ? "Selected — click again for the setup's page" : "Select — the heaviest contracts follow this name"}
+      aria-pressed={opens ? undefined : selected}
+      title={opens ? "Open the setup's page" : selected ? "Selected — click again for the setup's page" : "Select — the heaviest contracts follow this name"}
       /* Selected = the "where you are" ink — Noah asked for a white border on
          2026-08-19; since the 2026-09-05 doctrine that ink is the holo silver
          everywhere, and the walk (2026-09-11) brought the card in line. One

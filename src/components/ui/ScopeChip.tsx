@@ -137,7 +137,8 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
      host re-renders on every tick anyway. */
   const cfg = quote && (!follows || full) ? Simulator.TICKERS[ticker] : undefined;
   const price = cfg?.currentPrice;
-  const change = cfg ? ((cfg.currentPrice - cfg.basePrice) / cfg.basePrice) * 100 : undefined;
+  /* the day's change from the last close (Simulator.dayChangePct) — never from the name's config price */
+  const change = cfg ? Simulator.dayChangePct(ticker) : undefined;
 
   const menu =
     open &&
