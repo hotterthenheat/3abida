@@ -96,7 +96,7 @@ const PracticeLayout = () => {
               <Fact label="Clock">New York</Fact>
             </>
           )}
-          <Fact label="Money">Pretend — nothing reaches a broker</Fact>
+          <Fact label="Money">Paper — nothing reaches a broker</Fact>
         </dl>
       </header>
       <AnimatePresence mode="wait" initial={false}>

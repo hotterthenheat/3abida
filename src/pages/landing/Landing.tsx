@@ -74,8 +74,6 @@ import { PRODUCT_GROUPS } from '../../brand/products';
 
 /** Where every door on the page leads. At launch this becomes the sign-up; today the terminal is open. */
 const DOOR = '/pulse';
-/** Flip at launch, when the plans can be paid for — until then the pricing says payments open at launch */
-const CHECKOUT_OPEN = false;
 
 /* THE BAR'S THREE WORDS (Slayer Logo System, Web and App · Landing): Products opens the menu of every product, one line
    each; Pricing and Questions are this page's own sections */
@@ -716,7 +714,6 @@ const Page = () => {
             <TwoTone first="Pick your plan." second="Cancel any time." />
             <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">
               Pinpoint is the charts, the book and the tape. Compass is everything. Cancel whenever you like and you keep your access until the period you paid for ends.
-              {!CHECKOUT_OPEN && ' Payments open at launch.'}
             </p>
           </div>
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">

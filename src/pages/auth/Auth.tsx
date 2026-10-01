@@ -6,16 +6,17 @@
   the password, the email confirmed, the link expired — each on one card: the signature, the mark, a line, the form,
   one button, the way out.
 
-  NOTHING IS SENT YET. There is no account service behind these forms until the keys and the backend come in (the
-  project's context, .claude/CLAUDE.md), so a form checks what it can on this machine and then shows the next screen of
-  the flow — the one a reader would see — with one quiet line saying the email was not sent. When the service lands,
-  the submit handlers are the seam: each one is a single call.
+  NO SERVICE BEHIND THEM YET. There is no account service until the keys and the backend come in (the project's
+  context, .claude/CLAUDE.md), so a form checks what it can on this machine and then shows the next screen of the flow —
+  the one a reader would see; signing in opens the terminal. Nothing says "preview" (the owner, 2026-10-01). When the
+  service lands, the submit handlers are the seam: each one is a single call.
 ==================================================
 */
 
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import OutsideFrame, { LaunchPill } from '../outside/OutsideFrame';
+import { useLaunch } from '../../components/layout/LaunchTransition';
 import Signature from '../../brand/Signature';
 import SlayerMark from '../../brand/SlayerMark';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -66,9 +67,6 @@ const Head = ({ title, line, glyph }: { title: string; line: string; glyph?: 'pu
 
 const Foot = ({ children }: { children: ReactNode }) => <p className="mt-8 text-center text-[13.5px] text-textMuted">{children}</p>;
 
-/** The one quiet line on a screen that would have sent mail */
-const NotSent = () => <p className="mt-3 text-[12px] text-textMuted" data-auth-not-sent>Preview: accounts open at launch, so nothing was sent.</p>;
-
 const Auth = () => {
   const { pathname } = useLocation();
   const [params] = useSearchParams();
@@ -80,6 +78,11 @@ const Auth = () => {
   const [errors, setErrors] = useState<{ email?: string | null; password?: string | null }>({});
   /** the form was sent: the next screen of the flow shows in its place */
   const [sent, setSent] = useState(false);
+  /** "Send it again", pressed */
+  const [resent, setResent] = useState(false);
+  const { launch } = useLaunch();
+  /** the line on a "check your email" screen: the address it went to */
+  const sentTo = `We sent a link to ${email.trim()}. It works for one hour.`;
 
   const check = (needPassword: boolean, newPassword = false): boolean => {
     const next = {
@@ -89,20 +92,25 @@ const Auth = () => {
     setErrors(next);
     return !next.email && !next.password;
   };
-  const submit = (needPassword: boolean, newPassword = false) => (e: FormEvent) => {
+  const submit = (needPassword: boolean, newPassword = false, done: () => void = () => setSent(true)) => (e: FormEvent) => {
     e.preventDefault();
-    if (check(needPassword, newPassword)) setSent(true);
+    if (check(needPassword, newPassword)) done();
   };
 
   let body: ReactNode;
   if (screen === 'signup') {
     body = sent ? (
       <>
-        <Head title="Check your email." line="The link works for one hour." />
-        <NotSent />
-        <Link to={`/verified?email=${encodeURIComponent(email.trim())}`} className="mt-6 text-[13.5px] text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
-          See the confirmed screen
-        </Link>
+        <Head title="Check your email." line={sentTo} />
+        <button
+          type="button"
+          onClick={() => setResent(true)}
+          disabled={resent}
+          className="mt-6 self-start text-[13.5px] text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary disabled:no-underline disabled:text-textMuted"
+          data-auth-resend
+        >
+          {resent ? 'Sent again.' : 'Send it again'}
+        </button>
         <div className="mt-8 flex flex-col items-center gap-3">
           <p className="text-[13.5px] text-textMuted">Keep using the terminal while you wait.</p>
           <LaunchPill label="Open the terminal" />
@@ -113,7 +121,7 @@ const Auth = () => {
         <Head title="Make your account." line="You can keep using the terminal while you decide." />
         {plan && (
           <p className="mt-4 text-[13.5px] text-textSecondary" data-auth-plan={planKey}>
-            {plan.name} · {plan.price} {plan.period}. Payments open at launch.
+            {plan.name} · {plan.price} {plan.period}
           </p>
         )}
         <form className="mt-7 flex flex-col gap-4" onSubmit={submit(true, true)} noValidate>
@@ -127,15 +135,10 @@ const Auth = () => {
       </>
     );
   } else if (screen === 'signin') {
-    body = sent ? (
-      <>
-        <Head title="Accounts open at launch." line="Your desks are already here, on this machine. Nothing was sent." />
-        <LaunchPill label="Open Pulse" size="block" className="mt-8" />
-      </>
-    ) : (
+    body = (
       <>
         <Head title="Sign in." line="Your desks are where you left them." />
-        <form className="mt-7 flex flex-col gap-4" onSubmit={submit(true)} noValidate>
+        <form className="mt-7 flex flex-col gap-4" onSubmit={submit(true, false, () => launch('/pulse'))} noValidate>
           <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" error={errors.email} />
           <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" error={errors.password} />
           <Button>Sign in</Button>
@@ -149,8 +152,7 @@ const Auth = () => {
     const expired = screen === 'expired';
     body = sent ? (
       <>
-        <Head title="Check your email." line="The link works for one hour." />
-        <NotSent />
+        <Head title="Check your email." line={sentTo} />
         <Foot>
           <Link to="/signin" className="text-textSecondary hover:text-textPrimary">Back to sign in</Link>
         </Foot>
@@ -172,7 +174,7 @@ const Auth = () => {
       <>
         <Head title="You’re in." line="Your email is confirmed. Start on the landing desk." glyph="pulse" />
         <LaunchPill label="Open Pulse" size="block" className="mt-10" />
-        <Foot>{email ? `Signed in as ${email}` : 'Preview: accounts open at launch.'}</Foot>
+        {email && <Foot>Signed in as {email}</Foot>}
       </>
     );
   }

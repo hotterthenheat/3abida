@@ -40,7 +40,7 @@ export const PRODUCT_GROUPS: ProductGroup[] = [
   {
     caption: 'Practice',
     products: [
-      { name: 'Practice', glyph: 'practice', line: 'Trade with pretend money, replay the past, review every trade', path: '/practice' },
+      { name: 'Practice', glyph: 'practice', line: 'Trade with paper money, replay the past, review every trade', path: '/practice' },
       fromNav('/practice/paper'),
       fromNav('/practice/backtest'),
       fromNav('/practice/journal'),

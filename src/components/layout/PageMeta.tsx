@@ -70,7 +70,7 @@ const TOP: Record<string, Meta> = {
   '/compass': page('Compass', 'Contracts that fit the levels right now. Each one carries a live state: active while the structure holds, watch while it forms, fading when it breaks.'),
   '/compass/tracker': page('Tracker', 'The setups you kept, followed to the close.', 'Compass'),
   '/weigher': page('Weigher', 'Weigh any contract before you take it: the chart, the chain and your watchlist on one desk, and what a position would return at every price.'),
-  '/community': page('Community', 'The traders’ room. It opens after launch.'),
+  '/community': page('Community', 'The traders’ room. Coming soon.'),
   /* the pages outside the terminal (pages/outside, pages/auth — the Logo System's Web and App, 2026-10-01) */
   '/status': page('Status', 'What’s up and what’s new: each part of the terminal, the market’s last 30 days and the changelog.'),
   '/about': page('About', 'Slayer Terminal gathers what moves a price into one terminal: the prints, the positions, the levels, the filings.'),

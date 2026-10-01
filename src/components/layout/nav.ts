@@ -156,7 +156,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LineChart,
     ink: NAV_INK.paperDesk,
     glyph: 'paper',
-    description: 'Today’s prices with pretend money, or a prop firm’s evaluation',
+    description: 'Today’s prices with paper money, or a prop firm’s evaluation',
     group: 'Practice',
   },
   {
@@ -200,7 +200,7 @@ export const NAV_GROUP_META: Record<NavGroup, { icon: LucideIcon; hint: string; 
   Market: { icon: CandlestickChart, hint: 'What the market is doing, and what happened', caption: 'Market' },
   'The book': { icon: Crosshair, hint: 'Where dealer hedging pushes', caption: 'The book' },
   Trade: { icon: Compass, hint: 'What to trade, and which contract', caption: 'Trade' },
-  Practice: { icon: Dumbbell, hint: 'Trade with pretend money, replay the past, review every trade', caption: 'Practice' },
+  Practice: { icon: Dumbbell, hint: 'Trade with paper money, replay the past, review every trade', caption: 'Practice' },
   More: { icon: Settings, hint: 'The room, and how the terminal is set', caption: null },
 };
 

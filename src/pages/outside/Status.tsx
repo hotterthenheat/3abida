@@ -27,7 +27,6 @@ const PARTS: { name: string; state: string; tone: 'normal' | 'muted' }[] = [
   { name: 'Terminal', state: 'Normal', tone: 'normal' },
   { name: 'Market data', state: 'Normal', tone: 'normal' },
   { name: 'Alerts', state: 'Normal', tone: 'normal' },
-  { name: 'Sign-in', state: 'Opens at launch', tone: 'muted' },
 ];
 const TONE = { normal: 'text-textPrimary', muted: 'text-textMuted' } as const;
 

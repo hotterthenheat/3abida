@@ -21,7 +21,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   { version: 'v2026.10.01', line: 'The mark lives: it says when the market is closed, when a page is loading and when an alert fires. Every product has its own glyph.', path: '/pulse' },
-  { version: 'v2026.09.30', product: 'Paper', line: 'Paper trades options only: calls, puts and spreads off the chain, with pretend money.', path: '/practice/paper' },
+  { version: 'v2026.09.30', product: 'Paper', line: 'Paper trades options only: calls, puts and spreads off the chain, with paper money.', path: '/practice/paper' },
   { version: 'v2026.09.30', line: 'Every page reads in light and in dark, guides and menus included.', path: '/settings/appearance' },
   { version: 'v2026.09.30', product: 'Journal', line: 'The Journal opens without the second-long freeze.', path: '/practice/journal' },
   { version: 'v2026.09.21', product: 'Alerts', line: 'Set an alert from the drawer, not only from the panel that shows the level.', path: '/alerts' },

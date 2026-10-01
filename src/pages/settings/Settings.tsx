@@ -401,7 +401,7 @@ const SIGN_IN_OPTIONS: DropdownOption<SignInWay>[] = [
 const AccountBox = () => {
   const p = useProfile();
   return (
-    <Section id="account" title="Account" line="Who you are to the terminal — your picture and name sign your posts; your board, marks and settings follow you between machines" aside={<Tag>preview · sample account</Tag>}>
+    <Section id="account" title="Account" line="Who you are to the terminal — your picture and name sign your posts; your board, marks and settings follow you between machines">
       {/* THE PICTURE — a place to drop one: staged, shown as it will be kept, applied only when you say so (PictureDrop.tsx) */}
       <PictureDrop />
       <Row name="Name" line="How the terminal greets you and signs your posts" testId="name">
@@ -530,7 +530,7 @@ const BillingBox = () => {
   const plan = planOf(b.plan);
   const [seen, setSeen] = useState<NoticeKind | ''>(() => noticeFor(b.status));
   return (
-    <Section id="billing" title="Billing" line="Your plan and the card behind it — the card lives with Stripe, never here" aside={<Tag>preview · sample plan</Tag>}>
+    <Section id="billing" title="Billing" line="Your plan and the card behind it — the card lives with Stripe, never here">
       {/* THE PLAN — what you are on, its standing, the next charge */}
       <div className="px-5 py-4 border-t border-borderSubtle/60 flex items-center gap-6 flex-wrap" data-settings-plan={b.plan}>
         <div className="min-w-0 flex-1">
@@ -826,7 +826,7 @@ const InviteBox = () => {
     }
   };
   return (
-    <Section id="invite" title="Invite a trader" line="When someone you invite joins a paid plan, you both get a month of account credit" aside={<Tag>preview · accounts open at launch</Tag>}>
+    <Section id="invite" title="Invite a trader" line="When someone you invite joins a paid plan, you both get a month of account credit">
       <Row name="Your link" line="It opens the terminal with your name on it" testId="invite-link">
         <code className="font-code text-[11.5px] text-textPrimary select-all" data-invite-link>
           {link}
@@ -873,7 +873,7 @@ const MailBox = () => {
   };
   const anyOn = Object.values(mail).some(Boolean);
   return (
-    <Section id="mail" title="Email preferences" line="Receipts and sign-in mail always send" aside={<Tag>preview · nothing is sent yet</Tag>}>
+    <Section id="mail" title="Email preferences" line="Receipts and sign-in mail always send">
       {MAIL_ROWS.map(r => (
         <Row key={r.kind} name={r.name} line={r.line} testId={`mail-${r.kind}`}>
           <Toggle on={mail[r.kind]} onChange={v => save({ ...mail, [r.kind]: v })} label={r.name} testId={`mail-${r.kind}`} />

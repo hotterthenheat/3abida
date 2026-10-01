@@ -955,7 +955,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
           </div>,
           document.body
         )}
-      <p className="px-1 font-mono text-[10px] text-textMuted">{foot ?? 'Practice, not advice. Past results, real or pretend, promise nothing.'}</p>
+      <p className="px-1 font-mono text-[10px] text-textMuted">{foot ?? 'Practice, not advice. Past results promise nothing.'}</p>
     </div>
   );
 };

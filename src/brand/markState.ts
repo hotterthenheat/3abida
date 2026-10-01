@@ -5,20 +5,21 @@
   "Six states. The system, never the market." (Slayer Logo System, 02 · Living mark.) The mark in the rail, the
   loading screen, the landing and the browser tab all read this one value, so they never disagree:
 
-    idle      the default — the silver pans, the cursor blinks
+    idle      the still frame — the static icons, and a mark the clock does not drive
     loading   a load has run past 450 ms — the pan speeds up, the cursor holds
-    live      a real feed is connected and the market is open — never on the simulated feed, so never yet
+    live      the market is open (the owner, 2026-10-01) — the slow pan and the brighter edge
     closed    the market is shut (before the open, after the close, weekends, holidays) — the S stands still in graphite
     alert     an alert fired — the cursor flashes the warning ink twice, then the mark goes back
     offline   the connection is gone — the S stands still and the cursor hides until it comes back
 
-  Precedence when two hold at once: offline, alert, loading, closed, live, idle. No red or green on the mark, ever —
-  the mark reports the terminal, not the price.
+  Precedence when two hold at once: offline, alert, loading, then the market's own (live or closed). No red or green on
+  the mark, ever — the mark reports the terminal, not the price. Open and shut are the signature's word for it too
+  (data/marketState.ts), so the mark and "slayer:~ $ ● live" never disagree.
 ==================================================
 */
 
 import { useSyncExternalStore } from 'react';
-import { readSessionClock } from '../data/sessionClock';
+import { readMarketState } from '../data/marketState';
 
 export type MarkState = 'idle' | 'loading' | 'live' | 'closed' | 'alert' | 'offline';
 
@@ -30,8 +31,6 @@ const ALERT_MS = 1200;
 const CLOCK_MS = 30_000;
 
 let marketOpen = isMarketOpen();
-/* A real feed — the simulated one never sets this (core/simulator.ts). A data layer that connects sets it with setFeedLive. */
-let feedLive = false;
 let online = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
 let loadsShown = 0;
 let alertUntil = 0;
@@ -41,18 +40,16 @@ const listeners = new Set<() => void>();
 let clockTimer: number | null = null;
 let alertTimer: number | null = null;
 
+/** the signature's own reading (data/marketState.ts): live while the market is open — early closes and holidays known */
 function isMarketOpen(): boolean {
-  const phase = readSessionClock().phase;
-  return phase === 'OPEN' || phase === 'AUCTION';
+  return readMarketState().word === 'live';
 }
 
 function derive(): MarkState {
   if (!online) return 'offline';
   if (alertUntil > Date.now()) return 'alert';
   if (loadsShown > 0) return 'loading';
-  if (!marketOpen) return 'closed';
-  if (feedLive) return 'live';
-  return 'idle';
+  return marketOpen ? 'live' : 'closed';
 }
 
 function emit(): void {
@@ -132,10 +129,4 @@ export function beginLoad(): () => void {
       emit();
     }
   };
-}
-
-/** A real feed connected or dropped — the simulated feed never calls this */
-export function setFeedLive(live: boolean): void {
-  feedLive = live;
-  emit();
 }

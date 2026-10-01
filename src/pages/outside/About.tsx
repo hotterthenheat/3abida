@@ -28,7 +28,7 @@ const About = () => (
           Pulse is the live desk, arranged your way. Trace reads the live tape: dark pool, net flow, footprints. Dossier is the full file on a ticker. Pinpoint shows
           where dealer hedging holds and pushes price. Compass finds contracts that fit the levels; Weigher shows what each returns at every price.
         </p>
-        <p>Practice lets you trade with pretend money, replay the past and review every trade. It says what every number stands on. Try it, no sign-up.</p>
+        <p>Practice lets you trade with paper money, replay the past and review every trade. It says what every number stands on. Try it, no sign-up.</p>
       </div>
       <div className="mt-8 flex items-center gap-4 flex-wrap">
         <LaunchPill label="Try it, no sign-up" size="lg" />

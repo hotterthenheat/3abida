@@ -3,7 +3,8 @@
   SLAYER TERMINAL - WHO WE ARE, IN ONE PLACE (data/company.ts)
 
   The names and addresses the footer, the legal pages, the status page and the mail all print. The legal name and the
-  mailing address are the Logo System's own placeholders until the company is formed — fill them here, once.
+  mailing address are the Logo System's own placeholders until the company is formed — fill them here, once. A
+  placeholder never shows: `filled` reads it as missing, and the page leaves it out (the owner, 2026-10-01).
 ==================================================
 */
 
@@ -21,3 +22,6 @@ export const COMPANY = {
   /** what a card statement reads */
   descriptor: 'SLAYER TERMINAL',
 } as const;
+
+/** A field as written, or null while it is still a "[placeholder]" */
+export const filled = (value: string): string | null => (/^\[.*\]$/.test(value.trim()) ? null : value);

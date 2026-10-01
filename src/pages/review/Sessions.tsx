@@ -213,7 +213,7 @@ const Sessions = () => {
               <Plus className="w-3 h-3" /> A second name
             </button>
           )}
-          <DropdownSelect label="Start with" value={cash} options={CASH} onChange={setCash} title="The pretend money the session starts with" testId="review-cash" />
+          <DropdownSelect label="Start with" value={cash} options={CASH} onChange={setCash} title="The paper money the session starts with" testId="review-cash" />
           <DayCard label="From" value={startDay} onChange={setStartDay} title="The day the clock starts on" testId="review-start" />
           <DropdownSelect label="Fee" value={fee} options={FEES} onChange={setFee} title="What each contract costs to trade, each way" testId="review-fee" />
           {/* YOUR RULES — hard blocks, chosen here and nowhere else */}

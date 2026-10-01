@@ -3,9 +3,10 @@
   SLAYER TERMINAL - THE LEGAL PAGES (/legal/:doc)
 
   "Counsel writes it. We set it." (Slayer Logo System, Web and App · Legal and install.) Five documents on one frame:
-  the tabs, the title, when it was last updated and how long it takes to read, a lead in plain words, then the sections
-  — each one "[Counsel's text]" until counsel writes it. The leads are the brand's own sentences; the Data sources page
-  says what every number stands on, which is ours to say.
+  the tabs, the title, a lead in plain words, then the sections. A section shows once it has words — counsel's, set in
+  `body` — and never as a "[placeholder]" (the owner, 2026-10-01); Contact always shows, with the address to write to.
+  The leads are the brand's own sentences; the Data sources page says what every number stands on, which is ours to
+  say.
 ==================================================
 */
 
@@ -19,8 +20,6 @@ interface Doc {
   lead: string;
   sections: { head: string; body?: string[] }[];
 }
-
-const COUNSEL = "[Counsel's text]";
 
 export const LEGAL_DOCS: Doc[] = [
   {
@@ -61,8 +60,6 @@ export const LEGAL_DOCS: Doc[] = [
           'Model — an estimate from a stated method, such as where dealers are positioned.',
         ],
       },
-      { head: 'Index prices', body: ['[Vendor] · live once the licence is signed.'] },
-      { head: 'Options trades and quotes', body: ['[Vendor] · live once the licence is signed.'] },
       { head: 'Dealer positioning', body: ['Model · the method is written in each page’s guide.'] },
       { head: 'Licences' },
     ],
@@ -73,7 +70,8 @@ const Legal = () => {
   const { doc = 'terms' } = useParams();
   const page = LEGAL_DOCS.find(d => d.slug === doc);
   if (!page) return <Navigate to="/legal/terms" replace />;
-  const words = page.lead.split(/\s+/).length + page.sections.reduce((n, s) => n + (s.body ?? [COUNSEL]).join(' ').split(/\s+/).length + 60, 0);
+  /* the sections with words: counsel's, and Contact with the address to write to */
+  const sections = page.sections.flatMap(s => (s.body ? [{ head: s.head, body: s.body }] : s.head === 'Contact' ? [{ head: s.head, body: [`Write to ${COMPANY.info}.`] }] : []));
   return (
     <OutsideFrame testId={`legal-${page.slug}`}>
       <div className="w-full max-w-[880px] mx-auto px-5 sm:px-8 pt-8 pb-20">
@@ -92,14 +90,13 @@ const Legal = () => {
           ))}
         </nav>
         <h1 className="mt-10 text-[40px] sm:text-[52px] font-light tracking-[-0.04em] leading-[1.04]">{page.title}</h1>
-        <p className="mt-3 text-[13px] text-textMuted">Last updated [date] · {Math.max(1, Math.round(words / 200))} min read</p>
         <p className="mt-8 max-w-[62ch] text-[18px] leading-[1.55] text-textPrimary">{page.lead}</p>
         <div className="mt-10 flex flex-col">
-          {page.sections.map(s => (
+          {sections.map(s => (
             <section key={s.head} className="py-6 border-t border-borderSubtle">
               <h2 className="text-[20px] font-medium tracking-tight">{s.head}</h2>
               <div className="mt-2.5 flex flex-col gap-2 max-w-[66ch] text-[15.5px] leading-relaxed text-textSecondary">
-                {(s.body ?? [s.head === 'Contact' ? `${COUNSEL} Write to ${COMPANY.info}.` : COUNSEL]).map(line => (
+                {s.body.map(line => (
                   <p key={line}>{line}</p>
                 ))}
               </div>

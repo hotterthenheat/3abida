@@ -21,7 +21,7 @@ import { useLaunch } from './LaunchTransition';
 import Wordmark from '../../brand/Wordmark';
 import Signature from '../../brand/Signature';
 import { PRODUCTS } from '../../brand/products';
-import { COMPANY } from '../../data/company';
+import { COMPANY, filled } from '../../data/company';
 import { VERSION } from '../../data/release';
 
 /* THE LINKS, WALKED (2026-09-19): every row goes where it says. THE BRAND'S FOOTER (Slayer Logo System, 14 · the footer,
@@ -178,7 +178,9 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
         <div className="flex flex-col md:flex-row gap-3 md:items-center">
           <Signature detail={`· ${VERSION}`} rule={false} className="text-[11px]" />
           <span className="md:ml-auto text-[11px] text-textMuted">
-            {/* the year is the calendar's, not a number typed once (2026-09-19) */}© {new Date().getFullYear()} {COMPANY.legalName} · {COMPANY.address}
+            {/* the year is the calendar's, not a number typed once (2026-09-19); the name and the address once they are filled */}©{' '}
+            {new Date().getFullYear()} {filled(COMPANY.legalName) ?? COMPANY.product}
+            {filled(COMPANY.address) && ` · ${COMPANY.address}`}
           </span>
         </div>
       </div>
