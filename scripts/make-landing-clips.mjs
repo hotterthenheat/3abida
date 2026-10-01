@@ -66,6 +66,8 @@ const SIZES = [
 const FPS = 30;
 /** how much faster than life the films run: each frame is SPEED thirtieths of a second of the page's time */
 const SPEED = 3;
+/** how much of the page's time passes, held, before the first frame — ms (below, where the clock is held) */
+const PREROLL = 1000;
 /** the minute every film is set in: a Thursday afternoon, the market open (13:42 in New York) — a day with reports on the
     earnings board (the week's reports are drawn per day: on the Wednesday before, the board held one) */
 const AT = '2026-10-01T17:42:00Z';
@@ -786,12 +788,15 @@ const film = async (browser, path, theme, size, manifest) => {
       if (ahead === 8000) throw e;
     }
   }
-  /* one frame's time before the first frame: what waited on the held clock (a chart's next draw, a panel's deferred
-     mount) lands first, so the still is the film's own first frame and the second does not jump from it (measured on
-     Pulse: frame 0 to 1 differed as much as a page loading, 33 dB, where every later pair stays near 57) */
+  /* a second of the page's time before the first frame: what waited on the held clock (a chart's next draw, a panel's
+     deferred mount) lands first, so the still is the film's own first frame and the second does not jump from it
+     (measured on Pulse: frame 0 to 1 differed as much as a page loading, 33 dB, where every later pair stays near 57).
+     One frame's time was enough for Pulse but not for Terrain (2026-10-01): a tenth of a second after the hold its chart
+     takes an update and both ladders ease to the new scale over half a second — six takes out of six twitched as they
+     began (their first three frames 19-29 dB apart); with a second, the first six frames were the same picture. */
   await loops(0);
-  await ctx.clock.runFor((1000 / FPS) * SPEED);
-  await loops((1000 / FPS) * SPEED);
+  await ctx.clock.runFor(PREROLL);
+  await loops(PREROLL);
   /* the first frame is the still: no pointer yet */
   await shoot();
   writeFileSync(resolve(dir, 'poster.png'), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: size.w, height: size.h, scale: size.dpr } })).data, 'base64'));

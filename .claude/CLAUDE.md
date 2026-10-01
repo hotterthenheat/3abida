@@ -50,14 +50,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   an act small into the temp folder to check it. The staging (SEED, PREPARE, ROOM_PAGES) is in scripts/landing-stage.mjs;
   clips.json keeps each film's length; the still under a film is its first frame. The clock is held only once nothing on
   screen is still loading (no skeleton, nothing busy, no "Awaiting feed", fonts and pictures in — a fixed wait once froze
-  Pulse on its loading frame, and that frame was its still); the run says when a page never settles. One frame's time
-  passes before the first frame, and the act ends with nothing focused, so a film meets its own first frame. A CSS
+  Pulse on its loading frame, and that frame was its still); the run says when a page never settles. A second of the
+  page's time passes, held, before the first frame (one frame's time let Terrain's ladders ease to a chart update just
+  after it, a twitch as the film began), and the act ends with nothing focused, so a film meets its own first frame. A CSS
   animation that loops for ever (Trace's LIVE breath, the mark's foil) is held and stepped on the film's clock — on the
-  browser's it ran several times too fast; one that ends runs freely (something may wait for its end). Films shot
-  before the fix still show the mark's foil panning fast — re-filming a page fixes it (measured 2026-10-01: the mark's
-  corner changes ~0.1 a frame in those and ~0.02-0.05 in the fixed ones; 34 desk films still wait — every desk film but
-  Compass's and Trace's Live Tape, Net Flow, Dark Pool and Screener; phone films do not show the mark). They were held
-  for the owner's ticker logos, which came the same day, so every page is filmed once, with the logos in. Live pages
+  browser's it ran several times too fast; one that ends runs freely (something may wait for its end). Every film was
+  shot again on 2026-10-01 with that fix and the owner's logos in (the mark's corner now changes a quarter to a third as
+  much a frame as before the fix). A live page never ends exactly where it began, so a take whose loop jumps is filmed again
+  and the best take kept: the Compass board re-ranks every 10 s of page time and can end on another order, and SPY sits
+  near its flip at AT, so the dealers' word can turn. Live pages
   move under an act: a menu's choice is made again by its words, not its place; a press that must not land on something
   (Compass's chosen card, whose second press opens its page) names it in `unless`; a pick that sets the page's focus
   (the Wall's wall) is undone by letting go of the focus, not by picking again. Never edit src while a run films: the
