@@ -231,8 +231,9 @@ export const WeigherGuide = () => (
       <p>Every contract on the name for the expiry you picked, strikes down the left with the market's price on a hairline between the two it sits between. One click opens a strike's Stats and Greeks under it; a double click puts it on the chart; the + at the row's end adds it to your watchlist, and a check stays once it is on. The Side, Expiry, Reach and Columns cards above it change what the chain shows.</p>
       <ChainFigure />
     </Section>
-    <Section title="The watchlist">
-      <p>One list, two kinds of rows. The contracts you watch: + on a strike marks it at that moment's price, and from then on the row tracks it as if you had bought it — the mark now, today's move and the total since it was added, in dollars and in R, where the cost is one R. And the positions you own or sold: Add a position takes the strike, the side, how many, the expiry and what you paid, and the row reads against that. Each row is tagged for what it is. A row puts that contract on the desk. The List card turns the same window into the scanner: the gainers, the losers, or the busiest option tapes.</p>
+    {/* TWO CARDS SINCE 2026-09-14 (WeigherDesk.tsx): this read "One list, two kinds of rows" until the 2026-10-01 audit */}
+    <Section title="Your positions and the watchlist">
+      <p>Two cards, read the same way. Your positions holds what you own or sold: Add a position takes the strike, the side, how many, the expiry and what you paid, and the row reads against that. The Watchlist holds the contracts you watch: + on a strike marks it at that moment's price, and from then on the row tracks it as if you had bought it — the mark now, today's move and the total since it was added, in dollars and in R, where the cost is one R. A row is tagged only where it differs from its card: closed, settled, sold, or brought from the Tracker. A row in either puts that contract on the desk. The Watchlist's List control turns its window into the scanner: the gainers, the losers, or the busiest option tapes.</p>
       <ListFigure />
     </Section>
     <Section title="The contract">
