@@ -452,7 +452,7 @@ const AccountBox = () => {
   );
 };
 
-const STATUS_WORD: Record<SubscriptionStatus, string> = { active: 'active', past_due: 'payment due', canceled: 'ending', trialing: 'trial' };
+const STATUS_WORD: Record<SubscriptionStatus, string> = { active: 'active', past_due: 'payment due', canceled: 'ending' };
 
 /* MONEY, SAID PLAINLY (Slayer Logo System, Web and App · Billing, 2026-10-01): the four notices a plan can need — the
    upgrade a page asks for, a plan ending, a payment that failed, a plan cancelled. Each is one card: the word over it, a
@@ -466,7 +466,7 @@ const NOTICE_OPTIONS: DropdownOption<NoticeKind | ''>[] = [
   { value: 'failed', label: 'Payment failed', hint: 'A charge that did not go through' },
   { value: 'cancelled', label: 'Cancelled', hint: 'A plan that will not renew' },
 ];
-const noticeFor = (status: SubscriptionStatus): NoticeKind | '' => (status === 'past_due' ? 'failed' : status === 'canceled' ? 'cancelled' : status === 'trialing' ? 'ending' : '');
+const noticeFor = (status: SubscriptionStatus): NoticeKind | '' => (status === 'past_due' ? 'failed' : status === 'canceled' ? 'cancelled' : '');
 
 const BillingNotice = ({ kind, until }: { kind: NoticeKind; until: string }) => {
   const compass = planOf('compass');

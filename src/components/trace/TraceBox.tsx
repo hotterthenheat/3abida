@@ -278,6 +278,8 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   const latest = useRef(rows);
   latest.current = rows;
   const landedAt = useRef(0);
+  /* whether the cut under way LANDED (its rows went in) — then the come-up below lets the dim go; else nothing will */
+  const landing = useRef(false);
   const [landN, setLandN] = useState(0);
   const cutting = !calm && Math.abs(rows.length - landed.current.length) > Math.max(CUT_JUMP, landed.current.length * 0.15);
   /* what the grid holds: the rows it had, while they step back; else the page's rows as they come */
@@ -293,12 +295,17 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
     const id = window.setTimeout(() => {
       landed.current = latest.current;
       landedAt.current = performance.now();
+      landing.current = true;
       setLandN(n => n + 1);
     }, CUT_OUT_MS);
     return () => {
       window.clearTimeout(id);
-      /* held at the dim until the come-up takes over (below); a cut that is called off lets go */
-      if (performance.now() - landedAt.current > 50) out?.cancel();
+      /* held at the dim until the come-up takes over (below) — only a cut that landed has one coming; a cut called off
+         lets go at once. (Told apart by the time since the last landing, a cut called off within 50ms of one was left
+         at the dim with no come-up to lift it: the tape's rows stood at 0.3 — measured in the landing's films, whose
+         clock steps a tenth of a second at a time; a quick hand on the filters could do the same.) */
+      if (!landing.current) out?.cancel();
+      landing.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutting]);

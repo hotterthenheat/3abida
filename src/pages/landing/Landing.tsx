@@ -79,6 +79,7 @@ import { useNavigate } from 'react-router-dom';
 import { PLANS, type PlanKey } from '../../data/billing';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
+import { BELOW_LG_QUERY } from '../../components/ui/useMediaQuery';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import Tour, { type TourStep } from './Tour';
 import Everything, { FEATURE_COUNT, InPlaceOf, ROOM_COUNT, SHARED_COUNT } from './Everything';
@@ -816,12 +817,17 @@ const Page = () => {
 
   /* "Sign up free": the account form, outside the terminal */
   const signUp = useCallback(() => navigate('/signup'), [navigate]);
-  /* a screen of the wall: its room's words in the tour, the window beside them showing it */
+  /* a screen of the wall: its room's words in the tour, the window beside them showing it. On a desk the room's head
+     stands a third of the way down, beside the window. In one column the window is pinned over the top of the screen, so
+     the head stands just under it and its veil — a third of the way down put it behind the window (measured,
+     2026-10-01) */
   const toRoom = useCallback((id: string) => {
     const el = document.querySelector<HTMLElement>(`[data-tour-step="${id}"] [data-tour-head]`) ?? document.querySelector<HTMLElement>(`[data-tour-step="${id}"]`);
     if (!el) return;
+    const win = document.querySelector<HTMLElement>('[data-tour-window]');
+    const under = win && window.matchMedia(BELOW_LG_QUERY).matches ? (parseFloat(getComputedStyle(win).top) || 0) + win.offsetHeight + 48 : window.innerHeight * 0.3;
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3, behavior: calm ? 'auto' : 'smooth' });
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - under, behavior: calm ? 'auto' : 'smooth' });
   }, []);
 
   /* a footer link from inside the terminal lands on /#pricing or /#faq — go there once the page stands */

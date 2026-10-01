@@ -203,14 +203,15 @@ const DESK = {
   ],
   '/compass': [
     { to: on('[data-compass-card]', 0, 0.5, 0.45), dur: 0.5 }, { hold: 0.3 },
-    { press: on('[data-compass-card]', 1, 0.45, 0.4), dur: 0.45 }, { hold: 0.6 },
+    /* only a card not yet chosen is pressed — a chosen card's second press opens its page */
+    { press: on('[data-compass-card]:not([data-selected])', 1, 0.45, 0.4), dur: 0.45, unless: '[data-compass-card][data-selected]' }, { hold: 0.6 },
     { to: on('[title^="Open "][title*="full analysis"]', 1, 0.5), dur: 0.5 }, { to: on('[title^="Open "][title*="full analysis"]', 3, 0.5), dur: 0.4 }, { hold: 0.3 },
-    { press: on('[data-compass-card]', 3, 0.45, 0.4), dur: 0.5 }, { hold: 0.6 },
+    { press: on('[data-compass-card]:not([data-selected])', 2, 0.45, 0.4), dur: 0.5, unless: '[data-compass-card][data-selected]' }, { hold: 0.6 },
     { pick: 'compass-kind', option: 1, dur: 0.5 }, { hold: 1.0 },
     { to: on('[data-compass-card]', 1, 0.5, 0.45), dur: 0.5 }, { hold: 0.3 },
     { unpick: 'compass-kind' }, { hold: 0.5 },
     /* the card the board opened on, chosen again — unless the board already has it (a second press opens its page) */
-    { press: c => on(`[data-compass-card="${c.memo.sel}"]:not([data-selected])`, 0, 0.45, 0.4)(c), dur: 0.5, optional: true }, { hold: 0.4 },
+    { press: c => on(`[data-compass-card="${c.memo.sel}"]:not([data-selected])`, 0, 0.45, 0.4)(c), dur: 0.5, optional: true, unless: '[data-compass-card][data-selected]' }, { hold: 0.4 },
   ],
   '/compass/tracker': [
     { to: at(0.3, 0.25), dur: 0.5 }, { to: at(0.62, 0.25), dur: 0.6 }, { hold: 0.3 },
@@ -252,7 +253,9 @@ const DESK = {
     { to: on('[data-wall-factor]', 0, 0.4), dur: 0.4 }, { to: on('[data-wall-factor]', 2, 0.4), dur: 0.35 },
     { pick: 'wall-pick', option: 1, dur: 0.5 }, { hold: 1.0 },
     { to: on('[data-wall-paths]', 0, 0.35, 0.6), dur: 0.5 }, { to: on('[data-wall-paths]', 0, 0.75, 0.35), dur: 0.6 },
-    { unpick: 'wall-pick' }, { hold: 0.6 },
+    /* a wall picked becomes the page's focus (the chip in its head): letting go of it is what puts the page back on its
+       own wall — picking the first wall again left the chip standing at the film's end */
+    { press: on('button[aria-label="Let go of the strike"]', 0), dur: 0.6 }, { hold: 0.6 },
     { to: on('[data-wall-factor]', 3, 0.4), dur: 0.5 }, { hold: 0.3 },
   ],
   '/pinpoint/compare': [
@@ -267,8 +270,8 @@ const DESK = {
     { to: on('[data-tape-body] .ag-row', 2, 0.3), dur: 0.5 }, { to: on('[data-tape-body] .ag-row', 6, 0.55), dur: 0.5 },
     { press: on('input[aria-label="Search by ticker or contract"]', 0, 0.4), dur: 0.55 },
     { type: 'NVDA' }, { hold: 0.3 },
-    { press: on(SEARCH_MENU('Search by ticker or contract'), 0, 0.3), dur: 0.4 }, { hold: 0.45 },
-    { press: on(SEARCH_MENU('Search by ticker or contract'), 1, 0.3), dur: 0.35 }, { hold: 1.0 },
+    /* the name picked closes the menu — there is no second line to pick — and the tape narrows to it */
+    { press: on(SEARCH_MENU('Search by ticker or contract'), 0, 0.3), dur: 0.4 }, { hold: 1.4 },
     { to: on('[data-tape-body] .ag-row', 1, 0.4), dur: 0.5 }, { to: on('[data-tape-body] .ag-row', 4, 0.6), dur: 0.4 },
     { press: on('button[aria-label="Clear search"]', 0), dur: 0.55 }, { hold: 0.5 },
     { pick: 'tape-kind', option: 1, dur: 0.55 }, { hold: 1.0 },
@@ -415,10 +418,10 @@ const PHONE = {
     ...tfVia(c => c.memo.tf),
   ],
   '/compass': [
-    { press: on('[data-compass-card]', 1, 0.45, 0.4), dur: 0.6 }, { hold: 0.7 },
+    { press: on('[data-compass-card]:not([data-selected])', 1, 0.45, 0.4), dur: 0.6, unless: '[data-compass-card][data-selected]' }, { hold: 0.7 },
     { scroll: 520, dur: 1.2 }, { hold: 0.6 },
     { scroll: -520, dur: 1.2 }, { hold: 0.3 },
-    { press: c => on(`[data-compass-card="${c.memo.sel}"]:not([data-selected])`, 0, 0.45, 0.4)(c), dur: 0.55, optional: true }, { hold: 0.5 },
+    { press: c => on(`[data-compass-card="${c.memo.sel}"]:not([data-selected])`, 0, 0.45, 0.4)(c), dur: 0.55, optional: true, unless: '[data-compass-card][data-selected]' }, { hold: 0.5 },
   ],
   '/compass/tracker': [
     { press: btn('Table'), dur: 0.6 }, { hold: 0.9 },
@@ -447,7 +450,7 @@ const PHONE = {
   '/pinpoint/wall': [
     { pick: 'wall-pick', option: 1, dur: 0.6 }, { hold: 0.9 },
     { scroll: 520, dur: 1.2 }, { hold: 0.5 }, { scroll: -520, dur: 1.1 },
-    { unpick: 'wall-pick' }, { hold: 0.5 },
+    { press: on('button[aria-label="Let go of the strike"]', 0), dur: 0.6 }, { hold: 0.5 },
   ],
   '/pinpoint/compare': [
     { press: on('[data-h2h-swap]', 0), dur: 0.6 }, { hold: 0.9 },
@@ -457,8 +460,8 @@ const PHONE = {
   '/trace/live-tape': [
     { press: on('input[aria-label="Search by ticker or contract"]', 0, 0.4), dur: 0.6 },
     { type: 'NVDA' }, { hold: 0.3 },
-    { press: on(SEARCH_MENU('Search by ticker or contract'), 0, 0.3), dur: 0.4 }, { hold: 0.45 },
-    { press: on(SEARCH_MENU('Search by ticker or contract'), 1, 0.3), dur: 0.35 }, { hold: 1.0 },
+    /* the name picked closes the menu — there is no second line to pick — and the tape narrows to it */
+    { press: on(SEARCH_MENU('Search by ticker or contract'), 0, 0.3), dur: 0.4 }, { hold: 1.4 },
     { scroll: 360, dur: 1.0 }, { hold: 0.4 }, { scroll: -360, dur: 0.9 },
     { press: on('button[aria-label="Clear search"]', 0), dur: 0.55 }, { hold: 0.6 },
   ],
@@ -565,6 +568,43 @@ const webpOf = async (page, png, width) =>
     return btoa(s);
   }, [png, width]);
 
+/* A PAGE IS READY when nothing on the screen is still on its way: no skeleton, nothing busy or "working", no "Awaiting
+   feed", the fonts in and every picture drawn. A fixed wait was not enough (2026-10-01): the first films of a run met a
+   dev server just started, and Pulse's clock was held on "Awaiting feed initialization…" (light) and on a widget's
+   skeleton (dark) — the still under each film was that frame, and every loop flashed it. Waited out in real time, up to
+   25 s; a page that never settles is filmed as it stands, and the run says so. */
+const BUSY = '.skeleton, [data-skeleton], [aria-busy="true"], [data-working]';
+const settled = page =>
+  page
+    .frameLocator('#t')
+    .locator('body')
+    .evaluate((body, busy) => {
+      const onScreen = el => {
+        if (!el.getClientRects().length) return false;
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height || r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) return false;
+        return getComputedStyle(el).visibility !== 'hidden';
+      };
+      return {
+        busy: [...document.querySelectorAll(busy)].filter(onScreen).length,
+        waiting: /awaiting feed/i.test(body.innerText),
+        pictures: [...document.images].filter(i => onScreen(i) && !i.complete).length,
+        fonts: document.fonts.status,
+      };
+    }, BUSY)
+    .catch(() => null);
+const settle = async (page, label) => {
+  const until = Date.now() + 25000;
+  let s = null;
+  while (Date.now() < until) {
+    s = await settled(page);
+    if (s && !s.busy && !s.waiting && !s.pictures && s.fonts === 'loaded') return true;
+    await page.waitForTimeout(250);
+  }
+  console.log(`${label}: still loading after 25 s (${JSON.stringify(s)}) — filmed as it stands`);
+  return false;
+};
+
 const film = async (browser, path, theme, size, manifest) => {
   const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, timezoneId: 'America/New_York', locale: 'en-US' });
   await ctx.addInitScript(seed => {
@@ -584,6 +624,8 @@ const film = async (browser, path, theme, size, manifest) => {
   );
   await page.goto(`${BASE}/__clip-host`);
   await page.waitForTimeout(size.form === 'desk' ? 6500 : 5500);
+  const label = `${slug(path)}-${theme}-${size.form}`;
+  await settle(page, label);
   /* where the stage leaves the pointer is where the film's pointer appears — and where it comes back to, so the film
      opens and closes on the same frame (the Map's still has a row under the pointer, and so do both ends of its film) */
   let rest = null;
@@ -608,7 +650,7 @@ const film = async (browser, path, theme, size, manifest) => {
   let pos = start;
   let cursor = 0;
   let pressAt = -99;
-  const memo = { was: {} };
+  const memo = { was: {}, words: {} };
   const c = { frame, size, page, memo };
   await page.mouse.move(pos[0], pos[1]);
   const shoot = async () => {
@@ -618,6 +660,24 @@ const film = async (browser, path, theme, size, manifest) => {
   };
   /* one frame: the pointer drawn (a press dips it a little, and it springs back), SPEED thirtieths of a second passed, the
      screen taken */
+  /* A LOOP RUNS ON THE FILM'S CLOCK. The page's clock is held and stepped, but a CSS animation runs on the browser's own,
+     and each frame takes a moment of real time to shoot: Trace's LIVE breath (1.4 s each way) pulsed every dozen frames
+     and the mark's foil panned four times too fast (measured). Every animation that loops for ever is held, and stepped a
+     frame's time at a time with the clock. One that ends is left to run — something may be waiting for its end. */
+  const loops = dt =>
+    frame
+      .locator('body')
+      .evaluate((_, dt) => {
+        const held = (window.__filmHeld ??= new WeakSet());
+        for (const a of document.getAnimations()) {
+          if (a.effect?.getComputedTiming?.().iterations !== Infinity) continue;
+          if (a.playState === 'running') {
+            a.pause();
+            held.add(a);
+          } else if (held.has(a) && dt > 0) a.currentTime = (Number(a.currentTime) || 0) + dt;
+        }
+      }, dt)
+      .catch(() => {});
   const step = async () => {
     const age = n - pressAt;
     const dip = age >= 0 && age < 6 ? 1 - 0.12 * Math.sin((age / 6) * Math.PI) : 1;
@@ -630,6 +690,7 @@ const film = async (browser, path, theme, size, manifest) => {
       [pos[0], pos[1], cursor, dip]
     );
     await ctx.clock.runFor((1000 / FPS) * SPEED);
+    await loops((1000 / FPS) * SPEED);
     await shoot();
   };
   const frames = s => Math.max(1, Math.round(s * FPS));
@@ -693,8 +754,14 @@ const film = async (browser, path, theme, size, manifest) => {
         : typeof option === 'string'
           ? lines.findIndex(l => l.words.toLowerCase().startsWith(option.toLowerCase()))
           : option?.index ?? was;
-    const k = i < 0 ? was : i;
-    if (remember && memo.was[id] == null) memo.was[id] = ticks ? k : was;
+    /* a choice to make again is found by its words first: a live list can re-order between the pick and the unpick, and
+       its place alone then names another line (measured: a Wall film that came back on another wall) */
+    const back = option?.words != null ? lines.findIndex(l => l.words === option.words) : -1;
+    const k = back >= 0 ? back : i < 0 ? was : i;
+    if (remember && memo.was[id] == null) {
+      memo.was[id] = ticks ? k : was;
+      memo.words[id] = lines[ticks ? k : was]?.words;
+    }
     const [x, y, w, h] = lines[k].box;
     await glide([x + Math.min(w * 0.3, 60), y + h / 2], 0.35);
     await press();
@@ -705,6 +772,8 @@ const film = async (browser, path, theme, size, manifest) => {
     }
   };
 
+  /* the stage may have opened what loads in its turn: the frame is held only once that has drawn too */
+  await settle(page, label);
   /* held at the page's own time — this process's clock and the page's are not the same one (measured: a hold at our
      "now" was in the page's past once) */
   /* (a busy page can let its clock run past a near mark while the call travels: "cannot fast-forward to the past" —
@@ -717,6 +786,12 @@ const film = async (browser, path, theme, size, manifest) => {
       if (ahead === 8000) throw e;
     }
   }
+  /* one frame's time before the first frame: what waited on the held clock (a chart's next draw, a panel's deferred
+     mount) lands first, so the still is the film's own first frame and the second does not jump from it (measured on
+     Pulse: frame 0 to 1 differed as much as a page loading, 33 dB, where every later pair stays near 57) */
+  await loops(0);
+  await ctx.clock.runFor((1000 / FPS) * SPEED);
+  await loops((1000 / FPS) * SPEED);
   /* the first frame is the still: no pointer yet */
   await shoot();
   writeFileSync(resolve(dir, 'poster.png'), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: size.w, height: size.h, scale: size.dpr } })).data, 'base64'));
@@ -732,7 +807,7 @@ const film = async (browser, path, theme, size, manifest) => {
       continue;
     }
     if (b.unpick) {
-      if (memo.was[b.unpick] != null) await choose(b.unpick, { index: memo.was[b.unpick] }, b.dur ?? 0.5, false);
+      if (memo.was[b.unpick] != null) await choose(b.unpick, { index: memo.was[b.unpick], words: memo.words[b.unpick] }, b.dur ?? 0.5, false);
       continue;
     }
     const target = typeof b.press === 'function' ? b.press : b.to ?? b.drag;
@@ -752,7 +827,16 @@ const film = async (browser, path, theme, size, manifest) => {
         if (b.press) continue;
       }
     }
-    if (b.press) await press();
+    if (b.press) {
+      /* a press the act does not mean is held back: `unless` names what must not be under the pointer when the glide ends
+         (the Compass board re-ranks live, and the card under the pointer can turn out to be the chosen one — whose
+         second press opens its page: measured, a desk film that left the board for a setup's page and stayed there) */
+      if (b.unless && (await frame.locator('body').evaluate((_, [x, y, sel]) => !!document.elementFromPoint(x, y)?.closest(sel), [pos[0], pos[1], b.unless]).catch(() => false))) {
+        await idle(0.15);
+        continue;
+      }
+      await press();
+    }
     if (b.double) {
       pressAt = n;
       await page.mouse.dblclick(pos[0], pos[1]);
@@ -795,6 +879,9 @@ const film = async (browser, path, theme, size, manifest) => {
     }
     if (b.hold) await idle(b.hold);
   }
+  /* nothing left holding focus, as the page began: "Clear search" leaves its box focused, caret and all, and the film's
+     last frame then met a first frame without it */
+  await frame.locator('body').evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined)).catch(() => {});
   /* home, the pointer out, and the film ends on the frame it began on */
   await glide(start, 0.7);
   await fade(0, 8);

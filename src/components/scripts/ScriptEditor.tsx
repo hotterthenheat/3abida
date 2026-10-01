@@ -36,6 +36,7 @@ import { bumpLibrary, getPaneBars, liftFromPane, placeOnPane, refreshEveryPane, 
 import { scriptStore } from '../../data/scriptStore';
 import type { PaneId, Script, ScriptVersion } from '../../types/scripts';
 import { CARD } from '../ui/DropdownSelect';
+import { focusBackForKeys } from '../ui/focusBack';
 import { pineHighlight, pineLanguage, pineTheme } from './pineLanguage';
 import SlayerMark from '../../brand/SlayerMark';
 
@@ -381,7 +382,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content align="start" sideOffset={6} className={`${CARD} min-w-[280px] p-1.5`} data-script-menu-card>
+              <DropdownMenu.Content align="start" sideOffset={6} className={`${CARD} min-w-[280px] p-1.5`} data-script-menu-card onCloseAutoFocus={focusBackForKeys}>
                 <DropdownMenu.Item className={MENU_ITEM} disabled={readOnly || !dirty} onSelect={() => void save()} data-menu="save">
                   <Save className="w-3.5 h-3.5 text-textMuted" /> Save
                   <span className={MENU_KEY}>Ctrl S</span>

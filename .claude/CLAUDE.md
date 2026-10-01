@@ -48,8 +48,18 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   York's zone), so prices agree across films. The page's clock is held and stepped a frame at a time (30 fps, crisp
   charts); H.264 MP4, desk 2160×1500, phone 780×1520; it needs an ffmpeg with libx264, named by FFMPEG; PREVIEW=1 films
   an act small into the temp folder to check it. The staging (SEED, PREPARE, ROOM_PAGES) is in scripts/landing-stage.mjs;
-  clips.json keeps each film's length; the still under a film is its first frame. Re-film a page when its look changes,
-  and check its act still finds what it presses (the run says when a beat found nothing).
+  clips.json keeps each film's length; the still under a film is its first frame. The clock is held only once nothing on
+  screen is still loading (no skeleton, nothing busy, no "Awaiting feed", fonts and pictures in — a fixed wait once froze
+  Pulse on its loading frame, and that frame was its still); the run says when a page never settles. One frame's time
+  passes before the first frame, and the act ends with nothing focused, so a film meets its own first frame. A CSS
+  animation that loops for ever (Trace's LIVE breath, the mark's foil) is held and stepped on the film's clock — on the
+  browser's it ran several times too fast; one that ends runs freely (something may wait for its end). Films shot
+  before 2026-10-01 17:00 still show the mark's foil panning fast — re-filming a page fixes it. Live pages
+  move under an act: a menu's choice is made again by its words, not its place; a press that must not land on something
+  (Compass's chosen card, whose second press opens its page) names it in `unless`; a pick that sets the page's focus
+  (the Wall's wall) is undone by letting go of the focus, not by picking again. Never edit src while a run films: the
+  dev server reloads the pages being filmed. Re-film a page when its look changes, check its act still finds what it
+  presses (the run says when a beat found nothing), and check each film's first and last frames side by side.
 - The landing's first screen (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
   to click on each one"): the line, "Sign up free", and the wall of all eight rooms (landing/Wall.tsx), every one
   playing its film's small copy (public/landing/wall/, written by landing:clips from the desk film), each a door to its
@@ -73,3 +83,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   height and Paper's chain stood 0px tall). An AG Grid column holding an object drawn by its own cell sets
   `cellDataType: false` (AG Grid's development panel otherwise covers the grid — and the films are shot in
   development).
+- Menus (2026-10-01 audit): a house menu (DropdownSelect, DropdownMulti) hands focus back to its trigger only when the
+  keys were used — `onCloseAutoFocus={focusBackForKeys}` (ui/focusBack.ts). Picked with the mouse, Radix's hand-back
+  drew a focus ring round the trigger until the next click (Radix keeps the press from focusing the trigger, so Chrome
+  reads the hand-back as script focus). A new Radix DropdownMenu takes the same handler; a popover's trigger takes the
+  mouse's own focus and needs none.

@@ -33,7 +33,9 @@ export const PLANS: { key: PlanKey; name: string; kicker: string; price: string;
 ];
 export const planOf = (key: PlanKey) => PLANS.find(p => p.key === key) ?? PLANS[1];
 
-export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing';
+/** Stripe's standings for a plan, less the trial's: there is no trial — an account is free and a plan is paid for (the
+    owner, 2026-10-01) */
+export type SubscriptionStatus = 'active' | 'past_due' | 'canceled';
 
 export interface Invoice {
   id: string;

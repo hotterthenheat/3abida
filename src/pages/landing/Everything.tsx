@@ -32,6 +32,7 @@
 
 import { useCallback, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
 import { GEX_SUBPAGES } from '../pinpoint/subnav';
@@ -147,6 +148,8 @@ export const doorName = (name: string) => name.replace(/^The /, 'the ');
 
 const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
   const [at, setAt] = useState(0);
+  /* the rooms run in a row on a phone and a column from lg — the list says which, for a reader that hears it */
+  const sideways = useIsBelowLg();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const room = ROOMS[at];
@@ -178,7 +181,7 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
       <div
         role="tablist"
         aria-label="Rooms"
-        aria-orientation="vertical"
+        aria-orientation={sideways ? 'horizontal' : 'vertical'}
         className="lg:col-span-4 xl:col-span-3 landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-4 lg:gap-0 overflow-x-auto lg:overflow-visible max-lg:border-b max-lg:border-borderSubtle lg:border-t lg:border-borderSubtle"
       >
         {ROOMS.map((r, i) => {

@@ -101,8 +101,10 @@ interface Reel {
 const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: Props) => {
   const root = useRef<HTMLDivElement | null>(null);
   const view = useRef<HTMLDivElement | null>(null);
-  /* a phone's column gets the terminal's phone layout; a tablet's is wide enough for the desk's picture */
-  const [narrow, setNarrow] = useState(false);
+  /* a phone's column gets the terminal's phone layout; a tablet's is wide enough for the desk's picture. The first guess
+     is the screen's (the column is the screen less its 16px gutters): guessing "desk" until measured, a phone fetched the
+     desk's still and a megabyte of its film before turning to its own */
+  const [narrow, setNarrow] = useState(() => !desk && typeof window !== 'undefined' && window.innerWidth - 32 < 560);
   useEffect(() => {
     const el = view.current;
     if (!el || desk) return setNarrow(false);

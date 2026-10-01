@@ -3,264 +3,264 @@
   "d": 11.57
  },
  "compass-dark-phone": {
-  "d": 9.17
+  "d": 7.27
  },
  "compass-light-desk": {
-  "d": 11.63
+  "d": 11.57
  },
  "compass-light-phone": {
-  "d": 9.17
+  "d": 7.27
  },
  "compass-tracker-dark-desk": {
-  "d": 7.27
+  "d": 8.17
  },
  "compass-tracker-dark-phone": {
-  "d": 9.17
+  "d": 6.7
  },
  "compass-tracker-light-desk": {
-  "d": 7.27
+  "d": 8.17
  },
  "compass-tracker-light-phone": {
-  "d": 9.17
+  "d": 6.7
  },
  "dossier-congress-dark-desk": {
-  "d": 8.57
+  "d": 9.7
  },
  "dossier-congress-dark-phone": {
-  "d": 9.17
+  "d": 6.2
  },
  "dossier-congress-light-desk": {
-  "d": 8.57
+  "d": 9.7
  },
  "dossier-congress-light-phone": {
-  "d": 9.17
+  "d": 6.2
  },
  "dossier-earnings-dark-desk": {
-  "d": 8.67
+  "d": 11.4
  },
  "dossier-earnings-dark-phone": {
-  "d": 9.17
+  "d": 7.77
  },
  "dossier-earnings-light-desk": {
-  "d": 8.67
+  "d": 11.4
  },
  "dossier-earnings-light-phone": {
-  "d": 9.17
+  "d": 7.77
  },
  "dossier-insiders-dark-desk": {
-  "d": 8.57
+  "d": 11.13
  },
  "dossier-insiders-dark-phone": {
-  "d": 9.17
+  "d": 6.2
  },
  "dossier-insiders-light-desk": {
-  "d": 8.57
+  "d": 11.13
  },
  "dossier-insiders-light-phone": {
-  "d": 9.17
+  "d": 6.2
  },
  "dossier-news-dark-desk": {
-  "d": 7.87
+  "d": 10.73
  },
  "dossier-news-dark-phone": {
-  "d": 9.17
+  "d": 6.4
  },
  "dossier-news-light-desk": {
-  "d": 7.87
+  "d": 10.73
  },
  "dossier-news-light-phone": {
-  "d": 9.17
+  "d": 6.4
  },
  "dossier-stocks-dark-desk": {
-  "d": 8.37
+  "d": 10.17
  },
  "dossier-stocks-dark-phone": {
-  "d": 9.17
+  "d": 6.2
  },
  "dossier-stocks-light-desk": {
-  "d": 8.37
+  "d": 10.17
  },
  "dossier-stocks-light-phone": {
-  "d": 9.17
+  "d": 6.2
  },
  "pinpoint-building-dark-desk": {
-  "d": 8.57
+  "d": 9.9
  },
  "pinpoint-building-dark-phone": {
-  "d": 9.17
+  "d": 7.93
  },
  "pinpoint-building-light-desk": {
-  "d": 8.57
+  "d": 9.9
  },
  "pinpoint-building-light-phone": {
-  "d": 9.17
+  "d": 7.93
  },
  "pinpoint-compare-dark-desk": {
-  "d": 8.17
+  "d": 11.53
  },
  "pinpoint-compare-dark-phone": {
-  "d": 9.17
+  "d": 6.67
  },
  "pinpoint-compare-light-desk": {
-  "d": 8.17
+  "d": 11.53
  },
  "pinpoint-compare-light-phone": {
-  "d": 9.17
+  "d": 6.67
  },
  "pinpoint-map-dark-desk": {
-  "d": 7.87
+  "d": 12.7
  },
  "pinpoint-map-dark-phone": {
-  "d": 9.17
+  "d": 7.27
  },
  "pinpoint-map-light-desk": {
-  "d": 7.87
+  "d": 12.7
  },
  "pinpoint-map-light-phone": {
-  "d": 9.17
+  "d": 7.27
  },
  "pinpoint-wall-dark-desk": {
-  "d": 9.07
+  "d": 8.8
  },
  "pinpoint-wall-dark-phone": {
-  "d": 9.17
+  "d": 7.73
  },
  "pinpoint-wall-light-desk": {
-  "d": 9.07
+  "d": 8.8
  },
  "pinpoint-wall-light-phone": {
-  "d": 9.17
+  "d": 7.73
  },
  "practice-backtest-dark-desk": {
-  "d": 8.8
+  "d": 11.93
  },
  "practice-backtest-dark-phone": {
-  "d": 9.17
+  "d": 7.8
  },
  "practice-backtest-light-desk": {
-  "d": 8.8
+  "d": 11.93
  },
  "practice-backtest-light-phone": {
-  "d": 9.17
+  "d": 7.8
  },
  "practice-journal-dark-desk": {
-  "d": 8.93
+  "d": 11.03
  },
  "practice-journal-dark-phone": {
-  "d": 9.17
+  "d": 9.2
  },
  "practice-journal-light-desk": {
-  "d": 8.93
+  "d": 11.03
  },
  "practice-journal-light-phone": {
-  "d": 9.17
+  "d": 9.2
  },
  "practice-paper-dark-desk": {
-  "d": 9.37
+  "d": 13.3
  },
  "practice-paper-dark-phone": {
-  "d": 9.17
+  "d": 8.13
  },
  "practice-paper-light-desk": {
-  "d": 9.37
+  "d": 13.3
  },
  "practice-paper-light-phone": {
-  "d": 9.17
+  "d": 8.13
  },
  "pulse-board-dark-desk": {
   "d": 10.9
  },
  "pulse-board-dark-phone": {
-  "d": 9.17
+  "d": 11.43
  },
  "pulse-board-light-desk": {
   "d": 10.9
  },
  "pulse-board-light-phone": {
-  "d": 9.17
+  "d": 11.43
  },
  "pulse-dark-desk": {
   "d": 16
  },
  "pulse-dark-phone": {
-  "d": 9.17
+  "d": 8.43
  },
  "pulse-light-desk": {
   "d": 16
  },
  "pulse-light-phone": {
-  "d": 9.17
+  "d": 8.43
  },
  "terrain-dark-desk": {
-  "d": 8.97
+  "d": 11.7
  },
  "terrain-dark-phone": {
-  "d": 9.17
+  "d": 8.43
  },
  "terrain-light-desk": {
-  "d": 8.97
+  "d": 11.7
  },
  "terrain-light-phone": {
-  "d": 9.17
+  "d": 8.43
  },
  "trace-dark-pool-dark-desk": {
   "d": 10.2
  },
  "trace-dark-pool-dark-phone": {
-  "d": 9.17
+  "d": 6.43
  },
  "trace-dark-pool-light-desk": {
   "d": 10.2
  },
  "trace-dark-pool-light-phone": {
-  "d": 9.17
+  "d": 6.43
  },
  "trace-live-tape-dark-desk": {
-  "d": 8.97
+  "d": 11.77
  },
  "trace-live-tape-dark-phone": {
-  "d": 9.17
+  "d": 8.23
  },
  "trace-live-tape-light-desk": {
-  "d": 8.97
+  "d": 11.77
  },
  "trace-live-tape-light-phone": {
-  "d": 9.17
+  "d": 8.23
  },
  "trace-net-flow-dark-desk": {
-  "d": 8.8
+  "d": 11.5
  },
  "trace-net-flow-dark-phone": {
-  "d": 9.17
+  "d": 8.83
  },
  "trace-net-flow-light-desk": {
-  "d": 8.8
+  "d": 11.5
  },
  "trace-net-flow-light-phone": {
-  "d": 9.17
+  "d": 8.83
  },
  "trace-screener-dark-desk": {
   "d": 10.8
  },
  "trace-screener-dark-phone": {
-  "d": 9.17
+  "d": 7.87
  },
  "trace-screener-light-desk": {
   "d": 10.8
  },
  "trace-screener-light-phone": {
-  "d": 9.17
+  "d": 7.87
  },
  "weigher-dark-desk": {
-  "d": 11.27
+  "d": 13.4
  },
  "weigher-dark-phone": {
-  "d": 9.17
+  "d": 8.07
  },
  "weigher-light-desk": {
-  "d": 11.27
+  "d": 13.4
  },
  "weigher-light-phone": {
-  "d": 9.17
+  "d": 8.07
  }
 }

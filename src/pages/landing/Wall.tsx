@@ -53,6 +53,12 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
   /* a screen whose film will not play shows its still from then on */
   const [stills, setStills] = useState<Set<string>>(() => new Set());
   const motion = !calm && !frugal;
+  /* A TURN OF THEME mounts every film anew (each is keyed by its theme), and `turn` counts the turns: a film back on a
+     theme it played before is sent into itself and waits to draw again, like a new one. Keyed by the theme alone, the
+     second turn found all eight already "sent" and "ready", and they set off together from their first frames, in step. */
+  const [turn, setTurn] = useState({ theme, n: 0 });
+  if (turn.theme !== theme) setTurn({ theme, n: turn.n + 1 });
+  const tag = (id: string) => `${id}-${theme}-${turn.n}`;
 
   const wall = useRef<HTMLDivElement | null>(null);
   const [seen, setSeen] = useState(false);
@@ -123,7 +129,7 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
               <img src={stillFor(r.path, theme)} alt="" aria-hidden="true" draggable={false} decoding="async" className="absolute inset-0 w-full h-full object-cover object-left-top select-none" />
               {film && (
                 <video
-                  key={`${r.id}-${theme}`}
+                  key={tag(r.id)}
                   ref={el => {
                     if (el) videos.current.set(r.id, el);
                     else videos.current.delete(r.id);
@@ -136,12 +142,12 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
                   preload="auto"
                   disablePictureInPicture
                   aria-hidden="true"
-                  onLoadedData={e => canPlay(`${r.id}-${theme}`, i, e.currentTarget)}
-                  onCanPlay={e => canPlay(`${r.id}-${theme}`, i, e.currentTarget)}
-                  onPlaying={e => canPlay(`${r.id}-${theme}`, i, e.currentTarget)}
-                  onSeeked={e => canPlay(`${r.id}-${theme}`, i, e.currentTarget)}
+                  onLoadedData={e => canPlay(tag(r.id), i, e.currentTarget)}
+                  onCanPlay={e => canPlay(tag(r.id), i, e.currentTarget)}
+                  onPlaying={e => canPlay(tag(r.id), i, e.currentTarget)}
+                  onSeeked={e => canPlay(tag(r.id), i, e.currentTarget)}
                   onError={() => setStills(s => new Set(s).add(`${r.id}-${theme}`))}
-                  className={`absolute inset-0 w-full h-full object-cover object-left-top select-none transition-opacity duration-500 ${ready.has(`${r.id}-${theme}`) ? 'opacity-100' : 'opacity-0'}`}
+                  className={`absolute inset-0 w-full h-full object-cover object-left-top select-none transition-opacity duration-500 ${ready.has(tag(r.id)) ? 'opacity-100' : 'opacity-0'}`}
                   data-wall-film={r.id}
                 />
               )}

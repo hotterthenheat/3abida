@@ -24,6 +24,7 @@
 import type { CSSProperties } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
+import { focusBackForKeys } from './focusBack';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 
@@ -110,7 +111,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align={align} sideOffset={6} className={`${CARD} min-w-[220px] p-1.5`} data-dropdown-card={testId ?? label}>
+        <DropdownMenu.Content align={align} sideOffset={6} className={`${CARD} min-w-[220px] p-1.5`} data-dropdown-card={testId ?? label} onCloseAutoFocus={focusBackForKeys}>
           <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</DropdownMenu.Label>
           <DropdownMenu.RadioGroup
             value={String(value)}
