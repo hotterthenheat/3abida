@@ -48,3 +48,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   under a film is its first frame. The window (TerminalWindow.tsx) plays one film at a time, only on screen and with
   the tab in front; reduced motion, Save-Data, a browser without H.264 and the visitor's pause keep the stills.
   Re-film a page when its look changes.
+- Landing, after a study of another trading site's landing (2026-10-01 — "dont steal just get inspired"; its words and
+  layouts are not ours to reuse): the eight rooms stand as glyph pills over the hero's window, which plays each room's
+  film in turn (TerminalWindow `onCycle`; a still stands 7 s where films cannot play; none under reduced motion, Save-Data
+  or pause) and keeps a room picked by hand. "Everything in it" (landing/Everything.tsx) lists every page of every room,
+  each a door into the terminal — Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page
+  is listed by itself; write the others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the
+  cards and the plans side by side both read it. Never on the landing: reviews, ratings, member counts or results of
+  any kind (we have none), "most popular", a chat bubble (no backend).

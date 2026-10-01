@@ -48,12 +48,14 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import TerminalWindow, { SHOT_ASPECT } from './TerminalWindow';
 import { OnGround, useGround, type Ground } from './ground';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
+import ProductGlyph from '../../brand/ProductGlyph';
+import type { GlyphName } from '../../brand/paths';
 
 export interface TourRow {
   title: string;
@@ -66,6 +68,8 @@ export interface TourStep {
   id: string;
   /** "01" for a tool; none for the turn */
   code?: string;
+  /** The room's glyph — its head wears it, as a product's page head does in the terminal (brand rules) */
+  glyph?: GlyphName;
   /** The kind of tool, in a word or two */
   kind: string;
   name: string;
@@ -94,6 +98,10 @@ interface Props {
   onBarGround: (g: Ground) => void;
   /** THE TURN BACK's two lines: the first stands on the far ground, the second on the ground the page opened on */
   endSays: [string, string];
+  /** THE HERO'S ROOMS (Landing.tsx): while no tool's words are on screen the window is the hero's, and says when its film has played through */
+  onCycle?: () => void;
+  /** …and fills the lit room's line as it plays */
+  cycleBar?: RefObject<HTMLElement | null>;
 }
 
 /** Where the docked window's top sits, under the floating bar */
@@ -108,7 +116,7 @@ const CHROME = 42;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-const Tour = ({ head, steps, first, onOpen, onBarGround, endSays }: Props) => {
+const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, onCycle, cycleBar }: Props) => {
   const { a, b } = useGround();
   const small = useIsBelowLg();
   const calm = useReducedMotion();
@@ -304,7 +312,16 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays }: Props) => {
           <div ref={box} className={dockable ? 'landing-box absolute top-0 right-0 w-full h-full' : 'h-full'} data-tour-box>
             {/* docking: the box is given the picture's shape (measure). One column: a fixed band the picture fills. A desk that
                 does not dock (less motion asked for): the window sizes itself by the picture. */}
-            <TerminalWindow path={path} theme={turned ? b : a} desk={!small} natural={!dockable && !small} className={!dockable && !small ? '' : 'h-full'} />
+            {/* it rises in after the hero's words (index.css .landing-rise) — once, and not where less motion was asked for */}
+            <TerminalWindow
+              path={path}
+              theme={turned ? b : a}
+              desk={!small}
+              natural={!dockable && !small}
+              className={`landing-rise landing-rise-far [--rise-delay:420ms] ${!dockable && !small ? '' : 'h-full'}`}
+              onCycle={active === null ? onCycle : undefined}
+              cycleBar={active === null ? cycleBar : undefined}
+            />
           </div>
           {/* in one column the words pass under the window — they dissolve into it rather than being cut */}
           <div aria-hidden="true" className="lg:hidden pointer-events-none absolute inset-x-0 top-full h-10 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black,transparent)]" />
@@ -352,7 +369,11 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays }: Props) => {
                         {s.code && <span className="text-textPrimary tnum">{s.code}</span>}
                         {s.kind}
                       </p>
-                      <h3 className="mt-5 text-[44px] sm:text-[56px] lg:text-[50px] xl:text-[54px] 2xl:text-[64px] font-light leading-[0.98] tracking-[-0.04em] [text-wrap:balance]">{s.name}</h3>
+                      {/* THE ROOM'S HEAD WEARS ITS GLYPH (2026-10-01), as a product's page head does inside the terminal */}
+                      <h3 className="mt-5 flex items-center gap-4 lg:gap-5 text-[44px] sm:text-[56px] lg:text-[50px] xl:text-[54px] 2xl:text-[64px] font-light leading-[0.98] tracking-[-0.04em] [text-wrap:balance]" data-tour-head={s.id}>
+                        {s.glyph && <ProductGlyph name={s.glyph} size={52} className="shrink-0 rounded-[12px] max-sm:w-11 max-sm:h-11" />}
+                        <span className="min-w-0">{s.name}</span>
+                      </h3>
                       <p className="mt-6 max-w-[40ch] text-[17px] 2xl:text-[18px] leading-[1.5]">
                         <span className="font-medium text-textPrimary">{s.leadFor?.[ground] ?? s.lead}</span> <span className="text-textSecondary">{s.rest}</span>
                       </p>
@@ -394,7 +415,7 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays }: Props) => {
                         className="group/door mt-8 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
                         data-tour-door={s.id}
                       >
-                        Open {s.turn ? 'the terminal' : s.name}
+                        Open {s.turn ? 'the terminal' : s.name.replace(/^The /, 'the ')}
                         <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/door:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover/door:translate-x-0" aria-hidden="true" />
                       </button>
                     </div>

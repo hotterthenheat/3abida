@@ -1464,6 +1464,34 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 .landing-window[data-theme='light'] {
   box-shadow: 0 50px 110px -50px rgb(20 28 45 / 0.45), 0 10px 30px -14px rgb(20 28 45 / 0.2);
 }
+/* THE HERO ARRIVES (2026-10-01): its words, its rooms and then the window rise into place, once — opacity and a
+   transform only, staggered by --rise-delay. `backwards`: the start holds through the delay, and when it is over the
+   animation lets go of the element entirely. At once where less motion was asked for. */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise-from, 18px));
+  }
+}
+.landing-rise {
+  animation: landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) var(--rise-delay, 0ms) backwards;
+}
+.landing-rise-far {
+  --rise-from: 56px;
+  animation-duration: 1.2s;
+}
+/* the hero's rooms: a row that scrolls sideways on a phone, with no bar under it */
+.landing-rooms {
+  scrollbar-width: none;
+}
+.landing-rooms::-webkit-scrollbar {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-rise {
+    animation: none;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),

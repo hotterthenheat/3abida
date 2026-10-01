@@ -47,10 +47,21 @@
   Motion here is the film itself (decoded, not painted
   by the page) and transforms: the progress line is a
   scaleX, nothing repaints per frame.
+
+  EVERY ROOM IN TURN, UNDER THE HEADLINE (2026-10-01,
+  the hero's rooms — Landing.tsx). While the window is
+  the hero's, the host may ask to hear when a film has
+  played through once (`onCycle`) and hand over a line
+  to fill as it plays (`cycleBar`, the lit room's own):
+  the room after it is then put in the window. Where the
+  window shows stills because the browser cannot play
+  the films, a still stands for a while instead. Never
+  where the visitor asked for less motion, saves data,
+  or pressed pause.
 ==================================================
 */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { Pause, Play } from 'lucide-react';
 import type { Theme } from '../../theme/theme';
@@ -73,7 +84,14 @@ interface Props {
   /** Size the screen by the picture's own shape (a desk that does not dock). Otherwise the host gives the height. */
   natural?: boolean;
   className?: string;
+  /** THE HERO'S ROOMS: the film on screen has played through once (or a still has stood its while) — time for the next */
+  onCycle?: () => void;
+  /** …and a line of the host's to fill as it plays, by a transform */
+  cycleBar?: RefObject<HTMLElement | null>;
 }
+
+/** How long a still stands for its room when the films cannot play, ms */
+const STILL_STANDS = 7000;
 
 interface Clip {
   /** seconds */
@@ -112,8 +130,16 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onCycle, cycleBar }: Props) => {
   const root = useRef<HTMLDivElement | null>(null);
+  /* the host's callback and line, read when they are needed — a new one each render must not restart the film's reading */
+  const cycle = useRef(onCycle);
+  const cycleLine = useRef(cycleBar);
+  useEffect(() => {
+    cycle.current = onCycle;
+    cycleLine.current = cycleBar;
+  });
+  const cycling = !!onCycle;
   const view = useRef<HTMLDivElement | null>(null);
   /* a phone's column gets the terminal's phone layout; a tablet's is wide enough for the desk's picture */
   const [narrow, setNarrow] = useState(false);
@@ -253,9 +279,17 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
     }
     let raf = 0;
     let last = -2;
+    /* where the film was at the last reading: a film that loops comes back to its start, and that is one pass played */
+    let was = -1;
     const read = () => {
       const t = v.currentTime;
       if (bar.current && v.duration) bar.current.style.transform = `scaleX(${Math.min(1, t / v.duration)})`;
+      const line = cycleLine.current?.current;
+      if (line && v.duration) line.style.transform = `scaleX(${Math.min(1, t / v.duration)})`;
+      if (was >= 0 && t + 0.5 < was && cycle.current) {
+        was = -1;
+        cycle.current();
+      } else was = t;
       let i = -1;
       for (let k = 0; k < words.length; k++) if (words[k][0] <= t + 0.05) i = k;
       if (i !== last) {
@@ -267,6 +301,29 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
     read();
     return () => cancelAnimationFrame(raf);
   }, [live, rolling]);
+  /* STILLS ONLY (the browser cannot play the films): in the hero a still stands its while, then the next room comes in.
+     The lit room's line fills over that while by a transition — one transform, set once. */
+  const standing = cycling && reels.length === 0 && !calm && !frugal && !held && seen && front && !!shown;
+  useEffect(() => {
+    if (!standing) return;
+    const line = cycleLine.current?.current;
+    if (line) {
+      line.style.transition = 'none';
+      line.style.transform = 'scaleX(0)';
+      void line.offsetWidth;
+      line.style.transition = `transform ${STILL_STANDS}ms linear`;
+      line.style.transform = 'scaleX(1)';
+    }
+    const t = window.setTimeout(() => cycle.current?.(), STILL_STANDS);
+    return () => {
+      window.clearTimeout(t);
+      if (line) {
+        line.style.transition = '';
+        line.style.transform = 'scaleX(0)';
+      }
+    };
+  }, [standing, shown?.src]);
+
   const words = live && said >= 0 ? FILMS[live.key]?.c[said]?.[1] : null;
 
   const toggle = () => {
