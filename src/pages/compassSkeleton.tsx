@@ -55,8 +55,8 @@ export const CompassPageSkeleton = () => (
               <TitleRow title={74} chip={false} />
               <SubLine w={480} />
             </div>
-            {/* Found · Active · Proving · Fading · Top pick · Found at — measured 2026-09-11 */}
-            <Facts widths={[30, 30, 36, 31, 119, 52]} />
+            {/* Found · Active · Watch · Fading · Top pick · Found at — measured 2026-09-11 (Watch, once "Proving", 2026-10-01) */}
+            <Facts widths={[30, 30, 28, 31, 119, 52]} />
           </div>
           <div className="px-5 pb-2 flex items-center gap-2 flex-wrap">
             <Trigger w={159} />

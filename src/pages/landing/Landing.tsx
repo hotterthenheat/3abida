@@ -317,7 +317,11 @@ interface PlanRow {
 }
 const PLAN_ROWS: PlanRow[] = [
   { text: 'Pulse, your desk of live panels', glyph: 'pulse', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Terrain, the levels on the chart', glyph: 'terrain', in: { pinpoint: true, compass: true, lifetime: true } },
+  /* YOUR SCRIPTS COME WITH TERRAIN, ON EVERY PLAN (2026-10-01, the owner: "scripts do what u think is best"). They were a
+     Compass line of their own while the tour showed them under Terrain, which every plan holds — and Terrain's own line
+     (nav.ts) is "your Pine scripts, your drawings". Nothing in the terminal is held back by plan, so the list was the
+     only thing that disagreed. */
+  { text: 'Terrain, the levels on the chart and your own scripts', glyph: 'terrain', in: { pinpoint: true, compass: true, lifetime: true } },
   { text: 'Pinpoint, the book by strike and by date', glyph: 'pinpoint', in: { pinpoint: true, compass: true, lifetime: true } },
   { text: 'Trace, the tape and the dark pool', glyph: 'trace', in: { pinpoint: true, compass: true, lifetime: true } },
   { text: 'Alerts on any level', glyph: 'alerts', in: { pinpoint: true, compass: true, lifetime: true } },
@@ -325,7 +329,8 @@ const PLAN_ROWS: PlanRow[] = [
   { text: 'The Weigher, for any contract you name', glyph: 'weigher', in: { pinpoint: false, compass: true, lifetime: true } },
   { text: 'Dossier: news, earnings, insiders, Congress, stocks', glyph: 'dossier', in: { pinpoint: false, compass: true, lifetime: true } },
   { text: 'Practice: paper trading, backtesting and the journal', glyph: 'practice', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'Your own scripts on the charts', in: { pinpoint: false, compass: true, lifetime: true } },
+  /* off the terminal's menu until it opens, and sold here marked "coming soon" — the owner, 2026-10-01: "community is coming
+     real soon" */
   { text: "Community, the traders' room", glyph: 'community', in: { pinpoint: false, compass: 'soon', lifetime: 'soon' } },
   { text: 'One payment, nothing recurring', in: { pinpoint: false, compass: false, lifetime: true } },
   { text: 'A one-to-one session to set up your desk', in: { pinpoint: false, compass: false, lifetime: true } },
@@ -351,13 +356,13 @@ const PLAN_FOR: Record<PlanKey, string> = {
 };
 
 /* THE QUESTIONS — the Logo System's FAQ bank (09 · Voice / 10 · Messaging, 2026-09-30), one of the page's own kept (the
-   pictures). The bank says the data comes from licensed vendors once the licences are signed. No refunds, said kindly,
-   here and never as a banner. The page never says simulated, demo or fake (the owner, 2026-10-01). "How do I reach you?"
-   left the list on 2026-10-01: the address stands beside the head as a door, with the same words, so the section said it
-   twice. */
+   pictures). No refunds, said kindly, here and never as a banner. The page never says simulated, demo or fake (the
+   owner, 2026-10-01). Two left the list on 2026-10-01: "How do I reach you?" (the address stands beside the head as a
+   door, with the same words, so the section said it twice), and "Where does the data come from?" (the owner: "remove
+   that because this is a local host site nobodies on it yet im just building it" — it answered with licences not yet
+   signed). */
 const FAQ: { q: string; a: string }[] = [
   { q: 'Alerts or signals?', a: 'Alerts. You set a level and Slayer tells you when price gets there. It never tells you what to buy or sell.' },
-  { q: 'Where does the data come from?', a: 'Once our data licences are signed it comes from licensed market data vendors, and every number says what it stands on: live, measured, derived or model.' },
   { q: 'How is it different?', a: 'It puts the prints, the positions, the levels and the filings on one screen, and says where each number comes from.' },
   { q: 'Do I need to know options?', a: 'No. Pinpoint shows levels on a price chart. The guides explain each term in plain words.' },
   { q: 'Are the pictures on this page real?', a: 'Yes. Every picture and every film is the terminal itself, taken from the real page, not a mock-up. The films run three times as fast as life.' },

@@ -368,7 +368,10 @@ const Board = () => {
                 <Fact label="Active" testId="active">
                   <span className={counts.active ? 'text-textPrimary' : 'text-textMuted'}>{counts.active}</span>
                 </Fact>
-                <Fact label="Proving" testId="proving">
+                {/* WATCH, the card's own word (setupProcess.ts) — the head said "Proving" while every card it counted said
+                    WATCH (2026-10-01, the owner: "compass do what u need to do"); the sentence below still says what it
+                    means, "still proving itself" */}
+                <Fact label="Watch" testId="watch">
                   <span className={counts.watch ? 'text-textPrimary' : 'text-textMuted'}>{counts.watch}</span>
                 </Fact>
                 <Fact label="Fading" testId="fading">
