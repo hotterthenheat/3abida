@@ -39,3 +39,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   about, legal, the account forms, invite) use pages/outside/OutsideFrame; the account forms send nothing until a
   backend exists, and signing in opens the terminal. The static icons and og.jpg are drawn by `npm run brand:assets`
   (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.
+- Landing films (2026-10-01 — the owner, of the stills: "why are my photos just a photo and dont move so you cant see
+  all the features"): every page the tour names is FILMED from the real app by `npm run landing:clips`
+  (scripts/make-landing-clips.mjs — the page staged as its still, then worked by a drawn pointer; the page's clock is
+  held and stepped a frame at a time, so films are a smooth 30 fps with crisp charts; H.264 MP4, desk 2160×1500, phone
+  780×1520; it needs an ffmpeg with libx264, named by FFMPEG). The staging (SEED, PREPARE) is shared with the stills
+  in scripts/landing-stage.mjs; each film's words and timings live in src/pages/landing/clips.json, and the still
+  under a film is its first frame. The window (TerminalWindow.tsx) plays one film at a time, only on screen and with
+  the tab in front; reduced motion, Save-Data, a browser without H.264 and the visitor's pause keep the stills.
+  Re-film a page when its look changes.
