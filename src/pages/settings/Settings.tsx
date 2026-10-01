@@ -153,7 +153,7 @@ const KEY_GROUPS: { where: string; keys: Shortcut[] }[] = [
     ],
   },
   {
-    where: 'Review · the backtest desk',
+    where: 'Practice · the backtest desk',
     keys: [
       { keys: ['Space'], does: 'Play the clock, and pause it' },
       { keys: ['←', '→'], alt: true, does: 'Step a minute back, a minute on — never back past your last order' },
@@ -168,7 +168,7 @@ const KEY_GROUPS: { where: string; keys: Shortcut[] }[] = [
     ],
   },
   {
-    where: 'Review · a trade in the journal',
+    where: 'Practice · a trade in the journal',
     keys: [
       { keys: ['←', '→'], alt: true, does: 'The trade closed after this one, or the one before — the journal’s own order' },
       { keys: ['Esc'], does: 'Back to the journal, as you left it' },

@@ -69,6 +69,17 @@
   the desk in use with only a cursor on it (Wall.tsx);
   no box round any logo; and the one door is "Sign up
   free" (there is no trial).
+
+  THE AUDIT, THE SAME DAY (the owner: "now audit the
+  landing page… think logically"): every line read
+  against the terminal as it stands, every door
+  pressed. The lines that had drifted say what is there
+  now — the tape's side rail is gone, Compass's cards
+  have four states, the Weigher's list is two cards,
+  not every page has a guide nor every action a key —
+  and a line under a picture says what the picture
+  shows. A page that changes takes its line here with
+  it (STEPS below, Everything.tsx's ROOMS).
 ==================================================
 */
 
@@ -77,6 +88,7 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-
 import { ArrowRight, Check, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, type PlanKey } from '../../data/billing';
+import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
 import { BELOW_LG_QUERY } from '../../components/ui/useMediaQuery';
@@ -116,7 +128,9 @@ const STEPS: TourStep[] = [
     rest: 'Add them, drag them, link them to one name or let each hold its own. It is kept the way you left it.',
     path: '/pulse',
     rows: [
-      { title: 'The desk', says: 'The chart, the hedging at every strike and the book across the calendar, side by side.', path: '/pulse' },
+      /* the row says what the window shows: the desk as scripts/landing-stage.mjs (SEED) arranges it — it named the
+         Market Structure desk's ledger, which the film does not show (2026-10-01 audit) */
+      { title: 'The desk', says: 'The chart beside the hedging at every strike, the setups and the earnings under them.', path: '/pulse' },
       { title: 'Four charts', says: 'Four names at once, each with its own timeframe and overlays.', path: '/pulse/board' },
     ],
   },
@@ -127,7 +141,9 @@ const STEPS: TourStep[] = [
     kind: 'The contracts',
     name: 'Compass',
     lead: 'Option contracts picked off today’s levels.',
-    rest: 'Every card is marked active, watch or fading, and the mark updates as price moves.',
+    /* the card's four states (compass/setupProcess.ts) — "moving", the one the films show most, went unnamed until the
+       2026-10-01 audit */
+    rest: 'Every card says where its setup stands — watch, active, moving or fading — and it changes as price moves.',
     path: '/compass',
     rows: [
       { title: 'The board', says: 'What cleared the bar on this sweep.', path: '/compass' },
@@ -190,7 +206,9 @@ const STEPS: TourStep[] = [
     kind: 'The tape',
     name: 'Trace',
     lead: 'Every print, as it happens.',
-    rest: 'Options sweeps and blocks and dark-pool crosses, with the heaviest names and contracts kept at the side.',
+    /* the tape's side rail of top names left on 2026-09-12 (LiveTape.tsx) and the dark pool has its own page; the head of
+       the tape names the top bull, the top bear and the largest print (2026-10-01 audit) */
+    rest: 'Options sweeps and blocks, with the top bull, the top bear and the largest print named at the head of the tape, and dark-pool crosses on a page of their own.',
     path: '/trace/live-tape',
     rows: [
       { title: 'Live tape', says: 'The stream, newest first.', path: '/trace/live-tape' },
@@ -210,7 +228,8 @@ const STEPS: TourStep[] = [
     path: '/weigher',
     rows: [
       { title: 'The chain', says: 'Every strike and expiry for the name.' },
-      { title: 'One list', says: 'The contracts you watch and the positions you hold, together.' },
+      /* two cards since 2026-09-14 — "One list" was the desk before (WeigherDesk.tsx) */
+      { title: 'Positions and a watchlist', says: 'What you hold and what you watch, each row marked now, today and since it was added.' },
       { title: 'The position card', says: 'What a position would return at every price, on a ruler.' },
     ],
   },
@@ -221,7 +240,8 @@ const STEPS: TourStep[] = [
     kind: 'The file on a name',
     name: 'Dossier',
     lead: 'Everything on file about a name.',
-    rest: 'The news, the earnings, the filings, and every stock on one screen.',
+    /* five pages, not one screen: "every stock on one page" is the Stocks page */
+    rest: 'The news, the earnings, what insiders and members of Congress filed, and every stock screened on one page.',
     path: '/dossier/news',
     rows: [
       { title: 'News', says: 'The wire, on a map.', path: '/dossier/news' },
@@ -248,7 +268,9 @@ const STEPS: TourStep[] = [
     name: 'Practice',
     /* the headline leads with paper trading, as the room's first row does (Noah, 2026-09-26) */
     lead: 'Paper trade today’s prices, or replay a past day’s.',
-    rest: 'A practice account or a prop firm’s evaluation on the live feed — calls, puts and spreads off the chain, a target and a stop on each, and nothing reaches a broker. Or a past day played back a minute at a time, the whole option chain with its bid and ask at every strike, so it can be traded in calls, puts and spreads with the decay in every price. One journal keeps every closed trade.',
+    /* SAID ONCE (2026-10-01 audit): the paragraph ran eleven lines on a desk and told the rows' story before the rows
+       did — the targets and stops, the decay, the chain as quoted are theirs to say */
+    rest: 'A practice account or a prop firm’s evaluation on the live feed, or a past day played back a minute at a time, the whole option chain as it was quoted. Calls, puts and spreads, and nothing reaches a broker. One journal keeps every closed trade.',
     /* paper trading leads the room (Noah, 2026-09-26: "i want the paper trading live to be the first one") — its still
        is the options desk in use, not the start page (the photographer's `photo=1` window, embed.ts) */
     path: '/practice/paper',
@@ -268,11 +290,13 @@ const ROOMS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eig
 /** The rooms the hero's window plays in turn — the tour's tools, in the tour's order (the turn is not a room) */
 const HERO_ROOMS = STEPS.filter(s => s.code);
 
+/* every line true of the terminal today — "every page" was not: Pulse, the Tracker, the Board and Practice have no guide
+   (counted 2026-10-01) */
 const IT_DOES = [
   'Shows where dealer hedging sits, and redraws it as the day moves',
   'Reads a contract against that and says it in a word: strong, good, caution or poor',
-  'Keeps a setup current: active while it holds, watch while it forms, fading when it breaks',
-  'Explains every page in plain English',
+  'Keeps a setup current: watch while it forms, active while it holds, fading when it breaks',
+  'Explains its reads in plain English',
 ];
 const IT_NEVER = ['Tells you what to buy or sell', 'Places an order. It is not a broker', 'Boils a trade down to one number', 'Gives financial advice'];
 
@@ -326,9 +350,11 @@ const PLAN_FOR: Record<PlanKey, string> = {
   lifetime: 'You want all of it for good, paid once, with a session to set up your desk.',
 };
 
-/* THE QUESTIONS — the Logo System's FAQ bank (09 · Voice / 10 · Messaging, 2026-09-30), two of the page's own kept (the
-   pictures, the address). The bank says the data comes from licensed vendors once the licences are signed. No refunds,
-   said kindly, here and never as a banner. The page never says simulated, demo or fake (the owner, 2026-10-01). */
+/* THE QUESTIONS — the Logo System's FAQ bank (09 · Voice / 10 · Messaging, 2026-09-30), one of the page's own kept (the
+   pictures). The bank says the data comes from licensed vendors once the licences are signed. No refunds, said kindly,
+   here and never as a banner. The page never says simulated, demo or fake (the owner, 2026-10-01). "How do I reach you?"
+   left the list on 2026-10-01: the address stands beside the head as a door, with the same words, so the section said it
+   twice. */
 const FAQ: { q: string; a: string }[] = [
   { q: 'Alerts or signals?', a: 'Alerts. You set a level and Slayer tells you when price gets there. It never tells you what to buy or sell.' },
   { q: 'Where does the data come from?', a: 'Once our data licences are signed it comes from licensed market data vendors, and every number says what it stands on: live, measured, derived or model.' },
@@ -337,7 +363,6 @@ const FAQ: { q: string; a: string }[] = [
   { q: 'Are the pictures on this page real?', a: 'Yes. Every picture and every film is the terminal itself, taken from the real page, not a mock-up. The films run three times as fast as life.' },
   { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
   { q: 'Do you offer refunds?', a: 'We don\u2019t. Making an account is free, and every desk is on this page, so see what each plan holds before you pay. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
-  { q: 'How do I reach you?', a: 'info@slayerterminal.com. A person reads it.' },
 ];
 
 /* ---- the pieces ---------------------------------------------------------------------------- */
@@ -381,8 +406,12 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
   );
 };
 
+/** A jump along the page glides — unless the visitor asked their system for less motion: then it is a cut. Pricing is
+    twelve thousand pixels down; gliding there was the motion they had asked not to see. */
+const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
 const toAnchor = (href: string) => {
-  document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelector(href)?.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
   history.replaceState(null, '', href);
 };
 
@@ -489,7 +518,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
           lifted ? 'max-w-[700px] pl-2.5 pr-1.5 border-borderSubtle bg-panel/75 backdrop-blur-xl shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="shrink-0 inline-flex items-center select-none" aria-label="Slayer Terminal, back to the top" data-landing-brand>
+        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none" aria-label="Slayer Terminal, back to the top" data-landing-brand>
           {/* the wordmark on the open bar, the mark on the lifted pill and on a phone */}
           <span className={lifted ? 'hidden' : 'hidden sm:inline-flex'}>
             <Wordmark height={15} cursor label="" />
@@ -723,7 +752,8 @@ const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey
       </ul>
       <div className="mt-7 lg:mt-auto lg:pt-7">
         {custom ? (
-          <Pill href="mailto:info@slayerterminal.com" kind="ghost">
+          /* the letter arrives saying which plan it is about — it went to the general inbox with nothing on it */
+          <Pill href={`mailto:${COMPANY.info}?subject=${encodeURIComponent(`The ${plan.name} plan`)}`} kind="ghost" testId={`plan-${planKey}`}>
             Talk to us
           </Pill>
         ) : (
@@ -740,13 +770,20 @@ const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey
     Folded under its own door so the prices stay the end of the section for anyone who has seen enough. */
 const PlansSideBySide = () => {
   const [open, setOpen] = useState(false);
+  /* a reader that hears the table hears the words: a name on an svg without a role, or on a bare span, is not reliably read */
   const mark = (h: Holds) =>
     h === 'soon' ? (
       <span className="h-[20px] px-2 inline-flex items-center rounded-full bg-warn text-[9px] font-bold uppercase tracking-[0.14em] text-[#0a0a0a]">Soon</span>
     ) : h ? (
-      <Check className="w-4 h-4 text-textPrimary" aria-label="Included" />
+      <>
+        <Check className="w-4 h-4 text-textPrimary" aria-hidden="true" />
+        <span className="sr-only">Included</span>
+      </>
     ) : (
-      <span className="text-textMuted" aria-label="Not included">–</span>
+      <>
+        <span className="text-textMuted" aria-hidden="true">–</span>
+        <span className="sr-only">Not included</span>
+      </>
     );
   return (
     <div className="mt-10" data-landing-side-by-side={open || undefined}>
@@ -826,11 +863,10 @@ const Page = () => {
     if (!el) return;
     const win = document.querySelector<HTMLElement>('[data-tour-window]');
     const under = win && window.matchMedia(BELOW_LG_QUERY).matches ? (parseFloat(getComputedStyle(win).top) || 0) + win.offsetHeight + 48 : window.innerHeight * 0.3;
-    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - under, behavior: calm ? 'auto' : 'smooth' });
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - under, behavior: glideOrCut() });
   }, []);
 
-  /* a footer link from inside the terminal lands on /#pricing or /#faq — go there once the page stands */
+  /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */
   useEffect(() => {
     if (!location.hash) return;
     const t = window.setTimeout(() => document.querySelector(location.hash)?.scrollIntoView({ block: 'start' }), 80);
@@ -901,7 +937,8 @@ const Page = () => {
             {/* the refund policy left this headline for the Questions, said kindly (Noah, 2026-09-19) */}
             <TwoTone first="Pick your plan." second="Cancel any time." />
             <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">
-              Pinpoint is the charts, the book and the tape. Compass is everything. Cancel whenever you like and you keep your access until the period you paid for ends.
+              {/* "Compass is everything" sat beside a plan that holds more (Lifetime), and Lifetime has nothing to cancel */}
+              Pinpoint is the charts, the book and the tape. Compass is every desk. Cancel a monthly plan whenever you like and you keep your access until the period you paid for ends.
             </p>
           </div>
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
@@ -936,8 +973,8 @@ const Page = () => {
               <TwoTone className="mt-6" first="Asked" second="before you buy." />
               {/* anything else goes to a person (2026-10-01) */}
               <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <Pill href="mailto:info@slayerterminal.com" kind="ghost" size="sm" testId="write">
-                  info@slayerterminal.com
+                <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
+                  {COMPANY.info}
                 </Pill>
                 <span className="text-[13px] text-textMuted">Anything else, ask. A person reads it.</span>
               </div>

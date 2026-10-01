@@ -681,13 +681,9 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
    spring (2026-09-10) — the hand-written keyframes that stood here read as a
    shake and were retired the same night. */
 
-/* Landing anchor targets stop short of the fixed glass nav */
-#showcase,
-#live,
-#workspace,
-#pricing {
-  scroll-margin-top: 84px;
-}
+/* (The old landing's anchor rule — #showcase, #live, #workspace, #pricing at 84px — left on 2026-10-01: three of its ids
+   were gone, and on #pricing it beat the block's own scroll-mt-10, so Pricing stopped 44px lower than Everything and the
+   Questions. The landing's blocks carry their own margin.) */
 
 @media (prefers-reduced-motion: reduce) {
   .animate-view-in,

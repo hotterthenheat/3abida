@@ -83,7 +83,7 @@ export const ROOMS: Room[] = [
     kind: 'The contracts',
     path: '/compass',
     features: [
-      { title: 'The board', says: 'Contracts picked off today’s levels, weeklies to LEAPS. Every card is marked active, watch or fading, and the mark moves with price.', path: '/compass' },
+      { title: 'The board', says: 'Contracts picked off today’s levels, weeklies to LEAPS. Every card says where its setup stands — watch, active, moving or fading — and it changes as price moves.', path: '/compass' },
       { title: 'Inside the contract', says: 'Each card opens its setup on a live chart: four targets and a floor on the candles, with the premium ladder beside them.', path: '/compass' },
       { title: 'Tracker', says: 'What you kept, followed to the close.', path: '/compass/tracker' },
     ],
@@ -115,7 +115,7 @@ export const ROOMS: Room[] = [
     features: [
       { title: 'The scanner', says: 'It finds the name; you pick the contract off the chain beside it.', path: '/weigher' },
       { title: 'The chain', says: 'Every strike and expiry for the name.', path: '/weigher' },
-      { title: 'One list', says: 'The contracts you watch and the positions you hold, together.', path: '/weigher' },
+      { title: 'Positions and a watchlist', says: 'What you hold and what you watch, each row marked now, today and since it was added.', path: '/weigher' },
       { title: 'The position card', says: 'What a position would return at every price, on a ruler.', path: '/weigher' },
     ],
   },
@@ -128,9 +128,12 @@ export const ROOMS: Room[] = [
     kind: 'The small things',
     features: [
       { title: 'Alerts', says: 'Set one on any level, right where you are looking. It sounds on every page, and they all live in one drawer.', path: '/alerts' },
-      { title: 'How to read', says: 'Every page has a guide behind it, written in plain English. Trading terms stay. Buzzwords do not.' },
+      /* WHAT IS TRUE, NOT WHAT SOUNDS WHOLE (2026-10-01 audit): "every page has a guide" — Pulse, the Tracker, Pinpoint's
+         Board and Practice have none; "every page and every action has a key" — the keys are Ctrl K everywhere, Terrain's
+         and the backtest's (Settings, KEY_GROUPS) */
+      { title: 'How to read', says: 'Look for “How to read” on a page: a guide to what you are looking at, written in plain English. Trading terms stay. Buzzwords do not.' },
       { title: 'Kept as you left it', says: 'Layouts, names and colours are remembered. Open it tomorrow and it is the desk you closed.' },
-      { title: 'The keyboard', says: 'Every page and every action has a key, and one page lists them all.', path: '/settings/keyboard' },
+      { title: 'The keyboard', says: 'Ctrl K, or ⌘K on a Mac, finds any name or page from anywhere. Terrain and the backtest answer to keys of their own, and one page lists every one.', path: '/settings/keyboard' },
       { title: 'Light and dark', says: 'Every page in both. Pick one in Settings, or let it follow your computer.', path: '/settings/appearance' },
     ],
   },
@@ -170,7 +173,7 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
       el?.focus();
       /* on a phone the row scrolls sideways: bring the room in without moving the page */
       const row = el?.parentElement;
-      if (el && row && row.scrollWidth > row.clientWidth) row.scrollTo({ left: Math.max(0, el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2), behavior: 'smooth' });
+      if (el && row && row.scrollWidth > row.clientWidth) row.scrollTo({ left: Math.max(0, el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     },
     [at, rooms]
   );

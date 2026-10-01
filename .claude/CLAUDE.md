@@ -73,7 +73,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side
   both read it. Never on the landing: reviews, ratings, member counts or results of any kind (we have none), "most
   popular", a chat bubble (no backend). Its words and layouts are ours: another site's landing (studied 2026-10-01, "dont
-  steal just get inspired") is not ours to reuse.
+  steal just get inspired") is not ours to reuse. Every line on it says what the terminal does today (2026-10-01 audit:
+  the tape's removed side rail, Compass's unnamed "moving", the Weigher's split list and "every page has a guide" had
+  all drifted): a page that changes takes its lines in Landing.tsx STEPS and Everything.tsx ROOMS with it, and a row
+  under a picture says what the picture shows.
 - Prices agree across desks: a name's seeded history is drawn from its own stream for the day (core/simulator.ts
   beginSeed: `${sym}-${dayKey()}-walk`), and the day's change is measured from the last session's close
   (Simulator.dayChangePct), never from the config's base price.
