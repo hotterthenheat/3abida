@@ -1,10 +1,10 @@
 /* COMPASS'S ACTS (2026-10-02 — the owner: "reshoot compass and click on analysis so you can see the inside the con page",
-   and "make them move fast"). THE BOARD: SPY searched on its Name card, the board narrowed to SPY's setups and the rail of
-   heaviest contracts following the card it keeps; a contract opened from the rail ("Open … — full analysis") into its own
-   page — the setup's facts, its premium chart under the pointer, the trade card's Setup tab (its targets, its entry, its
-   floor) after "Why we chose this", which it opens on — and back to the board by the page's own link, every name again,
-   on the card the board opened on. On a desk the names are widened before the trip (the rail stays on SPY, the board
-   full); on a phone the rail stands under the board, so the narrowed board is scrolled to it and widened on the way back.
+   "make them move fast", and then "reshoot compass to click inside the contract please"). THE BOARD: SPY searched on its
+   Name card, the board narrowed to SPY's setups, the card it keeps chosen; THE CONTRACT ITSELF PRESSED — a chosen card's
+   second press opens its own page — and inside the contract: the setup's facts, its premium chart under the pointer, the
+   trade card's Setup tab (its targets, its entry, its floor) after "Why we chose this", which it opens on — and back to
+   the board by the page's own link, every name again, on the card the board opened on. The phone the same, the card
+   scrolled to and the page brought home on the way back.
    THE TRACKER: its cards, the same setups as a table sorted by a column's head, and the cards again. */
 export default ({ on, btn }) => {
   /* THE NAME IS SPY, the terminal's own: a contract opened on another name repoints the whole terminal to it (the name in
@@ -47,15 +47,13 @@ export default ({ on, btn }) => {
     },
   };
   const fadesOn = [fadeOn, { hold: 0.05 }, fadeOn, { hold: 0.05 }, fadeOn];
-  /* the rail's rows: each opens its contract's own page */
-  const OPEN_ROW = '[title^="Open "][title*="full analysis"]';
-  /* the rail's row for the chosen card's own contract (SPY-470-C-… is "SPY 470C"), else the rail's second row — and only
-     while the card chosen is SPY's: on any other name's rail the beat finds nothing, and the run says so */
-  const railRowOfChosen = async c => {
+  /* THE CONTRACT ON THE CHOSEN CARD: its name and strike in its side's ink, top left of the card — and only while the card
+     chosen is SPY's (a contract on another name repoints the whole terminal, and the film would end there): on any other
+     name's card the beat finds nothing, and the run says so */
+  const CHOSEN_LABEL = async c => {
     const id = await c.frame.locator('[data-compass-card][data-selected]').first().getAttribute('data-compass-card', { timeout: 1500 }).catch(() => null);
-    const m = id?.match(/^(SPY)-([\d.]+)-([CP])-/);
-    if (!m) return null;
-    return (await on(`[title^="Open ${m[1]} ${m[2]}${m[3]} "][title*="full analysis"]`, 0, 0.3)(c)) ?? on(OPEN_ROW, 1, 0.3)(c);
+    if (!id || !/^SPY-/.test(id)) return null;
+    return on(`[data-compass-card="${id}"]`, 0, 0.24, 0.13)(c);
   };
   /* the card the board opened on, chosen again — aimed, then pressed where it stands by then (the board re-ranks under
      the glide), and not at all if the board already has it (a chosen card's second press opens its page). The board is
@@ -70,18 +68,18 @@ export default ({ on, btn }) => {
   return {
     DESK: {
       '/compass': [
-        /* SPY searched on the Name card: the board narrows to its setups and chooses the one it keeps; every name again,
-           and the rail beside the board stays on the card chosen — SPY's heaviest contracts */
-        ...narrow, { hold: 0.5 }, ...widen, { hold: 0.4 },
-        { to: on(OPEN_ROW, 0, 0.3), dur: 0.4 },
-        /* the card's own contract opened from the rail: the page inside the contract */
-        { press: railRowOfChosen, dur: 0.4 }, ...fadesOn, { hold: 0.8 },
+        /* SPY searched on the Name card: the board narrows to its setups and chooses the one it keeps */
+        ...narrow, { hold: 0.5 },
+        /* the contract read on its card, then pressed: the card is chosen, so the press opens its page — inside the contract */
+        { to: CHOSEN_LABEL, dur: 0.45 }, { hold: 0.25 },
+        { press: CHOSEN_LABEL, dur: 0.15 }, ...fadesOn, { hold: 0.8 },
         { to: on('[data-setup-facts]', 0, 0.12, 0.5), dur: 0.4 }, { to: on('[data-setup-facts]', 0, 0.8, 0.5), dur: 0.45 },
         { press: btn('Premium'), dur: 0.45 }, { hold: 0.6 },
         { to: on('[data-premium-track]', 0, 0.5, 0.55), dur: 0.4 }, { to: on('[data-premium-track]', 0, 0.82, 0.45), dur: 0.55 },
         /* the trade's card opens on why it is on the board; Setup holds its targets, its entry and its floor */
         { press: btn('Setup'), dur: 0.45 }, { hold: 0.8 },
-        { press: btn('The board'), dur: 0.5 }, ...fadesOn, { hold: 0.6 },
+        { press: btn('The board'), dur: 0.5 }, ...fadesOn, { hold: 0.5 },
+        ...widen, { hold: 0.4 },
         ...chooseAgain,
       ],
       /* THE TRACKER: the setups kept, live — the cards, the same setups as a table, sorted by a column's head (the move
@@ -101,17 +99,19 @@ export default ({ on, btn }) => {
     },
     PHONE: {
       '/compass': [
-        /* narrowed to SPY, the board is its one or two cards with the rail under them: down to the rail, and the chosen
-           card's contract opened from it */
+        /* narrowed to SPY, the board is its one or two cards: the chosen one brought up the screen, its contract read and
+           pressed — inside the contract */
         ...narrow, { hold: 0.3 },
-        { scrollTo: OPEN_ROW, at: 0.55, dur: 0.8 },
-        { press: railRowOfChosen, dur: 0.4 }, ...fadesOn, { hold: 0.6 },
+        { scrollTo: '[data-compass-card][data-selected]', at: 0.42, dur: 0.7 },
+        { to: CHOSEN_LABEL, dur: 0.4 }, { hold: 0.2 },
+        { press: CHOSEN_LABEL, dur: 0.15 }, ...fadesOn, { hold: 0.6 },
         { press: btn('Premium'), dur: 0.45 }, { hold: 0.6 },
         /* down to the trade's card: why it is on the board, then its targets */
         { scrollTo: '[data-setup-card]', at: 0.1, dur: 0.8 },
         { press: btn('Setup'), dur: 0.4 }, { hold: 0.5 },
         { scroll: -4000, dur: 0.9 },
         { press: btn('The board'), dur: 0.45 }, ...fadesOn, { hold: 0.4 },
+        { scroll: -4000, dur: 0.6 },
         ...widen, { hold: 0.4 },
         ...chooseAgain,
       ],

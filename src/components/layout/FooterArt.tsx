@@ -482,9 +482,12 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       const yOf = (val: number) => lineTop + (1 - (val - rlo) / span) * (lineBot - lineTop);
       const xOf = (i: number) => head - ((now - (t0 + i * STEP)) / STEP) * GAP;
       const headY = yOf(valAt(now));
-      /* the moment a point of the pane was drawn, and the line's height there */
-      const momentAt = (x: number) => now - ((head - x) / GAP) * STEP;
-      const lineYAt = (x: number) => yOf(valAt(momentAt(x)));
+      /* the moment a point of the pane was drawn — on the frame's clock for the line, on the wall's for its tags — and the
+         line's height there */
+      const ago = (x: number) => ((head - x) / GAP) * STEP;
+      const wall = Date.now();
+      const momentAt = (x: number) => wall - ago(x);
+      const lineYAt = (x: number) => yOf(valAt(now - ago(x)));
 
       /* THE ARROW: glides to the next thing, rests on it (on the line, it rides the line), and gives way to a pointer */
       if (!calm) {
@@ -578,7 +581,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       trace(lctx, 0, 0, 1.6);
       lctx.stroke();
       /* the last price run out to its tag; the tag is the clock */
-      const word = clock(Date.now(), !calm);
+      const word = clock(wall, !calm);
       lctx.fillStyle = rgb(ink.line, 0.95);
       lctx.fillRect(head, Math.round(headY) - 1, tagX - head, 2);
       lctx.font = `600 10px ${FONT_SANS}`;
