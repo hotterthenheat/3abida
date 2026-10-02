@@ -315,6 +315,12 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
   /* …and the hairline under its row fills as the film plays (written straight to the line; it starts empty for each page) */
   const bar = useRef<HTMLSpanElement | null>(null);
   const barAt = useRef(0);
+  /* one callback for the line's whole life, so it is told only when a new line comes (a new page) or goes */
+  const setBar = useCallback((el: HTMLSpanElement | null) => {
+    if (el === bar.current) return;
+    bar.current = el;
+    barAt.current = 0;
+  }, []);
   const onTime = useCallback((at: number, length: number, glide = 260) => {
     const el = bar.current;
     if (!el) return;
@@ -444,10 +450,7 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
                                   {here && playing && (
                                     <span
                                       key={shown}
-                                      ref={el => {
-                                        bar.current = el;
-                                        barAt.current = 0;
-                                      }}
+                                      ref={setBar}
                                       aria-hidden="true"
                                       className="absolute inset-x-0 -bottom-px h-[2px] origin-left bg-silver"
                                       style={{ transform: 'scaleX(0)' }}

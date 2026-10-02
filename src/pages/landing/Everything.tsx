@@ -35,9 +35,10 @@
   While the list is on screen the lit room moves on to the
   next after a while — longer for a room with more pages —
   and a line on its tab fills meanwhile. A pointer or the
-  keys inside the list hold it where it is; a room picked
-  stays until the list leaves the screen. Not where less
-  motion is asked for.
+  keys inside the list hold it where it is; a room picked —
+  or on a phone, a touch anywhere in the list — stays until
+  the list leaves the screen. Not where less motion is
+  asked for.
 ==================================================
 */
 
@@ -267,6 +268,8 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
       className="mt-12 lg:mt-14 grid grid-cols-1 lg:grid-cols-12 gap-x-12 xl:gap-x-16"
       onPointerEnter={e => e.pointerType === 'mouse' && setHand(true)}
       onPointerLeave={e => e.pointerType === 'mouse' && setHand(false)}
+      /* a thumb has no hover to hold it with: a touch in the list keeps the room it is on until the list leaves the screen */
+      onPointerDown={e => e.pointerType !== 'mouse' && setPicked(true)}
       /* the keys in the list hold it too (a Tab through its doors), until they leave it */
       onFocus={e => e.target.matches(':focus-visible') && setKeys(true)}
       onBlur={e => {

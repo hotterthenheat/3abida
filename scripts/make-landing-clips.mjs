@@ -36,9 +36,9 @@
 */
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { ALL_PAGES, ROOM_PAGES, SEED, PREPARE, slug } from './landing-stage.mjs';
 
@@ -554,15 +554,22 @@ const REMEMBER = {
 /* the Compass board's chosen card, read before either act begins */
 REMEMBER['/compass'] = [{ remember: 'sel', of: async ({ frame }) => frame.locator('[data-compass-card][data-selected]').first().getAttribute('data-compass-card', { timeout: 1500 }).catch(() => null) }];
 
-/* AN ACT ON TRIAL (2026-10-02): ACTS names a module whose default export takes the helpers above and returns { DESK, PHONE,
-   REMEMBER } — its acts stand in for the ones written here, page by page, so an act can be tried in a PREVIEW before it is
-   written into this file */
-if (process.env.ACTS) {
-  const trial = (await import(pathToFileURL(resolve(process.env.ACTS)).href)).default({ on, near, btn, tf, at, off, SEARCH_MENU, tfButtonNow, tfVia, tfNow });
-  Object.assign(DESK, trial.DESK ?? {});
-  Object.assign(PHONE, trial.PHONE ?? {});
-  Object.assign(REMEMBER, trial.REMEMBER ?? {});
-}
+/* THE ROOMS' ACTS (2026-10-02 — the owner: "make sure the videos really show the features of every page", "make them move
+   fast"): each room's acts are a module of their own, scripts/landing-acts/<room>.mjs, whose default export takes the
+   helpers above and returns { DESK, PHONE, REMEMBER } for the room's pages. They are read in turn and stand in for the
+   acts written here, page by page. */
+const HELPERS = { on, near, btn, tf, at, off, SEARCH_MENU, tfButtonNow, tfVia, tfNow };
+const actsIn = async file => {
+  const acts = (await import(pathToFileURL(file).href)).default(HELPERS);
+  Object.assign(DESK, acts.DESK ?? {});
+  Object.assign(PHONE, acts.PHONE ?? {});
+  Object.assign(REMEMBER, acts.REMEMBER ?? {});
+};
+const ROOM_ACTS = resolve(dirname(fileURLToPath(import.meta.url)), 'landing-acts');
+for (const f of readdirSync(ROOM_ACTS).filter(f => f.endsWith('.mjs')).sort()) await actsIn(resolve(ROOM_ACTS, f));
+/* AN ACT ON TRIAL: ACTS names one more such module, read last, so an act can be tried in a PREVIEW before it is written
+   into its room's module */
+if (process.env.ACTS) await actsIn(resolve(process.env.ACTS));
 
 /* ---- THE CAMERA ---------------------------------------------------------------------------------------------------- */
 

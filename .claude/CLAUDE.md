@@ -89,10 +89,18 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   film's copy (public/landing/wall/, 960 wide, written by landing:clips from the desk film), each a door to its room in
   the tour. A DOCK since 2026-10-02 (the owner: "side by side and when u move your cursor they move with it like the
   apple mac dock but more dramatic … add a bit more info on them", then "the main one comes out and the rest are in
-  the back"): the eight side by side across the row, overlapping; the room in front full size (about a third of the
-  row, less on a short screen so it fits under the words), on top and lifted, with its kind, its line and up to four of
-  its pages under it (the tour's STEPS); the rest step back — 0.44 of its size at the back, dimmed by a veil of the
-  ground, tucked under their neighbours. The pointer's place along the row brings a room out and the pointer takes over
+  the back"): the eight side by side across the row, overlapping; the room in front full size (up to not quite half the
+  row, as large as the screen leaves it), on top and lifted, with its kind, its line and up to four of its pages under
+  it (the tour's STEPS); the rest step back — half its size at the back, turned a little toward it like a ring seen
+  from outside, dimmed by a veil of the ground, tucked under their neighbours. It OPENS ON THE MIDDLE ROOM, the others
+  behind it on both sides (opened on the first, the front stood at the row's left end, a lopsided first screen); the
+  strip does too. THE FIRST SCREEN IS THE HERO AND ONLY THE HERO (2026-10-02 — the owner: "when i load onto the
+  website i need the dock to look much better and i should be able to see below it until i scroll"): one screen tall
+  on any screen, the signature (with New York's clock beside it, brand/useMarketClock.ts), the headline, the line and
+  the door, and the dock in all the room they leave ([data-dock-slot]: the dock measures it) — its cards and words
+  whole above the fold, the tour below it. On a wide screen the dock's stage is wider than the words (up to 2000 px,
+  80 px in from the edges); on a phone or tablet the door comes right under the strip, the two centred together, and
+  the strip's cards are sized to the screen's height. The pointer's place along the row brings a room out and the pointer takes over
   at once, from wherever the dock had got to — a moving pointer carries the row with it, a resting one brings its card
   all the way out, full size with its words (a dead band keeps a hand at the border of two from swinging the row), and
   the card under the pointer is the one in front even on a short screen whose row is narrower than its box; left alone (the owner: "if no cursor is on it make it switch to each one
@@ -109,6 +117,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   plays one film, with no pause button and no captions. The only door is "Sign up free" — an account is free; there
   is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs
   and the mark stand bare (`bare`), sized to fit their line.
+- Rooms play their pages (2026-10-02 — the owner: "each tab if they have more tabs to click it should automatically
+  scroll to them so people can see everything without always having to use their mouse"). In the tour the room on
+  screen shows its pages in turn, each for one play of its film (TerminalWindow's onLap: the film wrapped round; on
+  stills, 7 s), a line under its row filling as it plays (onTime); a row the reader picks holds the room until they
+  move to another room. "Everything in it" brings its rooms round by itself while on screen (longer for a room with
+  more pages), a line on the lit tab filling; a pointer or the keys inside hold it, a picked room stays until the list
+  leaves the screen. Neither moves where less motion is asked for. A new list of tabs on the landing does the same.
+  The tour's window asks once whether the browser plays H.264; a film that fails to load leaves only its own page on
+  its still. The closing "Seen enough? Step inside." lights a letter at a time as it comes up the screen (Landing.tsx
+  LitLines, the scroll its playhead; lit under reduced motion).
 - The live footer (2026-10-02 — the owner: "make it super cool like a live footer make some sort of artistic thing
   from the photo", then, of the first try, a tape breaking into coloured dashes and slips: "it doesn't look clean and
   together right now go online and look for some examples and retry it"). What the clean live footers share (Midday,
@@ -124,7 +142,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   dot ride the line and the tag tells that moment's time; off it, it eases home. No specks, slips, dashes or extra
   colours. Art, not data: no figure on it is a price. Every ink a token read off the band's own ground (re-read when the
   theme turns); drawn about thirty times a second (sixty under the pointer) only while on screen with the tab in front;
-  under reduced motion one still frame whose clock moves on once a minute.
+  under reduced motion one still frame whose clock moves on once a minute. BEFORE YOU GO, MARK A LEVEL (2026-10-02, from
+  the owner's notes on Eclipse's and Yu-Hsin Lin's footers, docs/landing-inspiration-notes.md): a press on the band
+  sets a level (three at most; a press on one takes it away; a keyboard door shows on focus); when the line walks
+  across it, it lights in silver and its tag says when; the levels last the visit (module memory, nothing stored); none
+  under reduced motion. The footer opens on the first screen's promise in its voice ("Trade what you can see.", its
+  "see." in the silver), and a link under the pointer drops the rest of its column a tier and comes forward with a short
+  mark (index.css .footer-col: colour and transforms, never weight).
 - "Everything in it" (landing/Everything.tsx) lists every page of every room, each a door into the terminal —
   Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page is listed by itself; write the
   others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side
