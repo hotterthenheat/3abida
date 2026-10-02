@@ -42,7 +42,7 @@ import {
   INTRADAY_MAX_MINUTES,
   type Timeframe,
 } from '../../data/timeframe';
-import { GexTrailsPrimitive } from './gexNodesPrimitive';
+import { GexTrailsPrimitive, trailPaperFrom } from './gexNodesPrimitive';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { commitArm, evaluateAlert, markFired, useAlerts, type AlertContext, type IndicatorSource } from './alertStore';
@@ -2155,6 +2155,17 @@ const StrikeChart = ({
      level/focus/print/data effects to re-hang everything on the new series.
      Pan/zoom survives; the tape reloads on the next pass of the data
      effect. */
+  /* THE STRIKE FIELD WEARS THE TAPE'S GROUND (2026-10-02 — the owner: "it's the strike chart that's not going with the
+     appearance"): on a light tape the beads, the walls and the chips take the paper inks, read off this chart's own box
+     (gexNodesPrimitive.ts TrailPaper); on a dark one, the field as it always was. Re-read when the theme or the page's
+     ground changes (a light page lifts the light tape's panel). */
+  useEffect(() => {
+    const trails = trailsRef.current;
+    const box = containerRef.current;
+    if (!trails) return;
+    trails.setPaper(chartGround(themeKey) === 'light' && box ? trailPaperFrom(box) : null);
+  }, [themeKey, appTheme, mainNonce]);
+
   useEffect(() => {
     const chart = chartRef.current;
     const prev = candleSeriesRef.current;

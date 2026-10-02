@@ -87,10 +87,18 @@ const REACH = 0.8;
 const OVERLAP_MIN = 0.18;
 /** the card in front stands this much above the others */
 const LIFT = 12;
-/** a room stays in front this long when no one is steering */
-const DWELL = 3400;
-/** …and the dock waits this long after the pointer leaves before it moves on by itself */
-const WAIT = 2600;
+/** a step on its own: the glide from one room to the next */
+const GLIDE = 900;
+/** …and the rest on each room before the next */
+const REST = 2600;
+/** the first step waits this long after the dock comes on screen */
+const FIRST = 2200;
+/** the dock rests this long after the pointer leaves before it moves on by itself */
+const WAIT = 3200;
+/** under the pointer, the time it takes to close most of the gap (a time constant) */
+const FOLLOW = 70;
+/** a glide's pace: eases in and out, and stops dead on the room (easeInOutCubic) */
+const glide = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
 /** what stands above the dock on a desk (the signature, the line, the words and the door, and their margins) */
 const ABOVE = 434;
 
@@ -226,9 +234,14 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   const cardH = big / ASPECT + BAR + 2;
   const wordsW = Math.min(big, 440);
 
-  /* WHERE THE FRONT STANDS: `f` now, `to` where it is going; `hand` while the pointer steers (it follows quickly), otherwise
-     it eases (the dock's own step). Written to the page directly, a frame at a time, only while it moves. */
-  const m = useRef({ f: 0, to: 0, hand: false, raf: 0, dir: 1, idleAt: 0 });
+  /* WHERE THE FRONT STANDS (2026-10-02 — the owner: "if no cursor is on it make it switch to each one on its own as like a
+     clean motion and then when the cursor is over it takes over"). Two ways it moves. ON ITS OWN it GLIDES: from where it
+     stands to the next room in a set time, easing in and out (no tail that creeps on after it seems to have stopped), then
+     rests a while on that room and glides on — there and back along the row. Under the pointer it FOLLOWS: the pointer's
+     place is where it heads, closing most of the gap in a tenth of a second, from wherever the glide had got to. When the
+     pointer leaves, the dock settles on the room nearest it, rests, and carries on by itself. Written to the page directly,
+     a frame at a time, only while it moves. */
+  const m = useRef({ f: 0, to: 0, from: 0, t0: 0, dur: 0, hand: false, raf: 0, last: 0, dir: 1, next: 0, pause: 0 });
   const paint = () => {
     const { f } = m.current;
     if (!box.width) return;
@@ -252,45 +265,97 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
       if (face) face.dataset.front = Math.round(f) === i ? 'true' : 'false';
     }
   };
-  const tick = () => {
+  const tick = (now: number) => {
     const st = m.current;
-    const k = st.hand ? 0.22 : 0.07;
-    st.f += (st.to - st.f) * k;
-    if (Math.abs(st.to - st.f) < 0.002) st.f = st.to;
+    if (st.hand) {
+      /* following the pointer: the same pace at any frame rate (a time constant, not a share of each frame) */
+      const dt = Math.min(64, now - (st.last || now - 16));
+      st.f += (st.to - st.f) * (1 - Math.exp(-dt / FOLLOW));
+      if (Math.abs(st.to - st.f) < 0.002) st.f = st.to;
+    } else {
+      const p = Math.min(1, (now - st.t0) / st.dur);
+      st.f = st.from + (st.to - st.from) * glide(p);
+      if (p >= 1) st.f = st.to;
+    }
+    st.last = now;
     paint();
     st.raf = st.f === st.to ? 0 : requestAnimationFrame(tick);
+    if (!st.raf && !st.hand) rest();
   };
-  const steer = (to: number, hand: boolean) => {
+  const run = () => {
     const st = m.current;
-    st.to = to;
-    st.hand = hand;
     if (still) {
-      st.f = to;
+      st.f = st.to;
       paint();
       return;
     }
-    if (!st.raf) st.raf = requestAnimationFrame(tick);
+    if (!st.raf) {
+      st.last = 0;
+      st.raf = requestAnimationFrame(tick);
+    }
   };
+  /* the pointer heads it to `to` */
+  const follow = (to: number) => {
+    const st = m.current;
+    window.clearTimeout(st.next);
+    st.to = to;
+    st.hand = true;
+    run();
+  };
+  /* it glides to `to` by itself: a step's time, a little longer the further it goes */
+  const glideTo = (to: number) => {
+    const st = m.current;
+    st.hand = false;
+    st.from = st.f;
+    st.to = to;
+    st.t0 = performance.now();
+    st.dur = Math.min(1500, GLIDE + 160 * Math.max(0, Math.abs(to - st.f) - 1));
+    if (st.from === st.to) {
+      rest();
+      return;
+    }
+    run();
+  };
+  /* resting on a room: after REST (or `wait`), on to the next — there and back along the row */
+  const rest = (wait?: number) => {
+    const st = m.current;
+    window.clearTimeout(st.next);
+    if (!movingRef.current || st.hand) return;
+    const ms = wait ?? (st.pause || REST);
+    st.pause = 0;
+    st.next = window.setTimeout(() => {
+      if (st.hand || !movingRef.current) return;
+      const at = Math.round(st.to);
+      if (at + st.dir > n - 1 || at + st.dir < 0) st.dir = -st.dir;
+      glideTo(at + st.dir);
+    }, ms);
+  };
+  const movingRef = useRef(moving);
+  movingRef.current = moving;
   /* the row laid out again when its width changes, where the front stands */
   useEffect(() => {
     paint();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [box, big]);
-  useEffect(() => () => cancelAnimationFrame(m.current.raf), []);
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(m.current.raf);
+      window.clearTimeout(m.current.next);
+    },
+    [],
+  );
 
-  /* THE DOCK'S OWN STEP: while it is on screen, the tab in front and no one steering, a room every DWELL, there and back */
+  /* THE DOCK'S OWN STEP: while it is on screen and the tab in front and no one steering; it stops where it is when it
+     leaves the screen and picks up from there when it comes back */
   useEffect(() => {
-    if (!moving) return;
-    const id = window.setInterval(() => {
-      const st = m.current;
-      if (st.hand || performance.now() < st.idleAt) return;
-      const at = Math.round(st.to);
-      if (at + st.dir > n - 1 || at + st.dir < 0) st.dir = -st.dir;
-      steer(at + st.dir, false);
-    }, DWELL);
-    return () => window.clearInterval(id);
+    const st = m.current;
+    if (!moving) {
+      window.clearTimeout(st.next);
+      return;
+    }
+    if (!st.hand && !st.raf) rest(FIRST);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moving, n, box, big]);
+  }, [moving, n]);
 
   /* the pointer's place along the row is the card in front: the front travels from the left end (half a card in) to the
      right end, so the pointer's place maps straight onto it */
@@ -298,12 +363,13 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
     const el = row.current;
     if (!el || !box.width) return;
     const x = clientX - el.getBoundingClientRect().left;
-    steer(Math.max(0, Math.min(n - 1, ((x - big / 2) / Math.max(1, box.width - big)) * (n - 1))), true);
+    follow(Math.max(0, Math.min(n - 1, ((x - big / 2) / Math.max(1, box.width - big)) * (n - 1))));
   };
+  /* let go: it settles on the room nearest it, rests a little longer than usual, then moves on by itself */
   const letGo = () => {
     const st = m.current;
-    st.idleAt = performance.now() + WAIT;
-    steer(Math.round(st.f), false);
+    st.pause = WAIT;
+    glideTo(Math.round(st.f));
   };
 
   /* the first frame is laid out where the front stands, so nothing flashes stacked at the left before the first paint */
@@ -339,7 +405,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
                 }}
                 type="button"
                 onClick={() => onPick(r.id)}
-                onFocus={() => steer(i, true)}
+                onFocus={() => follow(i)}
                 onBlur={letGo}
                 aria-label={said(r)}
                 className={`${CARD} border-borderMuted shadow-[0_18px_50px_-24px_rgb(0_0_0/0.55)] data-[front=true]:border-textPrimary/45 hover:border-textPrimary/45`}
@@ -418,14 +484,15 @@ const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* the strip steps on by itself, a room every DWELL, there and back — until a thumb first touches it */
-  const touched = useRef(false);
+  /* the strip steps on by itself, a room every rest and glide, there and back; a thumb takes it over, and it carries on by
+     itself a while after the thumb lets go */
+  const heldUntil = useRef(0);
   const dir = useRef(1);
   useEffect(() => {
     if (!moving) return;
     const id = window.setInterval(() => {
       const el = strip.current;
-      if (!el || touched.current) return;
+      if (!el || performance.now() < heldUntil.current) return;
       const mid = el.scrollLeft + el.clientWidth / 2;
       let at = 0;
       cards.current.forEach((c, i) => {
@@ -434,11 +501,11 @@ const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; on
       if (at + dir.current > n - 1 || at + dir.current < 0) dir.current = -dir.current;
       const next = cards.current[at + dir.current];
       if (next) el.scrollTo({ left: next.offsetLeft + next.offsetWidth / 2 - el.clientWidth / 2, behavior: 'smooth' });
-    }, DWELL);
+    }, REST + GLIDE);
     return () => window.clearInterval(id);
   }, [moving, n]);
   const hold = () => {
-    touched.current = true;
+    heldUntil.current = performance.now() + WAIT * 2;
   };
 
   return (

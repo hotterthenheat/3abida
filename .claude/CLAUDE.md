@@ -26,8 +26,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   breathing Live. The drawing rail stays black on either ground. A Terrain pane is a dark island whose chart AND
   ladder follow the pane's own ground (2026-10-02 — the owner: "both the charts are either dark or white not dark and
   white"): on a light ground ProfilePanel (`ground`) reads its inks as tokens and uses the paper ramps, and
-  [data-chart-frame] joins the light chart-chrome rules; its How-to-read guide stays a dark card. The landing's films
-  stage Terrain's panes with no theme of their own, so both follow the film's ground.
+  [data-chart-frame] joins the light chart-chrome rules; its How-to-read guide stays a dark card. The strike field ON
+  the chart (gexNodesPrimitive.ts: the beads, the walls, the flip and the "470 · 12%" chips) follows the tape's ground
+  too (the owner, the same day: "it's the strike chart that's not going with the appearance"): a light tape hands it
+  TrailPaper, read off the chart's box — the paper ramp, the paper bull/bear/supreme, chips on the tape's own panel.
+  The landing's films stage Terrain's panes with no theme of their own, so both follow the film's ground.
 - Brand rules (2026-10-01, from the owner's Slayer Logo System / Web and App PDFs): the mark, the 13 product glyphs
   and the wordmark live in src/brand/ (outlines traced from the PDFs — never redraw them by hand). The mark has six
   states (idle, loading, live, closed, alert, offline) read from src/brand/markState.ts; "live" while the market is
@@ -89,10 +92,14 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the back"): the eight side by side across the row, overlapping; the room in front full size (about a third of the
   row, less on a short screen so it fits under the words), on top and lifted, with its kind, its line and up to four of
   its pages under it (the tour's STEPS); the rest step back — 0.44 of its size at the back, dimmed by a veil of the
-  ground, tucked under their neighbours. The pointer's place along the row brings a room out; left alone, the dock moves
-  on by itself, a room every few seconds, there and back (a timer and an eased step of transforms and opacities, never
-  an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle card in
-  front and the others behind, before the words; it steps on by itself until first touched. Films play only on screen with the tab
+  ground, tucked under their neighbours. The pointer's place along the row brings a room out and the pointer takes over
+  at once, from wherever the dock had got to; left alone (the owner: "if no cursor is on it make it switch to each one
+  on its own as like a clean motion"), the dock GLIDES to the next room — about 0.9 s, eased in and out, stopping dead
+  on it (never an exponential creep) — rests about 2.6 s, and glides on, there and back; after the pointer leaves it
+  settles on the nearest room and rests a little longer first (a timer and a timed glide of transforms and opacities,
+  never an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle
+  card in front and the others behind, before the words; it steps on by itself, and a thumb takes it over until a
+  while after it lets go. Films play only on screen with the tab
   in front; reduced motion, Save-Data and a browser without H.264 keep the stills. The tour's window (TerminalWindow)
   plays one film, with no pause button and no captions. The only door is "Sign up free" — an account is free; there
   is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs

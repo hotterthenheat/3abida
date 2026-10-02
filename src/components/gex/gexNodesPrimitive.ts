@@ -1,4 +1,4 @@
-import { heatRampColor } from './heatmap';
+import { HEAT_MODE, heatRampColor, heatRampColorFor } from './heatmap';
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
@@ -83,6 +83,45 @@ const INK_RGB: Record<FocusInk, readonly [number, number, number]> = {
   supreme: [234, 0, 255],
 };
 
+type RGB3 = readonly [number, number, number];
+
+/* THE FIELD ON PAPER (2026-10-02 — the owner, of the light Terrain: "it's the strike chart that's not going with the
+   appearance"). Every ink above is cut for the black tape: honey gold and glacier ice beads, a light-silver focus, and
+   chips on a black pad. On a light tape (a Stone pane, a light page's default) those beads were near-white streaks on
+   pale grey and the chips black stickers on paper. So a light tape hands the field the inks of ITS OWN ground, read off
+   the chart's box (index.css [data-chart-ground='light']): the side beads walk the paper ramp (heatmap.ts — the muted
+   ink at nothing, the deep ember/glacier poles where the book is heavy), the walls and the supreme wear the paper
+   bull/bear/supreme, the focus the deep silver, the flip the paper grey, and the chips sit on the tape's own panel. The
+   dark tape is untouched. */
+export interface TrailPaper {
+  put: RGB3;
+  call: RGB3;
+  cw: RGB3;
+  pw: RGB3;
+  supreme: RGB3;
+  focus: RGB3;
+  flip: RGB3;
+  pad: RGB3;
+}
+const tokenRgb = (el: Element, name: string, fallback: RGB3): RGB3 => {
+  const v = getComputedStyle(el).getPropertyValue(name).trim().split(/[\s,]+/).map(Number);
+  return v.length >= 3 && v.slice(0, 3).every(Number.isFinite) ? [v[0], v[1], v[2]] : fallback;
+};
+/** The field's inks on a light tape, read off an element inside the chart's box */
+export function trailPaperFrom(el: Element): TrailPaper {
+  return {
+    put: heatRampColorFor(1, 1, HEAT_MODE, true),
+    call: heatRampColorFor(-1, 1, HEAT_MODE, true),
+    cw: tokenRgb(el, '--bull', [15, 107, 44]),
+    pw: tokenRgb(el, '--bear', [168, 36, 27]),
+    supreme: tokenRgb(el, '--supreme', [163, 0, 179]),
+    focus: tokenRgb(el, '--select', [47, 61, 92]),
+    flip: tokenRgb(el, '--flip', [107, 114, 128]),
+    pad: tokenRgb(el, '--panel', [232, 231, 226]),
+  };
+}
+const rgba = (c: RGB3, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
 interface BitmapScope {
   context: CanvasRenderingContext2D;
   horizontalPixelRatio: number;
@@ -166,7 +205,8 @@ class TrailsPaneRenderer {
     const A_MAX = Math.max(3, Math.min(barSpacing * 0.6, 9));
     const focus = src.focusStrike;
     const supreme = src.supremeStrike;
-    const ink = INK_RGB[src.focusInk];
+    const paper = src.paper;
+    const ink = paper ? (src.focusInk === 'supreme' ? paper.supreme : paper.focus) : INK_RGB[src.focusInk];
     const inkCss = `rgba(${ink[0]},${ink[1]},${ink[2]},0.95)`;
 
     target.useBitmapCoordinateSpace(scope => {
@@ -193,7 +233,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? 0) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? 0) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}`;
+      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       /* BATCHED: beads are gathered into one path per ink (alpha quantised to
@@ -327,21 +367,25 @@ class TrailsPaneRenderer {
         }
       }
 
-      const INKS: Record<string, readonly [number, number, number]> = {
-        f: ink,
-        k: SUPREME_RGB,
-        cw: CW_RGB,
-        pw: PW_RGB,
-        p: PUT_RGB,
-        c: CALL_RGB,
-      };
+      const INKS: Record<string, readonly [number, number, number]> = paper
+        ? { f: ink, k: paper.supreme, cw: paper.cw, pw: paper.pw, p: paper.put, c: paper.call }
+        : {
+            f: ink,
+            k: SUPREME_RGB,
+            cw: CW_RGB,
+            pw: PW_RGB,
+            p: PUT_RGB,
+            c: CALL_RGB,
+          };
       const paint = (tctx: CanvasRenderingContext2D, map: Map<string, Path2D>, step: number) => {
         for (const [key2, path] of map) {
           const [inkKey, q] = key2.split('|');
           const rgb =
             inkKey[1] === '@'
-              ? heatRampColor(inkKey[0] === 'p' ? 1 : -1, Number(inkKey.slice(2)) / 7)
-              : INKS[inkKey] ?? CALL_RGB;
+              ? paper
+                ? heatRampColorFor(inkKey[0] === 'p' ? 1 : -1, Number(inkKey.slice(2)) / 7, HEAT_MODE, true)
+                : heatRampColor(inkKey[0] === 'p' ? 1 : -1, Number(inkKey.slice(2)) / 7)
+              : INKS[inkKey] ?? INKS.c;
           tctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(Number(q) / step).toFixed(3)})`;
           tctx.fill(path);
         }
@@ -361,7 +405,7 @@ class TrailsPaneRenderer {
              its length buried in whatever band it crossed. */
           if (flipDrawn) {
             const flipOnSupreme = supreme != null && src.flipPrice != null && Math.abs(src.flipPrice - supreme) < 1e-6;
-            bctx.fillStyle = flipOnSupreme ? FLIPK_RGBA : FLIP_RGBA;
+            bctx.fillStyle = paper ? rgba(flipOnSupreme ? paper.supreme : paper.flip, 0.85) : flipOnSupreme ? FLIPK_RGBA : FLIP_RGBA;
             bctx.fill(flipPath);
           }
           this.bmp = bmp;
@@ -416,7 +460,7 @@ class TrailsPaneRenderer {
         const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
         const boxTop = yPix - boxH / 2 - padY / 2;
         if (boxTop < floor) yPix += floor - boxTop;
-        ctx.fillStyle = 'rgba(5,5,5,0.72)';
+        ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
         ctx.fillRect(xRight - w - padX, yPix - boxH / 2 - padY / 2, w + padX * 2, boxH + padY);
         ctx.fillStyle = color;
         ctx.fillText(text, xRight, yPix);
@@ -425,7 +469,7 @@ class TrailsPaneRenderer {
       for (const lvl of top) {
         if (focus != null && lvl.strike === focus) continue; // drawn below, in its own ink
         const isSupreme = supreme != null && lvl.strike === supreme;
-        const rgb = isSupreme ? SUPREME_RGB : lvl.value >= 0 ? PUT_RGB : CALL_RGB;
+        const rgb = paper ? (isSupreme ? paper.supreme : lvl.value >= 0 ? paper.put : paper.call) : isSupreme ? SUPREME_RGB : lvl.value >= 0 ? PUT_RGB : CALL_RGB;
         /* The field's labels step back while a strike is focused — the SUPREME's
            never does. A neon at 0.55 is mud, not neon (its identity IS
            luminance), and the crown is the one label that must survive every
@@ -517,6 +561,14 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     this.cwStrike = cw;
     this.pwStrike = pw;
     this.flipPrice = flip;
+    this.requestUpdate?.();
+  }
+
+  /** The field's inks on a light tape, or null on a dark one — see TrailPaper */
+  paper: TrailPaper | null = null;
+  setPaper(paper: TrailPaper | null): void {
+    if (JSON.stringify(this.paper) === JSON.stringify(paper)) return;
+    this.paper = paper;
     this.requestUpdate?.();
   }
 
