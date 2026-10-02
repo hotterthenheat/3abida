@@ -40,15 +40,16 @@
   transform and a veil's opacity, written straight to the
   page a frame at a time while it moves and not at all
   once it rests (nothing is laid out again; no
-  endless loop: the idle step is a timer, and each step
-  eases in and stops). Where less motion is asked for,
+  endless loop: the idle step is a timer, and each glide
+  eases in and stops). The strip plays only the films
+  of the cards on screen. Where less motion is asked for,
   the dock does not move by itself and the screens are
   stills; data saved, stills too. The glyph sits bare on
   the screen's bar: no box round any logo.
 ==================================================
 */
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { Theme } from '../../theme/theme';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -83,7 +84,8 @@ const WORDS = 118;
 const BACK = 0.44;
 /** how far the swell reaches either side, in cards */
 const REACH = 0.8;
-/** the most a card overlaps the one beside it (the rest of the row's width is shared out so it always spans the row) */
+/** the least a card overlaps the one beside it (the rest of the row's width is shared out so the row spans its box; on a
+    short screen, where the cards are small, even this least overlap leaves the row short of its box, and it is centred) */
 const OVERLAP_MIN = 0.18;
 /** the card in front stands this much above the others */
 const LIFT = 12;
@@ -99,14 +101,20 @@ const WAIT = 3200;
 const FOLLOW = 70;
 /** a glide's pace: eases in and out, and stops dead on the room (easeInOutCubic) */
 const glide = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
+/** a pointer that has stopped this long brings its card all the way out */
+const SETTLE = 140;
+/** the card in front: the one the row is heading for once it is past half-way, else the nearest */
+const frontOf = (st: { f: number; to: number }) => (Math.abs(st.f - Math.round(st.to)) <= 0.5 ? Math.round(st.to) : Math.round(st.f));
+/** the stacking: nearer the front is higher, finely enough that no two tie, and the card in front wins a tie */
+const stackOf = (d: number, front: boolean) => 1000 - Math.round(d * 100) + (front ? 1 : 0);
 /** what stands above the dock on a desk (the signature, the line, the words and the door, and their margins) */
 const ABOVE = 434;
 
 /** each card's size against the one in front, the card at `f` (an index, or between two) in front */
 const scales = (n: number, f: number) => Array.from({ length: n }, (_, i) => BACK + (1 - BACK) * Math.exp(-(((i - f) / REACH) ** 2)));
 /** THE ROW: each card's centre and size. The cards overlap, each tucked under the one nearer the front, and the overlap is
-    whatever makes the row span its width exactly — so the card in front travels the row as `f` does, from the left end
-    to the right one, and the ones behind fan out either side of it. */
+    whatever makes the row span its width — so the card in front travels the row as `f` does, from the left end to the
+    right one, and the ones behind fan out either side of it (a row that cannot span its box is centred in it). */
 const rowAt = (n: number, f: number, big: number, width: number) => {
   const s = scales(n, f);
   const w = s.map(x => big * x);
@@ -140,6 +148,8 @@ const useMatch = (query: string) => {
 
 interface Screens {
   theme: Theme;
+  /** a card the strip has scrolled out of sight (its film rests) or back in */
+  seenIn: (id: string, on: boolean) => void;
   film: (id: string) => boolean;
   tag: (id: string) => string;
   ready: Set<string>;
@@ -215,9 +225,10 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   const veils = useRef<(HTMLSpanElement | null)[]>([]);
   const words = useRef<(HTMLDivElement | null)[]>([]);
   const faces = useRef<(HTMLButtonElement | null)[]>([]);
-  /* the row's width and the tallest the card in front may stand */
+  /* the row's width and the tallest the card in front may stand — measured before the first paint, so the row is laid out
+     at its full height from its first frame and nothing below it jumps */
   const [box, setBox] = useState({ width: 0, tall: 360 });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = row.current;
     if (!el) return;
     const measure = () => setBox({ width: el.clientWidth, tall: Math.max(230, Math.min(420, window.innerHeight - ABOVE - WORDS - 24)) });
@@ -233,6 +244,12 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   const big = box.width ? bigFor(box.width, box.tall) : 0;
   const cardH = big / ASPECT + BAR + 2;
   const wordsW = Math.min(big, 440);
+  /* THE GEOMETRY THE PAINTER READS is always this render's: a step that began before a resize ends on the new row (it
+     carried the old row's sizes to its last frame and left the cards where the old row had them) */
+  const geo = useRef({ big, width: box.width, wordsW });
+  geo.current = { big, width: box.width, wordsW };
+  const stillRef = useRef(still);
+  stillRef.current = still;
 
   /* WHERE THE FRONT STANDS (2026-10-02 — the owner: "if no cursor is on it make it switch to each one on its own as like a
      clean motion and then when the cursor is over it takes over"). Two ways it moves. ON ITS OWN it GLIDES: from where it
@@ -244,25 +261,27 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   const m = useRef({ f: 0, to: 0, from: 0, t0: 0, dur: 0, hand: false, raf: 0, last: 0, dir: 1, next: 0, pause: 0 });
   const paint = () => {
     const { f } = m.current;
-    if (!box.width) return;
-    const { s: sc, c } = rowAt(n, f, big, box.width);
+    const g = geo.current;
+    if (!g.width) return;
+    const { s: sc, c } = rowAt(n, f, g.big, g.width);
+    const front = frontOf(m.current);
     for (let i = 0; i < n; i++) {
       const d = Math.abs(i - f);
       const near = (sc[i] - BACK) / (1 - BACK);
       const card = cards.current[i];
       if (card) {
-        card.style.transform = `translate3d(${c[i] - big / 2}px, ${-LIFT * near}px, 0) scale(${sc[i]})`;
-        card.style.zIndex = String(100 - Math.round(d * 10));
+        card.style.transform = `translate3d(${c[i] - g.big / 2}px, ${-LIFT * near}px, 0) scale(${sc[i]})`;
+        card.style.zIndex = String(stackOf(d, i === front));
       }
       const veil = veils.current[i];
       if (veil) veil.style.opacity = String(Math.min(0.62, Math.max(0, d - 0.15) * 0.34));
       const t = words.current[i];
       if (t) {
         t.style.opacity = String(Math.max(0, Math.min(1, 1 - d * 2.2)));
-        t.style.transform = `translateX(${Math.max(0, Math.min(box.width - wordsW, c[i] - wordsW / 2))}px)`;
+        t.style.transform = `translateX(${Math.max(0, Math.min(g.width - g.wordsW, c[i] - g.wordsW / 2))}px)`;
       }
       const face = faces.current[i];
-      if (face) face.dataset.front = Math.round(f) === i ? 'true' : 'false';
+      if (face) face.dataset.front = front === i ? 'true' : 'false';
     }
   };
   const tick = (now: number) => {
@@ -284,7 +303,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   };
   const run = () => {
     const st = m.current;
-    if (still) {
+    if (stillRef.current) {
       st.f = st.to;
       paint();
       return;
@@ -341,6 +360,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
     () => () => {
       cancelAnimationFrame(m.current.raf);
       window.clearTimeout(m.current.next);
+      window.clearTimeout(settle.current);
     },
     [],
   );
@@ -357,16 +377,54 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moving, n]);
 
-  /* the pointer's place along the row is the card in front: the front travels from the left end (half a card in) to the
-     right end, so the pointer's place maps straight onto it */
+  /* THE POINTER'S PLACE IS THE CARD IN FRONT: where along the row the card in front would stand under the pointer, found
+     on the row itself (by halving), so the card that comes out is the one under the pointer even where the row is
+     narrower than its box */
+  const fAt = (x: number) => {
+    const g = geo.current;
+    const centre = (f: number) => {
+      const { c } = rowAt(n, f, g.big, g.width);
+      const i = Math.min(n - 2, Math.floor(f));
+      return c[i] + (c[i + 1] - c[i]) * (f - i);
+    };
+    if (x <= centre(0)) return 0;
+    if (x >= centre(n - 1)) return n - 1;
+    let lo = 0;
+    let hi = n - 1;
+    for (let k = 0; k < 22; k++) {
+      const mid = (lo + hi) / 2;
+      if (centre(mid) < x) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+  /* the card the pointer has: kept until the pointer is well past the half-way to the next, so a hand at the border of two
+     never swings the row between them; a pointer that stops brings its card all the way out — full size, on top, its words
+     under it — and one that moves carries the row with it (where less motion is asked for, it changes card by card) */
+  const pick = useRef(0);
+  const settle = useRef(0);
   const fromPointer = (clientX: number) => {
     const el = row.current;
-    if (!el || !box.width) return;
-    const x = clientX - el.getBoundingClientRect().left;
-    follow(Math.max(0, Math.min(n - 1, ((x - big / 2) / Math.max(1, box.width - big)) * (n - 1))));
+    if (!el || !geo.current.width) return;
+    const raw = fAt(clientX - el.getBoundingClientRect().left);
+    if (Math.abs(raw - pick.current) > 0.6) pick.current = Math.round(raw);
+    window.clearTimeout(settle.current);
+    if (stillRef.current) {
+      if (!m.current.hand || m.current.to !== pick.current) follow(pick.current);
+      return;
+    }
+    follow(raw);
+    settle.current = window.setTimeout(() => follow(pick.current), SETTLE);
   };
-  /* let go: it settles on the room nearest it, rests a little longer than usual, then moves on by itself */
+  /* let go: a card the keys are on keeps the front; otherwise the dock settles on the room nearest it, rests a little
+     longer than usual, then moves on by itself */
   const letGo = () => {
+    window.clearTimeout(settle.current);
+    const k = faces.current.findIndex(face => face?.matches(':focus-visible'));
+    if (k >= 0) {
+      follow(k);
+      return;
+    }
     const st = m.current;
     st.pause = WAIT;
     glideTo(Math.round(st.f));
@@ -377,7 +435,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   const at = (i: number) => {
     if (!lay) return {};
     const d = Math.abs(i - m.current.f);
-    return { transform: `translate3d(${lay.c[i] - big / 2}px, ${-LIFT * ((lay.s[i] - BACK) / (1 - BACK))}px, 0) scale(${lay.s[i]})`, zIndex: 100 - Math.round(d * 10) };
+    return { transform: `translate3d(${lay.c[i] - big / 2}px, ${-LIFT * ((lay.s[i] - BACK) / (1 - BACK))}px, 0) scale(${lay.s[i]})`, zIndex: stackOf(d, i === frontOf(m.current)) };
   };
   return (
     <div
@@ -413,7 +471,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
                 data-wall-room={r.id}
               >
                 <Face r={r} i={i} s={s} />
-                {/* a card at the back is dimmed by a veil of the page's own ground (an opacity: nothing repaints) */}
+                {/* a card at the back is dimmed by a veil of the page's own ground (an opacity) */}
                 <span
                   ref={el => {
                     veils.current[i] = el;
@@ -445,10 +503,13 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
 
 /* ---- THE STRIP (a phone, or a screen that is touched) ------------------------------------------------------------- */
 
-const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; onPick: (id: string) => void; moving: boolean }) => {
+const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Screens; onPick: (id: string) => void; moving: boolean; still: boolean }) => {
   const n = rooms.length;
   const strip = useRef<HTMLDivElement | null>(null);
   const cards = useRef<(HTMLDivElement | null)[]>([]);
+  /* the screens (the buttons): they step back, not the words under them — a card scaled whole sank its screen into the
+     front card's words */
+  const screens = useRef<(HTMLButtonElement | null)[]>([]);
   const words = useRef<(HTMLDivElement | null)[]>([]);
   const veils = useRef<(HTMLSpanElement | null)[]>([]);
   /* THE CARD IN THE MIDDLE IS IN FRONT: each card stands a little smaller the further it is from the middle, and only the
@@ -459,11 +520,14 @@ const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; on
     const el = strip.current;
     if (!el) return;
     const mid = el.scrollLeft + el.clientWidth / 2;
+    /* every card's place read first, then every style written: one layout read a frame, not one a card */
+    const ds = cards.current.map(c => (c ? Math.min(2, Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid) / c.offsetWidth) : 2));
     for (let i = 0; i < n; i++) {
       const c = cards.current[i];
       if (!c) continue;
-      const d = Math.min(2, Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid) / c.offsetWidth);
-      c.style.transform = `scale(${1 - 0.2 * Math.min(1, d)})`;
+      const d = ds[i];
+      const b = screens.current[i];
+      if (b) b.style.transform = `scale(${1 - 0.2 * Math.min(1, d)})`;
       c.style.zIndex = String(100 - Math.round(d * 20));
       const v = veils.current[i];
       if (v) v.style.opacity = String(Math.min(0.55, d * 0.5));
@@ -507,6 +571,32 @@ const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; on
   const hold = () => {
     heldUntil.current = performance.now() + WAIT * 2;
   };
+  /* THE KEYS OR A SCREEN READER on a card: the strip stops stepping while they are in it and brings that card to the middle,
+     in front (it stepped on under a focused card and carried it off screen) */
+  const focusCard = (i: number) => {
+    heldUntil.current = Infinity;
+    const c = cards.current[i];
+    const el = strip.current;
+    if (c && el) el.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - el.clientWidth / 2, behavior: still ? 'auto' : 'smooth' });
+  };
+
+  /* ONLY THE FILMS ON SCREEN PLAY: a card scrolled out of the strip pauses its film (and the neighbour just out of
+     sight is kept ready) */
+  useEffect(() => {
+    const el = strip.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      es =>
+        es.forEach(e => {
+          const i = cards.current.indexOf(e.target as HTMLDivElement);
+          if (i >= 0) s.seenIn(rooms[i].id, e.isIntersecting);
+        }),
+      { root: el, rootMargin: '0px 25%', threshold: 0 },
+    );
+    cards.current.forEach(c => c && io.observe(c));
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="-mx-4 sm:-mx-6">
@@ -515,8 +605,13 @@ const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; on
         onScroll={reshape}
         onTouchStart={hold}
         onPointerDown={hold}
-        onWheel={hold}
-        className="flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-[calc(50%-min(37vw,165px))] pb-1"
+        /* a sideways wheel (or Shift and the wheel) is a hand on the strip; the page's own scroll passing over it is not */
+        onWheel={e => (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) && hold()}
+        onBlur={e => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) heldUntil.current = performance.now() + WAIT * 2;
+        }}
+        /* pt-1.5 with -mt-1.5: room inside the scroll box for the top of a focused card's ring */
+        className="flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-[calc(50%-min(37vw,165px))] pt-1.5 -mt-1.5 pb-1"
         data-landing-wall="strip"
       >
         {rooms.map((r, i) => (
@@ -526,10 +621,20 @@ const Strip = ({ rooms, s, onPick, moving }: { rooms: WallRoom[]; s: Screens; on
               cards.current[i] = el;
             }}
             /* the cards overlap (a negative margin), the one in front on top: the strip's depth */
-            className="relative snap-center shrink-0 w-[min(74vw,330px)] -mx-[7vw] first:ml-0 last:mr-0 origin-bottom"
+            className="relative snap-center shrink-0 w-[min(74vw,330px)] -mx-[7vw] first:ml-0 last:mr-0"
           >
             <div className="landing-rise" style={{ ['--rise-delay' as string]: `${240 + i * 45}ms` }}>
-              <button type="button" onClick={() => onPick(r.id)} aria-label={said(r)} className={`${CARD} border-borderMuted`} data-wall-room={r.id}>
+              <button
+                ref={el => {
+                  screens.current[i] = el;
+                }}
+                type="button"
+                onClick={() => onPick(r.id)}
+                onFocus={() => focusCard(i)}
+                aria-label={said(r)}
+                className={`${CARD} origin-bottom border-borderMuted`}
+                data-wall-room={r.id}
+              >
                 <Face r={r} i={i} s={s} />
                 <span
                   ref={el => {
@@ -569,10 +674,12 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
      second turn found all eight already "sent" and "ready", and they set off together from their first frames, in step. */
   const [turn, setTurn] = useState({ theme, n: 0 });
   if (turn.theme !== theme) setTurn({ theme, n: turn.n + 1 });
-  const tag = (id: string) => `${id}-${theme}-${turn.n}`;
-
-  /* a pointer that hovers, on a screen wide enough for the row: the dock; anything else, the strip */
-  const desk = useMatch('(hover: hover) and (pointer: fine) and (min-width: 1024px)');
+  /* a pointer that hovers, on a screen wide enough for the row: the dock; anything else, the strip (from 768 px — below the
+     wide desk a mouse had the strip, which it could not scroll) */
+  const desk = useMatch('(hover: hover) and (pointer: fine) and (min-width: 768px)');
+  /* the form is in the tag too: crossing from the strip to the dock mounts every film anew, and each must be sent into
+     itself again or the eight set off in step */
+  const tag = (id: string) => `${id}-${theme}-${turn.n}-${desk ? 'dock' : 'strip'}`;
 
   const wall = useRef<HTMLDivElement | null>(null);
   const [seen, setSeen] = useState(false);
@@ -590,14 +697,35 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
     return () => document.removeEventListener('visibilitychange', on);
   }, []);
   const rolling = motion && seen && front;
+  const rollingRef = useRef(rolling);
+  rollingRef.current = rolling;
 
   const videos = useRef(new Map<string, HTMLVideoElement>());
+  /* the cards the strip has scrolled out of sight: their films rest (the dock shows all eight) */
+  const away = useRef(new Set<string>());
+  const playIf = (id: string, v: HTMLVideoElement) => {
+    if (rollingRef.current && !away.current.has(id)) v.play().catch(() => {});
+    else v.pause();
+  };
   useEffect(() => {
-    for (const v of videos.current.values()) {
-      if (rolling) v.play().catch(() => {});
-      else v.pause();
-    }
+    if (desk) away.current.clear();
+    for (const [id, v] of videos.current) playIf(id, v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rolling, theme, desk]);
+  /* the other theme's stills, fetched once the wall has been on screen a while — a theme turn then shows its screens at
+     once instead of blank slabs while they load */
+  useEffect(() => {
+    if (!seen) return;
+    const other: Theme = theme === 'dark' ? 'light' : 'dark';
+    const id = window.setTimeout(() => {
+      for (const r of rooms) {
+        const im = new Image();
+        im.decoding = 'async';
+        im.src = stillFor(r.path, other);
+      }
+    }, 4000);
+    return () => window.clearTimeout(id);
+  }, [seen, theme, rooms]);
   /* A FILM SHOWS WHEN IT CAN PLAY: until then the still is the screen (a video that has not drawn its first frame is a
      black box over it — measured, half the wall black for the first seconds). Each one is first sent a little way into
      itself, so the wall never ticks in step; the seek is made once the film can be read there. */
@@ -612,12 +740,18 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
         return;
       }
     }
-    if (rolling) v.play().catch(() => {});
+    playIf(rooms[i].id, v);
     setReady(r => (r.has(k) ? r : new Set(r).add(k)));
   };
 
   const s: Screens = {
     theme,
+    seenIn: (id, on) => {
+      if (on) away.current.delete(id);
+      else away.current.add(id);
+      const v = videos.current.get(id);
+      if (v) playIf(id, v);
+    },
     film: id => motion && !stills.has(`${id}-${theme}`),
     tag,
     ready,
@@ -631,7 +765,7 @@ const Wall = ({ rooms, theme, onPick }: { rooms: WallRoom[]; theme: Theme; onPic
 
   return (
     <div ref={wall} data-theme={theme} data-landing-wall-ground>
-      {desk ? <Dock rooms={rooms} s={s} onPick={onPick} moving={rolling} still={!!calm} /> : <Strip rooms={rooms} s={s} onPick={onPick} moving={rolling} />}
+      {desk ? <Dock rooms={rooms} s={s} onPick={onPick} moving={rolling} still={!!calm} /> : <Strip rooms={rooms} s={s} onPick={onPick} moving={rolling} still={!!calm} />}
     </div>
   );
 };

@@ -3,36 +3,46 @@
   SLAYER TERMINAL - THE LIVE FOOTER
   (components/layout/FooterArt.tsx)
 
-  THE TAPE, DISSOLVING (2026-10-02 — the owner, with a
-  photograph of a chart caught dark and broken on a
-  phone: "the footer we have i need you to make it super
-  cool like a live footer make some sort of artistic
-  thing from the photo"). The photograph is the terminal
-  seen through a failing lens: a white price line and its
-  bright tick of volume, a level running off to a tag, and
-  around them the desk breaking up into coloured dashes —
-  a ladder's rows, a strip of buttons, one of them lit,
-  and a pointer. This band draws that, live: the line walks
-  on, the volume ticks under it, the ladder's rows flicker
-  out and back, a slice of the picture slips sideways now
-  and then, and the pointer is the reader's own when they
-  are over it (a hairline through the line, its time at
-  the foot) and drifts by itself when they are not.
+  THE LINE AND ITS ECHOES (2026-10-02 — the owner, of
+  the first band, a tape breaking up into coloured
+  dashes, specks and slips: "fix the live footer it
+  doesn't look clean and together right now go online
+  and look for some examples and retry it"). What the
+  clean live footers share (Midday, Vercel, Dub,
+  OpenStatus; TradingView's last-price pulse, Bostock's
+  sliding line; Unknown Pleasures): ONE idea, in the
+  product's own grammar, most of the band left as ground,
+  one small true live signal, colour only where it means
+  something, and a still frame that is already the design.
 
-  It is art, and says nothing a reader could trade on: the
-  line is a walk of its own, the tag is the clock. Every
-  ink is a token read off the band's own ground (the
-  footer can stand on either), so it is a dark print on a
-  dark page and a light one on paper.
+  So the band draws one thing, the chart's own stroke: a
+  line gliding left at one steady pace, and behind it its
+  own past — the same line as it stood a few seconds ago,
+  and a few seconds before that — each echo a step up and
+  a tier fainter, and hidden where a nearer one passes in
+  front (the owner's photograph, a chart caught doubled
+  and broken, put in order). The line ends at a dot that
+  breathes in the silver of "live"; a dashed level runs
+  from it to one tag at the edge, and the tag is the
+  clock. Its old end fades into the ground.
 
+  THE READER'S HAND: over the band a hairline follows the
+  pointer, a dot rides the line under it, and the level and
+  the tag go with it — the tag tells the moment that part
+  of the line was drawn. Off the band it eases home to the
+  live end, which breathes again.
+
+  It is art: the line is a walk of its own and no figure
+  on it is a price. Every ink is a token read off the
+  band's own ground, read again when the theme turns.
   THE COST: one canvas, drawn about thirty times a second
-  only while it is on screen with the tab in front; under
-  reduced motion it draws one frame and stops.
+  (sixty under the pointer) only while it is on screen with
+  the tab in front; under reduced motion one still frame,
+  whose clock moves on once a minute.
 ==================================================
 */
 
 import { useEffect, useRef } from 'react';
-import { readToken } from '../../theme/theme';
 import { FONT_SANS } from '../../theme/fonts';
 
 /** a seeded walk, so the band opens on the same picture every time */
@@ -41,35 +51,59 @@ const rng = (seed: number) => () => {
   return seed / 4294967296;
 };
 
+/** the line takes a step this often (ms)… */
+const STEP = 520;
+/** …and its steps stand this far apart (CSS px): a steady thirteen pixels a second */
+const GAP = 7;
+/** the live end's breath: a ring that opens and fades for 55% of this, then rest */
+const BREATH = 2600;
+/** the share of the band the line's old end takes to fade into the ground */
+const FADE = 0.18;
+/** under the pointer, the time the hairline takes to close most of the gap to it */
+const FOLLOW = 70;
+
+/** a token's channels ("237 237 237"), read where the band stands */
+const chan = (el: Element, name: string, fallback: string) => getComputedStyle(el).getPropertyValue(name).trim() || fallback;
+const rgb = (c: string, a?: number) => (a == null ? `rgb(${c})` : `rgb(${c} / ${a})`);
+
+/** the ground the band stands on — the first painted box above it — for the fill that hides a far line behind a near one */
+const groundOf = (el: Element): string => {
+  for (let n: Element | null = el; n; n = n.parentElement) {
+    const bg = getComputedStyle(n).backgroundColor;
+    const m = bg.match(/rgba?\(([^)]+)\)/);
+    if (!m) continue;
+    const parts = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+    if (parts.length === 3 || (parts[3] ?? 1) >= 0.99) return bg;
+  }
+  return rgb(chan(el, '--canvas', '5 5 5'));
+};
+
 interface Ink {
   line: string;
-  bar: string;
-  faint: string;
-  ghost: string;
-  call: string;
-  put: string;
-  down: string;
-  supreme: string;
-  warn: string;
+  muted: string;
+  ink: string;
+  live: string;
+  panel: string;
   ground: string;
 }
 const inksOf = (el: Element): Ink => ({
-  line: readToken('--text-primary', undefined, el),
-  bar: readToken('--text-primary', 0.82, el),
-  faint: readToken('--text-muted', 0.55, el),
-  ghost: readToken('--ink', 0.07, el),
-  call: readToken('--glacier', undefined, el),
-  put: readToken('--ember', undefined, el),
-  down: readToken('--bear', undefined, el),
-  supreme: readToken('--supreme', undefined, el),
-  warn: readToken('--warn', undefined, el),
-  ground: readToken('--canvas', undefined, el),
+  line: chan(el, '--text-primary', '237 237 237'),
+  muted: chan(el, '--text-muted', '128 128 128'),
+  ink: chan(el, '--ink', '255 255 255'),
+  live: chan(el, '--select', '199 211 232'),
+  panel: chan(el, '--panel', '17 17 17'),
+  ground: groundOf(el),
 });
 
-const POINTS = 220;
-const STEP_MS = 110;
+const two = (n: number) => String(n).padStart(2, '0');
+const clock = (ms: number, seconds: boolean) => {
+  const d = new Date(ms);
+  return `${two(d.getHours())}:${two(d.getMinutes())}${seconds ? `:${two(d.getSeconds())}` : ''}`;
+};
+/** smoothstep: a step's value eases in and out, so the live end never jerks */
+const ease = (t: number) => t * t * (3 - 2 * t);
 
-const FooterArt = ({ className = 'h-[180px] md:h-[240px]' }: { className?: string }) => {
+const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: string }) => {
   const box = useRef<HTMLDivElement | null>(null);
   const cvs = useRef<HTMLCanvasElement | null>(null);
 
@@ -80,362 +114,319 @@ const FooterArt = ({ className = 'h-[180px] md:h-[240px]' }: { className?: strin
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const rand = rng(20261002);
 
-    /* THE WALK: a price that wanders and leans back to where it began, and the volume of each step */
-    const price: number[] = [];
-    const grain: number[][][] = [];
-    const vol: number[] = [];
+    /* THE WALK: a line with momentum that leans back toward where it began — smooth swings, never a scribble */
+    const rand = rng(20261002);
     let p = 0;
     let v = 0;
-    const walk = () => {
-      v = v * 0.55 + (rand() - 0.5) * 1.5 - p * 0.012;
+    const next = () => {
+      v = v * 0.84 + (rand() - 0.5) * 0.85 - p * 0.0035;
       p += v;
-      price.push(p);
-      vol.push(Math.min(1, 0.18 + Math.abs(v) * 0.6 + rand() * 0.45));
-      /* each point's scatter once it reaches the dissolving end: where its pixels land */
-      grain.push(Array.from({ length: 4 }, () => [(rand() - 0.5) * 7, (rand() - 0.5) * 9, rand()]));
-      if (price.length > POINTS) {
-        price.shift();
-        vol.shift();
-        grain.shift();
-      }
+      return p;
     };
-    for (let i = 0; i < POINTS; i++) walk();
 
-    /* THE LADDER, BREAKING UP: rows of put and call dashes either side of an axis, each row's strength wandering, each
-       dash there or not */
-    const ROWS = 22;
-    const DASHES = 24;
-    const ladder = Array.from({ length: ROWS }, (_, i) => ({ put: rand(), call: rand(), lit: rand(), sup: i === 7, gone: Array.from({ length: DASHES * 2 }, () => rand() < 0.18) }));
-    /* THE TICKS over the chart: four rows of dashes, each there or not, changing a few at a step (not every frame — the
-       band is a tape breaking up, not snow) */
-    const ticks = Array.from({ length: 4 }, () => Array.from({ length: 64 }, () => ({ on: rand() > 0.35, w: 6 + rand() * 10, a: 0.18 + rand() * 0.25 })));
-    /* SPECKS: the desk's chrome, gone to coloured dashes */
-    const specks = Array.from({ length: 90 }, () => ({ x: rand(), y: rand(), w: 2 + rand() * 12, k: Math.floor(rand() * 5), life: rand() }));
-    /* THE STRIP OF BUTTONS at the foot, one lit */
-    const pills = Array.from({ length: 6 }, (_, i) => ({ w: 46 + rand() * 60, lit: i === 3 }));
-
-    let ink = inksOf(host);
+    /* the band's size, and how many echoes stand behind the line and how far back (fewer and nearer on a phone) */
     let W = 0;
     let H = 0;
+    let echoes = 6;
+    let lag = 7;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
+    /* the committed steps, the time of the first, and the step the live end is walking toward */
+    const vals: number[] = [];
+    let t0 = performance.now();
+    let pending = 0;
+    const cap = () => Math.ceil(W / GAP) + lag * echoes + 8;
+    /* a band grown wider is given the steps before its first, walked backward the same way */
+    let bv = 0;
+    const fill = () => {
+      while (vals.length < cap()) {
+        bv = bv * 0.84 + (rand() - 0.5) * 0.85;
+        vals.unshift((vals[0] ?? 0) + bv);
+        t0 -= STEP;
+      }
+    };
     const size = () => {
       W = host.clientWidth;
       H = host.clientHeight;
+      echoes = W < 640 ? 4 : 6;
+      lag = W < 640 ? 4 : 7;
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       canvas.style.width = `${W}px`;
       canvas.style.height = `${H}px`;
     };
     size();
+    /* the band opens full: the line already runs the whole width, its last step just taken */
+    for (let i = 0; i < cap(); i++) vals.push(next());
+    pending = next();
+    t0 = performance.now() - (vals.length - 1) * STEP;
+    fill();
 
-    /* the pointer: the reader's while they are over the band, else a drift of its own */
-    const hand = { x: -1, y: -1, on: false, sx: 0, sy: 0 };
-    const move = (e: PointerEvent) => {
-      const r = canvas.getBoundingClientRect();
-      hand.x = e.clientX - r.left;
-      hand.y = e.clientY - r.top;
-      hand.on = true;
-    };
-    const leave = () => {
-      hand.on = false;
-    };
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerleave', leave);
+    let ink = inksOf(host);
+    ctx.font = `500 10.5px ${FONT_SANS}`;
+    let tagW = Math.ceil(ctx.measureText('00:00:00').width) + 14;
 
-    let t0 = performance.now();
-    let acc = 0;
-    let glitch = 0;
-    let glitchY = 0;
-    let glitchH = 0;
-    let glitchDx = 0;
-    let frame = 0;
+    /* the scale eases after the walk, so the line never jumps when a new high or low comes in */
+    let lo = Math.min(...vals);
+    let hi = Math.max(...vals);
+
+    /* the reader's hand */
+    const hand = { x: 0, on: false };
+    let sx = -1;
+    let last = 0;
 
     const draw = (now: number) => {
-      const dt = Math.min(200, now - t0);
-      t0 = now;
-      acc += dt;
-      while (acc > STEP_MS) {
-        acc -= STEP_MS;
-        walk();
-        for (const r of ladder) {
-          r.put = Math.max(0, Math.min(1, r.put + (rand() - 0.5) * 0.12));
-          r.call = Math.max(0, Math.min(1, r.call + (rand() - 0.5) * 0.12));
-          r.lit = Math.max(0, Math.min(1, r.lit + (rand() - 0.5) * 0.3));
-          for (let k = 0; k < 3; k++) {
-            const j = Math.floor(rand() * r.gone.length);
-            r.gone[j] = !r.gone[j] && rand() < 0.35;
-          }
-        }
-        for (const row of ticks)
-          for (let k = 0; k < 4; k++) {
-            const t = row[Math.floor(rand() * row.length)];
-            t.on = rand() > 0.35;
-          }
-        for (const s of specks) {
-          s.life -= 0.04 + rand() * 0.05;
-          if (s.life < 0) {
-            s.x = rand();
-            s.y = rand();
-            s.w = 2 + rand() * 12;
-            s.k = Math.floor(rand() * 5);
-            s.life = 0.4 + rand() * 0.6;
-          }
-        }
-        if (!glitch && rand() < 0.035) {
-          glitch = 2 + Math.floor(rand() * 3);
-          glitchY = rand() * 0.8;
-          glitchH = 0.04 + rand() * 0.14;
-          glitchDx = (rand() - 0.5) * 60;
-        }
+      const dt = last ? Math.min(100, now - last) : 16;
+      last = now;
+      /* the steps that came due */
+      while (now - (t0 + (vals.length - 1) * STEP) >= STEP) {
+        vals.push(pending);
+        pending = next();
       }
-      if (frame++ % 30 === 0) ink = inksOf(host);
+      while (vals.length > cap()) {
+        vals.shift();
+        t0 += STEP;
+      }
+
+      const headX = W - tagW - 16;
+      const n = vals.length;
+      /* the value of the line at time t: a committed step, eased into the next */
+      const at = (t: number) => {
+        const f = (t - t0) / STEP;
+        const j = Math.max(0, Math.min(n - 1, Math.floor(f)));
+        const a = vals[j];
+        const b = j + 1 < n ? vals[j + 1] : pending;
+        return a + (b - a) * ease(Math.max(0, Math.min(1, f - j)));
+      };
+
+      /* the scale: the band's own range, eased */
+      let tlo = Infinity;
+      let thi = -Infinity;
+      for (const x of vals) {
+        if (x < tlo) tlo = x;
+        if (x > thi) thi = x;
+      }
+      const pad = (thi - tlo) * 0.14 + 0.5;
+      const k = 1 - Math.exp(-dt / 900);
+      lo += (tlo - pad - lo) * k;
+      hi += (thi + pad - hi) * k;
+      const span = Math.max(1e-6, hi - lo);
+      /* the line's own height, and each echo's step up */
+      const amp = H * 0.4;
+      const base = H * 0.48;
+      const rise = H * 0.06;
+      const yOf = (val: number, e: number) => base - e * rise + (1 - (val - lo) / span) * amp;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-
-      /* the chart's box: the left half and a little more */
-      const cx0 = W * 0.04;
-      const cx1 = W * (W < 640 ? 0.74 : 0.56);
-      const ly0 = H * 0.2;
-      const ly1 = H * 0.58;
-      const vy0 = H * 0.64;
-      const vy1 = H * 0.82;
-      const lo = Math.min(...price);
-      const hi = Math.max(...price);
-      const xAt = (i: number) => cx0 + ((cx1 - cx0) * i) / (POINTS - 1);
-      const yAt = (q: number) => ly1 - ((q - lo) / (hi - lo || 1)) * (ly1 - ly0);
-
-      /* the faint rows of ticks over the line (the photograph's coloured dashes above the chart) */
-      ticks.forEach((row, r) => {
-        const y = H * 0.07 + r * 7;
-        const gap = 24 + ((r * 13) % 11);
-        ctx.fillStyle = r % 2 ? ink.call : ink.put;
-        row.forEach((t, k) => {
-          const x = cx0 + k * gap;
-          if (!t.on || x > cx1) return;
-          ctx.globalAlpha = t.a;
-          ctx.fillRect(x, y, t.w, 1.2);
-        });
-      });
-      ctx.globalAlpha = 1;
-
-      /* the volume: a bright comb under the line */
-      const bw = Math.max(1, ((cx1 - cx0) / POINTS) * 0.62);
-      ctx.fillStyle = ink.bar;
-      for (let i = 0; i < POINTS; i++) {
-        const h = vol[i] * (vy1 - vy0);
-        ctx.fillRect(xAt(i), vy1 - h, bw, h);
-      }
-      /* its time marks */
-      ctx.fillStyle = ink.faint;
-      for (let k = 1; k < 6; k++) ctx.fillRect(cx0 + ((cx1 - cx0) * k) / 6, vy1 + 6, 12, 2);
-
-      /* the line, with a breath of glow */
-      ctx.save();
-      ctx.shadowColor = ink.line;
-      ctx.shadowBlur = 6;
-      ctx.strokeStyle = ink.line;
-      ctx.lineWidth = 1.6;
       ctx.lineJoin = 'round';
-      /* THE OLD END DISSOLVES: the first fifth of the line breaks into the pixels it was drawn with, scattering the
-         further back they are; the rest is the line */
-      const FRAY = Math.round(POINTS * 0.22);
-      ctx.beginPath();
-      for (let i = FRAY; i < POINTS; i++) {
-        const x = xAt(i);
-        const y = yAt(price[i]);
-        if (i > FRAY) ctx.lineTo(x, y);
-        else ctx.moveTo(x, y);
-      }
-      ctx.stroke();
-      ctx.restore();
-      ctx.fillStyle = ink.line;
-      for (let i = 0; i < FRAY; i++) {
-        const back = 1 - i / FRAY;
-        const x = xAt(i);
-        const y = yAt(price[i]);
-        for (const [gx, gy, keep] of grain[i]) {
-          if (keep < back * 0.75) continue;
-          ctx.globalAlpha = 0.35 + (1 - back) * 0.65;
-          ctx.fillRect(x + gx * back, y + gy * back, 1.6, 1.6);
+      ctx.lineCap = 'round';
+
+      /* THE LINES, the farthest first: each is the line as it stood `e * lag` steps ago, drawn so its live end meets the
+         same edge — so it stands a little to the right of the one in front — and lifted a step; the ground under each
+         hides the ones behind it */
+      let front: { x: number; y: number }[] = [];
+      for (let e = echoes; e >= 0; e--) {
+        const nowE = now - e * lag * STEP;
+        const pts: { x: number; y: number }[] = [];
+        const first = Math.max(0, Math.floor((nowE - t0) / STEP - headX / GAP) - 1);
+        for (let i = first; i < n; i++) {
+          const t = t0 + i * STEP;
+          if (t > nowE) break;
+          pts.push({ x: headX - ((nowE - t) / STEP) * GAP, y: yOf(vals[i], e) });
         }
-      }
-      ctx.globalAlpha = 1;
-
-      /* the level off the last price, to its tag — the tag tells the clock */
-      const lastY = yAt(price[POINTS - 1]);
-      const tagX = Math.min(W - 70, cx1 + W * 0.05);
-      ctx.strokeStyle = ink.line;
-      ctx.globalAlpha = 0.7;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx1, lastY + 0.5);
-      ctx.lineTo(tagX, lastY + 0.5);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      const d = new Date();
-      const clock = [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
-      ctx.font = `600 10px ${FONT_SANS}`;
-      const tw = ctx.measureText(clock).width + 10;
-      ctx.strokeRect(tagX + 0.5, lastY - 7.5, tw, 15);
-      ctx.fillStyle = ink.line;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(clock, tagX + 5, lastY + 0.5);
-
-      /* the ladder on the right, coming apart */
-      if (W >= 640) {
-        const ax = W * 0.79;
-        const r0 = H * 0.12;
-        const pitch = (H * 0.72) / ROWS;
-        const reach = W * 0.12;
-        ladder.forEach((r, i) => {
-          const y = r0 + i * pitch;
-          const on = r.lit > 0.25;
-          if (!on) return;
-          ctx.globalAlpha = 0.35 + r.lit * 0.6;
-          ctx.fillStyle = r.sup ? ink.supreme : ink.put;
-          for (let k = 0; k * 7 < r.put * reach && k < DASHES; k++) if (!r.gone[k]) ctx.fillRect(ax - 9 - k * 7, y, 5, 2);
-          ctx.fillStyle = r.sup ? ink.supreme : ink.call;
-          for (let k = 0; k * 7 < r.call * reach && k < DASHES; k++) if (!r.gone[DASHES + k]) ctx.fillRect(ax + 4 + k * 7, y, 5, 2);
-          ctx.fillStyle = ink.faint;
-          ctx.fillRect(ax - reach - 26, y, 12, 2);
-        });
-        ctx.globalAlpha = 1;
+        pts.push({ x: headX, y: yOf(at(nowE), e) });
+        if (pts.length < 2) continue;
+        const path = new Path2D();
+        path.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length - 1; i++) {
+          const mx = (pts[i].x + pts[i + 1].x) / 2;
+          const my = (pts[i].y + pts[i + 1].y) / 2;
+          path.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+        }
+        path.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+        const under = new Path2D(path);
+        under.lineTo(pts[pts.length - 1].x, H);
+        under.lineTo(pts[0].x, H);
+        under.closePath();
+        ctx.fillStyle = ink.ground;
+        ctx.fill(under);
+        /* the old end fades into the ground: the stroke's own ink runs from nothing to full across the first stretch */
+        const c = e === 0 ? ink.line : ink.muted;
+        const a = e === 0 ? 1 : Math.max(0.14, 0.62 - (e - 1) * 0.1);
+        const g = ctx.createLinearGradient(0, 0, W * FADE, 0);
+        g.addColorStop(0, rgb(c, 0));
+        g.addColorStop(1, rgb(c, a));
+        ctx.strokeStyle = g;
+        ctx.lineWidth = e === 0 ? 1.6 : 1.1;
+        ctx.stroke(path);
+        if (e === 0) front = pts;
       }
 
-      /* the specks */
-      const hue = [ink.call, ink.put, ink.down, ink.faint, ink.line];
-      for (const s of specks) {
-        ctx.globalAlpha = Math.max(0, Math.min(1, s.life)) * 0.75;
-        ctx.fillStyle = hue[s.k];
-        ctx.fillRect(s.x * W, s.y * H, s.w, 1.5);
+      /* THE HAND: the hairline eases to the pointer and home again */
+      const target = hand.on ? Math.max(W * FADE * 0.6, Math.min(headX, hand.x)) : headX;
+      if (sx < 0) sx = headX;
+      sx = calm ? target : sx + (target - sx) * (1 - Math.exp(-dt / FOLLOW));
+      if (Math.abs(target - sx) < 0.3) sx = target;
+      const held = headX - sx > 0.75;
+      /* the point under it, on the line */
+      let dotY = front.length ? front[front.length - 1].y : H / 2;
+      if (held && front.length > 1) {
+        let j = front.findIndex(q => q.x >= sx);
+        if (j <= 0) j = 1;
+        const a = front[j - 1];
+        const b = front[j];
+        dotY = a.y + (b.y - a.y) * ((sx - a.x) / Math.max(1e-6, b.x - a.x));
       }
-      ctx.globalAlpha = 1;
-
-      /* the strip of buttons at the foot, one lit in the warning ink */
-      let px = cx0;
-      const py = H * 0.9;
-      ctx.lineWidth = 1;
-      for (const b of pills) {
-        if (px + b.w > cx1) break;
-        ctx.strokeStyle = b.lit ? ink.warn : ink.faint;
-        ctx.globalAlpha = b.lit ? 0.95 : 0.6;
+      if (held) {
+        ctx.strokeStyle = rgb(ink.ink, 0.26);
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(px + 0.5, py - 6.5, b.w, 13, 6.5);
+        ctx.moveTo(Math.round(sx) + 0.5, 0);
+        ctx.lineTo(Math.round(sx) + 0.5, H);
         ctx.stroke();
-        ctx.fillStyle = b.lit ? ink.warn : ink.faint;
-        ctx.fillRect(px + 7, py - 1, b.w * 0.55, 2);
-        px += b.w + 12;
       }
-      ctx.globalAlpha = 1;
 
-      /* the pointer, and while it is the reader's, a hairline through the line and its time */
-      if (hand.on) {
-        hand.sx += (hand.x - hand.sx) * 0.35;
-        hand.sy += (hand.y - hand.sy) * 0.35;
-        if (hand.sx > cx0 && hand.sx < cx1) {
-          const i = Math.max(0, Math.min(POINTS - 1, Math.round(((hand.sx - cx0) / (cx1 - cx0)) * (POINTS - 1))));
-          ctx.strokeStyle = ink.faint;
-          ctx.setLineDash([3, 3]);
+      /* the level: a dashed hairline at the point's height, across the band to the tag */
+      ctx.strokeStyle = rgb(ink.ink, 0.22);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 5]);
+      ctx.beginPath();
+      const ly = Math.round(dotY) + 0.5;
+      ctx.moveTo(W * FADE, ly);
+      ctx.lineTo(W - tagW, ly);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      /* the live end's breath — the silver ring opens and fades, then rests; it gives way while the hand holds the line */
+      if (!calm) {
+        const q = (now % BREATH) / (BREATH * 0.55);
+        const away = Math.min(1, (headX - sx) / 24);
+        if (q <= 1 && away < 1) {
+          ctx.strokeStyle = rgb(ink.live, 0.6 * (1 - q) * (1 - away));
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.moveTo(Math.round(hand.sx) + 0.5, ly0 - 10);
-          ctx.lineTo(Math.round(hand.sx) + 0.5, vy1);
+          ctx.arc(headX, front.length ? front[front.length - 1].y : H / 2, 3 + 10 * q, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = ink.line;
-          ctx.beginPath();
-          ctx.arc(xAt(i), yAt(price[i]), 3, 0, Math.PI * 2);
-          ctx.fill();
         }
-      } else {
-        const s = now / 1000;
-        hand.sx = W * (0.72 + 0.16 * Math.sin(s * 0.31));
-        hand.sy = H * (0.62 + 0.2 * Math.sin(s * 0.53 + 1));
-        ctx.save();
-        ctx.translate(hand.sx, hand.sy);
-        ctx.fillStyle = ink.line;
-        ctx.strokeStyle = ink.ground;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, 15);
-        ctx.lineTo(4, 11.5);
-        ctx.lineTo(6.5, 17);
-        ctx.lineTo(8.6, 16);
-        ctx.lineTo(6.2, 10.6);
-        ctx.lineTo(11, 10.6);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
       }
+      /* the dot: at the live end, or under the hand */
+      ctx.fillStyle = rgb(ink.line);
+      ctx.beginPath();
+      ctx.arc(held ? sx : headX, held ? dotY : front.length ? front[front.length - 1].y : H / 2, held ? 3 : 2.6, 0, Math.PI * 2);
+      ctx.fill();
 
-      /* the slip: a slice of the picture moved sideways, a breath of colour either side of it */
-      if (glitch > 0) {
-        glitch--;
-        const sy = Math.round(glitchY * H * dpr);
-        const sh = Math.max(1, Math.round(glitchH * H * dpr));
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.globalAlpha = 0.9;
-        ctx.drawImage(canvas, 0, sy, canvas.width, sh, glitchDx * dpr, sy, canvas.width, sh);
-        /* the colour that leaks at a slip: the call ink one way, the bear's the other, in thin bars across the slice */
-        ctx.globalAlpha = 0.4;
-        for (let k = 0; k < 5; k++) {
-          ctx.fillStyle = k % 2 ? ink.call : ink.down;
-          const by = sy + Math.round(((k * 37) % 100) / 100 * sh);
-          ctx.fillRect((glitchDx * dpr * (k % 2 ? 1 : -1)) / 2, by, canvas.width, Math.max(1, dpr));
-        }
-        ctx.globalAlpha = 1;
-      }
+      /* the tag: the clock — now, or the moment under the hand */
+      const when = Date.now() - (held ? ((headX - sx) / GAP) * STEP : 0);
+      const word = clock(when, !calm);
+      ctx.font = `500 10.5px ${FONT_SANS}`;
+      const tw = Math.ceil(ctx.measureText(word).width) + 14;
+      const ty = Math.max(10, Math.min(H - 10, dotY));
+      ctx.fillStyle = rgb(ink.line);
+      ctx.beginPath();
+      ctx.roundRect(W - tw, ty - 9, tw, 18, 3);
+      ctx.fill();
+      ctx.fillStyle = rgb(ink.panel);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(word, W - tw / 2, ty + 0.5);
+      tagW = Math.max(tagW, tw);
     };
 
-    /* it draws only while it is seen, with the tab in front — about thirty times a second */
+    /* it draws only while it is seen, with the tab in front — about thirty times a second, sixty under the hand */
     let raf = 0;
     let seen = false;
-    let last = 0;
+    let drawn = 0;
     const loop = (now: number) => {
       raf = 0;
       if (!seen || document.visibilityState !== 'visible') return;
-      if (now - last >= 32) {
-        last = now;
+      if (now - drawn >= (hand.on || sx !== W - tagW - 16 ? 15 : 32)) {
+        drawn = now;
         draw(now);
       }
       raf = requestAnimationFrame(loop);
     };
     const go = () => {
-      if (calm) return;
-      if (!raf && seen && document.visibilityState === 'visible') {
-        t0 = performance.now();
-        raf = requestAnimationFrame(loop);
-      }
+      if (calm || raf || !seen || document.visibilityState !== 'visible') return;
+      last = 0;
+      raf = requestAnimationFrame(loop);
     };
+    /* under reduced motion the frame stands still; its clock moves on once a minute while it is seen */
+    let tick = 0;
+    const minute = () => {
+      window.clearTimeout(tick);
+      if (!calm || !seen) return;
+      draw(performance.now());
+      tick = window.setTimeout(minute, 60_000 - (Date.now() % 60_000) + 50);
+    };
+    const redraw = () => {
+      if (calm || !raf) draw(performance.now());
+    };
+
+    const move = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      hand.x = e.clientX - r.left;
+      hand.on = true;
+      go();
+      if (calm) draw(performance.now());
+    };
+    const leave = () => {
+      hand.on = false;
+      go();
+      if (calm) draw(performance.now());
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') leave();
+    };
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerdown', move);
+    canvas.addEventListener('pointerleave', leave);
+    canvas.addEventListener('pointercancel', leave);
+    canvas.addEventListener('pointerup', up);
+
     draw(performance.now());
     const io = new IntersectionObserver(([e]) => {
       seen = e.isIntersecting;
-      go();
+      if (calm) minute();
+      else go();
     });
     io.observe(host);
     const ro = new ResizeObserver(() => {
       size();
-      draw(performance.now());
+      fill();
+      redraw();
     });
     ro.observe(host);
+    /* a theme turn: every ink read again once the new ground is on the page, and the frame drawn again even when still */
+    let themed = 0;
+    const mo = new MutationObserver(() => {
+      cancelAnimationFrame(themed);
+      themed = requestAnimationFrame(() => {
+        ink = inksOf(host);
+        redraw();
+      });
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'], subtree: true });
     document.addEventListener('visibilitychange', go);
     return () => {
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(themed);
+      window.clearTimeout(tick);
       io.disconnect();
       ro.disconnect();
+      mo.disconnect();
       document.removeEventListener('visibilitychange', go);
       canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerdown', move);
       canvas.removeEventListener('pointerleave', leave);
+      canvas.removeEventListener('pointercancel', leave);
+      canvas.removeEventListener('pointerup', up);
     };
   }, []);
 
   return (
-    <div ref={box} className={`relative w-full overflow-hidden ${className}`} data-footer-art>
-      <canvas ref={cvs} aria-hidden="true" className="absolute inset-0 block" />
+    <div ref={box} className={`relative w-full ${className}`} data-footer-art>
+      <canvas ref={cvs} aria-hidden="true" className="absolute inset-0 block touch-pan-y" />
     </div>
   );
 };

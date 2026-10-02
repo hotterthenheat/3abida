@@ -15,10 +15,12 @@
 ==================================================
 */
 
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useLaunch } from './LaunchTransition';
 import Wordmark from '../../brand/Wordmark';
+import { WORDMARK } from '../../brand/wordmarkPaths';
+import { alignBrandLoops } from '../../brand/brandClock';
 import Signature from '../../brand/Signature';
 import { PRODUCTS } from '../../brand/products';
 import { COMPANY, filled } from '../../data/company';
@@ -139,15 +141,56 @@ const FooterLink = ({
     link, not the launch gate */
 const OUTSIDE = /^\/(about|status|legal)/;
 
+/** The footer's column: the landing's own (Landing.tsx Wrap), so every edge of the footer lines up with the page above */
+const COLUMN = 'mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10';
+
+/** how much of the wordmark stands above the page's bottom edge */
+const SHOWN = 0.64;
+
+/* THE FLOOR (2026-10-02 — the owner: "fix the live footer it doesn't look clean and together"; the clean footers end on
+   one object, the brand at display size cut by the page's edge — Midday, Framer's Futer): the drawn wordmark the width
+   of the column, its foot below the page's last pixel, ENGRAVED in the ground — a hair of ink inside the letters and a
+   hairline round them — not printed on it. Its cursor blinks on the brand's one beat (brandClock), the only thing in it
+   that moves. The letters are the brand's own outlines (wordmarkPaths.ts); only the paint is the floor's. */
+const FooterFloor = () => {
+  const cursor = useRef<HTMLSpanElement | null>(null);
+  useLayoutEffect(() => {
+    alignBrandLoops(cursor.current);
+  }, []);
+  return (
+    <div
+      aria-hidden="true"
+      className="relative overflow-hidden select-none pointer-events-none"
+      style={{ aspectRatio: `${WORDMARK.width} / ${(WORDMARK.height * SHOWN).toFixed(2)}` }}
+      data-footer-floor
+    >
+      <svg viewBox={`0 0 ${WORDMARK.width} ${WORDMARK.height}`} className="absolute inset-x-0 top-0 block w-full h-auto" focusable="false">
+        <g fill="rgb(var(--ink) / 0.035)" stroke="rgb(var(--ink) / 0.17)" strokeWidth={1}>
+          <path d={WORDMARK.chevron} vectorEffect="non-scaling-stroke" />
+          <path d={WORDMARK.slayer} vectorEffect="non-scaling-stroke" />
+          <path d={WORDMARK.terminal} vectorEffect="non-scaling-stroke" />
+        </g>
+      </svg>
+      <span
+        ref={cursor}
+        className="wordmark-cursor"
+        style={{
+          left: `${(WORDMARK.cursorX / WORDMARK.width) * 100}%`,
+          width: `${(WORDMARK.cursorW / WORDMARK.width) * 100}%`,
+          height: `${(99.6 / SHOWN).toFixed(2)}%`,
+          background: 'rgb(var(--ink) / 0.2)',
+        }}
+      />
+    </div>
+  );
+};
+
 const SiteFooter = ({ home = false }: { home?: boolean }) => (
   /* shrink-0: on the Weigher the footer shares a definite-height flex column
      with a full-viewport desk — left shrinkable, flexbox would absorb the
      whole deficit HERE and silently collapse the footer to nothing. */
-  <footer className="shrink-0 border-t border-borderSubtle" data-site-footer>
-    {/* THE LIVE BAND (2026-10-02 — the owner: "make it super cool like a live footer", from a photograph of a chart caught
-        dark and broken): the tape dissolving, drawn live (FooterArt). Taller on the front page; a strip under the terminal. */}
-    <FooterArt className={home ? 'h-[200px] md:h-[280px]' : 'h-[140px] md:h-[170px]'} />
-    <div className="px-6 md:px-10 pt-14 pb-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-6 gap-x-10 gap-y-10">
+  <footer className="shrink-0 border-t border-borderSubtle overflow-hidden" data-site-footer>
+    <div className={`${COLUMN} pt-14 pb-10 grid grid-cols-2 md:grid-cols-6 gap-x-10 gap-y-10`}>
       <div className="col-span-2">
         <Wordmark height={14} label="Slayer Terminal" />
         <p className="mt-5 text-[17px] font-medium tracking-tight text-textPrimary">Trade what you can see.</p>
@@ -175,7 +218,7 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
       ))}
     </div>
     <div className="border-t border-borderSubtle/60">
-      <div className="px-6 md:px-10 py-6 max-w-6xl mx-auto flex flex-col gap-4">
+      <div className={`${COLUMN} py-6 flex flex-col gap-4`}>
         <p className="max-w-[92ch] text-[12px] leading-relaxed text-textMuted">
           Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell.
         </p>
@@ -188,6 +231,14 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
           </span>
         </div>
       </div>
+    </div>
+    {/* THE LIVE END OF THE PAGE (2026-10-02 — the owner: "make it super cool like a live footer", then, of the first try,
+        "it doesn't look clean and together"): the line and its echoes, drawn live (FooterArt), standing on the wordmark
+        cut by the page's edge (FooterFloor) — one object, in the column every other edge of the footer keeps. Taller on
+        the front page. */}
+    <div className={COLUMN}>
+      <FooterArt className={home ? 'h-[170px] md:h-[230px]' : 'h-[130px] md:h-[170px]'} />
+      <FooterFloor />
     </div>
   </footer>
 );

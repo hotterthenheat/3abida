@@ -91,7 +91,7 @@ import { PLANS, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
-import { BELOW_LG_QUERY } from '../../components/ui/useMediaQuery';
+import { BELOW_LG_QUERY, useMediaQuery } from '../../components/ui/useMediaQuery';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import Tour, { type TourStep } from './Tour';
 import Everything, { FEATURE_COUNT, InPlaceOf, ROOM_COUNT, SHARED_COUNT } from './Everything';
@@ -690,6 +690,22 @@ const Nav = ({ ground }: { ground: Ground }) => {
    up for free but that's it") — the account costs nothing; a plan opens the desks. */
 const Hero = ({ onSignUp, rooms, onPick }: { onSignUp: () => void; rooms: TourStep[]; onPick: (id: string) => void }) => {
   const ground = useBlockGround();
+  /* THE ORDER READ IS THE ORDER SEEN (2026-10-02 review): below lg the rooms stand above the words, so they come first in
+     the page too — a CSS order left the keys and a screen reader on "Sign up free" before the rooms above it. The wall
+     keeps its place in the tree (moving it would mount every film again at the breakpoint); the words move round it. */
+  const narrow = useMediaQuery(BELOW_LG_QUERY);
+  const words = (
+    <div className="landing-rise [--rise-delay:140ms] mt-8 lg:mt-7 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-10 gap-y-6">
+      <p className="max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
+        Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
+      </p>
+      <div className="shrink-0">
+        <Pill href="/signup" onClick={onSignUp} testId="hero">
+          Sign up free
+        </Pill>
+      </div>
+    </div>
+  );
   return (
     <Wrap className="pt-[90px] sm:pt-[104px] pb-12 sm:pb-16">
       <div className="landing-rise">
@@ -701,19 +717,11 @@ const Hero = ({ onSignUp, rooms, onPick }: { onSignUp: () => void; rooms: TourSt
         <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>see.</span>
       </h1>
       <div className="flex flex-col">
-        <div className="landing-rise [--rise-delay:140ms] order-2 lg:order-1 mt-8 lg:mt-7 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-10 gap-y-6">
-          <p className="max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
-            Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
-          </p>
-          <div className="shrink-0">
-            <Pill href="/signup" onClick={onSignUp} testId="hero">
-              Sign up free
-            </Pill>
-          </div>
-        </div>
-        <div className="order-1 lg:order-2 mt-6 lg:mt-9">
+        {!narrow && words}
+        <div className="mt-6 lg:mt-9">
           <Wall rooms={rooms} theme={ground} onPick={onPick} />
         </div>
+        {narrow && words}
       </div>
     </Wrap>
   );
@@ -871,6 +879,10 @@ const Page = () => {
     const win = document.querySelector<HTMLElement>('[data-tour-window]');
     const under = win && window.matchMedia(BELOW_LG_QUERY).matches ? (parseFloat(getComputedStyle(win).top) || 0) + win.offsetHeight + 48 : window.innerHeight * 0.3;
     window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - under, behavior: glideOrCut() });
+    /* the reader goes with the page: focus lands on the room's head (without a second scroll), so the next Tab carries on
+       inside the room the card opened and a screen reader reads its name — it stayed on the card, 3000 px above */
+    el.tabIndex = -1;
+    el.focus({ preventScroll: true });
   }, []);
 
   /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */

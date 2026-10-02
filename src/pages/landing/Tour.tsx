@@ -361,7 +361,8 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
                         {s.kind}
                       </p>
                       {/* THE ROOM'S HEAD WEARS ITS GLYPH (2026-10-01), as a product's page head does inside the terminal */}
-                      <h3 className="mt-5 flex items-center gap-4 lg:gap-5 text-[44px] sm:text-[56px] lg:text-[50px] xl:text-[54px] 2xl:text-[64px] font-light leading-[0.98] tracking-[-0.04em] [text-wrap:balance]" data-tour-head={s.id}>
+                      {/* outline-none: a card's door lands focus here (Landing toRoom) — a heading to land on, not a control */}
+                      <h3 className="mt-5 flex items-center gap-4 lg:gap-5 text-[44px] sm:text-[56px] lg:text-[50px] xl:text-[54px] 2xl:text-[64px] font-light leading-[0.98] tracking-[-0.04em] [text-wrap:balance] outline-none" data-tour-head={s.id}>
                         {/* A BIT SMALLER (2026-10-02 — the owner: "make the logos a bit smaller their a bit big right now"): 30, from 40 */}
                         {s.glyph && <ProductGlyph name={s.glyph} size={30} bare className="shrink-0 max-sm:w-[26px] max-sm:h-[26px]" />}
                         <span className="min-w-0">{s.name}</span>

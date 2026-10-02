@@ -93,24 +93,38 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   row, less on a short screen so it fits under the words), on top and lifted, with its kind, its line and up to four of
   its pages under it (the tour's STEPS); the rest step back — 0.44 of its size at the back, dimmed by a veil of the
   ground, tucked under their neighbours. The pointer's place along the row brings a room out and the pointer takes over
-  at once, from wherever the dock had got to; left alone (the owner: "if no cursor is on it make it switch to each one
+  at once, from wherever the dock had got to — a moving pointer carries the row with it, a resting one brings its card
+  all the way out, full size with its words (a dead band keeps a hand at the border of two from swinging the row), and
+  the card under the pointer is the one in front even on a short screen whose row is narrower than its box; left alone (the owner: "if no cursor is on it make it switch to each one
   on its own as like a clean motion"), the dock GLIDES to the next room — about 0.9 s, eased in and out, stopping dead
   on it (never an exponential creep) — rests about 2.6 s, and glides on, there and back; after the pointer leaves it
   settles on the nearest room and rests a little longer first (a timer and a timed glide of transforms and opacities,
   never an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle
-  card in front and the others behind, before the words; it steps on by itself, and a thumb takes it over until a
-  while after it lets go. Films play only on screen with the tab
+  card in front and the others behind, before the words (in the page's order too, not only on screen); it steps on by
+  itself, and a thumb takes it over until a while after it lets go; a key or a screen reader on a card holds it and
+  brings that card to the middle; only the films on screen play. The dock is for any hovering mouse from 768 px. A card
+  opens its room in the tour and focus lands on the room's head. Under reduced motion the pointer changes the front
+  card by card. Films play only on screen with the tab
   in front; reduced motion, Save-Data and a browser without H.264 keep the stills. The tour's window (TerminalWindow)
   plays one film, with no pause button and no captions. The only door is "Sign up free" — an account is free; there
   is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs
   and the mark stand bare (`bare`), sized to fit their line.
-- The live footer (2026-10-02 — the owner, with a photograph of a chart caught dark and broken: "make it super cool like
-  a live footer make some sort of artistic thing from the photo"): components/layout/FooterArt.tsx, a canvas band at the
-  top of SiteFooter (taller on the landing, a strip under the terminal) — a walk of its own drawn live: the line, its old
-  end dissolving into pixels; the volume comb; a ladder coming apart; slips of the picture with colour at the edges; the
-  reader's pointer (a hairline and a dot on the line) or a drifting arrow. Art, not data: no figure on it is a price —
-  its tag is the clock. Every ink a token read off the band's own ground; drawn about thirty times a second only while
-  on screen with the tab in front; one still frame under reduced motion.
+- The live footer (2026-10-02 — the owner: "make it super cool like a live footer make some sort of artistic thing
+  from the photo", then, of the first try, a tape breaking into coloured dashes and slips: "it doesn't look clean and
+  together right now go online and look for some examples and retry it"). What the clean live footers share (Midday,
+  Vercel, Dub, OpenStatus; TradingView's last-price pulse; Unknown Pleasures): ONE idea in the product's own grammar,
+  most of the band left as ground, one small true live signal, colour only where it means something. So SiteFooter is
+  the links, the legal line with the signature, then the live band (components/layout/FooterArt.tsx) standing on the
+  floor: the drawn wordmark the width of the column, cut by the page's bottom edge and engraved in the ground (a hair of
+  ink in the letters, a hairline round them), its cursor blinking on the brand's beat — all in the landing's column
+  (max 1440). The band draws one line gliding left at a steady pace and, behind it, its own past (the same line a few
+  seconds ago, and before that — each echo a step up and a tier fainter, hidden where a nearer one passes in front: the
+  owner's doubled, broken chart put in order); its old end fades out by the stroke's own ink; its live end is a dot
+  whose silver ring breathes and rests; a dashed level runs to one tag, the clock. Under the pointer a hairline and a
+  dot ride the line and the tag tells that moment's time; off it, it eases home. No specks, slips, dashes or extra
+  colours. Art, not data: no figure on it is a price. Every ink a token read off the band's own ground (re-read when the
+  theme turns); drawn about thirty times a second (sixty under the pointer) only while on screen with the tab in front;
+  under reduced motion one still frame whose clock moves on once a minute.
 - "Everything in it" (landing/Everything.tsx) lists every page of every room, each a door into the terminal —
   Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page is listed by itself; write the
   others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side
