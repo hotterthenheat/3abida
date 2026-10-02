@@ -61,7 +61,7 @@ import {
   type CandleTheme,
   type CandleThemeKey,
 } from './candleTheme';
-import { useResolvedTheme } from '../../theme/theme';
+import { readToken, useResolvedTheme } from '../../theme/theme';
 import { barClockSpec, buildAltBars, type AltBarSpec } from '../../data/altBars';
 import type { Candle } from '../../types/market';
 import type { DarkPoolPrint, KeyLevels } from '../../types/gex';
@@ -202,8 +202,8 @@ export interface ChartOverlays {
     dashes and their shorthand ON THE FIELD rather than on the price axis.
 
     ONE INK, FOUR DASH PATTERNS. The dealer palette is spoken for — gold is
-    put-dominant, steel call-dominant, magenta the supreme, blue the flip, lime
-    selection, white spot — and red and green mean price direction. A session
+    put-dominant, steel call-dominant, magenta the supreme, blue the flip, the
+    silver accent selection, white spot — and red and green mean price direction. A session
     level is none of those things, so it takes none of those colours: the dash
     pattern carries which level it is, which is what the directive asks for
     and what leaves the palette meaning what it means.
@@ -1275,6 +1275,12 @@ const StrikeChart = ({
   const [sheetOpen, setSheetOpen] = useState(false);
   /** The chart's box — what the rail's lists and the sheet are portalled into */
   const [boxEl, setBoxEl] = useState<HTMLDivElement | null>(null);
+  /* THE FOCUS INK FOR A CHART OPTION — the silver accent, read off this chart's own box so a light tape gets the deep
+     silver (index.css [data-chart-ground]); the dark island's silver until the box is up. A chart option cannot read
+     var(), so it is resolved here, at the moment the line is inked. */
+  const boxElRef = useRef<HTMLDivElement | null>(null);
+  boxElRef.current = boxEl;
+  const focusInk = (): string => (boxElRef.current ? readToken('--select', undefined, boxElRef.current) : FOCUS);
   /* 'select' is the rail's pointer — not a DrawingKind, because it MAKES no
      drawing: it picks one up. The default, so entering draw mode never
      scribbles a trend on the first accidental drag. */
@@ -3552,7 +3558,7 @@ const StrikeChart = ({
         price: focusPrice,
         // The ink at creation too — a trails toggle recreates the line, and
         // the ink effect below only re-runs when the focus or the supreme moves
-        color: Math.abs(levelsRef.current.supreme - focusPrice) < 1e-9 ? SUPREME : FOCUS,
+        color: Math.abs(levelsRef.current.supreme - focusPrice) < 1e-9 ? SUPREME : focusInk(),
         title: 'FOCUS',
         lineVisible: !trailsDrawn,
         lineStyle: LineStyle.Solid,
@@ -3700,9 +3706,11 @@ const StrikeChart = ({
 
 
   /* The focus INK follows the strike's standing, re-read every scan: magenta
-     while the focused strike is the supreme, lime otherwise. The focus itself
-     never moves — if 510 loses the crown, 510 turns lime and stays (Noah,
-     2026-08-22); the new supreme keeps its own line. Line and trail agree. */
+     while the focused strike is the supreme, the silver accent otherwise (the
+     lime until 2026-10-02). The focus itself never moves — if 510 loses the
+     crown, 510 turns silver and stays (Noah, 2026-08-22); the new supreme keeps
+     its own line. Line and trail agree. Re-inked when the tape's ground
+     changes, so a light tape's focus is the deep silver. */
   useEffect(() => {
     const isSupreme = focusPrice != null && Math.abs(levels.supreme - focusPrice) < 1e-9;
     trailsRef.current?.setFocus(focusPrice, isSupreme ? 'supreme' : 'focus');
@@ -3731,8 +3739,9 @@ const StrikeChart = ({
       showLevels && Number.isFinite(levels.putWall) ? levels.putWall : null,
       showLevels && Number.isFinite(levels.flip) ? levels.flip : null
     );
-    focusLineRef.current?.applyOptions({ color: isSupreme ? SUPREME : FOCUS });
-  }, [focusPrice, overlays.levels, levels.supreme, levels.callWall, levels.putWall, levels.flip]);
+    focusLineRef.current?.applyOptions({ color: isSupreme ? SUPREME : focusInk() });
+    /* focusInk reads the box through a ref; the box and the tape's theme re-ink it */
+  }, [focusPrice, overlays.levels, levels.supreme, levels.callWall, levels.putWall, levels.flip, themeKey, boxEl]);
 
   // ---- replay lifecycle -----------------------------------------------------
   // Enter: snapshot the aggregated world and rewind. Exit: hand the series

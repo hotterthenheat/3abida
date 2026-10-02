@@ -377,7 +377,7 @@ export const WatchersGuide = () => (
 
 /** The day as quarter hours, one lit */
 export const DayStripFigure = () => (
-  <Figure label="A row of small bars for the day's quarter hours, one lit in silver with its label 22:45–23:00, the newest bar in lime marked live" h={62}>
+  <Figure label="A row of small bars for the day's quarter hours, one lit in silver with its label 22:45–23:00, the newest bar marked now" h={62}>
     {Array.from({ length: 30 }, (_, i) => {
       const h = 6 + ((i * 7) % 11) * 2;
       const lit = i === 22;
@@ -387,7 +387,7 @@ export const DayStripFigure = () => (
     <text x={14 + 22 * 12 + 4} y={52} textAnchor="middle" fontSize={6.5} fill={SILVER} fontFamily={FIG}>
       22:45–23:00
     </text>
-    <text x={14 + 29 * 12 + 4} y={52} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill="#D2FF00" fontFamily={FIG}>
+    <text x={14 + 29 * 12 + 4} y={52} textAnchor="middle" fontSize={6} letterSpacing={0.8} fill="rgb(var(--select))" fontFamily={FIG}>
       NOW
     </text>
     <text x={14} y={56} fontSize={6.5} fill={MUTED} fontFamily={SANS}>

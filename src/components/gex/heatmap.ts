@@ -142,7 +142,7 @@ const RAMPS: Record<
      needed at all — gray vs colored separates for every vision type, with
      a pole luminance gap (platinum L=0.82 vs gold L=0.60) on top. Honey
      gold #F5C542 is yellower than warn orange #FF9500 and nowhere near
-     lime's acid green-yellow. One hue per side, luminance walk, ARC-LENGTH
+     an acid green-yellow. One hue per side, luminance walk, ARC-LENGTH
      EVEN stops (OKLab, spread 1.03x/1.05x — scratchpad regenerates). */
   'steel-gold': {
     // positive = put-dominant = dealers short gamma = AMPLIFY (gold)

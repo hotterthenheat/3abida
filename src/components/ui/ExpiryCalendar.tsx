@@ -16,8 +16,10 @@
   DOES NOT LIST ("only show the dates that these
   tickers have cause every ticker may have
   different option dates"): a listed expiry is
-  bright and clickable, today wears the lime
-  marker, the chosen one wears the white
+  bright and clickable, today wears the silver
+  accent in a silver ring (the lime until
+  2026-10-02 — silver alone sat too close to a
+  listed day's white), the chosen one wears the white
   selection, and the rest cannot be picked.
 
   The trigger is a card on the line of cards (the
@@ -192,7 +194,7 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Ico
                         : isSelected
                           ? 'bg-textPrimary text-[#0a0a0a] font-semibold'
                           : isToday
-                            ? 'text-select font-semibold hover:bg-ink/[0.06]'
+                            ? 'text-select font-semibold ring-1 ring-inset ring-select/45 hover:bg-ink/[0.06]'
                             : 'text-textPrimary hover:bg-ink/[0.06]'
                     }`}
                   >

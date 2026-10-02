@@ -16,8 +16,8 @@
   the SAME moment; nothing derived can drift. A ticker change releases the
   hold: an old book must never wear a new name.
 
-  THE BUTTON. The tape's exact control — LIVE breathes lime (the house's one
-  "this is live" signal), PAUSED holds amber — plus one honesty rule: a held
+  THE BUTTON. The tape's exact control — LIVE breathes silver (the house's one
+  "this is live" signal; the lime until 2026-10-02), PAUSED holds amber — plus one honesty rule: a held
   page says "as of HH:MM" beside the button, so a frozen table can never
   pass for a live one.
 */
@@ -67,7 +67,7 @@ export const LiveHold = ({ paused, onToggle, heldAt }: { paused: boolean; onTogg
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
         paused
           ? 'border-warn/40 bg-warn/[0.06] text-warn hover:bg-warn/[0.1]'
-          : /* the live signal's own form per theme: a lime glow on the dark terminal, a lime highlighter on paper (tokens.css --live-*) */
+          : /* the live signal's own form per theme: a silver glow on the dark terminal, a silver highlighter on paper (tokens.css --live-*) */
             'tone-live hover:opacity-90 animate-live-breathe'
       }`}
     >

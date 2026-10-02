@@ -236,7 +236,7 @@ export const CANDLE_THEMES = {
      family — `light` flips the chart's frame inks and every strip floating
      over the tape to their dark cuts (Noah, same day: "everything looks
      invisible on this theme"). The overlays drawn on the tape itself (the
-     white dark-pool dashes, the lime level lines) still wait for their pass. */
+     white dark-pool dashes, the accent's level lines) still wait for their pass. */
   stone: {
     up: '#6887DE',
     down: '#000000',

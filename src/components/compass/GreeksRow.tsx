@@ -47,7 +47,7 @@ const GreeksRow = ({ greeks, fourth = 'vega', flash = false }: GreeksRowProps) =
       {fourth === 'vega' ? (
         // No arrow, no lime: vega is a magnitude, not a direction — the old
         // hardcoded bull-green ▲ beside a neon-lime number was two greens
-        // saying nothing (lime is the interface's voice, never data).
+        // saying nothing (the accent is the interface's voice, never data).
         <Row label="Vega" value={greeks.vega} format={v => v.toFixed(2)} flash={flash} />
       ) : (
         <Row label="IV" value={greeks.iv} format={v => `${v.toFixed(1)}%`} flash={flash} />

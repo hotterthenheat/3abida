@@ -98,17 +98,24 @@
   --bull: 48 209 88;
   --bear: 255 59 48;
   --warn: 255 149 0;
-  --select: 210 255 0;
-  /* THE NEON AS A SURFACE never changes — a highlighter is the same lime on
-     either ground; only the neon as an INK is cut per theme (--select) */
-  --select-fill: 210 255 0;
+  /* THE ACCENT IS THE SILVER (the owner, 2026-10-02: "remove all lime/green
+     accent color it should be holographic silver"). The neon lime that was the
+     interface's voice and the live ink until then is gone: what was lime — the
+     selected tool, today's day, the live control and badges, the market's dash
+     — wears the holo family's flat silver. --select is the silver as an INK,
+     cut per theme like --silver (the same channels); the direction pair, the
+     magenta and the rest keep their meanings. */
+  --select: 199 211 232;
+  /* THE ACCENT AS A SURFACE never changes — a silver highlighter is the same
+     on either ground; only the accent as an INK is cut per theme (--select) */
+  --select-fill: 199 211 232;
   /* THE LIVE SIGNAL, a component token with its own form per theme: on the
-     dark terminal a glow (lime words on a 10% lime wash), on paper a
-     highlighter (the neon as the fill, near-black words). Full colours, not
+     dark terminal a glow (silver words on a 10% silver wash), on paper a
+     highlighter (the silver as the fill, near-black words). Full colours, not
      channels — the alpha is part of the form. */
-  --live-bg: rgb(210 255 0 / 0.1);
-  --live-ink: rgb(210 255 0);
-  --live-edge: rgb(210 255 0 / 0.2);
+  --live-bg: rgb(199 211 232 / 0.1);
+  --live-ink: rgb(199 211 232);
+  --live-edge: rgb(199 211 232 / 0.28);
   /* THE SILVER AS A SURFACE never changes either — a filled silver pill with
      the dark word on it is the holo family's flat form on either ground
      (Noah, 2026-09-12: "the holographic silver was fine with this section");
@@ -164,8 +171,9 @@
 
   /* THE BRAND (Slayer Logo System, 2026-09-30 — src/brand/). The tile the mark and the thirteen product glyphs sit on,
      its corner brackets, the ">" and the wordmark's muted half, the wordmark's lit half and the cursor. The foil is the
-     S's silver, five stops a gradient pans across; on paper the same five stops are graphite. The state word
-     "simulated" is the silver ink (#C7D3E8 here, #3A4F7A on paper — the brand's own pair). */
+     S's silver, five stops a gradient pans across — in every state but offline, and the signature's live dot wears the
+     same foil; on paper the same five stops are graphite. The signature's live word is the silver ink (#C7D3E8 here,
+     #3A4F7A on paper — the brand's own pair). */
   --tile: 17 17 17;
   --tile-edge: 30 31 34;
   --bracket: 58 61 66;
@@ -176,15 +184,11 @@
   --foil-3: 228 216 244;
   --foil-4: 255 255 255;
   --foil-5: 200 216 236;
-  /* the S when the market is closed: still, graphite on the dark tile too */
-  --foil-rest: 92 97 108;
-  /* the cursor's glow — the one bright part on the dark tile; on paper it is flat */
-  --mark-glow: 0.45;
 }
 
 /* THE LIGHT TERMINAL — a warm paper ground, the inks cut deep enough to read at
    the 9–11px the labels live at (AA on the ground), the direction pair and the
-   lime in their deep cuts, magenta held. First cut. */
+   silver in their deep cuts, magenta held. First cut. */
 [data-theme='light'] {
   color-scheme: light;
 
@@ -275,14 +279,14 @@
   --wall-glow: radial-gradient(circle, rgb(58 79 122 / 0.5) 0%, rgb(58 79 122 / 0.16) 40%, rgb(58 79 122 / 0) 70%);
   --wall-light: 58 79 122;
   --wall-filament: 58 79 122;
-  /* The neon as an ink on paper: a deep lime that still reads as lime, not the
-     olive of the first cut (Noah: "what should we change the neon accents for?")
-     — as a surface the neon itself stays (--select-fill, --live-bg) */
-  --select: 77 124 15; /* 5.0:1 on white (was 3.1) */
-  --select-fill: 210 255 0;
-  --live-bg: rgb(210 255 0);
+  /* The accent as an ink on paper: the deep silver (--silver's steel, 8.1:1 on
+     white) — the pale silver vanishes on paper; as a surface the pale silver
+     stays (--select-fill, --live-bg): a silver highlighter with the dark word */
+  --select: 58 79 122;
+  --select-fill: 199 211 232;
+  --live-bg: rgb(199 211 232);
   --live-ink: rgb(10 10 10);
-  --live-edge: rgb(170 214 0);
+  --live-edge: rgb(150 166 196);
   --flip: 75 85 99; /* 7.6:1 (was 4.8) — the flip's price is read at 10px */
   --moon: 91 74 168;
   --supreme: 163 0 179;
@@ -299,8 +303,8 @@
   --silver-fill: 199 211 232;
 
   /* THE BRAND ON PAPER: the tile #FBFAF7 with its #CDCBC5 edge, the brackets #8C8A84, the ">" #6B6E75, the wordmark's lit
-     half and the cursor the page's black (flat — the glow is the dark tile's), and the foil as GRAPHITE: slate with a
-     violet breath and a dark sheen where the silver had its white */
+     half and the cursor the page's black, and the foil as GRAPHITE: slate with a violet breath and a dark sheen where the
+     silver had its white */
   --tile: 251 250 247;
   --tile-edge: 205 203 197;
   --bracket: 140 138 132;
@@ -311,8 +315,6 @@
   --foil-3: 96 88 112;
   --foil-4: 40 48 56;
   --foil-5: 82 92 116;
-  --foil-rest: 120 124 134;
-  --mark-glow: 0;
 }
 
 /* A SCOPE CARRIES ITS OWN BASE INK: an island's text without an ink class of

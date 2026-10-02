@@ -170,7 +170,7 @@ spanB = donchian(spanLen)
 
 plot(conv, "Conversion", color = #7DE3FF)
 plot(base, "Base", color = #FF9500)
-plot(close, "Lagging span", color = color.new(#D2FF00, 30), offset = -disp + 1)
+plot(close, "Lagging span", color = color.new(#C7D3E8, 30), offset = -disp + 1)
 a = plot(spanA, "Leading span A", color = color.new(#30D158, 55), offset = disp - 1)
 b = plot(spanB, "Leading span B", color = color.new(#FF3B30, 55), offset = disp - 1)
 fill(a, b, color = spanA > spanB ? color.new(#30D158, 88) : color.new(#FF3B30, 88), title = "Cloud")
@@ -182,7 +182,7 @@ alertcondition(ta.crossunder(conv, base), "Conversion crossed down", "{{ticker}}
   check('Ichimoku meta: four inputs by their variable names', c.meta.inputs.map(i => i.id).join(',') === 'convLen,baseLen,spanLen,disp', c.meta.inputs.map(i => i.id).join(','));
   check('Ichimoku meta: input titles, defaults, minval', c.meta.inputs[0].title === 'Conversion' && c.meta.inputs[0].default === 9 && c.meta.inputs[0].min === 1 && c.meta.inputs[0].kind === 'int');
   check('Ichimoku meta: five plots, one fill, two alerts', c.meta.plots.length === 5 && c.meta.fills === 1 && c.meta.alerts.length === 2);
-  check('Ichimoku meta: plot inks and titles', c.meta.plots[0].ink === '#7de3ff' && c.meta.plots[2].ink === 'rgba(210, 255, 0, 0.7)' && c.meta.plots[3].title === 'Leading span A', JSON.stringify(c.meta.plots.map(p => [p.title, p.ink])));
+  check('Ichimoku meta: plot inks and titles', c.meta.plots[0].ink === '#7de3ff' && c.meta.plots[2].ink === 'rgba(199, 211, 232, 0.7)' && c.meta.plots[3].title === 'Leading span A', JSON.stringify(c.meta.plots.map(p => [p.title, p.ink])));
   check('Ichimoku meta: alerts', c.meta.alerts[0].title === 'Conversion crossed up' && c.meta.alerts[1].message.includes('kijun'));
 
   const r = run(c, bars);

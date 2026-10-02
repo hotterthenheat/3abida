@@ -273,7 +273,7 @@ const FlowSearch = ({
       <div
         /* Active = the holographic silver, not lime (Noah, 2026-08-30: "remove
            anything neon in this search thing to holographic silver") — the
-           foil is the house's "where you are" ink; lime stays for live/status. */
+           foil is the house's "where you are" ink — and since 2026-10-02 its only accent. */
         /* ON A PHONE THE BOX IS ITS CELL'S WIDTH (2026-10-01): in the two-column cards line a 151px cell held a 188px box,
            and its × stood past the card's edge, where no tap could reach it — the field takes what is left instead */
         className={`inline-flex max-sm:flex max-sm:w-full items-center gap-1.5 rounded-md transition-colors ${compact ? 'pl-2 pr-1.5 py-[3px]' : 'pl-2.5 pr-2 py-1.5'} ${

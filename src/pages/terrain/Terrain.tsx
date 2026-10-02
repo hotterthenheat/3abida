@@ -332,7 +332,7 @@ const TF_VALUES = new Set<string>(TIMEFRAMES.map(t => t.value));
 const COMPARE_MODES = new Set<CompareMode>(['percent', 'scale', 'pane']);
 /* The desk's comparison inks (LiveChartWidget's set, verbatim): none of them
    collide with the field's gold/steel, the levels' magenta/green/red/blue, or
-   the interface's lime. Four, so a pane can cross four symbols at most. */
+   the interface's silver. Four, so a pane can cross four symbols at most. */
 const COMPARE_INKS = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'];
 const STYLES = new Set<ChartStyle>(['candles', 'hollow', 'bars', 'line', 'step', 'area', 'baseline']);
 /* Derived from the picker's own list rather than typed a second time — a
@@ -1127,8 +1127,11 @@ const Pane = ({
      the store's theme is not this pane's, which is what painted a dark pane's strip light
      grey the first time), and index.css re-scopes the tokens on every strip and chip inside
      to that ground: Stone's chrome is stone with dark ink, a dark tape's is black with light
-     ink, the drawing rail stays black on either. The box itself keeps the panel black — it
-     is the frame, and the ladder beside the tape sits on it. */
+     ink, the drawing rail stays black on either. THE FRAME FOLLOWS TOO (the owner, 2026-10-02,
+     with the light Terrain: "the terrain still has one black one white fix that" — every pane
+     was a white tape beside a black ladder): the box carries data-chart-frame, so on a light
+     ground its panel, its edge, the corner chip and the ladder beside the tape (ProfilePanel's
+     `ground`) wear the chart's light set; a dark ground keeps the dark island exactly as it was. */
   const ground = chartGround(theme);
   const surface = 'rgb(var(--panel))';
   /* The strip's 55% wash of the chrome's panel — the strip carries data-chart-chrome, so the
@@ -1399,6 +1402,8 @@ const Pane = ({
         data-theme="dark"
         /* …and its chrome the ground of this pane's own theme (2026-09-13) */
         data-chart-ground={ground}
+        /* …and so does the frame itself, the ladder in it with it (2026-10-02, index.css) */
+        data-chart-frame
       >
         {!expanded && isActive && paneCount > 1 && (
           <span aria-hidden className="holo-ring absolute inset-0 rounded-md z-30" />
@@ -1915,15 +1920,21 @@ const Pane = ({
               }}
               closeHint="Hide this rail — R"
               onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
+              /* the ladder is drawn on the ground of the tape beside it */
+              ground={ground}
               className="hidden lg:block"
             />
           )}
         </div>
-        {/* THE GUIDE IN FOCUS — over the whole pane, the pane blurred behind it */}
+        {/* THE GUIDE IN FOCUS — over the whole pane, the pane blurred behind it. Its card keeps the dark island on
+            either ground: ProfileGuide's figures are drawn for black (a `contents` box — the layer still fills the pane, and
+            takes its corners) */}
         {ladder && (
-          <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read this panel" testId="profile-guide">
-            <ProfileGuide rows={rail.rows} levels={levels} flow={flow} />
-          </GuideFocus>
+          <div className="contents rounded-[inherit]" data-theme="dark">
+            <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read this panel" testId="profile-guide">
+              <ProfileGuide rows={rail.rows} levels={levels} flow={flow} />
+            </GuideFocus>
+          </div>
         )}
       </div>
     </div>

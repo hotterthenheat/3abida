@@ -35,7 +35,7 @@ export type NavGroup = 'Home' | 'Market' | 'The book' | 'Trade' | 'Practice' | '
 /* EACH DESK'S OWN INK (the lock walk, Noah, 2026-09-09: "i think these icons
    can benefit from color"): a muted categorical hue per item, the News page's
    and the sector dots' kind — identity, not meaning — so none of them is the
-   lime that means live, the silver that means where you are, the magenta of
+   silver that means live and where you are, the magenta of
    the supreme or the red and green of direction. Neighbours in a group sit
    apart on the wheel. */
 export const NAV_INK = {

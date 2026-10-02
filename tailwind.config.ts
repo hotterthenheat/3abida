@@ -49,22 +49,25 @@ export default {
 
         // Directional / status accents (always paired with a label or icon).
         // THE SPLIT (2026-07-20): green = the MARKET talking (bullish, calls,
-        // beats, up-moves). Neon lime = the TERMINAL talking about itself
-        // (selection, navigation, brand, extreme importance). One color, one
-        // meaning — and lime stays scarce, which is what makes it loud.
+        // beats, up-moves). The accent = the TERMINAL talking about itself
+        // (selection, navigation, brand, what is live). One color, one
+        // meaning. The accent was a neon lime until 2026-10-02 (the owner:
+        // "remove all lime/green accent color it should be holographic
+        // silver"); it is the holo family's flat silver now, so no green on
+        // the desk is ever the terminal's own voice.
         // Green went mint #CFFFB1 → #30D158 on 2026-07-24: a true green reads
-        // as green, and it no longer shares a hue family with the neon lime,
-        // so the split is easier to see. The live chart keeps the old mint on
-        // purpose — see CHART_MINT in components/gex/palette.ts.
+        // as green. The live chart keeps the old mint on purpose — see
+        // CHART_MINT in components/gex/palette.ts.
         bull: token('bull'),
         bear: token('bear'),
         // True orange — caution reads clearly apart from green and hot red
         warn: token('warn'),
-        // Interface accent — neon lime, ~17:1 on canvas. Interface only, never data.
+        // Interface accent — the silver (the same channels as `silver`), ~13:1
+        // on canvas, the deep steel on paper. Interface only, never data.
         select: token('select'),
-        // THE ACCENTS AS SURFACES (2026-09-12): a neon or a silver FILL with the
-        // dark word on it is the same on either ground (a highlighter, the holo
-        // flat form); only the accent as an INK is cut per theme (select, silver).
+        // THE ACCENTS AS SURFACES (2026-09-12): a silver FILL with the dark word
+        // on it is the same on either ground (a highlighter, the holo flat
+        // form); only the accent as an INK is cut per theme (select, silver).
         selectFill: token('select-fill'),
         silverFill: token('silver-fill'),
 
@@ -86,7 +89,9 @@ export default {
         primary: token('text-primary'),
         secondary: token('text-secondary'),
         silver: token('silver'),
-        gammaPos: token('select'),
+        // positive gamma is the call side's green (paletteInk LONG_GAMMA) — it
+        // borrowed the lime accent until 2026-10-02, and the accent is not data
+        gammaPos: token('bull'),
         gammaNeg: token('bear'),
         warning: token('warn'),
       },

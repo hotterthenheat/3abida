@@ -29,7 +29,7 @@
       square-root scale so the quiet bulk still
       shows;
     · the picked window on a silver column (where
-      you are), the live window breathing lime under
+      you are), the live window breathing silver under
       a "now" hairline (status), held = amber;
     · a readout pinned top-right that reads the
       picked window, or the hovered one.

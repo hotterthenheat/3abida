@@ -19,7 +19,7 @@
                   it up. Bottom strip: owns the axis.
 
   Both accept a printMin: the minute of the print the
-  drilldown was opened from, drawn as one lime line
+  drilldown was opened from, drawn as one white line
   through BOTH strips — the terminal pointing at the
   moment you clicked. Window controls (range, bars,
   single-leg) live in the drilldown's shared toolbar,
@@ -742,7 +742,7 @@ export const NetPanel = ({
       <div className="h-[210px] -ml-2">
         <ResponsiveContainer width="100%" height="100%">
           {metric === 'strikes' ? (
-            // Strike axis, not the clock — no sync, and the lime line marks the
+            // Strike axis, not the clock — no sync, and the white line marks the
             // CONTRACT's strike instead of the print's minute.
             <ComposedChart data={cf.strikes} margin={{ top: 6, right: RIGHT_PAD + Y_RIGHT_W, bottom: 0, left: 0 }}>
               <CartesianGrid stroke={GRID} vertical={false} />

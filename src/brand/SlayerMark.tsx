@@ -4,7 +4,13 @@
 
   ">S|" on its tile — "One SVG component for the side rail, the loading screen and the landing" (Slayer Logo System,
   2026-09-30). The S is outlined from the spec; holographic silver pans across it, 4.5 s each way; the cursor is the
-  one bright part. On paper the S is graphite and the cursor flat.
+  one bright part. On paper the S is graphite and the cursor the page's black.
+
+  THE MARK STANDS STILL BUT FOR TWO THINGS (the owner, 2026-10-02: "the logo stays still outside of the holographic
+  silver that moves the | is the one that blinks"): the foil pans across the S in every state but offline, and the
+  cursor blinks in every state but offline (hidden) and alert (the warning ink flashes in its place). No glow round the
+  cursor, no lime, no still graphite S. And "it should be in sync": every mark and wordmark cursor on a page blinks and
+  pans on one beat, whenever it mounted (brand/brandClock.ts pins each loop to the page's clock).
 
   WHY IT IS THREE LAYERS AND NOT ONE SVG: the S never stops moving, and an SVG part that animates is repainted every
   frame (the speed rules, .claude/CLAUDE.md). So the tile, its brackets and the ">" are a still SVG; the S is a box
@@ -22,9 +28,10 @@
 ==================================================
 */
 
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { MARK } from './paths';
 import { useMarkState, type MarkState } from './markState';
+import { alignBrandLoops } from './brandClock';
 
 interface SlayerMarkProps {
   /** the box's side, px */
@@ -117,6 +124,10 @@ const MarkFace = ({ size, state, bare = false, near = false, className = '', lab
     if (!near || !ref.current) return;
     return watchNear(ref.current);
   }, [near]);
+  /* on the page's beat from the first frame, and again whenever the state changes the loops (brand/brandClock.ts) */
+  useLayoutEffect(() => {
+    alignBrandLoops(ref.current);
+  }, [state]);
 
   const b = boxFor(size, bare);
   const full = !bare && size >= 64;

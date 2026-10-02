@@ -3,7 +3,7 @@ import type { NewsCategory } from '../../data/news';
 /*
   Category identity colors — a CATEGORICAL palette (same idea as the Dark Pool
   sector dots), deliberately muted so it never impersonates the semantic set:
-  nothing here is mint (bullish), hot red (bearish), neon lime (interface) or
+  nothing here is mint (bullish), hot red (bearish), the silver (interface) or
   the supreme magenta (engine standout). The hue names the beat; the ± exp number beside it
   still carries the direction. Shared by the News page and the desk widget.
 */

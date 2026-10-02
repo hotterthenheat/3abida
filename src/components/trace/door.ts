@@ -8,7 +8,7 @@
   prose door inside a read, the Multi-Leg strike doors, the head's
   champions — answers the pointer the same way: the name takes holographic
   silver, the ink that means "where you are" everywhere else (the search's
-  active state, the focus ring). Lime is live; silver is here. One
+  active state, the focus ring). Silver is here (and, since 2026-10-02, live too). One
   affordance, learned once. THE LINE UNDER IT IS GONE (2026-09-16): it stood
   under every contract at rest and read as chrome on every row; the silver
   hover alone is the door.

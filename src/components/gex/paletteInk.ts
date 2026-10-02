@@ -20,13 +20,14 @@
 import { readToken } from '../../theme/theme';
 
 export const BULL = 'rgb(var(--bull))';
-export const LIME = 'rgb(var(--select))';
+/* the house accent — the silver since 2026-10-02 (it was the neon lime) */
+export const ACCENT = 'rgb(var(--select))';
 export const CALL_WALL = BULL;
 export const PUT_WALL = 'rgb(var(--bear))';
 export const FLIP = 'rgb(var(--flip))';
 export const SUPREME = 'rgb(var(--supreme))';
 export const SPOT = 'rgb(var(--text-primary))';
-export const FOCUS = LIME;
+export const FOCUS = ACCENT;
 export const SHORT_GAMMA = 'rgb(var(--bear))';
 export const LONG_GAMMA = BULL;
 export const ALERT = 'rgb(var(--warn))';

@@ -10,9 +10,12 @@
   marker moves by the cent; the chart above reads
   at that price. The marker's pill prints the
   price. THE MARKET'S OWN PRICE IS ONE OF THE
-  DASHES, in the live lime (Noah, 2026-09-14: "the
+  DASHES, in the live ink (Noah, 2026-09-14: "the
   way robinhood does it is the current price is
-  one of the small dashes — make ours neon lime");
+  one of the small dashes — make ours neon lime";
+  the owner, 2026-10-02: no lime anywhere — the
+  silver), a heavier dash with a dot on its head so
+  it is never taken for one of the silver levels;
   only once it has slid OUT OF VIEW does a capsule
   stand at the ruler's edge with a chevron pointing
   the way back — a click GLIDES the ruler home and
@@ -37,11 +40,11 @@ const H = 46;
 const FIG = FONT_SANS;
 const SILVER = 'rgb(var(--silver))';
 const INK = 'rgb(var(--text-primary))';
-/** The live lime — the market's own dash (the neon as a surface: the same on either ground) */
 /* THE RULER ON PAPER (the light sweep, 2026-09-19 — Noah's picture of the Weigher): its line and ticks were typed white and
    the marker's price a typed near-black ON the text ink, so on the light page the ruler had no line and the marker was a
    black box with nothing in it. Every ink is a token now: the line and ticks are THE INK (white on the terminal, black on
-   paper), the marker's price is the page's ground, the market's dash is the live ink cut for its page. */
+   paper), the marker's price is the page's ground, the market's dash is the live ink cut for its page — the silver accent
+   (the lime until 2026-10-02). */
 const LIVE = 'rgb(var(--select))';
 /* the dollars' names: the dark terminal keeps the very grey it had (a light-theme fix never moves the dark theme) */
 const MUTED = 'rgb(var(--ruler-word, 124 130 144))';
@@ -144,7 +147,7 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
   }
   const shown = marks.filter(m => m.price > lo + 0.05 && m.price < hi - 0.05);
 
-  /* THE MARKET: a lime dash while it is in view; once it has slid out, the capsule at that edge */
+  /* THE MARKET: the live dash while it is in view; once it has slid out, the capsule at that edge */
   const spotX = x(spot);
   const spotIn = spotX >= 0 && spotX <= W;
   const chevron: 'left' | 'right' = spotX < 0 ? 'left' : 'right';
@@ -197,8 +200,14 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
             )}
           </g>
         ))}
-        {/* the market's price — one of the dashes, in the live lime */}
-        {spotIn && <line x1={spotX} x2={spotX} y1={16} y2={32} stroke={LIVE} strokeWidth={1.75} strokeLinecap="round" data-ruler-now />}
+        {/* the market's price — one of the dashes, in the live ink: heavier than a level's tick, with a dot on its head (the
+            signature's live dot), so the silver dash is never read as one of the silver levels */}
+        {spotIn && (
+          <g data-ruler-now>
+            <line x1={spotX} x2={spotX} y1={18} y2={32} stroke={LIVE} strokeWidth={2} strokeLinecap="round" />
+            <circle cx={spotX} cy={15} r={2.25} fill={LIVE} />
+          </g>
+        )}
         {/* the marker: a hairline down the middle and the pill with the price under it */}
         <line x1={W / 2} x2={W / 2} y1={12} y2={38} stroke={INK} strokeWidth={1.25} />
         <rect x={W / 2 - PILL_W / 2} y={0} width={PILL_W} height={13} rx={3} fill={INK} />

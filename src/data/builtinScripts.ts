@@ -196,7 +196,7 @@ spanB = donchian(spanLen)
 
 plot(conv, "Conversion", color = #7DE3FF)
 plot(base, "Base", color = #FF9500)
-plot(close, "Lagging span", color = color.new(#D2FF00, 30), offset = -disp + 1)
+plot(close, "Lagging span", color = color.new(#C7D3E8, 30), offset = -disp + 1)
 a = plot(spanA, "Leading span A", color = color.new(#30D158, 55), offset = disp - 1)
 b = plot(spanB, "Leading span B", color = color.new(#FF3B30, 55), offset = disp - 1)
 fill(a, b, color = spanA > spanB ? color.new(#30D158, 88) : color.new(#FF3B30, 88), title = "Cloud")

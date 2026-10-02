@@ -8,7 +8,7 @@ import { FONT_SANS } from '../../theme/fonts';
   (Noah, 2026-09-06: "the traders clock and levels
   held need one too"). Two figures in the clock's
   own hand — the 78 blocks, the phase names, the
-  lime NOW, a phase in focus with its card — and
+  ringed silver NOW, a phase in focus with its card — and
   today's clock in plain words.
 ==================================================
 */
@@ -74,9 +74,9 @@ const Names = ({ y, dim }: { y: number; dim?: string }) => (
   </>
 );
 
-/** FIGURE 1 — the strip: 78 blocks, brighter where hedging pushes harder, NOW in lime */
+/** FIGURE 1 — the strip: 78 blocks, brighter where hedging pushes harder, NOW solid and ringed */
 const StripFigure = ({ nowBlock }: { nowBlock: number | null }) => (
-  <svg viewBox="0 0 368 150" width="100%" role="img" aria-label="The trading day as 78 five-minute blocks with the phase names above; the current block is lime" data-guide-figure="strip">
+  <svg viewBox="0 0 368 150" width="100%" role="img" aria-label="The trading day as 78 five-minute blocks with the phase names above; the current block is solid silver with a ring round it" data-guide-figure="strip">
     <Names y={16} />
     {Array.from({ length: BLOCKS }, (_, i) => {
       const p = phaseOf(i);
@@ -103,7 +103,8 @@ const StripFigure = ({ nowBlock }: { nowBlock: number | null }) => (
     <rect x={X0} y={90} width={10} height={10} rx={1.5} fill={SILVER} fillOpacity={0.19} />
     <Label x={X0 + 16} y={95}>a dim block is a quiet stretch, when price tends to sit still</Label>
     <rect x={X0} y={108} width={10} height={10} rx={1.5} fill={LIVE} />
-    <Label x={X0 + 16} y={113}>the lime block is right now</Label>
+    <rect x={X0 - 1} y={107} width={12} height={12} rx={2} fill="none" stroke={LIVE} strokeWidth="1" />
+    <Label x={X0 + 16} y={113}>the ringed block is right now</Label>
     <Label x={X0} y={136} fill={INK_3}>each block is five minutes · the names above are the day's phases, a rule of thumb</Label>
   </svg>
 );
@@ -161,7 +162,7 @@ const ClockGuide = ({ nowBlock, line, bellShare, pin, supreme, charmStrike }: Cl
     <div>
       <p className="text-[12px] font-semibold text-textPrimary">The strip · the trading day, five minutes at a time</p>
       <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
-        The strip runs from 9:30 to 4:00 New York time, one block per five minutes. Brighter blocks are the parts of the day when dealer hedging pushes hardest on price: the open, the last ninety minutes, the close. Dim blocks are the quiet middle, when price tends to sit still. The lime block is right now. The names above are the day's phases, a rule of thumb; the numbers in them are today's.
+        The strip runs from 9:30 to 4:00 New York time, one block per five minutes. Brighter blocks are the parts of the day when dealer hedging pushes hardest on price: the open, the last ninety minutes, the close. Dim blocks are the quiet middle, when price tends to sit still. The ringed block is right now. The names above are the day's phases, a rule of thumb; the numbers in them are today's.
       </p>
       <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
         <StripFigure nowBlock={nowBlock} />

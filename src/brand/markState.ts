@@ -5,16 +5,19 @@
   "Six states. The system, never the market." (Slayer Logo System, 02 · Living mark.) The mark in the rail, the
   loading screen, the landing and the browser tab all read this one value, so they never disagree:
 
-    idle      the still frame — the static icons, and a mark the clock does not drive
-    loading   a load has run past 450 ms — the pan speeds up, the cursor holds
-    live      the market is open (the owner, 2026-10-01) — the slow pan and the brighter edge
-    closed    the market is shut (before the open, after the close, weekends, holidays) — the S stands still in graphite
+    idle      a mark the clock does not drive (and the static icons' frame) — the pan at 4.5 s, the cursor blinks
+    loading   a load has run past 450 ms — the pan speeds up to 1.5 s, the cursor blinks
+    live      the market is open (the owner, 2026-10-01) — the slow pan, the cursor blinks
+    closed    the market is shut (before the open, after the close, weekends, holidays) — a slower pan still, the cursor
+              blinks: never a still graphite S (the owner, 2026-10-02)
     alert     an alert fired — the cursor flashes the warning ink twice, then the mark goes back
     offline   the connection is gone — the S stands still and the cursor hides until it comes back
 
-  Precedence when two hold at once: offline, alert, loading, then the market's own (live or closed). No red or green on
-  the mark, ever — the mark reports the terminal, not the price. Open and shut are the signature's word for it too
-  (data/marketState.ts), so the mark and "slayer:~ $ ● live" never disagree.
+  The mark itself never moves but for the foil's pan and the cursor's blink (the owner, 2026-10-02), and every mark on
+  the page does both on one beat (brand/brandClock.ts). Precedence when two hold at once: offline, alert, loading, then
+  the market's own (live or closed). No red, green or lime on the mark, ever — the mark reports the terminal, not the
+  price. Open and shut are the signature's word for it too (data/marketState.ts), so the mark and "slayer:~ $ ● live"
+  never disagree.
 ==================================================
 */
 

@@ -66,7 +66,7 @@ import { alpha } from '../gex/paletteInk';
 import { EMBEDDED } from '../../embed';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
-import Signature, { SIGNATURE_DOT } from '../../brand/Signature';
+import Signature, { SignatureDot } from '../../brand/Signature';
 import { readMarketState } from '../../data/marketState';
 import ProductGlyph from '../../brand/ProductGlyph';
 
@@ -270,8 +270,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     </button>
   );
 
-  /* THE UTILITY ROW — every alert, with the count: fired-and-unseen in lime
-     (live), else how many are set. It used to be a link to the Targets page
+  /* THE UTILITY ROW — every alert, with the count: fired-and-unseen in the red
+     badge, else how many are set. It used to be a link to the Targets page
      ("where the bell lives"); now it opens THE DRAWER at the right, over
      whatever page the reader is on (Noah, 2026-09-10: "why is the alerts
      page just the targets page?"). Silver while the drawer is open. */
@@ -544,7 +544,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           data-sidenav-signature
         >
           {collapsed ? (
-            <span className="block w-2 h-2 rounded-full" style={{ background: SIGNATURE_DOT[marketWord] }} aria-label={`slayer:~ $ ${marketWord}`} />
+            <SignatureDot state={marketWord} className="w-2 h-2" label={`slayer:~ $ ${marketWord}`} />
           ) : (
             <>
               <Signature state={marketWord} rule={false} className="text-[10.5px]" />

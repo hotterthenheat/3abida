@@ -320,7 +320,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
     }
   }, [print, opts, atMinute]);
 
-  // The lime moment-marker through both chart strips. Multi-session windows
+  // The white moment-marker through both chart strips. Multi-session windows
   // end on the live session, so the print sits in the LAST session; browsing
   // a past session means the window no longer contains it — no marker.
   const printMin = useMemo(() => {
@@ -616,7 +616,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
           {tapeRows && <SequenceStrip print={print} siblings={siblings} onOpenPrint={onOpenPrint} />}
 
           {/* THE TAPE — the shape that is ours, not theirs: both instruments
-              stacked full-width on ONE clock, crosshairs synced, and a lime
+              stacked full-width on ONE clock, crosshairs synced, and a white
               line through both at the exact minute of the print you clicked.
               The question this answers that two side-by-side dashboards
               can't: where does THIS print sit in the day? */}

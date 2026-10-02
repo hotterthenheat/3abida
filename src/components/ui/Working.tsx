@@ -31,7 +31,7 @@
   as the infinity where the reader asked for less
   motion, and it takes its colour from the text around
   it. COLOUR: leave it the quiet ink. It is not live
-  (lime), not where-you-are (silver), not the supreme
+  or where-you-are (the silver accent), not the supreme
   (magenta) and not a direction.
 
   WHAT IS HERE:

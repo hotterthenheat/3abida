@@ -27,8 +27,8 @@ import { FONT_SANS } from '../../theme/fonts';
   still FORMING reads differently from one that has settled.
 
   ONE INK, FOUR DASH PATTERNS. The dealer palette is spoken for — gold is
-  put-dominant, steel call-dominant, magenta the supreme, gray the flip, lime the
-  user's own marks, white spot — and red and green are price direction. A
+  put-dominant, steel call-dominant, magenta the supreme, gray the flip, the
+  silver accent the user's own marks, white spot — and red and green are price direction. A
   session level is none of those, so it takes none of those colours. The dash
   says which level it is; the pairs share a pattern because a high and its low
   are one fact with two edges.

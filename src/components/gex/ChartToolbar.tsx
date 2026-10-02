@@ -679,7 +679,7 @@ const ChartToolbar = ({
               onClick={onToggleReplay}
               title={replay ? 'Exit replay — P' : 'Replay session history — P'}
               className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                /* Armed = the holo silver, never the live lime (Noah, 2026-09-08) */
+                /* Armed = the holo silver (Noah, 2026-09-08) */
                 replay ? 'bg-silver/[0.12] text-silver' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
               }`}
             >

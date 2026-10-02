@@ -47,7 +47,7 @@ import type { WorkspaceCtx } from './registry';
 
 /* Compare-line inks, blue leading like TradingView's; four slots. None of
    these collide with the field (gold/steel), the levels (magenta/green/red/
-   baby-blue), or the voices (lime/mint). */
+   baby-blue), or the voices (the silver accent/mint). */
 const COMPARE_INKS = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'];
 
 export interface LiveChartWidgetProps {
@@ -386,7 +386,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
         {/* The FOCUS line's chip — a strike sent here from Ranked Targets /
             Exposure Profile. Says what the dashed line on the tape IS, and
             is the only way to take it down by hand (it also clears when the
-            desk changes name). Lime = the selection voice: what you clicked. */}
+            desk changes name). The silver accent = the selection voice: what you clicked. */}
         {ctx.focusPrice != null && (
           <span
             className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded border font-mono text-[9px] uppercase tracking-widest animate-soft-in"

@@ -118,7 +118,7 @@ const InputsForm = ({ inputs, chart, paneId, script }: { inputs: ScriptInput[]; 
         <label key={i.id} className="flex items-center gap-2 min-w-0" title={i.tooltip}>
           <span className="w-[120px] shrink-0 truncate text-[10px] text-textSecondary">{i.title}</span>
           {i.kind === 'bool' ? (
-            <input type="checkbox" checked={!!val(i)} onChange={e => set(i.id, e.target.checked)} className="accent-[#D2FF00]" />
+            <input type="checkbox" checked={!!val(i)} onChange={e => set(i.id, e.target.checked)} className="accent-silver" />
           ) : i.kind === 'color' ? (
             <input type="color" value={String(val(i)).slice(0, 7)} onChange={e => set(i.id, e.target.value)} className="h-7 w-10 bg-transparent border border-borderSubtle rounded-md" />
           ) : i.kind === 'source' ? (

@@ -8,12 +8,14 @@
 
   The letters are outlines (brand/wordmarkPaths.ts), not a font: nothing is downloaded and every machine draws the same
   wordmark. `typing` types it in at 28 ms a character and lands the cursor — the boot and the logo intro; reduced
-  motion shows the last frame.
+  motion shows the last frame. The cursor blinks on the mark's beat: the same keyframes, pinned to the same clock
+  (brand/brandClock.ts), so a wordmark beside a mark never blinks out of step with it.
 ==================================================
 */
 
-import type { CSSProperties } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { WORDMARK } from './wordmarkPaths';
+import { alignBrandLoops } from './brandClock';
 
 interface WordmarkProps {
   /** the letters' box height, px (ascender to descender) */
@@ -37,6 +39,10 @@ const Wordmark = ({ height, prompt = false, cursor = false, solid, typing = fals
   const muted = solid ? (solid === 'black' ? '#000' : '#fff') : 'rgb(var(--chevron))';
   const lit = solid ? muted : 'rgb(var(--wordmark))';
   const name = label ?? 'Slayer Terminal';
+  const cursorRef = useRef<HTMLSpanElement | null>(null);
+  useLayoutEffect(() => {
+    alignBrandLoops(cursorRef.current);
+  }, [cursor, solid, typing]);
   return (
     <span
       className={`inline-flex flex-col items-start leading-none ${className}`}
@@ -67,6 +73,7 @@ const Wordmark = ({ height, prompt = false, cursor = false, solid, typing = fals
         {/* the cursor is a box beside the letters, not a part of their SVG: its blink is an opacity the compositor runs */}
         {cursor && (
           <span
+            ref={cursorRef}
             className="wordmark-cursor"
             style={{ left: WORDMARK.cursorX * scale, width: WORDMARK.cursorW * scale, background: lit, ...(solid ? { animation: 'none', opacity: 1 } : null) }}
             aria-hidden

@@ -36,16 +36,17 @@
   :focus-visible {
     /* Holographic silver, not lime (Noah, 2026-08-30: "remove the neon green
        highlight"): a focus ring says WHERE YOU ARE, and that is silver's
-       job — lime is reserved for what is live. */
+       job (since 2026-10-02 the lime is gone everywhere — the silver is the
+       house's one accent). */
     outline: 1px solid rgba(199, 211, 232, 0.55);
     outline-offset: 1px;
   }
 }
 
-/* Pulse desk grid (react-grid-layout) — house skin */
+/* Pulse desk grid (react-grid-layout) — house skin; the drop target is the silver, where the box will be */
 .react-grid-item.react-grid-placeholder {
-  background: rgba(210, 255, 0, 0.06) !important;
-  border: 1px dashed rgba(210, 255, 0, 0.35);
+  background: rgb(var(--silver) / 0.06) !important;
+  border: 1px dashed rgb(var(--silver) / 0.4);
   border-radius: 6px;
   opacity: 1 !important;
 }
@@ -275,8 +276,10 @@
 }
 
 /* ============================================================
-   Holographic silver — the engine-standout accent (replaces the
-   old magenta/supreme family; lime remains the interface accent).
+   Holographic silver — the house accent (replaced the old
+   magenta/supreme family, and since 2026-10-02 the neon lime too: the
+   owner, "remove all lime/green accent color it should be holographic
+   silver").
    One shared gradient (chrome → ice blue → pale violet → white)
    panned back and forth so every accented element carries the
    same living-foil sheen. First/last stops match the flat token
@@ -397,7 +400,7 @@
 
 /* THE RING, FIRMER (Noah, 2026-09-21, the Map's lead lane: "the border color for the active box… seems too muted"):
    one pixel of foil against black, beside the panes' own hairlines, could not separate from the dividers. The colour
-   stays silver — where-you-are is silver, and a hue would say something else (lime is live, magenta the supreme) —
+   stays silver — where-you-are is silver, and a hue would say something else (magenta is the supreme) —
    the WEIGHT changes: two pixels of the foil, and a soft silver halo on a SIBLING under it (the ring is a masked box,
    so a shadow of its own would be cut to the band). The Map's ladder wears both; Terrain's pane ring is untouched. */
 .holo-ring-firm {
@@ -423,7 +426,10 @@
 /* ═══ THE MARK (brand/SlayerMark.tsx — Slayer Logo System, 2026-09-30) ═══════════════════════════════════════════
    Three layers: the still SVG (tile, brackets, ">"), the S — a box cut to the S's outline with a strip of foil three
    times its width sliding inside it — and the cursor. Every loop here is a transform or an opacity, so the compositor
-   runs them and nothing is painted after the first frame (the speed rules). --sm-u is one tile unit in px. */
+   runs them and nothing is painted after the first frame (the speed rules). --sm-u is one tile unit in px.
+   THE MARK STAYS STILL BUT FOR TWO THINGS (the owner, 2026-10-02: "the logo stays still outside of the holographic
+   silver that moves the | is the one that blinks"): the foil pans across the S and the cursor blinks, in every state but
+   offline — and every mark on the page does both on one beat (brand/brandClock.ts pins each loop to the page's clock). */
 .slayer-mark {
   position: relative;
   display: inline-block;
@@ -447,7 +453,9 @@
   mask-repeat: no-repeat;
   transition: filter 200ms ease;
 }
-.slayer-mark .sm-foil {
+/* THE FOIL — the S's strip, and the signature's dot (brand/Signature.tsx) wears the same one in its round clip */
+.slayer-mark .sm-foil,
+.sig-foil {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -470,42 +478,32 @@
   from { transform: translateX(0); }
   to { transform: translateX(-66.6667%); }
 }
+/* THE CURSOR — the one bright part: the wordmark's lit ink, flat (no glow: a halo round it read as an accent), and it
+   blinks in every state but two — offline hides it, an alert flashes the warning ink in its place */
 .slayer-mark .sm-cursor {
   position: absolute;
   background: rgb(var(--wordmark));
-  box-shadow: 0 0 calc(var(--sm-u) * 3.5) rgb(255 255 255 / var(--mark-glow));
+  animation: sm-blink 1.06s steps(1, end) infinite;
 }
 .slayer-mark .sm-cursor-warn {
   background: rgb(var(--warn));
-  box-shadow: 0 0 calc(var(--sm-u) * 3.5) rgb(var(--warn) / 0.55);
   opacity: 0;
-}
-/* idle: the cursor blinks */
-.slayer-mark[data-state='idle'] .sm-cursor:not(.sm-cursor-warn) {
-  animation: sm-blink 1.06s steps(1, end) infinite;
+  animation: none;
 }
 @keyframes sm-blink {
   0% { opacity: 1; }
   50% { opacity: 0; }
 }
-/* loading: the pan speeds to 1.5 s, the cursor holds */
+/* idle: the pan at the Logo System's 4.5 s each way (above) */
+/* loading: the pan speeds to 1.5 s */
 .slayer-mark[data-state='loading'] .sm-foil { animation-duration: 1.5s; }
-/* live: a slow pan, the cursor solid and glowing */
+/* live: the slow pan */
 .slayer-mark[data-state='live'] .sm-foil { animation-duration: 9s; }
-.slayer-mark[data-state='live'] .sm-cursor:not(.sm-cursor-warn) {
-  box-shadow: 0 0 calc(var(--sm-u) * 6) rgb(255 255 255 / calc(var(--mark-glow) * 1.5));
-}
-/* closed: the S stands still in graphite, the cursor dims and loses its glow */
-.slayer-mark[data-state='closed'] .sm-foil {
-  animation: none;
-  background: rgb(var(--foil-rest));
-}
-.slayer-mark[data-state='closed'] .sm-cursor:not(.sm-cursor-warn) {
-  background: rgb(var(--foil-rest));
-  opacity: 0.55;
-  box-shadow: none;
-}
-/* alert: the S unchanged, the cursor flashes the warning ink twice */
+/* closed: the foil keeps moving, slower still — never a still graphite S (the owner, 2026-10-02, who reads the terminal
+   in the evening) */
+.slayer-mark[data-state='closed'] .sm-foil { animation-duration: 13.5s; }
+/* alert: the S unchanged, the cursor's place given to the warning ink, which flashes twice */
+.slayer-mark[data-state='alert'] .sm-cursor:not(.sm-cursor-warn) { animation: none; opacity: 0; }
 .slayer-mark[data-state='alert'] .sm-cursor-warn {
   animation: sm-flash 1.1s steps(1, end) 1 forwards;
 }
@@ -517,16 +515,15 @@
 }
 /* offline: the S stands still, the cursor hides until the connection comes back */
 .slayer-mark[data-state='offline'] .sm-foil { animation: none; }
-.slayer-mark[data-state='offline'] .sm-cursor { opacity: 0; }
+.slayer-mark[data-state='offline'] .sm-cursor { animation: none; opacity: 0; }
 /* the pointer within 80 px: the S brightens */
 .slayer-mark[data-near] .sm-s { filter: brightness(1.22); }
-/* a small mark's cursor is a few pixels: no halo to smear it */
-.slayer-mark[data-mark-size='bare'] .sm-cursor,
-.slayer-mark[data-mark-size='small'] .sm-cursor { box-shadow: none; }
 @media (prefers-reduced-motion: reduce) {
   .slayer-mark .sm-foil,
-  .slayer-mark .sm-cursor { animation: none !important; }
-  .slayer-mark[data-state='idle'] .sm-cursor:not(.sm-cursor-warn) { opacity: 1; }
+  .slayer-mark .sm-cursor,
+  .sig-foil { animation: none !important; }
+  /* the still frame of an alert: the warning ink in the cursor's place while it holds */
+  .slayer-mark[data-state='alert'] .sm-cursor-warn { opacity: 1; }
 }
 
 /* THE WORDMARK TYPING IN (brand/Wordmark.tsx `typing`): one character every 28 ms, the cursor last; a stepped clip, run
@@ -538,19 +535,28 @@
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
 }
+/* the wordmark's cursor blinks on the mark's beat (the same keyframes, pinned to the same clock — brand/brandClock.ts) */
 .wordmark-cursor {
   position: absolute;
   top: 0;
   height: 99.6%;
   animation: sm-blink 1.06s steps(1, end) infinite;
 }
+/* typing in, the cursor lands once the letters are down: hidden until then, then blinking on the page's beat — the
+   landing is a visibility step that runs once, so the blink itself starts with every other cursor's */
 .wordmark-typing ~ .wordmark-cursor {
-  opacity: 0;
-  animation: sm-blink 1.06s steps(1, end) calc(var(--wm-steps, 16) * 28ms) infinite;
+  animation:
+    sm-blink 1.06s steps(1, end) infinite,
+    wm-land calc(var(--wm-steps, 16) * 28ms) steps(1, end) both;
+}
+@keyframes wm-land {
+  from { visibility: hidden; }
+  to { visibility: visible; }
 }
 @media (prefers-reduced-motion: reduce) {
   .wordmark-typing,
-  .wordmark-cursor { animation: none; }
+  .wordmark-cursor,
+  .wordmark-typing ~ .wordmark-cursor { animation: none; }
 }
 
 /* "LAUNCH TERMINAL" (Slayer Logo System: "Holographic silver · in the S and on Launch terminal only"): the foil with the
@@ -864,11 +870,11 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
 }
 
 /* The Tracker's landing flash — a card arrived at from "Open in Tracker"
-   announces itself once with a soft select ring, then goes quiet. */
+   announces itself once with a soft silver ring, then goes quiet. */
 @keyframes focus-flash {
-  0% { box-shadow: 0 0 0 1px rgba(210, 255, 0, 0); }
-  20% { box-shadow: 0 0 0 1.5px rgba(210, 255, 0, 0.7); }
-  100% { box-shadow: 0 0 0 1px rgba(210, 255, 0, 0); }
+  0% { box-shadow: 0 0 0 1px rgb(var(--silver) / 0); }
+  20% { box-shadow: 0 0 0 1.5px rgb(var(--silver) / 0.7); }
+  100% { box-shadow: 0 0 0 1px rgb(var(--silver) / 0); }
 }
 .animate-focus-flash {
   animation: focus-flash 1.6s ease-out 0.25s both;
@@ -1065,7 +1071,7 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
   --bull: 48 209 88;
   --bear: 255 59 48;
   --warn: 255 149 0;
-  --select: 210 255 0;
+  --select: 199 211 232;
   --moon: 185 169 244;
   --supreme: 234 0 255;
   --flip: 156 163 175;
@@ -1075,9 +1081,15 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
    stamp and on the stamped box itself when it IS the chrome (the chart's own
    data-chart-ink box carries its own stamp). The rail is left out on purpose:
    it sets the dark set on itself above, and a property set on the element
-   beats one inherited from the box. */
-[data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink]),
-[data-chart-ground='light']:is([data-chart-chrome], [data-chart-ink]) {
+   beats one inherited from the box.
+   …and on a FRAME (data-chart-frame, 2026-10-02 — the owner, with the light Terrain: "the terrain still has one black
+   one white fix that"): a Terrain pane's own box, which holds the tape AND the strike ladder beside it, wears the light
+   set when its ground is light, so the panel, the edge, the corner chip and the ladder are light beside a light tape.
+   ONLY the light set: a frame on a dark ground stays the dark island it always was (it is not in the dark set above).
+   Its own word, not data-chart-chrome (the scripts' legend measures every chrome block) nor data-chart-ink (the
+   landing's films count the chart boxes by it). */
+[data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink], [data-chart-frame]),
+[data-chart-ground='light']:is([data-chart-chrome], [data-chart-ink], [data-chart-frame]) {
   color: rgb(var(--text-primary));
   --text-primary: 20 21 24;
   --text-secondary: 59 62 69;
@@ -1101,7 +1113,7 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
   --bull: 15 107 44;
   --bear: 168 36 27;
   --warn: 180 95 0;
-  --select: 79 107 0;
+  --select: 47 61 92;
   --moon: 91 74 168;
   --supreme: 163 0 179;
   --flip: 107 114 128;
@@ -1111,8 +1123,8 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
    tape's ground is a paler grey (candleTheme.ts bgOnLightPage, #DDDCD7), and its chrome steps up with it so a strip never
    sits darker than the tape under it. Keyed on the PAGE's theme — <html> — not on the box's own stamp (every chart box
    is a dark island by stamp); the inks are the set above, unchanged. */
-html[data-theme='light'] [data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink]),
-html[data-theme='light'] [data-chart-ground='light']:is([data-chart-chrome], [data-chart-ink]) {
+html[data-theme='light'] [data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink], [data-chart-frame]),
+html[data-theme='light'] [data-chart-ground='light']:is([data-chart-chrome], [data-chart-ink], [data-chart-frame]) {
   --canvas: 226 225 220;
   --panel: 232 231 226;
   --panel-hover: 224 223 218;
@@ -1127,7 +1139,8 @@ html[data-theme='light'] [data-chart-ground='light']:is([data-chart-chrome], [da
    the blur does the work) go firmer: Stone's candles are black, and a dark
    word needs a stone ground under it to read across one. */
 [data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink]) :is([class~='bg-canvas/25'], [class~='bg-canvas/40'], [class~='bg-canvas/70']),
-[data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink]):is([class~='bg-canvas/25'], [class~='bg-canvas/40'], [class~='bg-canvas/70']) {
+[data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink]):is([class~='bg-canvas/25'], [class~='bg-canvas/40'], [class~='bg-canvas/70']),
+[data-chart-ground='light']:is([data-chart-frame]) :is([class~='bg-canvas/25'], [class~='bg-canvas/40'], [class~='bg-canvas/70']) {
   background-color: rgb(var(--canvas) / 0.72);
 }
 /* The drawing rail over a light tape: its 60% black read as grey, so it goes solid */

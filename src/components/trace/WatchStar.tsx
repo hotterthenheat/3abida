@@ -3,7 +3,7 @@
   2026-09-03). It leads the row's first cell, it is its own control (a click
   on it must not also open the row's card), and it reads the watch store
   itself, so a table's memoised rows sit still when a bookmark flips — only
-  the stars redraw. Lime when on: the same ink the tape's star always wore.
+  the stars redraw. The accent when on — the silver since 2026-10-02 (it was the lime).
 */
 
 import { Bookmark } from 'lucide-react';

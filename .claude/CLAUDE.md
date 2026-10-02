@@ -23,18 +23,35 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   row opacity (it took the green and orange figures under 3:1 on paper). The paper direction and warn inks are pure hues
   at about 4.3:1 on purpose — do not deepen them. Low-contrast by design: the chart Reset whisper pill, disabled
   buttons, calendar days that are not expiries, the landing tour's waiting steps, Terrain's receding chrome, Trace's
-  breathing Live. The drawing rail stays black on either ground.
+  breathing Live. The drawing rail stays black on either ground. A Terrain pane is a dark island whose chart AND
+  ladder follow the pane's own ground (2026-10-02 — the owner: "both the charts are either dark or white not dark and
+  white"): on a light ground ProfilePanel (`ground`) reads its inks as tokens and uses the paper ramps, and
+  [data-chart-frame] joins the light chart-chrome rules; its How-to-read guide stays a dark card. The landing's films
+  stage Terrain's panes with no theme of their own, so both follow the film's ground.
 - Brand rules (2026-10-01, from the owner's Slayer Logo System / Web and App PDFs): the mark, the 13 product glyphs
   and the wordmark live in src/brand/ (outlines traced from the PDFs — never redraw them by hand). The mark has six
   states (idle, loading, live, closed, alert, offline) read from src/brand/markState.ts; "live" while the market is
   open and "closed" when it is shut, from the same reading as the signature (data/marketState.ts — the owner,
-  2026-10-01). No red or green on the mark. Its S pans by transform inside a CSS mask, so it never repaints (keep it
-  that way). Below 64 px: no ">" and no brackets. A product's page head wears its glyph (PageHeader, the Compass,
-  Weigher and Practice heads and their skeletons); a sub-page (Map, Live Tape, News) keeps its line icon. Holographic
-  silver only in the S and on "Launch terminal" (.launch-pill); every other door is the plain ink pill. Type:
-  Helvetica for every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font. The only monospace is the
-  drawn wordmark; the signature ("slayer:~ $ ● live" — the market's own word, live while it is open and closed when it
-  is shut) and code use --font-code. Product one-liners are nav.ts's (the brand's own); never write grade, score, win
+  2026-10-01). No red, green or lime on the mark. The mark stands still but for two things (the owner, 2026-10-02:
+  "the logo stays still outside of the holographic silver that moves the | is the one that blinks"): the holographic
+  silver pans across the S in every state but offline (idle 4.5 s each way, loading 1.5 s, live 9 s, closed 13.5 s —
+  never a still graphite S), and the cursor "|" blinks in every state but offline (hidden) and alert (the warning ink
+  flashes twice in its place) — never solid, no glow round it. Every mark, every wordmark cursor and the signature's
+  live dot on a page pan and blink IN SYNC ("it should be in sync"): src/brand/brandClock.ts pins each brand loop
+  (the sm-pan and sm-blink keyframes) to the document timeline's origin on mount, on a state change and on any
+  animationstart — a new brand loop uses those keyframes. Its S pans by transform inside a CSS mask, so it never
+  repaints (keep it that way). Below 64 px: no ">" and no brackets. A product's page head wears its glyph (PageHeader,
+  the Compass, Weigher and Practice heads and their skeletons); a sub-page (Map, Live Tape, News) keeps its line icon.
+  The moving holographic silver only in the S, the signature's live dot and on "Launch terminal" (.launch-pill); every
+  other door is the plain ink pill. THE ACCENT IS SILVER (the owner, 2026-10-02: "remove all lime/green accent color it
+  should be holographic silver"): no lime anywhere — the Logo System's lime Live is overridden. --select, --select-fill
+  and --live-* (theme/tokens.css) are the silver family: the pale silver on black, the deep steel as an ink on paper,
+  a silver highlighter with the dark word as a surface; a canvas or chart option reads them through
+  readToken/resolveInk. Up-green and down-red (--bull/--bear), the supreme's magenta and the other data colours are
+  unchanged; a user-chosen candle theme ("Neon") or drawing swatch that is lime by name may stay. Type: Helvetica for
+  every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font. The only monospace is the drawn wordmark;
+  the signature ("slayer:~ $ ● live" — the market's own word, live while it is open and closed when it is shut; live
+  wears the moving silver dot and the silver word) and code use --font-code. Product one-liners are nav.ts's (the brand's own); never write grade, score, win
   rate, signal (as a trade call), guaranteed, confluence, market intelligence. Pages outside the terminal (status,
   about, legal, the account forms, invite) use pages/outside/OutsideFrame; the account forms send nothing until a
   backend exists, and signing in opens the terminal. The static icons and og.jpg are drawn by `npm run brand:assets`

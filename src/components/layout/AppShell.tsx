@@ -41,7 +41,7 @@ class RouteBoundary extends Component<{ children: ReactNode; resetKey: string },
   render() {
     if (!this.state.error) return this.props.children;
     /* WHAT THE READER IS TOLD is ui/Fault.tsx (2026-09-19): it used to say "tell us in Community → Feedback", a page that
-       was removed on 2026-09-13, under a lime button — lime is the live ink, not a button's */
+       was removed on 2026-09-13, under a lime button — an accent is not a button's (and since 2026-10-02 there is no lime) */
     return (
       <FaultView
         error={this.state.error}

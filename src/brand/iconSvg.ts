@@ -8,7 +8,9 @@
   script can import it.
 
   The tab's five frames (Slayer Logo System, "Favicon states"): still, loading, live, alert, closed. Offline shows the
-  still frame without its cursor.
+  still frame without its cursor. Since 2026-10-02 (the owner: the mark is the moving silver and the blinking cursor,
+  no lime, no still graphite S) closed is the silver S like the rest — a tab cannot pan, so it is the foil caught
+  still — and no frame wears a glow round its cursor.
 ==================================================
 */
 
@@ -23,9 +25,9 @@ const FOIL: Record<IconTheme, string[]> = {
 };
 /* the pan at speed, caught bright — the loading frame */
 const FOIL_FAST = ['#ffffff', '#dde8f8', '#f2ecfa', '#ffffff', '#e2ecf8'];
-const GROUND: Record<IconTheme, { tile: string; edge: string; bracket: string; chevron: string; cursor: string; rest: string; restCursor: string }> = {
-  dark: { tile: '#111111', edge: '#1e1f22', bracket: '#3a3d42', chevron: '#6b7077', cursor: '#f4f5f7', rest: '#5c616c', restCursor: '#3a3d42' },
-  light: { tile: '#fbfaf7', edge: '#cdcbc5', bracket: '#8c8a84', chevron: '#6b6e75', cursor: '#0e0f11', rest: '#787c86', restCursor: '#b4b6bb' },
+const GROUND: Record<IconTheme, { tile: string; edge: string; bracket: string; chevron: string; cursor: string }> = {
+  dark: { tile: '#111111', edge: '#1e1f22', bracket: '#3a3d42', chevron: '#6b7077', cursor: '#f4f5f7' },
+  light: { tile: '#fbfaf7', edge: '#cdcbc5', bracket: '#8c8a84', chevron: '#6b6e75', cursor: '#0e0f11' },
 };
 
 export interface MarkSvgOptions {
@@ -64,17 +66,15 @@ export function markSvg({ state = 'idle', theme = 'dark', full = false, solid, m
     vy = (CONTENT.y0 + CONTENT.y1) / 2 - side / 2;
   }
   const r = square || maskable ? 0 : full ? 3 : side * 0.14;
-  const closed = state === 'closed';
   const stops = state === 'loading' ? FOIL_FAST : FOIL[theme];
-  const sFill = solid ? (solid === 'black' ? '#000' : '#fff') : closed ? g.rest : 'url(#f)';
+  const sFill = solid ? (solid === 'black' ? '#000' : '#fff') : 'url(#f)';
   const showCursor = state !== 'alert' && state !== 'offline';
-  const cursorFill = solid ? sFill : closed ? g.restCursor : g.cursor;
+  const cursorFill = solid ? sFill : g.cursor;
   const [cx, cy, cw, ch] = MARK.cursor;
   const parts: string[] = [];
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx.toFixed(2)} ${vy.toFixed(2)} ${side.toFixed(2)} ${side.toFixed(2)}">`);
   parts.push('<defs>');
   parts.push(`<linearGradient id="f" x1="0" y1="0" x2="1" y2="1">${stops.map((c, i) => `<stop offset="${[0, 0.3, 0.55, 0.75, 1][i]}" stop-color="${c}"/>`).join('')}</linearGradient>`);
-  if (state === 'live' && theme === 'dark' && !solid) parts.push('<filter id="glow" x="-2" y="-1" width="5" height="3"><feGaussianBlur stdDeviation="1.6"/></filter>');
   parts.push('</defs>');
   if (!solid) {
     parts.push(`<rect x="${vx.toFixed(2)}" y="${vy.toFixed(2)}" width="${side.toFixed(2)}" height="${side.toFixed(2)}" rx="${r.toFixed(2)}" fill="${g.tile}"/>`);
@@ -85,10 +85,7 @@ export function markSvg({ state = 'idle', theme = 'dark', full = false, solid, m
   if (full && !maskable) parts.push(`<path d="${MARK.brackets}" fill="none" stroke="${solid ? sFill : g.bracket}" stroke-width="0.7"/>`);
   if (full || maskable) parts.push(`<path d="${MARK.chevron}" fill="${solid ? sFill : g.chevron}"/>`);
   parts.push(`<path d="${MARK.s}" fill="${sFill}"/>`);
-  if (showCursor) {
-    if (state === 'live' && theme === 'dark' && !solid) parts.push(`<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="#ffffff" opacity="0.6" filter="url(#glow)"/>`);
-    parts.push(`<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="${cursorFill}"/>`);
-  }
+  if (showCursor) parts.push(`<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="${cursorFill}"/>`);
   if (state === 'alert') parts.push(`<circle cx="${cx + cw / 2}" cy="${cy + 3.4}" r="3.4" fill="${theme === 'dark' ? '#ff9500' : '#dc4600'}"/>`);
   parts.push('</svg>');
   return parts.join('');

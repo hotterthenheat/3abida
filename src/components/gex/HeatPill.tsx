@@ -53,7 +53,7 @@ export interface HeatPillProps {
    */
   selected?: boolean;
   /** Override the ring's colour — the supreme strike wears the supreme magenta, not the
-      selection lime, because it is a property of the BOOK rather than of what
+      selection silver, because it is a property of the BOOK rather than of what
       the reader clicked. */
   ringColor?: string;
   /** A mark at the leading edge — the supreme strike, a held position. Sits in its
@@ -76,7 +76,7 @@ export interface HeatPillProps {
 }
 
 /*
-  The ring is the SELECTION voice (lime), not a heat colour, so it cannot be
+  The ring is the SELECTION voice (the silver accent), not a heat colour, so it cannot be
   mistaken for a value. It is drawn as an inset shadow rather than a border:
   a border would add a pixel to the box and shift every neighbour by half a
   row when one cell is picked.

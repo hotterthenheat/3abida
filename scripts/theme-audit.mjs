@@ -34,7 +34,7 @@ const ALLOW_FILES = [/candleTheme\.ts$/, /palette\.ts$/, /heatmap\.ts$/, /Contra
 const FORBIDDEN = [
   { re: /\b(?:hover:|group-hover:|focus:|data-\[[^\]]+\]:)*(?:bg|border|from|to|via)-white\//g, why: 'a white wash — use the ink token (bg-ink/…)' },
   /* A surface hex as a ground or a hairline; the ink hexes as text. `text-[#0a0a0a]`
-     is NOT here: it is the dark word on a lime or silver pill, the same in both
+     is NOT here: it is the dark word on a silver pill, the same in both
      themes — a pill's fill is an accent, not a surface. */
   { re: /\b(?:bg|border)-\[#(?:0a0a0a|050505|070707|101010|0c0c0c|121212|1c1c1c|2a2a2a|ededed|a3a3a3|7d7d7d)\]/g, why: 'a surface hex — use its token (bg-panel, bg-chip, border-borderSubtle …)' },
   { re: /\btext-\[#(?:ededed|a3a3a3|7d7d7d)\]/g, why: 'an ink hex — use text-textPrimary / textSecondary / textMuted' },

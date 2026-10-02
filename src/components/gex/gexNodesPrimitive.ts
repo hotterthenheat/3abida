@@ -18,8 +18,8 @@ import { FONT_SANS } from '../../theme/fonts';
   height, never in desaturation.
 
   The level view rides on top: a focused strike's beads wear the focus ink
-  (lime, or magenta while it is the supreme) at full strength, and the rest of
-  the field steps back.
+  (the silver accent, or magenta while it is the supreme) at full strength, and
+  the rest of the field steps back.
 */
 
 /* THE FIELD'S OWN INKS (Noah, 2026-08-22): the house heatmap's steel-gold
@@ -47,7 +47,7 @@ const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime bor
    charts" — then, shown a supreme-on-put-wall band rendering amber: "this is
    nowhere near neon"). The 2026-08-22 blends (wine/violet/amber) existed so
    a wall was never swallowed, but a 50/50 mix swallows the SUPREME instead —
-   and lime diluted is olive, not neon. The wall's identity still gets told:
+   and a neon diluted is mud, not neon. The wall's identity still gets told:
    its chip, its axis line, and the ladder's K·PW / K·CW tags all name it.
    The band belongs to the crown. */
 const FLIPK_RGBA = 'rgba(234,0,255,0.85)'; // the supreme outranks the flip on a shared strike too
@@ -74,11 +74,12 @@ interface Column {
   all: Map<number, Bead>;
 }
 
-/** The focused level's ink: the focus lime — or the supreme's magenta while the
-    focused strike IS the supreme. Mirrors palette FOCUS/SUPREME. */
+/** The focused level's ink: the focus silver (the house accent, the lime until
+    2026-10-02) — or the supreme's magenta while the focused strike IS the
+    supreme. Mirrors palette FOCUS/SUPREME. */
 export type FocusInk = 'focus' | 'supreme';
 const INK_RGB: Record<FocusInk, readonly [number, number, number]> = {
-  focus: [210, 255, 0],
+  focus: [199, 211, 232],
   supreme: [234, 0, 255],
 };
 
@@ -426,9 +427,9 @@ class TrailsPaneRenderer {
         const isSupreme = supreme != null && lvl.strike === supreme;
         const rgb = isSupreme ? SUPREME_RGB : lvl.value >= 0 ? PUT_RGB : CALL_RGB;
         /* The field's labels step back while a strike is focused — the SUPREME's
-           never does. Lime at 0.55 is olive, not neon (the house lime rule:
-           its identity IS luminance), and the crown is the one label that
-           must survive every state. */
+           never does. A neon at 0.55 is mud, not neon (its identity IS
+           luminance), and the crown is the one label that must survive every
+           state. */
         drawLabel(lvl, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${focus != null && !isSupreme ? 0.55 : 0.95})`);
       }
       // The focused level is always labelled — its share of the book, in its ink
@@ -488,7 +489,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   stepSec = 60;
   /** The level view's strike — its beads lead, the field steps back. */
   focusStrike: number | null = null;
-  /** Its ink: lime, or magenta while the focused strike is the supreme. The
+  /** Its ink: the silver accent, or magenta while the focused strike is the supreme. The
       focus never follows the supreme — the strike you clicked is the strike
       you're watching; the ink reports its standing (Noah, 2026-08-22). */
   focusInk: FocusInk = 'focus';

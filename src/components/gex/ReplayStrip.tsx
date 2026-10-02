@@ -37,9 +37,9 @@
     · it folds to a pill, so the plot under it can
       be seen.
   WHAT STAYS OURS is the look and the rules:
-    · SILVER, never the reference's lime dot. Lime is
-      the live voice and a rewound screen is not
-      live; silver is "where you are" — the played
+    · SILVER, never the reference's lime dot. A
+      rewound screen is not live, so it never
+      breathes; silver is "where you are" — the played
       part, the dot, the moment, the play button
       while it runs;
     · the pace is the house's labelled card

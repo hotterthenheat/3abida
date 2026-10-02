@@ -8,9 +8,13 @@
 /** Apple system green — the market's bullish voice (matches the `bull`
     tailwind token). JS-side chart code imports THIS; class-side uses `bull`. */
 export const BULL = '#30D158';
-/** Neon lime — the interface's voice (matches `select`). Selection, brand,
-    extreme importance. Never market direction. */
-export const LIME = '#D2FF00';
+/** The house accent — the holo family's flat silver (matches `select`, the dark
+    set the chart islands wear). Selection, brand, what is live. Never market
+    direction. A neon lime until 2026-10-02 (the owner: "remove all lime/green
+    accent color it should be holographic silver"). A chart that can wear a
+    light ground reads the token instead, off its own box (readToken('--select',
+    …, box)), so a light tape gets the deep silver. */
+export const ACCENT = '#C7D3E8';
 
 export const CALL_WALL = BULL; // green, not mint — reversed by Noah 2026-08-18
 export const PUT_WALL = '#FF3B30'; // bear (hot red)
@@ -21,11 +25,11 @@ export const FLIP = '#9CA3AF';
 // The `supreme` token — one supreme color everywhere: MAGENTA, restored (Noah,
 // 2026-08-29, after a full odyssey magenta → silver → baby blue → neon:
 // "i reveried and skylit doesnt have those colors"). Nothing else on any
-// chart is magenta, so the supreme marker is unmistakable — and FOCUS lime
-// gets its selection voice back to itself. Mirrors tailwind's `supreme`.
+// chart is magenta, so the supreme marker is unmistakable — and the FOCUS
+// accent gets its selection voice back to itself. Mirrors tailwind's `supreme`.
 export const SUPREME = '#EA00FF';
 export const DARK_POOL = '#2dd4bf'; // teal — institutional reference prints
-export const FOCUS = LIME; // neon lime — what the user clicked (selection language)
+export const FOCUS = ACCENT; // the silver accent — what the user clicked (selection language)
 
 
 // The alert ink — the one ORANGE on the desk, reserved for "something you

@@ -23,7 +23,7 @@ export const toneDot: Record<Tone, string> = {
   bull: 'bg-bull',
   bear: 'bg-bear',
   warn: 'bg-warn',
-  /* the live dot in the badge's own ink — lime in the glow, near-black on the highlighter */
+  /* the live dot in the badge's own ink — silver in the glow, near-black on the highlighter */
   select: 'bg-current',
   white: 'bg-textPrimary',
   crown: 'bg-supreme',
@@ -37,8 +37,9 @@ export const toneBadge: Record<Tone, string> = {
   bear: 'bg-bear/10 text-bear border-bear/20',
   warn: 'bg-warn/10 text-warn border-warn/20',
   /* THE LIVE SIGNAL wears a component token (index.css .tone-live ← the
-     --live-* tokens): a lime glow on the dark terminal, a lime HIGHLIGHTER on
-     paper — neon can be a surface on white, never an ink (2026-09-12) */
+     --live-* tokens): a silver glow on the dark terminal, a silver HIGHLIGHTER
+     on paper — the pale silver is a surface on white, never an ink (2026-09-12;
+     the lime until 2026-10-02) */
   select: 'tone-live',
   /* Bright neutral — a rank BELOW the silvers: solid white ink, whisper tint.
      Compass process states wear this so the TOP PICK foil owns the shine. */
@@ -64,7 +65,7 @@ export const toneBadge: Record<Tone, string> = {
 };
 
 export const toneBar: Record<Tone, string> = {
-  // Neon needs its luminance — element-level lime never below /90
+  // An accent needs its luminance — the bars keep their strength
   bull: 'bg-bull/90',
   bear: 'bg-bear/80',
   warn: 'bg-warn/70',

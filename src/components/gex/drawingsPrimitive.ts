@@ -206,7 +206,7 @@ function hexRgb(hex?: string): string | null {
 const MARK = '237,237,237';
 
 /*
-  The measure's own band. Steel rather than lime: lime marks the reader's
+  The measure's own band. Steel rather than the accent: the accent marks the reader's
   DECISIONS — a level they drew, a strike they picked — and a measure is a
   question rather than a mark. It also has to sit under a readout that must
   stay legible over candles.

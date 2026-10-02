@@ -210,7 +210,7 @@ const Windows = () => {
         align: 'right',
         sortValue: s => s.shareOfDayPct,
         // The burst tell — half a day in one window earns WEIGHT, not hue
-        // (the lime retreat: data intensity is bold white, neon is not a fact).
+        // (the lime retreat: data intensity is bold white, an accent is not a fact).
         render: s => {
           const hot = s.shareOfDayPct >= 50;
           return (

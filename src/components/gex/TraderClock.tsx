@@ -349,7 +349,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
           })}
         </div>
 
-        {/* THE STRIP — 78 five-minute blocks; shade = the phase's weight, lime = now */}
+        {/* THE STRIP — 78 five-minute blocks; shade = the phase's weight, the ringed silver = now */}
         <div className="relative" onPointerLeave={() => setHover(null)}>
           <div className="flex gap-[2px] h-[22px]" data-clock-strip role="img" aria-label="Today's session as five-minute blocks, shaded by how hard hedging pushes">
             {Array.from({ length: BLOCKS }, (_, i) => {

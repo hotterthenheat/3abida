@@ -63,12 +63,14 @@ import { sinceOpenRead } from '../../data/levelview';
 import { fmtFlow, type FlowLadder, type FlowRung } from '../../data/hedgeFlow';
 import { sessionVolumeProfile, type VolumeProfile } from '../../data/volumeProfile';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
-import { HEAT_MODE, heatCellStyle, heatRampColorFor, type HeatMode } from './heatmap';
+import * as TOKEN from './paletteInk';
+import { HEAT_MODE, heatCellStyle, heatRampColorFor, ladderRampT, type HeatMode } from './heatmap';
 import { splinePath } from './spline';
 import type { PriceProjection } from './StrikeChart';
 import type { GexLevel } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
 import { FONT_SANS } from '../../theme/fonts';
+import { readToken, useResolvedTheme } from '../../theme/theme';
 
 export type ProfileLane = 'both' | 'size' | 'flow';
 export const LANE_OPTIONS: DropdownOption<ProfileLane>[] = [
@@ -101,8 +103,8 @@ export const profileTier = (panelW: number): ProfileTier => (panelW >= 440 ? 'fu
    to deep red where hedging amplifies, sky to deep blue where it absorbs;
    the ink chosen by contrast (black on the yellow middle, white at the deep
    ends). Solid, never translucent — a low-alpha warm over black goes khaki. */
-const heatOn = (value: number, maxAbs: number, mode: HeatMode) => {
-  const s = heatCellStyle(value, maxAbs, mode);
+const heatOn = (value: number, maxAbs: number, mode: HeatMode, paper = false) => {
+  const s = heatCellStyle(value, maxAbs, mode, paper);
   return { fill: String(s.backgroundColor ?? '#FFFFBF'), ink: String(s.color ?? '#0a0a0a') };
 };
 /* THE SIZE LANE IS THE LADDER (Noah, 2026-09-13, with the strike ladder's
@@ -198,6 +200,122 @@ const rgba = (hex: string, a: number) => {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 };
 
+/* THE CANVAS'S INKS FOLLOW THE PANE'S GROUND (the owner, 2026-10-02, with the light Terrain: "the terrain still has
+   one black one white fix that"). A pane's chart wears its own theme's ground (Stone is light, the page's default on
+   paper), but the ladder beside it was drawn black on every ground — on the light page every pane was a white tape
+   beside a black ladder. The ladder is the pane's chrome, so it wears the ground the chart's strips wear: on a DARK
+   ground the inks below, exactly as they were; on a LIGHT ground the chart's light set, read as TOKENS off the panel's
+   own box (the pane carries data-chart-frame — index.css) — dark inks, hairlines and washes in ink alpha, the deep
+   level inks, and the paper ramps (heatmap.ts `paper`) for the legs, the dashes and the capsules. */
+interface PanelInks {
+  ink: string;
+  ink2: string;
+  ink3: string;
+  silver: string;
+  silverSoft: string;
+  callWall: string;
+  putWall: string;
+  supreme: string;
+  supremeWash: string;
+  flipRule: string;
+  /** the flip's caption — on the light set the flip's own grey is 4.1:1 at 9px, so its words take the muted ink */
+  flipText: string;
+  hoverWash: string;
+  headRule: string;
+  colGround: string;
+  divider: string;
+  edge: string;
+  grid: string;
+  spotRule: string;
+  spine: string;
+  ghost: string;
+  keyGhost: string;
+  silFill: string;
+  silStroke: string;
+  /** the Vol underlay's neutral steel at an alpha */
+  vol: (a: number) => string;
+  /** the VPOC's word over it */
+  volText: string;
+  /** a level chip's ground, under its ink's wash */
+  chipGround: string;
+  spotChip: string;
+  spotChipText: string;
+  markFill: string;
+  /** one of the inks above at an alpha */
+  alpha: (c: string, a: number) => string;
+}
+const DARK_INKS: PanelInks = {
+  ink: INK,
+  ink2: INK_2,
+  ink3: INK_3,
+  silver: SILVER,
+  silverSoft: rgba(SILVER, 0.6),
+  callWall: CALL_WALL,
+  putWall: PUT_WALL,
+  supreme: SUPREME,
+  supremeWash: rgba(SUPREME, 0.13),
+  flipRule: rgba(FLIP, 0.7),
+  flipText: rgba(FLIP, 0.9),
+  hoverWash: 'rgba(255,255,255,0.04)',
+  headRule: 'rgba(255,255,255,0.06)',
+  colGround: 'rgba(255,255,255,0.025)',
+  divider: 'rgba(255,255,255,0.08)',
+  edge: 'rgba(255,255,255,0.14)',
+  grid: 'rgba(255,255,255,0.05)',
+  spotRule: 'rgba(237,237,237,0.3)',
+  spine: 'rgba(237,237,237,0.85)',
+  ghost: 'rgba(237,237,237,0.35)',
+  keyGhost: 'rgba(237,237,237,0.4)',
+  silFill: 'rgba(255,255,255,0.04)',
+  silStroke: 'rgba(255,255,255,0.10)',
+  vol: a => `rgba(226,234,244,${a})`,
+  volText: 'rgba(226,234,244,0.55)',
+  chipGround: '#0a0a0a',
+  spotChip: INK,
+  spotChipText: '#0a0a0a',
+  markFill: '#0e0e0f',
+  alpha: rgba,
+};
+/** The light set, read off the panel's box — resolved when the ground or the page's theme changes, never per frame */
+const lightInks = (el: Element): PanelInks => {
+  const t = (name: string, a?: number) => readToken(name, a, el);
+  return {
+    ink: t('--text-primary'),
+    ink2: t('--text-secondary'),
+    ink3: t('--text-muted'),
+    silver: t('--silver'),
+    silverSoft: t('--silver', 0.6),
+    callWall: t('--bull'),
+    putWall: t('--bear'),
+    supreme: t('--supreme'),
+    /* 0.09: the supreme's own magenta label on its row stays 4.5:1 on the light page's panel */
+    supremeWash: t('--supreme', 0.09),
+    flipRule: t('--flip', 0.85),
+    flipText: t('--text-muted'),
+    hoverWash: t('--ink', 0.05),
+    headRule: t('--ink', 0.1),
+    colGround: t('--ink', 0.035),
+    divider: t('--ink', 0.1),
+    edge: t('--ink', 0.16),
+    grid: t('--ink', 0.07),
+    spotRule: t('--text-primary', 0.4),
+    spine: t('--text-primary', 0.85),
+    ghost: t('--text-primary', 0.4),
+    keyGhost: t('--text-primary', 0.45),
+    silFill: t('--ink', 0.05),
+    silStroke: t('--ink', 0.16),
+    vol: a => t('--silver', a),
+    /* the steel at 0.55 is 2.9:1 on the light panel; at 0.85 it reads (5.9:1) */
+    volText: t('--silver', 0.85),
+    chipGround: t('--panel'),
+    spotChip: t('--text-primary'),
+    /* a chip filled with the primary ink takes the panel for its words (the theme rules) */
+    spotChipText: t('--panel'),
+    markFill: t('--panel'),
+    alpha: TOKEN.alpha,
+  };
+};
+
 interface ProfilePanelProps {
   /** Every strike in the window, ascending, the chosen greek's net parked there */
   rows: GexLevel[];
@@ -251,6 +369,9 @@ interface ProfilePanelProps {
       not off from itself is a panel that feels stuck to the page. */
   onClose?: () => void;
   closeHint?: string;
+  /** The ground of the chart beside it (candleTheme.ts chartGround — the pane's own theme): the panel is drawn on it.
+      Omitted, dark. */
+  ground?: 'light' | 'dark';
   className?: string;
 }
 
@@ -269,11 +390,20 @@ interface Hover {
 
 const ProfilePanel = ({
   rows, maxAbs, legs, openRatio = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
-  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', className = '',
+  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '',
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);
-  const thermal = (value: number, max: number) => heatOn(value, max, mode);
+  /* ON A LIGHT GROUND the ramps are the paper ramps (heatmap.ts) and the canvas's inks the light set's tokens */
+  const paper = ground === 'light';
+  const thermal = (value: number, max: number) => heatOn(value, max, mode, paper);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  /* the canvas's inks, re-read off the box when the ground or the page's theme changes (the light page lifts the
+     light set — index.css) */
+  const pageTheme = useResolvedTheme();
+  const inksRef = useRef<PanelInks>(DARK_INKS);
+  useEffect(() => {
+    inksRef.current = paper && rootRef.current ? lightInks(rootRef.current) : DARK_INKS;
+  }, [paper, pageTheme]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const placedRef = useRef<Placed[]>([]);
   const [hover, setHover] = useState<Hover | null>(null);
@@ -418,7 +548,7 @@ const ProfilePanel = ({
   }, [mode]);
   useEffect(() => {
     dataRev.current++;
-  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, vp, view]);
+  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, vp, view, paper, pageTheme]);
 
   const showSize = lane !== 'flow';
   const showFlow = lane !== 'size';
@@ -492,15 +622,21 @@ const ProfilePanel = ({
       type Rgb = [number, number, number];
       const mixRgb = (a: Rgb, b: Rgb): Rgb => [Math.round(a[0] + (b[0] - a[0]) * pal.mix), Math.round(a[1] + (b[1] - a[1]) * pal.mix), Math.round(a[2] + (b[2] - a[2]) * pal.mix)];
       const ramp = (sign: 1 | -1, t: number): Rgb =>
-        pal.mix >= 1 ? heatRampColorFor(sign, t, pal.to) : mixRgb(heatRampColorFor(sign, t, pal.from), heatRampColorFor(sign, t, pal.to));
+        pal.mix >= 1 ? heatRampColorFor(sign, t, pal.to, paper) : mixRgb(heatRampColorFor(sign, t, pal.from, paper), heatRampColorFor(sign, t, pal.to, paper));
+      /* THE LADDER'S STRETCH of a ramp — the legs, the key's swatches, a leg leaving: on paper the window the house's
+         ladders on paper read (heatmap.ts PAPER_WINDOW: quiet colour to the deep pole, never the grey); on a dark
+         ground the whole ramp, as it always was */
+      const legRamp = (sign: 1 | -1, t: number): Rgb => ramp(sign, paper ? ladderRampT(sign, t, pal.to, true) : t);
+      /* THE INKS this frame (PanelInks above) */
+      const ink = inksRef.current;
       const rgbOf = (fill: string): Rgb => {
         const m = /(\d+),\s*(\d+),\s*(\d+)/.exec(fill);
         return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [255, 255, 191];
       };
       const heat = (value: number, max: number) => {
-        const to = heatOn(value, max, pal.to);
+        const to = heatOn(value, max, pal.to, paper);
         if (pal.mix >= 1) return to;
-        const from = heatOn(value, max, pal.from);
+        const from = heatOn(value, max, pal.from, paper);
         const [rr, gg, bb] = mixRgb(rgbOf(from.fill), rgbOf(to.fill));
         return { fill: `rgb(${Math.round(rr)},${Math.round(gg)},${Math.round(bb)})`, ink: pal.mix >= 0.5 ? to.ink : from.ink };
       };
@@ -590,7 +726,7 @@ const ProfilePanel = ({
       if (hv) {
         const row = placed.find(r => near(r.strike, hv.strike));
         if (row) {
-          ctx.fillStyle = 'rgba(255,255,255,0.04)';
+          ctx.fillStyle = ink.hoverWash;
           ctx.fillRect(0, row.y - pitch / 2, W, pitch);
         }
       }
@@ -598,7 +734,7 @@ const ProfilePanel = ({
       {
         const row = placed.find(r => near(r.strike, levels.supreme));
         if (row) {
-          ctx.fillStyle = rgba(SUPREME, 0.13);
+          ctx.fillStyle = ink.supremeWash;
           ctx.fillRect(0, row.y - pitch / 2, W, pitch);
         }
       }
@@ -610,8 +746,8 @@ const ProfilePanel = ({
         let kx = 8;
         const swatch = (sign: 1 | -1, w: number) => {
           const g = ctx.createLinearGradient(kx, 0, kx + w, 0);
-          const [r0, g0, b0] = ramp(sign, 0.15);
-          const [r1, g1, b1] = ramp(sign, 0.9);
+          const [r0, g0, b0] = legRamp(sign, 0.15);
+          const [r1, g1, b1] = legRamp(sign, 0.9);
           g.addColorStop(0, `rgb(${r0},${g0},${b0})`);
           g.addColorStop(1, `rgb(${r1},${g1},${b1})`);
           ctx.fillStyle = g;
@@ -620,9 +756,9 @@ const ProfilePanel = ({
           ctx.fill();
           kx += w + 4;
         };
-        const word = (t: string, ink = INK_2) => {
+        const word = (t: string, c = ink.ink2) => {
           ctx.font = `500 8.5px ${SANS}`;
-          ctx.fillStyle = ink;
+          ctx.fillStyle = c;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
           ctx.fillText(t, kx, ky);
@@ -633,7 +769,7 @@ const ProfilePanel = ({
         word(full ? 'puts amplify' : 'puts');
         swatch(-1, 14);
         word(full ? 'calls absorb' : 'calls');
-        ctx.strokeStyle = 'rgba(237,237,237,0.85)';
+        ctx.strokeStyle = ink.spine;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(kx, ky);
@@ -643,7 +779,7 @@ const ProfilePanel = ({
         word(full ? 'the spine now' : 'now');
         ctx.save();
         ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = 'rgba(237,237,237,0.4)';
+        ctx.strokeStyle = ink.keyGhost;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(kx, ky);
@@ -652,10 +788,10 @@ const ProfilePanel = ({
         ctx.restore();
         kx += 16;
         word(full ? 'at the open' : 'open');
-        ctx.fillStyle = SUPREME;
+        ctx.fillStyle = ink.supreme;
         ctx.fillRect(kx, ky - 3, 6, 6);
         kx += 10;
-        word('supreme', SUPREME);
+        word('supreme', ink.supreme);
       }
       /* THE COLUMN HEADS over the rows — the partner's header row in the house's letters: the
          lane's name centred over it (◂ PUTS · CALLS ▸, or NET on the net view), STRIKE over the
@@ -663,13 +799,13 @@ const ProfilePanel = ({
       {
         const hy = HEAD_BAND - COL_HEAD / 2 + 0.5;
         ctx.font = `600 7.5px ${FIG}`;
-        ctx.fillStyle = INK_3;
+        ctx.fillStyle = ink.ink3;
         ctx.textBaseline = 'middle';
         if (showSize) {
           if (view === 'net') {
             ctx.textAlign = 'left';
             ctx.fillText('NET GAMMA', sizeL + 8, hy);
-            ctx.fillStyle = INK_3;
+            ctx.fillStyle = ink.ink3;
             ctx.font = `7.5px ${FIG}`;
             ctx.fillText('puts · calls', sizeL + 8 + ctx.measureText('NET GAMMA ').width + 8, hy);
             ctx.font = `600 7.5px ${FIG}`;
@@ -692,7 +828,7 @@ const ProfilePanel = ({
           ctx.textAlign = 'left';
           ctx.fillText('A MOVE FORCES', flowL + 6, hy);
         }
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.strokeStyle = ink.headRule;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(2, HEAD_BAND - 0.5);
@@ -701,9 +837,9 @@ const ProfilePanel = ({
       }
 
       /* The column's ground, the dividers, the panel's edge */
-      ctx.fillStyle = 'rgba(255,255,255,0.025)';
+      ctx.fillStyle = ink.colGround;
       ctx.fillRect(colL, HEAD_BAND, colW, H - HEAD_BAND - FOOT_BAND);
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = ink.divider;
       ctx.lineWidth = 1;
       ctx.beginPath();
       if (showSize) {
@@ -715,7 +851,7 @@ const ProfilePanel = ({
         ctx.lineTo(colR - 0.5, H);
       }
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.strokeStyle = ink.edge;
       ctx.beginPath();
       ctx.moveTo(0.5, 0);
       ctx.lineTo(0.5, Htot);
@@ -741,7 +877,7 @@ const ProfilePanel = ({
             if (bot - top < 0.5) continue;
             const isPoc = prof.vpoc !== null && Math.abs(b.price - prof.vpoc) < prof.binSize / 2;
             const len = (b.volume / maxV) * vSpan;
-            ctx.fillStyle = `rgba(226,234,244,${isPoc ? 0.2 : 0.09})`;
+            ctx.fillStyle = ink.vol(isPoc ? 0.2 : 0.09);
             ctx.fillRect(sizeR - len, top, len, Math.max(1, bot - top - 1));
           }
           const rule = (price: number | null, alpha: number, dash: number[]) => {
@@ -749,7 +885,7 @@ const ProfilePanel = ({
             const y = p.yFor(price);
             if (y == null || y < HEAD_BAND || y > H - FOOT_BAND) return;
             ctx.save();
-            ctx.strokeStyle = `rgba(226,234,244,${alpha})`;
+            ctx.strokeStyle = ink.vol(alpha);
             ctx.lineWidth = 1;
             ctx.setLineDash(dash);
             ctx.beginPath();
@@ -765,7 +901,7 @@ const ProfilePanel = ({
             const y = p.yFor(prof.vpoc);
             if (y != null && y > HEAD_BAND + 8 && y < H - FOOT_BAND) {
               ctx.font = `7px ${FIG}`;
-              ctx.fillStyle = 'rgba(226,234,244,0.55)';
+              ctx.fillStyle = ink.volText;
               ctx.textAlign = 'left';
               ctx.textBaseline = 'bottom';
               ctx.fillText('VPOC', sizeL + 6, y - 2);
@@ -775,7 +911,7 @@ const ProfilePanel = ({
       }
 
       /* Gridlines at the labelled rows */
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = ink.grid;
       ctx.beginPath();
       placed.forEach((r, i) => {
         if (!labelled(i, r.strike)) return;
@@ -797,14 +933,14 @@ const ProfilePanel = ({
         const yy = Math.round(flipY) + 0.5;
         ctx.save();
         ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = rgba(FLIP, 0.7);
+        ctx.strokeStyle = ink.flipRule;
         ctx.beginPath();
         ctx.moveTo(4, yy);
         ctx.lineTo(W - 4, yy);
         ctx.stroke();
         ctx.restore();
         ctx.font = `9px ${FIG}`;
-        ctx.fillStyle = rgba(FLIP, 0.9);
+        ctx.fillStyle = ink.flipText;
         ctx.textBaseline = 'bottom';
         if (showFlow) {
           ctx.textAlign = 'right';
@@ -820,7 +956,7 @@ const ProfilePanel = ({
       const spotOn = spotY > HEAD_BAND && spotY < H - FOOT_BAND;
       if (spotOn) {
         const yy = Math.round(spotY) + 0.5;
-        ctx.strokeStyle = 'rgba(237,237,237,0.3)';
+        ctx.strokeStyle = ink.spotRule;
         ctx.beginPath();
         ctx.moveTo(0, yy);
         ctx.lineTo(W, yy);
@@ -850,17 +986,17 @@ const ProfilePanel = ({
       /* Words inside a capsule from 10px of row, one point smaller under 13 —
          a name must go INSIDE a capsule that reaches the edge, whatever the
          zoom, never over its figure (Noah, 2026-09-09) */
-      const figureIn = (text: string, x: number, len: number, yMid: number, ink: string, outer: 'left' | 'right', font = `600 9px ${FIG}`) => {
+      const figureIn = (text: string, x: number, len: number, yMid: number, fg: string, outer: 'left' | 'right', font = `600 9px ${FIG}`) => {
         if (barH < 10) return;
         ctx.font = barH < 13 ? font.replace('9px', '8px') : font;
         const w = ctx.measureText(text).width;
         if (w + 12 > len) return;
-        ctx.fillStyle = ink;
+        ctx.fillStyle = fg;
         ctx.textBaseline = 'middle';
         ctx.textAlign = outer === 'left' ? 'left' : 'right';
         ctx.fillText(text, outer === 'left' ? x + 6 : x + len - 6, yMid + 0.5);
       };
-      const ringFor = (k: number) => (isFocus(k) ? SILVER : isHover(k) ? rgba(SILVER, 0.6) : null);
+      const ringFor = (k: number) => (isFocus(k) ? ink.silver : isHover(k) ? ink.silverSoft : null);
       /* THE LEVEL NAMES — the cards' chips beside a capsule's end when there is
          room; when the capsule reaches the lane's edge (the wall is usually the
          longest) the name goes INSIDE it at the outer end and the figure moves
@@ -868,10 +1004,10 @@ const ProfilePanel = ({
          call wall/put wall sometimes overlays the number of the strike when
          it's too long. find another way"). */
       const levelOf = new Map<number, { words: string; c: string }>();
-      levelOf.set(levels.callWall, { words: 'Call wall', c: CALL_WALL });
-      levelOf.set(levels.putWall, { words: 'Put wall', c: PUT_WALL });
-      if (!near(levels.supreme, levels.callWall) && !near(levels.supreme, levels.putWall)) levelOf.set(levels.supreme, { words: 'Supreme', c: SUPREME });
-      if (Number.isFinite(pin) && !near(pin, levels.callWall) && !near(pin, levels.putWall) && !near(pin, levels.supreme)) levelOf.set(pin, { words: 'Pin', c: INK_2 });
+      levelOf.set(levels.callWall, { words: 'Call wall', c: ink.callWall });
+      levelOf.set(levels.putWall, { words: 'Put wall', c: ink.putWall });
+      if (!near(levels.supreme, levels.callWall) && !near(levels.supreme, levels.putWall)) levelOf.set(levels.supreme, { words: 'Supreme', c: ink.supreme });
+      if (Number.isFinite(pin) && !near(pin, levels.callWall) && !near(pin, levels.putWall) && !near(pin, levels.supreme)) levelOf.set(pin, { words: 'Pin', c: ink.ink2 });
       const levelAt = (k: number) => {
         for (const [lk, v] of levelOf) if (near(lk, k)) return v;
         return undefined;
@@ -1001,14 +1137,14 @@ const ProfilePanel = ({
         if (!legMax) legMax = maxAbs || 1;
         if (!netMax) netMax = maxAbs || 1;
         /* the centre line */
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.strokeStyle = ink.divider;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(Math.round(mid) + 0.5, HEAD_BAND);
         ctx.lineTo(Math.round(mid) + 0.5, H - FOOT_BAND);
         ctx.stroke();
         const rampAt = (sign: 1 | -1, t: number) => {
-          const [rr, gg, bb] = ramp(sign, Math.max(0, Math.min(1, t)));
+          const [rr, gg, bb] = legRamp(sign, Math.max(0, Math.min(1, t)));
           return `rgb(${rr},${gg},${bb})`;
         };
         /** A leg: the ramp from the centre's quiet (t = 0) to the tip (t = its strength) */
@@ -1045,7 +1181,7 @@ const ProfilePanel = ({
           leg('call', r.y, ct.len, Math.min(1, ct.len / reach), legH, ring);
           if (figures) {
             ctx.font = `500 9px ${FIG}`;
-            ctx.fillStyle = INK;
+            ctx.fillStyle = ink.ink;
             ctx.textBaseline = 'middle';
             if (l.put > 0) {
               ctx.textAlign = 'right';
@@ -1083,19 +1219,19 @@ const ProfilePanel = ({
               .sort((a, b) => a.y - b.y);
             ctx.save();
             ctx.setLineDash([3, 3]);
-            ctx.strokeStyle = 'rgba(237,237,237,0.35)';
+            ctx.strokeStyle = ink.ghost;
             ctx.lineWidth = 1;
             ctx.stroke(new Path2D(splinePath(gpts, sizeL + 2, sizeR - netCol - 2)));
             ctx.restore();
           }
-          ctx.strokeStyle = 'rgba(237,237,237,0.85)';
+          ctx.strokeStyle = ink.spine;
           ctx.lineWidth = 1.5;
           ctx.stroke(new Path2D(splinePath(pts.map(q => ({ x: clampX(q.x), y: q.y })), sizeL + 2, sizeR - netCol - 2)));
           /* the strike in hand, marked on the spine */
           const mark = placed.find(r => isFocus(r.strike) || isHover(r.strike));
           if (mark) {
-            ctx.fillStyle = '#0e0e0f';
-            ctx.strokeStyle = SILVER;
+            ctx.fillStyle = ink.markFill;
+            ctx.strokeStyle = ink.silver;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.arc(clampX(mid - (mark.value / netMax) * lean), mark.y, 3, 0, Math.PI * 2);
@@ -1140,9 +1276,9 @@ const ProfilePanel = ({
           for (const q of pts) ctx.lineTo(q.x, q.y);
           ctx.lineTo(x0, pts[pts.length - 1].y);
           ctx.closePath();
-          ctx.fillStyle = 'rgba(255,255,255,0.04)';
+          ctx.fillStyle = ink.silFill;
           ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+          ctx.strokeStyle = ink.silStroke;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(pts[0].x, pts[0].y);
@@ -1180,7 +1316,7 @@ const ProfilePanel = ({
           if (fits(full)) figureIn(full, x0, len, row.y, t.ink, 'right');
           else if (fits(fmtFlow(g.flow))) figureIn(fmtFlow(g.flow), x0, len, row.y, t.ink, 'right');
           else {
-            ctx.fillStyle = INK_2;
+            ctx.fillStyle = ink.ink2;
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
             ctx.fillText(full, x0 + len + 6, row.y + 0.5);
@@ -1207,13 +1343,13 @@ const ProfilePanel = ({
         const focus = isFocus(k);
         /* the strike bold in the wide column (the partner's), plain in the thin one */
         ctx.font = `${focus || wide ? '700 ' : ''}10px ${FIG}`;
-        ctx.fillStyle = focus ? SILVER : near(k, levels.callWall) ? CALL_WALL : near(k, levels.putWall) ? PUT_WALL : near(k, levels.supreme) ? SUPREME : near(k, pin) || isHover(k) ? INK : wide ? INK : INK_2;
+        ctx.fillStyle = focus ? ink.silver : near(k, levels.callWall) ? ink.callWall : near(k, levels.putWall) ? ink.putWall : near(k, levels.supreme) ? ink.supreme : near(k, pin) || isHover(k) ? ink.ink : wide ? ink.ink : ink.ink2;
         ctx.textAlign = wide ? 'left' : 'center';
         ctx.fillText(fmtStrike(k), wide ? colL + 6 : cx, r.y);
         if (wide) {
           if (view === 'net') {
             /* the net view's column carries the role tag after the strike (CW · PW · SUP ★), not the Δ */
-            const tag = near(k, levels.callWall) ? { t: 'CW', c: CALL_WALL } : near(k, levels.putWall) ? { t: 'PW', c: PUT_WALL } : near(k, levels.supreme) ? { t: 'SUP ★', c: SUPREME } : null;
+            const tag = near(k, levels.callWall) ? { t: 'CW', c: ink.callWall } : near(k, levels.putWall) ? { t: 'PW', c: ink.putWall } : near(k, levels.supreme) ? { t: 'SUP ★', c: ink.supreme } : null;
             if (tag) {
               const sw = ctx.measureText(fmtStrike(k)).width;
               ctx.font = `700 7.5px ${FIG}`;
@@ -1223,7 +1359,7 @@ const ProfilePanel = ({
           } else {
             const d = ((k - levels.spot) / levels.spot) * 100;
             ctx.font = `9px ${FIG}`;
-            ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : INK_3;
+            ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : ink.ink3;
             ctx.textAlign = 'right';
             ctx.fillText(`${d > 0 ? '+' : ''}${d.toFixed(2)}%`, colR - 6, r.y);
           }
@@ -1231,7 +1367,7 @@ const ProfilePanel = ({
       });
       /* Culled rows, counted */
       ctx.font = `9px ${FIG}`;
-      ctx.fillStyle = INK_3;
+      ctx.fillStyle = ink.ink3;
       ctx.textAlign = 'center';
       if (above) ctx.fillText(`▲ ${above}`, cx, HEAD_BAND + 6);
       if (below) ctx.fillText(`▼ ${below}`, cx, H - FOOT_BAND / 2 + 1);
@@ -1255,31 +1391,31 @@ const ProfilePanel = ({
         const w = Math.ceil(ctx.measureText(words).width) + 12;
         const x = W - 6 - w;
         const y = Math.round(row.y - 8) + 0.5;
-        ctx.fillStyle = '#0a0a0a';
+        ctx.fillStyle = ink.chipGround;
         ctx.beginPath();
         ctx.roundRect(x, y, w, 16, 8);
         ctx.fill();
-        ctx.fillStyle = rgba(c, 0.14);
+        ctx.fillStyle = ink.alpha(c, 0.14);
         ctx.fill();
-        ctx.strokeStyle = rgba(c, 0.5);
+        ctx.strokeStyle = ink.alpha(c, 0.5);
         ctx.stroke();
         ctx.fillStyle = c;
         ctx.textAlign = 'center';
         ctx.fillText(words, x + w / 2, row.y + 0.5);
       };
-      chip(levels.callWall, 'Call wall', CALL_WALL);
-      chip(levels.putWall, 'Put wall', PUT_WALL);
-      if (!near(levels.supreme, levels.callWall) && !near(levels.supreme, levels.putWall)) chip(levels.supreme, 'Supreme', SUPREME);
-      if (Number.isFinite(pin) && !near(pin, levels.callWall) && !near(pin, levels.putWall) && !near(pin, levels.supreme)) chip(pin, 'Pin', INK_2);
+      chip(levels.callWall, 'Call wall', ink.callWall);
+      chip(levels.putWall, 'Put wall', ink.putWall);
+      if (!near(levels.supreme, levels.callWall) && !near(levels.supreme, levels.putWall)) chip(levels.supreme, 'Supreme', ink.supreme);
+      if (Number.isFinite(pin) && !near(pin, levels.callWall) && !near(pin, levels.putWall) && !near(pin, levels.supreme)) chip(pin, 'Pin', ink.ink2);
 
       /* THE SPOT CHIP — solid, in the column */
       if (spotOn) {
         const y = Math.round(spotY - 8);
-        ctx.fillStyle = INK;
+        ctx.fillStyle = ink.spotChip;
         ctx.beginPath();
         ctx.roundRect(colL + 2, y, colW - 4, 16, 4);
         ctx.fill();
-        ctx.fillStyle = '#0a0a0a';
+        ctx.fillStyle = ink.spotChipText;
         ctx.font = `700 10px ${FIG}`;
         ctx.textAlign = 'center';
         ctx.fillText(levels.spot.toFixed(2), cx, spotY + 0.5);
@@ -1316,7 +1452,7 @@ const ProfilePanel = ({
         const laneW = ((showFlow ? Math.round((W - colW) * liveSplit) : W - colW) || 1) - netCol;
         const mid = (colFirst ? colW : 0) + laneW / 2;
         const sign: 1 | -1 = id.startsWith('p:') ? 1 : -1;
-        const [rr, gg, bb] = ramp(sign, 0.5);
+        const [rr, gg, bb] = legRamp(sign, 0.5);
         ctx.fillStyle = `rgba(${rr},${gg},${bb},0.6)`;
         ctx.beginPath();
         ctx.roundRect(sign === 1 ? mid - a.len : mid, Math.round(yc - a.h / 2), a.len, a.h, 2);
@@ -1326,7 +1462,7 @@ const ProfilePanel = ({
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, projection, showSize, showFlow, vp, liveSplit, view]);
+  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, projection, showSize, showFlow, vp, liveSplit, view, paper]);
 
   /* THE POINTER — the nearest strike by height, anywhere in the lanes */
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -1363,16 +1499,17 @@ const ProfilePanel = ({
      hint. The swatches read the same on-screen scale the capsules use. */
   const readStrike = hover?.strike ?? focusPrice ?? null;
   const readRow = readStrike != null ? placedRef.current.find(r => near(r.strike, readStrike)) ?? null : null;
-  /* The part the strike plays, named here — the size lane marks it with a stripe and its colour, never a chip */
+  /* The part the strike plays, named here — the size lane marks it with a stripe and its colour, never a chip. In the
+     level's TOKEN (paletteInk.ts): the dark island's are these very inks, and a light ground cuts them deep. */
   const readRole = readRow
     ? near(readRow.strike, levels.callWall)
-      ? { words: 'Call wall', c: CALL_WALL }
+      ? { words: 'Call wall', c: TOKEN.CALL_WALL }
       : near(readRow.strike, levels.putWall)
-        ? { words: 'Put wall', c: PUT_WALL }
+        ? { words: 'Put wall', c: TOKEN.PUT_WALL }
         : near(readRow.strike, levels.supreme)
-          ? { words: 'Supreme', c: SUPREME }
+          ? { words: 'Supreme', c: TOKEN.SUPREME }
           : levels.pin != null && near(readRow.strike, levels.pin)
-            ? { words: 'Pin', c: INK_2 }
+            ? { words: 'Pin', c: 'rgb(var(--text-secondary))' }
             : null
     : null;
   const hoverMax = placedRef.current.reduce((m, r) => Math.max(m, Math.abs(r.value)), 0) || maxAbs || 1;
@@ -1405,7 +1542,8 @@ const ProfilePanel = ({
   const cardKept = !!cardRow && focusPrice != null && near(focusPrice, cardRow.strike);
   const cardTop = cardRow && foot ? Math.max(headBandRef.current, Math.min(cardRow.y - 44, foot.top - 132)) : 0;
   const rampInk = (sign: 1 | -1, t: number) => {
-    const [rr, gg, bb] = heatRampColorFor(sign, Math.max(0.35, Math.min(1, t)), mode);
+    const tt = Math.max(0, Math.min(1, t));
+    const [rr, gg, bb] = heatRampColorFor(sign, paper ? ladderRampT(sign, tt, mode, true) : Math.max(0.35, tt), mode, paper);
     return `rgb(${rr},${gg},${bb})`;
   };
   const card = cardRow && (

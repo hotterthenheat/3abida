@@ -4,7 +4,7 @@
   A compact month grid for jumping to a session.
   Weekends and future dates are dead — the market
   did not print on them, so they should not look
-  clickable. Today wears the lime marker; the chosen
+  clickable. Today wears the silver accent in a silver ring; the chosen
   day wears the white selection.
 ==================================================
 */
@@ -118,7 +118,7 @@ const DatePicker = ({ selected, onPick, onClose }: DatePickerProps) => {
                   : isSelected
                     ? 'bg-textPrimary text-[#0a0a0a] font-semibold'
                     : isToday
-                      ? 'text-select font-semibold hover:bg-ink/[0.06]'
+                      ? 'text-select font-semibold ring-1 ring-inset ring-select/45 hover:bg-ink/[0.06]'
                       : 'text-textSecondary hover:bg-ink/[0.06] hover:text-textPrimary'
               }`}
             >
