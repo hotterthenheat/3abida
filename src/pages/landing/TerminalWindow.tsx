@@ -70,16 +70,19 @@ interface Props {
   /** Size the screen by the picture's own shape (a desk that does not dock). Otherwise the host gives the height. */
   natural?: boolean;
   className?: string;
-  /** THE FILM HAS PLAYED THROUGH: the film on screen wrapped round to its start (or, where the window shows stills, a still
-      has stood a while) — the page it showed is named */
+  /** THE PAGE HAS BEEN SEEN: the film on screen has played its lap (LAP seconds, or all of a shorter film; where the window
+      shows stills, a still has stood that long) — the page it showed is named */
   onLap?: (path: string) => void;
-  /** where the film on screen is, and its length, in seconds — as it plays (a still's while is said once, with the time
-      to glide over it) */
+  /** how far into its lap the film on screen is, and the lap's length, in seconds — as it plays (a still's lap is said
+      once, with the time to glide over it) */
   onTime?: (at: number, length: number, glide?: number) => void;
 }
 
-/** where the window shows stills, how long one stands before it counts as seen */
-const STILL_LAP = 7000;
+/* A LAP, BRISK (2026-10-02 — the owner, of the tour's pages turning once a film had played through: "make the tab
+   switching faster its so damn slow right now"): a page counts as seen after this much of its film (or the whole film, if
+   shorter), and a still after the same while */
+const LAP = 4.5;
+const STILL_LAP = LAP * 1000;
 
 /** A film's length, in seconds — what clips.json keeps for each page, theme and size */
 interface Clip {
@@ -212,9 +215,10 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     }
   }, [reels, live, rolling]);
 
-  /* THE LAP: the film on screen reports where it is as it plays, and when it wraps round to its start it has been seen
-     through once. Each film is read from its own start: a page shown again starts its count again. */
+  /* THE LAP: the film on screen reports how far into its lap it is as it plays, and says once, each time round, when the
+     lap is played. Each film is read from its own start: a page shown again starts its count again. */
   const lastAt = useRef(new Map<string, number>());
+  const lapped = useRef(new Set<string>());
   const played = (r: Reel, v: HTMLVideoElement) => {
     if (r.key !== live?.key) return;
     const d = v.duration;
@@ -222,8 +226,14 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     const t = v.currentTime;
     const was = lastAt.current.get(r.key) ?? t;
     lastAt.current.set(r.key, t);
-    timeRef.current?.(t, d);
-    if (was - t > d / 2) lapRef.current?.(r.path);
+    /* round again: a new lap */
+    if (was - t > d / 2) lapped.current.delete(r.key);
+    const lap = Math.min(d, LAP);
+    timeRef.current?.(Math.min(t, lap), lap);
+    if (!lapped.current.has(r.key) && t >= lap - 0.15) {
+      lapped.current.add(r.key);
+      lapRef.current?.(r.path);
+    }
   };
   /* …and a still that has stood a while counts as seen, where the window shows stills (data saved, or no films to play) */
   const stills = !reels.length;
@@ -327,6 +337,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             onLoadedMetadata={e => {
               /* a film loaded afresh counts from its own start */
               lastAt.current.delete(r.key);
+              lapped.current.delete(r.key);
               metadata(r, e.currentTarget);
             }}
             onCanPlay={e => canPlay(r, e.currentTarget)}

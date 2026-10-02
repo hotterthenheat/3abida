@@ -93,20 +93,21 @@ const DEPTH = 1600;
 const OVERLAP_MIN = 0.18;
 /** the card in front stands this much above the others */
 const LIFT = 12;
+/* THE PACE (2026-10-02 — the owner: "make it fast/medium paced but smooth"): a quicker glide and a shorter rest */
 /** a step on its own: the glide from one room to the next */
-const GLIDE = 900;
+const GLIDE = 620;
 /** …and the rest on each room before the next */
-const REST = 2600;
+const REST = 1500;
 /** the first step waits this long after the dock comes on screen */
-const FIRST = 2200;
-/** the dock rests this long after the pointer leaves before it moves on by itself */
-const WAIT = 3200;
-/** under the pointer, the time it takes to close most of the gap (a time constant) */
-const FOLLOW = 70;
+const FIRST = 1400;
+/** after the pointer leaves, the dock glides home to its middle room and rests this long before it moves on by itself */
+const WAIT = 900;
+/** under the pointer, the time it takes to close most of the gap to the pointer's room (a time constant) */
+const FOLLOW = 150;
+/** the share of the row's width at either end the pointer's reading leaves out (the end rooms are had a little in) */
+const EDGE = 0.1;
 /** a glide's pace: eases in and out, and stops dead on the room (easeInOutCubic) */
 const glide = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
-/** a pointer that has stopped this long brings its card all the way out */
-const SETTLE = 140;
 /** the card in front: the one the row is heading for once it is past half-way, else the nearest */
 const frontOf = (st: { f: number; to: number }) => (Math.abs(st.f - Math.round(st.to)) <= 0.5 ? Math.round(st.to) : Math.round(st.f));
 /** the stacking: nearer the front is higher, finely enough that no two tie, and the card in front wins a tie */
@@ -285,10 +286,10 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   /* WHERE THE FRONT STANDS (2026-10-02 — the owner: "if no cursor is on it make it switch to each one on its own as like a
      clean motion and then when the cursor is over it takes over"). Two ways it moves. ON ITS OWN it GLIDES: from where it
      stands to the next room in a set time, easing in and out (no tail that creeps on after it seems to have stopped), then
-     rests a while on that room and glides on — there and back along the row. Under the pointer it FOLLOWS: the pointer's
-     place is where it heads, closing most of the gap in a tenth of a second, from wherever the glide had got to. When the
-     pointer leaves, the dock settles on the room nearest it, rests, and carries on by itself. Written to the page directly,
-     a frame at a time, only while it moves. */
+     rests a moment on that room and glides on — there and back along the row. Under the pointer it FOLLOWS: the room the
+     pointer is well into is where it heads, closing most of the gap in about a seventh of a second, from wherever the glide
+     had got to. When the pointer leaves, the dock glides home to its middle room, rests a moment, and carries on by itself.
+     Written to the page directly, a frame at a time, only while it moves. */
   const m = useRef({ f: mid, to: mid, from: mid, t0: 0, dur: 0, hand: false, raf: 0, last: 0, dir: 1, next: 0, pause: 0 });
   const paint = () => {
     const { f } = m.current;
@@ -391,7 +392,6 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
     () => () => {
       cancelAnimationFrame(m.current.raf);
       window.clearTimeout(m.current.next);
-      window.clearTimeout(settle.current);
     },
     [],
   );
@@ -411,46 +411,28 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   /* THE POINTER'S PLACE IS THE CARD IN FRONT: where along the row the card in front would stand under the pointer, found
      on the row itself (by halving), so the card that comes out is the one under the pointer even where the row is
      narrower than its box */
+  /* CALMER (2026-10-02 — the owner: "the doc is to sensitive can we tone that down"): the pointer's place is read across
+     the whole row (a room every eighth of it, not every hundred pixels of the middle), the room it is on comes out only
+     once the pointer is well into it, and the row glides to it — it no longer slides with every move of the hand. The
+     card in front is wide enough that the pointer is always on it. */
   const fAt = (x: number) => {
-    const g = geo.current;
-    const centre = (f: number) => {
-      const { c } = rowAt(n, f, g.big, g.width);
-      const i = Math.min(n - 2, Math.floor(f));
-      return c[i] + (c[i + 1] - c[i]) * (f - i);
-    };
-    if (x <= centre(0)) return 0;
-    if (x >= centre(n - 1)) return n - 1;
-    let lo = 0;
-    let hi = n - 1;
-    for (let k = 0; k < 22; k++) {
-      const mid = (lo + hi) / 2;
-      if (centre(mid) < x) lo = mid;
-      else hi = mid;
-    }
-    return (lo + hi) / 2;
+    const w = geo.current.width;
+    return Math.max(0, Math.min(1, (x - w * EDGE) / (w * (1 - 2 * EDGE)))) * (n - 1);
   };
   /* the card the pointer has: kept until the pointer is well past the half-way to the next, so a hand at the border of two
      never swings the row between them; a pointer that stops brings its card all the way out — full size, on top, its words
      under it — and one that moves carries the row with it (where less motion is asked for, it changes card by card) */
   const pick = useRef(mid);
-  const settle = useRef(0);
   const fromPointer = (clientX: number) => {
     const el = row.current;
     if (!el || !geo.current.width) return;
     const raw = fAt(clientX - el.getBoundingClientRect().left);
-    if (Math.abs(raw - pick.current) > 0.6) pick.current = Math.round(raw);
-    window.clearTimeout(settle.current);
-    if (stillRef.current) {
-      if (!m.current.hand || m.current.to !== pick.current) follow(pick.current);
-      return;
-    }
-    follow(raw);
-    settle.current = window.setTimeout(() => follow(pick.current), SETTLE);
+    if (Math.abs(raw - pick.current) > 0.7) pick.current = Math.round(raw);
+    if (!m.current.hand || m.current.to !== pick.current) follow(pick.current);
   };
-  /* let go: a card the keys are on keeps the front; otherwise the dock settles on the room nearest it, rests a little
-     longer than usual, then moves on by itself */
+  /* let go: a card the keys are on keeps the front; otherwise the dock glides home to its middle room (the owner: "when i
+     get the cursor away it goes back to the middle one and auto moves it"), rests a moment, and moves on by itself */
   const letGo = () => {
-    window.clearTimeout(settle.current);
     const k = faces.current.findIndex(face => face?.matches(':focus-visible'));
     if (k >= 0) {
       follow(k);
@@ -458,7 +440,9 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
     }
     const st = m.current;
     st.pause = WAIT;
-    glideTo(Math.round(st.f));
+    st.dir = 1;
+    pick.current = mid;
+    glideTo(mid);
   };
 
   /* the first frame is laid out where the front stands, so nothing flashes stacked at the left before the first paint */

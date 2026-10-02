@@ -162,8 +162,9 @@ export const SHARED_COUNT = ROOMS.find(r => r.id === 'every')?.features.length ?
 /** "Open the Weigher", not "Open The Weigher" */
 export const doorName = (name: string) => name.replace(/^The /, 'the ');
 
-/** how long a room stays lit before the next: time to read its pages, more for a room with more of them */
-const dwellOf = (r: Room) => Math.max(6000, Math.min(13000, 2600 + 650 * r.features.length));
+/** how long a room stays lit before the next: a little more for a room with more pages, and brisk (the owner, 2026-10-02:
+    "make the tab switching faster its so damn slow right now") */
+const dwellOf = (r: Room) => Math.max(3200, Math.min(5200, 2200 + 220 * r.features.length));
 
 const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
   const [at, setAt] = useState(0);

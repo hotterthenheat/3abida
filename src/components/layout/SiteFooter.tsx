@@ -15,12 +15,10 @@
 ==================================================
 */
 
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useLaunch } from './LaunchTransition';
 import Wordmark from '../../brand/Wordmark';
-import { WORDMARK } from '../../brand/wordmarkPaths';
-import { alignBrandLoops } from '../../brand/brandClock';
 import Signature from '../../brand/Signature';
 import { PRODUCTS } from '../../brand/products';
 import { COMPANY, filled } from '../../data/company';
@@ -144,47 +142,6 @@ const OUTSIDE = /^\/(about|status|legal)/;
 /** The footer's column: the landing's own (Landing.tsx Wrap), so every edge of the footer lines up with the page above */
 const COLUMN = 'mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10';
 
-/** how much of the wordmark stands above the page's bottom edge */
-const SHOWN = 0.64;
-
-/* THE FLOOR (2026-10-02 — the owner: "fix the live footer it doesn't look clean and together"; the clean footers end on
-   one object, the brand at display size cut by the page's edge — Midday, Framer's Futer): the drawn wordmark the width
-   of the column, its foot below the page's last pixel, ENGRAVED in the ground — a hair of ink inside the letters and a
-   hairline round them — not printed on it. Its cursor blinks on the brand's one beat (brandClock), the only thing in it
-   that moves. The letters are the brand's own outlines (wordmarkPaths.ts); only the paint is the floor's. */
-const FooterFloor = () => {
-  const cursor = useRef<HTMLSpanElement | null>(null);
-  useLayoutEffect(() => {
-    alignBrandLoops(cursor.current);
-  }, []);
-  return (
-    <div
-      aria-hidden="true"
-      className="relative overflow-hidden select-none pointer-events-none"
-      style={{ aspectRatio: `${WORDMARK.width} / ${(WORDMARK.height * SHOWN).toFixed(2)}` }}
-      data-footer-floor
-    >
-      <svg viewBox={`0 0 ${WORDMARK.width} ${WORDMARK.height}`} className="absolute inset-x-0 top-0 block w-full h-auto" focusable="false">
-        <g fill="rgb(var(--ink) / 0.035)" stroke="rgb(var(--ink) / 0.17)" strokeWidth={1}>
-          <path d={WORDMARK.chevron} vectorEffect="non-scaling-stroke" />
-          <path d={WORDMARK.slayer} vectorEffect="non-scaling-stroke" />
-          <path d={WORDMARK.terminal} vectorEffect="non-scaling-stroke" />
-        </g>
-      </svg>
-      <span
-        ref={cursor}
-        className="wordmark-cursor"
-        style={{
-          left: `${(WORDMARK.cursorX / WORDMARK.width) * 100}%`,
-          width: `${(WORDMARK.cursorW / WORDMARK.width) * 100}%`,
-          height: `${(99.6 / SHOWN).toFixed(2)}%`,
-          background: 'rgb(var(--ink) / 0.2)',
-        }}
-      />
-    </div>
-  );
-};
-
 const SiteFooter = ({ home = false }: { home?: boolean }) => (
   /* shrink-0: on the Weigher the footer shares a definite-height flex column
      with a full-viewport desk — left shrinkable, flexbox would absorb the
@@ -193,12 +150,8 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
     <div className={`${COLUMN} pt-14 pb-10 grid grid-cols-2 md:grid-cols-6 gap-x-10 gap-y-10`}>
       <div className="col-span-2">
         <Wordmark height={14} label="Slayer Terminal" />
-        {/* THE PROMISE, SAID TWICE (2026-10-02, from the owner's notes on two landings that open and close on one line): the
-            first screen's line, in its own voice — light, tight, its "see." in the silver — so the page ends where it began */}
-        <p className="mt-6 text-[30px] sm:text-[34px] font-light tracking-[-0.04em] leading-[1.02] text-textPrimary [text-wrap:balance]">
-          Trade what you can <span className="font-medium text-silver">see.</span>
-        </p>
-        <p className="mt-3 text-[13px] text-textSecondary leading-relaxed max-w-[38ch]">
+        <p className="mt-5 text-[17px] font-medium tracking-tight text-textPrimary">Trade what you can see.</p>
+        <p className="mt-2 text-[13px] text-textSecondary leading-relaxed max-w-[38ch]">
           Most of what moves a price is public, just scattered. Slayer gathers it into one terminal.
         </p>
       </div>
@@ -235,14 +188,11 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
         </div>
       </div>
     </div>
-    {/* THE LIVE END OF THE PAGE (2026-10-02 — the owner: "make it super cool like a live footer", then, of the first try,
-        "it doesn't look clean and together"): the line and its echoes, drawn live (FooterArt), standing on the wordmark
-        cut by the page's edge (FooterFloor) — one object, in the column every other edge of the footer keeps. Taller on
-        the front page. */}
-    <div className={COLUMN}>
-      <FooterArt className={home ? 'h-[170px] md:h-[230px]' : 'h-[130px] md:h-[170px]'} />
-      <FooterFloor />
-    </div>
+    {/* THE TERMINAL IN THE DARK (2026-10-02 — the owner, with a photograph of the terminal caught dark and broken: "i
+        wanted a cool cursor interactive that looks like this photo in the footer not a new footer please"): the footer is
+        the footer, and at its foot the photograph, live — the pointer brings the screen back into focus (FooterArt). Edge
+        to edge, its scene kept to the page's column. Taller on the front page. */}
+    <FooterArt className={home ? 'h-[220px] md:h-[300px]' : 'h-[160px] md:h-[200px]'} />
   </footer>
 );
 

@@ -100,14 +100,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the door, and the dock in all the room they leave ([data-dock-slot]: the dock measures it) — its cards and words
   whole above the fold, the tour below it. On a wide screen the dock's stage is wider than the words (up to 2000 px,
   80 px in from the edges); on a phone or tablet the door comes right under the strip, the two centred together, and
-  the strip's cards are sized to the screen's height. The pointer's place along the row brings a room out and the pointer takes over
-  at once, from wherever the dock had got to — a moving pointer carries the row with it, a resting one brings its card
-  all the way out, full size with its words (a dead band keeps a hand at the border of two from swinging the row), and
-  the card under the pointer is the one in front even on a short screen whose row is narrower than its box; left alone (the owner: "if no cursor is on it make it switch to each one
-  on its own as like a clean motion"), the dock GLIDES to the next room — about 0.9 s, eased in and out, stopping dead
-  on it (never an exponential creep) — rests about 2.6 s, and glides on, there and back; after the pointer leaves it
-  settles on the nearest room and rests a little longer first (a timer and a timed glide of transforms and opacities,
-  never an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle
+  the strip's cards are sized to the screen's height. The pointer takes over at once, from wherever the dock had got
+  to, CALMLY (the owner, 2026-10-02: "the doc is to sensitive can we tone that down"): its place is read across the
+  whole row, a room every eighth of it, the room it is well into comes out (a dead band keeps a hand at the border of
+  two from swinging it), and the row glides there — it does not slide with every move of the hand; the card in front is
+  wide enough that the pointer is always on it. Left alone (the owner: "if no cursor is on it make it switch to each one
+  on its own as like a clean motion", then "fast/medium paced but smooth"), the dock GLIDES to the next room — about
+  0.6 s, eased in and out, stopping dead on it (never an exponential creep) — rests about 1.5 s, and glides on, there and
+  back; when the pointer leaves it glides home to the middle room (the owner: "when i get the cursor away it goes back to
+  the middle one and auto moves it"), rests a moment and moves on (a timer and a timed glide of transforms and
+  opacities, never an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle
   card in front and the others behind, before the words (in the page's order too, not only on screen); it steps on by
   itself, and a thumb takes it over until a while after it lets go; a key or a screen reader on a card holds it and
   brings that card to the middle; only the films on screen play. The dock is for any hovering mouse from 768 px. A card
@@ -118,37 +120,31 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs
   and the mark stand bare (`bare`), sized to fit their line.
 - Rooms play their pages (2026-10-02 — the owner: "each tab if they have more tabs to click it should automatically
-  scroll to them so people can see everything without always having to use their mouse"). In the tour the room on
-  screen shows its pages in turn, each for one play of its film (TerminalWindow's onLap: the film wrapped round; on
-  stills, 7 s), a line under its row filling as it plays (onTime); a row the reader picks holds the room until they
-  move to another room. "Everything in it" brings its rooms round by itself while on screen (longer for a room with
-  more pages), a line on the lit tab filling; a pointer or the keys inside hold it, a picked room stays until the list
-  leaves the screen. Neither moves where less motion is asked for. A new list of tabs on the landing does the same.
+  scroll to them so people can see everything without always having to use their mouse", then "make the tab switching
+  faster its so damn slow right now"). In the tour the room on screen shows its pages in turn, each for 4.5 s of its
+  film (TerminalWindow's onLap and LAP; a still as long), a line under its row filling as it plays (onTime); a row the
+  reader picks holds the room until they move to another room. "Everything in it" brings its rooms round by itself
+  while on screen (3.2–5.2 s, a little more for a room with more pages), a line on the lit tab filling; a pointer or the
+  keys inside hold it, and a picked room (on a phone, any touch in the list) stays until the list leaves the screen. Neither moves where less motion is asked for. A new list of tabs on the landing does the same.
   The tour's window asks once whether the browser plays H.264; a film that fails to load leaves only its own page on
   its still. The closing "Seen enough? Step inside." lights a letter at a time as it comes up the screen (Landing.tsx
   LitLines, the scroll its playhead; lit under reduced motion).
-- The live footer (2026-10-02 — the owner: "make it super cool like a live footer make some sort of artistic thing
-  from the photo", then, of the first try, a tape breaking into coloured dashes and slips: "it doesn't look clean and
-  together right now go online and look for some examples and retry it"). What the clean live footers share (Midday,
-  Vercel, Dub, OpenStatus; TradingView's last-price pulse; Unknown Pleasures): ONE idea in the product's own grammar,
-  most of the band left as ground, one small true live signal, colour only where it means something. So SiteFooter is
-  the links, the legal line with the signature, then the live band (components/layout/FooterArt.tsx) standing on the
-  floor: the drawn wordmark the width of the column, cut by the page's bottom edge and engraved in the ground (a hair of
-  ink in the letters, a hairline round them), its cursor blinking on the brand's beat — all in the landing's column
-  (max 1440). The band draws one line gliding left at a steady pace and, behind it, its own past (the same line a few
-  seconds ago, and before that — each echo a step up and a tier fainter, hidden where a nearer one passes in front: the
-  owner's doubled, broken chart put in order); its old end fades out by the stroke's own ink; its live end is a dot
-  whose silver ring breathes and rests; a dashed level runs to one tag, the clock. Under the pointer a hairline and a
-  dot ride the line and the tag tells that moment's time; off it, it eases home. No specks, slips, dashes or extra
-  colours. Art, not data: no figure on it is a price. Every ink a token read off the band's own ground (re-read when the
-  theme turns); drawn about thirty times a second (sixty under the pointer) only while on screen with the tab in front;
-  under reduced motion one still frame whose clock moves on once a minute. BEFORE YOU GO, MARK A LEVEL (2026-10-02, from
-  the owner's notes on Eclipse's and Yu-Hsin Lin's footers, docs/landing-inspiration-notes.md): a press on the band
-  sets a level (three at most; a press on one takes it away; a keyboard door shows on focus); when the line walks
-  across it, it lights in silver and its tag says when; the levels last the visit (module memory, nothing stored); none
-  under reduced motion. The footer opens on the first screen's promise in its voice ("Trade what you can see.", its
-  "see." in the silver), and a link under the pointer drops the rest of its column a tier and comes forward with a short
-  mark (index.css .footer-col: colour and transforms, never weight).
+- The live footer (2026-10-02 — the owner, with a photograph of the terminal caught on a black screen, only its
+  brightest marks left and broken into pixels: "make it super cool like a live footer make some sort of artistic thing
+  from the photo", and, of the line art and the toy put there first: "i wanted a cool cursor interactive that looks like
+  this photo in the footer not a new footer please"). The footer is the footer — the wordmark and its line, the link
+  columns, the legal line with the signature — and at its foot, edge to edge, the photograph made live
+  (components/layout/FooterArt.tsx, its scene kept to the page's column): a chart pane (a rough price line walking, its
+  last-price line run out to a tag, a block of volume, the time axis, levels broken into coloured dashes), a strike
+  ladder beside it, chips under it, specks — all in coarse pixels with a hair of red on one edge and blue on the other,
+  most of it gone to the ground. Around the pointer the screen comes back sharp (the terminal itself), a crosshair reads
+  the line (the moment under it on the tag and the axis), a fast pointer tears the rows it crosses, and where it has been
+  goes dark again in about a second; with no pointer on it an arrow of its own (the photograph's) drifts over it and
+  rests on what it reads. No level game, no headline, no engraved wordmark. Art, not data: no figure on it is a price —
+  the tags are the clock. Every ink a token read off the band's own ground (paper prints it in ink); still parts drawn
+  once, the moving ones about thirty times a second (sixty under the pointer) only while on screen with the tab in front;
+  under reduced motion one still frame with the focus drawn where the pointer stands. A footer link under the pointer
+  drops the rest of its column a tier and comes forward with a short mark (index.css .footer-col).
 - "Everything in it" (landing/Everything.tsx) lists every page of every room, each a door into the terminal —
   Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page is listed by itself; write the
   others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side
