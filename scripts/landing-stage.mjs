@@ -54,9 +54,12 @@ export const SEED = {
     layout: 2,
     /* the rails read one expiry, two weeks out (his picture: "Oct 2") */
     railCut: 14,
+    /* no theme of their own (2026-10-02 — the owner: "make sure both the charts are either dark or white not dark and
+       white"): each pane follows the page, so the dark film's charts are both Glacier and the light film's both Stone —
+       a Glacier pane beside a Stone one read as one dark chart and one white on either ground of the landing */
     panes: [
-      { ticker: 'SPY', timeframe: '15m', theme: 'glacier', ladder: true },
-      { ticker: 'QQQ', timeframe: '15m', theme: 'stone', ladder: true },
+      { ticker: 'SPY', timeframe: '15m', ladder: true },
+      { ticker: 'QQQ', timeframe: '15m', ladder: true },
     ],
   }),
 };

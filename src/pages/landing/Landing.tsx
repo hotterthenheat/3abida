@@ -682,9 +682,11 @@ const Nav = ({ ground }: { ground: Ground }) => {
    over the line, its last word in the foil.
 
    EVERY DESK ON THE FIRST SCREEN (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
-   to click on each one"): under the line, the wall of all eight rooms, every one playing (Wall.tsx). On a desk the words
-   and the door come before the wall; on a phone the wall comes straight after the line, so all eight are on the first
-   screen and the words follow. THE DOOR is "Sign up free" (the owner, the same day: "theirs no try to free you can sign
+   to click on each one"): under the line, all eight rooms, every one playing (Wall.tsx) — since 2026-10-02 a dock (the
+   owner: "make them like side by side and when u move your cursor they move with it like the apple mac dock but more
+   dramatic"): one row, the room in front swollen with its words under it, steered by the pointer and moving on by itself
+   when no one steers; on a phone, a strip a thumb swipes. On a desk the words and the door come before the dock; on a
+   phone the strip comes straight after the line and the words follow. THE DOOR is "Sign up free" (the owner, the same day: "theirs no try to free you can sign
    up for free but that's it") — the account costs nothing; a plan opens the desks. */
 const Hero = ({ onSignUp, rooms, onPick }: { onSignUp: () => void; rooms: TourStep[]; onPick: (id: string) => void }) => {
   const ground = useBlockGround();
@@ -995,7 +997,8 @@ const Page = () => {
           </div>
 
           <div className="py-[18vh] text-center">
-            {/* THE ROOMS, ONCE MORE (2026-10-01): each glyph on its whole tile, a door into its room */}
+            {/* THE ROOMS, ONCE MORE (2026-10-01): each glyph on its whole tile, a door into its room — 34, from 44 (2026-10-02, the
+                owner: "make the logos a bit smaller") */}
             <ul className="mb-12 mx-auto max-w-[19rem] sm:max-w-none flex flex-wrap justify-center gap-3 sm:gap-4" aria-label="The rooms" data-landing-close-rooms>
               {HERO_ROOMS.map(r => (
                 <li key={r.id}>
@@ -1010,7 +1013,7 @@ const Page = () => {
                     className="block rounded-[14px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
                     data-landing-close-room={r.id}
                   >
-                    {r.glyph && <ProductGlyph name={r.glyph} size={44} bare className="max-sm:w-9 max-sm:h-9" />}
+                    {r.glyph && <ProductGlyph name={r.glyph} size={34} bare className="max-sm:w-[30px] max-sm:h-[30px]" />}
                   </a>
                 </li>
               ))}

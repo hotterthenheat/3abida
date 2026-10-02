@@ -23,6 +23,7 @@ import Signature from '../../brand/Signature';
 import { PRODUCTS } from '../../brand/products';
 import { COMPANY, filled } from '../../data/company';
 import { VERSION } from '../../data/release';
+import FooterArt from './FooterArt';
 
 /* THE LINKS, WALKED (2026-09-19): every row goes where it says. THE BRAND'S FOOTER (Slayer Logo System, 14 · the footer,
    2026-09-30): the products in the menu's order, the company, the legal pages and the one social handle. */
@@ -143,6 +144,9 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
      with a full-viewport desk — left shrinkable, flexbox would absorb the
      whole deficit HERE and silently collapse the footer to nothing. */
   <footer className="shrink-0 border-t border-borderSubtle" data-site-footer>
+    {/* THE LIVE BAND (2026-10-02 — the owner: "make it super cool like a live footer", from a photograph of a chart caught
+        dark and broken): the tape dissolving, drawn live (FooterArt). Taller on the front page; a strip under the terminal. */}
+    <FooterArt className={home ? 'h-[200px] md:h-[280px]' : 'h-[140px] md:h-[170px]'} />
     <div className="px-6 md:px-10 pt-14 pb-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-6 gap-x-10 gap-y-10">
       <div className="col-span-2">
         <Wordmark height={14} label="Slayer Terminal" />

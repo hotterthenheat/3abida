@@ -38,6 +38,7 @@ import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { ALL_PAGES, ROOM_PAGES, SEED, PREPARE, slug } from './landing-stage.mjs';
 
@@ -65,7 +66,14 @@ const SIZES = [
 ].filter(z => !FORMS.length || FORMS.includes(z.form));
 const FPS = 30;
 /** how much faster than life the films run: each frame is SPEED thirtieths of a second of the page's time */
-const SPEED = 3;
+const SPEED = 4;
+/** THE PACE OF THE HAND (2026-10-02 — the owner: "make them move fast"): every beat's time is the act's own times this.
+    With SPEED 4 a beat gives the page the same time to answer it had at SPEED 3 and a full pace (4 × 0.75 = 3), but the
+    film takes a quarter less of the reader's: the pointer moves faster and the page lives faster under it. */
+const PACE = 0.75;
+/** THE WALL'S COPIES (2026-10-02): the landing's dock swells the room in front to about 380 points, 760 pixels on a sharp
+    screen — 640 was soft there, so the copies are 960 wide */
+const WALL_W = 960;
 /** how much of the page's time passes, held, before the first frame — ms (below, where the clock is held) */
 const PREROLL = 1000;
 /** the minute every film is set in: a Thursday afternoon, the market open (13:42 in New York) — a day with reports on the
@@ -546,6 +554,16 @@ const REMEMBER = {
 /* the Compass board's chosen card, read before either act begins */
 REMEMBER['/compass'] = [{ remember: 'sel', of: async ({ frame }) => frame.locator('[data-compass-card][data-selected]').first().getAttribute('data-compass-card', { timeout: 1500 }).catch(() => null) }];
 
+/* AN ACT ON TRIAL (2026-10-02): ACTS names a module whose default export takes the helpers above and returns { DESK, PHONE,
+   REMEMBER } — its acts stand in for the ones written here, page by page, so an act can be tried in a PREVIEW before it is
+   written into this file */
+if (process.env.ACTS) {
+  const trial = (await import(pathToFileURL(resolve(process.env.ACTS)).href)).default({ on, near, btn, tf, at, off, SEARCH_MENU, tfButtonNow, tfVia, tfNow });
+  Object.assign(DESK, trial.DESK ?? {});
+  Object.assign(PHONE, trial.PHONE ?? {});
+  Object.assign(REMEMBER, trial.REMEMBER ?? {});
+}
+
 /* ---- THE CAMERA ---------------------------------------------------------------------------------------------------- */
 
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -695,7 +713,7 @@ const film = async (browser, path, theme, size, manifest) => {
     await loops((1000 / FPS) * SPEED);
     await shoot();
   };
-  const frames = s => Math.max(1, Math.round(s * FPS));
+  const frames = s => Math.max(1, Math.round(s * FPS * PACE));
   const fade = async (to, count) => {
     const from = cursor;
     for (let k = 1; k <= count; k++) {
@@ -897,7 +915,7 @@ const film = async (browser, path, theme, size, manifest) => {
   const key = `${slug(path)}-${theme}-${size.form}`;
   writeFileSync(resolve(PUBLIC, `${key}.webp`), Buffer.from(await webpOf(page, png), 'base64'));
   const room = desk && ROOM_PAGES.includes(path);
-  if (room) writeFileSync(resolve(WALL, `${slug(path)}-${theme}.webp`), Buffer.from(await webpOf(page, png, 640), 'base64'));
+  if (room) writeFileSync(resolve(WALL, `${slug(path)}-${theme}.webp`), Buffer.from(await webpOf(page, png, WALL_W), 'base64'));
   await ctx.close();
 
   const out = resolve(CLIPS, `${key}.mp4`);
@@ -909,8 +927,8 @@ const film = async (browser, path, theme, size, manifest) => {
       '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', to,
     ]);
   encode(out, size.crf);
-  /* the wall's copy: a fifth of the pixels, for a screen a fifth of the size */
-  if (room) encode(resolve(WALL, 'clips', `${slug(path)}-${theme}.mp4`), 31, 640);
+  /* the wall's copy: under half the desk film's width, for the dock's card in front (up to 380 points wide) */
+  if (room) encode(resolve(WALL, 'clips', `${slug(path)}-${theme}.mp4`), 31, WALL_W);
   rmSync(dir, { recursive: true, force: true });
   manifest[key] = { d: Number((n / FPS).toFixed(2)) };
   const kb = Math.round(readFileSync(out).length / 1024);

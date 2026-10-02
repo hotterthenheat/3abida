@@ -65,13 +65,28 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   dev server reloads the pages being filmed. Re-film a page when its look changes, check its act still finds what it
   presses (the run says when a beat found nothing), and check each film's first and last frames side by side.
 - The landing's first screen (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
-  to click on each one"): the line, "Sign up free", and the wall of all eight rooms (landing/Wall.tsx), every one
-  playing its film's small copy (public/landing/wall/, written by landing:clips from the desk film), each a door to its
-  room in the tour; two across on a phone, where the wall comes before the words. Films play only on screen with the tab
+  to click on each one"): the line, "Sign up free", and all eight rooms (landing/Wall.tsx), every one playing its
+  film's copy (public/landing/wall/, 960 wide, written by landing:clips from the desk film), each a door to its room in
+  the tour. A DOCK since 2026-10-02 (the owner: "side by side and when u move your cursor they move with it like the
+  apple mac dock but more dramatic … add a bit more info on them", then "the main one comes out and the rest are in
+  the back"): the eight side by side across the row, overlapping; the room in front full size (about a third of the
+  row, less on a short screen so it fits under the words), on top and lifted, with its kind, its line and up to four of
+  its pages under it (the tour's STEPS); the rest step back — 0.44 of its size at the back, dimmed by a veil of the
+  ground, tucked under their neighbours. The pointer's place along the row brings a room out; left alone, the dock moves
+  on by itself, a room every few seconds, there and back (a timer and an eased step of transforms and opacities, never
+  an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle card in
+  front and the others behind, before the words; it steps on by itself until first touched. Films play only on screen with the tab
   in front; reduced motion, Save-Data and a browser without H.264 keep the stills. The tour's window (TerminalWindow)
   plays one film, with no pause button and no captions. The only door is "Sign up free" — an account is free; there
   is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs
   and the mark stand bare (`bare`), sized to fit their line.
+- The live footer (2026-10-02 — the owner, with a photograph of a chart caught dark and broken: "make it super cool like
+  a live footer make some sort of artistic thing from the photo"): components/layout/FooterArt.tsx, a canvas band at the
+  top of SiteFooter (taller on the landing, a strip under the terminal) — a walk of its own drawn live: the line, its old
+  end dissolving into pixels; the volume comb; a ladder coming apart; slips of the picture with colour at the edges; the
+  reader's pointer (a hairline and a dot on the line) or a drifting arrow. Art, not data: no figure on it is a price —
+  its tag is the clock. Every ink a token read off the band's own ground; drawn about thirty times a second only while
+  on screen with the tab in front; one still frame under reduced motion.
 - "Everything in it" (landing/Everything.tsx) lists every page of every room, each a door into the terminal —
   Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page is listed by itself; write the
   others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side
