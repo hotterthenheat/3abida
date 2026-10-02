@@ -38,6 +38,17 @@
   to CSS as two variables — the gradient is painted
   once, never per frame.
 
+  THE ROOM PLAYS ITS PAGES (2026-10-02 — the owner:
+  "each tab if they have more tabs to click it should
+  automatically scroll to them so people can see
+  everything without always having to use their
+  mouse"). The room on screen shows its pages in turn,
+  each for one play of its film (a still, for a while),
+  and starts again from its first; a hairline under the
+  row fills as the film plays. A row the reader picks
+  holds the room on that page until they move on to
+  another room. Not where less motion is asked for.
+
   …AND THE TURN BACK. The page ends on the ground it
   opened on (Noah, 2026-09-19: "the light theme
   should begin but also end as a light theme and the
@@ -132,6 +143,9 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
 
   const [active, setActive] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  /* the room the reader has taken over by picking one of its rows: it stays on that page until they move on */
+  const [held, setHeld] = useState<string | null>(null);
+  useEffect(() => setHeld(h => (h === active ? h : null)), [active]);
   const [turned, setTurned] = useState(false);
   const [lead, setLead] = useState(0);
 
@@ -282,6 +296,35 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
   const path = step ? picked[step.id] ?? step.path : first;
   const turnAt = steps.findIndex(s => s.turn);
 
+  /* THE ROOM PLAYS ITS PAGES: when the page on screen has been seen through, the room on screen moves on to its next one
+     (only if that is still the page it shows — a lap that lands as the reader scrolls on is not the next room's) */
+  const pagesOf = (s: TourStep) => s.rows.flatMap(r => (r.path ? [r.path] : []));
+  const plays = (s: TourStep | undefined) => !calm && !!s && held !== s.id && pagesOf(s).length > 1;
+  const now = useRef({ step, plays: plays(step) });
+  now.current = { step, plays: plays(step) };
+  const onLap = useCallback((seen: string) => {
+    const { step: s, plays: on } = now.current;
+    if (!s || !on) return;
+    const pages = pagesOf(s);
+    setPicked(p => {
+      const cur = p[s.id] ?? s.path;
+      if (cur !== seen) return p;
+      return { ...p, [s.id]: pages[(pages.indexOf(cur) + 1) % pages.length] };
+    });
+  }, []);
+  /* …and the hairline under its row fills as the film plays (written straight to the line; it starts empty for each page) */
+  const bar = useRef<HTMLSpanElement | null>(null);
+  const barAt = useRef(0);
+  const onTime = useCallback((at: number, length: number, glide = 260) => {
+    const el = bar.current;
+    if (!el) return;
+    const p = Math.min(1, Math.max(0, at / length));
+    /* a film wrapping round (or the line new) jumps back; forward, it glides from one reading to the next */
+    el.style.transition = p < barAt.current ? 'none' : `transform ${glide}ms linear`;
+    el.style.transform = `scaleX(${p})`;
+    barAt.current = p;
+  }, []);
+
   return (
     <div ref={wrap} className="relative isolate pb-56" data-tour data-tour-active={active ?? 'hero'} data-tour-turned={turned || undefined}>
       {/* `isolate`: the window's layer and its long shadow stay inside the tour — without it the shadow fell on the block below; the foot's
@@ -312,7 +355,7 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
           <div ref={box} className={dockable ? 'landing-box absolute top-0 right-0 w-full h-full' : 'h-full'} data-tour-box>
             {/* docking: the box is given the picture's shape (measure). One column: a fixed band the picture fills. A desk that
                 does not dock (less motion asked for): the window sizes itself by the picture. */}
-            <TerminalWindow path={path} theme={turned ? b : a} desk={!small} natural={!dockable && !small} className={!dockable && !small ? '' : 'h-full'} />
+            <TerminalWindow path={path} theme={turned ? b : a} desk={!small} natural={!dockable && !small} className={!dockable && !small ? '' : 'h-full'} onLap={onLap} onTime={onTime} />
           </div>
           {/* in one column the words pass under the window — they dissolve into it rather than being cut */}
           <div aria-hidden="true" className="lg:hidden pointer-events-none absolute inset-x-0 top-full h-10 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black,transparent)]" />
@@ -323,6 +366,7 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
             const ground = turnAt >= 0 && i >= turnAt ? b : a;
             const on = active === s.id;
             const shown = picked[s.id] ?? s.path;
+            const playing = on && plays(s);
             return (
               <article
                   key={s.id}
@@ -384,7 +428,10 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
                               {r.path ? (
                                 <button
                                   type="button"
-                                  onClick={() => setPicked(p => ({ ...p, [s.id]: r.path! }))}
+                                  onClick={() => {
+                                    setPicked(p => ({ ...p, [s.id]: r.path! }));
+                                    setHeld(s.id);
+                                  }}
                                   aria-pressed={here}
                                   data-tour-row={r.path}
                                   className="group relative w-full text-left py-3.5 pl-4 pr-8 transition-colors hover:bg-ink/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
@@ -393,6 +440,20 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
                                   <span aria-hidden="true" className={`absolute left-0 top-3 bottom-3 w-[2px] rounded-full transition-colors ${here ? 'bg-silver' : 'bg-transparent'}`} />
                                   {body}
                                   <ArrowRight aria-hidden="true" className={`absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition ${here ? 'text-silver' : 'text-textMuted opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0'}`} />
+                                  {/* the page playing: the line fills as its film plays, and the room moves on when it is full */}
+                                  {here && playing && (
+                                    <span
+                                      key={shown}
+                                      ref={el => {
+                                        bar.current = el;
+                                        barAt.current = 0;
+                                      }}
+                                      aria-hidden="true"
+                                      className="absolute inset-x-0 -bottom-px h-[2px] origin-left bg-silver"
+                                      style={{ transform: 'scaleX(0)' }}
+                                      data-tour-progress
+                                    />
+                                  )}
                                 </button>
                               ) : (
                                 <div className="py-3.5 pl-4 pr-8">{body}</div>

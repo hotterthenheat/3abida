@@ -927,7 +927,7 @@ const Page = () => {
               <TwoTone className="mt-6" first="Every page, by room." second="Open any of them." />
             </div>
             <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2" data-everything-count>
-              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares. Pick a room for its pages; each one opens in the terminal.
+              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares. The rooms come round by themselves; pick one to stay on it. Each page opens in the terminal.
             </p>
           </div>
           <Everything onOpen={open} />

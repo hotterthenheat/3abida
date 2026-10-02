@@ -70,7 +70,16 @@ interface Props {
   /** Size the screen by the picture's own shape (a desk that does not dock). Otherwise the host gives the height. */
   natural?: boolean;
   className?: string;
+  /** THE FILM HAS PLAYED THROUGH: the film on screen wrapped round to its start (or, where the window shows stills, a still
+      has stood a while) — the page it showed is named */
+  onLap?: (path: string) => void;
+  /** where the film on screen is, and its length, in seconds — as it plays (a still's while is said once, with the time
+      to glide over it) */
+  onTime?: (at: number, length: number, glide?: number) => void;
 }
+
+/** where the window shows stills, how long one stands before it counts as seen */
+const STILL_LAP = 7000;
 
 /** A film's length, in seconds — what clips.json keeps for each page, theme and size */
 interface Clip {
@@ -83,6 +92,9 @@ export const slug = (path: string): string => path.replace(/^\//, '').replace(/\
 const keyFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `${slug(path)}-${theme}-${form}`;
 const shotFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `/landing/${keyFor(path, theme, form)}.webp`;
 const filmFor = (key: string): string => `/landing/clips/${key}.mp4`;
+
+/** The films are H.264: a browser that cannot play it (an open-source Chromium) is shown the stills */
+const noFilms = (): boolean => typeof document !== 'undefined' && !document.createElement('video').canPlayType('video/mp4; codecs="avc1.640028"');
 
 /** A visitor saving data gets the stills */
 export const savingData = (): boolean => {
@@ -98,7 +110,11 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime }: Props) => {
+  const lapRef = useRef(onLap);
+  lapRef.current = onLap;
+  const timeRef = useRef(onTime);
+  timeRef.current = onTime;
   const root = useRef<HTMLDivElement | null>(null);
   const view = useRef<HTMLDivElement | null>(null);
   /* a phone's column gets the terminal's phone layout; a tablet's is wide enough for the desk's picture. The first guess
@@ -148,11 +164,14 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
   /* ---- THE FILMS ---- */
   const calm = useReducedMotion();
   const [frugal] = useState(savingData);
-  /* a browser that cannot decode the films (an open-source Chromium without H.264) keeps the stills */
-  const [mute, setMute] = useState(false);
+  /* a browser that cannot decode the films (an open-source Chromium without H.264) keeps the stills — asked once, up front.
+     A film that fails to load leaves its own page on its still; the other pages keep their films (one failure used to
+     turn every film off for the rest of the visit). */
+  const [mute] = useState(noFilms);
+  const [broken, setBroken] = useState<Set<string>>(() => new Set());
   const motion = !calm && !frugal && !mute;
   const key = keyFor(path, theme, form);
-  const clip: Clip | undefined = FILMS[key];
+  const clip: Clip | undefined = broken.has(key) ? undefined : FILMS[key];
 
   const [reels, setReels] = useState<Reel[]>([]);
   const videos = useRef(new Map<string, HTMLVideoElement>());
@@ -161,7 +180,8 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
       setReels([]);
       return;
     }
-    setReels(cur => (cur[cur.length - 1]?.key === key ? cur : [...cur.filter(r => r.ready).slice(-1), { key, path, form, ready: false }]));
+    /* (the film kept under the new one is never the new one itself: back to a page within the fade, the two shared a key) */
+    setReels(cur => (cur[cur.length - 1]?.key === key ? cur : [...cur.filter(r => r.ready && r.key !== key).slice(-1), { key, path, form, ready: false }]));
   }, [key, motion, clip, path, form]);
   const live: Reel | undefined = reels[reels.length - 1];
 
@@ -191,6 +211,34 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
       else v.pause();
     }
   }, [reels, live, rolling]);
+
+  /* THE LAP: the film on screen reports where it is as it plays, and when it wraps round to its start it has been seen
+     through once. Each film is read from its own start: a page shown again starts its count again. */
+  const lastAt = useRef(new Map<string, number>());
+  const played = (r: Reel, v: HTMLVideoElement) => {
+    if (r.key !== live?.key) return;
+    const d = v.duration;
+    if (!Number.isFinite(d) || d <= 0) return;
+    const t = v.currentTime;
+    const was = lastAt.current.get(r.key) ?? t;
+    lastAt.current.set(r.key, t);
+    timeRef.current?.(t, d);
+    if (was - t > d / 2) lapRef.current?.(r.path);
+  };
+  /* …and a still that has stood a while counts as seen, where the window shows stills (data saved, or no films to play) */
+  const stills = !reels.length;
+  useEffect(() => {
+    if (!stills || !shown || !seen || !front) return;
+    const p = shown.path;
+    const L = STILL_LAP / 1000;
+    timeRef.current?.(0, L);
+    const raf = requestAnimationFrame(() => timeRef.current?.(L, L, STILL_LAP));
+    const id = window.setTimeout(() => lapRef.current?.(p), STILL_LAP);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(id);
+    };
+  }, [stills, shown, seen, front]);
 
   /* a film that can play fades in; when it has, the one under it goes */
   const ready = useCallback(
@@ -276,9 +324,14 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '' }: 
             preload="auto"
             disablePictureInPicture
             aria-label={`The terminal's ${crumbs(r.path).join(' ').replace(/-/g, ' ')} page, in use`}
-            onLoadedMetadata={e => metadata(r, e.currentTarget)}
+            onLoadedMetadata={e => {
+              /* a film loaded afresh counts from its own start */
+              lastAt.current.delete(r.key);
+              metadata(r, e.currentTarget);
+            }}
             onCanPlay={e => canPlay(r, e.currentTarget)}
-            onError={() => setMute(true)}
+            onTimeUpdate={e => played(r, e.currentTarget)}
+            onError={() => setBroken(b => new Set(b).add(r.key))}
             className={`absolute inset-0 w-full h-full object-cover object-left-top select-none transition-opacity duration-300 ${r.ready ? 'opacity-100' : 'opacity-0'}`}
             data-window-film={r.key}
           />

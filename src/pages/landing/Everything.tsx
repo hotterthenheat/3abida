@@ -27,10 +27,22 @@
   on the right. On a phone the rooms are a row that
   scrolls sideways, and the pages one column under it.
   A room is a tab: arrows walk the rooms.
+
+  THE ROOMS COME ROUND BY THEMSELVES (2026-10-02 — the
+  owner: "each tab if they have more tabs to click it
+  should automatically scroll to them so people can see
+  everything without always having to use their mouse").
+  While the list is on screen the lit room moves on to the
+  next after a while — longer for a room with more pages —
+  and a line on its tab fills meanwhile. A pointer or the
+  keys inside the list hold it where it is; a room picked
+  stays until the list leaves the screen. Not where less
+  motion is asked for.
 ==================================================
 */
 
-import { useCallback, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -149,6 +161,9 @@ export const SHARED_COUNT = ROOMS.find(r => r.id === 'every')?.features.length ?
 /** "Open the Weigher", not "Open The Weigher" */
 export const doorName = (name: string) => name.replace(/^The /, 'the ');
 
+/** how long a room stays lit before the next: time to read its pages, more for a room with more of them */
+const dwellOf = (r: Room) => Math.max(6000, Math.min(13000, 2600 + 650 * r.features.length));
+
 const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
   const [at, setAt] = useState(0);
   /* the rooms run in a row on a phone and a column from lg — the list says which, for a reader that hears it */
@@ -157,6 +172,75 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const room = ROOMS[at];
   const rooms = ROOMS.length;
+
+  /* THE ROOMS COME ROUND: on screen, the tab in front, nobody's hand or keys in the list and no room picked */
+  const root = useRef<HTMLDivElement | null>(null);
+  const calm = useReducedMotion();
+  const [seen, setSeen] = useState(false);
+  const [front, setFront] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
+  const [hand, setHand] = useState(false);
+  const [keys, setKeys] = useState(false);
+  const [picked, setPicked] = useState(false);
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setSeen(e.isIntersecting), { threshold: 0.3 });
+    io.observe(el);
+    const vis = () => setFront(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', vis);
+    return () => {
+      io.disconnect();
+      document.removeEventListener('visibilitychange', vis);
+    };
+  }, []);
+  /* a picked room stays until the list has left the screen */
+  useEffect(() => {
+    if (!seen) setPicked(false);
+  }, [seen]);
+  /* the rooms come round unless less motion is asked for or one was picked; they move while nothing holds them */
+  const auto = !calm && !picked;
+  const playing = auto && seen && front && !hand && !keys;
+  /* the line on the lit tab, and the time its room has left: a new room has its whole while ahead; a hold keeps what is left */
+  const bar = useRef<HTMLSpanElement | null>(null);
+  const left = useRef(dwellOf(ROOMS[0]));
+  useEffect(() => {
+    left.current = dwellOf(ROOMS[at]);
+  }, [at]);
+  useEffect(() => {
+    const el = bar.current;
+    if (!playing) {
+      /* held: the line stops where it is */
+      if (el) {
+        const t = getComputedStyle(el).transform;
+        el.style.transition = 'none';
+        el.style.transform = `scaleX(${t && t !== 'none' ? new DOMMatrix(t).a : 0})`;
+      }
+      return;
+    }
+    const t0 = performance.now();
+    const ms = left.current;
+    const raf = requestAnimationFrame(() => {
+      if (!el) return;
+      el.style.transition = `transform ${ms}ms linear`;
+      el.style.transform = 'scaleX(1)';
+    });
+    const id = window.setTimeout(() => setAt(i => (i + 1) % rooms), ms);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(id);
+      left.current = Math.max(400, ms - (performance.now() - t0));
+    };
+  }, [playing, at, rooms]);
+  /* on a phone the rooms run in a row that scrolls sideways: the lit one is brought into it (the row moves, never the page) */
+  const bring = useCallback((i: number, glide: boolean) => {
+    const el = tabs.current[i];
+    const row = el?.parentElement;
+    if (el && row && row.scrollWidth > row.clientWidth) row.scrollTo({ left: Math.max(0, el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2), behavior: glide ? 'smooth' : 'auto' });
+  }, []);
+  useEffect(() => {
+    if (playing) bring(at, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at]);
 
   /* a room is a tab: the arrows walk them, Home and End go to the ends */
   const key = useCallback(
@@ -169,17 +253,28 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
       else return;
       e.preventDefault();
       setAt(next);
-      const el = tabs.current[next];
-      el?.focus();
+      setPicked(true);
+      tabs.current[next]?.focus();
       /* on a phone the row scrolls sideways: bring the room in without moving the page */
-      const row = el?.parentElement;
-      if (el && row && row.scrollWidth > row.clientWidth) row.scrollTo({ left: Math.max(0, el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      bring(next, !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     },
-    [at, rooms]
+    [at, rooms, bring]
   );
 
   return (
-    <div className="mt-12 lg:mt-14 grid grid-cols-1 lg:grid-cols-12 gap-x-12 xl:gap-x-16" data-landing-everything>
+    <div
+      ref={root}
+      className="mt-12 lg:mt-14 grid grid-cols-1 lg:grid-cols-12 gap-x-12 xl:gap-x-16"
+      onPointerEnter={e => e.pointerType === 'mouse' && setHand(true)}
+      onPointerLeave={e => e.pointerType === 'mouse' && setHand(false)}
+      /* the keys in the list hold it too (a Tab through its doors), until they leave it */
+      onFocus={e => e.target.matches(':focus-visible') && setKeys(true)}
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setKeys(false);
+      }}
+      data-landing-everything
+      data-everything-playing={playing || undefined}
+    >
       {/* THE ROOMS */}
       <div
         role="tablist"
@@ -201,7 +296,10 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
               aria-selected={on}
               aria-controls={`${uid}-panel`}
               tabIndex={on ? 0 : -1}
-              onClick={() => setAt(i)}
+              onClick={() => {
+                setAt(i);
+                setPicked(true);
+              }}
               onKeyDown={key}
               /* on a phone the rooms are words in a row, the lit one underlined in silver — no filled pill, no box round the
                  glyph (the owner, 2026-10-01: "i don't think these things should be white boxed") */
@@ -209,7 +307,7 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
                 max-lg:h-10 max-lg:px-1 max-lg:border-b-2
                 lg:w-full lg:py-3 lg:pl-4 lg:pr-3 lg:border-b lg:border-borderSubtle ${
                   on
-                    ? 'max-lg:border-silver text-textPrimary lg:bg-ink/[0.04]'
+                    ? `${auto ? 'max-lg:border-silver/30' : 'max-lg:border-silver'} text-textPrimary lg:bg-ink/[0.04]`
                     : 'max-lg:border-transparent text-textSecondary hover:text-textPrimary lg:hover:bg-ink/[0.03]'
                 }`}
               data-everything-room={r.id}
@@ -219,6 +317,16 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
               <ProductGlyph name={r.glyph} size={20} bare className="shrink-0" />
               <span className="min-w-0 flex-1 text-[14.5px] font-medium whitespace-nowrap">{r.name}</span>
               <span className={`max-lg:hidden text-[12px] tnum ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{r.features.length}</span>
+              {/* the lit room's while: the line fills, and the next room comes round when it is full */}
+              {on && auto && (
+                <span
+                  ref={bar}
+                  aria-hidden="true"
+                  className="absolute inset-x-0 -bottom-[2px] lg:-bottom-px h-[2px] origin-left bg-silver"
+                  style={{ transform: 'scaleX(0)' }}
+                  data-everything-progress
+                />
+              )}
             </button>
           );
         })}
