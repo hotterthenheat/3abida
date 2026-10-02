@@ -118,6 +118,9 @@ const BoardCell = ({ cfg, onCfg, revision, expanded, onToggleExpand, index }: Bo
         data-theme="dark"
         /* …and its taskbar the ground of the tape's theme (2026-09-13) */
         data-chart-ground={ground}
+        /* …and the cell itself too, as a Terrain pane is (index.css [data-chart-frame]): on a light tape its panel is light,
+           so a chart built again (a name or a timeframe changed) fades in over light, not over a black flash (2026-10-02) */
+        data-chart-frame
       >
         {/* THE TASKBAR, the chart widget's grammar (settled 2026-08-23
             against TradingView's): chrome, not an object — full width, fused

@@ -880,8 +880,10 @@ const CampaignAnalysis = ({
           <div className="min-w-0 flex-1 flex items-center gap-3">
             <CompanyLogo ticker={setup.ticker} size={34} />
             <div className="min-w-0">
-              <div className="h-6 flex items-center gap-2.5">
-                <h3 className={`min-w-0 truncate text-[15px] font-semibold leading-tight ${setup.right === 'C' ? 'text-bull' : 'text-bear'}`}>{setup.contract}</h3>
+              {/* the contract's name is never the one squeezed: on a phone the badges wrap under it (2026-10-02 — at 390 px the
+                  badges beside it took its whole width and the head read only "MOVING 0DTE Top ranked") */}
+              <div className="min-h-6 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <h3 className={`shrink-0 max-w-full truncate text-[15px] font-semibold leading-tight ${setup.right === 'C' ? 'text-bull' : 'text-bear'}`}>{setup.contract}</h3>
                 {retired ? (
                   <SignalBadge tone="bear">Retired</SignalBadge>
                 ) : (
