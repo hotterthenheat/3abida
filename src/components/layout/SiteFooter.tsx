@@ -193,23 +193,26 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => (
     <div className={`${COLUMN} pt-14 pb-10 grid grid-cols-2 md:grid-cols-6 gap-x-10 gap-y-10`}>
       <div className="col-span-2">
         <Wordmark height={14} label="Slayer Terminal" />
-        <p className="mt-5 text-[17px] font-medium tracking-tight text-textPrimary">Trade what you can see.</p>
-        <p className="mt-2 text-[13px] text-textSecondary leading-relaxed max-w-[38ch]">
+        {/* THE PROMISE, SAID TWICE (2026-10-02, from the owner's notes on two landings that open and close on one line): the
+            first screen's line, in its own voice — light, tight, its "see." in the silver — so the page ends where it began */}
+        <p className="mt-6 text-[30px] sm:text-[34px] font-light tracking-[-0.04em] leading-[1.02] text-textPrimary [text-wrap:balance]">
+          Trade what you can <span className="font-medium text-silver">see.</span>
+        </p>
+        <p className="mt-3 text-[13px] text-textSecondary leading-relaxed max-w-[38ch]">
           Most of what moves a price is public, just scattered. Slayer gathers it into one terminal.
         </p>
       </div>
       {FOOTER_COLS.map(col => (
-        <div key={col.title} className={col.title === 'Products' ? 'row-span-2' : ''}>
+        /* THE LINKS ANSWER THE POINTER (2026-10-02, from the same notes): a link under the pointer drops the rest of its
+           column a tier and comes forward with a short mark in front of it (index.css, .footer-col) */
+        <div key={col.title} className={`footer-col ${col.title === 'Products' ? 'row-span-2' : ''}`}>
           <span className="text-[11px] uppercase tracking-[0.14em] text-textMuted">{col.title}</span>
           <ul className={`mt-3.5 grid gap-x-6 gap-y-2.5 ${col.title === 'Products' ? 'grid-cols-1' : ''}`}>
             {col.links.map(l => (
               <li key={l.label}>
-                <FooterLink
-                  to={l.to}
-                  home={home && !OUTSIDE.test(l.to)}
-                  className="text-[13px] text-textSecondary hover:text-textPrimary transition-colors"
-                >
-                  {l.label}
+                <FooterLink to={l.to} home={home && !OUTSIDE.test(l.to)} className="footer-link text-[13px] text-textSecondary hover:text-textPrimary transition-colors">
+                  <span className="footer-link-mark" aria-hidden="true" />
+                  <span className="footer-link-words">{l.label}</span>
                 </FooterLink>
               </li>
             ))}

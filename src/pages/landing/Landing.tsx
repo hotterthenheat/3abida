@@ -83,8 +83,8 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
 import { ArrowRight, Check, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, type PlanKey } from '../../data/billing';
@@ -389,6 +389,76 @@ const TwoTone = ({ first, second, className = '' }: { first: string; second: str
     {first} <span className="block text-textMuted">{second}</span>
   </h2>
 );
+
+/* THE LAST WORDS, READ BY SCROLLING (2026-10-02, from the owner's notes on two landings that make a line's reading the
+   scroll itself): each letter of the closing lines stands faint and turns to its own ink, one letter at a time, as the
+   lines come up the screen — the scroll is the playhead, stepped letter by letter, and scrolling back takes them back.
+   A reader that hears the page hears the lines whole (the label); where less motion is asked for, they stand lit. Only
+   the letters that change are touched, and only while the lines are near the screen. */
+const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: string }[]; className?: string }) => {
+  const ref = useRef<HTMLHeadingElement | null>(null);
+  const calm = useReducedMotion();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || calm) return;
+    const letters = Array.from(el.querySelectorAll<HTMLElement>('[data-letter]'));
+    let lit = -1;
+    let raf = 0;
+    const paint = () => {
+      raf = 0;
+      const top = el.getBoundingClientRect().top;
+      const vh = window.innerHeight;
+      /* from when the lines' top is nine tenths of the way down the screen to when it is two fifths of the way */
+      const p = Math.max(0, Math.min(1, (vh * 0.9 - top) / (vh * 0.5)));
+      const n = Math.round(p * letters.length);
+      if (n === lit) return;
+      const from = lit < 0 ? 0 : Math.min(n, lit);
+      const to = lit < 0 ? letters.length : Math.max(n, lit);
+      for (let i = from; i < to; i++) letters[i].dataset.lit = i < n ? 'on' : 'off';
+      lit = n;
+    };
+    const on = () => {
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          window.addEventListener('scroll', on, { passive: true });
+          on();
+        } else window.removeEventListener('scroll', on);
+      },
+      { rootMargin: '25% 0px' }
+    );
+    io.observe(el);
+    paint();
+    return () => {
+      io.disconnect();
+      window.removeEventListener('scroll', on);
+      cancelAnimationFrame(raf);
+    };
+  }, [calm]);
+  return (
+    <h2 ref={ref} aria-label={lines.map(l => l.text).join(' ')} className={className}>
+      {lines.map((l, i) => (
+        <span key={l.text} aria-hidden="true" className={i ? 'block' : ''}>
+          {l.text.split(' ').map((word, w, words) => (
+            <span key={w}>
+              <span className="inline-block whitespace-nowrap">
+                {Array.from(word).map((ch, c) => (
+                  <span key={c} data-letter data-lit={calm ? 'on' : 'off'} className={`${l.ink} data-[lit=off]:text-textPrimary/[0.14] transition-colors duration-200 motion-reduce:transition-none`}>
+                    {ch}
+                  </span>
+                ))}
+              </span>
+              {w < words.length - 1 && ' '}
+            </span>
+          ))}
+          {i < lines.length - 1 && ' '}
+        </span>
+      ))}
+    </h2>
+  );
+};
 
 /** THE PILL (Slayer Logo System, Web and App): solid is the page's ink — the light pill on black, the black pill on paper —
     and the foil stays on "Launch terminal" alone; ghost is a hairline. No arrows: the brand's pills say where they go in
@@ -1046,11 +1116,15 @@ const Page = () => {
                 </li>
               ))}
             </ul>
-            <h2 className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.75rem,7.4vw,7rem)] [text-wrap:balance]">
-              {/* Noah's pick from four (2026-09-19, of "Do not take our word for it. / Read it yourself.": "i dont like these 2
-                  sentences") — short and a little teasing, after a page of stills */}
-              Seen enough? <span className="block text-textMuted">Step inside.</span>
-            </h2>
+            {/* Noah's pick from four (2026-09-19, of "Do not take our word for it. / Read it yourself.": "i dont like these 2
+                sentences") — short and a little teasing, after a page of stills; read by scrolling since 2026-10-02 */}
+            <LitLines
+              lines={[
+                { text: 'Seen enough?', ink: 'text-textPrimary' },
+                { text: 'Step inside.', ink: 'text-textMuted' },
+              ]}
+              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.75rem,7.4vw,7rem)] [text-wrap:balance]"
+            />
             <div className="mt-10 flex justify-center">
               <Pill href="/signup" onClick={signUp} testId="close">
                 Sign up free

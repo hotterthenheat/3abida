@@ -32,6 +32,15 @@
   of the line was drawn. Off the band it eases home to the
   live end, which breathes again.
 
+  BEFORE YOU GO, MARK A LEVEL (2026-10-02, the first of
+  the owner's notes on two landings whose footers end on a
+  toy): a press on the band sets a level where it lands —
+  three at most — and when the line walks across one, it
+  lights in silver and its tag says when. A press on a level
+  takes it away; the keys have a door of their own. The
+  levels last the visit. Under reduced motion the line does
+  not walk, so there are none to set.
+
   It is art: the line is a walk of its own and no figure
   on it is a price. Every ink is a token read off the
   band's own ground, read again when the theme turns.
@@ -42,8 +51,21 @@
 ==================================================
 */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { FONT_SANS } from '../../theme/fonts';
+
+/** THE READER'S LEVELS — the visit's own: kept while the page is open (a footer drawn again finds them), gone with it */
+interface Mark {
+  /** where it stands, on the walk's own scale */
+  v: number;
+  /** when the line crossed it (Date.now), or 0 */
+  crossed: number;
+}
+const MARKS: Mark[] = [];
+const MAX_MARKS = 3;
+/** a press this close to a level (CSS px) is on it */
+const NEAR = 9;
 
 /** a seeded walk, so the band opens on the same picture every time */
 const rng = (seed: number) => () => {
@@ -106,6 +128,12 @@ const ease = (t: number) => t * t * (3 - 2 * t);
 const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: string }) => {
   const box = useRef<HTMLDivElement | null>(null);
   const cvs = useRef<HTMLCanvasElement | null>(null);
+  /* what a reader that hears the page is told when the line crosses their level */
+  const said = useRef<HTMLParagraphElement | null>(null);
+  /* the keys' door: a level set beside the live end, above it and below it in turn */
+  const markNear = useRef<() => void>(() => {});
+  const still = useReducedMotion();
+  const [count, setCount] = useState(MARKS.length);
 
   useEffect(() => {
     const host = box.current;
@@ -175,6 +203,32 @@ const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: strin
     let sx = -1;
     let last = 0;
 
+    /* THE LEVELS: the band's last scale, so a press can be read on it; the live end's last value, for the crossing */
+    const scale = { lo: 0, span: 1, base: 0, amp: 1 };
+    const valAt = (y: number) => scale.lo + (1 - (y - scale.base) / scale.amp) * scale.span;
+    const yAt = (v: number) => scale.base + (1 - (v - scale.lo) / scale.span) * scale.amp;
+    let lastLive = Number.NaN;
+    let liveNow = 0;
+    const changed = () => setCount(MARKS.length);
+    const press = (y: number) => {
+      const hit = MARKS.findIndex(m => Math.abs(Math.max(4, Math.min(H - 4, yAt(m.v))) - y) <= NEAR);
+      if (hit >= 0) MARKS.splice(hit, 1);
+      else {
+        MARKS.push({ v: valAt(y), crossed: 0 });
+        if (MARKS.length > MAX_MARKS) MARKS.shift();
+      }
+      changed();
+      redraw();
+    };
+    let side = 1;
+    markNear.current = () => {
+      side = -side;
+      MARKS.push({ v: liveNow + side * scale.span * 0.12, crossed: 0 });
+      if (MARKS.length > MAX_MARKS) MARKS.shift();
+      changed();
+      redraw();
+    };
+
     const draw = (now: number) => {
       const dt = last ? Math.min(100, now - last) : 16;
       last = now;
@@ -216,6 +270,21 @@ const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: strin
       const base = H * 0.48;
       const rise = H * 0.06;
       const yOf = (val: number, e: number) => base - e * rise + (1 - (val - lo) / span) * amp;
+      scale.lo = lo;
+      scale.span = span;
+      scale.base = base;
+      scale.amp = amp;
+
+      /* a level the live end has walked across lights, and the moment is kept */
+      const live = at(now);
+      liveNow = live;
+      if (!calm && Number.isFinite(lastLive) && live !== lastLive)
+        for (const m of MARKS)
+          if (!m.crossed && (lastLive - m.v) * (live - m.v) <= 0) {
+            m.crossed = Date.now();
+            if (said.current) said.current.textContent = `The line crossed your level at ${clock(m.crossed, true)}.`;
+          }
+      lastLive = live;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
@@ -261,6 +330,36 @@ const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: strin
         ctx.lineWidth = e === 0 ? 1.6 : 1.1;
         ctx.stroke(path);
         if (e === 0) front = pts;
+      }
+
+      /* THE READER'S LEVELS: a hairline across the band with a small square at its start; lit in silver once crossed, its
+         tag the moment it was. Laid over the lines, under the hand. */
+      for (const m of MARKS) {
+        const my = Math.round(Math.max(4, Math.min(H - 4, yOf(m.v, 0)))) + 0.5;
+        const x0 = W * FADE;
+        const lit = m.crossed > 0;
+        ctx.strokeStyle = lit ? rgb(ink.live, 0.95) : rgb(ink.ink, 0.4);
+        ctx.lineWidth = lit ? 1.2 : 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, my);
+        ctx.lineTo(headX, my);
+        ctx.stroke();
+        ctx.fillStyle = lit ? rgb(ink.live) : rgb(ink.ink, 0.55);
+        ctx.fillRect(x0 - 3, my - 3, 6, 6);
+        if (lit) {
+          const word = `crossed ${clock(m.crossed, true)}`;
+          ctx.font = `500 10.5px ${FONT_SANS}`;
+          const w = Math.ceil(ctx.measureText(word).width) + 14;
+          const ty = Math.max(10, Math.min(H - 10, my));
+          ctx.fillStyle = rgb(ink.live);
+          ctx.beginPath();
+          ctx.roundRect(x0 + 8, ty - 9, w, 18, 3);
+          ctx.fill();
+          ctx.fillStyle = rgb(ink.panel);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(word, x0 + 8 + w / 2, ty + 0.5);
+        }
       }
 
       /* THE HAND: the hairline eases to the pointer and home again */
@@ -375,11 +474,23 @@ const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: strin
       go();
       if (calm) draw(performance.now());
     };
+    /* a press — down and up in one place, quickly — sets a level, or takes away the one it lands on */
+    let down: { x: number; y: number; t: number } | null = null;
+    const start = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      down = { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() };
+      move(e);
+    };
     const up = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      if (!calm && down && Math.hypot(x - down.x, y - down.y) < 6 && performance.now() - down.t < 600) press(y);
+      down = null;
       if (e.pointerType !== 'mouse') leave();
     };
     canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerdown', move);
+    canvas.addEventListener('pointerdown', start);
     canvas.addEventListener('pointerleave', leave);
     canvas.addEventListener('pointercancel', leave);
     canvas.addEventListener('pointerup', up);
@@ -417,7 +528,7 @@ const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: strin
       mo.disconnect();
       document.removeEventListener('visibilitychange', go);
       canvas.removeEventListener('pointermove', move);
-      canvas.removeEventListener('pointerdown', move);
+      canvas.removeEventListener('pointerdown', start);
       canvas.removeEventListener('pointerleave', leave);
       canvas.removeEventListener('pointercancel', leave);
       canvas.removeEventListener('pointerup', up);
@@ -426,7 +537,22 @@ const FooterArt = ({ className = 'h-[160px] md:h-[220px]' }: { className?: strin
 
   return (
     <div ref={box} className={`relative w-full ${className}`} data-footer-art>
-      <canvas ref={cvs} aria-hidden="true" className="absolute inset-0 block touch-pan-y" />
+      <canvas ref={cvs} aria-hidden="true" className={`absolute inset-0 block touch-pan-y ${still ? '' : 'cursor-crosshair'}`} />
+      {!still && (
+        <div className="relative z-10 pt-3 pointer-events-none flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[12.5px] leading-snug" data-footer-toy>
+          <p className="text-textSecondary">Before you go, mark a level.</p>
+          <p className="text-textMuted">{count ? 'It lights up when the line gets there. Press one to take it away.' : 'Press the band to set one; it lights up when the line gets there.'}</p>
+          {/* the keys' own door to it: shown when the keys reach it */}
+          <button
+            type="button"
+            onClick={() => markNear.current()}
+            className="pointer-events-auto sr-only focus-visible:not-sr-only focus-visible:underline focus-visible:outline-none text-textPrimary"
+          >
+            Mark a level beside the line
+          </button>
+        </div>
+      )}
+      <p ref={said} aria-live="polite" className="sr-only" />
     </div>
   );
 };
