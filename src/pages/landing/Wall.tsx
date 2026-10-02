@@ -78,12 +78,16 @@ const filmFor = (path: string, theme: Theme) => `/landing/wall/clips/${slug(path
 const ASPECT = 1440 / 1000;
 /** the card's bar: its glyph and name */
 const BAR = 28;
-/** the words under the card in front */
-const WORDS = 118;
+/** the words under the card in front: what kind of room, its line, its pages */
+const WORDS = 100;
 /** a card at the back against the one in front */
-const BACK = 0.44;
+const BACK = 0.5;
 /** how far the swell reaches either side, in cards */
-const REACH = 0.8;
+const REACH = 1.1;
+/** the most a card behind turns its face toward the one in front (a ring seen from outside: the far edge recedes) */
+const TURN = 18;
+/** the depth the turn is seen through, in px */
+const DEPTH = 1600;
 /** the least a card overlaps the one beside it (the rest of the row's width is shared out so the row spans its box; on a
     short screen, where the cards are small, even this least overlap leaves the row short of its box, and it is centred) */
 const OVERLAP_MIN = 0.18;
@@ -107,8 +111,14 @@ const SETTLE = 140;
 const frontOf = (st: { f: number; to: number }) => (Math.abs(st.f - Math.round(st.to)) <= 0.5 ? Math.round(st.to) : Math.round(st.f));
 /** the stacking: nearer the front is higher, finely enough that no two tie, and the card in front wins a tie */
 const stackOf = (d: number, front: boolean) => 1000 - Math.round(d * 100) + (front ? 1 : 0);
-/** what stands above the dock on a desk (the signature, the line, the words and the door, and their margins) */
-const ABOVE = 434;
+/** the room the dock is given when nothing gives it a slot (the hero gives it one: the screen left under the words) */
+const FALLBACK_TALL = 360;
+
+/** the veil over a card `d` cards from the front */
+const veilAt = (d: number) => Math.min(0.5, Math.max(0, d - 0.15) * 0.3);
+/** a card's place, size and turn, `d` cards from the front (signed: behind it to the right is positive) */
+const poseOf = (x: number, lift: number, scale: number, d: number) =>
+  `translate3d(${x}px, ${lift}px, 0) scale(${scale}) perspective(${DEPTH}px) rotateY(${(Math.sign(d) * TURN * Math.min(1, Math.abs(d))).toFixed(2)}deg)`;
 
 /** each card's size against the one in front, the card at `f` (an index, or between two) in front */
 const scales = (n: number, f: number) => Array.from({ length: n }, (_, i) => BACK + (1 - BACK) * Math.exp(-(((i - f) / REACH) ** 2)));
@@ -128,8 +138,10 @@ const rowAt = (n: number, f: number, big: number, width: number) => {
   const shift = (width - span) / 2;
   return { s, w, c: c.map(x => x + shift) };
 };
-/** the widest the card in front may be: a third of the row or so, and no taller than the screen leaves under the words */
-const bigFor = (width: number, tall: number) => Math.max(240, Math.min(width * 0.36, 540, (tall - BAR) * ASPECT));
+/** the widest the card in front may be: not quite half the row, and no taller than the room the hero leaves it */
+const bigFor = (width: number, tall: number) => Math.max(240, Math.min(width * 0.46, 900, (tall - BAR) * ASPECT));
+/** where the words under a card start: under its left edge, a little in, and never past either end of the row */
+const wordsAt = (centre: number, big: number, width: number, wordsW: number) => Math.max(0, Math.min(width - wordsW, centre - big / 2 + 6));
 
 /** a media query, live */
 const useMatch = (query: string) => {
@@ -197,12 +209,12 @@ const Face = ({ r, i, s }: { r: WallRoom; i: number; s: Screens }) => (
 );
 
 /** The words under the card in front: what kind of room, its line, its pages */
-const Words = ({ r, className = '', style }: { r: WallRoom; className?: string; style?: CSSProperties }) => (
+const Words = ({ r, className = '', style, compact = false }: { r: WallRoom; className?: string; style?: CSSProperties; compact?: boolean }) => (
   <div aria-hidden="true" className={`pointer-events-none ${className}`} style={style}>
     {r.kind && <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-textMuted">{r.kind}</p>}
     {r.lead && <p className="mt-1.5 text-[14.5px] leading-snug text-textPrimary [text-wrap:balance] line-clamp-2">{r.lead}</p>}
     {/* its first four pages (Practice holds five rows; the fifth ran the words into the tour on a laptop) */}
-    {!!r.rows?.length && <p className="mt-1.5 text-[12px] leading-snug text-textMuted line-clamp-2">{r.rows.slice(0, 4).map(x => x.title).join(' · ')}</p>}
+    {!!r.rows?.length && <p className={`mt-1.5 text-[12px] leading-snug text-textMuted line-clamp-1 ${compact ? 'max-sm:hidden' : ''}`}>{r.rows.slice(0, 4).map(x => x.title).join(' · ')}</p>}
   </div>
 );
 
@@ -220,21 +232,40 @@ const said = (r: WallRoom) => `${r.name}${r.lead ? ` — ${r.lead}` : ''} See it
    again while it moves). */
 const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Screens; onPick: (id: string) => void; moving: boolean; still: boolean }) => {
   const n = rooms.length;
+  /* IT OPENS ON THE MIDDLE ROOM, the others behind it on both sides: opened on the first, the room in front stood at the
+     row's left end and the seven behind it trailed off to the right — a lopsided first screen */
+  const mid = Math.floor((n - 1) / 2);
   const row = useRef<HTMLDivElement | null>(null);
   const cards = useRef<(HTMLDivElement | null)[]>([]);
   const veils = useRef<(HTMLSpanElement | null)[]>([]);
   const words = useRef<(HTMLDivElement | null)[]>([]);
   const faces = useRef<(HTMLButtonElement | null)[]>([]);
   /* the row's width and the tallest the card in front may stand — measured before the first paint, so the row is laid out
-     at its full height from its first frame and nothing below it jumps */
-  const [box, setBox] = useState({ width: 0, tall: 360 });
+     at its full height from its first frame and nothing below it jumps. THE ROOM IS THE SLOT'S (2026-10-02 — the owner:
+     "when i load onto the website i need the dock to look much better"): the hero is one screen tall and hands the dock
+     whatever its words leave ([data-dock-slot]), so the card in front is as large as the screen allows — a fixed guess at
+     the words above it left a laptop's card a third smaller than it could be, the row short of its box and the foot of
+     the screen empty. */
+  const [box, setBox] = useState({ width: 0, tall: FALLBACK_TALL });
   useLayoutEffect(() => {
     const el = row.current;
     if (!el) return;
-    const measure = () => setBox({ width: el.clientWidth, tall: Math.max(230, Math.min(420, window.innerHeight - ABOVE - WORDS - 24)) });
+    const slot = el.closest<HTMLElement>('[data-dock-slot]');
+    const measure = () => {
+      /* the slot's room, less whatever else stands in it (on a narrow screen, the door under the dock) */
+      let room = slot ? slot.clientHeight : 0;
+      if (slot)
+        for (const c of Array.from(slot.children)) {
+          if (c.contains(el)) continue;
+          const cs = getComputedStyle(c);
+          room -= (c as HTMLElement).offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+        }
+      setBox({ width: el.clientWidth, tall: room ? Math.max(230, Math.min(760, room - WORDS - LIFT - 8)) : FALLBACK_TALL });
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    if (slot) ro.observe(slot);
     window.addEventListener('resize', measure);
     return () => {
       ro.disconnect();
@@ -258,7 +289,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
      place is where it heads, closing most of the gap in a tenth of a second, from wherever the glide had got to. When the
      pointer leaves, the dock settles on the room nearest it, rests, and carries on by itself. Written to the page directly,
      a frame at a time, only while it moves. */
-  const m = useRef({ f: 0, to: 0, from: 0, t0: 0, dur: 0, hand: false, raf: 0, last: 0, dir: 1, next: 0, pause: 0 });
+  const m = useRef({ f: mid, to: mid, from: mid, t0: 0, dur: 0, hand: false, raf: 0, last: 0, dir: 1, next: 0, pause: 0 });
   const paint = () => {
     const { f } = m.current;
     const g = geo.current;
@@ -270,15 +301,15 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
       const near = (sc[i] - BACK) / (1 - BACK);
       const card = cards.current[i];
       if (card) {
-        card.style.transform = `translate3d(${c[i] - g.big / 2}px, ${-LIFT * near}px, 0) scale(${sc[i]})`;
+        card.style.transform = poseOf(c[i] - g.big / 2, -LIFT * near, sc[i], i - f);
         card.style.zIndex = String(stackOf(d, i === front));
       }
       const veil = veils.current[i];
-      if (veil) veil.style.opacity = String(Math.min(0.62, Math.max(0, d - 0.15) * 0.34));
+      if (veil) veil.style.opacity = String(veilAt(d));
       const t = words.current[i];
       if (t) {
         t.style.opacity = String(Math.max(0, Math.min(1, 1 - d * 2.2)));
-        t.style.transform = `translateX(${Math.max(0, Math.min(g.width - g.wordsW, c[i] - g.wordsW / 2))}px)`;
+        t.style.transform = `translateX(${wordsAt(c[i], g.big, g.width, g.wordsW)}px)`;
       }
       const face = faces.current[i];
       if (face) face.dataset.front = front === i ? 'true' : 'false';
@@ -401,7 +432,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   /* the card the pointer has: kept until the pointer is well past the half-way to the next, so a hand at the border of two
      never swings the row between them; a pointer that stops brings its card all the way out — full size, on top, its words
      under it — and one that moves carries the row with it (where less motion is asked for, it changes card by card) */
-  const pick = useRef(0);
+  const pick = useRef(mid);
   const settle = useRef(0);
   const fromPointer = (clientX: number) => {
     const el = row.current;
@@ -435,7 +466,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
   const at = (i: number) => {
     if (!lay) return {};
     const d = Math.abs(i - m.current.f);
-    return { transform: `translate3d(${lay.c[i] - big / 2}px, ${-LIFT * ((lay.s[i] - BACK) / (1 - BACK))}px, 0) scale(${lay.s[i]})`, zIndex: stackOf(d, i === frontOf(m.current)) };
+    return { transform: poseOf(lay.c[i] - big / 2, -LIFT * ((lay.s[i] - BACK) / (1 - BACK)), lay.s[i], i - m.current.f), zIndex: stackOf(d, i === frontOf(m.current)) };
   };
   return (
     <div
@@ -467,7 +498,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
                 onBlur={letGo}
                 aria-label={said(r)}
                 className={`${CARD} border-borderMuted shadow-[0_18px_50px_-24px_rgb(0_0_0/0.55)] data-[front=true]:border-textPrimary/45 hover:border-textPrimary/45`}
-                data-front={i === 0 ? 'true' : 'false'}
+                data-front={i === mid ? 'true' : 'false'}
                 data-wall-room={r.id}
               >
                 <Face r={r} i={i} s={s} />
@@ -478,7 +509,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
                   }}
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-canvas"
-                  style={{ opacity: Math.min(0.62, Math.max(0, Math.abs(i - m.current.f) - 0.15) * 0.34) }}
+                  style={{ opacity: veilAt(Math.abs(i - m.current.f)) }}
                 />
               </button>
             </div>
@@ -492,7 +523,7 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
               words.current[i] = el;
             }}
             className="absolute left-0 bottom-0"
-            style={{ width: wordsW, height: WORDS, opacity: i === 0 ? 1 : 0, transform: lay ? `translateX(${Math.max(0, Math.min(box.width - wordsW, lay.c[i] - wordsW / 2))}px)` : undefined }}
+            style={{ width: wordsW, height: WORDS, opacity: i === mid ? 1 : 0, transform: lay ? `translateX(${wordsAt(lay.c[i], big, box.width, wordsW)}px)` : undefined }}
           >
             <Words r={r} className="pt-3.5" />
           </div>
@@ -505,6 +536,8 @@ const Dock = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scree
 
 const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Screens; onPick: (id: string) => void; moving: boolean; still: boolean }) => {
   const n = rooms.length;
+  /* it opens on the middle room too, a card behind it either side */
+  const mid = Math.floor((n - 1) / 2);
   const strip = useRef<HTMLDivElement | null>(null);
   const cards = useRef<(HTMLDivElement | null)[]>([]);
   /* the screens (the buttons): they step back, not the words under them — a card scaled whole sank its screen into the
@@ -538,8 +571,15 @@ const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scre
   const reshape = () => {
     if (!raf.current) raf.current = requestAnimationFrame(shape);
   };
-  useEffect(() => {
+  /* the middle room brought to the middle before the first paint (the strip is the cards' offset parent: `relative`) */
+  useLayoutEffect(() => {
+    const el = strip.current;
+    const c = cards.current[mid];
+    if (el && c) el.scrollLeft = c.offsetLeft + c.offsetWidth / 2 - el.clientWidth / 2;
     shape();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
     window.addEventListener('resize', reshape);
     return () => {
       window.removeEventListener('resize', reshape);
@@ -611,7 +651,7 @@ const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scre
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) heldUntil.current = performance.now() + WAIT * 2;
         }}
         /* pt-1.5 with -mt-1.5: room inside the scroll box for the top of a focused card's ring */
-        className="flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-[calc(50%-min(37vw,165px))] pt-1.5 -mt-1.5 pb-1"
+        className="relative flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-[calc(50%-max(100px,min(37vw,165px,calc((100svh-470px)*0.72))))] sm:px-[calc(50%-max(100px,min(37vw,300px,calc((100svh-470px)*0.72))))] pt-1.5 -mt-1.5 pb-1"
         data-landing-wall="strip"
       >
         {rooms.map((r, i) => (
@@ -621,7 +661,9 @@ const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scre
               cards.current[i] = el;
             }}
             /* the cards overlap (a negative margin), the one in front on top: the strip's depth */
-            className="relative snap-center shrink-0 w-[min(74vw,330px)] -mx-[7vw] first:ml-0 last:mr-0"
+            /* a phone's card, or a tablet's larger one, never taller than the screen leaves it under the words (the strip's
+               padding is half a card, so the end cards come to the middle) */
+            className="relative snap-center shrink-0 w-[max(200px,min(74vw,330px,calc((100svh-470px)*1.44)))] sm:w-[max(200px,min(74vw,600px,calc((100svh-470px)*1.44)))] -mx-[7vw] sm:-mx-[5vw] first:ml-0 last:mr-0"
           >
             <div className="landing-rise" style={{ ['--rise-delay' as string]: `${240 + i * 45}ms` }}>
               <button
@@ -642,7 +684,7 @@ const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scre
                   }}
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-canvas"
-                  style={{ opacity: i === 0 ? 0 : 0.5 }}
+                  style={{ opacity: i === mid ? 0 : 0.5 }}
                 />
               </button>
             </div>
@@ -650,9 +692,11 @@ const Strip = ({ rooms, s, onPick, moving, still }: { rooms: WallRoom[]; s: Scre
               ref={el => {
                 words.current[i] = el;
               }}
-              style={{ opacity: i === 0 ? 1 : 0 }}
+              style={{ opacity: i === mid ? 1 : 0 }}
             >
-              <Words r={r} className="pt-3 px-0.5 min-h-[92px]" />
+              {/* on a phone the line alone: the first screen holds the headline, the strip and the door (its pages are in the
+                  tour); a tablet has the room for its pages too */}
+              <Words r={r} compact className="pt-2.5 px-0.5 min-h-[56px] sm:min-h-[76px]" />
             </div>
           </div>
         ))}

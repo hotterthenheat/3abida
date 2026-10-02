@@ -92,6 +92,7 @@ import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
 import { BELOW_LG_QUERY, useMediaQuery } from '../../components/ui/useMediaQuery';
+import { useMarketClock } from '../../brand/useMarketClock';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import Tour, { type TourStep } from './Tour';
 import Everything, { FEATURE_COUNT, InPlaceOf, ROOM_COUNT, SHARED_COUNT } from './Everything';
@@ -690,38 +691,53 @@ const Nav = ({ ground }: { ground: Ground }) => {
    up for free but that's it") — the account costs nothing; a plan opens the desks. */
 const Hero = ({ onSignUp, rooms, onPick }: { onSignUp: () => void; rooms: TourStep[]; onPick: (id: string) => void }) => {
   const ground = useBlockGround();
-  /* THE ORDER READ IS THE ORDER SEEN (2026-10-02 review): below lg the rooms stand above the words, so they come first in
-     the page too — a CSS order left the keys and a screen reader on "Sign up free" before the rooms above it. The wall
-     keeps its place in the tree (moving it would mount every film again at the breakpoint); the words move round it. */
+  /* THE ORDER READ IS THE ORDER SEEN (2026-10-02 review): the page's order follows what stands on the screen, for the keys
+     and a screen reader as much as the eye. The wall keeps its place in the tree (moving it would mount every film again
+     at the breakpoint); the words move round it. */
   const narrow = useMediaQuery(BELOW_LG_QUERY);
-  const words = (
-    <div className="landing-rise [--rise-delay:140ms] mt-8 lg:mt-7 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-10 gap-y-6">
-      <p className="max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.55] text-textSecondary">
-        Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
-      </p>
-      <div className="shrink-0">
-        <Pill href="/signup" onClick={onSignUp} testId="hero">
-          Sign up free
-        </Pill>
-      </div>
+  const clock = useMarketClock();
+  const line = (
+    <p className="max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] sm:leading-[1.55] text-textSecondary">
+      Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
+    </p>
+  );
+  const door = (
+    <div className="shrink-0">
+      <Pill href="/signup" onClick={onSignUp} testId="hero">
+        Sign up free
+      </Pill>
     </div>
   );
+  /* ONE SCREEN (2026-10-02 — the owner: "when i load onto the website i need the dock to look much better and i should be
+     able to see below it until i scroll"): the first screen is the hero and only the hero — the signature, the line, the
+     words and the door, and the dock in all the room they leave ([data-dock-slot]), its cards and its words whole above the
+     fold; the tour begins below it, on any screen however tall. On a desk the words and the door share a row over the dock;
+     on a phone or a tablet the words come before the strip and the door right after it, the strip and the door centred
+     together in the room left (the door at the screen's foot left a tablet's strip adrift in the middle of it). */
   return (
-    <Wrap className="pt-[90px] sm:pt-[104px] pb-12 sm:pb-16">
+    <Wrap className="flex flex-col min-h-[100svh] pt-[78px] sm:pt-[92px] pb-5 lg:pb-7">
       <div className="landing-rise">
-        <Signature className="text-[12px]" />
+        {/* the market's own clock beside its word: New York's, where it keeps its hours */}
+        <Signature className="text-[12px]" detail={<span className="tnum">· New York {clock}</span>} />
       </div>
-      <h1 className="landing-rise [--rise-delay:60ms] mt-4 sm:mt-6 font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.7rem,6.3vw,5.7rem)] [text-wrap:balance]" data-landing-headline>
+      <h1 className="landing-rise [--rise-delay:60ms] mt-3 sm:mt-5 font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.5rem,min(6.3vw,10.5svh),5.7rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can{' '}
         {/* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */}
         <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>see.</span>
       </h1>
-      <div className="flex flex-col">
-        {!narrow && words}
-        <div className="mt-6 lg:mt-9">
-          <Wall rooms={rooms} theme={ground} onPick={onPick} />
+      {narrow ? (
+        <div className="landing-rise [--rise-delay:140ms] mt-3 sm:mt-4">{line}</div>
+      ) : (
+        <div className="landing-rise [--rise-delay:140ms] mt-5 flex flex-row items-end justify-between gap-x-10">
+          {line}
+          {door}
         </div>
-        {narrow && words}
+      )}
+      {/* on a wide screen the dock's stage is wider than the words' column — up to 2000 px, 80 px in from the screen's
+          edges — and on a laptop it is the column */}
+      <div className="relative flex-1 min-h-0 flex flex-col justify-center mt-4 sm:mt-5 lg:mt-6 lg:mx-[min(0px,calc((100%-min(100vw-160px,2000px))/2))]" data-dock-slot>
+        <Wall rooms={rooms} theme={ground} onPick={onPick} />
+        {narrow && <div className="landing-rise [--rise-delay:200ms] mt-3 sm:mt-6">{door}</div>}
       </div>
     </Wrap>
   );
