@@ -1,61 +1,112 @@
-# Landing and footer notes — Yu-Hsin Lin and Eclipse Space (2026-10-02)
+# Landing and footer notes — Eclipse Space and Yu-Hsin Lin (2026-10-02)
 
 The owner, 2026-10-02: "take notes from this landing pages and footers... https://www.yuhsinlin.com/ and
-https://www.eclipse.space/". The same rule as skylit.ai holds: "dont steal just get inspired". Their words, layouts and
-marks are theirs; what transfers is the thinking.
+https://www.eclipse.space/". The skylit.ai rule holds: "dont steal just get inspired". Their words, layouts and marks
+are theirs; what transfers is the thinking.
 
-**How these notes were taken.** The build environment's network policy refuses both hosts (www.yuhsinlin.com,
-www.eclipse.space), their Webflow copies (yuhsinlin.webflow.io, eclipse-dev1.webflow.io) and the galleries that show them
-(footer.design, siteinspire.com, a1.gallery, lapa.ninja). So nothing here was seen first hand. What is below comes from
-search results and the galleries' own listings, and each line says how sure it is. The motion, the footers' exact
-composition and the interactions still need a real look (the hosts allowed in the environment's network settings, or
-screenshots or a screen recording from the owner).
-
-## Yu-Hsin Lin — yuhsinlin.com
-
-A product designer's portfolio (four years and more; enterprise products, complex workflows, design systems,
-accessibility; Philadelphia, a master's at UPenn). Built on Webflow.
-
-- **The line** (confirmed, quoted in search results): "I design products and systems that work well, with a little
-  spark." One sentence, two halves: the claim (works well), then the personality (a little spark).
-- **The work** (confirmed): a short list of named projects, each with its outcome in one line. For example, VIVOTEK, "a
-  Design System that could grow with the products"; Ansys, "rebuilding 40+ … color tokens to improve accessibility";
-  RADHawk, "increased CSAT to 93%"; VORTEX, "the mobile experience for Taiwan's first cloud-based AI video SaaS". Then the
-  personal projects.
-- **The footer** (gallery listing, not seen): featured on footer.design, which shows its desk and phone footers. The
-  listing's tags include typographic, large type, bold, grid, cards, illustrative, animated, interactive and fun. The
-  page also shows its full filter list, so it isn't certain which of these tags belong to this footer.
+**How these notes were taken.** The owner allowed both hosts, so each page's HTML, its custom CSS and its custom scripts
+were read whole: every word, the structure, the footers' markup and the code behind every movement. Their stylesheets,
+pictures and films are served from Webflow's CDN (cdn.prod.website-files.com), which is still blocked, along with jQuery
+(d3e54v103j8qbb.cloudfront.net) and the GSAP plugins (cdn.jsdelivr.net). So the type scale, the spacing and the films
+themselves were not seen; how things move and react was read from their code.
 
 ## Eclipse Space — eclipse.space
 
-A satellite-constellation company (former SpaceX and Starlink engineers). Site by the studio Omoi, built on Webflow.
+A satellite-constellation company, site by the studio Omoi, on Webflow with GSAP (ScrollTrigger, Flip), Lenis smooth
+scrolling and SplitType. Black, white and light grey; one typeface (GT Mechanik).
 
-- **The promise** (confirmed): "Sovereign satellite constellations designed, built, and delivered by Eclipse Space. Full
-  control, no dependencies. From contract to orbit faster." Three beats, each shorter than the last: what it is, why it
-  matters, the payoff.
-- **The look** (gallery tags, confirmed across three galleries): big type, typographic, black and white on light grey,
-  minimal, outline type, video, animated, scroll animation. One typeface, GT Mechanik.
-- **The mark** (Omoi's description): "a corona built to never repeat itself" — every version different, like the
-  constellations it stands for. 3D renders make hardware still in development "feel like something you could already
-  touch".
-- **The footer** (gallery listing, not seen): featured on footer.design under big type, outline and minimal.
+The page, top to bottom:
+1. **Arrival.** The logo's strokes come in one after another, hold for 200 ms, then the logo flies into the navbar (GSAP
+   Flip) as the bar fades in. Behind it a film of the corona that **plays as you scroll** (the scroll position is the
+   film's playhead; seeks are gated so it never steps). Two small lines: "Designed by us" / "Owned by you". At the
+   foot, **LOCAL TIME**, a live clock beside a location marker, and "Space infrastructure is finally within reach."
+2. **A statement read by scrolling.** "For anyone with a mission to run. Eclipse builds the system. You own it." Every
+   letter starts pale (#eaeaea) and turns black in step with the scroll, one character at a time, so reading the line is
+   the scroll. The "o" of "mission" is the live corona.
+3. **The globe**, also played by the scroll: "A whole constellation you own outright. No dependencies. No conditions."
+4. **Tabs that play themselves** with a progress line (satellites, ground infrastructure, user terminal, launch): "We
+   deliver the system. You operate it."
+5. **What you get**: 01 Control, 02 Speed, 03 Scale, 04 Reliability, one plain paragraph each.
+6. Team proof, then the ask, then the **closing line at display size**, "Designed by eclipse. owned by you.",
+   **sliding sideways as you scroll**. It is a marquee the reader drives, not a timer. The promise opens the page and
+   closes it.
 
-## What Slayer can take (ours, not theirs)
+**The footer**:
+- A film of the corona behind it, cut separately for desk and phone; on a phone it is masked so it fades in from the top.
+- One line, "Own your own future."
+- Three short link groups (Company, Technology, Connect). Hovering one dims its other links to half, and a 5 px marker
+  grows in front of the hovered link (cubic-bezier(.16, 1, .3, 1)).
+- The legal row.
+- **Three orbit icons.** Once the pointer touches them, they circle it (40–70 px out, a full turn about every ten
+  seconds) and follow it anywhere in the footer. They ease home when the pointer leaves, and only on a desk with a mouse.
+- "Creative direction by Omoi".
 
-Already in line with both:
-- **Big outlined type as the floor.** The footer ends on the drawn wordmark at the column's width, engraved in hairline
-  outline, cut off by the bottom edge (SiteFooter FooterFloor). This is Eclipse's big-outline-type idea, in Slayer's
-  own wordmark.
-- **A brand element that never repeats.** The live band's line is a walk of its own and never draws the same picture
-  twice, the way Eclipse's corona never repeats.
-- **Monochrome with one accent.** Black and light grey with silver only for "live" matches Eclipse's black, white and
-  light grey.
+Elsewhere on the site:
+- Buttons tilt toward the cursor and sink when pressed (spring physics, two separate shadows).
+- **The mark is a live generative corona**, never the same twice (blur, choke, radial zoom blur, halftone dots).
+- Every effect has a reduced-motion fallback.
 
-Worth trying once the sites can be seen:
-- **A three-beat promise under the headline**, each beat shorter than the one before. Slayer's line now is "Most of
-  what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the
-  levels, the filings." A tighter cut could follow Eclipse's rhythm, in Slayer's own words.
-- **Outcomes, not features, in one line per room** (Yu-Hsin Lin's project list). Each tour room already has a line; check
-  that each one says what the reader gets.
-- **A footer with some play in it** (Yu-Hsin Lin's footer is tagged interactive and fun). Slayer's band lets the pointer
-  scrub the line; whether it should do more waits on seeing what hers does.
+## Yu-Hsin Lin — yuhsinlin.com
+
+A product designer's portfolio on Webflow, with GSAP (ScrollSmoother, Inertia, PhysicsProps), Lenis and Matter.js (a 2D
+physics engine). Type is Inter with Lora for accents, on white and near-black, with one yellow (#F4C739).
+
+The page, top to bottom:
+1. **A loader once per visit.** "Just a sneak peek" and her name, a counter running 0 to 100 in 1.8 s, a short hold,
+   then a black curtain lifts. It is skipped on later pages in the same visit and under reduced motion.
+2. **The nav**: "✱ Yu-Hsin Lin"; Work, Playground, About, Résumé; and **"My time"**, her clock in New York, updated
+   on the minute.
+3. **The hero**: "I design products and systems that work well, with a little spark." One line of credentials, then
+   "Think we should work together? See how we match" (it opens her AI twin). Project pictures float around the line.
+   Three pointer effects:
+   - over a picture, a "sneak peek" label trails the cursor;
+   - in the hero, a chain of ten soft blobs follows the cursor;
+   - anywhere on the page, a 52 px grid cell lights under the pointer and fades in a second.
+4. **Selected works (2021–2026)**: four cards. Each has the company, a title that states the outcome, one line with the
+   number ("increasing CSAT to 93%"), tags, and "View" on hover.
+5. **"Made for everyday moments"**: side projects as a list; hovering a row shows its picture.
+6. **"Curious to know me better?"**: the résumé, and "Talk to Yu", an AI chat with suggested questions.
+
+**The footer** (black):
+- A status tag, "available for work", whose dot breathes.
+- "Before you go, leave a little doodle. Press the star to start." The star opens a drawing pad and a gallery of
+  visitors' drawings.
+- Link labels in parentheses: (Explore), (Contact).
+- **The doodles drop in.** The moment the reader reaches the bottom, up to twenty visitors' doodles fall into the footer
+  as cards with physics: gravity, collisions, and they can be grabbed and thrown. The bodies go to sleep when still, so
+  the pile costs nothing at rest.
+
+## What the two share
+
+- **A live clock as proof the page is now**: Eclipse's local time in the hero, Lin's own time in the nav.
+- **One pointer toy at the end of the page**, as a reward for reaching it (the orbiting icons; the throwable doodles). It
+  comes to rest when nobody touches it.
+- **Scroll as the playhead.** Films, letters and the closing line all move with the reader's scroll rather than on a
+  timer.
+- **The promise said twice.** Eclipse opens on "Designed by us / Owned by you" and closes on "Designed by eclipse. owned
+  by you." Each footer has its own closing line ("Own your own future." / "Before you go, leave a little doodle.").
+- **Short, declarative lines; outcomes, not features.**
+
+## For Slayer — ours, not theirs (proposals, best first)
+
+1. **A footer line and one toy in Slayer's own grammar: "Before you go, mark a level."** A press on the live band drops
+   a dashed level where the pointer is. The line walks on, and when it crosses the reader's level the level lights and
+   its tag reads the time it was crossed. That is the terminal's alerts idea in miniature. It rests when untouched, needs
+   no backend (the levels last the visit), and a second press takes a level away.
+2. **The closing words read by scrolling.** "Seen enough? Step inside." turns from the muted ink to the full ink a
+   character at a time as it scrolls into view, stepped, in Slayer's type. Under reduced motion it stands in full ink.
+3. **The market's own clock beside the signature** in the hero ("slayer:~ $ ● live · New York 1:42 PM"). It is
+   truthful, it is the one live figure on the first screen, and it is the same reading the signature already uses.
+4. **Footer links that answer the pointer**: hovering a column dims its other links and grows a small marker in front of
+   the hovered one. Use colour and a marker, not weight, because weight changes reflow the line.
+5. **The promise said twice**: the first screen's line and the footer's closing line made into a pair, in the house
+   voice.
+
+Not for Slayer, and why:
+- **A film behind the footer**: Slayer's films are the product; a decorative film would compete with them.
+- **A loader counter**: the landing should open at once, and the terminal already has its loading screen.
+- **An AI twin chat**: there is no backend, and a chat bubble is ruled out on the landing.
+- **A visitors' doodle gallery**: it needs a backend and moderation.
+- **Cursor trails and the pixel grid**: decoration that draws on every frame.
+- **The logo flying into the nav**: the mark stands still by the owner's rule.
+- **Tilting buttons**: a gimmick next to the plain ink pill.
