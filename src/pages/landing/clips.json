@@ -1,6 +1,6 @@
 {
  "compass-dark-desk": {
-  "d": 10.27
+  "d": 10.3
  },
  "compass-dark-phone": {
   "d": 10.5
@@ -132,40 +132,40 @@
   "d": 7.53
  },
  "practice-backtest-dark-desk": {
-  "d": 11.93
+  "d": 10.93
  },
  "practice-backtest-dark-phone": {
-  "d": 7.8
+  "d": 7.97
  },
  "practice-backtest-light-desk": {
-  "d": 11.93
+  "d": 10.93
  },
  "practice-backtest-light-phone": {
-  "d": 7.8
+  "d": 7.97
  },
  "practice-journal-dark-desk": {
-  "d": 11.03
+  "d": 10.57
  },
  "practice-journal-dark-phone": {
-  "d": 9.2
+  "d": 8.37
  },
  "practice-journal-light-desk": {
-  "d": 11.03
+  "d": 10.57
  },
  "practice-journal-light-phone": {
-  "d": 9.2
+  "d": 8.37
  },
  "practice-paper-dark-desk": {
-  "d": 13.3
+  "d": 11.67
  },
  "practice-paper-dark-phone": {
-  "d": 8.13
+  "d": 9.2
  },
  "practice-paper-light-desk": {
-  "d": 13.3
+  "d": 11.67
  },
  "practice-paper-light-phone": {
-  "d": 8.13
+  "d": 9.2
  },
  "pulse-board-dark-desk": {
   "d": 11.2
