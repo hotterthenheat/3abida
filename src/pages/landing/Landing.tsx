@@ -989,18 +989,9 @@ const PlansSideBySide = () => {
 
 /* ---- the page ------------------------------------------------------------------------------ */
 
-const Page = () => {
-  const { a } = useGround();
-  const { launch } = useLaunch();
-  const [barGround, setBarGround] = useState<Ground>(a);
-  const open = useCallback((path: string) => launch(path), [launch]);
-  const navigate = useNavigate();
-  /* a plan's door opens the account form with the plan named — the form is outside the terminal, so no gate */
-  const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
-
-  /* "Sign up free": the account form, outside the terminal */
-  const signUp = useCallback(() => navigate('/signup'), [navigate]);
-
+/** THE HERO AND THE TOUR, with the hero's rooms' state — kept here so that a room lighting (every few seconds) draws the
+    hero and the tour again and nothing below them */
+const HeroAndTour = ({ onSignUp, onOpen, onBarGround }: { onSignUp: () => void; onOpen: (path: string) => void; onBarGround: (g: Ground) => void }) => {
   /* THE HERO'S ROOMS: which one is in the window, and whether the visitor picked it (then it stays). The window says when
      the room's page has been seen through — the next room lights, unless the visitor asked for less motion — and how far
      into it the film is, written straight to the lit room's line. */
@@ -1034,6 +1025,33 @@ const Page = () => {
     heroLineAt.current = p;
   }, []);
 
+  return (
+    <Tour
+      head={<Hero onSignUp={onSignUp} rooms={calm ? [] : HERO_ROOMS} at={heroAt} onPick={pickRoom} line={setHeroLine} />}
+      steps={STEPS}
+      first={HERO_ROOMS[heroAt].path}
+      onOpen={onOpen}
+      onBarGround={onBarGround}
+      endSays={[`${ROOMS} rooms.`, 'One terminal.']}
+      onFirstLap={heroLap}
+      onFirstTime={heroTime}
+      firstNote={HERO_ROOMS[heroAt].lead}
+    />
+  );
+};
+
+const Page = () => {
+  const { a } = useGround();
+  const { launch } = useLaunch();
+  const [barGround, setBarGround] = useState<Ground>(a);
+  const open = useCallback((path: string) => launch(path), [launch]);
+  const navigate = useNavigate();
+  /* a plan's door opens the account form with the plan named — the form is outside the terminal, so no gate */
+  const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
+
+  /* "Sign up free": the account form, outside the terminal */
+  const signUp = useCallback(() => navigate('/signup'), [navigate]);
+
   /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */
   useEffect(() => {
     if (!location.hash) return;
@@ -1049,17 +1067,7 @@ const Page = () => {
       <Nav ground={barGround} />
 
       {/* ── THE HERO AND THE TOUR: one ground, one live terminal ─────────────────────────── */}
-      <Tour
-        head={<Hero onSignUp={signUp} rooms={calm ? [] : HERO_ROOMS} at={heroAt} onPick={pickRoom} line={setHeroLine} />}
-        steps={STEPS}
-        first={HERO_ROOMS[heroAt].path}
-        onOpen={open}
-        onBarGround={setBarGround}
-        endSays={[`${ROOMS} rooms.`, 'One terminal.']}
-        onFirstLap={heroLap}
-        onFirstTime={heroTime}
-        firstNote={HERO_ROOMS[heroAt].lead}
-      />
+      <HeroAndTour onSignUp={signUp} onOpen={open} onBarGround={setBarGround} />
 
       {/* ── EVERYTHING IN IT: every page of every room, each a door (Everything.tsx) ─────────── */}
       <Block on="a" id="everything" label="Everything in it" className="pt-[14vh] pb-[12vh] scroll-mt-10">
