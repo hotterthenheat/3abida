@@ -80,6 +80,13 @@
   and a line under a picture says what the picture
   shows. A page that changes takes its line here with
   it (STEPS below, Everything.tsx's ROOMS).
+
+  2026-10-03: the wall, then the dock, gave way to the
+  first design again — one window under the words,
+  playing the rooms in turn, the page change shown in
+  the row of rooms and typed in the window's bar (the
+  owner's partner: "similar to skylit … overstimulating
+  … I love the first one"). See Hero below.
 ==================================================
 */
 
@@ -91,12 +98,10 @@ import { PLANS, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
-import { BELOW_LG_QUERY, useMediaQuery } from '../../components/ui/useMediaQuery';
 import { useMarketClock } from '../../brand/useMarketClock';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import Tour, { type TourStep } from './Tour';
 import Everything, { FEATURE_COUNT, InPlaceOf, ROOM_COUNT, SHARED_COUNT } from './Everything';
-import Wall from './Wall';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import Signature from '../../brand/Signature';
@@ -750,66 +755,106 @@ const Nav = ({ ground }: { ground: Ground }) => {
    instructs. AND IT DOES NOT SAY "OPTIONS" (the same day): the hero speaks of THE MARKET and of TRADERS.
 
    THE BRAND'S HERO (Slayer Logo System, Web and App · Landing, 2026-09-30): one line, one button. The signature stands
-   over the line, its last word in the foil.
+   over the line, its last word in the foil; the market's own clock beside it.
 
-   EVERY DESK ON THE FIRST SCREEN (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
-   to click on each one"): under the line, all eight rooms, every one playing (Wall.tsx) — since 2026-10-02 a dock (the
-   owner: "make them like side by side and when u move your cursor they move with it like the apple mac dock but more
-   dramatic"): one row, the room in front swollen with its words under it, steered by the pointer and moving on by itself
-   when no one steers; on a phone, a strip a thumb swipes. On a desk the words and the door come before the dock; on a
-   phone the strip comes straight after the line and the words follow. THE DOOR is "Sign up free" (the owner, the same day: "theirs no try to free you can sign
-   up for free but that's it") — the account costs nothing; a plan opens the desks. */
-const Hero = ({ onSignUp, rooms, onPick }: { onSignUp: () => void; rooms: TourStep[]; onPick: (id: string) => void }) => {
+   THE WINDOW, AGAIN (2026-10-03). From 2026-10-01 the first screen was every desk at once — a wall, then a dock of eight
+   films. The owner's partner, of it: "the big card displays is first of all quite similar to skylit and secondly just
+   looks overstimulating … I love the first one, but we will add in the little page change". So the first screen is the
+   first design again — the words, the rooms in a row, and ONE window under them playing one room at a time (Tour.tsx:
+   the window is the tour's own, and glides into its place beside the rooms as the page scrolls) — with the page change:
+   the lit room's line fills as its film plays and, full, the next room lights; the window's bar types the page it opens
+   and a band of light passes down the screen as the new one lands (TerminalWindow). The window is whole on the first
+   screen, centred under the words, as large as they leave it. A room picked by hand stays. THE DOOR is "Sign up free" (the
+   owner, 2026-10-01: "theirs no try to free you can sign up for free but that's it") — the account costs nothing; a plan
+   opens the desks. */
+const Hero = ({ onSignUp, rooms, at, onPick, line }: { onSignUp: () => void; rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void }) => {
   const ground = useBlockGround();
-  /* THE ORDER READ IS THE ORDER SEEN (2026-10-02 review): the page's order follows what stands on the screen, for the keys
-     and a screen reader as much as the eye. The wall keeps its place in the tree (moving it would mount every film again
-     at the breakpoint); the words move round it. */
-  const narrow = useMediaQuery(BELOW_LG_QUERY);
   const clock = useMarketClock();
-  const line = (
-    <p className="max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] sm:leading-[1.55] text-textSecondary">
-      Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
-    </p>
-  );
-  const door = (
-    <div className="shrink-0">
-      <Pill href="/signup" onClick={onSignUp} testId="hero">
-        Sign up free
-      </Pill>
-    </div>
-  );
-  /* ONE SCREEN (2026-10-02 — the owner: "when i load onto the website i need the dock to look much better and i should be
-     able to see below it until i scroll"): the first screen is the hero and only the hero — the signature, the line, the
-     words and the door, and the dock in all the room they leave ([data-dock-slot]), its cards and its words whole above the
-     fold; the tour begins below it, on any screen however tall. On a desk the words and the door share a row over the dock;
-     on a phone or a tablet the words come before the strip and the door right after it, the strip and the door centred
-     together in the room left (the door at the screen's foot left a tablet's strip adrift in the middle of it). */
   return (
-    <Wrap className="flex flex-col min-h-[100svh] pt-[78px] sm:pt-[92px] pb-5 lg:pb-7">
+    /* in one column the window is a band of half the screen pinned under the bar (Tour.tsx), so the hero takes at least the
+       other half: the first screen is the words and the window, and the first room's words wait below the fold (a tablet
+       showed the room's head under the window) */
+    <Wrap className={`flex flex-col max-lg:min-h-[50svh] pt-[84px] sm:pt-[100px] lg:pt-[96px] ${rooms.length ? 'pb-6 lg:pb-5' : 'pb-10 lg:pb-16'}`}>
+      {/* the room left over in one column is shared above the words and above the rooms, so the words stand in the middle of
+          it and the rooms on the window they choose for */}
+      <div aria-hidden="true" className="flex-1 max-h-[12svh]" />
       <div className="landing-rise">
         {/* the market's own clock beside its word: New York's, where it keeps its hours */}
         <Signature className="text-[12px]" detail={<span className="tnum">· New York {clock}</span>} />
       </div>
-      <h1 className="landing-rise [--rise-delay:60ms] mt-3 sm:mt-5 font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.5rem,min(6.3vw,10.5svh),5.7rem)] [text-wrap:balance]" data-landing-headline>
+      <h1 className="landing-rise [--rise-delay:60ms] mt-4 sm:mt-6 font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.5rem,min(6.3vw,10svh),5.9rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can{' '}
         {/* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */}
         <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>see.</span>
       </h1>
-      {narrow ? (
-        <div className="landing-rise [--rise-delay:140ms] mt-3 sm:mt-4">{line}</div>
-      ) : (
-        <div className="landing-rise [--rise-delay:140ms] mt-5 flex flex-row items-end justify-between gap-x-10">
-          {line}
-          {door}
+      <div className="landing-rise [--rise-delay:140ms] mt-4 sm:mt-5 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-10 gap-y-5">
+        <p className="max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] sm:leading-[1.55] text-textSecondary">
+          Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
+        </p>
+        <div className="shrink-0">
+          <Pill href="/signup" onClick={onSignUp} testId="hero">
+            Sign up free
+          </Pill>
         </div>
-      )}
-      {/* on a wide screen the dock's stage is wider than the words' column — up to 2000 px, 80 px in from the screen's
-          edges — and on a laptop it is the column */}
-      <div className="relative flex-1 min-h-0 flex flex-col justify-center mt-4 sm:mt-5 lg:mt-6 lg:mx-[min(0px,calc((100%-min(100vw-160px,2000px))/2))]" data-dock-slot>
-        <Wall rooms={rooms} theme={ground} onPick={onPick} />
-        {narrow && <div className="landing-rise [--rise-delay:200ms] mt-3 sm:mt-6">{door}</div>}
       </div>
+      <div aria-hidden="true" className="flex-1" />
+      {/* where less motion is asked for the window does not glide in under the hero: it stands beside the first room from the
+          first frame and shows the room whose words are on screen, so there are no rooms here to choose for it */}
+      {rooms.length > 0 && <HeroRooms rooms={rooms} at={at} onPick={onPick} line={line} />}
     </Wrap>
+  );
+};
+
+/** THE ROOMS OVER THE WINDOW: each room on its glyph, bare; the lit one is in the window, and the hairline under it fills as
+    its film plays. On a phone the row scrolls sideways and keeps the lit room in view without moving the page. */
+const HeroRooms = ({ rooms, at, onPick, line }: { rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void }) => {
+  const row = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const r = row.current;
+    const lit = r?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!r || !lit || r.scrollWidth <= r.clientWidth) return;
+    r.scrollTo({ left: Math.max(0, lit.offsetLeft - (r.clientWidth - lit.offsetWidth) / 2), behavior: glideOrCut() });
+  }, [at]);
+  return (
+    <div className="landing-rise [--rise-delay:220ms] mt-7 sm:mt-9 lg:mt-8">
+      <div
+        ref={row}
+        role="group"
+        aria-label="The rooms in the window"
+        className="landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center lg:justify-center gap-1 overflow-x-auto"
+        data-hero-rooms
+      >
+        {rooms.map((r, i) => {
+          const on = i === at;
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => onPick(i)}
+              aria-pressed={on}
+              title={r.lead}
+              className={`relative shrink-0 h-9 pl-2.5 pr-3.5 inline-flex items-center gap-2 rounded-full border text-[13.5px] font-medium whitespace-nowrap transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${
+                on ? 'border-borderMuted bg-panel text-textPrimary' : 'border-transparent text-textMuted hover:text-textPrimary hover:bg-ink/[0.05]'
+              }`}
+              data-hero-room={r.id}
+            >
+              {r.glyph && <ProductGlyph name={r.glyph} size={17} bare className="shrink-0" />}
+              {r.name}
+              {/* how far through its film the lit room is: full, the next room lights */}
+              {on && (
+                <span
+                  ref={line}
+                  aria-hidden="true"
+                  className="absolute left-3.5 right-3.5 -bottom-px h-[2px] origin-left rounded-full bg-silver"
+                  style={{ transform: 'scaleX(0)' }}
+                  data-hero-room-line
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
@@ -955,20 +1000,38 @@ const Page = () => {
 
   /* "Sign up free": the account form, outside the terminal */
   const signUp = useCallback(() => navigate('/signup'), [navigate]);
-  /* a screen of the wall: its room's words in the tour, the window beside them showing it. On a desk the room's head
-     stands a third of the way down, beside the window. In one column the window is pinned over the top of the screen, so
-     the head stands just under it and its veil — a third of the way down put it behind the window (measured,
-     2026-10-01) */
-  const toRoom = useCallback((id: string) => {
-    const el = document.querySelector<HTMLElement>(`[data-tour-step="${id}"] [data-tour-head]`) ?? document.querySelector<HTMLElement>(`[data-tour-step="${id}"]`);
-    if (!el) return;
-    const win = document.querySelector<HTMLElement>('[data-tour-window]');
-    const under = win && window.matchMedia(BELOW_LG_QUERY).matches ? (parseFloat(getComputedStyle(win).top) || 0) + win.offsetHeight + 48 : window.innerHeight * 0.3;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - under, behavior: glideOrCut() });
-    /* the reader goes with the page: focus lands on the room's head (without a second scroll), so the next Tab carries on
-       inside the room the card opened and a screen reader reads its name — it stayed on the card, 3000 px above */
-    el.tabIndex = -1;
-    el.focus({ preventScroll: true });
+
+  /* THE HERO'S ROOMS: which one is in the window, and whether the visitor picked it (then it stays). The window says when
+     the room's page has been seen through — the next room lights, unless the visitor asked for less motion — and how far
+     into it the film is, written straight to the lit room's line. */
+  const calm = useReducedMotion();
+  const [heroAt, setHeroAt] = useState(0);
+  const [kept, setKept] = useState(false);
+  const pickRoom = useCallback((i: number) => {
+    setHeroAt(i);
+    setKept(true);
+  }, []);
+  const heroNow = useRef({ path: HERO_ROOMS[0].path, plays: true });
+  heroNow.current = { path: HERO_ROOMS[heroAt].path, plays: !kept && !calm };
+  const heroLap = useCallback((seen: string) => {
+    if (!heroNow.current.plays || seen !== heroNow.current.path) return;
+    setHeroAt(i => (HERO_ROOMS[i].path === seen ? (i + 1) % HERO_ROOMS.length : i));
+  }, []);
+  const heroLine = useRef<HTMLSpanElement | null>(null);
+  const heroLineAt = useRef(0);
+  const setHeroLine = useCallback((el: HTMLSpanElement | null) => {
+    if (el === heroLine.current) return;
+    heroLine.current = el;
+    heroLineAt.current = 0;
+  }, []);
+  const heroTime = useCallback((at: number, length: number, glide = 260) => {
+    const el = heroLine.current;
+    if (!el || !heroNow.current.plays) return;
+    const p = Math.min(1, Math.max(0, at / length));
+    /* a film wrapping round (or the line new) jumps back; forward, it glides from one reading to the next */
+    el.style.transition = p < heroLineAt.current ? 'none' : `transform ${glide}ms linear`;
+    el.style.transform = `scaleX(${p})`;
+    heroLineAt.current = p;
   }, []);
 
   /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */
@@ -986,7 +1049,17 @@ const Page = () => {
       <Nav ground={barGround} />
 
       {/* ── THE HERO AND THE TOUR: one ground, one live terminal ─────────────────────────── */}
-      <Tour head={<Hero onSignUp={signUp} rooms={HERO_ROOMS} onPick={toRoom} />} steps={STEPS} first={DOOR} onOpen={open} onBarGround={setBarGround} endSays={[`${ROOMS} rooms.`, 'One terminal.']} dock={false} />
+      <Tour
+        head={<Hero onSignUp={signUp} rooms={calm ? [] : HERO_ROOMS} at={heroAt} onPick={pickRoom} line={setHeroLine} />}
+        steps={STEPS}
+        first={HERO_ROOMS[heroAt].path}
+        onOpen={open}
+        onBarGround={setBarGround}
+        endSays={[`${ROOMS} rooms.`, 'One terminal.']}
+        onFirstLap={heroLap}
+        onFirstTime={heroTime}
+        firstNote={HERO_ROOMS[heroAt].lead}
+      />
 
       {/* ── EVERYTHING IN IT: every page of every room, each a door (Everything.tsx) ─────────── */}
       <Block on="a" id="everything" label="Everything in it" className="pt-[14vh] pb-[12vh] scroll-mt-10">

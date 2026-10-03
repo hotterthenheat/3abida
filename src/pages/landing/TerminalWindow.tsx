@@ -43,12 +43,20 @@
   fills it from its top left, the way a page sits in a
   window that is shorter than it.
 
+  THE BAR IS A PROMPT (2026-10-03): it types the page it
+  opens — "slayer:~ $ open pinpoint/map" — a letter at a
+  time when the window turns to another page, the cursor
+  after it blinking on the brand's beat. And as the new
+  page lands, one band of light passes down the screen,
+  once: the terminal drawing it. Neither where less
+  motion is asked for.
+
   Motion here is the film itself — decoded, not painted
   by the page.
 ==================================================
 */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { Theme } from '../../theme/theme';
 import Working from '../../components/ui/Working';
@@ -76,6 +84,8 @@ interface Props {
   /** how far into its lap the film on screen is, and the lap's length, in seconds — as it plays (a still's lap is said
       once, with the time to glide over it) */
   onTime?: (at: number, length: number, glide?: number) => void;
+  /** words at the right of the bar — the room's line while the window plays the hero's rooms */
+  note?: string;
 }
 
 /* A LAP, BRISK (2026-10-02 — the owner, of the tour's pages turning once a film had played through: "make the tab
@@ -105,6 +115,22 @@ export const savingData = (): boolean => {
   return !!c?.saveData;
 };
 
+/** THE PROMPT: the command that opens the page on screen, typed a letter at a time each time the page changes (a stepped
+    width in letters — the prompt's type is the one monospace), the cursor after it on the brand's beat (index.css
+    .window-cursor: the mark's own keyframes, so brand/brandClock.ts pins it to the page's clock) */
+const Prompt = ({ path }: { path: string }) => {
+  const cmd = `open ${crumbs(path).join('/')}`;
+  return (
+    <span className="min-w-0 flex items-center font-code text-[11.5px] leading-none whitespace-nowrap" data-window-path={path}>
+      <span className="text-textMuted">slayer:~ $</span>
+      <span key={cmd} className="window-typing ml-[1ch] min-w-0 overflow-hidden text-textPrimary" style={{ '--n': cmd.length } as CSSProperties}>
+        {cmd}
+      </span>
+      <span aria-hidden="true" className="window-cursor ml-[2px] shrink-0 w-[2px] h-[1.15em]" />
+    </span>
+  );
+};
+
 interface Reel {
   key: string;
   path: string;
@@ -113,7 +139,7 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -285,24 +311,31 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
   );
 
   const here = shown?.path ?? path;
-  const parts = crumbs(here);
+
+  /* THE PAGE IS DRAWN: when the page on top changes (a film faded in, or a still where there are no films), one band of
+     light passes down the screen — not for the first page, nor for the same page turning theme */
+  const onTop = [...reels].reverse().find(r => r.ready);
+  const drawn = onTop?.path ?? shown?.path ?? null;
+  const [sweep, setSweep] = useState(0);
+  const lastDrawn = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drawn || drawn === lastDrawn.current) return;
+    const first = lastDrawn.current === null;
+    lastDrawn.current = drawn;
+    if (!first && !calm) setSweep(n => n + 1);
+  }, [drawn, calm]);
 
   return (
     <div ref={root} data-theme={theme} data-terminal-window={here} data-window-films={reels.length ? (rolling ? 'rolling' : 'held') : 'stills'} className={`landing-window relative flex flex-col overflow-hidden rounded-[14px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
-      {/* THE BAR — which page this is; nothing else */}
-      <div className="relative shrink-0 h-10 pl-3.5 pr-3 flex items-center gap-1.5 sm:gap-3 border-b border-borderSubtle bg-panel font-mono transition-colors duration-500">
-        <ProductGlyph name="terminal" size={16} bare />
-        <span className="min-w-0 flex items-center gap-1.5 text-[11px] text-textSecondary truncate" data-window-path>
-          <span className="text-textMuted hidden sm:inline">terminal</span>
-          {parts.map((p, i) => (
-            <span key={`${p}-${i}`} className="flex items-center gap-1.5 min-w-0">
-              <span className="text-textMuted hidden sm:inline" aria-hidden="true">
-                /
-              </span>
-              <span className={i === parts.length - 1 ? 'text-textPrimary font-semibold truncate' : 'text-textMuted truncate hidden sm:inline'}>{p.replace(/-/g, ' ')}</span>
-            </span>
-          ))}
-        </span>
+      {/* THE BAR — the prompt that opened the page on screen; on the hero, the room's line beside it */}
+      <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel transition-colors duration-500">
+        <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
+        <Prompt path={here} />
+        {note && (
+          <span key={note} className="ml-auto pl-6 hidden md:block min-w-0 truncate text-[12px] text-textMuted animate-fade-in" data-window-note>
+            {note}
+          </span>
+        )}
       </div>
 
       {/* THE SCREEN */}
@@ -353,6 +386,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             <Working label="Loading the picture" stacked />
           </span>
         )}
+        {sweep > 0 && <span key={sweep} aria-hidden="true" className="window-sweep pointer-events-none absolute inset-0" />}
       </div>
     </div>
   );

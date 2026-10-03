@@ -9,17 +9,20 @@
   tool, and the words on the left CHOOSE ITS PICTURE —
   the tool whose words are on screen is the page it
   shows, and a row under a tool shows that page of it.
-  Since the hero shows every desk at once (the wall,
-  2026-10-01) the landing turns THE DOCK off: the
-  window stands docked beside the words from its first
-  frame. The dock below stays for a host that wants
-  the window wide under its head first.
+  Before any tool's words are on screen it plays the
+  hero's rooms (`first`, `onFirstLap`, `onFirstTime`):
+  the hero is the window again (2026-10-03 — the owner's
+  partner, of the dock of every desk that stood there
+  from 2026-10-01: "quite similar to skylit … just looks
+  overstimulating"; of the window: "I love the first
+  one").
 
   THE DOCK is the one scroll-linked motion on the
   page. The window's place in the layout is always
-  the docked one; under the hero its box is wider and
-  reaches further left, and it eases home over about
-  two thirds of a screen. Only the box changes per
+  the docked one; under the hero its box stands
+  centred under the words, as wide as the column and
+  no taller than the screen under the bar, and it
+  eases home over about two thirds of a screen. Only the box changes per
   frame; the picture inside fills it. The docked box
   takes THE PICTURE'S OWN SHAPE (see `measure`), so
   on a desk a still is never cropped or stretched.
@@ -113,6 +116,12 @@ interface Props {
   /** THE DOCK: the window starts wide under the hero and glides to the right. Off when the hero shows the desks itself
       (Landing.tsx, the wall, 2026-10-01) — the window then stands docked from its first frame. */
   dock?: boolean;
+  /** THE HERO'S ROOMS: before any tool's words are on screen, the window says when the page it shows (`first`) has been
+      seen through, and how far into it the film is — the hero moves its rooms on and fills their line (Landing.tsx) */
+  onFirstLap?: (path: string) => void;
+  onFirstTime?: (at: number, length: number, glide?: number) => void;
+  /** …and the words at the right of the window's bar meanwhile: the room's line */
+  firstNote?: string;
 }
 
 /** Where the docked window's top sits, under the floating bar */
@@ -124,10 +133,12 @@ const EDGE = 24;
 const DOCK_SCREENS = 0.7;
 /** The window's own chrome, which keeps its size while the terminal scales: the bar and the two borders */
 const CHROME = 42;
+/** Under the hero: the room the window keeps from the screen's foot once it is pinned */
+const FOOT = 28;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }: Props) => {
+const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, onFirstLap, onFirstTime, firstNote }: Props) => {
   const { a, b } = useGround();
   const small = useIsBelowLg();
   const calm = useReducedMotion();
@@ -249,13 +260,20 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
       w.style.setProperty('--back-h', `${Math.max(1, Math.round(backEnd - backTop))}px`);
     }
 
+    /* UNDER THE HERO (2026-10-03): the window takes the picture's shape as wide as the column — the films read at near
+       their own size — but no taller than the screen holds under the bar, so it is whole the moment it pins; centred
+       under the words. On a laptop it runs past the first screen's fold, as the first design's did; nothing below it shows
+       until the reader scrolls. */
+    const col = heroRight - heroLeft;
+    const w0 = Math.min(col, 2 + Math.max(0, vh - PIN_TOP - FOOT - CHROME) * SHOT_ASPECT);
+
     geo.current = {
       s0: gr.top + y - PIN_TOP,
       d,
-      w0: heroRight - heroLeft,
+      w0,
       w1,
       h1,
-      r0: cr.right - heroRight,
+      r0: cr.right - (heroLeft + heroRight) / 2 - w0 / 2,
       bandMid: wTop + y + top + (end - top) * 0.5,
       backMid: bk ? wTop + y + backTop + (backEnd - backTop) * 0.5 : Number.POSITIVE_INFINITY,
     };
@@ -312,6 +330,18 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
       return { ...p, [s.id]: pages[(pages.indexOf(cur) + 1) % pages.length] };
     });
   }, []);
+  /* before any room's words are on screen, the window plays the hero's rooms: its laps and its time are the hero's */
+  const firstLap = useRef(onFirstLap);
+  firstLap.current = onFirstLap;
+  const firstTime = useRef(onFirstTime);
+  firstTime.current = onFirstTime;
+  const lap = useCallback(
+    (seen: string) => {
+      if (now.current.step) onLap(seen);
+      else firstLap.current?.(seen);
+    },
+    [onLap]
+  );
   /* …and the hairline under its row fills as the film plays (written straight to the line; it starts empty for each page) */
   const bar = useRef<HTMLSpanElement | null>(null);
   const barAt = useRef(0);
@@ -330,6 +360,13 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
     el.style.transform = `scaleX(${p})`;
     barAt.current = p;
   }, []);
+  const time = useCallback(
+    (at: number, length: number, glide?: number) => {
+      if (now.current.step) onTime(at, length, glide);
+      else firstTime.current?.(at, length, glide);
+    },
+    [onTime]
+  );
 
   return (
     <div ref={wrap} className="relative isolate pb-56" data-tour data-tour-active={active ?? 'hero'} data-tour-turned={turned || undefined}>
@@ -361,7 +398,17 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true }:
           <div ref={box} className={dockable ? 'landing-box absolute top-0 right-0 w-full h-full' : 'h-full'} data-tour-box>
             {/* docking: the box is given the picture's shape (measure). One column: a fixed band the picture fills. A desk that
                 does not dock (less motion asked for): the window sizes itself by the picture. */}
-            <TerminalWindow path={path} theme={turned ? b : a} desk={!small} natural={!dockable && !small} className={!dockable && !small ? '' : 'h-full'} onLap={onLap} onTime={onTime} />
+            {/* it rises in after the hero's words (index.css .landing-rise) — once, and not where less motion was asked for */}
+            <TerminalWindow
+              path={path}
+              theme={turned ? b : a}
+              desk={!small}
+              natural={!dockable && !small}
+              className={`landing-rise [--rise-delay:300ms] [--rise-from:34px] ${!dockable && !small ? '' : 'h-full'}`}
+              onLap={lap}
+              onTime={time}
+              note={step ? undefined : firstNote}
+            />
           </div>
           {/* in one column the words pass under the window — they dissolve into it rather than being cut */}
           <div aria-hidden="true" className="lg:hidden pointer-events-none absolute inset-x-0 top-full h-10 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black,transparent)]" />

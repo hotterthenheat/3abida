@@ -87,41 +87,27 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   (the Wall's wall) is undone by letting go of the focus, not by picking again. Never edit src while a run films: the
   dev server reloads the pages being filmed. Re-film a page when its look changes, check its act still finds what it
   presses (the run says when a beat found nothing), and check each film's first and last frames side by side.
-- The landing's first screen (2026-10-01 — the owner: "the first thing you see should be all the desks not you having
-  to click on each one"): the line, "Sign up free", and all eight rooms (landing/Wall.tsx), every one playing its
-  film's copy (public/landing/wall/, 960 wide, written by landing:clips from the desk film), each a door to its room in
-  the tour. A DOCK since 2026-10-02 (the owner: "side by side and when u move your cursor they move with it like the
-  apple mac dock but more dramatic … add a bit more info on them", then "the main one comes out and the rest are in
-  the back"): the eight side by side across the row, overlapping; the room in front full size (up to not quite half the
-  row, as large as the screen leaves it), on top and lifted, with its kind, its line and up to four of its pages under
-  it (the tour's STEPS); the rest step back — half its size at the back, turned a little toward it like a ring seen
-  from outside, dimmed by a veil of the ground, tucked under their neighbours. It OPENS ON THE MIDDLE ROOM, the others
-  behind it on both sides (opened on the first, the front stood at the row's left end, a lopsided first screen); the
-  strip does too. THE FIRST SCREEN IS THE HERO AND ONLY THE HERO (2026-10-02 — the owner: "when i load onto the
-  website i need the dock to look much better and i should be able to see below it until i scroll"): one screen tall
-  on any screen, the signature (with New York's clock beside it, brand/useMarketClock.ts), the headline, the line and
-  the door, and the dock in all the room they leave ([data-dock-slot]: the dock measures it) — its cards and words
-  whole above the fold, the tour below it. On a wide screen the dock's stage is wider than the words (up to 2000 px,
-  80 px in from the edges); on a phone or tablet the door comes right under the strip, the two centred together, and
-  the strip's cards are sized to the screen's height. The pointer takes over at once, from wherever the dock had got
-  to, CALMLY (the owner, 2026-10-02: "the doc is to sensitive can we tone that down"): its place is read across the
-  whole row, a room every eighth of it, the room it is well into comes out (a dead band keeps a hand at the border of
-  two from swinging it), and the row glides there — it does not slide with every move of the hand; the card in front is
-  wide enough that the pointer is always on it. Left alone (the owner: "if no cursor is on it make it switch to each one
-  on its own as like a clean motion", then "fast/medium paced but smooth"), the dock GLIDES to the next room — about
-  0.6 s, eased in and out, stopping dead on it (never an exponential creep) — rests about 1.5 s, and glides on, there and
-  back; when the pointer leaves it glides home to the middle room (the owner: "when i get the cursor away it goes back to
-  the middle one and auto moves it"), rests a moment and moves on (a timer and a timed glide of transforms and
-  opacities, never an endless loop). On a phone or any screen without a hovering pointer it is a strip a thumb swipes, the middle
-  card in front and the others behind, before the words (in the page's order too, not only on screen); it steps on by
-  itself, and a thumb takes it over until a while after it lets go; a key or a screen reader on a card holds it and
-  brings that card to the middle; only the films on screen play. The dock is for any hovering mouse from 768 px. A card
-  opens its room in the tour and focus lands on the room's head. Under reduced motion the pointer changes the front
-  card by card. Films play only on screen with the tab
-  in front; reduced motion, Save-Data and a browser without H.264 keep the stills. The tour's window (TerminalWindow)
-  plays one film, with no pause button and no captions. The only door is "Sign up free" — an account is free; there
-  is no trial and no "no sign-up" anywhere (the owner, the same day). No box or tile round any logo, anywhere: glyphs
-  and the mark stand bare (`bare`), sized to fit their line.
+- The landing's first screen is ONE WINDOW (2026-10-03 — the owner's partner, of the dock of every desk that stood there
+  from 2026-10-01: "the big card displays is first of all quite similar to skylit and secondly just looks
+  overstimulating … I love the first one, but we will add in the little page change"): the signature (with New York's
+  clock beside it, brand/useMarketClock.ts), the headline, the line and "Sign up free", the eight rooms in a row (glyph
+  and name, Landing.tsx HeroRooms), and under them the tour's own window (Tour.tsx `first`) playing one room at a time.
+  The window stands centred under the words, as wide as the column and no taller than the screen holds under the bar,
+  so it is whole the moment it pins; on a laptop it runs past the first screen's fold, as the first design's did, and
+  nothing below it shows until the reader scrolls. Scrolling, it pins and glides into its place beside the rooms (THE
+  DOCK, on again). THE PAGE CHANGE: the lit room's line fills as its film plays (the window's onFirstTime), and at the
+  lap (4.5 s, TerminalWindow LAP; a still as long) the next room lights (onFirstLap); the window's bar is a prompt that
+  types the page it opens ("slayer:~ $ open compass", the cursor on the brand's beat — index.css .window-typing and
+  .window-cursor, sm-blink) with the room's line at its right, and one band of light passes down the screen as a new
+  page lands (.window-sweep: a transform, once). A room picked by hand stays. In one column the hero takes at least
+  half the screen and the window the other half (a pinned band), so the first room's words wait below the fold. Under
+  reduced motion there is no row of rooms: the window stands beside the first room from the first frame and follows
+  the tour. The dock (landing/Wall.tsx and its films' copies in public/landing/wall/, still written by landing:clips)
+  is kept, unused, until the owner says it can go. Films play only on screen with the tab in front; reduced motion,
+  Save-Data and a browser without H.264 keep the stills. The window plays one film, with no pause button and no
+  captions. The only door is "Sign up free" — an account is free; there is no trial and no "no sign-up" anywhere (the
+  owner, 2026-10-01). No box or tile round any logo, anywhere: glyphs and the mark stand bare (`bare`), sized to fit
+  their line.
 - Rooms play their pages (2026-10-02 — the owner: "each tab if they have more tabs to click it should automatically
   scroll to them so people can see everything without always having to use their mouse", then "make the tab switching
   faster its so damn slow right now"). In the tour the room on screen shows its pages in turn, each for 4.5 s of its
