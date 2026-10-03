@@ -32,10 +32,13 @@ const STAGES: [number, number][] = [
   [0.68, 2],
   [0.77, 1],
 ];
-/** the run, the canvas letting go after it, and the most the still may take to arrive before the boot gives way (ms) */
+/** the run, the canvas letting go after it, and the most the still may take to arrive before the boot gives way (ms); it
+    starts no sooner than START after the window mounts, so its coarsest stages land once the window has risen into view
+    (the hero's rise, index.css .landing-rise, begins 260 ms in) */
 const RUN = 1100;
 const LET_GO = 300;
 const WAIT = 1200;
+const START = 320;
 
 let booted = false;
 
@@ -214,8 +217,9 @@ const Boot = ({ src }: { src: string }) => {
     img.decode().then(
       () => {
         if (!alive) return;
-        if (performance.now() - born > WAIT || document.visibilityState !== 'visible') return setGone(true);
-        run();
+        const since = performance.now() - born;
+        if (since > WAIT || document.visibilityState !== 'visible') return setGone(true);
+        timer = window.setTimeout(() => alive && run(), Math.max(0, START - since));
       },
       () => alive && setGone(true)
     );

@@ -129,7 +129,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   visit, as the page opens, the hero's window comes up out of the footer's photograph — its own still in coarse pixels
   (each the block's strongest mark: the brightest on black, the darkest on paper), only the strongest at first, a hair
   of red on one edge and blue on the other, a row or two torn aside — and sharpens to the desk in 1.1 s
-  (pages/landing/Boot.tsx, TerminalWindow `boot`); the headline settles out of the same fringe as it rises (index.css
+  (pages/landing/Boot.tsx, TerminalWindow `boot`; it begins 320 ms in, once the window has risen into view); the headline settles out of the same fringe as it rises (index.css
   .landing-fringe, on `translate` so it adds to the rise). Never again on a return within the app, never under reduced
   motion, never in a tab behind, and not at all if the still takes over 1.2 s to come (the window never waits on its own
   entrance). It is the hero's alone; the rest of the page keeps its arrival clips.
