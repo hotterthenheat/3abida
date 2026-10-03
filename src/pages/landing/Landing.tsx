@@ -1,1367 +1,212 @@
-/*
-==================================================
-  SLAYER TERMINAL - LANDING (/) · v3
+import { useState } from 'react';
 
-  Rebuilt 2026-09-19 after Noah turned the first
-  rebuild down ("the tools we have arent even
-  showcased… i meant more like a smooth transition…")
-  and sent the sites that stand out to him, then: "i
-  dont want randomly generated renders, i want the
-  REAL thing from our website so it doesnt scream
-  fake". What the very first page was is in
-  docs/landing-page-reference.md.
-
-  THE IDEA. There is ONE picture on this page and it
-  is the terminal itself, in a window (TerminalWindow),
-  wide under the headline, then docked beside the
-  words while the page walks it through every tool
-  (Tour). Nothing on the page is drawn to look like
-  the product. It RAN in the window until the same
-  evening; Noah then made it STILLS ("keep our
-  interactive visuals but then make them static. i
-  dont like the idea of people flickering through the
-  website without any purchases. a static image breeds
-  mystery and desire") — photographs of the real
-  pages, taken by scripts/make-landing-shots.mjs.
-
-  THE LOOK, from his references: very large light
-  type with one marked word; every head in two tones;
-  a small word over a short rule above it; features
-  as rows on hairlines, not boxes; pill buttons; a
-  bar that lifts into a floating pill; a lot of air.
-
-  THE GROUND (ground.tsx) opens on the visitor's own
-  theme, turns slowly into the other half way down
-  the tour — the terminal in the window turns with
-  it — and turns home again after the last tool. The
-  page ENDS ON THE THEME IT BEGAN ON: the prices, the
-  questions and the footer stand on the visitor's
-  own ground.
-
-  THE RULES IT KEEPS (memory: no-public-grades,
-  plain-english-rule, landing-page-v2):
-  · NO grade, score or performance claim of ours.
-  · Plain English. Not a single buzzword.
-  · NO REFUNDS is said KINDLY, IN THE QUESTIONS — not
-    as a headline over the prices (Noah, 2026-09-19:
-    "should be stated in the legal or questions
-    section in a kind manner not a big bold section").
-    The doors into the terminal stay until checkout
-    and sign-in exist (his call, the same evening).
-  · The page never says simulated, demo or fake (the
-    owner, 2026-10-01), and nothing about a feed's
-    speed or source.
-  · Phones first: the paid traffic arrives from X.
-  · The prices are data/billing.ts's. WHAT EACH PLAN
-    HOLDS below is Noah's to re-decide.
-
-  2026-10-01, after the owner had a look at another
-  trading site's landing ("dont steal just get inspired
-  so we can be better then them"): every room's heading
-  wears its glyph; "Everything in it" (Everything.tsx)
-  lists every page, each a door; the plans can be read
-  side by side; the close wears the rooms' glyphs.
-  Nothing of theirs is copied — no words, no layout —
-  and nothing is claimed that the terminal cannot show
-  on the spot. Then, the same day: "the first thing you
-  see should be all the desks" — the hero is the wall
-  of all eight rooms, each playing a sped-up film of
-  the desk in use with only a cursor on it (Wall.tsx);
-  no box round any logo; and the one door is "Sign up
-  free" (there is no trial).
-
-  THE AUDIT, THE SAME DAY (the owner: "now audit the
-  landing page… think logically"): every line read
-  against the terminal as it stands, every door
-  pressed. The lines that had drifted say what is there
-  now — the tape's side rail is gone, Compass's cards
-  have four states, the Weigher's list is two cards,
-  not every page has a guide nor every action a key —
-  and a line under a picture says what the picture
-  shows. A page that changes takes its line here with
-  it (STEPS below, Everything.tsx's ROOMS).
-
-  2026-10-03: the wall, then the dock, gave way to the
-  first design again — one window under the words,
-  playing the rooms in turn, the page change shown in
-  the row of rooms and typed in the window's bar (the
-  owner's partner: "similar to skylit … overstimulating
-  … I love the first one"). See Hero below.
-==================================================
-*/
-
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
-import { ArrowRight, Check, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { PLANS, type PlanKey } from '../../data/billing';
-import { COMPANY } from '../../data/company';
-import { useLaunch } from '../../components/layout/LaunchTransition';
-import SiteFooter from '../../components/layout/SiteFooter';
-import { useMarketClock } from '../../brand/useMarketClock';
-import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
-import Tour, { type TourStep } from './Tour';
-import Everything, { FEATURE_COUNT, InPlaceOf, ROOM_COUNT, SHARED_COUNT } from './Everything';
-import SlayerMark from '../../brand/SlayerMark';
-import Wordmark from '../../brand/Wordmark';
-import Signature from '../../brand/Signature';
-import ProductGlyph from '../../brand/ProductGlyph';
-import { PRODUCT_GROUPS } from '../../brand/products';
-import type { GlyphName } from '../../brand/paths';
-
-/** Where "Launch terminal" opens the terminal, and the page the tour's window shows before a room's words are on screen.
-    The page's own call is "Sign up free" (the account form); the terminal behind this door is where an account goes. */
-const DOOR = '/pulse';
-
-/* THE BAR'S THREE WORDS (Slayer Logo System, Web and App · Landing): Products opens the menu of every product, one line
-   each; Pricing and Questions are this page's own sections */
-const NAV: { label: string; href: string }[] = [
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Questions', href: '#faq' },
-];
-
-/* THE TOUR. Every name, page and row here is a real one — the window opens it as the words arrive.
-   THE ORDER IS NOAH'S (2026-09-20): Pulse · Compass · Terrain · Pinpoint, then the turn of the ground, then Trace · the
-   Weigher · the Record. The codes are numbered off the order here, so moving a step is moving its block. */
-const STEPS: TourStep[] = [
+const systems = [
   {
-    id: 'pulse',
-    glyph: 'pulse',
-    code: '01',
-    kind: 'The desk',
-    name: 'Pulse',
-    lead: 'Your own desk of live panels.',
-    rest: 'Add them, drag them, link them to one name or let each hold its own. It is kept the way you left it.',
-    path: '/pulse',
-    rows: [
-      /* the row says what the window shows: the desk as scripts/landing-stage.mjs (SEED) arranges it — it named the
-         Market Structure desk's ledger, which the film does not show (2026-10-01 audit) */
-      { title: 'The desk', says: 'The chart beside the hedging at every strike, the setups and the earnings under them.', path: '/pulse' },
-      { title: 'Four charts', says: 'Four names at once, each with its own timeframe and overlays.', path: '/pulse/board' },
-    ],
+    n: '01',
+    name: 'COMPASS',
+    title: 'Market context',
+    body: 'Reads regime, structure, momentum, VWAP, volatility, positioning and setup conditions into one decision surface.',
   },
   {
-    id: 'compass',
-    glyph: 'compass',
-    code: '02',
-    kind: 'The contracts',
-    name: 'Compass',
-    lead: 'Option contracts picked off today’s levels.',
-    /* the card's four states (compass/setupProcess.ts) — "moving", the one the films show most, went unnamed until the
-       2026-10-01 audit */
-    rest: 'Every card says where its setup stands — watch, active, moving or fading — and it changes as price moves.',
-    path: '/compass',
-    rows: [
-      { title: 'The board', says: 'What cleared the bar on this sweep.', path: '/compass' },
-      /* its picture was held back for an evening: the Tracker's cards printed "Confidence 92%", a score of ours, and none goes
-         on a public page. They say the four words now (Noah, 2026-09-19), so the row has its picture again. */
-      { title: 'Tracker', says: 'What you kept, followed to the close.', path: '/compass/tracker' },
-    ],
+    n: '02',
+    name: 'PINPOINT',
+    title: 'Dealer positioning',
+    body: 'Surfaces the strikes, pressure zones and scenario levels where positioning can matter.',
   },
   {
-    id: 'terrain',
-    glyph: 'terrain',
-    code: '03',
-    kind: 'The chart',
-    name: 'Terrain',
-    lead: 'Charts, and nothing in the way.',
-    rest: 'One to four side by side on one set of controls. The walls, the flip and the supreme go on the candles with one switch.',
-    path: '/terrain',
-    rows: [
-      { title: 'The strike rail', says: 'The book beside the chart, strike by strike.' },
-      { title: 'Your own scripts', says: 'Write an indicator in Pine and it draws on the chart.' },
-      { title: 'Drawing tools', says: 'Lines, levels and notes that stay where you put them.' },
-    ],
+    n: '03',
+    name: 'TERRAIN',
+    title: 'Gamma structure',
+    body: 'Maps option exposure across price so the market structure is visible without turning it into a heatmap.',
   },
   {
-    id: 'pinpoint',
-    glyph: 'pinpoint',
-    code: '04',
-    kind: 'The book',
-    name: 'Pinpoint',
-    lead: 'The whole book, by strike and by date.',
-    rest: 'Where dealer hedging is heaviest, where it flips, and how each level has held today.',
-    path: '/pinpoint/map',
-    rows: [
-      { title: 'The Map', says: 'Every strike and expiry, as a matrix or as a calendar.', path: '/pinpoint/map' },
-      { title: 'Building', says: 'What was added to the book today, strike by strike.', path: '/pinpoint/building' },
-      { title: 'At the wall', says: 'Does it hold or break, and what happens either way.', path: '/pinpoint/wall' },
-      { title: 'Compare', says: 'Two names, side by side on one ruler.', path: '/pinpoint/compare' },
-    ],
-  },
-  {
-    id: 'themes',
-    kind: 'Light and dark',
-    name: 'Two themes',
-    lead: 'Light mode too.',
-    /* the room stands on the ground the page turned into: a visitor who came in on light is now reading on dark */
-    leadFor: { dark: 'Dark mode too.', light: 'Light mode too.' },
-    rest: 'Every page in the terminal works in both.',
-    path: '/pinpoint/map',
-    turn: true,
-    turnSays: { dark: 'Dark for the night session.', light: 'Paper for a bright room.' },
-    rows: [
-      { title: 'Your choice', says: 'Pick dark or light in Settings, or let it follow your computer.' },
-      { title: 'Same colours on every page', says: 'Green is up, red is down, magenta is the biggest strike.' },
-    ],
-  },
-  {
-    id: 'trace',
-    glyph: 'trace',
-    code: '05',
-    kind: 'The tape',
-    name: 'Trace',
-    lead: 'Every print, as it happens.',
-    /* the tape's side rail of top names left on 2026-09-12 (LiveTape.tsx) and the dark pool has its own page; the head of
-       the tape names the top bull, the top bear and the largest print (2026-10-01 audit) */
-    rest: 'Options sweeps and blocks, with the top bull, the top bear and the largest print named at the head of the tape, and dark-pool crosses on a page of their own.',
-    path: '/trace/live-tape',
-    rows: [
-      { title: 'Live tape', says: 'The stream, newest first.', path: '/trace/live-tape' },
-      { title: 'Net flow', says: 'Calls against puts, through the day.', path: '/trace/net-flow' },
-      { title: 'Dark pool', says: 'Off-exchange crosses, largest first.', path: '/trace/dark-pool' },
-      { title: 'Screener', says: 'Every contract, filtered your way.', path: '/trace/screener' },
-    ],
-  },
-  {
-    id: 'weigher',
-    glyph: 'weigher',
-    code: '06',
-    kind: 'The scale',
-    name: 'The Weigher',
-    lead: 'Weigh any contract before you take it.',
-    rest: 'The chart, the chain and your watchlist on one desk.',
-    path: '/weigher',
-    rows: [
-      { title: 'The chain', says: 'Every strike and expiry for the name.' },
-      /* two cards since 2026-09-14 — "One list" was the desk before (WeigherDesk.tsx) */
-      { title: 'Positions and a watchlist', says: 'What you hold and what you watch, each row marked now, today and since it was added.' },
-      { title: 'The position card', says: 'What a position would return at every price, on a ruler.' },
-    ],
-  },
-  {
-    id: 'dossier',
-    glyph: 'dossier',
-    code: '07',
-    kind: 'The file on a name',
-    name: 'Dossier',
-    lead: 'Everything on file about a name.',
-    /* five pages, not one screen: "every stock on one page" is the Stocks page */
-    rest: 'The news, the earnings, what insiders and members of Congress filed, and every stock screened on one page.',
-    path: '/dossier/news',
-    rows: [
-      { title: 'News', says: 'The wire, on a map.', path: '/dossier/news' },
-      { title: 'Earnings', says: 'The calendar, and a page for each name.', path: '/dossier/earnings' },
-      { title: 'Insiders', says: 'Who filed, what, and when.', path: '/dossier/insiders' },
-      { title: 'Congress', says: 'Trades disclosed by members of Congress.', path: '/dossier/congress' },
-      { title: 'Stocks', says: 'A plain read of any name: strong, good, caution or poor.', path: '/dossier/stocks' },
-    ],
-  },
-  /* PRACTICE (Review until 2026-09-26, when paper trading and backtesting became one section), the eighth room. PAPER
-     TRADING LEADS since 2026-09-26 (Noah: "i want the paper trading live to be the first one … change the practice headline
-     to lead with paper trading"); until then OPTIONS BACKTESTING led (2026-09-20: "i want the emphasis to be put on the
-     'options backtesting'… because thats not something you see everyday"), and it still stands second. OPTIONS ONLY since
-     2026-09-30: Paper first ("on the paper trading remove all the futures and make it strictly Options trading"), then the
-     futures backtest, taken out the same day. The brand above stays market-wide. Its pictures are the desks IN USE — the photographer starts an account or a session by the form's own
-     doors, plays it forward and trades it (scripts/make-landing-shots.mjs). The lines were read against TradeZella
-     ("Backtest your strategy in plain English", "replay it by hand, bar by bar"), Option Omega ("Backtest it. Automate
-     it.") and ORATS ("Options Backtester") first: none of theirs are here. */
-  {
-    id: 'practice',
-    glyph: 'practice',
-    code: '08',
-    kind: 'Paper trading and backtesting',
-    name: 'Practice',
-    /* the headline leads with paper trading, as the room's first row does (Noah, 2026-09-26) */
-    lead: 'Paper trade today’s prices, or replay a past day’s.',
-    /* SAID ONCE (2026-10-01 audit): the paragraph ran eleven lines on a desk and told the rows' story before the rows
-       did — the targets and stops, the decay, the chain as quoted are theirs to say */
-    rest: 'A practice account or a prop firm’s evaluation on the live feed, or a past day played back a minute at a time, the whole option chain as it was quoted. Calls, puts and spreads, and nothing reaches a broker. One journal keeps every closed trade.',
-    /* paper trading leads the room (Noah, 2026-09-26: "i want the paper trading live to be the first one") — its still
-       is the options desk in use, not the start page (the photographer's `photo=1` window, embed.ts) */
-    path: '/practice/paper',
-    rows: [
-      { title: 'Paper trading, live', says: 'A practice account or a prop firm’s evaluation on today’s prices — options only, ordered from the chain, on the live feed.', path: '/practice/paper' },
-      { title: 'Options, off the real chain', says: 'Pick any contract as it was quoted that minute. A same-day one loses value while you watch.', path: '/practice/backtest' },
-      { title: 'Targets and stops that know decay', says: 'Set them on the contract’s price, or pin them to the stock’s. The chart shows where each one sits right now.' },
-      { title: 'Your own rules', says: 'How many positions, what a trade may risk, where the day stops. A trade that breaks one is refused.' },
-      { title: 'The journal', says: 'Every closed trade on its chart: what it did while you held it, your tags, your words.', path: '/practice/journal' },
-    ],
+    n: '04',
+    name: 'TRACE',
+    title: 'Flow & footprints',
+    body: 'Follows options activity, dark-pool prints and time-linked flow without treating every print as a prediction.',
   },
 ];
 
-/** The tour's last words count its tools — "Seven rooms. One terminal." — off the list itself, so they cannot disagree with it */
-const ROOMS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][STEPS.filter(s => s.code).length] ?? String(STEPS.filter(s => s.code).length);
+const bars = Array.from({ length: 24 }, (_, i) => 34 + ((i * 29) % 130));
 
-/** The rooms the hero's window plays in turn — the tour's tools, in the tour's order (the turn is not a room) */
-const HERO_ROOMS = STEPS.filter(s => s.code);
-
-/* every line true of the terminal today — "every page" was not: Pulse, the Tracker, the Board and Practice have no guide
-   (counted 2026-10-01) */
-const IT_DOES = [
-  'Shows where dealer hedging sits, and redraws it as the day moves',
-  'Reads a contract against that and says it in a word: strong, good, caution or poor',
-  'Keeps a setup current: watch while it forms, active while it holds, fading when it breaks',
-  'Explains its reads in plain English',
-];
-const IT_NEVER = ['Tells you what to buy or sell', 'Places an order. It is not a broker', 'Boils a trade down to one number', 'Gives financial advice'];
-
-/* WHAT EACH PLAN HOLDS — Noah's to re-decide (see the header). The prices come from data/billing.ts.
-   A line marked `soon` is sold with the plan but not open yet, and says so: Community is one room behind
-   the terminal's "coming soon" wall (Noah, 2026-09-19: it goes on the Compass plan, marked).
-   REVIEW IS ON THE COMPASS PLAN (Noah, 2026-09-20: "review is in compass") — its line leads with the rare thing, as its
-   room on the tour does.
-
-   ONE LIST, TWO READINGS (2026-10-01): every line any plan holds, once, with the plans that hold it. The cards read it
-   as "everything in the plan before, and…" (their words unchanged), and the plans side by side read it whole — so the
-   two can never disagree. Re-deciding a plan is changing its letters here. */
-type Holds = boolean | 'soon';
-interface PlanRow {
-  text: string;
-  glyph?: GlyphName;
-  in: Record<PlanKey, Holds>;
+function Chart() {
+  return (
+    <svg viewBox="0 0 700 245" width="100%" height="100%" preserveAspectRatio="none" aria-label="SPX structure preview">
+      <g stroke="#212936" strokeWidth="1">
+        {[40, 90, 140, 190].map((y) => <path key={`y-${y}`} d={`M0 ${y}H700`} />)}
+        {[80, 170, 260, 350, 440, 530, 620].map((x) => <path key={`x-${x}`} d={`M${x} 0V245`} />)}
+      </g>
+      <path
+        d="M0 208 C60 196 70 180 110 187 S170 150 208 164 S245 140 270 145 S318 113 352 121 S405 104 438 95 S495 107 526 87 S580 55 610 71 S650 48 700 31"
+        fill="none"
+        stroke="#dce4ef"
+        strokeWidth="2"
+      />
+      <path
+        d="M0 210 C50 198 90 193 130 177 S210 165 260 147 S350 129 420 118 S560 92 700 73"
+        fill="none"
+        stroke="#3b82f6"
+        strokeWidth="1"
+      />
+      <path d="M0 179H700" stroke="#089981" strokeDasharray="6 6" />
+      <path d="M0 125H700" stroke="#f23645" strokeDasharray="5 8" />
+      <circle cx="610" cy="71" r="4" fill="#e8edf5" />
+    </svg>
+  );
 }
-const PLAN_ROWS: PlanRow[] = [
-  { text: 'Pulse, your desk of live panels', glyph: 'pulse', in: { pinpoint: true, compass: true, lifetime: true } },
-  /* YOUR SCRIPTS COME WITH TERRAIN, ON EVERY PLAN (2026-10-01, the owner: "scripts do what u think is best"). They were a
-     Compass line of their own while the tour showed them under Terrain, which every plan holds — and Terrain's own line
-     (nav.ts) is "your Pine scripts, your drawings". Nothing in the terminal is held back by plan, so the list was the
-     only thing that disagreed. */
-  { text: 'Terrain, the levels on the chart and your own scripts', glyph: 'terrain', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Pinpoint, the book by strike and by date', glyph: 'pinpoint', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Trace, the tape and the dark pool', glyph: 'trace', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Alerts on any level', glyph: 'alerts', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Compass, contracts that fit the levels', glyph: 'compass', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'The Weigher, for any contract you name', glyph: 'weigher', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'Dossier: news, earnings, insiders, Congress, stocks', glyph: 'dossier', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'Practice: paper trading, backtesting and the journal', glyph: 'practice', in: { pinpoint: false, compass: true, lifetime: true } },
-  /* off the terminal's menu until it opens, and sold here marked "coming soon" — the owner, 2026-10-01: "community is coming
-     real soon" */
-  { text: "Community, the traders' room", glyph: 'community', in: { pinpoint: false, compass: 'soon', lifetime: 'soon' } },
-  { text: 'One payment, nothing recurring', in: { pinpoint: false, compass: false, lifetime: true } },
-  { text: 'A one-to-one session to set up your desk', in: { pinpoint: false, compass: false, lifetime: true } },
-  { text: 'New tools before anyone else', in: { pinpoint: false, compass: false, lifetime: true } },
-];
-const PLAN_ORDER: PlanKey[] = ['pinpoint', 'compass', 'lifetime'];
-/** what the plan before this one is called on its card: "Everything in Pinpoint", "Everything in Compass, for good" */
-const EVERYTHING_IN: Partial<Record<PlanKey, string>> = { compass: 'Everything in Pinpoint', lifetime: 'Everything in Compass, for good' };
 
-type Hold = string | { text: string; soon: true };
-/** A card's lines: the plan before it in one line, then what this plan adds */
-const holdsOf = (key: PlanKey): Hold[] => {
-  const before = PLAN_ORDER[PLAN_ORDER.indexOf(key) - 1];
-  const adds = PLAN_ROWS.filter(r => r.in[key] && !(before && r.in[before]));
-  return [...(EVERYTHING_IN[key] ? [EVERYTHING_IN[key]!] : []), ...adds.map(r => (r.in[key] === 'soon' ? { text: r.text, soon: true as const } : r.text))];
-};
+export default function Landing() {
+  const [tab, setTab] = useState('Structure');
 
-/* WHICH IS FOR ME — one line a plan, said from the trader's side: what they do, not what we sell */
-const PLAN_FOR: Record<PlanKey, string> = {
-  pinpoint: 'You read the levels and the tape, and make your own calls.',
-  compass: 'You also want contracts picked off the levels, the Weigher, the Dossier and Practice.',
-  lifetime: 'You want all of it for good, paid once, with a session to set up your desk.',
-};
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
-/* THE QUESTIONS — the Logo System's FAQ bank (09 · Voice / 10 · Messaging, 2026-09-30), one of the page's own kept (the
-   pictures). No refunds, said kindly, here and never as a banner. The page never says simulated, demo or fake (the
-   owner, 2026-10-01). Two left the list on 2026-10-01: "How do I reach you?" (the address stands beside the head as a
-   door, with the same words, so the section said it twice), and "Where does the data come from?" (the owner: "remove
-   that because this is a local host site nobodies on it yet im just building it" — it answered with licences not yet
-   signed). */
-const FAQ: { q: string; a: string }[] = [
-  { q: 'Alerts or signals?', a: 'Alerts. You set a level and Slayer tells you when price gets there. It never tells you what to buy or sell.' },
-  { q: 'How is it different?', a: 'It puts the prints, the positions, the levels and the filings on one screen, and says where each number comes from.' },
-  { q: 'Do I need to know options?', a: 'No. Pinpoint shows levels on a price chart. The guides explain each term in plain words.' },
-  { q: 'Are the pictures on this page real?', a: 'Yes. Every picture and every film is the terminal itself, taken from the real page, not a mock-up. The films run three times as fast as life.' },
-  { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
-  { q: 'Do you offer refunds?', a: 'We don\u2019t. Making an account is free, and every desk is on this page, so see what each plan holds before you pay. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.' },
-];
-
-/* ---- the pieces ---------------------------------------------------------------------------- */
-
-const Wrap = ({ children, className = '' }: { children: ReactNode; className?: string }) => <div className={`mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10 ${className}`}>{children}</div>;
-
-/** ONE SMALL WORD OVER A SHORT BAR — above every head on the page, the Logo System's section label ("01 · Landing") */
-const Eyebrow = ({ children }: { children: ReactNode }) => (
-  <div className="flex flex-col items-start gap-2.5">
-    <p className="text-[13px] text-textMuted">{children}</p>
-    <span className="w-10 h-[3px] rounded-full bg-silver" aria-hidden="true" />
-  </div>
-);
-
-/** EVERY HEAD IS TWO LINES IN TWO TONES: what it is in ink, the turn of the thought in grey */
-const TwoTone = ({ first, second, className = '' }: { first: string; second: string; className?: string }) => (
-  /* outline-none: a jump along the page lands the keys here (toAnchor) — a heading to land on, not a control */
-  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[40px] sm:text-[56px] lg:text-[72px] [text-wrap:balance] outline-none ${className}`}>
-    {first} <span className="block text-textMuted">{second}</span>
-  </h2>
-);
-
-/* THE LAST WORDS, READ BY SCROLLING (2026-10-02, from the owner's notes on two landings that make a line's reading the
-   scroll itself): each letter of the closing lines stands faint and turns to its own ink, one letter at a time, as the
-   lines come up the screen — the scroll is the playhead, stepped letter by letter, and scrolling back takes them back.
-   A reader that hears the page hears the lines whole (the label); where less motion is asked for, they stand lit. Only
-   the letters that change are touched, and only while the lines are near the screen. */
-const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: string }[]; className?: string }) => {
-  const ref = useRef<HTMLHeadingElement | null>(null);
-  const calm = useReducedMotion();
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || calm) return;
-    const letters = Array.from(el.querySelectorAll<HTMLElement>('[data-letter]'));
-    let lit = -1;
-    let raf = 0;
-    /* what a settled read has lit stays lit until the lines go back down off the screen */
-    let floor = 0;
-    let rest = 0;
-    let undo = 0;
-    const show = (n: number) => {
-      if (n === lit) return;
-      const from = lit < 0 ? 0 : Math.min(n, lit);
-      const to = lit < 0 ? letters.length : Math.max(n, lit);
-      for (let i = from; i < to; i++) letters[i].dataset.lit = i < n ? 'on' : 'off';
-      lit = n;
-    };
-    const paint = () => {
-      raf = 0;
-      const top = el.getBoundingClientRect().top;
-      const vh = window.innerHeight;
-      if (top > vh * 0.95) floor = 0;
-      /* from when the lines' top is nineteen twentieths of the way down the screen to when it is seven tenths of the way —
-         whole by the time the door under it is in reach (2026-10-03 audits: half unlit when the door reached the thumb, and
-         where a Page Down stops) */
-      const p = Math.max(0, Math.min(1, (vh * 0.95 - top) / (vh * 0.25)));
-      show(Math.max(floor, Math.round(p * letters.length)));
-    };
-    /* A STEPPED SCROLL NEVER LEAVES THEM HALF READ (2026-10-03 audit: a Page Down stopped with "Step inside." still dark and
-       the next carried it off the screen): when the page comes to rest with the lines on screen, the rest of them light, a
-       letter at a time */
-    const settle = () => {
-      const r = el.getBoundingClientRect();
-      const vh = window.innerHeight;
-      if (r.top > vh * 0.9 || r.bottom < 0 || lit >= letters.length) return;
-      const from = Math.max(0, lit);
-      for (let i = from; i < letters.length; i++) letters[i].style.transitionDelay = `${(i - from) * 30}ms`;
-      floor = letters.length;
-      show(letters.length);
-      window.clearTimeout(undo);
-      undo = window.setTimeout(() => letters.forEach(l => (l.style.transitionDelay = '')), (letters.length - from) * 30 + 250);
-    };
-    const on = () => {
-      if (!raf) raf = requestAnimationFrame(paint);
-      window.clearTimeout(rest);
-      rest = window.setTimeout(settle, 700);
-    };
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          window.addEventListener('scroll', on, { passive: true });
-          on();
-        } else window.removeEventListener('scroll', on);
-      },
-      { rootMargin: '25% 0px' }
-    );
-    io.observe(el);
-    paint();
-    return () => {
-      io.disconnect();
-      window.removeEventListener('scroll', on);
-      cancelAnimationFrame(raf);
-      window.clearTimeout(rest);
-      window.clearTimeout(undo);
-    };
-  }, [calm]);
   return (
-    <h2 ref={ref} aria-label={lines.map(l => l.text).join(' ')} className={className}>
-      {lines.map((l, i) => (
-        <span key={l.text} aria-hidden="true" className={i ? 'block' : ''}>
-          {l.text.split(' ').map((word, w, words) => (
-            <span key={w}>
-              <span className="inline-block whitespace-nowrap">
-                {Array.from(word).map((ch, c) => (
-                  <span key={c} data-letter data-lit={calm ? 'on' : 'off'} className={`${l.ink} data-[lit=off]:text-textPrimary/[0.14] transition-colors duration-200 motion-reduce:transition-none`}>
-                    {ch}
-                  </span>
-                ))}
-              </span>
-              {w < words.length - 1 && ' '}
-            </span>
-          ))}
-          {i < lines.length - 1 && ' '}
-        </span>
-      ))}
-    </h2>
-  );
-};
+    <div className="slayer-landing">
+      <style>{`
+        .slayer-landing{--bg:#0b0e14;--surface:#12161f;--surface2:#181d28;--line:#252d3a;--text:#e8edf5;--muted:#8e98a9;--blue:#3b82f6;--green:#089981;--red:#f23645;background:var(--bg);color:var(--text);min-height:100vh;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Segoe UI,sans-serif}
+        .slayer-landing *{box-sizing:border-box}.slayer-landing a{color:inherit;text-decoration:none}.slayer-landing button{font:inherit}
+        .slayer-wrap{width:min(1240px,calc(100% - 40px));margin:0 auto}.slayer-nav{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.94);backdrop-filter:blur(8px);border-bottom:1px solid rgba(37,45,58,.8)}
+        .slayer-navin{height:64px;display:flex;align-items:center;justify-content:space-between}.slayer-brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:14px}.slayer-mark{width:22px;height:22px;display:grid;place-items:center;border:1px solid #465062;font-size:10px}.slayer-links{display:flex;gap:26px;color:#a9b2c1;font-size:13px}.slayer-links a:hover{color:#fff}.slayer-navcta{border:1px solid #3b4657;background:#141a23;color:#fff;padding:9px 13px;font-size:12px;cursor:pointer}
+        .slayer-hero{padding:86px 0 56px;border-bottom:1px solid var(--line);overflow:hidden}.slayer-hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}.slayer-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6f7b8f;margin-bottom:20px}.slayer-hero h1{font-size:clamp(42px,6.4vw,82px);line-height:.98;letter-spacing:-.055em;margin:0 0 22px;font-weight:700}.slayer-hero h1 em{font-style:normal;color:#8f9aaa}.slayer-lede{max-width:620px;color:#a4aebe;font-size:18px;line-height:1.6;margin:0 0 28px}.slayer-actions{display:flex;gap:10px;flex-wrap:wrap}.slayer-btn{padding:12px 16px;font-size:13px;border:1px solid #354052;background:#111720;color:#fff;cursor:pointer}.slayer-btnprimary{background:#e7ebf2;color:#0b0e14;border-color:#e7ebf2}.slayer-micro{display:flex;gap:18px;margin-top:22px;color:#687489;font-size:11px}.slayer-micro span:before{content:"•";margin-right:7px;color:#566174}
+        .slayer-terminal{background:#0d1118;border:1px solid #2b3443;box-shadow:0 22px 60px rgba(0,0,0,.34)}.slayer-termtop{height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid #252d3a;color:#778397;font-size:10px}.slayer-dots{display:flex;gap:5px}.slayer-dots i{width:6px;height:6px;border-radius:50%;background:#3c4656}.slayer-termmain{padding:14px}.slayer-termhead{display:flex;justify-content:space-between;align-items:end;border-bottom:1px solid #232b38;padding:6px 0 12px}.slayer-ticker{font-size:18px;font-weight:700}.slayer-price{font-size:21px}.slayer-up{color:var(--green)}.slayer-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:10px;margin-top:12px}.slayer-panel{border:1px solid #232c39;background:#10151d}.slayer-panelhead{padding:9px 10px;border-bottom:1px solid #232c39;display:flex;justify-content:space-between;font-size:9px;color:#78849a;letter-spacing:.08em;text-transform:uppercase}.slayer-chart{height:245px;padding:10px}.slayer-levels{padding:8px 10px}.slayer-level{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2632;font-size:11px}.slayer-level:last-child{border-bottom:0}.slayer-signal{display:flex;gap:8px;align-items:center;color:#9ea8b8}.slayer-dot{width:6px;height:6px;border-radius:50%}.slayer-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}.slayer-stat{border-top:1px solid #26303e;padding-top:9px}.slayer-stat b{display:block;font-size:15px;margin-bottom:3px}.slayer-stat span{font-size:9px;color:#778397}
+        .slayer-section{padding:92px 0;border-bottom:1px solid var(--line)}.slayer-section h2{font-size:40px;letter-spacing:-.035em;margin:0 0 13px}.slayer-sectionlede{color:#8f99aa;max-width:720px;font-size:16px;margin:0}.slayer-proof{display:grid;grid-template-columns:.7fr 1.3fr;gap:36px;margin-top:34px}.slayer-proofpanel{border:1px solid var(--line);background:#10151c}.slayer-proofleft{padding:28px}.slayer-big{font-size:46px;letter-spacing:-.05em;margin:6px 0}.slayer-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#667287}.slayer-note{font-size:12px;color:#8994a7;margin-top:10px;max-width:320px}.slayer-profright{padding:14px}.slayer-bars{display:grid;grid-template-columns:repeat(24,1fr);gap:4px;align-items:end;height:210px;padding:20px 8px 8px}.slayer-bars i{display:block;background:#273141}.slayer-bars i:nth-child(3n){background:#35445b}.slayer-bars i:nth-child(5n){background:#315b57}.slayer-eventline{display:flex;justify-content:space-between;font-size:10px;color:#6e7a8f;border-top:1px solid #27303c;padding:10px}.slayer-provenance{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}.slayer-tag{border:1px solid var(--line);padding:18px;background:#0f141b}.slayer-tag b{font-size:11px;letter-spacing:.1em;text-transform:uppercase}.slayer-tag p{font-size:12px;color:#818b9d;margin:8px 0 0}
+        .slayer-products{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:32px}.slayer-product{border-top:2px solid #293342;padding:18px 2px 10px}.slayer-product .n{font-size:10px;color:#59667a}.slayer-product h3{font-size:19px;margin:20px 0 8px}.slayer-product p{font-size:12px;color:#828da0;line-height:1.65}.slayer-product button{font-size:11px;color:#b8c1cf;background:none;border:0;padding:0;cursor:pointer}
+        .slayer-split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}.slayer-checklist{margin-top:25px;border-top:1px solid var(--line)}.slayer-check{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:13px}.slayer-check i{width:7px;height:7px;border-radius:50%;background:#6e7a8d;margin-top:7px;flex:0 0 auto}.slayer-quote{border-left:2px solid #566174;padding-left:18px;color:#b4bdca;font-size:24px;line-height:1.4;max-width:510px}
+        .slayer-cta{padding:90px 0}.slayer-ctabox{border:1px solid #303a49;background:#10151d;padding:54px;text-align:center}.slayer-ctabox h2{margin:0 0 12px;font-size:54px;letter-spacing:-.05em}.slayer-ctabox p{margin:0 auto 26px;color:#8f99aa;max-width:600px}.slayer-footer{padding:25px 0 50px;color:#626e82;font-size:11px;display:flex;justify-content:space-between}.slayer-footerlinks{display:flex;gap:18px}
+        @media(max-width:900px){.slayer-hero-grid,.slayer-proof,.slayer-split{grid-template-columns:1fr}.slayer-products{grid-template-columns:1fr 1fr}.slayer-links{display:none}.slayer-hero{padding-top:50px}.slayer-grid{grid-template-columns:1fr}}
+        @media(max-width:560px){.slayer-wrap{width:min(100% - 24px,1240px)}.slayer-products{grid-template-columns:1fr}.slayer-section{padding:65px 0}.slayer-ctabox{padding:35px 22px}.slayer-ctabox h2{font-size:40px}.slayer-hero h1{font-size:43px}.slayer-lede{font-size:16px}.slayer-micro{flex-direction:column;gap:6px}}
+      `}</style>
 
-/** THE PILL (Slayer Logo System, Web and App): solid is the page's ink — the light pill on black, the black pill on paper —
-    and the foil stays on "Launch terminal" alone; ghost is a hairline. No arrows: the brand's pills say where they go in
-    words. NO GROWING UNDER THE POINTER (2026-09-20: "look laggy" — a 2% scale re-draws the words between two pixel grids
-    every frame): the ghost answers with its edge and a wash, the solid with a breath of its own ink; only a press gives. */
-const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: { children: ReactNode; onClick?: () => void; href: string; kind?: 'solid' | 'ghost'; size?: 'lg' | 'sm'; testId?: string }) => {
-  const fill = kind === 'solid' ? 'bg-textPrimary text-canvas hover:bg-textPrimary/90' : 'border border-borderMuted text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06]';
-  return (
-    <a
-      href={href}
-      onClick={e => {
-        if (!onClick) return;
-        e.preventDefault();
-        onClick();
-      }}
-      data-landing-door={testId}
-      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[15px]' : 'h-9 px-4 text-[13px]'} ${fill}`}
-    >
-      {children}
-    </a>
-  );
-};
-
-/** A jump along the page glides — unless the visitor asked their system for less motion: then it is a cut. Pricing is
-    twelve thousand pixels down; gliding there was the motion they had asked not to see. */
-const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
-
-/* A JUMP ALONG THE PAGE LEAVES A WAY BACK (2026-10-03 audit: Back after Pricing left the site): the jump is a step in the
-   history, and Back returns the reader to where they jumped from (the browser keeps that place). AND IT TAKES THE KEYS
-   WITH IT (the same audit: the fourth Tab after "Pricing" threw the reader back up to the hero): the section's head takes
-   the focus, quietly, so the next Tab goes on inside the section. */
-const toAnchor = (href: string) => {
-  if (location.hash !== href) history.pushState(null, '', href);
-  const to = document.querySelector<HTMLElement>(href);
-  if (!to) return;
-  to.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
-  const head = to.querySelector<HTMLElement>('h2') ?? to;
-  if (!head.hasAttribute('tabindex')) head.setAttribute('tabindex', '-1');
-  head.focus({ preventScroll: true });
-};
-
-/** THE PRODUCTS MENU (Slayer Logo System, 06 · Menu and rail: "Every product, one line each. Landing and app header."):
-    the groups in the rail's order, each product beside its glyph (bare — no tile) with its one line. A pick opens it in the terminal. */
-const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: string) => void; onEvery: () => void; compact?: boolean }) => (
-  <div>
-  {/* every page of every room, on this page (Everything.tsx) — at the head of the menu, where a short screen still shows it
-      (2026-10-03 audit: at 1280 x 720 it sat under the panel's fold) */}
-  <a
-    href="#everything"
-    onClick={e => {
-      e.preventDefault();
-      onEvery();
-    }}
-    className={`group mb-4 flex items-center justify-between gap-3 border-b border-borderSubtle text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver ${compact ? 'pt-3 pb-3' : 'pb-4'}`}
-    data-landing-products-every
-  >
-    Every page, by room
-    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-  </a>
-  {/* on a desk the groups FLOW in two columns (2026-10-01): laid in rows, the Practice group's four ran the panel past a
-      laptop's screen, Journal cut off under the fold (measured at 1440 × 900) */}
-  <div className={compact ? 'flex flex-col' : 'columns-2 gap-x-10'} data-landing-products>
-    {PRODUCT_GROUPS.map(g => (
-      <div key={g.caption} className={compact ? 'pt-3' : 'break-inside-avoid pb-5'}>
-        <p className="text-[11px] uppercase tracking-[0.14em] text-textMuted">{g.caption}</p>
-        <ul className={compact ? 'mt-1' : 'mt-2.5 flex flex-col gap-1'}>
-          {g.products.map(p => (
-            <li key={p.name}>
-              <a
-                href={p.path}
-                onClick={e => {
-                  e.preventDefault();
-                  onPick(p.path);
-                }}
-                className={`group flex items-start gap-3 rounded-xl transition-colors hover:bg-ink/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver ${compact ? 'py-2 px-1' : 'p-2 -mx-2'}`}
-                data-landing-product={p.name}
-              >
-                <ProductGlyph name={p.glyph} size={compact ? 20 : 26} bare className="shrink-0 mt-[1px]" />
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-medium text-textPrimary leading-tight">{p.name}</span>
-                  {!compact && <span className="mt-0.5 block text-[13px] leading-snug text-textSecondary max-w-[36ch]">{p.line}</span>}
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    ))}
-  </div>
-  </div>
-);
-
-/** THE BAR. Flat across the top of the page with the wordmark; once the page moves it lifts into a floating pill of glass
-    and the wordmark gives way to the mark (the Logo System's own two frames). It wears the ground that is under it, so it
-    turns when the page does. */
-const Nav = ({ ground }: { ground: Ground }) => {
-  const { choose } = useGround();
-  const { launch } = useLaunch();
-  const navigate = useNavigate();
-  const { scrollY } = useScroll();
-  const [lifted, setLifted] = useState(false);
-  useMotionValueEvent(scrollY, 'change', y => setLifted(y > 24));
-  /* THE PHONE'S MENU (2026-09-19): under 768px the bar's links were simply gone — a visitor on a phone, which is most
-     of them, had no way to Pricing or the questions but to scroll for them. A button opens them as a small sheet under the
-     bar, in the page's own grammar: rows on hairlines. It closes on a pick, on Escape, and on a tap outside it. */
-  const [menu, setMenu] = useState(false);
-  /* the Products menu on a desk: opens under its word, closes the same ways */
-  const [products, setProducts] = useState(false);
-  const productsDoor = useRef<HTMLButtonElement | null>(null);
-  const menuDoor = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!menu && !products) return;
-    /* ESCAPE HANDS THE KEYS BACK to the word that opened it (2026-10-03 audit: from inside the menu they fell to the page's
-       foot of nowhere, and the next Tab began at the top) */
-    const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      const at = document.activeElement;
-      const inside = (sel: string) => at instanceof Element && !!at.closest(sel);
-      if (products && inside('[data-landing-products-panel], [data-landing-products-door]')) productsDoor.current?.focus();
-      if (menu && inside('[data-landing-menu], [data-landing-menu-door]')) menuDoor.current?.focus();
-      setMenu(false);
-      setProducts(false);
-    };
-    /* …and the keys leaving it close it (it stayed open over what they went on to). The phone's sheet comes after the bar's
-       own doors in the keys' order, so it closes only when they leave the bar. */
-    const moved = (e: FocusEvent) => {
-      if (!(e.target instanceof Element)) return;
-      if (products && !e.target.closest('[data-landing-products-panel], [data-landing-products-door]')) setProducts(false);
-      if (menu && !e.target.closest('[data-landing-nav]')) setMenu(false);
-    };
-    /* a tap outside closes it, and only closes it: on a touch screen the tap went on to press what was under the finger
-       (2026-10-03 audit: a tablet's dismissing tap opened a room). A mouse's click goes on — it may be the bar's own word. */
-    let swallow = 0;
-    const eat = (e: MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    const down = (e: PointerEvent) => {
-      if (!(e.target instanceof Element) || !e.target.closest('[data-landing-menu], [data-landing-menu-door], [data-landing-products-panel], [data-landing-products-door]')) {
-        setMenu(false);
-        setProducts(false);
-        if (e.pointerType !== 'mouse' && e.target instanceof Element && !e.target.closest('header')) {
-          document.addEventListener('click', eat, { capture: true, once: true });
-          window.clearTimeout(swallow);
-          swallow = window.setTimeout(() => document.removeEventListener('click', eat, { capture: true }), 600);
-        }
-      }
-    };
-    /* …and a page scrolled on from under it closes it (it stayed open over the page as it went by) */
-    const from = window.scrollY;
-    const scrolled = () => {
-      if (Math.abs(window.scrollY - from) > 80) {
-        setMenu(false);
-        setProducts(false);
-      }
-    };
-    window.addEventListener('keydown', key);
-    document.addEventListener('pointerdown', down, true);
-    document.addEventListener('focusin', moved);
-    window.addEventListener('scroll', scrolled, { passive: true });
-    return () => {
-      window.removeEventListener('keydown', key);
-      document.removeEventListener('pointerdown', down, true);
-      document.removeEventListener('focusin', moved);
-      window.removeEventListener('scroll', scrolled);
-      window.clearTimeout(swallow);
-    };
-  }, [menu, products]);
-  const pick = (path: string) => {
-    setMenu(false);
-    setProducts(false);
-    launch(path);
-  };
-  const glide = 'transition-[max-width,background-color,border-color,box-shadow,padding] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none';
-  /* "Holographic silver · in the S and on Launch terminal only" — the foil on black, the ink on paper (a foil is a surface
-     and would vanish there) */
-  const launchFill = ground === 'dark' ? 'holo-bg text-[#0a0a0a]' : 'bg-textPrimary text-canvas';
-  return (
-    <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
-      <div
-        className={`pointer-events-auto relative w-full h-[52px] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
-          lifted ? 'max-w-[700px] pl-2.5 pr-1.5 border-borderSubtle bg-panel/75 backdrop-blur-xl shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
-        }`}
-      >
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
-          {/* the wordmark on the open bar, the mark on the lifted pill and on a phone */}
-          <span className={lifted ? 'hidden' : 'hidden sm:inline-flex'}>
-            <Wordmark height={15} cursor label="" />
-          </span>
-          <span className={lifted ? 'inline-flex' : 'sm:hidden inline-flex'}>
-            <SlayerMark size={26} bare near label="" />
-          </span>
-        </button>
-        <nav className="hidden md:flex items-center gap-1 mx-auto" aria-label="On this page">
-          <button
-            type="button"
-            onClick={() => setProducts(o => !o)}
-            aria-expanded={products}
-            aria-controls="landing-products"
-            className={`h-8 pl-3.5 pr-2.5 inline-flex items-center gap-1 rounded-full text-[13.5px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${products ? 'text-textPrimary bg-ink/[0.06]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
-            ref={productsDoor}
-            data-landing-products-door
-          >
-            Products
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${products ? 'rotate-180' : ''}`} aria-hidden="true" />
-          </button>
-          {/* THE PANEL, NEXT TO ITS WORD in the order the keys go (2026-10-03 audit: placed after Launch terminal, it was four
-              Tabs from the word that opened it); it is laid out against the bar (the nav takes no place of its own), centred by
-              a still wrapper — the fade's own transform would undo a translate on the same box */}
-          <div className="absolute top-[60px] left-1/2 -translate-x-1/2 w-[min(760px,calc(100vw-32px))]">
-            <AnimatePresence>
-              {products && (
-                <motion.div
-                  id="landing-products"
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="max-h-[calc(100svh-96px)] overflow-y-auto rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] p-6"
-                  data-landing-products-panel
-                >
-                  <ProductsMenu
-                    onPick={pick}
-                    onEvery={() => {
-                      setProducts(false);
-                      toAnchor('#everything');
-                    }}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+      <header className="slayer-nav">
+        <div className="slayer-wrap slayer-navin">
+          <a className="slayer-brand" href="#top"><span className="slayer-mark">S</span><span>SLAYER TERMINAL</span></a>
+          <div className="slayer-links">
+            <a href="#terminal">Terminal</a><a href="#proof">Proof</a><a href="#systems">Systems</a><a href="#method">Method</a>
           </div>
-          {NAV.map(l => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={e => {
-                e.preventDefault();
-                setProducts(false);
-                toAnchor(l.href);
-              }}
-              className="h-8 px-3.5 inline-flex items-center rounded-full text-[13.5px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
-            >
-              {l.label}
-            </a>
-          ))}
-        </nav>
-        {/* THE TOGGLE NAMES WHAT IT DOES TO THE GROUND UNDER IT (2026-10-03 audit: on the tour's turned stretch it named the
-            opposite): it turns what the reader is on to the other theme, keeps that for the whole site, and the page stops
-            turning (ground.tsx) */}
-        <button
-          type="button"
-          onClick={() => choose(ground === 'dark' ? 'light' : 'dark')}
-          className="ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
-          aria-label={ground === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
-          title={ground === 'dark' ? 'Light theme' : 'Dark theme'}
-          data-landing-theme={ground}
-        >
-          {ground === 'dark' ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMenu(m => !m)}
-          className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
-          ref={menuDoor}
-          aria-label={menu ? 'Close the menu' : 'Menu'}
-          aria-expanded={menu}
-          aria-controls="landing-menu"
-          data-landing-menu-door
-        >
-          {menu ? <X className="w-4 h-4" aria-hidden="true" /> : <Menu className="w-4 h-4" aria-hidden="true" />}
-        </button>
-        <a
-          href={DOOR}
-          onClick={e => {
-            e.preventDefault();
-            launch(DOOR);
-          }}
-          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[13.5px] font-medium whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${launchFill}`}
-          data-landing-door="nav"
-        >
-          <span className="sm:hidden">Launch</span>
-          <span className="hidden sm:inline">Launch terminal</span>
-        </a>
-      </div>
-      <AnimatePresence>
-        {menu && (
-          <motion.nav
-            id="landing-menu"
-            aria-label="On this page"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto overscroll-contain rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1"
-            data-landing-menu
-          >
-            {/* THE PAGE'S OWN DOORS FIRST, "Sign up free" pinned at the sheet's foot (2026-10-03 audit: under twelve products
-                they sat below the sheet's edge on a phone) */}
-            <div className="border-b border-borderSubtle">
-              {NAV.map(l => (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  onClick={e => {
-                    e.preventDefault();
-                    setMenu(false);
-                    toAnchor(l.href);
-                  }}
-                  className="flex items-center justify-between h-[52px] border-b last:border-b-0 border-borderSubtle text-[17px] text-textPrimary"
-                >
-                  {l.label}
-                  <ArrowRight className="w-4 h-4 text-textMuted" aria-hidden="true" />
-                </a>
-              ))}
-            </div>
-            <ProductsMenu
-              onPick={pick}
-              onEvery={() => {
-                setMenu(false);
-                toAnchor('#everything');
-              }}
-              compact
-            />
-            <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-4 bg-panel">
-              <a
-                href="/signup"
-                onClick={e => {
-                  e.preventDefault();
-                  setMenu(false);
-                  navigate('/signup');
-                }}
-                className="h-12 flex items-center justify-center rounded-full text-[15px] font-medium bg-textPrimary text-panel"
-                data-landing-door="menu"
-              >
-                Sign up free
-              </a>
-            </div>
-          </motion.nav>
-        )}
-      </AnimatePresence>
-    </header>
-  );
-};
-
-/* THE HEADLINE IS OURS (Noah, 2026-09-19). The first one — "Dealers have to hedge. See where." — turned out to sit a breath
-   from a competitor's own hero, so the headline stopped leading with the dealers' obligation; Noah PICKED this one from four:
-   "Trade what you can see." — short and blunt, in a trader's own voice, and true to a terminal that shows and never
-   instructs. AND IT DOES NOT SAY "OPTIONS" (the same day): the hero speaks of THE MARKET and of TRADERS.
-
-   THE BRAND'S HERO (Slayer Logo System, Web and App · Landing, 2026-09-30): one line, one button. The signature stands
-   over the line, its last word in the foil; the market's own clock beside it.
-
-   THE WINDOW, AGAIN (2026-10-03). From 2026-10-01 the first screen was every desk at once — a wall, then a dock of eight
-   films. The owner's partner, of it: "the big card displays is first of all quite similar to skylit and secondly just
-   looks overstimulating … I love the first one, but we will add in the little page change". So the first screen is the
-   first design again — the words, the rooms in a row, and ONE window under them playing one room at a time (Tour.tsx:
-   the window is the tour's own, and glides into its place beside the rooms as the page scrolls) — with the page change:
-   the lit room's line fills as its film plays and, full, the next room lights; the window's bar types the page it opens
-   and a band of light passes down the screen as the new one lands (TerminalWindow). The window is whole on the first
-   screen, centred under the words, as large as they leave it. A room picked by hand stays. THE DOOR is "Sign up free" (the
-   owner, 2026-10-01: "theirs no try to free you can sign up for free but that's it") — the account costs nothing; a plan
-   opens the desks. */
-const Hero = ({ onSignUp, rooms, at, onPick, line, onKeys }: { onSignUp: () => void; rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void; onKeys: (on: boolean) => void }) => {
-  const ground = useBlockGround();
-  const clock = useMarketClock();
-  return (
-    /* in one column the window is a band of half the screen pinned under the bar (Tour.tsx), so the hero takes at least the
-       other half: the first screen is the words and the window, and the first room's words wait below the fold (a tablet
-       showed the room's head under the window) */
-    <Wrap className={`flex flex-col max-lg:min-h-[50svh] pt-[84px] sm:pt-[100px] lg:pt-[96px] ${rooms.length ? 'pb-6 lg:pb-5' : 'pb-10 lg:pb-16'}`}>
-      {/* the room left over in one column is shared above the words and above the rooms, so the words stand in the middle of
-          it and the rooms on the window they choose for */}
-      <div aria-hidden="true" className="flex-1 max-h-[12svh]" />
-      <div className="landing-rise">
-        {/* the market's own clock beside its word: New York's, where it keeps its hours */}
-        <Signature className="text-[12px]" detail={<span className="tnum">· New York {clock}</span>} />
-      </div>
-      <h1 className="landing-rise [--rise-delay:60ms] mt-4 sm:mt-6 font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.5rem,min(6.3vw,10svh),5.9rem)] [text-wrap:balance]" data-landing-headline>
-        Trade what you can{' '}
-        {/* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */}
-        <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>see.</span>
-      </h1>
-      <div className="landing-rise [--rise-delay:140ms] mt-4 sm:mt-5 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-10 gap-y-5">
-        <p className="max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] sm:leading-[1.55] text-textSecondary">
-          Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.
-        </p>
-        <div className="shrink-0">
-          <Pill href="/signup" onClick={onSignUp} testId="hero">
-            Sign up free
-          </Pill>
+          <button className="slayer-navcta" onClick={() => scrollTo('launch')}>Enter Terminal</button>
         </div>
-      </div>
-      <div aria-hidden="true" className="flex-1" />
-      {/* where less motion is asked for the window does not glide in under the hero: it stands beside the first room from the
-          first frame and shows the room whose words are on screen, so there are no rooms here to choose for it */}
-      {rooms.length > 0 && <HeroRooms rooms={rooms} at={at} onPick={onPick} line={line} onKeys={onKeys} />}
-    </Wrap>
-  );
-};
+      </header>
 
-/** THE ROOMS OVER THE WINDOW: each room on its glyph, bare; the lit one is in the window, and the hairline under it fills as
-    its film plays. On a phone the row scrolls sideways and keeps the lit room in view without moving the page. */
-const HeroRooms = ({ rooms, at, onPick, line, onKeys }: { rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void; onKeys: (on: boolean) => void }) => {
-  const row = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const r = row.current;
-    const lit = r?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (!r || !lit || r.scrollWidth <= r.clientWidth) return;
-    r.scrollTo({ left: Math.max(0, lit.offsetLeft - (r.clientWidth - lit.offsetWidth) / 2), behavior: glideOrCut() });
-  }, [at]);
-  return (
-    <div className="landing-rise [--rise-delay:220ms] mt-7 sm:mt-9 lg:mt-8">
-      <div
-        ref={row}
-        role="group"
-        aria-label="The rooms in the window"
-        className="landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center lg:justify-center gap-1 overflow-x-auto"
-        /* the keys on a room hold the row: the lit room does not move on from under a focused one */
-        onFocus={e => e.target.matches(':focus-visible') && onKeys(true)}
-        onBlur={e => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onKeys(false);
-        }}
-        data-hero-rooms
-      >
-        {rooms.map((r, i) => {
-          const on = i === at;
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => onPick(i)}
-              aria-pressed={on}
-              title={r.lead}
-              className={`relative shrink-0 h-9 pl-2.5 pr-3.5 inline-flex items-center gap-2 rounded-full border text-[13.5px] font-medium whitespace-nowrap transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${
-                on ? 'border-borderMuted bg-panel text-textPrimary' : 'border-transparent text-textMuted hover:text-textPrimary hover:bg-ink/[0.05]'
-              }`}
-              data-hero-room={r.id}
-            >
-              {r.glyph && <ProductGlyph name={r.glyph} size={17} bare className="shrink-0" />}
-              {r.name}
-              {/* how far through its film the lit room is: full, the next room lights */}
-              {on && (
-                <span
-                  ref={line}
-                  aria-hidden="true"
-                  className="absolute left-3.5 right-3.5 -bottom-px h-[2px] origin-left rounded-full bg-silver"
-                  style={{ transform: 'scaleX(0)' }}
-                  data-hero-room-line
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-/* THE PLAN CARD (Slayer Logo System, Web and App · Pricing): the product's glyph, bare, and its name, the price, the
-   product's one line, what the plan holds, and one door — "Choose Pinpoint" opens the account form with the plan named
-   (pages/auth); Lifetime, on the mark, is "Talk to us". */
-const PLAN_GLYPH: Record<PlanKey, 'pinpoint' | 'compass' | null> = { pinpoint: 'pinpoint', compass: 'compass', lifetime: null };
-
-const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey) => void }) => {
-  const plan = PLANS.find(p => p.key === planKey)!;
-  const holds = holdsOf(planKey);
-  const custom = plan.monthly == null;
-  const glyph = PLAN_GLYPH[planKey];
-  return (
-    /* A BIT SMALLER (Noah, 2026-09-20: "i think the pricing cards can be a bit smaller"): tight padding and rows, the price at
-       52px. The price is still the biggest thing in the card. */
-    <div className="flex flex-col py-7 lg:py-8 lg:px-8 first:lg:pl-0 last:lg:pr-0" data-landing-plan={planKey}>
-      <div className="flex items-center gap-3">
-        {glyph ? <ProductGlyph name={glyph} size={28} bare className="shrink-0" /> : <SlayerMark size={30} bare label="" />}
-        <h3 className="text-[20px] font-medium tracking-tight">{plan.name}</h3>
-      </div>
-      {/* the page's big numbers are its prices — the only figures of ours it shows */}
-      <p className="mt-6 flex items-baseline gap-2">
-        <span className="text-[44px] sm:text-[52px] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
-        {!custom && <span className="text-[15px] text-textMuted">{plan.period}</span>}
-      </p>
-      <p className="mt-4 text-[15px] leading-snug text-textSecondary max-w-[34ch]">{plan.kicker}</p>
-      <ul className="mt-5 border-t border-borderSubtle">
-        {holds.map(h => {
-          const text = typeof h === 'string' ? h : h.text;
-          const soon = typeof h !== 'string';
-          return (
-            <li key={text} className="py-2.5 border-b border-borderSubtle flex items-center justify-between gap-3 text-[13.5px] leading-snug text-textSecondary" data-plan-soon={soon || undefined}>
-              <span>{text}</span>
-              {/* an ORANGE CAPSULE (Noah, 2026-09-19): a solid pill in the house's orange — `warn` follows the ground, so it is a
-                  visible orange on paper too; the dark word on it is the same on both (4.6:1 on paper, 9:1 on black) */}
-              {soon && <span className="shrink-0 h-[22px] px-2.5 inline-flex items-center rounded-full bg-warn text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#0a0a0a]">Coming soon</span>}
-            </li>
-          );
-        })}
-      </ul>
-      <div className="mt-7 lg:mt-auto lg:pt-7">
-        {custom ? (
-          /* the letter arrives saying which plan it is about — it went to the general inbox with nothing on it */
-          <Pill href={`mailto:${COMPANY.info}?subject=${encodeURIComponent(`The ${plan.name} plan`)}`} kind="ghost" testId={`plan-${planKey}`}>
-            Talk to us
-          </Pill>
-        ) : (
-          <Pill href={`/signup?plan=${planKey}`} onClick={() => onChoose(planKey)} kind="ghost" testId={`plan-${planKey}`}>
-            Choose {plan.name}
-          </Pill>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/** EVERY PLAN, SIDE BY SIDE (2026-10-01) — PLAN_ROWS read whole: a line on each row, a mark under each plan that holds it.
-    Folded under its own door so the prices stay the end of the section for anyone who has seen enough. */
-const PlansSideBySide = () => {
-  const [open, setOpen] = useState(false);
-  /* a reader that hears the table hears the words: a name on an svg without a role, or on a bare span, is not reliably read */
-  const mark = (h: Holds) =>
-    h === 'soon' ? (
-      <span className="h-[20px] px-2 inline-flex items-center rounded-full bg-warn text-[9px] font-bold uppercase tracking-[0.14em] text-[#0a0a0a]">Soon</span>
-    ) : h ? (
-      <>
-        <Check className="w-4 h-4 text-textPrimary" aria-hidden="true" />
-        <span className="sr-only">Included</span>
-      </>
-    ) : (
-      <>
-        <span className="text-textMuted" aria-hidden="true">–</span>
-        <span className="sr-only">Not included</span>
-      </>
-    );
-  return (
-    <div className="mt-10" data-landing-side-by-side={open || undefined}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        aria-controls="landing-plans-table"
-        className="group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
-        data-landing-side-by-side-door
-      >
-        {open ? 'Fold the plans away' : 'See the plans side by side'}
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-      </button>
-      {open && (
-        /* `overflow-x-clip`, not auto: a box that scrolls would hold the head's stickiness to itself */
-        <div id="landing-plans-table" className="mt-6 overflow-x-clip animate-fade-in">
-          {/* all three plans side by side on a phone too — narrow mark columns, the lines wrap (a sideways scroll showed one plan at a time) */}
-          <table className="w-full min-w-[340px] border-collapse text-left">
-            <caption className="sr-only">What each plan holds</caption>
-            {/* the plans' names stay over the rows they label while the table scrolls by under the bar (2026-10-03 audit: on a
-                phone they scrolled away) */}
-            <thead className="sticky top-[68px] z-10 bg-canvas">
-              <tr className="border-b border-borderSubtle">
-                <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom font-mono text-[11px] font-normal uppercase tracking-[0.22em] text-textMuted">What it holds</th>
-                {PLANS.map(p => (
-                  <th key={p.key} scope="col" className="py-3 px-1 sm:px-3 w-[64px] sm:w-[18%] text-center align-bottom">
-                    <span className="block text-[13px] sm:text-[15px] font-medium text-textPrimary">{p.name}</span>
-                    <span className="block text-[11px] sm:text-[12px] font-normal text-textMuted tnum">
-                      {p.price}
-                      {p.monthly != null && ` ${p.period}`}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PLAN_ROWS.map(r => (
-                <tr key={r.text} className="border-b border-borderSubtle">
-                  <th scope="row" className="py-3 pr-3 sm:pr-4 font-normal">
-                    <span className="flex items-center gap-2.5 text-[13px] sm:text-[14px] leading-snug text-textSecondary">
-                      {r.glyph ? <ProductGlyph name={r.glyph} size={18} bare className="shrink-0" /> : <span className="w-[18px] shrink-0" aria-hidden="true" />}
-                      {r.text}
-                    </span>
-                  </th>
-                  {PLAN_ORDER.map(k => (
-                    <td key={k} className="py-3 px-1 sm:px-3 text-center">
-                      <span className="inline-flex items-center justify-center">{mark(r.in[k])}</span>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ---- the page ------------------------------------------------------------------------------ */
-
-/** THE HERO AND THE TOUR, with the hero's rooms' state — kept here so that a room lighting (every few seconds) draws the
-    hero and the tour again and nothing below them */
-const HeroAndTour = ({ onSignUp, onOpen, onBarGround }: { onSignUp: () => void; onOpen: (path: string) => void; onBarGround: (g: Ground) => void }) => {
-  /* THE HERO'S ROOMS: which one is in the window, and whether the visitor picked it (then it stays). The window says when
-     the room's page has been seen through — the next room lights, unless the visitor asked for less motion — and how far
-     into it the film is, written straight to the lit room's line. */
-  const calm = useReducedMotion();
-  const [heroAt, setHeroAt] = useState(0);
-  const [kept, setKept] = useState(false);
-  /* the keys on the rooms hold them, as a hand on Everything's does (2026-10-03 audit: the lit room moved on from under a
-     focused one) */
-  const [heroKeys, setHeroKeys] = useState(false);
-  const pickRoom = useCallback((i: number) => {
-    setHeroAt(i);
-    setKept(true);
-  }, []);
-  const heroNow = useRef({ path: HERO_ROOMS[0].path, plays: true });
-  heroNow.current = { path: HERO_ROOMS[heroAt].path, plays: !kept && !calm && !heroKeys };
-  const heroLap = useCallback((seen: string) => {
-    if (!heroNow.current.plays || seen !== heroNow.current.path) return;
-    setHeroAt(i => (HERO_ROOMS[i].path === seen ? (i + 1) % HERO_ROOMS.length : i));
-  }, []);
-  const heroLine = useRef<HTMLSpanElement | null>(null);
-  const heroLineAt = useRef(0);
-  const setHeroLine = useCallback((el: HTMLSpanElement | null) => {
-    if (el === heroLine.current) return;
-    heroLine.current = el;
-    heroLineAt.current = 0;
-  }, []);
-  const heroTime = useCallback((at: number, length: number, glide = 260) => {
-    const el = heroLine.current;
-    if (!el || !heroNow.current.plays) return;
-    const p = Math.min(1, Math.max(0, at / length));
-    /* a film wrapping round (or the line new) jumps back; forward, it glides from one reading to the next */
-    el.style.transition = p < heroLineAt.current ? 'none' : `transform ${glide}ms linear`;
-    el.style.transform = `scaleX(${p})`;
-    heroLineAt.current = p;
-  }, []);
-
-  return (
-    <Tour
-      head={<Hero onSignUp={onSignUp} rooms={calm ? [] : HERO_ROOMS} at={heroAt} onPick={pickRoom} line={setHeroLine} onKeys={setHeroKeys} />}
-      steps={STEPS}
-      first={HERO_ROOMS[heroAt].path}
-      onOpen={onOpen}
-      onBarGround={onBarGround}
-      endSays={[`${ROOMS} rooms.`, 'One terminal.']}
-      onFirstLap={heroLap}
-      onFirstTime={heroTime}
-      firstNote={HERO_ROOMS[heroAt].lead}
-    />
-  );
-};
-
-const Page = () => {
-  const { a } = useGround();
-  const calm = useReducedMotion();
-  const { launch } = useLaunch();
-  const [barGround, setBarGround] = useState<Ground>(a);
-  const open = useCallback((path: string) => launch(path), [launch]);
-  const navigate = useNavigate();
-  /* a plan's door opens the account form with the plan named — the form is outside the terminal, so no gate */
-  const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
-
-  /* "Sign up free": the account form, outside the terminal */
-  const signUp = useCallback(() => navigate('/signup'), [navigate]);
-
-  /* WHERE THE KEYS LAND (2026-10-03 audit): a control the keys move to stands clear of the floating bar, and in one column
-     clear of the tour's window too, pinned under the bar for half the screen. The browser scrolls a control in only when
-     none of it is on screen (and then keeps the scroll margin, index.css); one it can partly see stays where it is, under
-     the bar or behind the window — so, a frame after the keys land, it is brought down to where it can be read. */
-  useEffect(() => {
-    let raf = 0;
-    const landed = (e: FocusEvent) => {
-      const el = e.target;
-      /* not the bar's own, nor a head a jump lands the keys on (it glides there itself) */
-      if (!(el instanceof HTMLElement) || el.tabIndex < 0 || el.closest('header')) return;
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        if (document.activeElement !== el || !el.matches(':focus-visible')) return;
-        let floor = 88;
-        const win = el.closest('[data-tour-step]') && window.innerWidth < 1024 ? document.querySelector('[data-tour-window]') : null;
-        if (win) floor = Math.max(floor, win.getBoundingClientRect().bottom + 16);
-        const top = el.getBoundingClientRect().top;
-        if (top < floor) window.scrollBy({ top: top - floor, behavior: 'auto' });
-      });
-    };
-    document.addEventListener('focusin', landed);
-    return () => {
-      document.removeEventListener('focusin', landed);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */
-  useEffect(() => {
-    if (!location.hash) return;
-    const t = window.setTimeout(() => document.querySelector(location.hash)?.scrollIntoView({ block: 'start' }), 80);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="relative isolate min-h-screen overflow-x-clip font-sans" data-landing="v3">
-      <a href="#tools" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2 focus:rounded-md focus:bg-panel focus:text-textPrimary">
-        Skip to the tools
-      </a>
-      <Nav ground={barGround} />
-
-      {/* ── THE HERO AND THE TOUR: one ground, one live terminal ─────────────────────────── */}
-      <HeroAndTour onSignUp={signUp} onOpen={open} onBarGround={setBarGround} />
-
-      {/* ── EVERYTHING IN IT: every page of every room, each a door (Everything.tsx) ─────────── */}
-      <Block on="a" id="everything" label="Everything in it" className="pt-[14vh] pb-[12vh] scroll-mt-10">
-        <Wrap>
-          <div className="flex flex-col lg:flex-row lg:items-end gap-x-16 gap-y-6">
+      <main id="top">
+        <section className="slayer-hero">
+          <div className="slayer-wrap slayer-hero-grid">
             <div>
-              <Eyebrow>Everything in it</Eyebrow>
-              <TwoTone className="mt-6" first="Every page, by room." second="Open any of them." />
-            </div>
-            <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2" data-everything-count>
-              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares.{' '}
-              {/* where less motion is asked for the rooms stand still (Everything.tsx), and the line says so */}
-              {calm ? 'Pick a room to see its pages.' : 'The rooms come round by themselves; pick one to stay on it.'} Each page opens in the terminal.
-            </p>
-          </div>
-          <Everything onOpen={open} />
-          <InPlaceOf />
-
-          <div className="mt-[12vh] grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-12">
-            <div className="lg:col-span-5">
-              <Eyebrow>What you are paying for</Eyebrow>
-              <TwoTone className="mt-6" first="A read." second="Never an instruction." />
-            </div>
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
-              <div>
-                <h3 className="font-mono text-[11px] uppercase tracking-[0.22em] text-textPrimary">It does</h3>
-                <ul className="mt-4 border-t border-borderSubtle">
-                  {IT_DOES.map(t => (
-                    <li key={t} className="py-3.5 border-b border-borderSubtle text-[15px] leading-snug text-textPrimary">
-                      {t}
-                    </li>
-                  ))}
-                </ul>
+              <div className="slayer-eyebrow">MARKET INTELLIGENCE / 01</div>
+              <h1>Trade what<br /><em>you can see.</em></h1>
+              <p className="slayer-lede">The market is public. The problem is that the useful pieces are scattered. Slayer Terminal brings positioning, structure, volatility, flow, and levels into one trading workspace.</p>
+              <div className="slayer-actions">
+                <button className="slayer-btn slayer-btnprimary" onClick={() => scrollTo('terminal')}>Explore the terminal</button>
+                <button className="slayer-btn" onClick={() => scrollTo('systems')}>View systems</button>
               </div>
-              <div>
-                <h3 className="font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">It never</h3>
-                <ul className="mt-4 border-t border-borderSubtle">
-                  {IT_NEVER.map(t => (
-                    <li key={t} className="py-3.5 border-b border-borderSubtle text-[15px] leading-snug text-textSecondary">
-                      {t}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <div className="slayer-micro"><span>Real market data</span><span>Deterministic calculations</span><span>Evidence before claims</span></div>
             </div>
-          </div>
-        </Wrap>
-      </Block>
 
-      {/* ── PRICING ──────────────────────────────────────────────────────────────────────── */}
-      <Block on="a" id="pricing" label="Pricing" className="py-[12vh] scroll-mt-10">
-        <Wrap>
-          <Eyebrow>Pricing</Eyebrow>
-          <div className="mt-6 flex flex-col lg:flex-row lg:items-end gap-x-16 gap-y-6">
-            {/* the refund policy left this headline for the Questions, said kindly (Noah, 2026-09-19) */}
-            <TwoTone first="Pick your plan." second="Cancel any time." />
-            <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">
-              {/* "Compass is everything" sat beside a plan that holds more (Lifetime), and Lifetime has nothing to cancel */}
-              Pinpoint is the charts, the book and the tape. Compass is every desk. Cancel a monthly plan whenever you like and you keep your access until the period you paid for ends.
-            </p>
-          </div>
-          <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
-            {PLANS.map(p => (
-              <Plan key={p.key} planKey={p.key} onChoose={choose} />
-            ))}
-          </div>
-          <p className="mt-5 text-[13px] text-textMuted">Making an account is free. There are no refunds, so see what each plan holds first. Prices in US dollars.</p>
-
-          {/* WHICH IS FOR ME — under each plan, in its column */}
-          <div className="mt-14" data-landing-which>
-            <h3 className="font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">Which is for me</h3>
-            <ul className="mt-4 grid grid-cols-1 lg:grid-cols-3 border-t border-borderSubtle lg:divide-x divide-borderSubtle">
-              {PLANS.map(p => (
-                <li key={p.key} className="py-5 lg:px-8 first:lg:pl-0 last:lg:pr-0 border-b border-borderSubtle text-[15px] leading-snug">
-                  <span className="font-medium text-textPrimary">{p.name}</span> <span className="text-textSecondary">{PLAN_FOR[p.key]}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <PlansSideBySide />
-        </Wrap>
-      </Block>
-
-      {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────── */}
-      <Block on="a" id="faq" label="Questions" className="pt-[12vh] scroll-mt-10">
-        <Wrap>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
-            <div className="lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
-              <Eyebrow>Questions</Eyebrow>
-              <TwoTone className="mt-6" first="Asked" second="before you buy." />
-              {/* anything else goes to a person (2026-10-01) */}
-              <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
-                  {COMPANY.info}
-                </Pill>
-                <span className="text-[13px] text-textMuted">Anything else, ask. A person reads it.</span>
+            <div id="terminal">
+              <div className="slayer-terminal">
+                <div className="slayer-termtop"><div className="slayer-dots"><i/><i/><i/></div><span>SLAYER / COMPASS / SPX</span><span>LIVE CONTEXT</span></div>
+                <div className="slayer-termmain">
+                  <div className="slayer-termhead">
+                    <div><div className="slayer-ticker">SPX</div><div className="slayer-signal"><span className="slayer-dot" style={{ background: '#089981' }}/>{'Dealer regime / constructive'}</div></div>
+                    <div style={{ textAlign: 'right' }}><div className="slayer-price">5,742.18</div><div className="slayer-up">+28.44 &nbsp; +0.50%</div></div>
+                  </div>
+                  <div className="slayer-grid">
+                    <div className="slayer-panel">
+                      <div className="slayer-panelhead"><span>{tab}</span><span>1D / 5M</span></div>
+                      <div className="slayer-chart"><Chart /></div>
+                    </div>
+                    <div className="slayer-panel">
+                      <div className="slayer-panelhead"><span>Key levels</span><span>SPX</span></div>
+                      <div className="slayer-levels">
+                        {[
+                          ['5,760','upper','#3b82f6'],['5,742','spot','#089981'],['5,725','gamma wall','#f23645'],['5,698','support','#3b82f6'],['5,680','lower','#f23645']
+                        ].map(([price,label,fill]) => (
+                          <button key={price} className="slayer-level" style={{ width:'100%', background:'transparent', borderLeft:0,borderRight:0,borderTop:0,cursor:'pointer',color:'inherit',textAlign:'left' }} onClick={() => setTab(label === 'gamma wall' ? 'Positioning' : 'Structure')}>
+                            <strong>{price}</strong><span className="slayer-signal"><span className="slayer-dot" style={{ background: fill }}/>{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="slayer-stats">
+                    <div className="slayer-stat"><b>+1.28</b><span>GEX regime</span></div>
+                    <div className="slayer-stat"><b>62.4%</b><span>Call-side control</span></div>
+                    <div className="slayer-stat"><b>5,725</b><span>Primary wall</span></div>
+                    <div className="slayer-stat"><b>11:42:06</b><span>Snapshot</span></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <dl className="lg:col-span-7 border-t border-borderSubtle">
-              {FAQ.map(f => (
-                <div key={f.q} className="py-7 border-b border-borderSubtle" data-landing-faq>
-                  <dt className="text-[19px] font-medium tracking-tight">{f.q}</dt>
-                  <dd className="mt-2.5 max-w-[62ch] text-[15.5px] leading-relaxed text-textSecondary">{f.a}</dd>
+          </div>
+        </section>
+
+        <section className="slayer-section" id="proof">
+          <div className="slayer-wrap">
+            <h2>See the market before you act.</h2>
+            <p className="slayer-sectionlede">Slayer is built around evidence: observed market inputs, explicit calculations, and clearly labeled modeled context. No mystery score hiding behind a polished dashboard.</p>
+            <div className="slayer-proof">
+              <div className="slayer-proofpanel slayer-proofleft"><div className="slayer-label">Historical snapshot</div><div className="slayer-big">SPX 5,713</div><div className="slayer-label">13 Sep / 10:35 ET</div><p className="slayer-note">Positioning concentrated above spot. The terminal surfaces the levels and the state change; the trader decides what to do with them.</p></div>
+              <div className="slayer-proofpanel slayer-profright">
+                <div className="slayer-label" style={{ padding:'4px 8px 0' }}>Positioning by price</div>
+                <div className="slayer-bars">{bars.map((h,i)=><i key={i} style={{height:`${h}px`}} />)}</div>
+                <div className="slayer-eventline"><span>5,680</span><span>spot</span><span>5,713</span><span>wall</span><span>5,760</span></div>
+              </div>
+            </div>
+            <div className="slayer-provenance">
+              {[
+                ['Observed','Prices, prints, open interest, volatility and market inputs.'],
+                ['Calculated','Deterministic transformations and derived positioning measures.'],
+                ['Modeled','Scenarios are separated from facts and labeled as such.'],
+              ].map(([title,body])=> <div className="slayer-tag" key={title}><b>{title}</b><p>{body}</p></div>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="slayer-section" id="systems">
+          <div className="slayer-wrap">
+            <h2>One terminal. Separate systems.</h2>
+            <p className="slayer-sectionlede">Each module has one job. The terminal keeps the workflow connected without turning every concept into another card or another acronym wall.</p>
+            <div className="slayer-products">
+              {systems.map(s => (
+                <div className="slayer-product" key={s.name}>
+                  <div className="n">{s.n} / {s.name}</div><h3>{s.title}</h3><p>{s.body}</p>
+                  <button onClick={() => scrollTo('launch')}>Open {s.name} →</button>
                 </div>
               ))}
-            </dl>
-          </div>
-
-          <div className="py-[18vh] text-center">
-            {/* THE ROOMS, ONCE MORE (2026-10-01): each glyph on its whole tile, a door into its room — 34, from 44 (2026-10-02, the
-                owner: "make the logos a bit smaller") */}
-            {/* each named under its glyph (2026-10-03 audit: bare glyphs, named only on hover — a thumb could not tell them apart) */}
-            <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
-              {HERO_ROOMS.map(r => (
-                <li key={r.id}>
-                  <a
-                    href={r.path}
-                    onClick={e => {
-                      e.preventDefault();
-                      open(r.path);
-                    }}
-                    aria-label={`Open ${r.name.replace(/^The /, 'the ')}`}
-                    className="group flex flex-col items-center gap-2 sm:w-[72px] rounded-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
-                    data-landing-close-room={r.id}
-                  >
-                    {r.glyph && (
-                      <ProductGlyph
-                        name={r.glyph}
-                        size={34}
-                        bare
-                        className="max-sm:w-[30px] max-sm:h-[30px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
-                      />
-                    )}
-                    <span aria-hidden="true" className="text-[12px] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
-                      {r.name.replace(/^The /, '')}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-            {/* Noah's pick from four (2026-09-19, of "Do not take our word for it. / Read it yourself.": "i dont like these 2
-                sentences") — short and a little teasing, after a page of stills; read by scrolling since 2026-10-02 */}
-            <LitLines
-              lines={[
-                { text: 'Seen enough?', ink: 'text-textPrimary' },
-                { text: 'Step inside.', ink: 'text-textMuted' },
-              ]}
-              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.75rem,7.4vw,7rem)] [text-wrap:balance]"
-            />
-            <div className="mt-10 flex justify-center">
-              <Pill href="/signup" onClick={signUp} testId="close">
-                Sign up free
-              </Pill>
             </div>
           </div>
-        </Wrap>
-        <SiteFooter home />
-      </Block>
+        </section>
+
+        <section className="slayer-section" id="method">
+          <div className="slayer-wrap slayer-split">
+            <div>
+              <h2>Built for traders who inspect the data.</h2>
+              <p className="slayer-sectionlede">Slayer should tell you what it knows, how it got there, and where the uncertainty begins.</p>
+              <div className="slayer-checklist">
+                {[
+                  ['Deterministic engine','Same inputs, same result. Versioned calculations.'],
+                  ['Source provenance','Data origin and calculation state remain visible.'],
+                  ['No silent defaults','Unavailable inputs stay unavailable.'],
+                  ['Trader-controlled execution','The terminal informs a decision; it does not make it for you.'],
+                ].map(([title,body]) => <div className="slayer-check" key={title}><i/><div><b>{title}</b><br/><span style={{color:'#7f899b'}}>{body}</span></div></div>)}
+              </div>
+            </div>
+            <div><div className="slayer-quote">“The interface should make the market's structure easier to inspect — not make the product sound smarter than the data.”</div><div style={{marginTop:30,color:'#6f7b8e',fontSize:11}}>SLAYER TERMINAL / PRODUCT PRINCIPLE</div></div>
+          </div>
+        </section>
+
+        <section className="slayer-cta" id="launch">
+          <div className="slayer-wrap">
+            <div className="slayer-ctabox">
+              <div className="slayer-eyebrow">ENTER SLAYER</div>
+              <h2>See the market.<br />Then trade it.</h2>
+              <p>Explore the terminal, inspect the systems, and build your read from the same market context every session.</p>
+              <button className="slayer-btn slayer-btnprimary" onClick={() => window.alert('Preview only — launch flow is not connected yet.')}>Enter Slayer Terminal</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="slayer-wrap slayer-footer"><span>© 2026 Slayer Terminal</span><div className="slayer-footerlinks"><a href="/status">Status</a><a href="/legal">Legal</a><a href="https://x.com/JoinSlayer">X</a></div></footer>
     </div>
   );
-};
-
-const Landing = () => (
-  <GroundProvider>
-    <Page />
-  </GroundProvider>
-);
-
-export default Landing;
+}
