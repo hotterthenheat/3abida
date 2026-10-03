@@ -67,6 +67,9 @@ import CLIPS from './clips.json';
 export const SHOT_W = 1440;
 export const SHOT_H = 1000;
 export const SHOT_ASPECT = SHOT_W / SHOT_H;
+/** …and the phone's (scripts/landing-stage.mjs SIZES: a 390 × 760 screen) */
+export const PHONE_W = 390;
+export const PHONE_H = 760;
 
 interface Props {
   /** The page the tour wants shown */
@@ -77,6 +80,8 @@ interface Props {
   desk: boolean;
   /** Size the screen by the picture's own shape (a desk that does not dock). Otherwise the host gives the height. */
   natural?: boolean;
+  /** A window further down the page fetches its picture and its film only once the reader comes near it */
+  lazy?: boolean;
   className?: string;
   /** THE PAGE HAS BEEN SEEN: the film on screen has played its lap (LAP seconds, or all of a shorter film; where the window
       shows stills, a still has stood that long) — the page it showed is named */
@@ -118,7 +123,7 @@ export const savingData = (): boolean => {
 /** THE PROMPT: the command that opens the page on screen, typed a letter at a time each time the page changes (a stepped
     width in letters — the prompt's type is the one monospace), the cursor after it on the brand's beat (index.css
     .window-cursor: the mark's own keyframes, so brand/brandClock.ts pins it to the page's clock) */
-const Prompt = ({ path }: { path: string }) => {
+export const Prompt = ({ path }: { path: string }) => {
   const cmd = `open ${crumbs(path).join('/')}`;
   return (
     <span className="min-w-0 flex items-center font-code text-[11.5px] leading-none whitespace-nowrap" data-window-path={path}>
@@ -139,7 +144,7 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -161,12 +166,34 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
   }, [desk]);
   const form = narrow ? 'phone' : 'desk';
 
+  /* A WINDOW FURTHER DOWN WAITS (2026-10-03, the rebuilt landing: a window to each of its products, a film in each): it
+     fetches nothing until the reader is within a screen or so of it, and then keeps what it has */
+  const [near, setNear] = useState(!lazy);
+  useEffect(() => {
+    if (near) return;
+    const el = root.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setNear(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        setNear(true);
+        io.disconnect();
+      },
+      { rootMargin: '90% 0px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+
   const want = shotFor(path, theme, form);
   /* THE STILLS: `shown` is on screen; when the tour asks for another, it is decoded off screen and then laid over */
   const [shown, setShown] = useState<{ src: string; path: string } | null>(null);
   const [under, setUnder] = useState<string | null>(null);
   useEffect(() => {
-    if (shown?.src === want) return;
+    if (!near || shown?.src === want) return;
     let alive = true;
     const img = new Image();
     img.src = want;
@@ -180,15 +207,16 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [want]);
+  }, [want, near]);
 
   /* the other theme's still of this page is fetched ahead: the window turns with the page, and the turn should not wait */
   useEffect(() => {
+    if (!near) return;
     const t = window.setTimeout(() => {
       new Image().src = shotFor(path, theme === 'dark' ? 'light' : 'dark', form);
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [path, theme, form]);
+  }, [path, theme, form, near]);
 
   /* ---- THE FILMS ---- */
   const calm = useReducedMotion();
@@ -198,7 +226,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
      turn every film off for the rest of the visit). */
   const [mute] = useState(noFilms);
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
-  const motion = !calm && !frugal && !mute;
+  const motion = near && !calm && !frugal && !mute;
   const key = keyFor(path, theme, form);
   const clip: Clip | undefined = broken.has(key) ? undefined : FILMS[key];
 
@@ -326,7 +354,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
   }, [drawn, calm]);
 
   return (
-    <div ref={root} data-theme={theme} data-terminal-window={here} data-window-films={reels.length ? (rolling ? 'rolling' : 'held') : 'stills'} className={`landing-window relative flex flex-col overflow-hidden rounded-[14px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
+    <div ref={root} data-theme={theme} data-terminal-window={here} data-window-films={reels.length ? (rolling ? 'rolling' : 'held') : 'stills'} className={`landing-window relative flex flex-col overflow-hidden rounded-[10px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
       {/* THE BAR — the prompt that opened the page on screen; on the hero, the room's line beside it */}
       <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel transition-colors duration-500">
         <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
@@ -340,7 +368,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       </div>
 
       {/* THE SCREEN */}
-      <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: `${SHOT_W} / ${SHOT_H}` } : undefined}>
+      <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: form === 'phone' ? `${PHONE_W} / ${PHONE_H}` : `${SHOT_W} / ${SHOT_H}` } : undefined}>
         {under && <img src={under} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 w-full h-full object-cover object-left-top select-none" />}
         {shown && (
           <img

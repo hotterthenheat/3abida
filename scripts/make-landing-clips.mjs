@@ -3,7 +3,7 @@
 
   The owner, of the stills: "why are my photos just a photo and dont move so you cant see all the features my website
   offers?" — and then, of the films that followed: "it should just be a cursor make it a sped up version of you actually
-  using the desk". So every page the tour names is FILMED, not drawn: the real terminal, staged exactly as its still is
+  using the desk". So every page the landing shows is FILMED, not drawn: the real terminal, staged exactly as its still is
   (landing-stage.mjs — the same first visit, the same steps a reader takes), and then USED, at three times its own speed,
   by a pointer and nothing else — no words over it, no ring where it presses, no bar: a timeframe changed and changed
   back, a menu opened and a choice made, a name typed into the search, a price dragged, a desk switched, a day opened.
@@ -26,9 +26,8 @@
       public/landing/clips/<page>-<theme>-<desk|phone>.mp4    the film
       public/landing/<page>-<theme>-<desk|phone>.webp         its first frame, the still the landing shows until it plays
       src/pages/landing/clips.json                            each film's length
-  and for each room on the landing's wall (the hero's eight screens: ROOM_PAGES), from the desk film —
-      public/landing/wall/clips/<page>-<theme>.mp4            a small copy, 640 wide
-      public/landing/wall/<page>-<theme>.webp                 its first frame
+  The pages are the landing's own (landing-stage.mjs ALL_PAGES: every `path` in Landing.tsx — the hero's desk and the four
+  systems since the rebuild of 2026-10-03). The session (Session.tsx) is not filmed here: scripts/make-landing-session.mjs.
 
   The encoder is ffmpeg with libx264: FFMPEG names one, else `ffmpeg` on the PATH. After the address: pages ("/terrain"),
   a size ("desk" | "phone"), a theme ("dark" | "light") — as landing:shots takes them. PREVIEW=1 films an act small and
@@ -40,7 +39,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
-import { ALL_PAGES, ROOM_PAGES, SEED, PREPARE, slug } from './landing-stage.mjs';
+import { ALL_PAGES, SEED, PREPARE, slug } from './landing-stage.mjs';
 
 const BASE = process.argv[2] ?? 'http://localhost:5199';
 const ARGS = process.argv.slice(3);
@@ -51,10 +50,8 @@ const FFMPEG = process.env.FFMPEG ?? 'ffmpeg';
 const PREVIEW = !!process.env.PREVIEW;
 const PUBLIC = PREVIEW ? resolve(tmpdir(), 'slayer-clip-preview') : resolve(process.cwd(), 'public/landing');
 const CLIPS = resolve(PUBLIC, 'clips');
-const WALL = resolve(PUBLIC, 'wall');
 const MANIFEST = PREVIEW ? resolve(PUBLIC, 'clips.json') : resolve(process.cwd(), 'src/pages/landing/clips.json');
 mkdirSync(CLIPS, { recursive: true });
-mkdirSync(resolve(WALL, 'clips'), { recursive: true });
 
 const PAGES = ALL_PAGES.filter(p => !ONLY.length || ONLY.includes(p));
 const THEMES = ['dark', 'light'].filter(t => !ONLY_THEMES.length || ONLY_THEMES.includes(t));
@@ -71,9 +68,6 @@ const SPEED = 4;
     With SPEED 4 a beat gives the page the same time to answer it had at SPEED 3 and a full pace (4 × 0.75 = 3), but the
     film takes a quarter less of the reader's: the pointer moves faster and the page lives faster under it. */
 const PACE = 0.75;
-/** THE WALL'S COPIES (2026-10-02): the landing's dock swells the room in front to about 380 points, 760 pixels on a sharp
-    screen — 640 was soft there, so the copies are 960 wide */
-const WALL_W = 960;
 /** how much of the page's time passes, held, before the first frame — ms (below, where the clock is held) */
 const PREROLL = 1000;
 /** the minute every film is set in: a Thursday afternoon, the market open (13:42 in New York) — a day with reports on the
@@ -555,8 +549,6 @@ const film = async (browser, path, theme, size, manifest) => {
   const png = readFileSync(resolve(dir, 'poster.png')).toString('base64');
   const key = `${slug(path)}-${theme}-${size.form}`;
   writeFileSync(resolve(PUBLIC, `${key}.webp`), Buffer.from(await webpOf(page, png), 'base64'));
-  const room = desk && ROOM_PAGES.includes(path);
-  if (room) writeFileSync(resolve(WALL, `${slug(path)}-${theme}.webp`), Buffer.from(await webpOf(page, png, WALL_W), 'base64'));
   await ctx.close();
 
   const out = resolve(CLIPS, `${key}.mp4`);
@@ -568,12 +560,10 @@ const film = async (browser, path, theme, size, manifest) => {
       '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', to,
     ]);
   encode(out, size.crf);
-  /* the wall's copy: under half the desk film's width, for the dock's card in front (up to 380 points wide) */
-  if (room) encode(resolve(WALL, 'clips', `${slug(path)}-${theme}.mp4`), 31, WALL_W);
   rmSync(dir, { recursive: true, force: true });
   manifest[key] = { d: Number((n / FPS).toFixed(2)) };
   const kb = Math.round(readFileSync(out).length / 1024);
-  console.log(`${key}.mp4  ${(n / FPS).toFixed(1)} s  ${kb} KB${missed ? `  · ${missed} beat${missed > 1 ? 's' : ''} found nothing` : ''}${room ? '  · and the wall’s copy' : ''}`);
+  console.log(`${key}.mp4  ${(n / FPS).toFixed(1)} s  ${kb} KB${missed ? `  · ${missed} beat${missed > 1 ? 's' : ''} found nothing` : ''}`);
   return kb;
 };
 

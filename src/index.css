@@ -1462,104 +1462,8 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
   animation-duration: 520ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
-/* THE LANDING'S GROUND (2026-09-19, pages/landing/Tour.tsx). ONE painted gradient for the whole
-   journey, THERE AND BACK: the opening ground down to --band-top (measured, set on the tour), the
-   turn through steel over --band-h, the other ground down to --back-top, the same turn walked
-   home over --back-h, and the opening ground from there on — a page ends on the theme it began on.
-   Painted once — nothing here follows the scroll. `day-night` is the same road for a visitor who
-   opens on paper. */
-.landing-dawn {
-  --t: var(--band-top, 100%);
-  --l: var(--band-h, 0px);
-  --t2: var(--back-top, 100%);
-  --l2: var(--back-h, 0px);
-  --c0: var(--night);
-  --c1: var(--dawn-1);
-  --c2: var(--dawn-2);
-  --c3: var(--dawn-3);
-  --c4: var(--dawn-4);
-  --c5: var(--dawn-5);
-  --c6: var(--day);
-  background-image: linear-gradient(
-    to bottom,
-    rgb(var(--c0)) 0,
-    rgb(var(--c0)) var(--t),
-    rgb(var(--c1)) calc(var(--t) + var(--l) * 0.2),
-    rgb(var(--c2)) calc(var(--t) + var(--l) * 0.38),
-    rgb(var(--c3)) calc(var(--t) + var(--l) * 0.53),
-    rgb(var(--c4)) calc(var(--t) + var(--l) * 0.66),
-    rgb(var(--c5)) calc(var(--t) + var(--l) * 0.82),
-    rgb(var(--c6)) calc(var(--t) + var(--l)),
-    rgb(var(--c6)) var(--t2),
-    rgb(var(--c5)) calc(var(--t2) + var(--l2) * 0.18),
-    rgb(var(--c4)) calc(var(--t2) + var(--l2) * 0.34),
-    rgb(var(--c3)) calc(var(--t2) + var(--l2) * 0.47),
-    rgb(var(--c2)) calc(var(--t2) + var(--l2) * 0.62),
-    rgb(var(--c1)) calc(var(--t2) + var(--l2) * 0.8),
-    rgb(var(--c0)) calc(var(--t2) + var(--l2)),
-    rgb(var(--c0)) 100%
-  );
-}
-.landing-dawn[data-dir='day-night'] {
-  --c0: var(--day);
-  --c1: var(--dawn-5);
-  --c2: var(--dawn-4);
-  --c3: var(--dawn-3);
-  --c4: var(--dawn-2);
-  --c5: var(--dawn-1);
-  --c6: var(--night);
-}
-/* a ground picked on the page (landing/ground.tsx): the turn stands still, all of it the pick */
-.landing-dawn[data-dir='still-night'] {
-  --c1: var(--night);
-  --c2: var(--night);
-  --c3: var(--night);
-  --c4: var(--night);
-  --c5: var(--night);
-  --c6: var(--night);
-}
-.landing-dawn[data-dir='still-day'] {
-  --c0: var(--day);
-  --c1: var(--day);
-  --c2: var(--day);
-  --c3: var(--day);
-  --c4: var(--day);
-  --c5: var(--day);
-  --c6: var(--day);
-}
-/* a long, slow gradient bands on an 8-bit screen; a breath of grain over the turn breaks the steps up */
-.landing-grain[data-band='back'] {
-  top: var(--back-top, 0px);
-  height: var(--back-h, 0px);
-}
-.landing-grain {
-  top: var(--band-top, 0px);
-  height: var(--band-h, 0px);
-  opacity: 0.05;
-  /* it comes in and goes out with the turn — at full strength from its first pixel it lifted the black and drew an edge (measured) */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 30%, black 72%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, black 30%, black 72%, transparent 100%);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-size: 180px 180px;
-}
-/* the hairline columns behind the hero, fading out before the first tool */
-.landing-columns {
-  background-image: linear-gradient(to right, rgb(var(--ink) / 0.05) 1px, transparent 1px);
-  background-size: calc((min(100vw, 1440px) - 80px) / 6) 100%;
-  background-position: calc(50% + 0.5px) 0;
-  -webkit-mask-image: linear-gradient(to bottom, black 0, black 35%, transparent 100%);
-  mask-image: linear-gradient(to bottom, black 0, black 35%, transparent 100%);
-}
-/* the pool of light the window opens in — silver on black, a cool wash on paper */
-.landing-pool {
-  background-image: radial-gradient(58% 46% at 62% 46%, rgb(var(--silver) / 0.13), transparent 70%), radial-gradient(40% 30% at 12% 8%, rgb(var(--silver) / 0.07), transparent 70%);
-}
-/* while the window moves its picture is one raster the compositor scales (it was the live frame until 2026-09-19) */
-.landing-box[data-moving] img {
-  will-change: transform;
-}
 .landing-window {
-  box-shadow: 0 60px 140px -50px rgb(0 0 0 / 0.85), 0 0 80px -30px rgb(var(--silver) / 0.18);
+  box-shadow: 0 50px 120px -60px rgb(0 0 0 / 0.85);
 }
 .landing-window[data-theme='light'] {
   box-shadow: 0 50px 110px -50px rgb(20 28 45 / 0.45), 0 10px 30px -14px rgb(20 28 45 / 0.2);
@@ -1610,7 +1514,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
   .window-sweep::before { animation: none; }
   .window-sweep { display: none; }
 }
-/* THE HERO ARRIVES (2026-10-01): its words, its rooms and then the window rise into place, once — opacity and a
+/* THE HERO ARRIVES (2026-10-01): its words and then the window rise into place, once — opacity and a
    transform only, staggered by --rise-delay. `backwards`: the start holds through the delay, and when it is over the
    animation lets go of the element entirely. At once where less motion was asked for. */
 @keyframes landing-rise {
@@ -1622,23 +1526,70 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 .landing-rise {
   animation: landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) var(--rise-delay, 0ms) backwards;
 }
-/* the rooms of "Everything in it" (Everything.tsx): a row that scrolls sideways on a phone, with no bar under it */
-.landing-rooms {
-  scrollbar-width: none;
+/* THE LANDING'S ARRIVALS (Landing.tsx useArrival, 2026-10-03 — the owner: "add cool motions to each product no two
+   motions should be the same but dont make it super over kill"; the brief after: "Motion should demonstrate the product
+   rather than decorate the page"). Once, as a block is first seen, and only one the script has set waiting — nothing is
+   hidden without it, and nothing moves where less motion is asked for.
+   WORDS come up a line at a time, 40 ms apart (the Logo System's text reveal). */
+[data-arrival='wait'] .landing-line {
+  opacity: 0;
+  transform: translateY(14px);
 }
-.landing-rooms::-webkit-scrollbar {
-  display: none;
+[data-arrival='in'] .landing-line {
+  animation: landing-line 760ms cubic-bezier(0.2, 0, 0, 1) calc(var(--i, 0) * 40ms) backwards;
+}
+@keyframes landing-line {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+/* EACH PRODUCT'S WINDOW comes in its own way, drawn from what the page does — a clip that opens, never a spin, a slide or
+   a zoom (the Logo System's 14 · Motion): Compass, a card dealt (a slanted edge across); Pinpoint, the book opening out
+   from the middle, where the price stands; Terrain, the chart drawn left to right in 600 ms (the Logo System's chart
+   intro); Trace, the tape printing down a row at a time. Each ends past the window's own shadow, and lets go of it. */
+.landing-arrive[data-arrival='wait'][data-arrive='deal'] { clip-path: polygon(0% 0%, 0% 0%, -34% 100%, 0% 100%); }
+.landing-arrive[data-arrival='wait'][data-arrive='spot'] { clip-path: inset(50% 0 50% 0); }
+.landing-arrive[data-arrival='wait'][data-arrive='draw'] { clip-path: inset(0 100% 0 0); }
+.landing-arrive[data-arrival='wait'][data-arrive='print'] { clip-path: inset(0 0 100% 0); }
+.landing-arrive[data-arrival='in'] {
+  animation-duration: 820ms;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  animation-fill-mode: backwards;
+}
+.landing-arrive[data-arrival='in'][data-arrive='deal'] { animation-name: arrive-deal; }
+.landing-arrive[data-arrival='in'][data-arrive='spot'] { animation-name: arrive-spot; }
+.landing-arrive[data-arrival='in'][data-arrive='draw'] { animation-name: arrive-draw; animation-duration: 600ms; animation-timing-function: cubic-bezier(0.3, 0, 0.2, 1); }
+.landing-arrive[data-arrival='in'][data-arrive='print'] { animation-name: arrive-print; animation-duration: 720ms; animation-timing-function: steps(9, end); }
+@keyframes arrive-deal {
+  from { clip-path: polygon(0% 0%, 0% 0%, -34% 100%, 0% 100%); }
+  to { clip-path: polygon(-40% -30%, 174% -30%, 140% 140%, -40% 140%); }
+}
+@keyframes arrive-spot {
+  from { clip-path: inset(50% 0 50% 0); }
+  to { clip-path: inset(-200px -200px -200px -200px); }
+}
+@keyframes arrive-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(-200px -200px -200px -200px); }
+}
+@keyframes arrive-print {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(-200px -200px -200px -200px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-arrival] .landing-line,
+  .landing-arrive {
+    animation: none !important;
+    clip-path: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 /* WHERE THE KEYS LAND (2026-10-03 audit): a control the keys move to is scrolled clear of the floating bar (52 px from
-   14 px down, and some air) — Shift+Tab left six under it — and, in one column, clear of the tour's window as well, pinned
-   under the bar for half the screen (nine of the tour's stops had their focus behind the picture) */
+   14 px down, and some air) */
 [data-landing] :is(a, button, [tabindex]) {
   scroll-margin-top: 88px;
-}
-@media (max-width: 1023.98px) {
-  [data-landing] [data-tour-step] :is(a, button) {
-    scroll-margin-top: calc(68px + 50svh + 20px);
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-rise {

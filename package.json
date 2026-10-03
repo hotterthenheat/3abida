@@ -15,6 +15,7 @@
     "brand:assets": "tsx scripts/make-brand-assets.ts",
     "landing:shots": "node scripts/make-landing-shots.mjs",
     "landing:clips": "node scripts/make-landing-clips.mjs",
+    "landing:session": "node scripts/make-landing-session.mjs",
     "logos:fetch": "node scripts/fetch-logos.mjs",
     "review:proof": "tsx scripts/review-engine-proof.ts && tsx scripts/review-journal-proof.ts && tsx scripts/paper-proof.ts"
   },
