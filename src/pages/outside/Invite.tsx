@@ -28,7 +28,7 @@ export const Invite = () => {
   const navigate = useNavigate();
   const name = nameOf(code);
   return (
-    <OutsideFrame footer={false} testId="invite">
+    <OutsideFrame testId="invite">
       <div className="flex-1 flex items-center justify-center px-4 pb-[10vh]">
         <div className="w-full max-w-[440px] rounded-[28px] border border-borderSubtle bg-panel p-7 sm:p-8">
           <Signature className="text-[11.5px] w-full" />
@@ -58,7 +58,7 @@ export const Welcome = () => {
   if (!from) return <Navigate to="/" replace />;
   const name = nameOf(from);
   return (
-    <OutsideFrame footer={false} testId="welcome">
+    <OutsideFrame testId="welcome">
       <div className="flex-1 flex items-center justify-center px-4 pb-[10vh]">
         <div className="w-full max-w-[440px] rounded-[28px] border border-borderSubtle bg-panel p-7 sm:p-8">
           <div className="flex items-center gap-3">

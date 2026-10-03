@@ -190,7 +190,7 @@ const Auth = () => {
   }
 
   return (
-    <OutsideFrame footer={false} testId={`auth-${screen}`}>
+    <OutsideFrame testId={`auth-${screen}`}>
       <Card testId={screen}>{body}</Card>
     </OutsideFrame>
   );

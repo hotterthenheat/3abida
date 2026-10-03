@@ -13,7 +13,7 @@ import BracketCard from '../../brand/BracketCard';
 import SlayerMark from '../../brand/SlayerMark';
 
 const Maintenance = () => (
-  <OutsideFrame footer={false} testId="maintenance">
+  <OutsideFrame testId="maintenance">
     <div className="flex-1 flex items-center justify-center px-5 pb-[12vh]">
       <BracketCard className="w-full max-w-[480px] p-8 sm:p-10" label="maintenance">
         <SlayerMark size={44} bare state="closed" label="" />

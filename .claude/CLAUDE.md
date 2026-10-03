@@ -140,28 +140,31 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   is the ground's silver ink at --ring-a (55% on black, whole on paper). THE THEME BUTTON names what it does; a theme
   picked on the landing is stored for the whole site.
 - The footer is ONE ART PIECE (2026-10-03 — the owner, of the footer with the photograph live in a band at its foot: "i
-  want that glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece").
-  The photograph (2026-10-02: the terminal caught on a black screen, only its brightest marks left and broken into
-  pixels) is the WHOLE footer (components/layout/FooterArt.tsx wraps SiteFooter's content): a chart pane — a rough price
-  line walking, its last-price line run out to a tag, a block of volume, the time axis, levels broken into coloured
-  dashes — a strike ladder beside it and chips under it, in the box the footer marks for it ([data-footer-scene]: beside
-  the words on a desk, between them on a phone); its levels run on across the whole screen under the words, and specks
-  lie everywhere, all in coarse pixels with a hair of red on one edge and blue on the other. The footer's words are the
-  screen's brightest marks ([data-footer-lit], index.css .footer-word): the same fringe at rest, a tier down. Around the
-  pointer, anywhere on the footer, the screen comes back sharp — the frames of its panels round the words
-  ([data-footer-panel]), the words bright without their fringe, a crosshair reading the line in the chart — a fast pointer
-  tears the rows it crosses, words and all, and where it has been goes dark again in about a second; with no pointer an
-  arrow of its own (the photograph's) drifts over the chart and rests on what it reads, lighting no words. The wordmark
-  (with its cursor), the line, the link columns and the status line (signature, "not investment advice", ©) — no level
-  game, no headline, no engraved wordmark. Art, not data: no figure on it is a price — the tags are the clock. Every ink
-  a token read off the footer's own ground (paper prints it in ink). THREE LAYERS so a frame touches only what moves: the
-  still parts drawn once (coarse), the moving parts in the chart's box (coarse), the sharp focus and the arrow only where
-  they are; the coarse layers are a canvas pixel per coarse pixel shown pixelated. The fade up out of the page is drawn
-  into the still parts — no CSS mask over the layers (a mask made the browser lay the whole footer again every frame).
-  Words are written at most thirty times a second, in twelfths. About thirty frames a second (sixty under the pointer),
-  only while on screen with the tab in front; under reduced motion one still frame with the focus drawn where the pointer
-  stands. A footer link under the pointer drops the rest of its column a tier and comes forward with a short mark
-  (index.css .footer-col).
+  want that glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece"):
+  the photograph (2026-10-02: the terminal caught on a black screen, only its brightest marks left and broken into
+  pixels) is the WHOLE footer, and the footer's words are on it ([data-footer-lit], index.css .footer-word — the
+  screen's brightest marks, a hair of red and blue at rest). A PICTURE FOR EVERY PAGE (the same day — the owner: "make
+  sure the art footer is on every page … each page had its own art work similar to that one but thats representive of
+  its page … and then the landing page one you go into more depth in creating something that represetive every
+  product but keep the same artistic language"): it ends every page, the terminal's and the outside ones — a framed
+  page (Terrain, Net Flow, 0DTE) stays one screen tall with the footer one scroll below, its charts keeping the wheel;
+  only a full-screen prompt or a loading screen goes without. FooterArt.tsx is the engine; the picture is a scene
+  (components/layout/footer/scenes.ts, landing.ts, parts/*) picked by the address (footer/registry.ts; the alerts'
+  while their drawer is open), drawn in the photograph's language (footer/kit.ts): coarse pixels with a hair of red on
+  one edge and blue on the other, levels as coloured dashes, specks, frames only in focus — Pulse's desk, Terrain's
+  strike beads and walls, Trace's tape printing in, Dossier's dotted world, Pinpoint's strike bars and flip,
+  Compass's cards, the Weigher's payoff curve, Paper's order tags, the Backtest's scrubber, the Journal's month,
+  Settings' switches, the outside pages' own (status a heartbeat, legal a line being read, the account forms a card
+  being filled). A new page gets its own scene; a page whose look changes changes its picture. The landing's is every
+  product on one desk, depth by brightness, its arrow touring them. STILL UNTIL A HAND IS ON IT: the landing's moves
+  whenever it is on screen; every other footer is one finished frame and asks for no animation frame until a pointer
+  is on it, settling within LINGER after it leaves (a touch wakes it for 3.6 s). Around the pointer the screen comes
+  back sharp — the panels' frames, the words bright without their fringe, a reading of what is under it — and a fast
+  pointer tears the rows it crosses. Art, not data: no figure on it is a price — the tags are New York's clock. Every
+  ink a token read off the footer's own ground (paper prints it in ink). THREE LAYERS so a frame touches only what
+  moves; no CSS mask over the layers; words written at most thirty times a second; nothing draws while the footer has
+  no size. Under reduced motion one still frame with the focus drawn where the pointer stands. A footer link under the
+  pointer drops the rest of its column a tier (index.css .footer-col).
 - What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the plans' "Holds" lines say it short and the comparison
   folded under them reads it whole. Never on the landing: reviews, ratings, member counts or results of any kind (we have
   none), "most popular", a chat bubble (no backend). The buyer's questions came back with the rebuild ("Where does the

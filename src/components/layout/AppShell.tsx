@@ -152,8 +152,15 @@ const AppShell = () => {
            the first 48px of every page; the page head began under it (the
            phone pass, 2026-09-13). Pulse's and Terrain's phone layouts
            subtract the same 3rem from the viewport. */
-        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 ${bleedPage ? 'overflow-y-auto md:overflow-hidden' : 'overflow-y-auto'} ${
-          location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''
+        /* EVERY PAGE SCROLLS TO ITS FOOTER (2026-10-03 — the owner: "make sure the art footer is on every page"): a framed
+           page (Net Flow, 0DTE) keeps its frame exactly one screen tall and the footer waits below the fold; main scrolls
+           on every page (it stopped scrolling on the framed ones, which had no footer to reach) */
+        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 overflow-y-auto ${location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''} ${
+          /* …and where Terrain's desk owns the window (a phone, and from lg up) the scroll is there but its bar is not: a bar
+             would take its 6px from the charts, which run edge to edge and to the floor exactly as they did */
+          location.pathname.startsWith('/terrain')
+            ? 'max-md:[scrollbar-width:none] lg:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden lg:[&::-webkit-scrollbar]:hidden'
+            : ''
         }`}
       >
         {/* Keyed by top-level section only — subpage changes animate inside
@@ -175,7 +182,7 @@ const AppShell = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.1 }}
-            className={`w-full flex flex-col ${framePage ? 'min-h-full md:h-full' : 'min-h-full'}`}
+            className="w-full flex flex-col min-h-full"
           >
             {/* A section opens at its head, not where the last page's scroll was (2026-09-11) */}
             <ScrollHome />
@@ -191,7 +198,9 @@ const AppShell = () => {
                  definite height), shrink-0 so the footer below cannot squeeze
                  it — the overflow IS the slight scroll. Tight top like Trace
                  (Noah, 2026-08-30: "way too much space up top"). */
-              className={`${bleedPage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 md:pb-0 gap-4 md:h-full md:min-h-0 md:overflow-hidden' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
+              /* a framed page is one screen tall from md up — main's own height (100dvh: no phone strip there) — so the
+                 footer that follows it stands below the fold and the frame's floor is the window's */
+              className={`${framePage ? 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 md:pb-0 gap-4 md:h-[100dvh] md:min-h-0 md:overflow-hidden md:shrink-0' : 'px-4 lg:px-6 2xl:px-8 pt-5 pb-16 gap-4'} flex flex-col flex-grow`}
             >
               <RouteBoundary resetKey={location.pathname}>
                 {/* A page's code travels on its first visit (App's lazy routes);
@@ -208,13 +217,11 @@ const AppShell = () => {
                 </Suspense>
               </RouteBoundary>
             </div>
-            {/* The landing's footer ends every main page (Noah, 2026-08-23) —
-                except Trace (Noah, 2026-08-30: "the trace page shouldnt have
-                a footer at all"): the tape runs to the floor — and Terrain
-                (Noah, 2026-09-13: "for the terrain page remove the footer"):
-                the chart runs to the floor. The Weigher keeps its footer one
-                slight scroll past the fold (Noah, 2026-08-30). */}
-            {!location.pathname.startsWith('/trace') && !location.pathname.startsWith('/terrain') && <SiteFooter />}
+            {/* The landing's footer ends every main page (Noah, 2026-08-23). Trace (2026-08-30) and Terrain (2026-09-13) went
+                without one so their tape and their chart ran to the floor; since 2026-10-03 (the owner: "make sure the art
+                footer is on every page") they have it too — the tape and the chart still run to the floor of the first
+                screen, and the footer, the page's own picture (footer/scenes.ts), is one scroll past it. */}
+            <SiteFooter />
           </motion.div>
         </AnimatePresence>
       </main>

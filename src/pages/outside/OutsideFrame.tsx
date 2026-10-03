@@ -3,7 +3,7 @@
   SLAYER TERMINAL - THE PAGES OUTSIDE THE TERMINAL (pages/outside/OutsideFrame.tsx)
 
   About, status, the legal pages, the account forms, an invite: pages that stand on their own, outside the terminal's
-  rail. The wordmark home on the left, "Launch terminal" on the right, the brand's footer under them.
+  rail. The wordmark home on the left, "Launch terminal" on the right, the brand's footer under them — on every one.
 ==================================================
 */
 
@@ -34,7 +34,11 @@ export const LaunchPill = ({ label = 'Launch terminal', to = '/pulse', size = 's
   );
 };
 
-const OutsideFrame = ({ children, footer = true, testId }: { children: ReactNode; footer?: boolean; testId?: string }) => (
+/* THE FOOTER ON EVERY PAGE (2026-10-03 — the owner: "make sure the art footer is on every page"): the account forms, an
+   invite and maintenance went without it until then. The page's own first screen stays what it was — main is at least the
+   window under the header, so a card that stood in its middle still does — and the footer, the page's own picture
+   (components/layout/footer/scenes.ts), is one scroll below it. */
+const OutsideFrame = ({ children, testId }: { children: ReactNode; testId?: string }) => (
   <div className="min-h-screen bg-canvas text-textPrimary flex flex-col" data-outside={testId}>
     <header className="shrink-0 h-16 flex items-center gap-4 px-5 sm:px-8">
       <Link to="/" aria-label="Slayer Terminal, the front page" className="inline-flex">
@@ -42,8 +46,8 @@ const OutsideFrame = ({ children, footer = true, testId }: { children: ReactNode
       </Link>
       <LaunchPill className="ml-auto" />
     </header>
-    <main className="flex-1 flex flex-col">{children}</main>
-    {footer && <SiteFooter />}
+    <main className="flex-1 flex flex-col min-h-[calc(100dvh-4rem)]">{children}</main>
+    <SiteFooter />
   </div>
 );
 
