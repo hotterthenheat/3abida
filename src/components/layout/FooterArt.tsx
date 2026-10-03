@@ -175,10 +175,11 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
      panels, and its words */
   const layout = () => {
     const marked = host.querySelector('[data-footer-scene]');
-    const inset = W >= 1440 ? (W - 1440) / 2 + 40 : W >= 1024 ? 40 : W >= 640 ? 24 : 16;
+    const inset = W >= 1240 ? (W - 1240) / 2 + 40 : W >= 1024 ? 40 : W >= 640 ? 24 : 16;
     const b = marked ? rel(marked) : { x0: inset, x1: W - inset, y0: 0, y1: H };
-    /* a small picture (a phone's, or the short band between the words below lg) keeps to its page's one or two parts */
-    stage = { W, H, box: b, phone: b.x1 - b.x0 < 560 || b.y1 - b.y0 < 300, ink, calm };
+    /* a small picture (a phone's, or the short band between the words below lg) keeps to its page's one or two parts; a
+       desk's box beside the words is 450 to 560 wide and 300 tall since the footer was halved (2026-10-03) */
+    stage = { W, H, box: b, phone: b.x1 - b.x0 < 420 || b.y1 - b.y0 < 260, ink, calm };
     panels = Array.from(host.querySelectorAll('[data-footer-panel]'), rel);
     /* a word's light and slip start from nothing again, so its box is measured where it stands */
     for (const w of words) {

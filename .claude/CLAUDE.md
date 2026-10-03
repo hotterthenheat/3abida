@@ -117,6 +117,22 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   script has run, nothing moves where less motion is asked for. A window lower on the page fetches nothing until the
   reader is near (TerminalWindow `lazy`); a phone's window shows the phone picture whole (390 × 760), never cropped. No
   plan's door is drawn heavier than another's (that would be "most popular" by another name).
+- THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"; it was 1,360 px of
+  words, a 107 px headline and every window taller than the screen): THE COLUMN IS A WINDOW THE SCREEN HOLDS WHOLE —
+  as wide as a terminal window whose whole height stands on the screen under the bar (index.css [data-landing]
+  --landing-col: the picture's 1440 × 1000 and its 42 px bar, 140 px of the screen kept; never more than 1160 px of
+  words nor less than 820). The Wrap, the open bar (32 px narrower) and the footer's words all read it, so the words and
+  the windows share their edges on every screen and every window is the column's width; the session's picture runs on
+  past the column to 24 px short of the screen's right edge, so the demonstration does not shrink with it. The type a
+  step down (the headline min(5.6vw, 10svh) up to 84 px, heads 50, the systems' lines 44, prices 44) and the sections'
+  air a little less. THE HERO BOOTS (the same day — "the landing page is missing something like that snazz"): once a
+  visit, as the page opens, the hero's window comes up out of the footer's photograph — its own still in coarse pixels
+  (each the block's strongest mark: the brightest on black, the darkest on paper), only the strongest at first, a hair
+  of red on one edge and blue on the other, a row or two torn aside — and sharpens to the desk in 1.1 s
+  (pages/landing/Boot.tsx, TerminalWindow `boot`); the headline settles out of the same fringe as it rises (index.css
+  .landing-fringe, on `translate` so it adds to the rise). Never again on a return within the app, never under reduced
+  motion, never in a tab behind, and not at all if the still takes over 1.2 s to come (the window never waits on its own
+  entrance). It is the hero's alone; the rest of the page keeps its arrival clips.
 - THE SESSION (pages/landing/Session.tsx; `npm run landing:session`, scripts/make-landing-session.mjs): the brief's one
   "killer" demonstration — "Look at what the terminal was able to show", never "Slayer predicted the move". The real
   Pulse desk, opened at 09:31 New York on 2026-10-01 and run forward with its live ticks drawn from a seeded stream
@@ -164,7 +180,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   ink a token read off the footer's own ground (paper prints it in ink). THREE LAYERS so a frame touches only what
   moves; no CSS mask over the layers; words written at most thirty times a second; nothing draws while the footer has
   no size. Under reduced motion one still frame with the focus drawn where the pointer stands. A footer link under the
-  pointer drops the rest of its column a tier (index.css .footer-col).
+  pointer drops the rest of its column a tier (index.css .footer-col). HALF THE HEIGHT (2026-10-03 — the owner: "i think the
+  footers are a bit big"; it was 734 px of a 1440 × 900 screen and a phone's screen and a half, now 479 and 799): the
+  words and the links share the left of the column in three short stacks — the products four abreast (a row a group),
+  the company with the handle under it, the legal pages — and the picture stands beside them as tall as they are, 300 px
+  at least. It is laid by the room the COLUMN has, not the screen's (index.css .footer-sheet / .footer-grid, a container
+  query at 920 px), so a page with the rail open lays its footer by its own width; with less room the picture is a band
+  between the words and the links. FooterArt reads a box under 420 px wide or 260 tall as a phone's picture.
 - What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the plans' "Holds" lines say it short and the comparison
   folded under them reads it whole. Never on the landing: reviews, ratings, member counts or results of any kind (we have
   none), "most popular", a chat bubble (no backend). The buyer's questions came back with the rebuild ("Where does the

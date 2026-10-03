@@ -259,7 +259,7 @@ const FAQ: { q: string; a: string }[] = [
 /* ---- the pieces ---------------------------------------------------------------------------- */
 
 const Wrap = ({ children, className = '', ...rest }: { children: ReactNode; className?: string } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'className'>) => (
-  <div {...rest} className={`mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10 ${className}`}>
+  <div {...rest} className={`mx-auto w-full max-w-[var(--landing-col)] px-4 sm:px-6 lg:px-10 ${className}`}>
     {children}
   </div>
 );
@@ -275,7 +275,7 @@ const Eyebrow = ({ children }: { children: ReactNode }) => (
 /** EVERY HEAD IS TWO LINES IN TWO TONES: what it is in ink, the turn of the thought in grey */
 const TwoTone = ({ first, second, className = '' }: { first: string; second: string; className?: string }) => (
   /* outline-none: a jump along the page lands the keys here (toAnchor) — a heading to land on, not a control */
-  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[38px] sm:text-[52px] lg:text-[64px] [text-wrap:balance] outline-none ${className}`}>
+  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[32px] sm:text-[42px] lg:text-[50px] [text-wrap:balance] outline-none ${className}`}>
     {first} <span className="block text-textMuted">{second}</span>
   </h2>
 );
@@ -519,7 +519,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
     <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
       <div
         className={`pointer-events-auto relative w-full h-[52px] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
-          lifted ? 'max-w-[760px] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
+          lifted ? 'max-w-[760px] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[calc(var(--landing-col)_-_32px)] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
         <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
@@ -640,15 +640,15 @@ const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
   const ground = useBlockGround();
   const small = useIsBelowLg();
   return (
-    <Wrap className="pt-[104px] sm:pt-[124px] lg:pt-[140px]" data-landing-hero>
+    <Wrap className="pt-[100px] sm:pt-[116px] lg:pt-[128px]" data-landing-hero>
       <p className="landing-rise text-[12px] font-medium uppercase tracking-[0.26em] text-textMuted">Slayer Terminal</p>
-      <h1 className="landing-rise [--rise-delay:60ms] mt-5 sm:mt-6 font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.9rem,min(7.4vw,12.5svh),7.25rem)] [text-wrap:balance]" data-landing-headline>
+      <h1 className="landing-rise landing-fringe [--rise-delay:60ms] mt-5 sm:mt-6 font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.6rem,min(5.6vw,10svh),5.25rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can <Foil>see.</Foil>
       </h1>
-      <p className="landing-rise [--rise-delay:120ms] mt-5 sm:mt-6 max-w-[44rem] text-[17px] sm:text-[19px] leading-[1.5] text-textSecondary [text-wrap:balance]">
+      <p className="landing-rise [--rise-delay:120ms] mt-5 max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] text-textSecondary [text-wrap:balance]">
         Positioning, market structure, volatility and flow — brought together in one terminal.
       </p>
-      <div className="landing-rise [--rise-delay:170ms] mt-8 flex flex-wrap items-center gap-3">
+      <div className="landing-rise [--rise-delay:170ms] mt-7 flex flex-wrap items-center gap-3">
         <Pill href="/signup" onClick={onSignUp} testId="hero">
           Sign up free
         </Pill>
@@ -656,8 +656,8 @@ const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
           See how it works
         </Pill>
       </div>
-      <figure className="landing-rise [--rise-delay:260ms] [--rise-from:28px] mt-12 sm:mt-14 lg:mt-16" data-landing-hero-window>
-        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural />
+      <figure className="landing-rise [--rise-delay:260ms] [--rise-from:28px] mt-10 sm:mt-12 lg:mt-14" data-landing-hero-window>
+        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot />
         <figcaption className="mt-4 text-[13px] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
@@ -668,12 +668,12 @@ const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
 const Matters = () => {
   const ref = useArrival<HTMLDivElement>();
   return (
-    <Wrap className="py-[18vh] lg:py-[22vh]">
-      <div ref={ref} className="landing-lines max-w-[1100px]">
-        <h2 className="landing-line [--i:0] font-light tracking-[-0.045em] leading-[1.0] text-[40px] sm:text-[60px] lg:text-[84px] [text-wrap:balance]">
+    <Wrap className="py-[14vh] lg:py-[17vh]">
+      <div ref={ref} className="landing-lines max-w-[920px]">
+        <h2 className="landing-line [--i:0] font-light tracking-[-0.045em] leading-[1.0] text-[34px] sm:text-[48px] lg:text-[64px] [text-wrap:balance]">
           Most of what moves a price is public. <span className="block text-textMuted">It’s just scattered.</span>
         </h2>
-        <p className="landing-line [--i:2] mt-8 lg:mt-10 max-w-[44rem] text-[18px] sm:text-[20px] leading-[1.5] text-textSecondary">
+        <p className="landing-line [--i:2] mt-7 lg:mt-8 max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.5] text-textSecondary">
           Where the options positions sit, where hedging flips, what is trading right now. Slayer reads them together, on one screen, while the session moves.
         </p>
       </div>
@@ -688,7 +688,7 @@ const SystemBlock = ({ s, onOpen }: { s: System; onOpen: (path: string) => void 
   const words = useArrival<HTMLDivElement>();
   const win = useArrival<HTMLDivElement>('0px 0px -12% 0px');
   return (
-    <article className="pt-[12vh] pb-[6vh] lg:pt-[16vh] border-t border-borderSubtle first:border-t-0" data-landing-system={s.id}>
+    <article className="pt-[10vh] pb-[5vh] lg:pt-[12vh] first:pt-[6vh] lg:first:pt-[8vh] border-t border-borderSubtle first:border-t-0" data-landing-system={s.id}>
       <div ref={words} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-6 lg:items-end">
         <div className="lg:col-span-7">
           <p className="landing-line [--i:0] flex items-center gap-3 text-[13px] text-textMuted">
@@ -699,10 +699,10 @@ const SystemBlock = ({ s, onOpen }: { s: System; onOpen: (path: string) => void 
               {s.name}
             </span>
           </p>
-          <h3 className="landing-line [--i:1] mt-5 font-light tracking-[-0.04em] leading-[1.02] text-[34px] sm:text-[46px] lg:text-[56px] [text-wrap:balance]">{s.line}</h3>
+          <h3 className="landing-line [--i:1] mt-4 font-light tracking-[-0.04em] leading-[1.04] text-[28px] sm:text-[36px] lg:text-[44px] [text-wrap:balance]">{s.line}</h3>
         </div>
         <div className="lg:col-span-5 lg:pb-1.5">
-          <p className="landing-line [--i:2] max-w-[34rem] text-[16px] leading-[1.55] text-textSecondary">{s.says}</p>
+          <p className="landing-line [--i:2] max-w-[34rem] text-[15.5px] leading-[1.55] text-textSecondary">{s.says}</p>
           <div className="landing-line [--i:3] mt-5">
             <Door href={s.path} onClick={() => onOpen(s.path)} testId={`system-${s.id}`}>
               Open {s.name}
@@ -710,8 +710,8 @@ const SystemBlock = ({ s, onOpen }: { s: System; onOpen: (path: string) => void 
           </div>
         </div>
       </div>
-      {/* the real page, as wide as the column (on a phone, its phone layout, whole) */}
-      <div ref={win} className="landing-arrive mt-10 lg:mt-14" data-arrive={s.arrive}>
+      {/* the real page, as wide as the column — a window the screen holds whole (on a phone, its phone layout, whole) */}
+      <div ref={win} className="landing-arrive mt-8 lg:mt-10" data-arrive={s.arrive}>
         <TerminalWindow path={s.path} theme={ground} desk={!small} natural lazy />
       </div>
     </article>
@@ -736,21 +736,21 @@ const Trust = () => {
           The terminal is open about what it shows and where each number comes from. How it works each one out stays ours.
         </p>
       </div>
-      <ul className="mt-12 lg:mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t border-borderSubtle" data-landing-principles>
+      <ul className="mt-10 lg:mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t border-borderSubtle" data-landing-principles>
         {PRINCIPLES.map((p, i) => (
           <li key={p.title} className={`py-7 sm:pr-8 border-b border-borderSubtle lg:border-b-0 ${i > 0 ? 'lg:pl-8 lg:border-l' : ''} ${i % 2 === 1 ? 'sm:pl-8 sm:border-l lg:border-l' : ''}`}>
             <p className="tnum text-[13px] text-textMuted">{String(i + 1).padStart(2, '0')}</p>
-            <h3 className="mt-3 text-[20px] font-medium tracking-tight">{p.title}</h3>
-            <p className="mt-2.5 text-[15px] leading-snug text-textSecondary max-w-[30ch]">{p.says}</p>
+            <h3 className="mt-3 text-[18px] font-medium tracking-tight">{p.title}</h3>
+            <p className="mt-2 text-[14.5px] leading-snug text-textSecondary max-w-[30ch]">{p.says}</p>
           </li>
         ))}
       </ul>
-      <div className="mt-16 lg:mt-24" data-landing-kinds>
+      <div className="mt-14 lg:mt-16" data-landing-kinds>
         <h3 className="font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">What every number stands on</h3>
         <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
           {KINDS.map(k => (
             <div key={k.name} className="py-7 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
-              <p className="text-[24px] font-light tracking-[-0.02em]">{k.name}</p>
+              <p className="text-[22px] font-light tracking-[-0.02em]">{k.name}</p>
               <p className="mt-1.5 text-[14.5px] text-textSecondary">{k.says}</p>
               <ul className="mt-5">
                 {k.items.map(t => (
@@ -784,11 +784,11 @@ const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey
     <div className="flex flex-col py-8 lg:px-8 first:lg:pl-0 last:lg:pr-0" data-landing-plan={planKey}>
       <div className="flex items-center gap-3">
         {glyph ? <ProductGlyph name={glyph} size={24} bare className="shrink-0" /> : <SlayerMark size={26} bare label="" />}
-        <h3 className="text-[19px] font-medium tracking-tight">{plan.name}</h3>
+        <h3 className="text-[18px] font-medium tracking-tight">{plan.name}</h3>
       </div>
       {/* the page's big numbers are its prices — the only figures of ours it shows */}
       <p className="mt-6 flex items-baseline gap-2">
-        <span className="text-[44px] sm:text-[52px] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
+        <span className="text-[38px] sm:text-[44px] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
         {!custom && <span className="text-[15px] text-textMuted">{plan.period}</span>}
       </p>
       <dl className="mt-6 border-t border-borderSubtle">
@@ -956,7 +956,7 @@ const Page = () => {
       </Block>
 
       {/* ── SHOW ME: ONE SESSION, AS THE TERMINAL SAW IT ─────────────────────────────────────── */}
-      <Block on="a" id="how" label="How it works" className="pb-[10vh] scroll-mt-10">
+      <Block on="a" id="how" label="How it works" className="pb-[8vh] scroll-mt-10">
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
             <div className="lg:col-span-7">
@@ -974,7 +974,7 @@ const Page = () => {
       </Block>
 
       {/* ── WHAT ELSE CAN IT SEE? THE FOUR SYSTEMS ───────────────────────────────────────────── */}
-      <Block on="a" id="products" label="Products" className="pt-[10vh] pb-[12vh] scroll-mt-10">
+      <Block on="a" id="products" label="Products" className="pt-[8vh] pb-[10vh] scroll-mt-10">
         <Wrap>
           <Eyebrow>Products</Eyebrow>
           <TwoTone className="mt-6" first="Four systems." second="One terminal." />
@@ -983,19 +983,19 @@ const Page = () => {
               <SystemBlock key={s.id} s={s} onOpen={open} />
             ))}
           </div>
-          <p className="mt-[8vh] max-w-[44rem] text-[18px] sm:text-[20px] leading-[1.5] text-textSecondary" data-landing-inside>
+          <p className="mt-[7vh] max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.5] text-textSecondary" data-landing-inside>
             <span className="text-textPrimary">There’s more inside.</span> A desk you arrange yourself, a scale for any contract, the file on every name, and paper money to practise with.
           </p>
         </Wrap>
       </Block>
 
       {/* ── CAN I TRUST IT? ───────────────────────────────────────────────────────────────────── */}
-      <Block on="a" id="trust" label="Why Slayer" className="py-[12vh] scroll-mt-10 border-t border-borderSubtle">
+      <Block on="a" id="trust" label="Why Slayer" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Trust />
       </Block>
 
       {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
-      <Block on="a" id="pricing" label="Pricing" className="py-[12vh] scroll-mt-10 border-t border-borderSubtle">
+      <Block on="a" id="pricing" label="Pricing" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
             <div className="lg:col-span-7">
@@ -1017,7 +1017,7 @@ const Page = () => {
       </Block>
 
       {/* ── LET ME IN: THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────── */}
-      <Block on="a" id="faq" label="Questions" className="pt-[12vh] scroll-mt-10 border-t border-borderSubtle">
+      <Block on="a" id="faq" label="Questions" className="pt-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
             <div className="lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
@@ -1032,8 +1032,8 @@ const Page = () => {
             </div>
             <dl className="lg:col-span-7 border-t border-borderSubtle">
               {FAQ.map(f => (
-                <div key={f.q} className="py-6 border-b border-borderSubtle" data-landing-faq>
-                  <dt className="text-[18px] font-medium tracking-tight">{f.q}</dt>
+                <div key={f.q} className="py-5 border-b border-borderSubtle" data-landing-faq>
+                  <dt className="text-[17px] font-medium tracking-tight">{f.q}</dt>
                   <dd className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-textSecondary">{f.a}</dd>
                 </div>
               ))}
@@ -1041,15 +1041,15 @@ const Page = () => {
           </div>
 
           {/* THE LAST WORDS (the brief: "End with almost no explanation") */}
-          <div className="py-[20vh] text-center" data-landing-close>
+          <div className="pt-[16vh] pb-[12vh] text-center" data-landing-close>
             <LitLines
               lines={[
                 { text: 'See the market.', ink: 'text-textPrimary' },
                 { text: 'Then trade it.', ink: 'text-textMuted' },
               ]}
-              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.75rem,7.6vw,7.25rem)] [text-wrap:balance]"
+              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.5rem,5.8vw,5.25rem)] [text-wrap:balance]"
             />
-            <div className="mt-10 flex justify-center">
+            <div className="mt-9 flex justify-center">
               <Pill href="/signup" onClick={signUp} testId="close">
                 Sign up free
               </Pill>

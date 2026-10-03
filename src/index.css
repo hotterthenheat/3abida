@@ -363,6 +363,42 @@
 .footer-word-quiet {
   --rest: var(--text-muted);
 }
+/* THE FOOTER'S TWO LAYOUTS (components/layout/SiteFooter.tsx — 2026-10-03, the owner: "i think the footers are a bit
+   big"): the column is the query, not the screen, so a page with the rail open lays its footer by the room it has. With
+   room for the links and a picture beside them (920 px), the words and the links stand in the left column and the
+   picture beside them as tall as they are (300 px at least — FooterArt reads a box that short or narrow as a phone's);
+   below that, the picture is a band between the words and the links. */
+.footer-sheet {
+  container-type: inline-size;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 28px;
+}
+.footer-grid > [data-footer-scene] {
+  height: 140px;
+}
+@media (min-width: 640px) {
+  .footer-grid > [data-footer-scene] {
+    height: 176px;
+  }
+}
+@container (min-width: 920px) {
+  .footer-grid {
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 48px;
+  }
+  .footer-grid > :not([data-footer-scene]) {
+    grid-column: 1;
+  }
+  .footer-grid > [data-footer-scene] {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    height: auto;
+    min-height: 300px;
+  }
+}
 .footer-word-loud {
   --rest: var(--text-primary);
 }
@@ -1462,6 +1498,21 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
   animation-duration: 520ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
+/* THE LANDING'S COLUMN IS A WINDOW THE SCREEN HOLDS WHOLE (2026-10-03 — the owner: "i think the entire lading page is too
+   zoomed in"): the column (Landing.tsx Wrap, the open bar, the footer's words) is as wide as a terminal window whose whole
+   height stands on the screen under the bar — the picture's 1440 × 1000 and the window's 42 px bar, 140 px of the screen
+   kept for the bar and a margin — never wider than 1160 px of words, never narrower than 820. Every window on the page is
+   the column's width, so the words and the windows share their edges on every screen. */
+[data-landing] {
+  --landing-col: calc(min(1160px, max(820px, (100svh - 140px) * 1.44 + 2px)) + 80px);
+}
+/* …and the session's picture, beside its five beats, runs on past the column to 24 px short of the screen's right edge,
+   so the narrower column does not make the demonstration small */
+@media (min-width: 1024px) {
+  [data-landing] [data-session-stage] {
+    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 16px));
+  }
+}
 .landing-window {
   box-shadow: 0 50px 120px -60px rgb(0 0 0 / 0.85);
 }
@@ -1525,6 +1576,37 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 }
 .landing-rise {
   animation: landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) var(--rise-delay, 0ms) backwards;
+}
+/* THE HEADLINE SETTLES OUT OF THE FOOTER'S FRINGE (2026-10-03, with the hero's window booting out of its broken pixels —
+   pages/landing/Boot.tsx): once, as it rises, a hair of red on one edge of the words and blue on the other closes on
+   them, and the line steps aside and back as the screen's tear passes. `translate`, so it adds to the rise's transform. */
+@keyframes landing-fringe {
+  0% {
+    text-shadow:
+      -8px 0 rgb(var(--bear) / 0.55),
+      8px 0 rgb(var(--compare) / 0.55);
+    translate: 6px 0;
+  }
+  9% {
+    translate: -4px 0;
+  }
+  17% {
+    translate: 2px 0;
+  }
+  24%,
+  100% {
+    translate: 0 0;
+  }
+  100% {
+    text-shadow:
+      0 0 rgb(var(--bear) / 0),
+      0 0 rgb(var(--compare) / 0);
+  }
+}
+.landing-rise.landing-fringe {
+  animation:
+    landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) var(--rise-delay, 0ms) backwards,
+    landing-fringe 1.1s cubic-bezier(0.3, 0, 0.2, 1) var(--rise-delay, 0ms) backwards;
 }
 /* THE LANDING'S ARRIVALS (Landing.tsx useArrival, 2026-10-03 — the owner: "add cool motions to each product no two
    motions should be the same but dont make it super over kill"; the brief after: "Motion should demonstrate the product
@@ -1592,7 +1674,8 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
   scroll-margin-top: 88px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .landing-rise {
+  .landing-rise,
+  .landing-rise.landing-fringe {
     animation: none;
   }
 }

@@ -30,35 +30,43 @@ import { sceneFor } from './footer/registry';
 import { useAlertsDrawer } from '../../data/alertsDrawer';
 
 /* THE LINKS, WALKED (2026-09-19): every row goes where it says. THE BRAND'S FOOTER (Slayer Logo System, 14 · the footer,
-   2026-09-30): the products in the menu's order, the company, the legal pages and the one social handle. */
-const FOOTER_COLS = [
-  {
-    title: 'Products',
-    links: PRODUCTS.map(p => ({ label: p.name, to: p.path })),
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'About', to: '/about' },
-      { label: 'Press', to: `mailto:${COMPANY.press}` },
-      { label: 'Contact', to: `mailto:${COMPANY.info}` },
-      { label: 'Status', to: '/status' },
-    ],
-  },
-  {
-    title: 'Legal',
-    links: [
-      { label: 'Terms', to: '/legal/terms' },
-      { label: 'Privacy', to: '/legal/privacy' },
-      { label: 'Risk disclosure', to: '/legal/risk' },
-      { label: 'Refund policy', to: '/legal/refunds' },
-      { label: 'Data sources', to: '/legal/data' },
-    ],
-  },
-  {
-    title: 'Social',
-    links: [{ label: `${COMPANY.handle} on X`, to: COMPANY.x }],
-  },
+   2026-09-30): the products in the menu's order, the company, the legal pages and the one social handle. Laid as three
+   stacks (2026-10-03, the footer brought to half its height): the products four abreast — a row a group — the company with
+   the handle under it, and the legal pages. */
+type FooterCol = { title: string; links: { label: string; to: string }[] };
+const PRODUCTS_COL: FooterCol = {
+  title: 'Products',
+  links: PRODUCTS.map(p => ({ label: p.name, to: p.path })),
+};
+const FOOTER_STACKS: FooterCol[][] = [
+  [PRODUCTS_COL],
+  [
+    {
+      title: 'Company',
+      links: [
+        { label: 'About', to: '/about' },
+        { label: 'Press', to: `mailto:${COMPANY.press}` },
+        { label: 'Contact', to: `mailto:${COMPANY.info}` },
+        { label: 'Status', to: '/status' },
+      ],
+    },
+    {
+      title: 'Social',
+      links: [{ label: `${COMPANY.handle} on X`, to: COMPANY.x }],
+    },
+  ],
+  [
+    {
+      title: 'Legal',
+      links: [
+        { label: 'Terms', to: '/legal/terms' },
+        { label: 'Privacy', to: '/legal/privacy' },
+        { label: 'Risk disclosure', to: '/legal/risk' },
+        { label: 'Refund policy', to: '/legal/refunds' },
+        { label: 'Data sources', to: '/legal/data' },
+      ],
+    },
+  ],
 ];
 
 /** Anchor / route / mailto — one link component so the columns stay
@@ -143,8 +151,9 @@ const FooterLink = ({
     link, not the launch gate */
 const OUTSIDE = /^\/(about|status|legal)/;
 
-/** The footer's column: the landing's own (Landing.tsx Wrap), so every edge of the footer lines up with the page above */
-const COLUMN = 'mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10';
+/** The footer's column: the landing's own (Landing.tsx Wrap — as wide as a window the screen holds whole, index.css
+    --landing-col), so every edge of the footer lines up with the page above; 1240 px under every other page */
+const COLUMN = 'mx-auto w-full max-w-[var(--landing-col,1240px)] px-4 sm:px-6 lg:px-10';
 
 /* THE FOOTER IS ONE PIECE (2026-10-03 — the owner, of the footer with the photograph live at its foot: "i want that
    glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece"): the whole
@@ -167,50 +176,57 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => {
        whole deficit HERE and silently collapse the footer to nothing. */
     <footer className="shrink-0 overflow-hidden" data-site-footer>
       <FooterArt scene={scene} live={home}>
-        <div className={`${COLUMN} pt-20 lg:pt-24`}>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-10">
-            <div className="lg:col-span-5 self-start" data-footer-panel>
-              <Wordmark height={14} cursor label="Slayer Terminal" />
-              <p className="footer-word footer-word-loud mt-5 text-[17px] font-medium tracking-tight" data-footer-lit>
+        {/* HALF THE HEIGHT (2026-10-03 — the owner: "i think the footers are a bit big"): 734 px of a 1440 × 900 screen
+            and a phone's screen and a half; the words and the links now share the left half in three short stacks, and the
+            picture stands beside them as tall as they are */}
+        <div className={`${COLUMN} footer-sheet pt-12 lg:pt-14`}>
+          <div className="footer-grid">
+            <div className="self-start" data-footer-panel>
+              <Wordmark height={13} cursor label="Slayer Terminal" />
+              <p className="footer-word footer-word-loud mt-4 text-[16px] leading-[22px] font-medium tracking-tight" data-footer-lit>
                 Trade what you can see.
               </p>
-              <p className="footer-word mt-2 text-[13px] leading-relaxed max-w-[38ch]" data-footer-lit>
+              <p className="footer-word mt-1.5 text-[12.5px] leading-relaxed max-w-[48ch]" data-footer-lit>
                 Most of what moves a price is public, just scattered. Slayer gathers it into one terminal.
               </p>
             </div>
             {/* THE SCREEN'S CHART: an empty box the art draws its pane, its ladder and its chips in */}
-            <div aria-hidden="true" className="lg:col-span-7 lg:row-span-2 h-[190px] sm:h-[230px] lg:h-auto lg:min-h-[320px]" data-footer-scene />
-            <nav aria-label="Footer" className="lg:col-span-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-x-8 gap-y-9">
-              {FOOTER_COLS.map(col => (
-                /* THE LINKS ANSWER THE POINTER (2026-10-02, from the same notes): a link under the pointer drops the rest of its
-                   column a tier and comes forward with a short mark in front of it (index.css, .footer-col) */
-                <div key={col.title} className={`footer-col ${col.title === 'Products' ? 'col-span-2' : ''}`} data-footer-panel>
-                  <span className="footer-word footer-word-quiet text-[11px] uppercase tracking-[0.14em]" data-footer-lit>
-                    {col.title}
-                  </span>
-                  <ul className={`mt-3.5 grid gap-x-6 gap-y-2.5 ${col.title === 'Products' ? 'grid-cols-2' : ''}`}>
-                    {col.links.map(l => (
-                      <li key={l.label}>
-                        <FooterLink to={l.to} home={home && !OUTSIDE.test(l.to)} className="footer-word footer-link text-[13px]">
-                          <span className="footer-link-mark" aria-hidden="true" />
-                          <span className="footer-link-words">{l.label}</span>
-                        </FooterLink>
-                      </li>
-                    ))}
-                  </ul>
+            <div aria-hidden="true" data-footer-scene />
+            <nav aria-label="Footer" className="flex flex-wrap gap-x-8 gap-y-7">
+              {FOOTER_STACKS.map(stack => (
+                <div key={stack[0].title} className="flex flex-col gap-5">
+                  {stack.map(col => (
+                    /* THE LINKS ANSWER THE POINTER (2026-10-02, from the same notes): a link under the pointer drops the rest of
+                       its column a tier and comes forward with a short mark in front of it (index.css, .footer-col) */
+                    <div key={col.title} className="footer-col" data-footer-panel>
+                      <span className="footer-word footer-word-quiet block text-[11px] leading-[14px] uppercase tracking-[0.14em]" data-footer-lit>
+                        {col.title}
+                      </span>
+                      <ul className={`mt-3 grid gap-x-4 gap-y-2 text-[12.5px] leading-[18px] ${col === PRODUCTS_COL ? 'grid-cols-4' : ''}`}>
+                        {col.links.map(l => (
+                          <li key={l.label}>
+                            <FooterLink to={l.to} home={home && !OUTSIDE.test(l.to)} className="footer-word footer-link whitespace-nowrap">
+                              <span className="footer-link-mark" aria-hidden="true" />
+                              <span className="footer-link-words">{l.label}</span>
+                            </FooterLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               ))}
             </nav>
           </div>
         </div>
         {/* THE STATUS LINE, at the screen's foot: the signature, what this is not, and whose it is */}
-        <div className={`${COLUMN} mt-16 lg:mt-20`}>
-          <div className="border-t border-ink/[0.1] py-6 flex flex-col lg:flex-row gap-3 lg:items-center lg:gap-10">
+        <div className={`${COLUMN} mt-10 lg:mt-12`}>
+          <div className="border-t border-ink/[0.1] py-4 flex flex-wrap items-center gap-x-10 gap-y-2">
             <Signature detail={`· ${VERSION}`} rule={false} className="text-[11px]" />
-            <p className="footer-word footer-word-quiet max-w-[92ch] text-[12px] leading-relaxed" data-footer-lit>
+            <p className="footer-word footer-word-quiet order-last lg:order-none basis-full lg:basis-auto max-w-[92ch] text-[12px] leading-relaxed" data-footer-lit>
               Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell.
             </p>
-            <span className="footer-word footer-word-quiet lg:ml-auto text-[11px] whitespace-nowrap" data-footer-lit>
+            <span className="footer-word footer-word-quiet ml-auto text-[11px] whitespace-nowrap" data-footer-lit>
               {/* the year is the calendar's, not a number typed once (2026-09-19); the name and the address once they are filled */}©{' '}
               {new Date().getFullYear()} {filled(COMPANY.legalName) ?? COMPANY.product}
               {filled(COMPANY.address) && ` · ${COMPANY.address}`}

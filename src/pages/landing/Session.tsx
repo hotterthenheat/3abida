@@ -327,7 +327,7 @@ const Session = ({ theme }: { theme: Theme }) => {
 
   const lit = view.lit;
   return (
-    <div ref={wrap} className="lg:grid lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,23rem)_minmax(0,1fr)] lg:gap-x-12 xl:gap-x-16" data-session>
+    <div ref={wrap} className="lg:grid lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-x-10 xl:gap-x-12" data-session>
       <div className="lg:pb-[24svh]">
       <ol aria-label="Five moments from the session">
         {BEATS.map((b, i) => {
@@ -338,7 +338,7 @@ const Session = ({ theme }: { theme: Theme }) => {
               ref={el => {
                 beatEls.current[i] = el;
               }}
-              className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[74svh] lg:pt-[16svh]"
+              className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[66svh] lg:pt-[14svh]"
               data-session-beat={i}
               data-on={on || undefined}
             >
@@ -347,10 +347,10 @@ const Session = ({ theme }: { theme: Theme }) => {
                 <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
                 <span className="tnum">{b.time}</span>
               </p>
-              <h3 className={`mt-4 text-[28px] sm:text-[32px] xl:text-[36px] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
+              <h3 className={`mt-4 text-[26px] sm:text-[28px] xl:text-[30px] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
                 {WORDS[i].title}
               </h3>
-              <p className={`mt-3.5 max-w-[34ch] text-[16px] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>
+              <p className={`mt-3 max-w-[34ch] text-[15.5px] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>
               {small && <BeatPicture theme={theme} k={i} />}
             </li>
           );
@@ -362,7 +362,7 @@ const Session = ({ theme }: { theme: Theme }) => {
       </p>
       </div>
       {!small && (
-        <div className="sticky top-[96px] self-start h-[calc(100svh-132px)] max-h-[860px] flex justify-end" data-session-stage>
+        <div className="sticky top-[96px] self-start h-[calc(100svh-132px)] max-h-[860px] flex justify-start" data-session-stage>
           <div
             className="self-start overflow-hidden rounded-[10px] border border-borderMuted bg-canvas flex flex-col"
             style={{ width: `min(100%, calc((min(100svh - 132px, 860px) - ${CHROME}px) * ${DATA.w / DATA.h} + 2px))` }}

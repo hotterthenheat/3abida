@@ -62,6 +62,7 @@ import type { Theme } from '../../theme/theme';
 import Working from '../../components/ui/Working';
 import ProductGlyph from '../../brand/ProductGlyph';
 import CLIPS from './clips.json';
+import Boot from './Boot';
 
 /** The desk picture's shape — what scripts/make-landing-shots.mjs and make-landing-clips.mjs photograph */
 export const SHOT_W = 1440;
@@ -82,6 +83,8 @@ interface Props {
   natural?: boolean;
   /** A window further down the page fetches its picture and its film only once the reader comes near it */
   lazy?: boolean;
+  /** the hero's: once, as the page opens, its picture comes up out of the footer's broken pixels (Boot.tsx) */
+  boot?: boolean;
   className?: string;
   /** THE PAGE HAS BEEN SEEN: the film on screen has played its lap (LAP seconds, or all of a shorter film; where the window
       shows stills, a still has stood that long) — the page it showed is named */
@@ -144,7 +147,7 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot = false }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -415,6 +418,8 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             <Working label="Loading the picture" stacked />
           </span>
         )}
+        {/* the hero's window comes up out of the footer's broken pixels, once (Boot.tsx) */}
+        {boot && near && <Boot src={want} />}
         {sweep > 0 && <span key={sweep} aria-hidden="true" className="window-sweep pointer-events-none absolute inset-0" />}
       </div>
     </div>
