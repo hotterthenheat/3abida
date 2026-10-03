@@ -57,6 +57,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { FONT_SANS } from '../../theme/fonts';
+import { PHOTO } from '../../embed';
 
 /** a seeded walk, so the screen opens on the same picture every time */
 const rng = (seed: number) => () => {
@@ -162,6 +163,9 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
     const cCtx = cvsC.getContext('2d');
     if (!aCtx || !bCtx || !cCtx) return;
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* the arrow of its own stays out of the landing's films (the photographer's window, embed.ts PHOTO): a film has one
+       pointer, the hand using the page */
+    const arrow = !calm && !PHOTO;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
 
     /* and off the page: the still parts broken (coarse) and sharp, and the two the focus is made in */
@@ -612,7 +616,7 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
       const lineYAt = (x: number) => yOf(valAt(now - ago(x)));
 
       /* THE ARROW: glides to the next thing, rests on it (on the line, it rides the line), and gives way to a pointer */
-      if (!calm) {
+      if (arrow) {
         ghost.show += ((hand.on ? 0 : 1) - ghost.show) * (1 - Math.exp(-dt / (hand.on ? 120 : 400)));
         if (!hand.on && now > ghost.back) {
           const list = sights();
@@ -641,7 +645,7 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
         }
       }
       /* the place in focus now: the pointer's, or the arrow's */
-      const showing = hand.on || (!calm && ghost.show > 0.05);
+      const showing = hand.on || (arrow && ghost.show > 0.05);
       const fx = hand.on ? hand.x : ghost.x;
       const fy = hand.on ? hand.y : ghost.y;
       if (showing) {
@@ -910,7 +914,7 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
 
       /* 4 · THE ARROW of its own, while no pointer is on the screen */
       let arrowBox: Box | null = null;
-      if (!calm && ghost.show > 0.02) {
+      if (arrow && ghost.show > 0.02) {
         arrowBox = { x0: ghost.x - 3, y0: ghost.y - 3, x1: ghost.x + 15, y1: ghost.y + 22 };
         clearC(arrowBox);
         cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
