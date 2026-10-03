@@ -91,6 +91,7 @@ const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box })
           className="absolute rounded-[4px] border-[1.5px] border-silver shadow-[0_0_0_1px_rgb(var(--canvas)/0.55)] transition-opacity duration-200 motion-reduce:transition-none pointer-events-none"
           style={{ left: pct(b[0] - fx, fw), top: pct(b[1] - fy, fh), width: pct(b[2], fw), height: pct(b[3], fh), opacity: on ? 1 : 0 }}
           data-session-mark
+          data-on={on || undefined}
         />
       ))}
     </>

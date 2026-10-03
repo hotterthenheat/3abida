@@ -69,7 +69,10 @@ import SiteFooter from '../../components/layout/SiteFooter';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import TerminalWindow from './TerminalWindow';
+import type { Sweep } from './Boot';
+import { PRODUCTS } from '../../brand/products';
 import Session from './Session';
+import Scatter from './Scatter';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -94,9 +97,9 @@ const HERO = {
 
 /* THE FOUR SYSTEMS (the owner's brief: "Feature four systems prominently … Name → one sentence → real product → small
    CTA"). Each line says what its film shows — the page as it opens (2026-10-03, read against the terminal: Compass is the
-   board of contracts that fit the levels, not a read of the market's condition; that read is Pinpoint's head). Each window
-   arrives once, in a motion drawn from what the page does (index.css .landing-arrive): a card dealt, the book opening
-   from the price, the chart drawn left to right, the tape printing down. */
+   board of contracts that fit the levels, not a read of the market's condition; that read is Pinpoint's head). On one
+   stage (Systems, below), each page boots into the window in a motion drawn from what the page does (Boot.tsx `sweep`):
+   a card dealt, the book opening from the price, the chart drawn left to right, the tape printing down. */
 interface System {
   id: string;
   code: string;
@@ -105,7 +108,7 @@ interface System {
   line: string;
   says: string;
   path: string;
-  arrive: 'deal' | 'spot' | 'draw' | 'print';
+  sweep: Sweep;
 }
 const SYSTEMS: System[] = [
   {
@@ -116,7 +119,7 @@ const SYSTEMS: System[] = [
     line: 'Know which contracts fit the market right now.',
     says: 'Compass sweeps the option chains against today’s levels and ranks the setups that clear the bar. Every card says where its setup stands — watch, active, moving or fading — and changes as price does.',
     path: '/compass',
-    arrive: 'deal',
+    sweep: 'deal',
   },
   {
     id: 'pinpoint',
@@ -126,7 +129,7 @@ const SYSTEMS: System[] = [
     line: 'See where positioning concentrates.',
     says: 'The options book by strike and by expiry, in five greeks: where dealer hedging is heaviest, where it flips from absorbing moves to amplifying them, and how each level has held today.',
     path: '/pinpoint/map',
-    arrive: 'spot',
+    sweep: 'out',
   },
   {
     id: 'terrain',
@@ -136,7 +139,7 @@ const SYSTEMS: System[] = [
     line: 'See positioning across price.',
     says: 'Charts with the book drawn on the candles — the exposure at every strike, through the day — and a rail of the heaviest strikes beside each one. Up to four names side by side.',
     path: '/terrain',
-    arrive: 'draw',
+    sweep: 'right',
   },
   {
     id: 'trace',
@@ -146,7 +149,7 @@ const SYSTEMS: System[] = [
     line: 'Follow what is actually trading.',
     says: 'Every options print as it crosses: the contract, the fill against the market, size against open interest, the premium and its side. The head of the tape names the top bull, the top bear and the largest print.',
     path: '/trace/live-tape',
-    arrive: 'print',
+    sweep: 'down',
   },
 ];
 
@@ -279,6 +282,27 @@ const TwoTone = ({ first, second, className = '' }: { first: string; second: str
     {first} <span className="block text-textMuted">{second}</span>
   </h2>
 );
+
+/** A SECTION'S HEAD: its word over a bar, its two-tone line and, beside it, a line of what follows — arriving a line at a
+    time as it is first seen, the two-tone line settling out of the footer's fringe as the hero's headline does
+    (index.css .landing-settle — "i love the little glitch affect i think we should implement that in more places", the
+    owner, 2026-10-03) */
+const Head = ({ eyebrow, first, second, aside }: { eyebrow: string; first: string; second: string; aside?: ReactNode }) => {
+  const ref = useArrival<HTMLDivElement>();
+  return (
+    <div ref={ref} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
+      <div className="lg:col-span-7">
+        <div className="landing-line [--i:0]">
+          <Eyebrow>{eyebrow}</Eyebrow>
+        </div>
+        <div className="landing-line landing-settle [--i:1]">
+          <TwoTone className="mt-6" first={first} second={second} />
+        </div>
+      </div>
+      {aside && <p className="landing-line [--i:2] lg:col-span-5 max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
+    </div>
+  );
+};
 
 /** THE FOIL'S WORD: "see." on the hero — the foil on black, the steel ink on paper (THE FOIL TRAP, ground.tsx) */
 const Foil = ({ children }: { children: ReactNode }) => {
@@ -657,7 +681,7 @@ const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
         </Pill>
       </div>
       <figure className="landing-rise [--rise-delay:260ms] [--rise-from:28px] mt-10 sm:mt-12 lg:mt-14" data-landing-hero-window>
-        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot />
+        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot="hero" />
         <figcaption className="mt-4 text-[13px] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
@@ -681,42 +705,221 @@ const Matters = () => {
   );
 };
 
-/** WHAT ELSE CAN IT SEE? — ONE SYSTEM: its name, its line, the real page filling the width, a small door */
-const SystemBlock = ({ s, onOpen }: { s: System; onOpen: (path: string) => void }) => {
+/* WHAT ELSE CAN IT SEE? — THE FOUR SYSTEMS ON ONE STAGE (2026-10-03 — the owner: "information and hiecrcy wise i still
+   feel as if were missing that wow"; four blocks alike, one under another, read as one block four times). A player and
+   its list: the window on one side, the four on the other — each its number, glyph, name and line; the one on screen
+   bright, with what it does and its door under the list. The window boots into each page from the footer's broken pixels,
+   along the page's own motion (Boot.tsx `sweep`), and holds its film on the first frame until it has. THE STAGE PLAYS
+   ITSELF while it is on screen and the tab is in front, a page every DWELL, a silver line filling under the one on screen;
+   a pointer moving over the stage holds it until it has been still a while, the keys inside hold it, a touch holds it a
+   while after the finger lifts, and a pick holds it until the stage has left the screen. Where less motion is asked for
+   it stands still and changes only when asked, at once. */
+const DWELL = 6500;
+const STILL_FOR = 2500;
+
+/** what the system on screen does, and its door */
+const Does = ({ s, onOpen }: { s: System; onOpen: (path: string) => void }) => (
+  <div key={s.id} className="mt-5 lg:mt-8 lg:pt-6 lg:border-t lg:border-borderSubtle animate-fade-in">
+    <p className="max-w-[36rem] text-[15px] leading-[1.55] text-textSecondary">{s.says}</p>
+    <div className="mt-5">
+      <Door href={s.path} onClick={() => onOpen(s.path)} testId={`system-${s.id}`}>
+        Open {s.name}
+      </Door>
+    </div>
+  </div>
+);
+
+const Systems = ({ onOpen }: { onOpen: (path: string) => void }) => {
   const ground = useBlockGround();
   const small = useIsBelowLg();
-  const words = useArrival<HTMLDivElement>();
-  const win = useArrival<HTMLDivElement>('0px 0px -12% 0px');
+  const calm = useReducedMotion();
+  const [at, setAt] = useState(0);
+  const stage = useRef<HTMLDivElement | null>(null);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const bar = useRef<HTMLSpanElement | null>(null);
+  /* what holds the stage: a pick (until it leaves the screen), the keys inside it, a pointer moving over it, a touch */
+  const picked = useRef(false);
+  const keys = useRef(false);
+  const until = useRef(0);
+  const atRef = useRef(at);
+  atRef.current = at;
+  const elapsed = useRef(0);
+  const choose = useCallback((i: number) => {
+    elapsed.current = 0;
+    setAt(i);
+  }, []);
+  useEffect(() => {
+    elapsed.current = 0;
+  }, [at]);
+  useEffect(() => {
+    const el = stage.current;
+    if (!el || calm) return;
+    let raf = 0;
+    let last = 0;
+    let seen = false;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        seen = e.isIntersecting;
+        if (!seen) picked.current = false;
+        if (seen && !raf) {
+          last = performance.now();
+          raf = requestAnimationFrame(tick);
+        }
+      },
+      { threshold: 0.35 }
+    );
+    const tick = (now: number) => {
+      raf = 0;
+      const dt = Math.min(100, now - last);
+      last = now;
+      const holding = picked.current || keys.current || now < until.current || document.visibilityState !== 'visible';
+      if (!holding) elapsed.current += dt;
+      if (elapsed.current >= DWELL) {
+        elapsed.current = 0;
+        setAt(i => (i + 1) % SYSTEMS.length);
+      }
+      if (bar.current) bar.current.style.transform = `scaleX(${picked.current ? 1 : Math.min(1, elapsed.current / DWELL)})`;
+      if (seen) raf = requestAnimationFrame(tick);
+    };
+    const moved = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      until.current = performance.now() + STILL_FOR;
+    };
+    const touched = () => {
+      until.current = Number.POSITIVE_INFINITY;
+    };
+    const lifted = () => {
+      until.current = performance.now() + 3000;
+    };
+    const focusIn = (e: FocusEvent) => {
+      if ((e.target as HTMLElement)?.matches?.(':focus-visible')) keys.current = true;
+    };
+    const focusOut = (e: FocusEvent) => {
+      if (!el.contains(e.relatedTarget as Node | null)) keys.current = false;
+    };
+    io.observe(el);
+    el.addEventListener('pointermove', moved);
+    el.addEventListener('pointerdown', touched);
+    el.addEventListener('pointerup', lifted);
+    el.addEventListener('pointercancel', lifted);
+    el.addEventListener('focusin', focusIn);
+    el.addEventListener('focusout', focusOut);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(raf);
+      el.removeEventListener('pointermove', moved);
+      el.removeEventListener('pointerdown', touched);
+      el.removeEventListener('pointerup', lifted);
+      el.removeEventListener('pointercancel', lifted);
+      el.removeEventListener('focusin', focusIn);
+      el.removeEventListener('focusout', focusOut);
+    };
+  }, [calm]);
+
+  const s = SYSTEMS[at];
+  /* the list is a set of tabs: the arrows move along it (↑ ↓ on a desk, ← → on a phone), Home and End to its ends */
+  const onKey = (e: React.KeyboardEvent) => {
+    const n = SYSTEMS.length;
+    const next = { ArrowDown: at + 1, ArrowRight: at + 1, ArrowUp: at - 1, ArrowLeft: at - 1, Home: 0, End: n - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const i = (next + n) % n;
+    picked.current = true;
+    choose(i);
+    tabs.current[i]?.focus();
+  };
   return (
-    <article className="pt-[10vh] pb-[5vh] lg:pt-[12vh] first:pt-[6vh] lg:first:pt-[8vh] border-t border-borderSubtle first:border-t-0" data-landing-system={s.id}>
-      <div ref={words} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-6 lg:items-end">
-        <div className="lg:col-span-7">
-          <p className="landing-line [--i:0] flex items-center gap-3 text-[13px] text-textMuted">
-            <span className="tnum text-textPrimary">{s.code}</span>
-            <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
-            <span className="inline-flex items-center gap-2 text-textPrimary">
-              <ProductGlyph name={s.glyph} size={18} bare className="shrink-0" />
-              {s.name}
-            </span>
-          </p>
-          <h3 className="landing-line [--i:1] mt-4 font-light tracking-[-0.04em] leading-[1.04] text-[28px] sm:text-[36px] lg:text-[44px] [text-wrap:balance]">{s.line}</h3>
+    <div ref={stage} className="mt-10 lg:mt-14 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12 gap-y-6" data-systems>
+      {/* THE LIST — the stage's tabs */}
+      <div className="lg:col-start-2 lg:row-start-1 min-w-0" data-systems-list>
+        <div role="tablist" aria-label="The four systems" aria-orientation={small ? 'horizontal' : 'vertical'} onKeyDown={onKey} className="grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:gap-0">
+          {SYSTEMS.map((x, i) => {
+            const on = i === at;
+            return (
+              <button
+                key={x.id}
+                ref={el => {
+                  tabs.current[i] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`system-tab-${x.id}`}
+                aria-selected={on}
+                aria-controls="system-panel"
+                tabIndex={on ? 0 : -1}
+                onClick={() => {
+                  picked.current = true;
+                  choose(i);
+                }}
+                className={`group/tab relative min-w-0 text-left rounded-full lg:rounded-none border lg:border-0 lg:border-t ${on ? 'border-textPrimary/60 lg:border-borderMuted' : 'border-borderSubtle'} lg:first:border-t-0 px-3.5 py-2 lg:px-0 lg:py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver`}
+                data-system-tab={x.id}
+              >
+                <span className={`flex items-center gap-3 text-[13px] ${on ? 'text-textPrimary' : 'text-textMuted group-hover/tab:text-textSecondary'} transition-colors`}>
+                  <span className="hidden lg:inline tnum">{x.code}</span>
+                  <span className="hidden lg:inline w-5 h-px bg-borderMuted" aria-hidden="true" />
+                  <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 landing-glyph" />
+                  {x.name}
+                </span>
+                <span className={`hidden lg:block mt-2.5 text-[21px] xl:text-[23px] leading-[1.15] font-light tracking-[-0.02em] [text-wrap:balance] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted group-hover/tab:text-textSecondary'}`}>{x.line}</span>
+                {/* THE LINE FILLING: how long until the next page */}
+                {on && !calm && (
+                  <span className="hidden lg:block absolute left-0 right-0 -bottom-px h-[2px] bg-ink/[0.08] overflow-hidden" aria-hidden="true">
+                    <span ref={bar} className="block h-full bg-silver origin-left" style={{ transform: 'scaleX(0)' }} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="lg:col-span-5 lg:pb-1.5">
-          <p className="landing-line [--i:2] max-w-[34rem] text-[15.5px] leading-[1.55] text-textSecondary">{s.says}</p>
-          <div className="landing-line [--i:3] mt-5">
-            <Door href={s.path} onClick={() => onOpen(s.path)} testId={`system-${s.id}`}>
-              Open {s.name}
-            </Door>
-          </div>
-        </div>
+        {/* the one on screen: on a phone its line over the window; on a desk what it does and its door under the list */}
+        <h3 key={`line-${s.id}`} className="lg:hidden mt-5 text-[26px] sm:text-[30px] leading-[1.1] font-light tracking-[-0.03em] [text-wrap:balance] animate-fade-in">
+          {s.line}
+        </h3>
+        {!small && <Does s={s} onOpen={onOpen} />}
       </div>
-      {/* the real page, as wide as the column — a window the screen holds whole (on a phone, its phone layout, whole) */}
-      <div ref={win} className="landing-arrive mt-8 lg:mt-10" data-arrive={s.arrive}>
-        <TerminalWindow path={s.path} theme={ground} desk={!small} natural lazy />
+      {/* THE WINDOW — the page itself, booting into each in turn */}
+      <div role="tabpanel" id="system-panel" aria-labelledby={`system-tab-${s.id}`} className="lg:col-start-1 lg:row-start-1 min-w-0" data-systems-stage>
+        <TerminalWindow path={s.path} theme={ground} desk={!small} natural lazy boot="switch" bootSweep={s.sweep} />
+        {small && <Does s={s} onOpen={onOpen} />}
       </div>
-    </article>
+    </div>
   );
 };
+
+/* THERE'S MORE INSIDE: the terminal's other rooms, a door each — in their own one-liners (nav.ts, the brand's own), the
+   four above left out and Practice's pages under Practice */
+const FLAGSHIPS = ['/compass', '/pinpoint', '/terrain', '/trace'];
+const MORE = PRODUCTS.filter(p => !FLAGSHIPS.includes(p.path) && !p.path.startsWith('/practice/'));
+
+const More = ({ onOpen }: { onOpen: (path: string) => void }) => (
+  <div className="mt-16 lg:mt-24 pt-8 border-t border-borderSubtle" data-landing-inside>
+    <p className="text-[17px] sm:text-[18px] leading-[1.5] text-textSecondary">
+      <span className="text-textPrimary">There’s more inside.</span> Every room opens on its own page.
+    </p>
+    <ul className="mt-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-6">
+      {MORE.map(p => (
+        <li key={p.path}>
+          <a
+            href={p.path}
+            onClick={e => {
+              e.preventDefault();
+              onOpen(p.path);
+            }}
+            className="group/more block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
+            data-landing-door={`more-${p.glyph}`}
+          >
+            <span className="flex items-center gap-2.5 text-[15px] font-medium text-textPrimary">
+              <ProductGlyph name={p.glyph} size={18} bare className="shrink-0 landing-glyph" />
+              {p.name}
+              <ArrowRight className="w-3.5 h-3.5 text-textMuted opacity-0 -translate-x-1 group-hover/more:opacity-100 group-hover/more:translate-x-0 transition duration-300 motion-reduce:transition-none" aria-hidden="true" />
+            </span>
+            <span className="mt-1.5 block text-[13.5px] leading-snug text-textMuted group-hover/more:text-textSecondary transition-colors">{p.line}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
 
 /** CAN I TRUST IT? — four principles, and what the terminal observes, calculates and models (what it produces, not how) */
 const Trust = () => {
@@ -728,7 +931,7 @@ const Trust = () => {
           <div className="landing-line [--i:0]">
             <Eyebrow>Why Slayer</Eyebrow>
           </div>
-          <div className="landing-line [--i:1]">
+          <div className="landing-line landing-settle [--i:1]">
             <TwoTone className="mt-6" first="Built on the record." second="Not on promises." />
           </div>
         </div>
@@ -907,6 +1110,7 @@ const Page = () => {
   const navigate = useNavigate();
   /* "Sign up free": the account form, outside the terminal; a plan's door names the plan */
   const signUp = useCallback(() => navigate('/signup'), [navigate]);
+  const faqHead = useArrival<HTMLDivElement>();
   const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
 
   /* WHERE THE KEYS LAND: a control the keys move to stands clear of the floating bar. The browser scrolls a control in only
@@ -952,21 +1156,20 @@ const Page = () => {
 
       {/* ── WHY DOES IT MATTER? ───────────────────────────────────────────────────────────────── */}
       <Block on="a" label="Why it matters">
-        <Matters />
+        {/* the desk falling apart and coming together as the reader scrolls (Scatter.tsx); the words alone where less motion
+            is asked for */}
+        {calm ? <Matters /> : <Scatter theme={a} />}
       </Block>
 
       {/* ── SHOW ME: ONE SESSION, AS THE TERMINAL SAW IT ─────────────────────────────────────── */}
       <Block on="a" id="how" label="How it works" className="pb-[8vh] scroll-mt-10">
         <Wrap>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
-            <div className="lg:col-span-7">
-              <Eyebrow>How it works</Eyebrow>
-              <TwoTone className="mt-6" first="One session," second="as the terminal saw it." />
-            </div>
-            <p className="lg:col-span-5 max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">
-              Five moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}
-            </p>
-          </div>
+          <Head
+            eyebrow="How it works"
+            first="One session,"
+            second="as the terminal saw it."
+            aside={<>Five moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
+          />
           <div className="mt-6 lg:mt-0">
             <Session theme={a} />
           </div>
@@ -976,16 +1179,14 @@ const Page = () => {
       {/* ── WHAT ELSE CAN IT SEE? THE FOUR SYSTEMS ───────────────────────────────────────────── */}
       <Block on="a" id="products" label="Products" className="pt-[8vh] pb-[10vh] scroll-mt-10">
         <Wrap>
-          <Eyebrow>Products</Eyebrow>
-          <TwoTone className="mt-6" first="Four systems." second="One terminal." />
-          <div className="mt-4">
-            {SYSTEMS.map(s => (
-              <SystemBlock key={s.id} s={s} onOpen={open} />
-            ))}
-          </div>
-          <p className="mt-[7vh] max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.5] text-textSecondary" data-landing-inside>
-            <span className="text-textPrimary">There’s more inside.</span> A desk you arrange yourself, a scale for any contract, the file on every name, and paper money to practise with.
-          </p>
+          <Head
+            eyebrow="Products"
+            first="Four systems."
+            second="One terminal."
+            aside={calm ? 'Each as it plays in the terminal. Pick one to see it.' : 'Each as it plays in the terminal, one after another. Pick one to stay on it.'}
+          />
+          <Systems onOpen={open} />
+          <More onOpen={open} />
         </Wrap>
       </Block>
 
@@ -997,15 +1198,12 @@ const Page = () => {
       {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
       <Block on="a" id="pricing" label="Pricing" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
-            <div className="lg:col-span-7">
-              <Eyebrow>Pricing</Eyebrow>
-              <TwoTone className="mt-6" first="Simple plans." second="Cancel any time." />
-            </div>
-            <p className="lg:col-span-5 max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">
-              Making an account is free. A plan opens the desks; cancel a monthly plan whenever you like and keep it until the period you paid for ends.
-            </p>
-          </div>
+          <Head
+            eyebrow="Pricing"
+            first="Simple plans."
+            second="Cancel any time."
+            aside="Making an account is free. A plan opens the desks; cancel a monthly plan whenever you like and keep it until the period you paid for ends."
+          />
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
             {PLAN_ORDER.map(k => (
               <Plan key={k} planKey={k} onChoose={choose} />
@@ -1020,10 +1218,14 @@ const Page = () => {
       <Block on="a" id="faq" label="Questions" className="pt-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
-            <div className="lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
-              <Eyebrow>Questions</Eyebrow>
-              <TwoTone className="mt-6" first="Asked" second="before you buy." />
-              <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
+              <div className="landing-line [--i:0]">
+                <Eyebrow>Questions</Eyebrow>
+              </div>
+              <div className="landing-line landing-settle [--i:1]">
+                <TwoTone className="mt-6" first="Asked" second="before you buy." />
+              </div>
+              <div className="landing-line [--i:2] mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
                   {COMPANY.info}
                 </Pill>

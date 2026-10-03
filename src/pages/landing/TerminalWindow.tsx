@@ -62,7 +62,7 @@ import type { Theme } from '../../theme/theme';
 import Working from '../../components/ui/Working';
 import ProductGlyph from '../../brand/ProductGlyph';
 import CLIPS from './clips.json';
-import Boot from './Boot';
+import Boot, { type Sweep } from './Boot';
 
 /** The desk picture's shape — what scripts/make-landing-shots.mjs and make-landing-clips.mjs photograph */
 export const SHOT_W = 1440;
@@ -83,8 +83,11 @@ interface Props {
   natural?: boolean;
   /** A window further down the page fetches its picture and its film only once the reader comes near it */
   lazy?: boolean;
-  /** the hero's: once, as the page opens, its picture comes up out of the footer's broken pixels (Boot.tsx) */
-  boot?: boolean;
+  /** THE BOOT (Boot.tsx): 'hero' — once a visit, as the page opens, its picture comes up out of the footer's broken
+      pixels; 'switch' — as the window first comes into view, and again on every page (or theme) it switches to */
+  boot?: 'hero' | 'switch';
+  /** a switching window's boot: the way each page comes back sharp (Boot.tsx) */
+  bootSweep?: Sweep;
   className?: string;
   /** THE PAGE HAS BEEN SEEN: the film on screen has played its lap (LAP seconds, or all of a shorter film; where the window
       shows stills, a still has stood that long) — the page it showed is named */
@@ -111,7 +114,7 @@ export const FILMS = CLIPS as unknown as Record<string, Clip>;
 const crumbs = (pathname: string): string[] => pathname.split('/').filter(Boolean).slice(0, 3);
 export const slug = (path: string): string => path.replace(/^\//, '').replace(/\//g, '-');
 const keyFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `${slug(path)}-${theme}-${form}`;
-const shotFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `/landing/${keyFor(path, theme, form)}.webp`;
+export const shotFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `/landing/${keyFor(path, theme, form)}.webp`;
 const filmFor = (key: string): string => `/landing/clips/${key}.mp4`;
 
 /** The films are H.264: a browser that cannot play it (an open-source Chromium) is shown the stills */
@@ -147,7 +150,7 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot = false }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -260,9 +263,23 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     document.addEventListener('visibilitychange', on);
     return () => document.removeEventListener('visibilitychange', on);
   }, []);
-  /* the hero's boot (Boot.tsx) shows the film's first frame: the film waits on it until the boot has gone */
-  const [booting, setBooting] = useState(boot);
-  const holding = booting && boot && near;
+  /* THE BOOT (Boot.tsx) shows the film's first frame: the film waits on it until the boot has gone. `booting` is the still
+     being booted: the hero's from the start (Boot keeps it to once a visit); a switching window's as it is first seen,
+     and each new page's as the window turns to it */
+  const [booting, setBooting] = useState<string | null>(boot === 'hero' ? want : null);
+  const firstSeen = useRef(false);
+  const lastWant = useRef(want);
+  useEffect(() => {
+    if (boot !== 'switch' || calm || want === lastWant.current) return;
+    lastWant.current = want;
+    if (firstSeen.current) setBooting(want);
+  }, [want, boot, calm]);
+  useEffect(() => {
+    if (boot !== 'switch' || calm || !seen || firstSeen.current) return;
+    firstSeen.current = true;
+    setBooting(lastWant.current);
+  }, [seen, boot, calm]);
+  const holding = booting !== null && near;
   const rolling = !!live && seen && front && !holding;
 
   /* the film on screen plays; one going out holds its frame */
@@ -356,8 +373,9 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     if (!drawn || drawn === lastDrawn.current) return;
     const first = lastDrawn.current === null;
     lastDrawn.current = drawn;
-    if (!first && !calm) setSweep(n => n + 1);
-  }, [drawn, calm]);
+    /* a switching window boots its new page instead (Boot.tsx) */
+    if (!first && !calm && boot !== 'switch') setSweep(n => n + 1);
+  }, [drawn, calm, boot]);
 
   return (
     <div ref={root} data-theme={theme} data-terminal-window={here} data-window-films={reels.length ? (rolling ? 'rolling' : 'held') : 'stills'} className={`landing-window relative flex flex-col overflow-hidden rounded-[10px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
@@ -422,7 +440,17 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
           </span>
         )}
         {/* the hero's window comes up out of the footer's broken pixels, once (Boot.tsx) */}
-        {boot && near && <Boot src={want} onDone={() => setBooting(false)} />}
+        {booting && near && (
+          <Boot
+            key={`boot:${booting}`}
+            src={booting}
+            replay={boot === 'switch'}
+            run={boot === 'switch' ? 760 : undefined}
+            start={boot === 'switch' ? 0 : undefined}
+            sweep={boot === 'switch' ? bootSweep : undefined}
+            onDone={() => setBooting(b => (b === booting ? null : b))}
+          />
+        )}
         {sweep > 0 && <span key={sweep} aria-hidden="true" className="window-sweep pointer-events-none absolute inset-0" />}
       </div>
     </div>

@@ -1,41 +1,39 @@
 /*
 ==================================================
-  SLAYER TERMINAL - THE HERO'S WINDOW BOOTS
+  SLAYER TERMINAL - A WINDOW BOOTS
   (pages/landing/Boot.tsx)
 
   "i feel like the landing page is missing something like that snazz" (the owner, 2026-10-03). Once, as the page
   opens, the hero's window comes up out of the footer's photograph — the terminal caught on a black screen, only its
-  brightest marks left, broken into coarse pixels with a hair of red on one edge and blue on the other (components/
-  layout/FooterArt.tsx) — and in about a second it sharpens into the desk: the pixels halve stage by stage, the dim
+  brightest marks left, broken into coarse pixels with a hair of red on one edge and blue on the other (pixels.ts, the
+  footer's own language) — and in about a second it sharpens into the desk: the pixels halve stage by stage, the dim
   marks come in under the bright ones, the fringe closes, and a row or two tears aside on the way. Then the canvas lets
-  go and the window is the window.
+  go and the window is the window. Then: "i love the little glitch affect i think we should implement that in more
+  places" — so a window that switches pages (the four systems' stage) boots each new page the same way, quicker
+  (`replay`, `run`), the picture coming back sharp along the way its page moves (`sweep`: Compass dealt a strip at a
+  time, Pinpoint opening from the middle, Terrain drawn left to right, Trace printing down — "no two motions should be
+  the same", the owner of the systems' arrivals, 2026-10-03).
 
   It draws the window's own still (the film's first frame), and the window holds its film on that frame until the canvas
-  has gone (`onDone`), so it ends on what is there. On paper the marks that
-  survive are the darkest (ink), as the footer prints on paper. Once a visit — a return to the landing within the
-  terminal does not boot it again — never where less motion is asked for, never in a tab behind, and not at all if the
-  still is slow to come (the window does not wait on its own entrance).
+  has gone (`onDone`), so it ends on what is there. On paper the marks that survive are the darkest (ink), as the
+  footer prints on paper. The hero's boot is once a visit — a return to the landing within the terminal does not boot
+  it again; never where less motion is asked for, never in a tab behind, and not at all if the still is slow to come:
+  it gives way WAIT in if it has not begun (the window never waits on its own entrance).
 ==================================================
 */
 
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { inksOf, rgb, rng } from '../../components/layout/footer/kit';
+import { inksAt, pieceOf, STATE_COUNT, tear } from './pixels';
+import { rgb } from '../../components/layout/footer/kit';
 
-/** the coarse pixel at each stage (CSS px) and when, as a share of the run, it comes in — it halves faster as it goes */
-const STAGES: [number, number][] = [
-  [0, 16],
-  [0.14, 12],
-  [0.26, 8],
-  [0.37, 6],
-  [0.48, 4],
-  [0.58, 3],
-  [0.68, 2],
-  [0.77, 1],
-];
-/** the run, the canvas letting go after it, and the most the still may take to arrive before the boot gives way (ms); it
-    starts no sooner than START after the window mounts, so its coarsest stages land once the window has risen into view
-    (the hero's rise, index.css .landing-rise, begins 260 ms in) */
+/** when, as a share of the run, each sharper state comes in — it halves faster as it goes; past the last, the picture */
+const AT = [0, 0.14, 0.26, 0.37, 0.48, 0.58, 0.68, 0.77];
+/** the coarse pixel of each state (pixels.ts STATES), for the tear's rows and the fringe */
+const STEP = [16, 12, 8, 6, 4, 3, 2, 1];
+/** the hero's run, the canvas letting go after it, and the most the still may take before the boot gives way (ms); the
+    hero's starts no sooner than 320 ms after the window mounts, so its coarsest stages land once the window has risen
+    into view (the hero's rise, index.css .landing-rise, begins 260 ms in) */
 const RUN = 1100;
 const LET_GO = 300;
 const WAIT = 1200;
@@ -43,19 +41,26 @@ const START = 320;
 
 let booted = false;
 
-/** the picture in coarse pixels: each pixel the block's strongest mark (the brightest on black, the darkest on paper),
-    its colour and how strong it is */
-interface Coarse {
-  w: number;
-  h: number;
-  rgba: Uint8ClampedArray;
-  mark: Float32Array;
+/** the way the picture comes back sharp: all at once, or along its page's own motion */
+export type Sweep = 'all' | 'deal' | 'out' | 'right' | 'down';
+
+interface Props {
+  src: string;
+  sweep?: Sweep;
+  /** the canvas is gone (or never came): the window may play its film */
+  onDone?: () => void;
+  /** boots every time it is mounted (a window switching pages), not once a visit */
+  replay?: boolean;
+  /** the run, ms */
+  run?: number;
+  /** the soonest it starts after mounting, ms */
+  start?: number;
 }
 
-const Boot = ({ src, onDone }: { src: string; /** the canvas is gone (or never came): the window may play its film */ onDone?: () => void }) => {
+const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sweep = 'all' }: Props) => {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const calm = useReducedMotion();
-  const [gone, setGone] = useState(() => booted || calm === true || typeof document === 'undefined' || document.visibilityState !== 'visible');
+  const [gone, setGone] = useState(() => (!replay && booted) || calm === true || typeof document === 'undefined' || document.visibilityState !== 'visible');
   const [letGo, setLetGo] = useState(false);
   const done = useRef(onDone);
   done.current = onDone;
@@ -65,7 +70,7 @@ const Boot = ({ src, onDone }: { src: string; /** the canvas is gone (or never c
 
   useEffect(() => {
     if (gone) return;
-    booted = true;
+    if (!replay) booted = true;
     const c = ref.current;
     const ctx = c?.getContext('2d');
     if (!c || !ctx) {
@@ -91,137 +96,55 @@ const Boot = ({ src, onDone }: { src: string; /** the canvas is gone (or never c
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       c.width = Math.round(W * dpr);
       c.height = Math.round(H * dpr);
-      const ink = inksOf(c);
-      const groundCh = getComputedStyle(c).getPropertyValue('--canvas').trim() || '5 5 5';
-      const [gr, gg, gb] = groundCh.split(/\s+/).map(Number);
-      const dark = 0.2126 * gr + 0.7152 * gg + 0.0722 * gb < 128;
-      const ground = rgb(groundCh);
-
-      /* the still at the screen's own size, once: its colours and the strength of every mark */
-      const base = document.createElement('canvas');
-      base.width = W;
-      base.height = H;
-      const bctx = base.getContext('2d', { willReadFrequently: true });
-      if (!bctx) return setGone(true);
-      bctx.drawImage(img, 0, 0, W, H);
-      const px = bctx.getImageData(0, 0, W, H).data;
-      const strength = new Float32Array(W * H);
-      for (let i = 0, j = 0; j < strength.length; i += 4, j++) {
-        const l = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
-        strength[j] = dark ? l : 1 - l;
-      }
-      const coarse = new Map<number, Coarse>();
-      const coarseAt = (s: number): Coarse => {
-        const hit = coarse.get(s);
-        if (hit) return hit;
-        const w = Math.ceil(W / s);
-        const h = Math.ceil(H / s);
-        const rgba = new Uint8ClampedArray(w * h * 4);
-        const mark = new Float32Array(w * h);
-        /* a big block is read every other pixel: its strongest mark is wide enough to be met */
-        const stride = s >= 8 ? 2 : 1;
-        for (let by = 0; by < h; by++) {
-          const y0 = by * s;
-          const y1 = Math.min(H, y0 + s);
-          for (let bx = 0; bx < w; bx++) {
-            const x0 = bx * s;
-            const x1 = Math.min(W, x0 + s);
-            let best = -1;
-            let at = 0;
-            for (let y = y0; y < y1; y += stride) {
-              const row = y * W;
-              for (let x = x0; x < x1; x += stride) {
-                const v = strength[row + x];
-                if (v > best) {
-                  best = v;
-                  at = row + x;
-                }
-              }
-            }
-            const o = (by * w + bx) * 4;
-            rgba[o] = px[at * 4];
-            rgba[o + 1] = px[at * 4 + 1];
-            rgba[o + 2] = px[at * 4 + 2];
-            rgba[o + 3] = 255;
-            mark[by * w + bx] = best;
-          }
-        }
-        const out = { w, h, rgba, mark };
-        coarse.set(s, out);
-        return out;
-      };
-
-      const sm = document.createElement('canvas');
-      const smc = sm.getContext('2d');
-      const tint = document.createElement('canvas');
-      const tc = tint.getContext('2d');
-      if (!smc || !tc) return setGone(true);
-      const tinted = (hue: string) => {
-        tint.width = sm.width;
-        tint.height = sm.height;
-        tc.globalCompositeOperation = 'source-over';
-        tc.drawImage(sm, 0, 0);
-        tc.globalCompositeOperation = 'source-in';
-        tc.fillStyle = rgb(hue, 0.85);
-        tc.fillRect(0, 0, tint.width, tint.height);
-        return tint;
-      };
-
+      const inks = inksAt(c);
+      const piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, W, H, inks);
+      if (!piece) return setGone(true);
+      const ground = rgb(inks.ground);
+      const t0 = performance.now();
       const frame = (now: number) => {
         if (!alive) return;
         const ms = now - t0;
-        const t = Math.min(1, ms / RUN);
-        let step = STAGES[0][1];
-        for (const [at, s] of STAGES) if (t >= at) step = s;
+        const t = Math.min(1, ms / runMs);
+        let k = 0;
+        for (let i = 0; i < AT.length; i++) if (t >= AT[i]) k = i;
+        const step = STEP[k];
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
         ctx.fillStyle = ground;
         ctx.fillRect(0, 0, c.width, c.height);
-        if (step > 1) {
-          /* the marks that survive: only the strongest at first, the dim ones coming in under them */
-          const keep = 0.58 * Math.max(0, 1 - t / 0.62);
-          const g = coarseAt(step);
-          const out = new ImageData(g.w, g.h);
-          out.data.set(g.rgba);
-          if (keep > 0) for (let k = 0; k < g.mark.length; k++) if (g.mark[k] < keep) out.data[k * 4 + 3] = 0;
-          sm.width = g.w;
-          sm.height = g.h;
-          smc.putImageData(out, 0, 0);
-          const sx = step * dpr;
-          const dw = g.w * sx;
-          const dh = g.h * sx;
-          /* the fringe, a copy of the marks in each colour laid under them a pixel aside, closing as the picture sharpens */
-          const f = Math.round(Math.min(step, 5) * dpr * Math.max(0, 1 - t / 0.82));
-          ctx.imageSmoothingEnabled = false;
-          if (f > 0) {
-            ctx.globalAlpha = 0.9;
-            ctx.drawImage(tinted(ink.red), -f, 0, dw, dh);
-            ctx.drawImage(tinted(ink.blue), f, 0, dw, dh);
-            ctx.globalAlpha = 1;
+        /* the last state is the picture itself */
+        const sharp = k >= AT.length - 1 ? 1 : k / STATE_COUNT;
+        piece.draw(ctx, 0, 0, c.width, c.height, sharp, { fringe: Math.round(Math.min(step, 5) * dpr * Math.max(0, 1 - t / 0.82)) });
+        /* THE SWEEP: where its page's motion has passed, the picture is already itself */
+        if (sweep !== 'all' && sharp < 1) {
+          const f = Math.max(0, Math.min(1, (t - 0.12) / 0.66));
+          const cw = c.width;
+          const ch = c.height;
+          ctx.save();
+          ctx.beginPath();
+          if (sweep === 'right') ctx.rect(0, 0, cw * f, ch);
+          else if (sweep === 'down') ctx.rect(0, 0, cw, ch * f);
+          else if (sweep === 'out') ctx.arc(cw / 2, ch / 2, Math.hypot(cw, ch) * 0.5 * f, 0, Math.PI * 2);
+          else {
+            /* dealt: four strips, each laid as the one before it lands */
+            for (let i = 0; i < 4; i++) {
+              const g = Math.max(0, Math.min(1, f * 4 - i));
+              if (g > 0) ctx.rect((cw / 4) * i, 0, cw / 4, ch * g);
+            }
           }
-          ctx.drawImage(sm, 0, 0, dw, dh);
-        } else {
+          ctx.clip();
           ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(img, 0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0, cw, ch);
+          ctx.restore();
         }
         /* THE TEAR: a row or two pushed aside, a new pair every 70 ms, quieter as it goes */
-        if (t < 0.55) {
-          const r = rng(Math.floor(ms / 70) + 11);
-          const rows = 1 + Math.floor(r() * 3);
-          for (let k = 0; k < rows; k++) {
-            const y = Math.floor(r() * c.height);
-            const h = Math.max(1, Math.round((1 + Math.floor(r() * 3)) * step * dpr * 0.5));
-            const dx = Math.round((r() - 0.5) * 2 * 40 * dpr * (1 - t / 0.55));
-            if (dx) ctx.drawImage(c, 0, y, c.width, h, dx, y, c.width, h);
-          }
-        }
+        if (t < 0.55) tear(ctx, c, ms, 1 - t / 0.55, step * dpr * 0.5);
         if (t < 1) raf = requestAnimationFrame(frame);
         else {
           setLetGo(true);
           timer = window.setTimeout(() => alive && setGone(true), LET_GO + 40);
         }
       };
-      const t0 = performance.now();
       raf = requestAnimationFrame(frame);
     };
 
@@ -230,7 +153,7 @@ const Boot = ({ src, onDone }: { src: string; /** the canvas is gone (or never c
         if (!alive) return;
         const since = performance.now() - born;
         if (since > WAIT || document.visibilityState !== 'visible') return setGone(true);
-        timer = window.setTimeout(() => alive && run(), Math.max(0, START - since));
+        timer = window.setTimeout(() => alive && run(), Math.max(0, start - since));
       },
       () => alive && setGone(true)
     );
@@ -240,7 +163,7 @@ const Boot = ({ src, onDone }: { src: string; /** the canvas is gone (or never c
       window.clearTimeout(timer);
       window.clearTimeout(giveUp);
     };
-  }, [gone, src]);
+  }, [gone, src, replay, runMs, start, sweep]);
 
   if (gone) return null;
   return (

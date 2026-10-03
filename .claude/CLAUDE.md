@@ -96,9 +96,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   "SLAYER TERMINAL", "Trade what you can see." ("see." in the foil), "Positioning, market structure, volatility and flow
   — brought together in one terminal.", "Sign up free" and "See how it works" (to the session), then the terminal
   itself: the Pulse desk's film as wide as the column, "The terminal itself, in use — played three times as fast." under
-  it. WHY DOES IT MATTER? — one statement ("Most of what moves a price is public. It's just scattered."). SHOW ME — the
-  session (below). WHAT ELSE CAN IT SEE? — the four systems, Compass, Pinpoint, Terrain and Trace (Landing.tsx SYSTEMS):
-  a name, one line, the real page's film filling the width, a small door; one line names what else is inside. CAN I
+  it. WHY DOES IT MATTER? — "Most of what moves a price is public. It's just scattered.", shown (THE SCATTER, below).
+  SHOW ME — the session (below). WHAT ELSE CAN IT SEE? — the four systems, Compass, Pinpoint, Terrain and Trace
+  (Landing.tsx SYSTEMS) on ONE STAGE (below): a name, one line, the real page's film, a small door each; under it the
+  terminal's other rooms, a door each in their own one-liners (Landing.tsx More, from brand/products.ts — never as `path:`
+  literals in Landing.tsx, or the film script would film them). CAN I
   TRUST IT? — four principles (real data, deterministic calculations, transparent provenance, no black-box promises)
   and Observed / Calculated / Modeled: what the engine produces, never a formula, weight, threshold or assumption that
   would let it be rebuilt ("Recipe stays private. Result is visible."). HOW MUCH? — three plans, each with who it is for
@@ -111,8 +113,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   shows. EVERY LINE UNDER A FILM SAYS WHAT THE FILM SHOWS: Compass is the board of contracts that fit the levels, so its
   line is "Know which contracts fit the market right now." (the brief's "know the current market condition" is
   Pinpoint's head, not Compass's screen — pushed back and told); a page that changes takes its line in SYSTEMS with it.
-  MOTION SAYS WHAT THE PRODUCT DOES: each system's window arrives once in its own clip (index.css .landing-arrive —
-  Compass a card dealt, Pinpoint the book opening from the middle, Terrain drawn left to right in 600 ms, Trace
+  MOTION SAYS WHAT THE PRODUCT DOES: each system's page boots into the stage's window along its own motion (Boot.tsx
+  `sweep` — Compass dealt a strip at a time, Pinpoint opening from the middle, Terrain drawn left to right, Trace
   printing down); words come up a line at a time, 40 ms apart (Landing.tsx useArrival); nothing is hidden before the
   script has run, nothing moves where less motion is asked for. A window lower on the page fetches nothing until the
   reader is near (TerminalWindow `lazy`); a phone's window shows the phone picture whole (390 × 760), never cropped. No
@@ -135,6 +137,28 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   entrance; it gives way 1.2 s in if it has not begun). The window holds its film on the first frame until the canvas
   has gone (Boot `onDone`), so the hand-over is seamless. The headline's fringe is a pair of drop-shadows of the drawn
   line (a text-shadow washed the foil's "see."). It is the hero's alone; the rest of the page keeps its arrival clips.
+- THE GLITCH, IN MORE PLACES, AND THE WOW (2026-10-03 — the owner: "i love the little glitch affect i think we should
+  implement that in more places but infomation and hiecrcy wise i still feel as if were missing that wow"). The footer's
+  photograph is the landing's one way of drawing a picture broken (pages/landing/pixels.ts: a PIECE of a picture drawn at a
+  sharpness 0–1 — coarse pixels, only its strongest marks, the red and blue fringe — through eight states to the picture
+  itself), used for: the hero's boot; THE SCATTER (pages/landing/Scatter.tsx — WHY DOES IT MATTER, shown: the Pulse
+  desk's own parts, cut from the hero's still at their measured boxes (PARTS; restage the desk and re-measure them), lie
+  about a pinned screen broken into the footer's grain, each named in its own panel's words, around "Most of what moves a
+  price is public. / It's just scattered." (the second line itself out of line, fringed); the scroll draws them home into
+  one window, sharpening as they land, the bar types "open pulse" and "Slayer reads them together — on one screen, while
+  the session moves." follows; a fast scroll tears a row; the session then plays on that desk. Where less motion is asked
+  for, the words alone (Landing.tsx Matters)); THE STAGE (Landing.tsx Systems — the four as a player and its list: the
+  window on one side running to the screen's edge, the list of four (number, glyph, name, line) on the other, the one on
+  screen bright with a silver line filling under it and what it does and its door beneath; a tablist (arrows, Home, End).
+  It plays itself a page every 6.5 s while on screen with the tab in front; a moving pointer holds it until still 2.5 s,
+  the keys inside hold it, a touch holds it 3 s after the finger lifts, a pick holds it until the stage leaves the screen.
+  The window (TerminalWindow boot="switch") boots each page as it is first seen and on every switch, holding the film on
+  its first frame till the boot has gone. A phone: the four two by two, the line over the window, what it does under it.
+  Less motion: no play, no boot). And as accents: every section's head arrives a line at a time and its two-tone line
+  settles out of the fringe (Landing.tsx Head, index.css .landing-settle); the session's silver marks flicker in with it
+  (index.css session-mark-in); the closing lines' unlit letters wear the footer's words-at-rest fringe and lose it as they
+  light; a room's glyph under the pointer slips its fringe once (index.css landing-glyph-glitch). The glitch is for
+  arrivals, switches and a hand's touch — never a loop.
 - THE SESSION (pages/landing/Session.tsx; `npm run landing:session`, scripts/make-landing-session.mjs): the brief's one
   "killer" demonstration — "Look at what the terminal was able to show", never "Slayer predicted the move". The real
   Pulse desk, opened at 09:31 New York on 2026-10-01 and run forward with its live ticks drawn from a seeded stream
