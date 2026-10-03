@@ -115,9 +115,18 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   scroll to them so people can see everything without always having to use their mouse", then "make the tab switching
   faster its so damn slow right now"). In the tour the room on screen shows its pages in turn, each for 4.5 s of its
   film (TerminalWindow's onLap and LAP; a still as long), a line under its row filling as it plays (onTime); a row the
-  reader picks holds the room until they move to another room. "Everything in it" brings its rooms round by itself
-  while on screen (3.2–5.2 s, a little more for a room with more pages), a line on the lit tab filling; a pointer or the
-  keys inside hold it, and a picked room (on a phone, any touch in the list) stays until the list leaves the screen. Neither moves where less motion is asked for. A new list of tabs on the landing does the same.
+  reader picks holds the room until they move to another room, and a pointer MOVING over the window or the rows holds the
+  page until it has been still 2.5 s (a pointer the page scrolled under holds nothing). A room's door opens the room it
+  names (its first page), or the row the reader picked — never whichever page the play had reached; the turn's door opens
+  Settings. "Everything in it" brings its rooms round by itself while on screen (3.2–5.2 s, a little more for a room with
+  more pages), a line on the lit tab filling; a moving pointer or the keys inside hold it, a touch holds it until 3 s after
+  the finger lifts (a scroll that starts on the list is not a pick), and a picked room stays while any of the list shows
+  and comes home with Back (sessionStorage). On a desk every room's list stands in one grid cell, so the box is always the
+  tallest room's and nothing under it moves; on a phone the rooms hold once the reader has gone on past the row of rooms.
+  Neither moves where less motion is asked for, and the line above the list then says to pick a room. A new list of tabs on
+  the landing does the same. THE THEME BUTTON names what it does to the ground under the bar (Nav's `ground`); a theme
+  picked on the landing is stored and the page stops turning — both ends are the pick (ground.tsx `picked`,
+  .landing-dawn still-night/still-day). A jump along the page (Pricing, Questions, Every page) is a step in the history.
   The tour's window asks once whether the browser plays H.264; a film that fails to load leaves only its own page on
   its still. The closing "Seen enough? Step inside." lights a letter at a time as it comes up the screen (Landing.tsx
   LitLines, the scroll its playhead; lit under reduced motion).
