@@ -118,22 +118,29 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   The tour's window asks once whether the browser plays H.264; a film that fails to load leaves only its own page on
   its still. The closing "Seen enough? Step inside." lights a letter at a time as it comes up the screen (Landing.tsx
   LitLines, the scroll its playhead; lit under reduced motion).
-- The live footer (2026-10-02 — the owner, with a photograph of the terminal caught on a black screen, only its
-  brightest marks left and broken into pixels: "make it super cool like a live footer make some sort of artistic thing
-  from the photo", and, of the line art and the toy put there first: "i wanted a cool cursor interactive that looks like
-  this photo in the footer not a new footer please"). The footer is the footer — the wordmark and its line, the link
-  columns, the legal line with the signature — and at its foot, edge to edge, the photograph made live
-  (components/layout/FooterArt.tsx, its scene kept to the page's column): a chart pane (a rough price line walking, its
-  last-price line run out to a tag, a block of volume, the time axis, levels broken into coloured dashes), a strike
-  ladder beside it, chips under it, specks — all in coarse pixels with a hair of red on one edge and blue on the other,
-  most of it gone to the ground. Around the pointer the screen comes back sharp (the terminal itself), a crosshair reads
-  the line (the moment under it on the tag and the axis), a fast pointer tears the rows it crosses, and where it has been
-  goes dark again in about a second; with no pointer on it an arrow of its own (the photograph's) drifts over it and
-  rests on what it reads. No level game, no headline, no engraved wordmark. Art, not data: no figure on it is a price —
-  the tags are the clock. Every ink a token read off the band's own ground (paper prints it in ink); still parts drawn
-  once, the moving ones about thirty times a second (sixty under the pointer) only while on screen with the tab in front;
-  under reduced motion one still frame with the focus drawn where the pointer stands. A footer link under the pointer
-  drops the rest of its column a tier and comes forward with a short mark (index.css .footer-col).
+- The footer is ONE ART PIECE (2026-10-03 — the owner, of the footer with the photograph live in a band at its foot: "i
+  want that glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece").
+  The photograph (2026-10-02: the terminal caught on a black screen, only its brightest marks left and broken into
+  pixels) is the WHOLE footer (components/layout/FooterArt.tsx wraps SiteFooter's content): a chart pane — a rough price
+  line walking, its last-price line run out to a tag, a block of volume, the time axis, levels broken into coloured
+  dashes — a strike ladder beside it and chips under it, in the box the footer marks for it ([data-footer-scene]: beside
+  the words on a desk, between them on a phone); its levels run on across the whole screen under the words, and specks
+  lie everywhere, all in coarse pixels with a hair of red on one edge and blue on the other. The footer's words are the
+  screen's brightest marks ([data-footer-lit], index.css .footer-word): the same fringe at rest, a tier down. Around the
+  pointer, anywhere on the footer, the screen comes back sharp — the frames of its panels round the words
+  ([data-footer-panel]), the words bright without their fringe, a crosshair reading the line in the chart — a fast pointer
+  tears the rows it crosses, words and all, and where it has been goes dark again in about a second; with no pointer an
+  arrow of its own (the photograph's) drifts over the chart and rests on what it reads, lighting no words. The wordmark
+  (with its cursor), the line, the link columns and the status line (signature, "not investment advice", ©) — no level
+  game, no headline, no engraved wordmark. Art, not data: no figure on it is a price — the tags are the clock. Every ink
+  a token read off the footer's own ground (paper prints it in ink). THREE LAYERS so a frame touches only what moves: the
+  still parts drawn once (coarse), the moving parts in the chart's box (coarse), the sharp focus and the arrow only where
+  they are; the coarse layers are a canvas pixel per coarse pixel shown pixelated. The fade up out of the page is drawn
+  into the still parts — no CSS mask over the layers (a mask made the browser lay the whole footer again every frame).
+  Words are written at most thirty times a second, in twelfths. About thirty frames a second (sixty under the pointer),
+  only while on screen with the tab in front; under reduced motion one still frame with the focus drawn where the pointer
+  stands. A footer link under the pointer drops the rest of its column a tier and comes forward with a short mark
+  (index.css .footer-col).
 - "Everything in it" (landing/Everything.tsx) lists every page of every room, each a door into the terminal —
   Pinpoint, Trace, Dossier and Practice read their own subnav registries, so a new page is listed by itself; write the
   others' lines there. What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the cards and the plans side by side

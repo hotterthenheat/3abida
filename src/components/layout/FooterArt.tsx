@@ -1,48 +1,61 @@
 /*
 ==================================================
-  SLAYER TERMINAL - THE LIVE FOOTER
+  SLAYER TERMINAL - THE FOOTER, ONE PIECE
   (components/layout/FooterArt.tsx)
 
   THE TERMINAL IN THE DARK (2026-10-02 — the owner, with
   a photograph of the terminal caught on a black screen,
   only its brightest marks left and broken into pixels:
   "make it super cool like a live footer make some sort
-  of artistic thing from the photo", and of the line drawn
-  in its place: "i wanted a cool cursor interactive that
-  looks like this photo in the footer not a new footer
-  please"). The band IS the photograph, made live: a
-  chart pane — its price line walking, its last-price line
-  run out to a tag, its volume, its time axis, its levels
-  broken into coloured dashes — a strike ladder beside it,
-  a row of chips under it, specks; every mark in coarse
-  pixels with a hair of red on one edge and blue on the
-  other, most of the screen gone to the ground.
+  of artistic thing from the photo"). From 2026-10-02 it
+  was a band at the footer's foot; then (2026-10-03 — the
+  owner: "i want that glitchy thing and the footer to be
+  ONE not the art work and then the footer i want it as
+  one art piece") it is THE WHOLE FOOTER: one screen, and
+  the footer's words are on it.
 
-  THE POINTER BRINGS IT BACK: around the pointer the screen
-  comes into focus — the pixels give way to the terminal,
-  sharp — and in the chart a crosshair reads the line where
-  the pointer is: the moment under it on the tag and the
-  axis. A pointer that moves fast tears the rows it
-  crosses. Where it has been goes dark again in about a
-  second. With no pointer on it (a phone, or a desk whose
-  pointer is elsewhere) an arrow of its own — the one in
-  the photograph — drifts over the screen and rests on
-  what it reads.
+  The screen is the photograph, made live: a chart pane —
+  its price line walking, its last-price line run out to
+  a tag, its volume, its time axis, its levels broken into
+  coloured dashes — a strike ladder beside it, a row of
+  chips under it, specks; every mark in coarse pixels with
+  a hair of red on one edge and blue on the other, most of
+  the screen gone to the ground. The chart stands where
+  the footer marks its place ([data-footer-scene]); its
+  levels run on across the whole screen, under the words,
+  and the specks lie everywhere. THE WORDS ARE THE
+  SCREEN'S BRIGHTEST MARKS ([data-footer-lit], index.css
+  .footer-word): the same hair of red and blue at rest.
+
+  THE POINTER BRINGS IT BACK, anywhere on the footer:
+  around it the screen comes into focus — the pixels give
+  way to the terminal, sharp; the frames of its panels
+  come back round the words ([data-footer-panel]); the
+  words under it go bright and lose their fringe; in the
+  chart a crosshair reads the line, the moment under it on
+  the tag and the axis. A pointer that moves fast tears
+  the rows it crosses, words and all. Where it has been
+  goes dark again in about a second. With no pointer on it
+  an arrow of its own — the photograph's — drifts over the
+  chart and rests on what it reads (it lights no words).
 
   Art, not data: no figure on it is a price — the tags are
   the clock, the axis the day's own times. Every ink is a
-  token read off the band's own ground, read again when the
-  theme turns: on paper the photograph is printed in ink.
-  THE COST: one canvas; the screen's still parts drawn once
-  (again on a resize or a turn of theme), the moving ones
-  about thirty times a second (sixty under the pointer),
-  only while the band is on screen with the tab in front.
-  Under reduced motion one still frame, the pointer's focus
-  drawn where it stands, the clock moved on once a minute.
+  token read off the footer's own ground, read again when
+  the theme turns: on paper the photograph is printed in
+  ink. THE COST: one canvas under the footer; the screen's
+  still parts drawn once (again on a resize or a turn of
+  theme), the moving ones about thirty times a second
+  (sixty under the pointer), only while the footer is on
+  screen with the tab in front; a word's light and slip
+  are two custom properties, written only when they
+  change. Under reduced motion one still frame, the
+  pointer's focus drawn where it stands, the clock moved
+  on once a minute.
 ==================================================
 */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { FONT_SANS } from '../../theme/fonts';
 
 /** a seeded walk, so the screen opens on the same picture every time */
@@ -60,6 +73,8 @@ const PIX = 2;
 /** the focus round the pointer (CSS px), and how long a place stays lit after the pointer has gone (ms) */
 const REACH = 118;
 const LINGER = 950;
+/** the depth the footer's screen fades up over, out of the page (CSS px) */
+const FADE = 110;
 /** the arrow's own pace: a glide from one thing to the next, then a rest on it (ms) */
 const GLIDE = 1500;
 const REST = 1700;
@@ -127,31 +142,69 @@ interface Step {
   jit: number;
 }
 
-const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: string }) => {
+const FooterArt = ({ children, className = '' }: { children: ReactNode; className?: string }) => {
   const box = useRef<HTMLDivElement | null>(null);
-  const cvs = useRef<HTMLCanvasElement | null>(null);
+  const layerA = useRef<HTMLCanvasElement | null>(null);
+  const layerB = useRef<HTMLCanvasElement | null>(null);
+  const layerC = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const host = box.current;
-    const canvas = cvs.current;
-    if (!host || !canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const cvsA = layerA.current;
+    const cvsB = layerB.current;
+    const cvsC = layerC.current;
+    if (!host || !cvsA || !cvsB || !cvsC) return;
+    /* THREE LAYERS, so a frame touches only what moves (2026-10-03: one canvas over the whole footer cost a long task a
+       frame): A, the broken screen's still parts, in coarse pixels, drawn once; B, the moving parts in the chart's box,
+       coarse too; C, the focus round the pointer, the arrow — sharp, and only where they are. A and B are drawn a coarse
+       pixel to a canvas pixel and shown pixelated, so the browser does the enlarging. */
+    const aCtx = cvsA.getContext('2d');
+    const bCtx = cvsB.getContext('2d');
+    const cCtx = cvsC.getContext('2d');
+    if (!aCtx || !bCtx || !cCtx) return;
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
 
-    /* the layers: the broken screen's still parts (coarse), the same parts sharp, and the two the focus is made in */
+    /* and off the page: the still parts broken (coarse) and sharp, and the two the focus is made in */
     const brokenStill = document.createElement('canvas');
     const sharpStill = document.createElement('canvas');
-    const lo = document.createElement('canvas');
     const focus = document.createElement('canvas');
     const mask = document.createElement('canvas');
-    const bctx = brokenStill.getContext('2d');
+    const brkCtx = brokenStill.getContext('2d');
     const sctx = sharpStill.getContext('2d');
-    const lctx = lo.getContext('2d');
     const fctx = focus.getContext('2d');
     const mctx = mask.getContext('2d');
-    if (!bctx || !sctx || !lctx || !fctx || !mctx) return;
+    if (!brkCtx || !sctx || !fctx || !mctx) return;
+
+    /* what was drawn out of place last frame — a focus, a tear, the arrow — to be put back */
+    let wasA: Box[] = [];
+    let wasC: Box[] = [];
+    /* a box in CSS px, as whole coarse pixels (a pixel's margin round it) */
+    const toLo = (r: Box) => {
+      const x = Math.max(0, Math.floor(r.x0 / PIX) - 1);
+      const y = Math.max(0, Math.floor(r.y0 / PIX) - 1);
+      return { x, y, w: Math.min(LW, Math.ceil(r.x1 / PIX) + 1) - x, h: Math.min(LH, Math.ceil(r.y1 / PIX) + 1) - y };
+    };
+    /* the still screen put back in a box, from its own copy */
+    const restoreA = (r: Box) => {
+      const q = toLo(r);
+      if (q.w <= 0 || q.h <= 0) return;
+      aCtx.setTransform(1, 0, 0, 1, 0, 0);
+      aCtx.globalCompositeOperation = 'source-over';
+      aCtx.clearRect(q.x, q.y, q.w, q.h);
+      aCtx.drawImage(brokenStill, q.x, q.y, q.w, q.h, q.x, q.y, q.w, q.h);
+    };
+    /* the sharp layer cleared in a box */
+    const clearC = (r: Box) => {
+      const x = Math.max(0, Math.floor(r.x0) - 2);
+      const y = Math.max(0, Math.floor(r.y0) - 2);
+      const w = Math.min(W, Math.ceil(r.x1) + 2) - x;
+      const h = Math.min(H, Math.ceil(r.y1) + 2) - y;
+      if (w <= 0 || h <= 0) return;
+      cCtx.setTransform(1, 0, 0, 1, 0, 0);
+      cCtx.clearRect(x * dpr, y * dpr, w * dpr, h * dpr);
+    };
+
 
     /* THE WALK: the price line with momentum, leaning back to where it began, and a bar of volume a step */
     const rand = rng(20261002);
@@ -173,8 +226,9 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
     let LH = 0;
     let phone = false;
     let ink = inksOf(host);
-    /* THE SCREEN'S LAYOUT, in CSS px: the scene keeps to the page's column though the band runs edge to edge */
-    let col: Box = { x0: 0, x1: 0, y0: 0, y1: 0 };
+    /* THE SCREEN'S LAYOUT, in CSS px, measured off the footer: the chart in the box it marks for it, the frames of its
+       panels, and its words */
+    let scene: Box = { x0: 0, x1: 0, y0: 0, y1: 0 };
     let pane: Box = { x0: 0, x1: 0, y0: 0, y1: 0 };
     let lineTop = 0;
     let lineBot = 0;
@@ -183,35 +237,55 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
     let tagX = 0;
     let lad = { cx: 0, cy: 0, w: 0, h: 0 };
     let chipsY = 0;
-    let levels: { y: number; hue: string; segs: [number, number][] }[] = [];
+    let levels: { y: number; hue: string; segs: [number, number][]; wide: [number, number][] | null }[] = [];
+    let panels: Box[] = [];
+    let words: { el: HTMLElement; box: Box; lit: number; slip: number }[] = [];
     const cap = () => Math.ceil((pane.x1 - pane.x0) / GAP) + 6;
+    const rel = (el: Element): Box => {
+      const r = el.getBoundingClientRect();
+      const h = host.getBoundingClientRect();
+      return { x0: r.left - h.left, x1: r.right - h.left, y0: r.top - h.top, y1: r.bottom - h.top };
+    };
 
     const layout = () => {
-      phone = W < 640;
+      const marked = host.querySelector('[data-footer-scene]');
       const inset = W >= 1440 ? (W - 1440) / 2 + 40 : W >= 1024 ? 40 : W >= 640 ? 24 : 16;
-      col = { x0: inset, x1: W - inset, y0: 0, y1: H };
-      const cw = col.x1 - col.x0;
-      pane = { x0: col.x0, x1: col.x0 + cw * (phone ? 0.62 : 0.4), y0: H * 0.15, y1: H * 0.76 };
+      scene = marked ? rel(marked) : { x0: inset, x1: W - inset, y0: 0, y1: H };
+      const sw = scene.x1 - scene.x0;
+      const sh = scene.y1 - scene.y0;
+      phone = sw < 560;
+      pane = { x0: scene.x0, x1: scene.x0 + sw * 0.6, y0: scene.y0 + 24, y1: scene.y1 - 48 };
       const ph = pane.y1 - pane.y0;
       lineTop = pane.y0 + ph * 0.12;
       lineBot = pane.y0 + ph * 0.58;
       volTop = pane.y0 + ph * 0.7;
-      axisY = pane.y1 + Math.max(10, H * 0.06);
-      tagX = phone ? pane.x1 + 8 : col.x0 + cw * 0.5;
-      lad = phone ? { cx: col.x0 + cw * 0.88, cy: H * 0.46, w: cw * 0.2, h: H * 0.5 } : { cx: col.x0 + cw * 0.76, cy: H * 0.46, w: cw * 0.24, h: H * 0.6 };
-      chipsY = H * 0.92;
-      /* the levels across the pane: each a coloured line broken into dashes (the photograph's), the same every time */
+      axisY = pane.y1 + 14;
+      tagX = pane.x1 + 8;
+      lad = { cx: scene.x0 + sw * (phone ? 0.89 : 0.86), cy: scene.y0 + sh * 0.44, w: sw * (phone ? 0.18 : 0.2), h: sh * 0.62 };
+      chipsY = scene.y1 - 9;
+      panels = Array.from(host.querySelectorAll('[data-footer-panel]'), rel);
+      /* a word's light and slip start from nothing again, so its box is measured where it stands */
+      for (const w of words) {
+        w.el.style.removeProperty('--lit');
+        w.el.style.removeProperty('--slip');
+      }
+      words = Array.from(host.querySelectorAll<HTMLElement>('[data-footer-lit]'), el => ({ el, box: rel(el), lit: 0, slip: 0 }));
+      /* the levels across the pane: each a coloured line broken into dashes (the photograph's), the same every time — and
+         every other one runs on across the whole screen, under the words, all but gone */
       const r = rng(77);
       const count = phone ? 4 : 6;
       levels = Array.from({ length: count }, (_, i) => {
         const y = lineTop + ((i + 0.5) / count) * (lineBot - lineTop + ph * 0.1) + (r() - 0.5) * 6;
-        const segs: [number, number][] = [];
-        for (let x = pane.x0 + r() * 20; x < pane.x1; ) {
-          const len = 5 + r() * 34;
-          segs.push([x, Math.min(pane.x1, x + len)]);
-          x += len + 4 + r() * 26;
-        }
-        return { y: Math.round(y), hue: ink.hues[i % ink.hues.length], segs };
+        const dash = (from: number, to: number, gap: number) => {
+          const out: [number, number][] = [];
+          for (let x = from + r() * 20; x < to; ) {
+            const len = 5 + r() * 34;
+            out.push([x, Math.min(to, x + len)]);
+            x += len + 4 + r() * gap;
+          }
+          return out;
+        };
+        return { y: Math.round(y), hue: ink.hues[i % ink.hues.length], segs: dash(pane.x0, pane.x1, 26), wide: i % 2 ? dash(0, W, 120) : null };
       });
     };
 
@@ -241,7 +315,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       c.lineCap = 'butt';
       /* the breadcrumb, top left (the photograph's row of small dim marks) */
       c.fillStyle = rgb(ink.muted, sharp ? 0.9 : 0.6);
-      letters(c, 'terminal  /  pulse', col.x0, H * 0.05, 9.5, keep(0.45));
+      letters(c, 'terminal  /  pulse', scene.x0, scene.y0 + 7, 9.5, keep(0.45));
       /* the pane's frame and its gridlines: only in focus */
       if (sharp) {
         c.strokeStyle = rgb(ink.ink, 0.1);
@@ -264,13 +338,32 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
         c.lineWidth = 1;
         c.strokeRect(pane.x0 + 4.5, pane.y0 + 2.5, lw + 8, 13);
       }
-      /* the levels: dashes in the terminal's colours, a small mark at each end of the pane */
+      /* the levels: dashes in the terminal's colours, a small mark at each end of the pane — and the ones that run on across
+         the screen, faint, under the words */
       for (const l of levels) {
+        if (l.wide) {
+          c.fillStyle = rgb(l.hue, sharp ? 0.3 : 0.32);
+          if (sharp) c.fillRect(0, l.y - 0.5, W, 1);
+          else for (const [a, b] of l.wide) if ((a < pane.x0 - 4 || a > pane.x1 + 4) && r() < 0.3) c.fillRect(a, l.y - 1, b - a, 2);
+        }
         c.fillStyle = rgb(l.hue, sharp ? 0.75 : 0.62);
         if (sharp) c.fillRect(pane.x0 + 1, l.y - 0.5, pane.x1 - pane.x0 - 2, 1);
         else for (const [a, b] of l.segs) if (r() < 0.4) c.fillRect(a, l.y - 1, b - a, 2);
         if (keep(0.5)()) c.fillRect(pane.x0 + 2, l.y - 3, 7, 6);
         if (keep(0.5)()) c.fillRect(pane.x1 - 9, l.y - 3, 7, 6);
+      }
+      /* THE PANELS round the words: only in focus — the screen's own frames come back round what the pointer reads */
+      if (sharp) {
+        c.strokeStyle = rgb(ink.ink, 0.14);
+        c.lineWidth = 1;
+        for (const b of panels) {
+          c.beginPath();
+          c.roundRect(Math.round(b.x0 - 12) + 0.5, Math.round(b.y0 - 10) + 0.5, Math.round(b.x1 - b.x0 + 24), Math.round(b.y1 - b.y0 + 20), 6);
+          c.stroke();
+          /* a tick at the frame's head, like a panel's title rule */
+          c.fillStyle = rgb(ink.ink, 0.22);
+          c.fillRect(Math.round(b.x0 - 12), Math.round(b.y0 - 10), 14, 1);
+        }
       }
       /* THE LADDER: a strike's bars either side of a spine, longest in the middle (the photograph's diamond), its marks
          down the left, and the spot's line run out to the right */
@@ -298,9 +391,9 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       }
       c.fillStyle = rgb(line, sharp ? 0.8 : 0.95);
       const sy = Math.round(lad.cy + 2);
-      if (sharp) c.fillRect(lad.cx - lad.w / 2, sy, col.x1 - (lad.cx - lad.w / 2), 1);
-      else for (let x = lad.cx - lad.w / 2; x < col.x1; x += 18 + r() * 30) c.fillRect(x, sy, 10 + r() * 40, 2);
-      c.fillRect(col.x1 - 7, sy - 3, 7, 7);
+      if (sharp) c.fillRect(lad.cx - lad.w / 2, sy, scene.x1 - (lad.cx - lad.w / 2), 1);
+      else for (let x = lad.cx - lad.w / 2; x < scene.x1; x += 18 + r() * 30) c.fillRect(x, sy, 10 + r() * 40, 2);
+      c.fillRect(scene.x1 - 7, sy - 3, 7, 7);
       /* THE CHIPS under the pane: a ring, words, a solid pill, a yellow pill edged in red, a green edge (the setup cards') */
       let x = pane.x0 + 6;
       const chip = (w: number, fill: string | null, edge: string | null, word: string, wordInk: string) => {
@@ -353,9 +446,9 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
           c.fillRect(sx, sy2, r() < 0.3 ? 2 + r() * 8 : 2, 2);
         }
         /* and the screen's other cards, all but gone: a corner here and there */
-        for (let i = 0; i < 9; i++) {
-          const cx = col.x0 + r() * (col.x1 - col.x0);
-          const cy = H * (0.12 + r() * 0.75);
+        for (let i = 0; i < Math.round((W * H) / 60000); i++) {
+          const cx = r() * W;
+          const cy = H * (0.06 + r() * 0.88);
           c.fillStyle = rgb(ink.line, 0.22);
           c.fillRect(cx, cy, 6 + r() * 10, 2);
           c.fillRect(cx, cy, 2, 6);
@@ -363,6 +456,18 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       }
     };
 
+    /* THE FOOTER COMES UP OUT OF THE PAGE: its first lines fade in from nothing (a canvas, cut by a gradient, once) */
+    const rise = (c: CanvasRenderingContext2D, width: number, depth: number) => {
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalCompositeOperation = 'destination-out';
+      const g = c.createLinearGradient(0, 0, 0, depth);
+      g.addColorStop(0, 'rgb(0 0 0 / 1)');
+      g.addColorStop(1, 'rgb(0 0 0 / 0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, width, depth);
+      c.restore();
+    };
     /* the still parts, built: sharp at the screen's own resolution; broken in coarse pixels, a hair of red on the left of
        each mark and blue on the right (each colour a copy of the marks, laid under them a pixel aside) */
     const build = () => {
@@ -381,7 +486,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       still(rctx, false);
       brokenStill.width = LW;
       brokenStill.height = LH;
-      bctx.clearRect(0, 0, LW, LH);
+      brkCtx.clearRect(0, 0, LW, LH);
       const tint = (hue: string) => {
         const t = document.createElement('canvas');
         t.width = LW;
@@ -394,9 +499,22 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
         tc.fillRect(0, 0, LW, LH);
         return t;
       };
-      bctx.drawImage(tint(ink.red), -1, 0);
-      bctx.drawImage(tint(ink.blue), 1, 0);
-      bctx.drawImage(raw, 0, 0);
+      brkCtx.drawImage(tint(ink.red), -1, 0);
+      brkCtx.drawImage(tint(ink.blue), 1, 0);
+      brkCtx.drawImage(raw, 0, 0);
+      rise(brkCtx, LW, FADE / PIX);
+      rise(sctx, W * dpr, FADE * dpr);
+      /* layer A is the broken still whole; B and C start empty */
+      aCtx.setTransform(1, 0, 0, 1, 0, 0);
+      aCtx.globalCompositeOperation = 'source-over';
+      aCtx.clearRect(0, 0, LW, LH);
+      aCtx.drawImage(brokenStill, 0, 0);
+      bCtx.setTransform(1, 0, 0, 1, 0, 0);
+      bCtx.clearRect(0, 0, LW, LH);
+      cCtx.setTransform(1, 0, 0, 1, 0, 0);
+      cCtx.clearRect(0, 0, cvsC.width, cvsC.height);
+      wasA = [];
+      wasC = [];
     };
 
     const size = () => {
@@ -404,16 +522,20 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       H = host.clientHeight;
       LW = Math.max(1, Math.ceil(W / PIX));
       LH = Math.max(1, Math.ceil(H / PIX));
-      for (const c of [canvas, focus]) {
+      for (const c of [cvsC, focus]) {
         c.width = Math.max(1, Math.round(W * dpr));
         c.height = Math.max(1, Math.round(H * dpr));
       }
-      canvas.style.width = `${W}px`;
-      canvas.style.height = `${H}px`;
-      lo.width = LW;
-      lo.height = LH;
-      mask.width = LW;
-      mask.height = LH;
+      cvsC.style.width = `${W}px`;
+      cvsC.style.height = `${H}px`;
+      for (const c of [cvsA, cvsB, mask]) {
+        c.width = LW;
+        c.height = LH;
+      }
+      for (const c of [cvsA, cvsB]) {
+        c.style.width = `${LW * PIX}px`;
+        c.style.height = `${LH * PIX}px`;
+      }
       layout();
       build();
     };
@@ -428,8 +550,8 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
 
     /* the reader's pointer, and the places it has lit (each goes dark over LINGER) */
     const hand = { x: 0, y: 0, on: false, at: 0 };
-    const lit: { x: number; y: number; t: number; r: number }[] = [];
-    let tears: { y: number; h: number; dx: number; x0: number; x1: number; until: number }[] = [];
+    const lit: { x: number; y: number; t: number; r: number; hand: boolean }[] = [];
+    let tears: { y: number; h: number; dx: number; x0: number; x1: number; until: number; hand: boolean }[] = [];
     /* the arrow of its own: where it is, where it set off from, which sight it is on, and when it may set off again */
     const ghost = { x: 0, y: 0, fx: 0, fy: 0, t: 0, leg: 0, show: 0, rest: false, back: 0 };
     /* what it reads, in turn: along the line, the last price's tag, the ladder, the volume, the chips */
@@ -447,6 +569,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
     /* ---- A FRAME ----------------------------------------------------------------------------------------------------- */
 
     let last = 0;
+    let wordsAt = 0;
     const draw = (now: number) => {
       const dt = last ? Math.min(100, now - last) : 16;
       last = now;
@@ -525,16 +648,49 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       if (showing) {
         const lastLit = lit[lit.length - 1];
         if (!lastLit || Math.hypot(lastLit.x - fx, lastLit.y - fy) > 6 || now - lastLit.t > 60)
-          lit.push({ x: fx, y: fy, t: now, r: (hand.on ? REACH : REACH * 0.82) * (phone ? 0.7 : 1) });
+          lit.push({ x: fx, y: fy, t: now, r: (hand.on ? REACH : REACH * 0.82) * (phone ? 0.7 : 1), hand: hand.on });
       }
       while (lit.length && (lit.length > 40 || now - lit[0].t > LINGER)) lit.shift();
       tears = tears.filter(t => t.until > now);
 
-      /* 1 · THE BROKEN SCREEN, in coarse pixels: the still parts, then the line, its volume, its last price and the axis */
-      lctx.setTransform(1, 0, 0, 1, 0, 0);
-      lctx.clearRect(0, 0, LW, LH);
-      lctx.drawImage(brokenStill, 0, 0);
-      lctx.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0);
+      /* WHAT IS OUT OF PLACE THIS FRAME: the focus's box (snapped to the coarse grid), the rows torn, the arrow */
+      let focusBox: Box | null = null;
+      if (lit.length) {
+        let x0 = Infinity;
+        let y0 = Infinity;
+        let x1 = -Infinity;
+        let y1 = -Infinity;
+        for (const l of lit) {
+          if (now - l.t >= LINGER) continue;
+          x0 = Math.min(x0, l.x - l.r);
+          y0 = Math.min(y0, l.y - l.r);
+          x1 = Math.max(x1, l.x + l.r);
+          y1 = Math.max(y1, l.y + l.r);
+        }
+        x0 = Math.max(0, Math.floor(x0 / PIX) * PIX);
+        y0 = Math.max(0, Math.floor(y0 / PIX) * PIX);
+        x1 = Math.min(LW * PIX, Math.ceil(x1 / PIX) * PIX);
+        y1 = Math.min(LH * PIX, Math.ceil(y1 / PIX) * PIX);
+        if (x1 > x0 && y1 > y0) focusBox = { x0, y0, x1, y1 };
+      }
+      const tearBoxes = tears.map(t => ({ x0: Math.max(0, Math.min(t.x0, t.x0 + t.dx)), x1: Math.min(W, Math.max(t.x1, t.x1 + t.dx)), y0: t.y, y1: t.y + t.h }));
+
+      /* 1 · THE STILL SCREEN (layer A): what was drawn over last frame is put back, and the rows torn now slip */
+      for (const r of wasA) restoreA(r);
+      for (const r of tearBoxes) restoreA(r);
+      if (focusBox) restoreA(focusBox);
+      aCtx.imageSmoothingEnabled = false;
+      for (const t of tears) {
+        const q = toLo({ x0: Math.max(0, t.x0), x1: Math.min(W, t.x1), y0: t.y, y1: t.y + t.h });
+        if (q.w > 0 && q.h > 0) aCtx.drawImage(brokenStill, q.x, q.y, q.w, q.h, q.x + Math.round(t.dx / PIX), q.y, q.w, q.h);
+      }
+
+      /* 2 · THE MOVING PARTS (layer B), in the chart's box only: the volume, the line, its last price and the axis */
+      const sb = toLo({ x0: scene.x0 - 24, x1: scene.x1 + 24, y0: scene.y0 - 8, y1: scene.y1 + 8 });
+      bCtx.setTransform(1, 0, 0, 1, 0, 0);
+      bCtx.globalCompositeOperation = 'source-over';
+      bCtx.clearRect(sb.x, sb.y, sb.w, sb.h);
+      bCtx.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0);
       const first = Math.max(0, Math.floor((now - t0) / STEP - (head - pane.x0) / GAP) - 1);
       /* the volume, a bar a step, denser than the pixels can hold — a block of white like the photograph's */
       const vb = pane.y1;
@@ -545,12 +701,12 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
         [ink.line, 0, 0.95],
       ];
       for (const [hue, dx, a] of fringes) {
-        lctx.fillStyle = rgb(hue, a);
+        bCtx.fillStyle = rgb(hue, a);
         for (let i = first; i < n; i++) {
           const x = xOf(i);
           if (x < pane.x0 || steps[i].jit > 0.55) continue;
           const h = steps[i].vol * vh;
-          lctx.fillRect(x + dx, vb - h, 2, h);
+          bCtx.fillRect(x + dx, vb - h, 2, h);
         }
       }
       /* the price line: rough, thick, fringed */
@@ -569,60 +725,66 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
         }
         c.lineTo(head + dx, headY + dy);
       };
-      lctx.lineJoin = 'round';
-      lctx.lineWidth = 2.6;
-      lctx.strokeStyle = rgb(ink.red, 0.6);
-      trace(lctx, -PIX, 0, 1.6);
-      lctx.stroke();
-      lctx.strokeStyle = rgb(ink.blue, 0.6);
-      trace(lctx, PIX, 1, 1.6);
-      lctx.stroke();
-      lctx.strokeStyle = rgb(ink.line);
-      trace(lctx, 0, 0, 1.6);
-      lctx.stroke();
+      bCtx.lineJoin = 'round';
+      bCtx.lineWidth = 2.6;
+      bCtx.strokeStyle = rgb(ink.red, 0.6);
+      trace(bCtx, -PIX, 0, 1.6);
+      bCtx.stroke();
+      bCtx.strokeStyle = rgb(ink.blue, 0.6);
+      trace(bCtx, PIX, 1, 1.6);
+      bCtx.stroke();
+      bCtx.strokeStyle = rgb(ink.line);
+      trace(bCtx, 0, 0, 1.6);
+      bCtx.stroke();
       /* the last price run out to its tag; the tag is the clock */
       const word = clock(wall, !calm);
-      lctx.fillStyle = rgb(ink.line, 0.95);
-      lctx.fillRect(head, Math.round(headY) - 1, tagX - head, 2);
-      lctx.font = `600 10px ${FONT_SANS}`;
-      const tw = lctx.measureText(word).width + 12;
-      lctx.strokeStyle = rgb(ink.line);
-      lctx.lineWidth = 2;
-      lctx.strokeRect(tagX, headY - 8, tw, 16);
-      lctx.textBaseline = 'middle';
-      lctx.textAlign = 'left';
-      lctx.fillText(word, tagX + 6, headY + 0.5);
+      bCtx.fillStyle = rgb(ink.line, 0.95);
+      bCtx.fillRect(head, Math.round(headY) - 1, tagX - head, 2);
+      bCtx.font = `600 10px ${FONT_SANS}`;
+      const tw = bCtx.measureText(word).width + 12;
+      bCtx.strokeStyle = rgb(ink.line);
+      bCtx.lineWidth = 2;
+      bCtx.strokeRect(tagX, headY - 8, tw, 16);
+      bCtx.textBaseline = 'middle';
+      bCtx.textAlign = 'left';
+      bCtx.fillText(word, tagX + 6, headY + 0.5);
       /* the time axis: the day's own times, on through the empty space ahead as a chart's axis runs */
       const ticks = phone ? 3 : 6;
       const tickGap = ((tagX - pane.x0) * 0.95) / ticks;
-      lctx.font = `600 8.5px ${FONT_SANS}`;
+      bCtx.font = `600 8.5px ${FONT_SANS}`;
       for (let i = 0; i < ticks; i++) {
         const x = pane.x0 + 14 + i * tickGap;
-        lctx.fillStyle = rgb(ink.line, 0.9);
-        lctx.fillText(clock(momentAt(x), false), x, axisY);
-        lctx.fillRect(x - 2, axisY + 7, 30, 2);
+        bCtx.fillStyle = rgb(ink.line, 0.9);
+        bCtx.fillText(clock(momentAt(x), false), x, axisY);
+        bCtx.fillRect(x - 2, axisY + 7, 30, 2);
+      }
+      /* the moving parts tear with the rest */
+      bCtx.setTransform(1, 0, 0, 1, 0, 0);
+      bCtx.imageSmoothingEnabled = false;
+      for (const t of tears) {
+        const q = toLo({ x0: Math.max(scene.x0 - 24, t.x0), x1: Math.min(scene.x1 + 24, t.x1), y0: t.y, y1: t.y + t.h });
+        if (q.w > 0 && q.h > 0) bCtx.drawImage(cvsB, q.x, q.y, q.w, q.h, q.x + Math.round(t.dx / PIX), q.y, q.w, q.h);
       }
       /* the screen's own glitch: now and then a row slips sideways for a moment */
       if (!calm && rand() < dt / 2200) {
         const y = Math.floor(rand() * LH);
-        tears.push({ y: y * PIX, h: (1 + Math.floor(rand() * 3)) * PIX, dx: (rand() - 0.5) * 40, x0: 0, x1: W, until: now + 110 });
+        tears.push({ y: y * PIX, h: (1 + Math.floor(rand() * 3)) * PIX, dx: (rand() - 0.5) * 40, x0: 0, x1: W, until: now + 110, hand: false });
       }
 
-      /* 2 · ONTO THE BAND, pixel for pixel */
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(lo, 0, 0, LW * PIX * dpr, LH * PIX * dpr);
-      ctx.imageSmoothingEnabled = true;
-
-      /* 3 · THE FOCUS: where the pointer (or the arrow) is and has been, the terminal comes back, sharp */
-      if (lit.length) {
+      /* 3 · THE FOCUS (layer C): where the pointer (or the arrow) is and has been, the broken screen gives way and the
+         terminal comes back, sharp — only in the focus's own box */
+      for (const r of wasC) clearC(r);
+      if (focusBox) {
+        const { x0: bx0, y0: by0, x1: bx1, y1: by1 } = focusBox;
+        const bw = bx1 - bx0;
+        const bh = by1 - by0;
+        const lx = bx0 / PIX;
+        const ly = by0 / PIX;
+        const lw = bw / PIX;
+        const lh = bh / PIX;
+        clearC(focusBox);
         mctx.setTransform(1, 0, 0, 1, 0, 0);
-        mctx.clearRect(0, 0, LW, LH);
-        let bx0 = Infinity;
-        let by0 = Infinity;
-        let bx1 = -Infinity;
-        let by1 = -Infinity;
+        mctx.clearRect(lx, ly, lw, lh);
         for (const l of lit) {
           const s = Math.max(0, 1 - (now - l.t) / LINGER);
           if (s <= 0) continue;
@@ -632,135 +794,158 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
           g.addColorStop(1, 'rgb(0 0 0 / 0)');
           mctx.fillStyle = g;
           mctx.fillRect((l.x - l.r) / PIX, (l.y - l.r) / PIX, (2 * l.r) / PIX, (2 * l.r) / PIX);
-          bx0 = Math.min(bx0, l.x - l.r);
-          by0 = Math.min(by0, l.y - l.r);
-          bx1 = Math.max(bx1, l.x + l.r);
-          by1 = Math.max(by1, l.y + l.r);
         }
-        bx0 = Math.max(0, Math.floor(bx0));
-        by0 = Math.max(0, Math.floor(by0));
-        bx1 = Math.min(W, Math.ceil(bx1));
-        by1 = Math.min(H, Math.ceil(by1));
-        if (bx1 > bx0 && by1 > by0) {
-          const bw = bx1 - bx0;
-          const bh = by1 - by0;
-          /* the sharp terminal in the lit box */
-          fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          fctx.globalCompositeOperation = 'source-over';
-          fctx.clearRect(bx0, by0, bw, bh);
-          fctx.save();
+        /* the broken screen gives way under it (A and B, cut by the mask) */
+        for (const c of [aCtx, bCtx]) {
+          c.setTransform(1, 0, 0, 1, 0, 0);
+          c.globalCompositeOperation = 'destination-out';
+          c.drawImage(mask, lx, ly, lw, lh, lx, ly, lw, lh);
+          c.globalCompositeOperation = 'source-over';
+        }
+        /* the sharp terminal in the lit box */
+        fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        fctx.globalCompositeOperation = 'source-over';
+        fctx.clearRect(bx0, by0, bw, bh);
+        fctx.save();
+        fctx.beginPath();
+        fctx.rect(bx0, by0, bw, bh);
+        fctx.clip();
+        fctx.drawImage(sharpStill, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr, bx0, by0, bw, bh);
+        /* its volume and its line, clean */
+        fctx.fillStyle = rgb(ink.ink, 0.5);
+        for (let i = first; i < n; i++) {
+          const x = xOf(i);
+          if (x < pane.x0 || x < bx0 - 3 || x > bx1) continue;
+          const h = steps[i].vol * vh;
+          fctx.fillRect(x, vb - h, 2, h);
+        }
+        fctx.lineJoin = 'round';
+        fctx.lineWidth = 1.6;
+        fctx.strokeStyle = rgb(ink.line);
+        trace(fctx, 0, 0, 0);
+        fctx.stroke();
+        /* the last price: a dashed line to a filled tag, the terminal's own */
+        fctx.strokeStyle = rgb(ink.line, 0.55);
+        fctx.lineWidth = 1;
+        fctx.setLineDash([3, 3]);
+        fctx.beginPath();
+        fctx.moveTo(head, Math.round(headY) + 0.5);
+        fctx.lineTo(tagX, Math.round(headY) + 0.5);
+        fctx.stroke();
+        fctx.setLineDash([]);
+        fctx.font = `500 10.5px ${FONT_SANS}`;
+        fctx.textBaseline = 'middle';
+        fctx.textAlign = 'left';
+        const ftw = fctx.measureText(word).width + 14;
+        fctx.fillStyle = rgb(ink.line);
+        fctx.beginPath();
+        fctx.roundRect(tagX, headY - 9, ftw, 18, 3);
+        fctx.fill();
+        fctx.fillStyle = rgb(ink.panel);
+        fctx.fillText(word, tagX + 7, headY + 0.5);
+        /* the axis */
+        fctx.font = `500 10px ${FONT_SANS}`;
+        fctx.fillStyle = rgb(ink.muted);
+        for (let i = 0; i < ticks; i++) {
+          const x = pane.x0 + 14 + i * tickGap;
+          fctx.fillText(clock(momentAt(x), false), x, axisY);
+        }
+        /* THE CROSSHAIR: in the pane, the pointer (or the arrow) reads the line — the moment under it on the tag and the
+           axis */
+        if (fx > pane.x0 && fx < pane.x1 && fy > pane.y0 - 10 && fy < axisY + 10) {
+          const cx = Math.round(Math.max(pane.x0 + 1, Math.min(head, fx))) + 0.5;
+          const cy = lineYAt(cx);
+          fctx.strokeStyle = rgb(ink.ink, 0.38);
+          fctx.setLineDash([2, 4]);
           fctx.beginPath();
-          fctx.rect(bx0, by0, bw, bh);
-          fctx.clip();
-          fctx.drawImage(sharpStill, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr, bx0, by0, bw, bh);
-          /* its volume and its line, clean */
-          fctx.fillStyle = rgb(ink.ink, 0.5);
-          for (let i = first; i < n; i++) {
-            const x = xOf(i);
-            if (x < pane.x0 || x < bx0 - 3 || x > bx1) continue;
-            const h = steps[i].vol * vh;
-            fctx.fillRect(x, vb - h, 2, h);
-          }
-          fctx.lineJoin = 'round';
-          fctx.lineWidth = 1.6;
-          fctx.strokeStyle = rgb(ink.line);
-          trace(fctx, 0, 0, 0);
-          fctx.stroke();
-          /* the last price: a dashed line to a filled tag, the terminal's own */
-          fctx.strokeStyle = rgb(ink.line, 0.55);
-          fctx.lineWidth = 1;
-          fctx.setLineDash([3, 3]);
-          fctx.beginPath();
-          fctx.moveTo(head, Math.round(headY) + 0.5);
-          fctx.lineTo(tagX, Math.round(headY) + 0.5);
+          fctx.moveTo(cx, pane.y0);
+          fctx.lineTo(cx, pane.y1);
+          fctx.moveTo(pane.x0, Math.round(cy) + 0.5);
+          fctx.lineTo(tagX, Math.round(cy) + 0.5);
           fctx.stroke();
           fctx.setLineDash([]);
-          fctx.font = `500 10.5px ${FONT_SANS}`;
-          fctx.textBaseline = 'middle';
-          fctx.textAlign = 'left';
-          const ftw = fctx.measureText(word).width + 14;
           fctx.fillStyle = rgb(ink.line);
           fctx.beginPath();
-          fctx.roundRect(tagX, headY - 9, ftw, 18, 3);
+          fctx.arc(cx, cy, 3, 0, Math.PI * 2);
+          fctx.fill();
+          const when = clock(momentAt(cx), true);
+          fctx.font = `500 10.5px ${FONT_SANS}`;
+          const ww = fctx.measureText(when).width + 14;
+          fctx.beginPath();
+          fctx.roundRect(cx - ww / 2, axisY - 9, ww, 18, 3);
+          fctx.fill();
+          fctx.beginPath();
+          fctx.roundRect(tagX, cy - 9, ww, 18, 3);
           fctx.fill();
           fctx.fillStyle = rgb(ink.panel);
-          fctx.fillText(word, tagX + 7, headY + 0.5);
-          /* the axis */
-          fctx.font = `500 10px ${FONT_SANS}`;
-          fctx.fillStyle = rgb(ink.muted);
-          for (let i = 0; i < ticks; i++) {
-            const x = pane.x0 + 14 + i * tickGap;
-            fctx.fillText(clock(momentAt(x), false), x, axisY);
-          }
-          /* THE CROSSHAIR: in the pane, the pointer (or the arrow) reads the line — the moment under it on the tag and the
-             axis */
-          if (fx > pane.x0 && fx < pane.x1 && fy > pane.y0 - 10 && fy < axisY + 10) {
-            const cx = Math.round(Math.max(pane.x0 + 1, Math.min(head, fx))) + 0.5;
-            const cy = lineYAt(cx);
-            fctx.strokeStyle = rgb(ink.ink, 0.38);
-            fctx.setLineDash([2, 4]);
-            fctx.beginPath();
-            fctx.moveTo(cx, pane.y0);
-            fctx.lineTo(cx, pane.y1);
-            fctx.moveTo(pane.x0, Math.round(cy) + 0.5);
-            fctx.lineTo(tagX, Math.round(cy) + 0.5);
-            fctx.stroke();
-            fctx.setLineDash([]);
-            fctx.fillStyle = rgb(ink.line);
-            fctx.beginPath();
-            fctx.arc(cx, cy, 3, 0, Math.PI * 2);
-            fctx.fill();
-            const when = clock(momentAt(cx), true);
-            fctx.font = `500 10.5px ${FONT_SANS}`;
-            const ww = fctx.measureText(when).width + 14;
-            fctx.beginPath();
-            fctx.roundRect(cx - ww / 2, axisY - 9, ww, 18, 3);
-            fctx.fill();
-            fctx.beginPath();
-            fctx.roundRect(tagX, cy - 9, ww, 18, 3);
-            fctx.fill();
-            fctx.fillStyle = rgb(ink.panel);
-            fctx.textAlign = 'center';
-            fctx.fillText(when, cx, axisY + 0.5);
-            fctx.fillText(when, tagX + ww / 2, cy + 0.5);
-            fctx.textAlign = 'left';
-          }
-          fctx.restore();
-          /* only what is lit: the focus cut to the mask */
-          fctx.setTransform(1, 0, 0, 1, 0, 0);
-          fctx.globalCompositeOperation = 'destination-in';
-          fctx.drawImage(mask, 0, 0, focus.width, focus.height);
-          fctx.globalCompositeOperation = 'source-over';
-          /* the broken screen gives way under it, and the sharp one is laid in */
-          ctx.globalCompositeOperation = 'destination-out';
-          ctx.drawImage(mask, 0, 0, canvas.width, canvas.height);
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.drawImage(focus, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr);
+          fctx.textAlign = 'center';
+          fctx.fillText(when, cx, axisY + 0.5);
+          fctx.fillText(when, tagX + ww / 2, cy + 0.5);
+          fctx.textAlign = 'left';
         }
+        fctx.restore();
+        /* only what is lit: the focus cut to the mask, and laid in */
+        fctx.setTransform(1, 0, 0, 1, 0, 0);
+        fctx.globalCompositeOperation = 'destination-in';
+        fctx.imageSmoothingEnabled = true;
+        fctx.drawImage(mask, lx, ly, lw, lh, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr);
+        fctx.globalCompositeOperation = 'source-over';
+        cCtx.setTransform(1, 0, 0, 1, 0, 0);
+        cCtx.drawImage(focus, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr);
       }
 
-      /* 4 · TEARS: rows the pointer crossed fast, and the screen's own slips, pushed sideways for a moment */
-      for (const t of tears) {
-        const sx = Math.max(0, t.x0);
-        const sw = Math.min(W, t.x1) - sx;
-        const sh = Math.min(t.h, H - t.y);
-        if (sw <= 0 || sh <= 0 || t.y < 0) continue;
-        ctx.drawImage(canvas, sx * dpr, t.y * dpr, sw * dpr, sh * dpr, (sx + t.dx) * dpr, t.y * dpr, sw * dpr, sh * dpr);
-      }
-
-      /* 5 · THE ARROW of its own, while no pointer is on the screen */
+      /* 4 · THE ARROW of its own, while no pointer is on the screen */
+      let arrowBox: Box | null = null;
       if (!calm && ghost.show > 0.02) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.globalAlpha = ghost.show;
-        ctx.beginPath();
-        ARROW.forEach(([ax, ay], i) => (i ? ctx.lineTo(ghost.x + ax, ghost.y + ay) : ctx.moveTo(ghost.x + ax, ghost.y + ay)));
-        ctx.closePath();
-        ctx.fillStyle = rgb(ink.line);
-        ctx.fill();
-        ctx.strokeStyle = rgb(ink.panel);
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+        arrowBox = { x0: ghost.x - 3, y0: ghost.y - 3, x1: ghost.x + 15, y1: ghost.y + 22 };
+        clearC(arrowBox);
+        cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cCtx.globalAlpha = ghost.show;
+        cCtx.beginPath();
+        ARROW.forEach(([ax, ay], i) => (i ? cCtx.lineTo(ghost.x + ax, ghost.y + ay) : cCtx.moveTo(ghost.x + ax, ghost.y + ay)));
+        cCtx.closePath();
+        cCtx.fillStyle = rgb(ink.line);
+        cCtx.fill();
+        cCtx.strokeStyle = rgb(ink.panel);
+        cCtx.lineWidth = 1;
+        cCtx.stroke();
+        cCtx.globalAlpha = 1;
+        cCtx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      /* what is out of place now, to be put back next frame */
+      wasA = focusBox ? [focusBox, ...tearBoxes] : tearBoxes;
+      wasC = [focusBox, arrowBox].filter((b): b is Box => !!b);
+
+      /* 6 · THE WORDS: lit where the reader's pointer is and has been (the arrow of its own lights none), and torn with the
+         rows a fast pointer tears — thirty times a second at most, in twelfths, each written only when it changes (a word
+         drawn again is its text and its fringe painted again) */
+      if (now - wordsAt < 30 && hand.on) return;
+      wordsAt = now;
+      for (const w of words) {
+        let v = 0;
+        for (const l of lit) {
+          if (!l.hand) continue;
+          const s = 1 - (now - l.t) / LINGER;
+          if (s <= 0) continue;
+          const dx = l.x < w.box.x0 ? w.box.x0 - l.x : l.x > w.box.x1 ? l.x - w.box.x1 : 0;
+          const dy = l.y < w.box.y0 ? w.box.y0 - l.y : l.y > w.box.y1 ? l.y - w.box.y1 : 0;
+          const near = 1 - Math.hypot(dx, dy) / (l.r * 0.85);
+          if (near > 0) v = Math.max(v, s * ease(Math.min(1, near * 1.4)));
+        }
+        let slip = 0;
+        for (const t of tears) if (t.hand && t.y < w.box.y1 && t.y + t.h > w.box.y0 && t.x1 > w.box.x0 && t.x0 < w.box.x1) slip += t.dx * 0.3;
+        slip = Math.round(Math.max(-9, Math.min(9, slip)));
+        v = Math.round(v * 12) / 12;
+        if (v !== w.lit) {
+          w.lit = v;
+          if (w.lit) w.el.style.setProperty('--lit', w.lit.toFixed(2));
+          else w.el.style.removeProperty('--lit');
+        }
+        if (slip !== w.slip) {
+          w.slip = slip;
+          if (slip) w.el.style.setProperty('--slip', `${slip}px`);
+          else w.el.style.removeProperty('--slip');
+        }
       }
     };
 
@@ -796,7 +981,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
     };
 
     const move = (e: PointerEvent) => {
-      const r = canvas.getBoundingClientRect();
+      const r = host.getBoundingClientRect();
       const x = e.clientX - r.left;
       const y = e.clientY - r.top;
       const now = performance.now();
@@ -806,7 +991,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
         if (sp > 0.9) {
           const dir = Math.sign(x - hand.x) || 1;
           for (let i = 0; i < 3; i++)
-            tears.push({ y: Math.round(y + (rand() - 0.5) * 70), h: 2 + Math.floor(rand() * 7), dx: dir * (6 + rand() * 22) * Math.min(2, sp), x0: x - 150, x1: x + 150, until: now + 140 + rand() * 90 });
+            tears.push({ y: Math.round(y + (rand() - 0.5) * 70), h: 2 + Math.floor(rand() * 7), dx: dir * (6 + rand() * 22) * Math.min(2, sp), x0: x - 150, x1: x + 150, until: now + 140 + rand() * 90, hand: true });
         }
       }
       hand.x = x;
@@ -838,11 +1023,12 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
     const up = (e: PointerEvent) => {
       if (e.pointerType !== 'mouse') leave();
     };
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerdown', move);
-    canvas.addEventListener('pointerleave', leave);
-    canvas.addEventListener('pointercancel', leave);
-    canvas.addEventListener('pointerup', up);
+    /* the pointer is read over the whole footer — the words and the links are on the screen, not over it */
+    host.addEventListener('pointermove', move);
+    host.addEventListener('pointerdown', move);
+    host.addEventListener('pointerleave', leave);
+    host.addEventListener('pointercancel', leave);
+    host.addEventListener('pointerup', up);
 
     draw(performance.now());
     const io = new IntersectionObserver(([e]) => {
@@ -860,6 +1046,14 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       redraw();
     });
     ro.observe(host);
+    /* the words are measured where they stand: once the type is in, again (a word's box moves when its font arrives) */
+    let alive = true;
+    document.fonts?.ready.then(() => {
+      if (!alive) return;
+      layout();
+      build();
+      redraw();
+    });
     /* a theme turn: every ink read again once the new ground is on the page, the still parts drawn again */
     let themed = 0;
     const mo = new MutationObserver(() => {
@@ -874,6 +1068,7 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'], subtree: true });
     document.addEventListener('visibilitychange', go);
     return () => {
+      alive = false;
       cancelAnimationFrame(raf);
       cancelAnimationFrame(themed);
       window.clearTimeout(tick);
@@ -881,17 +1076,24 @@ const FooterArt = ({ className = 'h-[220px] md:h-[300px]' }: { className?: strin
       ro.disconnect();
       mo.disconnect();
       document.removeEventListener('visibilitychange', go);
-      canvas.removeEventListener('pointermove', move);
-      canvas.removeEventListener('pointerdown', move);
-      canvas.removeEventListener('pointerleave', leave);
-      canvas.removeEventListener('pointercancel', leave);
-      canvas.removeEventListener('pointerup', up);
+      host.removeEventListener('pointermove', move);
+      host.removeEventListener('pointerdown', move);
+      host.removeEventListener('pointerleave', leave);
+      host.removeEventListener('pointercancel', leave);
+      host.removeEventListener('pointerup', up);
     };
   }, []);
 
   return (
-    <div ref={box} className={`relative w-full ${className}`} data-footer-art>
-      <canvas ref={cvs} aria-hidden="true" className="absolute inset-0 block touch-pan-y" />
+    <div ref={box} className={`relative isolate w-full ${className}`} data-footer-art>
+      {/* under everything the footer holds (its fade up out of the page is drawn into the still parts: a mask over the layers
+          made the browser lay the whole footer again each frame) */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <canvas ref={layerA} className="absolute left-0 top-0 block [image-rendering:pixelated]" />
+        <canvas ref={layerB} className="absolute left-0 top-0 block [image-rendering:pixelated]" />
+        <canvas ref={layerC} className="absolute left-0 top-0 block" />
+      </div>
+      {children}
     </div>
   );
 };

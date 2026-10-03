@@ -344,10 +344,33 @@
    drops the other links of its column a tier and comes forward — a short mark grows in front of it and its words step
    aside to make room. Colour and transforms only: a change of weight would reflow the line. Only where a pointer hovers;
    the keys get the mark and the step too. */
+/* THE WORDS ON THE SCREEN (components/layout/FooterArt.tsx, 2026-10-03 — the owner: "i want that glitchy thing and the
+   footer to be ONE"): the footer's words are the brightest marks on its broken screen — at rest the photograph's hair of
+   red on one edge and blue on the other, a tier down; where the reader's pointer is (--lit, 0 to 1, written by the art
+   only when it changes) they come up to the text's own ink and lose the fringe; a fast pointer's tear pushes them aside a
+   moment (--slip). Each word's resting tier is --rest. */
+.footer-word {
+  --rest: var(--text-secondary);
+  color: color-mix(in srgb, rgb(var(--text-primary)) calc(var(--lit, 0) * 100%), rgb(var(--rest)));
+  transform: translateX(var(--slip, 0px));
+  text-shadow:
+    calc(-1px * (1 - var(--lit, 0))) 0 rgb(var(--bear) / calc(0.36 * (1 - var(--lit, 0)))),
+    calc(1px * (1 - var(--lit, 0))) 0 rgb(var(--compare) / calc(0.36 * (1 - var(--lit, 0))));
+}
+.footer-word-quiet {
+  --rest: var(--text-muted);
+}
+.footer-word-loud {
+  --rest: var(--text-primary);
+}
 .footer-link {
   position: relative;
   display: inline-flex;
   align-items: center;
+}
+.footer-link:hover,
+.footer-link:focus-visible {
+  color: rgb(var(--text-primary));
 }
 .footer-link-mark {
   position: absolute;
