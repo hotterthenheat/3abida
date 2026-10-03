@@ -330,7 +330,8 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       {/* THE BAR — the prompt that opened the page on screen; on the hero, the room's line beside it */}
       <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel transition-colors duration-500">
         <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
-        <Prompt path={here} />
+        {/* the page on top: a film still loading leaves the one before it on screen, and the prompt waits with it */}
+        <Prompt path={drawn ?? here} />
         {note && (
           <span key={note} className="ml-auto pl-6 hidden md:block min-w-0 truncate text-[12px] text-textMuted animate-fade-in" data-window-note>
             {note}
