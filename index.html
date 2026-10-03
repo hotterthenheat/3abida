@@ -36,14 +36,26 @@
        from the same key theme/theme.ts keeps, and the attribute tokens.css
        switches on is set here, synchronously, before any stylesheet resolves —
        a light terminal never flashes dark on load, and the other way round. -->
+  <!-- THE LANDING ON A FIRST VISIT (2026-10-03) stands on the machine's own ground, as the landing does once it is up
+       (pages/landing/ground.tsx readBase; theme/theme.ts stamps the root the same way) — it opened black on a light
+       machine and turned light only once the app had loaded, two seconds in on a phone's connection. The terminal with
+       no choice made stays dark. -->
   <script>
     (function () {
       var t = 'dark';
+      var c = null;
       try {
-        var c = localStorage.getItem('slayer_theme');
-        if (c === 'light' || c === 'dark') t = c;
-        else if (c === 'system') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        c = localStorage.getItem('slayer_theme');
       } catch (e) {}
+      var machine = function () {
+        try {
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } catch (e) {
+          return 'dark';
+        }
+      };
+      if (c === 'light' || c === 'dark') t = c;
+      else if (c === 'system' || (c == null && location.pathname === '/')) t = machine();
       /* THE TERMINAL IN THE LANDING'S WINDOW (src/embed.ts): the page outside names the theme */
       try {
         if (window.self !== window.top && /[?&]embed\b/.test(location.search)) {
@@ -52,6 +64,22 @@
         }
       } catch (e) {}
       document.documentElement.setAttribute('data-theme', t);
+      /* a phone's browser bar takes the page's ground (the light one below, tokens.css's --canvas; theme.ts keeps it after) */
+      if (t === 'light') {
+        var bar = document.querySelector('meta[name="theme-color"]');
+        if (bar) bar.setAttribute('content', '#f1f0ec');
+      }
+      /* THE LANDING'S FIRST PICTURE, asked for at once (2026-10-03): it waited for the app's script to ask for it, and came
+         four seconds in on a phone's connection. The hero's still (pages/landing/TerminalWindow.tsx shotFor): the phone's
+         below 592px, the desk's above, in the theme just read. */
+      if (location.pathname === '/' && window.self === window.top) {
+        var pic = document.createElement('link');
+        pic.rel = 'preload';
+        pic.as = 'image';
+        pic.href = '/landing/pulse-' + t + '-' + (window.innerWidth < 592 ? 'phone' : 'desk') + '.webp';
+        pic.setAttribute('fetchpriority', 'high');
+        document.head.appendChild(pic);
+      }
     })();
   </script>
 

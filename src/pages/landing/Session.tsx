@@ -37,10 +37,19 @@
   reader comes near (the beats' first), drawn on one
   canvas only when the step on screen changes, and the
   scroll is read only while the section is on screen.
+
+  THE STORY (a desk, 2026-10-03 — "the same picture
+  three times"): the desk the scattered parts gather
+  into IS this window (Scatter.tsx `story`): the window
+  stands hidden while they come together, comes in as
+  they land on its own first picture, and what the
+  session says first (`story.lead`) stands beside it
+  before the beats come up. A phone, or less motion,
+  has the head and the beats as before.
 ==================================================
 */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { Theme } from '../../theme/theme';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -67,7 +76,7 @@ const WORDS: { title: string; text: string }[] = [
 ];
 
 const frameSrc = (theme: Theme, i: number) => `/landing/session/${theme}/f${String(i).padStart(3, '0')}.webp`;
-const beatSrc = (theme: Theme, k: number) => `/landing/session/${theme}/beat-${k + 1}.webp`;
+export const beatSrc = (theme: Theme, k: number) => `/landing/session/${theme}/beat-${k + 1}.webp`;
 
 /** how much of the way from one beat to the next the picture holds on the first before it plays on — the while its words
     are read, from the middle of the screen to near its top; the session plays as they go and the next come up */
@@ -97,12 +106,12 @@ const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box })
   );
 };
 
-/** THE WINDOW'S CHROME, as TerminalWindow draws it: the terminal's glyph, the prompt that opened the desk, and — at its
-    right — the moment of the session on screen */
-const Bar = ({ time }: { time: string }) => (
+/** THE WINDOW'S CHROME, as TerminalWindow draws it: the terminal's glyph, the prompt that opened the desk (typed as the
+    window comes in — in the story, once the parts have landed), and — at its right — the moment of the session on screen */
+const Bar = ({ time, typed = true }: { time: string; typed?: boolean }) => (
   <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel">
     <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
-    <Prompt path="/pulse" />
+    {typed && <Prompt path="/pulse" />}
     <span className="ml-auto pl-4 font-code text-[11.5px] tnum text-textMuted whitespace-nowrap" data-session-time>
       SPY · {time}
     </span>
@@ -159,35 +168,77 @@ interface View {
   lit: number;
   /** holding on that beat's own picture */
   hold: boolean;
+  /** not yet at the first beat: the picture stands, no marks yet (the story's parts have only just landed on it) */
+  pre: boolean;
 }
 
-const Session = ({ theme }: { theme: Theme }) => {
+/** THE STORY'S HOLD ON THIS WINDOW (a desk): the parts gather into it (Scatter.tsx), so it hands them its window and its
+    picture, and stands its first words beside it */
+export interface Story {
+  /** the window, standing on the right: hidden until the parts have landed */
+  stage: MutableRefObject<HTMLDivElement | null>;
+  /** its picture, where the parts come home */
+  screen: MutableRefObject<HTMLDivElement | null>;
+  /** what the session says first, standing beside the window: in after the window */
+  intro: MutableRefObject<HTMLDivElement | null>;
+  /** the parts have landed: the bar types the prompt */
+  shown: boolean;
+  /** the words beside the window, before the beats */
+  lead: ReactNode;
+}
+
+/** the scroll the session's first words stand beside the window — the parts' run and a breath after it (svh); the
+    words stand from a little above the screen's middle (PROLOGUE_AT) until their stretch is spent */
+export const PROLOGUE = 140;
+const PROLOGUE_AT = '24svh';
+
+const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   const small = useIsBelowLg();
+  /* in the story (a desk): the window and the first words are the scatter's to bring in */
+  const told = !!story && !small;
   const calm = useReducedMotion();
   const wrap = useRef<HTMLDivElement | null>(null);
   const beatEls = useRef<(HTMLLIElement | null)[]>([]);
   const screen = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
-  const [view, setView] = useState<View>({ k: BEATS[0].step, lit: 0, hold: true });
+  const [view, setView] = useState<View>({ k: BEATS[0].step, lit: 0, hold: true, pre: true });
   const viewNow = useRef(view);
   viewNow.current = view;
 
   /* ---- the pictures: fetched once the reader comes near, the beats' steps first ---- */
   const [near, setNear] = useState(false);
+  const list = useRef<HTMLOListElement | null>(null);
   useEffect(() => {
-    const el = wrap.current;
+    /* in the story the session starts right under the hero, so it is near from the first moment — it waits instead for
+       its beats to come within a screen (the parts' run is ahead of them), and for the page's own first things to be in:
+       its ninety pictures went out with the hero's and held it back */
+    const el = told ? list.current : wrap.current;
     if (!el || typeof IntersectionObserver === 'undefined') return setNear(true);
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e.isIntersecting) return;
-        setNear(true);
-        io.disconnect();
-      },
-      { rootMargin: '120% 0px' }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+    let io: IntersectionObserver | null = null;
+    const watch = () => {
+      io = new IntersectionObserver(
+        ([e]) => {
+          if (!e.isIntersecting) return;
+          setNear(true);
+          io?.disconnect();
+        },
+        { rootMargin: told ? '100% 0px' : '120% 0px' }
+      );
+      io.observe(el);
+    };
+    if (!told || document.readyState === 'complete') watch();
+    else window.addEventListener('load', watch, { once: true });
+    return () => {
+      window.removeEventListener('load', watch);
+      io?.disconnect();
+    };
+  }, [told]);
+  /* …and the parts landing on the window bring its pictures in whatever the page is still loading (the first is the
+     parts' own picture, in already) */
+  const shown = told && story.shown;
+  useEffect(() => {
+    if (shown) setNear(true);
+  }, [shown]);
   const imgs = useRef<(HTMLImageElement | null)[]>([]);
   const drawn = useRef(-1);
   const draw = useCallback((k: number, force = false) => {
@@ -289,8 +340,9 @@ const Session = ({ theme }: { theme: Theme }) => {
       const to = i < n - 1 ? BEATS[i + 1].step : from;
       const k = calm ? from : Math.round(from + (to - from) * (t <= HOLD ? 0 : ease((t - HOLD) / (1 - HOLD))));
       const hold = t <= HOLD;
+      const pre = y < anchors[0];
       const was = viewNow.current;
-      if (was.k !== k || was.lit !== i || was.hold !== hold) setView({ k, lit: i, hold });
+      if (was.k !== k || was.lit !== i || was.hold !== hold || was.pre !== pre) setView({ k, lit: i, hold, pre });
       if (!calm) draw(k);
     };
     const onScroll = () => {
@@ -326,50 +378,74 @@ const Session = ({ theme }: { theme: Theme }) => {
   }, [small, calm, draw]);
 
   const lit = view.lit;
+  /* the hairlines go up once the first beat is reached — in the story the parts have only just landed on its picture */
+  const marked = (view.hold && !view.pre) || !!calm;
   return (
     <div ref={wrap} className="lg:grid lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-x-10 xl:gap-x-12" data-session>
-      <div className="lg:pb-[24svh]">
-      <ol aria-label="Five moments from the session">
-        {BEATS.map((b, i) => {
-          const on = small || i === lit;
-          return (
-            <li
-              key={b.step}
-              ref={el => {
-                beatEls.current[i] = el;
-              }}
-              className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[66svh] lg:pt-[14svh]"
-              data-session-beat={i}
-              data-on={on || undefined}
-            >
-              <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted" data-session-anchor>
-                <span className={`tnum transition-colors duration-300 ${on ? 'text-textPrimary' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
-                <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
-                <span className="tnum">{b.time}</span>
-              </p>
-              <h3 className={`mt-4 text-[26px] sm:text-[28px] xl:text-[30px] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
-                {WORDS[i].title}
-              </h3>
-              <p className={`mt-3 max-w-[34ch] text-[15.5px] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>
-              {small && <BeatPicture theme={theme} k={i} />}
-            </li>
-          );
-        })}
-      </ol>
-      {/* said once, under the last beat */}
-      <p className="mt-2 lg:mt-12 max-w-[34ch] text-[13px] leading-relaxed text-textMuted" data-session-note>
-        Read off the terminal at each moment, nothing added after. It shows what is there; it doesn’t predict what comes next.
-      </p>
+      <div className="lg:pb-[14svh]">
+        {told && (
+          /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the parts come
+             together and a breath after (hidden until the window is in — Scatter.tsx), then go up the page ahead of the beats */
+          <div data-session-prologue>
+            <div ref={story.intro} className="sticky" style={{ top: PROLOGUE_AT, opacity: 0 }}>
+              {story.lead}
+            </div>
+            <div aria-hidden="true" style={{ height: `${PROLOGUE}svh` }} />
+          </div>
+        )}
+        <ol ref={list} aria-label="Five moments from the session">
+          {BEATS.map((b, i) => {
+            const on = small || i === lit;
+            return (
+              <li
+                key={b.step}
+                ref={el => {
+                  beatEls.current[i] = el;
+                }}
+                className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[52svh] lg:pt-[10svh]"
+                data-session-beat={i}
+                data-on={on || undefined}
+              >
+                <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted" data-session-anchor>
+                  <span className={`tnum transition-colors duration-300 ${on ? 'text-textPrimary' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
+                  <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
+                  <span className="tnum">{b.time}</span>
+                </p>
+                <h3 className={`mt-4 text-[26px] sm:text-[28px] xl:text-[30px] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
+                  {WORDS[i].title}
+                </h3>
+                <p className={`mt-3 max-w-[34ch] text-[15.5px] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>
+                {small && <BeatPicture theme={theme} k={i} />}
+              </li>
+            );
+          })}
+        </ol>
+        {/* said once, under the last beat */}
+        <p className="mt-2 lg:mt-10 max-w-[34ch] text-[13px] leading-relaxed text-textMuted" data-session-note>
+          Read off the terminal at each moment, nothing added after. It shows what is there; it doesn’t predict what comes next.
+        </p>
       </div>
       {!small && (
-        <div className="sticky top-[96px] self-start h-[calc(100svh-132px)] max-h-[860px] flex justify-start" data-session-stage>
+        <div
+          ref={told ? story.stage : undefined}
+          className="sticky top-[96px] self-start h-[calc(100svh-132px)] max-h-[860px] flex justify-start"
+          style={told ? { opacity: 0 } : undefined}
+          data-session-stage
+        >
           <div
             className="self-start overflow-hidden rounded-[10px] border border-borderMuted bg-canvas flex flex-col"
             style={{ width: `min(100%, calc((min(100svh - 132px, 860px) - ${CHROME}px) * ${DATA.w / DATA.h} + 2px))` }}
             data-theme={theme}
           >
-            <Bar time={DATA.times[view.k] ?? BEATS[lit].time} />
-            <div ref={screen} className="relative overflow-hidden" style={{ aspectRatio: `${DATA.w} / ${DATA.h}` }}>
+            <Bar time={DATA.times[view.k] ?? BEATS[lit].time} typed={!told || story.shown} />
+            <div
+              ref={el => {
+                screen.current = el;
+                if (told) story.screen.current = el;
+              }}
+              className="relative overflow-hidden"
+              style={{ aspectRatio: `${DATA.w} / ${DATA.h}` }}
+            >
               {!calm && <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full" />}
               {/* the beat's own picture, full size, while the session holds on it (and, where less motion is asked for, always) */}
               {near &&
@@ -385,7 +461,7 @@ const Session = ({ theme }: { theme: Theme }) => {
                     style={{ opacity: i === lit && (view.hold || calm) ? 1 : 0 }}
                   />
                 ))}
-              <Marks boxes={BEATS[lit].boxes} on={view.hold || !!calm} />
+              <Marks boxes={BEATS[lit].boxes} on={marked} />
             </div>
           </div>
         </div>

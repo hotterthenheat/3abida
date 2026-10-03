@@ -58,7 +58,7 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
 import { ArrowRight, Check, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -68,10 +68,11 @@ import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
-import TerminalWindow from './TerminalWindow';
+import TerminalWindow, { savingData, warmOtherGround } from './TerminalWindow';
+import { warmShell } from '../../components/layout/shell';
 import type { Sweep } from './Boot';
 import { PRODUCTS } from '../../brand/products';
-import Session from './Session';
+import Session, { type Story as StoryHold } from './Session';
 import Scatter from './Scatter';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
@@ -572,6 +573,8 @@ const Nav = ({ ground }: { ground: Ground }) => {
         <button
           type="button"
           onClick={() => choose(ground === 'dark' ? 'light' : 'dark')}
+          onPointerEnter={warmOtherGround}
+          onFocus={warmOtherGround}
           className="ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
           aria-label={ground === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
           title={ground === 'dark' ? 'Light theme' : 'Dark theme'}
@@ -667,10 +670,10 @@ const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
       <h1 className="landing-rise landing-focus [--rise-delay:60ms] mt-5 sm:mt-6 font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.6rem,min(5.6vw,10svh),5.25rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can <Foil>see.</Foil>
       </h1>
-      <p className="landing-rise [--rise-delay:120ms] mt-5 max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] text-textSecondary [text-wrap:balance]">
+      <p className="landing-rise [--rise-delay:120ms] mt-5 max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] text-textSecondary [text-wrap:balance]" data-landing-hero-sub>
         Positioning, market structure, volatility and flow — brought together in one terminal.
       </p>
-      <div className="landing-rise [--rise-delay:170ms] mt-7 flex flex-wrap items-center gap-3">
+      <div className="landing-rise [--rise-delay:170ms] mt-7 flex flex-wrap items-center gap-3" data-landing-hero-doors>
         <Pill href="/signup" onClick={onSignUp} testId="hero">
           Sign up free
         </Pill>
@@ -700,6 +703,42 @@ const Matters = () => {
         </p>
       </div>
     </Wrap>
+  );
+};
+
+/** WHAT THE SESSION SAYS FIRST, beside its window as the desk's parts land in it (the scatter's payoff and the session's
+    head in one) */
+const Lead = () => (
+  <div>
+    <Eyebrow>How it works</Eyebrow>
+    <h2 className="mt-6 font-light tracking-[-0.035em] leading-[1.04] text-[30px] xl:text-[34px] [text-wrap:balance] outline-none">
+      Slayer reads them together, <span className="block text-textMuted">on one screen, while the session moves.</span>
+    </h2>
+    <p className="mt-5 max-w-[34ch] text-[15px] leading-[1.55] text-textSecondary">
+      Five moments from one session on SPY, each read off the terminal as it ran. Scroll, and the session plays between them.
+    </p>
+  </div>
+);
+
+/* WHY DOES IT MATTER? AND SHOW ME — ONE STORY, ON A DESK (2026-10-03 — the landing showed the same desk three times, and
+   the four products eight screens down): the desk's parts lie scattered round "Most of what moves a price is public. It's
+   just scattered.", gather into the session's own window as the reader scrolls (Scatter.tsx), and that window then plays
+   the session beside its beats (Session.tsx). A phone and less motion have the words alone, then the session's head and
+   beats (Page). */
+const Story = ({ theme }: { theme: Ground }) => {
+  const stage = useRef<HTMLDivElement | null>(null);
+  const screen = useRef<HTMLDivElement | null>(null);
+  const intro = useRef<HTMLDivElement | null>(null);
+  const [shown, setShown] = useState(false);
+  const targets = useMemo(() => ({ stage, screen, intro }), []);
+  const hold = useMemo<StoryHold>(() => ({ ...targets, shown, lead: <Lead /> }), [targets, shown]);
+  return (
+    <div className="relative" data-story>
+      <Scatter theme={theme} story={targets} onLanded={setShown} />
+      <Wrap className="relative">
+        <Session theme={theme} story={hold} />
+      </Wrap>
+    </div>
   );
 };
 
@@ -1133,6 +1172,22 @@ const Page = () => {
     };
   }, []);
 
+  /* THE TERMINAL'S SHELL, fetched once the page stands and the network has gone quiet (components/layout/shell.ts — it is
+     no longer in the script the landing waits for), so a door into the terminal still opens at once */
+  useEffect(() => {
+    if (savingData()) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    let idle = 0;
+    const t = window.setTimeout(() => {
+      if (w.requestIdleCallback) idle = w.requestIdleCallback(warmShell, { timeout: 4000 });
+      else warmShell();
+    }, 2500);
+    return () => {
+      window.clearTimeout(t);
+      if (idle) w.cancelIdleCallback?.(idle);
+    };
+  }, []);
+
   /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */
   useEffect(() => {
     if (!location.hash) return;
@@ -1152,30 +1207,36 @@ const Page = () => {
         <Hero onSignUp={signUp} />
       </Block>
 
-      {/* ── WHY DOES IT MATTER? ───────────────────────────────────────────────────────────────── */}
-      <Block on="a" label="Why it matters">
-        {/* the desk falling apart and coming together as the reader scrolls (Scatter.tsx); the words alone where less motion
-            is asked for */}
-        {calm ? <Matters /> : <Scatter theme={a} />}
-      </Block>
-
-      {/* ── SHOW ME: ONE SESSION, AS THE TERMINAL SAW IT ─────────────────────────────────────── */}
-      <Block on="a" id="how" label="How it works" className="pb-[8vh] scroll-mt-10">
-        <Wrap>
-          <Head
-            eyebrow="How it works"
-            first="One session,"
-            second="as the terminal saw it."
-            aside={<>Five moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
-          />
-          <div className="mt-6 lg:mt-0">
-            <Session theme={a} />
-          </div>
-        </Wrap>
-      </Block>
+      {/* ── WHY DOES IT MATTER? AND SHOW ME ─────────────────────────────────────────────────────── */}
+      {/* on a desk, one story: the desk's parts gather into the session's window and it plays the session (Story); on a
+          phone, or where less motion is asked for, the words alone and then the session's head and beats */}
+      {calm || small ? (
+        <>
+          <Block on="a" label="Why it matters">
+            <Matters />
+          </Block>
+          <Block on="a" id="how" label="How it works" className="pb-[6vh] scroll-mt-10">
+            <Wrap>
+              <Head
+                eyebrow="How it works"
+                first="One session,"
+                second="as the terminal saw it."
+                aside={<>Five moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
+              />
+              <div className="mt-6 lg:mt-0">
+                <Session theme={a} />
+              </div>
+            </Wrap>
+          </Block>
+        </>
+      ) : (
+        <Block on="a" id="how" label="How it works" className="pb-[4vh] scroll-mt-10">
+          <Story theme={a} />
+        </Block>
+      )}
 
       {/* ── WHAT ELSE CAN IT SEE? THE FOUR SYSTEMS ───────────────────────────────────────────── */}
-      <Block on="a" id="products" label="Products" className="pt-[8vh] pb-[10vh] scroll-mt-10">
+      <Block on="a" id="products" label="Products" className="pt-[6vh] pb-[10vh] scroll-mt-10">
         <Wrap>
           <Head
             eyebrow="Products"

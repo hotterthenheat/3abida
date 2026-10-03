@@ -48,9 +48,9 @@
 ==================================================
 */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { THEME_KEY, getResolvedTheme, setThemeChoice, subscribeTheme, type Theme } from '../../theme/theme';
+import { THEME_KEY, getResolvedTheme, setThemeChoice, stampRoot, subscribeTheme, type Theme } from '../../theme/theme';
 
 export type Ground = Theme;
 export const other = (g: Ground): Ground => (g === 'dark' ? 'light' : 'dark');
@@ -120,6 +120,13 @@ export const GroundProvider = ({ children }: { children: ReactNode }) => {
     if (typeof doc.startViewTransition === 'function' && !calm?.matches) doc.startViewTransition(() => flushSync(run));
     else run();
   }, []);
+
+  /* the root stands on the page's ground while the landing is up (theme.ts stampRoot): on a first visit on a light machine
+     the reader's choice is still the terminal's dark, and the root went on wearing it under a light page */
+  useLayoutEffect(() => {
+    stampRoot(a);
+  }, [a]);
+  useLayoutEffect(() => () => stampRoot(null), []);
 
   const value = useMemo<GroundValue>(() => ({ a, b: picked ? a : other(a), choose }), [a, picked, choose]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

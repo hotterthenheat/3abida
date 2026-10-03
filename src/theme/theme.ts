@@ -61,10 +61,38 @@ const listeners = new Set<() => void>();
 /** Colours read out of the tokens, per theme — a canvas asks once per frame, not the style engine */
 const tokenCache = new Map<string, string>();
 
+/* THE LANDING STANDS ON ITS OWN GROUND (2026-10-03): on a first visit it follows the machine while the terminal with no
+   choice made stays dark (pages/landing/ground.tsx readBase). While it is up it stamps the root with that ground
+   (stampRoot), so the house's root-written rules and readToken answer for the page on screen; leaving, it hands the root
+   back to the reader's choice. The stamp starts here as index.html set it before the first paint — set to dark here, the
+   root went black under a light landing until the landing's own code had come. */
+const firstGround = (): Theme | null => {
+  if (typeof window === 'undefined' || EMBEDDED || window.location.pathname !== '/') return null;
+  try {
+    if (localStorage.getItem(THEME_KEY) != null) return null;
+  } catch {
+    /* storage blocked: no choice made */
+  }
+  return systemTheme();
+};
+let stamp: Theme | null = firstGround();
+
 function apply(): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.dataset.theme = resolved;
+  const root = document.documentElement;
+  const on = stamp ?? resolved;
+  root.dataset.theme = on;
   tokenCache.clear();
+  /* a phone's browser bar takes the ground (index.html sets it before the first paint) */
+  const ground = getComputedStyle(root).getPropertyValue('--canvas').trim();
+  if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', `rgb(${ground})`);
+}
+
+/** A page on its own ground stamps the root with it while it is up; null hands the root back to the reader's choice */
+export function stampRoot(next: Theme | null): void {
+  if (next === stamp) return;
+  stamp = next;
+  apply();
 }
 
 function settle(): void {

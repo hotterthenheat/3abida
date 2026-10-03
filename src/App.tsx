@@ -4,12 +4,16 @@ import { MotionConfig } from 'framer-motion';
 import { MarketDataProvider } from './context/MarketDataContext';
 import { TrackerProvider } from './context/TrackerContext';
 import { WatchProvider } from './context/WatchContext';
-import AppShell from './components/layout/AppShell';
+import { loadShell } from './components/layout/shell';
+/* THE LANDING IS THE ONE PAGE IN THE FIRST SCRIPT (2026-10-03): it is the first page a visitor meets, and as a chunk of
+   its own (below, every other page is) it was asked for only once this script had run, and then in a chain of small
+   requests — half a second on a phone's connection before the hero could be drawn. The terminal's shell went the other
+   way (components/layout/shell.ts). */
+import Landing from './pages/landing/Landing';
 import { LaunchProvider } from './components/layout/LaunchTransition';
 import { FocusProvider } from './context/FocusContext';
 import EmbedBridge from './components/layout/EmbedBridge';
 import PageMeta from './components/layout/PageMeta';
-import { NotFoundInside, NotFoundPrompt } from './pages/notFound/NotFound';
 import { EMBEDDED } from './embed';
 import { FaviconFollowsMark } from './brand/favicon';
 import AlertsDoor from './components/alerts/AlertsDoor';
@@ -22,7 +26,12 @@ import AlertsDoor from './components/alerts/AlertsDoor';
   the shell shows the page's skeleton while it travels (AppShell's Suspense),
   and a page opens on its next frame with its boxes already in place.
 */
-const Landing = lazy(() => import('./pages/landing/Landing'));
+/* THE SHELL TOO (2026-10-03): the landing no longer waits for the terminal's rail, palette, alerts and runners —
+   components/layout/shell.ts, which the landing and a launch fetch ahead */
+const AppShell = lazy(loadShell);
+/* the wrong address's pages, likewise only when an address is wrong */
+const NotFoundInside = lazy(() => import('./pages/notFound/NotFound').then(m => ({ default: m.NotFoundInside })));
+const NotFoundPrompt = lazy(() => import('./pages/notFound/NotFound').then(m => ({ default: m.NotFoundPrompt })));
 const Pulse = lazy(() => import('./pages/workspace/Pulse'));
 const PulseBoard = lazy(() => import('./pages/PulseBoard'));
 const Terrain = lazy(() => import('./pages/terrain/Terrain'));

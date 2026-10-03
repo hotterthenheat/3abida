@@ -120,6 +120,11 @@ const filmFor = (key: string): string => `/landing/clips/${key}.mp4`;
 /** The films are H.264: a browser that cannot play it (an open-source Chromium) is shown the stills */
 const noFilms = (): boolean => typeof document !== 'undefined' && !document.createElement('video').canPlayType('video/mp4; codecs="avc1.640028"');
 
+/** The windows on the page, each ready to fetch its page's still in the other theme; the theme button calls them as the
+    reader reaches for it (pointer over it, or the keys on it), so a switch finds the pictures in */
+const warmers = new Set<() => void>();
+export const warmOtherGround = (): void => warmers.forEach(warm => warm());
+
 /** A visitor saving data gets the stills */
 export const savingData = (): boolean => {
   const c = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
@@ -215,13 +220,20 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [want, near]);
 
-  /* the other theme's still of this page is fetched ahead: the window turns with the page, and the turn should not wait */
+  /* the other theme's still of this page, fetched as the reader reaches for the theme button (warmOtherGround) — not
+     before: the page no longer turns on its own, most readers never switch, and every window fetched one it never showed */
   useEffect(() => {
     if (!near) return;
-    const t = window.setTimeout(() => {
+    let warmed = false;
+    const warm = () => {
+      if (warmed) return;
+      warmed = true;
       new Image().src = shotFor(path, theme === 'dark' ? 'light' : 'dark', form);
-    }, 1200);
-    return () => window.clearTimeout(t);
+    };
+    warmers.add(warm);
+    return () => {
+      warmers.delete(warm);
+    };
   }, [path, theme, form, near]);
 
   /* ---- THE FILMS ---- */

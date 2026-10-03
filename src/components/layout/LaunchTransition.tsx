@@ -28,6 +28,7 @@ import { EMBEDDED } from '../../embed';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import Signature from '../../brand/Signature';
+import { warmShell } from './shell';
 
 interface LaunchCtxValue {
   /** Play the gate, then navigate (defaults to the terminal's front door). */
@@ -76,6 +77,8 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
     (to: string = '/pulse') => {
       if (busyRef.current) return;
       busyRef.current = true;
+      /* the terminal's shell is fetched as the gate goes up (it is its own chunk — shell.ts) */
+      warmShell();
       bootRef.current = false;
       setCaption(captionFor(to));
       setActive(true);
