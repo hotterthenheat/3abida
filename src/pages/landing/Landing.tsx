@@ -455,8 +455,9 @@ const useArrival = <T extends HTMLElement>(margin = '0px 0px -18% 0px') => {
   return ref;
 };
 
-/** THE BAR. Flat across the top of the page with the wordmark; once the page moves it lifts into a floating pill of glass
-    and the wordmark gives way to the mark (the Logo System's own two frames). */
+/** THE BAR. Flat across the top of the page with the wordmark; once the page moves it lifts into a floating pill and the
+    wordmark gives way to the mark (the Logo System's own two frames). The pill is solid panel, not glass (the brief of
+    2026-10-03: "No glassmorphism"). */
 const Nav = ({ ground }: { ground: Ground }) => {
   const { choose } = useGround();
   const { launch } = useLaunch();
@@ -518,7 +519,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
     <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
       <div
         className={`pointer-events-auto relative w-full h-[52px] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
-          lifted ? 'max-w-[760px] pl-2.5 pr-1.5 border-borderSubtle bg-panel/75 backdrop-blur-xl shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
+          lifted ? 'max-w-[760px] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
         <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
@@ -590,7 +591,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto overscroll-contain rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1"
+            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto overscroll-contain rounded-3xl border border-borderSubtle bg-panel shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1"
             data-landing-menu
           >
             {NAV.map(l => (
@@ -976,7 +977,7 @@ const Page = () => {
       <Block on="a" id="products" label="Products" className="pt-[10vh] pb-[12vh] scroll-mt-10">
         <Wrap>
           <Eyebrow>Products</Eyebrow>
-          <TwoTone className="mt-6" first="Four ways in." second="One market." />
+          <TwoTone className="mt-6" first="Four systems." second="One terminal." />
           <div className="mt-4">
             {SYSTEMS.map(s => (
               <SystemBlock key={s.id} s={s} onOpen={open} />
