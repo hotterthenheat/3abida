@@ -128,37 +128,37 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   past the column to 24 px short of the screen's right edge, so the demonstration does not shrink with it. The type a
   step down (the headline min(5.6vw, 10svh) up to 84 px, heads 50, the systems' lines 44, prices 44) and the sections'
   air a little less. THE HERO BOOTS (the same day — "the landing page is missing something like that snazz"): once a
-  visit, as the page opens, the hero's window comes up out of the footer's photograph — its own still in coarse pixels
-  (each the block's strongest mark: the brightest on black, the darkest on paper), only the strongest at first, a hair
-  of red on one edge and blue on the other, a row or two torn aside — and sharpens to the desk in 1.1 s
-  (pages/landing/Boot.tsx, TerminalWindow `boot`; it begins 320 ms in, once the window has risen into view); the headline settles out of the same fringe as it rises (index.css
-  .landing-fringe, on `translate` so it adds to the rise). Never again on a return within the app, never under reduced
-  motion, never in a tab behind, and not at all if the still takes over 1.2 s to come (the window never waits on its own
-  entrance; it gives way 1.2 s in if it has not begun). The window holds its film on the first frame until the canvas
-  has gone (Boot `onDone`), so the hand-over is seamless. The headline's fringe is a pair of drop-shadows of the drawn
-  line (a text-shadow washed the foil's "see."). It is the hero's alone; the rest of the page keeps its arrival clips.
-- THE GLITCH, IN MORE PLACES, AND THE WOW (2026-10-03 — the owner: "i love the little glitch affect i think we should
-  implement that in more places but infomation and hiecrcy wise i still feel as if were missing that wow"). The footer's
-  photograph is the landing's one way of drawing a picture broken (pages/landing/pixels.ts: a PIECE of a picture drawn at a
-  sharpness 0–1 — coarse pixels, only its strongest marks, the red and blue fringe — through eight states to the picture
-  itself), used for: the hero's boot; THE SCATTER (pages/landing/Scatter.tsx — WHY DOES IT MATTER, shown: the Pulse
+  visit, as the page opens, the hero's window resolves out of its own still — a fine grain without its colour, its
+  faintest marks not yet arrived, sharpening and taking its colour in 0.9 s (pages/landing/Boot.tsx, TerminalWindow
+  `boot`; it begins 320 ms in, once the window has risen into view); the headline comes into focus out of a soft blur as
+  it rises (index.css .landing-focus). Never again on a return within the app, never under reduced motion, never in a tab
+  behind, and not at all if the still takes over 1.2 s to come (it gives way 1.2 s in if it has not begun — the window
+  never waits on its own entrance). The window holds its film on the first frame until the canvas has gone (Boot
+  `onDone`), so the hand-over is seamless.
+- THE WOW, AND THE GLITCH MADE QUIET (2026-10-03 — the owner: "i love the little glitch affect i think we should
+  implement that in more places but infomation and hiecrcy wise i still feel as if were missing that wow"; then, the
+  same day, the owner's partner: the glitches were "too gamified"). A picture on the landing that is not there yet
+  RESOLVES (pages/landing/pixels.ts: a PIECE of a picture drawn at a sharpness 0–1 — a fine grain of 6 px down to 1,
+  without its colour at first, its faintest marks not yet in — through eight states to the picture itself). NEVER ON
+  THE PAGE'S CONTENT: coarse game-sized blocks, the red and blue fringe, torn rows, words stepping out of line, tilted
+  pieces, a glitch on a hover — those read as a game. The fringe and the tear are the footer's alone (the art piece at
+  the end). Used for: the hero's boot; THE SCATTER (pages/landing/Scatter.tsx — WHY DOES IT MATTER, shown: the Pulse
   desk's own parts, cut from the hero's still at their measured boxes (PARTS; restage the desk and re-measure them), lie
-  about a pinned screen broken into the footer's grain, each named in its own panel's words, around "Most of what moves a
-  price is public. / It's just scattered." (the second line itself out of line, fringed); the scroll draws them home into
-  one window, sharpening as they land, the bar types "open pulse" and "Slayer reads them together — on one screen, while
-  the session moves." follows; a fast scroll tears a row; the session then plays on that desk. Where less motion is asked
-  for, the words alone (Landing.tsx Matters)); THE STAGE (Landing.tsx Systems — the four as a player and its list: the
-  window on one side running to the screen's edge, the list of four (number, glyph, name, line) on the other, the one on
-  screen bright with a silver line filling under it and what it does and its door beneath; a tablist (arrows, Home, End).
-  It plays itself a page every 6.5 s while on screen with the tab in front; a moving pointer holds it until still 2.5 s,
-  the keys inside hold it, a touch holds it 3 s after the finger lifts, a pick holds it until the stage leaves the screen.
-  The window (TerminalWindow boot="switch") boots each page as it is first seen and on every switch, holding the film on
-  its first frame till the boot has gone. A phone: the four two by two, the line over the window, what it does under it.
-  Less motion: no play, no boot). And as accents: every section's head arrives a line at a time and its two-tone line
-  settles out of the fringe (Landing.tsx Head, index.css .landing-settle); the session's silver marks flicker in with it
-  (index.css session-mark-in); the closing lines' unlit letters wear the footer's words-at-rest fringe and lose it as they
-  light; a room's glyph under the pointer slips its fringe once (index.css landing-glyph-glitch). The glitch is for
-  arrivals, switches and a hand's touch — never a loop.
+  flat and dim about a pinned screen in the fine grain, each named in its own panel's words, around "Most of what moves a
+  price is public. / It's just scattered."; the scroll draws them home into one window, sharpening and taking their
+  colour as they land, the bar types "open pulse" and "Slayer reads them together — on one screen, while the session
+  moves." follows; the session then plays on that desk. Where less motion is asked for, the words alone (Landing.tsx
+  Matters)); THE STAGE (Landing.tsx Systems — the four as a player and its list: the window on one side running to the
+  screen's edge, the list of four (number, glyph, name, line) on the other, the one on screen bright with a silver line
+  filling under it and what it does and its door beneath; a tablist (arrows, Home, End). It plays itself a page every
+  6.5 s while on screen with the tab in front; a moving pointer holds it until still 2.5 s, the keys inside hold it, a
+  touch holds it 3 s after the finger lifts, a pick holds it until the stage leaves the screen. The window
+  (TerminalWindow boot="switch") resolves each page in about half a second as it is first seen and on every switch,
+  along the page's own motion with a soft edge (Boot `sweep`), holding the film on its first frame till it has. A phone:
+  the four two by two, the line over the window, what it does under it. Less motion: no play, no boot). Words never
+  glitch: every section's head arrives a line at a time and its two-tone line comes into focus out of a soft blur, as
+  the hero's headline does (Landing.tsx Head, index.css .landing-settle / landing-focus). Arrivals and switches only —
+  never a loop.
 - THE SESSION (pages/landing/Session.tsx; `npm run landing:session`, scripts/make-landing-session.mjs): the brief's one
   "killer" demonstration — "Look at what the terminal was able to show", never "Slayer predicted the move". The real
   Pulse desk, opened at 09:31 New York on 2026-10-01 and run forward with its live ticks drawn from a seeded stream

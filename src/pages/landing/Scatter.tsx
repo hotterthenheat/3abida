@@ -11,8 +11,10 @@
   one window, sharpening as they land, until it is the desk itself, and the bar types "open pulse": "Slayer reads them
   together — on one screen, while the session moves." The session follows, on that same desk.
 
-  The stage stands still while the scroll plays it (sticky); nothing moves but with the scroll, and a fast scroll tears a
-  row or two, as a fast pointer does on the footer. The parts are the still's own (1440 × 1000; its panels measured off
+  REFINED THE SAME DAY (the owner's partner: the glitches were "too gamified"): the parts lie flat, never tilted, in a fine
+  grain without their colour (pixels.ts), and nothing tears; they sharpen and take their colour as they land.
+
+  The stage stands still while the scroll plays it (sticky); nothing moves but with the scroll. The parts are the still's own (1440 × 1000; its panels measured off
   the staged desk, scripts/landing-stage.mjs SEED — a desk restaged moves them, and PARTS with it). Its picture is
   fetched once the reader is near. Where less motion is asked for the page shows the words alone (Landing.tsx Matters).
 ==================================================
@@ -23,7 +25,7 @@ import type { Theme } from '../../theme/theme';
 import ProductGlyph from '../../brand/ProductGlyph';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import { Prompt, shotFor } from './TerminalWindow';
-import { inksAt, pieceOf, tear, type Piece } from './pixels';
+import { inksAt, pieceOf, type Piece } from './pixels';
 
 /** THE DESK'S PARTS, where each stands in the still (1440 × 1000 — the window's picture), and what the named ones show
     (each in its own panel's words) */
@@ -38,36 +40,35 @@ const PARTS: { id: string; box: [number, number, number, number]; label?: string
 /** the order the named parts are numbered in, as a reader meets them */
 const ORDER = ['chart', 'ladder', 'compass', 'earnings'];
 
-/** where a part lies scattered: its middle (shares of the stage), its size (a share of its own), its turn (degrees), the
-    way it drifts with the scroll before it travels (px over the run), and when it travels home (shares of the run) */
+/** where a part lies apart: its middle (shares of the stage), its size (a share of its own), the way it drifts with the
+    scroll before it travels (px over the run), and when it travels home (shares of the run) */
 interface Away {
   cx: number;
   cy: number;
   k: number;
-  r: number;
   dx: number;
   dy: number;
   go: [number, number];
 }
 const DESK: Record<string, Away> = {
-  chart: { cx: 0.18, cy: 0.27, k: 0.7, r: -3, dx: -30, dy: -36, go: [0.36, 0.7] },
-  ladder: { cx: 0.83, cy: 0.31, k: 0.66, r: 3.5, dx: 36, dy: -30, go: [0.4, 0.74] },
-  compass: { cx: 0.2, cy: 0.79, k: 0.66, r: 2.5, dx: -36, dy: 30, go: [0.44, 0.78] },
-  earnings: { cx: 0.8, cy: 0.8, k: 0.62, r: -3.5, dx: 36, dy: 36, go: [0.48, 0.82] },
-  head: { cx: 0.5, cy: 0.91, k: 0.5, r: 1.5, dx: 0, dy: 24, go: [0.52, 0.84] },
-  rail: { cx: 0.03, cy: 0.55, k: 0.75, r: -2.5, dx: -16, dy: 0, go: [0.54, 0.86] },
+  chart: { cx: 0.18, cy: 0.27, k: 0.7, dx: -30, dy: -36, go: [0.36, 0.7] },
+  ladder: { cx: 0.83, cy: 0.31, k: 0.66, dx: 36, dy: -30, go: [0.4, 0.74] },
+  compass: { cx: 0.2, cy: 0.79, k: 0.66, dx: -36, dy: 30, go: [0.44, 0.78] },
+  earnings: { cx: 0.8, cy: 0.8, k: 0.62, dx: 36, dy: 36, go: [0.48, 0.82] },
+  head: { cx: 0.5, cy: 0.91, k: 0.5, dx: 0, dy: 24, go: [0.52, 0.84] },
+  rail: { cx: 0.03, cy: 0.55, k: 0.75, dx: -16, dy: 0, go: [0.54, 0.86] },
 };
 const PHONE: Record<string, Away> = {
-  chart: { cx: 0.3, cy: 0.25, k: 1.35, r: -4, dx: -10, dy: -16, go: [0.36, 0.7] },
-  ladder: { cx: 0.74, cy: 0.33, k: 1.3, r: 4, dx: 10, dy: -16, go: [0.4, 0.74] },
-  compass: { cx: 0.3, cy: 0.69, k: 1.3, r: 3, dx: -10, dy: 16, go: [0.44, 0.78] },
-  earnings: { cx: 0.72, cy: 0.86, k: 1.25, r: -4, dx: 10, dy: 16, go: [0.48, 0.82] },
-  head: { cx: 0.5, cy: 0.94, k: 0.9, r: 2, dx: 0, dy: 10, go: [0.52, 0.84] },
-  rail: { cx: 0.05, cy: 0.52, k: 1.1, r: -3, dx: -6, dy: 0, go: [0.54, 0.86] },
+  chart: { cx: 0.3, cy: 0.25, k: 1.35, dx: -10, dy: -16, go: [0.36, 0.7] },
+  ladder: { cx: 0.74, cy: 0.33, k: 1.3, dx: 10, dy: -16, go: [0.4, 0.74] },
+  compass: { cx: 0.3, cy: 0.69, k: 1.3, dx: -10, dy: 16, go: [0.44, 0.78] },
+  earnings: { cx: 0.72, cy: 0.86, k: 1.25, dx: 10, dy: 16, go: [0.48, 0.82] },
+  head: { cx: 0.5, cy: 0.94, k: 0.9, dx: 0, dy: 10, go: [0.52, 0.84] },
+  rail: { cx: 0.05, cy: 0.52, k: 1.1, dx: -6, dy: 0, go: [0.54, 0.86] },
 };
-/** how sharp a part is while it lies apart: the footer's grain — fine pixels, the stronger marks — so a chart still reads
-    as a chart and a ladder as a ladder */
-const APART = 0.45;
+/** how sharp a part is while it lies apart: a fine grain, without its colour — a chart still reads as a chart and a
+    ladder as a ladder */
+const APART = 0.25;
 
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -103,9 +104,6 @@ const Scatter = ({ theme }: { theme: Theme }) => {
     let dpr = 1;
     let screen = { x: 0, y: 0, w: 0, h: 0 };
     let homes = new Map<string, { x: number; y: number; w: number; h: number }>();
-    let lastY = window.scrollY;
-    let lastT = performance.now();
-    let speed = 0;
     let done = false;
 
     /* THE WINDOW the parts come together in: the column's width, or as wide as lets it stand whole under the caption */
@@ -158,11 +156,6 @@ const Scatter = ({ theme }: { theme: Theme }) => {
       raf = 0;
       if (!alive) return;
       const p = progress();
-      const now = performance.now();
-      const y = window.scrollY;
-      speed = Math.abs(y - lastY) / Math.max(1, now - lastT);
-      lastY = y;
-      lastT = now;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, c.width, c.height);
       /* the whole desk under its parts once they are home: the seams between the panels filled */
@@ -191,10 +184,9 @@ const Scatter = ({ theme }: { theme: Theme }) => {
         if (piece) {
           ctx.save();
           ctx.translate(x * dpr, yy * dpr);
-          ctx.rotate(((1 - u) * a.r * Math.PI) / 180);
           /* apart, broken into the footer's grain; sharpening as it lands, the picture itself home */
           const sharp = u >= 1 ? 1 : APART + (0.99 - APART) * Math.pow(u, 1.3);
-          piece.draw(ctx, (-w / 2) * dpr, (-h / 2) * dpr, w * dpr, h * dpr, sharp, { alpha: lerp(theme === 'dark' ? 0.62 : 0.72, 1, u) });
+          piece.draw(ctx, (-w / 2) * dpr, (-h / 2) * dpr, w * dpr, h * dpr, sharp, { alpha: lerp(theme === 'dark' ? 0.5 : 0.6, 1, u) });
           ctx.restore();
         }
         const lab = labels.current.get(part.id);
@@ -205,9 +197,7 @@ const Scatter = ({ theme }: { theme: Theme }) => {
           lab.style.opacity = String(labelIn * clamp(1 - u * 4));
         }
       }
-      /* THE TEAR: a fast scroll pushes a row or two aside while the parts are on the move */
-      if (p > 0.02 && p < 0.86 && speed > 1.2) tear(ctx, c, now, clamp((speed - 1.2) / 4, 0, 0.7), 6 * dpr, 23);
-      /* the words: the first line whole from the start, the second coming in broken; both go as the parts gather */
+      /* the words: the first line whole from the start, the second coming in after it; both go as the parts gather */
       const out = clamp((p - 0.3) / 0.1);
       const l1 = line1.current;
       const l2 = line2.current;
@@ -218,11 +208,7 @@ const Scatter = ({ theme }: { theme: Theme }) => {
       if (l2) {
         const inn = clamp((p - 0.04) / 0.08);
         l2.style.opacity = String(inn * (1 - out));
-        /* its words scattered, a hair of red and blue aside and a step out of line, until the parts gather */
-        const jit = (1 - out) * (p < 0.3 ? Math.round(Math.sin(p * 90) * 2) : 0);
-        l2.style.transform = `translate(${jit}px, ${-out * 24}px)`;
-        const f = (1 - clamp((p - 0.18) / 0.14)) * 3;
-        l2.style.textShadow = f > 0.05 ? `${-f}px 0 rgb(var(--bear) / 0.5), ${f}px 0 rgb(var(--compare) / 0.5)` : 'none';
+        l2.style.transform = `translateY(${(1 - inn) * 8 - out * 24}px)`;
       }
       const fr = frame.current;
       if (fr) fr.style.opacity = String(clamp((p - 0.8) / 0.08));

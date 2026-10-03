@@ -284,9 +284,7 @@ const TwoTone = ({ first, second, className = '' }: { first: string; second: str
 );
 
 /** A SECTION'S HEAD: its word over a bar, its two-tone line and, beside it, a line of what follows — arriving a line at a
-    time as it is first seen, the two-tone line settling out of the footer's fringe as the hero's headline does
-    (index.css .landing-settle — "i love the little glitch affect i think we should implement that in more places", the
-    owner, 2026-10-03) */
+    time as it is first seen, the two-tone line coming into focus as the hero's headline does (index.css .landing-settle) */
 const Head = ({ eyebrow, first, second, aside }: { eyebrow: string; first: string; second: string; aside?: ReactNode }) => {
   const ref = useArrival<HTMLDivElement>();
   return (
@@ -666,7 +664,7 @@ const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
   return (
     <Wrap className="pt-[100px] sm:pt-[116px] lg:pt-[128px]" data-landing-hero>
       <p className="landing-rise text-[12px] font-medium uppercase tracking-[0.26em] text-textMuted">Slayer Terminal</p>
-      <h1 className="landing-rise landing-fringe [--rise-delay:60ms] mt-5 sm:mt-6 font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.6rem,min(5.6vw,10svh),5.25rem)] [text-wrap:balance]" data-landing-headline>
+      <h1 className="landing-rise landing-focus [--rise-delay:60ms] mt-5 sm:mt-6 font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.6rem,min(5.6vw,10svh),5.25rem)] [text-wrap:balance]" data-landing-headline>
         Trade what you can <Foil>see.</Foil>
       </h1>
       <p className="landing-rise [--rise-delay:120ms] mt-5 max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] text-textSecondary [text-wrap:balance]">
@@ -857,7 +855,7 @@ const Systems = ({ onOpen }: { onOpen: (path: string) => void }) => {
                 <span className={`flex items-center gap-3 text-[13px] ${on ? 'text-textPrimary' : 'text-textMuted group-hover/tab:text-textSecondary'} transition-colors`}>
                   <span className="hidden lg:inline tnum">{x.code}</span>
                   <span className="hidden lg:inline w-5 h-px bg-borderMuted" aria-hidden="true" />
-                  <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 landing-glyph" />
+                  <ProductGlyph name={x.glyph} size={16} bare className="shrink-0" />
                   {x.name}
                 </span>
                 <span className={`hidden lg:block mt-2.5 text-[21px] xl:text-[23px] leading-[1.15] font-light tracking-[-0.02em] [text-wrap:balance] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted group-hover/tab:text-textSecondary'}`}>{x.line}</span>
@@ -909,7 +907,7 @@ const More = ({ onOpen }: { onOpen: (path: string) => void }) => (
             data-landing-door={`more-${p.glyph}`}
           >
             <span className="flex items-center gap-2.5 text-[15px] font-medium text-textPrimary">
-              <ProductGlyph name={p.glyph} size={18} bare className="shrink-0 landing-glyph" />
+              <ProductGlyph name={p.glyph} size={18} bare className="shrink-0" />
               {p.name}
               <ArrowRight className="w-3.5 h-3.5 text-textMuted opacity-0 -translate-x-1 group-hover/more:opacity-100 group-hover/more:translate-x-0 transition duration-300 motion-reduce:transition-none" aria-hidden="true" />
             </span>

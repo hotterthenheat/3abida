@@ -445,7 +445,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             key={`boot:${booting}`}
             src={booting}
             replay={boot === 'switch'}
-            run={boot === 'switch' ? 760 : undefined}
+            run={boot === 'switch' ? 520 : undefined}
             start={boot === 'switch' ? 0 : undefined}
             sweep={boot === 'switch' ? bootSweep : undefined}
             onDone={() => setBooting(b => (b === booting ? null : b))}

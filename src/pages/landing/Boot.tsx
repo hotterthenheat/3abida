@@ -4,15 +4,17 @@
   (pages/landing/Boot.tsx)
 
   "i feel like the landing page is missing something like that snazz" (the owner, 2026-10-03). Once, as the page
-  opens, the hero's window comes up out of the footer's photograph — the terminal caught on a black screen, only its
-  brightest marks left, broken into coarse pixels with a hair of red on one edge and blue on the other (pixels.ts, the
-  footer's own language) — and in about a second it sharpens into the desk: the pixels halve stage by stage, the dim
-  marks come in under the bright ones, the fringe closes, and a row or two tears aside on the way. Then the canvas lets
-  go and the window is the window. Then: "i love the little glitch affect i think we should implement that in more
+  opens, the hero's window comes up out of the footer's photograph — the terminal acquiring its screen — and resolves
+  into the desk: the grain finer stage by stage, the faint marks coming in under the strong ones, the colour arriving
+  last. Then the canvas lets go and the window is the window. Then: "i love the little glitch affect i think we should implement that in more
   places" — so a window that switches pages (the four systems' stage) boots each new page the same way, quicker
   (`replay`, `run`), the picture coming back sharp along the way its page moves (`sweep`: Compass dealt a strip at a
   time, Pinpoint opening from the middle, Terrain drawn left to right, Trace printing down — "no two motions should be
   the same", the owner of the systems' arrivals, 2026-10-03).
+
+  REFINED THE SAME DAY (the owner's partner: "too gamified"): no coarse blocks, no red and blue fringe, no torn rows — the
+  page comes in as a fine grain without its colour and resolves into itself (pixels.ts), in 900 ms on the hero and about
+  half a second on a switch, the sweeps with a soft edge.
 
   It draws the window's own still (the film's first frame), and the window holds its film on that frame until the canvas
   has gone (`onDone`), so it ends on what is there. On paper the marks that survive are the darkest (ink), as the
@@ -24,17 +26,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { inksAt, pieceOf, STATE_COUNT, tear } from './pixels';
+import { inksAt, pieceOf, STATE_COUNT } from './pixels';
 import { rgb } from '../../components/layout/footer/kit';
 
-/** when, as a share of the run, each sharper state comes in — it halves faster as it goes; past the last, the picture */
-const AT = [0, 0.14, 0.26, 0.37, 0.48, 0.58, 0.68, 0.77];
-/** the coarse pixel of each state (pixels.ts STATES), for the tear's rows and the fringe */
-const STEP = [16, 12, 8, 6, 4, 3, 2, 1];
+/** when, as a share of the run, each sharper state comes in; past the last, the picture itself */
+const AT = [0, 0.1, 0.2, 0.3, 0.42, 0.54, 0.66, 0.78];
 /** the hero's run, the canvas letting go after it, and the most the still may take before the boot gives way (ms); the
     hero's starts no sooner than 320 ms after the window mounts, so its coarsest stages land once the window has risen
     into view (the hero's rise, index.css .landing-rise, begins 260 ms in) */
-const RUN = 1100;
+const RUN = 900;
 const LET_GO = 300;
 const WAIT = 1200;
 const START = 320;
@@ -100,6 +100,15 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
       const piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, W, H, inks);
       if (!piece) return setGone(true);
       const ground = rgb(inks.ground);
+      /* the picture where the sweep has passed, its edge feathered (a layer cut by a gradient, or by a column mask) */
+      const layer = document.createElement('canvas');
+      layer.width = c.width;
+      layer.height = c.height;
+      const lctx = layer.getContext('2d');
+      const cols = document.createElement('canvas');
+      cols.width = 4;
+      cols.height = 1;
+      const kctx = cols.getContext('2d');
       const t0 = performance.now();
       const frame = (now: number) => {
         if (!alive) return;
@@ -107,38 +116,53 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
         const t = Math.min(1, ms / runMs);
         let k = 0;
         for (let i = 0; i < AT.length; i++) if (t >= AT[i]) k = i;
-        const step = STEP[k];
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
         ctx.fillStyle = ground;
         ctx.fillRect(0, 0, c.width, c.height);
         /* the last state is the picture itself */
         const sharp = k >= AT.length - 1 ? 1 : k / STATE_COUNT;
-        piece.draw(ctx, 0, 0, c.width, c.height, sharp, { fringe: Math.round(Math.min(step, 5) * dpr * Math.max(0, 1 - t / 0.82)) });
-        /* THE SWEEP: where its page's motion has passed, the picture is already itself */
-        if (sweep !== 'all' && sharp < 1) {
-          const f = Math.max(0, Math.min(1, (t - 0.12) / 0.66));
+        piece.draw(ctx, 0, 0, c.width, c.height, sharp);
+        /* THE SWEEP: where its page's motion has passed, the picture is already itself — a soft edge, not a cut */
+        if (sweep !== 'all' && sharp < 1 && lctx) {
+          const f = Math.max(0, Math.min(1, (t - 0.08) / 0.7));
           const cw = c.width;
           const ch = c.height;
-          ctx.save();
-          ctx.beginPath();
-          if (sweep === 'right') ctx.rect(0, 0, cw * f, ch);
-          else if (sweep === 'down') ctx.rect(0, 0, cw, ch * f);
-          else if (sweep === 'out') ctx.arc(cw / 2, ch / 2, Math.hypot(cw, ch) * 0.5 * f, 0, Math.PI * 2);
-          else {
-            /* dealt: four strips, each laid as the one before it lands */
+          lctx.globalCompositeOperation = 'source-over';
+          lctx.clearRect(0, 0, cw, ch);
+          lctx.imageSmoothingEnabled = true;
+          lctx.drawImage(img, 0, 0, cw, ch);
+          lctx.globalCompositeOperation = 'destination-in';
+          if (sweep === 'deal' && kctx) {
+            /* dealt: four columns, each coming in as the one before it lands */
+            kctx.clearRect(0, 0, 4, 1);
             for (let i = 0; i < 4; i++) {
-              const g = Math.max(0, Math.min(1, f * 4 - i));
-              if (g > 0) ctx.rect((cw / 4) * i, 0, cw / 4, ch * g);
+              kctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0, Math.min(1, f * 4 - i))})`;
+              kctx.fillRect(i, 0, 1, 1);
             }
+            lctx.imageSmoothingEnabled = false;
+            lctx.drawImage(cols, 0, 0, cw, ch);
+          } else {
+            const soft = 0.22;
+            let g: CanvasGradient;
+            if (sweep === 'right') {
+              const x = cw * (1 + soft) * f;
+              g = lctx.createLinearGradient(x - cw * soft, 0, x, 0);
+            } else if (sweep === 'down') {
+              const y = ch * (1 + soft) * f;
+              g = lctx.createLinearGradient(0, y - ch * soft, 0, y);
+            } else {
+              const R = Math.hypot(cw, ch) * 0.5;
+              const r = R * (1 + soft) * f;
+              g = lctx.createRadialGradient(cw / 2, ch / 2, Math.max(0, r - R * soft), cw / 2, ch / 2, Math.max(1, r));
+            }
+            g.addColorStop(0, 'rgba(0, 0, 0, 1)');
+            g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            lctx.fillStyle = g;
+            lctx.fillRect(0, 0, cw, ch);
           }
-          ctx.clip();
-          ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(img, 0, 0, cw, ch);
-          ctx.restore();
+          ctx.drawImage(layer, 0, 0);
         }
-        /* THE TEAR: a row or two pushed aside, a new pair every 70 ms, quieter as it goes */
-        if (t < 0.55) tear(ctx, c, ms, 1 - t / 0.55, step * dpr * 0.5);
         if (t < 1) raf = requestAnimationFrame(frame);
         else {
           setLetGo(true);
