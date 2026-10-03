@@ -291,6 +291,25 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
     };
   }, [measure, lead]);
 
+  /* ACROSS THE BREAK, THE SAME ROOM (2026-10-03 audit: a window snapped to half a screen mid-tour threw the reader a room on):
+     when the layout changes between one column and two, the room that was being read is brought back to where its head
+     stands */
+  const wasSmall = useRef(small);
+  useEffect(() => {
+    if (wasSmall.current === small) return;
+    wasSmall.current = small;
+    const id = now.current.step?.id;
+    if (!id) return;
+    const raf = requestAnimationFrame(() => {
+      const head = document.querySelector<HTMLElement>(`[data-tour-step="${id}"] [data-tour-head]`);
+      const win = cell.current;
+      if (!head) return;
+      const under = small && win ? (parseFloat(getComputedStyle(win).top) || 0) + win.offsetHeight + 48 : window.innerHeight * 0.3;
+      window.scrollTo({ top: head.getBoundingClientRect().top + window.scrollY - under, behavior: 'auto' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [small]);
+
   /* WHOSE WORDS ARE ON SCREEN: the step crossing one line — half way down a desk, lower on a phone,
      where the window holds the top half. One observer; it fires on a crossing, never on scroll. */
   useEffect(() => {
@@ -317,9 +336,25 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
   /* THE ROOM PLAYS ITS PAGES: when the page on screen has been seen through, the room on screen moves on to its next one
      (only if that is still the page it shows — a lap that lands as the reader scrolls on is not the next room's) */
   const pagesOf = (s: TourStep) => s.rows.flatMap(r => (r.path ? [r.path] : []));
-  const plays = (s: TourStep | undefined) => !calm && !!s && held !== s.id && pagesOf(s).length > 1;
-  const now = useRef({ step, plays: plays(step) });
-  now.current = { step, plays: plays(step) };
+  /* A HAND STUDYING THE PICTURE HOLDS IT (2026-10-03 audit: the page changed under a resting pointer): a pointer moving over
+     the window or a room's rows holds the page on screen until it has been still a while, or has gone */
+  const [hand, setHand] = useState(false);
+  const still = useRef(0);
+  const moved = useCallback((e: { pointerType: string; movementX: number; movementY: number }) => {
+    if (e.pointerType !== 'mouse' || (e.movementX === 0 && e.movementY === 0)) return;
+    setHand(true);
+    window.clearTimeout(still.current);
+    still.current = window.setTimeout(() => setHand(false), 2500);
+  }, []);
+  const gone = useCallback((e: { pointerType: string }) => {
+    if (e.pointerType !== 'mouse') return;
+    window.clearTimeout(still.current);
+    setHand(false);
+  }, []);
+  useEffect(() => () => window.clearTimeout(still.current), []);
+  const plays = (s: TourStep | undefined) => !calm && !!s && held !== s.id && !hand && pagesOf(s).length > 1;
+  const now = useRef({ step, plays: plays(step), hand });
+  now.current = { step, plays: plays(step), hand };
   const onLap = useCallback((seen: string) => {
     const { step: s, plays: on } = now.current;
     if (!s || !on) return;
@@ -338,7 +373,7 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
   const lap = useCallback(
     (seen: string) => {
       if (now.current.step) onLap(seen);
-      else firstLap.current?.(seen);
+      else if (!now.current.hand) firstLap.current?.(seen);
     },
     [onLap]
   );
@@ -374,7 +409,7 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
           padding is longer than the shadow's reach, so the next block never cuts it into an edge (both measured) */}
       {/* THE GROUND: one painted gradient for the whole journey, the grain that keeps it from banding,
           the hairline columns and the pool of light the window opens in */}
-      <div aria-hidden="true" className="landing-dawn absolute inset-0 -z-10" data-dir={a === 'dark' ? 'night-day' : 'day-night'}>
+      <div aria-hidden="true" className="landing-dawn absolute inset-0 -z-10" data-dir={a === b ? (a === 'dark' ? 'still-night' : 'still-day') : a === 'dark' ? 'night-day' : 'day-night'}>
         <div className="landing-grain absolute inset-x-0" />
         <div className="landing-grain absolute inset-x-0" data-band="back" />
         <div data-theme={a} className="landing-columns absolute inset-x-0 top-0 h-[1500px]" />
@@ -393,6 +428,8 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
           ref={cell}
           className="sticky z-10 self-start lg:col-start-2 lg:row-start-1 h-[50svh] lg:h-[calc(100svh-128px)] lg:max-h-[980px]"
           style={{ top: small ? PIN_TOP_SMALL : PIN_TOP }}
+          onPointerMove={moved}
+          onPointerLeave={gone}
           data-tour-window
         >
           <div ref={box} className={dockable ? 'landing-box absolute top-0 right-0 w-full h-full' : 'h-full'} data-tour-box>
@@ -467,12 +504,14 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
                       <p className="mt-6 max-w-[40ch] text-[17px] 2xl:text-[18px] leading-[1.5]">
                         <span className="font-medium text-textPrimary">{s.leadFor?.[ground] ?? s.lead}</span> <span className="text-textSecondary">{s.rest}</span>
                       </p>
-                      <ul className="mt-9 border-t border-borderSubtle">
+                      <ul className="mt-9 border-t border-borderSubtle" onPointerMove={moved} onPointerLeave={gone}>
                         {s.rows.map(r => {
                           const here = !!r.path && r.path === shown;
                           const body = (
                             <>
-                              <span className={`text-[15px] font-medium ${here ? 'text-textPrimary' : r.path ? 'text-textSecondary group-hover:text-textPrimary' : 'text-textPrimary'}`}>{r.title}</span>
+                              {/* the bright ink is the row on show; a row that opens nothing rests a tier down with the rest (2026-10-03
+                                  audit: drawn brightest, it read as the row being shown) */}
+                              <span className={`text-[15px] font-medium ${here ? 'text-textPrimary' : r.path ? 'text-textSecondary group-hover:text-textPrimary' : 'text-textSecondary'}`}>{r.title}</span>
                               <span className="mt-1 block text-[13.5px] leading-snug text-textMuted">{r.says}</span>
                             </>
                           );
@@ -512,14 +551,17 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
                           );
                         })}
                       </ul>
+                      {/* THE DOOR OPENS THE ROOM IT NAMES (2026-10-03 audit: it opened whichever page the room had played on to — an
+                          empty Tracker for "Open Compass"); a row the reader picked is the page they asked for. The turn's door
+                          opens where a theme is picked. */}
                       <button
                         type="button"
-                        onClick={() => onOpen(shown)}
+                        onClick={() => onOpen(s.turn ? '/settings/appearance' : held === s.id ? shown : s.path)}
                         /* the door's arrow glides under the pointer, like every door with an arrow on this page (Landing.tsx DOOR_ARROW) */
                         className="group/door mt-8 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
                         data-tour-door={s.id}
                       >
-                        Open {s.turn ? 'the terminal' : s.name.replace(/^The /, 'the ')}
+                        Open {s.turn ? 'Settings' : s.name.replace(/^The /, 'the ')}
                         <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/door:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover/door:translate-x-0" aria-hidden="true" />
                       </button>
                     </div>

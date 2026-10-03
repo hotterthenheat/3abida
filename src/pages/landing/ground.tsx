@@ -29,10 +29,15 @@
     nothing is tied to the scroll frame by frame, so
     a phone does not stutter;
   · the visitor's own ground is their stored choice,
-    else their machine's. The toggle flips it for the
-    whole site and crossfades the page as ONE picture
-    (View Transitions), at once where the browser
-    cannot or the visitor asked for less motion.
+    else their machine's. The toggle sets the ground
+    under the bar to its other, for the whole site, and
+    crossfades the page as ONE picture (View
+    Transitions), at once where the browser cannot or
+    the visitor asked for less motion. A ground PICKED
+    here is the whole page's from then on — the turn
+    stops turning (2026-10-03 audit: picked on the
+    turned stretch, the toggle stored the opposite of
+    what the reader asked for).
 
   THE FOIL TRAP. Tokens follow the nearest stamp, but
   the house's foil and paper rules in index.css are
@@ -67,8 +72,8 @@ interface GroundValue {
   a: Ground;
   /** The ground it turns into */
   b: Ground;
-  /** Flip the visitor's ground, for the whole site */
-  flip: () => void;
+  /** The visitor picks a ground, for the whole site — and the page stops turning: both ends are the pick */
+  choose: (g: Ground) => void;
 }
 
 const Ctx = createContext<GroundValue | null>(null);
@@ -84,6 +89,8 @@ export const useBlockGround = (): Ground => useContext(BlockCtx);
 
 export const GroundProvider = ({ children }: { children: ReactNode }) => {
   const [a, setA] = useState<Ground>(readBase);
+  /* a ground picked on this page: from then on the page is all of it */
+  const [picked, setPicked] = useState(false);
 
   /* the terminal's own toggle, or the machine's, moving under us */
   useEffect(() => {
@@ -96,8 +103,7 @@ export const GroundProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const flip = useCallback(() => {
-    const next = other(a);
+  const choose = useCallback((next: Ground) => {
     const run = () => {
       /* the store returns early when the choice did not change (a first visit on a light machine
          "choosing" the default dark), so the key is written here and the ground set directly */
@@ -108,13 +114,14 @@ export const GroundProvider = ({ children }: { children: ReactNode }) => {
       }
       setThemeChoice(next);
       setA(next);
+      setPicked(true);
     };
     const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
     if (typeof doc.startViewTransition === 'function' && !calm?.matches) doc.startViewTransition(() => flushSync(run));
     else run();
-  }, [a]);
+  }, []);
 
-  const value = useMemo<GroundValue>(() => ({ a, b: other(a), flip }), [a, flip]);
+  const value = useMemo<GroundValue>(() => ({ a, b: picked ? a : other(a), choose }), [a, picked, choose]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
 

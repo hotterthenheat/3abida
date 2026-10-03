@@ -111,11 +111,10 @@ const inksOf = (el: Element): Ink => {
   };
 };
 
-const two = (n: number) => String(n).padStart(2, '0');
-const clock = (ms: number, seconds: boolean) => {
-  const d = new Date(ms);
-  return `${two(d.getHours())}:${two(d.getMinutes())}${seconds ? `:${two(d.getSeconds())}` : ''}`;
-};
+/* THE CLOCK IS NEW YORK'S, as the signature's is (brand/useMarketClock.ts) — the market's own hours, whatever the reader's */
+const NY_S = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+const NY_M = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const clock = (ms: number, seconds: boolean) => (seconds ? NY_S : NY_M).format(ms);
 /** smoothstep */
 const ease = (t: number) => t * t * (3 - 2 * t);
 
@@ -655,6 +654,7 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
 
       /* WHAT IS OUT OF PLACE THIS FRAME: the focus's box (snapped to the coarse grid), the rows torn, the arrow */
       let focusBox: Box | null = null;
+      let cross: { cx: number; cy: number; when: string } | null = null;
       if (lit.length) {
         let x0 = Infinity;
         let y0 = Infinity;
@@ -755,7 +755,8 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
       for (let i = 0; i < ticks; i++) {
         const x = pane.x0 + 14 + i * tickGap;
         bCtx.fillStyle = rgb(ink.line, 0.9);
-        bCtx.fillText(clock(momentAt(x), false), x, axisY);
+        /* in seconds: the pane holds under a minute, so its minutes were one number over and over (2026-10-03 audit) */
+        bCtx.fillText(clock(momentAt(x), true), x, axisY);
         bCtx.fillRect(x - 2, axisY + 7, 30, 2);
       }
       /* the moving parts tear with the rest */
@@ -848,10 +849,10 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
         fctx.fillStyle = rgb(ink.muted);
         for (let i = 0; i < ticks; i++) {
           const x = pane.x0 + 14 + i * tickGap;
-          fctx.fillText(clock(momentAt(x), false), x, axisY);
+          fctx.fillText(clock(momentAt(x), true), x, axisY);
         }
-        /* THE CROSSHAIR: in the pane, the pointer (or the arrow) reads the line — the moment under it on the tag and the
-           axis */
+        /* THE CROSSHAIR: in the pane, the pointer (or the arrow) reads the line — its lines and its dot in the focus, the moment
+           under it laid on after (below) */
         if (fx > pane.x0 && fx < pane.x1 && fy > pane.y0 - 10 && fy < axisY + 10) {
           const cx = Math.round(Math.max(pane.x0 + 1, Math.min(head, fx))) + 0.5;
           const cy = lineYAt(cx);
@@ -868,20 +869,7 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
           fctx.beginPath();
           fctx.arc(cx, cy, 3, 0, Math.PI * 2);
           fctx.fill();
-          const when = clock(momentAt(cx), true);
-          fctx.font = `500 10.5px ${FONT_SANS}`;
-          const ww = fctx.measureText(when).width + 14;
-          fctx.beginPath();
-          fctx.roundRect(cx - ww / 2, axisY - 9, ww, 18, 3);
-          fctx.fill();
-          fctx.beginPath();
-          fctx.roundRect(tagX, cy - 9, ww, 18, 3);
-          fctx.fill();
-          fctx.fillStyle = rgb(ink.panel);
-          fctx.textAlign = 'center';
-          fctx.fillText(when, cx, axisY + 0.5);
-          fctx.fillText(when, tagX + ww / 2, cy + 0.5);
-          fctx.textAlign = 'left';
+          cross = { cx, cy, when: clock(momentAt(cx), true) };
         }
         fctx.restore();
         /* only what is lit: the focus cut to the mask, and laid in */
@@ -892,6 +880,32 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
         fctx.globalCompositeOperation = 'source-over';
         cCtx.setTransform(1, 0, 0, 1, 0, 0);
         cCtx.drawImage(focus, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr, bx0 * dpr, by0 * dpr, bw * dpr, bh * dpr);
+      }
+      /* the moment under the crosshair, on the axis and on the tag — over the mask, so it reads wherever the crosshair is (it
+         was cut away outside the lit place: 2026-10-03 audit) */
+      const pills: Box[] = [];
+      if (cross) {
+        const { cx, cy, when } = cross;
+        cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cCtx.font = `500 10.5px ${FONT_SANS}`;
+        cCtx.textBaseline = 'middle';
+        const ww = cCtx.measureText(when).width + 14;
+        const at = [
+          { x: cx - ww / 2, y: axisY - 9 },
+          { x: tagX, y: cy - 9 },
+        ];
+        for (const q of at) {
+          cCtx.fillStyle = rgb(ink.line);
+          cCtx.beginPath();
+          cCtx.roundRect(q.x, q.y, ww, 18, 3);
+          cCtx.fill();
+          cCtx.fillStyle = rgb(ink.panel);
+          cCtx.textAlign = 'center';
+          cCtx.fillText(when, q.x + ww / 2, q.y + 9.5);
+          pills.push({ x0: q.x, y0: q.y, x1: q.x + ww, y1: q.y + 18 });
+        }
+        cCtx.textAlign = 'left';
+        cCtx.setTransform(1, 0, 0, 1, 0, 0);
       }
 
       /* 4 · THE ARROW of its own, while no pointer is on the screen */
@@ -914,7 +928,7 @@ const FooterArt = ({ children, className = '' }: { children: ReactNode; classNam
       }
       /* what is out of place now, to be put back next frame */
       wasA = focusBox ? [focusBox, ...tearBoxes] : tearBoxes;
-      wasC = [focusBox, arrowBox].filter((b): b is Box => !!b);
+      wasC = [focusBox, arrowBox, ...pills].filter((b): b is Box => !!b);
 
       /* 6 · THE WORDS: lit where the reader's pointer is and has been (the arrow of its own lights none), and torn with the
          rows a fast pointer tears — thirty times a second at most, in twelfths, each written only when it changes (a word

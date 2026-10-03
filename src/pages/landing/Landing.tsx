@@ -413,8 +413,9 @@ const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: strin
       raf = 0;
       const top = el.getBoundingClientRect().top;
       const vh = window.innerHeight;
-      /* from when the lines' top is nine tenths of the way down the screen to when it is two fifths of the way */
-      const p = Math.max(0, Math.min(1, (vh * 0.9 - top) / (vh * 0.5)));
+      /* from when the lines' top is nineteen twentieths of the way down the screen to when it is three fifths of the way —
+         whole by the time the door under it is in reach (2026-10-03 audit: half unlit when the door reached the thumb) */
+      const p = Math.max(0, Math.min(1, (vh * 0.95 - top) / (vh * 0.35)));
       const n = Math.round(p * letters.length);
       if (n === lit) return;
       const from = lit < 0 ? 0 : Math.min(n, lit);
@@ -491,15 +492,31 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
     twelve thousand pixels down; gliding there was the motion they had asked not to see. */
 const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
 
+/* A JUMP ALONG THE PAGE LEAVES A WAY BACK (2026-10-03 audit: Back after Pricing left the site): the jump is a step in the
+   history, and Back returns the reader to where they jumped from (the browser keeps that place) */
 const toAnchor = (href: string) => {
+  if (location.hash !== href) history.pushState(null, '', href);
   document.querySelector(href)?.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
-  history.replaceState(null, '', href);
 };
 
 /** THE PRODUCTS MENU (Slayer Logo System, 06 · Menu and rail: "Every product, one line each. Landing and app header."):
     the groups in the rail's order, each product beside its glyph (bare — no tile) with its one line. A pick opens it in the terminal. */
 const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: string) => void; onEvery: () => void; compact?: boolean }) => (
   <div>
+  {/* every page of every room, on this page (Everything.tsx) — at the head of the menu, where a short screen still shows it
+      (2026-10-03 audit: at 1280 x 720 it sat under the panel's fold) */}
+  <a
+    href="#everything"
+    onClick={e => {
+      e.preventDefault();
+      onEvery();
+    }}
+    className={`group mb-4 flex items-center justify-between gap-3 border-b border-borderSubtle text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors ${compact ? 'pt-3 pb-3' : 'pb-4'}`}
+    data-landing-products-every
+  >
+    Every page, by room
+    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+  </a>
   {/* on a desk the groups FLOW in two columns (2026-10-01): laid in rows, the Practice group's four ran the panel past a
       laptop's screen, Journal cut off under the fold (measured at 1440 × 900) */}
   <div className={compact ? 'flex flex-col' : 'columns-2 gap-x-10'} data-landing-products>
@@ -530,19 +547,6 @@ const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: str
       </div>
     ))}
   </div>
-  {/* every page of every room, on this page (Everything.tsx) */}
-  <a
-    href="#everything"
-    onClick={e => {
-      e.preventDefault();
-      onEvery();
-    }}
-    className={`group mt-4 flex items-center justify-between gap-3 border-t border-borderSubtle text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors ${compact ? 'pt-3 pb-1' : 'pt-4'}`}
-    data-landing-products-every
-  >
-    Every page, by room
-    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-  </a>
   </div>
 );
 
@@ -550,7 +554,7 @@ const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: str
     and the wordmark gives way to the mark (the Logo System's own two frames). It wears the ground that is under it, so it
     turns when the page does. */
 const Nav = ({ ground }: { ground: Ground }) => {
-  const { a, flip } = useGround();
+  const { choose } = useGround();
   const { launch } = useLaunch();
   const navigate = useNavigate();
   const { scrollY } = useScroll();
@@ -570,17 +574,40 @@ const Nav = ({ ground }: { ground: Ground }) => {
         setProducts(false);
       }
     };
+    /* a tap outside closes it, and only closes it: on a touch screen the tap went on to press what was under the finger
+       (2026-10-03 audit: a tablet's dismissing tap opened a room). A mouse's click goes on — it may be the bar's own word. */
+    let swallow = 0;
+    const eat = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
     const down = (e: PointerEvent) => {
       if (!(e.target instanceof Element) || !e.target.closest('[data-landing-menu], [data-landing-menu-door], [data-landing-products-panel], [data-landing-products-door]')) {
+        setMenu(false);
+        setProducts(false);
+        if (e.pointerType !== 'mouse' && e.target instanceof Element && !e.target.closest('header')) {
+          document.addEventListener('click', eat, { capture: true, once: true });
+          window.clearTimeout(swallow);
+          swallow = window.setTimeout(() => document.removeEventListener('click', eat, { capture: true }), 600);
+        }
+      }
+    };
+    /* …and a page scrolled on from under it closes it (it stayed open over the page as it went by) */
+    const from = window.scrollY;
+    const scrolled = () => {
+      if (Math.abs(window.scrollY - from) > 80) {
         setMenu(false);
         setProducts(false);
       }
     };
     window.addEventListener('keydown', key);
     document.addEventListener('pointerdown', down, true);
+    window.addEventListener('scroll', scrolled, { passive: true });
     return () => {
       window.removeEventListener('keydown', key);
       document.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('scroll', scrolled);
+      window.clearTimeout(swallow);
     };
   }, [menu, products]);
   const pick = (path: string) => {
@@ -635,15 +662,18 @@ const Nav = ({ ground }: { ground: Ground }) => {
             </a>
           ))}
         </nav>
+        {/* THE TOGGLE NAMES WHAT IT DOES TO THE GROUND UNDER IT (2026-10-03 audit: on the tour's turned stretch it named the
+            opposite): it turns what the reader is on to the other theme, keeps that for the whole site, and the page stops
+            turning (ground.tsx) */}
         <button
           type="button"
-          onClick={flip}
+          onClick={() => choose(ground === 'dark' ? 'light' : 'dark')}
           className="ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-silver"
-          aria-label={a === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
-          title={a === 'dark' ? 'Light theme' : 'Dark theme'}
-          data-landing-theme={a}
+          aria-label={ground === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
+          title={ground === 'dark' ? 'Light theme' : 'Dark theme'}
+          data-landing-theme={ground}
         >
-          {a === 'dark' ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+          {ground === 'dark' ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
         </button>
         <button
           type="button"
@@ -702,18 +732,12 @@ const Nav = ({ ground }: { ground: Ground }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1 pb-4"
+            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto overscroll-contain rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1"
             data-landing-menu
           >
-            <ProductsMenu
-              onPick={pick}
-              onEvery={() => {
-                setMenu(false);
-                toAnchor('#everything');
-              }}
-              compact
-            />
-            <div className="mt-3 border-t border-borderSubtle">
+            {/* THE PAGE'S OWN DOORS FIRST, "Sign up free" pinned at the sheet's foot (2026-10-03 audit: under twelve products
+                they sat below the sheet's edge on a phone) */}
+            <div className="border-b border-borderSubtle">
               {NAV.map(l => (
                 <a
                   key={l.href}
@@ -723,25 +747,35 @@ const Nav = ({ ground }: { ground: Ground }) => {
                     setMenu(false);
                     toAnchor(l.href);
                   }}
-                  className="flex items-center justify-between h-[52px] border-b border-borderSubtle text-[17px] text-textPrimary"
+                  className="flex items-center justify-between h-[52px] border-b last:border-b-0 border-borderSubtle text-[17px] text-textPrimary"
                 >
                   {l.label}
                   <ArrowRight className="w-4 h-4 text-textMuted" aria-hidden="true" />
                 </a>
               ))}
             </div>
-            <a
-              href="/signup"
-              onClick={e => {
-                e.preventDefault();
+            <ProductsMenu
+              onPick={pick}
+              onEvery={() => {
                 setMenu(false);
-                navigate('/signup');
+                toAnchor('#everything');
               }}
-              className="mt-4 h-12 flex items-center justify-center rounded-full text-[15px] font-medium bg-textPrimary text-canvas"
-              data-landing-door="menu"
-            >
-              Sign up free
-            </a>
+              compact
+            />
+            <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-4 bg-panel">
+              <a
+                href="/signup"
+                onClick={e => {
+                  e.preventDefault();
+                  setMenu(false);
+                  navigate('/signup');
+                }}
+                className="h-12 flex items-center justify-center rounded-full text-[15px] font-medium bg-textPrimary text-panel"
+                data-landing-door="menu"
+              >
+                Sign up free
+              </a>
+            </div>
           </motion.nav>
         )}
       </AnimatePresence>
@@ -945,11 +979,14 @@ const PlansSideBySide = () => {
         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {open && (
-        <div id="landing-plans-table" className="mt-6 overflow-x-auto animate-fade-in">
+        /* `overflow-x-clip`, not auto: a box that scrolls would hold the head's stickiness to itself */
+        <div id="landing-plans-table" className="mt-6 overflow-x-clip animate-fade-in">
           {/* all three plans side by side on a phone too — narrow mark columns, the lines wrap (a sideways scroll showed one plan at a time) */}
           <table className="w-full min-w-[340px] border-collapse text-left">
             <caption className="sr-only">What each plan holds</caption>
-            <thead>
+            {/* the plans' names stay over the rows they label while the table scrolls by under the bar (2026-10-03 audit: on a
+                phone they scrolled away) */}
+            <thead className="sticky top-[68px] z-10 bg-canvas">
               <tr className="border-b border-borderSubtle">
                 <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom font-mono text-[11px] font-normal uppercase tracking-[0.22em] text-textMuted">What it holds</th>
                 {PLANS.map(p => (
@@ -1042,6 +1079,7 @@ const HeroAndTour = ({ onSignUp, onOpen, onBarGround }: { onSignUp: () => void; 
 
 const Page = () => {
   const { a } = useGround();
+  const calm = useReducedMotion();
   const { launch } = useLaunch();
   const [barGround, setBarGround] = useState<Ground>(a);
   const open = useCallback((path: string) => launch(path), [launch]);
@@ -1078,7 +1116,9 @@ const Page = () => {
               <TwoTone className="mt-6" first="Every page, by room." second="Open any of them." />
             </div>
             <p className="lg:ml-auto max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2" data-everything-count>
-              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares. The rooms come round by themselves; pick one to stay on it. Each page opens in the terminal.
+              {FEATURE_COUNT} pages and tools in {ROOM_COUNT} rooms, and {SHARED_COUNT} things every room shares.{' '}
+              {/* where less motion is asked for the rooms stand still (Everything.tsx), and the line says so */}
+              {calm ? 'Pick a room to see its pages.' : 'The rooms come round by themselves; pick one to stay on it.'} Each page opens in the terminal.
             </p>
           </div>
           <Everything onOpen={open} />
@@ -1178,7 +1218,8 @@ const Page = () => {
           <div className="py-[18vh] text-center">
             {/* THE ROOMS, ONCE MORE (2026-10-01): each glyph on its whole tile, a door into its room — 34, from 44 (2026-10-02, the
                 owner: "make the logos a bit smaller") */}
-            <ul className="mb-12 mx-auto max-w-[19rem] sm:max-w-none flex flex-wrap justify-center gap-3 sm:gap-4" aria-label="The rooms" data-landing-close-rooms>
+            {/* each named under its glyph (2026-10-03 audit: bare glyphs, named only on hover — a thumb could not tell them apart) */}
+            <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
               {HERO_ROOMS.map(r => (
                 <li key={r.id}>
                   <a
@@ -1188,11 +1229,20 @@ const Page = () => {
                       open(r.path);
                     }}
                     aria-label={`Open ${r.name.replace(/^The /, 'the ')}`}
-                    title={r.name}
-                    className="block rounded-[14px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
+                    className="group flex flex-col items-center gap-2 sm:w-[72px] rounded-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
                     data-landing-close-room={r.id}
                   >
-                    {r.glyph && <ProductGlyph name={r.glyph} size={34} bare className="max-sm:w-[30px] max-sm:h-[30px]" />}
+                    {r.glyph && (
+                      <ProductGlyph
+                        name={r.glyph}
+                        size={34}
+                        bare
+                        className="max-sm:w-[30px] max-sm:h-[30px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
+                      />
+                    )}
+                    <span aria-hidden="true" className="text-[12px] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
+                      {r.name.replace(/^The /, '')}
+                    </span>
                   </a>
                 </li>
               ))}

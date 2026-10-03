@@ -43,6 +43,7 @@
 */
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useNavigationType } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
@@ -166,8 +167,73 @@ export const doorName = (name: string) => name.replace(/^The /, 'the ');
     "make the tab switching faster its so damn slow right now") */
 const dwellOf = (r: Room) => Math.max(3200, Math.min(5200, 2200 + 220 * r.features.length));
 
-const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
-  const [at, setAt] = useState(0);
+/** A ROOM'S PAGES: its head with the door into it, and a row for each page — a row is a door of its own only when it opens
+    something the room's door does not (2026-10-03 audit: sixteen "Open"s led to the same four pages) */
+const RoomPages = ({ room, onOpen }: { room: Room; onOpen: (path: string) => void }) => (
+  <>
+    <div className="flex items-end justify-between gap-6 pb-5 border-b border-borderSubtle">
+      <div className="min-w-0">
+        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">{room.kind}</p>
+        <h3 className="mt-2 text-[26px] sm:text-[30px] font-light tracking-[-0.03em] leading-tight">
+          {room.name} <span className="text-textMuted tnum">· {room.features.length}</span>
+        </h3>
+      </div>
+      {room.path && (
+        <button
+          type="button"
+          onClick={() => onOpen(room.path!)}
+          className="group/door shrink-0 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+          data-everything-door={room.id}
+        >
+          Open {doorName(room.name)}
+          <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/door:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover/door:translate-x-0" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+    <ul className="grid grid-cols-1 md:grid-cols-2 md:gap-x-10">
+      {room.features.map(f => (
+        <li key={f.title} className="border-b border-borderSubtle">
+          {f.path && f.path !== room.path ? (
+            <button
+              type="button"
+              onClick={() => onOpen(f.path!)}
+              className="group relative w-full h-full flex flex-col items-start justify-start text-left py-4 pr-16 transition-colors hover:bg-ink/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
+              data-everything-page={f.path}
+            >
+              <span className="block text-[15px] font-medium text-textPrimary">{f.title}</span>
+              <span className="mt-1 block text-[13.5px] leading-snug text-textSecondary">{f.says}</span>
+              <span aria-hidden="true" className="absolute right-1 top-4 inline-flex items-center gap-1 text-[12px] text-textMuted group-hover:text-textPrimary transition-colors">
+                Open
+                <ArrowRight className="w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 motion-reduce:transition-none" />
+              </span>
+            </button>
+          ) : (
+            <div className="py-4 pr-16">
+              <span className="block text-[15px] font-medium text-textPrimary">{f.title}</span>
+              <span className="mt-1 block text-[13.5px] leading-snug text-textSecondary">{f.says}</span>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  </>
+);
+
+/** THE ROOM A READER LEFT FROM: a page opened from the list, then Back, comes home to the room it was opened from (it came
+    home to Pulse — the 2026-10-03 audit) */
+const LEFT_FROM = 'slayer-everything-room';
+const leftFrom = (): number => {
+  try {
+    const i = ROOMS.findIndex(r => r.id === sessionStorage.getItem(LEFT_FROM));
+    return i < 0 ? -1 : i;
+  } catch {
+    return -1;
+  }
+};
+
+const Everything = ({ onOpen: open }: { onOpen: (path: string) => void }) => {
+  const back = useNavigationType() === 'POP';
+  const [at, setAt] = useState(() => (back ? Math.max(0, leftFrom()) : 0));
   /* the rooms run in a row on a phone and a column from lg — the list says which, for a reader that hears it */
   const sideways = useIsBelowLg();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -182,26 +248,73 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
   const [front, setFront] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
   const [hand, setHand] = useState(false);
   const [keys, setKeys] = useState(false);
-  const [picked, setPicked] = useState(false);
+  const [touch, setTouch] = useState(false);
+  const [picked, setPicked] = useState(() => back && leftFrom() >= 0);
+  /* any of the list on screen (a pick lasts while it is), most of it (the rooms come round), its rooms' row and its end — on a
+     phone, where the rooms' lists differ by hundreds of px, the rooms hold once the reader has gone on past the row of rooms
+     to what is under the list, so it never moves under them (2026-10-03 audit: the chips below jumped 700 px) */
+  const [anywhere, setAnywhere] = useState(false);
+  const [endSeen, setEndSeen] = useState(false);
+  const [rowSeen, setRowSeen] = useState(false);
+  const end = useRef<HTMLDivElement | null>(null);
+  const row = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = root.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(([e]) => setSeen(e.isIntersecting), { threshold: 0.3 });
+    const any = new IntersectionObserver(([e]) => setAnywhere(e.isIntersecting), { threshold: 0 });
+    const tail = new IntersectionObserver(([e]) => setEndSeen(e.isIntersecting), { threshold: 0 });
+    const head = new IntersectionObserver(([e]) => setRowSeen(e.isIntersecting), { threshold: 0 });
     io.observe(el);
+    any.observe(el);
+    if (end.current) tail.observe(end.current);
+    if (row.current) head.observe(row.current);
     const vis = () => setFront(document.visibilityState === 'visible');
     document.addEventListener('visibilitychange', vis);
     return () => {
       io.disconnect();
+      any.disconnect();
+      tail.disconnect();
+      head.disconnect();
       document.removeEventListener('visibilitychange', vis);
     };
   }, []);
-  /* a picked room stays until the list has left the screen */
+  /* a picked room stays until the whole list has left the screen (it was dropped with a third of it still showing) */
   useEffect(() => {
-    if (!seen) setPicked(false);
-  }, [seen]);
+    if (!anywhere) setPicked(false);
+  }, [anywhere]);
+  /* A HAND IS A HAND THAT MOVES: a pointer the page scrolled under holds nothing (it held the list for good); a moving one
+     holds it until it has been still a while. A thumb holds it while it is down and a moment after — a scroll that starts on
+     the list is not a pick (it stopped the rooms for good). */
+  const still = useRef(0);
+  const moved = useCallback(() => {
+    setHand(true);
+    window.clearTimeout(still.current);
+    still.current = window.setTimeout(() => setHand(false), 2500);
+  }, []);
+  const lift = useRef(0);
+  useEffect(
+    () => () => {
+      window.clearTimeout(still.current);
+      window.clearTimeout(lift.current);
+    },
+    []
+  );
+  /* the room a page is opened from is kept for the way back */
+  const onOpen = useCallback(
+    (path: string) => {
+      try {
+        sessionStorage.setItem(LEFT_FROM, ROOMS[at].id);
+      } catch {
+        /* storage refused: the way back opens on the first room */
+      }
+      open(path);
+    },
+    [at, open]
+  );
   /* the rooms come round unless less motion is asked for or one was picked; they move while nothing holds them */
   const auto = !calm && !picked;
-  const playing = auto && seen && front && !hand && !keys;
+  const playing = auto && seen && front && !hand && !keys && !touch && !(sideways && endSeen && !rowSeen);
   /* the line on the lit tab, and the time its room has left: a new room has its whole while ahead; a hold keeps what is left */
   const bar = useRef<HTMLSpanElement | null>(null);
   const left = useRef(dwellOf(ROOMS[0]));
@@ -267,10 +380,27 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
     <div
       ref={root}
       className="mt-12 lg:mt-14 grid grid-cols-1 lg:grid-cols-12 gap-x-12 xl:gap-x-16"
-      onPointerEnter={e => e.pointerType === 'mouse' && setHand(true)}
-      onPointerLeave={e => e.pointerType === 'mouse' && setHand(false)}
-      /* a thumb has no hover to hold it with: a touch in the list keeps the room it is on until the list leaves the screen */
-      onPointerDown={e => e.pointerType !== 'mouse' && setPicked(true)}
+      onPointerMove={e => e.pointerType === 'mouse' && (e.movementX !== 0 || e.movementY !== 0) && moved()}
+      onPointerLeave={e => {
+        if (e.pointerType !== 'mouse') return;
+        window.clearTimeout(still.current);
+        setHand(false);
+      }}
+      onPointerDown={e => {
+        if (e.pointerType === 'mouse') return;
+        window.clearTimeout(lift.current);
+        setTouch(true);
+      }}
+      onPointerUp={e => {
+        if (e.pointerType === 'mouse') return;
+        window.clearTimeout(lift.current);
+        lift.current = window.setTimeout(() => setTouch(false), 3000);
+      }}
+      onPointerCancel={e => {
+        if (e.pointerType === 'mouse') return;
+        window.clearTimeout(lift.current);
+        lift.current = window.setTimeout(() => setTouch(false), 3000);
+      }}
       /* the keys in the list hold it too (a Tab through its doors), until they leave it */
       onFocus={e => e.target.matches(':focus-visible') && setKeys(true)}
       onBlur={e => {
@@ -281,6 +411,7 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
     >
       {/* THE ROOMS */}
       <div
+        ref={row}
         role="tablist"
         aria-label="Rooms"
         aria-orientation={sideways ? 'horizontal' : 'vertical'}
@@ -336,55 +467,29 @@ const Everything = ({ onOpen }: { onOpen: (path: string) => void }) => {
         })}
       </div>
 
-      {/* THE PICKED ROOM'S PAGES */}
-      <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${room.id}`} className="lg:col-span-8 xl:col-span-9 mt-8 lg:mt-0" data-everything-panel={room.id}>
-        <div key={room.id} className="animate-fade-in">
-          <div className="flex items-end justify-between gap-6 pb-5 border-b border-borderSubtle">
-            <div className="min-w-0">
-              <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">{room.kind}</p>
-              <h3 className="mt-2 text-[26px] sm:text-[30px] font-light tracking-[-0.03em] leading-tight">
-                {room.name} <span className="text-textMuted tnum">· {room.features.length}</span>
-              </h3>
+      {/* THE PICKED ROOM'S PAGES. From lg up every room's list stands in the one grid cell, the lit one shown and the rest
+          kept out of sight and out of reach, so the box is always the tallest room's and nothing under it moves as the rooms
+          come round (2026-10-03 audit: the chips below jumped 220 px). Below lg only the lit room's list is drawn. */}
+      <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${room.id}`} className="lg:col-span-8 xl:col-span-9 mt-8 lg:mt-0 grid" data-everything-panel={room.id}>
+        {ROOMS.map((r, i) =>
+          i === at || !sideways ? (
+            <div
+              key={r.id}
+              className={`[grid-area:1/1] ${i === at ? 'animate-fade-in' : 'invisible'}`}
+              aria-hidden={i === at ? undefined : true}
+              /* out of reach as well as out of sight (the house's way: WidgetThumb) */
+              ref={el => {
+                if (!el) return;
+                if (i === at) el.removeAttribute('inert');
+                else el.setAttribute('inert', '');
+              }}
+            >
+              <RoomPages room={r} onOpen={onOpen} />
             </div>
-            {room.path && (
-              <button
-                type="button"
-                onClick={() => onOpen(room.path!)}
-                className="group/door shrink-0 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
-                data-everything-door={room.id}
-              >
-                Open {doorName(room.name)}
-                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/door:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover/door:translate-x-0" aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <ul className="grid grid-cols-1 md:grid-cols-2 md:gap-x-10">
-            {room.features.map(f => (
-              <li key={f.title} className="border-b border-borderSubtle">
-                {f.path ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpen(f.path!)}
-                    className="group relative w-full h-full flex flex-col items-start justify-start text-left py-4 pr-16 transition-colors hover:bg-ink/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
-                    data-everything-page={f.path}
-                  >
-                    <span className="block text-[15px] font-medium text-textPrimary">{f.title}</span>
-                    <span className="mt-1 block text-[13.5px] leading-snug text-textSecondary">{f.says}</span>
-                    <span aria-hidden="true" className="absolute right-1 top-4 inline-flex items-center gap-1 text-[12px] text-textMuted group-hover:text-textPrimary transition-colors">
-                      Open
-                      <ArrowRight className="w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 motion-reduce:transition-none" />
-                    </span>
-                  </button>
-                ) : (
-                  <div className="py-4 pr-16">
-                    <span className="block text-[15px] font-medium text-textPrimary">{f.title}</span>
-                    <span className="mt-1 block text-[13.5px] leading-snug text-textSecondary">{f.says}</span>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+          ) : null
+        )}
+        {/* the list's end: on a phone the rooms hold while what is under it is on screen */}
+        <div ref={end} aria-hidden="true" className="[grid-area:2/1] h-px" />
       </div>
     </div>
   );

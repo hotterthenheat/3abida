@@ -79,7 +79,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   animation that loops for ever (Trace's LIVE breath, the mark's foil) is held and stepped on the film's clock — on the
   browser's it ran several times too fast; one that ends runs freely (something may wait for its end). Every film was
   shot again on 2026-10-01 with that fix and the owner's logos in (the mark's corner now changes a quarter to a third as
-  much a frame as before the fix). A live page never ends exactly where it began, so a take whose loop jumps is filmed again
+  much a frame as before the fix), and again on 2026-10-03 with the rooms' new acts — the film script keeps no acts of its
+  own now — and, where the footer stands in a film (Compass's board as it narrows, the Tracker, Pinpoint Building on a
+  desk, the Wall on a phone), with the footer as one piece. A page shows for 4.5 s in the tour and the hero, so an act
+  shows its page's features from its first seconds. A live page never ends exactly where it began, so a take whose loop jumps is filmed again
   and the best take kept: the Compass board re-ranks every 10 s of page time and can end on another order, and SPY sits
   near its flip at AT, so the dealers' word can turn. Live pages
   move under an act: a menu's choice is made again by its words, not its place; a press that must not land on something

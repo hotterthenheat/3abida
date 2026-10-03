@@ -1506,6 +1506,24 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
   --c5: var(--dawn-1);
   --c6: var(--night);
 }
+/* a ground picked on the page (landing/ground.tsx): the turn stands still, all of it the pick */
+.landing-dawn[data-dir='still-night'] {
+  --c1: var(--night);
+  --c2: var(--night);
+  --c3: var(--night);
+  --c4: var(--night);
+  --c5: var(--night);
+  --c6: var(--night);
+}
+.landing-dawn[data-dir='still-day'] {
+  --c0: var(--day);
+  --c1: var(--day);
+  --c2: var(--day);
+  --c3: var(--day);
+  --c4: var(--day);
+  --c5: var(--day);
+  --c6: var(--day);
+}
 /* a long, slow gradient bands on an 8-bit screen; a breath of grain over the turn breaks the steps up */
 .landing-grain[data-band='back'] {
   top: var(--back-top, 0px);
