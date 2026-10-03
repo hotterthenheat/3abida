@@ -1579,12 +1579,12 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 }
 /* THE HEADLINE SETTLES OUT OF THE FOOTER'S FRINGE (2026-10-03, with the hero's window booting out of its broken pixels —
    pages/landing/Boot.tsx): once, as it rises, a hair of red on one edge of the words and blue on the other closes on
-   them, and the line steps aside and back as the screen's tear passes. `translate`, so it adds to the rise's transform. */
+   them, and the line steps aside and back as the screen's tear passes. Drop-shadows of the drawn line, not text-shadows:
+   a text-shadow is painted over the foil's clipped background and washed "see." red and blue instead of edging it.
+   `translate`, so it adds to the rise's transform. */
 @keyframes landing-fringe {
   0% {
-    text-shadow:
-      -8px 0 rgb(var(--bear) / 0.55),
-      8px 0 rgb(var(--compare) / 0.55);
+    filter: drop-shadow(-8px 0 rgb(var(--bear) / 0.55)) drop-shadow(8px 0 rgb(var(--compare) / 0.55));
     translate: 6px 0;
   }
   9% {
@@ -1598,9 +1598,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
     translate: 0 0;
   }
   100% {
-    text-shadow:
-      0 0 rgb(var(--bear) / 0),
-      0 0 rgb(var(--compare) / 0);
+    filter: drop-shadow(0 0 rgb(var(--bear) / 0)) drop-shadow(0 0 rgb(var(--compare) / 0));
   }
 }
 .landing-rise.landing-fringe {

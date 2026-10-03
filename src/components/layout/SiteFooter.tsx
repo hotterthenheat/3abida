@@ -152,8 +152,10 @@ const FooterLink = ({
 const OUTSIDE = /^\/(about|status|legal)/;
 
 /** The footer's column: the landing's own (Landing.tsx Wrap — as wide as a window the screen holds whole, index.css
-    --landing-col), so every edge of the footer lines up with the page above; 1240 px under every other page */
-const COLUMN = 'mx-auto w-full max-w-[var(--landing-col,1240px)] px-4 sm:px-6 lg:px-10';
+    --landing-col), so its edges line up with the page above; 1240 px under every other page. Never under 1040 px: on a
+    short laptop screen the landing's column narrows below the room the words, the links and the picture need side by
+    side, and the footer would stack to half as tall again — there it runs a little wider than the page above it. */
+const COLUMN = 'mx-auto w-full max-w-[max(var(--landing-col,1240px),1040px)] px-4 sm:px-6 lg:px-10';
 
 /* THE FOOTER IS ONE PIECE (2026-10-03 — the owner, of the footer with the photograph live at its foot: "i want that
    glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece"): the whole

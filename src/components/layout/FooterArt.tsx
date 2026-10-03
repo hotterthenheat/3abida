@@ -132,6 +132,8 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
   const has = (cv: HTMLCanvasElement) => cv.width > 0 && cv.height > 0;
   let ink = inksOf(host);
   let stage: Stage | null = null;
+  /** the picture's box when it was last laid */
+  let laidIn: Box | null = null;
   let panels: Box[] = [];
   let words: { el: HTMLElement; box: Box; lit: number; slip: number }[] = [];
   /* the engine's own chance: the screen's glitches, a fast pointer's tears */
@@ -177,6 +179,7 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
     const marked = host.querySelector('[data-footer-scene]');
     const inset = W >= 1240 ? (W - 1240) / 2 + 40 : W >= 1024 ? 40 : W >= 640 ? 24 : 16;
     const b = marked ? rel(marked) : { x0: inset, x1: W - inset, y0: 0, y1: H };
+    laidIn = b;
     /* a small picture (a phone's, or the short band between the words below lg) keeps to its page's one or two parts; a
        desk's box beside the words is 450 to 560 wide and 300 tall since the footer was halved (2026-10-03) */
     stage = { W, H, box: b, phone: b.x1 - b.x0 < 420 || b.y1 - b.y0 < 260, ink, calm };
@@ -703,6 +706,19 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
     redraw();
   });
   ro.observe(host);
+  /* THE PICTURE'S BOX CAN CHANGE WITH THE FOOTER'S SIZE UNCHANGED — the landing's column follows the screen's height
+     (index.css --landing-col), so a window made shorter moves the words and the box under a footer just as wide and
+     tall — so the box is watched too, and the picture laid again where it has gone */
+  const scene = host.querySelector('[data-footer-scene]');
+  const ro2 = new ResizeObserver(() => {
+    if (blank || !scene || !laidIn) return;
+    const b = rel(scene);
+    if (Math.abs(b.x0 - laidIn.x0) < 0.5 && Math.abs(b.x1 - laidIn.x1) < 0.5 && Math.abs(b.y0 - laidIn.y0) < 0.5 && Math.abs(b.y1 - laidIn.y1) < 0.5) return;
+    layout();
+    build();
+    redraw();
+  });
+  if (scene) ro2.observe(scene);
   /* the words are measured where they stand: once the type is in, again (a word's box moves when its font arrives) */
   let alive = true;
   document.fonts?.ready.then(() => {
@@ -732,6 +748,7 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
     window.clearTimeout(tick);
     io.disconnect();
     ro.disconnect();
+    ro2.disconnect();
     mo.disconnect();
     document.removeEventListener('visibilitychange', go);
     host.removeEventListener('pointermove', move);

@@ -132,7 +132,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   (pages/landing/Boot.tsx, TerminalWindow `boot`; it begins 320 ms in, once the window has risen into view); the headline settles out of the same fringe as it rises (index.css
   .landing-fringe, on `translate` so it adds to the rise). Never again on a return within the app, never under reduced
   motion, never in a tab behind, and not at all if the still takes over 1.2 s to come (the window never waits on its own
-  entrance). It is the hero's alone; the rest of the page keeps its arrival clips.
+  entrance; it gives way 1.2 s in if it has not begun). The window holds its film on the first frame until the canvas
+  has gone (Boot `onDone`), so the hand-over is seamless. The headline's fringe is a pair of drop-shadows of the drawn
+  line (a text-shadow washed the foil's "see."). It is the hero's alone; the rest of the page keeps its arrival clips.
 - THE SESSION (pages/landing/Session.tsx; `npm run landing:session`, scripts/make-landing-session.mjs): the brief's one
   "killer" demonstration — "Look at what the terminal was able to show", never "Slayer predicted the move". The real
   Pulse desk, opened at 09:31 New York on 2026-10-01 and run forward with its live ticks drawn from a seeded stream
@@ -186,7 +188,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the company with the handle under it, the legal pages — and the picture stands beside them as tall as they are, 300 px
   at least. It is laid by the room the COLUMN has, not the screen's (index.css .footer-sheet / .footer-grid, a container
   query at 920 px), so a page with the rail open lays its footer by its own width; with less room the picture is a band
-  between the words and the links. FooterArt reads a box under 420 px wide or 260 tall as a phone's picture.
+  between the words and the links. FooterArt reads a box under 420 px wide or 260 tall as a phone's picture, and lays
+  its picture again when the box moves under a footer of the same size (the landing's column follows the screen's
+  height). On the landing the footer's column is the page's but never under 1040 px, so a short laptop screen keeps it
+  side by side.
 - What each plan holds is ONE list (Landing.tsx PLAN_ROWS): the plans' "Holds" lines say it short and the comparison
   folded under them reads it whole. Never on the landing: reviews, ratings, member counts or results of any kind (we have
   none), "most popular", a chat bubble (no backend). The buyer's questions came back with the rebuild ("Where does the

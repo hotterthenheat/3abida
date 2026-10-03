@@ -260,7 +260,10 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     document.addEventListener('visibilitychange', on);
     return () => document.removeEventListener('visibilitychange', on);
   }, []);
-  const rolling = !!live && seen && front;
+  /* the hero's boot (Boot.tsx) shows the film's first frame: the film waits on it until the boot has gone */
+  const [booting, setBooting] = useState(boot);
+  const holding = booting && boot && near;
+  const rolling = !!live && seen && front && !holding;
 
   /* the film on screen plays; one going out holds its frame */
   useEffect(() => {
@@ -419,7 +422,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
           </span>
         )}
         {/* the hero's window comes up out of the footer's broken pixels, once (Boot.tsx) */}
-        {boot && near && <Boot src={want} />}
+        {boot && near && <Boot src={want} onDone={() => setBooting(false)} />}
         {sweep > 0 && <span key={sweep} aria-hidden="true" className="window-sweep pointer-events-none absolute inset-0" />}
       </div>
     </div>

@@ -10,7 +10,8 @@
   marks come in under the bright ones, the fringe closes, and a row or two tears aside on the way. Then the canvas lets
   go and the window is the window.
 
-  It draws the window's own still (the film's first frame), so it ends on what is there. On paper the marks that
+  It draws the window's own still (the film's first frame), and the window holds its film on that frame until the canvas
+  has gone (`onDone`), so it ends on what is there. On paper the marks that
   survive are the darkest (ink), as the footer prints on paper. Once a visit — a return to the landing within the
   terminal does not boot it again — never where less motion is asked for, never in a tab behind, and not at all if the
   still is slow to come (the window does not wait on its own entrance).
@@ -51,11 +52,16 @@ interface Coarse {
   mark: Float32Array;
 }
 
-const Boot = ({ src }: { src: string }) => {
+const Boot = ({ src, onDone }: { src: string; /** the canvas is gone (or never came): the window may play its film */ onDone?: () => void }) => {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const calm = useReducedMotion();
   const [gone, setGone] = useState(() => booted || calm === true || typeof document === 'undefined' || document.visibilityState !== 'visible');
   const [letGo, setLetGo] = useState(false);
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    if (gone) done.current?.();
+  }, [gone]);
 
   useEffect(() => {
     if (gone) return;
@@ -69,11 +75,16 @@ const Boot = ({ src }: { src: string }) => {
     let alive = true;
     let raf = 0;
     let timer = 0;
+    let started = false;
     const born = performance.now();
+    /* a still slow to come, or one that never comes: the boot gives way and the window shows what it has */
+    const giveUp = window.setTimeout(() => alive && !started && setGone(true), WAIT);
     const img = new Image();
     img.src = src;
 
     const run = () => {
+      started = true;
+      window.clearTimeout(giveUp);
       const box = c.getBoundingClientRect();
       const W = Math.max(1, Math.round(box.width));
       const H = Math.max(1, Math.round(box.height));
@@ -227,6 +238,7 @@ const Boot = ({ src }: { src: string }) => {
       alive = false;
       cancelAnimationFrame(raf);
       window.clearTimeout(timer);
+      window.clearTimeout(giveUp);
     };
   }, [gone, src]);
 
