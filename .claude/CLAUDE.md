@@ -116,20 +116,31 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   faster its so damn slow right now"). In the tour the room on screen shows its pages in turn, each for 4.5 s of its
   film (TerminalWindow's onLap and LAP; a still as long), a line under its row filling as it plays (onTime); a row the
   reader picks holds the room until they move to another room, and a pointer MOVING over the window or the rows holds the
-  page until it has been still 2.5 s (a pointer the page scrolled under holds nothing). A room's door opens the room it
-  names (its first page), or the row the reader picked — never whichever page the play had reached; the turn's door opens
-  Settings. "Everything in it" brings its rooms round by itself while on screen (3.2–5.2 s, a little more for a room with
-  more pages), a line on the lit tab filling; a moving pointer or the keys inside hold it, a touch holds it until 3 s after
-  the finger lifts (a scroll that starts on the list is not a pick), and a picked room stays while any of the list shows
-  and comes home with Back (sessionStorage). On a desk every room's list stands in one grid cell, so the box is always the
-  tallest room's and nothing under it moves; on a phone the rooms hold once the reader has gone on past the row of rooms.
-  Neither moves where less motion is asked for, and the line above the list then says to pick a room. A new list of tabs on
-  the landing does the same. THE THEME BUTTON names what it does to the ground under the bar (Nav's `ground`); a theme
-  picked on the landing is stored and the page stops turning — both ends are the pick (ground.tsx `picked`,
-  .landing-dawn still-night/still-day). A jump along the page (Pricing, Questions, Every page) is a step in the history.
+  page until it has been still 2.5 s (a pointer the page scrolled under holds nothing); the keys on a room's rows or door
+  hold it too, and the keys on the hero's rooms hold the hero's row. Which room is on screen is worked out from where the
+  rooms stand (on a crossing and when a scroll rests), so a jump home (Home, the scroll bar) gives the window back to the
+  hero's rooms. A room's door opens the room it names (its first page), or the row the reader picked — never whichever
+  page the play had reached; the turn's door opens Settings. "Everything in it" brings its rooms round by itself while on
+  screen (3.2–5.2 s, a little more for a room with more pages — the owner's brisk pace), a line on the lit tab filling; a
+  pointer that has MOVED over it holds it until it leaves (one resting there to read keeps the room), the keys inside hold
+  it, a touch holds it until 3 s after the finger lifts (a scroll that starts on the list is not a pick), and a picked room
+  stays while any of the list shows and comes home with Back (sessionStorage). Under the rooms: Pause / Play (a pause is a
+  room kept; Play lets them come round again) and, while the keys are on a room, "← → (↑ ↓ on a desk) for the other
+  rooms". On a desk every room's list stands in one grid cell, so the box is always the tallest room's and nothing under it
+  moves; on a phone the rooms hold once the reader has gone on past the row of rooms. Neither moves where less motion is
+  asked for (no Pause there), and the line above the list then says to pick a room. A new list of tabs on the landing does
+  the same. THE THEME BUTTON names what it does to the ground under the bar (Nav's `ground`); a theme picked on the landing
+  is stored and the page stops turning — both ends are the pick (ground.tsx `picked`, .landing-dawn
+  still-night/still-day). A jump along the page (Pricing, Questions, Every page) is a step in the history and takes the
+  keys with it (toAnchor focuses the section's head, tabIndex -1). THE KEYS ON THE LANDING (2026-10-03 audit): the
+  Products panel follows its word in the keys' order, closes when they leave it, and Escape hands them back to the word
+  that opened it; the bar's controls wear the 2 px silver ring; a control the keys land on is brought clear of the bar, and
+  in one column clear of the tour's window (index.css scroll margins, and Landing's focusin for one the browser can partly
+  see). The global ring (index.css :focus-visible) is the ground's silver ink at --ring-a (55% on black, whole on paper).
   The tour's window asks once whether the browser plays H.264; a film that fails to load leaves only its own page on
   its still. The closing "Seen enough? Step inside." lights a letter at a time as it comes up the screen (Landing.tsx
-  LitLines, the scroll its playhead; lit under reduced motion).
+  LitLines, the scroll its playhead; whole once its top is seven tenths down the screen, and whole when a scroll comes to
+  rest with it on screen; lit under reduced motion).
 - The footer is ONE ART PIECE (2026-10-03 — the owner, of the footer with the photograph live in a band at its foot: "i
   want that glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece").
   The photograph (2026-10-02: the terminal caught on a black screen, only its brightest marks left and broken into

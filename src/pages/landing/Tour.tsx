@@ -310,23 +310,38 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
     return () => cancelAnimationFrame(raf);
   }, [small]);
 
-  /* WHOSE WORDS ARE ON SCREEN: the step crossing one line — half way down a desk, lower on a phone,
-     where the window holds the top half. One observer; it fires on a crossing, never on scroll. */
+  /* WHOSE WORDS ARE ON SCREEN: the step standing on one line — half way down a desk, lower on a phone, where the window
+     holds the top half — or none while the first is still below it (the hero's rooms play). It is worked out from where the
+     steps stand, never from which one crossed last: a jump home (the Home key, the scroll bar) crossed nothing on the way
+     and left the window on a tour room at the top, under the hero's lit Pulse (2026-10-03 audit). An observer says when a
+     step crosses; the place is read again once a scroll comes to rest, which a jump from below the last step needs. */
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
     const line = small ? 78 : 50;
-    const io = new IntersectionObserver(
-      entries => {
-        for (const e of entries) {
-          const id = (e.target as HTMLElement).dataset.tourStep ?? null;
-          if (e.isIntersecting) setActive(id);
-          else if (id === steps[0].id && e.boundingClientRect.top > 0) setActive(cur => (cur === id ? null : cur));
-        }
-      },
-      { rootMargin: `-${line}% 0px -${100 - line - 0.5}% 0px`, threshold: 0 }
-    );
+    const pick = () => {
+      const y = (window.innerHeight * line) / 100;
+      let id: string | null = null;
+      for (const s of steps) {
+        const el = stepEls.current.get(s.id);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top > y) break;
+        id = s.id;
+      }
+      setActive(id);
+    };
+    const io = new IntersectionObserver(pick, { rootMargin: `-${line}% 0px -${100 - line - 0.5}% 0px`, threshold: 0 });
     for (const el of stepEls.current.values()) io.observe(el);
-    return () => io.disconnect();
+    let rest = 0;
+    const scrolled = () => {
+      window.clearTimeout(rest);
+      rest = window.setTimeout(pick, 160);
+    };
+    window.addEventListener('scroll', scrolled, { passive: true });
+    return () => {
+      io.disconnect();
+      window.clearTimeout(rest);
+      window.removeEventListener('scroll', scrolled);
+    };
   }, [small, steps]);
 
   const step = steps.find(s => s.id === active);
@@ -352,7 +367,10 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
     setHand(false);
   }, []);
   useEffect(() => () => window.clearTimeout(still.current), []);
-  const plays = (s: TourStep | undefined) => !calm && !!s && held !== s.id && !hand && pagesOf(s).length > 1;
+  /* THE KEYS IN A ROOM HOLD IT TOO (2026-10-03 audit: the page under a focused row turned to the next, and the silver line
+     with it): while the keys are on a room's rows or its door, the room stays on the page it shows */
+  const [keysIn, setKeysIn] = useState<string | null>(null);
+  const plays = (s: TourStep | undefined) => !calm && !!s && held !== s.id && keysIn !== s.id && !hand && pagesOf(s).length > 1;
   const now = useRef({ step, plays: plays(step), hand });
   now.current = { step, plays: plays(step), hand };
   const onLap = useCallback((seen: string) => {
@@ -488,7 +506,13 @@ const Tour = ({ head, steps, first, onOpen, onBarGround, endSays, dock = true, o
                   <OnGround ground={ground}>
                     {/* the first tool's words arrive as the window comes home; after that, the tool on screen is bright and the rest wait */}
                     <motion.div style={i === 0 ? { opacity: reveal } : undefined} className="min-h-[64svh] lg:min-h-[90svh] pb-16">
-                    <div className={`transition-opacity duration-500 motion-reduce:transition-none ${on || (i === 0 && active === null) ? '' : 'opacity-[0.38]'}`}>
+                    <div
+                      className={`transition-opacity duration-500 motion-reduce:transition-none ${on || (i === 0 && active === null) ? '' : 'opacity-[0.38]'}`}
+                      onFocus={e => e.target.matches(':focus-visible') && setKeysIn(s.id)}
+                      onBlur={e => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setKeysIn(k => (k === s.id ? null : k));
+                      }}
+                    >
                       <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">
                         <span className="w-8 h-px bg-textMuted/60" aria-hidden="true" />
                         {s.code && <span className="text-textPrimary tnum">{s.code}</span>}

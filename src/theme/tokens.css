@@ -168,6 +168,8 @@
      since 2026-09-12 so the light terminal can cut it to deep steel; the
      holo GRADIENT (holo-bg, holo-text) is not this and stays as it is */
   --silver: 199 211 232;
+  /* the focus ring's strength (index.css :focus-visible): the pale silver is bright on black, so a 55% ring */
+  --ring-a: 0.55;
 
   /* THE BRAND (Slayer Logo System, 2026-09-30 — src/brand/). The tile the mark and the thirteen product glyphs sit on,
      its corner brackets, the ">" and the wordmark's muted half, the wordmark's lit half and the cursor. The foil is the
@@ -300,6 +302,8 @@
      as a second black beside the near-black text — still dark enough for words
      (Noah, 2026-09-12: "do what you think is best with the silver") */
   --silver: 58 79 122;
+  /* …and the steel whole on paper, where 55% of it fell under 3:1 */
+  --ring-a: 1;
   --silver-fill: 199 211 232;
 
   /* THE BRAND ON PAPER: the tile #FBFAF7 with its #CDCBC5 edge, the brackets #8C8A84, the ">" #6B6E75, the wordmark's lit

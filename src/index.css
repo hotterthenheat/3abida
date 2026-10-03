@@ -37,8 +37,11 @@
     /* Holographic silver, not lime (Noah, 2026-08-30: "remove the neon green
        highlight"): a focus ring says WHERE YOU ARE, and that is silver's
        job (since 2026-10-02 the lime is gone everywhere — the silver is the
-       house's one accent). */
-    outline: 1px solid rgba(199, 211, 232, 0.55);
+       house's one accent). The silver INK of the ground it is on, its
+       strength per theme (theme/tokens.css --ring-a): the pale silver at 55%
+       on black as before, the steel whole on paper — the pale literal was
+       1.16:1 there, all but gone (2026-10-03 audit). */
+    outline: 1px solid rgb(var(--silver) / var(--ring-a));
     outline-offset: 1px;
   }
 }
@@ -1625,6 +1628,17 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 }
 .landing-rooms::-webkit-scrollbar {
   display: none;
+}
+/* WHERE THE KEYS LAND (2026-10-03 audit): a control the keys move to is scrolled clear of the floating bar (52 px from
+   14 px down, and some air) — Shift+Tab left six under it — and, in one column, clear of the tour's window as well, pinned
+   under the bar for half the screen (nine of the tour's stops had their focus behind the picture) */
+[data-landing] :is(a, button, [tabindex]) {
+  scroll-margin-top: 88px;
+}
+@media (max-width: 1023.98px) {
+  [data-landing] [data-tour-step] :is(a, button) {
+    scroll-margin-top: calc(68px + 50svh + 20px);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-rise {

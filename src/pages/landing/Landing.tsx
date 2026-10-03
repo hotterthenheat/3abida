@@ -390,7 +390,8 @@ const Eyebrow = ({ children }: { children: ReactNode }) => (
 
 /** EVERY HEAD IS TWO LINES IN TWO TONES: what it is in ink, the turn of the thought in grey */
 const TwoTone = ({ first, second, className = '' }: { first: string; second: string; className?: string }) => (
-  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[40px] sm:text-[56px] lg:text-[72px] [text-wrap:balance] ${className}`}>
+  /* outline-none: a jump along the page lands the keys here (toAnchor) — a heading to land on, not a control */
+  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[40px] sm:text-[56px] lg:text-[72px] [text-wrap:balance] outline-none ${className}`}>
     {first} <span className="block text-textMuted">{second}</span>
   </h2>
 );
@@ -409,22 +410,46 @@ const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: strin
     const letters = Array.from(el.querySelectorAll<HTMLElement>('[data-letter]'));
     let lit = -1;
     let raf = 0;
-    const paint = () => {
-      raf = 0;
-      const top = el.getBoundingClientRect().top;
-      const vh = window.innerHeight;
-      /* from when the lines' top is nineteen twentieths of the way down the screen to when it is three fifths of the way —
-         whole by the time the door under it is in reach (2026-10-03 audit: half unlit when the door reached the thumb) */
-      const p = Math.max(0, Math.min(1, (vh * 0.95 - top) / (vh * 0.35)));
-      const n = Math.round(p * letters.length);
+    /* what a settled read has lit stays lit until the lines go back down off the screen */
+    let floor = 0;
+    let rest = 0;
+    let undo = 0;
+    const show = (n: number) => {
       if (n === lit) return;
       const from = lit < 0 ? 0 : Math.min(n, lit);
       const to = lit < 0 ? letters.length : Math.max(n, lit);
       for (let i = from; i < to; i++) letters[i].dataset.lit = i < n ? 'on' : 'off';
       lit = n;
     };
+    const paint = () => {
+      raf = 0;
+      const top = el.getBoundingClientRect().top;
+      const vh = window.innerHeight;
+      if (top > vh * 0.95) floor = 0;
+      /* from when the lines' top is nineteen twentieths of the way down the screen to when it is seven tenths of the way —
+         whole by the time the door under it is in reach (2026-10-03 audits: half unlit when the door reached the thumb, and
+         where a Page Down stops) */
+      const p = Math.max(0, Math.min(1, (vh * 0.95 - top) / (vh * 0.25)));
+      show(Math.max(floor, Math.round(p * letters.length)));
+    };
+    /* A STEPPED SCROLL NEVER LEAVES THEM HALF READ (2026-10-03 audit: a Page Down stopped with "Step inside." still dark and
+       the next carried it off the screen): when the page comes to rest with the lines on screen, the rest of them light, a
+       letter at a time */
+    const settle = () => {
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      if (r.top > vh * 0.9 || r.bottom < 0 || lit >= letters.length) return;
+      const from = Math.max(0, lit);
+      for (let i = from; i < letters.length; i++) letters[i].style.transitionDelay = `${(i - from) * 30}ms`;
+      floor = letters.length;
+      show(letters.length);
+      window.clearTimeout(undo);
+      undo = window.setTimeout(() => letters.forEach(l => (l.style.transitionDelay = '')), (letters.length - from) * 30 + 250);
+    };
     const on = () => {
       if (!raf) raf = requestAnimationFrame(paint);
+      window.clearTimeout(rest);
+      rest = window.setTimeout(settle, 700);
     };
     const io = new IntersectionObserver(
       ([e]) => {
@@ -441,6 +466,8 @@ const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: strin
       io.disconnect();
       window.removeEventListener('scroll', on);
       cancelAnimationFrame(raf);
+      window.clearTimeout(rest);
+      window.clearTimeout(undo);
     };
   }, [calm]);
   return (
@@ -493,10 +520,17 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
 const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
 
 /* A JUMP ALONG THE PAGE LEAVES A WAY BACK (2026-10-03 audit: Back after Pricing left the site): the jump is a step in the
-   history, and Back returns the reader to where they jumped from (the browser keeps that place) */
+   history, and Back returns the reader to where they jumped from (the browser keeps that place). AND IT TAKES THE KEYS
+   WITH IT (the same audit: the fourth Tab after "Pricing" threw the reader back up to the hero): the section's head takes
+   the focus, quietly, so the next Tab goes on inside the section. */
 const toAnchor = (href: string) => {
   if (location.hash !== href) history.pushState(null, '', href);
-  document.querySelector(href)?.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
+  const to = document.querySelector<HTMLElement>(href);
+  if (!to) return;
+  to.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
+  const head = to.querySelector<HTMLElement>('h2') ?? to;
+  if (!head.hasAttribute('tabindex')) head.setAttribute('tabindex', '-1');
+  head.focus({ preventScroll: true });
 };
 
 /** THE PRODUCTS MENU (Slayer Logo System, 06 · Menu and rail: "Every product, one line each. Landing and app header."):
@@ -511,7 +545,7 @@ const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: str
       e.preventDefault();
       onEvery();
     }}
-    className={`group mb-4 flex items-center justify-between gap-3 border-b border-borderSubtle text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors ${compact ? 'pt-3 pb-3' : 'pb-4'}`}
+    className={`group mb-4 flex items-center justify-between gap-3 border-b border-borderSubtle text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver ${compact ? 'pt-3 pb-3' : 'pb-4'}`}
     data-landing-products-every
   >
     Every page, by room
@@ -532,7 +566,7 @@ const ProductsMenu = ({ onPick, onEvery, compact = false }: { onPick: (path: str
                   e.preventDefault();
                   onPick(p.path);
                 }}
-                className={`group flex items-start gap-3 rounded-xl transition-colors hover:bg-ink/[0.05] ${compact ? 'py-2 px-1' : 'p-2 -mx-2'}`}
+                className={`group flex items-start gap-3 rounded-xl transition-colors hover:bg-ink/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver ${compact ? 'py-2 px-1' : 'p-2 -mx-2'}`}
                 data-landing-product={p.name}
               >
                 <ProductGlyph name={p.glyph} size={compact ? 20 : 26} bare className="shrink-0 mt-[1px]" />
@@ -566,13 +600,27 @@ const Nav = ({ ground }: { ground: Ground }) => {
   const [menu, setMenu] = useState(false);
   /* the Products menu on a desk: opens under its word, closes the same ways */
   const [products, setProducts] = useState(false);
+  const productsDoor = useRef<HTMLButtonElement | null>(null);
+  const menuDoor = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (!menu && !products) return;
+    /* ESCAPE HANDS THE KEYS BACK to the word that opened it (2026-10-03 audit: from inside the menu they fell to the page's
+       foot of nowhere, and the next Tab began at the top) */
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenu(false);
-        setProducts(false);
-      }
+      if (e.key !== 'Escape') return;
+      const at = document.activeElement;
+      const inside = (sel: string) => at instanceof Element && !!at.closest(sel);
+      if (products && inside('[data-landing-products-panel], [data-landing-products-door]')) productsDoor.current?.focus();
+      if (menu && inside('[data-landing-menu], [data-landing-menu-door]')) menuDoor.current?.focus();
+      setMenu(false);
+      setProducts(false);
+    };
+    /* …and the keys leaving it close it (it stayed open over what they went on to). The phone's sheet comes after the bar's
+       own doors in the keys' order, so it closes only when they leave the bar. */
+    const moved = (e: FocusEvent) => {
+      if (!(e.target instanceof Element)) return;
+      if (products && !e.target.closest('[data-landing-products-panel], [data-landing-products-door]')) setProducts(false);
+      if (menu && !e.target.closest('[data-landing-nav]')) setMenu(false);
     };
     /* a tap outside closes it, and only closes it: on a touch screen the tap went on to press what was under the finger
        (2026-10-03 audit: a tablet's dismissing tap opened a room). A mouse's click goes on — it may be the bar's own word. */
@@ -602,10 +650,12 @@ const Nav = ({ ground }: { ground: Ground }) => {
     };
     window.addEventListener('keydown', key);
     document.addEventListener('pointerdown', down, true);
+    document.addEventListener('focusin', moved);
     window.addEventListener('scroll', scrolled, { passive: true });
     return () => {
       window.removeEventListener('keydown', key);
       document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('focusin', moved);
       window.removeEventListener('scroll', scrolled);
       window.clearTimeout(swallow);
     };
@@ -626,7 +676,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
           lifted ? 'max-w-[700px] pl-2.5 pr-1.5 border-borderSubtle bg-panel/75 backdrop-blur-xl shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[1408px] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none" aria-label="Slayer Terminal, back to the top" data-landing-brand>
+        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
           {/* the wordmark on the open bar, the mark on the lifted pill and on a phone */}
           <span className={lifted ? 'hidden' : 'hidden sm:inline-flex'}>
             <Wordmark height={15} cursor label="" />
@@ -641,12 +691,39 @@ const Nav = ({ ground }: { ground: Ground }) => {
             onClick={() => setProducts(o => !o)}
             aria-expanded={products}
             aria-controls="landing-products"
-            className={`h-8 pl-3.5 pr-2.5 inline-flex items-center gap-1 rounded-full text-[13.5px] transition-colors ${products ? 'text-textPrimary bg-ink/[0.06]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+            className={`h-8 pl-3.5 pr-2.5 inline-flex items-center gap-1 rounded-full text-[13.5px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${products ? 'text-textPrimary bg-ink/[0.06]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+            ref={productsDoor}
             data-landing-products-door
           >
             Products
             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${products ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
+          {/* THE PANEL, NEXT TO ITS WORD in the order the keys go (2026-10-03 audit: placed after Launch terminal, it was four
+              Tabs from the word that opened it); it is laid out against the bar (the nav takes no place of its own), centred by
+              a still wrapper — the fade's own transform would undo a translate on the same box */}
+          <div className="absolute top-[60px] left-1/2 -translate-x-1/2 w-[min(760px,calc(100vw-32px))]">
+            <AnimatePresence>
+              {products && (
+                <motion.div
+                  id="landing-products"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="max-h-[calc(100svh-96px)] overflow-y-auto rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] p-6"
+                  data-landing-products-panel
+                >
+                  <ProductsMenu
+                    onPick={pick}
+                    onEvery={() => {
+                      setProducts(false);
+                      toAnchor('#everything');
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           {NAV.map(l => (
             <a
               key={l.href}
@@ -656,7 +733,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
                 setProducts(false);
                 toAnchor(l.href);
               }}
-              className="h-8 px-3.5 inline-flex items-center rounded-full text-[13.5px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+              className="h-8 px-3.5 inline-flex items-center rounded-full text-[13.5px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
             >
               {l.label}
             </a>
@@ -668,7 +745,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
         <button
           type="button"
           onClick={() => choose(ground === 'dark' ? 'light' : 'dark')}
-          className="ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-silver"
+          className="ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
           aria-label={ground === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
           title={ground === 'dark' ? 'Light theme' : 'Dark theme'}
           data-landing-theme={ground}
@@ -678,7 +755,8 @@ const Nav = ({ ground }: { ground: Ground }) => {
         <button
           type="button"
           onClick={() => setMenu(m => !m)}
-          className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-silver"
+          className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+          ref={menuDoor}
           aria-label={menu ? 'Close the menu' : 'Menu'}
           aria-expanded={menu}
           aria-controls="landing-menu"
@@ -692,36 +770,12 @@ const Nav = ({ ground }: { ground: Ground }) => {
             e.preventDefault();
             launch(DOOR);
           }}
-          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[13.5px] font-medium whitespace-nowrap ${launchFill}`}
+          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[13.5px] font-medium whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${launchFill}`}
           data-landing-door="nav"
         >
           <span className="sm:hidden">Launch</span>
           <span className="hidden sm:inline">Launch terminal</span>
         </a>
-        {/* the panel is centred by a still wrapper — the fade's own transform would undo a translate on the same box */}
-        <div className="hidden md:block absolute top-[60px] left-1/2 -translate-x-1/2 w-[min(760px,calc(100vw-32px))]">
-          <AnimatePresence>
-            {products && (
-              <motion.div
-                id="landing-products"
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="max-h-[calc(100svh-96px)] overflow-y-auto rounded-3xl border border-borderSubtle bg-panel/95 backdrop-blur-xl shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] p-6"
-                data-landing-products-panel
-              >
-                <ProductsMenu
-                  onPick={pick}
-                  onEvery={() => {
-                    setProducts(false);
-                    toAnchor('#everything');
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
       <AnimatePresence>
         {menu && (
@@ -801,7 +855,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
    screen, centred under the words, as large as they leave it. A room picked by hand stays. THE DOOR is "Sign up free" (the
    owner, 2026-10-01: "theirs no try to free you can sign up for free but that's it") — the account costs nothing; a plan
    opens the desks. */
-const Hero = ({ onSignUp, rooms, at, onPick, line }: { onSignUp: () => void; rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void }) => {
+const Hero = ({ onSignUp, rooms, at, onPick, line, onKeys }: { onSignUp: () => void; rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void; onKeys: (on: boolean) => void }) => {
   const ground = useBlockGround();
   const clock = useMarketClock();
   return (
@@ -834,14 +888,14 @@ const Hero = ({ onSignUp, rooms, at, onPick, line }: { onSignUp: () => void; roo
       <div aria-hidden="true" className="flex-1" />
       {/* where less motion is asked for the window does not glide in under the hero: it stands beside the first room from the
           first frame and shows the room whose words are on screen, so there are no rooms here to choose for it */}
-      {rooms.length > 0 && <HeroRooms rooms={rooms} at={at} onPick={onPick} line={line} />}
+      {rooms.length > 0 && <HeroRooms rooms={rooms} at={at} onPick={onPick} line={line} onKeys={onKeys} />}
     </Wrap>
   );
 };
 
 /** THE ROOMS OVER THE WINDOW: each room on its glyph, bare; the lit one is in the window, and the hairline under it fills as
     its film plays. On a phone the row scrolls sideways and keeps the lit room in view without moving the page. */
-const HeroRooms = ({ rooms, at, onPick, line }: { rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void }) => {
+const HeroRooms = ({ rooms, at, onPick, line, onKeys }: { rooms: TourStep[]; at: number; onPick: (i: number) => void; line: (el: HTMLSpanElement | null) => void; onKeys: (on: boolean) => void }) => {
   const row = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const r = row.current;
@@ -856,6 +910,11 @@ const HeroRooms = ({ rooms, at, onPick, line }: { rooms: TourStep[]; at: number;
         role="group"
         aria-label="The rooms in the window"
         className="landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center lg:justify-center gap-1 overflow-x-auto"
+        /* the keys on a room hold the row: the lit room does not move on from under a focused one */
+        onFocus={e => e.target.matches(':focus-visible') && onKeys(true)}
+        onBlur={e => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onKeys(false);
+        }}
         data-hero-rooms
       >
         {rooms.map((r, i) => {
@@ -1035,12 +1094,15 @@ const HeroAndTour = ({ onSignUp, onOpen, onBarGround }: { onSignUp: () => void; 
   const calm = useReducedMotion();
   const [heroAt, setHeroAt] = useState(0);
   const [kept, setKept] = useState(false);
+  /* the keys on the rooms hold them, as a hand on Everything's does (2026-10-03 audit: the lit room moved on from under a
+     focused one) */
+  const [heroKeys, setHeroKeys] = useState(false);
   const pickRoom = useCallback((i: number) => {
     setHeroAt(i);
     setKept(true);
   }, []);
   const heroNow = useRef({ path: HERO_ROOMS[0].path, plays: true });
-  heroNow.current = { path: HERO_ROOMS[heroAt].path, plays: !kept && !calm };
+  heroNow.current = { path: HERO_ROOMS[heroAt].path, plays: !kept && !calm && !heroKeys };
   const heroLap = useCallback((seen: string) => {
     if (!heroNow.current.plays || seen !== heroNow.current.path) return;
     setHeroAt(i => (HERO_ROOMS[i].path === seen ? (i + 1) % HERO_ROOMS.length : i));
@@ -1064,7 +1126,7 @@ const HeroAndTour = ({ onSignUp, onOpen, onBarGround }: { onSignUp: () => void; 
 
   return (
     <Tour
-      head={<Hero onSignUp={onSignUp} rooms={calm ? [] : HERO_ROOMS} at={heroAt} onPick={pickRoom} line={setHeroLine} />}
+      head={<Hero onSignUp={onSignUp} rooms={calm ? [] : HERO_ROOMS} at={heroAt} onPick={pickRoom} line={setHeroLine} onKeys={setHeroKeys} />}
       steps={STEPS}
       first={HERO_ROOMS[heroAt].path}
       onOpen={onOpen}
@@ -1089,6 +1151,33 @@ const Page = () => {
 
   /* "Sign up free": the account form, outside the terminal */
   const signUp = useCallback(() => navigate('/signup'), [navigate]);
+
+  /* WHERE THE KEYS LAND (2026-10-03 audit): a control the keys move to stands clear of the floating bar, and in one column
+     clear of the tour's window too, pinned under the bar for half the screen. The browser scrolls a control in only when
+     none of it is on screen (and then keeps the scroll margin, index.css); one it can partly see stays where it is, under
+     the bar or behind the window — so, a frame after the keys land, it is brought down to where it can be read. */
+  useEffect(() => {
+    let raf = 0;
+    const landed = (e: FocusEvent) => {
+      const el = e.target;
+      /* not the bar's own, nor a head a jump lands the keys on (it glides there itself) */
+      if (!(el instanceof HTMLElement) || el.tabIndex < 0 || el.closest('header')) return;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (document.activeElement !== el || !el.matches(':focus-visible')) return;
+        let floor = 88;
+        const win = el.closest('[data-tour-step]') && window.innerWidth < 1024 ? document.querySelector('[data-tour-window]') : null;
+        if (win) floor = Math.max(floor, win.getBoundingClientRect().bottom + 16);
+        const top = el.getBoundingClientRect().top;
+        if (top < floor) window.scrollBy({ top: top - floor, behavior: 'auto' });
+      });
+    };
+    document.addEventListener('focusin', landed);
+    return () => {
+      document.removeEventListener('focusin', landed);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   /* a link from elsewhere lands on /#pricing or /#faq (the not-found page suggests /#pricing) — go there once the page stands */
   useEffect(() => {

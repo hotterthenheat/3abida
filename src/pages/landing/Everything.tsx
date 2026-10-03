@@ -45,7 +45,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigationType } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Pause, Play } from 'lucide-react';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
@@ -283,23 +283,16 @@ const Everything = ({ onOpen: open }: { onOpen: (path: string) => void }) => {
   useEffect(() => {
     if (!anywhere) setPicked(false);
   }, [anywhere]);
-  /* A HAND IS A HAND THAT MOVES: a pointer the page scrolled under holds nothing (it held the list for good); a moving one
-     holds it until it has been still a while. A thumb holds it while it is down and a moment after — a scroll that starts on
-     the list is not a pick (it stopped the rooms for good). */
-  const still = useRef(0);
-  const moved = useCallback(() => {
-    setHand(true);
-    window.clearTimeout(still.current);
-    still.current = window.setTimeout(() => setHand(false), 2500);
-  }, []);
+  /* A HAND IS A HAND THAT MOVES: a pointer the page scrolled under holds nothing (it held the list for good); one that has
+     moved over it holds it until it leaves — a reader resting it there to read keeps the room (a hold that let go after a
+     still while turned the room under a reading eye). A thumb holds it while it is down and a moment after — a scroll that
+     starts on the list is not a pick (it stopped the rooms for good). */
+  const moved = useCallback(() => setHand(true), []);
   const lift = useRef(0);
-  useEffect(
-    () => () => {
-      window.clearTimeout(still.current);
-      window.clearTimeout(lift.current);
-    },
-    []
-  );
+  useEffect(() => () => window.clearTimeout(lift.current), []);
+  /* the keys on a room: a line under the rooms says the arrows walk them (a Tab lands on the lit room only, and the rest
+     were out of reach to a reader who did not know the arrows — 2026-10-03 audit) */
+  const [tabKeys, setTabKeys] = useState(false);
   /* the room a page is opened from is kept for the way back */
   const onOpen = useCallback(
     (path: string) => {
@@ -381,11 +374,7 @@ const Everything = ({ onOpen: open }: { onOpen: (path: string) => void }) => {
       ref={root}
       className="mt-12 lg:mt-14 grid grid-cols-1 lg:grid-cols-12 gap-x-12 xl:gap-x-16"
       onPointerMove={e => e.pointerType === 'mouse' && (e.movementX !== 0 || e.movementY !== 0) && moved()}
-      onPointerLeave={e => {
-        if (e.pointerType !== 'mouse') return;
-        window.clearTimeout(still.current);
-        setHand(false);
-      }}
+      onPointerLeave={e => e.pointerType === 'mouse' && setHand(false)}
       onPointerDown={e => {
         if (e.pointerType === 'mouse') return;
         window.clearTimeout(lift.current);
@@ -401,8 +390,9 @@ const Everything = ({ onOpen: open }: { onOpen: (path: string) => void }) => {
         window.clearTimeout(lift.current);
         lift.current = window.setTimeout(() => setTouch(false), 3000);
       }}
-      /* the keys in the list hold it too (a Tab through its doors), until they leave it */
-      onFocus={e => e.target.matches(':focus-visible') && setKeys(true)}
+      /* the keys in the list hold it too (a Tab through its doors), until they leave it — all but on the pause, which says
+         itself whether the rooms come round */
+      onFocus={e => setKeys(e.target.matches(':focus-visible') && !e.target.closest('[data-everything-pause]'))}
       onBlur={e => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setKeys(false);
       }}
@@ -410,12 +400,18 @@ const Everything = ({ onOpen: open }: { onOpen: (path: string) => void }) => {
       data-everything-playing={playing || undefined}
     >
       {/* THE ROOMS */}
+      <div className="lg:col-span-4 xl:col-span-3">
       <div
         ref={row}
         role="tablist"
         aria-label="Rooms"
         aria-orientation={sideways ? 'horizontal' : 'vertical'}
-        className="lg:col-span-4 xl:col-span-3 landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-4 lg:gap-0 overflow-x-auto lg:overflow-visible max-lg:border-b max-lg:border-borderSubtle lg:border-t lg:border-borderSubtle"
+        className="landing-rooms -mx-4 px-4 sm:mx-0 sm:px-0 flex lg:flex-col gap-4 lg:gap-0 overflow-x-auto lg:overflow-visible max-lg:border-b max-lg:border-borderSubtle lg:border-t lg:border-borderSubtle"
+        onFocus={e => setTabKeys(e.target.getAttribute('role') === 'tab' && e.target.matches(':focus-visible'))}
+        onBlur={e => {
+          const to = e.relatedTarget as Element | null;
+          if (!to || to.getAttribute('role') !== 'tab' || !e.currentTarget.contains(to)) setTabKeys(false);
+        }}
       >
         {ROOMS.map((r, i) => {
           const on = i === at;
@@ -466,11 +462,33 @@ const Everything = ({ onOpen: open }: { onOpen: (path: string) => void }) => {
           );
         })}
       </div>
+      {/* UNDER THE ROOMS: a pause for the rooms coming round (a reader who wants to read one stops them where they are; Play
+          sets them going again, from a picked room too), and while the keys are on a room, how to reach the others. Nothing
+          comes round where less motion is asked for, so there is no pause there. */}
+      <div className="mt-3 lg:mt-4 min-h-[28px] flex items-center gap-x-5 gap-y-1 flex-wrap">
+        {!calm && (
+          <button
+            type="button"
+            /* paused is a room kept: Play lets the list go again */
+            onClick={() => setPicked(auto)}
+            aria-label={auto ? 'Pause the rooms' : 'Let the rooms come round'}
+            className="-ml-1 h-7 pl-1 pr-2 inline-flex items-center gap-1.5 rounded-full text-[12.5px] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+            data-everything-pause={auto ? 'playing' : 'paused'}
+          >
+            {auto ? <Pause className="w-3.5 h-3.5" aria-hidden="true" /> : <Play className="w-3.5 h-3.5" aria-hidden="true" />}
+            {auto ? 'Pause' : 'Play'}
+          </button>
+        )}
+        <p aria-hidden="true" className={`text-[12.5px] text-textMuted transition-opacity duration-200 motion-reduce:transition-none ${tabKeys ? 'opacity-100' : 'opacity-0'}`} data-everything-keys>
+          {sideways ? '← →' : '↑ ↓'} for the other rooms
+        </p>
+      </div>
+      </div>
 
       {/* THE PICKED ROOM'S PAGES. From lg up every room's list stands in the one grid cell, the lit one shown and the rest
           kept out of sight and out of reach, so the box is always the tallest room's and nothing under it moves as the rooms
           come round (2026-10-03 audit: the chips below jumped 220 px). Below lg only the lit room's list is drawn. */}
-      <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${room.id}`} className="lg:col-span-8 xl:col-span-9 mt-8 lg:mt-0 grid" data-everything-panel={room.id}>
+      <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${room.id}`} className="lg:col-span-8 xl:col-span-9 mt-5 lg:mt-0 grid" data-everything-panel={room.id}>
         {ROOMS.map((r, i) =>
           i === at || !sideways ? (
             <div
@@ -514,9 +532,12 @@ export const InPlaceOf = () => (
     <p className="shrink-0 font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted lg:pt-[11px]">One terminal, in place of</p>
     <ul className="flex flex-wrap gap-2">
       {IN_PLACE_OF.map(t => (
-        <li key={t.text} title={`${t.room} does this`} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[13.5px] text-textSecondary">
+        <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[13.5px] text-textSecondary">
           <ProductGlyph name={t.glyph} size={14} bare />
           {t.text}
+          {/* the room that does it, in words as well as on its glyph (2026-10-03 audit: it was named only under a hovering
+              pointer, so a thumb or the keys never read it) */}
+          <span className="-ml-1 text-textMuted">· {t.room}</span>
         </li>
       ))}
     </ul>
