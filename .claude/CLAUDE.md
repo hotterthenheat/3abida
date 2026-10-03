@@ -67,7 +67,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   frame. No words, ring, bar or pause button over a film. Every film is set in the same open-market minute (AT, New
   York's zone), so prices agree across films. The page's clock is held and stepped a frame at a time (30 fps, crisp
   charts); H.264 MP4, desk 2160×1500, phone 780×1520; it needs an ffmpeg with libx264, named by FFMPEG; PREVIEW=1 films
-  an act small into the temp folder to check it. The staging (SEED, PREPARE, ROOM_PAGES) is in scripts/landing-stage.mjs;
+  an act small into the temp folder to check it (ACTS=<module> tries an act module in its place). Each room's acts —
+  what the pointer does on each of its pages, desk and phone — are a module of their own, scripts/landing-acts/<room>.mjs
+  (2026-10-02 — the owner: "make sure the videos really show the features of every page", "make them move fast", and of
+  Compass: "click inside the contract"). The staging (SEED, PREPARE, ROOM_PAGES) is in scripts/landing-stage.mjs;
   clips.json keeps each film's length; the still under a film is its first frame. The clock is held only once nothing on
   screen is still loading (no skeleton, nothing busy, no "Awaiting feed", fonts and pictures in — a fixed wait once froze
   Pulse on its loading frame, and that frame was its still); the run says when a page never settles. A second of the
