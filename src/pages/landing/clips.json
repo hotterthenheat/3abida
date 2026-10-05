@@ -11,6 +11,102 @@
  "compass-light-phone": {
   "d": 10.5
  },
+ "compass-tracker-dark-desk": {
+  "d": 7.17
+ },
+ "compass-tracker-dark-phone": {
+  "d": 7.2
+ },
+ "compass-tracker-light-desk": {
+  "d": 7.17
+ },
+ "compass-tracker-light-phone": {
+  "d": 7.2
+ },
+ "dossier-congress-dark-desk": {
+  "d": 11.87
+ },
+ "dossier-congress-dark-phone": {
+  "d": 7.23
+ },
+ "dossier-congress-light-desk": {
+  "d": 11.87
+ },
+ "dossier-congress-light-phone": {
+  "d": 7.23
+ },
+ "dossier-earnings-dark-desk": {
+  "d": 10
+ },
+ "dossier-earnings-dark-phone": {
+  "d": 8.33
+ },
+ "dossier-earnings-light-desk": {
+  "d": 10
+ },
+ "dossier-earnings-light-phone": {
+  "d": 8.33
+ },
+ "dossier-insiders-dark-desk": {
+  "d": 11.83
+ },
+ "dossier-insiders-dark-phone": {
+  "d": 7.23
+ },
+ "dossier-insiders-light-desk": {
+  "d": 11.83
+ },
+ "dossier-insiders-light-phone": {
+  "d": 7.23
+ },
+ "dossier-news-dark-desk": {
+  "d": 10.1
+ },
+ "dossier-news-dark-phone": {
+  "d": 8.2
+ },
+ "dossier-news-light-desk": {
+  "d": 10.1
+ },
+ "dossier-news-light-phone": {
+  "d": 8.2
+ },
+ "dossier-stocks-dark-desk": {
+  "d": 9.87
+ },
+ "dossier-stocks-dark-phone": {
+  "d": 8.23
+ },
+ "dossier-stocks-light-desk": {
+  "d": 9.87
+ },
+ "dossier-stocks-light-phone": {
+  "d": 8.23
+ },
+ "pinpoint-building-dark-desk": {
+  "d": 9.37
+ },
+ "pinpoint-building-dark-phone": {
+  "d": 7.33
+ },
+ "pinpoint-building-light-desk": {
+  "d": 9.37
+ },
+ "pinpoint-building-light-phone": {
+  "d": 7.33
+ },
+ "pinpoint-compare-dark-desk": {
+  "d": 12.07
+ },
+ "pinpoint-compare-dark-phone": {
+  "d": 8.13
+ },
+ "pinpoint-compare-light-desk": {
+  "d": 12.07
+ },
+ "pinpoint-compare-light-phone": {
+  "d": 8.13
+ },
  "pinpoint-map-dark-desk": {
   "d": 10.47
  },
@@ -22,6 +118,66 @@
  },
  "pinpoint-map-light-phone": {
   "d": 8.57
+ },
+ "pinpoint-wall-dark-desk": {
+  "d": 9.43
+ },
+ "pinpoint-wall-dark-phone": {
+  "d": 7.53
+ },
+ "pinpoint-wall-light-desk": {
+  "d": 9.43
+ },
+ "pinpoint-wall-light-phone": {
+  "d": 7.53
+ },
+ "practice-backtest-dark-desk": {
+  "d": 10.93
+ },
+ "practice-backtest-dark-phone": {
+  "d": 7.97
+ },
+ "practice-backtest-light-desk": {
+  "d": 10.93
+ },
+ "practice-backtest-light-phone": {
+  "d": 7.97
+ },
+ "practice-journal-dark-desk": {
+  "d": 10.57
+ },
+ "practice-journal-dark-phone": {
+  "d": 8.37
+ },
+ "practice-journal-light-desk": {
+  "d": 10.57
+ },
+ "practice-journal-light-phone": {
+  "d": 8.37
+ },
+ "practice-paper-dark-desk": {
+  "d": 11.67
+ },
+ "practice-paper-dark-phone": {
+  "d": 9.2
+ },
+ "practice-paper-light-desk": {
+  "d": 11.67
+ },
+ "practice-paper-light-phone": {
+  "d": 9.2
+ },
+ "pulse-board-dark-desk": {
+  "d": 11.2
+ },
+ "pulse-board-dark-phone": {
+  "d": 9.9
+ },
+ "pulse-board-light-desk": {
+  "d": 11.2
+ },
+ "pulse-board-light-phone": {
+  "d": 9.9
  },
  "pulse-dark-desk": {
   "d": 11.87
@@ -47,6 +203,18 @@
  "terrain-light-phone": {
   "d": 8.83
  },
+ "trace-dark-pool-dark-desk": {
+  "d": 11.2
+ },
+ "trace-dark-pool-dark-phone": {
+  "d": 9.1
+ },
+ "trace-dark-pool-light-desk": {
+  "d": 11.2
+ },
+ "trace-dark-pool-light-phone": {
+  "d": 9.1
+ },
  "trace-live-tape-dark-desk": {
   "d": 8.97
  },
@@ -58,5 +226,41 @@
  },
  "trace-live-tape-light-phone": {
   "d": 7.63
+ },
+ "trace-net-flow-dark-desk": {
+  "d": 9.13
+ },
+ "trace-net-flow-dark-phone": {
+  "d": 7.73
+ },
+ "trace-net-flow-light-desk": {
+  "d": 9.13
+ },
+ "trace-net-flow-light-phone": {
+  "d": 7.73
+ },
+ "trace-screener-dark-desk": {
+  "d": 11.2
+ },
+ "trace-screener-dark-phone": {
+  "d": 9.8
+ },
+ "trace-screener-light-desk": {
+  "d": 11.2
+ },
+ "trace-screener-light-phone": {
+  "d": 9.8
+ },
+ "weigher-dark-desk": {
+  "d": 10.57
+ },
+ "weigher-dark-phone": {
+  "d": 8.3
+ },
+ "weigher-light-desk": {
+  "d": 10.57
+ },
+ "weigher-light-phone": {
+  "d": 8.3
  }
 }

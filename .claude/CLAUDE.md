@@ -45,8 +45,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   animationstart — a new brand loop uses those keyframes. Its S pans by transform inside a CSS mask, so it never
   repaints (keep it that way). Below 64 px: no ">" and no brackets. A product's page head wears its glyph (PageHeader,
   the Compass, Weigher and Practice heads and their skeletons); a sub-page (Map, Live Tape, News) keeps its line icon.
-  The moving holographic silver only in the S, the signature's live dot and on "Launch terminal" (.launch-pill); every
-  other door is the plain ink pill. THE ACCENT IS SILVER (the owner, 2026-10-02: "remove all lime/green accent color it
+  The moving holographic silver in the S, the signature's live dot and on "Launch terminal" (.launch-pill: the foil on
+  black, its deep run on paper with the panel's white word); every other door in the terminal is the plain ink pill.
+  THE FOIL, STRONGER (2026-10-05 — the owner: "our holographic silver accent needs to be bit stronger in light and dark
+  mode and used slightly more"): the foil gradient (index.css --holo-gradient) is brighter and more chromatic on black —
+  ice blue, lavender, cyan and lilac between white peaks — and on paper it is a real foil ink (--holo-deep: deep blue,
+  azure, violet, purple; every stop 3.3:1 or better), never the flat steel; --holo-ink and --holo-surface pick the
+  ground's own. On the landing it is also on the quote's key word, the section codes and bars, the row on show and the
+  line filling under it, and the pointer's answer on a door (.foil-fill, .door-foil, .door-edge) — on arrival and under
+  the pointer only, never a loop, never body text. The flat --silver (where you are, in the terminal) is unchanged.
+  THE ACCENT IS SILVER (the owner, 2026-10-02: "remove all lime/green accent color it
   should be holographic silver"): no lime anywhere — the Logo System's lime Live is overridden. --select, --select-fill
   and --live-* (theme/tokens.css) are the silver family: the pale silver on black, the deep steel as an ink on paper,
   a silver highlighter with the dark word as a surface; a canvas or chart option reads them through
@@ -60,8 +68,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   backend exists, and signing in opens the terminal. The static icons and og.jpg are drawn by `npm run brand:assets`
   (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.
 - Landing films (2026-10-01 — the owner: "why are my photos just a photo and dont move", then "it should just be a
-  cursor make it a sped up version of you actually using the desk"): every page the landing shows — the hero's desk and the
-  four systems (scripts/landing-stage.mjs ALL_PAGES: every `path` in Landing.tsx) — is FILMED from the real app by `npm run landing:clips` (scripts/make-landing-clips.mjs): the page staged as its still, then USED by a plain
+  cursor make it a sped up version of you actually using the desk"): every page the landing shows — the rooms' 22 pages since v5
+  (scripts/landing-stage.mjs ALL_PAGES: every `path` in Landing.tsx) — is FILMED from the real app by `npm run landing:clips` (scripts/make-landing-clips.mjs): the page staged as its still, then USED by a plain
   arrow pointer at three times the page's speed — menus opened and picked, timeframes, desks and sides switched, a name
   typed, a price dragged, a day opened — and everything it changes is changed back, so the film loops on its first
   frame. No words, ring, bar or pause button over a film. Every film is set in the same open-market minute (AT, New
@@ -81,7 +89,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   shot again on 2026-10-01 with that fix and the owner's logos in (the mark's corner now changes a quarter to a third as
   much a frame as before the fix), and again on 2026-10-03 with the rooms' new acts — the film script keeps no acts of its
   own now — and, where the footer stands in a film (Compass's board as it narrows), with the footer as one piece (and Compass's desk again the same day, the footer halved). The films of
-  the pages the landing stopped showing went with the rebuild of 2026-10-03 (git keeps them). A reader passes a window in seconds, so an act shows its page's features
+  the pages the landing stopped showing went with the rebuild of 2026-10-03, and came back from git with v5's rooms
+  (2026-10-05: the takes of 2026-10-03, the halved footer in the one page that shows it, the Compass tracker). A reader passes a window in seconds, so an act shows its page's features
   from its first seconds. A live page never ends exactly where it began, so a take whose loop jumps is filmed again
   and the best take kept: the Compass board re-ranks every 10 s of page time and can end on another order, and SPY sits
   near its flip at AT, so the dealers' word can turn. Live pages
@@ -90,118 +99,109 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   is undone by letting go of the focus, not by picking again. Never edit src while a run films: the
   dev server reloads the pages being filmed. Re-film a page when its look changes, check its act still finds what it
   presses (the run says when a beat found nothing), and check each film's first and last frames side by side.
-- THE LANDING, REBUILT (v4, 2026-10-03 — the owner's brief: "SHOW THE PRODUCT. DO NOT EXPLAIN THE ENTIRE PRODUCT …
-  YOU CAN PUSH BACK AND USE UR OWN LOGIC"; the visitor should finish it thinking "I understand what this is, but I still
-  need to see inside"). ONE QUESTION A SECTION, in the order a visitor asks (pages/landing/Landing.tsx): WHAT IS THIS? —
-  "SLAYER TERMINAL", "Trade what you can see." ("see." in the foil), "Positioning, market structure, volatility and flow
-  — brought together in one terminal.", "Sign up free" and "See how it works" (to the session), then the terminal
-  itself: the Pulse desk's film as wide as the column, "The terminal itself, in use — played three times as fast." under
-  it. WHY DOES IT MATTER? AND SHOW ME — ONE STORY (below): "Most of what moves a price is public. It's just scattered.",
-  shown, the desk's parts gathering into the session's own window, which then plays the session. WHAT ELSE CAN IT SEE? — the four systems, Compass, Pinpoint, Terrain and Trace
-  (Landing.tsx SYSTEMS) on ONE STAGE (below): a name, one line, the real page's film, a small door each; under it the
-  terminal's other rooms, a door each in their own one-liners (Landing.tsx More, from brand/products.ts — never as `path:`
-  literals in Landing.tsx, or the film script would film them). CAN I
-  TRUST IT? — four principles (real data, deterministic calculations, transparent provenance, no black-box promises)
-  and Observed / Calculated / Modeled: what the engine produces, never a formula, weight, threshold or assumption that
-  would let it be rebuilt ("Recipe stays private. Result is visible."). HOW MUCH? — three plans, each with who it is for
-  and the one difference; the full list folded under them. LET ME IN — the buyer's questions, then "See the market. Then
-  trade it." (LitLines: lit a letter at a time by the scroll) over "Sign up free" and "Enter the terminal and see it
-  yourself." GONE WITH v3: the tour of eight rooms and its turning ground, "Everything in it" (every page of every room
-  — "a documentation index", the brief's words), the products menu of every page, the hero's row of rooms, the brand
-  sheet's giant mark (the owner: "why genuinely is this a main part of the landing page?" — a logo the size of the screen
-  tells a new visitor nothing; the product goes there), the dock (Wall.tsx) and the films of pages the page no longer
-  shows. EVERY LINE UNDER A FILM SAYS WHAT THE FILM SHOWS: Compass is the board of contracts that fit the levels, so its
-  line is "Know which contracts fit the market right now." (the brief's "know the current market condition" is
-  Pinpoint's head, not Compass's screen — pushed back and told); a page that changes takes its line in SYSTEMS with it.
-  MOTION SAYS WHAT THE PRODUCT DOES: each system's page boots into the stage's window along its own motion (Boot.tsx
-  `sweep` — Compass dealt a strip at a time, Pinpoint opening from the middle, Terrain drawn left to right, Trace
-  printing down); words come up a line at a time, 40 ms apart (Landing.tsx useArrival); nothing is hidden before the
-  script has run, nothing moves where less motion is asked for. A window lower on the page fetches nothing until the
-  reader is near (TerminalWindow `lazy`); a phone's window shows the phone picture whole (390 × 760), never cropped. No
-  plan's door is drawn heavier than another's (that would be "most popular" by another name).
-- THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"; it was 1,360 px of
-  words, a 107 px headline and every window taller than the screen): THE COLUMN IS A WINDOW THE SCREEN HOLDS WHOLE —
-  as wide as a terminal window whose whole height stands on the screen under the bar (index.css [data-landing]
-  --landing-col: the picture's 1440 × 1000 and its 42 px bar, 140 px of the screen kept; never more than 1160 px of
-  words nor less than 820). The Wrap, the open bar (32 px narrower) and the footer's words all read it, so the words and
-  the windows share their edges on every screen and every window is the column's width; the session's picture runs on
-  past the column to 24 px short of the screen's right edge, so the demonstration does not shrink with it. The type a
-  step down (the headline min(5.6vw, 10svh) up to 84 px, heads 50, the systems' lines 44, prices 44) and the sections'
-  air a little less. A SHORT SCREEN (a laptop 720 to 820 px tall, lg up): the hero's words close up (index.css) so the
-  terminal starts halfway up the first screen — at 1280 × 720 it began 444 px down. THE HERO BOOTS (the same day — "the landing page is missing something like that snazz"): once a
-  visit, as the page opens, the hero's window resolves out of its own still — a fine grain without its colour, its
-  faintest marks not yet arrived, sharpening and taking its colour in 0.9 s (pages/landing/Boot.tsx, TerminalWindow
-  `boot`; it begins 320 ms in, once the window has risen into view); the headline comes into focus out of a soft blur as
-  it rises (index.css .landing-focus). Never again on a return within the app, never under reduced motion, never in a tab
-  behind, and not at all if the still takes over 1.2 s to come (it gives way 1.2 s in if it has not begun — the window
-  never waits on its own entrance). The window holds its film on the first frame until the canvas has gone (Boot
-  `onDone`), so the hand-over is seamless.
-- THE WOW, AND THE GLITCH MADE QUIET (2026-10-03 — the owner: "i love the little glitch affect i think we should
-  implement that in more places but infomation and hiecrcy wise i still feel as if were missing that wow"; then, the
-  same day, the owner's partner: the glitches were "too gamified"). A picture on the landing that is not there yet
-  RESOLVES (pages/landing/pixels.ts: a PIECE of a picture drawn at a sharpness 0–1 — a fine grain of 6 px down to 1,
-  without its colour at first, its faintest marks not yet in — through eight states to the picture itself). NEVER ON
-  THE PAGE'S CONTENT: coarse game-sized blocks, the red and blue fringe, torn rows, words stepping out of line, tilted
-  pieces, a glitch on a hover — those read as a game. The fringe and the tear are the footer's alone (the art piece at
-  the end). Used for: the hero's boot; THE SCATTER (pages/landing/Scatter.tsx — WHY DOES IT MATTER, shown: the Pulse
-  desk's own parts, cut from the session's first picture at their measured boxes (PARTS; restage the desk and re-measure
-  them), lie flat and dim about a pinned screen in the fine grain, each named in its own panel's words, around "Most of
-  what moves a price is public. / It's just scattered."; the scroll draws them home into the session's own window,
-  sharpening and taking their colour as they land (THE STORY, below). A phone and less motion have the words alone
-  (Landing.tsx Matters)); THE STAGE (Landing.tsx Systems — the four as a player and its list: the window on one side running to the
-  screen's edge, the list of four (number, glyph, name, line) on the other, the one on screen bright with a silver line
-  filling under it and what it does and its door beneath; a tablist (arrows, Home, End). It plays itself a page every
-  6.5 s while on screen with the tab in front; a moving pointer holds it until still 2.5 s, the keys inside hold it, a
-  touch holds it 3 s after the finger lifts, a pick holds it until the stage leaves the screen. The window
-  (TerminalWindow boot="switch") resolves each page in about half a second as it is first seen and on every switch,
-  along the page's own motion with a soft edge (Boot `sweep`), holding the film on its first frame till it has. A phone:
-  the four two by two, the line over the window, what it does under it. Less motion: no play, no boot). Words never
-  glitch: every section's head arrives a line at a time and its two-tone line comes into focus out of a soft blur, as
-  the hero's headline does (Landing.tsx Head, index.css .landing-settle / landing-focus). Arrivals and switches only —
-  never a loop.
-- THE STORY (2026-10-03 — the landing as it stood showed the same Pulse desk three times, the hero's, the scatter's
-  gathered in a window of its own and the session's under it, and the four products eight screens down; "fix em all").
-  On a desk WHY DOES IT MATTER and SHOW ME are ONE STORY (Landing.tsx Story, in the #how block): the scatter's overlay
-  (Scatter.tsx, TRACK 200svh, a sticky screen) lies over the session's grid; its parts gather into THE SESSION'S OWN
-  WINDOW (Session.tsx `story` — the window stands sticky on the right, hidden), cut from the session's first picture
-  (beat-1), so the window comes in on the very picture they make (at 0.86 of the run) and they go (0.93 on); its bar types
-  "open pulse" once they are home; the session's first words (Lead: "How it works", "Slayer reads them together, on one
-  screen, while the session moves.", the five-moments line) stand beside it, sticky at 24svh over PROLOGUE (140svh), and
-  then go up the page ahead of the beats, and the window plays the session. One desk, gathered once — a seam is a bug:
-  the window's picture and the parts' must stay the same picture at the same place. The hairlines wait for the first
-  beat. A phone (the parts read as grey smudges there, and a desk gathered at a phone's width cannot be read) and less
-  motion have Matters, then the session's head and beats, as before. The story's pictures wait for the page's own load:
-  the parts' picture once the page has loaded and the story is near, the session's ninety when its beats are within a
-  screen (or the parts land) — in the story the session starts right under the hero, and its pictures went out with the
-  hero's.
+- THE LANDING, v5 (2026-10-05 — the owner, of the landing of 2026-10-01 at 15:22: "i think this one idea wise is one of
+  the better designs we had but it still lacks the wow factor … we need to have a nice strong quote … we shouldn't show
+  any panels when u first land it should just be informational that teases and ropes you in and as you scroll you know
+  you have amazing motions and small glitchy effects very subtle and then you get all the information and we should have
+  the tabs on the product things switch faster … make sure you keep the artistry footers"). WORDS FIRST, THEN THE
+  TERMINAL, one moment a section (pages/landing/Landing.tsx): THE QUOTE — "SLAYER TERMINAL", "You can't trade what you
+  can't see." ("see." in the foil), "Most of what moves a price is public. It's just scattered:" and three lines on foil
+  codes (where the options positions sit, where dealer hedging flips, what is trading right now), "Sign up free" and "See
+  how it works", a cue; no picture. THE ANSWER and THE SESSION (THE OPENING, below): the quote turns into "Trade what you
+  can see.", a silver line opens into the terminal, and it goes to stand as the session's window — three moments on SPY.
+  THE ROOMS (below): "Eight rooms. One terminal." — the desk splits into a wall of the eight, then one room at a time as
+  the scroll walks through them, the ground turning to the other theme and home. A READ, NEVER AN INSTRUCTION (eyebrow "Why
+  Slayer"): what it does and never does, and Observed / Calculated / Modeled — what the engine produces, never a
+  formula, weight, threshold or assumption that would let it be rebuilt ("Recipe stays private. Result is visible.").
+  PRICING: three plans, who each is for and the one difference, "One terminal, in place of" (kinds of tool, never
+  anybody's product), the full list folded under them. QUESTIONS, then the rooms' glyphs, "Seen enough? / Step inside."
+  (LitLines: lit a letter at a time by the scroll) and "Sign up free". THE FOOTER as it is (SiteFooter — never touched
+  here). A phone and less motion: the first screen still (FirstScreen), the answer over the terminal itself (Reveal: the
+  Pulse film, "The terminal itself, in use — played three times as fast."), the session's head and beats, the rooms as
+  tabs. GONE WITH v5: the hero's picture, the four systems' stage and its "more inside" list, the scatter (its words are
+  the first screen's), two of the session's five moments. MOTION SAYS WHAT THE PRODUCT DOES: a room's pages resolve into
+  the window along its own motion (Boot.tsx `sweep` — Compass dealt, Pinpoint and the Weigher from the middle, Terrain
+  and Practice left to right, Trace and Dossier printing down); words come up a line at a time, 40 ms apart
+  (useArrival); nothing is hidden before the script has run, nothing moves where less motion is asked for. A window lower
+  on the page fetches nothing until the reader is near (TerminalWindow `lazy`); a phone's window shows the phone picture
+  whole (390 × 760), never cropped. No plan's door is drawn heavier than another's ("most popular" by another name).
+  About 13 screens at 1440 × 900 (10.6 under less motion); measure again when a run changes.
+- THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"): THE COLUMN IS A WINDOW
+  THE SCREEN HOLDS WHOLE — as wide as a terminal window whose whole height stands on the screen under the bar (index.css
+  [data-landing] --landing-col: the picture's 1440 × 1000 and its 42 px bar, 140 px of the screen kept; never more than
+  1160 px of words nor less than 820). The Wrap, the open bar (32 px narrower) and the footer's words all read it; the
+  session's window and the rooms' window run on past the column to 24 px short of the screen's right edge. The quote
+  min(8.4vw, 14.5svh) up to 136 px, the answer over the terminal 40–68 px, heads 50, prices 44. A SHORT SCREEN (720 to
+  820 px tall, lg up): the first screen's doors and the terminal under the still one close up (index.css).
+- THE GLITCH MADE QUIET (2026-10-03 — the owner: "i love the little glitch affect"; the owner's partner: the glitches
+  were "too gamified"). A picture on the landing that is not there yet RESOLVES (pages/landing/pixels.ts: a PIECE of a
+  picture drawn at a sharpness 0–1 — a fine grain of 6 px down to 1, without its colour at first, its faintest marks not
+  yet in — through eight states to the picture itself; `warm` makes the states ahead in idle moments, as a state made
+  mid-scroll cost the frame). NEVER ON THE PAGE'S CONTENT: coarse game-sized blocks, the red and blue fringe, torn rows,
+  words stepping out of line, tilted pieces, a glitch on a hover. The fringe and the tear are the footer's alone. Used
+  for: the terminal opening out of its silver line; the rooms' pile and their deal into the wall; a row's page in the
+  rooms' window (Boot replay, 330 ms — the owner: "the tabs … switch faster"); the still terminal under a phone's first
+  screen as it is first seen. Words never glitch: the quote's words come into focus one after another as the page opens
+  (index.css .landing-word); a section's head arrives a line at a time and its two-tone line comes into focus
+  (.landing-settle). Arrivals, the scroll and switches only — never a loop.
+- THE OPENING (pages/landing/Opening.tsx, a desk where motion is welcome): an overlay of TRACK 240svh (a sticky screen,
+  z above the session) over the session's grid; the run, in shares of it: the doors and the three lines go (0–0.08); the
+  quote becomes its answer (0–0.15) — "You can't" and the "'t" dissolve first, then "trade" slides along the emptied
+  first line while the second closes its gap, the t stands up mid-slide, and it drops into its place at the head of the
+  line: NO WORD CROSSES ANOTHER (they did, and it read as a mess); the answer rises to stand over the screen (0.1–0.22);
+  a silver line is drawn from the middle out (0.1–0.22) and parts into the terminal's top and bottom edges as it opens
+  (0.2–0.38), the picture resolving as it opens (0.22–0.42); it stands whole, then goes to stand as the session's window
+  (0.52–0.8), and the session's window takes over at 0.82 on THE SAME PICTURE IN THE SAME PLACE (beat-1, its chrome the
+  session's own Bar — a seam is a bug), this one gone by 0.91; the session's first words (Lead: "How it works", "Slayer
+  reads it all together, on one screen, while the session moves.", the three-moments line) come in beside it (0.84–0.92)
+  and stand at 24svh over PROLOGUE (178svh), then go up the page ahead of the beats. "See how it works" and the bar's
+  "How it works" go to the #how marker at 0.95 of the run and hand the keys to the Lead's head once it stands. Its
+  picture waits for the page's load or the first scroll; the session's when its beats are within a screen or the
+  terminal is on its way (0.4).
 - THE SESSION (pages/landing/Session.tsx; `npm run landing:session`, scripts/make-landing-session.mjs): the brief's one
   "killer" demonstration — "Look at what the terminal was able to show", never "Slayer predicted the move". The real
   Pulse desk, opened at 09:31 New York on 2026-10-01 and run forward with its live ticks drawn from a seeded stream
   (Math.random seeded in every frame, the page's clock held from the first moment), so a run is the same run on either
-  theme every time (measured, tick for tick); a picture and a reading at every 20 s step — price, walls, flip and the
-  heaviest strike (data/gex.ts buildLevelsFor, what the desk reads), Compass's top cards, where each stands on the desk.
-  Five beats are picked by hand (BEATS in the script) and EVERY WORD OF A BEAT IS READ OFF ITS PICTURE (session.json
-  `readings`): 09:32 Before (SPY 470.29, the call wall at 475), 11:06 Positioning shifts (the heaviest strike swings
-  from the 475 calls to the 470 puts), 11:12 Compass updates (the SPY 475 call its top pick), 11:22 The level moves
-  (through 475, the call wall to 477), 13:32 Price meets the level (475 the put wall from 12:22, price back on it). NO
-  DATE IS PRINTED: the brief asked for "real historical data … dates", and the terminal has none until a feed is
-  connected — the owner was told; re-take the session from a real day then (`READ=1` prints a run's readings), pick its
-  beats and rewrite their words. On a desk the scroll is the playhead: the window holds a beat's full-size picture with a
-  silver hairline round what changed, then plays every step to the next beat; on a phone each beat carries its own
-  picture, framed on what changed; where less motion is asked for, a beat changes the picture at once. Its pictures load
-  only when the reader comes near (the beats' own first). Never edit src while it runs (the dev server reloads the desk).
-- THE LANDING'S FIRST LOAD (2026-10-03 — measured on a 4G line: two seconds of black, the headline at three, the
-  picture at four). THE GROUND FROM THE FIRST FRAME: with no choice made the landing stands on the machine's ground and
-  the terminal on dark — index.html's pre-paint script reads it the same way for "/" and theme/theme.ts stamps the root
-  with it (stampRoot; pages/landing/ground.tsx holds it while the landing is up and hands the root back as it goes), so
-  a light machine no longer opened black and turned light; the phone's browser bar takes the ground (theme-color).
-  THE PICTURE ASKED FOR AT ONCE: index.html preloads the hero's still for "/" (the phone's below 592 px, the desk's
-  above — TerminalWindow's own rule — in the theme just read). THE SCRIPT THE LANDING WAITS FOR: the terminal's shell is
-  its own chunk (components/layout/shell.ts — the landing fetches it once it stands and the network is quiet, a launch as
-  its gate goes up), the not-found pages too, and the landing rides IN the first script (App.tsx; as its own chunk it
-  came after it, in a chain of small requests): first-load script 303 → 186 KB gzipped, the picture at about 2.7 s on
-  that line (it was 4) and 1.2 s on a fast one. A window's still in the other theme is fetched only as the reader reaches
-  for the theme button (TerminalWindow warmOtherGround — it was fetched for every window, a leftover of the turn).
+  theme every time; a picture and a reading at every 20 s step — price, walls, flip and the heaviest strike (data/gex.ts
+  buildLevelsFor), Compass's top cards, where each stands on the desk. Five beats are picked by hand (BEATS in the
+  script) and EVERY WORD OF A BEAT IS READ OFF ITS PICTURE (session.json `readings`); the page shows three (Session.tsx
+  PICK, v5): 09:32 Before (SPY 470.29, the call wall at 475), 11:22 The level moves (through 475, the call wall to 477),
+  13:32 Price meets the level (475 the put wall from 12:22, price back on it) — the scroll still plays the pictures
+  between. NO DATE IS PRINTED: the terminal has no real day until a feed is connected — re-take the session from a real
+  day then (`READ=1` prints a run's readings), pick its beats and rewrite their words. On a desk the scroll is the
+  playhead: the window holds a beat's full-size picture with a silver hairline round what changed, then plays every step
+  to the next; on a phone each beat carries its own picture, framed on what changed; under less motion a beat changes
+  the picture at once. Never edit src while it runs (the dev server reloads the desk).
+- THE ROOMS (pages/landing/Rooms.tsx; the rooms and their rows are Landing.tsx ROOMS, so the film script films every
+  page a row names — a row with no `path` says what the room's page holds). ON A DESK ONE STAGE THE SCROLL PLAYS (sticky;
+  SEG in svh: the deal 34, the wall 14, the wall becoming the tour 26, a room 20, the turn 34, the turn home 22): THE WALL
+  — the rooms' pictures lie in a pile in the fine grain, the ones under the top only their edges, and are dealt one after
+  another into a wall of eight, each resolving as it lands, its code, glyph and name coming in under it; each slot is a
+  door to its room below (the bar's "Rooms" lands here). THE TOUR — the first room's picture grows into the window, its
+  chrome coming in, and the window takes over on the same picture (its film held on its first frame until it has —
+  TerminalWindow `hold`); then a room a stretch: its code and kind, name and glyph, lead, its rows and its door on the
+  left, a rail of the eight over them (a door each). A room with several pages plays them, a page every 3.5 s (it was
+  6.5), the foil line filling under the row on show; a pointer moving over the stage holds it until still 2.5 s, a
+  touch until 3 s after it lifts, the keys inside hold it, a picked row holds the room until the scroll moves on, and the
+  door opens the page picked, else the room's own. A ROW'S PAGE RESOLVES (330 ms, along the room's sweep); A ROOM OR A
+  GROUND THE SCROLL BRINGS CROSSFADES (a resolve at every room the scroll passed cost the scroll its frames — measured,
+  p95 133 → 33 ms at a quarter of the CPU). THE TURN after Pinpoint: the words go, "Dark for the night session." stands
+  on the dark, the stage's ground travels the road through the steel (theme/tokens.css --night, --dawn-1…5, --day — set
+  per frame only while it turns), the window turns with it at the middle, "Paper for a bright room." stands on the paper,
+  and Pinpoint's words come back on the new ground before Trace; after Practice it turns home the same way, so the page
+  ends on the ground it began on. A ground picked on the page stays put and the stretches go (ground.tsx). A PHONE AND LESS
+  MOTION: the head, the eight as tabs (a tablist: arrows, Home, End), the window and the room's words; on a phone the rooms
+  play on their own while on screen (a room's pages, then the next room), a pick holds them until they leave the screen;
+  under less motion nothing plays and a pick changes the room at once.
+- THE LANDING'S FIRST LOAD (2026-10-03, again with v5). THE GROUND FROM THE FIRST FRAME: with no choice made the landing
+  stands on the machine's ground and the terminal on dark — index.html's pre-paint script reads it the same way for "/"
+  and theme/theme.ts stamps the root with it (stampRoot; pages/landing/ground.tsx holds it while the landing is up), and
+  the phone's browser bar takes the ground (theme-color). NO PICTURE AHEAD OF THE SCRIPT since v5 (the first screen is
+  words — the hero's preload went with the hero). THE SCRIPT THE LANDING WAITS FOR: the terminal's shell is its own chunk
+  (components/layout/shell.ts — fetched once the landing stands and the network is quiet, or as a launch's gate goes up),
+  the not-found pages too, and the landing rides IN the first script (App.tsx): 195 KB gzipped; on the 4G line the quote
+  is the largest paint at 1.6 s (v4's picture came at 2.7 s), the opening's picture right after the load. A window's
+  still in the other theme is fetched only as the reader reaches for the theme button (TerminalWindow warmOtherGround).
 - THE KEYS ON THE LANDING (2026-10-03 audit): a jump along the page (the bar's words, "See how it works") is a step in
   the history and takes the keys with it (toAnchor focuses the section's head, tabIndex -1); the phone's menu closes on
   Escape and hands the keys back to its button; the bar's controls wear the 2 px silver ring; a control the keys land on

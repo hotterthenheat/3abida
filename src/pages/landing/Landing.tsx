@@ -1,66 +1,45 @@
 /*
 ==================================================
-  SLAYER TERMINAL - LANDING (/) · v4
+  SLAYER TERMINAL - LANDING (/) · v5
 
-  REBUILT FROM THE GROUND UP (2026-10-03 — the owner's
-  brief: "SHOW THE PRODUCT. DO NOT EXPLAIN THE ENTIRE
-  PRODUCT." The visitor understands what Slayer is in
-  five seconds, why it matters in fifteen, and sees
-  enough of the real terminal to want in; "I understand
-  what this is, but I still need to see inside").
+  WORDS FIRST, THEN THE TERMINAL (2026-10-05 — the owner, of the landing of 2026-10-01 at 15:22: "i think this one idea
+  wise is one of the better designs we had but it still lacks the wow factor … we need to have a nice strong quote and
+  our holographic silver accent needs to be bit stronger in light and dark mode and used slightly more and then we
+  shouldn't show any panels when u first land it should just be informational that teases and ropes you in and as you
+  scroll you know you have amazing motions and small glitchy effects very subtle and then you get all the information").
 
-  ONE QUESTION A SECTION, IN THE ORDER A VISITOR ASKS:
-    What is this?          the hero — the line, two
-                           doors, and the terminal itself
-    Why does it matter?    one statement
-    Show me.               ONE SESSION, AS THE TERMINAL
-                           SAW IT (Session.tsx): five
-                           moments of one run, the scroll
-                           playing the session between
-    What else can it see?  the four systems — Compass,
-                           Pinpoint, Terrain, Trace — a
-                           name, one line, the real page
-                           filling the width, a small door
-    Can I trust it?        four principles, and what is
-                           observed, calculated and
-                           modeled (what the engine
-                           produces — never how)
-    How much is it?        three plans: who each is for and
-                           the one difference, the full
-                           list folded under them
-    Let me in.             the questions a buyer asks, then
-                           "See the market. Then trade it."
+  THE ORDER, ONE MOMENT A SECTION:
+    The quote        the first screen is words: "You can't trade what you can't see.", what lies scattered in three
+                     lines, and the two doors. No picture (Opening.tsx).
+    The answer       the scroll turns the quote into "Trade what you can see.", and a silver line opens into the
+                     terminal, the picture resolving out of a fine grain — the page's one wow.
+    The session      that terminal goes to stand beside one session on SPY, three moments read off it as it ran, the
+                     scroll playing it between them (Session.tsx).
+    The rooms        the desk splits into the terminal's eight rooms, dealt into a wall; then one room at a time, the
+                     scroll walking through them, each playing its pages, and the ground turning to the other theme and
+                     home again (Rooms.tsx).
+    Trust            a read, never an instruction: what it does, what it never does, and what every number stands on.
+    Pricing          three plans, who each is for, the one difference, and what one terminal stands in place of.
+    Questions        the buyer's questions, then "Seen enough? Step inside."
+    The footer       the art piece, as it is (SiteFooter — never touched here).
+  A phone and less motion have the first screen still, the terminal under it, and the rooms as tabs.
 
-  GONE WITH v3: the tour of eight rooms and its turning
-  ground, "Everything in it" (every page of every room —
-  a documentation index, the brief's own words), the
-  products menu of every page, the hero's row of rooms.
-  The terminal keeps its architecture inside; the page
-  shows what it can see.
+  THE PICTURES ARE THE TERMINAL ITSELF (Noah, 2026-09-19: "i want the REAL thing from our website so it doesnt scream
+  fake"): every window plays a film of the real page in use (scripts/make-landing-clips.mjs reads every `path` on this
+  page), the session is the real desk run forward (scripts/make-landing-session.mjs). Nothing is drawn to look like the
+  product.
 
-  THE PICTURES ARE THE TERMINAL ITSELF (Noah, 2026-09-19:
-  "i want the REAL thing from our website so it doesnt
-  scream fake"): every window plays a film of the real
-  page in use (scripts/make-landing-clips.mjs), the
-  session is the real desk run forward
-  (scripts/make-landing-session.mjs). Nothing is drawn to
-  look like the product.
-
-  THE RULES IT KEEPS: no reviews, ratings, member counts,
-  results or performance of any kind (we have none); no
-  grade, score, win rate, signal, guaranteed, confluence
-  or market intelligence; never "simulated", "demo",
-  "fake", "preview" or "at launch"; "Sign up free" is
-  the door (an account is free; there is no trial). No
-  refunds is said kindly, in the questions. The prices
-  are data/billing.ts's; what each plan holds is
-  PLAN_ROWS's.
+  THE RULES IT KEEPS: no reviews, ratings, member counts, results or performance of any kind (we have none); no grade,
+  score, win rate, signal, guaranteed, confluence or market intelligence; never "simulated", "demo", "fake", "preview"
+  or "at launch"; "Sign up free" is the door (an account is free; there is no trial). No refunds is said kindly, in the
+  questions. The prices are data/billing.ts's; what each plan holds is PLAN_ROWS's. The foil is for display words and
+  lines only, never body text.
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
-import { ArrowRight, Check, ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Menu, Minus, Moon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
@@ -70,10 +49,9 @@ import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import TerminalWindow, { savingData, warmOtherGround } from './TerminalWindow';
 import { warmShell } from '../../components/layout/shell';
-import type { Sweep } from './Boot';
-import { PRODUCTS } from '../../brand/products';
 import Session, { type Story as StoryHold } from './Session';
-import Scatter from './Scatter';
+import Opening, { HOW_AT, Kicker, Quote, TRACK, Tease } from './Opening';
+import Rooms, { type Room } from './Rooms';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -85,86 +63,171 @@ const DOOR = '/pulse';
 /** THE BAR'S WORDS: this page's own sections */
 const NAV: { label: string; href: string }[] = [
   { label: 'How it works', href: '#how' },
-  { label: 'Products', href: '#products' },
+  { label: 'Rooms', href: '#rooms' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Questions', href: '#faq' },
 ];
 
-/* THE HERO'S PICTURE — the desk an account lands on, in use (its film: scripts/make-landing-clips.mjs reads every `path`
-   on this page) */
+/* THE TERMINAL UNDER THE FIRST SCREEN, where the scroll does not draw it (a phone, less motion): the desk an account lands
+   on, in use (its film: scripts/make-landing-clips.mjs reads every `path` on this page) */
 const HERO = {
   path: '/pulse',
 };
 
-/* THE FOUR SYSTEMS (the owner's brief: "Feature four systems prominently … Name → one sentence → real product → small
-   CTA"). Each line says what its film shows — the page as it opens (2026-10-03, read against the terminal: Compass is the
-   board of contracts that fit the levels, not a read of the market's condition; that read is Pinpoint's head). On one
-   stage (Systems, below), each page boots into the window in a motion drawn from what the page does (Boot.tsx `sweep`):
-   a card dealt, the book opening from the price, the chart drawn left to right, the tape printing down. */
-interface System {
-  id: string;
-  code: string;
-  glyph: GlyphName;
-  name: string;
-  line: string;
-  says: string;
-  path: string;
-  sweep: Sweep;
-}
-const SYSTEMS: System[] = [
+/* THE ROOMS (Rooms.tsx). Every name, page and row here is a real one — the window opens it as the room comes. THE ORDER IS
+   NOAH'S (2026-09-20): Pulse · Compass · Terrain · Pinpoint, the turn of the ground, then Trace · the Weigher · Dossier ·
+   Practice. A row with a `path` is a page of its room, and is filmed (scripts/landing-stage.mjs); a row without one says
+   what the room's page holds. Each room's pages resolve into the window along its own motion (Boot.tsx `sweep`). */
+const ROOMS: Room[] = [
   {
-    id: 'compass',
+    id: 'pulse',
     code: '01',
-    glyph: 'compass',
-    name: 'Compass',
-    line: 'Know which contracts fit the market right now.',
-    says: 'Compass sweeps the option chains against today’s levels and ranks the setups that clear the bar. Every card says where its setup stands — watch, active, moving or fading — and changes as price does.',
-    path: '/compass',
-    sweep: 'deal',
+    glyph: 'pulse',
+    kind: 'The desk',
+    name: 'Pulse',
+    lead: 'Your own desk of live panels.',
+    rest: 'Add them, drag them, link them to one name or let each hold its own. It is kept the way you left it.',
+    path: '/pulse',
+    sweep: 'all',
+    rows: [
+      { title: 'The desk', says: 'The chart beside the hedging at every strike, the setups and the earnings under them.', path: '/pulse' },
+      { title: 'Four charts', says: 'Four names at once, each with its own timeframe and overlays.', path: '/pulse/board' },
+    ],
   },
   {
-    id: 'pinpoint',
+    id: 'compass',
     code: '02',
-    glyph: 'pinpoint',
-    name: 'Pinpoint',
-    line: 'See where positioning concentrates.',
-    says: 'The options book by strike and by expiry, in five greeks: where dealer hedging is heaviest, where it flips from absorbing moves to amplifying them, and how each level has held today.',
-    path: '/pinpoint/map',
-    sweep: 'out',
+    glyph: 'compass',
+    kind: 'The contracts',
+    name: 'Compass',
+    lead: 'Option contracts picked off today’s levels.',
+    rest: 'Every card says where its setup stands — watch, active, moving or fading — and changes as price moves.',
+    path: '/compass',
+    sweep: 'deal',
+    rows: [
+      { title: 'The board', says: 'What cleared the bar on this sweep.', path: '/compass' },
+      { title: 'Tracker', says: 'What you kept, followed to the close.', path: '/compass/tracker' },
+    ],
   },
   {
     id: 'terrain',
     code: '03',
     glyph: 'terrain',
+    kind: 'The chart',
     name: 'Terrain',
-    line: 'See positioning across price.',
-    says: 'Charts with the book drawn on the candles — the exposure at every strike, through the day — and a rail of the heaviest strikes beside each one. Up to four names side by side.',
+    lead: 'Charts, and nothing in the way.',
+    rest: 'One to four side by side on one set of controls. The walls, the flip and the supreme go on the candles with one switch.',
     path: '/terrain',
     sweep: 'right',
+    rows: [
+      { title: 'The strike rail', says: 'The book beside the chart, strike by strike.' },
+      { title: 'Your own scripts', says: 'Write an indicator in Pine and it draws on the chart.' },
+      { title: 'Drawing tools', says: 'Lines, levels and notes that stay where you put them.' },
+    ],
+  },
+  {
+    id: 'pinpoint',
+    code: '04',
+    glyph: 'pinpoint',
+    kind: 'The book',
+    name: 'Pinpoint',
+    lead: 'The whole book, by strike and by date.',
+    rest: 'Where dealer hedging is heaviest, where it flips, and how each level has held today.',
+    path: '/pinpoint/map',
+    sweep: 'out',
+    rows: [
+      { title: 'The Map', says: 'Every strike and expiry, as a matrix or as a calendar.', path: '/pinpoint/map' },
+      { title: 'Building', says: 'What was added to the book today, strike by strike.', path: '/pinpoint/building' },
+      { title: 'At the wall', says: 'Does it hold or break, and what happens either way.', path: '/pinpoint/wall' },
+      { title: 'Compare', says: 'Two names, side by side on one ruler.', path: '/pinpoint/compare' },
+    ],
   },
   {
     id: 'trace',
-    code: '04',
+    code: '05',
     glyph: 'trace',
+    kind: 'The tape',
     name: 'Trace',
-    line: 'Follow what is actually trading.',
-    says: 'Every options print as it crosses: the contract, the fill against the market, size against open interest, the premium and its side. The head of the tape names the top bull, the top bear and the largest print.',
+    lead: 'Every print, as it happens.',
+    rest: 'Options sweeps and blocks, with the top bull, the top bear and the largest print named at the head of the tape.',
     path: '/trace/live-tape',
     sweep: 'down',
+    rows: [
+      { title: 'Live tape', says: 'The stream, newest first.', path: '/trace/live-tape' },
+      { title: 'Net flow', says: 'Calls against puts, through the day.', path: '/trace/net-flow' },
+      { title: 'Dark pool', says: 'Off-exchange crosses, largest first.', path: '/trace/dark-pool' },
+      { title: 'Screener', says: 'Every contract, filtered your way.', path: '/trace/screener' },
+    ],
+  },
+  {
+    id: 'weigher',
+    code: '06',
+    glyph: 'weigher',
+    kind: 'The scale',
+    name: 'The Weigher',
+    lead: 'Weigh any contract before you take it.',
+    rest: 'The chart, the chain and your watchlist on one desk.',
+    path: '/weigher',
+    sweep: 'out',
+    rows: [
+      { title: 'The chain', says: 'Every strike and expiry for the name.' },
+      { title: 'Positions and a watchlist', says: 'What you hold and what you watch, each row marked now, today and since it was added.' },
+      { title: 'The position card', says: 'What a position would return at every price, on a ruler.' },
+    ],
+  },
+  {
+    id: 'dossier',
+    code: '07',
+    glyph: 'dossier',
+    kind: 'The file on a name',
+    name: 'Dossier',
+    lead: 'Everything on file about a name.',
+    rest: 'The news, the earnings, and what insiders and members of Congress filed.',
+    path: '/dossier/news',
+    sweep: 'down',
+    rows: [
+      { title: 'News', says: 'The wire, on a map.', path: '/dossier/news' },
+      { title: 'Earnings', says: 'The calendar, and a page for each name.', path: '/dossier/earnings' },
+      { title: 'Insiders', says: 'Who filed, what, and when.', path: '/dossier/insiders' },
+      { title: 'Congress', says: 'Trades disclosed by members of Congress.', path: '/dossier/congress' },
+      { title: 'Stocks', says: 'A plain read of any name: strong, good, caution or poor.', path: '/dossier/stocks' },
+    ],
+  },
+  {
+    id: 'practice',
+    code: '08',
+    glyph: 'practice',
+    kind: 'Paper trading and backtesting',
+    name: 'Practice',
+    lead: 'Paper trade today’s prices, or replay a past day’s.',
+    rest: 'Calls, puts and spreads with paper money, and nothing reaches a broker.',
+    path: '/practice/paper',
+    sweep: 'right',
+    rows: [
+      { title: 'Paper trading, live', says: 'A practice account or a prop firm’s evaluation on today’s prices.', path: '/practice/paper' },
+      { title: 'Options, off the real chain', says: 'A past day played back, every contract as it was quoted that minute.', path: '/practice/backtest' },
+      { title: 'The journal', says: 'Every closed trade on its chart, with your tags and your words.', path: '/practice/journal' },
+    ],
   },
 ];
 
-/* WHY SLAYER — four principles, said plainly (the brief: "establish that Slayer is serious without sounding like
-   corporate marketing") */
-const PRINCIPLES: { title: string; says: string }[] = [
-  { title: 'Real data', says: 'Every figure starts from the market’s own record: trades, quotes, open interest and filings.' },
-  { title: 'Deterministic calculations', says: 'Fixed rules, not guesses. The same market gives the same read, every time.' },
-  { title: 'Transparent provenance', says: 'Every number is observed, calculated or modeled, and the Data page names which is which.' },
-  { title: 'No black-box promises', says: 'No predictions and no outcomes promised. It shows the market; the call is yours.' },
-];
+/** THE TURN'S TWO LINES — each said on the ground it names (Rooms.tsx) */
+const TURN_SAYS: Record<Ground, string> = { dark: 'Dark for the night session.', light: 'Paper for a bright room.' };
 
-/* WHAT IT PRODUCES, NEVER HOW (the brief: "Recipe stays private. Result is visible" — no formula, weighting, threshold or
-   assumption that would let the engine be rebuilt). The kinds are /legal/data's, in three. */
+/** the rooms counted off the list itself, so the words cannot disagree with it */
+const ROOM_COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][ROOMS.length] ?? String(ROOMS.length);
+
+/* A READ, NEVER AN INSTRUCTION — every line true of the terminal today */
+const IT_DOES = [
+  'Shows where dealer hedging sits, and redraws it as the day moves',
+  'Reads a contract against that and says it in a word: strong, good, caution or poor',
+  'Keeps a setup current: watch while it forms, active while it holds, fading when it breaks',
+  'Explains its reads in plain English',
+];
+const IT_NEVER = ['Tells you what to buy or sell', 'Places an order. It is not a broker', 'Boils a trade down to one number', 'Gives financial advice'];
+
+/* WHAT IT PRODUCES, NEVER HOW (the brief of 2026-10-03: "Recipe stays private. Result is visible" — no formula, weighting,
+   threshold or assumption that would let the engine be rebuilt). The kinds are /legal/data's, in three. */
 const KINDS: { name: string; says: string; items: string[] }[] = [
   {
     name: 'Observed',
@@ -223,8 +286,22 @@ const PLAN_HOLDS: Record<PlanKey, string> = {
 };
 const PLAN_GLYPH: Record<PlanKey, GlyphName | null> = { pinpoint: 'pinpoint', compass: 'compass', lifetime: null };
 
-/* THE QUESTIONS A BUYER ASKS (the brief's list, kept to purchase objections — not product documentation). No refunds,
-   said kindly, here and never as a banner. */
+/* ONE TERMINAL, IN PLACE OF… — what a trader would otherwise keep open beside it, each on the glyph of the room that does
+   it. Kinds of tool, never anybody's product. */
+const IN_PLACE_OF: { glyph: GlyphName; text: string; room: string }[] = [
+  { glyph: 'trace', text: 'a flow feed', room: 'Trace' },
+  { glyph: 'pinpoint', text: 'an exposure map', room: 'Pinpoint' },
+  { glyph: 'terrain', text: 'a charting subscription', room: 'Terrain' },
+  { glyph: 'trace', text: 'an options screener', room: 'Trace' },
+  { glyph: 'paper', text: 'a paper-trading account', room: 'Practice' },
+  { glyph: 'backtest', text: 'an options backtester', room: 'Practice' },
+  { glyph: 'journal', text: 'a trading journal', room: 'Practice' },
+  { glyph: 'dossier', text: 'an earnings calendar', room: 'Dossier' },
+  { glyph: 'dossier', text: 'an insider and Congress tracker', room: 'Dossier' },
+];
+
+/* THE QUESTIONS A BUYER ASKS (kept to purchase objections — not product documentation). No refunds, said kindly, here and
+   never as a banner. */
 const FAQ: { q: string; a: string }[] = [
   {
     q: 'What is Slayer Terminal?',
@@ -244,8 +321,8 @@ const FAQ: { q: string; a: string }[] = [
     a: 'Prices, quotes and options prints update as they trade, through market hours. Open interest is published once a day, before the open, so what is built on it updates then.',
   },
   {
-    q: 'What does each system do?',
-    a: 'Compass picks contracts that fit today’s levels. Pinpoint shows where positioning concentrates and where hedging flips. Terrain draws that positioning on the chart. Trace follows every print as it crosses. Pulse puts any of them on one desk.',
+    q: 'What does each room do?',
+    a: 'Pulse is your desk of live panels. Compass picks contracts that fit today’s levels. Terrain draws positioning on the chart. Pinpoint shows where it concentrates and where hedging flips. Trace follows every print as it crosses. The Weigher weighs any contract, Dossier keeps the file on a name, and Practice trades with paper money.',
   },
   {
     q: 'What is included in each plan?',
@@ -268,11 +345,12 @@ const Wrap = ({ children, className = '', ...rest }: { children: ReactNode; clas
   </div>
 );
 
-/** ONE SMALL WORD OVER A SHORT BAR — above every head on the page, the Logo System's section label */
+/** ONE SMALL WORD OVER A SHORT BAR — above every head on the page, the Logo System's section label; the bar is the foil
+    (v5: the silver, used a little more) */
 const Eyebrow = ({ children }: { children: ReactNode }) => (
   <div className="flex flex-col items-start gap-2.5">
     <p className="text-[13px] text-textMuted">{children}</p>
-    <span className="w-10 h-[3px] rounded-full bg-silver" aria-hidden="true" />
+    <span className="foil-fill w-10 h-[3px] rounded-full" aria-hidden="true" />
   </div>
 );
 
@@ -284,12 +362,36 @@ const TwoTone = ({ first, second, className = '' }: { first: string; second: str
   </h2>
 );
 
+/** ONE ARRIVAL, ONCE: a block that comes in as it is first seen — a line reveal for words (the Logo System's text reveal:
+    line by line, 40 ms apart). Nothing where less motion is asked for, and nothing hidden before the script has run (the
+    waiting state is set by it). */
+const useArrival = <T extends HTMLElement>(margin = '0px 0px -18% 0px') => {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.82) return;
+    el.dataset.arrival = 'wait';
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        el.dataset.arrival = 'in';
+        io.disconnect();
+      },
+      { rootMargin: margin }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [margin]);
+  return ref;
+};
+
 /** A SECTION'S HEAD: its word over a bar, its two-tone line and, beside it, a line of what follows — arriving a line at a
-    time as it is first seen, the two-tone line coming into focus as the hero's headline does (index.css .landing-settle) */
-const Head = ({ eyebrow, first, second, aside }: { eyebrow: string; first: string; second: string; aside?: ReactNode }) => {
+    time as it is first seen, the two-tone line coming into focus (index.css .landing-settle) */
+const Head = ({ eyebrow, first, second, aside, id }: { eyebrow: string; first: string; second: string; aside?: ReactNode; id?: string }) => {
   const ref = useArrival<HTMLDivElement>();
   return (
-    <div ref={ref} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
+    <div ref={ref} id={id} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
       <div className="lg:col-span-7">
         <div className="landing-line [--i:0]">
           <Eyebrow>{eyebrow}</Eyebrow>
@@ -303,13 +405,12 @@ const Head = ({ eyebrow, first, second, aside }: { eyebrow: string; first: strin
   );
 };
 
-/** THE FOIL'S WORD: "see." on the hero — the foil on black, the steel ink on paper (THE FOIL TRAP, ground.tsx) */
-const Foil = ({ children }: { children: ReactNode }) => {
-  const ground = useBlockGround();
+/** THE FOIL'S WORD — the foil on either ground since v5 (the pale run on black, the deep run on paper: index.css
+    --holo-ink) */
+const Foil = ({ children }: { children: ReactNode }) => (
   /* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */
-  return <span className={`font-medium inline-block px-[0.06em] -mx-[0.06em] ${ground === 'dark' ? 'holo-text' : 'text-silver'}`}>{children}</span>;
-};
-
+  <span className="holo-text font-medium inline-block px-[0.06em] -mx-[0.06em]">{children}</span>
+);
 /* THE LAST WORDS, READ BY SCROLLING (2026-10-02, from the owner's notes on two landings that make a line's reading the
    scroll itself): each letter of the closing lines stands faint and turns to its own ink, one letter at a time, as the
    lines come up the screen — the scroll is the playhead, and scrolling back takes them back. A reader that hears the page
@@ -402,10 +503,11 @@ const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: strin
 };
 
 /** THE PILL (Slayer Logo System, Web and App): solid is the page's ink — the light pill on black, the black pill on paper —
-    and the foil stays on "Launch terminal" alone; ghost is a hairline. NO GROWING UNDER THE POINTER (2026-09-20: "look
-    laggy"): the ghost answers with its edge and a wash, the solid with a breath of its own ink; only a press gives. */
+    and a ghost is a hairline. UNDER THE POINTER THE FOIL ANSWERS (v5, 2026-10-05: the silver "used slightly more"): the
+    solid takes the foil as its surface, sweeping across it; the ghost takes it as its edge (index.css .door-foil,
+    .door-edge). NO GROWING UNDER THE POINTER (2026-09-20: "look laggy"); only a press gives. */
 const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: { children: ReactNode; onClick?: () => void; href: string; kind?: 'solid' | 'ghost'; size?: 'lg' | 'sm'; testId?: string }) => {
-  const fill = kind === 'solid' ? 'bg-textPrimary text-canvas hover:bg-textPrimary/90' : 'border border-borderMuted text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06]';
+  const fill = kind === 'solid' ? 'door-foil bg-textPrimary text-canvas' : 'door-edge border border-borderMuted text-textPrimary hover:border-transparent hover:bg-ink/[0.05]';
   return (
     <a
       href={href}
@@ -422,60 +524,43 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
   );
 };
 
-/** A SMALL DOOR WITH AN ARROW: the words and an arrow that glides under the pointer */
-const Door = ({ children, onClick, href, testId }: { children: ReactNode; onClick: () => void; href: string; testId?: string }) => (
-  <a
-    href={href}
-    onClick={e => {
-      e.preventDefault();
-      onClick();
-    }}
-    className="group/door inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
-    data-landing-door={testId}
-  >
-    {children}
-    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/door:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-  </a>
-);
-
 /** A jump along the page glides — unless the visitor asked their system for less motion: then it is a cut */
 const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
 
 /* A JUMP ALONG THE PAGE LEAVES A WAY BACK (2026-10-03 audit): the jump is a step in the history, and Back returns the
    reader to where they jumped from. AND IT TAKES THE KEYS WITH IT: the section's head takes the focus, quietly, so the next
-   Tab goes on inside the section. */
+   Tab goes on inside the section. A place inside a run the scroll plays (the session's first words, the wall of rooms) is
+   a marker that names its head (`data-focus`). */
 const toAnchor = (href: string) => {
   if (location.hash !== href) history.pushState(null, '', href);
   const to = document.querySelector<HTMLElement>(href);
   if (!to) return;
   to.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
-  const head = to.querySelector<HTMLElement>('h2') ?? to;
+  const named = to.dataset.focus ? document.querySelector<HTMLElement>(to.dataset.focus) : null;
+  const head = named ?? to.querySelector<HTMLElement>('h2') ?? to;
   if (!head.hasAttribute('tabindex')) head.setAttribute('tabindex', '-1');
-  head.focus({ preventScroll: true });
-};
-
-/** ONE ARRIVAL, ONCE: a block that comes in as it is first seen — a line reveal for words (the Logo System's text reveal:
-    line by line, 40 ms apart), a clip drawn from what the page does for a window. Nothing where less motion is asked for,
-    and nothing hidden before the script has run (the waiting state is set by it). */
-const useArrival = <T extends HTMLElement>(margin = '0px 0px -18% 0px') => {
-  const ref = useRef<T | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (el.getBoundingClientRect().top < window.innerHeight * 0.82) return;
-    el.dataset.arrival = 'wait';
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e.isIntersecting) return;
-        el.dataset.arrival = 'in';
-        io.disconnect();
-      },
-      { rootMargin: margin }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [margin]);
-  return ref;
+  const land = () => {
+    head.focus({ preventScroll: true });
+    return document.activeElement === head;
+  };
+  if (land()) return;
+  /* a head the scroll itself brings in (the session's first words come in as the opening hands its window over) cannot
+     take the focus until it stands: it takes it once the glide is over and the page has drawn where it ended, asking
+     again a few times while it comes in */
+  let done = false;
+  const late = () => {
+    if (done) return;
+    done = true;
+    window.removeEventListener('scrollend', late);
+    let tries = 12;
+    const again = () => {
+      if (land() || --tries <= 0) return;
+      window.setTimeout(again, 150);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(again));
+  };
+  window.addEventListener('scrollend', late, { once: true });
+  window.setTimeout(late, 1800);
 };
 
 /** THE BAR. Flat across the top of the page with the wordmark; once the page moves it lifts into a floating pill and the
@@ -536,8 +621,8 @@ const Nav = ({ ground }: { ground: Ground }) => {
     };
   }, [menu]);
   const glide = 'transition-[max-width,background-color,border-color,box-shadow,padding] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none';
-  /* "Holographic silver · in the S and on Launch terminal only" — the foil on black, the ink on paper */
-  const launchFill = ground === 'dark' ? 'holo-bg text-[#0a0a0a]' : 'bg-textPrimary text-canvas';
+  /* "Holographic silver · in the S and on Launch terminal" — the foil as a surface on either ground (index.css .launch-pill) */
+  const launchFill = 'launch-pill';
   return (
     <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
       <div
@@ -655,86 +740,85 @@ const Nav = ({ ground }: { ground: Ground }) => {
   );
 };
 
-/* WHAT IS THIS? — THE HERO (the brief: "The first screen must immediately show the real Slayer Terminal … The terminal
-   visual should be the centerpiece"). The name, the line the brand keeps ("Trade what you can see." — Noah's pick of four,
-   2026-09-19; it speaks of the market and of traders, not of options), one line of what it brings together, the door and
-   the way to see it work, and under them the terminal itself: the desk an account lands on, in use, as large as the
-   column — on a laptop it runs past the fold, so the first screen is the words and the terminal's top, and a scroll shows
-   it whole. Under it, said once, what the picture is. */
-const Hero = ({ onSignUp }: { onSignUp: () => void }) => {
+/** THE CUE: the page goes on (a foil dot down a hairline, three times, then still) */
+const Cue = ({ className = '' }: { className?: string }) => (
+  <div aria-hidden="true" className={`landing-rise [--rise-delay:900ms] flex flex-col items-center gap-3 ${className}`}>
+    <span className="text-[11px] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
+    <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
+      <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
+    </span>
+  </div>
+);
+
+/* THE FIRST SCREEN, STILL (a phone, less motion): the quote, what lies scattered, the doors — the same words the opening
+   plays on a desk (Opening.tsx) */
+const FirstScreen = ({ doors }: { doors: ReactNode }) => (
+  <Wrap className="relative min-h-[100svh] flex flex-col items-center justify-center text-center pt-[104px] pb-[96px]" data-landing-hero>
+    <Kicker />
+    <Quote className="mt-6 text-[clamp(2.4rem,9.6vw,4rem)] lg:text-[clamp(4rem,min(8.4vw,14.5svh),8.5rem)]" />
+    <Tease className="mt-8 max-w-[54rem]" />
+    <div className="landing-rise [--rise-delay:700ms] mt-9 flex flex-wrap items-center justify-center gap-3" data-landing-hero-doors>
+      {doors}
+    </div>
+    <Cue className="absolute bottom-7 left-1/2 -translate-x-1/2" />
+  </Wrap>
+);
+
+/* THE ANSWER, STILL (a phone, less motion): "Trade what you can see." over the terminal itself, the desk an account lands
+   on, in use */
+const Reveal = () => {
   const ground = useBlockGround();
   const small = useIsBelowLg();
+  const head = useArrival<HTMLDivElement>();
   return (
-    <Wrap className="pt-[100px] sm:pt-[116px] lg:pt-[128px]" data-landing-hero>
-      <p className="landing-rise text-[12px] font-medium uppercase tracking-[0.26em] text-textMuted">Slayer Terminal</p>
-      <h1 className="landing-rise landing-focus [--rise-delay:60ms] mt-5 sm:mt-6 font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.6rem,min(5.6vw,10svh),5.25rem)] [text-wrap:balance]" data-landing-headline>
-        Trade what you can <Foil>see.</Foil>
-      </h1>
-      <p className="landing-rise [--rise-delay:120ms] mt-5 max-w-[40rem] text-[16px] sm:text-[18px] leading-[1.5] text-textSecondary [text-wrap:balance]" data-landing-hero-sub>
-        Positioning, market structure, volatility and flow — brought together in one terminal.
-      </p>
-      <div className="landing-rise [--rise-delay:170ms] mt-7 flex flex-wrap items-center gap-3" data-landing-hero-doors>
-        <Pill href="/signup" onClick={onSignUp} testId="hero">
-          Sign up free
-        </Pill>
-        <Pill href="#how" onClick={() => toAnchor('#how')} kind="ghost" testId="how">
-          See how it works
-        </Pill>
+    <Wrap className="pb-[10vh]" data-landing-reveal>
+      <div ref={head} className="landing-lines text-center">
+        <h2 className="landing-line landing-settle [--i:0] font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
+          Trade what you can <Foil>see.</Foil>
+        </h2>
       </div>
-      <figure className="landing-rise [--rise-delay:260ms] [--rise-from:28px] mt-10 sm:mt-12 lg:mt-14" data-landing-hero-window>
-        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot="hero" />
+      <figure className="mt-8 lg:mt-10" data-landing-hero-window>
+        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot="switch" />
         <figcaption className="mt-4 text-[13px] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
   );
 };
 
-/** WHY DOES IT MATTER? — one statement, said once */
-const Matters = () => {
-  const ref = useArrival<HTMLDivElement>();
-  return (
-    <Wrap className="py-[14vh] lg:py-[17vh]">
-      <div ref={ref} className="landing-lines max-w-[920px]">
-        <h2 className="landing-line [--i:0] font-light tracking-[-0.045em] leading-[1.0] text-[34px] sm:text-[48px] lg:text-[64px] [text-wrap:balance]">
-          Most of what moves a price is public. <span className="block text-textMuted">It’s just scattered.</span>
-        </h2>
-        <p className="landing-line [--i:2] mt-7 lg:mt-8 max-w-[40rem] text-[17px] sm:text-[18px] leading-[1.5] text-textSecondary">
-          Where the options positions sit, where hedging flips, what is trading right now. Slayer reads them together, on one screen, while the session moves.
-        </p>
-      </div>
-    </Wrap>
-  );
-};
-
-/** WHAT THE SESSION SAYS FIRST, beside its window as the desk's parts land in it (the scatter's payoff and the session's
-    head in one) */
+/** WHAT THE SESSION SAYS FIRST, beside its window as the opening hands it over (Session.tsx `story.lead`) */
 const Lead = () => (
   <div>
     <Eyebrow>How it works</Eyebrow>
     <h2 className="mt-6 font-light tracking-[-0.035em] leading-[1.04] text-[30px] xl:text-[34px] [text-wrap:balance] outline-none">
-      Slayer reads them together, <span className="block text-textMuted">on one screen, while the session moves.</span>
+      Slayer reads it all together, <span className="block text-textMuted">on one screen, while the session moves.</span>
     </h2>
     <p className="mt-5 max-w-[34ch] text-[15px] leading-[1.55] text-textSecondary">
-      Five moments from one session on SPY, each read off the terminal as it ran. Scroll, and the session plays between them.
+      Three moments from one session on SPY, each read off the terminal as it ran. Scroll, and the session plays between them.
     </p>
   </div>
 );
 
-/* WHY DOES IT MATTER? AND SHOW ME — ONE STORY, ON A DESK (2026-10-03 — the landing showed the same desk three times, and
-   the four products eight screens down): the desk's parts lie scattered round "Most of what moves a price is public. It's
-   just scattered.", gather into the session's own window as the reader scrolls (Scatter.tsx), and that window then plays
-   the session beside its beats (Session.tsx). A phone and less motion have the words alone, then the session's head and
-   beats (Page). */
-const Story = ({ theme }: { theme: Ground }) => {
+/* THE QUOTE, THE ANSWER AND THE SESSION — ONE STORY, ON A DESK: the opening plays over the session's top (Opening.tsx), and
+   the terminal it opens goes to stand as the session's own window (Session.tsx `story`). "See how it works" and the bar's
+   "How it works" go to where the session's first words stand beside it (the #how marker). */
+const Story = ({ theme, doors }: { theme: Ground; doors: ReactNode }) => {
   const stage = useRef<HTMLDivElement | null>(null);
   const screen = useRef<HTMLDivElement | null>(null);
   const intro = useRef<HTMLDivElement | null>(null);
-  const [shown, setShown] = useState(false);
+  const [near, setNear] = useState(false);
   const targets = useMemo(() => ({ stage, screen, intro }), []);
-  const hold = useMemo<StoryHold>(() => ({ ...targets, shown, lead: <Lead /> }), [targets, shown]);
+  const hold = useMemo<StoryHold>(() => ({ ...targets, shown: near, lead: <Lead /> }), [targets, near]);
+  const onNear = useCallback(() => setNear(true), []);
   return (
     <div className="relative" data-story>
-      <Scatter theme={theme} story={targets} onLanded={setShown} />
+      <span
+        id="how"
+        data-focus="[data-session-lead] h2"
+        aria-hidden="true"
+        className="absolute left-0 w-px h-px pointer-events-none"
+        style={{ top: `${HOW_AT * (TRACK - 100)}svh`, scrollMarginTop: 0 } as CSSProperties}
+      />
+      <Opening theme={theme} story={targets} onNear={onNear} doors={doors} />
       <Wrap className="relative">
         <Session theme={theme} story={hold} />
       </Wrap>
@@ -742,278 +826,96 @@ const Story = ({ theme }: { theme: Ground }) => {
   );
 };
 
-/* WHAT ELSE CAN IT SEE? — THE FOUR SYSTEMS ON ONE STAGE (2026-10-03 — the owner: "information and hiecrcy wise i still
-   feel as if were missing that wow"; four blocks alike, one under another, read as one block four times). A player and
-   its list: the window on one side, the four on the other — each its number, glyph, name and line; the one on screen
-   bright, with what it does and its door under the list. The window boots into each page from the footer's broken pixels,
-   along the page's own motion (Boot.tsx `sweep`), and holds its film on the first frame until it has. THE STAGE PLAYS
-   ITSELF while it is on screen and the tab is in front, a page every DWELL, a silver line filling under the one on screen;
-   a pointer moving over the stage holds it until it has been still a while, the keys inside hold it, a touch holds it a
-   while after the finger lifts, and a pick holds it until the stage has left the screen. Where less motion is asked for
-   it stands still and changes only when asked, at once. */
-const DWELL = 6500;
-const STILL_FOR = 2500;
-
-/** what the system on screen does, and its door */
-const Does = ({ s, onOpen }: { s: System; onOpen: (path: string) => void }) => (
-  <div key={s.id} className="mt-5 lg:mt-8 lg:pt-6 lg:border-t lg:border-borderSubtle animate-fade-in">
-    <p className="max-w-[36rem] text-[15px] leading-[1.55] text-textSecondary">{s.says}</p>
-    <div className="mt-5">
-      <Door href={s.path} onClick={() => onOpen(s.path)} testId={`system-${s.id}`}>
-        Open {s.name}
-      </Door>
-    </div>
-  </div>
+/** THE ROOMS' HEAD — over the wall on a desk, over the tabs on a phone */
+const RoomsHead = ({ stage }: { stage: boolean }) => (
+  <Head
+    id="rooms-head"
+    eyebrow="The rooms"
+    first={`${ROOM_COUNT} rooms.`}
+    second="One terminal."
+    aside={stage ? 'Each room opens on its own page. Scroll on, and walk through them one at a time.' : 'Each room opens on its own page. Pick one to see it play.'}
+  />
 );
 
-const Systems = ({ onOpen }: { onOpen: (path: string) => void }) => {
-  const ground = useBlockGround();
-  const small = useIsBelowLg();
-  const calm = useReducedMotion();
-  const [at, setAt] = useState(0);
-  const stage = useRef<HTMLDivElement | null>(null);
-  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const bar = useRef<HTMLSpanElement | null>(null);
-  /* what holds the stage: a pick (until it leaves the screen), the keys inside it, a pointer moving over it, a touch */
-  const picked = useRef(false);
-  const keys = useRef(false);
-  const until = useRef(0);
-  const atRef = useRef(at);
-  atRef.current = at;
-  const elapsed = useRef(0);
-  const choose = useCallback((i: number) => {
-    elapsed.current = 0;
-    setAt(i);
-  }, []);
-  useEffect(() => {
-    elapsed.current = 0;
-  }, [at]);
-  useEffect(() => {
-    const el = stage.current;
-    if (!el || calm) return;
-    let raf = 0;
-    let last = 0;
-    let seen = false;
-    const io = new IntersectionObserver(
-      ([e]) => {
-        seen = e.isIntersecting;
-        if (!seen) picked.current = false;
-        if (seen && !raf) {
-          last = performance.now();
-          raf = requestAnimationFrame(tick);
-        }
-      },
-      { threshold: 0.35 }
-    );
-    const tick = (now: number) => {
-      raf = 0;
-      const dt = Math.min(100, now - last);
-      last = now;
-      const holding = picked.current || keys.current || now < until.current || document.visibilityState !== 'visible';
-      if (!holding) elapsed.current += dt;
-      if (elapsed.current >= DWELL) {
-        elapsed.current = 0;
-        setAt(i => (i + 1) % SYSTEMS.length);
-      }
-      if (bar.current) bar.current.style.transform = `scaleX(${picked.current ? 1 : Math.min(1, elapsed.current / DWELL)})`;
-      if (seen) raf = requestAnimationFrame(tick);
-    };
-    const moved = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') return;
-      until.current = performance.now() + STILL_FOR;
-    };
-    const touched = () => {
-      until.current = Number.POSITIVE_INFINITY;
-    };
-    const lifted = () => {
-      until.current = performance.now() + 3000;
-    };
-    const focusIn = (e: FocusEvent) => {
-      if ((e.target as HTMLElement)?.matches?.(':focus-visible')) keys.current = true;
-    };
-    const focusOut = (e: FocusEvent) => {
-      if (!el.contains(e.relatedTarget as Node | null)) keys.current = false;
-    };
-    io.observe(el);
-    el.addEventListener('pointermove', moved);
-    el.addEventListener('pointerdown', touched);
-    el.addEventListener('pointerup', lifted);
-    el.addEventListener('pointercancel', lifted);
-    el.addEventListener('focusin', focusIn);
-    el.addEventListener('focusout', focusOut);
-    return () => {
-      io.disconnect();
-      cancelAnimationFrame(raf);
-      el.removeEventListener('pointermove', moved);
-      el.removeEventListener('pointerdown', touched);
-      el.removeEventListener('pointerup', lifted);
-      el.removeEventListener('pointercancel', lifted);
-      el.removeEventListener('focusin', focusIn);
-      el.removeEventListener('focusout', focusOut);
-    };
-  }, [calm]);
-
-  const s = SYSTEMS[at];
-  /* the list is a set of tabs: the arrows move along it (↑ ↓ on a desk, ← → on a phone), Home and End to its ends */
-  const onKey = (e: React.KeyboardEvent) => {
-    const n = SYSTEMS.length;
-    const next = { ArrowDown: at + 1, ArrowRight: at + 1, ArrowUp: at - 1, ArrowLeft: at - 1, Home: 0, End: n - 1 }[e.key];
-    if (next === undefined) return;
-    e.preventDefault();
-    const i = (next + n) % n;
-    picked.current = true;
-    choose(i);
-    tabs.current[i]?.focus();
-  };
-  return (
-    <div ref={stage} className="mt-10 lg:mt-14 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12 gap-y-6" data-systems>
-      {/* THE LIST — the stage's tabs */}
-      <div className="lg:col-start-2 lg:row-start-1 min-w-0" data-systems-list>
-        <div role="tablist" aria-label="The four systems" aria-orientation={small ? 'horizontal' : 'vertical'} onKeyDown={onKey} className="grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:gap-0">
-          {SYSTEMS.map((x, i) => {
-            const on = i === at;
-            return (
-              <button
-                key={x.id}
-                ref={el => {
-                  tabs.current[i] = el;
-                }}
-                type="button"
-                role="tab"
-                id={`system-tab-${x.id}`}
-                aria-selected={on}
-                aria-controls="system-panel"
-                tabIndex={on ? 0 : -1}
-                onClick={() => {
-                  picked.current = true;
-                  choose(i);
-                }}
-                className={`group/tab relative min-w-0 text-left rounded-full lg:rounded-none border lg:border-0 lg:border-t ${on ? 'border-textPrimary/60 lg:border-borderMuted' : 'border-borderSubtle'} lg:first:border-t-0 px-3.5 py-2 lg:px-0 lg:py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver`}
-                data-system-tab={x.id}
-              >
-                <span className={`flex items-center gap-3 text-[13px] ${on ? 'text-textPrimary' : 'text-textMuted group-hover/tab:text-textSecondary'} transition-colors`}>
-                  <span className="hidden lg:inline tnum">{x.code}</span>
-                  <span className="hidden lg:inline w-5 h-px bg-borderMuted" aria-hidden="true" />
-                  <ProductGlyph name={x.glyph} size={16} bare className="shrink-0" />
-                  {x.name}
-                </span>
-                <span className={`hidden lg:block mt-2.5 text-[21px] xl:text-[23px] leading-[1.15] font-light tracking-[-0.02em] [text-wrap:balance] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted group-hover/tab:text-textSecondary'}`}>{x.line}</span>
-                {/* THE LINE FILLING: how long until the next page */}
-                {on && !calm && (
-                  <span className="hidden lg:block absolute left-0 right-0 -bottom-px h-[2px] bg-ink/[0.08] overflow-hidden" aria-hidden="true">
-                    <span ref={bar} className="block h-full bg-silver origin-left" style={{ transform: 'scaleX(0)' }} />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {/* the one on screen: on a phone its line over the window; on a desk what it does and its door under the list */}
-        <h3 key={`line-${s.id}`} className="lg:hidden mt-5 text-[26px] sm:text-[30px] leading-[1.1] font-light tracking-[-0.03em] [text-wrap:balance] animate-fade-in">
-          {s.line}
-        </h3>
-        {!small && <Does s={s} onOpen={onOpen} />}
+/** A READ, NEVER AN INSTRUCTION — what the terminal does and never does, and what every number stands on (what it
+    produces, never how) */
+const Trust = () => (
+  <Wrap>
+    <Head
+      eyebrow="Why Slayer"
+      first="A read."
+      second="Never an instruction."
+      aside="Every figure starts from the market’s own record and is worked out by fixed rules, so the same market gives the same read every time. What it shows is open; how it works each one out stays ours."
+    />
+    <div className="mt-10 lg:mt-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10" data-landing-does>
+      <div>
+        <h3 className="text-[12px] font-medium uppercase tracking-[0.22em] text-textPrimary">It does</h3>
+        <ul className="mt-4 border-t border-borderSubtle">
+          {IT_DOES.map(t => (
+            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[15px] leading-snug text-textPrimary">
+              <Check className="w-4 h-4 mt-[3px] shrink-0 text-textPrimary" aria-hidden="true" />
+              {t}
+            </li>
+          ))}
+        </ul>
       </div>
-      {/* THE WINDOW — the page itself, booting into each in turn */}
-      <div role="tabpanel" id="system-panel" aria-labelledby={`system-tab-${s.id}`} className="lg:col-start-1 lg:row-start-1 min-w-0" data-systems-stage>
-        <TerminalWindow path={s.path} theme={ground} desk={!small} natural lazy boot="switch" bootSweep={s.sweep} />
-        {small && <Does s={s} onOpen={onOpen} />}
+      <div>
+        <h3 className="text-[12px] font-medium uppercase tracking-[0.22em] text-textMuted">It never</h3>
+        <ul className="mt-4 border-t border-borderSubtle">
+          {IT_NEVER.map(t => (
+            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[15px] leading-snug text-textSecondary">
+              <Minus className="w-4 h-4 mt-[3px] shrink-0 text-textMuted" aria-hidden="true" />
+              {t}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
-  );
-};
+    <div className="mt-14 lg:mt-16" data-landing-kinds>
+      <h3 className="text-[12px] font-medium uppercase tracking-[0.22em] text-textMuted">What every number stands on</h3>
+      <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
+        {KINDS.map(k => (
+          <div key={k.name} className="py-6 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
+            <p className="text-[21px] font-light tracking-[-0.02em]">{k.name}</p>
+            <p className="mt-1 text-[14px] text-textSecondary">{k.says}</p>
+            <ul className="mt-4">
+              {k.items.map(t => (
+                <li key={t} className="py-2 border-t border-borderSubtle text-[13.5px] leading-snug text-textPrimary">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <a
+        href="/legal/data"
+        className="group/door mt-6 inline-flex items-center gap-2 text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
+        data-landing-door="data"
+      >
+        The Data page, in full
+        <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover/door:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+      </a>
+    </div>
+  </Wrap>
+);
 
-/* THERE'S MORE INSIDE: the terminal's other rooms, a door each — in their own one-liners (nav.ts, the brand's own), the
-   four above left out and Practice's pages under Practice */
-const FLAGSHIPS = ['/compass', '/pinpoint', '/terrain', '/trace'];
-const MORE = PRODUCTS.filter(p => !FLAGSHIPS.includes(p.path) && !p.path.startsWith('/practice/'));
-
-const More = ({ onOpen }: { onOpen: (path: string) => void }) => (
-  <div className="mt-16 lg:mt-24 pt-8 border-t border-borderSubtle" data-landing-inside>
-    <p className="text-[17px] sm:text-[18px] leading-[1.5] text-textSecondary">
-      <span className="text-textPrimary">There’s more inside.</span> Every room opens on its own page.
-    </p>
-    <ul className="mt-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-6">
-      {MORE.map(p => (
-        <li key={p.path}>
-          <a
-            href={p.path}
-            onClick={e => {
-              e.preventDefault();
-              onOpen(p.path);
-            }}
-            className="group/more block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
-            data-landing-door={`more-${p.glyph}`}
-          >
-            <span className="flex items-center gap-2.5 text-[15px] font-medium text-textPrimary">
-              <ProductGlyph name={p.glyph} size={18} bare className="shrink-0" />
-              {p.name}
-              <ArrowRight className="w-3.5 h-3.5 text-textMuted opacity-0 -translate-x-1 group-hover/more:opacity-100 group-hover/more:translate-x-0 transition duration-300 motion-reduce:transition-none" aria-hidden="true" />
-            </span>
-            <span className="mt-1.5 block text-[13.5px] leading-snug text-textMuted group-hover/more:text-textSecondary transition-colors">{p.line}</span>
-          </a>
+/** ONE TERMINAL, IN PLACE OF… what a trader would otherwise keep open beside it */
+const InPlaceOf = () => (
+  <div className="mt-12 lg:mt-14 flex flex-col lg:flex-row lg:items-start gap-x-8 gap-y-4" data-landing-in-place-of>
+    <p className="shrink-0 text-[12px] font-medium uppercase tracking-[0.22em] text-textMuted lg:pt-[11px]">One terminal, in place of</p>
+    <ul className="flex flex-wrap gap-2">
+      {IN_PLACE_OF.map(t => (
+        <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[13.5px] text-textSecondary">
+          <ProductGlyph name={t.glyph} size={14} bare />
+          {t.text}
+          {/* the room that does it, in words as well as on its glyph */}
+          <span className="-ml-1 text-textMuted">· {t.room}</span>
         </li>
       ))}
     </ul>
   </div>
 );
-
-/** CAN I TRUST IT? — four principles, and what the terminal observes, calculates and models (what it produces, not how) */
-const Trust = () => {
-  const head = useArrival<HTMLDivElement>();
-  return (
-    <Wrap>
-      <div ref={head} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
-        <div className="lg:col-span-7">
-          <div className="landing-line [--i:0]">
-            <Eyebrow>Why Slayer</Eyebrow>
-          </div>
-          <div className="landing-line landing-settle [--i:1]">
-            <TwoTone className="mt-6" first="Built on the record." second="Not on promises." />
-          </div>
-        </div>
-        <p className="landing-line [--i:2] lg:col-span-5 max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">
-          The terminal is open about what it shows and where each number comes from. How it works each one out stays ours.
-        </p>
-      </div>
-      <ul className="mt-10 lg:mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t border-borderSubtle" data-landing-principles>
-        {PRINCIPLES.map((p, i) => (
-          <li key={p.title} className={`py-7 sm:pr-8 border-b border-borderSubtle lg:border-b-0 ${i > 0 ? 'lg:pl-8 lg:border-l' : ''} ${i % 2 === 1 ? 'sm:pl-8 sm:border-l lg:border-l' : ''}`}>
-            <p className="tnum text-[13px] text-textMuted">{String(i + 1).padStart(2, '0')}</p>
-            <h3 className="mt-3 text-[18px] font-medium tracking-tight">{p.title}</h3>
-            <p className="mt-2 text-[14.5px] leading-snug text-textSecondary max-w-[30ch]">{p.says}</p>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-14 lg:mt-16" data-landing-kinds>
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted">What every number stands on</h3>
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
-          {KINDS.map(k => (
-            <div key={k.name} className="py-7 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
-              <p className="text-[22px] font-light tracking-[-0.02em]">{k.name}</p>
-              <p className="mt-1.5 text-[14.5px] text-textSecondary">{k.says}</p>
-              <ul className="mt-5">
-                {k.items.map(t => (
-                  <li key={t} className="py-2.5 border-t border-borderSubtle text-[14px] leading-snug text-textPrimary">
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <a
-          href="/legal/data"
-          className="group/door mt-6 inline-flex items-center gap-2 text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
-          data-landing-door="data"
-        >
-          The Data page, in full
-          <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover/door:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-        </a>
-      </div>
-    </Wrap>
-  );
-};
 
 /** HOW MUCH IS IT? — ONE PLAN: its name, its price, who it is for, the one difference, its door */
 const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey) => void }) => {
@@ -1084,7 +986,7 @@ const Compare = () => {
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-controls="landing-plans-table"
-        className="group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-textPrimary/70 hover:bg-ink/[0.06] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+        className="door-edge group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
         data-landing-side-by-side-door
       >
         {open ? 'Fold the comparison away' : 'Compare the plans in full'}
@@ -1142,6 +1044,8 @@ const Page = () => {
   const { a } = useGround();
   const calm = useReducedMotion();
   const small = useIsBelowLg();
+  /* a desk where motion is welcome: the opening plays the quote into the terminal, and the rooms are one stage */
+  const stage = !calm && !small;
   const { launch } = useLaunch();
   const open = useCallback((path: string) => launch(path), [launch]);
   const navigate = useNavigate();
@@ -1173,7 +1077,7 @@ const Page = () => {
   }, []);
 
   /* THE TERMINAL'S SHELL, fetched once the page stands and the network has gone quiet (components/layout/shell.ts — it is
-     no longer in the script the landing waits for), so a door into the terminal still opens at once */
+     not in the script the landing waits for), so a door into the terminal still opens at once */
   useEffect(() => {
     if (savingData()) return;
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
@@ -1195,25 +1099,39 @@ const Page = () => {
     return () => window.clearTimeout(t);
   }, []);
 
+  const doors = (
+    <>
+      <Pill href="/signup" onClick={signUp} testId="hero">
+        Sign up free
+      </Pill>
+      <Pill href="#how" onClick={() => toAnchor('#how')} kind="ghost" testId="how">
+        See how it works
+      </Pill>
+    </>
+  );
+
   return (
-    <div className="relative isolate min-h-screen overflow-x-clip font-sans bg-canvas" data-landing="v4" data-theme={a}>
+    <div className="relative isolate min-h-screen overflow-x-clip font-sans bg-canvas" data-landing="v5" data-theme={a}>
       <a href="#how" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2 focus:rounded-md focus:bg-panel focus:text-textPrimary">
         Skip to how it works
       </a>
       <Nav ground={a} />
 
-      {/* ── WHAT IS THIS? ─────────────────────────────────────────────────────────────────────── */}
-      <Block on="a" as="div">
-        <Hero onSignUp={signUp} />
-      </Block>
-
-      {/* ── WHY DOES IT MATTER? AND SHOW ME ─────────────────────────────────────────────────────── */}
-      {/* on a desk, one story: the desk's parts gather into the session's window and it plays the session (Story); on a
-          phone, or where less motion is asked for, the words alone and then the session's head and beats */}
-      {calm || small ? (
+      {/* ── THE QUOTE, THE ANSWER, THE SESSION ────────────────────────────────────────────────── */}
+      {/* on a desk, one story: the quote turns into its answer and opens into the terminal, which goes to stand beside the
+          session (Story); on a phone, or where less motion is asked for, the first screen still, the terminal under it,
+          and the session's head and moments */}
+      {stage ? (
+        <Block on="a" as="div" className="pb-[2vh]">
+          <Story theme={a} doors={doors} />
+        </Block>
+      ) : (
         <>
-          <Block on="a" label="Why it matters">
-            <Matters />
+          <Block on="a" as="div">
+            <FirstScreen doors={doors} />
+          </Block>
+          <Block on="a" label="The terminal">
+            <Reveal />
           </Block>
           <Block on="a" id="how" label="How it works" className="pb-[6vh] scroll-mt-10">
             <Wrap>
@@ -1221,7 +1139,7 @@ const Page = () => {
                 eyebrow="How it works"
                 first="One session,"
                 second="as the terminal saw it."
-                aside={<>Five moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
+                aside={<>Three moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
               />
               <div className="mt-6 lg:mt-0">
                 <Session theme={a} />
@@ -1229,27 +1147,22 @@ const Page = () => {
             </Wrap>
           </Block>
         </>
+      )}
+
+      {/* ── THE ROOMS ─────────────────────────────────────────────────────────────────────────── */}
+      {stage ? (
+        <Block on="a" label="The rooms">
+          <Rooms rooms={ROOMS} head={<RoomsHead stage />} turnSays={TURN_SAYS} onOpen={open} anchor="rooms" />
+        </Block>
       ) : (
-        <Block on="a" id="how" label="How it works" className="pb-[4vh] scroll-mt-10">
-          <Story theme={a} />
+        <Block on="a" id="rooms" label="The rooms" className="py-[10vh] scroll-mt-10">
+          <Wrap>
+            <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} turnSays={TURN_SAYS} onOpen={open} />
+          </Wrap>
         </Block>
       )}
 
-      {/* ── WHAT ELSE CAN IT SEE? THE FOUR SYSTEMS ───────────────────────────────────────────── */}
-      <Block on="a" id="products" label="Products" className="pt-[6vh] pb-[10vh] scroll-mt-10">
-        <Wrap>
-          <Head
-            eyebrow="Products"
-            first="Four systems."
-            second="One terminal."
-            aside={calm ? 'Each as it plays in the terminal. Pick one to see it.' : 'Each as it plays in the terminal, one after another. Pick one to stay on it.'}
-          />
-          <Systems onOpen={open} />
-          <More onOpen={open} />
-        </Wrap>
-      </Block>
-
-      {/* ── CAN I TRUST IT? ───────────────────────────────────────────────────────────────────── */}
+      {/* ── A READ, NEVER AN INSTRUCTION ─────────────────────────────────────────────────────── */}
       <Block on="a" id="trust" label="Why Slayer" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Trust />
       </Block>
@@ -1261,7 +1174,7 @@ const Page = () => {
             eyebrow="Pricing"
             first="Simple plans."
             second="Cancel any time."
-            aside="Making an account is free. A plan opens the desks; cancel a monthly plan whenever you like and keep it until the period you paid for ends."
+            aside="Making an account is free. A plan opens the rooms; cancel a monthly plan whenever you like and keep it until the period you paid for ends."
           />
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
             {PLAN_ORDER.map(k => (
@@ -1269,11 +1182,12 @@ const Page = () => {
             ))}
           </div>
           <p className="mt-5 text-[13px] text-textMuted">Prices in US dollars.</p>
+          <InPlaceOf />
           <Compare />
         </Wrap>
       </Block>
 
-      {/* ── LET ME IN: THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────── */}
+      {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────────── */}
       <Block on="a" id="faq" label="Questions" className="pt-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
@@ -1301,21 +1215,47 @@ const Page = () => {
             </dl>
           </div>
 
-          {/* THE LAST WORDS (the brief: "End with almost no explanation") */}
+          {/* THE LAST WORDS — the rooms once more, a door each, and the line read by the scroll */}
           <div className="pt-[16vh] pb-[12vh] text-center" data-landing-close>
+            <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
+              {ROOMS.map(r => (
+                <li key={r.id}>
+                  <a
+                    href={r.path}
+                    onClick={e => {
+                      e.preventDefault();
+                      open(r.path);
+                    }}
+                    aria-label={`Open ${r.name.replace(/^The /, 'the ')}`}
+                    className="group flex flex-col items-center gap-2 sm:w-[72px] rounded-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
+                    data-landing-close-room={r.id}
+                  >
+                    <ProductGlyph
+                      name={r.glyph}
+                      size={30}
+                      bare
+                      className="max-sm:w-[28px] max-sm:h-[28px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
+                    />
+                    <span aria-hidden="true" className="text-[12px] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
+                      {r.name.replace(/^The /, '')}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
             <LitLines
               lines={[
-                { text: 'See the market.', ink: 'text-textPrimary' },
-                { text: 'Then trade it.', ink: 'text-textMuted' },
+                { text: 'Seen enough?', ink: 'text-textPrimary' },
+                { text: 'Step inside.', ink: 'text-textMuted' },
               ]}
-              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.5rem,5.8vw,5.25rem)] [text-wrap:balance]"
+              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.5rem,6.4vw,6rem)] [text-wrap:balance]"
             />
             <div className="mt-9 flex justify-center">
               <Pill href="/signup" onClick={signUp} testId="close">
                 Sign up free
               </Pill>
             </div>
-            <p className="mt-5 text-[14px] text-textMuted">Enter the terminal and see it yourself.</p>
+            <p className="mt-5 text-[14px] text-textMuted">An account is free. Look around before you choose a plan.</p>
           </div>
         </Wrap>
         <SiteFooter home />

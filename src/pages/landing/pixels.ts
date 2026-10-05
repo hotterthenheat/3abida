@@ -50,7 +50,12 @@ export interface Piece {
   H: number;
   /** draws the piece into (x, y, w, h) of a context whose transform is in device px — sharpness 0…1 */
   draw(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, sharpness: number, o?: { alpha?: number }): void;
+  /** makes the states from the one at `sharpness` on ahead of need, one at a time in the browser's idle moments (a state
+      made while the reader scrolls cost a frame its time); returns a way to stop */
+  warm(sharpness?: number): () => void;
 }
+
+type Idle = Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
 
 const canvasOf = (w: number, h: number) => {
   const c = document.createElement('canvas');
@@ -118,9 +123,28 @@ export const pieceOf = (img: CanvasImageSource, sx: number, sy: number, sw: numb
     states.set(k, marks);
     return marks;
   };
+  const stateFor = (sharpness: number) => Math.min(STATES.length - 1, Math.max(0, Math.floor(sharpness * STATES.length)));
   return {
     W,
     H,
+    warm(sharpness = 0) {
+      const w = window as Idle;
+      let k = stateFor(sharpness);
+      let id = 0;
+      let stopped = false;
+      const later = () => (w.requestIdleCallback ? w.requestIdleCallback(next, { timeout: 600 }) : window.setTimeout(next, 30));
+      function next() {
+        if (stopped || k >= STATES.length) return;
+        stateAt(k++);
+        id = later();
+      }
+      id = later();
+      return () => {
+        stopped = true;
+        if (w.cancelIdleCallback) w.cancelIdleCallback(id);
+        window.clearTimeout(id);
+      };
+    },
     draw(c, x, y, w, h, sharpness, o = {}) {
       const alpha = o.alpha ?? 1;
       if (alpha <= 0 || w < 1 || h < 1) return;
@@ -131,7 +155,7 @@ export const pieceOf = (img: CanvasImageSource, sx: number, sy: number, sw: numb
         c.drawImage(img, sx, sy, sw, sh, x, y, w, h);
       } else {
         c.imageSmoothingEnabled = false;
-        c.drawImage(stateAt(Math.min(STATES.length - 1, Math.max(0, Math.floor(sharpness * STATES.length)))), x, y, w, h);
+        c.drawImage(stateAt(stateFor(sharpness)), x, y, w, h);
       }
       c.restore();
     },

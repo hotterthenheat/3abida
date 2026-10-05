@@ -288,30 +288,50 @@
    same living-foil sheen. First/last stops match the flat token
    (#C7D3E8 family) so reduced-motion degrades to plain silver.
    ============================================================ */
+/* THE FOIL, STRONGER (2026-10-05 — the owner: "our holographic silver accent needs to be bit stronger in light and dark
+   mode and used slightly more"): on black the run is brighter and more chromatic — ice blue, lavender, a cyan and a
+   lilac between white peaks, where it was greys with a breath of colour — and on paper it is a real foil ink (--holo-deep:
+   deep blue, azure, violet and purple), never the flat steel. Every stop of the paper ink is 3.3:1 or better on the
+   paper, so it is for display type and lines, not body text. */
 :root {
   --holo-gradient: linear-gradient(
     115deg,
-    #aeb9cf 0%,
-    #eef1f8 14%,
-    #a8c4e8 30%,
-    #d6c6ee 45%,
-    #f7f8fc 58%,
-    #b2c8e2 72%,
-    #e2d4ee 86%,
-    #aeb9cf 100%
+    #b8c6e6 0%,
+    #f5f7ff 13%,
+    #93c4ff 28%,
+    #d7c3ff 43%,
+    #ffffff 56%,
+    #a3daf5 69%,
+    #f2cdef 83%,
+    #b8c6e6 100%
   );
   /* Brighter run for ink-on-holo chips — keeps dark text ≥7:1 at every stop */
   --holo-gradient-bright: linear-gradient(
     115deg,
-    #cfd6e4 0%,
-    #f4f6fb 16%,
-    #c2d6f0 32%,
-    #e4d8f4 48%,
+    #d3dcef 0%,
+    #f7f9ff 16%,
+    #bcd9ff 32%,
+    #e6d8ff 48%,
     #ffffff 62%,
-    #c8d8ec 78%,
-    #ecdff6 90%,
-    #cfd6e4 100%
+    #c4e6f7 78%,
+    #f6defa 90%,
+    #d3dcef 100%
   );
+  /* the foil as an ink on paper, and a step deeper as a surface under white words */
+  --holo-deep: linear-gradient(115deg, #2b4b8c 0%, #5a6bd4 14%, #1f74bd 30%, #7a4ccc 45%, #3a60b4 58%, #2a86b2 72%, #8848c0 86%, #2b4b8c 100%);
+  --holo-deep-surface: linear-gradient(115deg, #24407a 0%, #4a5bc4 14%, #1a64a8 30%, #6a40b8 45%, #2f54a0 58%, #23739c 72%, #7640ae 86%, #24407a 100%);
+}
+/* THE FOIL BY ITS GROUND: --holo-ink is the foil as an ink (words, lines, a progress bar), --holo-surface the foil as a
+   surface (a door under the pointer) — the pale run on black, the deep run on paper, so a dark island inside a light
+   page wears the black's own */
+:root,
+[data-theme='dark'] {
+  --holo-ink: var(--holo-gradient);
+  --holo-surface: var(--holo-gradient-bright);
+}
+[data-theme='light'] {
+  --holo-ink: var(--holo-deep);
+  --holo-surface: var(--holo-deep-surface);
 }
 
 @keyframes holo-pan {
@@ -464,7 +484,7 @@
 
 /* Gradient ink — brand marks, hero numbers, standout labels. */
 .holo-text {
-  background-image: var(--holo-gradient);
+  background-image: var(--holo-ink);
   background-size: 250% 250%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -678,10 +698,11 @@
   transition: background-position 1.4s ease-in-out;
 }
 .launch-pill:hover { background-position: 100% 50%; }
+/* …and on paper (since 2026-10-05 — the owner: the silver "a bit stronger in light and dark mode") the foil's deep run as
+   the surface, with the panel's white for its word (--holo-deep-surface: every stop 5:1 or better under it) */
 [data-theme='light'] .launch-pill:not([data-theme='dark'] *) {
-  background-image: none;
-  background-color: rgb(var(--text-primary));
-  color: rgb(var(--canvas));
+  background-image: var(--holo-deep-surface);
+  color: rgb(var(--panel));
 }
 
 /* THE TAPE on the wire (2026-09-13) rode the landing's marquee (keyframes removed with the
@@ -1483,12 +1504,10 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 [data-theme='light'] :is(.text-textMuted\/25, .text-textMuted\/30, .text-textMuted\/40, .text-textMuted\/50, .text-textMuted\/60, .text-textMuted\/70):not([data-theme='dark'] *) { color: rgb(var(--text-muted) / 0.8); }
 [data-theme='light'] .text-silver\/70:not([data-theme='dark'] *) { color: rgb(var(--silver) / 0.9); }
 /* THE HOLO INK ON PAPER (2026-09-16, the wall's wordmark): the foil's pale run is a SURFACE on
-   white — "Coming soon" at 64px read at about 1.5:1. On paper the ink gradient is the same foil
-   in deep steel and moon, every stop 3.5:1 or better for large type; the surface gradient
-   (holo-bg, the filled pills) stays the foil with dark ink on it. */
-[data-theme='light'] .holo-text:not([data-theme='dark'] *) {
-  background-image: linear-gradient(115deg, #3a4f7a 0%, #5f7aa8 14%, #2f5f9e 30%, #5b4aa8 45%, #6b86b8 58%, #35507f 72%, #6a58b4 86%, #3a4f7a 100%);
-}
+   white — "Coming soon" at 64px read at about 1.5:1. On paper the ink is the same foil in deep
+   colours (--holo-deep since 2026-10-05, read by .holo-text through --holo-ink, the ground's own),
+   every stop 3.3:1 or better for large type; the surface gradient (holo-bg, the filled pills)
+   stays the foil with dark ink on it. */
 
 /* THE LANDING'S THEME FLIP (2026-09-19, pages/landing/ground.tsx): the whole page crossfades as ONE
    picture through the View Transitions API — never a colour transition on every element, which
@@ -1617,14 +1636,13 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
     landing-line 760ms cubic-bezier(0.2, 0, 0, 1) calc(var(--i, 0) * 40ms) backwards,
     landing-focus 900ms cubic-bezier(0.2, 0, 0, 1) calc(var(--i, 0) * 40ms) backwards;
 }
-/* EACH PRODUCT'S WINDOW comes in its own way, drawn from what the page does — since the four systems stand on one stage
-   (2026-10-03), the way its page resolves into the window: Compass dealt a column at a time, Pinpoint opening from the
-   middle, Terrain drawn left to right, Trace printing down, each with a soft edge (pages/landing/Boot.tsx `sweep`). */
-/* THE SYSTEMS' WINDOW runs on past the column to 24 px short of the screen's left edge, the list beside it (the session's
-   picture runs right; this one, its mirror, runs left) */
+/* EACH ROOM'S PAGES come into the window in their own way, drawn from what the page does (pages/landing/Boot.tsx
+   `sweep`): Compass dealt a column at a time, Pinpoint opening from the middle, Terrain drawn left to right, Trace printing
+   down, each with a soft edge. */
+/* THE ROOMS' WINDOW runs on past the column to 24 px short of the screen's right edge, as the session's does */
 @media (min-width: 1024px) {
-  [data-landing] [data-systems-stage] {
-    margin-left: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 16px));
+  [data-landing] [data-rooms-window] {
+    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 16px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1632,6 +1650,104 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+/* THE LANDING'S FOIL (v5, 2026-10-05 — the owner: "our holographic silver accent needs to be bit stronger in light and
+   dark mode and used slightly more"): the foil as a FILL — a section's bar, the row on show and the line filling under
+   it, the opening's silver line — and as the pointer's answer on a door: a solid pill takes the foil as its surface,
+   sweeping across it; a hairline door takes it as its edge. Arrivals and the pointer only, never a loop; never on body
+   text. */
+.foil-fill {
+  background-image: var(--holo-ink);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+}
+.door-foil {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.door-foil::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-image: var(--holo-surface);
+  background-size: 250% 100%;
+  background-position: 0% 50%;
+  opacity: 0;
+  transition: opacity 260ms ease, background-position 1.2s ease-in-out;
+}
+.door-foil:hover::before,
+.door-foil:focus-visible::before {
+  opacity: 1;
+  background-position: 100% 50%;
+}
+.door-edge {
+  position: relative;
+}
+.door-edge::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background-image: var(--holo-ink);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 260ms ease;
+  pointer-events: none;
+}
+.door-edge:hover::after,
+.door-edge:focus-visible::after {
+  opacity: 1;
+}
+/* THE QUOTE'S WORDS come up one after another and into focus, once, as the page opens (pages/landing/Opening.tsx) */
+.landing-word {
+  animation:
+    landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) calc(var(--w, 0) * 55ms + 60ms) backwards,
+    landing-focus 0.9s cubic-bezier(0.2, 0, 0, 1) calc(var(--w, 0) * 55ms + 60ms) backwards;
+}
+/* the light the first screen's words stand in — still (never a loop), silver on black, a cool wash on paper */
+.landing-pool {
+  background-image: radial-gradient(56% 46% at 50% 46%, rgb(var(--silver) / 0.12), transparent 70%), radial-gradient(34% 26% at 16% 12%, rgb(var(--silver) / 0.06), transparent 70%);
+}
+/* THE CUE: a dot of foil down a hairline, three times, then still (a transform and an opacity) */
+.landing-cue {
+  transform: translateY(-100%);
+  animation: landing-cue 2.4s cubic-bezier(0.45, 0, 0.2, 1) 1.4s 3 both;
+}
+@keyframes landing-cue {
+  0% { transform: translateY(-100%); opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateY(300%); opacity: 0; }
+}
+/* A ROOM'S WORDS come in as the room does (pages/landing/Rooms.tsx) */
+.room-in {
+  animation: room-in 420ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes room-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-word,
+  .landing-cue,
+  .room-in {
+    animation: none;
+  }
+  .landing-cue {
+    opacity: 0;
+  }
+  .door-foil::before {
+    transition: opacity 260ms ease;
   }
 }
 /* WHERE THE KEYS LAND (2026-10-03 audit): a control the keys move to is scrolled clear of the floating bar (52 px from
@@ -1645,17 +1761,11 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
     animation: none;
   }
 }
-/* A SHORT SCREEN (2026-10-03 — a 13-inch laptop, 720 to 820 px tall): the hero's words close up so the terminal stands
-   well into the first screen — at 1280 × 720 it began 444 px down, a sliver over the fold */
+/* A SHORT SCREEN (a 13-inch laptop, 720 to 820 px tall): the first screen's doors and the terminal under it close up (v5,
+   2026-10-05: the first screen is the quote — Opening.tsx on a desk, FirstScreen where the scroll does not play it) */
 @media (min-width: 1024px) and (max-height: 820px) {
   [data-landing] [data-landing-hero] {
     padding-top: 92px;
-  }
-  [data-landing] [data-landing-headline] {
-    margin-top: 14px;
-  }
-  [data-landing] [data-landing-hero-sub] {
-    margin-top: 14px;
   }
   [data-landing] [data-landing-hero-doors] {
     margin-top: 20px;

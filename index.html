@@ -69,17 +69,8 @@
         var bar = document.querySelector('meta[name="theme-color"]');
         if (bar) bar.setAttribute('content', '#f1f0ec');
       }
-      /* THE LANDING'S FIRST PICTURE, asked for at once (2026-10-03): it waited for the app's script to ask for it, and came
-         four seconds in on a phone's connection. The hero's still (pages/landing/TerminalWindow.tsx shotFor): the phone's
-         below 592px, the desk's above, in the theme just read. */
-      if (location.pathname === '/' && window.self === window.top) {
-        var pic = document.createElement('link');
-        pic.rel = 'preload';
-        pic.as = 'image';
-        pic.href = '/landing/pulse-' + t + '-' + (window.innerWidth < 592 ? 'phone' : 'desk') + '.webp';
-        pic.setAttribute('fetchpriority', 'high');
-        document.head.appendChild(pic);
-      }
+      /* (the landing's first screen is words since v5, 2026-10-05: no picture is asked for ahead of the script — its
+         pictures come once the page has loaded, Opening.tsx) */
     })();
   </script>
 

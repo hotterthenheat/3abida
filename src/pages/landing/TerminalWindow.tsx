@@ -97,7 +97,14 @@ interface Props {
   onTime?: (at: number, length: number, glide?: number) => void;
   /** words at the right of the bar — the room's line while the window plays the hero's rooms */
   note?: string;
+  /** HELD: the film waits on its first frame — a window that takes over from a picture drawn on a canvas (Rooms.tsx)
+      shows that picture until it is on screen itself */
+  hold?: boolean;
 }
+
+/* A SWITCH, BRISK (2026-10-05 — the owner: "we should have the tabs on the product things switch faster they take too
+   long right now"): a switching window's page resolves in a third of a second (it was 520 ms) */
+const SWITCH_RUN = 330;
 
 /* A LAP, BRISK (2026-10-02 — the owner, of the tour's pages turning once a film had played through: "make the tab
    switching faster its so damn slow right now"): a page counts as seen after this much of its film (or the whole film, if
@@ -134,12 +141,13 @@ export const savingData = (): boolean => {
 /** THE PROMPT: the command that opens the page on screen, typed a letter at a time each time the page changes (a stepped
     width in letters — the prompt's type is the one monospace), the cursor after it on the brand's beat (index.css
     .window-cursor: the mark's own keyframes, so brand/brandClock.ts pins it to the page's clock) */
-export const Prompt = ({ path }: { path: string }) => {
+export const Prompt = ({ path, still = false }: { path: string; still?: boolean }) => {
   const cmd = `open ${crumbs(path).join('/')}`;
   return (
     <span className="min-w-0 flex items-center font-code text-[11.5px] leading-none whitespace-nowrap" data-window-path={path}>
       <span className="text-textMuted">slayer:~ $</span>
-      <span key={cmd} className="window-typing ml-[1ch] min-w-0 overflow-hidden text-textPrimary" style={{ '--n': cmd.length } as CSSProperties}>
+      {/* `still`: the command already typed — a window taking over from another that typed it (Opening.tsx, Rooms.tsx) */}
+      <span key={cmd} className={`${still ? '' : 'window-typing '}ml-[1ch] min-w-0 overflow-hidden text-textPrimary`} style={{ '--n': cmd.length } as CSSProperties}>
         {cmd}
       </span>
       <span aria-hidden="true" className="window-cursor ml-[2px] shrink-0 w-[2px] h-[1.15em]" />
@@ -155,7 +163,7 @@ interface Reel {
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -282,8 +290,11 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
   const firstSeen = useRef(false);
   const lastWant = useRef(want);
   useEffect(() => {
-    if (boot !== 'switch' || calm || want === lastWant.current) return;
+    /* the page on screen is followed whether or not this change boots: a window that boots only some of its changes
+       (Rooms.tsx — a row's, not the scroll's) never boots a page it already shows */
+    if (want === lastWant.current) return;
     lastWant.current = want;
+    if (boot !== 'switch' || calm) return;
     if (firstSeen.current) setBooting(want);
   }, [want, boot, calm]);
   useEffect(() => {
@@ -292,7 +303,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     setBooting(lastWant.current);
   }, [seen, boot, calm]);
   const holding = booting !== null && near;
-  const rolling = !!live && seen && front && !holding;
+  const rolling = !!live && seen && front && !holding && !hold;
 
   /* the film on screen plays; one going out holds its frame */
   useEffect(() => {
@@ -457,7 +468,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             key={`boot:${booting}`}
             src={booting}
             replay={boot === 'switch'}
-            run={boot === 'switch' ? 520 : undefined}
+            run={boot === 'switch' ? SWITCH_RUN : undefined}
             start={boot === 'switch' ? 0 : undefined}
             sweep={boot === 'switch' ? bootSweep : undefined}
             onDone={() => setBooting(b => (b === booting ? null : b))}

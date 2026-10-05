@@ -16,7 +16,8 @@
   the desk opened at 09:31 on its day and run forward,
   and at every step a reading — the price, the walls,
   the flip, Compass's top cards — and a picture of the
-  desk as it stood. Five of the readings are the beats,
+  desk as it stood. Five of the readings are beats, and
+  three of them are on the page (PICK),
   and every word of a beat is read off its picture
   (session.json keeps the readings beside the frames).
   No date is printed: the terminal runs on its own data
@@ -38,14 +39,14 @@
   canvas only when the step on screen changes, and the
   scroll is read only while the section is on screen.
 
-  THE STORY (a desk, 2026-10-03 — "the same picture
-  three times"): the desk the scattered parts gather
-  into IS this window (Scatter.tsx `story`): the window
-  stands hidden while they come together, comes in as
-  they land on its own first picture, and what the
-  session says first (`story.lead`) stands beside it
-  before the beats come up. A phone, or less motion,
-  has the head and the beats as before.
+  THE STORY (a desk — since v5, 2026-10-05, the
+  opening's): the terminal the opening draws out of a
+  silver line comes to stand as THIS window
+  (Opening.tsx `story`): the window stands hidden while
+  it comes, takes over on its own first picture, and
+  what the session says first (`story.lead`) stands
+  beside it before the beats come up. A phone, or less
+  motion, has the head and the beats.
 ==================================================
 */
 
@@ -64,16 +65,23 @@ interface Beat {
   boxes: Box[];
 }
 const DATA = SESSION as unknown as { w: number; h: number; frames: number; times: string[]; beats: Beat[] };
-const BEATS = DATA.beats;
 
 /* THE BEATS' WORDS — each read off its picture (session.json `readings`): a new run of the session takes new words */
-const WORDS: { title: string; text: string }[] = [
+const ALL_WORDS: { title: string; text: string }[] = [
   { title: 'Before', text: 'SPY is at 470.29. Overhead sits the heaviest call positioning on the board: the call wall at 475.' },
   { title: 'Positioning shifts', text: 'SPY climbs to 474.04, and the book turns under it: the heaviest strike swings from the 475 calls to the 470 puts.' },
   { title: 'Compass updates', text: 'At 474.82, a breath under the wall, the SPY 475 call becomes Compass’s top pick.' },
   { title: 'The level moves', text: 'SPY trades through 475, and the call wall steps up to 477.' },
   { title: 'Price meets the level', text: '475 turns from ceiling to floor. The put wall moves up to it at 12:22, and price keeps coming back to it.' },
 ];
+/* THREE OF THE FIVE (v5, 2026-10-05 — a shorter page): the wall overhead, price through it, and the level it left
+   behind becoming the floor. The other two stay in session.json, and the scroll still plays their pictures on the way. */
+const PICK = [0, 3, 4];
+const BEATS = PICK.map(i => DATA.beats[i]);
+const WORDS = PICK.map(i => ALL_WORDS[i]);
+const COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five'][BEATS.length] ?? String(BEATS.length);
+/** the moment the window opens on: the first beat's (the opening's own window wears it, Opening.tsx) */
+export const FIRST_TIME = DATA.times[BEATS[0].step] ?? BEATS[0].time;
 
 const frameSrc = (theme: Theme, i: number) => `/landing/session/${theme}/f${String(i).padStart(3, '0')}.webp`;
 export const beatSrc = (theme: Theme, k: number) => `/landing/session/${theme}/beat-${k + 1}.webp`;
@@ -107,11 +115,12 @@ const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box })
 };
 
 /** THE WINDOW'S CHROME, as TerminalWindow draws it: the terminal's glyph, the prompt that opened the desk (typed as the
-    window comes in — in the story, once the parts have landed), and — at its right — the moment of the session on screen */
-const Bar = ({ time, typed = true }: { time: string; typed?: boolean }) => (
+    window comes in — in the story, by the opening's window, which this one takes over), and — at its right — the moment
+    of the session on screen */
+export const Bar = ({ time, typed = true, still = false }: { time: string; typed?: boolean; still?: boolean }) => (
   <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel">
     <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
-    {typed && <Prompt path="/pulse" />}
+    {typed && <Prompt path="/pulse" still={still} />}
     <span className="ml-auto pl-4 font-code text-[11.5px] tnum text-textMuted whitespace-nowrap" data-session-time>
       SPY · {time}
     </span>
@@ -168,33 +177,33 @@ interface View {
   lit: number;
   /** holding on that beat's own picture */
   hold: boolean;
-  /** not yet at the first beat: the picture stands, no marks yet (the story's parts have only just landed on it) */
+  /** not yet at the first beat: the picture stands, no marks yet (in the story the opening has only just handed it over) */
   pre: boolean;
 }
 
-/** THE STORY'S HOLD ON THIS WINDOW (a desk): the parts gather into it (Scatter.tsx), so it hands them its window and its
-    picture, and stands its first words beside it */
+/** THE STORY'S HOLD ON THIS WINDOW (a desk): the terminal the opening draws comes to stand here (Opening.tsx), so it
+    hands the opening its window and its picture, and stands its first words beside it */
 export interface Story {
-  /** the window, standing on the right: hidden until the parts have landed */
+  /** the window, standing on the right: hidden until the opening's terminal has come to stand where it is */
   stage: MutableRefObject<HTMLDivElement | null>;
-  /** its picture, where the parts come home */
+  /** its picture, where the opening's picture comes to stand */
   screen: MutableRefObject<HTMLDivElement | null>;
   /** what the session says first, standing beside the window: in after the window */
   intro: MutableRefObject<HTMLDivElement | null>;
-  /** the parts have landed: the bar types the prompt */
+  /** the opening's terminal is on its way here: the session's own pictures may come */
   shown: boolean;
   /** the words beside the window, before the beats */
   lead: ReactNode;
 }
 
-/** the scroll the session's first words stand beside the window — the parts' run and a breath after it (svh); the
+/** the scroll the session's first words stand beside the window — the opening's run and a breath after it (svh); the
     words stand from a little above the screen's middle (PROLOGUE_AT) until their stretch is spent */
-export const PROLOGUE = 140;
+export const PROLOGUE = 178;
 const PROLOGUE_AT = '24svh';
 
 const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   const small = useIsBelowLg();
-  /* in the story (a desk): the window and the first words are the scatter's to bring in */
+  /* in the story (a desk): the window and the first words are the opening's to bring in */
   const told = !!story && !small;
   const calm = useReducedMotion();
   const wrap = useRef<HTMLDivElement | null>(null);
@@ -210,7 +219,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   const list = useRef<HTMLOListElement | null>(null);
   useEffect(() => {
     /* in the story the session starts right under the hero, so it is near from the first moment — it waits instead for
-       its beats to come within a screen (the parts' run is ahead of them), and for the page's own first things to be in:
+       its beats to come within a screen (the opening's run is ahead of them), and for the page's own first things to be in:
        its ninety pictures went out with the hero's and held it back */
     const el = told ? list.current : wrap.current;
     if (!el || typeof IntersectionObserver === 'undefined') return setNear(true);
@@ -233,8 +242,8 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
       io?.disconnect();
     };
   }, [told]);
-  /* …and the parts landing on the window bring its pictures in whatever the page is still loading (the first is the
-     parts' own picture, in already) */
+  /* …and the opening's terminal on its way here brings its pictures in whatever the page is still loading (the first is
+     the opening's own picture, in already) */
   const shown = told && story.shown;
   useEffect(() => {
     if (shown) setNear(true);
@@ -378,22 +387,22 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   }, [small, calm, draw]);
 
   const lit = view.lit;
-  /* the hairlines go up once the first beat is reached — in the story the parts have only just landed on its picture */
+  /* the hairlines go up once the first beat is reached — in the story the opening has only just handed its picture over */
   const marked = (view.hold && !view.pre) || !!calm;
   return (
     <div ref={wrap} className="lg:grid lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-x-10 xl:gap-x-12" data-session>
       <div className="lg:pb-[14svh]">
         {told && (
-          /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the parts come
-             together and a breath after (hidden until the window is in — Scatter.tsx), then go up the page ahead of the beats */
+          /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands
+             its window over and a breath after (hidden until then — Opening.tsx), then go up the page ahead of the beats */
           <div data-session-prologue>
-            <div ref={story.intro} className="sticky" style={{ top: PROLOGUE_AT, opacity: 0 }}>
+            <div ref={story.intro} className="sticky" style={{ top: PROLOGUE_AT, opacity: 0, visibility: 'hidden' }} data-session-lead>
               {story.lead}
             </div>
             <div aria-hidden="true" style={{ height: `${PROLOGUE}svh` }} />
           </div>
         )}
-        <ol ref={list} aria-label="Five moments from the session">
+        <ol ref={list} aria-label={`${COUNT} moments from the session`}>
           {BEATS.map((b, i) => {
             const on = small || i === lit;
             return (
@@ -402,7 +411,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                 ref={el => {
                   beatEls.current[i] = el;
                 }}
-                className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[52svh] lg:pt-[10svh]"
+                className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[42svh] lg:pt-[10svh]"
                 data-session-beat={i}
                 data-on={on || undefined}
               >
@@ -429,7 +438,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
         <div
           ref={told ? story.stage : undefined}
           className="sticky top-[96px] self-start h-[calc(100svh-132px)] max-h-[860px] flex justify-start"
-          style={told ? { opacity: 0 } : undefined}
+          style={told ? { opacity: 0, visibility: 'hidden' } : undefined}
           data-session-stage
         >
           <div
@@ -437,7 +446,8 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
             style={{ width: `min(100%, calc((min(100svh - 132px, 860px) - ${CHROME}px) * ${DATA.w / DATA.h} + 2px))` }}
             data-theme={theme}
           >
-            <Bar time={DATA.times[view.k] ?? BEATS[lit].time} typed={!told || story.shown} />
+            {/* in the story the opening's own window typed the prompt: this one takes it over already typed */}
+            <Bar time={DATA.times[view.k] ?? BEATS[lit].time} still={told} />
             <div
               ref={el => {
                 screen.current = el;
