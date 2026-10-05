@@ -26,7 +26,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { inksAt, pieceOf, STATE_COUNT } from './pixels';
+import { inksAt, pictureIn, pieceOf, STATE_COUNT } from './pixels';
 import { rgb } from '../../components/layout/footer/kit';
 
 /** when, as a share of the run, each sharper state comes in; past the last, the picture itself */
@@ -172,7 +172,7 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
       raf = requestAnimationFrame(frame);
     };
 
-    img.decode().then(
+    pictureIn(img).then(
       () => {
         if (!alive) return;
         const since = performance.now() - born;

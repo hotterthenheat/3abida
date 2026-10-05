@@ -36,7 +36,7 @@ import { useBlockGround, useGround, type Ground } from './ground';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
-import { inksAt, pieceOf, type Piece } from './pixels';
+import { inksAt, pictureIn, pieceOf, type Piece } from './pixels';
 
 export interface RoomRow {
   title: string;
@@ -624,7 +624,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
         const img = new Image();
         img.decoding = 'async';
         img.src = shotFor(room.path, a, 'desk');
-        img.decode().then(
+        pictureIn(img).then(
           () => {
             if (!alive) return;
             imgs[i] = img;

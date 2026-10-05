@@ -32,6 +32,34 @@ const STATES: [number, number, number][] = [
 ];
 export const STATE_COUNT = STATES.length;
 
+/** A PICTURE IN: resolves once `img` can be drawn — its decode, or its load (2026-10-05: Chrome's decode() refused good
+    pictures with "EncodingError" while many were decoding at once, and the wall stood with four of its rooms missing) —
+    and rejects only if the picture never comes */
+export const pictureIn = (img: HTMLImageElement): Promise<void> =>
+  new Promise((resolve, reject) => {
+    let done = false;
+    const ok = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    const drawable = () => {
+      if (img.complete && img.naturalWidth > 0) ok();
+    };
+    img.addEventListener('load', ok, { once: true });
+    img.addEventListener(
+      'error',
+      () => {
+        if (done) return;
+        done = true;
+        reject(new Error('the picture did not come'));
+      },
+      { once: true }
+    );
+    img.decode().then(ok, drawable);
+    drawable();
+  });
+
 /** what a picture is drawn with, read where it stands */
 export interface Inks {
   /** the ground's channels, and whether it is black */

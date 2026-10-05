@@ -23,7 +23,7 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Theme } from '../../theme/theme';
 import { Bar, FIRST_TIME, beatSrc, type Story } from './Session';
-import { inksAt, pieceOf, type Piece } from './pixels';
+import { inksAt, pictureIn, pieceOf, type Piece } from './pixels';
 
 /* ---- the words ----------------------------------------------------------------------------- */
 
@@ -412,7 +412,7 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       i.decoding = 'async';
       i.src = beatSrc(theme, 0);
       img = i;
-      i.decode().then(
+      pictureIn(i).then(
         () => {
           if (!alive) return;
           build();

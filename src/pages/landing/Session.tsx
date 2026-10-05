@@ -57,6 +57,7 @@ import ProductGlyph from '../../brand/ProductGlyph';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import { Prompt } from './TerminalWindow';
 import SESSION from './session.json';
+import { pictureIn } from './pixels';
 
 type Box = [number, number, number, number];
 interface Beat {
@@ -284,8 +285,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
       const img = new Image();
       img.decoding = 'async';
       img.src = frameSrc(theme, i);
-      img
-        .decode()
+      pictureIn(img)
         .then(() => {
           if (!alive) return;
           imgs.current[i] = img;

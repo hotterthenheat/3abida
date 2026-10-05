@@ -63,6 +63,7 @@ import Working from '../../components/ui/Working';
 import ProductGlyph from '../../brand/ProductGlyph';
 import CLIPS from './clips.json';
 import Boot, { type Sweep } from './Boot';
+import { pictureIn } from './pixels';
 
 /** The desk picture's shape — what scripts/make-landing-shots.mjs and make-landing-clips.mjs photograph */
 export const SHOT_W = 1440;
@@ -221,7 +222,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       setUnder(shown?.src ?? null);
       setShown({ src: want, path });
     };
-    img.decode().then(land, land);
+    pictureIn(img).then(land, land);
     return () => {
       alive = false;
     };
@@ -294,7 +295,11 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
        (Rooms.tsx — a row's, not the scroll's) never boots a page it already shows */
     if (want === lastWant.current) return;
     lastWant.current = want;
-    if (boot !== 'switch' || calm) return;
+    if (boot !== 'switch' || calm) {
+      /* a quiet change ends a boot still under way: the picture it was resolving is not the page any more */
+      setBooting(null);
+      return;
+    }
     if (firstSeen.current) setBooting(want);
   }, [want, boot, calm]);
   useEffect(() => {

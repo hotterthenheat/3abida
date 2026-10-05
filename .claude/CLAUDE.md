@@ -137,7 +137,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   were "too gamified"). A picture on the landing that is not there yet RESOLVES (pages/landing/pixels.ts: a PIECE of a
   picture drawn at a sharpness 0–1 — a fine grain of 6 px down to 1, without its colour at first, its faintest marks not
   yet in — through eight states to the picture itself; `warm` makes the states ahead in idle moments, as a state made
-  mid-scroll cost the frame). NEVER ON THE PAGE'S CONTENT: coarse game-sized blocks, the red and blue fringe, torn rows,
+  mid-scroll cost the frame). A PICTURE IS IN on its decode OR its load (pixels.ts pictureIn — Chrome's decode() refuses
+  good pictures with "EncodingError" while many decode at once: the wall stood with four rooms missing, and a window
+  faded in a picture that had not come); a change the scroll makes ends a boot still under way (TerminalWindow). NEVER ON THE PAGE'S CONTENT: coarse game-sized blocks, the red and blue fringe, torn rows,
   words stepping out of line, tilted pieces, a glitch on a hover. The fringe and the tear are the footer's alone. Used
   for: the terminal opening out of its silver line; the rooms' pile and their deal into the wall; a row's page in the
   rooms' window (Boot replay, 330 ms — the owner: "the tabs … switch faster"); the still terminal under a phone's first
