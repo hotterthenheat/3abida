@@ -145,13 +145,13 @@ export const savingData = (): boolean => {
 export const Prompt = ({ path, still = false }: { path: string; still?: boolean }) => {
   const cmd = `open ${crumbs(path).join('/')}`;
   return (
-    <span className="min-w-0 flex items-center font-code text-[11.5px] leading-none whitespace-nowrap" data-window-path={path}>
+    <span className="min-w-0 flex items-center font-code text-[0.71875rem] leading-none whitespace-nowrap" data-window-path={path}>
       <span className="text-textMuted">slayer:~ $</span>
       {/* `still`: the command already typed — a window taking over from another that typed it (Opening.tsx, Rooms.tsx) */}
       <span key={cmd} className={`${still ? '' : 'window-typing '}ml-[1ch] min-w-0 overflow-hidden text-textPrimary`} style={{ '--n': cmd.length } as CSSProperties}>
         {cmd}
       </span>
-      <span aria-hidden="true" className="window-cursor ml-[2px] shrink-0 w-[2px] h-[1.15em]" />
+      <span aria-hidden="true" className="window-cursor ml-[0.125rem] shrink-0 w-[0.125rem] h-[1.15em]" />
     </span>
   );
 };
@@ -406,14 +406,14 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
   }, [drawn, calm, boot]);
 
   return (
-    <div ref={root} data-theme={theme} data-terminal-window={here} data-window-films={reels.length ? (rolling ? 'rolling' : 'held') : 'stills'} className={`landing-window relative flex flex-col overflow-hidden rounded-[10px] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
+    <div ref={root} data-theme={theme} data-terminal-window={here} data-window-films={reels.length ? (rolling ? 'rolling' : 'held') : 'stills'} className={`landing-window relative flex flex-col overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas text-textPrimary transition-[border-color,box-shadow] duration-500 ${className}`}>
       {/* THE BAR — the prompt that opened the page on screen; on the hero, the room's line beside it */}
       <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel transition-colors duration-500">
-        <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
+        <ProductGlyph name="terminal" size={16} bare className="shrink-0 size-[1rem]" />
         {/* the page on top: a film still loading leaves the one before it on screen, and the prompt waits with it */}
         <Prompt path={drawn ?? here} />
         {note && (
-          <span key={note} className="ml-auto pl-6 hidden md:block min-w-0 truncate text-[12px] text-textMuted animate-fade-in" data-window-note>
+          <span key={note} className="ml-auto pl-6 hidden md:block min-w-0 truncate text-[0.75rem] text-textMuted animate-fade-in" data-window-note>
             {note}
           </span>
         )}
@@ -463,7 +463,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
         ))}
         {/* the first picture is still travelling: the house's "it is working" mark, and only if the wait lasts (ui/Working.tsx) */}
         {!shown && (
-          <span className="absolute inset-x-0 top-0 h-[320px] max-h-full flex items-center justify-center pointer-events-none" data-window-boot>
+          <span className="absolute inset-x-0 top-0 h-[20rem] max-h-full flex items-center justify-center pointer-events-none" data-window-boot>
             <Working label="Loading the picture" stacked />
           </span>
         )}

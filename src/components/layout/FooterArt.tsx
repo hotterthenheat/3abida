@@ -80,10 +80,10 @@ import { PHOTO } from '../../embed';
 import { ARROW, FONT, PIX, ease, inksOf, rgb, rng, type Box, type Brush, type Frame, type Pen, type Pill, type Scene, type Stage } from './footer/kit';
 import { loadScene, type SceneName } from './footer/registry';
 
-/** the focus round the pointer (CSS px), and how long a place stays lit after the pointer has gone (ms) */
+/** the focus round the pointer (the picture's px), and how long a place stays lit after the pointer has gone (ms) */
 const REACH = 118;
 const LINGER = 950;
-/** the depth the footer's screen fades up over, out of the page (CSS px) */
+/** the depth the footer's screen fades up over, out of the page (the picture's px) */
 const FADE = 110;
 /** the arrow's own pace: a glide from one thing to the next, then a rest on it (ms) */
 const GLIDE = 1500;
@@ -93,6 +93,17 @@ const TOUCH = 3600;
 
 /* THE FRINGE'S THREE PASSES over the moving parts: red a pixel left, blue a pixel right, then the marks in their own inks */
 const FRINGE = 0.66;
+
+/* THE PAGE'S SCALE (2026-10-06): the landing grows with a big screen as one piece (index.css html[data-landing-scale] —
+   the root's font size over 16; 1 under every other page), and the picture grows with it: it is laid and drawn in the
+   design's px, its canvases laid over the footer's real size. The coarse pixel stays whole on the screen (PIX times the
+   scale times the device's ratio a whole number), so the grain never comes out uneven. */
+const scaleOf = (): number => {
+  const s = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16;
+  if (s <= 1) return 1;
+  const step = PIX * (window.devicePixelRatio || 1);
+  return Math.max(1, Math.round(s * step) / step);
+};
 
 const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElement, cvsC: HTMLCanvasElement, sc: Scene, live: boolean) => {
   /* THREE LAYERS, so a frame touches only what moves (2026-10-03: one canvas over the whole footer cost a long task a
@@ -107,7 +118,9 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
   /* the arrow of its own: only where the screen moves by itself — and never in the landing's films (the photographer's
      window, embed.ts PHOTO): a film has one pointer, the hand using the page */
   const arrow = live && !calm && !PHOTO;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  /** the page's scale (scaleOf), and a canvas's pixels to one of the picture's px */
+  let k = 1;
+  let dpr = Math.min(2, window.devicePixelRatio || 1);
 
   /* and off the page: the still parts broken (coarse) and sharp, and the two the focus is made in */
   const brokenStill = document.createElement('canvas');
@@ -120,8 +133,11 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
   const mctx = mask.getContext('2d');
   if (!brkCtx || !sctx || !fctx || !mctx) return () => {};
 
+  /** the footer in the picture's px (its CSS px over the scale), and in CSS px */
   let W = 0;
   let H = 0;
+  let cssW = 0;
+  let cssH = 0;
   let LW = 0;
   let LH = 0;
   /* NO SIZE, NO DRAWING (2026-10-03: a footer under a hidden ancestor, or laid out to nothing for a moment, sized its sharp
@@ -142,7 +158,7 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
   /* what was drawn out of place last frame — a focus, a tear, the arrow, a word over the focus — to be put back */
   let wasA: Box[] = [];
   let wasC: Box[] = [];
-  /* a box in CSS px, as whole coarse pixels (a pixel's margin round it) */
+  /* a box in the picture's px, as whole coarse pixels (a pixel's margin round it) */
   const toLo = (r: Box) => {
     const x = Math.max(0, Math.floor(r.x0 / PIX) - 1);
     const y = Math.max(0, Math.floor(r.y0 / PIX) - 1);
@@ -170,11 +186,11 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
   const rel = (el: Element): Box => {
     const r = el.getBoundingClientRect();
     const h = host.getBoundingClientRect();
-    return { x0: r.left - h.left, x1: r.right - h.left, y0: r.top - h.top, y1: r.bottom - h.top };
+    return { x0: (r.left - h.left) / k, x1: (r.right - h.left) / k, y0: (r.top - h.top) / k, y1: (r.bottom - h.top) / k };
   };
 
-  /* THE SCREEN'S LAYOUT, in CSS px, measured off the footer: the picture in the box it marks for it, the frames of its
-     panels, and its words */
+  /* THE SCREEN'S LAYOUT, in the picture's px, measured off the footer: the picture in the box it marks for it, the frames
+     of its panels, and its words */
   const layout = () => {
     const marked = host.querySelector('[data-footer-scene]');
     const inset = W >= 1240 ? (W - 1240) / 2 + 40 : W >= 1024 ? 40 : W >= 640 ? 24 : 16;
@@ -303,23 +319,27 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
     const h = host.clientHeight;
     blank = w < 2 || h < 2;
     if (blank) return;
-    W = w;
-    H = h;
+    k = scaleOf();
+    dpr = Math.min(2, window.devicePixelRatio || 1) * k;
+    cssW = w;
+    cssH = h;
+    W = w / k;
+    H = h / k;
     LW = Math.max(1, Math.ceil(W / PIX));
     LH = Math.max(1, Math.ceil(H / PIX));
     for (const c of [cvsC, focus]) {
       c.width = Math.max(1, Math.round(W * dpr));
       c.height = Math.max(1, Math.round(H * dpr));
     }
-    cvsC.style.width = `${W}px`;
-    cvsC.style.height = `${H}px`;
+    cvsC.style.width = `${W * k}px`;
+    cvsC.style.height = `${H * k}px`;
     for (const c of [cvsA, cvsB, mask]) {
       c.width = LW;
       c.height = LH;
     }
     for (const c of [cvsA, cvsB]) {
-      c.style.width = `${LW * PIX}px`;
-      c.style.height = `${LH * PIX}px`;
+      c.style.width = `${LW * PIX * k}px`;
+      c.style.height = `${LH * PIX * k}px`;
     }
     layout();
     build();
@@ -578,7 +598,7 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
       }
       if (slip !== w.slip) {
         w.slip = slip;
-        if (slip) w.el.style.setProperty('--slip', `${slip}px`);
+        if (slip) w.el.style.setProperty('--slip', `${slip * k}px`);
         else w.el.style.removeProperty('--slip');
       }
     }
@@ -629,8 +649,8 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
 
   const move = (e: PointerEvent) => {
     const r = host.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    const y = e.clientY - r.top;
+    const x = (e.clientX - r.left) / k;
+    const y = (e.clientY - r.top) / k;
     const now = performance.now();
     /* a pointer that moves fast tears the rows it crosses */
     if (hand.on && !calm) {
@@ -701,7 +721,7 @@ const run = (host: HTMLDivElement, cvsA: HTMLCanvasElement, cvsB: HTMLCanvasElem
   });
   io.observe(host);
   const ro = new ResizeObserver(() => {
-    if (!blank && host.clientWidth === W && host.clientHeight === H) return;
+    if (!blank && host.clientWidth === cssW && host.clientHeight === cssH && scaleOf() === k) return;
     size();
     redraw();
   });

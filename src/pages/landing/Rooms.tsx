@@ -33,10 +33,10 @@ import { ArrowRight } from 'lucide-react';
 import TerminalWindow, { shotFor } from './TerminalWindow';
 import type { Sweep } from './Boot';
 import { useBlockGround, useGround, type Ground } from './ground';
-import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
 import { inksAt, pictureIn, pieceOf, type Piece } from './pixels';
+import { unit, useStacked } from './scale';
 
 export interface RoomRow {
   title: string;
@@ -93,17 +93,17 @@ interface WordsProps {
 
 const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsProps) => (
   <div className="room-in" data-room-words={room.id}>
-    <p className="flex items-center gap-3 text-[11.5px] font-medium uppercase tracking-[0.22em] text-textMuted">
+    <p className="flex items-center gap-3 text-[0.71875rem] font-medium uppercase tracking-[0.22em] text-textMuted">
       <span className="holo-text tnum">{room.code}</span>
       <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
       {room.kind}
     </p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
-    <h3 className="mt-4 flex items-center gap-3.5 text-[36px] sm:text-[40px] xl:text-[44px] font-light leading-[1] tracking-[-0.04em] outline-none" data-room-head={room.id}>
-      <ProductGlyph name={room.glyph} size={26} bare className="shrink-0" />
+    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] xl:text-[2.75rem] font-light leading-[1] tracking-[-0.04em] outline-none" data-room-head={room.id}>
+      <ProductGlyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
       <span className="min-w-0">{room.name}</span>
     </h3>
-    <p className="mt-4 max-w-[40ch] text-[15px] xl:text-[15.5px] leading-[1.5]">
+    <p className="mt-4 max-w-[40ch] text-[0.9375rem] xl:text-[0.96875rem] leading-[1.5]">
       <span className="font-medium text-textPrimary">{room.lead}</span> <span className="text-textSecondary">{room.rest}</span>
     </p>
     <ul className="mt-5 border-t border-borderSubtle">
@@ -111,8 +111,8 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
         const here = !!r.path && r.path === shown;
         const body = (
           <>
-            <span className={`block text-[14.5px] font-medium ${here ? 'text-textPrimary' : 'text-textSecondary group-hover:text-textPrimary'} transition-colors`}>{r.title}</span>
-            <span className="mt-0.5 block text-[13px] leading-snug text-textMuted">{r.says}</span>
+            <span className={`block text-[0.90625rem] font-medium ${here ? 'text-textPrimary' : 'text-textSecondary group-hover:text-textPrimary'} transition-colors`}>{r.title}</span>
+            <span className="mt-0.5 block text-[0.8125rem] leading-snug text-textMuted">{r.says}</span>
           </>
         );
         return (
@@ -126,11 +126,11 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
                 className="group relative w-full text-left py-3 pl-4 pr-8 transition-colors hover:bg-ink/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
               >
                 {/* silver is where you are */}
-                <span aria-hidden="true" className={`absolute left-0 top-3 bottom-3 w-[2px] rounded-full ${here ? 'foil-fill' : ''}`} />
+                <span aria-hidden="true" className={`absolute left-0 top-3 bottom-3 w-[0.125rem] rounded-full ${here ? 'foil-fill' : ''}`} />
                 {body}
                 <ArrowRight aria-hidden="true" className={`absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition ${here ? 'text-textPrimary' : 'text-textMuted opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0'}`} />
                 {/* the page playing: the line fills, and the room moves on when it is full */}
-                {here && playing && <span key={shown} ref={bar} aria-hidden="true" className="foil-fill absolute inset-x-0 -bottom-px h-[2px] origin-left" style={{ transform: 'scaleX(0)' }} data-room-progress />}
+                {here && playing && <span key={shown} ref={bar} aria-hidden="true" className="foil-fill absolute inset-x-0 -bottom-px h-[0.125rem] origin-left" style={{ transform: 'scaleX(0)' }} data-room-progress />}
               </button>
             ) : (
               <div className="py-3 pl-4 pr-8">{body}</div>
@@ -145,7 +145,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
         e.preventDefault();
         onOpen(door);
       }}
-      className="door-edge group/door mt-6 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+      className="door-edge group/door mt-6 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
       data-room-door={room.id}
     >
       Open {doorName(room.name)}
@@ -232,8 +232,8 @@ const useHands = () => {
 const SEG = { deal: 34, wall: 14, toTour: 26, room: 20, turn: 34, back: 22 };
 /** the turn comes after this room (Pinpoint) */
 const TURN_AFTER = 3;
-/** where the stage's words start, under the floating bar */
-const TOP = 96;
+/** where the stage's words start, under the floating bar (the design's 96 px, growing with the landing — scale.ts) */
+const TOP = '6rem';
 /** how sharp a room's picture is in the pile: a fine grain, without its colour */
 const APART = 0.42;
 
@@ -380,6 +380,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     let vw = 0;
     let vh = 0;
     let dpr = 1;
+    /** one of the design's pixels (scale.ts) */
+    let u = 1;
     let slotR: Rect[] = [];
     let pile: Rect = { x: 0, y: 0, w: 0, h: 0 };
     let win: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -422,6 +424,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       vw = st.clientWidth;
       vh = st.clientHeight;
       dpr = Math.min(2, window.devicePixelRatio || 1);
+      u = unit();
       c.width = Math.max(1, Math.round(vw * dpr));
       c.height = Math.max(1, Math.round(vh * dpr));
       const sb = st.getBoundingClientRect();
@@ -438,7 +441,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       const gy1 = Math.max(...slotR.map(s => s.y + s.h));
       const w = Math.min((slotR[0]?.w ?? 0) * 2.1, (gx1 - gx0) * 0.55);
       const h = w / (1440 / 1000);
-      pile = { x: (gx0 + gx1) / 2 - w / 2, y: (gy0 + gy1) / 2 - h / 2 + 12, w, h };
+      pile = { x: (gx0 + gx1) / 2 - w / 2, y: (gy0 + gy1) / 2 - h / 2 + 12 * u, w, h };
       const tw = winCell.current?.querySelector<HTMLElement>('[data-terminal-window]')?.getBoundingClientRect();
       win = tw ? { x: tw.left - sb.left, y: tw.top - sb.top, w: tw.width, h: tw.height } : pile;
       const border = getComputedStyle(st).getPropertyValue('--border-muted').trim();
@@ -446,7 +449,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       cools.forEach(cool => cool());
       cools = [];
       small = rooms.map(() => null);
-      pieces = imgs.map(img => ready(img && img.naturalWidth ? pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, pile.w, pile.h, inksAt(st)) : null));
+      /* (read in the design's px: the grain the same on every screen) */
+      pieces = imgs.map(img => ready(img && img.naturalWidth ? pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, pile.w / u, pile.h / u, inksAt(st)) : null));
       last = -1;
     };
 
@@ -456,7 +460,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.beginPath();
-      const radius = clamp(at.w / 40, 4, 10) * dpr;
+      const radius = clamp(at.w / 40, 4 * u, 10 * u) * dpr;
       if (typeof ctx.roundRect === 'function') ctx.roundRect(at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr, radius);
       else ctx.rect(at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
       ctx.save();
@@ -596,7 +600,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       if (top >= 0) {
         for (let i = Math.min(rooms.length - 1, top + 2); i > top; i--) {
           const depth = i - top;
-          tile(null, { x: pile.x + depth * 9, y: pile.y + depth * 9, w: pile.w, h: pile.h }, 0, 1 - depth * 0.3);
+          tile(null, { x: pile.x + depth * 9 * u, y: pile.y + depth * 9 * u, w: pile.w, h: pile.h }, 0, 1 - depth * 0.3);
         }
         tile(pieces[top], pile, APART);
       }
@@ -607,7 +611,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       });
       /* the first room: on the wall, then growing into the window (its picture under the frame's bar) */
       if (dealt[0] >= 1) {
-        const pic: Rect = g > 0 ? { x: box.x + 1, y: box.y + 1 + 40 * e, w: box.w - 2, h: box.h - 2 - 40 * e } : slotR[0];
+        const pic: Rect = g > 0 ? { x: box.x + 1, y: box.y + 1 + 40 * u * e, w: box.w - 2, h: box.h - 2 - 40 * u * e } : slotR[0];
         tile(pieces[0], pic, 1, 1, false, g > 0 ? null : smallOf(0));
       }
     };
@@ -628,7 +632,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           () => {
             if (!alive) return;
             imgs[i] = img;
-            pieces[i] = ready(pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, pile.w, pile.h, inksAt(st)));
+            pieces[i] = ready(pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, pile.w / u, pile.h / u, inksAt(st)));
             last = -1;
             ask();
           },
@@ -712,7 +716,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
                       type="button"
                       onClick={() => go(i)}
                       style={{ pointerEvents: 'none' }}
-                      className="group block w-full text-left rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
+                      className="group block w-full text-left rounded-[0.5rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
                       data-rooms-slot={x.id}
                     >
                       <span
@@ -720,18 +724,18 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
                           pics.current[i] = el;
                         }}
                         aria-hidden="true"
-                        className="block w-full aspect-[1440/1000] rounded-[7px] border border-borderMuted transition-colors group-hover:border-textPrimary/50"
+                        className="block w-full aspect-[1440/1000] rounded-[0.4375rem] border border-borderMuted transition-colors group-hover:border-textPrimary/50"
                         style={{ opacity: 0 }}
                       />
                       <span
                         ref={el => {
                           labels.current[i] = el;
                         }}
-                        className="mt-3 flex items-center gap-2.5 text-[14px] text-textSecondary group-hover:text-textPrimary transition-colors"
+                        className="mt-3 flex items-center gap-2.5 text-[0.875rem] text-textSecondary group-hover:text-textPrimary transition-colors"
                         style={{ opacity: 0 }}
                       >
-                        <span className="holo-text text-[11px] font-medium tracking-[0.12em] tnum">{x.code}</span>
-                        <ProductGlyph name={x.glyph} size={16} bare className="shrink-0" />
+                        <span className="holo-text text-[0.6875rem] font-medium tracking-[0.12em] tnum">{x.code}</span>
+                        <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
                         {x.name}
                       </span>
                     </button>
@@ -743,10 +747,10 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
         </div>
 
         {/* THE FRAME, as the first room's picture grows into the window: its edge, and the bar coming in */}
-        <div ref={frame} aria-hidden="true" className="absolute left-0 top-0 overflow-hidden rounded-[10px] border border-borderMuted pointer-events-none will-change-transform" style={{ opacity: 0 }}>
+        <div ref={frame} aria-hidden="true" className="absolute left-0 top-0 overflow-hidden rounded-[0.625rem] border border-borderMuted pointer-events-none will-change-transform" style={{ opacity: 0 }}>
           <div ref={frameBar} className="h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel" style={{ opacity: 0 }}>
-            <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
-            <span className="font-code text-[11.5px] text-textMuted whitespace-nowrap">
+            <ProductGlyph name="terminal" size={16} bare className="shrink-0 size-[1rem]" />
+            <span className="font-code text-[0.71875rem] text-textMuted whitespace-nowrap">
               slayer:~ $<span className="ml-[1ch] text-textPrimary">open pulse</span>
             </span>
           </div>
@@ -769,8 +773,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
                     className={`relative w-8 h-8 inline-flex items-center justify-center rounded-md transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-silver ${i === room ? '' : 'opacity-40'}`}
                     data-rooms-rail={x.id}
                   >
-                    <ProductGlyph name={x.glyph} size={16} bare />
-                    {i === room && <span aria-hidden="true" className="foil-fill absolute left-2 right-2 -bottom-0.5 h-[2px] rounded-full" />}
+                    <ProductGlyph name={x.glyph} size={16} bare className="size-[1rem]" />
+                    {i === room && <span aria-hidden="true" className="foil-fill absolute left-2 right-2 -bottom-0.5 h-[0.125rem] rounded-full" />}
                   </button>
                 ))}
               </nav>
@@ -791,7 +795,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
               </div>
             </div>
             <div ref={winCell} className="min-w-0" style={{ paddingTop: TOP, visibility: live ? undefined : 'hidden' }} data-rooms-window>
-              <div style={{ width: 'min(100%, calc((min(100svh - 132px, 860px) - 42px) * 1.44 + 2px))' }}>
+              <div style={{ width: 'min(100%, calc((min(100svh - 8.25rem, 53.75rem) - 2.5rem - 2px) * 1.44 + 2px))' }}>
                 <TerminalWindow path={shown} theme={ground} desk natural lazy boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
               </div>
             </div>
@@ -803,10 +807,10 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
             <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 flex items-center">
               <div className="relative w-full">
-                <p ref={turnA} data-theme={a} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[52px] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="a">
+                <p ref={turnA} data-theme={a} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[3.25rem] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="a">
                   {turnSays[a]}
                 </p>
-                <p ref={turnB} data-theme={b} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[52px] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="b">
+                <p ref={turnB} data-theme={b} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[3.25rem] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="b">
                   {turnSays[b]}
                 </p>
               </div>
@@ -822,7 +826,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
 
 const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'anchor'>) => {
   const ground = useBlockGround();
-  const small = useIsBelowLg();
+  /* a phone, a tablet, or a screen taller than it is wide (scale.ts): the window over the room's words */
+  const small = useStacked();
   const calm = !!useReducedMotion();
   const [at, setAt] = useState(0);
   const [page, setPage] = useState(0);
@@ -895,22 +900,22 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'ancho
               aria-controls="room-panel"
               tabIndex={on ? 0 : -1}
               onClick={() => choose(i)}
-              className={`relative min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-full border px-2 py-2.5 sm:py-2 text-[12px] sm:text-[13px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${
+              className={`relative min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-full border px-2 py-2.5 sm:py-2 text-[0.75rem] sm:text-[0.8125rem] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${
                 on ? 'border-textPrimary/60 text-textPrimary' : 'border-borderSubtle text-textMuted hover:text-textSecondary'
               }`}
               data-room-tab={x.id}
             >
-              <ProductGlyph name={x.glyph} size={16} bare className="shrink-0" />
+              <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
               <span className="truncate max-w-full">{x.name.replace(/^The /, '')}</span>
             </button>
           );
         })}
       </div>
-      <div role="tabpanel" id="room-panel" aria-labelledby={`room-tab-${r.id}`} className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:gap-x-10 xl:gap-x-12">
+      <div role="tabpanel" id="room-panel" aria-labelledby={`room-tab-${r.id}`} className={`mt-6 ${small ? '' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12'}`}>
         <div className="min-w-0">
           <TerminalWindow path={shown} theme={ground} desk={!small} natural lazy boot="switch" bootSweep={r.sweep} />
         </div>
-        <div className="mt-7 lg:mt-0 min-w-0" key={r.id}>
+        <div className={`${small ? 'mt-7' : ''} min-w-0`} key={r.id}>
           <RoomWords
             room={r}
             shown={shown}
@@ -932,7 +937,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'ancho
 /* ---- the rooms ----------------------------------------------------------------------------------- */
 
 const Rooms = (props: StageProps) => {
-  const small = useIsBelowLg();
+  const small = useStacked();
   const calm = useReducedMotion();
   return small || calm ? <RoomsTabs rooms={props.rooms} head={props.head} onOpen={props.onOpen} /> : <RoomsStage {...props} />;
 };

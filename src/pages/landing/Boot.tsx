@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { inksAt, pictureIn, pieceOf, STATE_COUNT } from './pixels';
 import { rgb } from '../../components/layout/footer/kit';
+import { unit } from './scale';
 
 /** when, as a share of the run, each sharper state comes in; past the last, the picture itself */
 const AT = [0, 0.1, 0.2, 0.3, 0.42, 0.54, 0.66, 0.78];
@@ -97,7 +98,9 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
       c.width = Math.round(W * dpr);
       c.height = Math.round(H * dpr);
       const inks = inksAt(c);
-      const piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, W, H, inks);
+      /* read in the design's px (scale.ts): the grain the same on every screen */
+      const u = unit();
+      const piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, W / u, H / u, inks);
       if (!piece) return setGone(true);
       const ground = rgb(inks.ground);
       /* the picture where the sweep has passed, its edge feathered (a layer cut by a gradient, or by a column mask) */

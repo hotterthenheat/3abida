@@ -131,8 +131,26 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   [data-landing] --landing-col: the picture's 1440 × 1000 and its 42 px bar, 140 px of the screen kept; never more than
   1160 px of words nor less than 820). The Wrap, the open bar (32 px narrower) and the footer's words all read it; the
   session's window and the rooms' window run on past the column to 24 px short of the screen's right edge. The quote
-  min(8.4vw, 14.5svh) up to 136 px, the answer over the terminal 40–68 px, heads 50, prices 44. A SHORT SCREEN (720 to
-  820 px tall, lg up): the first screen's doors and the terminal under the still one close up (index.css).
+  min(8.4vw, 14.5svh) up to 136 px, the answer over the terminal 40–68 px, heads 50, prices 44 (all of these in the
+  design's px — rem since 2026-10-06, below). A SHORT SCREEN (720 to 820 px tall, lg up): the first screen's doors and the
+  terminal under the still one close up (index.css).
+- EVERY SCREEN, ONE PIECE (2026-10-06 — the owner, of the landing on an ultrawide: "it looked so bad i need you to ensure
+  all monitor screen sizes auto adjust to this"). The landing is drawn for 1920 × 950 and a bigger screen gets the same
+  page, bigger: the root's font size is 16 px × the screen's width over 1920 or its height over 950, whichever is less,
+  never under the reader's own size (index.css html[data-landing-scale] — the attribute set by index.html before the
+  first paint of "/" and kept by pages/landing/scale.ts useLandingScale; NEVER html:has([data-landing]): every change to
+  the page asked the root's style again and the rooms' tour dropped twice the frames). So EVERY SIZE ON THE LANDING IS IN
+  REM (a px in a class is a bug there; hairlines of 1–1.5 px stay px), and its scripts read the same scale (scale.ts
+  `unit()` — the opening's and the rooms' layout constants, the wordmark and the mark through `useUnit()`; a picture's
+  grain is read at the design's size, so it is the same on every screen). 3440 × 1440 is the page at 1.38, 2560 × 1440 at
+  1.33, 4K at 2; a laptop, a tablet and a phone are drawn exactly as before (measured: every marked element in place at
+  1280 × 600 to 1920 × 950, 1180 × 820 and 390 × 844), and a wide screen that is not tall (2560 × 1080) keeps the page's
+  own size, centred. THE FOOTER SCALES WITH IT: its sizes are rem (the same px on every other page — measured), and
+  FooterArt draws its picture in the design's px at the root's scale, the coarse pixel kept a whole number of screen
+  pixels. A SCREEN TALLER THAN IT IS WIDE (a monitor on end, an iPad Pro upright) gets the tablet's page, one thing under
+  another (scale.ts useStacked: below lg or portrait) — the stages the scroll plays are for a landscape screen. Known
+  limit: the session's in-between frames are 1152 × 800, a little soft on a 4K screen while they play (the held beats
+  are 2160 wide).
 - THE GLITCH MADE QUIET (2026-10-03 — the owner: "i love the little glitch affect"; the owner's partner: the glitches
   were "too gamified"). A picture on the landing that is not there yet RESOLVES (pages/landing/pixels.ts: a PIECE of a
   picture drawn at a sharpness 0–1 — a fine grain of 6 px down to 1, without its colour at first, its faintest marks not

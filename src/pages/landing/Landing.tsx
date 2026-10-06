@@ -45,7 +45,6 @@ import { PLANS, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
-import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import TerminalWindow, { savingData, warmOtherGround } from './TerminalWindow';
 import { warmShell } from '../../components/layout/shell';
@@ -56,6 +55,7 @@ import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
+import { unit, useLandingScale, useStacked, useUnit } from './scale';
 
 /** Where "Launch terminal" opens the terminal: the desk an account lands on */
 const DOOR = '/pulse';
@@ -349,15 +349,15 @@ const Wrap = ({ children, className = '', ...rest }: { children: ReactNode; clas
     (v5: the silver, used a little more) */
 const Eyebrow = ({ children }: { children: ReactNode }) => (
   <div className="flex flex-col items-start gap-2.5">
-    <p className="text-[13px] text-textMuted">{children}</p>
-    <span className="foil-fill w-10 h-[3px] rounded-full" aria-hidden="true" />
+    <p className="text-[0.8125rem] text-textMuted">{children}</p>
+    <span className="foil-fill w-10 h-[0.1875rem] rounded-full" aria-hidden="true" />
   </div>
 );
 
 /** EVERY HEAD IS TWO LINES IN TWO TONES: what it is in ink, the turn of the thought in grey */
 const TwoTone = ({ first, second, className = '' }: { first: string; second: string; className?: string }) => (
   /* outline-none: a jump along the page lands the keys here (toAnchor) — a heading to land on, not a control */
-  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[32px] sm:text-[42px] lg:text-[50px] [text-wrap:balance] outline-none ${className}`}>
+  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[2rem] sm:text-[2.625rem] lg:text-[3.125rem] [text-wrap:balance] outline-none ${className}`}>
     {first} <span className="block text-textMuted">{second}</span>
   </h2>
 );
@@ -400,7 +400,7 @@ const Head = ({ eyebrow, first, second, aside, id }: { eyebrow: string; first: s
           <TwoTone className="mt-6" first={first} second={second} />
         </div>
       </div>
-      {aside && <p className="landing-line [--i:2] lg:col-span-5 max-w-[30rem] text-[16px] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
+      {aside && <p className="landing-line [--i:2] lg:col-span-5 max-w-[30rem] text-[1rem] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
     </div>
   );
 };
@@ -517,7 +517,7 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
         onClick();
       }}
       data-landing-door={testId}
-      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[15px]' : 'h-9 px-4 text-[13px]'} ${fill}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[0.9375rem]' : 'h-9 px-4 text-[0.8125rem]'} ${fill}`}
     >
       {children}
     </a>
@@ -568,6 +568,8 @@ const toAnchor = (href: string) => {
     2026-10-03: "No glassmorphism"). */
 const Nav = ({ ground }: { ground: Ground }) => {
   const { choose } = useGround();
+  /* the wordmark and the mark are drawn to a size in px: the landing's scale (scale.ts) */
+  const u = useUnit();
   const { launch } = useLaunch();
   const navigate = useNavigate();
   const { scrollY } = useScroll();
@@ -626,17 +628,17 @@ const Nav = ({ ground }: { ground: Ground }) => {
   return (
     <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
       <div
-        className={`pointer-events-auto relative w-full h-[52px] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
-          lifted ? 'max-w-[760px] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_16px_50px_-20px_rgb(0_0_0/0.55)]' : 'max-w-[calc(var(--landing-col)_-_32px)] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
+        className={`pointer-events-auto relative w-full h-[3.25rem] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
+          lifted ? 'max-w-[47.5rem] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_1rem_3.125rem_-1.25rem_rgb(0_0_0/0.55)]' : 'max-w-[calc(var(--landing-col)_-_2rem)] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
         <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
           {/* the wordmark on the open bar, the mark on the lifted pill and on a phone */}
           <span className={lifted ? 'hidden' : 'hidden sm:inline-flex'}>
-            <Wordmark height={15} cursor label="" />
+            <Wordmark height={15 * u} cursor label="" />
           </span>
           <span className={lifted ? 'inline-flex' : 'sm:hidden inline-flex'}>
-            <SlayerMark size={26} bare near label="" />
+            <SlayerMark size={26 * u} bare near label="" />
           </span>
         </button>
         <nav className="hidden md:flex items-center gap-0.5 mx-auto" aria-label="On this page">
@@ -648,7 +650,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
                 e.preventDefault();
                 toAnchor(l.href);
               }}
-              className="h-8 px-3.5 inline-flex items-center rounded-full text-[13.5px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver whitespace-nowrap"
+              className="h-8 px-3.5 inline-flex items-center rounded-full text-[0.84375rem] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver whitespace-nowrap"
             >
               {l.label}
             </a>
@@ -685,7 +687,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
             e.preventDefault();
             launch(DOOR);
           }}
-          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[13.5px] font-medium whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${launchFill}`}
+          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[0.84375rem] font-medium whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${launchFill}`}
           data-landing-door="nav"
         >
           <span className="sm:hidden">Launch</span>
@@ -701,7 +703,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden pointer-events-auto absolute top-[70px] inset-x-3 max-h-[calc(100svh-90px)] overflow-y-auto overscroll-contain rounded-3xl border border-borderSubtle bg-panel shadow-[0_24px_60px_-24px_rgb(0_0_0/0.6)] px-5 pt-1"
+            className="md:hidden pointer-events-auto absolute top-[4.375rem] inset-x-3 max-h-[calc(100svh-5.625rem)] overflow-y-auto overscroll-contain rounded-3xl border border-borderSubtle bg-panel shadow-[0_1.5rem_3.75rem_-1.5rem_rgb(0_0_0/0.6)] px-5 pt-1"
             data-landing-menu
           >
             {NAV.map(l => (
@@ -713,7 +715,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
                   setMenu(false);
                   toAnchor(l.href);
                 }}
-                className="flex items-center justify-between h-[52px] border-b border-borderSubtle text-[17px] text-textPrimary"
+                className="flex items-center justify-between h-[3.25rem] border-b border-borderSubtle text-[1.0625rem] text-textPrimary"
               >
                 {l.label}
                 <ArrowRight className="w-4 h-4 text-textMuted" aria-hidden="true" />
@@ -727,7 +729,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
                   setMenu(false);
                   navigate('/signup');
                 }}
-                className="h-12 flex items-center justify-center rounded-full text-[15px] font-medium bg-textPrimary text-panel"
+                className="h-12 flex items-center justify-center rounded-full text-[0.9375rem] font-medium bg-textPrimary text-panel"
                 data-landing-door="menu"
               >
                 Sign up free
@@ -743,7 +745,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
 /** THE CUE: the page goes on (a foil dot down a hairline, three times, then still) */
 const Cue = ({ className = '' }: { className?: string }) => (
   <div aria-hidden="true" className={`landing-rise [--rise-delay:900ms] flex flex-col items-center gap-3 ${className}`}>
-    <span className="text-[11px] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
+    <span className="text-[0.6875rem] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
     <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
       <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
     </span>
@@ -753,7 +755,7 @@ const Cue = ({ className = '' }: { className?: string }) => (
 /* THE FIRST SCREEN, STILL (a phone, less motion): the quote, what lies scattered, the doors — the same words the opening
    plays on a desk (Opening.tsx) */
 const FirstScreen = ({ doors }: { doors: ReactNode }) => (
-  <Wrap className="relative min-h-[100svh] flex flex-col items-center justify-center text-center pt-[104px] pb-[96px]" data-landing-hero>
+  <Wrap className="relative min-h-[100svh] flex flex-col items-center justify-center text-center pt-[6.5rem] pb-[6rem]" data-landing-hero>
     <Kicker />
     <Quote className="mt-6 text-[clamp(2.4rem,9.6vw,4rem)] lg:text-[clamp(4rem,min(8.4vw,14.5svh),8.5rem)]" />
     <Tease className="mt-8 max-w-[54rem]" />
@@ -768,7 +770,7 @@ const FirstScreen = ({ doors }: { doors: ReactNode }) => (
    on, in use */
 const Reveal = () => {
   const ground = useBlockGround();
-  const small = useIsBelowLg();
+  const small = useStacked();
   const head = useArrival<HTMLDivElement>();
   return (
     <Wrap className="pb-[10vh]" data-landing-reveal>
@@ -779,7 +781,7 @@ const Reveal = () => {
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
         <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot="switch" />
-        <figcaption className="mt-4 text-[13px] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
+        <figcaption className="mt-4 text-[0.8125rem] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
   );
@@ -789,10 +791,10 @@ const Reveal = () => {
 const Lead = () => (
   <div>
     <Eyebrow>How it works</Eyebrow>
-    <h2 className="mt-6 font-light tracking-[-0.035em] leading-[1.04] text-[30px] xl:text-[34px] [text-wrap:balance] outline-none">
+    <h2 className="mt-6 font-light tracking-[-0.035em] leading-[1.04] text-[1.875rem] xl:text-[2.125rem] [text-wrap:balance] outline-none">
       Slayer reads it all together, <span className="block text-textMuted">on one screen, while the session moves.</span>
     </h2>
-    <p className="mt-5 max-w-[34ch] text-[15px] leading-[1.55] text-textSecondary">
+    <p className="mt-5 max-w-[34ch] text-[0.9375rem] leading-[1.55] text-textSecondary">
       Three moments from one session on SPY, each read off the terminal as it ran. Scroll, and the session plays between them.
     </p>
   </div>
@@ -849,22 +851,22 @@ const Trust = () => (
     />
     <div className="mt-10 lg:mt-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10" data-landing-does>
       <div>
-        <h3 className="text-[12px] font-medium uppercase tracking-[0.22em] text-textPrimary">It does</h3>
+        <h3 className="text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textPrimary">It does</h3>
         <ul className="mt-4 border-t border-borderSubtle">
           {IT_DOES.map(t => (
-            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[15px] leading-snug text-textPrimary">
-              <Check className="w-4 h-4 mt-[3px] shrink-0 text-textPrimary" aria-hidden="true" />
+            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textPrimary">
+              <Check className="w-4 h-4 mt-[0.1875rem] shrink-0 text-textPrimary" aria-hidden="true" />
               {t}
             </li>
           ))}
         </ul>
       </div>
       <div>
-        <h3 className="text-[12px] font-medium uppercase tracking-[0.22em] text-textMuted">It never</h3>
+        <h3 className="text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textMuted">It never</h3>
         <ul className="mt-4 border-t border-borderSubtle">
           {IT_NEVER.map(t => (
-            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[15px] leading-snug text-textSecondary">
-              <Minus className="w-4 h-4 mt-[3px] shrink-0 text-textMuted" aria-hidden="true" />
+            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textSecondary">
+              <Minus className="w-4 h-4 mt-[0.1875rem] shrink-0 text-textMuted" aria-hidden="true" />
               {t}
             </li>
           ))}
@@ -872,15 +874,15 @@ const Trust = () => (
       </div>
     </div>
     <div className="mt-14 lg:mt-16" data-landing-kinds>
-      <h3 className="text-[12px] font-medium uppercase tracking-[0.22em] text-textMuted">What every number stands on</h3>
+      <h3 className="text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textMuted">What every number stands on</h3>
       <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
         {KINDS.map(k => (
           <div key={k.name} className="py-6 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
-            <p className="text-[21px] font-light tracking-[-0.02em]">{k.name}</p>
-            <p className="mt-1 text-[14px] text-textSecondary">{k.says}</p>
+            <p className="text-[1.3125rem] font-light tracking-[-0.02em]">{k.name}</p>
+            <p className="mt-1 text-[0.875rem] text-textSecondary">{k.says}</p>
             <ul className="mt-4">
               {k.items.map(t => (
-                <li key={t} className="py-2 border-t border-borderSubtle text-[13.5px] leading-snug text-textPrimary">
+                <li key={t} className="py-2 border-t border-borderSubtle text-[0.84375rem] leading-snug text-textPrimary">
                   {t}
                 </li>
               ))}
@@ -890,7 +892,7 @@ const Trust = () => (
       </div>
       <a
         href="/legal/data"
-        className="group/door mt-6 inline-flex items-center gap-2 text-[13.5px] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
+        className="group/door mt-6 inline-flex items-center gap-2 text-[0.84375rem] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
         data-landing-door="data"
       >
         The Data page, in full
@@ -903,11 +905,11 @@ const Trust = () => (
 /** ONE TERMINAL, IN PLACE OF… what a trader would otherwise keep open beside it */
 const InPlaceOf = () => (
   <div className="mt-12 lg:mt-14 flex flex-col lg:flex-row lg:items-start gap-x-8 gap-y-4" data-landing-in-place-of>
-    <p className="shrink-0 text-[12px] font-medium uppercase tracking-[0.22em] text-textMuted lg:pt-[11px]">One terminal, in place of</p>
+    <p className="shrink-0 text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textMuted lg:pt-[0.6875rem]">One terminal, in place of</p>
     <ul className="flex flex-wrap gap-2">
       {IN_PLACE_OF.map(t => (
-        <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[13.5px] text-textSecondary">
-          <ProductGlyph name={t.glyph} size={14} bare />
+        <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[0.84375rem] text-textSecondary">
+          <ProductGlyph name={t.glyph} size={14} bare className="size-[0.875rem]" />
           {t.text}
           {/* the room that does it, in words as well as on its glyph */}
           <span className="-ml-1 text-textMuted">· {t.room}</span>
@@ -921,26 +923,27 @@ const InPlaceOf = () => (
 const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey) => void }) => {
   const plan = PLANS.find(p => p.key === planKey)!;
   const custom = plan.monthly == null;
+  const u = useUnit();
   const glyph = PLAN_GLYPH[planKey];
   return (
     <div className="flex flex-col py-8 lg:px-8 first:lg:pl-0 last:lg:pr-0" data-landing-plan={planKey}>
       <div className="flex items-center gap-3">
-        {glyph ? <ProductGlyph name={glyph} size={24} bare className="shrink-0" /> : <SlayerMark size={26} bare label="" />}
-        <h3 className="text-[18px] font-medium tracking-tight">{plan.name}</h3>
+        {glyph ? <ProductGlyph name={glyph} size={24} bare className="shrink-0 size-[1.5rem]" /> : <SlayerMark size={26 * u} bare label="" />}
+        <h3 className="text-[1.125rem] font-medium tracking-tight">{plan.name}</h3>
       </div>
       {/* the page's big numbers are its prices — the only figures of ours it shows */}
       <p className="mt-6 flex items-baseline gap-2">
-        <span className="text-[38px] sm:text-[44px] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
-        {!custom && <span className="text-[15px] text-textMuted">{plan.period}</span>}
+        <span className="text-[2.375rem] sm:text-[2.75rem] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
+        {!custom && <span className="text-[0.9375rem] text-textMuted">{plan.period}</span>}
       </p>
       <dl className="mt-6 border-t border-borderSubtle">
         <div className="py-3.5 border-b border-borderSubtle">
-          <dt className="text-[12px] text-textMuted">For</dt>
-          <dd className="mt-1 text-[15px] leading-snug text-textPrimary">{PLAN_FOR[planKey]}</dd>
+          <dt className="text-[0.75rem] text-textMuted">For</dt>
+          <dd className="mt-1 text-[0.9375rem] leading-snug text-textPrimary">{PLAN_FOR[planKey]}</dd>
         </div>
         <div className="py-3.5 border-b border-borderSubtle">
-          <dt className="text-[12px] text-textMuted">Holds</dt>
-          <dd className="mt-1 text-[15px] leading-snug text-textSecondary">{PLAN_HOLDS[planKey]}</dd>
+          <dt className="text-[0.75rem] text-textMuted">Holds</dt>
+          <dd className="mt-1 text-[0.9375rem] leading-snug text-textSecondary">{PLAN_HOLDS[planKey]}</dd>
         </div>
       </dl>
       <div className="mt-7 lg:mt-auto lg:pt-7">
@@ -965,7 +968,7 @@ const Compare = () => {
   /* "Soon" is a ghost pill, outlined (the Logo System's own) */
   const mark = (h: Holds) =>
     h === 'soon' ? (
-      <span className="h-[20px] px-2 inline-flex items-center rounded-full border border-borderMuted text-[10px] font-medium uppercase tracking-[0.12em] text-textSecondary">Soon</span>
+      <span className="h-[1.25rem] px-2 inline-flex items-center rounded-full border border-borderMuted text-[0.625rem] font-medium uppercase tracking-[0.12em] text-textSecondary">Soon</span>
     ) : h ? (
       <>
         <Check className="w-4 h-4 text-textPrimary" aria-hidden="true" />
@@ -986,7 +989,7 @@ const Compare = () => {
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-controls="landing-plans-table"
-        className="door-edge group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[13.5px] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+        className="door-edge group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
         data-landing-side-by-side-door
       >
         {open ? 'Fold the comparison away' : 'Compare the plans in full'}
@@ -994,19 +997,19 @@ const Compare = () => {
       </button>
       {open && (
         <div id="landing-plans-table" className="mt-6 overflow-x-clip animate-fade-in">
-          <table className="w-full min-w-[340px] border-collapse text-left">
+          <table className="w-full min-w-[21.25rem] border-collapse text-left">
             <caption className="sr-only">What each plan holds</caption>
             {/* the plans' names stay over the rows they label while the table scrolls under the bar; the bar's own band above
                 them is the ground's, so the rows never show through over the names */}
-            <thead className="sticky top-[68px] z-10 bg-canvas shadow-[0_-68px_0_0_rgb(var(--canvas))]">
+            <thead className="sticky top-[4.25rem] z-10 bg-canvas shadow-[0_-4.25rem_0_0_rgb(var(--canvas))]">
               <tr className="border-b border-borderSubtle">
-                <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom font-mono text-[11px] font-normal uppercase tracking-[0.22em] text-textMuted">
+                <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom font-mono text-[0.6875rem] font-normal uppercase tracking-[0.22em] text-textMuted">
                   What it holds
                 </th>
                 {PLANS.map(p => (
-                  <th key={p.key} scope="col" className="py-3 px-1 sm:px-3 w-[64px] sm:w-[18%] text-center align-bottom">
-                    <span className="block text-[13px] sm:text-[15px] font-medium text-textPrimary">{p.name}</span>
-                    <span className="block text-[11px] sm:text-[12px] font-normal text-textMuted tnum">
+                  <th key={p.key} scope="col" className="py-3 px-1 sm:px-3 w-[4rem] sm:w-[18%] text-center align-bottom">
+                    <span className="block text-[0.8125rem] sm:text-[0.9375rem] font-medium text-textPrimary">{p.name}</span>
+                    <span className="block text-[0.6875rem] sm:text-[0.75rem] font-normal text-textMuted tnum">
                       {p.price}
                       {p.monthly != null && ` ${p.period}`}
                     </span>
@@ -1018,8 +1021,8 @@ const Compare = () => {
               {PLAN_ROWS.map(r => (
                 <tr key={r.text} className="border-b border-borderSubtle">
                   <th scope="row" className="py-3 pr-3 sm:pr-4 font-normal">
-                    <span className="flex items-center gap-2.5 text-[13px] sm:text-[14px] leading-snug text-textSecondary">
-                      {r.glyph ? <ProductGlyph name={r.glyph} size={18} bare className="shrink-0" /> : <span className="w-[18px] shrink-0" aria-hidden="true" />}
+                    <span className="flex items-center gap-2.5 text-[0.8125rem] sm:text-[0.875rem] leading-snug text-textSecondary">
+                      {r.glyph ? <ProductGlyph name={r.glyph} size={18} bare className="shrink-0 size-[1.125rem]" /> : <span className="w-[1.125rem] shrink-0" aria-hidden="true" />}
                       {r.text}
                     </span>
                   </th>
@@ -1043,7 +1046,8 @@ const Compare = () => {
 const Page = () => {
   const { a } = useGround();
   const calm = useReducedMotion();
-  const small = useIsBelowLg();
+  /* a phone, a tablet, or a screen taller than it is wide: one thing under another (scale.ts) */
+  const small = useStacked();
   /* a desk where motion is welcome: the opening plays the quote into the terminal, and the rooms are one stage */
   const stage = !calm && !small;
   const { launch } = useLaunch();
@@ -1066,7 +1070,8 @@ const Page = () => {
       raf = requestAnimationFrame(() => {
         if (document.activeElement !== el || !el.matches(':focus-visible')) return;
         const top = el.getBoundingClientRect().top;
-        if (top < 88) window.scrollBy({ top: top - 88, behavior: 'auto' });
+        const clear = 88 * unit();
+        if (top < clear) window.scrollBy({ top: top - clear, behavior: 'auto' });
       });
     };
     document.addEventListener('focusin', landed);
@@ -1141,7 +1146,7 @@ const Page = () => {
                 second="as the terminal saw it."
                 aside={<>Three moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
               />
-              <div className="mt-6 lg:mt-0">
+              <div className={small ? 'mt-6' : 'mt-6 lg:mt-0'}>
                 <Session theme={a} />
               </div>
             </Wrap>
@@ -1181,7 +1186,7 @@ const Page = () => {
               <Plan key={k} planKey={k} onChoose={choose} />
             ))}
           </div>
-          <p className="mt-5 text-[13px] text-textMuted">Prices in US dollars.</p>
+          <p className="mt-5 text-[0.8125rem] text-textMuted">Prices in US dollars.</p>
           <InPlaceOf />
           <Compare />
         </Wrap>
@@ -1202,14 +1207,14 @@ const Page = () => {
                 <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
                   {COMPANY.info}
                 </Pill>
-                <span className="text-[13px] text-textMuted">Anything else, ask. A person reads it.</span>
+                <span className="text-[0.8125rem] text-textMuted">Anything else, ask. A person reads it.</span>
               </div>
             </div>
             <dl className="lg:col-span-7 border-t border-borderSubtle">
               {FAQ.map(f => (
                 <div key={f.q} className="py-5 border-b border-borderSubtle" data-landing-faq>
-                  <dt className="text-[17px] font-medium tracking-tight">{f.q}</dt>
-                  <dd className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-textSecondary">{f.a}</dd>
+                  <dt className="text-[1.0625rem] font-medium tracking-tight">{f.q}</dt>
+                  <dd className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-textSecondary">{f.a}</dd>
                 </div>
               ))}
             </dl>
@@ -1227,16 +1232,16 @@ const Page = () => {
                       open(r.path);
                     }}
                     aria-label={`Open ${r.name.replace(/^The /, 'the ')}`}
-                    className="group flex flex-col items-center gap-2 sm:w-[72px] rounded-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
+                    className="group flex flex-col items-center gap-2 sm:w-[4.5rem] rounded-[0.875rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
                     data-landing-close-room={r.id}
                   >
                     <ProductGlyph
                       name={r.glyph}
                       size={30}
                       bare
-                      className="max-sm:w-[28px] max-sm:h-[28px] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
+                      className="size-[1.875rem] max-sm:size-[1.75rem] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
                     />
-                    <span aria-hidden="true" className="text-[12px] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
+                    <span aria-hidden="true" className="text-[0.75rem] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
                       {r.name.replace(/^The /, '')}
                     </span>
                   </a>
@@ -1255,7 +1260,7 @@ const Page = () => {
                 Sign up free
               </Pill>
             </div>
-            <p className="mt-5 text-[14px] text-textMuted">An account is free. Look around before you choose a plan.</p>
+            <p className="mt-5 text-[0.875rem] text-textMuted">An account is free. Look around before you choose a plan.</p>
           </div>
         </Wrap>
         <SiteFooter home />
@@ -1264,10 +1269,14 @@ const Page = () => {
   );
 };
 
-const Landing = () => (
-  <GroundProvider>
-    <Page />
-  </GroundProvider>
-);
+const Landing = () => {
+  /* the page grows with a big screen as one piece (scale.ts) */
+  useLandingScale();
+  return (
+    <GroundProvider>
+      <Page />
+    </GroundProvider>
+  );
+};
 
 export default Landing;

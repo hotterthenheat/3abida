@@ -28,6 +28,7 @@ import { VERSION } from '../../data/release';
 import FooterArt from './FooterArt';
 import { sceneFor } from './footer/registry';
 import { useAlertsDrawer } from '../../data/alertsDrawer';
+import { useUnit } from '../../pages/landing/scale';
 
 /* THE LINKS, WALKED (2026-09-19): every row goes where it says. THE BRAND'S FOOTER (Slayer Logo System, 14 · the footer,
    2026-09-30): the products in the menu's order, the company, the legal pages and the one social handle. Laid as three
@@ -154,8 +155,10 @@ const OUTSIDE = /^\/(about|status|legal)/;
 /** The footer's column: the landing's own (Landing.tsx Wrap — as wide as a window the screen holds whole, index.css
     --landing-col), so its edges line up with the page above; 1240 px under every other page. Never under 1040 px: on a
     short laptop screen the landing's column narrows below the room the words, the links and the picture need side by
-    side, and the footer would stack to half as tall again — there it runs a little wider than the page above it. */
-const COLUMN = 'mx-auto w-full max-w-[max(var(--landing-col,1240px),1040px)] px-4 sm:px-6 lg:px-10';
+    side, and the footer would stack to half as tall again — there it runs a little wider than the page above it. Its
+    sizes are in rem: the same px as ever on every page, and on the landing they grow with a big screen as the page does
+    (pages/landing/scale.ts). */
+const COLUMN = 'mx-auto w-full max-w-[max(var(--landing-col,77.5rem),65rem)] px-4 sm:px-6 lg:px-10';
 
 /* THE FOOTER IS ONE PIECE (2026-10-03 — the owner, of the footer with the photograph live at its foot: "i want that
    glitchy thing and the footer to be ONE not the art work and then the footer i want it as one art piece"): the whole
@@ -172,6 +175,9 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => {
   const { pathname } = useLocation();
   const alerts = useAlertsDrawer();
   const scene = home ? 'landing' : alerts ? 'alerts' : sceneFor(pathname);
+  /* the wordmark is drawn to a size in px: on the landing, at the landing's scale */
+  const unit = useUnit();
+  const u = home ? unit : 1;
   return (
     /* shrink-0: on the Weigher the footer shares a definite-height flex column
        with a full-viewport desk — left shrinkable, flexbox would absorb the
@@ -184,11 +190,11 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => {
         <div className={`${COLUMN} footer-sheet pt-12 lg:pt-14`}>
           <div className="footer-grid">
             <div className="self-start" data-footer-panel>
-              <Wordmark height={13} cursor label="Slayer Terminal" />
-              <p className="footer-word footer-word-loud mt-4 text-[16px] leading-[22px] font-medium tracking-tight" data-footer-lit>
+              <Wordmark height={13 * u} cursor label="Slayer Terminal" />
+              <p className="footer-word footer-word-loud mt-4 text-[1rem] leading-[1.375rem] font-medium tracking-tight" data-footer-lit>
                 Trade what you can see.
               </p>
-              <p className="footer-word mt-1.5 text-[12.5px] leading-relaxed max-w-[48ch]" data-footer-lit>
+              <p className="footer-word mt-1.5 text-[0.78125rem] leading-relaxed max-w-[48ch]" data-footer-lit>
                 Most of what moves a price is public, just scattered. Slayer gathers it into one terminal.
               </p>
             </div>
@@ -201,10 +207,10 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => {
                     /* THE LINKS ANSWER THE POINTER (2026-10-02, from the same notes): a link under the pointer drops the rest of
                        its column a tier and comes forward with a short mark in front of it (index.css, .footer-col) */
                     <div key={col.title} className="footer-col" data-footer-panel>
-                      <span className="footer-word footer-word-quiet block text-[11px] leading-[14px] uppercase tracking-[0.14em]" data-footer-lit>
+                      <span className="footer-word footer-word-quiet block text-[0.6875rem] leading-[0.875rem] uppercase tracking-[0.14em]" data-footer-lit>
                         {col.title}
                       </span>
-                      <ul className={`mt-3 grid gap-x-4 gap-y-2 text-[12.5px] leading-[18px] ${col === PRODUCTS_COL ? 'grid-cols-4' : ''}`}>
+                      <ul className={`mt-3 grid gap-x-4 gap-y-2 text-[0.78125rem] leading-[1.125rem] ${col === PRODUCTS_COL ? 'grid-cols-4' : ''}`}>
                         {col.links.map(l => (
                           <li key={l.label}>
                             <FooterLink to={l.to} home={home && !OUTSIDE.test(l.to)} className="footer-word footer-link whitespace-nowrap">
@@ -224,11 +230,11 @@ const SiteFooter = ({ home = false }: { home?: boolean }) => {
         {/* THE STATUS LINE, at the screen's foot: the signature, what this is not, and whose it is */}
         <div className={`${COLUMN} mt-10 lg:mt-12`}>
           <div className="border-t border-ink/[0.1] py-4 flex flex-wrap items-center gap-x-10 gap-y-2">
-            <Signature detail={`· ${VERSION}`} rule={false} className="text-[11px]" />
-            <p className="footer-word footer-word-quiet order-last lg:order-none basis-full lg:basis-auto max-w-[92ch] text-[12px] leading-relaxed" data-footer-lit>
+            <Signature detail={`· ${VERSION}`} rule={false} className="text-[0.6875rem]" />
+            <p className="footer-word footer-word-quiet order-last lg:order-none basis-full lg:basis-auto max-w-[92ch] text-[0.75rem] leading-relaxed" data-footer-lit>
               Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell.
             </p>
-            <span className="footer-word footer-word-quiet ml-auto text-[11px] whitespace-nowrap" data-footer-lit>
+            <span className="footer-word footer-word-quiet ml-auto text-[0.6875rem] whitespace-nowrap" data-footer-lit>
               {/* the year is the calendar's, not a number typed once (2026-09-19); the name and the address once they are filled */}©{' '}
               {new Date().getFullYear()} {filled(COMPANY.legalName) ?? COMPANY.product}
               {filled(COMPANY.address) && ` · ${COMPANY.address}`}

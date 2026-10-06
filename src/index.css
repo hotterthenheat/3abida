@@ -387,27 +387,28 @@
    big"): the column is the query, not the screen, so a page with the rail open lays its footer by the room it has. With
    room for the links and a picture beside them (920 px), the words and the links stand in the left column and the
    picture beside them as tall as they are (300 px at least — FooterArt reads a box that short or narrow as a phone's);
-   below that, the picture is a band between the words and the links. */
+   below that, the picture is a band between the words and the links. Its sizes are in rem — on every page the same px as
+   before; on the landing they grow with the screen, as the page does (the landing's scale, 2026-10-06). */
 .footer-sheet {
   container-type: inline-size;
 }
 .footer-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  row-gap: 28px;
+  row-gap: 1.75rem;
 }
 .footer-grid > [data-footer-scene] {
-  height: 140px;
+  height: 8.75rem;
 }
 @media (min-width: 640px) {
   .footer-grid > [data-footer-scene] {
-    height: 176px;
+    height: 11rem;
   }
 }
-@container (min-width: 920px) {
+@container (min-width: 57.5rem) {
   .footer-grid {
     grid-template-columns: max-content minmax(0, 1fr);
-    column-gap: 48px;
+    column-gap: 3rem;
   }
   .footer-grid > :not([data-footer-scene]) {
     grid-column: 1;
@@ -416,7 +417,7 @@
     grid-column: 2;
     grid-row: 1 / span 2;
     height: auto;
-    min-height: 300px;
+    min-height: 18.75rem;
   }
 }
 .footer-word-loud {
@@ -435,7 +436,7 @@
   position: absolute;
   left: 0;
   top: 50%;
-  width: 7px;
+  width: 0.4375rem;
   height: 1px;
   background: currentColor;
   transform: scaleX(0);
@@ -453,14 +454,14 @@
     transform: scaleX(1);
   }
   .footer-link:hover .footer-link-words {
-    transform: translateX(12px);
+    transform: translateX(0.75rem);
   }
 }
 .footer-link:focus-visible .footer-link-mark {
   transform: scaleX(1);
 }
 .footer-link:focus-visible .footer-link-words {
-  transform: translateX(12px);
+  transform: translateX(0.75rem);
 }
 @media (prefers-reduced-motion: reduce) {
   .footer-link-mark,
@@ -1517,19 +1518,33 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
   animation-duration: 520ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
+/* THE LANDING GROWS WITH THE SCREEN AS ONE PIECE (2026-10-06 — the owner, of the landing on an ultrawide monitor: "it
+   looked so bad i need you to ensure all monitor screen sizes auto adjust to this"). It is drawn for a 1920 × 950 screen,
+   and a bigger screen gets the same page, bigger: the root's font size is the design's 16 px times the screen's width over
+   1920 or its height over 950, whichever is less — so what stands the size of the screen still stands whole on it — and
+   never under the reader's own size. Every size on the landing and its footer is in rem, so all of it grows together
+   (pages/landing/scale.ts reads the same scale for what the scripts lay out; FooterArt draws its picture at it): a 3440 ×
+   1440 ultrawide has the page at 1.38, a 2560 × 1440 screen at 1.33, a 4K screen at 2. A laptop and a phone are drawn as
+   before — and a wide screen that is not tall (2560 × 1080) keeps the page's own size, centred. The root wears the
+   attribute while the landing is up (index.html sets it before the first paint, scale.ts useLandingScale keeps it) —
+   never html:has([data-landing]): that made every change to the page ask the root's style again, and the rooms' tour
+   dropped twice the frames. */
+html[data-landing-scale] {
+  font-size: max(100%, min(100vw / 120, 100svh / 59.375));
+}
 /* THE LANDING'S COLUMN IS A WINDOW THE SCREEN HOLDS WHOLE (2026-10-03 — the owner: "i think the entire lading page is too
    zoomed in"): the column (Landing.tsx Wrap, the open bar, the footer's words) is as wide as a terminal window whose whole
    height stands on the screen under the bar — the picture's 1440 × 1000 and the window's 42 px bar, 140 px of the screen
-   kept for the bar and a margin — never wider than 1160 px of words, never narrower than 820. Every window on the page is
-   the column's width, so the words and the windows share their edges on every screen. */
+   kept for the bar and a margin — never wider than 1160 px of words, never narrower than 820 (in the design's px: rem). Every
+   window on the page is the column's width, so the words and the windows share their edges on every screen. */
 [data-landing] {
-  --landing-col: calc(min(1160px, max(820px, (100svh - 140px) * 1.44 + 2px)) + 80px);
+  --landing-col: calc(min(72.5rem, max(51.25rem, (100svh - 8.75rem) * 1.44 + 0.125rem)) + 5rem);
 }
-/* …and the session's picture, beside its five beats, runs on past the column to 24 px short of the screen's right edge,
-   so the narrower column does not make the demonstration small */
+/* …and the session's picture, beside its beats, runs on past the column to 24 px short of the screen's right edge, so the
+   narrower column does not make the demonstration small */
 @media (min-width: 1024px) {
   [data-landing] [data-session-stage] {
-    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 16px));
+    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 1rem));
   }
 }
 .landing-window {
@@ -1590,7 +1605,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 @keyframes landing-rise {
   from {
     opacity: 0;
-    transform: translateY(var(--rise-from, 18px));
+    transform: translateY(var(--rise-from, 1.125rem));
   }
 }
 .landing-rise {
@@ -1601,7 +1616,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
    partner found the glitches "too gamified", so the words only focus. Section heads do the same (.landing-settle). */
 @keyframes landing-focus {
   from {
-    filter: blur(8px);
+    filter: blur(0.5rem);
   }
   to {
     filter: blur(0);
@@ -1619,7 +1634,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
    WORDS come up a line at a time, 40 ms apart (the Logo System's text reveal). */
 [data-arrival='wait'] .landing-line {
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateY(0.875rem);
 }
 [data-arrival='in'] .landing-line {
   animation: landing-line 760ms cubic-bezier(0.2, 0, 0, 1) calc(var(--i, 0) * 40ms) backwards;
@@ -1627,7 +1642,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 @keyframes landing-line {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(0.875rem);
   }
 }
 /* A SECTION'S HEAD COMES INTO FOCUS as it arrives (Landing.tsx Head — the hero's headline's own) */
@@ -1642,7 +1657,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 /* THE ROOMS' WINDOW runs on past the column to 24 px short of the screen's right edge, as the session's does */
 @media (min-width: 1024px) {
   [data-landing] [data-rooms-window] {
-    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 16px));
+    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 1rem));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1734,7 +1749,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 @keyframes room-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(0.625rem);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1753,7 +1768,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 /* WHERE THE KEYS LAND (2026-10-03 audit): a control the keys move to is scrolled clear of the floating bar (52 px from
    14 px down, and some air) */
 [data-landing] :is(a, button, [tabindex]) {
-  scroll-margin-top: 88px;
+  scroll-margin-top: 5.5rem;
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-rise,

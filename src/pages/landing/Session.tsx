@@ -54,7 +54,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Mutable
 import { useReducedMotion } from 'framer-motion';
 import type { Theme } from '../../theme/theme';
 import ProductGlyph from '../../brand/ProductGlyph';
-import { useIsBelowLg } from '../../components/ui/useMediaQuery';
+import { useStacked } from './scale';
 import { Prompt } from './TerminalWindow';
 import SESSION from './session.json';
 import { pictureIn } from './pixels';
@@ -94,8 +94,6 @@ const HOLD = 0.55;
 const AT = 0.62;
 const ease = (t: number) => t * t * (3 - 2 * t);
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
-/** the window's chrome: its bar and its two borders */
-const CHROME = 42;
 
 /** A HAIRLINE ROUND WHAT CHANGED, laid in the picture's own measure (session.json boxes are CSS px of the 1440 × 1000 desk) */
 const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box }) => {
@@ -106,7 +104,7 @@ const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box })
         <span
           key={i}
           aria-hidden="true"
-          className="absolute rounded-[4px] border-[1.5px] border-silver shadow-[0_0_0_1px_rgb(var(--canvas)/0.55)] transition-opacity duration-200 motion-reduce:transition-none pointer-events-none"
+          className="absolute rounded-[0.25rem] border-[1.5px] border-silver shadow-[0_0_0_1px_rgb(var(--canvas)/0.55)] transition-opacity duration-200 motion-reduce:transition-none pointer-events-none"
           style={{ left: pct(b[0] - fx, fw), top: pct(b[1] - fy, fh), width: pct(b[2], fw), height: pct(b[3], fh), opacity: on ? 1 : 0 }}
           data-session-mark
         />
@@ -120,9 +118,9 @@ const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box })
     of the session on screen */
 export const Bar = ({ time, typed = true, still = false }: { time: string; typed?: boolean; still?: boolean }) => (
   <div className="relative shrink-0 h-10 pl-3.5 pr-4 flex items-center gap-2.5 border-b border-borderSubtle bg-panel">
-    <ProductGlyph name="terminal" size={16} bare className="shrink-0" />
+    <ProductGlyph name="terminal" size={16} bare className="shrink-0 size-[1rem]" />
     {typed && <Prompt path="/pulse" still={still} />}
-    <span className="ml-auto pl-4 font-code text-[11.5px] tnum text-textMuted whitespace-nowrap" data-session-time>
+    <span className="ml-auto pl-4 font-code text-[0.71875rem] tnum text-textMuted whitespace-nowrap" data-session-time>
       SPY · {time}
     </span>
   </div>
@@ -152,7 +150,7 @@ const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
   const beat = BEATS[k];
   const f = framing(beat.boxes);
   return (
-    <div className="mt-6 overflow-hidden rounded-[10px] border border-borderMuted bg-canvas" data-theme={theme}>
+    <div className="mt-6 overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas" data-theme={theme}>
       <Bar time={beat.time} />
       <div className="relative overflow-hidden" style={{ aspectRatio: `${f[2]} / ${f[3]}` }}>
         <img
@@ -203,7 +201,8 @@ export const PROLOGUE = 178;
 const PROLOGUE_AT = '24svh';
 
 const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
-  const small = useIsBelowLg();
+  /* a phone, a tablet, or a screen taller than it is wide: each beat carries its own picture (scale.ts) */
+  const small = useStacked();
   /* in the story (a desk): the window and the first words are the opening's to bring in */
   const told = !!story && !small;
   const calm = useReducedMotion();
@@ -390,8 +389,8 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   /* the hairlines go up once the first beat is reached — in the story the opening has only just handed its picture over */
   const marked = (view.hold && !view.pre) || !!calm;
   return (
-    <div ref={wrap} className="lg:grid lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-x-10 xl:gap-x-12" data-session>
-      <div className="lg:pb-[14svh]">
+    <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] gap-x-10 xl:gap-x-12'} data-session>
+      <div className={small ? '' : 'pb-[14svh]'}>
         {told && (
           /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands
              its window over and a breath after (hidden until then — Opening.tsx), then go up the page ahead of the beats */
@@ -411,39 +410,40 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                 ref={el => {
                   beatEls.current[i] = el;
                 }}
-                className="py-9 border-t border-borderSubtle first:border-t-0 lg:border-t-0 lg:py-0 lg:min-h-[42svh] lg:pt-[10svh]"
+                className={small ? 'py-9 border-t border-borderSubtle first:border-t-0' : 'min-h-[42svh] pt-[10svh]'}
                 data-session-beat={i}
                 data-on={on || undefined}
               >
-                <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-textMuted" data-session-anchor>
+                <p className="flex items-center gap-3 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-textMuted" data-session-anchor>
                   <span className={`tnum transition-colors duration-300 ${on ? 'text-textPrimary' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
                   <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
                   <span className="tnum">{b.time}</span>
                 </p>
-                <h3 className={`mt-4 text-[26px] sm:text-[28px] xl:text-[30px] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
+                <h3 className={`mt-4 text-[1.625rem] sm:text-[1.75rem] xl:text-[1.875rem] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
                   {WORDS[i].title}
                 </h3>
-                <p className={`mt-3 max-w-[34ch] text-[15.5px] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>
+                <p className={`mt-3 max-w-[34ch] text-[0.96875rem] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>
                 {small && <BeatPicture theme={theme} k={i} />}
               </li>
             );
           })}
         </ol>
         {/* said once, under the last beat */}
-        <p className="mt-2 lg:mt-10 max-w-[34ch] text-[13px] leading-relaxed text-textMuted" data-session-note>
+        <p className={`${small ? 'mt-2' : 'mt-10'} max-w-[34ch] text-[0.8125rem] leading-relaxed text-textMuted`} data-session-note>
           Read off the terminal at each moment, nothing added after. It shows what is there; it doesn’t predict what comes next.
         </p>
       </div>
       {!small && (
         <div
           ref={told ? story.stage : undefined}
-          className="sticky top-[96px] self-start h-[calc(100svh-132px)] max-h-[860px] flex justify-start"
+          className="sticky top-[6rem] self-start h-[calc(100svh-8.25rem)] max-h-[53.75rem] flex justify-start"
           style={told ? { opacity: 0, visibility: 'hidden' } : undefined}
           data-session-stage
         >
           <div
-            className="self-start overflow-hidden rounded-[10px] border border-borderMuted bg-canvas flex flex-col"
-            style={{ width: `min(100%, calc((min(100svh - 132px, 860px) - ${CHROME}px) * ${DATA.w / DATA.h} + 2px))` }}
+            className="self-start overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas flex flex-col"
+            /* as large as the screen holds it whole under the bar: the picture under its bar (2.5rem) and its borders */
+            style={{ width: `min(100%, calc((min(100svh - 8.25rem, 53.75rem) - 2.5rem - 2px) * ${DATA.w / DATA.h} + 2px))` }}
             data-theme={theme}
           >
             {/* in the story the opening's own window typed the prompt: this one takes it over already typed */}

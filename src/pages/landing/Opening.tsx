@@ -24,6 +24,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import type { Theme } from '../../theme/theme';
 import { Bar, FIRST_TIME, beatSrc, type Story } from './Session';
 import { inksAt, pictureIn, pieceOf, type Piece } from './pixels';
+import { unit } from './scale';
 
 /* ---- the words ----------------------------------------------------------------------------- */
 
@@ -94,11 +95,11 @@ export const Quote = ({ answer = false, className = '' }: { answer?: boolean; cl
 const FACTS = ['Where the options positions sit', 'Where dealer hedging flips', 'What is trading right now'];
 export const Tease = ({ className = '' }: { className?: string }) => (
   <div className={className} data-landing-tease>
-    <p className="landing-rise [--rise-delay:420ms] text-[17px] sm:text-[19px] leading-[1.5] text-textSecondary [text-wrap:balance]">Most of what moves a price is public. It’s just scattered:</p>
-    <ul className="mt-5 flex flex-col sm:flex-row sm:flex-wrap sm:justify-center items-center gap-x-8 gap-y-2.5 text-[15px] text-textPrimary">
+    <p className="landing-rise [--rise-delay:420ms] text-[1.0625rem] sm:text-[1.1875rem] leading-[1.5] text-textSecondary [text-wrap:balance]">Most of what moves a price is public. It’s just scattered:</p>
+    <ul className="mt-5 flex flex-col sm:flex-row sm:flex-wrap sm:justify-center items-center gap-x-8 gap-y-2.5 text-[0.9375rem] text-textPrimary">
       {FACTS.map((f, i) => (
         <li key={f} className="landing-rise flex items-baseline gap-2.5" style={{ '--rise-delay': `${480 + i * 60}ms` } as CSSProperties}>
-          <span className="holo-text font-medium text-[12px] tracking-[0.12em] tnum">{String(i + 1).padStart(2, '0')}</span>
+          <span className="holo-text font-medium text-[0.75rem] tracking-[0.12em] tnum">{String(i + 1).padStart(2, '0')}</span>
           {f}
         </li>
       ))}
@@ -108,7 +109,7 @@ export const Tease = ({ className = '' }: { className?: string }) => (
 
 /** the first screen's small word over the quote */
 export const Kicker = ({ className = '' }: { className?: string }) => (
-  <p className={`landing-rise text-[12px] font-medium uppercase tracking-[0.26em] text-textMuted ${className}`}>Slayer Terminal</p>
+  <p className={`landing-rise text-[0.75rem] font-medium uppercase tracking-[0.26em] text-textMuted ${className}`}>Slayer Terminal</p>
 );
 
 /* ---- the run ------------------------------------------------------------------------------- */
@@ -133,12 +134,12 @@ const LEAD_IN: [number, number] = [0.84, 0.92];
 /** where "See how it works" goes: the session's first words standing beside its window */
 export const HOW_AT = 0.95;
 
-/** the answer's top on the screen, under the floating bar (px), and the room between it and the terminal */
+/** the answer's top on the screen, under the floating bar, and the room between it and the terminal (the design's px —
+    every size here is one of them times the landing's scale, scale.ts) */
 const HEAD_TOP = 86;
 const HEAD_GAP = 26;
-/** the window's chrome: its bar and its borders (Session.tsx's window) */
-const BAR = 41;
-const CHROME = 42;
+/** the window's bar (Session.tsx's window): its height, and its hairlines */
+const BAR = 40;
 /** the picture's shape — the session's run is the desk at 1440 × 1000 */
 const ASPECT = 1440 / 1000;
 
@@ -199,6 +200,10 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
     let vw = 0;
     let vh = 0;
     let dpr = 1;
+    /** one of the design's pixels (scale.ts), and the window's bar and chrome at it (its hairlines stay one px) */
+    let u = 1;
+    let barH = BAR + 1;
+    let chrome = BAR + 2;
     /** the terminal standing whole under the answer, and where it goes to stand: the session's window */
     let centre: Rect = { x: 0, y: 0, w: 0, h: 0 };
     let dock: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -214,6 +219,9 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       vw = st.clientWidth;
       vh = st.clientHeight;
       dpr = Math.min(2, window.devicePixelRatio || 1);
+      u = unit();
+      barH = BAR * u + 1;
+      chrome = BAR * u + 2;
       c.width = Math.max(1, Math.round(vw * dpr));
       c.height = Math.max(1, Math.round(vh * dpr));
       const sb = st.getBoundingClientRect();
@@ -239,21 +247,21 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       const t = Math.min(...boxes.map(b => b.top)) - qb.top;
       const b = Math.max(...boxes.map(b => b.bottom)) - qb.top;
       const font = parseFloat(getComputedStyle(q).fontSize) || 100;
-      const want = clamp(Math.min(vw * 0.046, vh * 0.074), 40, 68);
-      const k = Math.min(want / font, (vw - 64) / Math.max(1, r - l));
+      const want = clamp(Math.min(vw * 0.046, vh * 0.074), 40 * u, 68 * u);
+      const k = Math.min(want / font, (vw - 64 * u) / Math.max(1, r - l));
       const cx = (l + r) / 2;
       const cy = (t + b) / 2;
       q.style.transformOrigin = `${cx}px ${cy}px`;
-      lift = { k, tx: vw / 2 - (qb.left - sb.left + cx), ty: HEAD_TOP + (k * (b - t)) / 2 - (qb.top - sb.top + cy) };
+      lift = { k, tx: vw / 2 - (qb.left - sb.left + cx), ty: HEAD_TOP * u + (k * (b - t)) / 2 - (qb.top - sb.top + cy) };
 
       /* THE TERMINAL, whole: under the answer, as large as the screen holds it at the picture's own shape */
-      const top = HEAD_TOP + k * (b - t) + HEAD_GAP;
-      let h = vh - top - 28;
-      let w = 2 + (h - CHROME) * ASPECT;
-      const most = Math.min(vw - 64, 1320);
+      const top = (HEAD_TOP + HEAD_GAP) * u + k * (b - t);
+      let h = vh - top - 28 * u;
+      let w = 2 + (h - chrome) * ASPECT;
+      const most = Math.min(vw - 64 * u, 1320 * u);
       if (w > most) {
         w = most;
-        h = CHROME + (w - 2) / ASPECT;
+        h = chrome + (w - 2) / ASPECT;
       }
       centre = { x: (vw - w) / 2, y: top, w, h };
 
@@ -264,17 +272,18 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       if (win && stg) {
         const r2 = win.getBoundingClientRect();
         const s2 = stg.getBoundingClientRect();
-        const stick = parseFloat(getComputedStyle(stg).top) || 96;
+        const stick = parseFloat(getComputedStyle(stg).top) || 96 * u;
         dock = { x: r2.left - sb.left, y: stick + (r2.top - s2.top), w: r2.width, h: r2.height };
       } else dock = centre;
       build();
       last = -1;
     };
 
-    /* the picture, read at the size it stands whole (read again when that changes) */
+    /* the picture, read at the size it stands whole, in the design's px — its grain the same on every screen (read again
+       when that changes) */
     const build = () => {
       if (!img || !img.naturalWidth) return;
-      piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, centre.w - 2, centre.h - CHROME, inksAt(st));
+      piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, (centre.w - 2) / u, (centre.h - chrome) / u, inksAt(st));
       cool();
       cool = piece ? piece.warm() : () => {};
       last = -1;
@@ -298,7 +307,7 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       for (const r of [rest.current, kicker.current]) {
         if (!r) continue;
         r.style.opacity = String(1 - out);
-        r.style.transform = out ? `translate3d(0, ${Math.round(-28 * out)}px, 0)` : '';
+        r.style.transform = out ? `translate3d(0, ${Math.round(-28 * u * out)}px, 0)` : '';
         r.style.visibility = out >= 1 ? 'hidden' : '';
       }
       if (cue.current) cue.current.style.opacity = String(1 - clamp(p / 0.03));
@@ -315,8 +324,8 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
         } else {
           const d = ease(span(m, [0, 0.3]));
           w.el.style.opacity = String(1 - d);
-          w.el.style.transform = d ? `translate3d(0, ${-14 * d}px, 0)` : '';
-          w.el.style.filter = d > 0 && d < 1 ? `blur(${(6 * d).toFixed(1)}px)` : '';
+          w.el.style.transform = d ? `translate3d(0, ${-14 * u * d}px, 0)` : '';
+          w.el.style.filter = d > 0 && d < 1 ? `blur(${(6 * u * d).toFixed(1)}px)` : '';
         }
         /* the t stands up quickly, mid-slide, so the two never stand together long */
         if (w.to && w.ink) {
@@ -325,9 +334,9 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
           w.ink.style.opacity = String(1 - up);
         }
       }
-      const u = ease(span(p, LIFT));
+      const rise = ease(span(p, LIFT));
       const gone = span(p, HEAD_OUT);
-      q.style.transform = u || gone ? `translate3d(${lift.tx * u}px, ${lift.ty * u - 24 * gone}px, 0) scale(${lerp(1, lift.k, u)})` : '';
+      q.style.transform = rise || gone ? `translate3d(${lift.tx * rise}px, ${lift.ty * rise - 24 * u * gone}px, 0) scale(${lerp(1, lift.k, rise)})` : '';
       q.style.opacity = String(1 - gone);
 
       /* THE LINE, drawn from the middle out, then opening into the terminal */
@@ -379,10 +388,10 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
         ctx.save();
         ctx.beginPath();
         const clip = [(box.x + 1) * dpr, (fy + 1) * dpr, (box.w - 2) * dpr, Math.max(0, fh - 2) * dpr] as const;
-        if (typeof ctx.roundRect === 'function') ctx.roundRect(...clip, 9 * dpr);
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(...clip, 9 * u * dpr);
         else ctx.rect(...clip);
         ctx.clip();
-        piece.draw(ctx, (box.x + 1) * dpr, (box.y + BAR) * dpr, (box.w - 2) * dpr, (box.h - CHROME) * dpr, sharp);
+        piece.draw(ctx, (box.x + 1) * dpr, (box.y + barH) * dpr, (box.w - 2) * dpr, (box.h - chrome) * dpr, sharp);
         ctx.restore();
       }
 
@@ -398,7 +407,7 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
         const t = span(p, LEAD_IN);
         intro.style.opacity = String(t);
         intro.style.visibility = t > 0 ? '' : 'hidden';
-        intro.style.transform = t >= 1 ? '' : `translateY(${Math.round((1 - t) * 12)}px)`;
+        intro.style.transform = t >= 1 ? '' : `translateY(${Math.round((1 - t) * 12 * u)}px)`;
       }
     };
     const ask = () => {
@@ -483,14 +492,14 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
         <div ref={pool} aria-hidden="true" className="landing-pool absolute inset-0" />
         <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full" />
         {/* THE WINDOW'S CHROME, drawn over the picture as it opens: its edge and its bar (the session's own, Session.tsx) */}
-        <div ref={frame} aria-hidden="true" className="absolute left-0 top-0 overflow-hidden rounded-[10px] border border-borderMuted will-change-transform" style={{ opacity: 0 }} data-opening-frame>
+        <div ref={frame} aria-hidden="true" className="absolute left-0 top-0 overflow-hidden rounded-[0.625rem] border border-borderMuted will-change-transform" style={{ opacity: 0 }} data-opening-frame>
           <div ref={bar} style={{ opacity: 0 }}>
             <Bar time={FIRST_TIME} typed={typed} />
           </div>
         </div>
         {/* THE SILVER LINE — drawn, then parting as the terminal opens between its two halves */}
-        <span ref={lineA} aria-hidden="true" className="foil-fill absolute left-0 top-0 h-[2px] rounded-full origin-center will-change-transform" style={{ opacity: 0 }} />
-        <span ref={lineB} aria-hidden="true" className="foil-fill absolute left-0 top-0 h-[2px] rounded-full origin-center will-change-transform" style={{ opacity: 0 }} />
+        <span ref={lineA} aria-hidden="true" className="foil-fill absolute left-0 top-0 h-[0.125rem] rounded-full origin-center will-change-transform" style={{ opacity: 0 }} />
+        <span ref={lineB} aria-hidden="true" className="foil-fill absolute left-0 top-0 h-[0.125rem] rounded-full origin-center will-change-transform" style={{ opacity: 0 }} />
 
         {/* THE WORDS */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
@@ -510,7 +519,7 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
         </div>
         {/* THE CUE: the page goes on — gone with the first scroll */}
         <div ref={cue} aria-hidden="true" className="landing-rise [--rise-delay:900ms] absolute bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
-          <span className="text-[11px] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
+          <span className="text-[0.6875rem] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
           <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
             <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
           </span>
