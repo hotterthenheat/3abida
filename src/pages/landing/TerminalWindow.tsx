@@ -74,6 +74,7 @@ import ProductGlyph from '../../brand/ProductGlyph';
 import CLIPS from './clips.json';
 import Boot, { type Sweep } from './Boot';
 import { pictureIn } from './pixels';
+import { drawFit, isPanel } from './fit';
 
 /** The desk picture's shape — what scripts/make-landing-shots.mjs and make-landing-clips.mjs photograph */
 export const SHOT_W = 1440;
@@ -193,17 +194,24 @@ interface Reel {
 
 /** WHAT THE WINDOW SHOWS THIS MOMENT — the frame its film is on, else its still — for the page it switches to to come in
     over (Boot `from`): a switch starts from what the reader was looking at, not from the page's first frame */
+/** a panel is shown whole in the middle on the window's ground (fit.ts); the desk's and the phone's pictures fill the
+    window from its top left, as they always have */
+const fitOf = (src: string): string => (isPanel(src) ? 'object-contain object-center' : 'object-cover object-left-top');
+
 const frameOf = (view: HTMLElement | null): HTMLCanvasElement | null => {
   if (!view || view.clientWidth < 1 || view.clientHeight < 1) return null;
   const films = [...view.querySelectorAll<HTMLVideoElement>('video[data-window-film]')].filter(v => v.readyState >= 2 && v.classList.contains('opacity-100'));
-  const pic: CanvasImageSource | null = films[films.length - 1] ?? view.querySelector<HTMLImageElement>('img[data-window-shot]');
+  const pic: HTMLVideoElement | HTMLImageElement | null = films[films.length - 1] ?? view.querySelector<HTMLImageElement>('img[data-window-shot]');
   if (!pic) return null;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const c = document.createElement('canvas');
   c.width = Math.round(view.clientWidth * dpr);
   c.height = Math.round(view.clientHeight * dpr);
+  const panel = isPanel(pic.getAttribute(pic.tagName === 'VIDEO' ? 'data-window-film' : 'data-window-shot'));
+  const ground = `rgb(${getComputedStyle(view).getPropertyValue('--canvas').trim() || '5 5 5'})`;
   try {
-    c.getContext('2d')?.drawImage(pic, 0, 0, c.width, c.height);
+    const g = c.getContext('2d');
+    if (g) drawFit(g, pic, c.width, c.height, panel, ground);
   } catch {
     return null;
   }
@@ -474,7 +482,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
 
       {/* THE SCREEN */}
       <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: form === 'phone' ? `${PHONE_W} / ${PHONE_H}` : `${SHOT_W} / ${SHOT_H}`, maxHeight: cap } : undefined}>
-        {under && <img src={under} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 w-full h-full object-cover object-left-top select-none" />}
+        {under && <img src={under} alt="" aria-hidden="true" draggable={false} className={`absolute inset-0 w-full h-full ${fitOf(under)} select-none`} />}
         {shown && (
           <img
             key={shown.src}
@@ -482,7 +490,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             alt={`The terminal's ${crumbs(shown.path).join(' ').replace(/-/g, ' ')} page`}
             draggable={false}
             onAnimationEnd={() => setUnder(null)}
-            className="absolute inset-0 w-full h-full object-cover object-left-top select-none animate-fade-in"
+            className={`absolute inset-0 w-full h-full ${fitOf(shown.src)} select-none animate-fade-in`}
             data-window-shot={shown.src}
           />
         )}
@@ -510,7 +518,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             onCanPlay={e => canPlay(r, e.currentTarget)}
             onTimeUpdate={e => played(r, e.currentTarget)}
             onError={() => setBroken(b => new Set(b).add(r.key))}
-            className={`absolute inset-0 w-full h-full object-cover object-left-top select-none transition-opacity duration-300 ${r.ready ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 w-full h-full ${fitOf(r.key)} select-none transition-opacity duration-300 ${r.ready ? 'opacity-100' : 'opacity-0'}`}
             data-window-film={r.key}
           />
         ))}

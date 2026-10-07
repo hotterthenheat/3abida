@@ -302,29 +302,11 @@
  "pinpoint-wall-dark-desk": {
   "d": 9.43
  },
- "pinpoint-wall-dark-panel": {
-  "d": 5.1,
-  "box": [
-   430,
-   470,
-   560,
-   388
-  ]
- },
  "pinpoint-wall-dark-phone": {
   "d": 7.53
  },
  "pinpoint-wall-light-desk": {
   "d": 9.43
- },
- "pinpoint-wall-light-panel": {
-  "d": 5.1,
-  "box": [
-   430,
-   470,
-   560,
-   388
-  ]
  },
  "pinpoint-wall-light-phone": {
   "d": 7.53
@@ -422,29 +404,11 @@
  "pulse-board-dark-desk": {
   "d": 11.2
  },
- "pulse-board-dark-panel": {
-  "d": 4.8,
-  "box": [
-   440,
-   60,
-   560,
-   388
-  ]
- },
  "pulse-board-dark-phone": {
   "d": 9.9
  },
  "pulse-board-light-desk": {
   "d": 11.2
- },
- "pulse-board-light-panel": {
-  "d": 4.8,
-  "box": [
-   440,
-   60,
-   560,
-   388
-  ]
  },
  "pulse-board-light-phone": {
   "d": 9.9
@@ -572,29 +536,11 @@
  "trace-net-flow-dark-desk": {
   "d": 9.13
  },
- "trace-net-flow-dark-panel": {
-  "d": 5.1,
-  "box": [
-   55,
-   100,
-   560,
-   388
-  ]
- },
  "trace-net-flow-dark-phone": {
   "d": 7.73
  },
  "trace-net-flow-light-desk": {
   "d": 9.13
- },
- "trace-net-flow-light-panel": {
-  "d": 5.1,
-  "box": [
-   55,
-   100,
-   560,
-   388
-  ]
  },
  "trace-net-flow-light-phone": {
   "d": 7.73

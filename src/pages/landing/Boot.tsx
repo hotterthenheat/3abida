@@ -26,6 +26,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { pictureIn } from './pixels';
+import { drawFit, isPanel } from './fit';
 
 /** the hero's run, the canvas letting go after it, and the most the still may take before the boot gives way (ms); the
     hero's starts no sooner than 320 ms after the window mounts, so its coarsest stages land once the window has risen
@@ -87,6 +88,7 @@ const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, star
     const img = new Image();
     img.src = src;
     const before = had.current;
+    const panel = isPanel(src);
 
     const run = () => {
       started = true;
@@ -131,7 +133,7 @@ const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, star
             ctx.fillRect(0, 0, c.width, c.height);
           }
           ctx.globalAlpha = before ? Math.max(0, f * 2 - 1) : f;
-          ctx.drawImage(img, 0, 0, c.width, c.height);
+          drawFit(ctx, img, c.width, c.height, panel);
           ctx.globalAlpha = 1;
         } else {
           /* THE SWEEP: where its page's motion has passed, the new page is there — a soft edge, not a cut */
@@ -140,7 +142,8 @@ const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, star
           lctx.globalCompositeOperation = 'source-over';
           lctx.clearRect(0, 0, cw, ch);
           lctx.imageSmoothingEnabled = true;
-          lctx.drawImage(img, 0, 0, cw, ch);
+          /* a panel comes in whole on the window's ground, so the page it had is swept away round it too (fit.ts) */
+          drawFit(lctx, img, cw, ch, panel, ground);
           lctx.globalCompositeOperation = 'destination-in';
           if (sweep === 'deal' && kctx) {
             /* dealt: four columns, each coming in as the one before it lands */

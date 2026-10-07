@@ -39,6 +39,7 @@ import { ArrowRight } from 'lucide-react';
 import TerminalWindow, { panelOf, shotFor, SHOT_H, SHOT_W } from './TerminalWindow';
 import type { Sweep } from './Boot';
 import { useBlockGround, useGround } from './ground';
+import { drawFit } from './fit';
 import ProductGlyph from '../../brand/ProductGlyph';
 import Glyph from './Glyph';
 import type { GlyphName } from '../../brand/paths';
@@ -374,7 +375,8 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
         whole page on the wall zooms into it as it grows into the window, and lands on the panel's own picture */
     const zoomTo = panelOf(rooms[0].path, a);
     let panelImg: HTMLImageElement | null = null;
-    const copy = (img: HTMLImageElement, w: number, h: number): HTMLCanvasElement | null => {
+    let groundInk = 'rgb(5 5 5)';
+    const copy = (img: HTMLImageElement, w: number, h: number, panel = false): HTMLCanvasElement | null => {
       const W = Math.max(1, Math.round(w * dpr));
       const H = Math.max(1, Math.round(h * dpr));
       const cv = document.createElement('canvas');
@@ -384,14 +386,15 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
       if (!g) return null;
       g.imageSmoothingEnabled = true;
       g.imageSmoothingQuality = 'high';
-      g.drawImage(img, 0, 0, W, H);
+      /* a panel lands whole in the middle of the window, on its ground, as the window shows it (fit.ts) */
+      drawFit(g, img, W, H, panel, groundInk);
       return cv;
     };
     const ready = (i: number) => {
       const img = imgs[i];
       if (!img || !img.naturalWidth || pile.w < 2) return;
       cards[i] = copy(img, pile.w, pile.h);
-      if (i === 0 && win.w > 2) first = copy(zoomTo ? panelImg ?? img : img, win.w, win.h - 40 * u);
+      if (i === 0 && win.w > 2) first = copy(zoomTo ? panelImg ?? img : img, win.w, win.h - 40 * u, !!(zoomTo && panelImg));
     };
 
     /* THE STEPS, in order — the deal and the wall becoming the tour: each a progress the timer moves toward where the scroll
@@ -425,6 +428,8 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
       dealAt = ((gy0 - 0.85 * vh) / Math.max(1, vh)) * 100;
       const tw = winCell.current?.querySelector<HTMLElement>('[data-terminal-window]')?.getBoundingClientRect();
       win = tw ? { x: tw.left - sb.left, y: tw.top - sb.top, w: tw.width, h: tw.height } : pile;
+      const canvasInk = getComputedStyle(st).getPropertyValue('--canvas').trim();
+      if (canvasInk) groundInk = `rgb(${canvasInk})`;
       const border = getComputedStyle(st).getPropertyValue('--border-muted').trim();
       if (border) edge = `rgb(${border})`;
       cards = rooms.map(() => null);
@@ -595,7 +600,12 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
           const img = imgs[0];
           if (g > 0 && zoomTo && img?.naturalWidth) {
             const k = img.naturalWidth / SHOT_W;
-            const part = mix({ x: 0, y: 0, w: SHOT_W, h: SHOT_H }, { x: zoomTo[0], y: zoomTo[1], w: zoomTo[2], h: zoomTo[3] }, e);
+            /* into the panel's box widened to the window's shape round its middle: the panel, whole, lands in it */
+            const shape = pic.w / Math.max(1, pic.h);
+            const [bx, by, bw, bh] = zoomTo;
+            const tw = Math.max(bw, bh * shape);
+            const th = tw / shape;
+            const part = mix({ x: 0, y: 0, w: SHOT_W, h: SHOT_H }, { x: bx + bw / 2 - tw / 2, y: by + bh / 2 - th / 2, w: tw, h: th }, e);
             tile(img, pic, 1, false, { x: part.x * k, y: part.y * k, w: part.w * k, h: part.h * k });
             if (panelImg) tile(first, pic, clamp((g - 0.86) / 0.14), false);
           } else tile(g > 0 ? first ?? cards[0] : cards[0], pic, 1, false);

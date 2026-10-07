@@ -82,9 +82,9 @@ const PREROLL = 1000;
 const AT = '2026-10-01T17:42:00Z';
 /* where the pointer rests when it is not working: low on the right, out of the way of every page's head */
 const HOME = size => [size.w * 0.84, size.h * 0.9];
-/** a panel's box on the desk (CSS px), at the window's own shape — 1440 × 1000 — its height even at three device pixels
-    a point, as the encoder asks */
-const panelBox = ([x, y, w]) => ({ x, y, w, h: 2 * Math.round(w / (1440 / 1000) / 2) });
+/** a panel's box on the desk (CSS px): one whole part of the page at its own shape (landing-acts/panels.mjs), its sides even
+    for the encoder at three device pixels a point */
+const panelBox = ([x, y, w, h]) => ({ x, y, w: 2 * Math.round(w / 2), h: 2 * Math.round(h / 2) });
 
 /* ---- WHERE THE POINTER GOES ---------------------------------------------------------------------------------------- */
 
