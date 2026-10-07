@@ -88,7 +88,8 @@ interface Props {
   path: string;
   /** The theme of the ground behind the window */
   theme: Theme;
-  /** The landing is laid out for a desk: the desk's picture. Otherwise the terminal's phone layout, or the desk's on a tablet. */
+  /** The landing is laid out for a desk: the desk's picture. Otherwise the terminal's phone layout, or on a tablet what a
+      desk shows. */
   desk: boolean;
   /** Size the screen by the picture's own shape (a desk that does not dock). Otherwise the host gives the height. */
   natural?: boolean;
@@ -112,8 +113,10 @@ interface Props {
       shows that picture until it is on screen itself */
   hold?: boolean;
   /** THE PANEL (2026-10-06 — the owner's directive: "for each room's selected row, show the panel that row describes, not
-      the whole page", "the smallest product text inside any window is at least 11 px at 1440 wide"): on a desk, the page's
-      panel where it has one — the part of the page its row is about, large — and the whole page where it has none */
+      the whole page", "the smallest product text inside any window is at least 11 px at 1440 wide"): wherever the window
+      is wider than a phone's column — a desk or a tablet — the page's panel where it has one, the part of the page its row
+      is about, large, and the whole page where it has none (on an upright 768 px tablet a panel's 8 px words stand at
+      10.3 px; the whole desk would put them at 4) */
   panel?: boolean;
   /** THE SCREEN NO TALLER THAN THIS (a CSS length; a `natural` window): the picture keeps its full width and is cut at its
       foot (2026-10-06 — the owner's directive: "cap the window at 70 svh" — a phone's picture whole stood 740 px tall) */
@@ -214,7 +217,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
   timeRef.current = onTime;
   const root = useRef<HTMLDivElement | null>(null);
   const view = useRef<HTMLDivElement | null>(null);
-  /* a phone's column gets the terminal's phone layout; a tablet's is wide enough for the desk's picture. The first guess
+  /* a phone's column gets the terminal's phone layout; a tablet's is wide enough for what a desk shows. The first guess
      is the screen's (the column is the screen less its 16px gutters): guessing "desk" until measured, a phone fetched the
      desk's still and a megabyte of its film before turning to its own */
   const [narrow, setNarrow] = useState(() => !desk && typeof window !== 'undefined' && window.innerWidth - 32 < 560);
@@ -227,6 +230,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     ro.observe(el);
     return () => ro.disconnect();
   }, [desk]);
+  /* the panel on a tablet too, `desk` or not: only a phone's column turns to the phone's picture (see `panel`) */
   const form: Form = narrow ? 'phone' : panel && panelOf(path, theme) ? 'panel' : 'desk';
 
   /* A WINDOW FURTHER DOWN WAITS (2026-10-03, the rebuilt landing: a window to each of its products, a film in each): it

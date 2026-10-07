@@ -86,8 +86,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   "panel": the desk staged as ever, only the panel's box taken), its pointer working inside it. The panels and their
   acts are scripts/landing-acts/panels.mjs: a panel is as wide as its smallest words allow (8 px → at most 570 px of
   the desk, 7.5 px → 530, measured on the staged page), and clips.json keeps its box (the rooms' hand-over zooms into
-  it). The rooms' and the reveal's windows show the panel (TerminalWindow `panel`); a tablet's or a phone's form is
-  unchanged. Every film is set in the same open-market minute (AT, New
+  it). The rooms' and the reveal's windows show the panel (TerminalWindow `panel`) on a desk and on a tablet — any
+  window wider than a phone's 560 px column (2026-10-07, after Codex's review of #3: on an upright 768 px tablet a
+  panel's 8 px words stand at 10.3 px, where the whole desk would put them at 4); a phone's form is unchanged. Every
+  film is set in the same open-market minute (AT, New
   York's zone), so prices agree across films. The page's clock is held and stepped a frame at a time (30 fps, crisp
   charts); H.264 MP4, desk 2160×1500, phone 780×1520; it needs an ffmpeg with libx264, named by FFMPEG; PREVIEW=1 films
   an act small into the temp folder to check it (ACTS=<module> tries an act module in its place). Each room's acts —
