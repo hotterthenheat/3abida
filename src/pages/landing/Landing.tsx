@@ -19,7 +19,8 @@
                      scroll walking through them, each playing its pages, and the ground turning to the other theme and
                      home again (Rooms.tsx).
     Trust            a read, never an instruction: what it does, what it never does, and what every number stands on.
-    Pricing          three plans, who each is for, the one difference, and what one terminal stands in place of.
+    Pricing          two plans, Compass the recommended one, who each is for, the one difference, and what one terminal
+                     stands in place of.
     Questions        the buyer's questions, then "Seen enough? Step inside."
     The footer       the art piece, as it is (SiteFooter — never touched here).
   A phone and less motion have the first screen still, the terminal under it, and the rooms as tabs.
@@ -56,6 +57,7 @@ import Wordmark from '../../brand/Wordmark';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
 import { unit, useLandingScale, useStacked, useUnit } from './scale';
+import { useIsBelowLg } from '../../components/ui/useMediaQuery';
 
 /** Where "Launch terminal" opens the terminal: the desk an account lands on */
 const DOOR = '/pulse';
@@ -238,6 +240,13 @@ const KINDS: { name: string; says: string; items: string[] }[] = [
   },
 ];
 
+/* THE PLANS THE LANDING SELLS (2026-10-06 — the owner: "Remove Lifetime"; the directive: "every plan shows a price"):
+   Pinpoint and Compass, each with its price. Lifetime stays in data/billing.ts for the terminal's own Settings. Compass is
+   the plan the page recommends — raised on a panel, the one solid door; never "most popular" (we have no member data). */
+type Sold = Exclude<PlanKey, 'lifetime'>;
+const PLAN_ORDER: Sold[] = ['pinpoint', 'compass'];
+const RECOMMENDED: Sold = 'compass';
+
 /* WHAT EACH PLAN HOLDS — one list (the plans side by side read it whole). A line marked `soon` is sold with the plan but
    not open yet, and says so: Community is behind the terminal's "coming soon" wall. Re-deciding a plan is changing its
    letters here. */
@@ -245,51 +254,42 @@ type Holds = boolean | 'soon';
 interface PlanRow {
   text: string;
   glyph?: GlyphName;
-  in: Record<PlanKey, Holds>;
+  in: Record<Sold, Holds>;
 }
 const PLAN_ROWS: PlanRow[] = [
-  { text: 'Pulse, your desk of live panels', glyph: 'pulse', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Terrain, the levels on the chart and your own scripts', glyph: 'terrain', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Pinpoint, the book by strike and by date', glyph: 'pinpoint', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Trace, the tape and the dark pool', glyph: 'trace', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Alerts on any level', glyph: 'alerts', in: { pinpoint: true, compass: true, lifetime: true } },
-  { text: 'Compass, contracts that fit the levels', glyph: 'compass', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'The Weigher, for any contract you name', glyph: 'weigher', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'Dossier: news, earnings, insiders, Congress, stocks', glyph: 'dossier', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: 'Practice: paper trading, backtesting and the journal', glyph: 'practice', in: { pinpoint: false, compass: true, lifetime: true } },
-  { text: "Community, the traders' room", glyph: 'community', in: { pinpoint: false, compass: 'soon', lifetime: 'soon' } },
-  { text: 'One payment, nothing recurring', in: { pinpoint: false, compass: false, lifetime: true } },
-  { text: 'A one-to-one session to set up your desk', in: { pinpoint: false, compass: false, lifetime: true } },
-  { text: 'New tools before anyone else', in: { pinpoint: false, compass: false, lifetime: true } },
+  { text: 'Pulse, your desk of live panels', glyph: 'pulse', in: { pinpoint: true, compass: true } },
+  { text: 'Terrain, the levels on the chart and your own scripts', glyph: 'terrain', in: { pinpoint: true, compass: true } },
+  { text: 'Pinpoint, the book by strike and by date', glyph: 'pinpoint', in: { pinpoint: true, compass: true } },
+  { text: 'Trace, the tape and the dark pool', glyph: 'trace', in: { pinpoint: true, compass: true } },
+  { text: 'Alerts on any level', glyph: 'alerts', in: { pinpoint: true, compass: true } },
+  { text: 'Compass, contracts that fit the levels', glyph: 'compass', in: { pinpoint: false, compass: true } },
+  { text: 'The Weigher, for any contract you name', glyph: 'weigher', in: { pinpoint: false, compass: true } },
+  { text: 'Dossier: news, earnings, insiders, Congress, stocks', glyph: 'dossier', in: { pinpoint: false, compass: true } },
+  { text: 'Practice: paper trading, backtesting and the journal', glyph: 'practice', in: { pinpoint: false, compass: true } },
+  { text: "Community, the traders' room", glyph: 'community', in: { pinpoint: false, compass: 'soon' } },
 ];
-const PLAN_ORDER: PlanKey[] = ['pinpoint', 'compass', 'lifetime'];
 
 /* EACH PLAN, IN TWO LINES (the brief: "Plan, Price, Who it's for, Main difference, CTA") — who it is for, said from the
    trader's side, and the one thing it holds that the one before does not */
-const PLAN_FOR: Record<PlanKey, string> = {
+const PLAN_FOR: Record<Sold, string> = {
   pinpoint: 'Traders who read the levels and the tape and make their own calls.',
   compass: 'Traders who also want contracts picked off the levels, and room to practise.',
-  lifetime: 'Traders who want all of it, for good.',
 };
-const PLAN_HOLDS: Record<PlanKey, string> = {
+const PLAN_HOLDS: Record<Sold, string> = {
   pinpoint: 'Pulse, Terrain, Pinpoint, Trace and alerts.',
   compass: 'Everything in Pinpoint, plus Compass, the Weigher, Dossier and Practice.',
-  lifetime: 'Every desk, paid once, with a one-to-one session to set up your desk.',
 };
-const PLAN_GLYPH: Record<PlanKey, GlyphName | null> = { pinpoint: 'pinpoint', compass: 'compass', lifetime: null };
+const PLAN_GLYPH: Record<Sold, GlyphName> = { pinpoint: 'pinpoint', compass: 'compass' };
 
 /* ONE TERMINAL, IN PLACE OF… — what a trader would otherwise keep open beside it, each on the glyph of the room that does
-   it. Kinds of tool, never anybody's product. */
+   it. Kinds of tool, never anybody's product. Five, a room each (2026-10-06 — the directive: "cut from nine chips to
+   five"). */
 const IN_PLACE_OF: { glyph: GlyphName; text: string; room: string }[] = [
   { glyph: 'trace', text: 'a flow feed', room: 'Trace' },
   { glyph: 'pinpoint', text: 'an exposure map', room: 'Pinpoint' },
   { glyph: 'terrain', text: 'a charting subscription', room: 'Terrain' },
-  { glyph: 'trace', text: 'an options screener', room: 'Trace' },
   { glyph: 'paper', text: 'a paper-trading account', room: 'Practice' },
-  { glyph: 'backtest', text: 'an options backtester', room: 'Practice' },
-  { glyph: 'journal', text: 'a trading journal', room: 'Practice' },
   { glyph: 'dossier', text: 'an earnings calendar', room: 'Dossier' },
-  { glyph: 'dossier', text: 'an insider and Congress tracker', room: 'Dossier' },
 ];
 
 /* THE QUESTIONS A BUYER ASKS (kept to purchase objections — not product documentation). No refunds, said kindly, here and
@@ -318,7 +318,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What is included in each plan?',
-    a: 'Pinpoint holds Pulse, Terrain, Pinpoint, Trace and alerts. Compass adds Compass, the Weigher, Dossier and Practice. Lifetime is all of it, for good. The full list is under the plans.',
+    a: 'Pinpoint holds Pulse, Terrain, Pinpoint, Trace and alerts. Compass adds Compass, the Weigher, Dossier and Practice. The full list is under the plans.',
   },
   { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
   {
@@ -907,22 +907,32 @@ const InPlaceOf = () => (
   </div>
 );
 
-/** HOW MUCH IS IT? — ONE PLAN: its name, its price, who it is for, the one difference, its door */
-const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey) => void }) => {
+/** HOW MUCH IS IT? — ONE PLAN: its name, its price, who it is for, the one difference, its door. The recommended plan
+    stands raised on a panel, one border round it, with a small "Recommended" and the page's solid door, so the eye lands
+    there first; the other stands on the ground with the outline door, its words on the column's own edge (2026-10-06 —
+    the owner's directive: "Make Compass the recommended plan … Do not write 'Most popular'") */
+const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => void }) => {
   const plan = PLANS.find(p => p.key === planKey)!;
-  const custom = plan.monthly == null;
-  const u = useUnit();
-  const glyph = PLAN_GLYPH[planKey];
+  const raised = planKey === RECOMMENDED;
   return (
-    <div className="flex flex-col py-8 lg:px-8 first:lg:pl-0 last:lg:pr-0" data-landing-plan={planKey}>
+    <div
+      className={`flex flex-col ${raised ? 'p-6 sm:p-8 rounded-[1.25rem] border border-borderMuted bg-panel' : 'py-8 lg:pr-8'}`}
+      data-landing-plan={planKey}
+      data-landing-recommended={raised || undefined}
+    >
       <div className="flex items-center gap-3">
-        {glyph ? <ProductGlyph name={glyph} size={24} bare className="shrink-0 size-[1.5rem]" /> : <SlayerMark size={26 * u} bare label="" />}
+        <ProductGlyph name={PLAN_GLYPH[planKey]} size={24} bare className="shrink-0 size-[1.5rem]" />
         <h3 className="text-[1.125rem] font-medium tracking-tight">{plan.name}</h3>
+        {raised && (
+          <span className="ml-auto h-7 px-3 inline-flex items-center rounded-full border border-borderMuted text-[0.8125rem] font-medium text-textPrimary">
+            Recommended
+          </span>
+        )}
       </div>
-      {/* the page's big numbers are its prices — the only figures of ours it shows */}
+      {/* the page's big numbers are its prices — the only figures of ours it shows; the currency rides on the price line */}
       <p className="mt-6 flex items-baseline gap-2">
-        <span className="text-[2.375rem] sm:text-[2.75rem] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>
-        {!custom && <span className="text-[0.9375rem] text-textMuted">{plan.period}</span>}
+        <span className="text-[2.375rem] sm:text-[2.75rem] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>{' '}
+        <span className="text-[0.9375rem] text-textMuted">USD {plan.period}</span>
       </p>
       <dl className="mt-6 border-t border-borderSubtle">
         <div className="py-3.5 border-b border-borderSubtle">
@@ -935,16 +945,9 @@ const Plan = ({ planKey, onChoose }: { planKey: PlanKey; onChoose: (key: PlanKey
         </div>
       </dl>
       <div className="mt-7 lg:mt-auto lg:pt-7">
-        {custom ? (
-          /* the letter arrives saying which plan it is about */
-          <Pill href={`mailto:${COMPANY.info}?subject=${encodeURIComponent(`The ${plan.name} plan`)}`} kind="ghost" testId={`plan-${planKey}`}>
-            Talk to us
-          </Pill>
-        ) : (
-          <Pill href={`/signup?plan=${planKey}`} onClick={() => onChoose(planKey)} kind="ghost" testId={`plan-${planKey}`}>
-            Choose {plan.name}
-          </Pill>
-        )}
+        <Pill href={`/signup?plan=${planKey}`} onClick={() => onChoose(planKey)} kind={raised ? 'solid' : 'ghost'} testId={`plan-${planKey}`}>
+          Choose {plan.name}
+        </Pill>
       </div>
     </div>
   );
@@ -994,12 +997,11 @@ const Compare = () => {
                 <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom text-[0.8125rem] font-normal text-textMuted">
                   What it holds
                 </th>
-                {PLANS.map(p => (
-                  <th key={p.key} scope="col" className="py-3 px-1 sm:px-3 w-[4rem] sm:w-[18%] text-center align-bottom">
+                {PLAN_ORDER.map(k => PLANS.find(p => p.key === k)!).map(p => (
+                  <th key={p.key} scope="col" className="py-3 px-1 sm:px-3 w-[5.25rem] sm:w-[20%] text-center align-bottom">
                     <span className="block text-[0.8125rem] sm:text-[0.9375rem] font-medium text-textPrimary">{p.name}</span>
-                    <span className="block text-[0.6875rem] sm:text-[0.75rem] font-normal text-textMuted tnum">
-                      {p.price}
-                      {p.monthly != null && ` ${p.period}`}
+                    <span className="block text-[0.6875rem] sm:text-[0.75rem] font-normal text-textMuted tnum whitespace-nowrap">
+                      {p.price} {p.period}
                     </span>
                   </th>
                 ))}
@@ -1044,7 +1046,9 @@ const Page = () => {
   /* "Sign up free": the account form, outside the terminal; a plan's door names the plan */
   const signUp = useCallback(() => navigate('/signup'), [navigate]);
   const faqHead = useArrival<HTMLDivElement>();
-  const choose = useCallback((key: PlanKey) => navigate(`/signup?plan=${key}`), [navigate]);
+  const choose = useCallback((key: Sold) => navigate(`/signup?plan=${key}`), [navigate]);
+  /* the plans stand one under the other below lg (the grid's own break), the recommended one first */
+  const onePerRow = useIsBelowLg();
 
   /* WHERE THE KEYS LAND: a control the keys move to stands clear of the floating bar. The browser scrolls a control in only
      when none of it is on screen; one it can partly see stays where it is, under the bar — so, a frame after the keys land,
@@ -1163,14 +1167,14 @@ const Page = () => {
         <Wrap>
           <Head
             first="Simple plans. Cancel any time."
-            aside="Making an account is free. A plan opens the rooms; cancel a monthly plan whenever you like and keep it until the period you paid for ends."
+            aside="Making an account is free. A plan opens the rooms; cancel whenever you like and keep it until the month you paid for ends."
           />
-          <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
-            {PLAN_ORDER.map(k => (
+          {/* the recommended plan first where the plans stand one under the other (a phone, a tablet) */}
+          <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
+            {(onePerRow ? [RECOMMENDED, ...PLAN_ORDER.filter(k => k !== RECOMMENDED)] : PLAN_ORDER).map(k => (
               <Plan key={k} planKey={k} onChoose={choose} />
             ))}
           </div>
-          <p className="mt-5 text-[0.8125rem] text-textMuted">Prices in US dollars.</p>
           <InPlaceOf />
           <Compare />
         </Wrap>

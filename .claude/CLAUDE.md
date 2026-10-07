@@ -124,8 +124,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the scroll walks through them, the ground turning to the other theme and home. A READ, NEVER AN INSTRUCTION (one line in
   the middle of the page): what it does and never does, and Observed / Calculated / Modeled — what the engine produces, never a
   formula, weight, threshold or assumption that would let it be rebuilt ("Recipe stays private. Result is visible.").
-  PRICING: three plans, who each is for and the one difference, "One terminal, in place of" (kinds of tool, never
-  anybody's product), the full list folded under them. QUESTIONS, then the rooms' glyphs, "Seen enough? / Step inside."
+  PRICING: two plans, Pinpoint and Compass, who each is for and the one difference, "One terminal, in place of" (five
+  kinds of tool, a room each, never anybody's product), the full list folded under them. QUESTIONS, then the rooms' glyphs, "Seen enough? / Step inside."
   (LitLines: lit a letter at a time by the scroll) and "Sign up free". THE FOOTER as it is (SiteFooter — never touched
   here). A phone and less motion: the first screen still (FirstScreen), the answer over the terminal itself (Reveal: the
   Pulse film, "The terminal itself, in use — played three times as fast."), the session's head and beats, the rooms as
@@ -135,7 +135,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   and Practice left to right, Trace and Dossier printing down); words come up a line at a time, 40 ms apart
   (useArrival); nothing is hidden before the script has run, nothing moves where less motion is asked for. A window lower
   on the page fetches nothing until the reader is near (TerminalWindow `lazy`); a phone's window shows the phone picture
-  whole (390 × 760), never cropped. No plan's door is drawn heavier than another's ("most popular" by another name).
+  whole (390 × 760), never cropped. COMPASS IS THE RECOMMENDED PLAN (2026-10-06 — the owner's directive: "the eye lands
+  on Compass first, and every plan shows a price"): raised on a panel (bg-panel, one border), a small "Recommended" in
+  sentence case and the page's solid door; Pinpoint stands on the ground with the outline door; on a phone Compass comes
+  first. Never "most popular" (we have no member data behind it). Lifetime is off the landing (the owner: "Remove
+  Lifetime" — data/billing.ts keeps it for the terminal's Settings); a price says its currency on its own line ("$75 USD /
+  month").
   About 13 screens at 1440 × 900 (10.6 under less motion); measure again when a run changes.
 - THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"): THE COLUMN IS A WINDOW
   THE SCREEN HOLDS WHOLE — as wide as a terminal window whose whole height stands on the screen under the bar (index.css
