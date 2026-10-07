@@ -40,6 +40,7 @@ import TerminalWindow, { panelOf, shotFor, SHOT_H, SHOT_W } from './TerminalWind
 import type { Sweep } from './Boot';
 import { useBlockGround, useGround } from './ground';
 import ProductGlyph from '../../brand/ProductGlyph';
+import Glyph from './Glyph';
 import type { GlyphName } from '../../brand/paths';
 import { pictureIn } from './pixels';
 import { unit, useStacked } from './scale';
@@ -103,7 +104,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
     <p className="text-[0.875rem] text-textMuted">{room.kind}</p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
     <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
-      <ProductGlyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
+      <Glyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
       <span className="min-w-0">{room.name}</span>
     </h3>
     <p className="mt-4 max-w-[40ch] text-[0.9375rem] xl:text-[0.96875rem] leading-[1.5]">
@@ -738,7 +739,7 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
                         className="mt-3 flex items-center gap-2.5 text-[0.875rem] text-textSecondary group-hover:text-textPrimary transition-colors"
                         style={{ opacity: 0 }}
                       >
-                        <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
+                        <Glyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
                         {x.name}
                       </span>
                     </button>
@@ -776,7 +777,7 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
                     className={`relative w-8 h-8 inline-flex items-center justify-center rounded-md transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-silver ${i === room ? '' : 'opacity-40'}`}
                     data-rooms-rail={x.id}
                   >
-                    <ProductGlyph name={x.glyph} size={16} bare className="size-[1rem]" />
+                    <Glyph name={x.glyph} size={16} bare className="size-[1rem]" />
                     {i === room && <span aria-hidden="true" className="foil-fill absolute left-2 right-2 -bottom-0.5 h-[0.125rem] rounded-full" />}
                   </button>
                 ))}
@@ -894,7 +895,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'anchor'>) => {
               }`}
               data-room-tab={x.id}
             >
-              <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
+              <Glyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
               <span className="truncate max-w-full">{x.name.replace(/^The /, '')}</span>
             </button>
           );

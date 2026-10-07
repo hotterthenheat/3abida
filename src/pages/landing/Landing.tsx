@@ -34,7 +34,8 @@
   score, win rate, signal, guaranteed, confluence or market intelligence; never "simulated", "demo", "fake", "preview"
   or "at launch"; "Sign up free" is the door (an account is free; there is no trial). No refunds is said kindly, in the
   questions. The prices are data/billing.ts's; what each plan holds is PLAN_ROWS's. The foil is on structure — the silver
-  line, the primary door, the row on show — never on a word (2026-10-06).
+  line, the primary door, the row on show — never on a word (2026-10-06). Colour is the market's data and the silver
+  alone: every product glyph here wears the page's ink (Glyph.tsx).
 ==================================================
 */
 
@@ -54,7 +55,7 @@ import Opening, { HOW_AT, Quote, TRACK, Tease } from './Opening';
 import Rooms, { type Room } from './Rooms';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
-import ProductGlyph from '../../brand/ProductGlyph';
+import Glyph from './Glyph';
 import type { GlyphName } from '../../brand/paths';
 import { unit, useLandingScale, useStacked, useUnit } from './scale';
 import { useIsBelowLg } from '../../components/ui/useMediaQuery';
@@ -180,11 +181,13 @@ const ROOMS: Room[] = [
     name: 'Dossier',
     lead: 'Everything on file about a name.',
     rest: 'The news, the earnings, and what insiders and members of Congress filed.',
-    path: '/dossier/news',
+    /* it opens on the earnings, not the news: the news opens on a lit blue world map, the most colourful thing on the page
+       and none of it the market's (2026-10-06 — the owner's directive) */
+    path: '/dossier/earnings',
     sweep: 'down',
     rows: [
-      { title: 'News', says: 'The wire, on a map.', path: '/dossier/news' },
       { title: 'Earnings', says: 'The calendar, and a page for each name.', path: '/dossier/earnings' },
+      { title: 'News', says: 'The wire, on a map.', path: '/dossier/news' },
       { title: 'Insiders', says: 'Who filed, what, and when.', path: '/dossier/insiders' },
       { title: 'Congress', says: 'Trades disclosed by members of Congress.', path: '/dossier/congress' },
       { title: 'Stocks', says: 'A plain read of any name: strong, good, caution or poor.', path: '/dossier/stocks' },
@@ -884,7 +887,7 @@ const InPlaceOf = () => (
     <ul className="flex flex-wrap gap-2">
       {IN_PLACE_OF.map(t => (
         <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[0.84375rem] text-textSecondary">
-          <ProductGlyph name={t.glyph} size={14} bare className="size-[0.875rem]" />
+          <Glyph name={t.glyph} size={14} bare className="size-[0.875rem]" />
           {t.text}
           {/* the room that does it, in words as well as on its glyph (on a phone, its glyph and the words a reader hears) */}
           <span className="-ml-1 text-textMuted max-md:sr-only">· {t.room}</span>
@@ -908,7 +911,7 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
       data-landing-recommended={raised || undefined}
     >
       <div className="flex items-center gap-3">
-        <ProductGlyph name={PLAN_GLYPH[planKey]} size={24} bare className="shrink-0 size-[1.5rem]" />
+        <Glyph name={PLAN_GLYPH[planKey]} size={24} bare className="shrink-0 size-[1.5rem]" />
         <h3 className="text-[1.125rem] font-medium tracking-tight">{plan.name}</h3>
         {raised && (
           <span className="ml-auto h-7 px-3 inline-flex items-center rounded-full border border-borderMuted text-[0.8125rem] font-medium text-textPrimary">
@@ -999,7 +1002,7 @@ const Compare = () => {
                 <tr key={r.text} className="border-b border-borderSubtle">
                   <th scope="row" className="py-3 pr-3 sm:pr-4 font-normal">
                     <span className="flex items-center gap-2.5 text-[0.8125rem] sm:text-[0.875rem] leading-snug text-textSecondary">
-                      {r.glyph ? <ProductGlyph name={r.glyph} size={18} bare className="shrink-0 size-[1.125rem]" /> : <span className="w-[1.125rem] shrink-0" aria-hidden="true" />}
+                      {r.glyph ? <Glyph name={r.glyph} size={18} bare className="shrink-0 size-[1.125rem]" /> : <span className="w-[1.125rem] shrink-0" aria-hidden="true" />}
                       {r.text}
                     </span>
                   </th>
@@ -1246,7 +1249,7 @@ const Page = () => {
                     className="group flex flex-col items-center gap-2 sm:w-[4.5rem] rounded-[0.875rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
                     data-landing-close-room={r.id}
                   >
-                    <ProductGlyph
+                    <Glyph
                       name={r.glyph}
                       size={30}
                       bare

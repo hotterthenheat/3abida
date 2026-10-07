@@ -182,6 +182,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   another (scale.ts useStacked: below lg or portrait) — the stages the scroll plays are for a landscape screen. Known
   limit: the session's in-between frames are 1152 × 800, a little soft on a 4K screen while they play (the held beats
   are 2160 wide).
+- COLOUR ON THE LANDING (2026-10-06 — the owner's directive: "colour on screen comes only from market data and the
+  silver"): every product glyph on the landing wears the page's ink (pages/landing/Glyph.tsx — the room rail and heads,
+  the wall, the prices, the comparison, the chips, the closing row; the window's terminal glyph keeps the wordmark's
+  ink); the app keeps its coloured glyphs. Dossier opens on its earnings (its news opened on a lit blue world map, the
+  most colourful thing on the page and none of it the market's). A room's first page (its `path`) is checked against
+  the palette: a page whose largest coloured area is not data (a map, a banner) is swapped for another of its rows. The
+  footer's art keeps its own red and blue fringe (SiteFooter — never touched here).
 - THE GLITCH MADE QUIET (2026-10-03 — the owner: "i love the little glitch affect"; the owner's partner: the glitches
   were "too gamified"). A picture on the landing that is not there yet RESOLVES (pages/landing/pixels.ts: a PIECE of a
   picture drawn at a sharpness 0–1 — a fine grain of 6 px down to 1, without its colour at first, its faintest marks not
