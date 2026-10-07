@@ -84,9 +84,17 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   smallest product text inside any window is at least 11 px at 1440 wide"): every room page also has a panel film,
   `<page>-<theme>-panel` — the part of the page its row is about, filmed alone at three device pixels a point (size
   "panel": the desk staged as ever, only the panel's box taken), its pointer working inside it. The panels and their
-  acts are scripts/landing-acts/panels.mjs: a panel is as wide as its smallest words allow (8 px → at most 570 px of
-  the desk, 7.5 px → 530, measured on the staged page), and clips.json keeps its box (the rooms' hand-over zooms into
-  it). The rooms' and the reveal's windows show the panel (TerminalWindow `panel`) on a desk and on a tablet — any
+  acts are scripts/landing-acts/panels.mjs. A PANEL IS ONE WHOLE PART OF ITS PAGE (2026-10-07 — the owner: "we're having
+  a problem with my landing page's recordings and the aspect ratios"; the first panels, each 1440 × 1000's shape and at
+  most 570 px wide, cut the Weigher below its labels, Compass through its second column, Net Flow above its head): a
+  widget with its head, a card from its title, a table from its column heads, its box [x, y, w, h] its own shape, ending
+  in a gutter or between two rows — never through a word, a bar or a chart — and as wide as its words stay readable (8 px
+  words near 660 px of the desk; 11–12 px tables to 900). The window shows a panel WHOLE in its middle on its own ground
+  (pages/landing/fit.ts: the window's pictures and films, Boot's switch, the captured frame, the rooms' zoom). A page
+  whose part cannot be taken whole (the four charts, the wall, net flow — each the desk's width) has no panel and plays
+  its whole page. Pick a box on the page as the panel run stages it (the seed, the held clock and PREPARE), not on the
+  desk still — they differ. clips.json keeps each box (the rooms' hand-over zooms into it, widened to the window's
+  shape). The rooms' and the reveal's windows show the panel (TerminalWindow `panel`) on a desk and on a tablet — any
   window wider than a phone's 560 px column (2026-10-07, after Codex's review of #3: on an upright 768 px tablet a
   panel's 8 px words stand at 10.3 px, where the whole desk would put them at 4); a phone's form is unchanged. Every
   film is set in the same open-market minute (AT, New
@@ -168,7 +176,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   rooms' windows end on the column's right edge (they ran on past it to 24 px short of the screen's, past the edge every
   other section keeps), their words in a 17rem column 2.5rem from the window — 784 px of window at 1440 × 900, so a
   panel's smallest words stand at 11 px (scripts/landing-acts/panels.mjs); a room's name stands at 2.5rem, so "The
-  Weigher" keeps to one line. The quote
+  Weigher" keeps to one line. AN ULTRAWIDE SCREEN (wider than 2:1, lg up — 2026-10-07, the owner: "the ultrawide monitor
+  problems have not been fixed"): held by its height, the column stood at 55% of a 3440 × 1440 screen and the windows
+  beside their words two thirds of its height; there the column is a window as tall as the screen holds (at most
+  53.75rem) and its 17rem of words, never closer than 2rem to the screen's sides (index.css) — a 16:9 screen and anything
+  narrower keep the column above. The quote
   min(8.4vw, 14.5svh) up to 136 px, the answer over the terminal 40–68 px, heads 50, prices 44 (all of these in the
   design's px — rem since 2026-10-06, below). A SHORT SCREEN (720 to 820 px tall, lg up): the first screen's doors and the
   terminal under the still one close up (index.css).
