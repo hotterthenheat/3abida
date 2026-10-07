@@ -1,7 +1,8 @@
 # Landing sweeps
 
-Contact sheets for the landing directive of 2026-10-06, one folder per pull request. They are kept on this branch so
-the pull requests can show them without adding pictures to the app's own history.
+Contact sheets for the landing directive of 2026-10-06, one folder per pull request. They were kept on their own
+branch, claude/landing-sweeps, while the pull requests were open, and came here on 2026-10-07 once the work was
+merged; the pull requests' pictures point at that branch's commits, which this history keeps.
 
 ## How a sweep is taken
 

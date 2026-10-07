@@ -156,7 +156,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   screen more than 40% empty): 8,427 px at 1440 × 900 (7,748 under less motion), 9,963 at 390 × 844 — the turn's two
   screens cut, the opening's run 80 svh, the session's column ending just under its last beat, the questions folded, the
   sections' padding 8vh (6vh on a phone), and on a phone the first terminal cut at 70svh. Measure again when a run
-  changes; the sweep's tools/empty.py measures the empty space.
+  changes; the sweep's docs/landing-sweeps/tools/empty.py measures the empty space (the directive's before-and-after
+  sheets and sweep tools, docs/landing-sweeps — README there).
 - THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"): THE COLUMN IS A WINDOW
   THE SCREEN HOLDS WHOLE — as wide as a terminal window whose whole height stands on the screen under the bar (index.css
   [data-landing] --landing-col: the picture's 1440 × 1000 and its 42 px bar, 140 px of the screen kept; never more than
