@@ -32,8 +32,8 @@
   THE RULES IT KEEPS: no reviews, ratings, member counts, results or performance of any kind (we have none); no grade,
   score, win rate, signal, guaranteed, confluence or market intelligence; never "simulated", "demo", "fake", "preview"
   or "at launch"; "Sign up free" is the door (an account is free; there is no trial). No refunds is said kindly, in the
-  questions. The prices are data/billing.ts's; what each plan holds is PLAN_ROWS's. The foil is for display words and
-  lines only, never body text.
+  questions. The prices are data/billing.ts's; what each plan holds is PLAN_ROWS's. The foil is on structure — the silver
+  line, the primary door, the row on show — never on a word (2026-10-06).
 ==================================================
 */
 
@@ -49,7 +49,7 @@ import { Block, GroundProvider, useBlockGround, useGround, type Ground } from '.
 import TerminalWindow, { savingData, warmOtherGround } from './TerminalWindow';
 import { warmShell } from '../../components/layout/shell';
 import Session, { type Story as StoryHold } from './Session';
-import Opening, { HOW_AT, Kicker, Quote, TRACK, Tease } from './Opening';
+import Opening, { HOW_AT, Quote, TRACK, Tease } from './Opening';
 import Rooms, { type Room } from './Rooms';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
@@ -81,7 +81,6 @@ const HERO = {
 const ROOMS: Room[] = [
   {
     id: 'pulse',
-    code: '01',
     glyph: 'pulse',
     kind: 'The desk',
     name: 'Pulse',
@@ -96,7 +95,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'compass',
-    code: '02',
     glyph: 'compass',
     kind: 'The contracts',
     name: 'Compass',
@@ -111,7 +109,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'terrain',
-    code: '03',
     glyph: 'terrain',
     kind: 'The chart',
     name: 'Terrain',
@@ -127,7 +124,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'pinpoint',
-    code: '04',
     glyph: 'pinpoint',
     kind: 'The book',
     name: 'Pinpoint',
@@ -144,7 +140,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'trace',
-    code: '05',
     glyph: 'trace',
     kind: 'The tape',
     name: 'Trace',
@@ -161,7 +156,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'weigher',
-    code: '06',
     glyph: 'weigher',
     kind: 'The scale',
     name: 'The Weigher',
@@ -177,7 +171,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'dossier',
-    code: '07',
     glyph: 'dossier',
     kind: 'The file on a name',
     name: 'Dossier',
@@ -195,7 +188,6 @@ const ROOMS: Room[] = [
   },
   {
     id: 'practice',
-    code: '08',
     glyph: 'practice',
     kind: 'Paper trading and backtesting',
     name: 'Practice',
@@ -345,16 +337,11 @@ const Wrap = ({ children, className = '', ...rest }: { children: ReactNode; clas
   </div>
 );
 
-/** ONE SMALL WORD OVER A SHORT BAR — above every head on the page, the Logo System's section label; the bar is the foil
-    (v5: the silver, used a little more) */
-const Eyebrow = ({ children }: { children: ReactNode }) => (
-  <div className="flex flex-col items-start gap-2.5">
-    <p className="text-[0.8125rem] text-textMuted">{children}</p>
-    <span className="foil-fill w-10 h-[0.1875rem] rounded-full" aria-hidden="true" />
-  </div>
-);
-
-/** EVERY HEAD IS TWO LINES IN TWO TONES: what it is in ink, the turn of the thought in grey */
+/** EACH SECTION'S LINE, ITS OWN WAY (2026-10-06 — the owner's directive: "Every section uses the same pattern: small label,
+    silver bar, then a two-tone headline … what makes the page read as generated"): no label over a head, two tones on the
+    rooms and the last words alone, and no two sections in a row headed the same way — the session's line stands beside
+    its window, the rooms' is two tones over the wall, the read is one line in the middle, the prices' one ink beside a
+    line of what follows, the questions' in their own column, the last words read by the scroll. */
 const TwoTone = ({ first, second, className = '' }: { first: string; second: string; className?: string }) => (
   /* outline-none: a jump along the page lands the keys here (toAnchor) — a heading to land on, not a control */
   <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[2rem] sm:text-[2.625rem] lg:text-[3.125rem] [text-wrap:balance] outline-none ${className}`}>
@@ -386,31 +373,36 @@ const useArrival = <T extends HTMLElement>(margin = '0px 0px -18% 0px') => {
   return ref;
 };
 
-/** A SECTION'S HEAD: its word over a bar, its two-tone line and, beside it, a line of what follows — arriving a line at a
-    time as it is first seen, the two-tone line coming into focus (index.css .landing-settle) */
-const Head = ({ eyebrow, first, second, aside, id }: { eyebrow: string; first: string; second: string; aside?: ReactNode; id?: string }) => {
+/** A SECTION'S HEAD, BESIDE WHAT FOLLOWS: its line on the left — the rooms' in two tones, else one ink — and a line of what
+    follows on the right, arriving a line at a time as it is first seen, the head coming into focus (index.css
+    .landing-settle) */
+const Head = ({ first, second, aside, id }: { first: string; second?: string; aside?: ReactNode; id?: string }) => {
   const ref = useArrival<HTMLDivElement>();
   return (
     <div ref={ref} id={id} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
-      <div className="lg:col-span-7">
-        <div className="landing-line [--i:0]">
-          <Eyebrow>{eyebrow}</Eyebrow>
-        </div>
-        <div className="landing-line landing-settle [--i:1]">
-          <TwoTone className="mt-6" first={first} second={second} />
-        </div>
+      <div className="landing-line landing-settle [--i:0] lg:col-span-7">
+        {second ? (
+          <TwoTone first={first} second={second} />
+        ) : (
+          <h2 className="font-light tracking-[-0.04em] leading-[1.02] text-[2rem] sm:text-[2.5rem] lg:text-[2.875rem] [text-wrap:balance] outline-none">{first}</h2>
+        )}
       </div>
-      {aside && <p className="landing-line [--i:2] lg:col-span-5 max-w-[30rem] text-[1rem] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
+      {aside && <p className="landing-line [--i:1] lg:col-span-5 max-w-[30rem] text-[1rem] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
     </div>
   );
 };
 
-/** THE FOIL'S WORD — the foil on either ground since v5 (the pale run on black, the deep run on paper: index.css
-    --holo-ink) */
-const Foil = ({ children }: { children: ReactNode }) => (
-  /* the foil's letters get room past their box (the headline's tight tracking would cut the "e"'s overhang — 2026-09-20) */
-  <span className="holo-text font-medium inline-block px-[0.06em] -mx-[0.06em]">{children}</span>
-);
+/** A STATEMENT: one line in one ink, in the middle of the page, the words under it */
+const Statement = ({ title, aside, id }: { title: string; aside?: ReactNode; id?: string }) => {
+  const ref = useArrival<HTMLDivElement>();
+  return (
+    <div ref={ref} id={id} className="landing-lines mx-auto max-w-[56rem] text-center">
+      <h2 className="landing-line landing-settle [--i:0] font-light tracking-[-0.045em] leading-[1] text-[2.25rem] sm:text-[3rem] lg:text-[3.75rem] [text-wrap:balance] outline-none">{title}</h2>
+      {aside && <p className="landing-line [--i:1] mt-6 mx-auto max-w-[40rem] text-[1rem] leading-relaxed text-textSecondary [text-wrap:balance]">{aside}</p>}
+    </div>
+  );
+};
+
 /* THE LAST WORDS, READ BY SCROLLING (2026-10-02, from the owner's notes on two landings that make a line's reading the
    scroll itself): each letter of the closing lines stands faint and turns to its own ink, one letter at a time, as the
    lines come up the screen — the scroll is the playhead, and scrolling back takes them back. A reader that hears the page
@@ -507,7 +499,7 @@ const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: strin
     solid takes the foil as its surface, sweeping across it; the ghost takes it as its edge (index.css .door-foil,
     .door-edge). NO GROWING UNDER THE POINTER (2026-09-20: "look laggy"); only a press gives. */
 const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: { children: ReactNode; onClick?: () => void; href: string; kind?: 'solid' | 'ghost'; size?: 'lg' | 'sm'; testId?: string }) => {
-  const fill = kind === 'solid' ? 'door-foil bg-textPrimary text-canvas' : 'door-edge border border-borderMuted text-textPrimary hover:border-transparent hover:bg-ink/[0.05]';
+  const fill = kind === 'solid' ? 'door-foil door-foil-rest bg-textPrimary text-canvas' : 'door-edge border border-borderMuted text-textPrimary hover:border-transparent hover:bg-ink/[0.05]';
   return (
     <a
       href={href}
@@ -745,7 +737,6 @@ const Nav = ({ ground }: { ground: Ground }) => {
 /** THE CUE: the page goes on (a foil dot down a hairline, three times, then still) */
 const Cue = ({ className = '' }: { className?: string }) => (
   <div aria-hidden="true" className={`landing-rise [--rise-delay:900ms] flex flex-col items-center gap-3 ${className}`}>
-    <span className="text-[0.6875rem] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
     <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
       <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
     </span>
@@ -756,8 +747,7 @@ const Cue = ({ className = '' }: { className?: string }) => (
    plays on a desk (Opening.tsx) */
 const FirstScreen = ({ doors }: { doors: ReactNode }) => (
   <Wrap className="relative min-h-[100svh] flex flex-col items-center justify-center text-center pt-[6.5rem] pb-[6rem]" data-landing-hero>
-    <Kicker />
-    <Quote className="mt-6 text-[clamp(2.4rem,9.6vw,4rem)] lg:text-[clamp(4rem,min(8.4vw,14.5svh),8.5rem)]" />
+    <Quote className="text-[clamp(2.4rem,9.6vw,4rem)] lg:text-[clamp(4rem,min(8.4vw,14.5svh),8.5rem)]" />
     <Tease className="mt-8 max-w-[54rem]" />
     <div className="landing-rise [--rise-delay:700ms] mt-9 flex flex-wrap items-center justify-center gap-3" data-landing-hero-doors>
       {doors}
@@ -776,7 +766,7 @@ const Reveal = () => {
     <Wrap className="pb-[10vh]" data-landing-reveal>
       <div ref={head} className="landing-lines text-center">
         <h2 className="landing-line landing-settle [--i:0] font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
-          Trade what you can <Foil>see.</Foil>
+          Trade what you can see.
         </h2>
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
@@ -790,9 +780,8 @@ const Reveal = () => {
 /** WHAT THE SESSION SAYS FIRST, beside its window as the opening hands it over (Session.tsx `story.lead`) */
 const Lead = () => (
   <div>
-    <Eyebrow>How it works</Eyebrow>
-    <h2 className="mt-6 font-light tracking-[-0.035em] leading-[1.04] text-[1.875rem] xl:text-[2.125rem] [text-wrap:balance] outline-none">
-      Slayer reads it all together, <span className="block text-textMuted">on one screen, while the session moves.</span>
+    <h2 className="font-light tracking-[-0.035em] leading-[1.04] text-[1.875rem] xl:text-[2.125rem] [text-wrap:balance] outline-none">
+      Slayer reads it all together, on one screen, while the session moves.
     </h2>
     <p className="mt-5 max-w-[34ch] text-[0.9375rem] leading-[1.55] text-textSecondary">
       Three moments from one session on SPY, each read off the terminal as it ran. Scroll, and the session plays between them.
@@ -834,7 +823,6 @@ const Story = ({ theme, doors }: { theme: Ground; doors: ReactNode }) => {
 const RoomsHead = ({ stage }: { stage: boolean }) => (
   <Head
     id="rooms-head"
-    eyebrow="The rooms"
     first={`${ROOM_COUNT} rooms.`}
     second="One terminal."
     aside={stage ? 'Each room opens on its own page. Scroll on, and walk through them one at a time.' : 'Each room opens on its own page. Pick one to see it play.'}
@@ -845,15 +833,13 @@ const RoomsHead = ({ stage }: { stage: boolean }) => (
     produces, never how) */
 const Trust = () => (
   <Wrap>
-    <Head
-      eyebrow="Why Slayer"
-      first="A read."
-      second="Never an instruction."
+    <Statement
+      title="A read, never an instruction."
       aside="Every figure starts from the market’s own record and is worked out by fixed rules, so the same market gives the same read every time. What it shows is open; how it works each one out stays ours."
     />
     <div className="mt-10 lg:mt-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10" data-landing-does>
       <div>
-        <h3 className="text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textPrimary">It does</h3>
+        <h3 className="text-[0.9375rem] font-medium text-textPrimary">It does</h3>
         <ul className="mt-4 border-t border-borderSubtle">
           {IT_DOES.map(t => (
             <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textPrimary">
@@ -864,7 +850,7 @@ const Trust = () => (
         </ul>
       </div>
       <div>
-        <h3 className="text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textMuted">It never</h3>
+        <h3 className="text-[0.9375rem] font-medium text-textSecondary">It never</h3>
         <ul className="mt-4 border-t border-borderSubtle">
           {IT_NEVER.map(t => (
             <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textSecondary">
@@ -876,7 +862,7 @@ const Trust = () => (
       </div>
     </div>
     <div className="mt-14 lg:mt-16" data-landing-kinds>
-      <h3 className="text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textMuted">What every number stands on</h3>
+      <h3 className="text-[0.9375rem] font-medium text-textSecondary">What every number stands on</h3>
       <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
         {KINDS.map(k => (
           <div key={k.name} className="py-6 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
@@ -907,7 +893,7 @@ const Trust = () => (
 /** ONE TERMINAL, IN PLACE OF… what a trader would otherwise keep open beside it */
 const InPlaceOf = () => (
   <div className="mt-12 lg:mt-14 flex flex-col lg:flex-row lg:items-start gap-x-8 gap-y-4" data-landing-in-place-of>
-    <p className="shrink-0 text-[0.75rem] font-medium uppercase tracking-[0.22em] text-textMuted lg:pt-[0.6875rem]">One terminal, in place of</p>
+    <p className="shrink-0 text-[0.9375rem] font-medium text-textSecondary lg:pt-[0.5rem]">One terminal, in place of</p>
     <ul className="flex flex-wrap gap-2">
       {IN_PLACE_OF.map(t => (
         <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[0.84375rem] text-textSecondary">
@@ -970,7 +956,7 @@ const Compare = () => {
   /* "Soon" is a ghost pill, outlined (the Logo System's own) */
   const mark = (h: Holds) =>
     h === 'soon' ? (
-      <span className="h-[1.25rem] px-2 inline-flex items-center rounded-full border border-borderMuted text-[0.625rem] font-medium uppercase tracking-[0.12em] text-textSecondary">Soon</span>
+      <span className="h-[1.25rem] px-2 inline-flex items-center rounded-full border border-borderMuted text-[0.6875rem] font-medium text-textSecondary">Soon</span>
     ) : h ? (
       <>
         <Check className="w-4 h-4 text-textPrimary" aria-hidden="true" />
@@ -1005,7 +991,7 @@ const Compare = () => {
                 them is the ground's, so the rows never show through over the names */}
             <thead className="sticky top-[4.25rem] z-10 bg-canvas shadow-[0_-4.25rem_0_0_rgb(var(--canvas))]">
               <tr className="border-b border-borderSubtle">
-                <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom font-mono text-[0.6875rem] font-normal uppercase tracking-[0.22em] text-textMuted">
+                <th scope="col" className="py-3 pr-3 sm:pr-4 align-bottom text-[0.8125rem] font-normal text-textMuted">
                   What it holds
                 </th>
                 {PLANS.map(p => (
@@ -1143,9 +1129,7 @@ const Page = () => {
           <Block on="a" id="how" label="How it works" className="pb-[6vh] scroll-mt-10">
             <Wrap>
               <Head
-                eyebrow="How it works"
-                first="One session,"
-                second="as the terminal saw it."
+                first="One session, as the terminal saw it."
                 aside={<>Three moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
               />
               <div className={small ? 'mt-6' : 'mt-6 lg:mt-0'}>
@@ -1178,9 +1162,7 @@ const Page = () => {
       <Block on="a" id="pricing" label="Pricing" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <Head
-            eyebrow="Pricing"
-            first="Simple plans."
-            second="Cancel any time."
+            first="Simple plans. Cancel any time."
             aside="Making an account is free. A plan opens the rooms; cancel a monthly plan whenever you like and keep it until the period you paid for ends."
           />
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 border-y border-borderSubtle divide-y lg:divide-y-0 lg:divide-x divide-borderSubtle">
@@ -1199,13 +1181,10 @@ const Page = () => {
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
             <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
-              <div className="landing-line [--i:0]">
-                <Eyebrow>Questions</Eyebrow>
+              <div className="landing-line landing-settle [--i:0]">
+                <h2 className="font-light tracking-[-0.035em] leading-[1.05] text-[1.875rem] sm:text-[2.25rem] [text-wrap:balance] outline-none">Asked before you buy.</h2>
               </div>
-              <div className="landing-line landing-settle [--i:1]">
-                <TwoTone className="mt-6" first="Asked" second="before you buy." />
-              </div>
-              <div className="landing-line [--i:2] mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="landing-line [--i:1] mt-7 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
                   {COMPANY.info}
                 </Pill>

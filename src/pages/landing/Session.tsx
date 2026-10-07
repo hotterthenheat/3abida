@@ -519,10 +519,9 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                 data-session-beat={i}
                 data-on={on || undefined}
               >
-                <p className="flex items-center gap-3 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-textMuted" data-session-anchor>
-                  <span className={`tnum transition-colors duration-300 ${on ? 'text-textPrimary' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
-                  <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
-                  <span className="tnum">{b.time}</span>
+                {/* the beat's time: the session's own sequence */}
+                <p className={`text-[0.875rem] tnum transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`} data-session-anchor>
+                  {b.time}
                 </p>
                 <h3 className={`mt-4 text-[1.625rem] sm:text-[1.75rem] xl:text-[1.875rem] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
                   {WORDS[i].title}

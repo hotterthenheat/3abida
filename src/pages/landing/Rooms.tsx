@@ -53,7 +53,6 @@ export interface RoomRow {
 
 export interface Room {
   id: string;
-  code: string;
   glyph: GlyphName;
   /** the kind of room, in a word or two */
   kind: string;
@@ -98,11 +97,8 @@ interface WordsProps {
 
 const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsProps) => (
   <div className="room-in" data-room-words={room.id}>
-    <p className="flex items-center gap-3 text-[0.71875rem] font-medium uppercase tracking-[0.22em] text-textMuted">
-      <span className="holo-text tnum">{room.code}</span>
-      <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
-      {room.kind}
-    </p>
+    {/* what kind of room, in words (no number: the rooms are not a sequence — the owner's directive, 2026-10-06) */}
+    <p className="text-[0.875rem] text-textMuted">{room.kind}</p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
     <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] xl:text-[2.75rem] font-light leading-[1] tracking-[-0.04em] outline-none" data-room-head={room.id}>
       <ProductGlyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
@@ -792,7 +788,6 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
                         className="mt-3 flex items-center gap-2.5 text-[0.875rem] text-textSecondary group-hover:text-textPrimary transition-colors"
                         style={{ opacity: 0 }}
                       >
-                        <span className="holo-text text-[0.6875rem] font-medium tracking-[0.12em] tnum">{x.code}</span>
                         <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
                         {x.name}
                       </span>

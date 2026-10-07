@@ -51,9 +51,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   mode and used slightly more"): the foil gradient (index.css --holo-gradient) is brighter and more chromatic on black —
   ice blue, lavender, cyan and lilac between white peaks — and on paper it is a real foil ink (--holo-deep: deep blue,
   azure, violet, purple; every stop 3.3:1 or better), never the flat steel; --holo-ink and --holo-surface pick the
-  ground's own. On the landing it is also on the quote's key word, the section codes and bars, the row on show and the
-  line filling under it, and the pointer's answer on a door (.foil-fill, .door-foil, .door-edge) — on arrival and under
-  the pointer only, never a loop, never body text. The flat --silver (where you are, in the terminal) is unchanged.
+  ground's own. On the landing it is on STRUCTURE, never a word (2026-10-06 — the owner's directive: "Silver on one
+  word: take the foil off 'see.' … Keep the amount of silver by putting it on structure: the line that opens into the
+  terminal, the primary Pill at rest (not only on hover), and focus rings"): the opening's silver line, the primary door
+  (`Pill` solid: .door-foil-rest, the foil its surface at rest, swept under the pointer), the row on show and the line
+  filling under it, a ghost door's edge under the pointer (.foil-fill, .door-foil, .door-edge) — never a loop, never body
+  text. The flat --silver (where you are, in the terminal) is unchanged.
   THE ACCENT IS SILVER (the owner, 2026-10-02: "remove all lime/green accent color it
   should be holographic silver"): no lime anywhere — the Logo System's lime Live is overridden. --select, --select-fill
   and --live-* (theme/tokens.css) are the silver family: the pale silver on black, the deep steel as an ink on paper,
@@ -112,14 +115,14 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   any panels when u first land it should just be informational that teases and ropes you in and as you scroll you know
   you have amazing motions and small glitchy effects very subtle and then you get all the information and we should have
   the tabs on the product things switch faster … make sure you keep the artistry footers"). WORDS FIRST, THEN THE
-  TERMINAL, one moment a section (pages/landing/Landing.tsx): THE QUOTE — "SLAYER TERMINAL", "You can't trade what you
-  can't see." ("see." in the foil), "Most of what moves a price is public. It's just scattered:" and three lines on foil
-  codes (where the options positions sit, where dealer hedging flips, what is trading right now), "Sign up free" and "See
-  how it works", a cue; no picture. THE ANSWER and THE SESSION (THE OPENING, below): the quote turns into "Trade what you
+  TERMINAL, one moment a section (pages/landing/Landing.tsx): THE QUOTE — "You can't trade what you can't see." in one
+  ink, "Most of what moves a price is public. It's just scattered:" and three lines (where the options positions sit,
+  where dealer hedging flips, what is trading right now — no numbers: they are not a sequence), "Sign up free" and "See
+  how it works", a cue (its line, no word); no picture. THE ANSWER and THE SESSION (THE OPENING, below): the quote turns into "Trade what you
   can see.", a silver line opens into the terminal, and it goes to stand as the session's window — three moments on SPY.
   THE ROOMS (below): "Eight rooms. One terminal." — the desk splits into a wall of the eight, then one room at a time as
-  the scroll walks through them, the ground turning to the other theme and home. A READ, NEVER AN INSTRUCTION (eyebrow "Why
-  Slayer"): what it does and never does, and Observed / Calculated / Modeled — what the engine produces, never a
+  the scroll walks through them, the ground turning to the other theme and home. A READ, NEVER AN INSTRUCTION (one line in
+  the middle of the page): what it does and never does, and Observed / Calculated / Modeled — what the engine produces, never a
   formula, weight, threshold or assumption that would let it be rebuilt ("Recipe stays private. Result is visible.").
   PRICING: three plans, who each is for and the one difference, "One terminal, in place of" (kinds of tool, never
   anybody's product), the full list folded under them. QUESTIONS, then the rooms' glyphs, "Seen enough? / Step inside."
@@ -172,8 +175,17 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   window switching pages (Boot, 330 ms — the owner: "the tabs … switch faster") brings the new page in sharp over the
   frame it showed (TerminalWindow `frameOf`) along its room's sweep, an `all` page dipping through the window's ground —
   never two pages over each other; a window first seen comes up over its own ground. Words never glitch: the quote's words come into focus one after another as the page opens
-  (index.css .landing-word); a section's head arrives a line at a time and its two-tone line comes into focus
-  (.landing-settle). Arrivals, the scroll and switches only — never a loop.
+  (index.css .landing-word); a section's head arrives a line at a time and comes into focus (.landing-settle). Arrivals,
+  the scroll and switches only — never a loop.
+- THE HEADS (2026-10-06 — the owner's directive: "Every section uses the same pattern: small label, silver bar, then a
+  two-tone headline. That repetition, plus tracked caps and decorative numbering, is what makes the page read as
+  generated"): NO LABEL OVER A HEAD (the Eyebrow and its bar are gone; the sections' ids and the bar's anchors stay), NO
+  KICKER ("SLAYER TERMINAL" — the bar shows the wordmark), NO TRACKED CAPS anywhere on the landing (sentence case, no
+  letter-spacing; a window still loading shows the house's mark without its capitals label), NO DECORATIVE NUMBERS (the hero's three lines, the rooms' 01–08; the session's times stay — they are a
+  sequence). TWO TONES ON TWO SECTIONS ONLY: the rooms ("Eight rooms. One terminal.") and the last words ("Seen enough?
+  Step inside."). No two sections in a row headed the same way: the session's line stands beside its window, the rooms'
+  two tones over the wall, the read one line in the middle (`Statement`), the prices' one ink beside a line of what
+  follows (`Head`), the questions' in their own column, the last words read by the scroll.
 - THE OPENING (pages/landing/Opening.tsx, a desk where motion is welcome): an overlay of TRACK 240svh (a sticky screen,
   z above the session) over the session's grid; the run, in shares of it: the doors and the three lines go (0–0.08); the
   quote becomes its answer (0–0.15) — "You can't" and the "'t" dissolve first, then "trade" slides along the emptied
@@ -228,7 +240,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   in, zooming from the whole page into the room's panel and landing on the panel's own picture, and the window takes
   over on that picture (its film held on its first frame until it has — TerminalWindow `hold`; the canvas keeps that
   picture under the window, so the hand-over has no frame between); then a room a stretch, its window on the row's
-  panel: its code and kind, name and glyph, lead, its rows and its door on the
+  panel: its kind, name and glyph, lead, its rows and its door on the
   left, a rail of the eight over them (a door each). A room with several pages plays them, a page every 3.5 s (it was
   6.5), the foil line filling under the row on show; a pointer moving over the stage holds it until still 2.5 s, a
   touch until 3 s after it lifts, the keys inside hold it, a picked row holds the room until the scroll moves on, and the

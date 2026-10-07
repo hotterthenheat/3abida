@@ -510,7 +510,9 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
         {/* the first picture is still travelling: the house's "it is working" mark, and only if the wait lasts (ui/Working.tsx) */}
         {!shown && (
           <span className="absolute inset-x-0 top-0 h-[20rem] max-h-full flex items-center justify-center pointer-events-none" data-window-boot>
-            <Working label="Loading the picture" stacked />
+            {/* the mark alone: the house's label is set in tracked capitals, and the landing has none (2026-10-06 — the
+                owner's directive) */}
+            <Working stacked />
           </span>
         )}
         {/* a switch brings its page in over what was there; the hero's comes up once (Boot.tsx) */}

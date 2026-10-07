@@ -1699,6 +1699,11 @@ html[data-landing-scale] {
   opacity: 1;
   background-position: 100% 50%;
 }
+/* THE PRIMARY DOOR WEARS IT AT REST (2026-10-06 — the owner's directive: the foil off the one word and on structure, "the
+   primary Pill at rest (not only on hover)"): its surface is the foil; the pointer sweeps it */
+.door-foil-rest::before {
+  opacity: 1;
+}
 .door-edge {
   position: relative;
 }
