@@ -13,8 +13,8 @@
                      lines, and the two doors. No picture (Opening.tsx).
     The answer       the scroll turns the quote into "Trade what you can see.", and a silver line opens into the
                      terminal, the picture resolving out of a fine grain — the page's one wow.
-    The session      that terminal goes to stand beside one session on SPY, three moments read off it as it ran, the
-                     scroll playing it between them (Session.tsx).
+    The session      that terminal goes to stand beside one session on SPY, three moments read off it as it ran; at
+                     each the camera moves in on the level its words name, a silver rule and a chip on it (Session.tsx).
     The rooms        the desk splits into the terminal's eight rooms, dealt into a wall; then one room at a time, the
                      scroll walking through them, each playing its pages, and the ground turning to the other theme and
                      home again (Rooms.tsx).
