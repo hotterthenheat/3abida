@@ -21,8 +21,8 @@ a band only when it is taller than 5% of the screen (the space between two lines
 space).
 
 `tools/caps.mjs` lists any words on the landing set in capitals or spaced 0.05 em or more (the footer and the terminal's
-own pictures aside). `tools/heads.mjs` captures each section's head, and `tools/pairsheet.py` lays captures out before
-| after. `tools/first-screen.mjs` and `tools/first-screen.py` measure the first screen's empty space at many sizes.
+own pictures aside). `tools/heads.mjs` captures each section's head, and `tools/pairsheet.py` lays captures out side by
+side, before and after. `tools/first-screen.mjs` and `tools/first-screen.py` measure the first screen's empty space at many sizes.
 `tools/pricing.mjs` captures the plans, `tools/edges.mjs` reads each section's left and right edges,
 `tools/read-and-questions.mjs` captures those two sections whole, `tools/room-tab.mjs` picks a room by its tab and
 `tools/glyph-rows.mjs` captures the glyph rows close up. `tools/phone-windows.mjs` captures the phone's windows with the
@@ -45,6 +45,7 @@ its hit area.
 - `p1-3-length/`: the page under 8,500 px on a desk and 10,000 on a phone. `trust-faq` shows Why Slayer and the
   questions before and after.
 - `p1-4-colour/`: the glyphs in the page's ink and Dossier opening on Earnings. `glyphs-1440x900` and `colour-1440x900`
-  show them before and after; `opening-shots-*` show each room's first page and panel in both themes.
+  show them before and after; `wall-1440x900` shows the rooms' wall, Dossier's tile included; `opening-shots-*` show each
+  room's first page and panel in both themes.
 - `p1-6-phone/`: the phone's windows readable and every control 44 px to a finger. `windows-390x844-*` show the first
   terminal and each beat before and after.
