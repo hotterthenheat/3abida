@@ -20,9 +20,15 @@ when the wall is partly dealt, or when the frame, the words or the turn's lines 
 a band only when it is taller than 5% of the screen (the space between two lines, or round a button, is not empty
 space).
 
+`tools/caps.mjs` lists any words on the landing set in capitals or spaced 0.05 em or more (the footer and the terminal's
+own pictures aside). `tools/heads.mjs` captures each section's head, and `tools/pairsheet.py` lays captures out before
+| after. `tools/first-screen.mjs` and `tools/first-screen.py` measure the first screen's empty space at many sizes.
+
 ## Folders
 
 - `p0-1-rooms/`: the rooms animation never stops halfway.
 - `p0-2-readable/`: the product is readable: the session's camera on each beat's level with its call, and the rooms'
   panels. `beats-*` are the session's stops at 1440×900; `panels-*-first-last` show each panel film's first and last
   frames.
+- `p0-3-headings/`: each section headed its own way, no tracked caps. `heads-1440x900` shows the first screen and each
+  section's head before and after.
