@@ -494,7 +494,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
 
   const lit = view.lit;
   return (
-    <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] gap-x-10 xl:gap-x-12'} data-session>
+    <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10'} data-session>
       <div className={small ? '' : 'pb-[14svh]'}>
         {told && (
           /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands

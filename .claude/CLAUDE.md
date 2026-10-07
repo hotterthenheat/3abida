@@ -149,8 +149,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
 - THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"): THE COLUMN IS A WINDOW
   THE SCREEN HOLDS WHOLE — as wide as a terminal window whose whole height stands on the screen under the bar (index.css
   [data-landing] --landing-col: the picture's 1440 × 1000 and its 42 px bar, 140 px of the screen kept; never more than
-  1160 px of words nor less than 820). The Wrap, the open bar (32 px narrower) and the footer's words all read it; the
-  session's window and the rooms' window run on past the column to 24 px short of the screen's right edge. The quote
+  1160 px of words nor less than 820). The Wrap, the open bar (32 px narrower) and the footer's words all read it, and
+  so does every window: ONE GRID (2026-10-06 — the owner's directive, "Put the page on one grid"): the session's and the
+  rooms' windows end on the column's right edge (they ran on past it to 24 px short of the screen's, past the edge every
+  other section keeps), their words in a 17rem column 2.5rem from the window — 784 px of window at 1440 × 900, so a
+  panel's smallest words stand at 11 px (scripts/landing-acts/panels.mjs); a room's name stands at 2.5rem, so "The
+  Weigher" keeps to one line. The quote
   min(8.4vw, 14.5svh) up to 136 px, the answer over the terminal 40–68 px, heads 50, prices 44 (all of these in the
   design's px — rem since 2026-10-06, below). A SHORT SCREEN (720 to 820 px tall, lg up): the first screen's doors and the
   terminal under the still one close up (index.css).

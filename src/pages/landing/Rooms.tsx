@@ -100,7 +100,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
     {/* what kind of room, in words (no number: the rooms are not a sequence — the owner's directive, 2026-10-06) */}
     <p className="text-[0.875rem] text-textMuted">{room.kind}</p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
-    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] xl:text-[2.75rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
+    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
       <ProductGlyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
       <span className="min-w-0">{room.name}</span>
     </h3>
@@ -811,7 +811,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
 
         {/* THE TOUR — the room's words on the left, its page on the right */}
         <div ref={tourLayer} className="absolute inset-0 pointer-events-none [&>*>*]:pointer-events-auto" style={{ visibility: 'hidden' }}>
-          <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 grid grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] gap-x-10 xl:gap-x-12">
+          <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10">
             <div ref={words} className="min-w-0 flex flex-col pb-8" style={{ paddingTop: TOP, opacity: 0, visibility: 'hidden' }}>
               {/* THE RAIL: every room, the one on screen lit — a door to each */}
               <nav aria-label="The rooms" className="flex items-center gap-0.5 -ml-2">

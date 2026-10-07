@@ -1571,16 +1571,11 @@ html[data-landing-scale] {
    zoomed in"): the column (Landing.tsx Wrap, the open bar, the footer's words) is as wide as a terminal window whose whole
    height stands on the screen under the bar — the picture's 1440 × 1000 and the window's 42 px bar, 140 px of the screen
    kept for the bar and a margin — never wider than 1160 px of words, never narrower than 820 (in the design's px: rem). Every
-   window on the page is the column's width, so the words and the windows share their edges on every screen. */
+   window on the page stands inside the column, so the words and the windows share their edges on every screen: ONE GRID
+   (2026-10-06 — the owner's directive, "Put the page on one grid"; the session's and the rooms' windows ran on past the
+   column to 24 px short of the screen's edge, past the edge every other section keeps). */
 [data-landing] {
   --landing-col: calc(min(72.5rem, max(51.25rem, (100svh - 8.75rem) * 1.44 + 0.125rem)) + 5rem);
-}
-/* …and the session's picture, beside its beats, runs on past the column to 24 px short of the screen's right edge, so the
-   narrower column does not make the demonstration small */
-@media (min-width: 1024px) {
-  [data-landing] [data-session-stage] {
-    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 1rem));
-  }
 }
 .landing-window {
   box-shadow: 0 50px 120px -60px rgb(0 0 0 / 0.85);
@@ -1689,12 +1684,6 @@ html[data-landing-scale] {
 /* EACH ROOM'S PAGES come into the window in their own way, drawn from what the page does (pages/landing/Boot.tsx
    `sweep`): Compass dealt a column at a time, Pinpoint opening from the middle, Terrain drawn left to right, Trace printing
    down, each with a soft edge. */
-/* THE ROOMS' WINDOW runs on past the column to 24 px short of the screen's right edge, as the session's does */
-@media (min-width: 1024px) {
-  [data-landing] [data-rooms-window] {
-    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 1rem));
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   [data-arrival] .landing-line {
     animation: none !important;
