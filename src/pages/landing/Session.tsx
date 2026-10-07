@@ -523,7 +523,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                 <p className={`text-[0.875rem] tnum transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`} data-session-anchor>
                   {b.time}
                 </p>
-                <h3 className={`mt-4 text-[1.625rem] sm:text-[1.75rem] xl:text-[1.875rem] font-light leading-[1.05] tracking-[-0.03em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
+                <h3 className={`mt-4 text-[1.625rem] sm:text-[1.75rem] xl:text-[1.875rem] landing-display font-light leading-[1.05] tracking-[-0.02em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
                   {WORDS[i].title}
                 </h3>
                 <p className={`mt-3 max-w-[34ch] text-[0.96875rem] leading-[1.55] transition-colors duration-300 ${on ? 'text-textSecondary' : 'text-textMuted'}`}>{WORDS[i].text}</p>

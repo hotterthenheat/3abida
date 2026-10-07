@@ -63,7 +63,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   a silver highlighter with the dark word as a surface; a canvas or chart option reads them through
   readToken/resolveInk. Up-green and down-red (--bull/--bear), the supreme's magenta and the other data colours are
   unchanged; a user-chosen candle theme ("Neon") or drawing swatch that is lime by name may stay. Type: Helvetica for
-  every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font. The only monospace is the drawn wordmark;
+  every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font — but for the landing's display words
+  (2026-10-06 — the owner's pick, "Inter Display": Windows has no Helvetica, and Arial has no Light, so every light
+  headline drew at regular weight there): the quote, the heads, the prices and the last words wear .landing-display
+  (index.css), Inter Display self-hosted in public/fonts (the Latin cut, Light, Regular and Medium, swap, the Light
+  preloaded for "/" by index.html), headlines tracked -0.03em. The terminal and every other word stay Helvetica. The only monospace is the drawn wordmark;
   the signature ("slayer:~ $ ● live" — the market's own word, live while it is open and closed when it is shut; live
   wears the moving silver dot and the silver word) and code use --font-code. Product one-liners are nav.ts's (the brand's own); never write grade, score, win
   rate, signal (as a trade call), guaranteed, confluence, market intelligence. Pages outside the terminal (status,

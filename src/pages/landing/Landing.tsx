@@ -344,7 +344,7 @@ const Wrap = ({ children, className = '', ...rest }: { children: ReactNode; clas
     line of what follows, the questions' in their own column, the last words read by the scroll. */
 const TwoTone = ({ first, second, className = '' }: { first: string; second: string; className?: string }) => (
   /* outline-none: a jump along the page lands the keys here (toAnchor) — a heading to land on, not a control */
-  <h2 className={`font-light tracking-[-0.04em] leading-[1.02] text-[2rem] sm:text-[2.625rem] lg:text-[3.125rem] [text-wrap:balance] outline-none ${className}`}>
+  <h2 className={`landing-display font-light tracking-[-0.03em] leading-[1.02] text-[2rem] sm:text-[2.625rem] lg:text-[3.125rem] [text-wrap:balance] outline-none ${className}`}>
     {first} <span className="block text-textMuted">{second}</span>
   </h2>
 );
@@ -384,7 +384,7 @@ const Head = ({ first, second, aside, id }: { first: string; second?: string; as
         {second ? (
           <TwoTone first={first} second={second} />
         ) : (
-          <h2 className="font-light tracking-[-0.04em] leading-[1.02] text-[2rem] sm:text-[2.5rem] lg:text-[2.875rem] [text-wrap:balance] outline-none">{first}</h2>
+          <h2 className="landing-display font-light tracking-[-0.03em] leading-[1.02] text-[2rem] sm:text-[2.5rem] lg:text-[2.875rem] [text-wrap:balance] outline-none">{first}</h2>
         )}
       </div>
       {aside && <p className="landing-line [--i:1] lg:col-span-5 max-w-[30rem] text-[1rem] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
@@ -397,7 +397,7 @@ const Statement = ({ title, aside, id }: { title: string; aside?: ReactNode; id?
   const ref = useArrival<HTMLDivElement>();
   return (
     <div ref={ref} id={id} className="landing-lines mx-auto max-w-[56rem] text-center">
-      <h2 className="landing-line landing-settle [--i:0] font-light tracking-[-0.045em] leading-[1] text-[2.25rem] sm:text-[3rem] lg:text-[3.75rem] [text-wrap:balance] outline-none">{title}</h2>
+      <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[1] text-[2.25rem] sm:text-[3rem] lg:text-[3.75rem] [text-wrap:balance] outline-none">{title}</h2>
       {aside && <p className="landing-line [--i:1] mt-6 mx-auto max-w-[40rem] text-[1rem] leading-relaxed text-textSecondary [text-wrap:balance]">{aside}</p>}
     </div>
   );
@@ -765,7 +765,7 @@ const Reveal = () => {
   return (
     <Wrap className="pb-[10vh]" data-landing-reveal>
       <div ref={head} className="landing-lines text-center">
-        <h2 className="landing-line landing-settle [--i:0] font-light tracking-[-0.045em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
+        <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
           Trade what you can see.
         </h2>
       </div>
@@ -780,7 +780,7 @@ const Reveal = () => {
 /** WHAT THE SESSION SAYS FIRST, beside its window as the opening hands it over (Session.tsx `story.lead`) */
 const Lead = () => (
   <div>
-    <h2 className="font-light tracking-[-0.035em] leading-[1.04] text-[1.875rem] xl:text-[2.125rem] [text-wrap:balance] outline-none">
+    <h2 className="landing-display font-light tracking-[-0.02em] leading-[1.04] text-[1.875rem] xl:text-[2.125rem] [text-wrap:balance] outline-none">
       Slayer reads it all together, on one screen, while the session moves.
     </h2>
     <p className="mt-5 max-w-[34ch] text-[0.9375rem] leading-[1.55] text-textSecondary">
@@ -866,7 +866,7 @@ const Trust = () => (
       <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
         {KINDS.map(k => (
           <div key={k.name} className="py-6 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
-            <p className="text-[1.3125rem] font-light tracking-[-0.02em]">{k.name}</p>
+            <p className="landing-display text-[1.3125rem] font-light tracking-[-0.01em]">{k.name}</p>
             <p className="mt-1 text-[0.875rem] text-textSecondary">{k.says}</p>
             <ul className="mt-4">
               {k.items.map(t => (
@@ -931,7 +931,7 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
       </div>
       {/* the page's big numbers are its prices — the only figures of ours it shows; the currency rides on the price line */}
       <p className="mt-6 flex items-baseline gap-2">
-        <span className="text-[2.375rem] sm:text-[2.75rem] font-light leading-none tracking-[-0.045em] tnum">{plan.price}</span>{' '}
+        <span className="text-[2.375rem] sm:text-[2.75rem] landing-display font-light leading-none tracking-[-0.03em] tnum">{plan.price}</span>{' '}
         <span className="text-[0.9375rem] text-textMuted">USD {plan.period}</span>
       </p>
       <dl className="mt-6 border-t border-borderSubtle">
@@ -1186,7 +1186,7 @@ const Page = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
             <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
               <div className="landing-line landing-settle [--i:0]">
-                <h2 className="font-light tracking-[-0.035em] leading-[1.05] text-[1.875rem] sm:text-[2.25rem] [text-wrap:balance] outline-none">Asked before you buy.</h2>
+                <h2 className="landing-display font-light tracking-[-0.02em] leading-[1.05] text-[1.875rem] sm:text-[2.25rem] [text-wrap:balance] outline-none">Asked before you buy.</h2>
               </div>
               <div className="landing-line [--i:1] mt-7 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
@@ -1238,7 +1238,7 @@ const Page = () => {
                 { text: 'Seen enough?', ink: 'text-textPrimary' },
                 { text: 'Step inside.', ink: 'text-textMuted' },
               ]}
-              className="mx-auto font-light tracking-[-0.045em] leading-[0.96] text-[clamp(2.5rem,6.4vw,6rem)] [text-wrap:balance]"
+              className="mx-auto landing-display font-light tracking-[-0.03em] leading-[0.96] text-[clamp(2.5rem,6.4vw,6rem)] [text-wrap:balance]"
             />
             <div className="mt-9 flex justify-center">
               <Pill href="/signup" onClick={signUp} testId="close">

@@ -100,7 +100,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
     {/* what kind of room, in words (no number: the rooms are not a sequence — the owner's directive, 2026-10-06) */}
     <p className="text-[0.875rem] text-textMuted">{room.kind}</p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
-    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] xl:text-[2.75rem] font-light leading-[1] tracking-[-0.04em] outline-none" data-room-head={room.id}>
+    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] xl:text-[2.75rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
       <ProductGlyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
       <span className="min-w-0">{room.name}</span>
     </h3>
@@ -860,10 +860,10 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
             <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 flex items-center">
               <div className="relative w-full">
-                <p ref={turnA} data-theme={a} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[3.25rem] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="a">
+                <p ref={turnA} data-theme={a} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary landing-display font-light text-[3.25rem] leading-[1.02] tracking-[-0.03em]" style={{ opacity: 0 }} data-rooms-turn="a">
                   {turnSays[a]}
                 </p>
-                <p ref={turnB} data-theme={b} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[3.25rem] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="b">
+                <p ref={turnB} data-theme={b} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary landing-display font-light text-[3.25rem] leading-[1.02] tracking-[-0.03em]" style={{ opacity: 0 }} data-rooms-turn="b">
                   {turnSays[b]}
                 </p>
               </div>

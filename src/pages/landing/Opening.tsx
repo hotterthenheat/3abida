@@ -52,7 +52,7 @@ const WORDS: Word[] = [
     `answer`, it carries what the scroll turns it into: the capital T laid over the t, and the answer set out of sight, on
     the second line's place, for the words to be measured against. */
 export const Quote = ({ answer = false, className = '' }: { answer?: boolean; className?: string }) => (
-  <h1 className={`relative font-light tracking-[-0.05em] leading-[0.95] outline-none ${className}`} data-landing-quote>
+  <h1 className={`relative landing-display font-light tracking-[-0.03em] leading-[0.95] outline-none ${className}`} data-landing-quote>
     {WORDS.map((w, i) => (
       <Fragment key={w.id}>
         {i > 0 && !w.tight && ' '}
