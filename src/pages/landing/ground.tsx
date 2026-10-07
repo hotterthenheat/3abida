@@ -3,41 +3,29 @@
   SLAYER TERMINAL - THE LANDING'S GROUND
   (pages/landing/ground.tsx)
 
-  THE PAGE TRAVELS TO THE OTHER THEME AND HOME AGAIN,
-  SLOWLY. It opens on the visitor's own ground
-  ('a'), and part way down the tour it turns into
-  the other ('b') over about a screen and a half of
-  scrolling — a painted gradient through steel, never
-  a cut (Noah, 2026-09-19, of the first cut: "i meant
-  more like a smooth transition not black one moment
-  then white in the very next section"). The
-  terminal in the window turns with it (the same
-  page's picture, in the other theme). After the last tool it turns
-  HOME the same slow way, so a page ends on the theme
-  it began on (Noah, the same day: "the light theme
-  should begin but also end as a light theme and the
-  dark theme should begin but end as a dark theme"):
-  the prices, the questions and the footer stand on
-  'a'. There and back — one journey, not a zebra.
+  THE PAGE STANDS ON THE VISITOR'S OWN GROUND ('a')
+  from top to foot. The tour's turn to the other theme
+  and home again was cut (2026-10-06 — the owner's
+  directive: its two screens, "Dark for the night
+  session." and "Paper for a bright room.", made the
+  page long); the other theme ('b') is still known
+  here, for the one room whose window plays in it
+  (Rooms.tsx `other`).
 
   HOW:
   · a block of the page is STAMPED with its ground
     (`data-theme`), so every token inside it is right
     with no per-element colour transition;
-  · the turn itself is ONE CSS gradient painted
-    behind the tour (index.css `.landing-dawn`) —
-    nothing is tied to the scroll frame by frame, so
-    a phone does not stutter;
   · the visitor's own ground is their stored choice,
     else their machine's. The toggle sets the ground
     under the bar to its other, for the whole site, and
     crossfades the page as ONE picture (View
     Transitions), at once where the browser cannot or
     the visitor asked for less motion. A ground PICKED
-    here is the whole page's from then on — the turn
-    stops turning (2026-10-03 audit: picked on the
-    turned stretch, the toggle stored the opposite of
-    what the reader asked for).
+    here is the whole page's from then on, and no
+    window shows the other theme (2026-10-03 audit:
+    picked on the turned stretch, the toggle stored the
+    opposite of what the reader asked for).
 
   THE FOIL TRAP. Tokens follow the nearest stamp, but
   the house's foil and paper rules in index.css are
@@ -70,9 +58,10 @@ const readBase = (): Ground => (hasStoredChoice() ? getResolvedTheme() : media &
 interface GroundValue {
   /** The ground the page opens on — the visitor's own */
   a: Ground;
-  /** The ground it turns into */
+  /** The other theme, for the one room whose window plays in it (Rooms.tsx `other`) — the page's own once a ground is
+      picked */
   b: Ground;
-  /** The visitor picks a ground, for the whole site — and the page stops turning: both ends are the pick */
+  /** The visitor picks a ground, for the whole site — from then on the whole page, and every window on it, is that */
   choose: (g: Ground) => void;
 }
 
@@ -133,7 +122,7 @@ export const GroundProvider = ({ children }: { children: ReactNode }) => {
 };
 
 interface BlockProps {
-  /** Which end of the journey this block stands on */
+  /** Which ground this block stands on: the page's own ('a') or the other ('b') */
   on: 'a' | 'b';
   as?: 'section' | 'div' | 'header' | 'footer';
   id?: string;

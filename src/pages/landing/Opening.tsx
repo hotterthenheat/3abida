@@ -36,7 +36,6 @@ interface Word {
   to?: string;
   tight?: boolean;
   br?: boolean;
-  foil?: boolean;
 }
 const WORDS: Word[] = [
   { id: 'you', text: 'You' },
@@ -46,23 +45,20 @@ const WORDS: Word[] = [
   { id: 'you2', text: 'you', to: 'you' },
   { id: 'can', text: 'can', to: 'can' },
   { id: 'nt', text: '’t', tight: true },
-  { id: 'see', text: 'see.', to: 'see.', foil: true },
+  { id: 'see', text: 'see.', to: 'see.' },
 ];
-
-/** the foil's word: its letters get room past their box (the tight tracking would cut the "e"'s overhang — 2026-09-20) */
-const foil = 'holo-text inline-block px-[0.06em] -mx-[0.06em]';
 
 /** THE QUOTE — the page's h1. Each word comes into focus as it rises, one after another (index.css .landing-word). With
     `answer`, it carries what the scroll turns it into: the capital T laid over the t, and the answer set out of sight, on
     the second line's place, for the words to be measured against. */
 export const Quote = ({ answer = false, className = '' }: { answer?: boolean; className?: string }) => (
-  <h1 className={`relative font-light tracking-[-0.05em] leading-[0.95] outline-none ${className}`} data-landing-quote>
+  <h1 className={`relative landing-display font-light tracking-[-0.03em] leading-[0.95] outline-none ${className}`} data-landing-quote>
     {WORDS.map((w, i) => (
       <Fragment key={w.id}>
         {i > 0 && !w.tight && ' '}
         <span data-word={w.id} className="relative inline-block">
           <span className="landing-word inline-block" style={{ '--w': i } as CSSProperties} data-word-ink>
-            {w.foil ? <span className={foil}>{w.text}</span> : w.text}
+            {w.text}
           </span>
           {answer && w.to && w.to !== w.text && (
             <span aria-hidden="true" className="absolute left-0 top-0" style={{ opacity: 0 }} data-word-to>
@@ -81,7 +77,7 @@ export const Quote = ({ answer = false, className = '' }: { answer?: boolean; cl
             <Fragment key={w.id}>
               {i > 0 && ' '}
               <span data-answer={w.id} className="inline-block">
-                {w.foil ? <span className="inline-block px-[0.06em] -mx-[0.06em]">{w.to}</span> : w.to}
+                {w.to}
               </span>
             </Fragment>
           ))}
@@ -91,15 +87,15 @@ export const Quote = ({ answer = false, className = '' }: { answer?: boolean; cl
   </h1>
 );
 
-/** WHAT LIES SCATTERED — the line under the quote and the three things it means, each on its code */
+/** WHAT LIES SCATTERED — the line under the quote and the three things it means (no numbers on them since 2026-10-06 —
+    the owner's directive: "remove 01/02/03 from the hero facts … neither is a sequence") */
 const FACTS = ['Where the options positions sit', 'Where dealer hedging flips', 'What is trading right now'];
 export const Tease = ({ className = '' }: { className?: string }) => (
   <div className={className} data-landing-tease>
     <p className="landing-rise [--rise-delay:420ms] text-[1.0625rem] sm:text-[1.1875rem] leading-[1.5] text-textSecondary [text-wrap:balance]">Most of what moves a price is public. It’s just scattered:</p>
     <ul className="mt-5 flex flex-col sm:flex-row sm:flex-wrap sm:justify-center items-center gap-x-8 gap-y-2.5 text-[0.9375rem] text-textPrimary">
       {FACTS.map((f, i) => (
-        <li key={f} className="landing-rise flex items-baseline gap-2.5" style={{ '--rise-delay': `${480 + i * 60}ms` } as CSSProperties}>
-          <span className="holo-text font-medium text-[0.75rem] tracking-[0.12em] tnum">{String(i + 1).padStart(2, '0')}</span>
+        <li key={f} className="landing-rise" style={{ '--rise-delay': `${480 + i * 60}ms` } as CSSProperties}>
           {f}
         </li>
       ))}
@@ -107,15 +103,12 @@ export const Tease = ({ className = '' }: { className?: string }) => (
   </div>
 );
 
-/** the first screen's small word over the quote */
-export const Kicker = ({ className = '' }: { className?: string }) => (
-  <p className={`landing-rise text-[0.75rem] font-medium uppercase tracking-[0.26em] text-textMuted ${className}`}>Slayer Terminal</p>
-);
-
 /* ---- the run ------------------------------------------------------------------------------- */
 
-/** the overlay's height (svh): the run is this less the screen the stage stands on */
-export const TRACK = 240;
+/** the overlay's height (svh): the run is this less the screen the stage stands on (180 since 2026-10-06 — the owner's
+    directive: "shorten it to where the reveal actually finishes"; it was 240, and the run ended in long stretches of
+    nothing changing) */
+export const TRACK = 180;
 
 /* THE RUN, in shares of it: the first scroll turns the quote and draws the line, the terminal is open within the first
    screen of scrolling, stands whole a while, then goes to stand beside the session */
@@ -130,6 +123,9 @@ const DOCK: [number, number] = [0.52, 0.8];
 /** the session's window takes over, on the same picture in the same place */
 const LANDED = 0.82;
 const GONE: [number, number] = [0.86, 0.91];
+/** …and stands alone a breath after: its camera may leave the whole desk for the first beat's level (Session.tsx), and
+    comes back to it before this picture returns */
+const LANDED_ALONE = 0.93;
 const LEAD_IN: [number, number] = [0.84, 0.92];
 /** where "See how it works" goes: the session's first words standing beside its window */
 export const HOW_AT = 0.95;
@@ -162,17 +158,19 @@ interface Props {
   story: Pick<Story, 'stage' | 'screen' | 'intro'>;
   /** the terminal is open and on its way to the session: the session's own pictures may come */
   onNear: () => void;
+  /** this one's picture has gone and the session's window stands alone (true), or is coming back over it (false): the
+      session's camera stands on the whole desk, as this picture does, until it has gone */
+  onLanded?: (landed: boolean) => void;
   /** the two doors, under the words */
   doors: ReactNode;
 }
 
-const Opening = ({ theme, story, onNear, doors }: Props) => {
+const Opening = ({ theme, story, onNear, onLanded, doors }: Props) => {
   const wrap = useRef<HTMLDivElement | null>(null);
   const stage = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const quote = useRef<HTMLDivElement | null>(null);
   const rest = useRef<HTMLDivElement | null>(null);
-  const kicker = useRef<HTMLDivElement | null>(null);
   const cue = useRef<HTMLDivElement | null>(null);
   const pool = useRef<HTMLDivElement | null>(null);
   const frame = useRef<HTMLDivElement | null>(null);
@@ -183,6 +181,8 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
   const [typed, setTyped] = useState(false);
   const nearNow = useRef(onNear);
   nearNow.current = onNear;
+  const landedNow = useRef(onLanded);
+  landedNow.current = onLanded;
 
   useEffect(() => {
     const el = wrap.current;
@@ -214,6 +214,8 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
     let near = false;
     /** the run as last drawn: a run at rest is not drawn again */
     let last = -1;
+    /** the session's window stands alone (this one's picture gone): its camera may leave the whole desk */
+    let landed = false;
 
     const layout = () => {
       vw = st.clientWidth;
@@ -301,10 +303,15 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       const p = progress();
       if (p === last) return;
       last = p;
+      const isLanded = p >= LANDED_ALONE;
+      if (isLanded !== landed) {
+        landed = isLanded;
+        landedNow.current?.(isLanded);
+      }
 
       /* THE WORDS: the doors and the three lines go first; the quote turns into its answer and rises over the screen */
       const out = span(p, REST_OUT);
-      for (const r of [rest.current, kicker.current]) {
+      for (const r of [rest.current]) {
         if (!r) continue;
         r.style.opacity = String(1 - out);
         r.style.transform = out ? `translate3d(0, ${Math.round(-28 * u * out)}px, 0)` : '';
@@ -503,10 +510,7 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
 
         {/* THE WORDS */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-          <div ref={kicker} className="will-change-transform">
-            <Kicker />
-          </div>
-          <div ref={quote} className="mt-6 w-full">
+          <div ref={quote} className="w-full">
             <Quote answer className="text-[clamp(4rem,min(8.4vw,14.5svh),8.5rem)] will-change-transform" />
           </div>
           <div ref={rest} className="mt-8 flex flex-col items-center will-change-transform">
@@ -519,7 +523,6 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
         </div>
         {/* THE CUE: the page goes on — gone with the first scroll */}
         <div ref={cue} aria-hidden="true" className="landing-rise [--rise-delay:900ms] absolute bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
-          <span className="text-[0.6875rem] uppercase tracking-[0.24em] text-textMuted">Scroll</span>
           <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
             <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
           </span>

@@ -1532,20 +1532,50 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
 html[data-landing-scale] {
   font-size: max(100%, min(100vw / 120, 100svh / 59.375));
 }
+/* THE LANDING'S DISPLAY FACE (2026-10-06 — the owner's pick, Inter Display, over the Logo System's "Helvetica, no hosted
+   font" for the landing's big words only): Windows has no Helvetica, so its readers got Arial, which has no Light — every
+   light headline drew at regular weight, with tracking tuned for Helvetica Neue Light. Self-hosted (public/fonts: the
+   Latin cut, Light, Regular and Medium only, SIL OFL), shown as soon as it is in (swap), its Light asked for before the
+   stylesheet finds it (index.html). Only what wears .landing-display takes it — the quote, the heads, the prices, the
+   last words; every other word on the page, and the terminal, stay Helvetica. */
+@font-face {
+  font-family: 'Inter Display';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/InterDisplay-Light.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/InterDisplay-Regular.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter Display';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/InterDisplay-Medium.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* its tracking is each line's own (Landing.tsx: -0.03em on a headline, less on a smaller head — the face is drawn
+   tighter than Helvetica Neue, so the old -0.04 to -0.05em set its letters touching) */
+[data-landing] .landing-display {
+  font-family: 'Inter Display', var(--font-sans);
+}
 /* THE LANDING'S COLUMN IS A WINDOW THE SCREEN HOLDS WHOLE (2026-10-03 — the owner: "i think the entire lading page is too
    zoomed in"): the column (Landing.tsx Wrap, the open bar, the footer's words) is as wide as a terminal window whose whole
    height stands on the screen under the bar — the picture's 1440 × 1000 and the window's 42 px bar, 140 px of the screen
    kept for the bar and a margin — never wider than 1160 px of words, never narrower than 820 (in the design's px: rem). Every
-   window on the page is the column's width, so the words and the windows share their edges on every screen. */
+   window on the page stands inside the column, so the words and the windows share their edges on every screen: ONE GRID
+   (2026-10-06 — the owner's directive, "Put the page on one grid"; the session's and the rooms' windows ran on past the
+   column to 24 px short of the screen's edge, past the edge every other section keeps). */
 [data-landing] {
   --landing-col: calc(min(72.5rem, max(51.25rem, (100svh - 8.75rem) * 1.44 + 0.125rem)) + 5rem);
-}
-/* …and the session's picture, beside its beats, runs on past the column to 24 px short of the screen's right edge, so the
-   narrower column does not make the demonstration small */
-@media (min-width: 1024px) {
-  [data-landing] [data-session-stage] {
-    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 1rem));
-  }
 }
 .landing-window {
   box-shadow: 0 50px 120px -60px rgb(0 0 0 / 0.85);
@@ -1654,12 +1684,6 @@ html[data-landing-scale] {
 /* EACH ROOM'S PAGES come into the window in their own way, drawn from what the page does (pages/landing/Boot.tsx
    `sweep`): Compass dealt a column at a time, Pinpoint opening from the middle, Terrain drawn left to right, Trace printing
    down, each with a soft edge. */
-/* THE ROOMS' WINDOW runs on past the column to 24 px short of the screen's right edge, as the session's does */
-@media (min-width: 1024px) {
-  [data-landing] [data-rooms-window] {
-    margin-right: calc(-1 * (max(0px, (100vw - var(--landing-col)) / 2) + 1rem));
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   [data-arrival] .landing-line {
     animation: none !important;
@@ -1698,6 +1722,11 @@ html[data-landing-scale] {
 .door-foil:focus-visible::before {
   opacity: 1;
   background-position: 100% 50%;
+}
+/* THE PRIMARY DOOR WEARS IT AT REST (2026-10-06 — the owner's directive: the foil off the one word and on structure, "the
+   primary Pill at rest (not only on hover)"): its surface is the foil; the pointer sweeps it */
+.door-foil-rest::before {
+  opacity: 1;
 }
 .door-edge {
   position: relative;

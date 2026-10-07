@@ -51,6 +51,16 @@
   once: the terminal drawing it. Neither where less
   motion is asked for.
 
+  PANELS, SINCE 2026-10-06 (the owner's directive: "for
+  each room's selected row, show the panel that row
+  describes, not the whole page", and "the smallest
+  product text inside any window is at least 11 px at
+  1440 wide"). A window asked for its `panel` shows, on
+  a desk, the part of the page its row is about —
+  filmed alone at three device pixels a point
+  (scripts/landing-acts/panels.mjs), so it is large and
+  sharp — and the whole page where a page has none.
+
   Motion here is the film itself — decoded, not painted
   by the page.
 ==================================================
@@ -84,8 +94,8 @@ interface Props {
   natural?: boolean;
   /** A window further down the page fetches its picture and its film only once the reader comes near it */
   lazy?: boolean;
-  /** THE BOOT (Boot.tsx): 'hero' — once a visit, as the page opens, its picture comes up out of the footer's broken
-      pixels; 'switch' — as the window first comes into view, and again on every page (or theme) it switches to */
+  /** THE BOOT (Boot.tsx): 'hero' — once a visit, as the page opens, its picture comes up over the window's ground;
+      'switch' — as the window first comes into view, and again on every page (or theme) it switches to */
   boot?: 'hero' | 'switch';
   /** a switching window's boot: the way each page comes back sharp (Boot.tsx) */
   bootSweep?: Sweep;
@@ -101,10 +111,17 @@ interface Props {
   /** HELD: the film waits on its first frame — a window that takes over from a picture drawn on a canvas (Rooms.tsx)
       shows that picture until it is on screen itself */
   hold?: boolean;
+  /** THE PANEL (2026-10-06 — the owner's directive: "for each room's selected row, show the panel that row describes, not
+      the whole page", "the smallest product text inside any window is at least 11 px at 1440 wide"): on a desk, the page's
+      panel where it has one — the part of the page its row is about, large — and the whole page where it has none */
+  panel?: boolean;
+  /** THE SCREEN NO TALLER THAN THIS (a CSS length; a `natural` window): the picture keeps its full width and is cut at its
+      foot (2026-10-06 — the owner's directive: "cap the window at 70 svh" — a phone's picture whole stood 740 px tall) */
+  cap?: string;
 }
 
 /* A SWITCH, BRISK (2026-10-05 — the owner: "we should have the tabs on the product things switch faster they take too
-   long right now"): a switching window's page resolves in a third of a second (it was 520 ms) */
+   long right now"): a switching window's page comes in in a third of a second (it was 520 ms) */
 const SWITCH_RUN = 330;
 
 /* A LAP, BRISK (2026-10-02 — the owner, of the tour's pages turning once a film had played through: "make the tab
@@ -113,16 +130,23 @@ const SWITCH_RUN = 330;
 const LAP = 4.5;
 const STILL_LAP = LAP * 1000;
 
-/** A film's length, in seconds — what clips.json keeps for each page, theme and size */
+/** A film's length, in seconds — what clips.json keeps for each page, theme and size — and, for a panel, where it stands
+    on the 1440 × 1000 desk */
 interface Clip {
   d: number;
+  box?: [number, number, number, number];
 }
 export const FILMS = CLIPS as unknown as Record<string, Clip>;
+/** the desk's picture, the phone's, or a PANEL: the part of a page its row is about, filmed alone at three times its size
+    (scripts/make-landing-clips.mjs, landing-acts/panels.mjs) */
+export type Form = 'desk' | 'phone' | 'panel';
 
 const crumbs = (pathname: string): string[] => pathname.split('/').filter(Boolean).slice(0, 3);
 export const slug = (path: string): string => path.replace(/^\//, '').replace(/\//g, '-');
-const keyFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `${slug(path)}-${theme}-${form}`;
-export const shotFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `/landing/${keyFor(path, theme, form)}.webp`;
+const keyFor = (path: string, theme: Theme, form: Form): string => `${slug(path)}-${theme}-${form}`;
+export const shotFor = (path: string, theme: Theme, form: Form): string => `/landing/${keyFor(path, theme, form)}.webp`;
+/** a page's panel, where it has one: its box on the desk (CSS px of the 1440 × 1000 picture) */
+export const panelOf = (path: string, theme: Theme): [number, number, number, number] | null => FILMS[keyFor(path, theme, 'panel')]?.box ?? null;
 const filmFor = (key: string): string => `/landing/clips/${key}.mp4`;
 
 /** The films are H.264: a browser that cannot play it (an open-source Chromium) is shown the stills */
@@ -159,12 +183,31 @@ export const Prompt = ({ path, still = false }: { path: string; still?: boolean 
 interface Reel {
   key: string;
   path: string;
-  form: 'desk' | 'phone';
+  form: Form;
   /** it can play: it is faded in over what was there */
   ready: boolean;
 }
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false }: Props) => {
+/** WHAT THE WINDOW SHOWS THIS MOMENT — the frame its film is on, else its still — for the page it switches to to come in
+    over (Boot `from`): a switch starts from what the reader was looking at, not from the page's first frame */
+const frameOf = (view: HTMLElement | null): HTMLCanvasElement | null => {
+  if (!view || view.clientWidth < 1 || view.clientHeight < 1) return null;
+  const films = [...view.querySelectorAll<HTMLVideoElement>('video[data-window-film]')].filter(v => v.readyState >= 2 && v.classList.contains('opacity-100'));
+  const pic: CanvasImageSource | null = films[films.length - 1] ?? view.querySelector<HTMLImageElement>('img[data-window-shot]');
+  if (!pic) return null;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const c = document.createElement('canvas');
+  c.width = Math.round(view.clientWidth * dpr);
+  c.height = Math.round(view.clientHeight * dpr);
+  try {
+    c.getContext('2d')?.drawImage(pic, 0, 0, c.width, c.height);
+  } catch {
+    return null;
+  }
+  return c;
+};
+
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false, panel = false, cap }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -184,7 +227,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     ro.observe(el);
     return () => ro.disconnect();
   }, [desk]);
-  const form = narrow ? 'phone' : 'desk';
+  const form: Form = narrow ? 'phone' : panel && panelOf(path, theme) ? 'panel' : 'desk';
 
   /* A WINDOW FURTHER DOWN WAITS (2026-10-03, the rebuilt landing: a window to each of its products, a film in each): it
      fetches nothing until the reader is within a screen or so of it, and then keeps what it has */
@@ -288,6 +331,8 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
      being booted: the hero's from the start (Boot keeps it to once a visit); a switching window's as it is first seen,
      and each new page's as the window turns to it */
   const [booting, setBooting] = useState<string | null>(boot === 'hero' ? want : null);
+  /* what was on screen as the window switched: its new page comes in over it (null the first time it is seen) */
+  const bootFrom = useRef<HTMLCanvasElement | null>(null);
   const firstSeen = useRef(false);
   const lastWant = useRef(want);
   useEffect(() => {
@@ -300,11 +345,15 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       setBooting(null);
       return;
     }
-    if (firstSeen.current) setBooting(want);
+    if (firstSeen.current) {
+      bootFrom.current = frameOf(view.current);
+      setBooting(want);
+    }
   }, [want, boot, calm]);
   useEffect(() => {
     if (boot !== 'switch' || calm || !seen || firstSeen.current) return;
     firstSeen.current = true;
+    bootFrom.current = null;
     setBooting(lastWant.current);
   }, [seen, boot, calm]);
   const holding = booting !== null && near;
@@ -420,7 +469,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       </div>
 
       {/* THE SCREEN */}
-      <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: form === 'phone' ? `${PHONE_W} / ${PHONE_H}` : `${SHOT_W} / ${SHOT_H}` } : undefined}>
+      <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: form === 'phone' ? `${PHONE_W} / ${PHONE_H}` : `${SHOT_W} / ${SHOT_H}`, maxHeight: cap } : undefined}>
         {under && <img src={under} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 w-full h-full object-cover object-left-top select-none" />}
         {shown && (
           <img
@@ -464,10 +513,12 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
         {/* the first picture is still travelling: the house's "it is working" mark, and only if the wait lasts (ui/Working.tsx) */}
         {!shown && (
           <span className="absolute inset-x-0 top-0 h-[20rem] max-h-full flex items-center justify-center pointer-events-none" data-window-boot>
-            <Working label="Loading the picture" stacked />
+            {/* the mark alone: the house's label is set in tracked capitals, and the landing has none (2026-10-06 — the
+                owner's directive) */}
+            <Working stacked />
           </span>
         )}
-        {/* the hero's window comes up out of the footer's broken pixels, once (Boot.tsx) */}
+        {/* a switch brings its page in over what was there; the hero's comes up once (Boot.tsx) */}
         {booting && near && (
           <Boot
             key={`boot:${booting}`}
@@ -476,6 +527,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             run={boot === 'switch' ? SWITCH_RUN : undefined}
             start={boot === 'switch' ? 0 : undefined}
             sweep={boot === 'switch' ? bootSweep : undefined}
+            from={bootFrom.current}
             onDone={() => setBooting(b => (b === booting ? null : b))}
           />
         )}

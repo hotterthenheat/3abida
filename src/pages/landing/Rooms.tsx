@@ -7,35 +7,42 @@
   wise is one of the better designs we had but it still lacks the wow factor … then you get all the information and we
   should have the tabs on the product things switch faster they take too long right now").
 
-  ON A DESK, ONE STAGE THE SCROLL PLAYS (it stands still, sticky, while the reader scrolls):
-    THE WALL — the desk the session ran on splits into the terminal's eight rooms: their pictures lie in a pile in a fine
-      grain without their colour, and are dealt out one after another into a wall of eight, each resolving as it lands
-      (pixels.ts), its name coming in under it. Each is a door to its room below.
-    THE TOUR — the first room's picture grows into the window, and the rooms come one at a time as the reader scrolls:
-      the room's words on the left, its page on the right. A room with several pages plays them on its own, a page every
-      DWELL, the silver line under the row filling; a pointer moving over the stage holds it until it has been still a
-      while, the keys inside hold it, and a picked row holds its room until the reader scrolls on. Each switch resolves
-      in a third of a second along the room's own motion (Boot.tsx `sweep`).
-    THE TURN — after Pinpoint the ground turns to the other theme ("Dark for the night session." / "Paper for a bright
-      room."), slowly, through the steel between, and the terminal turns with it; after Practice it turns home, so the
-      page ends on the ground it began on. A ground the reader picked on the page stays put (ground.tsx).
+  ON A DESK, ONE STAGE (it stands still, sticky, while the reader scrolls). THE SCROLL SAYS WHEN A STEP PLAYS, NEVER HOW
+  FAR (the owner's directive, 2026-10-06: a reader who stopped mid-deal saw a pile of half-dealt windows in grain, "which
+  reads as a broken render"): crossing into a step plays it whole on a timer, crossing back plays it backwards, so every
+  scroll stop lands on a finished wall or a room. No grain here: the pictures are the pictures.
+    THE WALL — as the wall comes up the screen, the terminal's eight rooms are dealt from its middle into a wall of
+      eight, one after another (DEAL_FLIGHT each, STAGGER apart: about 700 ms), each name coming in under its picture.
+      Each is a door to its room below.
+    THE TOUR — the first room's picture grows into the window (TOUR_MS), and the rooms come one at a time as the reader
+      scrolls: the room's words on the left, its page on the right. A room with several pages plays them on its own, a
+      page every DWELL, the silver line under the row filling; a pointer moving over the stage holds it until it has been
+      still a while, the keys inside hold it, and a picked row holds its room until the reader scrolls on. A row's page
+      comes in over the one before in a third of a second along the room's own motion (Boot.tsx `sweep`).
+    ONE ROOM IN THE OTHER THEME — the page's ground never turns (2026-10-06 — the owner cut the turn's two screens, "Dark
+      for the night session." and "Paper for a bright room."): the room marked `other` (Trace) plays its window in the
+      page's other theme, light on a dark page and dark on a light one. A ground the reader picked stays put
+      (ground.tsx).
   A phone and less motion have the rooms as tabs over one window (RoomsTabs): a pick changes the room at once, and on a
   phone the rooms play on their own while they are on screen.
 
   THE PICTURES are the rooms' own stills (the films' first frames — TerminalWindow), fetched once the reader is near;
-  the window plays the films. Nothing here is drawn to look like the product.
+  the window plays the films. Nothing here is drawn to look like the product. The wall deals the whole pages; the window
+  shows each row's PANEL (2026-10-06 — TerminalWindow `panel`: the part of the page the row is about, large enough to
+  read), and the first room's page zooms from the wall into its panel as it grows into the window.
 ==================================================
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import TerminalWindow, { shotFor } from './TerminalWindow';
+import TerminalWindow, { panelOf, shotFor, SHOT_H, SHOT_W } from './TerminalWindow';
 import type { Sweep } from './Boot';
-import { useBlockGround, useGround, type Ground } from './ground';
+import { useBlockGround, useGround } from './ground';
 import ProductGlyph from '../../brand/ProductGlyph';
+import Glyph from './Glyph';
 import type { GlyphName } from '../../brand/paths';
-import { inksAt, pictureIn, pieceOf, type Piece } from './pixels';
+import { pictureIn } from './pixels';
 import { unit, useStacked } from './scale';
 
 export interface RoomRow {
@@ -47,7 +54,6 @@ export interface RoomRow {
 
 export interface Room {
   id: string;
-  code: string;
   glyph: GlyphName;
   /** the kind of room, in a word or two */
   kind: string;
@@ -57,8 +63,10 @@ export interface Room {
   /** the page the room opens on */
   path: string;
   rows: RoomRow[];
-  /** the way a page of this room resolves into the window (Boot.tsx) */
+  /** the way a page of this room comes into the window (Boot.tsx) */
   sweep: Sweep;
+  /** its window plays in the page's other theme: the one room that shows it, since the turn was cut */
+  other?: boolean;
 }
 
 /** a page every DWELL; a pointer holds the room until it has been still STILL_FOR */
@@ -74,7 +82,6 @@ const doorName = (name: string) => name.replace(/^The /, 'the ');
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const span = (v: number, [a, b]: [number, number]) => (b <= a ? (v >= b ? 1 : 0) : clamp((v - a) / (b - a)));
 
 /* ---- a room's words: shared by the stage and the tabs ------------------------------------- */
 
@@ -93,14 +100,11 @@ interface WordsProps {
 
 const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsProps) => (
   <div className="room-in" data-room-words={room.id}>
-    <p className="flex items-center gap-3 text-[0.71875rem] font-medium uppercase tracking-[0.22em] text-textMuted">
-      <span className="holo-text tnum">{room.code}</span>
-      <span className="w-6 h-px bg-borderMuted" aria-hidden="true" />
-      {room.kind}
-    </p>
+    {/* what kind of room, in words (no number: the rooms are not a sequence — the owner's directive, 2026-10-06) */}
+    <p className="text-[0.875rem] text-textMuted">{room.kind}</p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
-    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] xl:text-[2.75rem] font-light leading-[1] tracking-[-0.04em] outline-none" data-room-head={room.id}>
-      <ProductGlyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
+    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
+      <Glyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
       <span className="min-w-0">{room.name}</span>
     </h3>
     <p className="mt-4 max-w-[40ch] text-[0.9375rem] xl:text-[0.96875rem] leading-[1.5]">
@@ -145,7 +149,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
         e.preventDefault();
         onOpen(door);
       }}
-      className="door-edge group/door mt-6 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+      className="relative before:content-[''] before:absolute before:-inset-y-1 before:inset-x-0 door-edge group/door mt-6 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
       data-room-door={room.id}
     >
       Open {doorName(room.name)}
@@ -228,25 +232,25 @@ const useHands = () => {
 
 /* ---- the stage (a desk) ------------------------------------------------------------------------ */
 
-/** THE STAGE'S RUN, in svh: the deal, the wall standing, the wall becoming the tour, each room, the turn and the turn home */
-const SEG = { deal: 34, wall: 14, toTour: 26, room: 20, turn: 34, back: 22 };
-/** the turn comes after this room (Pinpoint) */
-const TURN_AFTER = 3;
+/** THE STAGE'S RUN, in svh: the wall dealt and standing, the wall becoming the tour, and each room. The scroll says WHEN a
+    step plays, never how far (the directive of 2026-10-06): crossing into a step plays it whole on a timer, crossing back
+    out plays it backwards, so a reader who stops scrolling always sees a finished wall or a room. */
+const SEG = { deal: 12, wall: 12, toTour: 12, room: 16 };
+/** the steps' own times (ms): each card's flight and the time between two cards, and the wall becoming the tour */
+const DEAL_FLIGHT = 280;
+const STAGGER = 60;
+const TOUR_MS = 700;
 /** where the stage's words start, under the floating bar (the design's 96 px, growing with the landing — scale.ts) */
 const TOP = '6rem';
-/** how sharp a room's picture is in the pile: a fine grain, without its colour */
-const APART = 0.42;
 
 interface Plan {
   deal: [number, number];
   wall: [number, number];
   toTour: [number, number];
   rooms: [number, number][];
-  turn: [number, number];
-  back: [number, number];
   total: number;
 }
-const planFor = (n: number, turns: boolean): Plan => {
+const planFor = (n: number): Plan => {
   let at = 0;
   const take = (len: number): [number, number] => {
     const r: [number, number] = [at, at + len];
@@ -257,29 +261,8 @@ const planFor = (n: number, turns: boolean): Plan => {
   const wall = take(SEG.wall);
   const toTour = take(SEG.toTour);
   const rooms: [number, number][] = [];
-  let turn: [number, number] = [0, 0];
-  for (let i = 0; i < n; i++) {
-    rooms.push(take(SEG.room));
-    if (i === TURN_AFTER) turn = take(turns ? SEG.turn : 0);
-  }
-  const back = take(turns ? SEG.back : 0);
-  return { deal, wall, toTour, rooms, turn, back, total: at };
-};
-
-/** the ground's road from one theme to the other, through the steel between (theme/tokens.css --night … --day), as the
-    old turn painted it */
-const RAMP_AT = [0, 0.2, 0.38, 0.53, 0.66, 0.82, 1];
-const readRamp = (): number[][] => {
-  const cs = getComputedStyle(document.documentElement);
-  return ['--night', '--dawn-1', '--dawn-2', '--dawn-3', '--dawn-4', '--dawn-5', '--day'].map(n => cs.getPropertyValue(n).trim().split(/\s+/).map(Number));
-};
-const rampAt = (ramp: number[][], t: number): string => {
-  let i = 0;
-  while (i < RAMP_AT.length - 2 && t > RAMP_AT[i + 1]) i++;
-  const u = clamp((t - RAMP_AT[i]) / (RAMP_AT[i + 1] - RAMP_AT[i]));
-  const a = ramp[i];
-  const b = ramp[i + 1];
-  return `rgb(${Math.round(lerp(a[0], b[0], u))} ${Math.round(lerp(a[1], b[1], u))} ${Math.round(lerp(a[2], b[2], u))})`;
+  for (let i = 0; i < n; i++) rooms.push(take(SEG.room));
+  return { deal, wall, toTour, rooms, total: at };
 };
 
 interface Rect {
@@ -293,16 +276,14 @@ const mix = (a: Rect, b: Rect, t: number): Rect => ({ x: lerp(a.x, b.x, t), y: l
 interface StageProps {
   rooms: Room[];
   head: ReactNode;
-  turnSays: Record<Ground, string>;
   onOpen: (path: string) => void;
   /** the stage's place for a jump along the page (the bar's "Rooms"): the wall, dealt — a marker naming the wall's head */
   anchor?: string;
 }
 
-const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
+const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
   const { a, b } = useGround();
-  const turns = a !== b;
-  const plan = useMemo(() => planFor(rooms.length, turns), [rooms.length, turns]);
+  const plan = useMemo(() => planFor(rooms.length), [rooms.length]);
 
   const track = useRef<HTMLDivElement | null>(null);
   const stage = useRef<HTMLDivElement | null>(null);
@@ -316,14 +297,11 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
   const winCell = useRef<HTMLDivElement | null>(null);
   const frame = useRef<HTMLDivElement | null>(null);
   const frameBar = useRef<HTMLDivElement | null>(null);
-  const turnA = useRef<HTMLParagraphElement | null>(null);
-  const turnB = useRef<HTMLParagraphElement | null>(null);
 
   const [room, setRoom] = useState(0);
-  const [turned, setTurned] = useState(false);
   /** the window has taken over from the wall's picture */
   const [live, setLive] = useState(false);
-  /** the room's words are up (not mid-turn, not before the tour) */
+  /** the room's words are up (not before the tour) */
   const [reading, setReading] = useState(false);
   const [page, setPage] = useState(0);
   const [held, setHeld] = useState(false);
@@ -337,8 +315,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
   const shown = pages[Math.min(page, pages.length - 1)];
   const { handlers, holding } = useHands();
   const plays = live && reading && !held && pages.length > 1;
-  /* WHY THE PAGE CHANGED: a row (played or picked) resolves into the window (Boot.tsx); a room or a ground the scroll
-     brings crossfades — a resolve at every room the scroll passed cost the scroll its frames */
+  /* WHY THE PAGE CHANGED: a row (played or picked) comes in along the room's motion (Boot.tsx); a room the scroll brings
+     crossfades — a switch at every room the scroll passed cost the scroll its frames */
   const why = useRef<'row' | 'scroll'>('scroll');
   const { setBar } = usePlay(
     plays,
@@ -363,10 +341,10 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     [plan]
   );
 
-  /* ---- the scroll plays the stage ---- */
+  /* ---- the scroll says WHEN each step plays; a timer plays it (the directive of 2026-10-06: "Every scroll stop lands
+     on a finished state") ---- */
   const live0 = useRef(false);
   const room0 = useRef(0);
-  const turned0 = useRef(false);
   const reading0 = useRef(false);
   useEffect(() => {
     const t = track.current;
@@ -377,7 +355,6 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     let alive = true;
     let raf = 0;
     let listening = false;
-    let vw = 0;
     let vh = 0;
     let dpr = 1;
     /** one of the design's pixels (scale.ts) */
@@ -385,78 +362,81 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     let slotR: Rect[] = [];
     let pile: Rect = { x: 0, y: 0, w: 0, h: 0 };
     let win: Rect = { x: 0, y: 0, w: 0, h: 0 };
+    /** where (svh, on the stage's run) the wall's top row has come a little way up the screen: the deal plays from there */
+    let dealAt = -20;
     let edge = 'rgb(255 255 255 / 0.12)';
-    const ramp = readRamp();
-    const order = a === 'dark' ? ramp : [...ramp].reverse();
     const imgs: (HTMLImageElement | null)[] = rooms.map(() => null);
-    let pieces: (Piece | null)[] = rooms.map(() => null);
-    /* the grain a tile passes through on its way, made ahead (a state made mid-scroll cost the frame) */
-    let cools: (() => void)[] = [];
-    const ready = (p: Piece | null) => {
-      if (p) cools.push(p.warm(APART));
-      return p;
-    };
-    /* a landed tile's picture, at its slot's own size: eight full pictures scaled down every frame cost the wall its frames */
-    let small: (HTMLCanvasElement | null)[] = rooms.map(() => null);
-    const smallOf = (i: number): HTMLCanvasElement | null => {
-      const img = imgs[i];
-      const sr = slotR[i];
-      if (!img || !sr || sr.w < 2) return null;
-      const w = Math.round(sr.w * dpr);
-      const h = Math.round(sr.h * dpr);
-      const hit = small[i];
-      if (hit && hit.width === w && hit.height === h) return hit;
+    /** each room's picture made ready at the size it is dealt at, and the window's own first picture at the window's: eight
+        full pictures scaled every frame cost the wall its frames */
+    let cards: (HTMLCanvasElement | null)[] = rooms.map(() => null);
+    let first: HTMLCanvasElement | null = null;
+    /** THE FIRST ROOM'S PANEL (TerminalWindow `panel`): the window shows the part of the page its row is about, so the
+        whole page on the wall zooms into it as it grows into the window, and lands on the panel's own picture */
+    const zoomTo = panelOf(rooms[0].path, a);
+    let panelImg: HTMLImageElement | null = null;
+    const copy = (img: HTMLImageElement, w: number, h: number): HTMLCanvasElement | null => {
+      const W = Math.max(1, Math.round(w * dpr));
+      const H = Math.max(1, Math.round(h * dpr));
       const cv = document.createElement('canvas');
-      cv.width = w;
-      cv.height = h;
+      cv.width = W;
+      cv.height = H;
       const g = cv.getContext('2d');
       if (!g) return null;
       g.imageSmoothingEnabled = true;
       g.imageSmoothingQuality = 'high';
-      g.drawImage(img, 0, 0, w, h);
-      small[i] = cv;
+      g.drawImage(img, 0, 0, W, H);
       return cv;
     };
-    let last = -1;
-    let cleared = false;
+    const ready = (i: number) => {
+      const img = imgs[i];
+      if (!img || !img.naturalWidth || pile.w < 2) return;
+      cards[i] = copy(img, pile.w, pile.h);
+      if (i === 0 && win.w > 2) first = copy(zoomTo ? panelImg ?? img : img, win.w, win.h - 40 * u);
+    };
+
+    /* THE STEPS, in order — the deal and the wall becoming the tour: each a progress the timer moves toward where the scroll
+       says it should stand, one step at a time (forward from the first, back from the last) */
+    const dealMs = DEAL_FLIGHT + STAGGER * (rooms.length - 1);
+    const steps = { deal: { p: 0, to: 0, ms: dealMs }, tour: { p: 0, to: 0, ms: TOUR_MS } };
+    const chain = [steps.deal, steps.tour];
+    let lastT = 0;
+    /** the canvas stands still: nothing yet, or the window's picture under the window */
+    let drawnStill: 'empty' | 'live' | null = null;
 
     const layout = () => {
-      vw = st.clientWidth;
       vh = st.clientHeight;
       dpr = Math.min(2, window.devicePixelRatio || 1);
       u = unit();
-      c.width = Math.max(1, Math.round(vw * dpr));
+      c.width = Math.max(1, Math.round(st.clientWidth * dpr));
       c.height = Math.max(1, Math.round(vh * dpr));
       const sb = st.getBoundingClientRect();
       slotR = pics.current.map(p => {
         const q = p?.getBoundingClientRect();
         return q ? { x: q.left - sb.left, y: q.top - sb.top, w: q.width, h: q.height } : { x: 0, y: 0, w: 0, h: 0 };
       });
-      /* the pile: in the middle of the wall, twice a slot */
-      const xs = slotR.map(s => s.x);
-      const ys = slotR.map(s => s.y);
-      const gx0 = Math.min(...xs);
+      const gx0 = Math.min(...slotR.map(s => s.x));
       const gx1 = Math.max(...slotR.map(s => s.x + s.w));
-      const gy0 = Math.min(...ys);
+      const gy0 = Math.min(...slotR.map(s => s.y));
       const gy1 = Math.max(...slotR.map(s => s.y + s.h));
-      const w = Math.min((slotR[0]?.w ?? 0) * 2.1, (gx1 - gx0) * 0.55);
+      /* the pile the cards are dealt from: the middle of the wall, a card and a half */
+      const w = (slotR[0]?.w ?? 0) * 1.5;
       const h = w / (1440 / 1000);
-      pile = { x: (gx0 + gx1) / 2 - w / 2, y: (gy0 + gy1) / 2 - h / 2 + 12 * u, w, h };
+      pile = { x: (gx0 + gx1) / 2 - w / 2, y: (gy0 + gy1) / 2 - h / 2, w, h };
+      dealAt = ((gy0 - 0.85 * vh) / Math.max(1, vh)) * 100;
       const tw = winCell.current?.querySelector<HTMLElement>('[data-terminal-window]')?.getBoundingClientRect();
       win = tw ? { x: tw.left - sb.left, y: tw.top - sb.top, w: tw.width, h: tw.height } : pile;
       const border = getComputedStyle(st).getPropertyValue('--border-muted').trim();
       if (border) edge = `rgb(${border})`;
-      cools.forEach(cool => cool());
-      cools = [];
-      small = rooms.map(() => null);
-      /* (read in the design's px: the grain the same on every screen) */
-      pieces = imgs.map(img => ready(img && img.naturalWidth ? pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, pile.w / u, pile.h / u, inksAt(st)) : null));
-      last = -1;
+      cards = rooms.map(() => null);
+      first = null;
+      rooms.forEach((_, i) => ready(i));
+      drawnStill = null;
     };
 
-    /** a room's picture at a place: rounded as the wall's slots and the window are, its edge drawn while it is apart */
-    const tile = (p: Piece | null, at: Rect, sharp: number, alpha = 1, line = true, copy: HTMLCanvasElement | null = null) => {
-      if (alpha <= 0 || at.w < 2) return;
+    /** a room's picture at a place: rounded as the wall's slots and the window are, its edge drawn while it is in flight
+        (`part`: only that part of the picture, in its own pixels) */
+    const tile = (src: CanvasImageSource | null, at: Rect, alpha = 1, line = true, part?: Rect) => {
+      if (!src || alpha <= 0 || at.w < 2) return;
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.beginPath();
@@ -465,8 +445,9 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       else ctx.rect(at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
       ctx.save();
       ctx.clip();
-      if (copy && sharp >= 1) ctx.drawImage(copy, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
-      else if (p) p.draw(ctx, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr, sharp);
+      ctx.imageSmoothingEnabled = true;
+      if (part) ctx.drawImage(src, part.x, part.y, part.w, part.h, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
+      else ctx.drawImage(src, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
       ctx.restore();
       if (line) {
         ctx.strokeStyle = edge;
@@ -476,56 +457,61 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       ctx.restore();
     };
 
-    /** where the scroll stands in the stage's run (svh) */
-    const at = () => clamp((-t.getBoundingClientRect().top / Math.max(1, vh)) * 100, 0, plan.total);
+    /** where the scroll stands on the stage's run (svh) — below 0 while the stage is still coming up the screen */
+    const pos = () => (-t.getBoundingClientRect().top / Math.max(1, vh)) * 100;
 
-    const draw = () => {
+    const draw = (now: number) => {
       raf = 0;
       if (!alive) return;
-      const s = at();
-      if (s === last) return;
-      last = s;
-      const f = span(s, plan.deal);
-      const g = span(s, plan.toTour);
+      const dt = lastT ? Math.min(64, now - lastT) : 16;
+      lastT = now;
+      const s = pos();
 
-      /* which room, and the ground: the turn after Pinpoint, home after the last room */
+      /* WHERE EACH STEP SHOULD STAND (a step's edge has a little give, so a scroll resting on it does not flicker) */
+      const want = (p: { to: number }, at: number) => (s >= at + 1 ? 1 : s < at - 1 ? 0 : p.to);
+      steps.deal.to = s >= dealAt ? 1 : s < dealAt - 4 ? 0 : steps.deal.to;
+      steps.tour.to = want(steps.tour, plan.toTour[0]);
+      /* far from the stage — more than a screen above it, or past it — every step stands where the scroll left it, at
+         once: nobody is there to see it play */
+      const far = s < dealAt - 100 || s > plan.total + 100;
+      if (far) chain.forEach(st0 => (st0.p = st0.to));
+      else {
+        /* back from the last step that must go back, else forward from the first that must go on; a jump across more
+           than one step plays each a little quicker */
+        const pending = chain.filter(st0 => st0.p !== st0.to).length;
+        const speed = pending > 1 ? 2.5 : 1;
+        let k = -1;
+        for (let i = chain.length - 1; i >= 0; i--) if (chain[i].p > chain[i].to) {
+          k = i;
+          break;
+        }
+        if (k >= 0) chain[k].p = Math.max(chain[k].to, chain[k].p - (dt * speed) / chain[k].ms);
+        else {
+          k = chain.findIndex(st0 => st0.p < st0.to);
+          if (k >= 0) chain[k].p = Math.min(chain[k].to, chain[k].p + (dt * speed) / chain[k].ms);
+        }
+      }
+      const moving = chain.some(st0 => st0.p !== st0.to);
+      const dealP = steps.deal.p;
+      const g = steps.tour.p;
+
+      /* which room */
       let ri = 0;
       plan.rooms.forEach(([r0], i) => {
         if (s >= r0) ri = i;
       });
-      let tau = 0;
-      let say = -1;
-      let wordsIn = clamp((g - 0.45) / 0.4);
-      if (turns) {
-        if (s >= plan.turn[0] && s < plan.turn[1]) {
-          const q = span(s, plan.turn);
-          tau = ease(clamp((q - 0.15) / 0.7));
-          say = q;
-          wordsIn = q < 0.1 ? 1 - q / 0.1 : q > 0.9 ? (q - 0.9) / 0.1 : 0;
-        } else if (s >= plan.turn[1] && s < plan.back[0]) tau = 1;
-        else if (s >= plan.back[0] && s < plan.back[1]) {
-          const q = span(s, plan.back);
-          tau = 1 - ease(clamp((q - 0.15) / 0.7));
-          wordsIn = q < 0.2 ? 1 : q < 0.35 ? 1 - (q - 0.2) / 0.15 : q < 0.65 ? 0 : q < 0.8 ? (q - 0.65) / 0.15 : 1;
-        } else if (s >= plan.back[1] && plan.back[1] > plan.back[0]) tau = 0;
-      }
-      st.style.backgroundColor = rampAt(order, tau);
-      const isTurned = tau >= 0.5;
-      if (isTurned !== turned0.current) {
-        turned0.current = isTurned;
-        why.current = 'scroll';
-        setTurned(isTurned);
-      }
       if (ri !== room0.current) {
         room0.current = ri;
         why.current = 'scroll';
         setRoom(ri);
       }
-      const isLive = g >= 0.98;
+      const isLive = g >= 1;
       if (isLive !== live0.current) {
         live0.current = isLive;
         setLive(isLive);
       }
+      /* the words: in as the window takes over */
+      const wordsIn = clamp((g - 0.45) / 0.4);
       const isReading = isLive && wordsIn >= 0.99;
       if (isReading !== reading0.current) {
         reading0.current = isReading;
@@ -538,25 +524,24 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
         wallHead.current.style.opacity = String(1 - wallOut);
         wallHead.current.style.visibility = wallOut >= 1 ? 'hidden' : '';
       }
-      const dealt = rooms.map((_, i) => ease(clamp((f - (0.05 + i * 0.075)) / 0.32)));
-      dealt.forEach((u, i) => {
-        const lit = clamp((u - 0.75) / 0.25) * (1 - wallOut);
+      /* each card's own flight: dealt one after another, STAGGER apart */
+      const flight = rooms.map((_, i) => clamp((dealP * dealMs - i * STAGGER) / DEAL_FLIGHT));
+      flight.forEach((q, i) => {
+        const lit = clamp((q - 0.7) / 0.3) * (1 - wallOut);
         const lab = labels.current[i];
         if (lab) lab.style.opacity = String(lit);
         const pic = pics.current[i];
         if (pic) pic.style.opacity = String(lit);
         const slot = slots.current[i];
-        if (slot) slot.style.pointerEvents = u >= 1 && g < 0.2 ? 'auto' : 'none';
+        if (slot) slot.style.pointerEvents = q >= 1 && g < 0.2 ? 'auto' : 'none';
       });
 
-      /* THE TOUR'S WORDS, the window, and the turn's two lines */
+      /* THE TOUR'S WORDS, and the window */
       if (tourLayer.current) tourLayer.current.style.visibility = g > 0 ? '' : 'hidden';
       if (words.current) {
         words.current.style.opacity = String(wordsIn);
         words.current.style.visibility = wordsIn > 0 ? '' : 'hidden';
       }
-      if (turnA.current) turnA.current.style.opacity = String(say < 0 ? 0 : clamp((say - 0.1) / 0.08) * (1 - clamp((say - 0.32) / 0.08)));
-      if (turnB.current) turnB.current.style.opacity = String(say < 0 ? 0 : clamp((say - 0.58) / 0.08) * (1 - clamp((say - 0.8) / 0.08)));
 
       /* THE FRAME, growing from the first room's place on the wall into the window */
       const e = ease(g);
@@ -574,46 +559,50 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       }
       if (frameBar.current) frameBar.current.style.opacity = String(clamp((g - 0.35) / 0.45));
 
-      /* THE PICTURES — the pile, the deal, the wall, and the first room growing into the window */
-      const drawn = s < plan.toTour[1] + 6;
-      if (!drawn) {
-        if (!cleared) {
+      /* THE PICTURES — the deal, the wall, and the first room growing into the window. Nothing before the deal; once the
+         window has taken over, the first room's picture where the window stands, drawn once (under the window, so the
+         hand-over has no frame between the two) */
+      const still = dealP <= 0 ? 'empty' : isLive ? 'live' : null;
+      if (still) {
+        if (drawnStill !== still) {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.clearRect(0, 0, c.width, c.height);
-          cleared = true;
+          if (still === 'live') tile(first ?? cards[0], { x: win.x + 1, y: win.y + 1 + 40 * u, w: win.w - 2, h: win.h - 2 - 40 * u }, 1, false);
+          drawnStill = still;
         }
-        return;
-      }
-      cleared = false;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, c.width, c.height);
-      const gone = clamp(g / 0.35);
-      /* the wall's landed tiles (the first grows on its own, below) */
-      dealt.forEach((u, i) => {
-        if (u < 1 || i === 0) return;
-        const sr = slotR[i];
-        const k = 1 - 0.08 * gone;
-        tile(pieces[i], { x: sr.x + (sr.w * (1 - k)) / 2, y: sr.y + (sr.h * (1 - k)) / 2, w: sr.w * k, h: sr.h * k }, 1, 1 - gone, false, smallOf(i));
-      });
-      /* the pile: the next to be dealt on top, in its grain; the ones under it only their edges */
-      const top = dealt.findIndex(u => u <= 0);
-      if (top >= 0) {
-        for (let i = Math.min(rooms.length - 1, top + 2); i > top; i--) {
-          const depth = i - top;
-          tile(null, { x: pile.x + depth * 9 * u, y: pile.y + depth * 9 * u, w: pile.w, h: pile.h }, 0, 1 - depth * 0.3);
+      } else {
+        drawnStill = null;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, c.width, c.height);
+        const gone = clamp(g / 0.35);
+        /* the landed cards (the first grows on its own, below) */
+        flight.forEach((q, i) => {
+          if (q < 1 || i === 0) return;
+          const sr = slotR[i];
+          const k = 1 - 0.08 * gone;
+          tile(cards[i], { x: sr.x + (sr.w * (1 - k)) / 2, y: sr.y + (sr.h * (1 - k)) / 2, w: sr.w * k, h: sr.h * k }, 1 - gone, false);
+        });
+        /* the ones in flight, the latest dealt on top */
+        flight.forEach((q, i) => {
+          if (q <= 0 || q >= 1) return;
+          const qe = 1 - Math.pow(1 - q, 3);
+          tile(cards[i], mix(pile, slotR[i], qe), Math.min(1, q * 4));
+        });
+        /* the first room: on the wall, then growing into the window (its picture under the frame's bar) — zooming from the
+           whole page into its panel, and landing on the panel's own picture */
+        if (flight[0] >= 1) {
+          const pic: Rect = g > 0 ? { x: box.x + 1, y: box.y + 1 + 40 * u * e, w: box.w - 2, h: box.h - 2 - 40 * u * e } : slotR[0];
+          const img = imgs[0];
+          if (g > 0 && zoomTo && img?.naturalWidth) {
+            const k = img.naturalWidth / SHOT_W;
+            const part = mix({ x: 0, y: 0, w: SHOT_W, h: SHOT_H }, { x: zoomTo[0], y: zoomTo[1], w: zoomTo[2], h: zoomTo[3] }, e);
+            tile(img, pic, 1, false, { x: part.x * k, y: part.y * k, w: part.w * k, h: part.h * k });
+            if (panelImg) tile(first, pic, clamp((g - 0.86) / 0.14), false);
+          } else tile(g > 0 ? first ?? cards[0] : cards[0], pic, 1, false);
         }
-        tile(pieces[top], pile, APART);
       }
-      /* the ones in flight, the latest dealt on top: sharpening and taking their colour as they land */
-      dealt.forEach((u, i) => {
-        if (u <= 0 || u >= 1) return;
-        tile(pieces[i], mix(pile, slotR[i], u), APART + (0.99 - APART) * Math.pow(u, 1.3));
-      });
-      /* the first room: on the wall, then growing into the window (its picture under the frame's bar) */
-      if (dealt[0] >= 1) {
-        const pic: Rect = g > 0 ? { x: box.x + 1, y: box.y + 1 + 40 * u * e, w: box.w - 2, h: box.h - 2 - 40 * u * e } : slotR[0];
-        tile(pieces[0], pic, 1, 1, false, g > 0 ? null : smallOf(0));
-      }
+      if (moving) ask();
+      else lastT = 0;
     };
     const ask = () => {
       if (!raf) raf = requestAnimationFrame(draw);
@@ -624,6 +613,22 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     const fetchAll = () => {
       if (fetched) return;
       fetched = true;
+      /* the first room's panel, the window's own first picture */
+      if (zoomTo) {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = shotFor(rooms[0].path, a, 'panel');
+        pictureIn(img).then(
+          () => {
+            if (!alive) return;
+            panelImg = img;
+            ready(0);
+            drawnStill = null;
+            ask();
+          },
+          () => {}
+        );
+      }
       rooms.forEach((room, i) => {
         const img = new Image();
         img.decoding = 'async';
@@ -632,8 +637,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           () => {
             if (!alive) return;
             imgs[i] = img;
-            pieces[i] = ready(pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, pile.w / u, pile.h / u, inksAt(st)));
-            last = -1;
+            ready(i);
+            drawnStill = null;
             ask();
           },
           () => {}
@@ -642,7 +647,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     };
 
     layout();
-    draw();
+    ask();
     const io = new IntersectionObserver(
       ([en]) => {
         if (en.isIntersecting) {
@@ -677,16 +682,16 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     });
     return () => {
       alive = false;
-      cools.forEach(cool => cool());
       io.disconnect();
       ro.disconnect();
       window.removeEventListener('scroll', ask);
       cancelAnimationFrame(raf);
       window.clearTimeout(resized);
     };
-  }, [a, turns, plan, rooms]);
+  }, [a, plan, rooms]);
 
-  const ground = turned ? b : a;
+  /* the room marked `other` plays its window in the page's other theme; the stage itself never turns */
+  const windowGround = r.other ? b : a;
   return (
     <div ref={track} className="relative" style={{ height: `${plan.total + 100}svh` }} data-rooms-track>
       {anchor && (
@@ -698,7 +703,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           style={{ top: `${plan.deal[1] + 4}svh`, scrollMarginTop: 0 }}
         />
       )}
-      <div ref={stage} data-theme={ground} className="sticky top-0 h-[100svh] overflow-hidden bg-canvas text-textPrimary" data-rooms-stage {...handlers}>
+      <div ref={stage} data-theme={a} className="sticky top-0 h-[100svh] overflow-hidden bg-canvas text-textPrimary" data-rooms-stage {...handlers}>
         <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" />
 
         {/* THE WALL — its head, and a door for each room (the pictures are the canvas's, under the slots) */}
@@ -734,8 +739,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
                         className="mt-3 flex items-center gap-2.5 text-[0.875rem] text-textSecondary group-hover:text-textPrimary transition-colors"
                         style={{ opacity: 0 }}
                       >
-                        <span className="holo-text text-[0.6875rem] font-medium tracking-[0.12em] tnum">{x.code}</span>
-                        <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
+                        <Glyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
                         {x.name}
                       </span>
                     </button>
@@ -758,7 +762,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
 
         {/* THE TOUR — the room's words on the left, its page on the right */}
         <div ref={tourLayer} className="absolute inset-0 pointer-events-none [&>*>*]:pointer-events-auto" style={{ visibility: 'hidden' }}>
-          <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 grid grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] gap-x-10 xl:gap-x-12">
+          <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10">
             <div ref={words} className="min-w-0 flex flex-col pb-8" style={{ paddingTop: TOP, opacity: 0, visibility: 'hidden' }}>
               {/* THE RAIL: every room, the one on screen lit — a door to each */}
               <nav aria-label="The rooms" className="flex items-center gap-0.5 -ml-2">
@@ -773,7 +777,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
                     className={`relative w-8 h-8 inline-flex items-center justify-center rounded-md transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-silver ${i === room ? '' : 'opacity-40'}`}
                     data-rooms-rail={x.id}
                   >
-                    <ProductGlyph name={x.glyph} size={16} bare className="size-[1rem]" />
+                    <Glyph name={x.glyph} size={16} bare className="size-[1rem]" />
                     {i === room && <span aria-hidden="true" className="foil-fill absolute left-2 right-2 -bottom-0.5 h-[0.125rem] rounded-full" />}
                   </button>
                 ))}
@@ -796,27 +800,12 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
             </div>
             <div ref={winCell} className="min-w-0" style={{ paddingTop: TOP, visibility: live ? undefined : 'hidden' }} data-rooms-window>
               <div style={{ width: 'min(100%, calc((min(100svh - 8.25rem, 53.75rem) - 2.5rem - 2px) * 1.44 + 2px))' }}>
-                <TerminalWindow path={shown} theme={ground} desk natural lazy boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
+                <TerminalWindow path={shown} theme={windowGround} desk natural lazy panel boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* THE TURN'S TWO LINES — each on the ground it names */}
-        {turns && (
-          <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-            <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 flex items-center">
-              <div className="relative w-full">
-                <p ref={turnA} data-theme={a} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[3.25rem] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="a">
-                  {turnSays[a]}
-                </p>
-                <p ref={turnB} data-theme={b} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary font-light text-[3.25rem] leading-[1.02] tracking-[-0.04em]" style={{ opacity: 0 }} data-rooms-turn="b">
-                  {turnSays[b]}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -824,8 +813,9 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
 
 /* ---- the tabs (a phone, and less motion) ------------------------------------------------------- */
 
-const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'anchor'>) => {
+const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'anchor'>) => {
   const ground = useBlockGround();
+  const { b } = useGround();
   /* a phone, a tablet, or a screen taller than it is wide (scale.ts): the window over the room's words */
   const small = useStacked();
   const calm = !!useReducedMotion();
@@ -905,7 +895,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'ancho
               }`}
               data-room-tab={x.id}
             >
-              <ProductGlyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
+              <Glyph name={x.glyph} size={16} bare className="shrink-0 size-[1rem]" />
               <span className="truncate max-w-full">{x.name.replace(/^The /, '')}</span>
             </button>
           );
@@ -913,7 +903,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'ancho
       </div>
       <div role="tabpanel" id="room-panel" aria-labelledby={`room-tab-${r.id}`} className={`mt-6 ${small ? '' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12'}`}>
         <div className="min-w-0">
-          <TerminalWindow path={shown} theme={ground} desk={!small} natural lazy boot="switch" bootSweep={r.sweep} />
+          <TerminalWindow path={shown} theme={r.other ? b : ground} desk={!small} natural lazy panel boot="switch" bootSweep={r.sweep} />
         </div>
         <div className={`${small ? 'mt-7' : ''} min-w-0`} key={r.id}>
           <RoomWords

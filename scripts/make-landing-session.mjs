@@ -15,9 +15,11 @@
 
   WHAT IT WRITES —
       public/landing/session/<theme>/f000.webp …   every step, 1152 wide: the session the scroll plays
-      public/landing/session/<theme>/beat-1.webp … each beat's own picture, full size: what a held beat shows
-      src/pages/landing/session.json              the steps' times, the beats (their step, time and marks) and the
-                                                  readings the beats' words were read off
+      public/landing/session/<theme>/beat-1.webp … each beat's own picture, full size
+      public/landing/session/<theme>/beat-1-focus.webp …  each beat's focus, cut at three times its size: what a held
+                                                  beat's window shows (FOCUS below)
+      src/pages/landing/session.json              the steps' times, the beats (their step, time, marks, focus, level and
+                                                  call) and the readings the beats' words were read off
 
   THE BEATS ARE CHOSEN BY HAND (BEATS below): a new run — another day, another seed, a real feed — is read first
   (`READ=1` prints every step's reading and writes nothing), its beats picked, and the words in Session.tsx rewritten off
@@ -45,19 +47,38 @@ const H = 1000;
 const DPR = 1.5;
 
 const pad = (b, p = 5) => [b[0] - p, b[1] - p, b[2] + 2 * p, b[3] + 2 * p];
-/* THE FIVE BEATS of the run taken on 2026-10-03 — each a step, and what is marked on its picture */
+/* THE FIVE BEATS of the run taken on 2026-10-03 — each a step, and what is marked on its picture. Since 2026-10-06 (the
+   owner's directive: "zoom each beat to what its copy talks about … a 2 px silver rule on the exact level and a label
+   chip, for example 'Call wall 475 → 477'") a beat also names THE LEVEL its words are about — the ladder's row for it —
+   and THE CALL, the chip's words, read off this beat's reading and the one before it (`was`) */
 const BEATS = [
   /* Before: SPY 470.29, the call wall overhead at 475 */
-  { step: 0, mark: r => [pad(r.rows.cw)] },
+  { step: 0, mark: r => [pad(r.rows.cw)], level: r => r.rows.cw, call: r => `Call wall ${r.cw}` },
   /* Positioning shifts: the heaviest strike swings from the 475 calls to the 470 puts — the ladder's head says so */
-  { step: 28, mark: r => [pad(r.readline, 4)] },
+  { step: 28, mark: r => [pad(r.readline, 4)], level: r => r.rows.sup, call: (r, was) => `Heaviest strike ${was.sup} → ${r.sup}` },
   /* Compass updates: the SPY 475 call is its top pick */
   { step: 30, mark: r => [pad(r.cards[0].box, 4)] },
   /* The level moves: the call wall steps up to 477 */
-  { step: 33, mark: r => [pad(r.rows.cw)] },
+  { step: 33, mark: r => [pad(r.rows.cw)], level: r => r.rows.cw, call: (r, was) => `Call wall ${was.cw} → ${r.cw}` },
   /* Price meets the level: 475 the put wall, price back on it */
-  { step: 72, mark: r => [pad(r.chart, 4), pad(r.rows.pw)] },
+  { step: 72, mark: r => [pad(r.chart, 4), pad(r.rows.pw)], level: r => r.rows.pw, call: (r, was) => `Put wall ${was.pw} → ${r.pw}` },
 ];
+
+/* THE FOCUS (2026-10-06): what a held beat's window shows — the ladder round the beat's level, as wide as keeps the
+   ladder's smallest words (8 px) at 11 px or more in a window about 780 px wide, at the window's own shape. It is cut
+   from the desk at three times its CSS size, so it stays sharp on any screen (the ladder is the page's own words, which
+   the browser draws afresh at the scale it is asked for). A beat with no level is focused on its marks. */
+const FOCUS_W = 560;
+const FOCUS_H = Math.round(FOCUS_W / (W / H));
+const FOCUS_SCALE = 3;
+const focusOf = (b, r) => {
+  const lv = b.level?.(r);
+  const at = lv ?? b.mark(r)[0];
+  const cy = at[1] + at[3] / 2;
+  const x = Math.max(0, Math.min(W - FOCUS_W, lv ? lv[0] - 8 : at[0] + at[2] / 2 - FOCUS_W / 2));
+  const y = Math.max(0, Math.min(H - FOCUS_H, Math.round(cy - FOCUS_H / 2)));
+  return [x, y, FOCUS_W, FOCUS_H];
+};
 
 const et = t => new Date(t * 1000).toLocaleTimeString('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
@@ -156,6 +177,13 @@ const take = async (browser, theme) => {
     }
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: W, height: H, scale: DPR } });
     writeFileSync(resolve(dir, `f${String(i).padStart(3, '0')}.png`), Buffer.from(shot.data, 'base64'));
+    /* a beat's focus, cut at three times its size */
+    const k = BEATS.findIndex(b => b.step === i);
+    if (k >= 0) {
+      const [x, y, w, h] = focusOf(BEATS[k], rows[i]);
+      const near = await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x, y, width: w, height: h, scale: FOCUS_SCALE } });
+      writeFileSync(resolve(dir, `focus-${k + 1}.png`), Buffer.from(near.data, 'base64'));
+    }
   }
   await ctx.close();
   return { rows, dir };
@@ -182,6 +210,7 @@ if (!READ) {
     const { dir } = runs[theme];
     for (let i = 0; i <= STEPS; i++) webp(resolve(dir, `f${String(i).padStart(3, '0')}.png`), resolve(out, `f${String(i).padStart(3, '0')}.webp`), 1152, 58);
     BEATS.forEach((b, k) => webp(resolve(dir, `f${String(b.step).padStart(3, '0')}.png`), resolve(out, `beat-${k + 1}.webp`), 0, 80));
+    BEATS.forEach((b, k) => webp(resolve(dir, `focus-${k + 1}.png`), resolve(out, `beat-${k + 1}-focus.webp`), 0, 82));
     rmSync(dir, { recursive: true, force: true });
   }
   const session = {
@@ -189,7 +218,17 @@ if (!READ) {
     h: H,
     frames: rows.length,
     times: rows.map(r => et(r.time)),
-    beats: BEATS.map(b => ({ step: b.step, boxes: b.mark(rows[b.step]), time: et(rows[b.step].time) })),
+    beats: BEATS.map((b, k) => {
+      const r = rows[b.step];
+      const was = rows[BEATS[Math.max(0, k - 1)].step];
+      return {
+        step: b.step,
+        boxes: b.mark(r),
+        time: et(r.time),
+        focus: focusOf(b, r),
+        ...(b.level ? { level: b.level(r), call: b.call(r, was) } : {}),
+      };
+    }),
     readings: BEATS.map(b => {
       const r = rows[b.step];
       return { step: b.step, close: r.close, callWall: r.cw, putWall: r.pw, flip: r.flip, supreme: r.sup, verdict: r.verdict, top: r.cards[0]?.text.slice(0, 60) ?? null };

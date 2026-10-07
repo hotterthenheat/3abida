@@ -3,35 +3,30 @@
   SLAYER TERMINAL - A WINDOW BOOTS
   (pages/landing/Boot.tsx)
 
-  "i feel like the landing page is missing something like that snazz" (the owner, 2026-10-03). Once, as the page
-  opens, the hero's window comes up out of the footer's photograph — the terminal acquiring its screen — and resolves
-  into the desk: the grain finer stage by stage, the faint marks coming in under the strong ones, the colour arriving
-  last. Then the canvas lets go and the window is the window. Then: "i love the little glitch affect i think we should implement that in more
-  places" — so a window that switches pages (the four systems' stage) boots each new page the same way, quicker
-  (`replay`, `run`), the picture coming back sharp along the way its page moves (`sweep`: Compass dealt a strip at a
-  time, Pinpoint opening from the middle, Terrain drawn left to right, Trace printing down — "no two motions should be
-  the same", the owner of the systems' arrivals, 2026-10-03).
+  A WINDOW SWITCHES PAGES (2026-10-03 — the owner: "i feel like the landing page is missing something like that snazz",
+  then "i love the little glitch affect i think we should implement that in more places"): a window that switches pages
+  (the rooms, the reveal) brings each new page in along the way its page moves (`sweep`: Compass dealt a strip at a time,
+  Pinpoint opening from the middle, Terrain drawn left to right, Trace printing down — "no two motions should be the
+  same", the owner, 2026-10-03).
 
-  REFINED THE SAME DAY (the owner's partner: "too gamified"): no coarse blocks, no red and blue fringe, no torn rows — the
-  page comes in as a fine grain without its colour and resolves into itself (pixels.ts), in 900 ms on the hero and about
-  half a second on a switch, the sweeps with a soft edge.
+  It was a resolve out of a grain; refined the same day (the owner's partner: "too gamified"), and NO GRAIN SINCE
+  2026-10-06 (the owner's directive: the grain stays on the opening's reveal alone, Opening.tsx). A switch starts from what
+  the window showed (TerminalWindow `frameOf`), and the new page comes in over it, sharp, its edge soft; a page that comes
+  all at once (`all`) goes down to the window's ground and the new one comes up out of it, never the two over each other.
+  With no page before it (the first time a window is seen) the page comes in over the window's own ground. About a third
+  of a second on a switch.
 
   It draws the window's own still (the film's first frame), and the window holds its film on that frame until the canvas
-  has gone (`onDone`), so it ends on what is there. On paper the marks that survive are the darkest (ink), as the
-  footer prints on paper. The hero's boot is once a visit — a return to the landing within the terminal does not boot
-  it again; never where less motion is asked for, never in a tab behind, and not at all if the still is slow to come:
-  it gives way WAIT in if it has not begun (the window never waits on its own entrance).
+  has gone (`onDone`), so it ends on what is there. Never where less motion is asked for, never in a tab behind, and not
+  at all if the still is slow to come: it gives way WAIT in if it has not begun (the window never waits on its own
+  entrance).
 ==================================================
 */
 
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { inksAt, pictureIn, pieceOf, STATE_COUNT } from './pixels';
-import { rgb } from '../../components/layout/footer/kit';
-import { unit } from './scale';
+import { pictureIn } from './pixels';
 
-/** when, as a share of the run, each sharper state comes in; past the last, the picture itself */
-const AT = [0, 0.1, 0.2, 0.3, 0.42, 0.54, 0.66, 0.78];
 /** the hero's run, the canvas letting go after it, and the most the still may take before the boot gives way (ms); the
     hero's starts no sooner than 320 ms after the window mounts, so its coarsest stages land once the window has risen
     into view (the hero's rise, index.css .landing-rise, begins 260 ms in) */
@@ -47,6 +42,8 @@ export type Sweep = 'all' | 'deal' | 'out' | 'right' | 'down';
 
 interface Props {
   src: string;
+  /** what the window showed the moment it switched (TerminalWindow `frameOf`): the new page comes in over it */
+  from?: CanvasImageSource | null;
   sweep?: Sweep;
   /** the canvas is gone (or never came): the window may play its film */
   onDone?: () => void;
@@ -58,13 +55,15 @@ interface Props {
   start?: number;
 }
 
-const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sweep = 'all' }: Props) => {
+const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, start = START, sweep = 'all' }: Props) => {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const calm = useReducedMotion();
   const [gone, setGone] = useState(() => (!replay && booted) || calm === true || typeof document === 'undefined' || document.visibilityState !== 'visible');
   const [letGo, setLetGo] = useState(false);
   const done = useRef(onDone);
   done.current = onDone;
+  /* the page it had, as it was when the switch began (read once: the boot is mounted afresh for each page) */
+  const had = useRef(from);
   useEffect(() => {
     if (gone) done.current?.();
   }, [gone]);
@@ -87,6 +86,7 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
     const giveUp = window.setTimeout(() => alive && !started && setGone(true), WAIT);
     const img = new Image();
     img.src = src;
+    const before = had.current;
 
     const run = () => {
       started = true;
@@ -97,13 +97,8 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       c.width = Math.round(W * dpr);
       c.height = Math.round(H * dpr);
-      const inks = inksAt(c);
-      /* read in the design's px (scale.ts): the grain the same on every screen */
-      const u = unit();
-      const piece = pieceOf(img, 0, 0, img.naturalWidth, img.naturalHeight, W / u, H / u, inks);
-      if (!piece) return setGone(true);
-      const ground = rgb(inks.ground);
-      /* the picture where the sweep has passed, its edge feathered (a layer cut by a gradient, or by a column mask) */
+      const ground = `rgb(${getComputedStyle(c).getPropertyValue('--canvas').trim() || '5 5 5'})`;
+      /* the new page where the sweep has passed, its edge feathered (a layer cut by a gradient, or by a column mask) */
       const layer = document.createElement('canvas');
       layer.width = c.width;
       layer.height = c.height;
@@ -117,18 +112,29 @@ const Boot = ({ src, onDone, replay = false, run: runMs = RUN, start = START, sw
         if (!alive) return;
         const ms = now - t0;
         const t = Math.min(1, ms / runMs);
-        let k = 0;
-        for (let i = 0; i < AT.length; i++) if (t >= AT[i]) k = i;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
-        ctx.fillStyle = ground;
-        ctx.fillRect(0, 0, c.width, c.height);
-        /* the last state is the picture itself */
-        const sharp = k >= AT.length - 1 ? 1 : k / STATE_COUNT;
-        piece.draw(ctx, 0, 0, c.width, c.height, sharp);
-        /* THE SWEEP: where its page's motion has passed, the picture is already itself — a soft edge, not a cut */
-        if (sweep !== 'all' && sharp < 1 && lctx) {
-          const f = Math.max(0, Math.min(1, (t - 0.08) / 0.7));
+        ctx.imageSmoothingEnabled = true;
+        /* the page it had, or the window's ground */
+        if (before) ctx.drawImage(before, 0, 0, c.width, c.height);
+        else {
+          ctx.fillStyle = ground;
+          ctx.fillRect(0, 0, c.width, c.height);
+        }
+        const f = t * t * (3 - 2 * t);
+        if (sweep === 'all' || !lctx) {
+          /* ALL AT ONCE: the page it had goes down to the window's ground and the new one comes up out of it — never the
+             two pages over each other (a crossfade of two desks read as a double exposure) */
+          if (before) {
+            ctx.fillStyle = ground;
+            ctx.globalAlpha = Math.min(1, f * 2);
+            ctx.fillRect(0, 0, c.width, c.height);
+          }
+          ctx.globalAlpha = before ? Math.max(0, f * 2 - 1) : f;
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          ctx.globalAlpha = 1;
+        } else {
+          /* THE SWEEP: where its page's motion has passed, the new page is there — a soft edge, not a cut */
           const cw = c.width;
           const ch = c.height;
           lctx.globalCompositeOperation = 'source-over';
