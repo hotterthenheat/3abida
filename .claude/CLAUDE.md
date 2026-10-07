@@ -159,9 +159,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   good pictures with "EncodingError" while many decode at once: the wall stood with four rooms missing, and a window
   faded in a picture that had not come); a change the scroll makes ends a boot still under way (TerminalWindow). NEVER ON THE PAGE'S CONTENT: coarse game-sized blocks, the red and blue fringe, torn rows,
   words stepping out of line, tilted pieces, a glitch on a hover. The fringe and the tear are the footer's alone. Used
-  for: the terminal opening out of its silver line; the rooms' pile and their deal into the wall; a row's page in the
-  rooms' window (Boot replay, 330 ms — the owner: "the tabs … switch faster"); the still terminal under a phone's first
-  screen as it is first seen. Words never glitch: the quote's words come into focus one after another as the page opens
+  for THE OPENING ALONE since 2026-10-06 (the owner's directive: "Remove the grain … from the dealt cards. Keep it only on
+  the opening reveal") — the terminal opening out of its silver line. The rooms' wall is dealt with no grain, and a
+  window switching pages (Boot, 330 ms — the owner: "the tabs … switch faster") brings the new page in sharp over the
+  frame it showed (TerminalWindow `frameOf`) along its room's sweep, an `all` page dipping through the window's ground —
+  never two pages over each other; a window first seen comes up over its own ground. Words never glitch: the quote's words come into focus one after another as the page opens
   (index.css .landing-word); a section's head arrives a line at a time and its two-tone line comes into focus
   (.landing-settle). Arrivals, the scroll and switches only — never a loop.
 - THE OPENING (pages/landing/Opening.tsx, a desk where motion is welcome): an overlay of TRACK 240svh (a sticky screen,
@@ -193,19 +195,24 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   to the next; on a phone each beat carries its own picture, framed on what changed; under less motion a beat changes
   the picture at once. Never edit src while it runs (the dev server reloads the desk).
 - THE ROOMS (pages/landing/Rooms.tsx; the rooms and their rows are Landing.tsx ROOMS, so the film script films every
-  page a row names — a row with no `path` says what the room's page holds). ON A DESK ONE STAGE THE SCROLL PLAYS (sticky;
-  SEG in svh: the deal 34, the wall 14, the wall becoming the tour 26, a room 20, the turn 34, the turn home 22): THE WALL
-  — the rooms' pictures lie in a pile in the fine grain, the ones under the top only their edges, and are dealt one after
-  another into a wall of eight, each resolving as it lands, its code, glyph and name coming in under it; each slot is a
-  door to its room below (the bar's "Rooms" lands here). THE TOUR — the first room's picture grows into the window, its
-  chrome coming in, and the window takes over on the same picture (its film held on its first frame until it has —
-  TerminalWindow `hold`); then a room a stretch: its code and kind, name and glyph, lead, its rows and its door on the
+  page a row names — a row with no `path` says what the room's page holds). ON A DESK ONE STAGE (sticky; SEG in svh: the
+  deal 12, the wall 14, the wall becoming the tour 12, a room 20, the turn 34, the turn home 22). THE SCROLL SAYS WHEN A
+  STEP PLAYS, NEVER HOW FAR (the owner's directive, 2026-10-06: a reader who stopped mid-deal saw "a pile of half-dealt
+  windows in grain, which reads as a broken render"): the deal, the wall becoming the tour, the turn and the turn home
+  each play whole on a timer once the scroll crosses into them, and backwards once it crosses back (one step at a time,
+  a jump across several a little quicker; far from the stage they stand at once) — EVERY SCROLL STOP HELD 1.5 s SHOWS
+  THE FINISHED WALL OR ONE ROOM (measured: stops every 4 svh, 1440 × 900 both themes and 1280 × 720). THE WALL — as its
+  top row comes up to 85% of the screen the eight are dealt from its middle, 280 ms a card, 60 ms apart (700 ms), each
+  name coming in as its card lands, no grain; nothing is drawn before the deal; each slot is a door to its room below
+  (the bar's "Rooms" lands here). THE TOUR (700 ms) — the first room's picture grows into the window, its chrome coming
+  in, and the window takes over on the same picture (its film held on its first frame until it has — TerminalWindow
+  `hold`; the canvas keeps that picture under the window, so the hand-over has no frame between); then a room a stretch: its code and kind, name and glyph, lead, its rows and its door on the
   left, a rail of the eight over them (a door each). A room with several pages plays them, a page every 3.5 s (it was
   6.5), the foil line filling under the row on show; a pointer moving over the stage holds it until still 2.5 s, a
   touch until 3 s after it lifts, the keys inside hold it, a picked row holds the room until the scroll moves on, and the
-  door opens the page picked, else the room's own. A ROW'S PAGE RESOLVES (330 ms, along the room's sweep); A ROOM OR A
-  GROUND THE SCROLL BRINGS CROSSFADES (a resolve at every room the scroll passed cost the scroll its frames — measured,
-  p95 133 → 33 ms at a quarter of the CPU). THE TURN after Pinpoint: the words go, "Dark for the night session." stands
+  door opens the page picked, else the room's own. A ROW'S PAGE COMES IN ALONG THE ROOM'S SWEEP (330 ms); A ROOM OR A
+  GROUND THE SCROLL BRINGS CROSSFADES (a switch at every room the scroll passed cost the scroll its frames — measured,
+  p95 133 → 33 ms at a quarter of the CPU). THE TURN after Pinpoint (1.2 s, home 1 s): the words go, "Dark for the night session." stands
   on the dark, the stage's ground travels the road through the steel (theme/tokens.css --night, --dawn-1…5, --day — set
   per frame only while it turns), the window turns with it at the middle, "Paper for a bright room." stands on the paper,
   and Pinpoint's words come back on the new ground before Trace; after Practice it turns home the same way, so the page

@@ -77,7 +77,7 @@ const HERO = {
 /* THE ROOMS (Rooms.tsx). Every name, page and row here is a real one — the window opens it as the room comes. THE ORDER IS
    NOAH'S (2026-09-20): Pulse · Compass · Terrain · Pinpoint, the turn of the ground, then Trace · the Weigher · Dossier ·
    Practice. A row with a `path` is a page of its room, and is filmed (scripts/landing-stage.mjs); a row without one says
-   what the room's page holds. Each room's pages resolve into the window along its own motion (Boot.tsx `sweep`). */
+   what the room's page holds. Each room's pages come into the window along its own motion (Boot.tsx `sweep`). */
 const ROOMS: Room[] = [
   {
     id: 'pulse',

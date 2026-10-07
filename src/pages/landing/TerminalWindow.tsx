@@ -84,8 +84,8 @@ interface Props {
   natural?: boolean;
   /** A window further down the page fetches its picture and its film only once the reader comes near it */
   lazy?: boolean;
-  /** THE BOOT (Boot.tsx): 'hero' — once a visit, as the page opens, its picture comes up out of the footer's broken
-      pixels; 'switch' — as the window first comes into view, and again on every page (or theme) it switches to */
+  /** THE BOOT (Boot.tsx): 'hero' — once a visit, as the page opens, its picture comes up over the window's ground;
+      'switch' — as the window first comes into view, and again on every page (or theme) it switches to */
   boot?: 'hero' | 'switch';
   /** a switching window's boot: the way each page comes back sharp (Boot.tsx) */
   bootSweep?: Sweep;
@@ -104,7 +104,7 @@ interface Props {
 }
 
 /* A SWITCH, BRISK (2026-10-05 — the owner: "we should have the tabs on the product things switch faster they take too
-   long right now"): a switching window's page resolves in a third of a second (it was 520 ms) */
+   long right now"): a switching window's page comes in in a third of a second (it was 520 ms) */
 const SWITCH_RUN = 330;
 
 /* A LAP, BRISK (2026-10-02 — the owner, of the tour's pages turning once a film had played through: "make the tab
@@ -163,6 +163,25 @@ interface Reel {
   /** it can play: it is faded in over what was there */
   ready: boolean;
 }
+
+/** WHAT THE WINDOW SHOWS THIS MOMENT — the frame its film is on, else its still — for the page it switches to to come in
+    over (Boot `from`): a switch starts from what the reader was looking at, not from the page's first frame */
+const frameOf = (view: HTMLElement | null): HTMLCanvasElement | null => {
+  if (!view || view.clientWidth < 1 || view.clientHeight < 1) return null;
+  const films = [...view.querySelectorAll<HTMLVideoElement>('video[data-window-film]')].filter(v => v.readyState >= 2 && v.classList.contains('opacity-100'));
+  const pic: CanvasImageSource | null = films[films.length - 1] ?? view.querySelector<HTMLImageElement>('img[data-window-shot]');
+  if (!pic) return null;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const c = document.createElement('canvas');
+  c.width = Math.round(view.clientWidth * dpr);
+  c.height = Math.round(view.clientHeight * dpr);
+  try {
+    c.getContext('2d')?.drawImage(pic, 0, 0, c.width, c.height);
+  } catch {
+    return null;
+  }
+  return c;
+};
 
 const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false }: Props) => {
   const lapRef = useRef(onLap);
@@ -288,6 +307,8 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
      being booted: the hero's from the start (Boot keeps it to once a visit); a switching window's as it is first seen,
      and each new page's as the window turns to it */
   const [booting, setBooting] = useState<string | null>(boot === 'hero' ? want : null);
+  /* what was on screen as the window switched: its new page comes in over it (null the first time it is seen) */
+  const bootFrom = useRef<HTMLCanvasElement | null>(null);
   const firstSeen = useRef(false);
   const lastWant = useRef(want);
   useEffect(() => {
@@ -300,11 +321,15 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       setBooting(null);
       return;
     }
-    if (firstSeen.current) setBooting(want);
+    if (firstSeen.current) {
+      bootFrom.current = frameOf(view.current);
+      setBooting(want);
+    }
   }, [want, boot, calm]);
   useEffect(() => {
     if (boot !== 'switch' || calm || !seen || firstSeen.current) return;
     firstSeen.current = true;
+    bootFrom.current = null;
     setBooting(lastWant.current);
   }, [seen, boot, calm]);
   const holding = booting !== null && near;
@@ -467,7 +492,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             <Working label="Loading the picture" stacked />
           </span>
         )}
-        {/* the hero's window comes up out of the footer's broken pixels, once (Boot.tsx) */}
+        {/* a switch brings its page in over what was there; the hero's comes up once (Boot.tsx) */}
         {booting && near && (
           <Boot
             key={`boot:${booting}`}
@@ -476,6 +501,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             run={boot === 'switch' ? SWITCH_RUN : undefined}
             start={boot === 'switch' ? 0 : undefined}
             sweep={boot === 'switch' ? bootSweep : undefined}
+            from={bootFrom.current}
             onDone={() => setBooting(b => (b === booting ? null : b))}
           />
         )}
