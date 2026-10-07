@@ -36,7 +36,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import TerminalWindow, { panelOf, shotFor, SHOT_H, SHOT_W } from './TerminalWindow';
+import TerminalWindow, { shotFor, SHOT_H, SHOT_W } from './TerminalWindow';
 import type { Sweep } from './Boot';
 import { useBlockGround, useGround } from './ground';
 import { drawFit } from './fit';
@@ -373,7 +373,8 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
     let first: HTMLCanvasElement | null = null;
     /** THE FIRST ROOM'S PANEL (TerminalWindow `panel`): the window shows the part of the page its row is about, so the
         whole page on the wall zooms into it as it grows into the window, and lands on the panel's own picture */
-    const zoomTo = panelOf(rooms[0].path, a);
+    /* (the windows play the whole page since 2026-10-07 — the owner, of the zoomed panels: too big) */
+    const zoomTo = null as [number, number, number, number] | null;
     let panelImg: HTMLImageElement | null = null;
     let groundInk = 'rgb(5 5 5)';
     const copy = (img: HTMLImageElement, w: number, h: number, panel = false): HTMLCanvasElement | null => {
@@ -810,7 +811,7 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
             </div>
             <div ref={winCell} className="min-w-0" style={{ paddingTop: TOP, visibility: live ? undefined : 'hidden' }} data-rooms-window>
               <div style={{ width: 'min(100%, calc((min(100svh - 8.25rem, 53.75rem) - 2.5rem - 2px) * 1.44 + 2px))' }}>
-                <TerminalWindow path={shown} theme={windowGround} desk natural lazy panel boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
+                <TerminalWindow path={shown} theme={windowGround} desk natural lazy boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
               </div>
             </div>
           </div>
@@ -913,7 +914,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'anchor'>) => {
       </div>
       <div role="tabpanel" id="room-panel" aria-labelledby={`room-tab-${r.id}`} className={`mt-6 ${small ? '' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12'}`}>
         <div className="min-w-0">
-          <TerminalWindow path={shown} theme={r.other ? b : ground} desk={!small} natural lazy panel boot="switch" bootSweep={r.sweep} />
+          <TerminalWindow path={shown} theme={r.other ? b : ground} desk={!small} natural lazy boot="switch" bootSweep={r.sweep} />
         </div>
         <div className={`${small ? 'mt-7' : ''} min-w-0`} key={r.id}>
           <RoomWords

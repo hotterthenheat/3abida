@@ -84,19 +84,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   smallest product text inside any window is at least 11 px at 1440 wide"): every room page also has a panel film,
   `<page>-<theme>-panel` — the part of the page its row is about, filmed alone at three device pixels a point (size
   "panel": the desk staged as ever, only the panel's box taken), its pointer working inside it. The panels and their
-  acts are scripts/landing-acts/panels.mjs. A PANEL IS ONE WHOLE PART OF ITS PAGE (2026-10-07 — the owner: "we're having
-  a problem with my landing page's recordings and the aspect ratios"; the first panels, each 1440 × 1000's shape and at
-  most 570 px wide, cut the Weigher below its labels, Compass through its second column, Net Flow above its head): a
-  widget with its head, a card from its title, a table from its column heads, its box [x, y, w, h] its own shape, ending
-  in a gutter or between two rows — never through a word, a bar or a chart — and as wide as its words stay readable (8 px
-  words near 660 px of the desk; 11–12 px tables to 900). The window shows a panel WHOLE in its middle on its own ground
-  (pages/landing/fit.ts: the window's pictures and films, Boot's switch, the captured frame, the rooms' zoom). A page
-  whose part cannot be taken whole (the four charts, the wall, net flow — each the desk's width) has no panel and plays
-  its whole page. Pick a box on the page as the panel run stages it (the seed, the held clock and PREPARE), not on the
-  desk still — they differ. clips.json keeps each box (the rooms' hand-over zooms into it, widened to the window's
-  shape). The rooms' and the reveal's windows show the panel (TerminalWindow `panel`) on a desk and on a tablet — any
-  window wider than a phone's 560 px column (2026-10-07, after Codex's review of #3: on an upright 768 px tablet a
-  panel's 8 px words stand at 10.3 px, where the whole desk would put them at 4); a phone's form is unchanged. Every
+  acts are scripts/landing-acts/panels.mjs. THE LANDING PLAYS WHOLE PAGES AGAIN (2026-10-07 — the owner, of the panels
+  zoomed into a part of a page, twice the desk's size in the window: "its the product videos and the text", "website
+  still looks huge"): no window on the landing asks for a panel, the panel films are gone, and every window plays its
+  page's desk (or phone) film; panels.mjs, `npm run landing:clips … panel`, TerminalWindow's `panel` and fit.ts (a panel
+  shown whole on its ground, never cut) stay for a panel the owner asks for again — framed round one whole part of a
+  page, never wider in the window than the page itself. Every
   film is set in the same open-market minute (AT, New
   York's zone), so prices agree across films. The page's clock is held and stepped a frame at a time (30 fps, crisp
   charts); H.264 MP4, desk 2160×1500, phone 780×1520; it needs an ffmpeg with libx264, named by FFMPEG; PREVIEW=1 films
@@ -176,17 +169,14 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   rooms' windows end on the column's right edge (they ran on past it to 24 px short of the screen's, past the edge every
   other section keeps), their words in a 17rem column 2.5rem from the window — 784 px of window at 1440 × 900, so a
   panel's smallest words stand at 11 px (scripts/landing-acts/panels.mjs); a room's name stands at 2.5rem, so "The
-  Weigher" keeps to one line. AN ULTRAWIDE SCREEN (wider than 2:1, lg up — 2026-10-07, the owner: "the ultrawide monitor
-  problems have not been fixed"): held by its height, the column stood at 55% of a 3440 × 1440 screen and the windows
-  beside their words two thirds of its height; there the column is a window as tall as the screen holds (at most
-  53.75rem) and its 17rem of words, never closer than 2rem to the screen's sides (index.css) — a 16:9 screen and anything
-  narrower keep the column above. The quote
+  Weigher" keeps to one line. The quote
   min(8.4vw, 14.5svh) up to 136 px, the answer over the terminal 40–68 px, heads 50, prices 44 (all of these in the
   design's px — rem since 2026-10-06, below). A SHORT SCREEN (720 to 820 px tall, lg up): the first screen's doors and the
   terminal under the still one close up (index.css).
 - EVERY SCREEN, ONE PIECE (2026-10-06 — the owner, of the landing on an ultrawide: "it looked so bad i need you to ensure
   all monitor screen sizes auto adjust to this"). The landing is drawn for 1920 × 950 and a bigger screen gets the same
-  page, bigger: the root's font size is 16 px × the screen's width over 1920 or its height over 950, whichever is less,
+  page, bigger — by HALF what the screen grows (2026-10-07 — the owner: "website still looks huge"): the root's font size
+  is 8 px + 8 px × the screen's width over 1920 or its height over 950, whichever is less (3440 × 1440: 1.26, was 1.52),
   never under the reader's own size (index.css html[data-landing-scale] — the attribute set by index.html before the
   first paint of "/" and kept by pages/landing/scale.ts useLandingScale; NEVER html:has([data-landing]): every change to
   the page asked the root's style again and the rooms' tour dropped twice the frames). So EVERY SIZE ON THE LANDING IS IN
@@ -269,7 +259,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   moment, and in on its level); the opening hands over the whole desk, and once the opening's picture has gone
   (Opening `onLanded`, 0.93 of its run; back to the whole desk in 0.4 s when the reader scrolls up into it) the camera
   goes into the first beat's level with its call, while the session's first words still stand beside it — a window
-  the session holds is never the whole desk at its 7 px, and never zoomed on a level whose call is not up. The beats' picture files are numbered by the run's five (`beat-N` is the run's beat N:
+  the session holds is never the whole desk at its 7 px, and never zoomed on a level whose call is not up. ON A DESK THE
+  CAMERA NOW STAYS ON THE WHOLE DESK (2026-10-07 — the owner: the product videos and the text looked huge): Session.tsx
+  poseOf gives every beat the whole desk, the session still plays between the beats on the scroll's timer, and the call
+  (its rule and chip) stands on the level's row on the whole desk; the focus pictures serve the phone's beats alone. The beats' picture files are numbered by the run's five (`beat-N` is the run's beat N:
   Session.tsx maps the page's three through PICK — until 2026-10-06 the second and third showed 11:06 and 11:12). On a
   phone each beat carries its own picture, close on its level (2026-10-06 — the owner's directive: "show each beat's
   framing() crop … with the P0 callout on it. Same 11 px minimum"): a cut of the desk from the level's strike, its row

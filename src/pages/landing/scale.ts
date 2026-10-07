@@ -47,7 +47,7 @@ const readerPx = (): number => {
     (100vw is the window's width, 100svh its height on a desk) */
 export const unit = (): number => {
   if (typeof window === 'undefined') return 1;
-  const root = Math.max(readerPx(), Math.min((window.innerWidth / DESIGN_W) * 16, (window.innerHeight / DESIGN_H) * 16));
+  const root = Math.max(readerPx(), 8 + Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H) * 8);
   return root / 16;
 };
 

@@ -243,7 +243,11 @@ const along = (from: Pose, to: Pose, p: number): Pose => {
   return { cam, step: Math.round(from.step + (to.step - from.step) * q) };
 };
 /** where the camera goes for a beat (-1: the whole desk, on the first beat's moment — until the first beat is read) */
-const poseOf = (k: number): Pose => (k < 0 ? { cam: FULL, step: BEATS[0].step } : { cam: BEATS[k].focus, step: BEATS[k].step });
+/* THE WHOLE DESK (2026-10-07 — the owner: "its the product videos and the text", too big): the camera no longer zooms
+   into a beat's ladder (2026-10-06, the directive's "zoom each beat to what its copy talks about" — 1.4 times the desk at
+   1440, more on a big screen); it stays on the whole desk and plays the session between the beats, and the call (the
+   silver rule and its chip) stands on the level's row there */
+const poseOf = (k: number): Pose => ({ cam: FULL, step: k < 0 ? BEATS[0].step : BEATS[k].step });
 
 /** THE STAGE (a desk) */
 interface View {
@@ -398,7 +402,6 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
         },
         () => {}
       );
-      new Image().src = focusSrc(theme, k);
     });
     return () => {
       alive = false;
@@ -600,26 +603,8 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
               data-session-rest={view.rest ?? undefined}
             >
               {!calm && <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full" />}
-              {/* the beat's focus, sharp, where the camera rests on it (and, where less motion is asked for, always) */}
-              {near &&
-                BEATS.map((b, i) => {
-                  const up = calm ? i === lit : view.rest === i;
-                  return (
-                    <img
-                      key={b.step}
-                      src={focusSrc(theme, i)}
-                      alt={up ? `The Pulse desk's strike ladder at ${b.time}: ${WORDS[i].title.toLowerCase()}` : ''}
-                      aria-hidden={up ? undefined : true}
-                      draggable={false}
-                      decoding="async"
-                      className="absolute inset-0 w-full h-full select-none transition-opacity duration-200 motion-reduce:transition-none"
-                      style={{ opacity: up ? 1 : 0 }}
-                      data-session-focus={i}
-                    />
-                  );
-                })}
               {BEATS.map((b, i) => (
-                <Callout key={b.step} beat={b} frame={b.focus} on={i === lit && (calm ? true : view.rest === i)} />
+                <Callout key={b.step} beat={b} frame={FULL} on={i === lit && (calm ? true : view.rest === i)} />
               ))}
             </div>
           </div>

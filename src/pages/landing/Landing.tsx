@@ -771,7 +771,7 @@ const Reveal = () => {
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
         {/* on a phone the window stands at most 70% of the screen, its picture cut at the foot (it stood 740 px tall) */}
-        <TerminalWindow path={small ? HERO.phone : HERO.path} theme={ground} desk={!small} natural panel boot="switch" cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined} />
+        <TerminalWindow path={small ? HERO.phone : HERO.path} theme={ground} desk={!small} natural boot="switch" cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined} />
         <figcaption className="mt-4 text-[0.8125rem] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>

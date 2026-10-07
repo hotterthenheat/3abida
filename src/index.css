@@ -1530,7 +1530,7 @@ html[data-theme='light'] [data-paper-chain-side-pick='P']:not([aria-pressed='tru
    never html:has([data-landing]): that made every change to the page ask the root's style again, and the rooms' tour
    dropped twice the frames. */
 html[data-landing-scale] {
-  font-size: max(100%, min(100vw / 120, 100svh / 59.375));
+  font-size: max(100%, calc(8px + min(100vw / 240, 100svh / 118.75)));
 }
 /* THE LANDING'S DISPLAY FACE (2026-10-06 — the owner's pick, Inter Display, over the Logo System's "Helvetica, no hosted
    font" for the landing's big words only): Windows has no Helvetica, so its readers got Arial, which has no Light — every
@@ -1576,17 +1576,6 @@ html[data-landing-scale] {
    column to 24 px short of the screen's edge, past the edge every other section keeps). */
 [data-landing] {
   --landing-col: calc(min(72.5rem, max(51.25rem, (100svh - 8.75rem) * 1.44 + 0.125rem)) + 5rem);
-}
-/* AN ULTRAWIDE SCREEN (2026-10-07 — the owner: "the ultrawide monitor problems have not been fixed"): wider than 2:1, the
-   page is held by the screen's height, and the column above stood at 55% of a 3440 × 1440 screen — the rooms' and the
-   session's windows, beside their 17rem of words, two thirds of the screen's height, black on both sides. There the column
-   is as wide as a window as tall as the screen holds (Rooms.tsx, Session.tsx: under the bar, at most 53.75rem) and its
-   words beside it — never closer than 2rem to the screen's sides. A 16:9 screen and anything narrower keep the column
-   above (the owner's "too zoomed in" of 2026-10-03). */
-@media (min-aspect-ratio: 2/1) and (min-width: 1024px) {
-  [data-landing] {
-    --landing-col: min(100vw - 4rem, max(min(72.5rem, max(51.25rem, (100svh - 8.75rem) * 1.44 + 0.125rem)) + 5rem, (min(100svh - 8.25rem, 53.75rem) - 2.5rem) * 1.44 + 24.5rem));
-  }
 }
 .landing-window {
   box-shadow: 0 50px 120px -60px rgb(0 0 0 / 0.85);
