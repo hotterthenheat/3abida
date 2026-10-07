@@ -205,10 +205,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   times its size (`beat-N-focus.webp`, sharp on any screen) — and THE CALL: a 2 px silver rule under the level's row and
   a chip on the row's strike naming it ("Call wall 475", "Call wall 475 → 477", "Put wall 470 → 475" — session.json
   `call`, read off the run: this beat's reading against the one before). The scroll says WHEN the camera moves, never
-  how far: reaching a beat starts a timed run (1.3 s — out to the whole desk while the session plays to the next beat's
-  moment, and in on its level); the opening hands over the whole desk, and the camera goes into the first beat's level
-  once the opening's picture has gone (Opening `onLanded`, 0.93 of its run; back to the whole desk in 0.4 s when the
-  reader scrolls up into it). The beats' picture files are numbered by the run's five (`beat-N` is the run's beat N:
+  how far: reaching a beat starts a timed run (1.1 s — out to the whole desk while the session plays to the next beat's
+  moment, and in on its level); the opening hands over the whole desk, and once the opening's picture has gone
+  (Opening `onLanded`, 0.93 of its run; back to the whole desk in 0.4 s when the reader scrolls up into it) the camera
+  goes into the first beat's level with its call, while the session's first words still stand beside it — a window
+  the session holds is never the whole desk at its 7 px, and never zoomed on a level whose call is not up. The beats' picture files are numbered by the run's five (`beat-N` is the run's beat N:
   Session.tsx maps the page's three through PICK — until 2026-10-06 the second and third showed 11:06 and 11:12). On a
   phone each beat carries its own picture, framed on what changed, with the call; under less motion a beat's focus and
   call change at once. Never edit src while it runs (the dev server reloads the desk); the run deletes and rewrites

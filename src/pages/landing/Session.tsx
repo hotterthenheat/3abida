@@ -183,8 +183,9 @@ const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
 
 /** THE CAMERA (2026-10-06 — the owner's directive: "zoom each beat to what its copy talks about … Move between beats with
     an eased, triggered transition"): the window shows the desk through a camera — the whole desk (only while the
-    opening hands its window over), or a beat's focus. The scroll says WHEN the camera moves, never how far: reaching a
-    beat starts a run on a timer, and a run plays whole. From one beat to the next the camera draws back to the whole desk
+    opening hands its window over), or a beat's focus with its call: never zoomed on a level whose call is not up, so a
+    window the session holds always reads at the page's 11 px and names what it shows. The scroll says WHEN the camera
+    moves, never how far: reaching a beat starts a run on a timer, and a run plays whole. From one beat to the next the camera draws back to the whole desk
     while the session plays to the next beat's moment, and comes in on the level the next beat's words name. */
 interface Pose {
   /** the part of the 1440 × 1000 desk on screen */
@@ -194,9 +195,10 @@ interface Pose {
 }
 const FULL: Box = [0, 0, DATA.w, DATA.h];
 const mixBox = (a: Box, b: Box, t: number): Box => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
-/** the runs (ms): into a focus on one picture, from one beat to another, and back to the whole desk */
+/** the runs (ms): into a focus on one picture, from one beat to another, and back to the whole desk — each with the
+    call's 300 ms fade after it inside the 1.5 s a reader's stop is held (a run of 1.3 s left a stop on a call at 95%) */
 const ZOOM_MS = 800;
-const PLAY_MS = 1300;
+const PLAY_MS = 1100;
 const BACK_MS = 400;
 /** the camera `p` of the way along a run (a run that plays the session goes by the whole desk) */
 const along = (from: Pose, to: Pose, p: number): Pose => {
@@ -205,7 +207,7 @@ const along = (from: Pose, to: Pose, p: number): Pose => {
   const q = ease(Math.min(1, Math.max(0, (p - 0.15) / 0.7)));
   return { cam, step: Math.round(from.step + (to.step - from.step) * q) };
 };
-/** where the camera goes for a beat (-1: the whole desk, on the first beat's moment) */
+/** where the camera goes for a beat (-1: the whole desk, on the first beat's moment — until the first beat is read) */
 const poseOf = (k: number): Pose => (k < 0 ? { cam: FULL, step: BEATS[0].step } : { cam: BEATS[k].focus, step: BEATS[k].step });
 
 /** THE STAGE (a desk) */
@@ -214,8 +216,8 @@ interface View {
   k: number;
   /** the beat being read */
   lit: number;
-  /** not yet at the first beat: its words are not lit and no call is up (in the story the opening has only just handed
-      its picture over) */
+  /** not yet at the first beat: its words are not lit (in the story the session's first words stand beside the window),
+      though the window is already on the first beat's level, its call up */
   pre: boolean;
   /** the beat the camera rests on — its focus up, sharp — or null while it moves or stands on the whole desk */
   rest: number | null;
@@ -580,7 +582,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                   );
                 })}
               {BEATS.map((b, i) => (
-                <Callout key={b.step} beat={b} frame={b.focus} on={!view.pre && i === lit && (calm ? true : view.rest === i)} />
+                <Callout key={b.step} beat={b} frame={b.focus} on={i === lit && (calm ? true : view.rest === i)} />
               ))}
             </div>
           </div>
