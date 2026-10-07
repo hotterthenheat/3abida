@@ -75,6 +75,9 @@ const NAV: { label: string; href: string }[] = [
    on, in use (its film: scripts/make-landing-clips.mjs reads every `path` on this page) */
 const HERO = {
   path: '/pulse',
+  /* on a phone, a page dense from its top (2026-10-06 — the owner's directive: "open on a phone page that's dense at the
+     top, such as Pinpoint's map or Compass, not an empty chart" — Pulse's phone page opens on its chart): Compass's board */
+  phone: '/compass',
 };
 
 /* THE ROOMS (Rooms.tsx). Every name, page and row here is a real one — the window opens it as the room comes. THE ORDER IS
@@ -502,12 +505,16 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
         onClick();
       }}
       data-landing-door={testId}
-      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[0.9375rem]' : 'h-9 px-4 text-[0.8125rem]'} ${fill}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[0.9375rem]' : `h-9 px-4 text-[0.8125rem] ${kind === 'ghost' ? HIT_SM : ''}`} ${fill}`}
     >
       {children}
     </a>
   );
 };
+
+/** A SMALL DOOR'S REACH: a 36 px pill takes a hit area of 48 — 44 at least, as a finger needs (2026-10-06 — the
+    directive's phone pass) — without changing how it looks (an outline door's ::before is free; a solid one's is its foil) */
+const HIT_SM = "relative before:content-[''] before:absolute before:-inset-y-1.5 before:inset-x-0";
 
 /** A jump along the page glides — unless the visitor asked their system for less motion: then it is a cut */
 const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
@@ -617,7 +624,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
           lifted ? 'max-w-[47.5rem] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_1rem_3.125rem_-1.25rem_rgb(0_0_0/0.55)]' : 'max-w-[calc(var(--landing-col)_-_2rem)] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
       >
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
+        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: glideOrCut() })} className="relative before:content-[''] before:absolute before:-inset-[0.5625rem] shrink-0 inline-flex items-center select-none rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver" aria-label="Slayer Terminal, back to the top" data-landing-brand>
           {/* the wordmark on the open bar, the mark on the lifted pill and on a phone */}
           <span className={lifted ? 'hidden' : 'hidden sm:inline-flex'}>
             <Wordmark height={15 * u} cursor label="" />
@@ -647,7 +654,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
           onClick={() => choose(ground === 'dark' ? 'light' : 'dark')}
           onPointerEnter={warmOtherGround}
           onFocus={warmOtherGround}
-          className="ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+          className="relative before:content-[''] before:absolute before:-inset-1 ml-auto md:ml-0 h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
           aria-label={ground === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
           title={ground === 'dark' ? 'Light theme' : 'Dark theme'}
           data-landing-theme={ground}
@@ -657,7 +664,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
         <button
           type="button"
           onClick={() => setMenu(m => !m)}
-          className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+          className="relative before:content-[''] before:absolute before:-inset-1 md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
           ref={menuDoor}
           aria-label={menu ? 'Close the menu' : 'Menu'}
           aria-expanded={menu}
@@ -672,7 +679,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
             e.preventDefault();
             launch(DOOR);
           }}
-          className={`h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[0.84375rem] font-medium whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${launchFill}`}
+          className={`relative before:content-[''] before:absolute before:-inset-y-1 before:inset-x-0 h-10 px-4 sm:px-5 inline-flex items-center rounded-full text-[0.84375rem] font-medium whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${launchFill}`}
           data-landing-door="nav"
         >
           <span className="sm:hidden">Launch</span>
@@ -764,7 +771,7 @@ const Reveal = () => {
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
         {/* on a phone the window stands at most 70% of the screen, its picture cut at the foot (it stood 740 px tall) */}
-        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural panel boot="switch" cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined} />
+        <TerminalWindow path={small ? HERO.phone : HERO.path} theme={ground} desk={!small} natural panel boot="switch" cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined} />
         <figcaption className="mt-4 text-[0.8125rem] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
@@ -870,7 +877,7 @@ const Trust = () => (
       </div>
       <a
         href="/legal/data"
-        className="group/door mt-6 inline-flex items-center gap-2 text-[0.84375rem] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
+        className="relative before:content-[''] before:absolute before:-inset-y-3 before:-inset-x-1 group/door mt-6 inline-flex items-center gap-2 text-[0.84375rem] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
         data-landing-door="data"
       >
         The Data page, in full
@@ -970,7 +977,7 @@ const Compare = () => {
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-controls="landing-plans-table"
-        className="door-edge group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+        className="relative before:content-[''] before:absolute before:-inset-y-1 before:inset-x-0 door-edge group inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
         data-landing-side-by-side-door
       >
         {open ? 'Fold the comparison away' : 'Compare the plans in full'}

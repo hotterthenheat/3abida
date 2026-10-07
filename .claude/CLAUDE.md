@@ -134,15 +134,19 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   kinds of tool, a room each, never anybody's product), the full list folded under them. QUESTIONS (each answer folded under its question — a
   disclosure, found by the page's find), then the rooms' glyphs, "Seen enough? / Step inside."
   (LitLines: lit a letter at a time by the scroll) and "Sign up free". THE FOOTER as it is (SiteFooter — never touched
-  here). A phone and less motion: the first screen still (FirstScreen), the answer over the terminal itself (Reveal: the
-  Pulse film, "The terminal itself, in use — played three times as fast."), the session's head and beats, the rooms as
+  here). A phone and less motion: the first screen still (FirstScreen), the answer over the terminal itself (Reveal: on a
+  desk under less motion the Pulse panel, on a phone Compass's board — a page dense from its top, not Pulse's empty chart
+  — "The terminal itself, in use — played three times as fast."), the session's head and beats, the rooms as
   tabs. GONE WITH v5: the hero's picture, the four systems' stage and its "more inside" list, the scatter (its words are
   the first screen's), two of the session's five moments. MOTION SAYS WHAT THE PRODUCT DOES: a room's pages resolve into
   the window along its own motion (Boot.tsx `sweep` — Compass dealt, Pinpoint and the Weigher from the middle, Terrain
   and Practice left to right, Trace and Dossier printing down); words come up a line at a time, 40 ms apart
   (useArrival); nothing is hidden before the script has run, nothing moves where less motion is asked for. A window lower
   on the page fetches nothing until the reader is near (TerminalWindow `lazy`); a phone's window shows the phone picture
-  whole (390 × 760), never cropped. COMPASS IS THE RECOMMENDED PLAN (2026-10-06 — the owner's directive: "the eye lands
+  whole (390 × 760), never cropped — but the first terminal, which stands at most 70svh and is cut at its foot
+  (TerminalWindow `cap`, 2026-10-06 — the owner's directive). ON A PHONE NOTHING TAKES LESS THAN A FINGER: every control
+  is 44 px tall at least, the small ones by a hit area round them that changes nothing seen (a `before:` box; an outline
+  door's ::before is free, a solid door's is its foil). COMPASS IS THE RECOMMENDED PLAN (2026-10-06 — the owner's directive: "the eye lands
   on Compass first, and every plan shows a price"): raised on a panel (bg-panel, one border), a small "Recommended" in
   sentence case and the page's solid door; Pinpoint stands on the ground with the outline door; on a phone Compass comes
   first. Never "most popular" (we have no member data behind it). Lifetime is off the landing (the owner: "Remove
@@ -252,7 +256,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   goes into the first beat's level with its call, while the session's first words still stand beside it — a window
   the session holds is never the whole desk at its 7 px, and never zoomed on a level whose call is not up. The beats' picture files are numbered by the run's five (`beat-N` is the run's beat N:
   Session.tsx maps the page's three through PICK — until 2026-10-06 the second and third showed 11:06 and 11:12). On a
-  phone each beat carries its own picture, framed on what changed, with the call; under less motion a beat's focus and
+  phone each beat carries its own picture, close on its level (2026-10-06 — the owner's directive: "show each beat's
+  framing() crop … with the P0 callout on it. Same 11 px minimum"): a cut of the desk from the level's strike, its row
+  in the middle, as wide as keeps the ladder's 10 px figures at 11 px in the frame it is measured in (325 × 200 in a
+  358 px column, narrower on a narrower phone), the 9 px column heads left above — cut from the beat's 3× focus, with
+  the call; under less motion a beat's focus and
   call change at once. Never edit src while it runs (the dev server reloads the desk); the run deletes and rewrites
   public/landing/session, after which a dev server serves those pictures only once restarted.
 - THE ROOMS (pages/landing/Rooms.tsx; the rooms and their rows are Landing.tsx ROOMS, so the film script films every

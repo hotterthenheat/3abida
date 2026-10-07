@@ -139,7 +139,7 @@ export const Bar = ({ time, typed = true, still = false }: { time: string; typed
   </div>
 );
 
-/** ON A PHONE: the beat's own picture, framed on what changed (with room round it), in the window's chrome */
+/** ON A PHONE, A BEAT WITH NO LEVEL: its own picture, framed on what changed (with room round it), in the window's chrome */
 const framing = (boxes: Box[]): Box => {
   const x0 = Math.min(...boxes.map(b => b[0])) - 48;
   const y0 = Math.min(...boxes.map(b => b[1])) - 48;
@@ -159,21 +159,56 @@ const framing = (boxes: Box[]): Box => {
   const y = Math.max(0, Math.min(DATA.h - h, cy - h / 2));
   return [x, y, w, h];
 };
+/** ON A PHONE, A BEAT'S LEVEL CLOSE ENOUGH TO READ (2026-10-06 — the owner's directive: "on a phone, show each beat's
+    framing() crop … with the P0 callout on it. Same 11 px minimum"): a cut of the desk from the level's strike, its row
+    in the middle, as wide as keeps the ladder's 10 px figures at 11 px in the frame (325 × 200 of the desk in a 358 px
+    column; narrower on a narrower phone), the 9 px column heads left above it — cut from the beat's focus (drawn at
+    three times its size, so it stays sharp on a phone's screen) */
+const NEAR_W = 325;
+const NEAR_H = 200;
+const SMALLEST = 10;
+const READ_AT = 11;
+const near = (beat: Beat, frameW: number): Box | null => {
+  if (!beat.level) return null;
+  const [fx, fy, fw, fh] = beat.focus;
+  const [lx, ly, , lh] = beat.level;
+  const w = Math.min(NEAR_W, (frameW * SMALLEST) / READ_AT);
+  const h = (w * NEAR_H) / NEAR_W;
+  const x = Math.max(fx, Math.min(fx + fw - w, lx - 8));
+  const y = Math.max(fy, Math.min(fy + fh - h, ly + lh / 2 - h / 2));
+  return [x, y, w, h];
+};
+
 const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
   const beat = BEATS[k];
-  const f = framing(beat.boxes);
+  /* the frame's width, read before the first paint and again as it changes: the cut is chosen by it */
+  const frame = useRef<HTMLDivElement | null>(null);
+  const [frameW, setFrameW] = useState(358);
+  useLayoutEffect(() => {
+    const el = frame.current;
+    if (!el) return;
+    const fit = () => el.clientWidth && setFrameW(el.clientWidth);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const close = near(beat, frameW);
+  const f = close ?? framing(beat.boxes);
+  /* the picture the frame is cut from: the beat's focus, or the whole desk */
+  const [bx, by, bw] = close ? beat.focus : [0, 0, DATA.w];
   return (
     <div className="mt-6 overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas" data-theme={theme}>
       <Bar time={beat.time} />
-      <div className="relative overflow-hidden" style={{ aspectRatio: `${f[2]} / ${f[3]}` }}>
+      <div ref={frame} className="relative overflow-hidden" style={{ aspectRatio: `${f[2]} / ${f[3]}` }}>
         <img
-          src={beatSrc(theme, k)}
+          src={close ? focusSrc(theme, k) : beatSrc(theme, k)}
           alt={`The Pulse desk at ${beat.time}: ${WORDS[k].title.toLowerCase()}`}
           loading="lazy"
           decoding="async"
           draggable={false}
           className="absolute max-w-none select-none"
-          style={{ width: pct(DATA.w, f[2]), left: `-${pct(f[0], f[2])}`, top: `-${pct(f[1], f[3])}` }}
+          style={{ width: pct(bw, f[2]), left: `-${pct(f[0] - bx, f[2])}`, top: `-${pct(f[1] - by, f[3])}` }}
         />
         <Callout beat={beat} on frame={f} />
       </div>

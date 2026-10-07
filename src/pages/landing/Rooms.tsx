@@ -149,7 +149,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
         e.preventDefault();
         onOpen(door);
       }}
-      className="door-edge group/door mt-6 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
+      className="relative before:content-[''] before:absolute before:-inset-y-1 before:inset-x-0 door-edge group/door mt-6 inline-flex items-center gap-2 h-10 pl-4 pr-3.5 rounded-full border border-borderMuted text-[0.84375rem] font-medium text-textPrimary hover:border-transparent hover:bg-ink/[0.05] transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver"
       data-room-door={room.id}
     >
       Open {doorName(room.name)}
