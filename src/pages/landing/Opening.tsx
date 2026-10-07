@@ -105,8 +105,10 @@ export const Tease = ({ className = '' }: { className?: string }) => (
 
 /* ---- the run ------------------------------------------------------------------------------- */
 
-/** the overlay's height (svh): the run is this less the screen the stage stands on */
-export const TRACK = 240;
+/** the overlay's height (svh): the run is this less the screen the stage stands on (180 since 2026-10-06 — the owner's
+    directive: "shorten it to where the reveal actually finishes"; it was 240, and the run ended in long stretches of
+    nothing changing) */
+export const TRACK = 180;
 
 /* THE RUN, in shares of it: the first scroll turns the quote and draws the line, the terminal is open within the first
    screen of scrolling, stands whole a while, then goes to stand beside the session */

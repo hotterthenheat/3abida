@@ -115,6 +115,9 @@ interface Props {
       the whole page", "the smallest product text inside any window is at least 11 px at 1440 wide"): on a desk, the page's
       panel where it has one — the part of the page its row is about, large — and the whole page where it has none */
   panel?: boolean;
+  /** THE SCREEN NO TALLER THAN THIS (a CSS length; a `natural` window): the picture keeps its full width and is cut at its
+      foot (2026-10-06 — the owner's directive: "cap the window at 70 svh" — a phone's picture whole stood 740 px tall) */
+  cap?: string;
 }
 
 /* A SWITCH, BRISK (2026-10-05 — the owner: "we should have the tabs on the product things switch faster they take too
@@ -204,7 +207,7 @@ const frameOf = (view: HTMLElement | null): HTMLCanvasElement | null => {
   return c;
 };
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false, panel = false }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false, panel = false, cap }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -466,7 +469,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
       </div>
 
       {/* THE SCREEN */}
-      <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: form === 'phone' ? `${PHONE_W} / ${PHONE_H}` : `${SHOT_W} / ${SHOT_H}` } : undefined}>
+      <div ref={view} className={`relative overflow-hidden bg-canvas ${natural ? '' : 'flex-1 min-h-0'}`} style={natural ? { aspectRatio: form === 'phone' ? `${PHONE_W} / ${PHONE_H}` : `${SHOT_W} / ${SHOT_H}`, maxHeight: cap } : undefined}>
         {under && <img src={under} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 w-full h-full object-cover object-left-top select-none" />}
         {shown && (
           <img

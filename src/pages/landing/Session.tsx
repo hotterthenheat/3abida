@@ -241,8 +241,9 @@ export interface Story {
 }
 
 /** the scroll the session's first words stand beside the window — the opening's run and a breath after it (svh); the
-    words stand from a little above the screen's middle (PROLOGUE_AT) until their stretch is spent */
-export const PROLOGUE = 178;
+    words stand from a little above the screen's middle (PROLOGUE_AT) until their stretch is spent (112: the opening's run
+    of 80 — Opening.tsx TRACK — and a breath of about 32 after it, the words standing alone) */
+export const PROLOGUE = 112;
 const PROLOGUE_AT = '24svh';
 
 const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
@@ -495,7 +496,9 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   const lit = view.lit;
   return (
     <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10'} data-session>
-      <div className={small ? '' : 'pb-[14svh]'}>
+      {/* the column ends just far enough under the last beat for the window to stay put while it is read (the beat is read
+          at AT of the screen; the window lets go when the column's foot passes its own) — no empty screen after it */}
+      <div className={small ? '' : 'pb-[2svh]'}>
         {told && (
           /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands
              its window over and a breath after (hidden until then — Opening.tsx), then go up the page ahead of the beats */
@@ -515,7 +518,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                 ref={el => {
                   beatEls.current[i] = el;
                 }}
-                className={small ? 'py-9 border-t border-borderSubtle first:border-t-0' : 'min-h-[42svh] pt-[10svh]'}
+                className={small ? 'py-6 border-t border-borderSubtle first:border-t-0' : 'min-h-[34svh] pt-[8svh]'}
                 data-session-beat={i}
                 data-on={on || undefined}
               >

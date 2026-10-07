@@ -19,9 +19,9 @@
       page every DWELL, the silver line under the row filling; a pointer moving over the stage holds it until it has been
       still a while, the keys inside hold it, and a picked row holds its room until the reader scrolls on. A row's page
       comes in over the one before in a third of a second along the room's own motion (Boot.tsx `sweep`).
-    THE TURN — after Pinpoint the ground turns to the other theme ("Dark for the night session." / "Paper for a bright
-      room."), through the steel between (TURN_MS), and the terminal turns with it; after Practice it turns home
-      (BACK_MS), so the page ends on the ground it began on. A ground the reader picked on the page stays put
+    ONE ROOM IN THE OTHER THEME — the page's ground never turns (2026-10-06 — the owner cut the turn's two screens, "Dark
+      for the night session." and "Paper for a bright room."): the room marked `other` (Trace) plays its window in the
+      page's other theme, light on a dark page and dark on a light one. A ground the reader picked stays put
       (ground.tsx).
   A phone and less motion have the rooms as tabs over one window (RoomsTabs): a pick changes the room at once, and on a
   phone the rooms play on their own while they are on screen.
@@ -38,7 +38,7 @@ import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import TerminalWindow, { panelOf, shotFor, SHOT_H, SHOT_W } from './TerminalWindow';
 import type { Sweep } from './Boot';
-import { useBlockGround, useGround, type Ground } from './ground';
+import { useBlockGround, useGround } from './ground';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
 import { pictureIn } from './pixels';
@@ -64,6 +64,8 @@ export interface Room {
   rows: RoomRow[];
   /** the way a page of this room comes into the window (Boot.tsx) */
   sweep: Sweep;
+  /** its window plays in the page's other theme: the one room that shows it, since the turn was cut */
+  other?: boolean;
 }
 
 /** a page every DWELL; a pointer holds the room until it has been still STILL_FOR */
@@ -229,19 +231,14 @@ const useHands = () => {
 
 /* ---- the stage (a desk) ------------------------------------------------------------------------ */
 
-/** THE STAGE'S RUN, in svh: the wall dealt and standing, the wall becoming the tour, each room, the turn and the turn home.
-    The scroll says WHEN a step plays, never how far (the directive of 2026-10-06): crossing into a step plays it whole on
-    a timer, crossing back out plays it backwards, so a reader who stops scrolling always sees a finished wall or a room. */
-const SEG = { deal: 12, wall: 14, toTour: 12, room: 20, turn: 34, back: 22 };
-/** the steps' own times (ms): each card's flight and the time between two cards, the wall becoming the tour, the turn and
-    the turn home */
+/** THE STAGE'S RUN, in svh: the wall dealt and standing, the wall becoming the tour, and each room. The scroll says WHEN a
+    step plays, never how far (the directive of 2026-10-06): crossing into a step plays it whole on a timer, crossing back
+    out plays it backwards, so a reader who stops scrolling always sees a finished wall or a room. */
+const SEG = { deal: 12, wall: 12, toTour: 12, room: 16 };
+/** the steps' own times (ms): each card's flight and the time between two cards, and the wall becoming the tour */
 const DEAL_FLIGHT = 280;
 const STAGGER = 60;
 const TOUR_MS = 700;
-const TURN_MS = 1200;
-const BACK_MS = 1000;
-/** the turn comes after this room (Pinpoint) */
-const TURN_AFTER = 3;
 /** where the stage's words start, under the floating bar (the design's 96 px, growing with the landing — scale.ts) */
 const TOP = '6rem';
 
@@ -250,11 +247,9 @@ interface Plan {
   wall: [number, number];
   toTour: [number, number];
   rooms: [number, number][];
-  turn: [number, number];
-  back: [number, number];
   total: number;
 }
-const planFor = (n: number, turns: boolean): Plan => {
+const planFor = (n: number): Plan => {
   let at = 0;
   const take = (len: number): [number, number] => {
     const r: [number, number] = [at, at + len];
@@ -265,29 +260,8 @@ const planFor = (n: number, turns: boolean): Plan => {
   const wall = take(SEG.wall);
   const toTour = take(SEG.toTour);
   const rooms: [number, number][] = [];
-  let turn: [number, number] = [0, 0];
-  for (let i = 0; i < n; i++) {
-    rooms.push(take(SEG.room));
-    if (i === TURN_AFTER) turn = take(turns ? SEG.turn : 0);
-  }
-  const back = take(turns ? SEG.back : 0);
-  return { deal, wall, toTour, rooms, turn, back, total: at };
-};
-
-/** the ground's road from one theme to the other, through the steel between (theme/tokens.css --night … --day), as the
-    old turn painted it */
-const RAMP_AT = [0, 0.2, 0.38, 0.53, 0.66, 0.82, 1];
-const readRamp = (): number[][] => {
-  const cs = getComputedStyle(document.documentElement);
-  return ['--night', '--dawn-1', '--dawn-2', '--dawn-3', '--dawn-4', '--dawn-5', '--day'].map(n => cs.getPropertyValue(n).trim().split(/\s+/).map(Number));
-};
-const rampAt = (ramp: number[][], t: number): string => {
-  let i = 0;
-  while (i < RAMP_AT.length - 2 && t > RAMP_AT[i + 1]) i++;
-  const u = clamp((t - RAMP_AT[i]) / (RAMP_AT[i + 1] - RAMP_AT[i]));
-  const a = ramp[i];
-  const b = ramp[i + 1];
-  return `rgb(${Math.round(lerp(a[0], b[0], u))} ${Math.round(lerp(a[1], b[1], u))} ${Math.round(lerp(a[2], b[2], u))})`;
+  for (let i = 0; i < n; i++) rooms.push(take(SEG.room));
+  return { deal, wall, toTour, rooms, total: at };
 };
 
 interface Rect {
@@ -301,16 +275,14 @@ const mix = (a: Rect, b: Rect, t: number): Rect => ({ x: lerp(a.x, b.x, t), y: l
 interface StageProps {
   rooms: Room[];
   head: ReactNode;
-  turnSays: Record<Ground, string>;
   onOpen: (path: string) => void;
   /** the stage's place for a jump along the page (the bar's "Rooms"): the wall, dealt — a marker naming the wall's head */
   anchor?: string;
 }
 
-const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
+const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
   const { a, b } = useGround();
-  const turns = a !== b;
-  const plan = useMemo(() => planFor(rooms.length, turns), [rooms.length, turns]);
+  const plan = useMemo(() => planFor(rooms.length), [rooms.length]);
 
   const track = useRef<HTMLDivElement | null>(null);
   const stage = useRef<HTMLDivElement | null>(null);
@@ -324,14 +296,11 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
   const winCell = useRef<HTMLDivElement | null>(null);
   const frame = useRef<HTMLDivElement | null>(null);
   const frameBar = useRef<HTMLDivElement | null>(null);
-  const turnA = useRef<HTMLParagraphElement | null>(null);
-  const turnB = useRef<HTMLParagraphElement | null>(null);
 
   const [room, setRoom] = useState(0);
-  const [turned, setTurned] = useState(false);
   /** the window has taken over from the wall's picture */
   const [live, setLive] = useState(false);
-  /** the room's words are up (not mid-turn, not before the tour) */
+  /** the room's words are up (not before the tour) */
   const [reading, setReading] = useState(false);
   const [page, setPage] = useState(0);
   const [held, setHeld] = useState(false);
@@ -345,8 +314,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
   const shown = pages[Math.min(page, pages.length - 1)];
   const { handlers, holding } = useHands();
   const plays = live && reading && !held && pages.length > 1;
-  /* WHY THE PAGE CHANGED: a row (played or picked) comes in along the room's motion (Boot.tsx); a room or a ground the scroll
-     brings crossfades — a switch at every room the scroll passed cost the scroll its frames */
+  /* WHY THE PAGE CHANGED: a row (played or picked) comes in along the room's motion (Boot.tsx); a room the scroll brings
+     crossfades — a switch at every room the scroll passed cost the scroll its frames */
   const why = useRef<'row' | 'scroll'>('scroll');
   const { setBar } = usePlay(
     plays,
@@ -375,7 +344,6 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
      on a finished state") ---- */
   const live0 = useRef(false);
   const room0 = useRef(0);
-  const turned0 = useRef(false);
   const reading0 = useRef(false);
   useEffect(() => {
     const t = track.current;
@@ -396,8 +364,6 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     /** where (svh, on the stage's run) the wall's top row has come a little way up the screen: the deal plays from there */
     let dealAt = -20;
     let edge = 'rgb(255 255 255 / 0.12)';
-    const ramp = readRamp();
-    const order = a === 'dark' ? ramp : [...ramp].reverse();
     const imgs: (HTMLImageElement | null)[] = rooms.map(() => null);
     /** each room's picture made ready at the size it is dealt at, and the window's own first picture at the window's: eight
         full pictures scaled every frame cost the wall its frames */
@@ -427,11 +393,11 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       if (i === 0 && win.w > 2) first = copy(zoomTo ? panelImg ?? img : img, win.w, win.h - 40 * u);
     };
 
-    /* THE STEPS, in order — the deal, the wall becoming the tour, the turn and the turn home: each a progress the timer
-       moves toward where the scroll says it should stand, one step at a time (forward from the first, back from the last) */
+    /* THE STEPS, in order — the deal and the wall becoming the tour: each a progress the timer moves toward where the scroll
+       says it should stand, one step at a time (forward from the first, back from the last) */
     const dealMs = DEAL_FLIGHT + STAGGER * (rooms.length - 1);
-    const steps = { deal: { p: 0, to: 0, ms: dealMs }, tour: { p: 0, to: 0, ms: TOUR_MS }, turn: { p: 0, to: 0, ms: TURN_MS }, back: { p: 0, to: 0, ms: BACK_MS } };
-    const chain = [steps.deal, steps.tour, steps.turn, steps.back];
+    const steps = { deal: { p: 0, to: 0, ms: dealMs }, tour: { p: 0, to: 0, ms: TOUR_MS } };
+    const chain = [steps.deal, steps.tour];
     let lastT = 0;
     /** the canvas stands still: nothing yet, or the window's picture under the window */
     let drawnStill: 'empty' | 'live' | null = null;
@@ -504,8 +470,6 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       const want = (p: { to: number }, at: number) => (s >= at + 1 ? 1 : s < at - 1 ? 0 : p.to);
       steps.deal.to = s >= dealAt ? 1 : s < dealAt - 4 ? 0 : steps.deal.to;
       steps.tour.to = want(steps.tour, plan.toTour[0]);
-      steps.turn.to = turns ? want(steps.turn, plan.turn[0]) : 0;
-      steps.back.to = turns ? want(steps.back, plan.back[0]) : 0;
       /* far from the stage — more than a screen above it, or past it — every step stands where the scroll left it, at
          once: nobody is there to see it play */
       const far = s < dealAt - 100 || s > plan.total + 100;
@@ -529,22 +493,12 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       const moving = chain.some(st0 => st0.p !== st0.to);
       const dealP = steps.deal.p;
       const g = steps.tour.p;
-      const turnP = steps.turn.p;
-      const backP = steps.back.p;
 
-      /* which room, and the ground: the turn after Pinpoint, home after the last room */
+      /* which room */
       let ri = 0;
       plan.rooms.forEach(([r0], i) => {
         if (s >= r0) ri = i;
       });
-      const tau = ease(clamp((turnP - 0.3) / 0.4)) - ease(clamp((backP - 0.25) / 0.5));
-      st.style.backgroundColor = turns ? rampAt(order, clamp(tau)) : '';
-      const isTurned = tau >= 0.5;
-      if (isTurned !== turned0.current) {
-        turned0.current = isTurned;
-        why.current = 'scroll';
-        setTurned(isTurned);
-      }
       if (ri !== room0.current) {
         room0.current = ri;
         why.current = 'scroll';
@@ -555,9 +509,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
         live0.current = isLive;
         setLive(isLive);
       }
-      /* the words: in as the window takes over; out and back while the ground turns */
-      const dip = (q: number, out: number, back: number) => (q <= 0 || q >= 1 ? 1 : q < out ? 1 - q / out : q > back ? (q - back) / (1 - back) : 0);
-      const wordsIn = clamp((g - 0.45) / 0.4) * dip(turnP, 0.12, 0.88) * dip(backP, 0.15, 0.85);
+      /* the words: in as the window takes over */
+      const wordsIn = clamp((g - 0.45) / 0.4);
       const isReading = isLive && wordsIn >= 0.99;
       if (isReading !== reading0.current) {
         reading0.current = isReading;
@@ -582,16 +535,12 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
         if (slot) slot.style.pointerEvents = q >= 1 && g < 0.2 ? 'auto' : 'none';
       });
 
-      /* THE TOUR'S WORDS, the window, and the turn's two lines */
+      /* THE TOUR'S WORDS, and the window */
       if (tourLayer.current) tourLayer.current.style.visibility = g > 0 ? '' : 'hidden';
       if (words.current) {
         words.current.style.opacity = String(wordsIn);
         words.current.style.visibility = wordsIn > 0 ? '' : 'hidden';
       }
-      const lineA = clamp((turnP - 0.08) / 0.12) * (1 - clamp((turnP - 0.38) / 0.1));
-      const lineB = clamp((turnP - 0.52) / 0.12) * (1 - clamp((turnP - 0.8) / 0.1));
-      if (turnA.current) turnA.current.style.opacity = String(lineA);
-      if (turnB.current) turnB.current.style.opacity = String(lineB);
 
       /* THE FRAME, growing from the first room's place on the wall into the window */
       const e = ease(g);
@@ -738,9 +687,10 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       cancelAnimationFrame(raf);
       window.clearTimeout(resized);
     };
-  }, [a, turns, plan, rooms]);
+  }, [a, plan, rooms]);
 
-  const ground = turned ? b : a;
+  /* the room marked `other` plays its window in the page's other theme; the stage itself never turns */
+  const windowGround = r.other ? b : a;
   return (
     <div ref={track} className="relative" style={{ height: `${plan.total + 100}svh` }} data-rooms-track>
       {anchor && (
@@ -752,7 +702,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           style={{ top: `${plan.deal[1] + 4}svh`, scrollMarginTop: 0 }}
         />
       )}
-      <div ref={stage} data-theme={ground} className="sticky top-0 h-[100svh] overflow-hidden bg-canvas text-textPrimary" data-rooms-stage {...handlers}>
+      <div ref={stage} data-theme={a} className="sticky top-0 h-[100svh] overflow-hidden bg-canvas text-textPrimary" data-rooms-stage {...handlers}>
         <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" />
 
         {/* THE WALL — its head, and a door for each room (the pictures are the canvas's, under the slots) */}
@@ -849,27 +799,12 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
             </div>
             <div ref={winCell} className="min-w-0" style={{ paddingTop: TOP, visibility: live ? undefined : 'hidden' }} data-rooms-window>
               <div style={{ width: 'min(100%, calc((min(100svh - 8.25rem, 53.75rem) - 2.5rem - 2px) * 1.44 + 2px))' }}>
-                <TerminalWindow path={shown} theme={ground} desk natural lazy panel boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
+                <TerminalWindow path={shown} theme={windowGround} desk natural lazy panel boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* THE TURN'S TWO LINES — each on the ground it names */}
-        {turns && (
-          <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-            <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 flex items-center">
-              <div className="relative w-full">
-                <p ref={turnA} data-theme={a} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary landing-display font-light text-[3.25rem] leading-[1.02] tracking-[-0.03em]" style={{ opacity: 0 }} data-rooms-turn="a">
-                  {turnSays[a]}
-                </p>
-                <p ref={turnB} data-theme={b} className="absolute left-0 top-1/2 -translate-y-1/2 max-w-[11ch] text-textPrimary landing-display font-light text-[3.25rem] leading-[1.02] tracking-[-0.03em]" style={{ opacity: 0 }} data-rooms-turn="b">
-                  {turnSays[b]}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -877,8 +812,9 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
 
 /* ---- the tabs (a phone, and less motion) ------------------------------------------------------- */
 
-const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'anchor'>) => {
+const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'anchor'>) => {
   const ground = useBlockGround();
+  const { b } = useGround();
   /* a phone, a tablet, or a screen taller than it is wide (scale.ts): the window over the room's words */
   const small = useStacked();
   const calm = !!useReducedMotion();
@@ -966,7 +902,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'ancho
       </div>
       <div role="tabpanel" id="room-panel" aria-labelledby={`room-tab-${r.id}`} className={`mt-6 ${small ? '' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12'}`}>
         <div className="min-w-0">
-          <TerminalWindow path={shown} theme={ground} desk={!small} natural lazy panel boot="switch" bootSweep={r.sweep} />
+          <TerminalWindow path={shown} theme={r.other ? b : ground} desk={!small} natural lazy panel boot="switch" bootSweep={r.sweep} />
         </div>
         <div className={`${small ? 'mt-7' : ''} min-w-0`} key={r.id}>
           <RoomWords

@@ -16,8 +16,8 @@
     The session      that terminal goes to stand beside one session on SPY, three moments read off it as it ran; at
                      each the camera moves in on the level its words name, a silver rule and a chip on it (Session.tsx).
     The rooms        the desk splits into the terminal's eight rooms, dealt into a wall; then one room at a time, the
-                     scroll walking through them, each playing its pages, and the ground turning to the other theme and
-                     home again (Rooms.tsx).
+                     scroll walking through them, each playing its pages — Trace's in the page's other theme
+                     (Rooms.tsx).
     Trust            a read, never an instruction: what it does, what it never does, and what every number stands on.
     Pricing          two plans, Compass the recommended one, who each is for, the one difference, and what one terminal
                      stands in place of.
@@ -38,9 +38,9 @@
 ==================================================
 */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
-import { ArrowRight, Check, ChevronDown, Menu, Minus, Moon, Sun, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Menu, Minus, Moon, Plus, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
@@ -77,8 +77,8 @@ const HERO = {
 };
 
 /* THE ROOMS (Rooms.tsx). Every name, page and row here is a real one — the window opens it as the room comes. THE ORDER IS
-   NOAH'S (2026-09-20): Pulse · Compass · Terrain · Pinpoint, the turn of the ground, then Trace · the Weigher · Dossier ·
-   Practice. A row with a `path` is a page of its room, and is filmed (scripts/landing-stage.mjs); a row without one says
+   NOAH'S (2026-09-20): Pulse · Compass · Terrain · Pinpoint · Trace · the Weigher · Dossier · Practice (the ground turned
+   after Pinpoint until 2026-10-06; Trace, the room after it, now plays in the other theme). A row with a `path` is a page of its room, and is filmed (scripts/landing-stage.mjs); a row without one says
    what the room's page holds. Each room's pages come into the window along its own motion (Boot.tsx `sweep`). */
 const ROOMS: Room[] = [
   {
@@ -142,6 +142,8 @@ const ROOMS: Room[] = [
   },
   {
     id: 'trace',
+    /* the one room that plays in the page's other theme (the turn's screens were cut — the owner, 2026-10-06) */
+    other: true,
     glyph: 'trace',
     kind: 'The tape',
     name: 'Trace',
@@ -205,9 +207,6 @@ const ROOMS: Room[] = [
   },
 ];
 
-/** THE TURN'S TWO LINES — each said on the ground it names (Rooms.tsx) */
-const TURN_SAYS: Record<Ground, string> = { dark: 'Dark for the night session.', light: 'Paper for a bright room.' };
-
 /** the rooms counted off the list itself, so the words cannot disagree with it */
 const ROOM_COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][ROOMS.length] ?? String(ROOMS.length);
 
@@ -219,25 +218,16 @@ const IT_DOES = [
   'Explains its reads in plain English',
 ];
 const IT_NEVER = ['Tells you what to buy or sell', 'Places an order. It is not a broker', 'Boils a trade down to one number', 'Gives financial advice'];
+/** …and on a phone, the same said once (2026-10-06 — the directive: "On a phone, the 'never' list becomes one sentence") */
+const IT_NEVER_SAID = 'It never tells you what to buy or sell, places an order (it is not a broker), boils a trade down to one number, or gives financial advice.';
 
 /* WHAT IT PRODUCES, NEVER HOW (the brief of 2026-10-03: "Recipe stays private. Result is visible" — no formula, weighting,
-   threshold or assumption that would let the engine be rebuilt). The kinds are /legal/data's, in three. */
-const KINDS: { name: string; says: string; items: string[] }[] = [
-  {
-    name: 'Observed',
-    says: 'What the market printed.',
-    items: ['Trades and quotes', 'Every options print, its size and its side', 'Open interest and volume', 'Filings and the news'],
-  },
-  {
-    name: 'Calculated',
-    says: 'Worked out from what was observed, by fixed rules.',
-    items: ['The exposure at every strike', 'Net premium and flow through the day', 'The walls, the flip and the heaviest strike', 'How each level has held today'],
-  },
-  {
-    name: 'Modeled',
-    says: 'Where an assumption is needed — and named as one.',
-    items: ['Which side of a trade dealers are on', 'The expected move into an expiry', 'A contract’s fair value'],
-  },
+   threshold or assumption that would let the engine be rebuilt). The kinds are /legal/data's, in three: a name and a line
+   each (2026-10-06 — the directive: "no item lists. 'The Data page, in full' carries the detail"). */
+const KINDS: { name: string; says: string }[] = [
+  { name: 'Observed', says: 'What the market printed: trades, quotes, open interest, filings.' },
+  { name: 'Calculated', says: 'Worked out from what was observed, by fixed rules.' },
+  { name: 'Modeled', says: 'Where an assumption is needed — and named as one.' },
 ];
 
 /* THE PLANS THE LANDING SELLS (2026-10-06 — the owner: "Remove Lifetime"; the directive: "every plan shows a price"):
@@ -763,14 +753,15 @@ const Reveal = () => {
   const small = useStacked();
   const head = useArrival<HTMLDivElement>();
   return (
-    <Wrap className="pb-[10vh]" data-landing-reveal>
+    <Wrap className="pb-[4vh] md:pb-[6vh]" data-landing-reveal>
       <div ref={head} className="landing-lines text-center">
         <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
           Trade what you can see.
         </h2>
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
-        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural panel boot="switch" />
+        {/* on a phone the window stands at most 70% of the screen, its picture cut at the foot (it stood 740 px tall) */}
+        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural panel boot="switch" cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined} />
         <figcaption className="mt-4 text-[0.8125rem] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
@@ -837,12 +828,13 @@ const Trust = () => (
       title="A read, never an instruction."
       aside="Every figure starts from the market’s own record and is worked out by fixed rules, so the same market gives the same read every time. What it shows is open; how it works each one out stays ours."
     />
-    <div className="mt-10 lg:mt-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10" data-landing-does>
+    {/* WHAT IT DOES AND NEVER DOES, two compact columns side by side; on a phone the "never" is one sentence */}
+    <div className="mt-10 lg:mt-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6" data-landing-does>
       <div>
         <h3 className="text-[0.9375rem] font-medium text-textPrimary">It does</h3>
-        <ul className="mt-4 border-t border-borderSubtle">
+        <ul className="mt-3 border-t border-borderSubtle">
           {IT_DOES.map(t => (
-            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textPrimary">
+            <li key={t} className="py-2.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textPrimary">
               <Check className="w-4 h-4 mt-[0.1875rem] shrink-0 text-textPrimary" aria-hidden="true" />
               {t}
             </li>
@@ -851,30 +843,25 @@ const Trust = () => (
       </div>
       <div>
         <h3 className="text-[0.9375rem] font-medium text-textSecondary">It never</h3>
-        <ul className="mt-4 border-t border-borderSubtle">
+        <ul className="mt-3 border-t border-borderSubtle max-md:hidden">
           {IT_NEVER.map(t => (
-            <li key={t} className="py-3.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textSecondary">
+            <li key={t} className="py-2.5 border-b border-borderSubtle flex items-start gap-3 text-[0.9375rem] leading-snug text-textSecondary">
               <Minus className="w-4 h-4 mt-[0.1875rem] shrink-0 text-textMuted" aria-hidden="true" />
               {t}
             </li>
           ))}
         </ul>
+        <p className="mt-2 md:hidden text-[0.9375rem] leading-snug text-textSecondary">{IT_NEVER_SAID}</p>
       </div>
     </div>
-    <div className="mt-14 lg:mt-16" data-landing-kinds>
+    {/* WHAT EVERY NUMBER STANDS ON: one row of three, a name and a line each */}
+    <div className="mt-10 lg:mt-12" data-landing-kinds>
       <h3 className="text-[0.9375rem] font-medium text-textSecondary">What every number stands on</h3>
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 border-t border-borderSubtle md:divide-x divide-borderSubtle">
         {KINDS.map(k => (
-          <div key={k.name} className="py-6 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
+          <div key={k.name} className="py-4 md:py-5 md:px-8 first:md:pl-0 last:md:pr-0 border-b border-borderSubtle md:border-b-0">
             <p className="landing-display text-[1.3125rem] font-light tracking-[-0.01em]">{k.name}</p>
-            <p className="mt-1 text-[0.875rem] text-textSecondary">{k.says}</p>
-            <ul className="mt-4">
-              {k.items.map(t => (
-                <li key={t} className="py-2 border-t border-borderSubtle text-[0.84375rem] leading-snug text-textPrimary">
-                  {t}
-                </li>
-              ))}
-            </ul>
+            <p className="mt-1 text-[0.875rem] leading-snug text-textSecondary">{k.says}</p>
           </div>
         ))}
       </div>
@@ -899,8 +886,8 @@ const InPlaceOf = () => (
         <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[0.84375rem] text-textSecondary">
           <ProductGlyph name={t.glyph} size={14} bare className="size-[0.875rem]" />
           {t.text}
-          {/* the room that does it, in words as well as on its glyph */}
-          <span className="-ml-1 text-textMuted">· {t.room}</span>
+          {/* the room that does it, in words as well as on its glyph (on a phone, its glyph and the words a reader hears) */}
+          <span className="-ml-1 text-textMuted max-md:sr-only">· {t.room}</span>
         </li>
       ))}
     </ul>
@@ -916,7 +903,7 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
   const raised = planKey === RECOMMENDED;
   return (
     <div
-      className={`flex flex-col ${raised ? 'p-6 sm:p-8 rounded-[1.25rem] border border-borderMuted bg-panel' : 'py-8 lg:pr-8'}`}
+      className={`flex flex-col ${raised ? 'p-6 sm:p-8 rounded-[1.25rem] border border-borderMuted bg-panel' : 'py-6 lg:py-8 lg:pr-8'}`}
       data-landing-plan={planKey}
       data-landing-recommended={raised || undefined}
     >
@@ -1031,6 +1018,48 @@ const Compare = () => {
   );
 };
 
+/** ONE OF THE BUYER'S QUESTIONS, its answer folded under it and opened by the question (2026-10-06 — the directive's "Cut
+    the length": the eleven answers stood open, a screen and a half of the page). The WAI-ARIA disclosure: a button in the
+    question's heading, the answer a region it names. A closed answer is hidden until found, so the page's find opens the
+    one it finds (set on the element itself: this React writes `hidden` as a plain switch). */
+const Question = ({ q, a, i }: { q: string; a: string; i: number }) => {
+  const [open, setOpen] = useState(false);
+  const body = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    if (open) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', 'until-found');
+  }, [open]);
+  useEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    const found = () => setOpen(true);
+    el.addEventListener('beforematch', found);
+    return () => el.removeEventListener('beforematch', found);
+  }, []);
+  return (
+    <div className="border-b border-borderSubtle" data-landing-faq>
+      <h3>
+        <button
+          type="button"
+          id={`faq-q-${i}`}
+          aria-expanded={open}
+          aria-controls={`faq-a-${i}`}
+          onClick={() => setOpen(o => !o)}
+          className="group w-full min-h-[3.25rem] py-3.5 md:py-4 flex items-start justify-between gap-6 text-left text-[1.0625rem] font-medium tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
+        >
+          {q}
+          <Plus className={`w-4 h-4 mt-[0.3125rem] shrink-0 text-textMuted group-hover:text-textPrimary transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-45' : ''}`} aria-hidden="true" />
+        </button>
+      </h3>
+      <div ref={body} id={`faq-a-${i}`} role="region" aria-labelledby={`faq-q-${i}`} hidden className="pb-5 -mt-1 max-w-[62ch] text-[0.9375rem] leading-relaxed text-textSecondary">
+        {a}
+      </div>
+    </div>
+  );
+};
+
 /* ---- the page ------------------------------------------------------------------------------ */
 
 const Page = () => {
@@ -1130,7 +1159,7 @@ const Page = () => {
           <Block on="a" label="The terminal">
             <Reveal />
           </Block>
-          <Block on="a" id="how" label="How it works" className="pb-[6vh] scroll-mt-10">
+          <Block on="a" id="how" label="How it works" className="pb-[4vh] md:pb-[6vh] scroll-mt-10">
             <Wrap>
               <Head
                 first="One session, as the terminal saw it."
@@ -1147,23 +1176,23 @@ const Page = () => {
       {/* ── THE ROOMS ─────────────────────────────────────────────────────────────────────────── */}
       {stage ? (
         <Block on="a" label="The rooms">
-          <Rooms rooms={ROOMS} head={<RoomsHead stage />} turnSays={TURN_SAYS} onOpen={open} anchor="rooms" />
+          <Rooms rooms={ROOMS} head={<RoomsHead stage />} onOpen={open} anchor="rooms" />
         </Block>
       ) : (
-        <Block on="a" id="rooms" label="The rooms" className="py-[10vh] scroll-mt-10">
+        <Block on="a" id="rooms" label="The rooms" className="py-[6vh] md:py-[8vh] scroll-mt-10">
           <Wrap>
-            <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} turnSays={TURN_SAYS} onOpen={open} />
+            <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} onOpen={open} />
           </Wrap>
         </Block>
       )}
 
       {/* ── A READ, NEVER AN INSTRUCTION ─────────────────────────────────────────────────────── */}
-      <Block on="a" id="trust" label="Why Slayer" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
+      <Block on="a" id="trust" label="Why Slayer" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
         <Trust />
       </Block>
 
       {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
-      <Block on="a" id="pricing" label="Pricing" className="py-[10vh] scroll-mt-10 border-t border-borderSubtle">
+      <Block on="a" id="pricing" label="Pricing" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <Head
             first="Simple plans. Cancel any time."
@@ -1181,7 +1210,7 @@ const Page = () => {
       </Block>
 
       {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────────── */}
-      <Block on="a" id="faq" label="Questions" className="pt-[10vh] scroll-mt-10 border-t border-borderSubtle">
+      <Block on="a" id="faq" label="Questions" className="pt-[6vh] md:pt-[8vh] scroll-mt-10 border-t border-borderSubtle">
         <Wrap>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
             <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
@@ -1195,18 +1224,15 @@ const Page = () => {
                 <span className="text-[0.8125rem] text-textMuted">Anything else, ask. A person reads it.</span>
               </div>
             </div>
-            <dl className="lg:col-span-7 border-t border-borderSubtle">
-              {FAQ.map(f => (
-                <div key={f.q} className="py-5 border-b border-borderSubtle" data-landing-faq>
-                  <dt className="text-[1.0625rem] font-medium tracking-tight">{f.q}</dt>
-                  <dd className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-textSecondary">{f.a}</dd>
-                </div>
+            <div className="lg:col-span-7 border-t border-borderSubtle" data-landing-faq-list>
+              {FAQ.map((f, i) => (
+                <Question key={f.q} q={f.q} a={f.a} i={i} />
               ))}
-            </dl>
+            </div>
           </div>
 
           {/* THE LAST WORDS — the rooms once more, a door each, and the line read by the scroll */}
-          <div className="pt-[16vh] pb-[12vh] text-center" data-landing-close>
+          <div className="pt-[8vh] pb-[6vh] md:pt-[12vh] md:pb-[8vh] text-center" data-landing-close>
             <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
               {ROOMS.map(r => (
                 <li key={r.id}>
