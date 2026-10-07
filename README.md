@@ -16,6 +16,13 @@ it on the right.
 whole stage, hold each stop 1.5 s, and record whether any part of the stage is still mid-way. A part counts as mid-way
 when the wall is partly dealt, or when the frame, the words or the turn's lines sit between 0 and 1.
 
+`tools/empty.py` measures each stop's empty space: the share of the screen in bands that hold only the ground, counting
+a band only when it is taller than 5% of the screen (the space between two lines, or round a button, is not empty
+space).
+
 ## Folders
 
 - `p0-1-rooms/`: the rooms animation never stops halfway.
+- `p0-2-readable/`: the product is readable: the session's camera on each beat's level with its call, and the rooms'
+  panels. `beats-*` are the session's stops at 1440×900; `panels-*-first-last` show each panel film's first and last
+  frames.
