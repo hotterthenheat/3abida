@@ -23,15 +23,16 @@
   menu, the desk, the side of the chain), the pointer goes home and fades, and the last frame is the first one again.
 
   WHAT IT WRITES, per page, theme and size —
-      public/landing/clips/<page>-<theme>-<desk|phone>.mp4    the film
-      public/landing/<page>-<theme>-<desk|phone>.webp         its first frame, the still the landing shows until it plays
-      src/pages/landing/clips.json                            each film's length
+      public/landing/clips/<page>-<theme>-<desk|phone|panel>.mp4    the film
+      public/landing/<page>-<theme>-<desk|phone|panel>.webp         its first frame, the still the landing shows until it plays
+      src/pages/landing/clips.json                                  each film's length (and a panel's box on the desk)
   The pages are the landing's own (landing-stage.mjs ALL_PAGES: every `path` in Landing.tsx — the hero's desk and the four
   systems since the rebuild of 2026-10-03). The session (Session.tsx) is not filmed here: scripts/make-landing-session.mjs.
 
   The encoder is ffmpeg with libx264: FFMPEG names one, else `ffmpeg` on the PATH. After the address: pages ("/terrain"),
-  a size ("desk" | "phone"), a theme ("dark" | "light") — as landing:shots takes them. PREVIEW=1 films an act small and
-  quick into the system's temp folder, to check it — nothing in public/ or src/ is touched.
+  a size ("desk" | "phone" | "panel"), a theme ("dark" | "light") — as landing:shots takes them. PREVIEW=1 films an act small and
+  quick into the system's temp folder, to check it — nothing in public/ or src/ is touched. "panel" films only the pages
+  whose room names a panel (PANEL in its act module).
 */
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
@@ -44,7 +45,7 @@ import { ALL_PAGES, SEED, PREPARE, slug } from './landing-stage.mjs';
 const BASE = process.argv[2] ?? 'http://localhost:5199';
 const ARGS = process.argv.slice(3);
 const ONLY = ARGS.filter(a => a.startsWith('/'));
-const FORMS = ARGS.filter(a => a === 'desk' || a === 'phone');
+const FORMS = ARGS.filter(a => a === 'desk' || a === 'phone' || a === 'panel');
 const ONLY_THEMES = ARGS.filter(a => a === 'dark' || a === 'light');
 const FFMPEG = process.env.FFMPEG ?? 'ffmpeg';
 const PREVIEW = !!process.env.PREVIEW;
@@ -57,9 +58,15 @@ const PAGES = ALL_PAGES.filter(p => !ONLY.length || ONLY.includes(p));
 const THEMES = ['dark', 'light'].filter(t => !ONLY_THEMES.length || ONLY_THEMES.includes(t));
 /* a desk's screen at 1.5 device pixels a point, as its still; a phone's at two — the film is what a phone's window shows,
    and at two it is sharp in a 390-point band at a fraction of the frames' cost (three took as long as a desk's) */
+/* THE PANELS (2026-10-06 — the owner's directive: "for each room's selected row, show the panel that row describes, not
+   the whole page … Pick whichever keeps the film sharp"): a page's panel is filmed on its own — the desk laid out as ever,
+   and only the panel taken, at three device pixels a point, so the landing's window can show it large (its smallest
+   words at 11 px or more) and sharp on any screen. Each room's act module names its pages' panels and what the pointer
+   does inside them (PANEL). */
 const SIZES = [
   { form: 'desk', w: 1440, h: 1000, dpr: PREVIEW ? 0.75 : 1.5, crf: 28 },
   { form: 'phone', w: 390, h: 760, dpr: PREVIEW ? 1 : 2, crf: 27 },
+  { form: 'panel', w: 1440, h: 1000, dpr: PREVIEW ? 1.5 : 3, crf: 26 },
 ].filter(z => !FORMS.length || FORMS.includes(z.form));
 const FPS = 30;
 /** how much faster than life the films run: each frame is SPEED thirtieths of a second of the page's time */
@@ -75,6 +82,9 @@ const PREROLL = 1000;
 const AT = '2026-10-01T17:42:00Z';
 /* where the pointer rests when it is not working: low on the right, out of the way of every page's head */
 const HOME = size => [size.w * 0.84, size.h * 0.9];
+/** a panel's box on the desk (CSS px), at the window's own shape — 1440 × 1000 — its height even at three device pixels
+    a point, as the encoder asks */
+const panelBox = ([x, y, w]) => ({ x, y, w, h: 2 * Math.round(w / (1440 / 1000) / 2) });
 
 /* ---- WHERE THE POINTER GOES ---------------------------------------------------------------------------------------- */
 
@@ -182,16 +192,21 @@ const tfNow = (n = 0) => async ({ frame }) =>
 const DESK = {};
 const PHONE = {};
 const REMEMBER = {};
+/** each page's panel: { box: [x, y, w] on the desk, beats } */
+const PANEL = {};
 
 /* THE ROOMS' ACTS (2026-10-02 — the owner: "make sure the videos really show the features of every page", "make them move
    fast"): each room's acts are a module of their own, scripts/landing-acts/<room>.mjs, whose default export takes the
    helpers above and returns { DESK, PHONE, REMEMBER } for the room's pages. They are read in turn. */
-const HELPERS = { on, near, btn, tf, at, off, SEARCH_MENU, tfButtonNow, tfVia, tfNow };
+/** a point in the panel being filmed, by fractions of it */
+const inPanel = (fx, fy) => async ({ panel }) => (panel ? [panel.x + fx * panel.w, panel.y + fy * panel.h] : null);
+const HELPERS = { on, near, btn, tf, at, off, inPanel, SEARCH_MENU, tfButtonNow, tfVia, tfNow };
 const actsIn = async file => {
   const acts = (await import(pathToFileURL(file).href)).default(HELPERS);
   Object.assign(DESK, acts.DESK ?? {});
   Object.assign(PHONE, acts.PHONE ?? {});
   Object.assign(REMEMBER, acts.REMEMBER ?? {});
+  Object.assign(PANEL, acts.PANEL ?? {});
 };
 const ROOM_ACTS = resolve(dirname(fileURLToPath(import.meta.url)), 'landing-acts');
 for (const f of readdirSync(ROOM_ACTS).filter(f => f.endsWith('.mjs')).sort()) await actsIn(resolve(ROOM_ACTS, f));
@@ -278,7 +293,7 @@ const film = async (browser, path, theme, size, manifest) => {
     })
   );
   await page.goto(`${BASE}/__clip-host`);
-  await page.waitForTimeout(size.form === 'desk' ? 6500 : 5500);
+  await page.waitForTimeout(size.form === 'phone' ? 5500 : 6500);
   const label = `${slug(path)}-${theme}-${size.form}`;
   await settle(page, label);
   /* where the stage leaves the pointer is where the film's pointer appears — and where it comes back to, so the film
@@ -289,27 +304,32 @@ const film = async (browser, path, theme, size, manifest) => {
     rest = [x, y];
     return move(x, y, o);
   };
-  await PREPARE[path]?.(page, theme, { form: size.form, w: size.w, h: size.h, dpr: size.dpr });
+  /* (a panel is a part of the desk: the desk is staged) */
+  await PREPARE[path]?.(page, theme, { form: size.form === 'phone' ? 'phone' : 'desk', w: size.w, h: size.h, dpr: size.dpr });
   page.mouse.move = move;
   await page.waitForTimeout(400);
   const frame = page.frameLocator('#t');
   const desk = size.form === 'desk';
-  const beats = [...(REMEMBER[path] ?? []), ...((desk ? DESK : PHONE)[path] ?? [])];
+  /* a panel: only its box is taken, and the pointer works inside it */
+  const panel = size.form === 'panel' ? panelBox(PANEL[path].box) : null;
+  const beats = panel ? [...(REMEMBER[path] ?? []), ...PANEL[path].beats] : [...(REMEMBER[path] ?? []), ...((desk ? DESK : PHONE)[path] ?? [])];
+  const clip = panel ? { x: panel.x, y: panel.y, width: panel.w, height: panel.h } : { x: 0, y: 0, width: size.w, height: size.h };
 
   const dir = resolve(tmpdir(), `slayer-clip-${slug(path)}-${theme}-${size.form}-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const cdp = await ctx.newCDPSession(page);
   let n = 0;
-  const start = rest && rest[0] > 0 && rest[0] < size.w && rest[1] > 0 && rest[1] < size.h ? rest : HOME(size);
+  const inside = p => (panel ? p[0] > panel.x && p[0] < panel.x + panel.w && p[1] > panel.y && p[1] < panel.y + panel.h : p[0] > 0 && p[0] < size.w && p[1] > 0 && p[1] < size.h);
+  const start = rest && inside(rest) ? rest : panel ? [panel.x + panel.w * 0.84, panel.y + panel.h * 0.86] : HOME(size);
   let pos = start;
   let cursor = 0;
   let pressAt = -99;
   const memo = { was: {}, words: {} };
-  const c = { frame, size, page, memo };
+  const c = { frame, size, page, memo, panel };
   await page.mouse.move(pos[0], pos[1]);
   const shoot = async () => {
-    const r = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 90, optimizeForSpeed: true, clip: { x: 0, y: 0, width: size.w, height: size.h, scale: size.dpr } });
+    const r = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 90, optimizeForSpeed: true, clip: { ...clip, scale: size.dpr } });
     writeFileSync(resolve(dir, `f${String(n).padStart(5, '0')}.jpg`), Buffer.from(r.data, 'base64'));
     n++;
   };
@@ -452,7 +472,7 @@ const film = async (browser, path, theme, size, manifest) => {
   await loops(PREROLL);
   /* the first frame is the still: no pointer yet */
   await shoot();
-  writeFileSync(resolve(dir, 'poster.png'), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: size.w, height: size.h, scale: size.dpr } })).data, 'base64'));
+  writeFileSync(resolve(dir, 'poster.png'), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png', clip: { ...clip, scale: size.dpr } })).data, 'base64'));
   await fade(1, 8);
   let missed = 0;
   for (const b of beats) {
@@ -561,7 +581,8 @@ const film = async (browser, path, theme, size, manifest) => {
     ]);
   encode(out, size.crf);
   rmSync(dir, { recursive: true, force: true });
-  manifest[key] = { d: Number((n / FPS).toFixed(2)) };
+  /* a panel's film keeps its box: the landing zooms from the whole desk into it (Rooms.tsx) */
+  manifest[key] = { d: Number((n / FPS).toFixed(2)), ...(panel ? { box: [panel.x, panel.y, panel.w, panel.h] } : {}) };
   const kb = Math.round(readFileSync(out).length / 1024);
   console.log(`${key}.mp4  ${(n / FPS).toFixed(1)} s  ${kb} KB${missed ? `  · ${missed} beat${missed > 1 ? 's' : ''} found nothing` : ''}`);
   return kb;
@@ -579,6 +600,8 @@ let kb = 0;
 for (const size of SIZES) {
   for (const theme of THEMES) {
     for (const path of PAGES) {
+      /* a panel is filmed where its room's module names one */
+      if (size.form === 'panel' && !PANEL[path]) continue;
       try {
         kb += await film(browser, path, theme, size, manifest);
         made++;
@@ -586,7 +609,7 @@ for (const size of SIZES) {
            so a stopped run keeps what it made */
         const disk = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : {};
         const all = { ...disk, ...manifest };
-        writeFileSync(MANIFEST, JSON.stringify(Object.fromEntries(Object.entries(all).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, { d: v.d }])), null, 1) + '\n');
+        writeFileSync(MANIFEST, JSON.stringify(Object.fromEntries(Object.entries(all).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, v.box ? { d: v.d, box: v.box } : { d: v.d }])), null, 1) + '\n');
       } catch (e) {
         console.log(`${slug(path)}-${theme}-${size.form}: not filmed — ${String(e).split('\n')[0]}`);
       }

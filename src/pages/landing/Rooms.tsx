@@ -27,14 +27,16 @@
   phone the rooms play on their own while they are on screen.
 
   THE PICTURES are the rooms' own stills (the films' first frames — TerminalWindow), fetched once the reader is near;
-  the window plays the films. Nothing here is drawn to look like the product.
+  the window plays the films. Nothing here is drawn to look like the product. The wall deals the whole pages; the window
+  shows each row's PANEL (2026-10-06 — TerminalWindow `panel`: the part of the page the row is about, large enough to
+  read), and the first room's page zooms from the wall into its panel as it grows into the window.
 ==================================================
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import TerminalWindow, { shotFor } from './TerminalWindow';
+import TerminalWindow, { panelOf, shotFor, SHOT_H, SHOT_W } from './TerminalWindow';
 import type { Sweep } from './Boot';
 import { useBlockGround, useGround, type Ground } from './ground';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -401,10 +403,14 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     const ramp = readRamp();
     const order = a === 'dark' ? ramp : [...ramp].reverse();
     const imgs: (HTMLImageElement | null)[] = rooms.map(() => null);
-    /** each room's picture made ready at the size it is dealt at, and the first room's at the window's: eight full pictures
-        scaled every frame cost the wall its frames */
+    /** each room's picture made ready at the size it is dealt at, and the window's own first picture at the window's: eight
+        full pictures scaled every frame cost the wall its frames */
     let cards: (HTMLCanvasElement | null)[] = rooms.map(() => null);
     let first: HTMLCanvasElement | null = null;
+    /** THE FIRST ROOM'S PANEL (TerminalWindow `panel`): the window shows the part of the page its row is about, so the
+        whole page on the wall zooms into it as it grows into the window, and lands on the panel's own picture */
+    const zoomTo = panelOf(rooms[0].path, a);
+    let panelImg: HTMLImageElement | null = null;
     const copy = (img: HTMLImageElement, w: number, h: number): HTMLCanvasElement | null => {
       const W = Math.max(1, Math.round(w * dpr));
       const H = Math.max(1, Math.round(h * dpr));
@@ -422,7 +428,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       const img = imgs[i];
       if (!img || !img.naturalWidth || pile.w < 2) return;
       cards[i] = copy(img, pile.w, pile.h);
-      if (i === 0 && win.w > 2) first = copy(img, win.w, win.h);
+      if (i === 0 && win.w > 2) first = copy(zoomTo ? panelImg ?? img : img, win.w, win.h - 40 * u);
     };
 
     /* THE STEPS, in order — the deal, the wall becoming the tour, the turn and the turn home: each a progress the timer
@@ -464,8 +470,9 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       drawnStill = null;
     };
 
-    /** a room's picture at a place: rounded as the wall's slots and the window are, its edge drawn while it is in flight */
-    const tile = (src: CanvasImageSource | null, at: Rect, alpha = 1, line = true) => {
+    /** a room's picture at a place: rounded as the wall's slots and the window are, its edge drawn while it is in flight
+        (`part`: only that part of the picture, in its own pixels) */
+    const tile = (src: CanvasImageSource | null, at: Rect, alpha = 1, line = true, part?: Rect) => {
       if (!src || alpha <= 0 || at.w < 2) return;
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -476,7 +483,8 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
       ctx.save();
       ctx.clip();
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(src, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
+      if (part) ctx.drawImage(src, part.x, part.y, part.w, part.h, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
+      else ctx.drawImage(src, at.x * dpr, at.y * dpr, at.w * dpr, at.h * dpr);
       ctx.restore();
       if (line) {
         ctx.strokeStyle = edge;
@@ -634,10 +642,17 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
           const qe = 1 - Math.pow(1 - q, 3);
           tile(cards[i], mix(pile, slotR[i], qe), Math.min(1, q * 4));
         });
-        /* the first room: on the wall, then growing into the window (its picture under the frame's bar) */
+        /* the first room: on the wall, then growing into the window (its picture under the frame's bar) — zooming from the
+           whole page into its panel, and landing on the panel's own picture */
         if (flight[0] >= 1) {
           const pic: Rect = g > 0 ? { x: box.x + 1, y: box.y + 1 + 40 * u * e, w: box.w - 2, h: box.h - 2 - 40 * u * e } : slotR[0];
-          tile(g > 0 ? first ?? cards[0] : cards[0], pic, 1, false);
+          const img = imgs[0];
+          if (g > 0 && zoomTo && img?.naturalWidth) {
+            const k = img.naturalWidth / SHOT_W;
+            const part = mix({ x: 0, y: 0, w: SHOT_W, h: SHOT_H }, { x: zoomTo[0], y: zoomTo[1], w: zoomTo[2], h: zoomTo[3] }, e);
+            tile(img, pic, 1, false, { x: part.x * k, y: part.y * k, w: part.w * k, h: part.h * k });
+            if (panelImg) tile(first, pic, clamp((g - 0.86) / 0.14), false);
+          } else tile(g > 0 ? first ?? cards[0] : cards[0], pic, 1, false);
         }
       }
       if (moving) ask();
@@ -652,6 +667,22 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
     const fetchAll = () => {
       if (fetched) return;
       fetched = true;
+      /* the first room's panel, the window's own first picture */
+      if (zoomTo) {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = shotFor(rooms[0].path, a, 'panel');
+        pictureIn(img).then(
+          () => {
+            if (!alive) return;
+            panelImg = img;
+            ready(0);
+            drawnStill = null;
+            ask();
+          },
+          () => {}
+        );
+      }
       rooms.forEach((room, i) => {
         const img = new Image();
         img.decoding = 'async';
@@ -823,7 +854,7 @@ const RoomsStage = ({ rooms, head, turnSays, onOpen, anchor }: StageProps) => {
             </div>
             <div ref={winCell} className="min-w-0" style={{ paddingTop: TOP, visibility: live ? undefined : 'hidden' }} data-rooms-window>
               <div style={{ width: 'min(100%, calc((min(100svh - 8.25rem, 53.75rem) - 2.5rem - 2px) * 1.44 + 2px))' }}>
-                <TerminalWindow path={shown} theme={ground} desk natural lazy boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
+                <TerminalWindow path={shown} theme={ground} desk natural lazy panel boot={why.current === 'row' ? 'switch' : undefined} bootSweep={r.sweep} hold={!live} />
               </div>
             </div>
           </div>
@@ -940,7 +971,7 @@ const RoomsTabs = ({ rooms, head, onOpen }: Omit<StageProps, 'turnSays' | 'ancho
       </div>
       <div role="tabpanel" id="room-panel" aria-labelledby={`room-tab-${r.id}`} className={`mt-6 ${small ? '' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,20rem)] gap-x-10 xl:gap-x-12'}`}>
         <div className="min-w-0">
-          <TerminalWindow path={shown} theme={ground} desk={!small} natural lazy boot="switch" bootSweep={r.sweep} />
+          <TerminalWindow path={shown} theme={ground} desk={!small} natural lazy panel boot="switch" bootSweep={r.sweep} />
         </div>
         <div className={`${small ? 'mt-7' : ''} min-w-0`} key={r.id}>
           <RoomWords

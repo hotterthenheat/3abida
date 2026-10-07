@@ -64,6 +64,11 @@ interface Beat {
   step: number;
   time: string;
   boxes: Box[];
+  /** what a held beat's window shows: the ladder round the level its words name (scripts/make-landing-session.mjs FOCUS) */
+  focus: Box;
+  /** the ladder's row for that level, and the chip's words, read off the run */
+  level?: Box;
+  call?: string;
 }
 const DATA = SESSION as unknown as { w: number; h: number; frames: number; times: string[]; beats: Beat[] };
 
@@ -85,31 +90,39 @@ const COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five'][BEATS.length] ?? Str
 export const FIRST_TIME = DATA.times[BEATS[0].step] ?? BEATS[0].time;
 
 const frameSrc = (theme: Theme, i: number) => `/landing/session/${theme}/f${String(i).padStart(3, '0')}.webp`;
-export const beatSrc = (theme: Theme, k: number) => `/landing/session/${theme}/beat-${k + 1}.webp`;
+/** a beat's own picture, full size — the page's beat k is the run's beat PICK[k] (the files are numbered by the run's five:
+    numbered by the page's three, the second and third beats showed 11:06 and 11:12, where the call wall still stood at
+    475) */
+export const beatSrc = (theme: Theme, k: number) => `/landing/session/${theme}/beat-${PICK[k] + 1}.webp`;
+/** …and its focus, cut at three times its size: sharp on any screen */
+const focusSrc = (theme: Theme, k: number) => `/landing/session/${theme}/beat-${PICK[k] + 1}-focus.webp`;
 
-/** how much of the way from one beat to the next the picture holds on the first before it plays on — the while its words
-    are read, from the middle of the screen to near its top; the session plays as they go and the next come up */
-const HOLD = 0.55;
 /** where on the screen a beat's first line is when it is reached: a little under the middle */
 const AT = 0.62;
 const ease = (t: number) => t * t * (3 - 2 * t);
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
-/** A HAIRLINE ROUND WHAT CHANGED, laid in the picture's own measure (session.json boxes are CSS px of the 1440 × 1000 desk) */
-const Marks = ({ boxes, on, frame }: { boxes: Box[]; on: boolean; frame?: Box }) => {
-  const [fx, fy, fw, fh] = frame ?? [0, 0, DATA.w, DATA.h];
+/** THE CALL ON THE LEVEL (2026-10-06 — the owner's directive: "replace the hairline Marks with a 2 px silver rule on the
+    exact level and a label chip, for example 'Call wall 475 → 477'"): a silver rule under the ladder's row for the level
+    the beat's words name, and the chip — its words read off the run (session.json `call`) — standing on the row's strike,
+    which it names: at the end of the row it covered the next row's figures. Laid in the picture's own measure: `frame` is
+    the part of the 1440 × 1000 desk the window shows. */
+const Callout = ({ beat, on, frame }: { beat: Beat; on: boolean; frame: Box }) => {
+  if (!beat.level || !beat.call) return null;
+  const [fx, fy, fw, fh] = frame;
+  const [lx, ly, lw, lh] = beat.level;
+  const left = Math.max(0, lx - fx);
+  const right = Math.min(fw, lx + lw - fx);
   return (
-    <>
-      {boxes.map((b, i) => (
-        <span
-          key={i}
-          aria-hidden="true"
-          className="absolute rounded-[0.25rem] border-[1.5px] border-silver shadow-[0_0_0_1px_rgb(var(--canvas)/0.55)] transition-opacity duration-200 motion-reduce:transition-none pointer-events-none"
-          style={{ left: pct(b[0] - fx, fw), top: pct(b[1] - fy, fh), width: pct(b[2], fw), height: pct(b[3], fh), opacity: on ? 1 : 0 }}
-          data-session-mark
-        />
-      ))}
-    </>
+    <div aria-hidden="true" className="absolute inset-0 pointer-events-none transition-opacity duration-300 motion-reduce:transition-none" style={{ opacity: on ? 1 : 0 }} data-session-call>
+      <span className="absolute h-[2px] -translate-y-1/2 rounded-full bg-silver" style={{ top: pct(ly + lh + 1 - fy, fh), left: pct(left, fw), width: pct(Math.max(0, right - left), fw) }} />
+      <span
+        className="absolute -translate-y-1/2 rounded-full border border-silver bg-panel px-2.5 py-1 text-[0.75rem] font-medium leading-none tnum text-textPrimary whitespace-nowrap"
+        style={{ top: pct(ly + lh / 2 - fy, fh), left: `calc(${pct(left, fw)} - 0.25rem)` }}
+      >
+        {beat.call}
+      </span>
+    </div>
   );
 };
 
@@ -162,22 +175,50 @@ const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
           className="absolute max-w-none select-none"
           style={{ width: pct(DATA.w, f[2]), left: `-${pct(f[0], f[2])}`, top: `-${pct(f[1], f[3])}` }}
         />
-        <Marks boxes={beat.boxes} on frame={f} />
+        <Callout beat={beat} on frame={f} />
       </div>
     </div>
   );
 };
 
-/** THE STAGE (a desk): the run on one canvas, the beat's full-size still over it while it holds, the marks over both */
+/** THE CAMERA (2026-10-06 — the owner's directive: "zoom each beat to what its copy talks about … Move between beats with
+    an eased, triggered transition"): the window shows the desk through a camera — the whole desk (only while the
+    opening hands its window over), or a beat's focus. The scroll says WHEN the camera moves, never how far: reaching a
+    beat starts a run on a timer, and a run plays whole. From one beat to the next the camera draws back to the whole desk
+    while the session plays to the next beat's moment, and comes in on the level the next beat's words name. */
+interface Pose {
+  /** the part of the 1440 × 1000 desk on screen */
+  cam: Box;
+  /** the run's step drawn */
+  step: number;
+}
+const FULL: Box = [0, 0, DATA.w, DATA.h];
+const mixBox = (a: Box, b: Box, t: number): Box => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
+/** the runs (ms): into a focus on one picture, from one beat to another, and back to the whole desk */
+const ZOOM_MS = 800;
+const PLAY_MS = 1300;
+const BACK_MS = 400;
+/** the camera `p` of the way along a run (a run that plays the session goes by the whole desk) */
+const along = (from: Pose, to: Pose, p: number): Pose => {
+  if (from.step === to.step) return { cam: mixBox(from.cam, to.cam, ease(p)), step: to.step };
+  const cam = p < 0.3 ? mixBox(from.cam, FULL, ease(p / 0.3)) : p < 0.7 ? FULL : mixBox(FULL, to.cam, ease((p - 0.7) / 0.3));
+  const q = ease(Math.min(1, Math.max(0, (p - 0.15) / 0.7)));
+  return { cam, step: Math.round(from.step + (to.step - from.step) * q) };
+};
+/** where the camera goes for a beat (-1: the whole desk, on the first beat's moment) */
+const poseOf = (k: number): Pose => (k < 0 ? { cam: FULL, step: BEATS[0].step } : { cam: BEATS[k].focus, step: BEATS[k].step });
+
+/** THE STAGE (a desk) */
 interface View {
-  /** the run's step on screen */
+  /** the run's step on screen (the bar's time) */
   k: number;
   /** the beat being read */
   lit: number;
-  /** holding on that beat's own picture */
-  hold: boolean;
-  /** not yet at the first beat: the picture stands, no marks yet (in the story the opening has only just handed it over) */
+  /** not yet at the first beat: its words are not lit and no call is up (in the story the opening has only just handed
+      its picture over) */
   pre: boolean;
+  /** the beat the camera rests on — its focus up, sharp — or null while it moves or stands on the whole desk */
+  rest: number | null;
 }
 
 /** THE STORY'S HOLD ON THIS WINDOW (a desk): the terminal the opening draws comes to stand here (Opening.tsx), so it
@@ -191,6 +232,8 @@ export interface Story {
   intro: MutableRefObject<HTMLDivElement | null>;
   /** the opening's terminal is on its way here: the session's own pictures may come */
   shown: boolean;
+  /** the opening's own picture has gone: the window is the session's, and its camera is free to move */
+  landed: boolean;
   /** the words beside the window, before the beats */
   lead: ReactNode;
 }
@@ -205,12 +248,14 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   const small = useStacked();
   /* in the story (a desk): the window and the first words are the opening's to bring in */
   const told = !!story && !small;
+  /* the camera stands on the whole desk until the opening's picture has gone */
+  const landed = !told || story.landed;
   const calm = useReducedMotion();
   const wrap = useRef<HTMLDivElement | null>(null);
   const beatEls = useRef<(HTMLLIElement | null)[]>([]);
   const screen = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
-  const [view, setView] = useState<View>({ k: BEATS[0].step, lit: 0, hold: true, pre: true });
+  const [view, setView] = useState<View>({ k: BEATS[0].step, lit: 0, pre: true, rest: told ? null : 0 });
   const viewNow = useRef(view);
   viewNow.current = view;
 
@@ -248,34 +293,39 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
   useEffect(() => {
     if (shown) setNear(true);
   }, [shown]);
+  /* the run's pictures, and the beats' own full-size ones (sharper where the camera stands on a beat's moment) */
   const imgs = useRef<(HTMLImageElement | null)[]>([]);
-  const drawn = useRef(-1);
-  const draw = useCallback((k: number, force = false) => {
+  const beatImgs = useRef<(HTMLImageElement | null)[]>(BEATS.map(() => null));
+  /** the pose on the canvas, and the camera's own: where it stands, and the run it is on */
+  const painted = useRef<{ pose: Pose; src: HTMLImageElement } | null>(null);
+  const pose = useRef<Pose>(poseOf(told ? -1 : 0));
+  const paint = useCallback((at: Pose, force = false) => {
     const c = canvas.current;
     if (!c) return;
-    /* the nearest picture already in, to the step asked for */
-    let at = -1;
-    for (let d = 0; d < DATA.frames; d++) {
-      if (imgs.current[k - d]) {
-        at = k - d;
-        break;
-      }
-      if (imgs.current[k + d]) {
-        at = k + d;
-        break;
-      }
+    /* the beat's own picture where the step is a beat's; else the run's picture nearest the step that is in */
+    const b = BEATS.findIndex(x => x.step === at.step);
+    let src: HTMLImageElement | null = b >= 0 ? beatImgs.current[b] : null;
+    if (!src) {
+      for (let d = 0; d < DATA.frames && !src; d++) src = imgs.current[at.step - d] ?? imgs.current[at.step + d] ?? null;
     }
-    if (at < 0 || (at === drawn.current && !force)) return;
+    if (!src) return;
+    const was = painted.current;
+    if (!force && was && was.src === src && was.pose.step === at.step && was.pose.cam.every((v, i) => Math.abs(v - at.cam[i]) < 0.05)) return;
     const g = c.getContext('2d');
     if (!g) return;
-    g.drawImage(imgs.current[at]!, 0, 0, c.width, c.height);
-    drawn.current = at;
+    const k = src.naturalWidth / DATA.w;
+    const [x, y, w, h] = at.cam;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, x * k, y * k, w * k, h * k, 0, 0, c.width, c.height);
+    painted.current = { pose: at, src };
   }, []);
   useEffect(() => {
     if (!near || small || calm) return;
     let alive = true;
     imgs.current = new Array(DATA.frames).fill(null);
-    drawn.current = -1;
+    beatImgs.current = BEATS.map(() => null);
+    painted.current = null;
     const order = [...new Set([...BEATS.map(b => b.step), ...Array.from({ length: DATA.frames }, (_, i) => i)])];
     let next = 0;
     const pull = () => {
@@ -289,19 +339,33 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
           if (!alive) return;
           imgs.current[i] = img;
           /* a picture nearer the step on screen than the one drawn goes up at once */
-          const k = viewNow.current.k;
-          if (drawn.current < 0 || Math.abs(i - k) < Math.abs(drawn.current - k)) draw(k);
+          const now = pose.current.step;
+          const was = painted.current;
+          if (!was || Math.abs(i - now) < Math.abs(imgs.current.indexOf(was.src) - now)) paint(pose.current, true);
         })
         .catch(() => {})
         .finally(pull);
     };
     for (let n = 0; n < 6; n++) pull();
-    /* the beats' own full-size pictures, ahead of being held on */
-    BEATS.forEach((_, k) => (new Image().src = beatSrc(theme, k)));
+    /* the beats' own pictures, full size, and their focus, ahead of being stood on */
+    BEATS.forEach((_, k) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = beatSrc(theme, k);
+      pictureIn(img).then(
+        () => {
+          if (!alive) return;
+          beatImgs.current[k] = img;
+          if (pose.current.step === BEATS[k].step) paint(pose.current, true);
+        },
+        () => {}
+      );
+      new Image().src = focusSrc(theme, k);
+    });
     return () => {
       alive = false;
     };
-  }, [near, small, calm, theme, draw]);
+  }, [near, small, calm, theme, paint]);
 
   /* the canvas is as sharp as the screen it is on */
   useLayoutEffect(() => {
@@ -313,15 +377,18 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       c.width = Math.max(1, Math.round(r.width * dpr));
       c.height = Math.max(1, Math.round(r.height * dpr));
-      draw(viewNow.current.k, true);
+      paint(pose.current, true);
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [small, calm, draw]);
+  }, [small, calm, paint]);
 
-  /* ---- the scroll is the playhead ---- */
+  /* ---- the scroll says which beat is being read; the camera goes there on a timer ---- */
+  const landedNow = useRef(landed);
+  landedNow.current = landed;
+  const replace = useRef<() => void>(() => {});
   useEffect(() => {
     if (small) return;
     const el = wrap.current;
@@ -336,32 +403,65 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
       });
     };
     let raf = 0;
-    const place = () => {
+    let seen = false;
+    /** the beat the camera is going to (-1: the whole desk), and its run */
+    let aim = told ? -1 : 0;
+    let run: { from: Pose; to: Pose; t0: number; ms: number } | null = null;
+    const show = (rest: number | null, lit: number, pre: boolean) => {
+      const was = viewNow.current;
+      const k = pose.current.step;
+      if (was.k !== k || was.lit !== lit || was.pre !== pre || was.rest !== rest) setView({ k, lit, pre, rest });
+    };
+    let lit = 0;
+    let pre = true;
+    const tick = (now: number) => {
       raf = 0;
+      if (run) {
+        const p = Math.min(1, (now - run.t0) / run.ms);
+        pose.current = along(run.from, run.to, p);
+        if (!calm) paint(pose.current);
+        if (p >= 1) {
+          pose.current = run.to;
+          run = null;
+        }
+      }
+      show(run || aim < 0 ? null : aim, lit, pre);
+      if (run) raf = requestAnimationFrame(tick);
+    };
+    const place = () => {
       if (!anchors.length) measure();
       const y = window.scrollY;
       const n = anchors.length;
       let i = 0;
       while (i < n - 1 && y >= anchors[i + 1]) i++;
-      const t = y < anchors[0] || i === n - 1 ? 0 : Math.min(1, (y - anchors[i]) / Math.max(1, anchors[i + 1] - anchors[i]));
-      const from = BEATS[i].step;
-      const to = i < n - 1 ? BEATS[i + 1].step : from;
-      const k = calm ? from : Math.round(from + (to - from) * (t <= HOLD ? 0 : ease((t - HOLD) / (1 - HOLD))));
-      const hold = t <= HOLD;
-      const pre = y < anchors[0];
-      const was = viewNow.current;
-      if (was.k !== k || was.lit !== i || was.hold !== hold || was.pre !== pre) setView({ k, lit: i, hold, pre });
-      if (!calm) draw(k);
+      lit = i;
+      pre = y < anchors[0];
+      const want = landedNow.current ? i : -1;
+      if (want !== aim) {
+        aim = want;
+        const to = poseOf(want);
+        /* off screen, or where less motion is asked for: the camera is simply there */
+        if (calm || !seen) {
+          run = null;
+          pose.current = to;
+          if (!calm) paint(to, true);
+        } else {
+          const from = pose.current;
+          /* back to the whole desk (the opening's picture is coming back over it) quickly */
+          run = { from, to, t0: performance.now(), ms: want < 0 ? BACK_MS : from.step === to.step ? ZOOM_MS : PLAY_MS };
+        }
+      }
+      if (!raf) raf = requestAnimationFrame(tick);
     };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(place);
-    };
+    replace.current = place;
+    const onScroll = () => place();
     const onResize = () => {
       measure();
-      onScroll();
+      place();
     };
     let listening = false;
     const io = new IntersectionObserver(([e]) => {
+      seen = e.isIntersecting;
       if (e.isIntersecting && !listening) {
         listening = true;
         measure();
@@ -377,17 +477,20 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
     ro.observe(el);
     window.addEventListener('resize', onResize);
     return () => {
+      replace.current = () => {};
       io.disconnect();
       ro.disconnect();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll);
       cancelAnimationFrame(raf);
     };
-  }, [small, calm, draw]);
+  }, [small, calm, paint, told]);
+  /* the opening's picture gone (or back): the camera is told at once, not at the next scroll */
+  useEffect(() => {
+    replace.current();
+  }, [landed]);
 
   const lit = view.lit;
-  /* the hairlines go up once the first beat is reached — in the story the opening has only just handed its picture over */
-  const marked = (view.hold && !view.pre) || !!calm;
   return (
     <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] gap-x-10 xl:gap-x-12'} data-session>
       <div className={small ? '' : 'pb-[14svh]'}>
@@ -403,7 +506,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
         )}
         <ol ref={list} aria-label={`${COUNT} moments from the session`}>
           {BEATS.map((b, i) => {
-            const on = small || i === lit;
+            const on = small || (i === lit && !view.pre);
             return (
               <li
                 key={b.step}
@@ -455,23 +558,30 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
               }}
               className="relative overflow-hidden"
               style={{ aspectRatio: `${DATA.w} / ${DATA.h}` }}
+              data-session-rest={view.rest ?? undefined}
             >
               {!calm && <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full" />}
-              {/* the beat's own picture, full size, while the session holds on it (and, where less motion is asked for, always) */}
+              {/* the beat's focus, sharp, where the camera rests on it (and, where less motion is asked for, always) */}
               {near &&
-                BEATS.map((b, i) => (
-                  <img
-                    key={b.step}
-                    src={beatSrc(theme, i)}
-                    alt={i === lit ? `The Pulse desk at ${b.time}: ${WORDS[i].title.toLowerCase()}` : ''}
-                    aria-hidden={i === lit ? undefined : true}
-                    draggable={false}
-                    decoding="async"
-                    className="absolute inset-0 w-full h-full select-none transition-opacity duration-200 motion-reduce:transition-none"
-                    style={{ opacity: i === lit && (view.hold || calm) ? 1 : 0 }}
-                  />
-                ))}
-              <Marks boxes={BEATS[lit].boxes} on={marked} />
+                BEATS.map((b, i) => {
+                  const up = calm ? i === lit : view.rest === i;
+                  return (
+                    <img
+                      key={b.step}
+                      src={focusSrc(theme, i)}
+                      alt={up ? `The Pulse desk's strike ladder at ${b.time}: ${WORDS[i].title.toLowerCase()}` : ''}
+                      aria-hidden={up ? undefined : true}
+                      draggable={false}
+                      decoding="async"
+                      className="absolute inset-0 w-full h-full select-none transition-opacity duration-200 motion-reduce:transition-none"
+                      style={{ opacity: up ? 1 : 0 }}
+                      data-session-focus={i}
+                    />
+                  );
+                })}
+              {BEATS.map((b, i) => (
+                <Callout key={b.step} beat={b} frame={b.focus} on={!view.pre && i === lit && (calm ? true : view.rest === i)} />
+              ))}
             </div>
           </div>
         </div>

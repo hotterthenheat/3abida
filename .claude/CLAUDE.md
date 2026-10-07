@@ -72,7 +72,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   (scripts/landing-stage.mjs ALL_PAGES: every `path` in Landing.tsx) — is FILMED from the real app by `npm run landing:clips` (scripts/make-landing-clips.mjs): the page staged as its still, then USED by a plain
   arrow pointer at three times the page's speed — menus opened and picked, timeframes, desks and sides switched, a name
   typed, a price dragged, a day opened — and everything it changes is changed back, so the film loops on its first
-  frame. No words, ring, bar or pause button over a film. Every film is set in the same open-market minute (AT, New
+  frame. No words, ring, bar or pause button over a film. PANELS (2026-10-06 — the owner's directive: "for each room's
+  selected row, show the panel that row describes, not the whole page … Pick whichever keeps the film sharp", "the
+  smallest product text inside any window is at least 11 px at 1440 wide"): every room page also has a panel film,
+  `<page>-<theme>-panel` — the part of the page its row is about, filmed alone at three device pixels a point (size
+  "panel": the desk staged as ever, only the panel's box taken), its pointer working inside it. The panels and their
+  acts are scripts/landing-acts/panels.mjs: a panel is as wide as its smallest words allow (8 px → at most 570 px of
+  the desk, 7.5 px → 530, measured on the staged page), and clips.json keeps its box (the rooms' hand-over zooms into
+  it). The rooms' and the reveal's windows show the panel (TerminalWindow `panel`); a tablet's or a phone's form is
+  unchanged. Every film is set in the same open-market minute (AT, New
   York's zone), so prices agree across films. The page's clock is held and stepped a frame at a time (30 fps, crisp
   charts); H.264 MP4, desk 2160×1500, phone 780×1520; it needs an ffmpeg with libx264, named by FFMPEG; PREVIEW=1 films
   an act small into the temp folder to check it (ACTS=<module> tries an act module in its place). Each room's acts —
@@ -190,10 +198,21 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   PICK, v5): 09:32 Before (SPY 470.29, the call wall at 475), 11:22 The level moves (through 475, the call wall to 477),
   13:32 Price meets the level (475 the put wall from 12:22, price back on it) — the scroll still plays the pictures
   between. NO DATE IS PRINTED: the terminal has no real day until a feed is connected — re-take the session from a real
-  day then (`READ=1` prints a run's readings), pick its beats and rewrite their words. On a desk the scroll is the
-  playhead: the window holds a beat's full-size picture with a silver hairline round what changed, then plays every step
-  to the next; on a phone each beat carries its own picture, framed on what changed; under less motion a beat changes
-  the picture at once. Never edit src while it runs (the dev server reloads the desk).
+  day then (`READ=1` prints a run's readings), pick its beats and rewrite their words. THE CAMERA (2026-10-06 — the
+  owner's directive: "zoom each beat to what its copy talks about", "a first-time reader finds the level named in each
+  session beat within 2 seconds"): a held beat's window shows its FOCUS — the ladder round the level its words name,
+  560 × 388 of the desk (its smallest words, 8 px, at 11 px or more in a window ~780 px wide), cut by the script at three
+  times its size (`beat-N-focus.webp`, sharp on any screen) — and THE CALL: a 2 px silver rule under the level's row and
+  a chip on the row's strike naming it ("Call wall 475", "Call wall 475 → 477", "Put wall 470 → 475" — session.json
+  `call`, read off the run: this beat's reading against the one before). The scroll says WHEN the camera moves, never
+  how far: reaching a beat starts a timed run (1.3 s — out to the whole desk while the session plays to the next beat's
+  moment, and in on its level); the opening hands over the whole desk, and the camera goes into the first beat's level
+  once the opening's picture has gone (Opening `onLanded`, 0.93 of its run; back to the whole desk in 0.4 s when the
+  reader scrolls up into it). The beats' picture files are numbered by the run's five (`beat-N` is the run's beat N:
+  Session.tsx maps the page's three through PICK — until 2026-10-06 the second and third showed 11:06 and 11:12). On a
+  phone each beat carries its own picture, framed on what changed, with the call; under less motion a beat's focus and
+  call change at once. Never edit src while it runs (the dev server reloads the desk); the run deletes and rewrites
+  public/landing/session, after which a dev server serves those pictures only once restarted.
 - THE ROOMS (pages/landing/Rooms.tsx; the rooms and their rows are Landing.tsx ROOMS, so the film script films every
   page a row names — a row with no `path` says what the room's page holds). ON A DESK ONE STAGE (sticky; SEG in svh: the
   deal 12, the wall 14, the wall becoming the tour 12, a room 20, the turn 34, the turn home 22). THE SCROLL SAYS WHEN A
@@ -205,8 +224,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   top row comes up to 85% of the screen the eight are dealt from its middle, 280 ms a card, 60 ms apart (700 ms), each
   name coming in as its card lands, no grain; nothing is drawn before the deal; each slot is a door to its room below
   (the bar's "Rooms" lands here). THE TOUR (700 ms) — the first room's picture grows into the window, its chrome coming
-  in, and the window takes over on the same picture (its film held on its first frame until it has — TerminalWindow
-  `hold`; the canvas keeps that picture under the window, so the hand-over has no frame between); then a room a stretch: its code and kind, name and glyph, lead, its rows and its door on the
+  in, zooming from the whole page into the room's panel and landing on the panel's own picture, and the window takes
+  over on that picture (its film held on its first frame until it has — TerminalWindow `hold`; the canvas keeps that
+  picture under the window, so the hand-over has no frame between); then a room a stretch, its window on the row's
+  panel: its code and kind, name and glyph, lead, its rows and its door on the
   left, a rail of the eight over them (a door each). A room with several pages plays them, a page every 3.5 s (it was
   6.5), the foil line filling under the row on show; a pointer moving over the stage holds it until still 2.5 s, a
   touch until 3 s after it lifts, the keys inside hold it, a picked row holds the room until the scroll moves on, and the

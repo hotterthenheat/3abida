@@ -130,6 +130,9 @@ const DOCK: [number, number] = [0.52, 0.8];
 /** the session's window takes over, on the same picture in the same place */
 const LANDED = 0.82;
 const GONE: [number, number] = [0.86, 0.91];
+/** …and stands alone a breath after: its camera may leave the whole desk for the first beat's level (Session.tsx), and
+    comes back to it before this picture returns */
+const LANDED_ALONE = 0.93;
 const LEAD_IN: [number, number] = [0.84, 0.92];
 /** where "See how it works" goes: the session's first words standing beside its window */
 export const HOW_AT = 0.95;
@@ -162,11 +165,14 @@ interface Props {
   story: Pick<Story, 'stage' | 'screen' | 'intro'>;
   /** the terminal is open and on its way to the session: the session's own pictures may come */
   onNear: () => void;
+  /** this one's picture has gone and the session's window stands alone (true), or is coming back over it (false): the
+      session's camera stands on the whole desk, as this picture does, until it has gone */
+  onLanded?: (landed: boolean) => void;
   /** the two doors, under the words */
   doors: ReactNode;
 }
 
-const Opening = ({ theme, story, onNear, doors }: Props) => {
+const Opening = ({ theme, story, onNear, onLanded, doors }: Props) => {
   const wrap = useRef<HTMLDivElement | null>(null);
   const stage = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
@@ -183,6 +189,8 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
   const [typed, setTyped] = useState(false);
   const nearNow = useRef(onNear);
   nearNow.current = onNear;
+  const landedNow = useRef(onLanded);
+  landedNow.current = onLanded;
 
   useEffect(() => {
     const el = wrap.current;
@@ -214,6 +222,8 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
     let near = false;
     /** the run as last drawn: a run at rest is not drawn again */
     let last = -1;
+    /** the session's window stands alone (this one's picture gone): its camera may leave the whole desk */
+    let landed = false;
 
     const layout = () => {
       vw = st.clientWidth;
@@ -301,6 +311,11 @@ const Opening = ({ theme, story, onNear, doors }: Props) => {
       const p = progress();
       if (p === last) return;
       last = p;
+      const isLanded = p >= LANDED_ALONE;
+      if (isLanded !== landed) {
+        landed = isLanded;
+        landedNow.current?.(isLanded);
+      }
 
       /* THE WORDS: the doors and the three lines go first; the quote turns into its answer and rises over the screen */
       const out = span(p, REST_OUT);

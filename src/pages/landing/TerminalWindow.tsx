@@ -51,6 +51,16 @@
   once: the terminal drawing it. Neither where less
   motion is asked for.
 
+  PANELS, SINCE 2026-10-06 (the owner's directive: "for
+  each room's selected row, show the panel that row
+  describes, not the whole page", and "the smallest
+  product text inside any window is at least 11 px at
+  1440 wide"). A window asked for its `panel` shows, on
+  a desk, the part of the page its row is about —
+  filmed alone at three device pixels a point
+  (scripts/landing-acts/panels.mjs), so it is large and
+  sharp — and the whole page where a page has none.
+
   Motion here is the film itself — decoded, not painted
   by the page.
 ==================================================
@@ -101,6 +111,10 @@ interface Props {
   /** HELD: the film waits on its first frame — a window that takes over from a picture drawn on a canvas (Rooms.tsx)
       shows that picture until it is on screen itself */
   hold?: boolean;
+  /** THE PANEL (2026-10-06 — the owner's directive: "for each room's selected row, show the panel that row describes, not
+      the whole page", "the smallest product text inside any window is at least 11 px at 1440 wide"): on a desk, the page's
+      panel where it has one — the part of the page its row is about, large — and the whole page where it has none */
+  panel?: boolean;
 }
 
 /* A SWITCH, BRISK (2026-10-05 — the owner: "we should have the tabs on the product things switch faster they take too
@@ -113,16 +127,23 @@ const SWITCH_RUN = 330;
 const LAP = 4.5;
 const STILL_LAP = LAP * 1000;
 
-/** A film's length, in seconds — what clips.json keeps for each page, theme and size */
+/** A film's length, in seconds — what clips.json keeps for each page, theme and size — and, for a panel, where it stands
+    on the 1440 × 1000 desk */
 interface Clip {
   d: number;
+  box?: [number, number, number, number];
 }
 export const FILMS = CLIPS as unknown as Record<string, Clip>;
+/** the desk's picture, the phone's, or a PANEL: the part of a page its row is about, filmed alone at three times its size
+    (scripts/make-landing-clips.mjs, landing-acts/panels.mjs) */
+export type Form = 'desk' | 'phone' | 'panel';
 
 const crumbs = (pathname: string): string[] => pathname.split('/').filter(Boolean).slice(0, 3);
 export const slug = (path: string): string => path.replace(/^\//, '').replace(/\//g, '-');
-const keyFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `${slug(path)}-${theme}-${form}`;
-export const shotFor = (path: string, theme: Theme, form: 'desk' | 'phone'): string => `/landing/${keyFor(path, theme, form)}.webp`;
+const keyFor = (path: string, theme: Theme, form: Form): string => `${slug(path)}-${theme}-${form}`;
+export const shotFor = (path: string, theme: Theme, form: Form): string => `/landing/${keyFor(path, theme, form)}.webp`;
+/** a page's panel, where it has one: its box on the desk (CSS px of the 1440 × 1000 picture) */
+export const panelOf = (path: string, theme: Theme): [number, number, number, number] | null => FILMS[keyFor(path, theme, 'panel')]?.box ?? null;
 const filmFor = (key: string): string => `/landing/clips/${key}.mp4`;
 
 /** The films are H.264: a browser that cannot play it (an open-source Chromium) is shown the stills */
@@ -159,7 +180,7 @@ export const Prompt = ({ path, still = false }: { path: string; still?: boolean 
 interface Reel {
   key: string;
   path: string;
-  form: 'desk' | 'phone';
+  form: Form;
   /** it can play: it is faded in over what was there */
   ready: boolean;
 }
@@ -183,7 +204,7 @@ const frameOf = (view: HTMLElement | null): HTMLCanvasElement | null => {
   return c;
 };
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false }: Props) => {
+const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false, panel = false }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -203,7 +224,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
     ro.observe(el);
     return () => ro.disconnect();
   }, [desk]);
-  const form = narrow ? 'phone' : 'desk';
+  const form: Form = narrow ? 'phone' : panel && panelOf(path, theme) ? 'panel' : 'desk';
 
   /* A WINDOW FURTHER DOWN WAITS (2026-10-03, the rebuilt landing: a window to each of its products, a film in each): it
      fetches nothing until the reader is within a screen or so of it, and then keeps what it has */

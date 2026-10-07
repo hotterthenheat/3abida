@@ -780,7 +780,7 @@ const Reveal = () => {
         </h2>
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
-        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural boot="switch" />
+        <TerminalWindow path={HERO.path} theme={ground} desk={!small} natural panel boot="switch" />
         <figcaption className="mt-4 text-[0.8125rem] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
       </figure>
     </Wrap>
@@ -808,8 +808,10 @@ const Story = ({ theme, doors }: { theme: Ground; doors: ReactNode }) => {
   const screen = useRef<HTMLDivElement | null>(null);
   const intro = useRef<HTMLDivElement | null>(null);
   const [near, setNear] = useState(false);
+  /* the opening's own picture has gone: the session's camera may leave the whole desk (Session.tsx) */
+  const [landed, setLanded] = useState(false);
   const targets = useMemo(() => ({ stage, screen, intro }), []);
-  const hold = useMemo<StoryHold>(() => ({ ...targets, shown: near, lead: <Lead /> }), [targets, near]);
+  const hold = useMemo<StoryHold>(() => ({ ...targets, shown: near, landed, lead: <Lead /> }), [targets, near, landed]);
   const onNear = useCallback(() => setNear(true), []);
   return (
     <div className="relative" data-story>
@@ -820,7 +822,7 @@ const Story = ({ theme, doors }: { theme: Ground; doors: ReactNode }) => {
         className="absolute left-0 w-px h-px pointer-events-none"
         style={{ top: `${HOW_AT * (TRACK - 100)}svh`, scrollMarginTop: 0 } as CSSProperties}
       />
-      <Opening theme={theme} story={targets} onNear={onNear} doors={doors} />
+      <Opening theme={theme} story={targets} onNear={onNear} onLanded={setLanded} doors={doors} />
       <Wrap className="relative">
         <Session theme={theme} story={hold} />
       </Wrap>
