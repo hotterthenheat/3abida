@@ -291,6 +291,8 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const wallHead = useRef<HTMLDivElement | null>(null);
   const slots = useRef<(HTMLButtonElement | null)[]>([]);
+  /** the wall's grid of doors: tilted with the canvas under it (THE WALL IN DEPTH) */
+  const wallList = useRef<HTMLUListElement | null>(null);
   const pics = useRef<(HTMLSpanElement | null)[]>([]);
   const labels = useRef<(HTMLSpanElement | null)[]>([]);
   const tourLayer = useRef<HTMLDivElement | null>(null);
@@ -407,7 +409,36 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
     /** the canvas stands still: nothing yet, or the window's picture under the window */
     let drawnStill: 'empty' | 'live' | null = null;
 
+    /* THE WALL IN DEPTH (2026-10-08 — the owner: "the area where it just shows all the desks … should be [a] 3d image"):
+       the dealt wall stands as one plane of the eight pictures seen in depth — tilted back and turned, leaning a little
+       toward the pointer — and settles flat as it becomes the tour, so the first room lands in the window on the same
+       picture. The canvas (the pictures) and the grid of doors over it turn about the same point of the screen with the
+       same perspective, so each door stays on its picture; the head stays flat, to be read. A transform only — nothing
+       repaints for it, and it moves only while the scroll or the pointer does. */
+    let tilt = -1;
+    let lean = { x: 0, y: 0 };
+    let leanTo = { x: 0, y: 0 };
+    const depth = (t: number) => {
+      const key = Math.round(t * 1000) + Math.round(lean.x * 1000) * 7 + Math.round(lean.y * 1000) * 13;
+      if (key === tilt) return;
+      tilt = key;
+      const tf = t <= 0.001 ? '' : `perspective(${1900 * u}px) rotateX(${(16 - lean.y * 3) * t}deg) rotateY(${(-14 + lean.x * 5) * t}deg) rotateZ(${2 * t}deg) scale(${1 - 0.08 * t})`;
+      c.style.transform = tf;
+      if (wallList.current) wallList.current.style.transform = tf;
+    };
+    const onLean = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = st.getBoundingClientRect();
+      leanTo = { x: clamp((e.clientX - r.left) / Math.max(1, r.width)) * 2 - 1, y: clamp((e.clientY - r.top) / Math.max(1, r.height)) * 2 - 1 };
+      ask();
+    };
+    st.addEventListener('pointermove', onLean);
+
     const layout = () => {
+      /* measured flat: the doors' places are the plane's own */
+      c.style.transform = '';
+      if (wallList.current) wallList.current.style.transform = '';
+      tilt = -1;
       vh = st.clientHeight;
       dpr = Math.min(2, window.devicePixelRatio || 1);
       u = unit();
@@ -437,6 +468,10 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
       first = null;
       rooms.forEach((_, i) => ready(i));
       drawnStill = null;
+      /* the plane turns about the middle of the stage: the canvas's own, and the same point in the grid's box */
+      c.style.transformOrigin = '50% 50%';
+      const lr = wallList.current?.getBoundingClientRect();
+      if (lr && wallList.current) wallList.current.style.transformOrigin = `${sb.left + sb.width / 2 - lr.left}px ${sb.top + sb.height / 2 - lr.top}px`;
     };
 
     /** a room's picture at a place: rounded as the wall's slots and the window are, its edge drawn while it is in flight
@@ -500,6 +535,10 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
       const moving = chain.some(st0 => st0.p !== st0.to);
       const dealP = steps.deal.p;
       const g = steps.tour.p;
+      /* the wall in depth, flat by the time the first room has grown halfway to the window; the lean eases after the pointer */
+      lean = { x: lean.x + (leanTo.x - lean.x) * Math.min(1, dt / 160), y: lean.y + (leanTo.y - lean.y) * Math.min(1, dt / 160) };
+      const leaning = Math.abs(leanTo.x - lean.x) + Math.abs(leanTo.y - lean.y) > 0.002;
+      depth(1 - ease(clamp(g / 0.5)));
 
       /* which room */
       let ri = 0;
@@ -612,7 +651,7 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
           } else tile(g > 0 ? first ?? cards[0] : cards[0], pic, 1, false);
         }
       }
-      if (moving) ask();
+      if (moving || (leaning && g < 0.5)) ask();
       else lastT = 0;
     };
     const ask = () => {
@@ -670,6 +709,7 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
         } else if (listening) {
           listening = false;
           window.removeEventListener('scroll', ask);
+      st.removeEventListener('pointermove', onLean);
         }
         ask();
       },
@@ -722,7 +762,7 @@ const RoomsStage = ({ rooms, head, onOpen, anchor }: StageProps) => {
           <div className="mx-auto w-full h-full max-w-[var(--landing-col)] px-10 flex flex-col pb-[6svh]" style={{ paddingTop: TOP }}>
             <div ref={wallHead}>{head}</div>
             <div className="flex-1 min-h-0 flex items-center">
-              <ul className="w-full grid grid-cols-4 gap-x-5 gap-y-7" aria-label="The rooms">
+              <ul ref={wallList} className="w-full grid grid-cols-4 gap-x-5 gap-y-7" aria-label="The rooms">
                 {rooms.map((x, i) => (
                   <li key={x.id}>
                     <button

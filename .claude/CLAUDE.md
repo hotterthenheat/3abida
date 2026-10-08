@@ -279,7 +279,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   a jump across several a little quicker; far from the stage they stand at once) — EVERY SCROLL STOP HELD 1.5 s SHOWS
   THE FINISHED WALL OR ONE ROOM (measured: stops every 4 svh, 1440 × 900 both themes and 1280 × 720). THE WALL — as its
   top row comes up to 85% of the screen the eight are dealt from its middle, 280 ms a card, 60 ms apart (700 ms), each
-  name coming in as its card lands, no grain; nothing is drawn before the deal; each slot is a door to its room below
+  name coming in as its card lands, no grain; nothing is drawn before the deal; THE WALL STANDS IN DEPTH (2026-10-08 — the
+  owner: "it should be [a] 3d image"): the canvas and the grid of doors turn together about the stage's middle (Rooms.tsx
+  `depth`: tilted back 16°, turned 14°, leaning a little toward the pointer), the head flat, and the plane settles flat
+  as the wall becomes the tour, so the first room lands in the window as before — stills, never films; each slot is a door to its room below
   (the bar's "Rooms" lands here). THE TOUR (700 ms) — the first room's picture grows into the window, its chrome coming
   in, zooming from the whole page into the room's panel and landing on the panel's own picture, and the window takes
   over on that picture (its film held on its first frame until it has — TerminalWindow `hold`; the canvas keeps that
