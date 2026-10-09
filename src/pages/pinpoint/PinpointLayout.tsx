@@ -14,6 +14,8 @@ import { REGIME_WORDS, buildFlipGauge } from '../../data/flipGauge';
 import { fmtDistance, impliedDaySigma, sessionAtr, type DistanceScales, type DistanceUnit } from '../../data/atr';
 import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
 import { readSessionClock } from '../../data/sessionClock';
+import { readDeskPrefs } from '../../data/deskPrefs';
+import { useFrameScan } from './usePinpoint';
 import { FLIP, LONG_GAMMA, SHORT_GAMMA } from '../../components/gex/paletteInk';
 import { GEX_SUBPAGES } from './subnav';
 import MarkLoad from '../../brand/MarkLoad';
@@ -81,8 +83,44 @@ const Fact = ({ label, children, title, testId }: { label: string; children: Rea
   </div>
 );
 
+/* THE NAME COMES BACK ON A RELOAD (the audit's PP-11): pick QQQ, reload, and every page read SPY again. Pinpoint keeps
+   the name it was last on, on this machine, and a load that LANDS on a Pinpoint page takes it back up through the
+   terminal's own changeTicker — once, and never over the reader's "Opens on" choice in Settings. Coming to Pinpoint
+   from another room keeps whatever name that room was on. (The whole terminal remembering its name is the shell's —
+   MarketDataContext — and is left to it.) */
+const NAME_KEY = 'slayer_pinpoint_name';
+let nameRestored = false;
+const landedHere = (): boolean => {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    return !!nav && new URL(nav.name).pathname.startsWith('/pinpoint');
+  } catch {
+    return false;
+  }
+};
+
 const PinpointLayout = () => {
-  const { activeTicker, marketData } = useMarketData();
+  const { activeTicker, marketData, changeTicker } = useMarketData();
+  useEffect(() => {
+    if (nameRestored) return;
+    nameRestored = true;
+    if (readDeskPrefs().opensOn.ticker || !landedHere()) return;
+    try {
+      const kept = localStorage.getItem(NAME_KEY);
+      if (kept && kept !== activeTicker) changeTicker(kept);
+    } catch {
+      /* storage off — the terminal's own name */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!nameRestored) return;
+    try {
+      localStorage.setItem(NAME_KEY, activeTicker);
+    } catch {
+      /* storage off — nothing kept */
+    }
+  }, [activeTicker]);
   const { focus, clearFocus } = useFocus();
   /* Alerts are watched by the app shell on every page now (components/alerts/AlertWatcher.tsx, 2026-09-10) */
   const location = useLocation();
@@ -97,17 +135,20 @@ const PinpointLayout = () => {
   const dist = focused != null && spot ? ((focused - spot) / spot) * 100 : null;
 
   /* WHICH SIDE OF THE FLIP the market is on and how far the flip is, in the
-     desk's own ruler. Rebuilt per tick: it is a proximity read and the build
-     is under a millisecond. */
-  const gauge = useMemo(() => (marketData ? buildFlipGauge(marketData) : null), [marketData]);
+     desk's own ruler. */
+  /* ON THE ROOM'S SCAN since 2026-10-09 (data/pinpointBook.ts): the head reads the same snapshot as the page under it,
+     so its flip and the page's never differ by a tick — and the crossings are not walked again every 1.5 s (PP-5) */
+  const scan = useFrameScan();
+  const gauge = useMemo(() => (scan ? buildFlipGauge(scan.snap) : null), [scan]);
   const unit = useDistanceUnit();
+  /* THE ATR moves a bar at a time — it was walked over the whole tape on every 1.5 s tick (PP-5); it is read again when a
+     bar closes */
+  const barsLen = marketData ? (Simulator.peekCandles(marketData.ticker)?.length ?? 0) : 0;
+  const atr = useMemo(() => (marketData ? sessionAtr(Simulator.getCandles(marketData.ticker) ?? []) : null), [marketData?.ticker, barsLen]); // eslint-disable-line react-hooks/exhaustive-deps
   const scales = useMemo<DistanceScales>(() => {
     if (!marketData) return { atr: null, sigma: null };
-    return {
-      atr: sessionAtr(Simulator.getCandles(marketData.ticker) ?? []),
-      sigma: impliedDaySigma(marketData.spot, Simulator.TICKERS[marketData.ticker]?.iv ?? 0),
-    };
-  }, [marketData]);
+    return { atr, sigma: impliedDaySigma(marketData.spot, Simulator.TICKERS[marketData.ticker]?.iv ?? 0) };
+  }, [marketData, atr]);
   const words = gauge?.regime ? REGIME_WORDS[gauge.regime] : null;
   const flipDist = gauge && gauge.distAbs !== null ? Math.abs(gauge.distAbs) : null;
   const flipLead =
@@ -141,7 +182,7 @@ const PinpointLayout = () => {
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
             {focused != null && (
               <span data-focus-chip className="inline-flex items-center gap-2 rounded-md border border-silver/40 bg-silver/[0.06] pl-2.5 pr-1 py-0.5 font-mono">
-                <span className="text-[11px] font-bold text-silver">Focus</span>
+                <span className="text-[11px] font-semibold text-silver">Focus</span>
                 <span className="text-[12px] font-semibold tnum text-textPrimary">{fmtStrike(focused)}</span>
                 {dist != null && (
                   <span className={`text-[11px] tnum ${dist > 0 ? 'text-bull' : dist < 0 ? 'text-bear' : 'text-textMuted'}`}>
@@ -153,20 +194,45 @@ const PinpointLayout = () => {
                   /* `from`: leaving the chart's fullscreen brings the reader back here (Noah, 2026-09-09) */
                   onClick={() => navigate('/pulse', { state: { focusPrice: focused, ticker: activeTicker, from: location.pathname } })}
                   title="See this strike on the chart"
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+                  className="hit inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
                 >
                   Chart <ArrowUpRight className="w-3 h-3" />
                 </button>
-                <button onClick={clearFocus} aria-label="Let go of the strike" className="p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors">
+                <button onClick={clearFocus} aria-label="Let go of the strike" className="hit p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors">
                   <X className="w-3 h-3" />
                 </button>
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{page.subtitle}</p>
+          {/* the page's one line, whole (X10: it was cut on Building at 1440 and on every page on a phone) — on a phone the
+              head keeps to the name and one line of facts (PP-8) */}
+          <p className="mt-0.5 text-[11px] text-textMuted max-sm:hidden">{page.subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-6 flex-wrap">
+        {/* THE PHONE'S HEAD (PP-8): the four facts and the Ruler card took 560 of 844 px before the page began — on a phone
+            they are one line, and the Ruler a small menu at its end */}
+        {gauge && (
+          <div className="sm:hidden w-full -mt-4 flex items-center gap-2 min-w-0" data-shell-facts-line>
+            <p className="min-w-0 flex-1 font-mono text-[11px] tnum text-textSecondary leading-snug">
+              {words && gauge.regime ? (
+                <>
+                  <span style={{ color: gauge.regime === 'SHORT' ? SHORT_GAMMA : LONG_GAMMA }}>{DEALER_WORDS[gauge.regime]}</span>
+                  {' · flip '}
+                  <span className="font-semibold" style={{ color: FLIP }}>
+                    {fmt(gauge.flip!)}
+                  </span>
+                  {flipLead && ` ${flipLead} ${gauge.distAbs! > 0 ? 'above' : 'below'}`}
+                </>
+              ) : (
+                'no flip'
+              )}
+              {' · '}
+              {open ? `${untilBell(clock.secondsToClose)} to the close` : clock.label.toLowerCase()}
+            </p>
+            <DropdownSelect label="Ruler" value={unit} options={RULER_OPTIONS} onChange={setDistanceUnit} title="The unit every distance on Pinpoint is read in" testId="ruler-phone" align="end" bare />
+          </div>
+        )}
+        <div className="flex items-center gap-6 flex-wrap max-sm:hidden">
           {/* THE FACTS, each named: which way dealers hedge, the flip and how far, how often it was crossed, the clock */}
           {gauge && (
             <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
@@ -181,10 +247,12 @@ const PinpointLayout = () => {
                         {fmt(gauge.flip!)}
                       </span>
                     </Term>
+                    {/* the distance in the page's ink (PP-18: the green figure stood at 3.8:1 on paper) — "above" or
+                        "below" says the direction */}
                     {flipLead && (
                       <span className="text-textSecondary">
                         {' '}
-                        · <span className={gauge.distAbs! > 0 ? 'text-bull' : 'text-bear'}>{flipLead}</span> {gauge.distAbs! > 0 ? 'above' : 'below'} spot
+                        · <span className="text-textPrimary">{flipLead}</span> {gauge.distAbs! > 0 ? 'above' : 'below'} spot
                       </span>
                     )}
                   </Fact>
