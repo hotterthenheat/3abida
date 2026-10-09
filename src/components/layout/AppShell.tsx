@@ -12,7 +12,9 @@ import AlertToasts from '../alerts/AlertToasts';
 import PaperRunner from '../paper/PaperRunner';
 import ScrollHome from './ScrollHome';
 import WayBack from './WayBack';
-import { OPEN_PALETTE_EVENT } from './paletteDoor';
+import { OPEN_KEYS_EVENT, OPEN_PALETTE_EVENT } from './paletteDoor';
+import ShortcutSheet from './ShortcutSheet';
+import { layerOpen } from '../ui/layers';
 import { FaultView, isLoadFault, reloadOnceForStaleBuild } from '../ui/Fault';
 import MarkLoad from '../../brand/MarkLoad';
 import MarketBell from './MarketBell';
@@ -84,22 +86,50 @@ const AppShell = () => {
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const openKeys = useCallback(() => setKeysOpen(true), []);
+  const closeKeys = useCallback(() => setKeysOpen(false), []);
 
   useEffect(() => {
+    /* a key typed into a field is the field's */
+    const typing = (el: Element | null) =>
+      !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable || !!el.closest('[role="textbox"], .cm-editor'));
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(prev => !prev);
+        return;
+      }
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || typing(document.activeElement) || layerOpen()) return;
+      /* ? — THE KEYS FOR THIS PAGE (2026-10-09) */
+      if (e.key === '?') {
+        e.preventDefault();
+        setKeysOpen(true);
+        return;
+      }
+      /* / — THE PAGE'S OWN SEARCH, the command line where a page has none (2026-10-09) */
+      if (e.key === '/') {
+        const main = document.getElementById(CONTENT_ID);
+        const field = Array.from(main?.querySelectorAll<HTMLInputElement>('[data-page-search], input[type="search"], input[placeholder^="Search" i], input[placeholder^="Filter" i], input[aria-label^="Search" i]') ?? []).find(
+          el => !el.disabled && el.offsetWidth > 0 && el.offsetHeight > 0
+        );
+        e.preventDefault();
+        if (field) {
+          field.focus();
+          field.select?.();
+        } else setPaletteOpen(true);
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    /* a page may offer the palette as a button (paletteDoor.ts) — the not-found page's search */
+    /* a page may offer the palette as a button (paletteDoor.ts) — the not-found page's search; the command line opens the keys */
     window.addEventListener(OPEN_PALETTE_EVENT, openPalette);
+    window.addEventListener(OPEN_KEYS_EVENT, openKeys);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener(OPEN_PALETTE_EVENT, openPalette);
+      window.removeEventListener(OPEN_KEYS_EVENT, openKeys);
     };
-  }, [openPalette]);
+  }, [openPalette, openKeys]);
 
   /* Only the CHART pages stay framed to the viewport. The table pages scroll
      with the page like the Live Tape (Noah, 2026-08-30) — they left this set.
@@ -248,6 +278,8 @@ const AppShell = () => {
       {/* the browser's offer to put the terminal on the home screen, in the house's words */}
       <InstallPrompt />
       <CommandPalette open={paletteOpen} onClose={closePalette} />
+      {/* ? — the keys for the page you are on (keys.ts, the list Settings › Keyboard prints) */}
+      <ShortcutSheet open={keysOpen} onClose={closeKeys} />
     </div>
   );
 };

@@ -32,7 +32,7 @@ import { builtinScripts } from '../../data/builtinScripts';
 import { scriptStore } from '../../data/scriptStore';
 import { compile, run as runScript, type Compiled } from '../../core/pine';
 import { SCRIPT_CAPS } from '../../types/scripts';
-import { commitArm, evaluateAlert, markFired, scriptBarCounts, useAllAlerts, type Alert, type AlertContext, type IndicatorSource, type ScriptAlert } from '../gex/alertStore';
+import { commitArm, evaluateAlert, expireDue, markFired, resideAlert, scriptBarCounts, useAllAlerts, type Alert, type AlertContext, type IndicatorSource, type ScriptAlert } from '../gex/alertStore';
 
 /* THE SCRIPTS' OWN CONDITIONS (2026-09-10, Noah: "wire the script alerts into
    the bell"). A script alert is judged by running the script the way its
@@ -98,8 +98,12 @@ const AlertWatcher = () => {
     const now = Date.now();
     const poke = () => setPoke(p => p + 1);
     for (const { ticker, alerts } of names) {
-      const waiting = alerts.filter(a => !a.firedAt);
-      if (waiting.length === 0) continue;
+      /* THE LIFECYCLE (2026-10-09): an alert whose end has come goes; one whose rest is over goes back on watch from
+         where the market stands now (a snooze, a repeat's quiet) — and is judged from the next tick, not this one */
+      if (alerts.some(a => a.expiresAt && a.expiresAt <= now && !a.firedAt) && expireDue(ticker, now) > 0) continue;
+      const resting = alerts.filter(a => !a.firedAt && (a.reside || (a.quietUntil ?? 0) > now));
+      const waiting = alerts.filter(a => !a.firedAt && !resting.includes(a));
+      if (waiting.length === 0 && resting.length === 0) continue;
       /* A name with an alert is a name the terminal carries — registered
          if it was not, seeded in idle time; until then its price is unknown
          and the alert waits. */
@@ -107,6 +111,8 @@ const AlertWatcher = () => {
       const cfg = Simulator.TICKERS[sym];
       if (!cfg || !Simulator.isSeeded(sym)) continue;
       const close = cfg.currentPrice;
+      for (const a of resting) if ((a.quietUntil ?? 0) <= now) resideAlert(sym, a.id, close, now);
+      if (waiting.length === 0) continue;
 
       const needsBook = waiting.some(a => a.kind === 'level' || a.kind === 'gexflip' || a.kind === 'newsupreme' || a.kind === 'wallmove' || a.kind === 'script');
       const exp = needsBook ? exposureNowFor(sym) : null;
@@ -161,9 +167,15 @@ const AlertWatcher = () => {
         news: waiting.some(a => a.kind === 'news') ? newsPulse(sym) : [],
       };
 
+      /* the figure it fired at — the level, the line it crossed — so the log and the spoken line can name it */
+      const valueOf = (a: Alert, ctx: AlertContext): number | undefined =>
+        a.kind === 'level' ? (ctx.levels[a.level] ?? undefined)
+        : a.kind === 'newsupreme' ? (ctx.levels.supreme ?? undefined)
+        : a.kind === 'indicator' ? (a.source === 'rsi' ? undefined : (ctx.values[a.source] ?? undefined))
+        : undefined;
       const judge = (a: Alert, ctx: AlertContext) => {
         const verdict = evaluateAlert(a, ctx);
-        if (verdict.fire) markFired(sym, a.id, now);
+        if (verdict.fire) markFired(sym, a.id, now, valueOf(a, ctx));
         else if (verdict.armed) commitArm(sym, verdict.armed);
       };
 

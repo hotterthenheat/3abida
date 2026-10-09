@@ -328,3 +328,35 @@
 [data-theme] {
   color: rgb(var(--text-primary));
 }
+
+/* COLOUR VISION (2026-10-09, Settings › Appearance): the most common colour blindness cannot tell the house's green
+   from its red, so the reader may swap the direction pair for blue and orange — `<html data-cvd="blue-orange">`, kept by
+   theme/theme.ts. Only --bull and --bear move; every room follows, the islands too (a dark chart on a light page keeps
+   the dark pair, a light one the paper pair). The paper pair holds the house's direction-ink rule: pure hues at about
+   4.3:1 or better on the paper ground (blue 4.8:1, orange 4.3:1). */
+:root[data-cvd='blue-orange'],
+:root[data-cvd='blue-orange'] [data-theme='dark'] {
+  --bull: 80 164 255;
+  --bear: 255 133 38;
+}
+:root[data-cvd='blue-orange'][data-theme='light'],
+:root[data-cvd='blue-orange'] [data-theme='light'] {
+  --bull: 0 104 200;
+  --bear: 196 72 0;
+}
+/* …AND A MARK THAT IS NOT A COLOUR: a figure that carries its direction (`data-dir="up"` / `"down"`, written by the
+   formatter that signs it) wears ▲ or ▼ before it while the setting is on, so a direction never rests on hue alone */
+:root[data-cvd='blue-orange'] [data-dir='up']::before,
+:root[data-cvd='blue-orange'] [data-dir='down']::before {
+  display: inline-block;
+  margin-right: 0.2em;
+  font-size: 0.78em;
+  line-height: 1;
+  vertical-align: 0.06em;
+}
+:root[data-cvd='blue-orange'] [data-dir='up']::before {
+  content: '▲';
+}
+:root[data-cvd='blue-orange'] [data-dir='down']::before {
+  content: '▼';
+}

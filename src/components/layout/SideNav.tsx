@@ -6,8 +6,8 @@
   terminal's ONE SUBJECT sits first, before
   navigation; under it the groups and their pages,
   with the current product's pages nested; at the
-  bottom the one honest line about the data and
-  the clock.
+  bottom the signature, where New York's day
+  stands, and the clock.
 
   THE LOOK (Noah, 2026-09-06, the second reference —
   Tomasz Trefler's "Left Side Menu"): the sidebar
@@ -31,7 +31,14 @@
   what the terminal is doing: idle, loading, closed,
   an alert), the wordmark beside it is drawn, every
   product wears its glyph, and the foot is the
-  signature, "slayer:~ $ ● simulated".
+  signature, "slayer:~ $ ● live" (or "closed").
+
+  SETTINGS STAYS IN REACH (the audit's SH-2): it
+  was the last group in the scroller, at its foot,
+  and fell out of sight on a short screen or under
+  an open tree with no sign the list scrolled. It
+  is pinned under the scroller now, and the
+  scroller fades at an edge that has more behind it.
 
   Why the edge bar is ONE element on the panel and
   not a pseudo-element on each row: the rows live
@@ -44,9 +51,16 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Menu, Search } from 'lucide-react';
 import JingleBell from '../ui/JingleBell';
+import { AlertBadge, useAlertCounts } from '../alerts/AlertCount';
+import { PALETTE_KEY } from './keys';
+import { TOGGLE_RAIL_EVENT } from './paletteDoor';
+import SessionStrip, { railClock, readDay } from './SessionStrip';
+import { useShellPrefs } from './shellPrefs';
+import { useDeskPrefs } from '../../data/deskPrefs';
+import { dirOf } from '../../theme/theme';
 import Fold from '../ui/Fold';
 import Avatar from '../ui/Avatar';
 import { useProfile } from '../../data/profile';
@@ -59,7 +73,6 @@ import MobileMenu from './MobileMenu';
 import { useCompassView } from '../../data/compassView';
 import { lookup } from '../../data/universe';
 import { readSessionClock } from '../../data/sessionClock';
-import { useAllAlerts, useUnseenAll } from '../gex/alertStore';
 import { toggleAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
 import { beginGlide, endGlide } from '../../core/glide';
 import { alpha } from '../gex/paletteInk';
@@ -113,7 +126,11 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const [clock, setClock] = useState(() => readSessionClock());
-  const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false }));
+  const desk = useDeskPrefs();
+  const shell = useShellPrefs();
+  const [now, setNow] = useState(() => Date.now());
+  const time = railClock(desk.clock, now);
+  const day = readDay(now);
   const asideRef = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const [bar, setBar] = useState<{ top: number } | null>(null);
@@ -121,15 +138,14 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   /* EVERY name's alerts (the rule, 2026-09-10: the bell counts across all
      names, not the subject's alone) — how many are set, how many fired
      unseen, and whether the drawer is open */
-  const allAlerts = useAllAlerts();
-  const setTotal = allAlerts.reduce((n, a) => n + a.alerts.filter(x => !x.firedAt).length, 0);
-  const unseen = useUnseenAll();
+  const counts = useAlertCounts();
+  const { set: setTotal, unseen } = counts;
   const drawerOpen = useAlertsDrawer();
 
   useEffect(() => {
     const id = window.setInterval(() => {
       setClock(readSessionClock());
-      setTime(new Date().toLocaleTimeString('en-US', { hour12: false }));
+      setNow(Date.now());
     }, 1000);
     return () => window.clearInterval(id);
   }, []);
@@ -156,6 +172,15 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     });
     setTip(null);
   };
+
+  /* the command line's "Fold the rail" (paletteDoor.ts) */
+  const toggleRef = useRef(toggleCollapsed);
+  toggleRef.current = toggleCollapsed;
+  useEffect(() => {
+    const on = () => toggleRef.current();
+    window.addEventListener(TOGGLE_RAIL_EVENT, on);
+    return () => window.removeEventListener(TOGGLE_RAIL_EVENT, on);
+  }, []);
 
   /* THE EDGE BAR follows the current product row: measured against the
      panel, so it rides the edge whatever the scroller is doing; hidden while
@@ -204,6 +229,13 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     setTip({ label, x: r.right + 10, y: r.top + r.height / 2 });
   };
   const hideTip = () => setTip(null);
+  /* …and on focus too (the audit's X6.6): the keys get the tip the pointer gets */
+  const tipProps = (label: string) => ({
+    onMouseEnter: (e: MouseEvent<HTMLElement>) => showTip(e, label),
+    onMouseLeave: hideTip,
+    onFocus: (e: React.FocusEvent<HTMLElement>) => showTip(e as unknown as MouseEvent<HTMLElement>, label),
+    onBlur: hideTip,
+  });
 
   const name = lookup(activeTicker)?.name ?? null;
   const change = marketData?.changePercent ?? 0;
@@ -221,8 +253,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
         e.preventDefault();
         launch('/');
       }}
-      onMouseEnter={e => showTip(e, 'Home')}
-      onMouseLeave={hideTip}
+      {...tipProps('Home')}
       aria-label="Slayer Terminal — home"
       className={`shrink-0 flex items-center gap-2.5 h-[52px] select-none ${collapsed ? 'pl-3 pr-0' : 'px-3.5'}`}
       data-brand
@@ -240,8 +271,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       onClick={onOpenPalette}
       data-subject
       aria-label={`Watching ${activeTicker} ${priceText} — switch`}
-      onMouseEnter={e => showTip(e, `${activeTicker} ${priceText} ${changeText} · ⌘K to switch`)}
-      onMouseLeave={hideTip}
+      {...tipProps(`${activeTicker} ${priceText} ${changeText} · ${PALETTE_KEY} to switch`)}
       className="ml-[10px] w-8 h-8 rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
@@ -252,7 +282,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       onClick={onOpenPalette}
       data-subject
       aria-label={`Watching ${activeTicker} — switch`}
-      title={name ? `${name} · ⌘K to switch` : '⌘K to switch'}
+      title={name ? `${name} · ${PALETTE_KEY} to switch` : `${PALETTE_KEY} to switch`}
       className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
@@ -262,10 +292,14 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price>
         {priceText}
       </span>
-      {marketData && <span className={`font-mono text-[10px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`}>{changeText}</span>}
+      {marketData && (
+        <span className={`font-mono text-[10px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
+          {changeText}
+        </span>
+      )}
       <span className="ml-auto inline-flex items-center gap-1 text-textMuted group-hover:text-textSecondary transition-colors">
         <Search className="w-3 h-3" />
-        <kbd className="font-mono text-[9px] tracking-wide">⌘K</kbd>
+        <kbd className="font-mono text-[10px]">{PALETTE_KEY}</kbd>
       </span>
     </button>
   );
@@ -281,8 +315,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       onClick={toggleAlertsDrawer}
       data-nav-alerts
       aria-expanded={drawerOpen}
-      onMouseEnter={e => showTip(e, unseen > 0 ? `${unseen} alerted` : setTotal > 0 ? `${setTotal} alert${setTotal === 1 ? '' : 's'} set` : 'Alerts')}
-      onMouseLeave={hideTip}
+      aria-haspopup="dialog"
+      {...tipProps(counts.label)}
       /* A BUTTON, so it must be told to fill its row (an anchor with
          `flex` stretches on its own; a button hugs its content — Noah,
          2026-09-10: "the alerts button doesnt look like the rest"). Open
@@ -291,7 +325,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       className={`group relative flex items-center gap-2.5 h-[30px] rounded-lg text-[13px] text-left transition-colors ${
         collapsed ? 'w-8 ml-[10px] justify-center' : 'w-full px-2.5'
       } ${drawerOpen ? 'bg-ink/[0.06] text-textPrimary font-medium' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'}`}
-      aria-label="Alerts"
+      aria-label={counts.label}
     >
       {/* jingles when an alert is set on any name and wears its ink while any is set (Noah, 2026-09-10) */}
       <JingleBell count={setTotal} ink={NAV_INK.alerts} lit={drawerOpen || unseen > 0} glyph={17} />
@@ -303,19 +337,11 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           row's end when open. */}
       {collapsed
         ? unseen > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-[4px] bg-bear text-white font-mono text-[8px] font-bold leading-[14px] text-center tnum" data-alerts-count>
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-[4px] bg-bear text-white font-mono text-[9px] font-bold leading-[14px] text-center tnum" data-alerts-count aria-hidden>
               {unseen > 9 ? '9+' : unseen}
             </span>
           )
-        : unseen > 0 ? (
-            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-md bg-bear text-white font-mono text-[10px] font-bold leading-[18px] text-center tnum" data-alerts-count>
-              {unseen > 99 ? '99+' : unseen}
-            </span>
-          ) : setTotal > 0 ? (
-            <span className="ml-auto font-mono text-[10px] tnum text-textMuted" data-alerts-count>
-              {setTotal} set
-            </span>
-          ) : null}
+        : <AlertBadge counts={counts} className="ml-auto" />}
     </button>
   );
 
@@ -338,7 +364,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     const first = gi === 1;
     const last = gi === NAV_GROUPS.length - 1;
     return (
-      <div key={group} className={`flex flex-col gap-[2px] ${gi === 0 ? '' : first ? 'mt-1' : last ? 'mt-auto pt-5' : 'mt-5'}`} data-nav-group={group}>
+      <div key={group} className={`flex flex-col gap-[2px] ${gi === 0 || last ? '' : first ? 'mt-1' : 'mt-5'}`} data-nav-group={group}>
         {!collapsed ? (
           meta.caption && (
             <span className="px-2.5 pb-1 text-[10px] uppercase tracking-[0.1em] text-textMuted" title={meta.hint}>
@@ -346,7 +372,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             </span>
           )
         ) : (
-          gi > 1 && <span className="mx-3 mb-2 border-t border-ink/[0.08]" aria-hidden />
+          gi > 1 && !last && <span className="mx-3 mb-2 border-t border-ink/[0.08]" aria-hidden />
         )}
         {itemsByGroup(group).map(item => {
           const inside = pathname.startsWith(item.path);
@@ -362,8 +388,10 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
               to={item.path}
               data-nav-item={item.path}
               data-nav-current={inside || undefined}
-              onMouseEnter={e => showTip(e, item.label)}
-              onMouseLeave={hideTip}
+              /* ONE "YOU ARE HERE" (the audit's SH-14): a section's row is where you are in the terminal, its page's row is
+                 the page — "true" here, "page" on the leaf under it */
+              aria-current={inside ? (tree ? 'true' : 'page') : undefined}
+              {...tipProps(item.label)}
               onClick={e => {
                 /* inside a section with pages: the row folds and unfolds its tree instead of leaving the page */
                 if (!tree) return;
@@ -431,6 +459,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
                       <NavLink
                         key={s.path}
                         to={s.path}
+                        end
+                        aria-current={active ? 'page' : undefined}
                         data-nav-sub={s.path}
                         style={{ height: SUB_H }}
                         className={`flex items-center px-2 rounded-md text-[12px] transition-colors ${
@@ -450,7 +480,30 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       </div>
     );
   });
-  const [home, ...groups] = groupBlocks;
+  const home = groupBlocks[0];
+  const groups = groupBlocks.slice(1, -1);
+  const more = groupBlocks[groupBlocks.length - 1];
+
+  /* THE SCROLLER'S EDGES: a fade where more of the list is behind the edge (the audit's SH-2) */
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const read = () => {
+      const top = nav.scrollTop > 2;
+      const bottom = nav.scrollTop + nav.clientHeight < nav.scrollHeight - 2;
+      setEdges(e => (e.top === top && e.bottom === bottom ? e : { top, bottom }));
+    };
+    read();
+    nav.addEventListener('scroll', read, { passive: true });
+    const ro = new ResizeObserver(read);
+    ro.observe(nav);
+    if (nav.firstElementChild) ro.observe(nav.firstElementChild);
+    return () => {
+      nav.removeEventListener('scroll', read);
+      ro.disconnect();
+    };
+  }, [collapsed, pathname]);
 
   const width = collapsed ? SIDENAV_RAIL_W : SIDENAV_W;
   /* ANCHORED TO THE LEFT CORNER THROUGH THE GLIDE (Noah, 2026-09-14: the collapse "jitters
@@ -509,21 +562,26 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
             {alertsRow}
           </div>
         </div>
-        <nav ref={navRef} className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-1 flex flex-col ${collapsed ? 'px-0' : 'px-2'}`} aria-label="Terminal">
-          {groups}
+        <div className="relative flex-1 min-h-0 flex flex-col">
+          <nav ref={navRef} className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-1 ${collapsed ? 'px-0' : 'px-2'}`} aria-label="Terminal">
+            <div className="flex flex-col">{groups}</div>
+          </nav>
+          {/* the fades say the list goes on past the edge — the panel's own ground, no colour */}
+          <span className={`pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-panel to-transparent transition-opacity duration-200 ${edges.top ? 'opacity-100' : 'opacity-0'}`} aria-hidden />
+          <span className={`pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-panel to-transparent transition-opacity duration-200 ${edges.bottom ? 'opacity-100' : 'opacity-0'}`} aria-hidden data-nav-more-below={edges.bottom || undefined} />
+        </div>
+        {/* SETTINGS, PINNED (the audit's SH-2) — under the list, never scrolled away */}
+        <nav className={`shrink-0 py-1.5 border-t border-ink/[0.07] ${collapsed ? 'px-0' : 'px-2'}`} aria-label="Settings" data-nav-pinned>
+          {more}
         </nav>
         {/* WHO IS AT THE DESK (2026-09-12): the reader's picture and name at the
             foot, a door to their account; the rail keeps the picture alone */}
-        <NavLink
+        {/* a door to the account, not a place: Settings' row says where you are (the audit's SH-14) */}
+        <Link
           to="/settings/account"
           title={collapsed ? undefined : 'Your account'}
-          onMouseEnter={e => showTip(e, `${profile.name} · @${profile.handle} · your account`)}
-          onMouseLeave={hideTip}
-          className={({ isActive }) =>
-            `shrink-0 flex items-center gap-2.5 border-t border-ink/[0.07] transition-colors ${collapsed ? 'pl-[14px] pr-0 py-2' : 'px-3.5 py-2'} ${
-              isActive ? 'bg-ink/[0.05]' : 'hover:bg-ink/[0.03]'
-            }`
-          }
+          {...tipProps(`${profile.name} · @${profile.handle} · your account`)}
+          className={`shrink-0 flex items-center gap-2.5 border-t border-ink/[0.07] transition-colors hover:bg-ink/[0.03] ${collapsed ? 'pl-[14px] pr-0 py-2' : 'px-3.5 py-2'}`}
           data-sidenav-me
         >
           <Avatar profile={profile} size={24} />
@@ -533,13 +591,13 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
               <span className="block truncate font-mono text-[10px] text-textMuted">@{profile.handle}</span>
             </span>
           )}
-        </NavLink>
+        </Link>
         {/* THE SIGNATURE (Slayer Logo System): "slayer:~ $ ● live" — the market's own word, live while it is open and
             closed when it is shut — over the session's own line and the clock. The rail, folded, keeps the state's dot. */}
         <div
           className={`shrink-0 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[22px] pr-0 py-3.5' : 'px-3.5 py-2.5'}`}
-          title={collapsed ? `slayer:~ $ ${marketWord} · ${clock.label} · ${time}` : undefined}
-          onMouseEnter={e => showTip(e, `slayer:~ $ ${marketWord} · ${clock.label} · ${time}`)}
+          title={collapsed ? `slayer:~ $ ${marketWord} · ${day.name} · ${time}` : undefined}
+          onMouseEnter={e => showTip(e, `slayer:~ $ ${marketWord} · ${day.name}${day.next ? ` · ${day.next}` : ''} · ${time}`)}
           onMouseLeave={hideTip}
           data-sidenav-signature
         >
@@ -548,12 +606,17 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           ) : (
             <>
               <Signature state={marketWord} rule={false} className="text-[10.5px]" />
-              <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
-                <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
-                  {open ? clock.label : clock.label.toLowerCase()}
+              {/* WHERE THE DAY STANDS (SessionStrip.tsx; Settings › The desk turns it off) — else the session's own line */}
+              {shell.sessionStrip ? (
+                <SessionStrip read={day} time={time} />
+              ) : (
+                <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
+                  <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
+                    {open ? clock.label : clock.label.toLowerCase()}
+                  </span>
+                  <span className="ml-auto text-textMuted select-none">{time}</span>
                 </span>
-                <span className="ml-auto text-textMuted select-none">{time}</span>
-              </span>
+              )}
             </>
           )}
         </div>
@@ -578,16 +641,17 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           stood in for it — the only way between pages on a phone was to know the palette and type a page's name. The house
           mark opens it: the same groups, products and pages as the rail, as a sheet (MobileMenu.tsx). */}
       <div className="md:hidden fixed inset-x-0 top-0 z-40 h-12 flex items-center gap-2.5 px-2.5 bg-canvas/80 backdrop-blur-md border-b border-borderSubtle">
-        <button type="button" onClick={() => setMenuOpen(true)} aria-label="Menu" aria-haspopup="dialog" aria-expanded={menuOpen} className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-borderSubtle text-textSecondary" data-mobile-menu-door>
+        {/* EVERY CONTROL ON THE STRIP IS A FINGER WIDE (the audit's X3.2): 44px boxes in the 48px strip */}
+        <button type="button" onClick={() => setMenuOpen(true)} aria-label="Menu" aria-haspopup="dialog" aria-expanded={menuOpen} className="inline-flex items-center justify-center w-11 h-11 rounded-md border border-borderSubtle text-textSecondary" data-mobile-menu-door>
           <Menu className="w-4 h-4" />
         </button>
-        <button onClick={onOpenPalette} className="inline-flex items-center gap-2 rounded-md border border-borderMuted bg-chip px-2.5 py-1">
+        <button type="button" onClick={onOpenPalette} aria-label={`Watching ${activeTicker} ${priceText} — switch`} className="inline-flex items-center gap-2 h-11 rounded-md border border-borderMuted bg-chip px-3" data-mobile-subject>
           <CompanyLogo ticker={activeTicker} size={16} />
           <span className="text-[12px] font-semibold text-textPrimary">{activeTicker}</span>
           {marketData && <span className="font-mono text-[11px] tnum text-textPrimary">${marketData.spot.toFixed(2)}</span>}
         </button>
-        <button onClick={onOpenPalette} aria-label="Search or jump to…" className="ml-auto p-1.5 rounded-md border border-borderSubtle text-textMuted">
-          <Search className="w-3.5 h-3.5" />
+        <button type="button" onClick={onOpenPalette} aria-label="Search a name or a page" className="ml-auto inline-flex items-center justify-center w-11 h-11 rounded-md border border-borderSubtle text-textMuted" data-mobile-search>
+          <Search className="w-4 h-4" />
         </button>
       </div>
       <MobileMenu open={menuOpen} onClose={closeMenu} />
