@@ -17,7 +17,7 @@
 ==================================================
 */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import type { Setup } from '../../types/compass';
 import { SCANNERS } from '../../types/compass';
@@ -27,6 +27,7 @@ import ContractLabel from '../ui/ContractLabel';
 import { TraceGrid } from '../trace/TraceBox';
 import SetupScanCard from './SetupScanCard';
 import { processState, PROCESS_META } from './setupProcess';
+import { recordOf, statusOf } from './campaignStore';
 
 export type ScanLayout = 'cards' | 'table';
 
@@ -52,10 +53,14 @@ interface SetupScanBoardProps {
   showKind?: boolean;
 }
 
-const WIDTHS: Record<string, number> = { rank: 56, expiry: 150, state: 110, sigma: 96, premium: 96, breaks: 110, kind: 120, open: 72 };
+/* THE TABLE FITS ITS BOX (the audit's CO-2: the contract was cut to "NVDA 120…", Open fell off the right edge and the
+   expiry — the same on every row — took 150 px). The contract gets the room it needs, the expiry is said once by the
+   Expiry card over the board, Open stands last at its own width, and the kind (under All kinds) takes what is left. */
+const WIDTHS: Record<string, number> = { rank: 44, contract: 176, state: 104, targets: 86, sigma: 80, premium: 84, breaks: 92, open: 72 };
 const TOOLTIPS: Record<string, string> = {
   sigma: 'The one-sigma move of the stock to expiry — what the options price in',
-  premium: 'The contract at the bid/ask midpoint',
+  premium: 'The contract at the bid/ask midpoint, now',
+  targets: 'The highest target a candle has crossed since the sweep found the setup',
   breaks: 'The stock price that retires the setup — a close through it and the thesis is gone',
   state: 'Watch · proving itself. Active · the structure is in place. Moving · the contract trades like its trade. Fading · retiring',
 };
@@ -67,6 +72,11 @@ const Chip = ({ children }: { children: React.ReactNode }) => <span className="i
 
 const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expiryChip, showKind = false }: SetupScanBoardProps) => {
   const ranked = useMemo<Ranked[]>(() => setups.map((s, i) => ({ ...s, rank: i + 1 })), [setups]);
+  /* THE COLUMNS HOLD STILL (the audit's CO-9: the page hands a fresh `onAnalysis` every render, the columns were rebuilt
+     with it, and the grid re-applied the first sort on top of the reader's — "2 ·", "CO… 1 ↑", a sort that changed
+     nothing). The door is read through a ref, so the columns are built once per shape. */
+  const openRef = useRef(onAnalysis);
+  openRef.current = onAnalysis;
 
   const columns = useMemo<Column<Ranked>[]>(() => {
     const cols: Column<Ranked>[] = [
@@ -86,7 +96,6 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           </span>
         ),
       },
-      { key: 'expiry', header: 'Expiry', render: r => <span className="font-mono text-[11px] text-textSecondary">{r.expiry} · {expiryChip}</span> },
       {
         key: 'state',
         header: 'State',
@@ -96,14 +105,33 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           const meta = PROCESS_META[state];
           return (
             <Chip>
-              <SignalBadge tone={meta.tone} dot pulse={meta.pulse}>
-                {state}
-              </SignalBadge>
+              {statusOf(recordOf(r.id)).brk ? (
+                <SignalBadge tone="bear">Retired</SignalBadge>
+              ) : (
+                <SignalBadge tone={meta.tone} dot pulse={meta.pulse}>
+                  {state}
+                </SignalBadge>
+              )}
             </Chip>
           );
         },
       },
-      { key: 'sigma', header: '1σ move', align: 'right', sortValue: r => r.sigmaMovePct, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">±{r.sigmaMovePct}%</span> },
+      {
+        key: 'targets',
+        header: 'Targets',
+        sortValue: r => statusOf(recordOf(r.id)).hitLevel ?? 0,
+        render: r => {
+          const hit = statusOf(recordOf(r.id)).hitLevel;
+          return hit != null ? (
+            <Chip>
+              <SignalBadge tone="bull">TP{hit} HIT</SignalBadge>
+            </Chip>
+          ) : (
+            <span className="font-mono text-[11px] text-textMuted">{r.takeProfits.length ? `0 of ${r.takeProfits.length}` : '—'}</span>
+          );
+        },
+      },
+      { key: 'sigma', header: '1σ move', align: 'right', sortValue: r => r.sigmaMovePct, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">±{r.sigmaMovePct.toFixed(1)}%</span> },
       { key: 'premium', header: 'Premium', align: 'right', sortValue: r => r.mid, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">${r.mid.toFixed(2)}</span> },
       { key: 'breaks', header: 'Breaks at', align: 'right', sortValue: r => r.invalidationPrice, render: r => <span className="font-mono text-[11px] tnum text-warn">${r.invalidationPrice.toFixed(2)}</span> },
     ];
@@ -115,16 +143,17 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
       render: r => (
         <button
           type="button"
-          onClick={() => onAnalysis(r)}
+          onClick={() => openRef.current(r)}
           title="Open the setup's page"
-          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+          aria-label={`Open ${r.contract}'s page`}
+          className="hit inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
         >
           Open <ArrowUpRight className="w-3 h-3" />
         </button>
       ),
     });
     return cols;
-  }, [expiryChip, showKind, onAnalysis]);
+  }, [showKind]);
 
   if (setups.length === 0) {
     return (
@@ -146,6 +175,8 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           onRowClick={onSelect}
           selectedKey={selectedId}
           autoHeight
+          /* a sweep re-ranks in place — the rows never slide or dim under the reader (CO-2's vanishing rows) */
+          animate={false}
           initialSort={{ key: 'rank', dir: 'asc' }}
           emptyText="Nothing cleared the bar on this sweep"
           testId="compass-board"

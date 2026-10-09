@@ -33,7 +33,7 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, LayoutGrid, Search, Shapes, Table } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
@@ -56,6 +56,9 @@ import ImpactLeaderboard from '../../components/compass/ImpactLeaderboard';
 import SetupScanBoard from '../../components/compass/SetupScanBoard';
 import { CompassGuide } from '../../components/compass/CompassGuide';
 import { processState } from '../../components/compass/setupProcess';
+import { noteFound } from '../../components/compass/campaignStore';
+import { nyClock } from '../../core/nyTime';
+import { CompassPageSkeleton } from '../compassSkeleton';
 
 /** The scanner sweeps on its own cadence — the feed must not vibrate with every price tick. */
 const SCAN_INTERVAL_MS = 10_000;
@@ -125,7 +128,8 @@ const Board = () => {
       scanRef.current = marketData;
       lastScanTimeRef.current = now;
       setScanSnapshot(marketData);
-      setLastScanAt(new Date(now).toLocaleTimeString('en-GB'));
+      /* New York's clock, as every session time the terminal prints (the audit's X2) */
+      setLastScanAt(nyClock(now, { seconds: true }));
     }
   }, [marketData]);
 
@@ -145,21 +149,19 @@ const Board = () => {
   }, [data, tickerFilter]);
 
   // Counts per kind on this tenor (scan tier — stable between sweeps): only
-  // the kinds this tenor sells, and All sums exactly those.
+  // the kinds this tenor sells. ALL KINDS COUNTS ITS OWN SWEEP (the audit's CO-3: it summed the other kinds' counts, so
+  // a setup two kinds found counted twice — "All kinds · 99" over a board that said "Found 30"): each kind's figure is
+  // the number of setups that kind's own sweep lists, which for All is the board it opens on.
   const scannerCounts = useMemo(() => {
     if (!scanSnapshot) return {} as Record<ScannerKey, number>;
     const counts: Record<string, number> = {};
-    let allCount = 0;
     for (const s of SCANNERS) {
-      if (s.key === 'all' || !isScannerEligible(s.key, sleeve)) continue;
-      const built = buildCompassView(scanSnapshot, s.key, universe, sleeve);
-      const count = built.groups.reduce((acc, g) => acc + g.found, 0);
-      counts[s.key] = count;
-      allCount += count;
+      if (!isScannerEligible(s.key, sleeve)) continue;
+      const built = s.key === scanner && data ? data : buildCompassView(scanSnapshot, s.key, universe, sleeve);
+      counts[s.key] = new Set(built.groups.flatMap(g => g.setups.map(x => x.id))).size;
     }
-    counts['all'] = allCount;
     return counts as Record<ScannerKey, number>;
-  }, [scanSnapshot, universe, sleeve]);
+  }, [scanSnapshot, universe, sleeve, scanner, data]);
 
   // Real expiry per tenor, through the clock-aware calendar — recomputed with
   // each sweep so a session rollover moves the card.
@@ -169,7 +171,48 @@ const Board = () => {
   }, [scanSnapshot]);
 
   // The flat, globally-ranked board — rank is the organizing principle
-  const rankedSetups = useMemo(() => filteredGroups.flatMap(g => g.setups).sort((a, b) => b.score - a.score), [filteredGroups]);
+  const freshSetups = useMemo(() => {
+    const flat = filteredGroups.flatMap(g => g.setups).sort((a, b) => b.score - a.score);
+    /* THE SWEEP'S MOMENT, noted once per setup (campaignStore — the audit's CO-5): the setup's page says "found at" this
+       time, and its targets count from this bar */
+    const at = Date.now();
+    for (const s of flat) noteFound(s, 'sweep', at);
+    return flat;
+  }, [filteredGroups]);
+
+  /* THE BOARD HOLDS STILL UNDER THE HAND (the audit's CO-4: the order changed every 10 s under the pointer — twice in
+     25 s — so a second click could open a different card, and the Tab order shifted mid-walk). While the pointer is over
+     the board or the keys are in it, the cards keep their places (a setup the sweep dropped keeps its card, its figures
+     the last it had); a new order waits, said in one line with a door to show it, and lands when the pointer and the
+     keys leave. */
+  const [holding, setHolding] = useState(false);
+  /* bumps a render when the held order is replaced by hand */
+  const [heldNonce, setHeldNonce] = useState(0);
+  const pointerIn = useRef(false);
+  const focusIn = useRef(false);
+  const heldRef = useRef<typeof freshSetups | null>(null);
+  const syncHold = useCallback(() => {
+    const on = pointerIn.current || focusIn.current;
+    if (!on) heldRef.current = null;
+    setHolding(on);
+  }, []);
+  if (holding && !heldRef.current) heldRef.current = freshSetups;
+  const rankedSetups = useMemo(() => {
+    const held = holding ? heldRef.current : null;
+    if (!held) return freshSetups;
+    const byId = new Map(freshSetups.map(s => [s.id, s]));
+    return held.map(s => byId.get(s.id) ?? s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freshSetups, holding, heldNonce]);
+  const newOrder = useMemo(() => {
+    if (!holding || rankedSetups === freshSetups) return false;
+    if (rankedSetups.length !== freshSetups.length) return true;
+    return rankedSetups.some((s, i) => s.id !== freshSetups[i].id);
+  }, [holding, rankedSetups, freshSetups]);
+  const showNewOrder = () => {
+    heldRef.current = freshSetups;
+    setHeldNonce(n => n + 1);
+  };
 
   /* Nothing selected → #1 is. The rail always follows a selection, so it
      never belongs to nothing; a sweep, filter or kind change that drops the
@@ -234,17 +277,20 @@ const Board = () => {
 
   /* ---- the head's facts and the sentence ------------------------------------------ */
 
+  /* ACTIVE AND MOVING COUNTED APART (the audit's CO-13: "Active 16" counted the cards that said MOVING) */
   const counts = useMemo(() => {
     let active = 0;
+    let moving = 0;
     let watch = 0;
     let fading = 0;
     for (const s of rankedSetups) {
       const st = processState(s);
-      if (st === 'ACTIVE' || st === 'MOVING') active++;
+      if (st === 'ACTIVE') active++;
+      else if (st === 'MOVING') moving++;
       else if (st === 'WATCH') watch++;
       else fading++;
     }
-    return { active, watch, fading };
+    return { active, moving, watch, fading };
   }, [rankedSetups]);
   const top = rankedSetups[0] ?? null;
   const byName = useMemo(() => {
@@ -306,10 +352,12 @@ const Board = () => {
     const busiest = byName[0];
     const states = [
       counts.active ? `${counts.active} active` : '',
+      counts.moving ? `${counts.moving} moving` : '',
       counts.watch ? (counts.watch === 1 ? '1 still proving itself' : `${counts.watch} still proving themselves`) : '',
       counts.fading ? `${counts.fading} fading` : '',
     ].filter(Boolean);
-    const names = byName.length === 1 ? `all on ${busiest[0]}` : `${busiest[0]} carries the most, ${busiest[1]} of ${byName.length} names`;
+    /* "NVDA carries the most, 1 of 15 names" when every name has one is no read (the audit's CO-12) */
+    const names = byName.length === 1 ? `all on ${busiest[0]}` : busiest[1] === 1 ? `one each across ${byName.length} names` : `${busiest[0]} carries the most, ${busiest[1]} of ${byName.length} names`;
     const lead = `${rankedSetups.length} ${rankedSetups.length === 1 ? 'setup' : 'setups'} cleared the bar on ${expiryWords} at ${lastScanAt} — ${states.join(', ')} · ${names}. Top pick `;
     return (
       <>
@@ -317,7 +365,7 @@ const Board = () => {
         <ReadDoor onOpen={() => openSetup(top)} title="Open the setup's page">
           {top.contract}
         </ReadDoor>
-        <RichRead text={`, ±${top.sigmaMovePct}% ${horizonWords}.`} />
+        <RichRead text={`, ±${top.sigmaMovePct.toFixed(1)}% ${horizonWords}.`} />
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,13 +386,8 @@ const Board = () => {
   }, [boxEl]);
   const railSticks = boxH > window.innerHeight - 40;
 
-  if (!data || !marketData) {
-    return (
-      <div className="h-64 border border-borderSubtle rounded-md bg-panel flex items-center justify-center">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Waiting for the feed…</span>
-      </div>
-    );
-  }
+  /* Before the first sweep, the board's own skeleton — never a line of caps saying what it waits for (the audit's CO-20) */
+  if (!data || !marketData) return <CompassPageSkeleton />;
 
   const rail = <ImpactLeaderboard ticker={railSnapshot?.ticker ?? data.chain.ticker} note={railNote} rows={railRows} onOpen={handleOpenContract} />;
 
@@ -355,7 +398,7 @@ const Board = () => {
         <div ref={setBoxEl} className="xl:col-span-8 min-w-0">
           <TraceBox
             title="The board"
-            sub={`${activeScanner.blurb} · a card selects, a second click opens its page`}
+            sub={`${activeScanner.blurb} · press a card, then Open`}
             testId="compass"
             data={{ expiry: sleeve, kind: scanner, layout, rows: rankedSetups.length }}
             guide={{ title: 'How to read the board', door: 'What a card, its state and the rail mean', body: <CompassGuide />, testId: 'compass-guide', open: guideOpen, onOpen: setGuideOpen }}
@@ -368,6 +411,9 @@ const Board = () => {
                 <Fact label="Active" testId="active">
                   <span className={counts.active ? 'text-textPrimary' : 'text-textMuted'}>{counts.active}</span>
                 </Fact>
+                <Fact label="Moving" testId="moving" title="Active, and the contract now trades like its trade (delta 0.50 or more)">
+                  <span className={counts.moving ? 'text-textPrimary' : 'text-textMuted'}>{counts.moving}</span>
+                </Fact>
                 {/* WATCH, the card's own word (setupProcess.ts) — the head said "Proving" while every card it counted said
                     WATCH (2026-10-01, the owner: "compass do what u need to do"); the sentence below still says what it
                     means, "still proving itself" */}
@@ -379,7 +425,7 @@ const Board = () => {
                 </Fact>
                 {top && (
                   <Champion label="Top pick" ink="supreme" onOpen={() => openSetup(top)} testId="top-pick">
-                    {top.contract} · ±{top.sigmaMovePct}%
+                    {top.contract} · ±{top.sigmaMovePct.toFixed(1)}%
                   </Champion>
                 )}
                 <Fact label="Found at" testId="found-at">
@@ -410,8 +456,41 @@ const Board = () => {
           >
             {/* The body fades on a kind or tenor change (the slow clock — a whole
                 board arriving in 0.2s reads as a snap, Noah 2026-08-10); the head stays put */}
-            <div key={`feed-${scanner}-${sleeve}`} className="animate-soft-in-slow">
-              <SetupScanBoard setups={rankedSetups} layout={layout} selectedId={selectedId} onSelect={handleSelect} onAnalysis={openSetup} expiryChip={activeSleeveExp.label} showKind={scanner === 'all'} />
+            <div
+              key={`feed-${scanner}-${sleeve}`}
+              className="relative animate-soft-in-slow"
+              onPointerEnter={e => {
+                if (e.pointerType !== 'mouse') return;
+                pointerIn.current = true;
+                syncHold();
+              }}
+              onPointerLeave={() => {
+                pointerIn.current = false;
+                syncHold();
+              }}
+              onFocus={() => {
+                focusIn.current = true;
+                syncHold();
+              }}
+              onBlur={e => {
+                if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+                focusIn.current = false;
+                syncHold();
+              }}
+              data-board-held={holding || undefined}
+            >
+              {/* the order waiting while the board holds — one quiet line, its door showing it now */}
+              <div aria-live="polite" className={newOrder ? 'flex items-center justify-end gap-2 px-5 pt-2 -mb-1' : 'sr-only'}>
+                {newOrder && (
+                  <>
+                    <span className="text-[11px] text-textMuted">The sweep has a new order — the cards hold still under your hand</span>
+                    <button type="button" onClick={showNewOrder} className="hit font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle hover:border-borderMuted rounded px-2 py-0.5 transition-colors" data-board-new-order>
+                      Show it
+                    </button>
+                  </>
+                )}
+              </div>
+              <SetupScanBoard setups={rankedSetups} layout={layout} selectedId={selectedId} onSelect={handleSelect} onAnalysis={openSetup} expiryChip={dayOf(activeSleeveExp.date)} showKind={scanner === 'all'} />
             </div>
           </TraceBox>
         </div>

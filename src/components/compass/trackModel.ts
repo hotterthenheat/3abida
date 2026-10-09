@@ -97,7 +97,9 @@ export function spotForPremium(
 
 /** Build the whole series. Every point is a pricer call on a real bar close
     or the real spot — nothing is drawn to look plausible. */
-export function buildSetupTrack(setup: Setup, bars: Candle[]): SetupTrack {
+export function buildSetupTrack(setup: Setup, bars: Candle[], entryMid?: number): SetupTrack {
+  /* the reference is THE ENTRY — the premium the setup was found at; the track's own end is the premium now */
+  const entry = entryMid ?? setup.mid;
   const iv = setup.greeks.iv / 100;
   const priceAt = (spot: number, sessions: number) =>
     estimatePremium(spot, setup.strike, setup.right, iv, Math.max(sessions, 0.05) / 252);
@@ -144,7 +146,7 @@ export function buildSetupTrack(setup: Setup, bars: Candle[]): SetupTrack {
 
   // ---- levels --------------------------------------------------------------
   const stopPremium = priceAt(setup.invalidationPrice, sessionsLeft);
-  const pctFrom = (p: number) => (setup.mid > 0 ? (p / setup.mid - 1) * 100 : 0);
+  const pctFrom = (p: number) => (entry > 0 ? (p / entry - 1) * 100 : 0);
   const mkLevel = (
     key: string,
     label: string,
@@ -162,7 +164,7 @@ export function buildSetupTrack(setup: Setup, bars: Candle[]): SetupTrack {
   });
 
   const levels: TrackLevel[] = [
-    mkLevel('ref', 'Reference', setup.mid, 'REF', null),
+    mkLevel('ref', 'Entry', entry, 'REF', null),
     /* No rungs, no stop (the 2026-08-30 earned-TPs rule): a thesis that
        earned zero TPs draws no trade furniture on the premium tape. */
     ...(setup.takeProfits.length > 0 ? [mkLevel('stop', 'Stop', stopPremium, 'STOP', setup.invalidationPrice)] : []),
@@ -180,7 +182,7 @@ export function buildSetupTrack(setup: Setup, bars: Candle[]): SetupTrack {
   // ---- domains: the ceiling is the load-bearing decision -------------------
   const pathMax = past.length ? Math.max(...past.map(p => p.premium)) : setup.mid;
   const firstTp = setup.takeProfits[0]?.target ?? setup.mid;
-  const frameTop = Math.max(pathMax, setup.mid, firstTp, stopPremium, PREMIUM_FLOOR * 2) * 1.12;
+  const frameTop = Math.max(pathMax, setup.mid, entry, firstTp, stopPremium, PREMIUM_FLOOR * 2) * 1.12;
   let dockedCount = 0;
   for (const l of levels) {
     if (l.premium > frameTop) {
@@ -196,7 +198,7 @@ export function buildSetupTrack(setup: Setup, bars: Candle[]): SetupTrack {
     forward,
     stopCurve: stopOk && setup.takeProfits.length > 0 ? stopCurve : null,
     levels,
-    ref: setup.mid,
+    ref: entry,
     spotNow,
     sessionChangePct: first > 0 ? (setup.mid / first - 1) * 100 : 0,
     yMax,

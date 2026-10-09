@@ -61,10 +61,6 @@ const SetupPage = () => {
   // Bumps every simulator tick — drives incremental candle updates on the chart
   const revRef = useRef(0);
   const revision = useMemo(() => ++revRef.current, [marketData]);
-  /* Found at: the moment this page opened — the numbers that earned the click
-     are frozen inside CampaignAnalysis from this bar on */
-  const gradedAt = useMemo(() => new Date().toLocaleTimeString('en-GB'), [id]);
-
   const seeded = useSeeded(address?.ticker ?? null);
   const setup = useMemo(() => {
     if (!address) return null;
@@ -75,6 +71,9 @@ const SetupPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, marketData]);
   const spot = address ? (Simulator.TICKERS[address.ticker]?.currentPrice ?? 0) : 0;
+  /* AN ADDRESS NO CHAIN REACHES IS NO SETUP (the audit's CO-15: /compass/SPY-9999-P-rebounds-leaps drew "Premium $9337.14 ·
+     FADING"): a strike more than half the price away from the market lists on no chain the terminal reads */
+  const beyondReach = !!address && seeded && spot > 0 && Math.abs(address.strike - spot) / spot > 0.5;
 
   const back = (
     <div className="flex items-center gap-4" data-setup-back>
@@ -94,15 +93,16 @@ const SetupPage = () => {
   );
 
   /* an address that names no setup is a dead end: the tab says so and the page is kept out of search results */
-  useNotFoundHead(!address);
+  useNotFoundHead(!address || beyondReach);
   const meant = !address && id ? suggest(`/compass/${id}`)[0] : undefined;
-  if (!address) {
+  if (!address || beyondReach) {
     return (
       <>
         {back}
         <div className="border border-borderSubtle rounded-md bg-panel h-40 flex flex-col items-center justify-center gap-2" data-setup-missing>
           <span className="font-mono text-[13px] font-bold text-textPrimary">{id}</span>
           <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">no setup at this address</span>
+          {beyondReach && <span className="text-[12px] text-textSecondary">No chain lists that strike — it is more than half the price away from the market.</span>}
           {/* a slip of the hand lands here too — /compass/trakcer meant the Tracker (pages/notFound/suggest.ts, 2026-09-19) */}
           {meant && (
             <Link to={meant.path} className="mt-1 text-[12px] text-textSecondary hover:text-textPrimary transition-colors" data-not-found-link={meant.path}>
@@ -136,7 +136,7 @@ const SetupPage = () => {
     <>
       {back}
       <div key={id} className="animate-soft-in-slow" data-setup-page={id}>
-        <CampaignAnalysis setup={setup} revision={revision} spot={spot} scanner={address.scanner} sleeve={address.sleeve} gradedAt={gradedAt} onOpenContract={openContract} />
+        <CampaignAnalysis setup={setup} revision={revision} spot={spot} scanner={address.scanner} sleeve={address.sleeve} onOpenContract={openContract} />
       </div>
     </>
   );

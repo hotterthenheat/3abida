@@ -94,17 +94,24 @@ const rampAt = (stops: string[], t: number) => {
 const WARM_RAMP = [YELLOW, WARM_1, WARM_2, WARM_3];
 const COOL_RAMP = [YELLOW, COOL_1, COOL_2, COOL_3];
 
+/* THE FIGURES' STRIKES ARE THE PANE'S (the audit's TE-14: the guide's 493–497 stood beside a market at 477): the five
+   strikes over the name's own price, a strike apart on its own grid — the shapes stay the drawing's */
+const strikesOver = (spot: number, step: number, n: number) => {
+  const first = Math.ceil((spot + 1e-9) / step) * step;
+  return Array.from({ length: n }, (_, i) => fmtStrike(Number((first + i * step).toFixed(2))));
+};
+
 /** FIGURE 1 — SIZE: the ladder; puts grow left, calls grow right, the spine leans to the side that wins */
-const SizeFigure = () => {
+const SizeFigure = ({ ks }: { ks: string[] }) => {
   const MID = 200;
   const REACH = 112;
   const LEAN = 58;
   const rows = [
-    { y: 20, k: '497', put: 18, call: 94 },
-    { y: 42, k: '496', put: 40, call: 150 },
-    { y: 64, k: '495', put: 22, call: 256, wall: 'call' as const },
-    { y: 86, k: '494', put: 131, call: 35 },
-    { y: 108, k: '493', put: 210, call: 12, wall: 'put' as const },
+    { y: 20, k: ks[4], put: 18, call: 94 },
+    { y: 42, k: ks[3], put: 40, call: 150 },
+    { y: 64, k: ks[2], put: 22, call: 256, wall: 'call' as const },
+    { y: 86, k: ks[1], put: 131, call: 35 },
+    { y: 108, k: ks[0], put: 210, call: 12, wall: 'put' as const },
   ];
   const legMax = 256;
   const netMax = Math.max(...rows.map(r => Math.abs(r.put - r.call)));
@@ -177,15 +184,15 @@ const SizeFigure = () => {
 };
 
 /** FIGURE 2 — FLOW: a trip from spot to a strike; every strike crossed adds its weight */
-const FlowFigure = () => {
+const FlowFigure = ({ ks, spot }: { ks: string[]; spot: string }) => {
   const spotY = 116;
   const steps = [
-    { y: 88, k: '493', add: '+$30M', total: 34, text: '$30M' },
-    { y: 60, k: '494', add: '+$45M', total: 82, text: '$75M' },
-    { y: 32, k: '495', add: '+$69M', total: 150, text: 'sell $144M' },
+    { y: 88, k: ks[0], add: '+$30M', total: 34, text: '$30M' },
+    { y: 60, k: ks[1], add: '+$45M', total: 82, text: '$75M' },
+    { y: 32, k: ks[2], add: '+$69M', total: 150, text: 'sell $144M' },
   ];
   return (
-    <svg viewBox="0 0 368 162" width="100%" role="img" aria-label="A move from spot up to 495 crosses three strikes; each adds its weight and the running total on arrival is the forced flow" data-guide-figure="flow">
+    <svg viewBox="0 0 368 162" width="100%" role="img" aria-label={`A move from spot up to ${ks[2]} crosses three strikes; each adds its weight and the running total on arrival is the forced flow`} data-guide-figure="flow">
       {/* The price axis */}
       <line x1={44} x2={44} y1={16} y2={132} stroke={GRID} />
       {steps.map(s => (
@@ -194,7 +201,7 @@ const FlowFigure = () => {
       {/* Spot, the chip */}
       <rect x={14} y={spotY - 8} width={46} height={16} rx={4} fill={INK} />
       <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fontWeight="700" fill="rgb(var(--panel))">
-        492.40
+        {spot}
       </text>
       <Label x={66} y={spotY} fill={INK_3}>where the market is now</Label>
       {/* The trip: a dotted path up the axis, with an arrowhead */}
@@ -227,6 +234,12 @@ interface ProfileGuideProps {
 }
 
 const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
+  /* the name's own grid: the smallest gap between two of its strikes */
+  let step = Infinity;
+  const asc = rows.map(r => r.strike).sort((a, b) => a - b);
+  for (let i = 1; i < asc.length; i++) if (asc[i] - asc[i - 1] > 1e-9) step = Math.min(step, asc[i] - asc[i - 1]);
+  if (!Number.isFinite(step)) step = 1;
+  const ks = strikesOver(levels.spot, step, 5);
   const sizeAt = (k: number) => rows.find(r => near(r.strike, k))?.value ?? 0;
   const rungAt = (k: number) => flow?.rungs.find(r => near(r.strike, k));
   const example = (label: string, k: number) => {
@@ -256,7 +269,7 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
           Each row is one strike. The put hedging grows left from the centre line and the call hedging grows right: the more sits there, the longer the leg and the hotter its colour. That is why the walls are the longest. The put side pushes moves along at that strike; the call side pushes back. The line through the rows leans to whichever side wins each strike, and the dashed line is where it leaned at the open.
         </p>
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
-          <SizeFigure />
+          <SizeFigure ks={ks} />
         </div>
       </div>
       <div>
@@ -265,7 +278,7 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
           Pick a strike. To reach it, price has to cross every strike in between, and each one adds its hedging to the bill. The capsule shows the total dealers would have to buy or sell by the time price arrives, so it grows the further the strike is from where the market is now. Orange means that trading pushes the move along, so it speeds up. Blue means it pushes back, so it slows down.
         </p>
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
-          <FlowFigure />
+          <FlowFigure ks={ks} spot={levels.spot.toFixed(2)} />
         </div>
       </div>
       {examples.length > 0 && (
