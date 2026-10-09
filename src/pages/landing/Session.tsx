@@ -226,7 +226,8 @@ const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
   const chipAt = parts.length > 1 ? parts[0][2] + 4 : undefined;
   let at = 0;
   return (
-    <div className="mt-6 overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas" data-theme={theme}>
+    /* no wider than keeps the ladder's figures near their own size (a tablet's column held it 1.3 times over) */
+    <div className="mt-6 max-w-[40rem] overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas" data-theme={theme}>
       <Bar time={beat.time} />
       <div ref={frame} className="relative overflow-hidden" style={{ aspectRatio: `${f[2]} / ${f[3]}` }} data-session-near={parts.length}>
         {parts.map((p, i) => {
@@ -575,7 +576,7 @@ const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWor
     <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10'} data-session>
       {/* the column ends just far enough under the last beat for the window to stay put while it is read (the beat is read
           at AT of the screen; the window lets go when the column's foot passes its own) — no empty screen after it */}
-      <div className={small ? '' : 'pb-[min(6svh,max(54px,3.375rem))]'}>
+      <div className={small ? '' : 'pb-[min(2svh,max(18px,1.125rem))]'}>
         {told && (
           /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands
              its window over and a breath after (hidden until then — Opening.tsx), then go up the page ahead of the beats */

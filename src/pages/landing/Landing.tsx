@@ -416,7 +416,7 @@ const Head = ({ first, second, aside, extra, id }: { first: string; second?: str
       {aside && extra && (
         <div className="landing-line [--i:1] lg:col-span-5 max-w-[30rem] lg:pb-2">
           <p className="text-[1rem] leading-relaxed text-textSecondary">{aside}</p>
-          <div className="mt-5">{extra}</div>
+          <div className="mt-4">{extra}</div>
         </div>
       )}
     </div>
@@ -1376,7 +1376,7 @@ const Page = () => {
           <Wrap>
             <Head
               first="Simple plans. Cancel any time."
-              aside="An account is free. A plan opens its rooms; cancel whenever you like and keep it to the end of the period you paid for."
+              aside="An account is free. A plan opens its rooms; cancel any time, and keep it to the end of the period paid for."
               extra={<PeriodSwitch period={period} onChange={setPeriod} />}
             />
             {/* the recommended plan first where the plans stand one under the other (a phone, a tablet) */}
