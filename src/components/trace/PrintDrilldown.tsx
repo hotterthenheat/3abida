@@ -17,7 +17,7 @@
 ==================================================
 */
 
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bookmark, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, Copy, Crosshair, Scale } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -27,7 +27,9 @@ import RichRead from '../ui/RichRead';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import FilterTabs from '../ui/FilterTabs';
 import Chip from '../ui/Chip';
-import { sentimentOf } from '../../data/tape';
+import { printKind, sentimentOf } from '../../data/tape';
+import { nyDay } from '../../core/nyTime';
+import { couldAlsoBe, measuredAgainst } from './printDoubt';
 import { fmtUsd } from '../../data/gex';
 import {
   buildContractFlow,
@@ -72,9 +74,9 @@ const fixed = (v: number | undefined | null, dp = 2): string => (Number.isFinite
 const usd = (v: number | undefined | null): string => (Number.isFinite(v as number) ? fmtUsd(v as number) : '—');
 
 /** One small labelled figure inside a hero zone. */
-const Mini = ({ label, value, tone = 'text-textPrimary' }: { label: string; value: ReactNode; tone?: string }) => (
-  <span className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[8.5px] uppercase tracking-widest text-textMuted truncate">{label}</span>
+const Mini = ({ label, value, tone = 'text-textPrimary', title }: { label: string; value: ReactNode; tone?: string; title?: string }) => (
+  <span className="flex flex-col gap-0.5 min-w-0" title={title}>
+    <span className="font-mono text-[10px] text-textMuted truncate">{label}</span>
     <span className={`font-mono text-[11.5px] font-semibold tnum ${tone} truncate`}>{value}</span>
   </span>
 );
@@ -123,18 +125,27 @@ const Spark = ({ values }: { values: number[] }) => {
   );
 };
 
-/** Plain-English summary of what this print actually was. */
+/** Plain-English summary of what this print actually was. THE SUMMARY READS THE LEGS (the audit's TR-8): it said
+    "printed as a single block" beside "×2 legs CUSTOM" — the kind comes from the print's own legs and size now. */
 function printRead(p: FlowPrint, sent: PrintSentiment): string {
   const who = p.side === 'ASK' ? 'paid the offer' : p.side === 'BID' ? 'hit the bid' : 'traded at the mid';
   const size = p.premium >= 1_000_000 ? 'a whale-sized' : p.premium >= 250_000 ? 'a sizeable' : 'a modest';
-  const urgency = p.sweep ? 'swept across venues — that is urgency, not patience' : 'printed as a single block';
+  const kind = printKind(p);
+  const how =
+    kind === 'SWEEP'
+      ? 'swept across venues — that is urgency, not patience'
+      : kind === 'MULTI'
+        ? `printed as one leg of a ${p.legs > 1 ? `${p.legs}-leg ` : ''}${p.strat !== '—' ? p.strat.toLowerCase() : 'structure'}`
+        : kind === 'BLOCK'
+          ? 'printed as a block — size in one print'
+          : 'printed in one piece, under block size';
   const oiNote =
     p.volOverOI >= 5
-      ? `Volume is ${fixed(p.volOverOI, 1)}x the open interest, so this is new positioning rather than someone closing out.`
+      ? `Volume is ${fixed(p.volOverOI, 1)}x the open interest at the last close, so much of today's trading is new positioning.`
       : p.deltaOI > 0
-        ? 'Open interest grew on the day, so size is being added rather than unwound.'
-        : 'Open interest did not grow much, so some of this is likely closing existing risk.';
-  return `${size} ${p.right === 'C' ? 'call' : 'put'} print that ${who} and ${urgency}. The tape reads ${sent.toLowerCase()} on it. ${oiNote}`;
+        ? 'Open interest grew at the last close, so size was being added rather than unwound.'
+        : 'Open interest did not grow at the last close, so some of this may be closing existing risk.';
+  return `${size} ${p.right === 'C' ? 'call' : 'put'} print that ${who} and ${how}. The tape reads ${sent.toLowerCase()} on it. ${oiNote}`;
 }
 
 interface PrintDrilldownProps {
@@ -201,7 +212,7 @@ const SequenceStrip = ({
     <div className="border border-borderSubtle bg-inset rounded-md overflow-hidden">
       <div className="px-3 py-2 border-b border-borderSubtle/60 flex items-baseline gap-2 flex-wrap">
         <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The sequence</span>
-        <span className="font-mono text-[9px] text-textMuted">same contract on the live tape</span>
+        <span className="font-mono text-[10px] text-textMuted">same contract on the live tape</span>
       </div>
       <p className="px-3 pt-2 text-[11px] text-textSecondary leading-snug tnum">
         <RichRead text={read} />
@@ -211,18 +222,18 @@ const SequenceStrip = ({
           {shown.map(p => {
             const self = p.id === print.id;
             const word = p.side === 'ASK' ? 'paid offer' : p.side === 'BID' ? 'hit bid' : 'mid';
-            const ink = p.side === 'ASK' ? 'text-bull' : p.side === 'BID' ? 'text-bear' : 'text-textMuted';
+            const ink = p.side === 'MID' ? 'text-textMuted' : 'text-textPrimary';
             const row = (
               <>
                 <span className="w-[86px] shrink-0 font-mono text-[10px] tnum text-textMuted">{p.time}</span>
-                <span className={`w-[74px] shrink-0 font-mono text-[9px] font-semibold uppercase tracking-wider ${ink}`}>{word}</span>
+                <span className={`w-[74px] shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wider ${ink}`}>{word}</span>
                 <span className="font-mono text-[10px] tnum text-textSecondary">
                   {p.size.toLocaleString()} × ${p.fill.toFixed(2)}
                 </span>
                 <span className="font-mono text-[10px] font-bold tnum text-textPrimary">{fmtUsd(p.premium)}</span>
-                {p.sweep && <span className="font-mono text-[8px] font-semibold uppercase tracking-wider text-warn">Sweep</span>}
+                {p.sweep && <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-warn">Sweep</span>}
                 {self && (
-                  <span className="ml-auto font-mono text-[8px] font-semibold uppercase tracking-wider text-silver">Viewing</span>
+                  <span className="ml-auto font-mono text-[10px] font-semibold uppercase tracking-wider text-silver">Viewing</span>
                 )}
               </>
             );
@@ -247,7 +258,7 @@ const SequenceStrip = ({
             );
           })}
           {n > SEQ_SHOWN && (
-            <span className="px-1.5 py-1 font-mono text-[9px] text-textMuted tnum">…and {n - SEQ_SHOWN} more on the tape</span>
+            <span className="px-1.5 py-1 font-mono text-[10px] text-textMuted tnum">…and {n - SEQ_SHOWN} more on the tape</span>
           )}
         </div>
       )}
@@ -257,6 +268,7 @@ const SequenceStrip = ({
 
 const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onStep, hasPrev, hasNext, tapeRows, onOpenPrint }: PrintDrilldownProps) => {
   const navigate = useNavigate();
+  const calendarRef = useRef(false);
   const { changeTicker } = useMarketData();
 
   // Buffer order is newest-first; a filter keeps it, so index 0 = latest leg.
@@ -281,10 +293,35 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   const [tableTab, setTableTab] = useState<TableTab>('history');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  calendarRef.current = calendarOpen;
 
   const sent = print ? sentimentOf(print) : 'NEUTRAL';
   const sideLabel = print?.side === 'ASK' ? 'BOUGHT' : print?.side === 'BID' ? 'SOLD' : 'MID';
-  const sideTone = print?.side === 'ASK' ? 'text-bull' : print?.side === 'BID' ? 'text-bear' : 'text-textMuted';
+  /* THE SIDE IN ONE INK (the audit's TR-8 and X12): "SOLD" in bear red beside a green "BULLISH" (a put sold) said two
+     things at once — the side is a fact, the lean beside it carries the direction */
+  const sideTone = 'text-textPrimary';
+
+  /* ↑/↓ STEP THROUGH THE PRINTS ON EVERY PAGE (the audit's TR-1): the keys lived on the Live Tape alone; the card listens
+     itself now, so the Screener, Footprints, Watchers, Windows and Multi-Leg cards step too. A key inside a field, a
+     menu or the calendar is that control's. */
+  const stepRef = useRef({ onStep, hasPrev, hasNext });
+  stepRef.current = { onStep, hasPrev, hasNext };
+  const open = !!print;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.('input, textarea, select, [contenteditable="true"], [role="listbox"], [role="menu"], [role="slider"], [data-radix-popper-content-wrapper]')) return;
+      const st = stepRef.current;
+      if (calendarRef.current) return;
+      e.preventDefault();
+      if (e.key === 'ArrowUp' ? st.hasPrev : st.hasNext) st.onStep(e.key === 'ArrowUp' ? -1 : 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const opts: FlowOptions = useMemo(
     () => ({ range, intervalMin, dayOffset, singleLegOnly }),
@@ -373,6 +410,26 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   }, [print, sameTicker]);
 
   const friction = weighed ? weighed.contract.spreadPct + weighed.contract.thetaPerDayPct : 0;
+  /* BOUNDED (the audit's TR-6): on a cheap or same-day contract a day of theta is most of the price, and the sum read
+     "692.0%". Past the whole price it says so; a same-day contract says it in dollars a contract. */
+  const frictionDollars = weighed ? Math.min(friction, 100) / 100 * weighed.contract.mid * 100 : 0;
+  const frictionWords = !weighed ? '' : print && print.dte === 0 ? `$${frictionDollars.toFixed(0)} a contract` : friction > 100 ? 'more than the whole price' : `${fixed(friction, 1)}%`;
+
+  /* HOW SURE IS THIS (the ideas report, idea 3): what else the print may be, and what made it unusual — measured against
+     this contract's own prints today */
+  const alternatives = useMemo(() => (print ? couldAlsoBe(print, tapeRows) : []), [print, tapeRows]);
+  const yard = useMemo(() => {
+    if (!print) return null;
+    try {
+      const today = buildContractFlow(
+        { ticker: print.ticker, strike: print.strike, right: print.right, fill: print.fill, spot: print.spot, size: print.size, side: print.side, volume: print.volume, oi: print.oi, iv: print.iv, atMinute },
+        { ...DEFAULT_FLOW_OPTIONS, range: '1D', dayOffset: 0, singleLegOnly: false }
+      );
+      return measuredAgainst(print, today.orders.filter(o => o.session === today.sessions - 1));
+    } catch {
+      return null;
+    }
+  }, [print, atMinute]);
 
   const jump = (fn: () => void) => {
     onClose();
@@ -382,7 +439,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   const linkBtn =
     'inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded border border-borderSubtle bg-ink/[0.02] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
 
-  const dateLabel = sessionDate(dayOffset).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const dateLabel = nyDay(sessionDate(dayOffset));
 
   return (
     <Modal
@@ -395,21 +452,22 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
       // The session drives every series in the modal, so it sits dead centre
       // rather than tucked in with the window controls.
       headerCenter={
-        /* The whole session box wears the holo foil — navigation hardware,
-           dark ink on the bright material (Noah: "the entire box"). The label
-           carries today-vs-past, so the material stays constant. */
-        <div className="group relative flex items-center gap-0.5 rounded holo-bg text-[#0a0a0a] px-1 py-0.5">
+        /* One box for the session (Noah: "the entire box"); the label carries today-vs-past.
+           THE PLAIN INK PILL (the house's doors; the foil is "Launch terminal"'s alone — and its words were a literal
+           #0a0a0a, the audit's X12) */
+        <div className="group relative flex items-center gap-0.5 rounded border border-borderMuted bg-chip text-textPrimary px-1 py-0.5">
             {/* ONE hover for the WHOLE box (Noah, 2026-08-23: "the entire
                 button and not just the inner section") — a full-box wash on
                 group hover instead of per-segment tints */}
             <span
-              className="absolute inset-0 rounded bg-black/0 group-hover:bg-black/[0.12] transition-colors pointer-events-none"
+              className="absolute inset-0 rounded bg-ink/0 group-hover:bg-ink/[0.06] transition-colors pointer-events-none"
               aria-hidden
             />
             <button
               onClick={() => setDayOffset(d => d + 1)}
               title="Previous session"
-              className="p-0.5 rounded transition-colors"
+              aria-label="Previous session"
+              className="hit p-0.5 rounded transition-colors"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
@@ -425,7 +483,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               onClick={() => setDayOffset(d => Math.max(0, d - 1))}
               disabled={dayOffset === 0}
               title="Next session"
-              className="p-0.5 rounded transition-colors"
+              aria-label="Next session"
+              className="hit p-0.5 rounded transition-colors"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -441,8 +500,9 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <button
               onClick={() => onToggleMark(print.id)}
               aria-pressed={isMarked}
-              title={isMarked ? 'Tracking this print' : 'Track this print'}
-              className={`p-1 rounded transition-colors ${isMarked ? 'text-select' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.05]'}`}
+              title={isMarked ? 'Tracked — press to untrack' : 'Track this print'}
+              aria-label={isMarked ? 'Untrack this print' : 'Track this print'}
+              className={`hit p-1 rounded transition-colors ${isMarked ? 'text-select' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.05]'}`}
             >
               <Bookmark className="w-3.5 h-3.5" fill={isMarked ? 'currentColor' : 'none'} />
             </button>
@@ -450,7 +510,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
           <button
             onClick={copySummary}
             title="Copy a one-line summary of this print"
-            className={`p-1 rounded transition-colors ${copied ? 'text-select' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.05]'}`}
+            aria-label="Copy a one-line summary of this print"
+            className={`hit p-1 rounded transition-colors ${copied ? 'text-select' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.05]'}`}
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
@@ -459,7 +520,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             onClick={() => onStep(-1)}
             disabled={!hasPrev}
             title="Previous print (↑)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+            aria-label="Previous print"
+            className="hit p-1 rounded disabled:opacity-40 text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
@@ -467,7 +529,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             onClick={() => onStep(1)}
             disabled={!hasNext}
             title="Next print (↓)"
-            className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+            aria-label="Next print"
+            className="hit p-1 rounded disabled:opacity-40 text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
@@ -493,7 +556,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <SignalBadge tone={SENT_TONE[sent]}>{sent}</SignalBadge>
             <span className="font-mono text-[10px] text-textSecondary tnum">{print.time}</span>
             <span className={`font-mono text-[10px] uppercase ${print.sweep ? 'text-warn font-semibold' : 'text-textMuted'}`}>
-              {print.sweep ? 'Sweep' : print.strat === '—' ? 'Block' : print.strat}
+              {{ SWEEP: 'Sweep', BLOCK: 'Block', MULTI: print.strat !== '—' ? print.strat : 'Multi-leg', SINGLE: 'Single print' }[printKind(print)]}
             </span>
             <span className="font-mono text-[10px] text-textSecondary tnum">
               {print.ticker} ${fixed(print.spot)}
@@ -511,7 +574,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-borderSubtle border border-borderSubtle rounded-md overflow-hidden">
             {/* THE PRINT — the money, the aggressor, where in the spread it filled */}
             <div className="lg:col-span-4 bg-inset px-3.5 py-3 flex flex-col gap-2.5 min-w-0">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The print</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">The print</span>
               <div className="flex items-baseline gap-2.5 flex-wrap">
                 <span className={`font-mono text-2xl font-bold tnum leading-none ${print.premium >= 1_000_000 ? 'text-supreme' : 'text-textPrimary'}`}>
                   {usd(print.premium)}
@@ -519,14 +582,12 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                 <span className={`font-mono text-sm font-bold ${sideTone}`}>{sideLabel}</span>
                 {print.sweep && <span className="font-mono text-[10px] uppercase font-semibold text-warn">Sweep</span>}
               </div>
-              {/* the clearest aggressor tell — where between bid and ask it printed */}
+              {/* the clearest tell of the side — where between bid and ask it printed */}
               <div className="flex items-center gap-2.5 mt-auto">
                 <span className="font-mono text-[10px] tnum text-textMuted">{fixed(print.bid)}</span>
                 <span className="relative flex-1 h-[4px] rounded-full bg-ink/[0.07]">
                   <span
-                    className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[9px] h-[9px] rounded-full ${
-                      print.side === 'ASK' ? 'bg-bull' : print.side === 'BID' ? 'bg-bear' : 'bg-ink/60'
-                    }`}
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[9px] h-[9px] rounded-full bg-textPrimary"
                     style={{ left: `${print.fillPos * 100}%` }}
                   />
                 </span>
@@ -539,7 +600,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
 
             {/* THE READ — the terminal talks first, the figures behind it after */}
             <div className="lg:col-span-5 bg-inset px-3.5 py-3 flex flex-col gap-2.5 min-w-0">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Summary</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Summary</span>
               <p className="text-[12px] text-textSecondary leading-relaxed">
                 <RichRead text={printRead(print, sent)} />
               </p>
@@ -552,25 +613,17 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   value={print.flowScore > 15 ? 'BUYERS' : print.flowScore < -15 ? 'SELLERS' : 'MIXED'}
                   tone={print.flowScore > 15 ? 'text-bull' : print.flowScore < -15 ? 'text-bear' : 'text-textMuted'}
                 />
-                <Mini
-                  label="Day ratio"
-                  value={print.ratioLabel}
-                  tone={print.ratioLabel === 'MID' ? 'text-textMuted' : print.ratioBidPct >= 50 ? 'text-bear' : 'text-bull'}
-                />
-                <Mini
-                  label="OTM"
-                  value={`${print.otmPct >= 0 ? '+' : ''}${fixed(print.otmPct, 1)}%`}
-                  tone={print.otmPct >= 0 ? 'text-bull' : 'text-bear'}
-                />
+                <Mini label="Day lean" value={print.ratioLabel} tone={print.ratioLabel === 'MID' ? 'text-textMuted' : 'text-textPrimary'} />
+                <Mini label="Strike vs spot" value={`${print.otmPct >= 0 ? '+' : ''}${fixed(print.otmPct, 1)}%`} />
                 <Mini label="Volume" value={num(print.volume)} />
-                <Mini label="Open interest" value={num(print.oi)} />
+                <Mini label="OI · last close" value={num(print.oi)} title="Open interest is counted once a day — this is as of the last close" />
                 <Mini label="Vol ÷ OI" value={`${fixed(print.volOverOI)}x`} tone={print.volOverOI >= 5 ? 'text-warn' : 'text-textPrimary'} />
               </div>
             </div>
 
             {/* THE SCALE — our moat: the contract graded, not just described */}
             <div className="lg:col-span-3 bg-inset px-3.5 py-3 flex flex-col gap-2 min-w-0">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">On the Compass scale</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">On the Compass scale</span>
               {graded && weighed ? (
                 <>
                   {/* The verdict is the BOARD's — VerdictBadge, makeSetup —
@@ -581,7 +634,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider">
                       {graded.sleeve === 'odte' ? 'same-day' : graded.sleeve}
                     </span>
-                    <span className="ml-auto font-mono text-[10px] tnum text-textSecondary">{graded.confidence}%</span>
+                    {/* LABELLED (the audit's X8.7): a bare "67%" beside the verdict read like a rating */}
+                    <span className="ml-auto font-mono text-[10px] tnum text-textSecondary">confidence {graded.confidence}%</span>
                   </div>
                   <span className="relative block h-[3px] rounded-full bg-ink/[0.06]">
                     <span
@@ -594,7 +648,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   <span className="font-mono text-[10px] tnum text-textSecondary mt-auto">
                     spread + a day of theta take{' '}
                     <span className={friction > 16 ? 'text-bear font-semibold' : friction > 8 ? 'text-warn font-semibold' : 'text-bull font-semibold'}>
-                      {fixed(friction, 1)}%
+                      {frictionWords}
                     </span>
                   </span>
                 </>
@@ -607,6 +661,33 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   <Name t={print.ticker} size={12} className="text-select font-semibold" /> to read this contract.
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* HOW SURE IS THIS — the method under the read (the ideas report, idea 3) */}
+          <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5 flex flex-col gap-2" data-print-doubt>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">Measured against</span>
+              <span className="text-[11px] text-textSecondary tnum">
+                {yard ? (
+                  <RichRead
+                    text={`this contract's own ${yard.count} prints today — size ${num(print.size)} is ${fixed(yard.sizeX, 1)}× their median of ${num(Math.round(yard.medianSize))}, premium ${usd(print.premium)} is ${fixed(yard.premiumX, 1)}× their median of ${usd(yard.medianPremium)}; ${yard.atLeast} of ${yard.count} were this size or larger.`}
+                  />
+                ) : (
+                  'too few prints on this contract today to set a norm.'
+                )}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">Could also be</span>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                {alternatives.map(a => (
+                  <li key={a.name} className="text-[11px] leading-snug text-textSecondary">
+                    <span className="font-semibold text-textPrimary">{a.name}</span> — fits: {a.for}; against: {a.against}.
+                  </li>
+                ))}
+              </ul>
+              <span className="text-[10px] text-textMuted">The tape cannot tell these apart; none of them is the answer. Open interest is as of the last close.</span>
             </div>
           </div>
 
@@ -633,7 +714,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   {/* One toolbar drives both strips — the window is shared */}
                   <div className="px-3 py-2 border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The tape</span>
-                    <span className="font-mono text-[9px] text-textMuted">both instruments on one clock</span>
+                    <span className="font-mono text-[10px] text-textMuted">both instruments on one clock</span>
                     <span className="ml-auto flex items-center gap-0.5">
                       {RANGES.map(r => (
                         <Chip key={r} active={r === range} onClick={() => setRange(r)} title={`Show ${r}`}>
@@ -706,7 +787,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   while it did. */}
               <span key={tableTab} className="animate-soft-in min-w-0">
                 {tableTab === 'orders' ? (
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">
                     {cf?.orders.length ?? 0} orders in this window
                   </span>
                 ) : verdict ? (
@@ -763,7 +844,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               }`}
             >
               <Bookmark className="w-3.5 h-3.5" fill={isMarked ? 'currentColor' : 'none'} />
-              {isMarked ? 'Tracking' : 'Track print'}
+              {isMarked ? 'Tracked' : 'Track'}
             </button>
           </div>
         </>
@@ -772,7 +853,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   );
 };
 
-const th = 'px-2 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-textMuted border-b border-borderSubtle';
+const th = 'px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted border-b border-borderSubtle';
 const td = 'px-2 py-1.5 font-mono text-[10px] tnum';
 
 /** The raw orders behind the window. */
@@ -796,7 +877,7 @@ const OrdersTable = ({ cf }: { cf: ReturnType<typeof buildContractFlow> }) => (
             <td className={`${td} text-textSecondary`}>{o.time}</td>
             <td className={`${td} text-right text-textPrimary`}>${o.price.toFixed(2)}</td>
             <td className={`${td} text-right text-textPrimary`}>{o.size.toLocaleString()}</td>
-            <td className={`${td} ${o.side === 'ASK' ? 'text-bull' : o.side === 'BID' ? 'text-bear' : 'text-textMuted'}`}>
+            <td className={`${td} ${o.side === 'MID' ? 'text-textMuted' : 'text-textPrimary'}`}>
               {o.side === 'ASK' ? 'Paid offer' : o.side === 'BID' ? 'Hit bid' : 'Mid'}
             </td>
             <td className={`${td} text-right ${o.premium >= 250_000 ? 'text-textPrimary font-semibold' : 'text-textSecondary'}`}>
@@ -833,7 +914,7 @@ const HistoryTable = ({ rows, unusual }: { rows: VolOiDay[]; unusual: boolean })
         <tr className="bg-inset">
           <th className={`${th} text-left`}>Date</th>
           <th className={`${th} text-right`}>Volume</th>
-          <th className={`${th} text-right`}>Open int.</th>
+          <th className={`${th} text-right`} title="Open interest at each session's close">Open int.</th>
           <th className={`${th} text-right`}>OI change</th>
           <th className={`${th} text-right`}>Close</th>
           <th className={`${th} text-right`}>Avg</th>

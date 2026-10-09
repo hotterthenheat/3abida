@@ -46,10 +46,13 @@ export interface ExpiryCut<T> {
 }
 
 /**
- * The expiry cut for a page. `get` reads a row's expiry (MM/DD/YYYY).
+ * The expiry cut for a page. `get` reads a row's expiry (MM/DD/YYYY). `control`, given, holds the choice outside the
+ * hook — a page whose cut lives in the address (addressCut.ts) hands its own value and setter.
  */
-export function useExpiryCut<T>(rows: T[], get: (r: T) => string): ExpiryCut<T> {
-  const [expiry, setExpiry] = useState<string | null>(null);
+export function useExpiryCut<T>(rows: T[], get: (r: T) => string, control?: { value: string | null; onChange: (iso: string | null) => void }): ExpiryCut<T> {
+  const [own, setOwn] = useState<string | null>(null);
+  const expiry = control ? control.value : own;
+  const setExpiry = control ? control.onChange : setOwn;
   const expiries = useMemo(() => {
     const seen = new Map<string, Expiry>();
     for (const r of rows) {

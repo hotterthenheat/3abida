@@ -10,6 +10,7 @@
 */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEscapeLayer } from '../ui/layers';
 import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react';
 
 export interface ChooserColumn {
@@ -83,6 +84,12 @@ const ColumnChooser = ({
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
   }, [open]);
+  /* Esc closes it and hands the keys back to its button (the audit's X13) */
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  useEscapeLayer(open, () => {
+    setOpen(false);
+    btnRef.current?.focus();
+  });
 
   const shownCount = columns.filter(c => !hidden.has(c.key)).length;
   const groups = groupOrder ?? [...new Set(columns.map(c => c.group ?? ''))];
@@ -92,6 +99,9 @@ const ColumnChooser = ({
     return (
       <button
         key={c.key}
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={checked}
         onClick={() => onToggle(c.key)}
         className="w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5 rounded hover:bg-ink/[0.03] transition-colors"
       >
@@ -100,7 +110,7 @@ const ColumnChooser = ({
             checked ? 'bg-silverFill border-silverFill' : 'border-borderMuted'
           }`}
         >
-          {checked && <Check className="w-2.5 h-2.5 text-[#0a0a0a]" />}
+          {checked && <Check className="w-2.5 h-2.5 text-panel" />}
         </span>
         <span className={`font-mono text-[11px] ${checked ? 'text-textPrimary' : 'text-textSecondary'}`}>{c.label}</span>
       </button>
@@ -110,8 +120,12 @@ const ColumnChooser = ({
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={btnRef}
+        type="button"
         onClick={() => setOpen(o => !o)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+        aria-haspopup="true"
+        aria-expanded={open}
+        className={`hit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${
           open ? 'border-borderMuted bg-ink/[0.05] text-textPrimary' : 'border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary'
         }`}
       >
@@ -127,11 +141,11 @@ const ColumnChooser = ({
           <div className="flex items-center justify-between px-3 py-2 border-b border-borderSubtle">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">Row columns</span>
             <div className="flex items-center gap-2">
-              <button onClick={onAll} className="font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
+              <button type="button" onClick={onAll} className="font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
                 All
               </button>
               <span className="text-borderMuted">·</span>
-              <button onClick={onNone} className="font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
+              <button type="button" onClick={onNone} className="font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
                 None
               </button>
             </div>
@@ -144,8 +158,8 @@ const ColumnChooser = ({
                 <div key={group || '_'} className="px-1 py-0.5">
                   {group && (
                     <div className="flex items-center justify-between px-2 py-1">
-                      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted">{group}</span>
-                      <span className="font-mono text-[9px] tnum text-textMuted">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted">{group}</span>
+                      <span className="font-mono text-[10px] tnum text-textMuted">
                         {cols.filter(c => !hidden.has(c.key)).length}/{cols.length}
                       </span>
                     </div>

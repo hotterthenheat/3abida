@@ -33,8 +33,8 @@ const WatchStar = ({
       }}
       aria-pressed={on}
       aria-label={on ? `Untrack this ${noun}` : `Track this ${noun}`}
-      title={on ? `Tracking this ${noun} — click to untrack` : `Track this ${noun} in the Tracker`}
-      className={`shrink-0 transition-colors ${on ? 'text-select' : 'text-textMuted/40 hover:text-textSecondary'} ${className}`}
+      title={on ? `Tracked — press to untrack this ${noun}` : `Track this ${noun} in the Tracker`}
+      className={`hit shrink-0 transition-colors ${on ? 'text-select' : 'text-textMuted/40 hover:text-textSecondary'} ${className}`}
     >
       <Bookmark className="w-3 h-3" fill={on ? 'currentColor' : 'none'} />
     </button>

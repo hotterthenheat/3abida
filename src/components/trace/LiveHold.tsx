@@ -24,6 +24,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
+import { nyClock } from '../../core/nyTime';
 
 export interface Hold<T> {
   paused: boolean;
@@ -55,16 +56,17 @@ export function useHold<T>(live: T, resetKey?: unknown): Hold<T> {
   return { paused, toggle, value: paused ? held.current : live, heldAt };
 }
 
-// 24-hour, like every clock on Trace ("18:03"), never "06:03 PM".
-const clock = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+// 24-hour and New York's, like every clock on Trace ("14:03"), never "06:03 PM" nor the machine's zone (the audit's X2)
+const clock = (d: Date) => nyClock(d);
 
 export const LiveHold = ({ paused, onToggle, heldAt }: { paused: boolean; onToggle: () => void; heldAt?: Date | null }) => (
   <span className="inline-flex items-center gap-2 shrink-0">
     <button
+      type="button"
       onClick={onToggle}
       aria-pressed={paused}
       title={paused ? 'Resume — the page follows the book again' : 'Hold the page — nothing moves under you until you resume'}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+      className={`hit inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
         paused
           ? 'border-warn/40 bg-warn/[0.06] text-warn hover:bg-warn/[0.1]'
           : /* the live signal's own form per theme: a silver glow on the dark terminal, a silver highlighter on paper (tokens.css --live-*) */
@@ -82,7 +84,7 @@ export const LiveHold = ({ paused, onToggle, heldAt }: { paused: boolean; onTogg
       )}
     </button>
     {paused && heldAt && (
-      <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider whitespace-nowrap tnum">as of {clock(heldAt)}</span>
+      <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider whitespace-nowrap tnum">as of {clock(heldAt)} ET</span>
     )}
   </span>
 );
