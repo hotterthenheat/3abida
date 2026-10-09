@@ -26,18 +26,23 @@
 ==================================================
 */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ArrowUp, ChevronDown } from 'lucide-react';
 import { type BodyScrollEvent, type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../ui/houseGrid';
+import { useIsPhone } from '../ui/useMediaQuery';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import type { Column } from '../ui/DataTable';
 import DataState, { type DataStateKind } from '../ui/DataState';
 import { withLeadingMark } from '../ui/Name';
 
-/** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30) */
-export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12 });
+/** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30). The heads at 10px, not the house's
+    9 (the audit's X9: every Trace grid head was 9px uppercase). */
+export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12, headerFontSize: 10 });
+/** A phone's row: two lines, the contract over its figures (see PhoneRow) */
+const TRACE_PHONE_THEME = GRID_THEME.withParams({ rowHeight: 58, headerHeight: 0, fontSize: 12 });
+
 
 /* ---- the head's facts ------------------------------------------------------------ */
 
@@ -50,16 +55,18 @@ export const Fact = ({ label, children, testId, title }: { label: string; childr
   </div>
 );
 
-type Ink = 'supreme' | 'bull' | 'bear' | 'warn';
-const INK: Record<Ink, string> = { supreme: 'text-supreme', bull: 'text-bull', bear: 'text-bear', warn: 'text-warn' };
+/* 'plain' for a champion that is a MAGNITUDE with no side (the busiest name, the busier tape) — it wore the warn orange,
+   the same ink as SWEEP, so orange meant two things on one screen (the audit's TR-18) */
+type Ink = 'supreme' | 'bull' | 'bear' | 'warn' | 'plain';
+const INK: Record<Ink, string> = { supreme: 'text-supreme', bull: 'text-bull', bear: 'text-bear', warn: 'text-warn', plain: 'text-textSecondary' };
 
 /** A champion: the label in its ink, the row's words as a door onto the row */
-export const Champion = ({ label, ink, onOpen, children, testId }: { label: string; ink: Ink; onOpen: () => void; children: ReactNode; testId?: string }) => (
+export const Champion = ({ label, ink, onOpen, children, testId, title = "Open the contract's card" }: { label: string; ink: Ink; onOpen: () => void; children: ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0">
     <dt className={`text-[10px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
     <dd className="mt-0.5 whitespace-nowrap" data-trace-champion={testId}>
       {/* the door's own hover, silver (door.ts) — it underlined on hover before 2026-09-16 */}
-      <button type="button" onClick={onOpen} title="Open the contract's card" className="font-mono text-[12px] tnum font-semibold text-textPrimary hover:text-silver transition-colors">
+      <button type="button" onClick={onOpen} title={title} className="hit font-mono text-[12px] tnum font-semibold text-textPrimary hover:text-silver transition-colors">
         {withLeadingMark(children)}
       </button>
     </dd>
@@ -87,6 +94,10 @@ interface TraceBoxProps {
 
 export const TraceBox = ({ title, sub, facts, controls, sentence, guide, children, testId, className = '', data }: TraceBoxProps) => {
   const attrs = Object.fromEntries(Object.entries(data ?? {}).map(([k, v]) => [`data-${k}`, v]));
+  /* THE SUMMARY FOLDS ON A PHONE (the audit's TR-15): the facts, the champions and seven cards stood ~470px tall before
+     the first row. On a phone the facts are one press away; on a desk they stand as they always did. */
+  const [factsOpen, setFactsOpen] = useState(false);
+  const subText = typeof sub === 'string' ? sub : undefined;
   return (
     /* overflow-CLIP, not hidden: hidden makes the box a scroll container, and
        a rail that should stick to the page while the grid runs past a screen
@@ -97,16 +108,31 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
           {guide.body}
         </GuideFocus>
       )}
-      <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
+      <div className="px-5 pt-4 pb-3 flex items-start gap-x-6 gap-y-2 flex-wrap max-sm:px-4">
         {/* A FLOOR UNDER THE NAME (2026-09-30): `flex-1` alone is a basis of zero, so the row never wrapped and a long run
             of facts squeezed the box's name to one word a line — "Which way the money leans" stood 49px wide and 94px
             tall at 1440. With a floor the facts go under the name when they cannot sit beside it. */}
-        <div className="min-w-[15rem] flex-1">
-          <div className="h-6 flex items-center gap-3">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h3>
+        <div className="min-w-[15rem] max-sm:min-w-0 flex-1">
+          <div className="min-h-6 flex items-center gap-3">
+            {/* AN h2 UNDER THE SHELL'S h1 (the audit's X4.10 and TR-10): it was an h3, a level skipped on every page */}
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h2>
             {guide && <GuideDoor open={guide.open} onClick={() => guide.onOpen(!guide.open)} title={guide.door} testId={guide.testId} />}
+            <button
+              type="button"
+              onClick={() => setFactsOpen(o => !o)}
+              aria-expanded={factsOpen}
+              aria-controls={`${testId}-facts`}
+              className="hit sm:hidden ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary"
+              data-trace-summary-toggle
+            >
+              Summary <ChevronDown className={`w-3 h-3 transition-transform ${factsOpen ? 'rotate-180' : ''}`} aria-hidden />
+            </button>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{sub}</p>
+          {/* TWO LINES, NOT ONE CUT MID-WORD (the audit's X10): the line said what a row does and lost its end on five
+              pages at 1440 and nearly all of it on a phone; it may take a second line, and the whole of it is its title */}
+          <p className="mt-0.5 text-[11px] leading-snug text-textMuted line-clamp-2" title={subText}>
+            {sub}
+          </p>
         </div>
         {/* FLEX-WRAP, NEVER grid-flow-col auto-cols-max. That grid CANNOT
             wrap: on a 390px phone this strip measured 794px wide and four of
@@ -114,7 +140,7 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
             reach them — "sweeps · blocks", "0DTE", both champions, simply
             absent. Every Trace page wears this one strip, so it was the same
             four facts missing eleven times. */}
-        <dl className="flex flex-wrap items-start gap-x-6 gap-y-1" data-trace-facts>
+        <dl id={`${testId}-facts`} className={`flex flex-wrap items-start gap-x-6 gap-y-1 ${factsOpen ? '' : 'max-sm:hidden'}`} data-trace-facts>
           {facts}
         </dl>
       </div>
@@ -122,20 +148,42 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
           card a cell (a wrapping row put the cards wherever they landed —
           Noah: "the buttons just randomly get compressed with no order"); the
           right-hand group (Rail · Columns, `ml-auto`) takes a row of its own
-          at the end, still at the right. */}
+          at the end, still at the right. A card that is a pair of its own (the
+          search, Compare's names) spans the line (`data-span`). */}
       <div
-        className="px-5 pb-2 flex items-center gap-2 flex-wrap max-sm:grid max-sm:grid-cols-2 max-sm:[&>*]:min-w-0 max-sm:[&>.ml-auto]:col-span-2 max-sm:[&>.ml-auto]:justify-end"
+        className="px-5 pb-2 flex items-center gap-2 flex-wrap max-sm:px-4 max-sm:grid max-sm:grid-cols-2 max-sm:[&>*]:min-w-0 max-sm:[&>.ml-auto]:col-span-2 max-sm:[&>.ml-auto]:justify-end max-sm:[&>[data-span]]:col-span-2"
         data-trace-controls
       >
         {controls}
       </div>
-      <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-trace-sentence>
+      {/* A div, not a p: the saved-cuts status inside it is a paragraph of its own (the audit's X14 — a <p> in a <p>) */}
+      <div className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary max-sm:px-4" data-trace-sentence>
         {sentence}
-      </p>
+      </div>
       {children}
     </div>
   );
 };
+
+/** A PHONE'S ROW (the audit's TR-7): every grid showed about two and a half columns on a 390px screen — the time, the
+    ticker and part of the contract — and the premium and the side were a sideways swipe away. On a phone a row is two
+    lines: who and what on top, the figures that matter under it. */
+export const PhoneRow = ({ lead, title, aside, figures }: { lead?: ReactNode; title: ReactNode; aside?: ReactNode; figures: ReactNode[] }) => (
+  <span className="flex flex-col gap-1 py-1.5 w-full leading-none">
+    <span className="flex items-center gap-2 min-w-0">
+      {lead}
+      <span className="min-w-0 flex items-center gap-1.5 font-mono text-[12px] text-textPrimary">{title}</span>
+      {aside && <span className="ml-auto shrink-0 font-mono text-[11px] tnum text-textSecondary">{aside}</span>}
+    </span>
+    <span className="flex items-center gap-x-3 gap-y-0.5 flex-wrap font-mono text-[11px] tnum text-textSecondary pl-5">
+      {figures.map((f, i) => (
+        <span key={i} className="whitespace-nowrap">
+          {f}
+        </span>
+      ))}
+    </span>
+  </span>
+);
 
 /* ---- the grid in its window ------------------------------------------------------ */
 
@@ -234,11 +282,18 @@ interface TraceGridProps<T> {
   onRetry?: () => void;
   /** What a row is, for the foot under a long list: "The first 80 of 412 contracts" */
   noun?: string;
+  /** Columns that stand still at the left while the rest scroll (the audit's TR-3) — the row's who and what */
+  pinLeft?: string[];
+  /** …and at the right: the page's one figure that must always show (the premium, the read, the risk) */
+  pinRight?: string[];
+  /** The row on a phone, two lines (PhoneRow) — given, a phone shows it in place of the columns (the audit's TR-7) */
+  phoneRow?: (row: T) => ReactNode;
   testId: string;
 }
 
-export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, noun = 'rows', testId }: TraceGridProps<T>) => {
+export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips, rowKey, onRowClick, selectedKey, height, autoHeight = false, initialSort, rowClass, animate = true, emptyText = 'Nothing on this cut', state = 'empty', emptyBody, onRetry, noun = 'rows', pinLeft, pinRight, phoneRow, testId }: TraceGridProps<T>) => {
   const gridRef = useRef<AgGridReact<T>>(null);
+  const phone = useIsPhone() && !!phoneRow;
   /* THE REST (ROWS_AT_REST, above): a grid that grows shows its first page of 80 until the reader asks for all of them */
   const [all, setAll] = useState(false);
   const door = autoHeight && rows.length > ROWS_AT_REST + CAP_SLACK;
@@ -247,14 +302,22 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   const openedFor = useRef<string | null>(null);
   const hiddenSet = hidden ?? new Set<string>();
   const columnDefs = useMemo(() => {
+    if (phone && phoneRow) {
+      /* one column, the row in two lines */
+      return [{ colId: 'phone', headerName: '', flex: 1, sortable: false, resizable: false, suppressMovable: true, cellRenderer: (p: ICellRendererParams<T>) => (p.data ? phoneRow(p.data) : null) } as ColDef<T>];
+    }
     const defs = columnsToColDefs(columns, hiddenSet, widths, tooltips, flexes);
+    for (const d of defs) {
+      if (pinLeft?.includes(d.colId ?? '')) d.pinned = 'left';
+      else if (pinRight?.includes(d.colId ?? '')) d.pinned = 'right';
+    }
     if (initialSort) {
       const d = defs.find(x => x.colId === initialSort.key);
       if (d) d.sort = initialSort.dir;
     }
     return defs;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns, hiddenSet, widths, tooltips, flexes]);
+  }, [columns, hiddenSet, widths, tooltips, flexes, phone, phoneRow, pinLeft, pinRight]);
   const defaultColDef = useMemo<ColDef<T>>(() => ({ sortable: true, resizable: true, suppressMovable: true }), []);
   /* A CUT — the search cleared, a card turned, "Show all" — IS A CROSSFADE, NEVER A SLIDE AND NEVER A SWAP (2026-09-20).
      Two complaints from Noah, the same afternoon, on the book:
@@ -368,6 +431,47 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
     if (target?.closest?.('button, a, [data-own-click]')) return;
     if (e.data && onRowClick) onRowClick(e.data);
   };
+  /* ROWS THE KEYS CAN OPEN (the audit's X6.1): Tab reached the heads and the bookmarks, never a row. A cell takes focus
+     now; the arrows walk the rows, Enter or Space opens the one in focus as the click does, and Tab leaves the grid in
+     one step (ui/houseGrid openRowOnEnter) */
+  const keys = useMemo(() => openRowOnEnter<T>(row => onRowClick?.(row)), [onRowClick]);
+
+  /* THE SIDEWAYS SCROLL WHERE THE READER IS (the audit's TR-3): a grid that grows with its rows put its own sideways
+     scrollbar under its last row, 1,300 to 4,600px down the page. This one stands at the foot of the screen while the
+     grid is on it (sticky), the width of the grid's own scrolling part, and the two move together. The key columns are
+     pinned, so the row's who and what never leave. */
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [span, setSpan] = useState({ sw: 0, cw: 0, left: 0 });
+  const measure = useCallback(() => {
+    const v = wrapRef.current?.querySelector<HTMLElement>('.ag-body-horizontal-scroll-viewport');
+    const c = wrapRef.current?.querySelector<HTMLElement>('.ag-center-cols-viewport');
+    if (!v) return;
+    const sw = v.scrollWidth;
+    const cw = v.clientWidth;
+    const left = c ? c.getBoundingClientRect().left - (wrapRef.current?.getBoundingClientRect().left ?? 0) : 0;
+    setSpan(o => (o.sw === sw && o.cw === cw && o.left === left ? o : { sw, cw, left }));
+  }, []);
+  useEffect(() => {
+    if (!autoHeight || phone) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    const t = window.setTimeout(measure, 120);
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(t);
+    };
+  }, [autoHeight, phone, measure, columnDefs]);
+  const scrolling = useRef<'bar' | 'grid' | null>(null);
+  const onBar = () => {
+    if (scrolling.current === 'grid') return;
+    const v = wrapRef.current?.querySelector<HTMLElement>('.ag-body-horizontal-scroll-viewport');
+    if (!v || !barRef.current) return;
+    scrolling.current = 'bar';
+    v.scrollLeft = barRef.current.scrollLeft;
+    requestAnimationFrame(() => (scrolling.current = null));
+  };
 
   /* THE DOOR HOME (Noah, 2026-09-10: "the ability to glide back to the top if
      user scrolls down too far"): the grid scrolls inside its own window, so
@@ -380,6 +484,11 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   const viewport = () => wrapRef.current?.querySelector<HTMLElement>('.ag-grid-viewport, .ag-body-viewport') ?? null;
   const onBodyScroll = (e: BodyScrollEvent<T>) => {
     if (e.direction === 'vertical') setShowTop(e.top > 600);
+    else if (barRef.current && scrolling.current !== 'bar') {
+      scrolling.current = 'grid';
+      barRef.current.scrollLeft = e.left;
+      requestAnimationFrame(() => (scrolling.current = null));
+    }
   };
   /* Rows cut down under the reader (a card, the search) pull the scroll back without a scroll event */
   useEffect(() => {
@@ -415,11 +524,18 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   };
 
   return (
-    <div ref={wrapRef} className="slayer-board relative border-t border-borderSubtle" style={autoHeight ? undefined : { height }} data-trace-grid={testId} data-cutting={cutting || undefined}>
+    <div
+      ref={wrapRef}
+      className={`slayer-board grid-keys relative border-t border-borderSubtle ${autoHeight && !phone ? '[&_.ag-body-horizontal-scroll]:!hidden' : ''}`}
+      style={autoHeight ? undefined : { height }}
+      data-trace-grid={testId}
+      data-cutting={cutting || undefined}
+      data-phone-rows={phone || undefined}
+    >
       <AgGridProvider modules={GRID_MODULES}>
         <AgGridReact<T>
           ref={gridRef}
-          theme={TRACE_GRID_THEME}
+          theme={phone ? TRACE_PHONE_THEME : TRACE_GRID_THEME}
           domLayout={autoHeight ? 'autoHeight' : undefined}
           rowData={gridRows}
           columnDefs={columnDefs}
@@ -429,7 +545,7 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
           onRowClicked={onRow}
           onBodyScroll={onBodyScroll}
           rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-          suppressCellFocus
+          {...keys}
           animateRows={glide}
           pagination={capped}
           paginationPageSize={ROWS_AT_REST}
@@ -441,6 +557,18 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
           noRowsOverlayComponentParams={{ kind: state, title: emptyText, body: emptyBody, onRetry }}
         />
       </AgGridProvider>
+      {autoHeight && !phone && span.sw > span.cw + 1 && (
+        <div
+          ref={barRef}
+          onScroll={onBar}
+          className="sticky bottom-0 z-20 h-3 overflow-x-auto overflow-y-hidden bg-panel/90 border-t border-borderSubtle [scrollbar-width:thin] [scrollbar-color:rgb(var(--text-muted)/0.6)_transparent]"
+          style={{ marginLeft: span.left, width: span.cw }}
+          aria-hidden
+          data-trace-hscroll={testId}
+        >
+          <div style={{ width: span.sw, height: 1 }} />
+        </div>
+      )}
       {door && (
         <div className="px-5 py-2.5 border-t border-borderSubtle flex items-center gap-2 text-[11px] text-textSecondary" data-rest-foot={testId} data-capped={capped || undefined}>
           <span>{capped ? `The first ${ROWS_AT_REST} of ${rows.length.toLocaleString('en-US')} ${noun}` : `All ${rows.length.toLocaleString('en-US')} ${noun}`}</span>

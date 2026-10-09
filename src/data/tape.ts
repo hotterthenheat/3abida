@@ -1,13 +1,15 @@
 /*
 ==================================================
   SLAYER TERMINAL - TAPE ENRICHMENT (tape.ts)
-  Expands the simulator's thin TapeOrder into a full
-  FlowPrint deterministically. Placeholder — the real
-  per-print feed fills the same contract later.
+  Expands the feed's thin TapeOrder into a full
+  FlowPrint deterministically; the per-print feed
+  fills the same contract.
 ==================================================
 */
 
 import Simulator from '../core/simulator';
+import { now } from '../core/clock';
+import { nyClock, nyParts } from '../core/nyTime';
 import type { TapeOrder } from '../types/market';
 import type { BookContract, FlowPrint, PrintSentiment, StratTag, TapeSummary } from '../types/trace';
 
@@ -26,6 +28,17 @@ function h01(seed: string): number {
 }
 
 const DTE_POOL = [0, 1, 2, 5, 9, 16, 30, 44, 72, 102, 254];
+
+/* THE MARKET A FILL CROSSED INTO, with the fill INSIDE it (the audit's TR-8: "filled $0.36" beside a 0.37 × 0.39 market).
+   The bid sits the fill's share of the spread below it and the ask a spread above the bid; rounding to the cent can push
+   either past the fill, so they are widened back round it and the position read again off what is printed. */
+function marketAround(fill: number, spreadW: number, pos: number): { bid: number; ask: number; fillPos: number } {
+  let bid = Number(Math.max(0.01, fill - spreadW * pos).toFixed(2));
+  let ask = Number((bid + spreadW).toFixed(2));
+  bid = Math.min(bid, fill);
+  ask = Math.max(ask, fill, bid + 0.01);
+  return { bid, ask, fillPos: Number(((fill - bid) / Math.max(0.01, ask - bid)).toFixed(2)) };
+}
 const STRATS: StratTag[] = ['Vertical', 'Butterfly', 'Ratio', 'Custom'];
 
 export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
@@ -38,9 +51,11 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
   const strike = Number(order.strike);
   const right = order.type;
 
-  // Short-dated skew on expiry selection
+  // Short-dated skew on expiry selection — counted from New York's date, the market's (the audit's X2)
   const dte = DTE_POOL[Math.floor(Math.pow(h('dte'), 1.6) * DTE_POOL.length)];
-  const expDate = new Date(Date.now() + dte * 86400000);
+  const at = now();
+  const ny = nyParts(at);
+  const expDate = new Date(ny.year, ny.month - 1, ny.day + dte);
   const expiry = `${String(expDate.getMonth() + 1).padStart(2, '0')}/${String(expDate.getDate()).padStart(2, '0')}/${expDate.getFullYear()}`;
 
   // Premium estimate: intrinsic + gaussian time value scaled by DTE
@@ -50,18 +65,15 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
     spot * baseIv * 0.08 * Math.exp(-Math.pow(money * 18, 2) / 2) * (0.5 + Math.sqrt((dte + 1) / 30));
   const fill = Number(Math.max(0.05, intrinsic * 0.98 + timeValue).toFixed(2));
 
-  // Fill position within the spread follows the aggressor side
-  const spreadW = Math.max(0.02, fill * 0.03 * (0.6 + h('spr')));
-  const fillPos = order.side === 'ASK' ? 0.72 + h('pos') * 0.28 : h('pos') * 0.28;
-  const mid = order.side === 'ASK' ? fill - spreadW * fillPos : fill + spreadW * (1 - fillPos);
-  const bid = Number((mid - spreadW / 2).toFixed(2));
-  const ask = Number((mid + spreadW / 2).toFixed(2));
-
   const isMid = h('mid') > 0.82;
   const side: FlowPrint['side'] = isMid ? 'MID' : order.side;
   const flowScore = isMid
     ? Math.round((h('fs') - 0.5) * 24)
     : Math.round((side === 'ASK' ? 1 : -1) * (48 + h('fs') * 52));
+
+  // Fill position within the spread follows the side it crossed on
+  const spreadW = Math.max(0.02, fill * 0.03 * (0.6 + h('spr')));
+  const quote = marketAround(fill, spreadW, side === 'ASK' ? 0.72 + h('pos') * 0.28 : side === 'BID' ? h('pos') * 0.28 : 0.4 + h('pos') * 0.2);
 
   const ratioBidPct = Math.round(side === 'BID' ? 45 + h('rb') * 50 : side === 'ASK' ? 5 + h('rb') * 50 : 35 + h('rb') * 30);
   const ratioLabel = isMid ? 'MID' : ratioBidPct >= 50 ? `BID ${ratioBidPct}%` : `ASK ${100 - ratioBidPct}%`;
@@ -75,7 +87,9 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
 
   return {
     id,
-    time: order.time,
+    /* NEW YORK'S CLOCK, 24-hour (the audit's X2.3 and X2.8): the feed stamps a print in the machine's own zone and
+       12-hour words ("6:17:50 PM"); the tape, the card and the books speak New York's "14:03:42" */
+    time: nyClock(at, { seconds: true }),
     ticker: order.ticker,
     legs,
     strike,
@@ -84,9 +98,9 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
     expiry,
     dte,
     fill,
-    bid,
-    ask,
-    fillPos: Number(fillPos.toFixed(2)),
+    bid: quote.bid,
+    ask: quote.ask,
+    fillPos: quote.fillPos,
     side,
     flowScore,
     ratioLabel,
@@ -118,8 +132,7 @@ export function bookRowToPrint(
   const fill = clip?.fill ?? row.last;
   const side: FlowPrint['side'] = clip?.side ?? (row.askPct >= 55 ? 'ASK' : row.askPct <= 45 ? 'BID' : 'MID');
   const spreadW = Math.max(0.02, fill * 0.03 * (0.6 + h('spr')));
-  const fillPos = side === 'ASK' ? 0.72 + h('pos') * 0.28 : side === 'BID' ? h('pos') * 0.28 : 0.5;
-  const mid = side === 'ASK' ? fill - spreadW * fillPos : fill + spreadW * (1 - fillPos);
+  const quote = marketAround(fill, spreadW, side === 'ASK' ? 0.72 + h('pos') * 0.28 : side === 'BID' ? h('pos') * 0.28 : 0.5);
   const size = clip?.size ?? Math.max(5, Math.round(row.volume * (0.01 + h('sz') * 0.05)));
   const bidPct = 100 - row.askPct;
 
@@ -134,9 +147,9 @@ export function bookRowToPrint(
     expiry: row.expiry,
     dte: row.dte,
     fill,
-    bid: Number((mid - spreadW / 2).toFixed(2)),
-    ask: Number((mid + spreadW / 2).toFixed(2)),
-    fillPos: Number(fillPos.toFixed(2)),
+    bid: quote.bid,
+    ask: quote.ask,
+    fillPos: quote.fillPos,
     side,
     flowScore:
       side === 'MID' ? Math.round((h('fs') - 0.5) * 24) : Math.round((side === 'ASK' ? 1 : -1) * (48 + h('fs') * 52)),
@@ -192,6 +205,20 @@ export function rankNotable(prints: FlowPrint[]): FlowPrint[] {
     .map(([, p]) => p);
 }
 
+/* ── WHAT KIND OF PRINT ─────────────────────────────────────────────────────────────────────────────────────────────
+   THE AUDIT'S TR-26 (2026-10-09): every print that was not a sweep was called a block, so a 17-lot custom spread read
+   "negotiated size, one print". A block is SIZE in one print — one leg, at least BLOCK_MIN_SIZE contracts or
+   BLOCK_MIN_PREMIUM dollars. A print with legs is a multi-leg print, whatever its size; the rest are single prints. */
+export type PrintKind = 'SWEEP' | 'BLOCK' | 'MULTI' | 'SINGLE';
+export const BLOCK_MIN_SIZE = 100;
+export const BLOCK_MIN_PREMIUM = 250_000;
+export function printKind(p: Pick<FlowPrint, 'sweep' | 'legs' | 'strat' | 'size' | 'premium'>): PrintKind {
+  if (p.sweep) return 'SWEEP';
+  if (p.legs > 1 || p.strat !== '—') return 'MULTI';
+  if (p.size >= BLOCK_MIN_SIZE || p.premium >= BLOCK_MIN_PREMIUM) return 'BLOCK';
+  return 'SINGLE';
+}
+
 export function summarizeTape(prints: FlowPrint[]): TapeSummary {
   let bull = 0;
   let bear = 0;
@@ -200,6 +227,8 @@ export function summarizeTape(prints: FlowPrint[]): TapeSummary {
   let putCount = 0;
   let putPremium = 0;
   let sweeps = 0;
+  let blocks = 0;
+  let multi = 0;
   let largest: FlowPrint | null = null;
 
   for (const p of prints) {
@@ -210,7 +239,10 @@ export function summarizeTape(prints: FlowPrint[]): TapeSummary {
       putCount++;
       putPremium += p.premium;
     }
-    if (p.sweep) sweeps++;
+    const kind = printKind(p);
+    if (kind === 'SWEEP') sweeps++;
+    else if (kind === 'BLOCK') blocks++;
+    else if (kind === 'MULTI') multi++;
     if (!largest || p.premium > largest.premium) largest = p;
     const s = sentimentOf(p);
     if (s === 'BULLISH') bull += p.premium;
@@ -228,10 +260,14 @@ export function summarizeTape(prints: FlowPrint[]): TapeSummary {
     callPremium,
     putCount,
     putPremium,
-    pcRatio: callCount > 0 ? Number((putCount / callCount).toFixed(2)) : 0,
+    /* PUT PREMIUM AGAINST CALL PREMIUM, as its label says (the audit's TR-25: it divided the COUNTS, so "4C $169.3K /
+       4P $464.5K" read P/C 1.00) */
+    pcRatio: callPremium > 0 ? Number((putPremium / callPremium).toFixed(2)) : 0,
     rvol: Number((0.55 + h01(`rvol-${prints.length}`) * 0.5).toFixed(2)),
     sweeps,
-    blocks: prints.length - sweeps,
+    blocks,
+    multi,
+    other: prints.length - sweeps - blocks - multi,
     largest: largest
       ? { ticker: largest.ticker, strike: largest.strike, right: largest.right, premium: largest.premium }
       : null,

@@ -39,14 +39,16 @@ import {
   type LineWidth,
   type MouseEventParams,
   type UTCTimestamp,
+  type Time,
 } from 'lightweight-charts';
 import Simulator from '../../core/simulator';
-import { BULL, PUT_WALL } from '../gex/palette';
 import { earnMarks, weightInk, type InkMarks } from './earnedInk';
-import { fmtClockLocal, localTickMarks } from '../gex/chartTime';
+import { nyClock, nyTimeFormatter, nyTickMarks, SESSION_OPEN_MIN } from '../../core/nyTime';
 import ResetViewControl from '../gex/ResetViewControl';
+import { readToken, useResolvedTheme } from '../../theme/theme';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import {
+  bookSession,
   buildNetFlowView,
   MONEYNESS,
   NET_SEGMENTS,
@@ -56,7 +58,6 @@ import {
 } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
 import { SLEEVES, type SleeveKey } from '../../types/compass';
-import CompanyLogo from '../ui/CompanyLogo';
 import { roomBelow } from '../ui/menuRoom';
 import FlowSearch, { type SearchDoor } from './FlowSearch';
 import { SectorMark } from './SectorMark';
@@ -64,71 +65,108 @@ import type { BookContract } from '../../types/trace';
 import { Name } from '../ui/Name';
 import { FONT_SANS } from '../../theme/fonts';
 
-/* The pane's two cuts as cards (the walk, 2026-09-09): which strikes, and how far out */
-const MONEY_OPTIONS: DropdownOption<MoneynessKey>[] = MONEYNESS.map(m => ({ value: m.key, label: m.label === 'All strikes' ? 'All' : m.label, hint: m.hint }));
-const CLOCK_OPTIONS: DropdownOption<SleeveKey | 'all'>[] = [
-  { value: 'all', label: 'All clocks', hint: 'Every tenor on the book' },
+/* The pane's two cuts as cards (the walk, 2026-09-09): which strikes, and how far out — named Moneyness and Tenor, the
+   words the Screener uses for the same two questions (the audit's TR-11 and TR-41: "Money" and "Clock: All clocks") */
+const MONEY_OPTIONS: DropdownOption<MoneynessKey>[] = MONEYNESS.map(m => ({ value: m.key, label: m.label === 'All strikes' ? 'Any' : m.label, hint: m.hint }));
+const TENOR_OPTIONS: DropdownOption<SleeveKey | 'all'>[] = [
+  { value: 'all', label: 'Any', hint: 'Every tenor on the book' },
   ...SLEEVES.map(sl => ({ value: sl.key, label: sl.label, hint: sl.blurb })),
 ];
 
-/** THE SPOT LINE IS WHITE, ALWAYS (Noah, 2026-08-30: "i want the middle line
-    to be white at all times and have an even thicker white as the hover
-    color"). It used to rest at a whisper and dim further when another line
-    was picked; now it holds full white at 1px and answers a hover by getting
-    heavier, never by changing colour. */
-const SPOT = '#EDEDED';
-/* Hover emphasis (Noah, 2026-08-30): the picked money line steps forward, the
-   other steps back — resting colours at a third of their voice, still
-   legible, unmistakably not the subject. The spot line never dims. */
-const CALLS_DIM = 'rgba(48,209,88,0.30)';
-const PUTS_DIM = 'rgba(255,59,48,0.30)';
-/** VOLUME WEARS THE INK CODE (Noah, 2026-08-30: "the volume legit has no way
-    of being measured or quantified. i want the same thing we got going on for
-    our ink code to be placed within our volume bars"). Three registers, the
-    tables' own law: the bulk of bars rest quiet in the cool volume grey, the
-    loud quintile brightens, and the single biggest bar on screen wears the
-    champion magenta. Cool grey on purpose, never bull/bear — the floor says
-    how much, the two lines above already say which way. */
-const VOL_QUIET = 'rgba(150,168,196,0.28)';
-const VOL_LOUD = 'rgba(150,168,196,0.9)';
-const VOL_SUPREME = '#EA00FF';
-const volInk = (v: number, m: InkMarks) => (v >= m.top ? VOL_SUPREME : v >= m.bar ? VOL_LOUD : VOL_QUIET);
+/* THE PANE FOLLOWS ITS PAGE'S GROUND (2026-10-09, the audit's X12 — "both the charts are either dark or white"): it was a
+   dark island on paper, its inks literal. Every ink is a token now, read off the pane's own box when the chart is drawn
+   and again when the theme turns. THE SPOT LINE IS THE PRIMARY INK, ALWAYS (Noah, 2026-08-30: "i want the middle line
+   to be white at all times and have an even thicker white as the hover color") — white on black, the dark ink on paper;
+   it answers a hover by getting heavier, never by changing colour. Hover emphasis: the picked money line steps forward,
+   the other steps back to a third of its voice. VOLUME WEARS THE INK CODE (Noah, 2026-08-30): the bulk of bars rest
+   quiet, the loud quintile brightens, the single biggest bar on screen wears the champion magenta — one neutral ink, never
+   bull/bear: the floor says how much, the two lines above already say which way. */
+interface PaneInks {
+  spot: string;
+  calls: string;
+  puts: string;
+  callsDim: string;
+  putsDim: string;
+  volQuiet: string;
+  volLoud: string;
+  volSupreme: string;
+  axis: string;
+  hair: string;
+  label: string;
+}
+const paneInks = (from: Element | null): PaneInks => ({
+  spot: readToken('--text-primary', undefined, from),
+  calls: readToken('--bull', undefined, from),
+  puts: readToken('--bear', undefined, from),
+  callsDim: readToken('--bull', 0.3, from),
+  putsDim: readToken('--bear', 0.3, from),
+  volQuiet: readToken('--text-secondary', 0.3, from),
+  volLoud: readToken('--text-secondary', 0.9, from),
+  volSupreme: readToken('--supreme', undefined, from),
+  axis: readToken('--text-muted', undefined, from),
+  hair: readToken('--ink', 0.25, from),
+  label: readToken('--border-muted', undefined, from),
+});
+const volInk = (v: number, m: InkMarks, k: PaneInks) => (v >= m.top ? k.volSupreme : v >= m.bar ? k.volLoud : k.volQuiet);
 const TIP_VOL_BASE = 'ml-auto font-mono text-[11px] tnum';
 
-/** Today's bars for the pane's reference name — falls back to the last 240
-    when the session is young, so the pane never opens empty. */
-export function paneTimes(ref: string): number[] {
-  const bars = Simulator.getCandles(ref);
-  if (!bars || bars.length === 0) return [];
-  const midnight = new Date();
-  midnight.setHours(0, 0, 0, 0);
-  const t0 = midnight.getTime() / 1000;
-  const today = bars.filter(b => (b.time as number) >= t0);
-  const use = today.length >= 30 ? today : bars.slice(-240);
-  return use.slice(-420).map(b => b.time as number);
+/* THE PANE'S CLOCK IS THE SESSION'S (2026-10-09, the audit's X2.3, X2.7 and X11): its axis is New York's 09:30 to the
+   book's minute — the close once the session is done — one stamp a minute, so it never runs past the close nor leaves
+   half its width empty for the future. It read the simulator's candle stamps before, which run on their own clock: the
+   axis ran to 18:00 and the lines went flat at its end. The spot line lays the name's newest one-minute closes on those
+   minutes, end to end. */
+export function paneTimes(_ref?: string): number[] {
+  const s = bookSession();
+  const first = Math.floor(s.open / 1000);
+  const n = Math.max(1, s.minute - SESSION_OPEN_MIN + 1);
+  return Array.from({ length: n }, (_, i) => first + i * 60);
 }
 
+/* THE CUT'S MENU (the audit's TR-17): a button that says it opens a menu, a menu the arrows walk, Esc and a click
+   away close it, and the keys go back to the button */
 const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegment) => void }) => {
   const [open, setOpen] = useState(false);
   /* The room the pane leaves below the pill — the menu scrolls inside it
      rather than being sliced at the pane's floor (see ui/menuRoom). */
   const [menuMax, setMenuMax] = useState<number>();
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const toggle = () => {
     setMenuMax(roomBelow(wrapRef.current));
     setOpen(o => !o);
   };
+  const close = (back: boolean) => {
+    setOpen(false);
+    if (back) btnRef.current?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
+    /* the picked cut takes the keys as the menu opens */
+    const items = () => [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [])];
+    (items().find(b => b.getAttribute('aria-checked') === 'true') ?? items()[0])?.focus();
     const onDown = (e: MouseEvent) => {
       if (wrapRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      setOpen(false);
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close(true);
+        return;
+      }
+      if (e.key === 'Tab') {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+      const list = items();
+      if (!list.length) return;
+      e.preventDefault();
+      const at = list.indexOf(document.activeElement as HTMLButtonElement);
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : (at + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+      list[next]?.focus();
     };
     window.addEventListener('mousedown', onDown);
     window.addEventListener('keydown', onKey, true);
@@ -143,32 +181,46 @@ const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegmen
   return (
     <div ref={wrapRef} className="relative shrink-0">
       <button
+        ref={btnRef}
+        type="button"
         onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Cut of the book: ${label}`}
         title="Which cut of the book this pane watches — by family, or by sector"
-        className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-ink/[0.06] hover:bg-ink/[0.10] font-mono text-[10px] font-bold text-textPrimary transition-colors"
+        className="hit inline-flex items-center gap-1 h-6 px-2 rounded-full bg-ink/[0.06] hover:bg-ink/[0.10] font-mono text-[10px] font-bold text-textPrimary transition-colors"
       >
         {label}
-        <ChevronDown className={`w-3 h-3 text-textSecondary transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-textSecondary transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
       {open && (
         /* Two groups, the way the cut is two kinds of thing (see NET_SEGMENTS):
            the book by family, then the book by sector — each sector with its
            glyph, the Screener's own mark, so the shapes carry across pages. */
         <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Cut of the book"
           style={{ maxHeight: menuMax }}
           className="absolute left-0 top-full mt-1 z-[70] w-[196px] overflow-y-auto overscroll-contain border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 p-1 animate-slide-in"
         >
           {groups.map((g, gi) => (
-            <div key={g} className={gi > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
-              <div className="px-2 pt-1 pb-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-textSecondary">{g}</div>
+            <div key={g} role="group" aria-label={g} className={gi > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
+              <div className="px-2 pt-1 pb-0.5 font-mono text-[10px] font-bold text-textSecondary" aria-hidden>
+                {g}
+              </div>
               {NET_SEGMENTS.filter(s => s.group === g).map(s => (
                 <button
                   key={s.key}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={s.key === seg}
+                  tabIndex={-1}
                   onClick={() => {
-                    setOpen(false);
+                    close(true);
                     onSeg(s.key);
                   }}
-                  className={`w-full flex items-center gap-2 text-left px-2 py-1 rounded font-mono text-[10px] transition-colors ${
+                  className={`w-full flex items-center gap-2 text-left px-2 py-1 rounded font-mono text-[11px] transition-colors focus-visible:bg-ink/[0.06] ${
                     s.key === seg ? 'bg-ink/[0.06] text-textPrimary font-bold' : 'text-textSecondary hover:bg-ink/[0.04]'
                   }`}
                 >
@@ -209,8 +261,10 @@ interface NetFlowPaneProps {
   searchDoor?: SearchDoor;
   tenor?: SleeveKey | 'all';
   onTenor?: (t: SleeveKey | 'all') => void;
-  /** DTE ceiling for the cut — the 0DTE desk's default 1; ticker mode passes Infinity */
+  /** DTE ceiling for the cut — the 0DTE desk's 0; ticker mode passes Infinity */
   dteMax?: number;
+  /** Said on the Moneyness and Tenor cards when one state drives more than this pane (Compare: "both panes") */
+  sharedNote?: string;
 }
 
 const NetFlowPane = ({
@@ -228,7 +282,8 @@ const NetFlowPane = ({
   searchDoor,
   tenor = 'all',
   onTenor,
-  dteMax = 1,
+  dteMax = 0,
+  sharedNote,
 }: NetFlowPaneProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -255,6 +310,11 @@ const NetFlowPane = ({
       lands between stamps the exact-time lookup misses, so the card falls back
       to the last value at or before the hovered minute. */
   const volChunksRef = useRef<{ time: number; value: number }[]>([]);
+  /** The inks as the pane's ground answers them now — read at draw time, again when the theme turns */
+  const inksRef = useRef<PaneInks>(paneInks(null));
+  /** Re-applies the hover pick in the current inks (the theme turned under it) */
+  const repickRef = useRef<() => void>(() => {});
+  const theme = useResolvedTheme();
 
   /* The spot ribbon: the picked name's own tape, or SPY's under a cut of the book. */
   const ref = ticker ?? 'SPY';
@@ -286,18 +346,19 @@ const NetFlowPane = ({
     const container = containerRef.current;
     if (!container) return;
 
+    const k = paneInks(container);
+    inksRef.current = k;
     const chart = createChart(container, {
       autoSize: true,
       layout: {
         background: { color: 'transparent' },
-        textColor: '#5a5a5a',
+        textColor: k.axis,
         fontFamily: FONT_SANS,
-        fontSize: 9,
+        fontSize: 10,
         attributionLogo: false,
       },
-      // One session per pane, so the crosshair wears the bare clock; the date
-      // is already in the header. Same module as every other chart's axis.
-      localization: { timeFormatter: fmtClockLocal },
+      // One session per pane, so the crosshair wears New York's bare clock — the market's day (core/nyTime).
+      localization: { timeFormatter: (t: Time) => (typeof t === 'number' ? nyClock(t * 1000) : nyTimeFormatter(t)) },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       /* Data as ink — no axis borders, the numbers float on the canvas.
          minimumWidth is load-bearing (Noah, 2026-08-30, the open-time hop):
@@ -312,12 +373,12 @@ const NetFlowPane = ({
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 3,
-        tickMarkFormatter: localTickMarks,
+        rightOffset: 2,
+        tickMarkFormatter: nyTickMarks,
       },
       crosshair: {
-        vertLine: { color: 'rgba(255,255,255,0.25)', labelBackgroundColor: '#262626' },
-        horzLine: { color: 'rgba(255,255,255,0.25)', labelBackgroundColor: '#262626' },
+        vertLine: { color: k.hair, labelBackgroundColor: k.label },
+        horzLine: { color: k.hair, labelBackgroundColor: k.label },
       },
     });
 
@@ -327,7 +388,7 @@ const NetFlowPane = ({
        actually keeps it in its place now, so it can wear its true ink at 1px. */
     const spot = chart.addSeries(LineSeries, {
       priceScaleId: 'left',
-      color: SPOT,
+      color: k.spot,
       lineWidth: 1,
       priceLineVisible: false,
       lastValueVisible: false,
@@ -343,7 +404,7 @@ const NetFlowPane = ({
        money, not raw digits — $85.8M, never 85819238.00. */
     const premFormat = { type: 'custom' as const, formatter: (v: number) => fmtUsd(v), minMove: 1 };
     const calls = chart.addSeries(LineSeries, {
-      color: BULL,
+      color: k.calls,
       lineWidth: 2,
       lineType: LineType.Simple,
       priceLineVisible: false,
@@ -351,7 +412,7 @@ const NetFlowPane = ({
       priceFormat: premFormat,
     });
     const puts = chart.addSeries(LineSeries, {
-      color: PUT_WALL,
+      color: k.puts,
       lineWidth: 2,
       lineType: LineType.Simple,
       priceLineVisible: false,
@@ -371,7 +432,7 @@ const NetFlowPane = ({
        and the three registers do the measuring: quiet, loud, one champion. */
     const vol = chart.addSeries(HistogramSeries, {
       priceScaleId: 'vol',
-      color: VOL_QUIET,
+      color: k.volQuiet,
       priceFormat: { type: 'volume' },
       lastValueVisible: false,
       priceLineVisible: false,
@@ -379,7 +440,8 @@ const NetFlowPane = ({
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.87, bottom: 0 } });
     /* Room to breathe above and below — the reference's lines never touch an
        edge — and the money owns the full height. */
-    chart.priceScale('right').applyOptions({ scaleMargins: { top: 0.08, bottom: 0.2 } });
+    /* 0.12 at the top: at 0.08 the right axis's highest label ("$50.0M") was clipped at the pane's head (TR-56) */
+    chart.priceScale('right').applyOptions({ scaleMargins: { top: 0.12, bottom: 0.2 } });
     /* THE PRICE GETS A BAND, NOT THE PANE. Left to autoscale across the whole
        height, a 3% intraday move becomes a full-height mountain range: the
        price line then carries more ink than both money lines together, purely
@@ -421,16 +483,17 @@ const NetFlowPane = ({
     const applyPick = (next: LinePick) => {
       if (next === picked) return;
       picked = next;
+      const ink = inksRef.current;
       calls.applyOptions({
-        color: next === null || next === 'calls' ? BULL : CALLS_DIM,
+        color: next === null || next === 'calls' ? ink.calls : ink.callsDim,
         lineWidth: (next === 'calls' ? 3 : 2) as LineWidth,
       });
       puts.applyOptions({
-        color: next === null || next === 'puts' ? PUT_WALL : PUTS_DIM,
+        color: next === null || next === 'puts' ? ink.puts : ink.putsDim,
         lineWidth: (next === 'puts' ? 3 : 2) as LineWidth,
       });
-      // White at rest, heavier white under the hand — never a different colour.
-      spot.applyOptions({ color: SPOT, lineWidth: (next === 'spot' ? 3 : 1) as LineWidth });
+      // The primary ink at rest, heavier under the hand — never a different colour.
+      spot.applyOptions({ color: ink.spot, lineWidth: (next === 'spot' ? 3 : 1) as LineWidth });
       (
         [
           ['spot', tipSpotRef.current],
@@ -448,7 +511,7 @@ const NetFlowPane = ({
         applyPick(null);
         return;
       }
-      if (tipTimeRef.current) tipTimeRef.current.textContent = fmtClockLocal(param.time);
+      if (tipTimeRef.current) tipTimeRef.current.textContent = typeof param.time === 'number' ? nyClock(param.time * 1000, { zone: true }) : nyTimeFormatter(param.time);
 
       const val = (s: ISeriesApi<'Line'> | ISeriesApi<'Histogram'> | null) =>
         s ? (param.seriesData.get(s) as { value?: number } | undefined)?.value : undefined;
@@ -511,7 +574,13 @@ const NetFlowPane = ({
     };
     chart.subscribeCrosshairMove(onMove);
 
+    repickRef.current = () => {
+      const p = picked;
+      picked = undefined as unknown as LinePick;
+      applyPick(p);
+    };
     return () => {
+      repickRef.current = () => {};
       chart.unsubscribeCrosshairMove(onMove);
       container.removeEventListener('wheel', freezeScale);
       container.removeEventListener('pointerdown', freezeScale);
@@ -533,15 +602,19 @@ const NetFlowPane = ({
     const vol = volRef.current;
     if (!chart || !spot || !calls || !puts || !vol || times.length === 0) return;
 
+    /* The spot line: the name's newest one-minute closes laid on the session's minutes, end to end (see paneTimes) */
     const bars = Simulator.getCandles(ref);
-    const byTime = new Map<number, number>();
-    for (const b of bars) byTime.set(b.time as number, b.close);
-
+    const tail = bars.slice(-times.length);
+    const lead = times.length - tail.length;
     const id = `${seg}-${mny}-${ref}-${tenor}-${dteMax}`;
     const loaded = loadedRef.current;
-    const spotData = times.map(t => ({ time: t as UTCTimestamp, value: byTime.get(t) ?? 0 })).filter(p => p.value > 0);
+    const spotData = tail.map((b, i) => ({ time: times[lead + i] as UTCTimestamp, value: b.close })).filter(p => p.value > 0);
     const callData = view.points.map(p => ({ time: p.time as UTCTimestamp, value: p.callPrem }));
     const putData = view.points.map(p => ({ time: p.time as UTCTimestamp, value: p.putPrem }));
+    /* A LINE WITH NOTHING ON IT IS NOT DRAWN (TR-56): a cut with no put flow drew a flat red "$0" line that read as broken */
+    calls.applyOptions({ visible: view.points.some(p => p.callPrem !== 0) });
+    puts.applyOptions({ visible: view.points.some(p => p.putPrem !== 0) });
+    const k = inksRef.current;
 
     /* The volume floor — one bar per minute, each in its EARNED ink: the marks
        are measured over exactly the bars on screen, the tables' own rule.
@@ -555,7 +628,7 @@ const NetFlowPane = ({
        towers; the INK carries the exact ranking (marks are measured on the
        true counts) and the glide card says the true number. The height is a
        drawing, the colour and the figure are the facts. */
-    vol.setData(view.points.map(p => ({ time: p.time as UTCTimestamp, value: Math.sqrt(p.vol), color: volInk(p.vol, marks) })));
+    vol.setData(view.points.map(p => ({ time: p.time as UTCTimestamp, value: Math.sqrt(p.vol), color: volInk(p.vol, marks, k) })));
     /* Every bar carries its own value, so the glide card's old containing-
        chunk search has nothing left to search for — it keeps the same shape
        purely as the lookup's fallback path. */
@@ -577,24 +650,43 @@ const NetFlowPane = ({
       chart.timeScale().fitContent();
     }
     loadedRef.current = { id, length: view.points.length };
-  }, [view, times, seg, mny, ref, tenor, dteMax]);
+  }, [view, times, seg, mny, ref, tenor, dteMax, theme]);
+
+  /* THE THEME TURNED: every ink read again off the pane's box, the chart and its lines repainted in them (the volume floor
+     repaints with the data pass above, which also reads the theme) */
+  useEffect(() => {
+    const chart = chartRef.current;
+    const container = containerRef.current;
+    if (!chart || !container) return;
+    const k = paneInks(container);
+    inksRef.current = k;
+    chart.applyOptions({
+      layout: { textColor: k.axis },
+      crosshair: { vertLine: { color: k.hair, labelBackgroundColor: k.label }, horzLine: { color: k.hair, labelBackgroundColor: k.label } },
+    });
+    spotRef.current?.applyOptions({ color: k.spot });
+    callRef.current?.applyOptions({ color: k.calls });
+    putRef.current?.applyOptions({ color: k.puts });
+    repickRef.current();
+  }, [theme]);
 
   /* data-menu-clip: this box clips its overflow, so the menus in its head
      size themselves to the room it leaves (ui/menuRoom). */
   return (
-    <div data-menu-clip data-theme="dark" className="border border-borderSubtle bg-panel rounded-md overflow-hidden flex flex-col h-full">
+    <div data-menu-clip className="border border-borderSubtle bg-panel rounded-md overflow-hidden flex flex-col h-full" data-net-pane={ref}>
       {/* min-h, not h (the Weigher's card-head law, 2026-09-03): a 2×2 pane
           at a laptop width cannot seat the cut, the search, four chips and
           three figures on one 32px line — the strip WRAPS and grows rather
           than clipping the figures off its right edge. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2.5 py-1 min-h-8 shrink-0 select-none">
+        {/* THE NAME ONCE (TR-39): the name travels with its own mark (Name), so a second logo before it read "G G GOOGL";
+            with a search in the head the field already holds the name and nothing stands beside it */}
         {ticker ? (
-          <span className="flex items-center gap-1.5 shrink-0">
-            <CompanyLogo ticker={ticker} size={16} />
-            {/* With a search in the head, the field already holds the name —
-                the mark alone stands beside it; the label would say it twice. */}
-            {!onTicker && <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />}
-          </span>
+          !onTicker && (
+            <span className="flex items-center shrink-0">
+              <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />
+            </span>
+          )
         ) : (
           <SegPick seg={seg} onSeg={onSeg} />
         )}
@@ -613,27 +705,32 @@ const NetFlowPane = ({
           />
         )}
         {/* The two cuts as labelled cards (the walk, 2026-09-09 — never chip rows) */}
-        <DropdownSelect label="Money" value={mny} options={MONEY_OPTIONS} onChange={onMny} title="Which strikes against the stock" testId="pane-money" />
-        {ticker && onTenor && <DropdownSelect label="Clock" value={tenor} options={CLOCK_OPTIONS} onChange={onTenor} title="How far out the contracts run" testId="pane-clock" />}
+        <DropdownSelect label="Moneyness" value={mny} options={MONEY_OPTIONS} onChange={onMny} title={sharedNote ? `Which strikes against the stock — ${sharedNote}` : 'Which strikes against the stock'} testId="pane-money" />
+        {ticker && onTenor && <DropdownSelect label="Tenor" value={tenor} options={TENOR_OPTIONS} onChange={onTenor} title={sharedNote ? `How far out the contracts run — ${sharedNote}` : 'How far out the contracts run'} testId="pane-clock" />}
+        {/* The figures wear their MEANING's ink (TR-53): net puts bought lean bearish (red), sold lean bullish (green); a
+            zero is no lean at all */}
         <span className="ml-auto flex items-center gap-2.5 font-mono text-[10px] tnum whitespace-nowrap">
-          <span style={{ color: SPOT }}>{ref}</span>
+          <span className="text-textPrimary">{ref}</span>
           <span>
-            <span className="text-textSecondary uppercase text-[8px] tracking-wider mr-1">net calls</span>
-            <span className={view.ncp >= 0 ? 'text-bull' : 'text-bear'}>{fmtUsd(view.ncp)}</span>
+            <span className="text-textSecondary mr-1">net calls</span>
+            <span className={view.ncp > 0 ? 'text-bull' : view.ncp < 0 ? 'text-bear' : 'text-textPrimary'}>{fmtUsd(view.ncp)}</span>
           </span>
           <span>
-            <span className="text-textSecondary uppercase text-[8px] tracking-wider mr-1">net puts</span>
-            <span className={view.npp >= 0 ? 'text-bear' : 'text-bull'}>{fmtUsd(view.npp)}</span>
+            <span className="text-textSecondary mr-1">net puts</span>
+            <span className={view.npp > 0 ? 'text-bear' : view.npp < 0 ? 'text-bull' : 'text-textPrimary'}>{fmtUsd(view.npp)}</span>
           </span>
           <span className="text-textSecondary">{view.vol.toLocaleString('en-US')} vol</span>
         </span>
         {onExpand && (
           <button
+            type="button"
             onClick={onExpand}
-            title={expanded ? 'Exit fullscreen' : 'Fullscreen'}
-            className="p-1 -mr-1 rounded text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors"
+            title={expanded ? 'Leave full screen' : 'Full screen'}
+            aria-label={expanded ? 'Leave full screen' : 'Show this pane full screen'}
+            aria-pressed={expanded}
+            className="hit p-1.5 -mr-1 rounded text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors"
           >
-            {expanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+            {expanded ? <Minimize2 className="w-3.5 h-3.5" aria-hidden /> : <Maximize2 className="w-3.5 h-3.5" aria-hidden />}
           </button>
         )}
       </div>
@@ -646,12 +743,12 @@ const NetFlowPane = ({
           aria-hidden
           className="pointer-events-none absolute top-2 left-14 z-20 w-[168px] opacity-0 transition-opacity duration-100 border border-borderSubtle bg-panel/60 backdrop-blur-md rounded-md shadow-lg shadow-black/30 px-2.5 py-2"
         >
-          <span ref={tipTimeRef} className="block font-mono text-[9px] uppercase tracking-widest text-textSecondary mb-1">
+          <span ref={tipTimeRef} className="block font-mono text-[10px] text-textSecondary mb-1">
             --:--
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: SPOT }} />
-            <span ref={tipSpotLabelRef} className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-textPrimary" />
+            <span ref={tipSpotLabelRef} className="font-mono text-[10px] text-textSecondary">
               SPY
             </span>
             <span ref={tipSpotRef} className="ml-auto font-mono text-[11px] tnum text-textPrimary">
@@ -659,22 +756,22 @@ const NetFlowPane = ({
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: BULL }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Net calls</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bull" />
+            <span className="font-mono text-[10px] text-textSecondary">Net calls</span>
             <span ref={tipCallRef} className="ml-auto font-mono text-[11px] tnum text-bull">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PUT_WALL }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Net puts</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bear" />
+            <span className="font-mono text-[10px] text-textSecondary">Net puts</span>
             <span ref={tipPutRef} className="ml-auto font-mono text-[11px] tnum text-bear">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: VOL_LOUD }} />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary">Volume</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-textSecondary" />
+            <span className="font-mono text-[10px] text-textSecondary">Volume</span>
             <span ref={tipVolRef} className={`${TIP_VOL_BASE} text-textSecondary`}>
               —
             </span>
