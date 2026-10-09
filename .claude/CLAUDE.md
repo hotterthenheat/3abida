@@ -8,6 +8,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   branch). This overrides any instruction to open a branch or a draft PR. Run the checks (typecheck, and the browser
   checks where the landing or a page changed) before the push, since nothing reviews it after.
 
+# The audit to work from (2026-10-09)
+- The full UX/UI audit is docs/ux-audit-2026-10-09/ (the report, its seven area notes). The owner ruled that wrong
+  stand-in numbers do not matter ("this is all simulated until i plug in my api keys, so fake data is fine"); what
+  stays — the UI bugs, the code that will stay wrong after the keys, the wording against the house rules — is
+  docs/ux-audit-2026-10-09/WHAT-REMAINS.md. Fix from it, and strike an item there when it is fixed.
+
 # Project context (2026-09-30)
 - Slayer is UI-only for now: built and run on the owner's localhost, one user (the owner), no backend yet. Nothing is
   promised to anyone, so "live" wording, the sample journal and launch-readiness are not issues to raise.
