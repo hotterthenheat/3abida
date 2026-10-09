@@ -22,6 +22,11 @@
   its direction's ink; a click opens the Live Chart. A
   failed evaluation wears the bear ink, a passed one the
   bull.
+
+  UNDO, IN THE SAME COLUMN (2026-10-09, ui/undo.tsx):
+  a destructive action's "Removed … · Undo" chip
+  stands at the top of this column, never a stack of
+  its own.
 ==================================================
 */
 
@@ -34,6 +39,8 @@ import { chime } from '../../core/sound';
 import { ALERT, alpha } from '../gex/paletteInk';
 import { openAlertsDrawer } from '../../data/alertsDrawer';
 import { flashAlert } from '../../brand/markState';
+import { nyClock } from '../../core/nyTime';
+import { UndoToasts } from '../ui/undo';
 
 /** How long a chip stays — long enough to read on a page you were not looking at */
 export const TOAST_MS = 5000;
@@ -42,8 +49,6 @@ const AT_MOST = 4;
 /** A paper chip's ink: a fill is silver (where you are); an evaluation's end, its verdict's */
 const paperInk = (t: PaperToast): string => (t.kind === 'failed' ? 'rgb(var(--bear))' : t.kind === 'passed' ? 'rgb(var(--bull))' : t.kind === 'day-over' || t.kind === 'flat' || t.kind === 'rule' ? 'rgb(var(--warn))' : 'rgb(var(--silver))');
 
-/** New York's clock, to the second — when an alert fired */
-const ET_CLOCK = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
 const AlertToasts = () => {
   const names = useAllAlerts();
@@ -86,9 +91,11 @@ const AlertToasts = () => {
     return () => window.clearTimeout(id);
   });
 
-  if (shown.length === 0 && paperShown.length === 0) return null;
+  /* THE COLUMN STAYS MOUNTED, EMPTY OR NOT (2026-10-09): a polite live region has to be in the page before what it says
+     arrives, or a screen reader may not say it; the undo chips (ui/undo.tsx) stand at its top */
   return (
-    <div className="fixed top-3 right-3 z-[86] flex flex-col items-end gap-1.5 pointer-events-none" aria-live="polite" aria-label="Alerted" data-alert-toasts>
+    <div className="fixed top-3 right-3 z-[86] flex flex-col items-end gap-1.5 pointer-events-none" aria-live="polite" aria-label="Notices" data-alert-toasts>
+      <UndoToasts />
       {paperShown.map(t => (
         <button
           key={t.id}
@@ -118,7 +125,7 @@ const AlertToasts = () => {
           <span className="font-bold">{x.ticker}</span>
           <span className="text-textPrimary">{firedWords(x.r.alert, x.ticker)}</span>
           {/* when, on the market's clock — the brand's alert line ends "at 10:42:07 ET" */}
-          <span className="text-textMuted tnum">at {ET_CLOCK.format(x.r.at)} ET</span>
+          <span className="text-textMuted tnum">at {nyClock(x.r.at, { seconds: true, zone: true })}</span>
         </button>
       ))}
     </div>

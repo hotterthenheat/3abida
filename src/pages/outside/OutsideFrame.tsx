@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import Wordmark from '../../brand/Wordmark';
 import SiteFooter from '../../components/layout/SiteFooter';
 import { useLaunch } from '../../components/layout/LaunchTransition';
+import SkipLink, { CONTENT_ID } from '../../components/ui/SkipLink';
 
 /** A door into the terminal. "Launch terminal" wears the foil on black and the ink on paper (index.css .launch-pill) —
     "Holographic silver · in the S and on Launch terminal only" — every other door into it is the page's plain ink pill */
@@ -40,13 +41,14 @@ export const LaunchPill = ({ label = 'Launch terminal', to = '/pulse', size = 's
    (components/layout/footer/scenes.ts), is one scroll below it. */
 const OutsideFrame = ({ children, testId }: { children: ReactNode; testId?: string }) => (
   <div className="min-h-screen bg-canvas text-textPrimary flex flex-col" data-outside={testId}>
+    <SkipLink />
     <header className="shrink-0 h-16 flex items-center gap-4 px-5 sm:px-8">
       <Link to="/" aria-label="Slayer Terminal, the front page" className="inline-flex">
         <Wordmark height={14} cursor label="" />
       </Link>
       <LaunchPill className="ml-auto" />
     </header>
-    <main className="flex-1 flex flex-col min-h-[calc(100dvh-4rem)]">{children}</main>
+    <main id={CONTENT_ID} tabIndex={-1} className="flex-1 flex flex-col min-h-[calc(100dvh-4rem)] outline-none">{children}</main>
     <SiteFooter />
   </div>
 );

@@ -29,7 +29,11 @@ import {
   TooltipModule,
   ValidationModule,
   themeQuartz,
+  type CellKeyDownEvent,
+  type FullWidthCellKeyDownEvent,
+  type IRowNode,
   type Module,
+  type TabToNextCellParams,
 } from 'ag-grid-community';
 
 /* THE MODULES THE GRIDS USE, NOT ALL OF THEM (2026-09-30, the perf pass): AllCommunityModule carried every feature AG
@@ -79,3 +83,33 @@ export const GRID_THEME = themeQuartz.withParams({
   /* The grid's own scrollbars and form controls follow the page's color-scheme */
   browserColorScheme: 'inherit',
 });
+
+/* ROWS THE KEYS CAN OPEN (2026-10-09, the audit's X6.1–X6.2): every grid that opens a row on a click set
+   suppressCellFocus, so Tab walked the headers and never reached a row. A grid whose rows open:
+
+     <div className="grid-keys …">                          — the row's ring for the keys, no box round a clicked cell
+       <AgGridReact … onRowClicked={…} {...openRowOnEnter(row => open(row))} />   — and drop suppressCellFocus
+
+   Tab comes into the grid (its head first; ↓ to the rows), the arrows walk the rows, Enter or Space opens the row in
+   focus with the same action the click runs, and Tab leaves the grid in one step instead of walking every cell. A key
+   pressed on a control inside a cell (a bookmark, a remove ×) is left to that control. Pinned and group rows do not
+   open. */
+export function openRowOnEnter<T>(open: (row: T, node: IRowNode<T>) => void): {
+  onCellKeyDown: (e: CellKeyDownEvent<T> | FullWidthCellKeyDownEvent<T>) => void;
+  tabToNextCell: (params: TabToNextCellParams<T>) => boolean;
+} {
+  return {
+    onCellKeyDown: e => {
+      const key = e.event as KeyboardEvent | null | undefined;
+      if (!key || (key.key !== 'Enter' && key.key !== ' ') || key.altKey || key.ctrlKey || key.metaKey) return;
+      /* the cell itself has the focus, not a button inside it */
+      const target = key.target as HTMLElement | null;
+      if (target && !target.classList.contains('ag-cell') && !target.classList.contains('ag-full-width-row')) return;
+      if (!e.data || e.node.rowPinned || e.node.group) return;
+      key.preventDefault();
+      open(e.data, e.node);
+    },
+    /* false hands Tab back to the browser: out of the grid to the next control on the page */
+    tabToNextCell: () => false,
+  };
+}

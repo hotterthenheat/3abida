@@ -1,0 +1,16 @@
+[
+  { "file": "src/components/compass/CampaignAnalysis.tsx", "rule": "buy-the", "text": "dealers must buy the stock", "reason": "Describes how dealers hedge (the mechanism), not an instruction to the reader." },
+  { "file": "src/components/compass/CampaignAnalysis.tsx", "rule": "sell-the", "text": "dealers must sell the stock", "reason": "Describes how dealers hedge (the mechanism), not an instruction to the reader." },
+  { "file": "src/data/positions.ts", "text": "dealers", "reason": "Describes dealer hedging against the reader's own position (dealers sell into rallies / buy the dips), not an instruction." },
+  { "file": "src/data/room.ts", "rule": "sell-the", "text": "dealers sell the last hour", "reason": "Describes dealer charm flows into the close, not an instruction." },
+  { "file": "src/components/gex/ChartToolbar.tsx", "rule": "fade", "text": "strength & fade", "reason": "A drawing style: how the LED strike bands fade visually." },
+  { "file": "src/components/gex/TraderClock.tsx", "rule": "fade", "text": "then starts to fade", "reason": "Gamma decaying through the day, not a trade instruction." },
+  { "file": "src/data/news.ts", "rule": "fade", "text": "China orders fade", "reason": "A headline's verb (orders declining), not an instruction." },
+  { "file": "src/components/gex/indicatorItems.ts", "rule": "signal", "text": "9-EMA signal", "reason": "The MACD's signal line, the indicator's own part name." },
+  { "file": "src/data/builtinScripts.ts", "rule": "signal", "text": "9-bar signal", "reason": "The MACD's signal line, the indicator's own part name." },
+  { "file": "src/data/terms.ts", "rule": "signal", "text": "9-EMA signal", "reason": "The MACD's signal line, the indicator's own part name." },
+  { "file": "src/components/paper/OptionsChain.tsx", "rule": "sell-the", "text": "Sell the {} {}", "reason": "The reader's own paper-money order button (Sell the 470 call), an action they take, not advice." },
+  { "file": "src/**", "rule": "sell-into", "text": "No bid to sell into right now", "reason": "Paper and backtest order refusal: why the reader's own sell cannot fill." },
+  { "file": "src/data/paper/sample.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." },
+  { "file": "src/data/review/journal.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." }
+]

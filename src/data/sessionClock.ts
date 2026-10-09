@@ -15,6 +15,7 @@
 */
 
 import { MARKET_HOLIDAYS } from '../core/calendar';
+import { nyIsoDate, nyParts } from '../core/nyTime';
 
 export type SessionPhase = 'PREMARKET' | 'OPEN' | 'AUCTION' | 'AFTERHOURS' | 'CLOSED';
 
@@ -44,28 +45,13 @@ export interface SessionClock {
   they drift. Replace with the exchange calendar when the real feed lands.
 */
 
-// One formatter, reused — this runs once a second.
-const NY_FMT = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/New_York',
-  hour12: false,
-  weekday: 'short',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-});
-
 /** Where the New York session is right now — timezone-correct for any viewer. */
 export function readSessionClock(now: Date = new Date()): SessionClock {
-  const parts = Object.fromEntries(NY_FMT.formatToParts(now).map(p => [p.type, p.value]));
-  const weekday = String(parts.weekday ?? '');
-  // Intl can hand back "24" at midnight
-  const hour = Number(parts.hour) % 24;
-  const minute = Number(parts.minute);
-  const second = Number(parts.second);
-  const isoDay = `${parts.year}-${parts.month}-${parts.day}`;
+  /* New York's wall clock off core/nyTime.ts, the one place the terminal reads it */
+  const parts = nyParts(now);
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][parts.weekday];
+  const { hour, minute, second } = parts;
+  const isoDay = nyIsoDate(now);
 
   const mins = hour * 60 + minute;
   const closeMins = 16 * 60;

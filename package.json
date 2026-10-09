@@ -11,6 +11,7 @@
     "test": "tsx scripts/terrain-setups-proof.ts",
     "theme:audit": "node scripts/theme-audit.mjs",
     "links:check": "node scripts/check-links.mjs",
+    "words:check": "node scripts/check-words.mjs",
     "phone:check": "node scripts/check-phone.mjs",
     "brand:assets": "tsx scripts/make-brand-assets.ts",
     "landing:shots": "node scripts/make-landing-shots.mjs",

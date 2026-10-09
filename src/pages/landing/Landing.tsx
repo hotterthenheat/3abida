@@ -47,6 +47,7 @@ import { PLANS, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
+import SkipLink, { CONTENT_ID } from '../../components/ui/SkipLink';
 import { Block, GroundProvider, useBlockGround, useGround, type Ground } from './ground';
 import TerminalWindow, { savingData, warmOtherGround } from './TerminalWindow';
 import { warmShell } from '../../components/layout/shell';
@@ -1148,142 +1149,147 @@ const Page = () => {
 
   return (
     <div className="relative isolate min-h-screen overflow-x-clip font-sans bg-canvas" data-landing="v5" data-theme={a}>
-      <a href="#how" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2 focus:rounded-md focus:bg-panel focus:text-textPrimary">
-        Skip to how it works
-      </a>
+      {/* SKIP TO CONTENT (2026-10-09, the audit's X4.7–X4.8): it pointed at the #how marker, an aria-hidden span, so Enter
+          scrolled and left the keys on the body; now it hands them to the page's one <main> */}
+      <SkipLink />
       <Nav ground={a} />
+      <main id={CONTENT_ID} tabIndex={-1} className="outline-none">
 
-      {/* ── THE QUOTE, THE ANSWER, THE SESSION ────────────────────────────────────────────────── */}
-      {/* on a desk, one story: the quote turns into its answer and opens into the terminal, which goes to stand beside the
-          session (Story); on a phone, or where less motion is asked for, the first screen still, the terminal under it,
-          and the session's head and moments */}
-      {stage ? (
-        <Block on="a" as="div" className="pb-[2vh]">
-          <Story theme={a} doors={doors} />
-        </Block>
-      ) : (
-        <>
-          <Block on="a" as="div">
-            <FirstScreen doors={doors} />
+        {/* ── THE QUOTE, THE ANSWER, THE SESSION ────────────────────────────────────────────────── */}
+        {/* on a desk, one story: the quote turns into its answer and opens into the terminal, which goes to stand beside the
+            session (Story); on a phone, or where less motion is asked for, the first screen still, the terminal under it,
+            and the session's head and moments */}
+        {stage ? (
+          <Block on="a" as="div" className="pb-[2vh]">
+            <Story theme={a} doors={doors} />
           </Block>
-          <Block on="a" label="The terminal">
-            <Reveal />
+        ) : (
+          <>
+            <Block on="a" as="div">
+              <FirstScreen doors={doors} />
+            </Block>
+            <Block on="a" label="The terminal">
+              <Reveal />
+            </Block>
+            <Block on="a" id="how" label="How it works" className="pb-[4vh] md:pb-[6vh] scroll-mt-10">
+              <Wrap>
+                <Head
+                  first="One session, as the terminal saw it."
+                  aside={<>Three moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
+                />
+                <div className={small ? 'mt-6' : 'mt-6 lg:mt-0'}>
+                  <Session theme={a} />
+                </div>
+              </Wrap>
+            </Block>
+          </>
+        )}
+
+        {/* ── THE ROOMS ─────────────────────────────────────────────────────────────────────────── */}
+        {stage ? (
+          <Block on="a" label="The rooms">
+            <Rooms rooms={ROOMS} head={<RoomsHead stage />} onOpen={open} anchor="rooms" />
           </Block>
-          <Block on="a" id="how" label="How it works" className="pb-[4vh] md:pb-[6vh] scroll-mt-10">
+        ) : (
+          <Block on="a" id="rooms" label="The rooms" className="py-[6vh] md:py-[8vh] scroll-mt-10">
             <Wrap>
-              <Head
-                first="One session, as the terminal saw it."
-                aside={<>Three moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
-              />
-              <div className={small ? 'mt-6' : 'mt-6 lg:mt-0'}>
-                <Session theme={a} />
-              </div>
+              <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} onOpen={open} />
             </Wrap>
           </Block>
-        </>
-      )}
+        )}
 
-      {/* ── THE ROOMS ─────────────────────────────────────────────────────────────────────────── */}
-      {stage ? (
-        <Block on="a" label="The rooms">
-          <Rooms rooms={ROOMS} head={<RoomsHead stage />} onOpen={open} anchor="rooms" />
+        {/* ── A READ, NEVER AN INSTRUCTION ─────────────────────────────────────────────────────── */}
+        <Block on="a" id="trust" label="Why Slayer" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
+          <Trust />
         </Block>
-      ) : (
-        <Block on="a" id="rooms" label="The rooms" className="py-[6vh] md:py-[8vh] scroll-mt-10">
+
+        {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
+        <Block on="a" id="pricing" label="Pricing" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
           <Wrap>
-            <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} onOpen={open} />
+            <Head
+              first="Simple plans. Cancel any time."
+              aside="Making an account is free. A plan opens the rooms; cancel whenever you like and keep it until the month you paid for ends."
+            />
+            {/* the recommended plan first where the plans stand one under the other (a phone, a tablet) */}
+            <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
+              {(onePerRow ? [RECOMMENDED, ...PLAN_ORDER.filter(k => k !== RECOMMENDED)] : PLAN_ORDER).map(k => (
+                <Plan key={k} planKey={k} onChoose={choose} />
+              ))}
+            </div>
+            <InPlaceOf />
+            <Compare />
           </Wrap>
         </Block>
-      )}
 
-      {/* ── A READ, NEVER AN INSTRUCTION ─────────────────────────────────────────────────────── */}
-      <Block on="a" id="trust" label="Why Slayer" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
-        <Trust />
-      </Block>
-
-      {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
-      <Block on="a" id="pricing" label="Pricing" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
-        <Wrap>
-          <Head
-            first="Simple plans. Cancel any time."
-            aside="Making an account is free. A plan opens the rooms; cancel whenever you like and keep it until the month you paid for ends."
-          />
-          {/* the recommended plan first where the plans stand one under the other (a phone, a tablet) */}
-          <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
-            {(onePerRow ? [RECOMMENDED, ...PLAN_ORDER.filter(k => k !== RECOMMENDED)] : PLAN_ORDER).map(k => (
-              <Plan key={k} planKey={k} onChoose={choose} />
-            ))}
-          </div>
-          <InPlaceOf />
-          <Compare />
-        </Wrap>
-      </Block>
-
-      {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────────── */}
-      <Block on="a" id="faq" label="Questions" className="pt-[6vh] md:pt-[8vh] scroll-mt-10 border-t border-borderSubtle">
-        <Wrap>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
-            <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
-              <div className="landing-line landing-settle [--i:0]">
-                <h2 className="landing-display font-light tracking-[-0.02em] leading-[1.05] text-[1.875rem] sm:text-[2.25rem] [text-wrap:balance] outline-none">Asked before you buy.</h2>
+        {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────────── */}
+        <Block on="a" id="faq" label="Questions" className="pt-[6vh] md:pt-[8vh] scroll-mt-10 border-t border-borderSubtle">
+          <Wrap>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
+              <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
+                <div className="landing-line landing-settle [--i:0]">
+                  <h2 className="landing-display font-light tracking-[-0.02em] leading-[1.05] text-[1.875rem] sm:text-[2.25rem] [text-wrap:balance] outline-none">Asked before you buy.</h2>
+                </div>
+                <div className="landing-line [--i:1] mt-7 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
+                    {COMPANY.info}
+                  </Pill>
+                  <span className="text-[0.8125rem] text-textMuted">Anything else, ask. A person reads it.</span>
+                </div>
               </div>
-              <div className="landing-line [--i:1] mt-7 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <Pill href={`mailto:${COMPANY.info}`} kind="ghost" size="sm" testId="write">
-                  {COMPANY.info}
+              <div className="lg:col-span-7 border-t border-borderSubtle" data-landing-faq-list>
+                {FAQ.map((f, i) => (
+                  <Question key={f.q} q={f.q} a={f.a} i={i} />
+                ))}
+              </div>
+            </div>
+
+            {/* THE LAST WORDS — the rooms once more, a door each, and the line read by the scroll */}
+            <div className="pt-[8vh] pb-[6vh] md:pt-[12vh] md:pb-[8vh] text-center" data-landing-close>
+              <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
+                {ROOMS.map(r => (
+                  <li key={r.id}>
+                    <a
+                      href={r.path}
+                      onClick={e => {
+                        e.preventDefault();
+                        open(r.path);
+                      }}
+                      aria-label={`Open ${r.name.replace(/^The /, 'the ')}`}
+                      className="group flex flex-col items-center gap-2 sm:w-[4.5rem] rounded-[0.875rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
+                      data-landing-close-room={r.id}
+                    >
+                      <Glyph
+                        name={r.glyph}
+                        size={30}
+                        bare
+                        className="size-[1.875rem] max-sm:size-[1.75rem] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
+                      />
+                      <span aria-hidden="true" className="text-[0.75rem] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
+                        {r.name.replace(/^The /, '')}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <LitLines
+                lines={[
+                  { text: 'Seen enough?', ink: 'text-textPrimary' },
+                  { text: 'Step inside.', ink: 'text-textMuted' },
+                ]}
+                className="mx-auto landing-display font-light tracking-[-0.03em] leading-[0.96] text-[clamp(2.5rem,6.4vw,6rem)] [text-wrap:balance]"
+              />
+              <div className="mt-9 flex justify-center">
+                <Pill href="/signup" onClick={signUp} testId="close">
+                  Sign up free
                 </Pill>
-                <span className="text-[0.8125rem] text-textMuted">Anything else, ask. A person reads it.</span>
               </div>
+              <p className="mt-5 text-[0.875rem] text-textMuted">An account is free. Look around before you choose a plan.</p>
             </div>
-            <div className="lg:col-span-7 border-t border-borderSubtle" data-landing-faq-list>
-              {FAQ.map((f, i) => (
-                <Question key={f.q} q={f.q} a={f.a} i={i} />
-              ))}
-            </div>
-          </div>
-
-          {/* THE LAST WORDS — the rooms once more, a door each, and the line read by the scroll */}
-          <div className="pt-[8vh] pb-[6vh] md:pt-[12vh] md:pb-[8vh] text-center" data-landing-close>
-            <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
-              {ROOMS.map(r => (
-                <li key={r.id}>
-                  <a
-                    href={r.path}
-                    onClick={e => {
-                      e.preventDefault();
-                      open(r.path);
-                    }}
-                    aria-label={`Open ${r.name.replace(/^The /, 'the ')}`}
-                    className="group flex flex-col items-center gap-2 sm:w-[4.5rem] rounded-[0.875rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver"
-                    data-landing-close-room={r.id}
-                  >
-                    <Glyph
-                      name={r.glyph}
-                      size={30}
-                      bare
-                      className="size-[1.875rem] max-sm:size-[1.75rem] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
-                    />
-                    <span aria-hidden="true" className="text-[0.75rem] leading-tight text-textMuted group-hover:text-textPrimary transition-colors whitespace-nowrap">
-                      {r.name.replace(/^The /, '')}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <LitLines
-              lines={[
-                { text: 'Seen enough?', ink: 'text-textPrimary' },
-                { text: 'Step inside.', ink: 'text-textMuted' },
-              ]}
-              className="mx-auto landing-display font-light tracking-[-0.03em] leading-[0.96] text-[clamp(2.5rem,6.4vw,6rem)] [text-wrap:balance]"
-            />
-            <div className="mt-9 flex justify-center">
-              <Pill href="/signup" onClick={signUp} testId="close">
-                Sign up free
-              </Pill>
-            </div>
-            <p className="mt-5 text-[0.875rem] text-textMuted">An account is free. Look around before you choose a plan.</p>
-          </div>
-        </Wrap>
+          </Wrap>
+        </Block>
+      </main>
+      {/* the footer stands outside <main>, on the same ground as the questions above it */}
+      <Block on="a" as="div">
         <SiteFooter home />
       </Block>
     </div>

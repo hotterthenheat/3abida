@@ -68,58 +68,118 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-export function useFocusTrap(active: boolean, ref: RefObject<HTMLElement | null>): void {
+/* THE OPENER, EVEN WHEN THE OVERLAY TOOK FOCUS FIRST (2026-10-09, the audit's X13): an input with autoFocus is focused
+   in the same commit that mounts its overlay, before this hook's effect runs — so "what was focused" was already inside
+   the overlay, and on close focus went back to the very box that was leaving (and from there to the page's body). The
+   element focused before the last one is kept, so the hook can step past one that is inside. */
+let current: HTMLElement | null = null;
+let previous: HTMLElement | null = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'focusin',
+    e => {
+      const t = e.target instanceof HTMLElement ? e.target : null;
+      if (t && t !== current) {
+        previous = current;
+        current = t;
+      }
+    },
+    true
+  );
+}
+
+export interface FocusTrapOptions {
+  /** Where focus goes on open: the first control inside ('first', the default), the box itself ('container' — give
+      it tabIndex={-1}; a dialog whose first control is not where the reader starts), or a given element */
+  initialFocus?: 'first' | 'container' | RefObject<HTMLElement | null>;
+  /** Where focus goes on close: the opener (the default), a given element (the palette hands it to the subject
+      button), or false to leave it alone (the close itself moves focus, e.g. by navigating) */
+  returnTo?: RefObject<HTMLElement | null> | false;
+}
+
+/**
+ * Keep the keyboard inside an open overlay and put it back where it came from.
+ *
+ *   const box = useRef<HTMLDivElement>(null);
+ *   useFocusTrap(open, box);                                  // focus the first control, back to the opener on close
+ *   useFocusTrap(open, box, { initialFocus: 'container' });   // focus the box itself (tabIndex={-1})
+ *   useFocusTrap(open, box, { initialFocus: inputRef, returnTo: triggerRef });
+ *
+ * For Escape as well, use useOverlay (ui/layers.ts), which pairs this with the layer stack.
+ */
+export function useFocusTrap(active: boolean, ref: RefObject<HTMLElement | null>, options: FocusTrapOptions = {}): void {
   const openerRef = useRef<HTMLElement | null>(null);
+  const opts = useRef(options);
+  opts.current = options;
 
   useEffect(() => {
     if (!active) return undefined;
-    const container = ref.current;
-    if (!container) return undefined;
+    let container = ref.current;
+    let onKey: ((e: KeyboardEvent) => void) | null = null;
+    let frame = 0;
+    let tries = 0;
 
-    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    /* Rendered ones only — a zero-box control is not somewhere focus can
-       usefully land, and a collapsed section full of them would otherwise
-       make Tab appear to do nothing. */
-    const inside = () =>
-      Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        el => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement
-      );
-
-    if (!container.contains(document.activeElement)) {
-      const first = inside()[0];
-      (first ?? container).focus();
-    }
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      const list = inside();
-      if (list.length === 0) {
-        e.preventDefault();
-        container.focus();
+    const start = () => {
+      container = ref.current;
+      /* the box may mount a frame after `active` turns on (a lazy or animated overlay): look again, a few frames */
+      if (!container) {
+        if (tries++ < 10) frame = requestAnimationFrame(start);
         return;
       }
-      const first = list[0];
-      const last = list[list.length - 1];
-      const here = document.activeElement;
-      if (!container.contains(here)) {
-        e.preventDefault();
-        (e.shiftKey ? last : first).focus();
-      } else if (e.shiftKey && here === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && here === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
+      const box = container;
+      const here = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+      openerRef.current = here && box.contains(here) ? (previous && !box.contains(previous) ? previous : null) : here;
 
-    document.addEventListener('keydown', onKey, true);
+      /* Rendered ones only — a zero-box control is not somewhere focus can
+         usefully land, and a collapsed section full of them would otherwise
+         make Tab appear to do nothing. */
+      const inside = () =>
+        Array.from(box.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+          el => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement
+        );
+
+      /* a control inside that took focus itself (autoFocus) keeps it, unless a given element asks for it */
+      const initial = opts.current.initialFocus ?? 'first';
+      if (typeof initial === 'object' && initial.current) initial.current.focus();
+      else if (!box.contains(document.activeElement)) (initial === 'container' ? box : inside()[0] ?? box).focus();
+
+      onKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        const list = inside();
+        if (list.length === 0) {
+          e.preventDefault();
+          box.focus();
+          return;
+        }
+        const first = list[0];
+        const last = list[list.length - 1];
+        const at = document.activeElement;
+        if (!box.contains(at) || at === box) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && at === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && at === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener('keydown', onKey, true);
+    };
+    start();
+
     return () => {
-      document.removeEventListener('keydown', onKey, true);
-      const opener = openerRef.current;
+      cancelAnimationFrame(frame);
+      if (onKey) document.removeEventListener('keydown', onKey, true);
+      const back = opts.current.returnTo;
+      const opener = back === false ? null : back?.current ?? openerRef.current;
       openerRef.current = null;
-      if (opener && document.contains(opener)) opener.focus();
+      if (back === false) return;
+      /* only if focus is still in the closing box, or nowhere — a close that already moved it elsewhere is left be */
+      const at = document.activeElement;
+      const stray = !at || at === document.body || (container?.contains(at) ?? false);
+      if (opener && document.contains(opener) && stray) opener.focus({ preventScroll: true });
     };
   }, [active, ref]);
 }

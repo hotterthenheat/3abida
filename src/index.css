@@ -40,9 +40,11 @@
        house's one accent). The silver INK of the ground it is on, its
        strength per theme (theme/tokens.css --ring-a): the pale silver at 55%
        on black as before, the steel whole on paper — the pale literal was
-       1.16:1 there, all but gone (2026-10-03 audit). */
-    outline: 1px solid rgb(var(--silver) / var(--ring-a));
-    outline-offset: 1px;
+       1.16:1 there, all but gone (2026-10-03 audit). TWO PIXELS, CLEAR OF
+       THE CONTROL (2026-10-09, the audit's X4.1): the hairline was lost on a
+       30 px rail row and a small chip; the landing's bar already wore 2 px. */
+    outline: 2px solid rgb(var(--silver) / var(--ring-a));
+    outline-offset: 2px;
   }
 }
 
@@ -1999,4 +2001,76 @@ html[data-landing-scale] {
 
 @media (prefers-reduced-motion: reduce) {
   .pal-go, .pal-go svg, .pal-tool { transition-duration: 1ms; }
+}
+
+/* ── SHARED FOUNDATIONS (2026-10-09, the audit's X3, X5 and X6) ────────────────────────────────────────────────────── */
+@layer components {
+  /* A FINGER'S HIT AREA ON A TOUCH SCREEN (the landing's rule, now the terminal's: "on a phone nothing takes less than a
+     finger"): `.hit` adds an invisible box of at least 44 × 44 px round a small control, centred on it, on a coarse
+     pointer only — nothing seen changes, and a mouse keeps the control's own size. It is a `before:` box; a control
+     whose ::before is already taken (a solid door's ::before is its foil) uses `.hit-after`, the same box on ::after.
+     The control becomes position: relative unless a class of its own positions it (absolute, fixed, sticky win: this is
+     the components layer). An overflow-hidden parent, or the control's own overflow-hidden, clips the box — give such
+     a control room, or put the class on a wrapper. */
+  @media (pointer: coarse) {
+    .hit,
+    .hit-after {
+      position: relative;
+    }
+    .hit::before,
+    .hit-after::after {
+      content: '';
+      position: absolute;
+      top: min(0px, calc(50% - 22px));
+      bottom: min(0px, calc(50% - 22px));
+      left: min(0px, calc(50% - 22px));
+      right: min(0px, calc(50% - 22px));
+    }
+  }
+
+  /* THE UNDO CHIP (ui/undo.tsx): it comes in as the alert chips do, and a hairline of the silver runs out under it with
+     its time — held while a pointer is over it or focus is in it (the play state is set by the chip) */
+  .undo-toast {
+    animation: undo-in 180ms ease-out;
+  }
+  .undo-count {
+    animation-name: undo-count;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .undo-toast {
+      animation: none;
+    }
+    .undo-count {
+      display: none;
+    }
+  }
+
+  /* A GRID WHOSE ROWS OPEN FROM THE KEYS (houseGrid.ts openRowOnEnter): the whole row wears the house ring when a cell
+     in it has the keys' focus, and a click leaves no box round the cell it landed on */
+  .grid-keys {
+    --ag-range-selection-border-color: transparent;
+  }
+  .grid-keys .ag-row:has(.ag-cell:focus-visible) {
+    box-shadow: inset 0 0 0 2px rgb(var(--silver) / var(--ring-a));
+  }
+}
+@keyframes undo-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes undo-count {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }

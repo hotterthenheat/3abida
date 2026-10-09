@@ -18,6 +18,7 @@
 
 import { MARKET_HOLIDAYS, isTradingDay, isoDate } from '../core/calendar';
 import { readSessionClock } from './sessionClock';
+import { nyParts } from '../core/nyTime';
 
 export const EARLY_CLOSES = new Set(['2025-07-03', '2025-11-28', '2025-12-24', '2026-11-27', '2026-12-24', '2027-11-26']);
 
@@ -35,10 +36,8 @@ const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday
 
 /** New York's calendar date as a local Date at midnight */
 const nyDate = (now: Date): Date => {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(x => [x.type, x.value])
-  );
-  return new Date(Number(p.year), Number(p.month) - 1, Number(p.day));
+  const p = nyParts(now);
+  return new Date(p.year, p.month - 1, p.day);
 };
 
 const nextTradingDay = (from: Date): Date => {

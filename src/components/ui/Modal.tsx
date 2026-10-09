@@ -8,8 +8,9 @@
   against, while a centred card over a dimmed tape
   keeps the context you came from visible.
 
-  Owns the portal, backdrop, escape, click-outside,
-  scroll lock and motion. Callers supply a header
+  Owns the portal, backdrop, escape (ui/layers.ts),
+  focus (ui/useFocusTrap.ts), click-outside, scroll
+  lock and motion. Callers supply a header
   and a body; the body scrolls, the header doesn't.
 
   THE WAY OUT IS AS SMOOTH AS THE WAY IN (Noah,
@@ -30,6 +31,8 @@ const OUT_MS = 180;
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useEscapeLayer } from './layers';
+import useFocusTrap from './useFocusTrap';
 
 interface ModalProps {
   open: boolean;
@@ -66,29 +69,24 @@ const Modal = ({ open, onClose, ariaLabel, header, children, headerActions, head
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  // Escape closes; the page underneath must not scroll while we're up.
-  /* THE INNERMOST THING GETS THE KEY (2026-09-10: the scripts library opened
-     over a full-screen chart, and one Escape closed the library AND left
-     full screen). Listened on the document, which the key reaches before the
-     window where the full-screen takeovers listen; a layer inside the modal
-     (a Radix menu) that already took the key marks it defaultPrevented and is
-     left alone, and the modal marks it the same way so the takeovers behind
-     it stand still. */
+  /* ESC CLOSES THE TOP LAYER, EVERY TIME (2026-10-09, the audit's TR-2): the card used to skip any Escape another
+     handler had already marked (defaultPrevented), meant for a Radix menu inside it — and a key marked by anything else
+     left the card up. The layer stack (ui/layers.ts) now decides: a Radix menu open over the card takes the key, else
+     the top layer closes and the key is marked, so the full-screen takeovers behind it (2026-09-10: the scripts library
+     over a full-screen chart) still stand still. FOCUS comes in with the card — on the card itself, so the next Tab
+     is its first control — stays inside it, and goes back to the row or button that opened it on close (X13). */
+  const box = useRef<HTMLDivElement | null>(null);
+  useEscapeLayer(open, onClose);
+  useFocusTrap(open, box, { initialFocus: 'container' });
+  // The page underneath must not scroll while we're up.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
-      e.preventDefault();
-      onClose();
-    };
-    document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!shown) return null;
   const h = open ? { header, children, headerActions, headerCenter } : held.current;
@@ -99,10 +97,12 @@ const Modal = ({ open, onClose, ariaLabel, header, children, headerActions, head
       <div className={`absolute inset-0 bg-black/55 backdrop-blur-[2px] ${closing ? 'animate-modal-backdrop-out' : 'animate-modal-backdrop'}`} onClick={onClose} aria-hidden />
 
       <div
+        ref={box}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`relative w-full ${widthClass} max-h-[86vh] flex flex-col border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black/70 overflow-hidden ${closing ? 'animate-modal-card-out' : 'animate-modal-card'}`}
+        tabIndex={-1}
+        className={`relative outline-none w-full ${widthClass} max-h-[86vh] flex flex-col border border-borderMuted bg-panel rounded-lg shadow-2xl shadow-black/70 overflow-hidden ${closing ? 'animate-modal-card-out' : 'animate-modal-card'}`}
       >
         {/* Three tracks so the centre stays centred no matter how long the
             identity on the left runs — an absolute overlay would collide. */}

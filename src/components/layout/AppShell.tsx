@@ -17,6 +17,7 @@ import { FaultView, isLoadFault, reloadOnceForStaleBuild } from '../ui/Fault';
 import MarkLoad from '../../brand/MarkLoad';
 import MarketBell from './MarketBell';
 import InstallPrompt from './InstallPrompt';
+import SkipLink, { CONTENT_ID } from '../ui/SkipLink';
 
 /** A page crash must never black-screen the terminal — it renders a readable
     fault panel instead. Recovers via the resetKey prop (NOT a React key: a key
@@ -130,6 +131,8 @@ const AppShell = () => {
     /* h-dvh over h-screen: on a phone 100vh is the height with the address bar AWAY, and this frame never lets the document
        scroll, so the bar never leaves — the last ~80px of every page sat under it (index.css, "a touch screen's two traps") */
     <div className="h-screen h-dvh flex flex-row bg-canvas text-textPrimary overflow-hidden">
+      {/* the first stop for the keys: past the rail, straight to the page (the audit's X4.5) */}
+      <SkipLink />
       <SideNav onOpenPalette={openPalette} />
       {/* The Trace flow pages are a FIXED FRAME, not a scroll: main stops
           scrolling, every layer fills its parent exactly, and the page's own
@@ -148,6 +151,8 @@ const AppShell = () => {
           main reserves its scrollbar gutter on every Trace page so a page
           without a scrollbar is not 15px wider than one with. */}
       <main
+        id={CONTENT_ID}
+        tabIndex={-1}
         /* max-md:pt-12 — the phone strip (SideNav, fixed, h-12) used to sit on
            the first 48px of every page; the page head began under it (the
            phone pass, 2026-09-13). Pulse's and Terrain's phone layouts
@@ -155,7 +160,7 @@ const AppShell = () => {
         /* EVERY PAGE SCROLLS TO ITS FOOTER (2026-10-03 — the owner: "make sure the art footer is on every page"): a framed
            page (Net Flow, 0DTE) keeps its frame exactly one screen tall and the footer waits below the fold; main scrolls
            on every page (it stopped scrolling on the framed ones, which had no footer to reach) */
-        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 overflow-y-auto ${location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''} ${
+        className={`flex-1 min-w-0 min-h-0 h-full max-md:pt-12 overflow-y-auto outline-none ${location.pathname.startsWith('/trace') ? '[scrollbar-gutter:stable]' : ''} ${
           /* …and where Terrain's desk owns the window (a phone, and from lg up) the scroll is there but its bar is not: a bar
              would take its 6px from the charts, which run edge to edge and to the floor exactly as they did */
           location.pathname.startsWith('/terrain')

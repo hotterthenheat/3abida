@@ -14,11 +14,17 @@
   timezone. Import these into every createChart —
   a chart that formats its own time is a chart that
   will drift from the rest of the site.
+
+  A chart of the MARKET'S day (a session, a tape)
+  speaks New York's clock whatever the reader chose:
+  core/nyTime.ts — nyTickMarks, nyTimeFormatter,
+  NY_CHART_TIME — is the one module for that.
 ==================================================
 */
 
 import { TickMarkType, type Time, type TickMarkFormatter } from 'lightweight-charts';
 import { readDeskPrefs } from '../../data/deskPrefs';
+import { nyParts } from '../../core/nyTime';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const two = (n: number) => String(n).padStart(2, '0');
@@ -28,13 +34,10 @@ const two = (n: number) => String(n).padStart(2, '0');
    New York comes back as a Date whose fields READ as New York's wall clock
    (built from Intl's parts), so every formatter below keeps its getters;
    only these labels use it, never any arithmetic. */
-const NY = 'America/New_York';
-let nyFmt: Intl.DateTimeFormat | null = null;
 function inNewYork(d: Date): Date {
-  nyFmt ??= new Intl.DateTimeFormat('en-US', { timeZone: NY, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
-  const p: Record<string, number> = {};
-  for (const part of nyFmt.formatToParts(d)) if (part.type !== 'literal') p[part.type] = Number(part.value);
-  return new Date(p.year, p.month - 1, p.day, p.hour === 24 ? 0 : p.hour, p.minute, p.second);
+  /* New York's wall clock off core/nyTime.ts, the one place the terminal reads it */
+  const p = nyParts(d);
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
 }
 
 /**
