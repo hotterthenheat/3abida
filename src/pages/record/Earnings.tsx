@@ -216,7 +216,7 @@ const Earnings = () => {
   const open = (t: string) => navigate(`/dossier/earnings/${t}`);
 
   const sentence = useMemo(() => {
-    const parts = [`${inWeeks.length} reports ${week === 'both' ? 'over two weeks' : span}`, `${rich} priced rich, ${fair} fair, ${cheap} cheap`];
+    const parts = [`${inWeeks.length} ${inWeeks.length === 1 ? 'report' : 'reports'} ${week === 'both' ? 'over two weeks' : span}`, `${rich} priced rich, ${fair} fair, ${cheap} cheap`];
     if (biggest) parts.push(`the biggest move priced is ${biggest.ticker} at ±${biggest.impliedMovePct.toFixed(1)}% on ${biggest.dateLabel}`);
     parts.push(today.length ? `today: ${today.map(e => `${e.ticker} ${slotWord(e)}`).join(', ')}` : 'nothing reports today');
     return parts.join(' · ') + '.';

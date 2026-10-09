@@ -621,12 +621,13 @@ const News = () => {
             <NewsTape tape={tape} selectedId={selectedId} onPick={pick} />
             {/* a column, so the map fills the box when the story beside it is the taller of the two (NewsMap's frameFor) */}
             <div className="relative flex-1 min-h-0 flex flex-col px-2 pt-2">
-              <NewsMap className="flex-1 min-h-0" pins={pins} selectedCity={selected?.origin.city ?? null} hoverCity={hoverCity?.city ?? null} onPick={p => { const e = rows.find(r => r.id === p.topId) ?? events.find(r => r.id === p.topId); if (e) pick(e); else setSelectedId(p.topId); }} onHover={setHoverCity} heat={heat} reach={reach} at={at} flyTo={flyTo} />
+              <NewsMap className="flex-1 min-h-0 max-lg:flex-none max-lg:h-[260px]" pins={pins} selectedCity={selected?.origin.city ?? null} hoverCity={hoverCity?.city ?? null} onPick={p => { const e = rows.find(r => r.id === p.topId) ?? events.find(r => r.id === p.topId); if (e) pick(e); else setSelectedId(p.topId); }} onHover={setHoverCity} heat={heat} reach={reach} at={at} flyTo={flyTo} />
               {/* THE KINDS, AT THE MAP'S FOOT (Noah, 2026-09-13, his partner's reference map: "the different subsections… with the
                   buttons at the bottom, the different sections pulling it up"): the choice pills of the type design — one on,
                   solid holo silver — each pulling that kind of story up on the map, the tape, the rows and the story */}
               {/* Below lg the kinds fold into two centred rows inside the map's width (the phone pass, 2026-09-13): centred on a point, eight pills ran off both sides */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 p-1 rounded-full border border-borderSubtle bg-chip/90 backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)] max-lg:left-2 max-lg:right-2 max-lg:translate-x-0 max-lg:flex max-lg:flex-wrap max-lg:justify-center max-lg:rounded-2xl" role="group" aria-label="What kind of story" data-news-kinds={category}>
+              {/* below lg the kinds stand ABOVE the map, never over it (the audit's DO-4: the two rows of pills covered a 160 px map) */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 p-1 rounded-full border border-borderSubtle bg-chip/90 backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)] max-lg:static max-lg:order-first max-lg:mb-2 max-lg:translate-x-0 max-lg:flex max-lg:flex-wrap max-lg:justify-center max-lg:rounded-2xl max-lg:shadow-none" role="group" aria-label="What kind of story" data-news-kinds={category}>
                 {CATEGORY_OPTIONS.map(o => {
                   const on = o.value === category;
                   return (
@@ -637,7 +638,7 @@ const News = () => {
                       aria-pressed={on}
                       title={o.hint}
                       /* the silver SURFACE, not the silver ink (2026-09-16): on paper the ink is a deep steel and black on it was 2.4:1 */
-                      className={`h-6 px-3 rounded-full font-mono text-[10px] tracking-wide transition-colors ${on ? 'bg-silverFill text-[rgb(var(--night))] font-semibold' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+                      className={`hit h-6 px-3 rounded-full font-mono text-[10px] tracking-wide transition-colors ${on ? 'bg-silverFill text-[rgb(var(--night))] font-semibold' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
                       data-news-kind={o.value}
                     >
                       {o.label}
@@ -700,7 +701,8 @@ const News = () => {
                     <span className="font-mono text-[12px] font-bold text-textPrimary">MACRO</span>
                   )}
                   <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${GRADE_INK[selected.grade]}`}>{GRADE_WORD[selected.grade]}</span>
-                  <CatTag category={selected.item.category} size={9} />
+                  {/* a story with no name already reads MACRO — its kind is not said twice (the audit's DO-13) */}
+                  {!(selected.item.category === 'Macro' && !selected.item.ticker) && <CatTag category={selected.item.category} size={10} />}
                   <span className="ml-auto font-mono text-[10px] text-textMuted whitespace-nowrap">
                     {selected.item.source} · {ago(selected.item.minutesAgo)}
                   </span>

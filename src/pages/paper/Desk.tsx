@@ -573,7 +573,7 @@ const PaperDesk = () => {
         counts={{ open: openRows.length, working, closed: closedRows.length }}
         book={
           tab === 'open' ? (
-            <TraceGrid key="open" rows={openRows} columns={openCols} rowKey={r => r.key} onRowClick={r => setName(r.p.contract.ticker, r.p.contract)} autoHeight animate={false} widths={{ qty: 70, avg: 90, close: 84, now: 130, carry: 130 }} emptyText={account.status === 'open' ? 'Nothing open — place an order at the right, or off the chart' : 'This account is closed'} testId="paper-open" />
+            <TraceGrid key="open" rows={openRows} columns={openCols} rowKey={r => r.key} onRowClick={r => setName(r.p.contract.ticker, r.p.contract)} autoHeight animate={false} widths={{ qty: 60, avg: 76, close: 76, now: 116, carry: 96 }} emptyText={account.status === 'open' ? 'Nothing open — place an order at the right, or off the chart' : 'This account is closed'} testId="paper-open" />
           ) : tab === 'orders' ? (
             <TraceGrid key="orders" rows={orderRows} columns={orderCols} rowKey={r => r.key} onRowClick={r => setName(r.o.contract.ticker, r.o.contract)} autoHeight animate={false} widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="paper-orders" />
           ) : (
