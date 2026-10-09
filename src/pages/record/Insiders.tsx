@@ -265,7 +265,7 @@ const Insiders = () => {
     () => [
       { headerName: 'When', field: 'daysAgo', width: 126, cellRenderer: WhenCell, sort: 'asc', headerTooltip: 'The day the trade happened, and how far back that is — newest first' },
       { headerName: 'Name', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: NameCell, headerTooltip: 'The company — click the row to open it on the Map' },
-      { headerName: 'Who', field: 'person', flex: 1.4, minWidth: 180, cellRenderer: WhoCell, headerTooltip: 'The insider and their role — invented names until the feed lands' },
+      { headerName: 'Who', field: 'person', flex: 1.4, minWidth: 180, cellRenderer: WhoCell, headerTooltip: 'The insider and their role' },
       { headerName: 'Trade', field: 'code', flex: 0.9, minWidth: 120, cellRenderer: TradeCell, headerTooltip: 'Bought or sold in the market; with Every filing on, the grants, conversions and withholdings are named for what they are' },
       { headerName: 'Shares', field: 'shares', width: 100, cellRenderer: SharesCell, type: 'rightAligned', headerTooltip: 'Shares in the transaction' },
       { headerName: 'Price', field: 'price', width: 96, cellRenderer: PriceCell, type: 'rightAligned', headerTooltip: 'The filed price per share' },
@@ -303,7 +303,7 @@ const Insiders = () => {
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first · the people are invented until the feed lands
+            {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">

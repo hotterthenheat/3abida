@@ -16,10 +16,9 @@
 
   The shell is the Record's: the page's own head over the
   body, the child pages in the sidebar tree. WHAT THE HEAD
-  SAYS ABOUT THE DATA, per page: while the feed is the
-  simulator the Paper page says "Simulated feed" and the
-  Backtest page "Simulated tape" — never a figure on this
-  section without that in sight.
+  SAYS ABOUT THE DATA, per page: where its prices come
+  from (streaming, a replayed tape), its clock, and that
+  the money is paper.
 ==================================================
 */
 
@@ -73,12 +72,13 @@ const PracticeLayout = () => {
             )}
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{page.subtitle}</p>
+          {/* two lines on a phone, never cut (the audit's X10); the whole of it in the title */}
+          <p className="mt-0.5 text-[11px] text-textMuted md:whitespace-nowrap md:truncate" title={page.subtitle}>{page.subtitle}</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           {which === 'paper' && (
             <>
-              <Fact label="Prices" testId="source" title={SIM_FEED ? 'It trades round the clock and starts fresh every time the page loads — so what is open is closed when the page closes' : undefined}>
+              <Fact label="Prices" testId="source" title="What is open stays open through a reload — it is marked on the prices again when the page comes back">
                 {SIM_FEED ? 'Streaming' : 'Live feed'}
               </Fact>
               <Fact label="Clock">Today · New York</Fact>

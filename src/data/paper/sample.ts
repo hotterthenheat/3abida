@@ -129,8 +129,8 @@ export function sampleAccounts(): PaperAccount[] {
   /** A hand's action on the account, as the store makes one: the fill, then what the engine keeps of it */
   const hand = (a: PaperAccount, fn: (a: PaperAccount, m: PaperMarket) => PaperAccount) => afterHand(a, fn(a, market()), market());
 
-  let practice = newAccount({ id: SAMPLE_IDS[0], kind: 'practice', name: 'Sample · practice', startCash: 25_000, now });
-  let evaluation = newAccount({ id: SAMPLE_IDS[1], kind: 'evaluation', name: 'Sample · 50K evaluation', startCash: 50_000, plan: EVAL_PLANS[0], now: nyInstant('2026-09-08', OPEN_MIN) });
+  let practice = newAccount({ id: SAMPLE_IDS[0], kind: 'practice', name: 'Starter · practice', startCash: 25_000, now });
+  let evaluation = newAccount({ id: SAMPLE_IDS[1], kind: 'evaluation', name: 'Starter · 50K evaluation', startCash: 50_000, plan: EVAL_PLANS[0], now: nyInstant('2026-09-08', OPEN_MIN) });
 
   while (day <= LAST) {
     const wd = new Date(`${day}T12:00:00`).getDay();

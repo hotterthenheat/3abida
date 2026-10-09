@@ -230,7 +230,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
   const periodLabel = PERIODS.find(p => p.value === period)!.label;
   const title = period === 'today' ? 'Today' : period === 'week' ? 'This week' : period === 'month' ? monthWords(home) : period === 'year' ? today.slice(0, 4) : 'All time';
   const spanWords = !span ? 'Every trade kept in this browser' : period === 'today' ? `${shortDay(today)} · New York’s day` : period === 'week' ? `${shortDay(span.from)} to ${shortDay(span.to <= today ? span.to : today)}` : period === 'month' ? `${MONTHS[Number(home.slice(5)) - 1]} 1 to ${shortDay(today).split(', ')[1]}` : `Jan 1 to ${shortDay(today).split(', ')[1]}, ${today.slice(0, 4)}`;
-  const whose = account ? `on ${nameOfAccount(account)}` : source.containers.length > 1 ? `on every ${source.containerWord}${source.sample?.shown ? ', the sample in' : ''}` : '';
+  const whose = account ? `on ${nameOfAccount(account)}` : source.containers.length > 1 ? `on every ${source.containerWord}${source.sample?.shown ? ', the starter accounts in' : ''}` : '';
   /* the backtest's book counts by its own clock: its "today" is the last day replayed */
   const clockWords = kind === 'backtest' ? ' · by the backtest’s clock' : '';
   const lead = period === 'today' ? 'Today' : period === 'week' ? 'This week' : period === 'month' ? `In ${monthWords(home).split(' ')[0]}` : period === 'year' ? `In ${today.slice(0, 4)}` : 'In all';
@@ -348,8 +348,8 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
             {source.containers.length > 1 && <DropdownSelect label={source.containerWord === 'account' ? 'Account' : 'Session'} value={liveAccount ?? 'all'} options={accountOptions} onChange={v => set({ session: v === 'all' ? null : v, day: null })} title={`Which ${source.containerWord}’s trades`} testId="journal-account" />}
             {/* THE SAMPLE ACCOUNTS (data/paper/sample.ts) — a made-up September the journal shows for now; the door hides it here */}
             {source.sample && (
-              <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the sample accounts out of the journal — your own trades stay' : 'Put the sample accounts back in'} className="ml-auto h-7 px-2 font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
-                {source.sample.shown ? 'Hide the sample' : 'Show the sample'}
+              <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the starter accounts out of the journal — your own trades stay' : 'Put the starter accounts back in'} className="ml-auto h-7 px-2 font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
+                {source.sample.shown ? 'Hide the starter accounts' : 'Show the starter accounts'}
               </button>
             )}
             <button type="button" onClick={exportCsv} disabled={!rows.length} title="This period’s trades as a file a spreadsheet opens — with your tags and your words" className={`${source.sample ? '' : 'ml-auto '}inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors`} data-journal-export>

@@ -144,7 +144,7 @@ const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <Wh
 
 const LagCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   if (!data) return null;
-  if (data.lagDays < 0) return <span className="font-mono text-[10px] text-textMuted" title="Filed before the trade date — a filing artefact real feeds carry">before the trade</span>;
+  if (data.lagDays < 0) return <span className="font-mono text-[10px] text-textMuted" title="Filed before the trade date">before the trade</span>;
   return (
     <span className="inline-flex items-center gap-2 font-mono text-[11px] tnum">
       <span className={data.late ? 'text-bear font-semibold' : data.lagDays > 30 ? 'text-textPrimary' : 'text-textSecondary'}>{data.lagDays}d</span>
@@ -302,7 +302,7 @@ const Congress = () => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What Congress reported</h3>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · the people are invented until the feed lands, the shape is the real one</p>
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>

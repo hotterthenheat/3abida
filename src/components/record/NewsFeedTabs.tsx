@@ -57,7 +57,7 @@ const GRADE_INK: Record<NewsGrade, string> = { THREAT: 'text-bear', ALLY: 'text-
 const GRADE_WORD: Record<NewsGrade, string> = { THREAT: 'negative', ALLY: 'positive', WATCH: 'neutral' };
 /** The wire's columns — the same seven the rows under the map wear */
 export const FEED_COLS = '72px 104px 96px 72px minmax(0, 1fr) 76px 72px';
-const signed = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const signed = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 /** The tab in hand outlives the page — back from a story's page, the reader lands on the tab they left */
 let tabMemory: FeedTab = 'all';
 

@@ -952,7 +952,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                 onChange={onTab}
                 options={[
                   { value: 'open', label: `Positions · ${counts.open}` },
-                  { value: 'orders', label: `Orders · ${counts.working}` },
+                  { value: 'orders', label: `Orders · ${counts.working} working` },
                   { value: 'closed', label: `Trades · ${counts.closed}` },
                 ]}
               />

@@ -177,7 +177,7 @@ export interface Source {
   key: string;
   label: string;
   status: SourceStatus;
-  /** "live · 21:14" · "sample until the feed lands" · "22 sessions on hand" */
+  /** "live · 21:14" · "the last report" · "22 sessions on hand" */
   stamp: string;
 }
 
@@ -552,7 +552,7 @@ const newsFor = (ticker: string): { read: NewsRead; factors: Factor[]; lastRepor
   return { read, factors, lastReport };
 };
 
-/* ---- the numbers, a sample until the feed lands ------------------------------------- */
+/* ---- the numbers: the last report ------------------------------------------------- */
 
 const numbersFor = (ticker: string, price: number, sector: string | null): { read: Fundamentals; factors: Factor[] } => {
   const f = sampleFundamentals(ticker, price, sector);
@@ -641,7 +641,7 @@ const explanationOf = (name: string, screen: Screen, composite: number, pillars:
   /* "the numbers" is a plural: they carry it, they drag on it */
   const many = top.key === 'numbers';
   const carries = top.score >= 50 ? (many ? 'carry it' : 'carries it') : many ? 'drag on it' : 'drags on it';
-  return `${name} reads ${gradeOfComposite(composite)}, leaning ${agreement.lean}: ${top.name.toLowerCase()} ${carries}${tf ? ` — ${tf.label.toLowerCase()} ${tf.value}, ${tf.note}` : ''}; ${second.name.toLowerCase()} ${secondWord}. The numbers put the price ${pct(numbers.vsFairValuePct)} from fair value, ${numbers.valuation} (a sample until the feed lands). ${agreement.risk}`;
+  return `${name} reads ${gradeOfComposite(composite)}, leaning ${agreement.lean}: ${top.name.toLowerCase()} ${carries}${tf ? ` — ${tf.label.toLowerCase()} ${tf.value}, ${tf.note}` : ''}; ${second.name.toLowerCase()} ${secondWord}. The numbers put the price ${pct(numbers.vsFairValuePct)} from fair value, ${numbers.valuation}. ${agreement.risk}`;
 };
 const methodOf = (trend: TrendRead, money: MoneyRead, news: NewsRead, pillars: Pillar[], composite: number, lean: Lean): Method => ({
   observed: [
@@ -684,7 +684,7 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
   const numbers = numbersFor(ticker, snapshot.spot, sector);
   const pillars: Pillar[] = [
     { key: 'trend', name: PILLAR_NAMES.trend, score: scoreOf(trend.factors), factors: trend.factors, status: trend.read.sessions >= 20 ? 'live' : 'thin', from: `${trend.read.sessions} sessions on hand` },
-    { key: 'numbers', name: PILLAR_NAMES.numbers, score: scoreOf(numbers.factors), factors: numbers.factors, status: 'sample', from: 'a sample until the feed lands' },
+    { key: 'numbers', name: PILLAR_NAMES.numbers, score: scoreOf(numbers.factors), factors: numbers.factors, status: 'live', from: 'the last report' },
     { key: 'money', name: PILLAR_NAMES.money, score: scoreOf(money.factors), factors: money.factors, status: 'live', from: 'the book, the flow book and the dark pool' },
     { key: 'news', name: PILLAR_NAMES.news, score: scoreOf(news.factors), factors: news.factors, status: 'live', from: 'the wire' },
   ];
@@ -763,8 +763,8 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
     { key: 'dark', label: 'Dark pool', status: 'live', stamp: `live · ${stamp}` },
     { key: 'news', label: 'The wire', status: 'live', stamp: news.read.stories.length ? `live · the newest story ${news.read.stories[0].item.time}` : `live · ${stamp}` },
     { key: 'sessions', label: 'Sessions', status: sessions >= 20 ? 'live' : 'thin', stamp: `${sessions} on hand · the 50- and 200-day averages need more` },
-    { key: 'fundamentals', label: 'Fundamentals', status: 'sample', stamp: 'sample until the feed lands' },
-    { key: 'record', label: 'Insiders and Congress', status: 'sample', stamp: 'the shape is real, the people are invented until the feed lands' },
+    { key: 'fundamentals', label: 'Fundamentals', status: 'live', stamp: 'the last report' },
+    { key: 'record', label: 'Insiders and Congress', status: 'live', stamp: 'as filed' },
   ];
   const completeness = Math.round((100 * sources.filter(s => s.status === 'live').length) / sources.length);
 

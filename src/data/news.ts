@@ -21,7 +21,7 @@ export type NewsCategory = 'Earnings' | 'Guidance' | 'Analyst' | 'Macro' | 'M&A'
 /* HOW SURE THE READ IS, SAID IN THE FOUR WORDS (Noah, 2026-09-19: "move the news page to the four words"). The figure
    (`confidencePct`, 42–94) stays inside the engine — it may SORT the wire ("Most sure"), it never reaches a digit. The cuts
    are this model's own lines, not borrowed ones:
-     poor      under 55 — the line `predict` itself draws: below it the playbook says "no trade on its own"
+     poor      under 55 — the line `predict` itself draws: below it the read says the headline is light on its own
      strong    from 80 — rare on purpose ("when its really great"): 2 of the 24 stories on the wire the day this was set
      good      from 70 · caution between 55 and 70          (that day: 2 strong · 13 good · 9 caution · 0 poor) */
 export const gradeOfNewsConfidence = (pct: number): Grade => (pct >= 80 ? 'strong' : pct >= 70 ? 'good' : pct >= 55 ? 'caution' : 'poor');
@@ -228,18 +228,21 @@ function predict(category: NewsCategory, sentiment: number, magnitude: number, b
   const dir = sentiment >= 0 ? 'higher' : 'lower';
   const analog = `${base.n} similar ${category.toLowerCase()} headlines on large caps: median ${base.median} move, ${base.hit}% closed ${dir} next session.`;
 
+  /* A READ, NEVER AN INSTRUCTION (the audit's X8.1, 2026-10-09: "buy the first pullback", "sell into the pop", "fade
+     bounces"): what stories like this have tended to do, and what is watched to tell whether this one does — never what to
+     do about it */
   let playbook: string;
   const abs1d = Math.abs(expMove1dPct);
   if (confidencePct < 55 || abs1d < 0.6) {
-    playbook = 'Low-edge headline — no trade on its own. Stack it with flow and positioning before acting.';
+    playbook = 'A light headline — on their own, stories like this have moved little. What is watched is whether flow and positioning line up behind it.';
   } else if (sentiment > 0 && magnitude > 0.6) {
-    playbook = 'Strength tends to hold — buy the first pullback rather than the open print; invalid if day-one gains fully fade.';
+    playbook = 'Strength after stories like this has tended to hold past the first print. What is watched: whether the first pullback holds above the open, or the day-one gain fades.';
   } else if (sentiment > 0) {
-    playbook = 'Modest positive drift expected — sell into the pop if it overshoots the expected move.';
+    playbook = 'Stories like this have drifted modestly higher. What is watched: whether the first move overshoots the expected move, and how much of it holds.';
   } else if (magnitude > 0.6) {
-    playbook = 'Downside repricing usually runs multiple sessions — fade bounces while the 5-day expected move stays negative.';
+    playbook = 'Downside repricing after stories like this has tended to run over several sessions. What is watched: whether bounces stall while the 5-day expected move stays negative.';
   } else {
-    playbook = 'Knee-jerk dip likely absorbed — wait for stabilization; reassess if a second headline lands.';
+    playbook = 'A first dip after stories like this has often been absorbed. What is watched: whether price steadies, and whether a second headline lands.';
   }
 
   return {
@@ -359,8 +362,8 @@ export function buildNewsDeepRead(item: NewsItem): NewsDeepRead {
 
   const invalidation =
     sentiment >= 0
-      ? `The read dies if ${name} gives back the initial pop and the book flips negative before the catalyst decays.`
-      : `The read dies if ${name} reclaims the pre-headline level and the book stops leaning short.`;
+      ? `The read would change if ${name} gave back the initial pop and the book turned negative before the catalyst decays.`
+      : `The read would change if ${name} reclaimed the pre-headline level and the book stopped leaning short.`;
 
   return {
     pricedInPct,

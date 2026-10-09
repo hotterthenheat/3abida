@@ -100,7 +100,7 @@ const SORT_OPTIONS: DropdownOption<Sort>[] = [
 /* THE IMPACT MARK lives in components/record/impactMark.tsx since 2026-09-13 — the All news box and the month draw the same square */
 
 const ago = (m: number) => (m < 1 ? 'just now' : m < 60 ? `${Math.round(m)}m ago` : `${Math.floor(m / 60)}h ${Math.round(m % 60)}m ago`);
-const signed = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const signed = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 
 /*
   THE TAPE (2026-09-13), WITH A WAY BACK (Noah, 2026-09-16: "what if a user
@@ -360,7 +360,7 @@ const OddsBar = ({ probUp }: { probUp: number }) => (
       <span className={probUp < 50 ? 'text-bear font-semibold' : 'text-textSecondary'}>
         down <AnimatedNumber value={100 - probUp} format={v => `${Math.round(v)}%`} />
       </span>
-      <span className="text-[10px] uppercase tracking-widest text-textMuted">odds next session</span>
+      <span className="text-[10px] uppercase tracking-widest text-textMuted">how similar stories closed next session</span>
       <span className={probUp >= 50 ? 'text-bull font-semibold' : 'text-textSecondary'}>
         up <AnimatedNumber value={probUp} format={v => `${Math.round(v)}%`} />
       </span>
@@ -752,7 +752,7 @@ const News = () => {
                 {/* THE WORDS — the playbook, the analog, what kills it — keyed so they soft-fade per story */}
                 <div key={selected.id} className="flex flex-col gap-2 animate-soft-in text-[11.5px] leading-relaxed text-textSecondary">
                   <div>
-                    <div className="text-[10px] uppercase tracking-widest text-textMuted">Playbook</div>
+                    <div className="text-[10px] uppercase tracking-widest text-textMuted">What tends to be watched</div>
                     <p className="mt-0.5">
                       <RichRead text={selected.item.prediction.playbook} />
                     </p>
@@ -764,7 +764,7 @@ const News = () => {
                     </p>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-widest text-textMuted">What kills it</div>
+                    <div className="text-[10px] uppercase tracking-widest text-textMuted">What would change the read</div>
                     <p className="mt-0.5">
                       <RichRead text={deep.invalidation} />
                     </p>

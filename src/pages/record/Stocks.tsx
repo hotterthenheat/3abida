@@ -93,7 +93,7 @@ const PHASE_BAR: Record<SectorRow['phase'], string> = { LEADING: 'bg-bull', IMPR
 /** The two consumer sectors by their second word on a card 150px wide — the mark and the grid carry the whole name */
 const SHORT_SECTOR: Partial<Record<Sector, string>> = { 'Consumer Discretionary': 'Discretionary', 'Consumer Staples': 'Staples' };
 
-const signedPct = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const signedPct = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 const dirInk = (v: number) => (v >= 0 ? 'text-bull' : 'text-bear');
 /** "A, B and C" — never "A and B and C" */
 const listPhrase = (items: string[]) => (items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);

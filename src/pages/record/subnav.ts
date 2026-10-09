@@ -5,7 +5,7 @@ import { BarChart3, Building2, CalendarClock, Landmark, Newspaper, type LucideIc
   2026-09-09): the file on a name — what never
   appears on the tape — the news, the earnings dates, what the people who run
   a company did with their own shares, what members of Congress reported
-  trading. Four pages under one head, read in that order. News and Earnings
+  trading, and the stocks' own pages. Five pages under one head. News and Earnings
   moved here from the top level; Insiders and Congress are the partner's two
   pages (his "Keyhole" and "Disclosures") rebuilt in the house.
 */

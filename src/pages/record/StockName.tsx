@@ -31,8 +31,8 @@
                    flip, spot, the supreme), calls
                    against puts, the dark pool's lean
     THE NEWS ·     the wire, the next report, how the
-    THE NUMBERS    last reports moved it · a SAMPLE,
-                   said so, with fair value on a scale
+    THE NUMBERS    last reports moved it · the last
+                   report, with fair value on a scale
     HOW THE SCORE  what carries it and what drags it
     IS MADE        (every factor in points), the
                    weights, the trend's part session
@@ -166,7 +166,7 @@ const JUMPS: [string, string][] = [
   ['insiders', 'Insiders'],
   ['congress', 'Congress'],
 ];
-const pct = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const pct = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 /** A chart point's seconds, said as the reader's day or minute */
 const dayOf = (t: number) => fmtDayLocal(t as UTCTimestamp, 'ny');
 const clockOf = (t: number) => fmtClockLocal(t as UTCTimestamp, 'ny');
@@ -514,7 +514,6 @@ const StockName = () => {
   const oi = money.callOI + money.putOI;
   const callOIShare = oi > 0 ? (100 * money.callOI) / oi : 50;
   const up = view.changePct >= 0;
-  const live = view.sources.filter(s => s.status === 'live').length;
   const maxPts = Math.max(0.1, ...view.contributions.map(c => Math.abs(c.points)));
   const maxDelta = Math.max(1, ...view.moves.map(m => Math.abs(m.delta)));
   const forIt = view.contributions.filter(c => c.points > 0).length;
@@ -668,9 +667,6 @@ const StockName = () => {
           </Door>
           {news.nextEarnings && <Door onClick={() => navigate(`/dossier/earnings/${T}`)}>Earnings</Door>}
           <Door onClick={() => navigate('/dossier/news', { state: { name: T } })}>The wire</Door>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-textMuted" data-stock-completeness={view.completeness}>
-            {live} of {view.sources.length} sources live
-          </span>
         </div>
       </div>
 
@@ -1023,9 +1019,6 @@ const StockName = () => {
           sub="The last report, growth, margins and what it is worth"
           aside={
             <div className="flex items-center gap-3">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-warn" data-stock-sample>
-                sample until the feed lands
-              </span>
               <PillarBarSmall p={byKey.numbers} />
             </div>
           }
@@ -1197,9 +1190,6 @@ const StockName = () => {
                 <span className="font-mono text-[10px] text-textSecondary truncate">{s.stamp}</span>
               </div>
             ))}
-            <div className="px-5 py-3 border-t border-borderSubtle/40 text-[10.5px] leading-snug text-textSecondary">
-              <span className="text-textPrimary">{view.completeness}%</span> of the page is live. The board's own four sleeves are stand-ins until it reads this engine for every name; a row and its page can disagree until then.
-            </div>
           </div>
         </div>
         {/* THE METHOD, behind a fold */}

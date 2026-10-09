@@ -172,8 +172,8 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
       {hover && (
         <HoverReadout x={hover.x} y={hover.y}>
           <div className="font-mono text-[11px] font-bold text-textPrimary tnum">
-            {hover.r.label} · moved {hover.r.movePct >= 0 ? '+' : ''}
-            {hover.r.movePct.toFixed(1)}%
+            {hover.r.label} · moved {hover.r.movePct > 0 ? '+' : hover.r.movePct < 0 ? '−' : ''}
+            {Math.abs(hover.r.movePct).toFixed(1)}%
           </div>
           <div className="font-mono text-[10px] text-textSecondary tnum">
             that move was worth ${hover.r.moved.toFixed(2)} · today's price ${cost.toFixed(2)}
@@ -230,7 +230,7 @@ const ActiveRow = ({ c, maxVol, onOpen, onWarm }: { c: ActiveContract; maxVol: n
       </span>
     </div>
     <span className="font-mono text-[10px] text-textMuted tnum">
-      {c.fromSpotPct === 0 ? 'at the money' : `${c.fromSpotPct > 0 ? '+' : ''}${c.fromSpotPct}% from spot`} · breaks even {c.right === 'CALL' ? '+' : '−'}
+      {c.fromSpotPct === 0 ? 'at the money' : `${c.fromSpotPct > 0 ? '+' : '−'}${Math.abs(c.fromSpotPct)}% from spot`} · breaks even {c.right === 'CALL' ? '+' : '−'}
       {c.breakevenPct}% by expiry
     </span>
   </button>
@@ -364,7 +364,7 @@ const EarningsName = () => {
       </div>
 
       {/* TODAY'S PRICE, REPLAYED */}
-      <Box title="Today's price, replayed" sub="What the options charge now, tested against the last eight real prints — hover a bar" testId="replay">
+      <Box title="Today's price, replayed" sub="What the options charge now, tested against the last eight prints — hover a bar" testId="replay">
         <PriceReplay d={dossier} />
       </Box>
 
@@ -421,8 +421,8 @@ const EarningsName = () => {
                         <TooltipShell>
                           <div className="text-textSecondary">{label}</div>
                           <div>
-                            {Number(payload[0]?.value) >= 0 ? '+' : ''}
-                            {Number(payload[0]?.value).toFixed(1)}% next session
+                            {Number(payload[0]?.value) > 0 ? '+' : Number(payload[0]?.value) < 0 ? '−' : ''}
+                            {Math.abs(Number(payload[0]?.value)).toFixed(1)}% next session
                           </div>
                         </TooltipShell>
                       ) : null
