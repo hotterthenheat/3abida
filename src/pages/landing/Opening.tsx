@@ -111,7 +111,7 @@ export const Tease = ({ className = '' }: { className?: string }) => (
 export const TRACK = 180;
 /** THE RUN AS CSS: the screen the stage stands on, and a run never longer than a 900 px screen's in the design's px
     (2026-10-09, the audit's L-13: in svh it grew with a tall screen) — the run's shares below are of whatever it is */
-export const RUN_CSS = `min(${TRACK - 100}svh, ${(TRACK - 100) * 0.5625}rem)`;
+export const RUN_CSS = `min(${TRACK - 100}svh, max(${(TRACK - 100) * 9}px, ${(TRACK - 100) * 0.5625}rem))`;
 export const TRACK_CSS = `calc(100svh + ${RUN_CSS})`;
 
 /* THE RUN, in shares of it: the first scroll turns the quote and draws the line, the terminal is open within the first

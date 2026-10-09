@@ -321,7 +321,7 @@ export interface Story {
     of 80 — Opening.tsx TRACK — and a breath of about 32 after it, the words standing alone) */
 export const PROLOGUE = 112;
 /** …as CSS: never longer than a 900 px screen's in the design's px (the audit's L-13 — a tall screen's run grew with it) */
-const PROLOGUE_CSS = `min(${PROLOGUE}svh, ${PROLOGUE * 0.5625}rem)`;
+const PROLOGUE_CSS = `min(${PROLOGUE}svh, max(${PROLOGUE * 9}px, ${PROLOGUE * 0.5625}rem))`;
 const PROLOGUE_AT = '24svh';
 
 const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWords?: () => void }) => {
@@ -575,7 +575,7 @@ const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWor
     <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10'} data-session>
       {/* the column ends just far enough under the last beat for the window to stay put while it is read (the beat is read
           at AT of the screen; the window lets go when the column's foot passes its own) — no empty screen after it */}
-      <div className={small ? '' : 'pb-[min(6svh,3.375rem)]'}>
+      <div className={small ? '' : 'pb-[min(6svh,max(54px,3.375rem))]'}>
         {told && (
           /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands
              its window over and a breath after (hidden until then — Opening.tsx), then go up the page ahead of the beats */
@@ -602,7 +602,7 @@ const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWor
                 ref={el => {
                   beatEls.current[i] = el;
                 }}
-                className={small ? 'py-6 border-t border-borderSubtle first:border-t-0' : 'min-h-[min(34svh,19.125rem)] pt-[min(8svh,4.5rem)]'}
+                className={small ? 'py-6 border-t border-borderSubtle first:border-t-0' : 'min-h-[min(34svh,max(306px,19.125rem))] pt-[min(8svh,max(72px,4.5rem))]'}
                 data-session-beat={i}
                 data-on={on || undefined}
               >

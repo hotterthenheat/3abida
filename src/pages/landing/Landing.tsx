@@ -400,7 +400,7 @@ const useArrival = <T extends HTMLElement>(margin = '0px 0px -18% 0px') => {
 /** A SECTION'S HEAD, BESIDE WHAT FOLLOWS: its line on the left — the rooms' in two tones, else one ink — and a line of what
     follows on the right, arriving a line at a time as it is first seen, the head coming into focus (index.css
     .landing-settle) */
-const Head = ({ first, second, aside, id }: { first: string; second?: string; aside?: ReactNode; id?: string }) => {
+const Head = ({ first, second, aside, extra, id }: { first: string; second?: string; aside?: ReactNode; extra?: ReactNode; id?: string }) => {
   const ref = useArrival<HTMLDivElement>();
   return (
     <div ref={ref} id={id} className="landing-lines grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-6 lg:items-end">
@@ -411,7 +411,14 @@ const Head = ({ first, second, aside, id }: { first: string; second?: string; as
           <h2 className="landing-display font-light tracking-[-0.03em] leading-[1.02] text-[2rem] sm:text-[2.5rem] lg:text-[2.875rem] [text-wrap:balance] outline-none">{first}</h2>
         )}
       </div>
-      {aside && <p className="landing-line [--i:1] lg:col-span-5 max-w-[30rem] text-[1rem] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
+      {aside && !extra && <p className="landing-line [--i:1] lg:col-span-5 max-w-[30rem] text-[1rem] leading-relaxed text-textSecondary lg:pb-2">{aside}</p>}
+      {/* a control under the line of what follows (the prices' Monthly / Yearly): in the head's own column, no row of its own */}
+      {aside && extra && (
+        <div className="landing-line [--i:1] lg:col-span-5 max-w-[30rem] lg:pb-2">
+          <p className="text-[1rem] leading-relaxed text-textSecondary">{aside}</p>
+          <div className="mt-5">{extra}</div>
+        </div>
+      )}
     </div>
   );
 };
@@ -806,7 +813,7 @@ const Reveal = () => {
   const calm = useReducedMotion();
   const head = useArrival<HTMLDivElement>();
   return (
-    <Wrap className="pb[min(4vh,2.25rem)] md:pb[min(6vh,3.375rem)]" data-landing-reveal>
+    <Wrap className="pb-[min(4vh,max(36px,2.25rem))] md:pb-[min(6vh,max(54px,3.375rem))]" data-landing-reveal>
       <div ref={head} className="landing-lines text-center">
         <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
           Trade what you can see.
@@ -982,12 +989,14 @@ const Plan = ({ planKey, period, onChoose }: { planKey: Sold; period: BillingPer
       </div>
       {/* the page's big numbers are its prices — the only figures of ours it shows; the currency rides on the price line,
           and a year paid at once says what it comes to a month, with the year's total under it */}
-      <p className="mt-6 flex items-baseline gap-2" data-landing-price={period}>
+      <p className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1.5" data-landing-price={period}>
         <span className="text-[2.375rem] sm:text-[2.75rem] landing-display font-light leading-none tracking-[-0.03em] tnum">{line.each}</span>{' '}
         <span className="text-[0.9375rem] text-textMuted">{line.unit}</span>
-      </p>
-      <p className="mt-2 text-[0.8125rem] text-textMuted tnum" aria-live="polite">
-        {line.year ? `${line.year} billed once a year · ${line.saves ?? ''}` : 'Billed monthly'}
+        {line.year && (
+          <span className="basis-full text-[0.8125rem] text-textMuted tnum">
+            {line.year} billed once a year{line.saves ? ` · ${line.saves.toLowerCase()}` : ''}
+          </span>
+        )}
       </p>
       <dl className="mt-6 border-t border-borderSubtle">
         <div className="py-3.5 border-b border-borderSubtle">
@@ -1151,14 +1160,14 @@ const Words = ({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void
     return () => el.removeEventListener('beforematch', found);
   }, [setOpen]);
   return (
-    <div id="words" className="mt-8 border-t border-borderSubtle scroll-mt-28" data-landing-words>
+    <div id="words" className="border-t border-borderSubtle first:border-t-0 [[data-landing-faq-list]_&]:border-t-0 [[data-landing-faq-list]_&]:border-b scroll-mt-28" data-landing-words>
       <h3>
         <button
           type="button"
           aria-expanded={open}
           aria-controls="words-list"
           onClick={() => setOpen(!open)}
-          className="group w-full min-h-[2.75rem] py-2.5 flex items-center justify-between gap-4 text-left text-[0.9375rem] font-medium text-textPrimary focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
+          className="group w-full min-h-[3.25rem] py-2.5 flex items-center justify-between gap-4 text-left text-[0.9375rem] font-medium text-textPrimary focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
           data-landing-words-door
         >
           What the words mean
@@ -1319,7 +1328,7 @@ const Page = () => {
             session (Story); on a phone, or where less motion is asked for, the first screen still, the terminal under it,
             and the session's head and moments */}
         {stage ? (
-          <Block on="a" as="div" className="pb[min(2vh,1.125rem)]">
+          <Block on="a" as="div" className="pb-[min(2vh,max(18px,1.125rem))]">
             <Story theme={a} doors={doors} />
           </Block>
         ) : (
@@ -1330,7 +1339,7 @@ const Page = () => {
             <Block on="a" label="The terminal">
               <Reveal />
             </Block>
-            <Block on="a" id="how" label="How it works" className="pb[min(4vh,2.25rem)] md:pb[min(6vh,3.375rem)] scroll-mt-10">
+            <Block on="a" id="how" label="How it works" className="pb-[min(4vh,max(36px,2.25rem))] md:pb-[min(6vh,max(54px,3.375rem))] scroll-mt-10">
               <Wrap>
                 <Head
                   first="One session, as the terminal saw it."
@@ -1350,7 +1359,7 @@ const Page = () => {
             <Rooms rooms={ROOMS} head={<RoomsHead stage />} onOpen={open} anchor="rooms" />
           </Block>
         ) : (
-          <Block on="a" id="rooms" label="The rooms" className="py[min(6vh,3.375rem)] md:py[min(8vh,4.5rem)] scroll-mt-10">
+          <Block on="a" id="rooms" label="The rooms" className="py-[min(6vh,max(54px,3.375rem))] md:py-[min(8vh,max(72px,4.5rem))] scroll-mt-10">
             <Wrap>
               <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} onOpen={open} />
             </Wrap>
@@ -1358,22 +1367,20 @@ const Page = () => {
         )}
 
         {/* ── A READ, NEVER AN INSTRUCTION ─────────────────────────────────────────────────────── */}
-        <Block on="a" id="trust" label="Why Slayer" className="py[min(6vh,3.375rem)] md:py[min(8vh,4.5rem)] scroll-mt-10 border-t border-borderSubtle">
+        <Block on="a" id="trust" label="Why Slayer" className="py-[min(6vh,max(54px,3.375rem))] md:py-[min(8vh,max(72px,4.5rem))] scroll-mt-10 border-t border-borderSubtle">
           <Trust />
         </Block>
 
         {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
-        <Block on="a" id="pricing" label="Pricing" className="py[min(6vh,3.375rem)] md:py[min(8vh,4.5rem)] scroll-mt-10 border-t border-borderSubtle">
+        <Block on="a" id="pricing" label="Pricing" className="py-[min(6vh,max(54px,3.375rem))] md:py-[min(8vh,max(72px,4.5rem))] scroll-mt-10 border-t border-borderSubtle">
           <Wrap>
             <Head
               first="Simple plans. Cancel any time."
               aside="An account is free. A plan opens its rooms; cancel whenever you like and keep it to the end of the period you paid for."
+              extra={<PeriodSwitch period={period} onChange={setPeriod} />}
             />
-            <div className="mt-8">
-              <PeriodSwitch period={period} onChange={setPeriod} />
-            </div>
             {/* the recommended plan first where the plans stand one under the other (a phone, a tablet) */}
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
+            <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
               {(onePerRow ? [RECOMMENDED, ...PLAN_ORDER.filter(k => k !== RECOMMENDED)] : PLAN_ORDER).map(k => (
                 <Plan key={k} planKey={k} period={period} onChoose={choose} />
               ))}
@@ -1384,7 +1391,7 @@ const Page = () => {
         </Block>
 
         {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────────── */}
-        <Block on="a" id="faq" label="Questions" className="pt[min(6vh,3.375rem)] md:pt[min(8vh,4.5rem)] scroll-mt-10 border-t border-borderSubtle">
+        <Block on="a" id="faq" label="Questions" className="pt-[min(6vh,max(54px,3.375rem))] md:pt-[min(8vh,max(72px,4.5rem))] scroll-mt-10 border-t border-borderSubtle">
           <Wrap>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
               <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
@@ -1399,19 +1406,23 @@ const Page = () => {
                 </div>
                 {/* the words the page uses, said plainly — in the questions' own column (the audit's L-11: on a desk it stood
                     two thirds empty beside the list) */}
-                <div className="landing-line [--i:2]">
-                  <Words open={words} setOpen={setWords} />
-                </div>
+                {!onePerRow && (
+                  <div className="landing-line [--i:2] mt-8">
+                    <Words open={words} setOpen={setWords} />
+                  </div>
+                )}
               </div>
               <div className="lg:col-span-7 border-t border-borderSubtle" data-landing-faq-list>
                 {FAQ.map((f, i) => (
                   <Question key={f.q} q={f.q} a={f.a} i={i} />
                 ))}
+                {/* below a desk, the words the page uses are the list's last fold */}
+                {onePerRow && <Words open={words} setOpen={setWords} />}
               </div>
             </div>
 
             {/* THE LAST WORDS — the rooms once more, a door each, and the line read by the scroll */}
-            <div className="pt[min(8vh,4.5rem)] pb[min(6vh,3.375rem)] md:pt[min(12vh,6.75rem)] md:pb[min(8vh,4.5rem)] text-center" data-landing-close>
+            <div className="pt-[min(8vh,max(72px,4.5rem))] pb-[min(6vh,max(54px,3.375rem))] md:pt-[min(12vh,max(108px,6.75rem))] md:pb-[min(8vh,max(72px,4.5rem))] text-center" data-landing-close>
               <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
                 {ROOMS.map(r => (
                   <li key={r.id}>

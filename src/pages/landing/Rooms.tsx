@@ -250,10 +250,11 @@ const useHands = () => {
     out plays it backwards, so a reader who stops scrolling always sees a finished wall or a room. */
 const SEG = { deal: 12, wall: 12, toTour: 12, room: 16 };
 /** ONE STEP OF THE RUN, in px: a hundredth of the screen's height, but never more than a 900 px screen's in the design's
-    px (2026-10-09, the audit's L-13: a run in svh grew with a tall screen — 1920 × 1080 stood 889 px over the length a
-    1440 × 900 screen keeps). Read the same way in CSS (`min(Nsvh, N × 0.5625rem)`) and here. */
-const stepPx = (screenH: number, u: number) => Math.min(screenH / 100, 9 * u);
-const runCss = (n: number) => `min(${n}svh, ${n * 0.5625}rem)`;
+    px, nor a 900 px screen's below the design's size (2026-10-09, the audit's L-13: a run in svh grew with a tall screen
+    — 1920 × 1080 stood 889 px over the length a 1440 × 900 screen keeps; a 1440 × 900 screen keeps its own). Read the
+    same way in CSS (`min(Nsvh, max(9N px, 0.5625N rem))`) and here. */
+const stepPx = (screenH: number, u: number) => Math.min(screenH / 100, 9 * Math.max(1, u));
+const runCss = (n: number) => `min(${n}svh, max(${n * 9}px, ${n * 0.5625}rem))`;
 /** the steps' own times (ms): each card's flight and the time between two cards, and the wall becoming the tour */
 const DEAL_FLIGHT = 280;
 const STAGGER = 60;
