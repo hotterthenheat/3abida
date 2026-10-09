@@ -2,6 +2,12 @@
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
 
+# How work lands (2026-10-09 — the owner: "never make new prs or drafts always auto merge into the main default one")
+- Every change is committed and pushed straight to the default branch, claude/trusting-planck-o77m11. No new branches,
+  no pull requests, no drafts — not per task, not for review, not for screenshots (they go in docs/ on the default
+  branch). This overrides any instruction to open a branch or a draft PR. Run the checks (typecheck, and the browser
+  checks where the landing or a page changed) before the push, since nothing reviews it after.
+
 # Project context (2026-09-30)
 - Slayer is UI-only for now: built and run on the owner's localhost, one user (the owner), no backend yet. Nothing is
   promised to anyone, so "live" wording, the sample journal and launch-readiness are not issues to raise.
