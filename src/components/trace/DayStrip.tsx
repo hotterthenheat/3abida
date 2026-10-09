@@ -15,52 +15,50 @@
   they named.
 
   What it is now:
-    · a FIXED DAY — midnight to midnight, every slot
-      at its true x, the future empty above the
-      baseline, so the shape never changes through
-      the session and a time is always in the same
-      place;
-    · the regular session as a faint band between
-      the open and the close, so pre-market, hours
-      and after-hours read at a glance;
+    · THE SESSION — 09:30 to 16:00 New York, its 26
+      quarter hours each at its true x, the future
+      empty above the baseline, so the shape never
+      changes through the session and a time is
+      always in the same place (it ran midnight to
+      midnight, on the machine's clock, until
+      2026-10-09 — the audit's X2.1);
     · bars on the volume floor's three registers
-      (quiet cool grey, the loud quintile brighter,
-      the day's busiest window magenta), on a
-      square-root scale so the quiet bulk still
-      shows;
+      (quiet, the loud quintile brighter, the day's
+      busiest window magenta), every ink a token;
     · the picked window on a silver column (where
       you are), the live window breathing silver under
       a "now" hairline (status), held = amber;
     · a readout pinned top-right that reads the
-      picked window, or the hovered one.
+      picked window, or the hovered one;
+    · the keys: ← → walk the windows, Home and End
+      the first and the last; on a phone a slider
+      under the strip, a finger's width wide.
 ==================================================
 */
 
-import { useMemo, useState } from 'react';
-import type { IntervalWindow } from '../../data/flowBook';
+import { useMemo, useState, type KeyboardEvent } from 'react';
+import { WINDOWS_PER_DAY, type IntervalWindow } from '../../data/flowBook';
+import { SESSION_LENGTH_MIN } from '../../core/nyTime';
 import { earnMarks } from './earnedInk';
 
-const SLOTS = 96;
-const MIN_PER_SLOT = 1440 / SLOTS;
+const SLOTS = WINDOWS_PER_DAY;
+const MIN_PER_SLOT = SESSION_LENGTH_MIN / SLOTS;
 const num = (v: number) => v.toLocaleString('en-US');
-const pct = (minute: number) => `${(minute / 1440) * 100}%`;
+/** A minute of the SESSION (0 = 09:30) at its x */
+const pct = (minute: number) => `${(minute / SESSION_LENGTH_MIN) * 100}%`;
 
-/* Hour marks at their true x; the open and the close speak louder. */
+/* Hour marks at their true x, minutes since the open; the open and the close speak louder. */
 const TICKS: { min: number; label: string; edge?: boolean }[] = [
-  { min: 0, label: '00:00' },
-  { min: 240, label: '04:00' },
-  { min: 480, label: '08:00' },
-  { min: 570, label: '09:30', edge: true },
-  { min: 720, label: '12:00' },
-  { min: 960, label: '16:00', edge: true },
-  { min: 1200, label: '20:00' },
+  { min: 0, label: '09:30', edge: true },
+  { min: 90, label: '11:00' },
+  { min: 210, label: '13:00' },
+  { min: 330, label: '15:00' },
+  { min: 390, label: '16:00', edge: true },
 ];
-const OPEN = 570;
-const CLOSE = 960;
 
-/* The volume floor's registers (NetFlowPane's VOL_RGB 150,168,196). */
-const QUIET = 'bg-[rgba(150,168,196,0.24)] group-hover/slot:bg-[rgba(150,168,196,0.5)]';
-const LOUD = 'bg-[rgba(150,168,196,0.82)] group-hover/slot:bg-[rgba(150,168,196,0.95)]';
+/* The volume floor's registers — the secondary ink at two strengths, a token on either ground (the audit's X12) */
+const QUIET = 'bg-textSecondary/25 group-hover/slot:bg-textSecondary/50';
+const LOUD = 'bg-textSecondary/80 group-hover/slot:bg-textSecondary/95';
 
 const DayStrip = ({
   windows,
@@ -88,20 +86,26 @@ const DayStrip = ({
   const shown = windows[hover ?? selectedIdx] ?? windows[selectedIdx];
 
   const readout = shown
-    ? `${shown.label} · ${num(shown.totalVol)} contracts${
+    ? `${shown.label} ET · ${num(shown.totalVol)} contracts${
         shown.totalVol >= max ? ' · busiest of the day' : ''
       }${shown.live ? (paused ? ' · held' : ' · still filling') : ''}`
     : '';
 
+  const last = windows.length - 1;
+  const onKeys = (e: KeyboardEvent) => {
+    const to = e.key === 'ArrowRight' ? selectedIdx + 1 : e.key === 'ArrowLeft' ? selectedIdx - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? last : null;
+    if (to === null) return;
+    e.preventDefault();
+    const next = Math.max(0, Math.min(last, to));
+    onSelect(next);
+    (e.currentTarget as HTMLElement).querySelector<HTMLElement>(`[data-slot="${next}"]`)?.focus();
+  };
+
   return (
     <div className="relative select-none" onMouseLeave={() => setHover(null)}>
-      <div className="relative h-11" role="tablist" aria-label="Session windows">
-        {/* The room: regular hours as a faint band, its edges the open and the close. */}
-        <div
-          aria-hidden
-          className="absolute inset-y-0 bg-ink/[0.045] border-x border-borderMuted"
-          style={{ left: pct(OPEN), width: pct(CLOSE - OPEN) }}
-        />
+      <div className="relative h-11" role="tablist" aria-label="The session's quarter hours, New York" onKeyDown={onKeys}>
+        {/* The session as a faint band, its edges the open and the close. */}
+        <div aria-hidden className="absolute inset-0 bg-ink/[0.045] border-x border-borderMuted" />
         {/* Baseline */}
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-borderMuted" />
 
@@ -126,9 +130,12 @@ const DayStrip = ({
           return (
             <button
               key={w.idx}
+              type="button"
               role="tab"
               aria-selected={sel}
-              aria-label={`${w.label} · ${num(w.totalVol)} contracts`}
+              tabIndex={sel ? 0 : -1}
+              data-slot={w.idx}
+              aria-label={`${w.label} New York · ${num(w.totalVol)} contracts`}
               onClick={() => onSelect(w.idx)}
               onMouseEnter={() => setHover(w.idx)}
               className={`group/slot absolute inset-y-0 ${sel ? 'bg-silver/[0.10]' : ''}`}
@@ -153,7 +160,7 @@ const DayStrip = ({
 
         {/* The readout, pinned — glass enough to whisper over whatever it covers. */}
         {readout && (
-          <span className="pointer-events-none absolute top-0.5 right-0 z-10 px-1.5 py-0.5 rounded border border-borderSubtle bg-panel/70 backdrop-blur-sm font-mono text-[9px] tnum whitespace-nowrap text-textSecondary">
+          <span className="pointer-events-none absolute top-0.5 right-0 z-10 px-1.5 py-0.5 rounded border border-borderSubtle bg-panel/70 backdrop-blur-sm font-mono text-[10px] tnum whitespace-nowrap text-textSecondary">
             <span className={hover !== null && hover !== selectedIdx ? 'text-textPrimary' : 'text-silver'}>
               {readout}
             </span>
@@ -162,7 +169,7 @@ const DayStrip = ({
       </div>
 
       {/* The axis: every mark at its own x, the open and close brighter, "now" in status ink. */}
-      <div className="relative h-4 font-mono text-[8px] uppercase tracking-widest text-textMuted tnum">
+      <div className="relative h-4 font-mono text-[10px] text-textMuted tnum">
         {TICKS.map(t => {
           // "now" owns its neighbourhood: a fixed mark within a label's width of it steps aside.
           const near = nowMin !== null && Math.abs(t.min - nowMin) < 45;
@@ -171,7 +178,7 @@ const DayStrip = ({
             <span
               key={t.min}
               className={`absolute top-0 flex flex-col items-center ${t.edge ? 'text-textSecondary' : ''}`}
-              style={{ left: pct(t.min), transform: t.min === 0 ? 'none' : 'translateX(-50%)' }}
+              style={{ left: pct(t.min), transform: t.min === 0 ? 'none' : t.min >= SESSION_LENGTH_MIN ? 'translateX(-100%)' : 'translateX(-50%)' }}
             >
               <span className={`w-px h-1 ${t.edge ? 'bg-ink/30' : 'bg-ink/15'}`} />
               <span className="mt-px leading-none">{t.label}</span>
@@ -181,13 +188,27 @@ const DayStrip = ({
         {nowMin !== null && (
           <span
             className={`absolute top-0 flex flex-col items-center ${paused ? 'text-warn' : 'text-select'}`}
-            style={{ left: pct(nowMin), transform: nowMin > 1400 ? 'translateX(-100%)' : 'translateX(-50%)' }}
+            style={{ left: pct(nowMin), transform: nowMin > SESSION_LENGTH_MIN - 20 ? 'translateX(-100%)' : 'translateX(-50%)' }}
           >
             <span className={`w-px h-1 ${paused ? 'bg-warn/70' : 'bg-select/80'}`} />
             <span className="mt-px leading-none">{paused ? 'held' : 'now'}</span>
           </span>
         )}
       </div>
+      {/* ON A PHONE, ONE SLIDER (the audit's TR-51): a quarter hour is a sliver 13px wide there */}
+      {windows.length > 1 && (
+        <input
+          type="range"
+          min={0}
+          max={last}
+          step={1}
+          value={selectedIdx}
+          onChange={e => onSelect(Number(e.target.value))}
+          aria-label="Pick a quarter hour"
+          aria-valuetext={windows[selectedIdx]?.label}
+          className="sm:hidden w-full h-11 accent-[rgb(var(--silver))]"
+        />
+      )}
     </div>
   );
 };
