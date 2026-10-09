@@ -35,6 +35,7 @@ import { type ColDef, type ICellRendererParams, type IRowNode, type RowClickedEv
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import { stampOf } from './usePinpoint';
+import HowSure from '../../components/levels/HowSure';
 import { useMarketData } from '../../context/MarketDataContext';
 import { buildBoardRow, type BoardRow } from '../../data/board';
 import { addBoardName, removeBoardName, useBoardNames } from '../../data/boardNames';
@@ -169,6 +170,7 @@ const WallCell = ({ data }: ICellRendererParams<BoardRow>) =>
       </span>
       <span className="text-[11px] font-semibold text-textPrimary">{fmtStrike(data.nearest.strike)}</span>
       <span className="text-[11px] text-textSecondary">{fmtPct(data.nearest.distPct)}</span>
+      {data.sure && <HowSure sure={data.sure[data.nearest.kind === 'call' ? 'call wall' : 'put wall']} />}
     </span>
   ) : null;
 
@@ -345,7 +347,7 @@ const Board = () => {
         headerName: 'Watch first',
         field: 'watch',
         flex: 2,
-        minWidth: 250,
+        minWidth: 236,
         cellRenderer: WatchCell,
         cellDataType: false,
         headerTooltip: 'The strike to watch first on this name — the one most likely reached with the most at stake — with the odds it is reached, the odds it holds, and the dollars behind it',
@@ -368,7 +370,7 @@ const Board = () => {
         headerName: 'Nearest wall',
         field: 'nearest',
         flex: 1.2,
-        minWidth: 150,
+        minWidth: 220,
         cellRenderer: WallCell,
         cellDataType: false,
         headerTooltip: 'The closest strike whose hedging pushes back on price, and how far it is',

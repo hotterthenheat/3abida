@@ -39,6 +39,7 @@ import WatchMenu from '../../components/gex/WatchMenu';
 import { armPrice, removeAlert, useAlerts } from '../../components/gex/alertStore';
 import { type AgendaOrder, type Agenda, type Target } from '../../data/agenda';
 import { agendaOf, bookOf, inWindow } from '../../data/pinpointBook';
+import { bookSureness } from '../../data/levelSureness';
 import { contractWords, usePositions } from '../../data/positions';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
 
@@ -129,6 +130,7 @@ const RankedTargets = () => {
             focus={focusFor(listTicker)}
             onPick={strike => toggleFocus(strike, listTicker)}
             scope={chipFor('list', listTicker)}
+            sure={bookSureness(listBook.snap.chain, listBook.spot, listBook.ticker)}
             watch={<WatchMenu ticker={listTicker} spot={listAgenda.spot} levels={levels} />}
           />
         </Deferred>

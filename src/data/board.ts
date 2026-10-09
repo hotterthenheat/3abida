@@ -26,6 +26,7 @@ import { buildBuilding } from './building';
 import type { ExposureSurface } from './exposureSurface';
 import { buildFlipGauge } from './flipGauge';
 import { agendaOf, bookOf, scanOf } from './pinpointBook';
+import { bookSureness, type SureLevel, type Sureness } from './levelSureness';
 import { spotChangePct } from './gex';
 import { readSessionClock } from './sessionClock';
 import { getPositions } from './positions';
@@ -55,6 +56,8 @@ export interface BoardRow {
   spark: number[];
   /** Your positions on the name: contracts owned or sold (0 = none) */
   yours: { positions: number; contracts: number };
+  /** What the walls stand on (data/levelSureness.ts) — the "How sure" door on the nearest wall */
+  sure?: Record<SureLevel, Sureness> | null;
   /** The agenda's first strike for this name — what to watch first, and why (2026-09-08) */
   watch: { strike: number; role: WallRole; isShelf: boolean; isWall: boolean; reach: number; hold: number; stake: number } | null;
 }
@@ -132,6 +135,7 @@ export function buildBoardRow(ticker: string, live?: MarketSnapshot | null): Boa
   const watch: BoardRow['watch'] = lead ? { strike: lead.strike, role: lead.role, isShelf: lead.isShelf, isWall: lead.isWall, reach: lead.reach, hold: lead.hold, stake: lead.stake } : null;
 
   return {
+    sure: bookSureness(snapshot.chain, spot, snapshot.ticker),
     watch,
     yours: { positions: mine.length, contracts: mine.reduce((s, p) => s + p.contracts, 0) },
     ticker: snapshot.ticker,

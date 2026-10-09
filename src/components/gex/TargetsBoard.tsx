@@ -56,6 +56,8 @@ import { AGENDA_ORDERS, DRIVER_WORDS, buildWords, type Agenda, type AgendaOrder,
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import { STRIKE_OPTIONS, STRIKES_TITLE, type RoomWindow } from '../../data/pinpointBook';
 import { rowProps } from '../ui/rowKeys';
+import HowSure from '../levels/HowSure';
+import type { SureLevel, Sureness } from '../../data/levelSureness';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /* An armed alert wore lime here until 2026-09-10; it is a watch, not a live
@@ -280,6 +282,7 @@ interface CardProps {
   onPick: (strike: number) => void;
   onChart: (t: Target) => void;
   onAlert: (t: Target) => void;
+  sure?: Sureness | null;
 }
 
 /** One thin bar and its figure — the card's two odds each get their own (PP-26: one bar between "Reached 45%" and
@@ -294,7 +297,7 @@ const OddsBar = ({ label, value, words, ink }: { label: string; value: number | 
   </div>
 );
 
-const Card = ({ t, n, pick, kept, yours, armed, inSession, marketPer1Pct, onPick, onChart, onAlert }: CardProps) => {
+const Card = ({ t, n, pick, kept, yours, armed, inSession, marketPer1Pct, onPick, onChart, onAlert, sure }: CardProps) => {
   const material = t.verdict !== 'steady';
   const kind = kindOf(t);
   return (
@@ -337,7 +340,8 @@ const Card = ({ t, n, pick, kept, yours, armed, inSession, marketPer1Pct, onPick
           {fmtDollars(t.stake)} at stake · {(t.stake / Math.max(1, marketPer1Pct)).toFixed(1)}×
         </span>
       </p>
-      <div className="mt-auto pt-1 flex items-center justify-end h-[26px] -mr-1">
+      <div className="mt-auto pt-1 flex items-center justify-end gap-1 h-[26px] -mr-1">
+        {sure && <span className="mr-auto -ml-1" onClick={e => e.stopPropagation()}><HowSure sure={sure} /></span>}
         <Actions t={t} armed={armed} onChart={onChart} onAlert={onAlert} />
       </div>
     </div>
@@ -364,9 +368,11 @@ interface Props {
   onPick: (strike: number) => void;
   scope?: ReactNode;
   watch?: ReactNode;
+  /** What the named levels stand on (data/levelSureness.ts) — "How sure" on a card that is one */
+  sure?: Record<SureLevel, Sureness> | null;
 }
 
-const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow, updatedAt, yours, armedAt, onChart, onAlert, focus, onPick, scope, watch }: Props) => {
+const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow, updatedAt, yours, armedAt, onChart, onAlert, focus, onPick, scope, watch, sure }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
   /* THE CARD: one open at a time; a click anywhere, a scroll or Esc closes it.
@@ -502,6 +508,7 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
             onPick={onPick}
             onChart={onChart}
             onAlert={onAlert}
+            sure={t.role && sure ? sure[t.role] : null}
           />
         ))}
       </div>

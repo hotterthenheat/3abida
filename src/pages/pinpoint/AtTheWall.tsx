@@ -30,6 +30,7 @@ import AtTheWallBand from '../../components/gex/AtTheWall';
 import WallBoard from '../../components/gex/WallBoard';
 import { AtTheWallInner, WallBoardInner, WallPageSkeleton } from '../../components/gex/wallSkeletons';
 import { bookOf, wallBoardOf } from '../../data/pinpointBook';
+import { bookSureness } from '../../data/levelSureness';
 import { stampOf, useBookClock, useBoxes, useFrameScan } from './usePinpoint';
 
 type BoxKey = 'wall' | 'board';
@@ -50,7 +51,12 @@ const AtTheWall = () => {
   const wallFocus = focusFor(wallTicker);
   const wallBoard = useMemo(() => (wallSnap ? wallBoardOf(bookOf(wallSnap, clock), wallFocus) : null), [wallSnap, wallFocus, clock]);
   const boardBoard = useMemo(() => (boardSnap ? wallBoardOf(bookOf(boardSnap, clock), null) : null), [boardSnap, clock]);
-  const book = useMemo(() => (wallSnap ? bookOf(wallSnap, clock) : null), [wallSnap, clock]);
+  /* HOW SURE (the ideas' rank 3): what the wall in focus stands on, when it is a named level */
+  const sure = useMemo(() => {
+    const role = wallBoard?.focus.role;
+    if (!wallSnap || !role) return null;
+    return bookSureness(wallSnap.chain, wallSnap.spot, wallSnap.ticker)[role];
+  }, [wallSnap, wallBoard]);
 
   /* Both boxes stand in their own shape while the first read walks in */
   if (!scan || !wallBoard || !boardBoard) return <WallPageSkeleton />;
@@ -60,7 +66,7 @@ const AtTheWall = () => {
       {/* BOX 1 — AT THE WALL */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-wall data-scope-ticker={wallTicker}>
         <Deferred fallback={<AtTheWallInner />} className="animate-fade-in">
-          <AtTheWallBand board={wallBoard} ticker={wallTicker} clock={clock} onPick={strike => focusOn(strike, wallTicker)} updatedAt={stampOf(scan.at)} scope={chipFor('wall', wallTicker)} />
+          <AtTheWallBand board={wallBoard} ticker={wallTicker} clock={clock} onPick={strike => focusOn(strike, wallTicker)} updatedAt={stampOf(scan.at)} scope={chipFor('wall', wallTicker)} sure={sure} />
         </Deferred>
       </div>
 

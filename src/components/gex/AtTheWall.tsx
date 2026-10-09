@@ -29,6 +29,8 @@
 ==================================================
 */
 
+import HowSure from '../levels/HowSure';
+import type { Sureness } from '../../data/levelSureness';
 import { useMemo, useState, type ReactNode } from 'react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
@@ -176,9 +178,11 @@ interface Props {
   scope?: ReactNode;
   /** On a desk tile the tile head names the box — only the door and the facts stay (2026-09-08) */
   headless?: boolean;
+  /** What the focused wall stands on (data/levelSureness.ts) — "How sure" beside the wall picker, for a named level */
+  sure?: Sureness | null;
 }
 
-const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = false }: Props) => {
+const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = false, sure }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
   const wall = board.focus;
   const ink = wall.role ? ROLE_INK[wall.role] : wall.weight > 0 ? COOL : SILVER;
@@ -208,7 +212,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the beam, the reasons and the two paths mean" testId="wall-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">Whether it holds when price gets there, and what follows either way · model odds, not a forecast</p>
+            <p className="mt-0.5 text-[11px] text-textMuted">Whether it holds when price gets there, and what follows either way · model odds, not a forecast</p>
           </div>
         )}
         <dl className={`grid grid-cols-5 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
@@ -244,6 +248,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-wall-controls>
         <DropdownSelect label="Wall" value={wall.strike} options={options} onChange={onPick} title="Which wall to read" testId="wall-pick" />
+        {sure && <HowSure sure={sure} />}
         <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap" data-wall-updated>
           {ticker} · updated {updatedAt} · every 10s
         </span>
