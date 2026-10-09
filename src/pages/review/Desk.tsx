@@ -113,7 +113,7 @@ import { dirInk, momentWords, pct, rWords, usd, usdSigned } from '../../componen
 import { accountOf, bankedOf, dayStateOf, floorOf, ladderRoom, ladderTake, nameGoesUp, namesOf, refusal, statsOf, type Account, type Order, type Trade } from '../../data/review/engine';
 import PnlBadges from '../../components/review/PnlBadges';
 import { chainAt, contractDay, contractKey, contractWords, dteAt, expiriesAt, longLeg, quoteAt, quoteWith, spotForAsk, spotForBid, type ContractId, type Right } from '../../data/review/quotes';
-import { amendOrder, attachBracket, breakevenOrder, cancelOrder, closePosition, moveClock, placeOrder, rebaseOrder, renameSession, trailOrder, useSession } from '../../data/review/store';
+import { amendOrder, attachBracket, breakevenOrder, cancelOrder, closePosition, moveClock, placeOrder, readSessions, rebaseOrder, renameSession, trailOrder, useSession } from '../../data/review/store';
 import { DAY_MIN, LAST_MIN, baseIvAt, clockWords, dayBars, dayWords, nextDay, prevDay, reviewName } from '../../data/review/tape';
 import type { Timeframe } from '../../data/timeframe';
 import type { Candle } from '../../types/market';
@@ -146,6 +146,8 @@ const Desk = () => {
   const [drillOpen, setDrillOpen] = useState(true);
   /** The desk's one size — the Order card's (the paper desk's grammar) */
   const [q, setQ] = useState(1);
+  /** What the last press on the ticket did, said in the ticket (the audit's PR-9) */
+  const [said, setSaid] = useState<string | null>(null);
   /** The takeover is up — the shell's, held here because the chain's window reads it */
   const [full, setFull] = useState(false);
   const cursor = session?.cursor ?? null;
@@ -257,7 +259,7 @@ const Desk = () => {
       { key: 'avg', header: 'Paid', align: 'right', render: p => <span className="text-textSecondary">{p.avg.toFixed(2)}</span> },
       { key: 'mark', header: 'Bid · ask', align: 'right', render: p => <span className="text-textPrimary">{p.quote.bid.toFixed(2)} · {p.quote.ask.toFixed(2)}</span> },
       { key: 'theta', header: 'Decay a day', align: 'right', render: p => <span className="text-textSecondary">{usd(Math.abs(p.quote.theta) * 100 * p.qty)}</span> },
-      { key: 'pnl', header: 'Up or down', align: 'right', render: p => <span className={`font-semibold ${dirInk(p.pnl)}`}>{usdSigned(p.pnl)} <span className="text-[10px] font-normal opacity-80">{rWords(p.r)}</span></span> },
+      { key: 'pnl', header: 'P&L', align: 'right', render: p => <span className={`font-semibold ${dirInk(p.pnl)}`}>{usdSigned(p.pnl)} <span className="text-[10px] font-normal text-textSecondary">{rWords(p.r)}</span></span> },
       {
         key: 'close',
         header: '',
@@ -280,7 +282,7 @@ const Desk = () => {
         key: 'status',
         header: 'Stands',
         render: o =>
-          o.status === 'working' ? <span className="text-silver font-semibold">Working · {o.tif === 'day' ? 'today only' : 'until cancelled'}</span> : o.status === 'filled' ? <span className="text-textPrimary">Filled at {o.fillPrice?.toFixed(2)}</span> : <span className="text-textMuted">{o.status === 'refused' ? 'Refused' : 'Cancelled'} — {o.why}</span>,
+          o.status === 'working' ? <span className="text-silver font-semibold">Working · {o.tif === 'day' ? 'today only' : 'until cancelled'}</span> : o.status === 'filled' ? <span className="text-textPrimary">Filled at {o.fillPrice?.toFixed(2)}</span> : <span className="text-textMuted">{o.status === 'refused' ? `Refused — ${o.why}` : o.why === 'cancelled by you' ? 'Cancelled by you' : `Cancelled — ${o.why}`}</span>,
       },
       {
         key: 'cancel',
@@ -303,7 +305,7 @@ const Desk = () => {
       { key: 'in', header: 'In', render: t => <span className="text-textSecondary">{momentWords(t.opened)} · {t.avgIn.toFixed(2)}</span> },
       { key: 'out', header: 'Out', render: t => <span className="text-textSecondary">{momentWords(t.closed)} · {t.avgOut.toFixed(2)}</span> },
       { key: 'how', header: 'Ended', render: t => <span className="text-textSecondary">{t.how === 'scaled' ? 'Scaled out' : t.how === 'sold' ? 'Sold by you' : t.how === 'target' ? 'Target hit' : t.how === 'stopped' ? 'Stopped out' : 'Held to the bell'}</span> },
-      { key: 'pnl', header: 'Made or lost', align: 'right', render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[10px] font-normal opacity-80">{rWords(t.r)}</span></span> },
+      { key: 'pnl', header: 'P&L', align: 'right', render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[10px] font-normal text-textSecondary">{rWords(t.r)}</span></span> },
     ],
     []
   );
@@ -359,6 +361,7 @@ const Desk = () => {
     const same = picked != null && contractKey(longLeg(picked)) === contractKey(c);
     setDrillOpen(same ? !drillOpen : true);
     setPicked(c);
+    setSaid(null);
   };
   /* the chart keeps the walls on screen when it has them; a replayed tape has no book, so only where the name stands */
   const levelsOf = (n: string): KeyLevels => ({ spot: spotOf(n), callWall: NaN, putWall: NaN, flip: NaN, supreme: NaN });
@@ -473,8 +476,12 @@ const Desk = () => {
               onShort: k => setPicked(k ? { ...longLeg(picked), short: k } : longLeg(picked)),
               onPlace: d => {
                 placeOrder(session.id, d);
+                const o = readSessions().find(x => x.id === session.id)?.orders.slice(-1)[0];
+                const what = o ? `${o.qty} × ${contractWords(o.contract)}` : '';
+                setSaid(!o ? null : o.status === 'refused' ? `Refused — ${o.why}` : o.status === 'filled' ? `${o.side === 'buy' ? 'Bought' : 'Sold'} ${what} at ${o.fillPrice?.toFixed(2)}` : `Working — ${o.side} ${what} at ${o.price?.toFixed(2)} or better`);
                 setTab(d.kind === 'market' ? (d.side === 'buy' ? 'open' : 'closed') : 'orders');
               },
+              said,
               onClose: (c, n) => {
                 closePosition(session.id, c, n);
                 setTab('closed');

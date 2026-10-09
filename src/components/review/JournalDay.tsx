@@ -89,7 +89,7 @@ const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: st
     <label className="flex flex-col gap-1.5 min-w-0">
       <span className="flex items-baseline justify-between gap-3">
         <span className="text-[12px] font-medium text-textPrimary">{ask}</span>
-        <span className={`inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
+        <span className={`inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
           {mark === 'keeping' && 'Keeping…'}
           {mark === 'kept' && (
             <>

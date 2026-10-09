@@ -29,7 +29,7 @@ const figuresOf = (p: EvalPlan): { node: ReactNode; ink: string }[] => [
   { node: `up to ${p.contracts}`, ink: 'text-textSecondary' },
 ];
 
-const headClass = 'text-[9px] uppercase tracking-wider text-textMuted whitespace-nowrap';
+const headClass = 'text-[10px] uppercase tracking-wider text-textMuted whitespace-nowrap';
 
 interface Props {
   onStart: (plan: EvalPlan) => void;
@@ -66,7 +66,7 @@ const PlanRows = ({ onStart, disabled = false, titleOf, compact = false, rowKey,
       onClick={() => onStart(p)}
       title={titleOf(p)}
       className={`${compact ? 'h-6 px-2.5 text-[10px]' : 'h-7 px-3 text-[11px]'} rounded-full font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-opacity hover:opacity-90`}
-      style={{ background: SILVER_FILL, color: '#0a0a0a' }}
+      style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }}
       {...(attr ? { [`data-${startKey}`]: p.label } : {})}
     >
       Start

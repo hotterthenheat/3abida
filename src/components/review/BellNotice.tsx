@@ -117,7 +117,7 @@ export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
     )}
     <div className="mt-2.5 flex items-center gap-2">
       {onNextDay ? (
-        <button type="button" onClick={onNextDay} className="inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: '#0a0a0a' }} data-review-bell-next>
+        <button type="button" onClick={onNextDay} className="inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: 'rgb(var(--night))' }} data-review-bell-next>
           Open the next day <ArrowRight className="w-3 h-3" />
         </button>
       ) : (

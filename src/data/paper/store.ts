@@ -23,12 +23,14 @@
                   (docs/paper-rules.md, "One tab at a
                   time") — two tabs would be two
                   simulated markets writing one book
-    THE PAGE'S    on the simulated feed, a page that
-    EDGES         closes flattens what is open at the
-                  market it saw, and the next load
-                  closes whatever a page could not, at
-                  the last price THAT page wrote down
-                  (engine.ts `closeStale`)
+    A RELOAD      what is open STAYS open (the audit's
+    KEEPS IT      PR-1, 2026-10-09: a reload closed an
+                  open AAPL call "with the page" and
+                  counted the day toward an evaluation):
+                  positions and working orders are saved
+                  as they change and when the page hides,
+                  and the next load marks them on its own
+                  market and keeps working them
     THE JOURNAL'S the reader's words and tags on a
     OWN KEY       paper trade (`slayer_paper_journal_
                   v1`) — apart from the book, so words
@@ -53,11 +55,11 @@ import { chime } from '../../core/sound';
 import { onFeedTick } from '../feedTicks';
 import { contractKey, type ContractId, type Quote } from '../review/quotes';
 import type { DayNote, JournalEntry } from '../review/journal';
-import { LIFE, SIM_FEED, barNowOf, candlesOf, optionQuote, spotForBidNow } from './feed';
-import { dayWords, nyAt } from './clock';
+import { LIFE, barNowOf, candlesOf, isPaperIndex, optionQuote, spotForBidNow } from './feed';
+import { buildLevelsFor } from '../gex';
+import { dayWords, nyAt, nyClockWords } from './clock';
 import {
   afterHand,
-  closeStale,
   endEvaluation,
   flattenAll,
   flattenByHand,
@@ -109,6 +111,8 @@ export function liveMarket(now = Date.now()): PaperMarket {
     candles: (ticker: string) => candlesOf(ticker),
     /* THE SIMULATED FEED NEVER SHUTS (the rules page, "The prices") — the real feed's hours come in here */
     open: () => true,
+    /* WHERE A WAY IN STOOD: the name's own book (an index has none of its own — its fund's is another name's) */
+    levels: (ticker: string) => (isPaperIndex(ticker) ? null : buildLevelsFor(ticker)),
   };
 }
 
@@ -223,15 +227,25 @@ const releaseLease = () => {
     /* nothing to release into */
   }
 };
-/** Take the accounts over from the tab that holds them: what it left open is closed at the last price it saw, on the
-    next tick here (its market is not this one) */
+/** Take the accounts over from the tab that holds them: they come here as they stand — what is open stays open and is
+    marked on this tab's prices from the next tick. The other tab only reads them from then on. */
 export function takeHere(): void {
   if (EMBEDDED) return;
   const fresh = load();
   holdLease(true);
-  staleDone = false;
   commit({ ...fresh, holding: true, elsewhere: false }, true);
 }
+/** Hand the accounts back (the Undo of "Take them here"): this tab lets the lease go and only reads; the tab that had
+    them takes them back on its next renewal */
+export function handBack(): void {
+  if (EMBEDDED || PHOTO || !state.holding) return;
+  save();
+  releaseLease();
+  commit({ holding: false, elsewhere: true });
+  handedBackAt = Date.now();
+}
+/** Just after a hand-back, this tab waits a renewal or two before it takes a free lease itself — the other tab first */
+let handedBackAt = 0;
 
 /* ================================================================== */
 /*  THE FILL ALERTS                                                    */
@@ -269,7 +283,6 @@ export const usePaperToasts = (): PaperToast[] =>
 /*  THE RUNNER                                                         */
 /* ================================================================== */
 
-let staleDone = false;
 /** Every open account, on this tick */
 function tickAll(m: PaperMarket): void {
   let changed = false;
@@ -277,14 +290,8 @@ function tickAll(m: PaperMarket): void {
   const heard: PaperToast[] = [];
   const many = state.accounts.filter(a => a.status === 'open').length > 1;
   const accounts = state.accounts.map(a => {
-    let next = a;
-    if (!staleDone && SIM_FEED) next = closeStale(next, m);
-    if (next.status !== 'open') {
-      /* a finished account is not ticked — but what was closed in it above is still kept */
-      if (next !== a) changed = true;
-      return next;
-    }
-    const r = tick(next, m);
+    if (a.status !== 'open') return a;
+    const r = tick(a, m);
     for (const e of r.events) {
       if (e.kind === 'roll') continue;
       heard.push({ id: `t${++toastSeq}`, at: e.at, kind: e.kind, words: e.words, pnl: e.pnl, account: many ? a.name : '' });
@@ -293,10 +300,6 @@ function tickAll(m: PaperMarket): void {
     if (r.account !== a) changed = true;
     return r.account;
   });
-  if (!staleDone) {
-    staleDone = true;
-    urgent = true;
-  }
   if (changed) commit({ accounts }, urgent);
   say(heard);
 }
@@ -318,9 +321,8 @@ export function startPaperRunner(): () => void {
       const l = readLease();
       if (l && l.tab !== TAB && l.until > Date.now()) commit({ holding: false, elsewhere: true, ...load() });
       else holdLease();
-    } else if (holdLease()) {
-      /* the other tab let go (it closed): this one holds them now — fresh from storage, and what that tab left is closed */
-      staleDone = false;
+    } else if (Date.now() - handedBackAt > LEASE_MS && holdLease()) {
+      /* the other tab let go (it closed): this one holds them now, fresh from storage — what is open stays open */
       commit({ ...load(), holding: true, elsewhere: false }, true);
     }
   }, RENEW_MS);
@@ -331,14 +333,10 @@ export function startPaperRunner(): () => void {
       journalListeners.forEach(fn => fn());
     }
   };
-  /* THE PAGE CLOSES (the simulated feed): what is open is closed at the market it saw, and the lease is let go */
+  /* THE PAGE CLOSES: everything is written down as it stands (nothing is closed — the next load carries it on), and the
+     lease is let go */
   const onHide = () => {
     if (!state.holding) return;
-    if (SIM_FEED) {
-      const m = liveMarket();
-      const accounts = state.accounts.map(a => (a.status === 'open' ? afterHand(a, flattenAll(a, m, 'page', 'the page closed'), m) : a));
-      state = { ...state, accounts };
-    }
     save();
     releaseLease();
   };
@@ -397,7 +395,10 @@ export function startPractice(size: number): string | null {
   const now = Date.now();
   const m = liveMarket(now);
   const accounts = state.accounts.map(a => (a.kind === 'practice' && a.status === 'open' ? { ...flattenAll(a, m, 'rule', 'the account was started over'), status: 'ended' as const, statusAt: now, statusWhy: 'Started over' } : a));
-  const a = newAccount({ id: newId(), kind: 'practice', name: `Practice · from ${dayWords(nyAt(now).date).split(', ')[1]}`, startCash: size, now });
+  /* A NAME OF ITS OWN (the audit's PR-18: two accounts both "Practice · from Oct 9"): its size and the minute it began, New
+     York's — "Practice $10K · Oct 9 14:05" */
+  const t = nyAt(now);
+  const a = newAccount({ id: newId(), kind: 'practice', name: `Practice $${Math.round(size / 1000)}K · ${dayWords(t.date).split(', ')[1]} ${nyClockWords(now)}`, startCash: size, now });
   commit({ accounts: [a, ...accounts], inHand: a.id }, true);
   return a.id;
 }
@@ -411,6 +412,46 @@ export function startEvaluation(plan: EvalPlan): string | null {
   return a.id;
 }
 export const setInHand = (id: string) => state.accounts.some(a => a.id === id) && commit({ inHand: id }, true);
+
+/* ================================================================== */
+/*  THE WAY BACK (ui/undo.tsx — the audit's X5)                        */
+/* ================================================================== */
+
+/** What the reader's hand did, as the store saw it: the account before and after — what an Undo puts back */
+export interface PaperHandMark {
+  id: string;
+  before: PaperAccount;
+  after: PaperAccount;
+}
+/** Do `fn` to an account and keep what it was before, for an Undo — null when nothing changed */
+export function withMark(id: string, fn: () => unknown): PaperHandMark | null {
+  const before = state.accounts.find(a => a.id === id);
+  if (!before) return null;
+  fn();
+  const after = state.accounts.find(a => a.id === id);
+  return after && after !== before ? { id, before, after } : null;
+}
+/** Nothing has happened to the account since the hand acted: no fill, no order, no new day */
+const untouchedSince = (cur: PaperAccount, after: PaperAccount): boolean =>
+  cur.opt.fills.length === after.opt.fills.length && cur.opt.orders.length === after.opt.orders.length && cur.opt.orders.every((o, i) => o.status === after.opt.orders[i]?.status) && cur.day === after.day && cur.status === after.status;
+/** PUT IT BACK: the account as it stood before the hand — only while nothing else has happened to it since (a fill, an order,
+    the day rolling); false when it could not be */
+export function undoMark(mark: PaperHandMark): boolean {
+  if (!state.holding) return false;
+  const cur = state.accounts.find(a => a.id === mark.id);
+  if (!cur || !untouchedSince(cur, mark.after)) return false;
+  commit({ accounts: replace(mark.before) }, true);
+  return true;
+}
+/** UNDO A NEW PRACTICE ACCOUNT: the new one goes (while nothing was traded on it) and the one it closed comes back as it was */
+export function undoStartPractice(madeId: string, closed: PaperAccount | null, inHandBefore: string | null): boolean {
+  if (!state.holding) return false;
+  const made = state.accounts.find(a => a.id === madeId);
+  if (!made || made.opt.orders.length) return false;
+  const accounts = state.accounts.filter(a => a.id !== madeId).map(a => (closed && a.id === closed.id ? closed : a));
+  commit({ accounts, inHand: inHandBefore && accounts.some(a => a.id === inHandBefore) ? inHandBefore : (accounts[0]?.id ?? null) }, true);
+  return true;
+}
 
 /* ================================================================== */
 /*  THE JOURNAL'S OWN KEY                                              */

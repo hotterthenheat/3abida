@@ -225,7 +225,7 @@ const MonthFigure = () => {
     <g>
       <rect x={x} y={8} width={130} height={92} fill="none" stroke="#ffffff" strokeOpacity={0.1} />
       {today && <circle cx={x + 16} cy={20} r={8} fill={INK} />}
-      <text x={x + 16} y={22.5} textAnchor="middle" fontSize={7.5} fontWeight={today ? 700 : 400} fill={today ? '#0a0a0a' : INK} fontFamily={FIG}>
+      <text x={x + 16} y={22.5} textAnchor="middle" fontSize={7.5} fontWeight={today ? 700 : 400} fill={today ? 'rgb(var(--night))' : INK} fontFamily={FIG}>
         {day}
       </text>
       {pills.map(([w, t, ink], i) => (

@@ -156,7 +156,7 @@ const TickerPicker = ({ value, onChange, indexes, indexPrice }: Props) => {
               groups.map(g =>
                 g.rows.length === 0 ? null : (
                   <div key={g.key} className="pb-1" data-paper-ticker-group={g.key}>
-                    <div className="px-4 pt-2 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{g.title}</div>
+                    <div className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">{g.title}</div>
                     {(
                       g.rows.map(r => {
                         index += 1;

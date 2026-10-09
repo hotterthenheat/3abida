@@ -78,6 +78,15 @@ export interface PaperMarket {
   candles: (ticker: string) => Candle[];
   /** Does the market take an order now (the simulated feed always does; the real one, 09:30 to 16:00) */
   open: () => boolean;
+  /** The name's levels as the book reads them now — what a way in is stamped with (WHERE THE TRADE STOOD); none: no stamp */
+  levels?: (ticker: string) => FillLevels | null;
+}
+/** WHERE A WAY IN STOOD (the ideas' "where the trade stood", 2026-10-09): the flip and the nearest walls of the name's book at
+    the moment of the fill — the journal cuts the reader's own trades by it ("entries above the flip against below") */
+export interface FillLevels {
+  flip: number;
+  callWall: number;
+  putWall: number;
 }
 
 /* ---- options ---- */
@@ -129,6 +138,8 @@ export interface OptFill {
   life: string;
   /** Why, where it was not the reader's doing ("the floor", "15:59", "the page closed") */
   note?: string;
+  /** A way in: where the name stood against its book at the fill */
+  lv?: FillLevels;
 }
 
 /* ---- the account ---- */
@@ -341,6 +352,8 @@ export interface OptTrade {
   tag?: string;
   /** Why the rules or the page closed it */
   note?: string;
+  /** Where the name stood against its book when it was opened (a fill from before the stamp: none) */
+  lvIn?: FillLevels;
 }
 const outOf = (how: OptFillHow, target: boolean): OptLeg['out'] => (how === 'expired' ? 'bell' : how === 'rule' ? 'rule' : how === 'page' ? 'page' : how === 'stop' ? 'stop' : target ? 'target' : 'hand');
 
@@ -422,6 +435,7 @@ function readOptBook(a: PaperAccount): OptBook {
       plannedStop: o.first.plannedStop,
       tag: o.first.tag,
       note: f.note,
+      lvIn: o.first.lv,
     });
     open.delete(key);
   }
@@ -544,7 +558,8 @@ export const floorOf = (a: PaperAccount): number => (a.plan ? Math.min(a.peak - 
 /** Trading days with a closed trade on them — what "days traded" counts */
 export function daysTradedOf(a: PaperAccount): string[] {
   const days = new Set<string>();
-  for (const f of a.opt.fills) if (f.side === 'sell') days.add(f.at.day);
+  /* a close the page made as it shut (before 2026-10-09 a reload closed what was open) is not the reader's trading day */
+  for (const f of a.opt.fills) if (f.side === 'sell' && f.how !== 'page') days.add(f.at.day);
   return [...days].sort();
 }
 /** A closed day's result: its close less its open */
@@ -660,10 +675,12 @@ export function optRefusal(a: PaperAccount, m: PaperMarket, d: OptDraft): string
   if (d.side === 'buy') {
     const ruled = accountRefusal(a, m.now, d.qty, () => viewOf(a, m));
     if (ruled) return ruled;
-    const px = d.kind === 'limit' ? Math.min(d.price!, q.ask) : q.ask;
+    /* A BUY LIMIT IS PAID FOR AT ITS LIMIT (the audit's PR-3: a limit at 99999 was taken, then cancelled "the free money was
+       gone by then"): it may fill at any price up to its own, so the money it needs is the limit's, said up front */
+    const px = d.kind === 'limit' ? d.price! : q.ask;
     const need = px * MULT * d.qty + optFee(a, d.contract, d.qty);
     const v = viewOf(a, m);
-    if (need > v.free + 1e-9) return `Not enough free money — this needs ${money(need)}, and ${money(Math.max(0, v.free))} is free`;
+    if (need > v.free + 1e-9) return d.kind === 'limit' && d.price! > q.ask ? `Not enough free money at that limit — ${d.price!.toFixed(2)} needs ${money(need)}, and ${money(Math.max(0, v.free))} is free (the ask is ${q.ask.toFixed(2)})` : `Not enough free money — this needs ${money(need)}, and ${money(Math.max(0, v.free))} is free`;
     if (d.kind === 'market' && q.dead) return 'No market in that contract right now';
     /* our ceiling (a buy of a contract already held adds to it) */
     const held = new Set(v.opt.map(p => p.key));
@@ -738,10 +755,16 @@ function afterSell(a: PaperAccount, sold: OptOrder, q: Quote, at: PaperMoment, m
   return next;
 }
 
+/** The way in's stamp: the name's flip and walls as the book reads them now — only real numbers are kept */
+function stampOf(m: PaperMarket, ticker: string): { lv?: FillLevels } {
+  const l = m.levels?.(ticker);
+  if (!l || ![l.flip, l.callWall, l.putWall].every(Number.isFinite)) return {};
+  return { lv: { flip: cents(l.flip), callWall: cents(l.callWall), putWall: cents(l.putWall) } };
+}
 function optFillNow(a: PaperAccount, o: OptOrder, price: number, how: OptFillHow, q: Quote, m: PaperMarket, note?: string): PaperAccount {
   const at = momentAt(m.now);
   let [id, next] = nextId(a, 'f');
-  const fill: OptFill = { id, orderId: o.id || null, at, contract: o.contract, side: o.side, qty: o.qty, price: cents(price), fee: how === 'expired' ? 0 : optFee(a, o.contract, o.qty), how, spot: q.spot, delta: q.delta, iv: q.iv, theta: q.theta, tag: o.tag, plannedStop: o.side === 'buy' ? plannedStopOf(o, m) : undefined, bar: m.bar(o.contract.ticker), life: m.life, note };
+  const fill: OptFill = { id, orderId: o.id || null, at, contract: o.contract, side: o.side, qty: o.qty, price: cents(price), fee: how === 'expired' ? 0 : optFee(a, o.contract, o.qty), how, spot: q.spot, delta: q.delta, iv: q.iv, theta: q.theta, tag: o.tag, plannedStop: o.side === 'buy' ? plannedStopOf(o, m) : undefined, bar: m.bar(o.contract.ticker), life: m.life, note, ...(o.side === 'buy' ? stampOf(m, o.contract.ticker) : {}) };
   next = setOpt(next, next.opt.orders.map(x => (x.id === o.id ? { ...x, status: 'filled' as const, done: at, fillPrice: fill.price } : x)), [...next.opt.fills, fill]);
   if (o.side === 'sell') next = afterSell(next, o, q, at, m);
   const { targets, stops } = rungsOf(o.side === 'buy' ? o.bracket : undefined, o.qty);

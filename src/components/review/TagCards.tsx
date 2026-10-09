@@ -34,7 +34,7 @@ const ListEditor = ({ list, title, placeholder, words }: { list: keyof TagLists;
   const field = useRef<HTMLInputElement | null>(null);
   return (
     <div className="min-w-0 flex-1" data-tag-list={list}>
-      <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{title}</div>
+      <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted">{title}</div>
       <div className="mt-1.5 flex flex-col">
         {words.map(w => (
           <div key={w} className="group flex items-center gap-2 h-7 border-b border-borderSubtle/60 text-[12px] text-textPrimary">

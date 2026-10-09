@@ -135,11 +135,11 @@ const StakeCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span
 const PlanCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
   if (!data) return null;
   if (!TX_CODES[data.code].openMarket) return <span className="font-mono text-[10px] text-textMuted">—</span>;
-  if (data.plan === 'plan') return <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted" title="Ran off a 10b5-1 plan adopted months earlier — no view on the day">planned</span>;
-  if (data.plan === 'unknown') return <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted" title="The filing carried no plan box either way">unstated</span>;
+  if (data.plan === 'plan') return <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted" title="Ran off a 10b5-1 plan adopted months earlier — no view on the day">planned</span>;
+  if (data.plan === 'unknown') return <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted" title="The filing carried no plan box either way">unstated</span>;
   const loud = isChosenBuy(data);
   return (
-    <span className={`font-mono text-[8px] uppercase tracking-widest ${loud ? 'text-textPrimary font-bold' : 'text-textSecondary'}`} title={loud ? 'A purchase the insider chose to make with their own money — the loudest row here' : 'A trade the insider chose to make'}>
+    <span className={`font-mono text-[10px] uppercase tracking-widest ${loud ? 'text-textPrimary font-bold' : 'text-textSecondary'}`} title={loud ? 'A purchase the insider chose to make with their own money — the loudest row here' : 'A trade the insider chose to make'}>
       chosen
     </span>
   );
@@ -181,12 +181,12 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
       </span>
       <span className="mt-1.5 flex items-baseline gap-2 font-mono tnum">
         <span className="text-[13px] font-bold text-bull">{fmtDollars(f.openMarketBuys)}</span>
-        <span className="text-[9px] text-textSecondary">chosen buying</span>
+        <span className="text-[10px] text-textSecondary">chosen buying</span>
         <span className="ml-auto text-[10px] text-textPrimary">
           {buyers} {buyers === 1 ? 'buyer' : 'buyers'}
         </span>
       </span>
-      <span className={`mt-1 block font-mono text-[8px] uppercase tracking-widest ${s.ink}`}>{s.word}</span>
+      <span className={`mt-1 block font-mono text-[10px] uppercase tracking-widest ${s.ink}`}>{s.word}</span>
     </button>
   );
 };

@@ -167,15 +167,15 @@ const SectorCard = ({ s, rank, leader, top, on, onToggle }: { s: SectorRow; rank
     data-on={on || undefined}
   >
     <span className="flex items-center gap-1.5 min-w-0 h-[18px]">
-      <span className="font-mono text-[9px] text-textMuted tnum">{String(rank).padStart(2, '0')}</span>
+      <span className="font-mono text-[10px] text-textMuted tnum">{String(rank).padStart(2, '0')}</span>
       <SectorMark sector={s.sector} />
       <span className="text-[11px] font-bold text-textPrimary truncate">{SHORT_SECTOR[s.sector] ?? s.sector}</span>
     </span>
     <span className="mt-1.5 block h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
       <span className={`block h-full rounded-full ${leader ? 'bg-supreme' : PHASE_BAR[s.phase]}`} style={{ width: `${Math.round((s.score / top) * 100)}%` }} />
     </span>
-    <span className={`mt-1 block h-[12px] font-mono text-[8px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
-    <span className="mt-0.5 block h-[12px] font-mono text-[9px] tnum whitespace-nowrap">
+    <span className={`mt-1 block h-[12px] font-mono text-[10px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
+    <span className="mt-0.5 block h-[12px] font-mono text-[10px] tnum whitespace-nowrap">
       <span className="text-textMuted">1w </span>
       <span className={dirInk(s.rs1w)}>{signedPct(s.rs1w)}</span>
       <span className="text-textMuted"> · 1m </span>

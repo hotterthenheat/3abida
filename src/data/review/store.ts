@@ -81,6 +81,13 @@ export function runAgain(id: string): Session | null {
   return createSession({ name: `${stem} · run ${runs + 1}`, ticker: from.ticker, tickers: from.tickers, rules: from.rules, startCash: from.startCash, fee: from.fee, startDay: from.startDay });
 }
 export const deleteSession = (id: string) => commit(list.filter(s => s.id !== id), true);
+/** Put a deleted session back where it stood in the list (the Undo of a delete) */
+export function restoreSession(s: Session, at: number): void {
+  if (list.some(x => x.id === s.id)) return;
+  const next = [...list];
+  next.splice(Math.max(0, Math.min(at, next.length)), 0, s);
+  commit(next, true);
+}
 export const renameSession = (id: string, name: string) => commit(list.map(s => (s.id === id ? { ...s, name: name.trim() || s.name } : s)), true);
 export const moveClock = (id: string, to: Moment) => swap(id, s => advance(s, to, Date.now()));
 export const placeOrder = (id: string, d: Draft) => swap(id, s => place(s, d, Date.now()), true);
@@ -117,6 +124,8 @@ const subscribe = (fn: () => void) => {
   return () => listeners.delete(fn);
 };
 const snapshot = () => list;
+/** Every session as the store holds it now — outside a render */
+export const readSessions = (): Session[] => list;
 /** Every session, newest first */
 export const useSessions = (): Session[] => useSyncExternalStore(subscribe, snapshot, snapshot);
 /** A session by its id */

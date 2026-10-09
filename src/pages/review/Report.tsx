@@ -143,10 +143,10 @@ const Report = () => {
             <div key={c.title} className="min-w-0">
               <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">{c.title}</div>
               <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-x-4 font-mono text-[11px] tnum">
-                <span className="text-[9px] uppercase tracking-widest text-textMuted pb-1">&nbsp;</span>
-                <span className="text-[9px] uppercase tracking-widest text-textMuted text-right pb-1">Trades</span>
-                <span className="text-[9px] uppercase tracking-widest text-textMuted text-right pb-1">Won</span>
-                <span className="text-[9px] uppercase tracking-widest text-textMuted text-right pb-1">Made or lost</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted pb-1">&nbsp;</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Trades</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Won</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Made or lost</span>
                 {c.rows.map(r => (
                   <div key={r.label} className="contents">
                     <span className="py-1 border-t border-borderSubtle/70 text-textPrimary truncate">{r.label}</span>

@@ -614,9 +614,9 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
               <Marker key={p.city} coordinates={[p.lng, p.lat]} onClick={() => onPick(p)} onMouseEnter={() => onHover(p)} onMouseLeave={() => onHover(null)} style={{ default: { cursor: figure ? 'default' : 'pointer' }, hover: { cursor: figure ? 'default' : 'pointer' }, pressed: { cursor: figure ? 'default' : 'pointer' } }}>
                 <g data-news-pin={p.city} data-grade={p.grade} data-open={open || undefined}>
                   {p.freshest === 'fresh' && <circle r={r + (5 * s) / z} fill={ink} fillOpacity={0.14} />}
-                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : '#0a0a0a'} strokeWidth={((open ? 2 : 1) * s) / z} />
+                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : 'rgb(var(--night))'} strokeWidth={((open ? 2 : 1) * s) / z} />
                   {p.n > 1 && (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily={FONT_SANS} fill="#0a0a0a">
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
                       {p.n}
                     </text>
                   )}
@@ -673,7 +673,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
         <button
           type="button"
           onClick={() => glideTo(homeView)}
-          className="absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
+          className="absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
           title="Back to the whole world"
           data-news-map-fit
         >

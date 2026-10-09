@@ -469,9 +469,23 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
     }, 250);
     return () => window.clearInterval(t);
   }, [playing]);
+  /* THE CLOCK ONLY MOVES FORWARD (engine.ts floorOf, the audit's PR-2 and PR-11): a press behind where it stands is said,
+     never silently swallowed — the bar's own back doors stay where they are */
+  const [backSaid, setBackSaid] = useState<string | null>(null);
+  useEffect(() => {
+    if (!backSaid) return;
+    const t = window.setTimeout(() => setBackSaid(null), 3600);
+    return () => window.clearTimeout(t);
+  }, [backSaid]);
   const seek = (minute: number, day = clock?.day ?? '') => {
     setPlaying(false);
-    if (clock) clock.move({ day, minute: Math.max(0, Math.min(clock.lastMin, minute)) });
+    if (!clock) return;
+    const to = { day, minute: Math.max(0, Math.min(clock.lastMin, minute)) };
+    if (to.day < clock.day || (to.day === clock.day && to.minute < clock.minute)) {
+      setBackSaid(`The clock only moves forward — it stands at ${clock.wordsAt(clock.minute)}, New York. What is behind it stays on the chart.`);
+      return;
+    }
+    clock.move(to);
   };
 
   /* THE DESK'S ONE HEIGHT, measured: what the page's scroller leaves under whatever is above the grid — or what the side
@@ -615,7 +629,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                   {(here || compact) && !split && <span className={here ? 'text-textPrimary' : 'text-textSecondary'}>{n.priceWords}</span>}
                   {!split && <span className={`text-[10px] font-semibold ${dayInk(n.dayPct)}`}>{dayWordsOf(n.dayPct)}</span>}
                   {n.held > 0 && (
-                    <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver text-[8px] font-bold leading-[14px] text-center" title={`${n.held} open in ${n.symbol}`}>
+                    <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver text-[10px] font-bold leading-[14px] text-center" title={`${n.held} open in ${n.symbol}`}>
                       {n.held}
                     </span>
                   )}
@@ -868,6 +882,13 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
           </PaneFoot>
         )}
         {said && <div className="absolute inset-x-0 top-3 z-30 flex justify-center px-3 pointer-events-none">{said}</div>}
+        {backSaid && (
+          <div className="absolute inset-x-0 bottom-14 z-30 flex justify-center px-3 pointer-events-none">
+            <p role="status" className="max-w-[520px] px-3 py-1.5 rounded-md border border-borderMuted bg-panel/95 text-[12px] text-textPrimary shadow-lg" data-review-clock-back>
+              {backSaid}
+            </p>
+          </div>
+        )}
       </div>
       </div>
     </div>

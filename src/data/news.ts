@@ -9,6 +9,7 @@
 ==================================================
 */
 
+import { nyMinutes, nyParts, nyWallTime } from '../core/nyTime';
 import type { Grade } from './stockOverview';
 import { dayKey, h01, hPick, hRange } from '../core/rng';
 import { now } from '../core/clock';
@@ -391,10 +392,12 @@ let feedCache: { key: string; items: NewsItem[] } | null = null;
 export function buildNewsFeed(): NewsItem[] {
   const day = dayKey();
   const t0 = now();
-  const nowMin = t0.getHours() * 60 + t0.getMinutes();
+  /* NEW YORK'S DAY AND CLOCK, whatever the machine's zone (the audit's X2): a story's "14:03" is New York's 14:03 */
+  const nowMin = nyMinutes(t0);
   const cacheKey = `${day}-${nowMin}`;
   if (feedCache?.key === cacheKey) return feedCache.items;
-  const dayStartMs = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate()).getTime();
+  const p0 = nyParts(t0);
+  const dayStartMs = nyWallTime(p0.year, p0.month, p0.day, 0, 0);
   const items: NewsItem[] = [];
 
   for (let i = 0; i < FEED_SIZE; i++) {

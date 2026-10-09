@@ -64,7 +64,7 @@ const Pill = ({ e, onOpen }: { e: CalEvent; onOpen: () => void }) => {
         ev.stopPropagation();
         onOpen();
       }}
-      className="w-full flex items-center gap-1 h-[18px] px-1.5 rounded-[3px] text-left font-mono text-[9.5px] font-semibold whitespace-nowrap overflow-hidden transition-[filter] hover:brightness-110"
+      className="w-full flex items-center gap-1 h-[18px] px-1.5 rounded-[3px] text-left font-mono text-[10px] font-semibold whitespace-nowrap overflow-hidden transition-[filter] hover:brightness-110"
       style={{ background: alpha(ink, 0.13), color: ink, boxShadow: `inset 2px 0 0 0 ${ink}` }}
       title={e.kind === 'earnings' ? `${e.ticker} reports ${e.time}${e.impliedMovePct ? ` · ±${e.impliedMovePct.toFixed(1)}% priced` : ''}` : `${e.time} · ${e.title}${e.forecast ? ` · fcst ${e.forecast}` : ''}`}
       data-cal-pill={e.id}
@@ -74,12 +74,12 @@ const Pill = ({ e, onOpen }: { e: CalEvent; onOpen: () => void }) => {
         <>
           <CompanyLogo ticker={e.ticker} size={10} />
           <span className="truncate">{e.ticker}</span>
-          <span className="ml-auto text-[8px] font-normal">{e.slot}</span>
+          <span className="ml-auto text-[10px] font-normal">{e.slot}</span>
         </>
       ) : (
         <>
           <span className="truncate">{e.title}</span>
-          <span className="ml-auto text-[8px] font-normal">{e.time}</span>
+          <span className="ml-auto text-[10px] font-normal">{e.time}</span>
         </>
       )}
     </button>
@@ -129,7 +129,7 @@ const NewsCalendar = () => {
           <span className="text-[14px] font-semibold text-textPrimary" data-cal-label>
             {cal.label}
           </span>
-          <button type="button" onClick={home} className="inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-cal-today>
+          <button type="button" onClick={home} className="inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-cal-today>
             Today
           </button>
           <span className="font-mono text-[10px] tnum text-textSecondary ml-2" data-cal-counts>
@@ -142,7 +142,7 @@ const NewsCalendar = () => {
         </div>
         <div className="grid grid-cols-7 border-b border-borderSubtle/60">
           {WEEKDAYS.map(w => (
-            <div key={w} className="px-2 h-[22px] flex items-center font-mono text-[9px] uppercase tracking-widest text-textMuted">
+            <div key={w} className="px-2 h-[22px] flex items-center font-mono text-[10px] uppercase tracking-widest text-textMuted">
               {w}
             </div>
           ))}
@@ -172,7 +172,7 @@ const NewsCalendar = () => {
                   {events.slice(0, 3).map(e => (
                     <Pill key={e.id} e={e} onOpen={() => setPickedKey(day.key)} />
                   ))}
-                  {events.length > 3 && <span className="font-mono text-[9px] text-textMuted pl-1">{events.length - 3} more</span>}
+                  {events.length > 3 && <span className="font-mono text-[10px] text-textMuted pl-1">{events.length - 3} more</span>}
                 </div>
               );
             })}
@@ -184,7 +184,7 @@ const NewsCalendar = () => {
       <div className="min-w-0 flex flex-col" data-cal-day-panel={picked.key}>
         <div className="px-4 h-[40px] flex items-center gap-2 border-b border-borderSubtle">
           <span className="text-[13px] font-semibold text-textPrimary">{longDay(picked.date)}</span>
-          {picked.today && <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-select">today</span>}
+          {picked.today && <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-select">today</span>}
           <span className="ml-auto font-mono text-[10px] tnum text-textSecondary">
             {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
           </span>
@@ -206,7 +206,7 @@ const NewsCalendar = () => {
                   ) : (
                     <span className={`min-w-0 truncate text-[12px] text-textPrimary ${e.impact === 'high' ? 'font-semibold' : ''}`}>{e.title}</span>
                   )}
-                  {e.region && <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted">{e.region}</span>}
+                  {e.region && <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-textMuted">{e.region}</span>}
                 </div>
                 <div className="mt-1 pl-[72px] flex items-center gap-x-4 font-mono text-[10px] tnum text-textPrimary">
                   {e.kind === 'earnings' ? (

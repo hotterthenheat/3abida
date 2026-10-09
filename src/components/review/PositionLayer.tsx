@@ -336,7 +336,7 @@ const TrailDoor = ({ b, dp, onTrail }: { b: ChartBracket; dp: number; onTrail: (
               <input ref={field} value={draft} onChange={e => setDraft(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" aria-label="Trail by" className="h-8 px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60 transition-colors" data-chart-trail-field />
             </label>
             <div className="flex items-center gap-2">
-              <button type="submit" disabled={!(by > 0)} className="h-7 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: '#0a0a0a' }} data-chart-trail-apply>
+              <button type="submit" disabled={!(by > 0)} className="h-7 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }} data-chart-trail-apply>
                 {on ? 'Trail by this' : 'Trail'}
               </button>
               {on && (
@@ -732,7 +732,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
   const grip = <span className="inline-flex items-center justify-center w-2.5 bg-black/15" aria-hidden="true"><span className="w-px h-2.5 bg-black/60" /></span>;
   /* the ✕ and the contracts wear inks the chart's ground re-scopes (index.css): on a light tape the silver turns steel, the
      grey dark, and the dark words on them light — never the fixed silver-fill, which stays pale under the pale words */
-  const xCell = 'inline-flex items-center justify-center w-5 bg-textSecondary text-[#0a0a0a] border-l border-black/25 hover:bg-bear disabled:opacity-40 transition-colors';
+  const xCell = 'inline-flex items-center justify-center w-5 bg-textSecondary text-[rgb(var(--night))] border-l border-black/25 hover:bg-bear disabled:opacity-40 transition-colors';
   /** What a way out's switches sit in, beside its bar while the pointer is on it (or one of them has its card open) */
   const tray = 'hidden group-hover:inline-flex group-has-[[data-state=open]]:inline-flex items-center gap-0.5 mr-1 px-1 rounded-[3px] bg-panel border border-borderMuted shadow-[0_3px_10px_rgba(0,0,0,0.35)]';
   const bind = (id: string) => (el: HTMLDivElement | null) => {
@@ -919,7 +919,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                   {held && !x.label && <span className="ml-1 text-textPrimary">{priceWords}</span>}
                 </span>
               </span>
-              <button type="button" onClick={() => onCancelOrder(x.orderId)} title={`Cancel the ${what.toLowerCase()}`} aria-label={`Cancel the ${what.toLowerCase()}`} className={`inline-flex items-center justify-center w-5 border-l border-current rounded-r-[2px] transition-colors ${buy ? 'hover:bg-bull' : 'hover:bg-bear'} hover:text-[#0a0a0a]`} data-chart-entry-cancel>
+              <button type="button" onClick={() => onCancelOrder(x.orderId)} title={`Cancel the ${what.toLowerCase()}`} aria-label={`Cancel the ${what.toLowerCase()}`} className={`inline-flex items-center justify-center w-5 border-l border-current rounded-r-[2px] transition-colors ${buy ? 'hover:bg-bull' : 'hover:bg-bear'} hover:text-[rgb(var(--night))]`} data-chart-entry-cancel>
                 <X className="w-3 h-3" />
               </button>
               {/* OUT OF THE PICTURE (shown by the frame loop): which way the line is */}
@@ -937,7 +937,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
           <div className="px-2 pt-1 pb-1.5">{open.card.head}</div>
           {[...open.card.sections, { items: [{ label: 'Reset chart view · Alt+R', hint: 'Back to how the chart first opened', run: () => api.reset(), testId: 'reset-view' }] } as ChartMenuSection].map((sec, si) => (
             <div key={si} className={si > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
-              {sec.title && <div className="px-2 pt-0.5 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{sec.title}</div>}
+              {sec.title && <div className="px-2 pt-0.5 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">{sec.title}</div>}
               {sec.items.map(it => (
                 <button
                   key={it.label}

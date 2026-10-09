@@ -40,7 +40,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { Plus, ShieldAlert } from 'lucide-react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import { card, head } from '../review/DeskShell';
-import { dirInk, usd, usdSigned } from '../review/words';
+import { TRADES_WORDS, dirInk, usd, usdSigned } from '../review/words';
 import { PRACTICE_SIZES, type EvalPlan, type EvalRead, type PaperAccount, type PaperView } from '../../data/paper/engine';
 import { nyAt } from '../../data/paper/clock';
 import PlanRows from './PlanRows';
@@ -90,7 +90,7 @@ const FloorBar = ({ ev, worth }: { ev: EvalRead; worth: number }) => {
         {dayFloorOn && <span className="absolute top-[5px] w-px h-[11px] bg-warn" style={{ left: at(ev.dayFloor) }} title="The day’s own floor" />}
         <span className="absolute top-[4px] w-[13px] h-[13px] -ml-[6.5px] rounded-full border-2 border-panel bg-textPrimary shadow-[0_0_0_1px_rgb(var(--silver)/0.5)]" style={{ left: at(worth) }} />
       </div>
-      <div className="flex justify-between font-mono text-[9px] tnum text-textMuted">
+      <div className="flex justify-between font-mono text-[10px] tnum text-textMuted">
         <span>
           floor <span className="text-textSecondary">{usd(ev.floor, 0)}</span>
           {ev.floorStopped && <span> · stays there</span>}
@@ -117,14 +117,14 @@ const TiedBar = ({ v }: { v: PaperView }) => {
       <div className="relative h-[5px] rounded-full bg-ink/[0.08] overflow-hidden flex" aria-hidden="true">
         <span className="h-full bg-silver/70" style={{ width: w(opt) }} />
       </div>
-      <div className="mt-1 font-mono text-[9px] tnum text-textMuted">
+      <div className="mt-1 font-mono text-[10px] tnum text-textMuted">
         tied up in options <span className="text-textSecondary">{usd(opt, 0)}</span> of {usd(v.equity, 0)}
       </div>
     </div>
   );
 };
 
-const door = 'inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary transition-colors';
+const door = 'hit inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary transition-colors';
 
 interface Props {
   account: PaperAccount;
@@ -156,14 +156,15 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
 
   return (
     <div className={`${card} min-w-0 shrink-0 flex flex-col`} data-paper-account={a.id} data-paper-kind={a.kind} data-paper-status={a.status}>
-      <div className={`${head} px-3 gap-2`}>
+      {/* the head wraps where it is narrow (a phone): New and Flatten are never cut (the audit's PR-15: "+ NE") */}
+      <div className={`${head} px-3 gap-2 flex-wrap h-auto min-h-9 py-1`}>
         {/* bare: the head also holds Flatten and New — the word Account stays in the tooltip and the open card's heading */}
         <DropdownSelect label="Account" value={a.id} options={options} onChange={onPick} title="The account on the chart" testId="paper-account-pick" size="sm" bare />
-        <span className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[9px] font-bold uppercase tracking-widest ${status.ink}`} data-paper-status-chip>
+        <span className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[10px] font-bold uppercase tracking-widest ${status.ink}`} data-paper-status-chip>
           {status.word}
         </span>
         {a.sandbox && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary" title="Fees off — practice with nothing in the way">
+          <span className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle font-mono text-[10px] uppercase tracking-widest text-textSecondary" title="Fees off — practice with nothing in the way">
             Sandbox
           </span>
         )}
@@ -196,7 +197,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                   {onPractice && (
                     <>
                       <p className="text-[12px] font-medium text-textPrimary">A practice account</p>
-                      <p className="mt-1 text-[11px] leading-snug text-textMuted">Options — calls, puts and debit spreads — from the size you pick. The practice account you have now is closed at the market first, and stays in the list.</p>
+                      <p className="mt-1 text-[11px] leading-snug text-textMuted">From the size you pick — {TRADES_WORDS}. The practice account you have now is closed at the market first and stays in the list; an Undo brings it back for a few seconds.</p>
                       <div className="mt-2.5 grid grid-cols-4 gap-1.5">
                         {PRACTICE_SIZES.map(size => (
                           <button
@@ -206,7 +207,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                               setNewOpen(false);
                               onPractice(size);
                             }}
-                            className="h-8 rounded-md border border-borderSubtle font-mono text-[11px] tnum text-textPrimary hover:border-silver/60 hover:bg-silver/[0.06] transition-colors"
+                            className="hit h-8 rounded-md border border-borderSubtle font-mono text-[11px] tnum text-textPrimary hover:border-silver/60 hover:bg-silver/[0.06] transition-colors"
                             data-paper-size={size}
                           >
                             {usd(size / 1000, 0)}K
@@ -268,7 +269,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           ) : ev ? (
             `Options · the floor follows ${ev.plan.trailing === 'eod' ? 'the best close' : 'the best moment, open trades in'} · flat by 15:59 New York`
           ) : (
-            `Options · $${a.fee.toFixed(2)} a contract each way · the account carries from day to day`
+            `Options · $${a.fee.toFixed(2)} a contract each way · the account carries from day to day, and through a reload`
           )}
         </p>
         <div className="grid grid-cols-3 gap-x-4 gap-y-3" data-paper-facts>

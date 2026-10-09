@@ -68,7 +68,7 @@ const RenameDoor = ({ name, onSave, className = 'w-6 h-6' }: Props) => {
             }}
           >
             <input ref={field} value={draft} onChange={e => setDraft(e.target.value)} maxLength={60} aria-label="The session's name" className="h-8 min-w-0 flex-1 px-2 rounded-md border border-borderSubtle bg-panel text-[12px] text-textPrimary outline-none focus:border-silver/60 transition-colors" data-session-rename-field />
-            <button type="submit" disabled={!draft.trim()} className="shrink-0 h-8 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: '#0a0a0a' }}>
+            <button type="submit" disabled={!draft.trim()} className="shrink-0 h-8 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }}>
               Save
             </button>
           </form>

@@ -313,7 +313,7 @@ const SessionsChart = ({ points, kind = 'area', ink, inkBelow, baseline = 0, bar
     for (const l of lines) {
       const c = resolveInk(l.color, host);
       /* a name inside the plot leaves the axis tag to the figure alone */
-      series.createPriceLine({ price: l.price, color: c, title: l.name === 'plot' ? '' : l.title, lineStyle: STYLE[l.style ?? 'dashed'], lineWidth: 1, lineVisible: l.line !== false, axisLabelVisible: true, axisLabelColor: c, axisLabelTextColor: paper ? '#ffffff' : '#0a0a0a' });
+      series.createPriceLine({ price: l.price, color: c, title: l.name === 'plot' ? '' : l.title, lineStyle: STYLE[l.style ?? 'dashed'], lineWidth: 1, lineVisible: l.line !== false, axisLabelVisible: true, axisLabelColor: c, axisLabelTextColor: paper ? '#ffffff' : 'rgb(var(--night))' });
     }
     const notes = new PlotNotesPrimitive();
     series.attachPrimitive(notes);
@@ -477,7 +477,7 @@ const SessionsChart = ({ points, kind = 'area', ink, inkBelow, baseline = 0, bar
           {dayTicks.map(t => (
             <span
               key={t.label}
-              className="absolute top-[3px] font-mono text-[9px] tnum text-textMuted whitespace-nowrap"
+              className="absolute top-[3px] font-mono text-[10px] tnum text-textMuted whitespace-nowrap"
               style={{ left: t.left, transform: t.edge === 'start' ? 'translateX(6px)' : t.edge === 'end' ? 'translateX(calc(-100% - 6px))' : 'translateX(-50%)' }}
               data-day-tick={t.label}
             >

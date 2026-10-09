@@ -84,7 +84,7 @@ const Fact = ({ label, children, testId }: { label: string; children: React.Reac
 
 /** A door out — small, labelled */
 const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () => void; children: React.ReactNode }) => (
-  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
     <ArrowUpRight className="w-3 h-3" />
     {children}
   </button>
@@ -121,8 +121,8 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
       <div className="mx-auto w-full max-w-[640px] select-none">
         <div className="relative" style={{ height: 2 * H }} onMouseLeave={() => setHover(null)}>
           <span className="absolute inset-x-0 top-1/2 h-px bg-ink/25" />
-          <span className="absolute left-0 -translate-y-full top-1/2 pb-0.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">covered it</span>
-          <span className="absolute left-0 top-1/2 pt-0.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">fell short</span>
+          <span className="absolute left-0 -translate-y-full top-1/2 pb-0.5 font-mono text-[10px] uppercase tracking-widest text-textMuted">covered it</span>
+          <span className="absolute left-0 top-1/2 pt-0.5 font-mono text-[10px] uppercase tracking-widest text-textMuted">fell short</span>
           <div className="absolute inset-y-0 left-24 right-0 flex items-stretch gap-1.5">
             {rows.map(r => (
               <button
@@ -141,7 +141,7 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
         </div>
         <div className="flex gap-1.5 mt-1 pl-24">
           {rows.map(r => (
-            <span key={r.label} className="flex-1 min-w-0 text-center font-mono text-[9px] text-textMuted truncate">
+            <span key={r.label} className="flex-1 min-w-0 text-center font-mono text-[10px] text-textMuted truncate">
               {r.label}
             </span>
           ))}
@@ -212,13 +212,13 @@ const ActiveRow = ({ c, maxVol, onOpen, onWarm }: { c: ActiveContract; maxVol: n
       <span className="ml-auto font-mono text-[12px] font-semibold text-textPrimary tnum">
         ~<AnimatedNumber value={c.mid} format={v => `$${v.toFixed(2)}`} />
       </span>
-      <span className="inline-flex items-center gap-1 pl-2 font-mono text-[9px] uppercase tracking-widest text-textMuted group-hover/door:text-silver group-focus-visible/door:text-silver transition-colors" data-contract-door>
+      <span className="inline-flex items-center gap-1 pl-2 font-mono text-[10px] uppercase tracking-widest text-textMuted group-hover/door:text-silver group-focus-visible/door:text-silver transition-colors" data-contract-door>
         <ArrowUpRight className="w-3 h-3" />
         Weigh it
       </span>
     </div>
     <div className="flex items-center gap-2">
-      <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted shrink-0">vol</span>
+      <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted shrink-0">vol</span>
       <span className="relative w-24 h-[4px] rounded-full bg-ink/[0.06] shrink-0">
         <span className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out ${c.right === 'CALL' ? 'bg-bull/80' : 'bg-bear/70'}`} style={{ width: `${Math.max(6, (c.volume / maxVol) * 100)}%` }} />
       </span>
@@ -400,7 +400,7 @@ const EarningsName = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-2 font-mono text-[9px] uppercase tracking-widest text-textMuted">
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-textMuted">
               grey the estimate · <span className="text-bull">green beat</span> · <span className="text-bear">red missed</span>
             </p>
           </div>
@@ -439,7 +439,7 @@ const EarningsName = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-2 font-mono text-[9px] uppercase tracking-widest text-textMuted">
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-textMuted">
               the dashed lines are the ±{e.impliedMovePct.toFixed(1)}% priced for this print
             </p>
           </div>
@@ -490,7 +490,7 @@ const EarningsName = () => {
           ) : (
             <>
               {/* Below lg: when, who, the trade and its value — the shares and the plan go (the phone pass, 2026-09-13) */}
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]">
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]">
                 <span>When</span>
                 <span>Who</span>
                 <span>Trade</span>
@@ -503,12 +503,12 @@ const EarningsName = () => {
                   <When days={t.daysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.person}</span>
-                    <span className="text-[9px] text-textMuted truncate">{t.role}</span>
+                    <span className="text-[10px] text-textMuted truncate">{t.role}</span>
                   </span>
                   <span className={`font-mono text-[10px] ${t.kind === 'BUY' ? 'text-bull' : 'text-bear'}`}>{t.kind === 'BUY' ? 'Bought' : 'Sold'}</span>
                   <span className="text-right font-mono text-[10px] tnum text-textPrimary max-lg:hidden">{Math.round(t.shares).toLocaleString('en-US')}</span>
                   <span className="text-right font-mono text-[10px] tnum font-semibold text-textPrimary">{fmtDollars(t.value)}</span>
-                  <span className={`text-right font-mono text-[8px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
+                  <span className={`text-right font-mono text-[10px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
                     {t.plan === 'discretionary' ? 'chosen' : t.plan === 'plan' ? 'planned' : 'unstated'}
                   </span>
                 </div>
@@ -518,7 +518,7 @@ const EarningsName = () => {
                   bought <span className={insiders.bought > 0 ? 'text-bull' : 'text-textMuted'}>{insiders.bought > 0 ? fmtDollars(insiders.bought) : 'nothing'}</span> · sold{' '}
                   <span className={insiders.sold > 0 ? 'text-bear' : 'text-textMuted'}>{insiders.sold > 0 ? fmtDollars(insiders.sold) : 'nothing'}</span>
                 </span>
-                <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every insider
                 </Link>
               </div>
@@ -531,7 +531,7 @@ const EarningsName = () => {
           ) : (
             <>
               {/* On a phone: filed, member, type — the amount and the lag go (the phone pass, 2026-09-13) */}
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]">
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]">
                 <span>Filed</span>
                 <span>Member</span>
                 <span>Type</span>
@@ -543,7 +543,7 @@ const EarningsName = () => {
                   <When days={t.filedDaysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.member.name}</span>
-                    <span className="text-[9px] text-textMuted truncate">
+                    <span className="text-[10px] text-textMuted truncate">
                       {t.member.party}-{t.member.state} · {t.committeeOverlap ? `${t.committeeOverlap} · own committee` : t.member.chamber}
                     </span>
                   </span>
@@ -555,7 +555,7 @@ const EarningsName = () => {
                 </div>
               ))}
               <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center font-mono text-[10px]" data-name-foot="congress">
-                <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every report
                 </Link>
               </div>

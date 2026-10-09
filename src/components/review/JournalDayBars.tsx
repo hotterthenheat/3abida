@@ -81,7 +81,7 @@ const JournalDayBars = ({ days, picked, onPick, height }: Props) => {
   return (
     <div className="relative" style={{ height }} data-journal-daybars={n}>
       {/* the scale's three words, at the right */}
-      <div className="absolute right-0 top-0 w-11 font-mono text-[9px] tnum text-textMuted text-right pointer-events-none" style={{ height: H }} aria-hidden="true">
+      <div className="absolute right-0 top-0 w-11 font-mono text-[10px] tnum text-textMuted text-right pointer-events-none" style={{ height: H }} aria-hidden="true">
         {maxUp > 0 && <span className="absolute right-0 top-0">{scaleWords(maxUp)}</span>}
         <span className="absolute right-0 -translate-y-1/2" style={{ top: base }}>
           $0
@@ -136,7 +136,7 @@ const JournalDayBars = ({ days, picked, onPick, height }: Props) => {
         </div>
       </div>
       {/* the days named under the bars — the same columns, so a name stands under its bar */}
-      <div className="absolute left-0 right-12 bottom-0 flex justify-center gap-[3px] font-mono text-[9px] tnum text-textMuted" style={{ height: LABELS_H }} aria-hidden="true">
+      <div className="absolute left-0 right-12 bottom-0 flex justify-center gap-[3px] font-mono text-[10px] tnum text-textMuted" style={{ height: LABELS_H }} aria-hidden="true">
         {days.map((d, i) => (
           <span key={d.day} className="relative flex-1 min-w-[2px] h-full" style={{ maxWidth: colW }}>
             {named(i) && <span className="absolute top-2 left-1/2 -translate-x-1/2 whitespace-nowrap">{short(d.day)}</span>}

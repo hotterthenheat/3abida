@@ -119,7 +119,7 @@ const TypeCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   ) : null;
 
 const OwnerCell = ({ data }: ICellRendererParams<CongressTrade>) =>
-  data ? <span className={`font-mono text-[8px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
+  data ? <span className={`font-mono text-[10px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
 
 /** The ten rungs as a ladder, the disclosed one lit — never a midpoint */
 const Ladder = ({ bracket }: { bracket: number }) => (
@@ -148,7 +148,7 @@ const LagCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   return (
     <span className="inline-flex items-center gap-2 font-mono text-[11px] tnum">
       <span className={data.late ? 'text-bear font-semibold' : data.lagDays > 30 ? 'text-textPrimary' : 'text-textSecondary'}>{data.lagDays}d</span>
-      {data.late && <span className="text-[8px] uppercase tracking-widest text-bear">late</span>}
+      {data.late && <span className="text-[10px] uppercase tracking-widest text-bear">late</span>}
     </span>
   );
 };
@@ -177,9 +177,9 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
     <span className="mt-1.5 flex items-center gap-2 font-mono tnum">
       <span className={`text-[11px] ${typeInk(t)}`}>{typeWord(t)}</span>
       <span className="text-[11px] font-bold text-textPrimary truncate">{bracketLabel(t.bracket)}</span>
-      {t.late && <span className="ml-auto text-[8px] uppercase tracking-widest text-bear">late</span>}
+      {t.late && <span className="ml-auto text-[10px] uppercase tracking-widest text-bear">late</span>}
     </span>
-    <span className="mt-1 block font-mono text-[8px] uppercase tracking-widest text-textSecondary truncate">
+    <span className="mt-1 block font-mono text-[10px] uppercase tracking-widest text-textSecondary truncate">
       {t.committeeOverlap} <span className="text-silver">· own committee</span>
     </span>
   </button>

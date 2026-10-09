@@ -743,9 +743,13 @@ export function rebase(s: Session, orderId: string, to: 'name' | 'contract', now
 }
 
 /* ---- the clock ---- */
-/** The earliest the clock may be pulled back to: the reader's last order or fill */
+/** THE EARLIEST THE CLOCK MAY STAND: where it stands now. THE CLOCK ONLY MOVES FORWARD (the audit's PR-2, 2026-10-09: run
+    to 15:21, the day seen, back to 09:50 and a buy made $56.70 — the floor was only the last order or fill, so any part of
+    the day ahead of the first trade could be looked at and then traded). A minute the clock has stood on is never stood
+    on again before it. */
 export function floorOf(s: Session): Moment {
-  let at: Moment = { day: s.startDay, minute: 0 };
+  let at: Moment = s.cursor;
+  /* a session kept from before the rule: its clock is never behind its own book */
   for (const o of s.orders) if (stampOf(o.placed) > stampOf(at)) at = o.placed;
   for (const f of s.fills) if (stampOf(f.at) > stampOf(at)) at = f.at;
   return at;
@@ -808,14 +812,11 @@ function bell(s: Session, day: string): Session {
   return next;
 }
 
-/** Move the clock forward to a moment, running every minute between. Backward moves never touch the book. */
+/** Move the clock forward to a moment, running every minute between. A move back is refused: the clock stays (floorOf). */
 export function advance(s: Session, to: Moment, now: number): Session {
   const days = tapeDays();
   const from = s.cursor;
-  if (stampOf(to) <= stampOf(from)) {
-    const floor = floorOf(s);
-    return { ...s, touchedAt: now, cursor: stampOf(to) < stampOf(floor) ? floor : to };
-  }
+  if (stampOf(to) <= stampOf(from)) return s;
   let next = s;
   for (let di = dayIndex(from.day); di <= dayIndex(to.day) && di < days.length; di++) {
     const day = days[di];

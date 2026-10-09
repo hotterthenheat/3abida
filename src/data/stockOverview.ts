@@ -57,6 +57,7 @@
 ==================================================
 */
 
+import { nyClock } from '../core/nyTime';
 import Simulator from '../core/simulator';
 import { now } from '../core/clock';
 import { readSessionClock } from './sessionClock';
@@ -753,7 +754,7 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
   };
 
   const at = now();
-  const stamp = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+  const stamp = nyClock(at);
   const sources: Source[] = [
     { key: 'price', label: 'Price', status: 'live', stamp: `live · ${stamp}` },
     { key: 'book', label: 'The options book', status: 'live', stamp: `live · ${stamp}` },

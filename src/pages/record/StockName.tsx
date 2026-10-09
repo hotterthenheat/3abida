@@ -168,8 +168,8 @@ const JUMPS: [string, string][] = [
 ];
 const pct = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
 /** A chart point's seconds, said as the reader's day or minute */
-const dayOf = (t: number) => fmtDayLocal(t as UTCTimestamp);
-const clockOf = (t: number) => fmtClockLocal(t as UTCTimestamp);
+const dayOf = (t: number) => fmtDayLocal(t as UTCTimestamp, 'ny');
+const clockOf = (t: number) => fmtClockLocal(t as UTCTimestamp, 'ny');
 const ago = (m: number) => (m < 1 ? 'just now' : m < 60 ? `${Math.round(m)}m ago` : `${Math.floor(m / 60)}h ${Math.round(m % 60)}m ago`);
 const count = (v: number) => (v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : `${Math.round(v)}`);
 /** "09/18/2026" → "2026-09-18", the Weigher's date key */
@@ -201,13 +201,13 @@ const Fact = ({ label, children, testId }: { label: string; children: ReactNode;
   </div>
 );
 const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () => void; children: ReactNode }) => (
-  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
     <ArrowUpRight className="w-3 h-3" />
     {children}
   </button>
 );
 const StatusTag = ({ status }: { status: SourceStatus }) => (
-  <span className={`font-mono text-[8px] uppercase tracking-widest ${STATUS_INK[status]}`} data-stock-status={status}>
+  <span className={`font-mono text-[10px] uppercase tracking-widest ${STATUS_INK[status]}`} data-stock-status={status}>
     {STATUS_WORD[status]}
   </span>
 );
@@ -241,7 +241,7 @@ const FactorRow = ({ f }: { f: Factor }) => (
   <div className="px-5 py-2 grid items-center gap-x-4 border-t border-borderSubtle/40" style={{ gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) 96px' }} data-stock-factor={f.key} data-lean={f.lean.toFixed(2)}>
     <span className="min-w-0">
       <span className="block text-[11px] text-textPrimary truncate">{f.label}</span>
-      <span className="block text-[9px] text-textMuted truncate">{f.note}</span>
+      <span className="block text-[10px] text-textMuted truncate">{f.note}</span>
     </span>
     <span className="font-mono text-[11px] tnum text-textPrimary truncate">{f.value}</span>
     <SignedBar v={f.lean} />
@@ -394,7 +394,7 @@ const Flags = ({ flags }: { flags: NonNullable<StockOverview['trend']['flags']> 
   return (
     <span className="inline-flex items-center gap-1.5" data-stock-flags={items.filter(i => i[2]).map(i => i[0]).join(' ')}>
       {items.map(([code, word, on, good]) => (
-        <span key={code} title={word} className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[9px] font-bold tracking-wider transition-colors ${on ? (good ? 'border-bull/40 text-bull bg-bull/10' : 'border-bear/40 text-bear bg-bear/10') : 'border-borderSubtle text-textMuted'}`} data-flag={code} data-on={on || undefined}>
+        <span key={code} title={word} className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[10px] font-bold tracking-wider transition-colors ${on ? (good ? 'border-bull/40 text-bull bg-bull/10' : 'border-bear/40 text-bear bg-bear/10') : 'border-borderSubtle text-textMuted'}`} data-flag={code} data-on={on || undefined}>
           {code}
         </span>
       ))}
@@ -407,7 +407,7 @@ const ContractRow = ({ c, maxVol, onOpen, onWarm }: { c: BookContract; maxVol: n
   <button type="button" onClick={onOpen} onMouseEnter={onWarm} onFocus={onWarm} title="Weigh this contract" className="group/door w-full text-left px-3 sm:px-5 py-2 border-t border-borderSubtle/40 grid grid-cols-[92px_64px_minmax(0,1fr)_12px] sm:grid-cols-[112px_96px_minmax(0,1fr)_72px_24px] items-center gap-x-2 sm:gap-x-3 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors" data-stock-contract={c.key} data-contract-strike={c.strike} data-contract-right={c.right}>
     <span className="font-mono text-[11px] font-bold text-textPrimary group-hover/door:text-silver transition-colors">
       {c.strike}
-      {c.right} <span className="text-[9px] font-normal text-textMuted">· {c.expiry.slice(0, 5)}</span>
+      {c.right} <span className="text-[10px] font-normal text-textMuted">· {c.expiry.slice(0, 5)}</span>
     </span>
     <span className="font-mono text-[10px] tnum text-textSecondary">{fmtMoney(c.premium)}</span>
     <span className="flex items-center gap-2 min-w-0">
@@ -418,7 +418,7 @@ const ContractRow = ({ c, maxVol, onOpen, onWarm }: { c: BookContract; maxVol: n
     </span>
     {/* a phone keeps the contract, its money and its volume; how it was bought is the first thing a 360px row gives up (the
         phone sweep, 2026-09-19: the row's fixed columns alone were 392px — it pushed the page sideways) */}
-    <span className="max-sm:hidden font-mono text-[9px] tnum text-textMuted text-right">{c.sweepPct >= 20 ? 'swept' : `${c.askPct.toFixed(0)}% ask`}</span>
+    <span className="max-sm:hidden font-mono text-[10px] tnum text-textMuted text-right">{c.sweepPct >= 20 ? 'swept' : `${c.askPct.toFixed(0)}% ask`}</span>
     <ArrowUpRight className="w-3 h-3 text-textMuted group-hover/door:text-silver transition-colors justify-self-end" />
   </button>
 );
@@ -430,7 +430,7 @@ const PrintRow = ({ p, maxPrem, onOpen, onWarm }: { p: FlowPrint; maxPrem: numbe
     <span className="max-sm:hidden font-mono text-[10px] tnum text-textMuted">{p.time}</span>
     <span className="font-mono text-[11px] font-bold text-textPrimary group-hover/door:text-silver transition-colors">
       {p.strike}
-      {p.right} <span className="text-[9px] font-normal text-textMuted">· {p.dte}d</span>
+      {p.right} <span className="text-[10px] font-normal text-textMuted">· {p.dte}d</span>
     </span>
     <span className="flex items-center gap-2 min-w-0">
       <span className="max-sm:hidden relative w-full max-w-[110px] h-[4px] rounded-full bg-ink/[0.06] shrink-0">
@@ -441,7 +441,7 @@ const PrintRow = ({ p, maxPrem, onOpen, onWarm }: { p: FlowPrint; maxPrem: numbe
       </span>
     </span>
     <span className="font-mono text-[11px] tnum font-semibold text-textPrimary text-right">{fmtMoney(p.premium)}</span>
-    <span className={`max-sm:hidden font-mono text-[8px] uppercase tracking-widest text-right ${p.sweep ? 'text-silver' : 'text-textMuted'}`}>{p.sweep ? 'sweep' : p.legs > 1 ? `×${p.legs}` : ''}</span>
+    <span className={`max-sm:hidden font-mono text-[10px] uppercase tracking-widest text-right ${p.sweep ? 'text-silver' : 'text-textMuted'}`}>{p.sweep ? 'sweep' : p.legs > 1 ? `×${p.legs}` : ''}</span>
     <ArrowUpRight className="w-3 h-3 text-textMuted group-hover/door:text-silver transition-colors justify-self-end" />
   </button>
 );
@@ -478,7 +478,7 @@ const StockName = () => {
         <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> The board
       </Link>
       {view && (
-        <nav className="ml-auto flex items-center gap-1 flex-wrap font-mono text-[9px] uppercase tracking-widest" aria-label="Sections of the page" data-stock-jumps>
+        <nav className="ml-auto flex items-center gap-1 flex-wrap font-mono text-[10px] uppercase tracking-widest" aria-label="Sections of the page" data-stock-jumps>
           {JUMPS.map(([id, label]) => (
             <button key={id} type="button" onClick={() => jump(id)} className="inline-flex items-center h-6 px-2 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-stock-jump={id}>
               {label}
@@ -668,7 +668,7 @@ const StockName = () => {
           </Door>
           {news.nextEarnings && <Door onClick={() => navigate(`/dossier/earnings/${T}`)}>Earnings</Door>}
           <Door onClick={() => navigate('/dossier/news', { state: { name: T } })}>The wire</Door>
-          <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted" data-stock-completeness={view.completeness}>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-textMuted" data-stock-completeness={view.completeness}>
             {live} of {view.sources.length} sources live
           </span>
         </div>
@@ -688,14 +688,14 @@ const StockName = () => {
           </p>
         </div>
         <div className="px-5 py-3 border-t border-borderSubtle/40 flex items-center gap-2 flex-wrap" data-stock-agreement={agreement.aligned}>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted mr-1">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted mr-1">
             {agreement.aligned} of 4 agree · the read leans <span className={LEAN_INK[agreement.lean]}>{agreement.lean}</span>
           </span>
           {agreement.pillars.map(p => (
             <span key={p.key} className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-md border font-mono text-[10px] tnum transition-colors ${p.agrees ? 'border-borderMuted text-textPrimary bg-ink/[0.04]' : 'border-borderSubtle text-textMuted'}`} data-stock-agree={p.key} data-agrees={p.agrees || undefined}>
               <span className={`w-1.5 h-1.5 rounded-full ${GRADE_FILL[gradeOf(p.score)]}`} />
               {p.name.replace('The ', '')} <span className={GRADE_INK[gradeOf(p.score)]}>{gradeOf(p.score)}</span>
-              <span className={`text-[8px] uppercase tracking-widest ${p.agrees ? 'text-textSecondary' : 'text-warn'}`}>{p.agrees ? 'agrees' : 'argues'}</span>
+              <span className={`text-[10px] uppercase tracking-widest ${p.agrees ? 'text-textSecondary' : 'text-warn'}`}>{p.agrees ? 'agrees' : 'argues'}</span>
             </span>
           ))}
           <span className="basis-full text-[11px] text-textSecondary" data-stock-risk>
@@ -840,7 +840,7 @@ const StockName = () => {
           <div className="px-5 pb-2" data-stock-flow>
             <div className="flex items-center justify-between font-mono text-[10px] tnum">
               <span className={callShare >= 50 ? 'text-bull font-semibold' : 'text-textSecondary'}>calls {fmtMoney(money.callPremium)}</span>
-              <span className="text-[9px] uppercase tracking-widest text-textMuted">premium today · {money.askSharePct.toFixed(0)}% on the ask · {money.sweepSharePct.toFixed(0)}% swept</span>
+              <span className="text-[10px] uppercase tracking-widest text-textMuted">premium today · {money.askSharePct.toFixed(0)}% on the ask · {money.sweepSharePct.toFixed(0)}% swept</span>
               <span className={callShare < 50 ? 'text-bear font-semibold' : 'text-textSecondary'}>puts {fmtMoney(money.putPremium)}</span>
             </div>
             <div className="mt-1.5">
@@ -851,7 +851,7 @@ const StockName = () => {
           <div className="px-5 pb-3" data-stock-dark={money.dark.posture}>
             <div className="flex items-center justify-between font-mono text-[10px] tnum">
               <span className={money.dark.netPosturePct < 0 ? 'text-bear font-semibold' : 'text-textSecondary'}>selling</span>
-              <span className="text-[9px] uppercase tracking-widest text-textMuted">
+              <span className="text-[10px] uppercase tracking-widest text-textMuted">
                 dark pool · {postureRead(money.dark)} · {money.dark.prints.length} prints{money.dark.largest ? ` · the largest ${fmtMoney(money.dark.largest.notional)} at ${money.dark.largest.price.toFixed(2)}` : ''}
               </span>
               <span className={money.dark.netPosturePct > 0 ? 'text-bull font-semibold' : 'text-textSecondary'}>buying</span>
@@ -864,7 +864,7 @@ const StockName = () => {
               under it at their true minute in the intent's ink, a card under the pointer — the trace's own grammar for a tape */}
           {(todayPoints.length > 1 || darkPoints.length > 1) && (
             <div className="px-5 pb-3" data-stock-dark-prints={darkPoints.length}>
-              <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-textMuted">
+              <div className="mb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-textMuted">
                 <span>today's tape · the off-exchange prints under it, shares by minute</span>
                 <span>{money.dark.prints.length} prints</span>
               </div>
@@ -888,7 +888,7 @@ const StockName = () => {
                         {clockOf(time)}
                         {point && <span className="text-textMuted font-normal"> · {point.value.toFixed(2)}</span>}
                         {m && <span className="text-textMuted font-normal"> · {m.n === 1 ? 'one print' : `${m.n} prints`}</span>}
-                        {kept && <span className="text-silver font-normal text-[9px] uppercase tracking-widest"> · kept</span>}
+                        {kept && <span className="text-silver font-normal text-[10px] uppercase tracking-widest"> · kept</span>}
                       </span>
                       {m ? (
                         <>
@@ -910,7 +910,7 @@ const StockName = () => {
               <div className="mt-1.5 min-h-[26px] flex items-center gap-2 flex-wrap font-mono text-[10px] tnum" data-stock-print-focus={printFocus ?? 'none'}>
                 {keptPrint ? (
                   <>
-                    <span className="text-[9px] uppercase tracking-widest text-silver">kept</span>
+                    <span className="text-[10px] uppercase tracking-widest text-silver">kept</span>
                     <span className="font-semibold text-textPrimary">{clockOf(keptPrint.time)}</span>
                     <span className="text-textSecondary">
                       {count(keptPrint.biggest.size)} @ {keptPrint.biggest.price.toFixed(2)} · {fmtMoney(keptPrint.biggest.notional)} · {keptPrint.biggest.venue}
@@ -921,7 +921,7 @@ const StockName = () => {
                     <span className="text-textMuted">
                       {pct(keptPrint.biggest.vsSpotPct)} from spot{keptPrint.biggest.atLevel ? ' · on a shelf' : ''}
                     </span>
-                    <button type="button" onClick={() => setPrintFocus(null)} className="ml-auto inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-stock-print-release>
+                    <button type="button" onClick={() => setPrintFocus(null)} className="ml-auto inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-stock-print-release>
                       let go
                     </button>
                     <span className="basis-full text-[10.5px] font-sans text-textSecondary truncate" data-stock-print-read>
@@ -930,7 +930,7 @@ const StockName = () => {
                   </>
                 ) : (
                   <>
-                    <span className="text-[9px] uppercase tracking-widest text-textMuted" title="Click one, or a bar on the tape, to keep it">
+                    <span className="text-[10px] uppercase tracking-widest text-textMuted" title="Click one, or a bar on the tape, to keep it">
                       the largest ·
                     </span>
                     {largestPrints.map(m => (
@@ -964,7 +964,7 @@ const StockName = () => {
                 <button key={s.id} type="button" onClick={() => navigate('/dossier/news', { state: { selectedId: s.id, name: T } })} className="group w-full text-left px-5 h-[34px] grid items-center gap-x-3 border-t border-borderSubtle/40 hover:bg-ink/[0.03] transition-colors" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 64px 56px' }} data-stock-story={s.id}>
                   <span className="font-mono text-[10px] tnum text-textMuted">{ago(s.item.minutesAgo)}</span>
                   <span className="min-w-0 truncate text-[11.5px] text-textSecondary group-hover:text-textPrimary transition-colors">{s.item.headline}</span>
-                  <span className={`font-mono text-[9px] font-semibold uppercase tracking-widest ${s.grade === 'ALLY' ? 'text-bull' : s.grade === 'THREAT' ? 'text-bear' : 'text-textSecondary'}`}>{s.grade === 'ALLY' ? 'positive' : s.grade === 'THREAT' ? 'negative' : 'neutral'}</span>
+                  <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${s.grade === 'ALLY' ? 'text-bull' : s.grade === 'THREAT' ? 'text-bear' : 'text-textSecondary'}`}>{s.grade === 'ALLY' ? 'positive' : s.grade === 'THREAT' ? 'negative' : 'neutral'}</span>
                   <span className={`text-right font-mono text-[11px] font-semibold tnum ${s.item.prediction.expMove1dPct >= 0 ? 'text-bull' : 'text-bear'}`}>{pct(s.item.prediction.expMove1dPct)}</span>
                 </button>
               ))}
@@ -973,7 +973,7 @@ const StockName = () => {
           {/* THE LAST REPORTS — what it earned against the estimate, and how the stock took it */}
           {news.reports.length > 0 && (
             <div className="border-t border-borderSubtle/40" data-stock-reports={news.reports.length}>
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: '64px 96px minmax(0, 1fr) 72px' }}>
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: '64px 96px minmax(0, 1fr) 72px' }}>
                 <span>Report</span>
                 <span>EPS</span>
                 <span>Against the estimate</span>
@@ -1012,7 +1012,7 @@ const StockName = () => {
                   no report on the next two weeks' calendar{news.reaction ? ` · the last ${news.reaction.reports} moved it ±${news.reaction.pct.toFixed(1)}% on average` : ''}
                 </span>
               )}
-              <Link to="/dossier/news" state={{ name: T }} className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors whitespace-nowrap">
+              <Link to="/dossier/news" state={{ name: T }} className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors whitespace-nowrap">
                 <ArrowUpRight className="w-3 h-3" /> the wire
               </Link>
             </div>
@@ -1023,7 +1023,7 @@ const StockName = () => {
           sub="The last report, growth, margins and what it is worth"
           aside={
             <div className="flex items-center gap-3">
-              <span className="font-mono text-[8px] uppercase tracking-widest text-warn" data-stock-sample>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-warn" data-stock-sample>
                 sample until the feed lands
               </span>
               <PillarBarSmall p={byKey.numbers} />
@@ -1077,7 +1077,7 @@ const StockName = () => {
         <div className="grid border-t border-borderSubtle/60 grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]">
           {/* WHAT IS FOR IT, WHAT IS AGAINST IT — every factor, the heaviest first; the bar is a length, never a figure */}
           <div className="border-r border-borderSubtle/60 min-w-0 max-lg:border-r-0 max-lg:border-b">
-            <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: 'minmax(0, 1fr) 88px 56px' }}>
+            <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: 'minmax(0, 1fr) 88px 56px' }}>
               <span>Factor</span>
               <span className="text-center">Against · for</span>
               <span className="text-right">Says</span>
@@ -1088,10 +1088,10 @@ const StockName = () => {
                 <div key={c.key} className="px-5 h-[26px] grid items-center gap-x-3 border-t border-borderSubtle/40" style={{ gridTemplateColumns: 'minmax(0, 1fr) 88px 56px' }} data-stock-contribution={c.key} data-side={side}>
                   <span className="min-w-0 flex items-baseline gap-1.5 truncate">
                     <span className="text-[11px] text-textPrimary truncate">{c.label}</span>
-                    <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted shrink-0">{c.pillar}</span>
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted shrink-0">{c.pillar}</span>
                   </span>
                   <SignedBar v={c.points / maxPts} />
-                  <span className={`text-right font-mono text-[9px] font-semibold uppercase tracking-widest ${side === 'for' ? 'text-bull' : side === 'against' ? 'text-bear' : 'text-textMuted'}`}>{side}</span>
+                  <span className={`text-right font-mono text-[10px] font-semibold uppercase tracking-widest ${side === 'for' ? 'text-bull' : side === 'against' ? 'text-bear' : 'text-textMuted'}`}>{side}</span>
                 </div>
               );
             })}
@@ -1106,7 +1106,7 @@ const StockName = () => {
           </div>
           {/* THE PILLARS, THE SESSIONS, THE MOVES */}
           <div className="border-r border-borderSubtle/60 min-w-0 max-lg:border-r-0 max-lg:border-b">
-            <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: 'minmax(0, 1fr) 72px 64px' }}>
+            <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: 'minmax(0, 1fr) 72px 64px' }}>
               <span>Pillar</span>
               <span />
               <span className="text-right">Reads</span>
@@ -1169,7 +1169,7 @@ const StockName = () => {
               )}
             </div>
             {/* what would change it */}
-            <div className="px-5 h-[22px] flex items-center border-t border-borderSubtle/40 text-[9px] uppercase tracking-widest text-textMuted">What would change it · a factor turned the other way</div>
+            <div className="px-5 h-[22px] flex items-center border-t border-borderSubtle/40 text-[10px] uppercase tracking-widest text-textMuted">What would change it · a factor turned the other way</div>
             {view.moves.length === 0 && <div className="px-5 h-[26px] flex items-center border-t border-borderSubtle/40 text-[10.5px] text-textMuted">No factor leans far enough to change it.</div>}
             {view.moves.map(m => {
               const then = gradeOfComposite(m.to);
@@ -1185,7 +1185,7 @@ const StockName = () => {
           </div>
           {/* THE SOURCES */}
           <div className="min-w-0">
-            <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: 'minmax(0, 1fr) 48px minmax(0, 1.5fr)' }}>
+            <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted" style={{ gridTemplateColumns: 'minmax(0, 1fr) 48px minmax(0, 1.5fr)' }}>
               <span>Source</span>
               <span>Status</span>
               <span>As of</span>
@@ -1204,7 +1204,7 @@ const StockName = () => {
         </div>
         {/* THE METHOD, behind a fold */}
         <div className="border-t border-borderSubtle/60">
-          <button type="button" onClick={() => setMethodOpen(v => !v)} aria-expanded={methodOpen} className="w-full px-5 h-[34px] flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-stock-method-door={methodOpen ? 'open' : 'shut'}>
+          <button type="button" onClick={() => setMethodOpen(v => !v)} aria-expanded={methodOpen} className="w-full px-5 h-[34px] flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-stock-method-door={methodOpen ? 'open' : 'shut'}>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${methodOpen ? 'rotate-180' : ''}`} />
             How it is put together · what was observed, what was derived from it, what was inferred
           </button>
@@ -1218,7 +1218,7 @@ const StockName = () => {
                 ] as [string, string[]][]
               ).map(([title, items]) => (
                 <div key={title} className="min-w-0">
-                  <div className="text-[9px] uppercase tracking-widest text-textMuted">{title}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-textMuted">{title}</div>
                   <ul className="mt-1.5 flex flex-col gap-1">
                     {items.map(t => (
                       <li key={t} className="text-[11px] leading-snug text-textPrimary/85 pl-3 relative before:absolute before:left-0 before:top-[7px] before:w-1 before:h-1 before:rounded-full before:bg-ink/40">
@@ -1252,7 +1252,7 @@ const StockName = () => {
                 </div>
                 <div className="min-w-0">
                   <MarkStrip ticks={r.ticks} n={trend.times.length} label={r.label} />
-                  <div className="flex justify-between font-mono text-[9px] tnum text-textMuted px-1 -mt-0.5">
+                  <div className="flex justify-between font-mono text-[10px] tnum text-textMuted px-1 -mt-0.5">
                     <span>{trend.times.length ? dayOf(trend.times[0]) : ''}</span>
                     <span>now</span>
                   </div>
@@ -1318,7 +1318,7 @@ const StockName = () => {
           ) : (
             <>
               {/* On a phone: when, who, the trade and its value — the shares and the plan go (the phone pass, 2026-09-13) */}
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted grid-cols-[96px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[96px_minmax(0,1fr)_64px_80px]">
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted grid-cols-[96px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[96px_minmax(0,1fr)_64px_80px]">
                 <span>When</span>
                 <span>Who · holds after</span>
                 <span>Trade</span>
@@ -1331,14 +1331,14 @@ const StockName = () => {
                   <When days={t.daysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.person}</span>
-                    <span className="text-[9px] text-textMuted truncate">
+                    <span className="text-[10px] text-textMuted truncate">
                       {t.role} · holds {count(t.heldAfter)} after
                     </span>
                   </span>
                   <span className={`font-mono text-[10px] ${t.kind === 'BUY' ? 'text-bull' : 'text-bear'}`}>{t.kind === 'BUY' ? 'Bought' : 'Sold'}</span>
                   <span className="text-right font-mono text-[10px] tnum text-textPrimary max-lg:hidden">{Math.round(t.shares).toLocaleString('en-US')}</span>
                   <span className="text-right font-mono text-[10px] tnum font-semibold text-textPrimary">{fmtMoney(t.value)}</span>
-                  <span className={`text-right font-mono text-[8px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
+                  <span className={`text-right font-mono text-[10px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
                     {t.plan === 'discretionary' ? 'chosen' : t.plan === 'plan' ? 'planned' : 'unstated'}
                   </span>
                 </div>
@@ -1352,7 +1352,7 @@ const StockName = () => {
                 <span className={insiders.sold > 0 ? 'text-bear' : 'text-textMuted'}>{insiders.sold > 0 ? fmtMoney(insiders.sold) : 'nothing'}</span>
                 {insiders.buyerCluster > 1 && <span className="text-silver"> · {insiders.buyerCluster} buyers inside a month</span>}
               </span>
-              <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+              <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                 <ArrowUpRight className="w-3 h-3" /> every insider
               </Link>
             </div>
@@ -1365,7 +1365,7 @@ const StockName = () => {
           ) : (
             <>
               {/* On a phone: filed, member, type — the amount and the lag go (the phone pass, 2026-09-13) */}
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted grid-cols-[96px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[96px_minmax(0,1fr)_88px]">
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted grid-cols-[96px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[96px_minmax(0,1fr)_88px]">
                 <span>Filed</span>
                 <span>Member</span>
                 <span>Type</span>
@@ -1377,7 +1377,7 @@ const StockName = () => {
                   <When days={t.filedDaysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.member.name}</span>
-                    <span className="text-[9px] text-textMuted truncate">
+                    <span className="text-[10px] text-textMuted truncate">
                       {t.member.party}-{t.member.state} · {t.committeeOverlap ? <span className="text-warn">{t.committeeOverlap} · own committee</span> : t.member.chamber}
                     </span>
                   </span>
@@ -1397,7 +1397,7 @@ const StockName = () => {
                 {congress.some(t => t.committeeOverlap) && <span className="text-warn"> · {congress.filter(t => t.committeeOverlap).length} from a member whose committee oversees the sector</span>}
               </span>
             )}
-            <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+            <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
               <ArrowUpRight className="w-3 h-3" /> every report
             </Link>
           </div>

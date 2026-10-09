@@ -145,7 +145,7 @@ const ClusterFigure = () => (
       30 DAYS
     </text>
     {[40, 96, 150].map(x => (
-      <circle key={x} cx={x} cy={40} r={4} fill={BULL} stroke="#0a0a0a" strokeWidth={1} />
+      <circle key={x} cx={x} cy={40} r={4} fill={BULL} stroke="rgb(var(--night))" strokeWidth={1} />
     ))}
     <text x={200} y={43} fontSize={7.5} fill={INK} fontFamily={FIG}>
       3 filers
@@ -157,7 +157,7 @@ const ClusterFigure = () => (
       MS
     </text>
     <line x1={320} x2={410} y1={40} y2={40} stroke="#ffffff" strokeOpacity={0.15} />
-    <circle cx={366} cy={40} r={4} fill={BULL} stroke="#0a0a0a" strokeWidth={1} />
+    <circle cx={366} cy={40} r={4} fill={BULL} stroke="rgb(var(--night))" strokeWidth={1} />
     <text x={365} y={54} textAnchor="middle" fontSize={6.5} fill={MUTED} fontFamily={SANS}>
       one buyer · —
     </text>

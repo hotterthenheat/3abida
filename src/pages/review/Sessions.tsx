@@ -42,9 +42,10 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import DayCard from '../../components/review/DayCard';
 import type { Column } from '../../components/ui/DataTable';
 import { accountOf, namesOf, statsOf, DEFAULT_FEE, type Session, type SessionRules } from '../../data/review/engine';
-import { createSession, deleteSession, renameSession, runAgain, useSessions } from '../../data/review/store';
+import { createSession, deleteSession, renameSession, restoreSession, runAgain, useSessions } from '../../data/review/store';
+import undoable from '../../components/ui/undo';
 import { REVIEW_NAMES, dayWords, reviewName, tapeDays } from '../../data/review/tape';
-import { dirInk, momentWords, pct, usd, usdSigned } from '../../components/review/words';
+import { TRADES_WORDS, dirInk, momentWords, pct, usd, usdSigned } from '../../components/review/words';
 
 const SILVER_FILL = 'rgb(var(--silver-fill))';
 const CASH: DropdownOption<number>[] = [5000, 10000, 25000, 50000, 100000].map(v => ({ value: v, label: usd(v, 0), hint: v === 25000 ? 'The size most day-trading rules start at' : undefined }));
@@ -132,7 +133,7 @@ const Sessions = () => {
       { key: 'clock', header: 'The clock stands at', sortValue: r => r.s.cursor.day, render: r => <span className="text-textSecondary">{momentWords(r.s.cursor)}</span> },
       { key: 'start', header: 'Started with', align: 'right', sortValue: r => r.s.startCash, render: r => <span className="text-textSecondary">{usd(r.s.startCash, 0)}</span> },
       { key: 'equity', header: 'Worth now', align: 'right', sortValue: r => r.equity, render: r => <span className="text-textPrimary">{usd(r.equity)}</span> },
-      { key: 'net', header: 'Up or down', align: 'right', sortValue: r => r.net, render: r => <span className={`font-semibold ${dirInk(r.net)}`}>{usdSigned(r.net)}</span> },
+      { key: 'net', header: 'P&L', align: 'right', sortValue: r => r.net, render: r => <span className={`font-semibold ${dirInk(r.net)}`}>{usdSigned(r.net)}</span> },
       { key: 'trades', header: 'Closed trades', align: 'right', sortValue: r => r.trades, render: r => <span className="text-textPrimary">{r.trades}</span> },
       { key: 'win', header: 'Won', align: 'right', sortValue: r => r.winRate, render: r => (r.trades ? <span className="text-textPrimary">{pct(r.winRate)}</span> : <span className="text-textMuted">—</span>) },
       { key: 'open', header: 'Open', align: 'right', sortValue: r => r.open, render: r => (r.open ? <span className="text-textPrimary">{r.open}</span> : <span className="text-textMuted">—</span>) },
@@ -144,7 +145,7 @@ const Sessions = () => {
           /* `leading-normal` + `align-middle`: a grid cell's line is as tall as its row, and a button inherits it — its word
              dropped to the button's floor and the pair rode high on the row (Noah, 2026-09-20, with a picture) */
           <span className="inline-flex items-center gap-1.5 leading-normal align-middle">
-            <button type="button" onClick={() => navigate(`/practice/backtest/${r.s.id}/report`)} className="inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-session-report={r.s.id}>
+            <button type="button" onClick={() => navigate(`/practice/backtest/${r.s.id}/report`)} className="hit inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-session-report={r.s.id}>
               Report
             </button>
             <RenameDoor name={r.s.name} onSave={name => renameSession(r.s.id, name)} />
@@ -157,19 +158,30 @@ const Sessions = () => {
               }}
               title="Run it again — a new session on the same names, money, start day and rules, with a fresh book"
               aria-label={`Run ${r.s.name} again`}
-              className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+              className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
               data-session-again={r.s.id}
             >
               <RotateCcw className="w-3 h-3" />
             </button>
-            <button type="button" onClick={() => deleteSession(r.s.id)} title="Delete this session and its trades" aria-label={`Delete ${r.s.name}`} className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors" data-session-delete={r.s.id}>
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                /* gone at once — the undo chip puts it back where it stood, its trades with it (the audit's X5.4) */
+                const at = sessions.findIndex(x => x.id === r.s.id);
+                deleteSession(r.s.id);
+                undoable({ label: `Deleted ${r.s.name}`, undo: () => restoreSession(r.s, at), key: `session-delete:${r.s.id}` });
+              }}
+              title="Delete this session and its trades — an Undo brings it back"
+              aria-label={`Delete ${r.s.name}`}
+              className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors" data-session-delete={r.s.id}>
               <Trash2 className="w-3 h-3" />
             </button>
           </span>
         ),
       },
     ],
-    [navigate]
+    [navigate, sessions]
   );
 
   const nameWords = (t: string) => reviewName(t).name;
@@ -202,25 +214,28 @@ const Sessions = () => {
                 }}
                 title="One name after all"
                 aria-label="Take the second name away"
-                className="inline-flex items-center justify-center w-6 h-7 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+                className="hit inline-flex items-center justify-center w-6 h-7 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
                 data-review-name-2-off
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           ) : (
-            <button type="button" onClick={() => setAdding(true)} title="Optional — trade two names on the same clock and the same account" className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary transition-colors" data-review-name-2-add>
+            <button type="button" onClick={() => setAdding(true)} title="Optional — trade two names on the same clock and the same account" className="hit inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary transition-colors" data-review-name-2-add>
               <Plus className="w-3 h-3" /> A second name
             </button>
           )}
           <DropdownSelect label="Start with" value={cash} options={CASH} onChange={setCash} title="The paper money the session starts with" testId="review-cash" />
           <DayCard label="From" value={startDay} onChange={setStartDay} title="The day the clock starts on" testId="review-start" />
           <DropdownSelect label="Fee" value={fee} options={FEES} onChange={setFee} title="What each contract costs to trade, each way" testId="review-fee" />
-          {/* YOUR RULES — hard blocks, chosen here and nowhere else */}
-          <DropdownSelect label="Open at once" value={maxOpen} options={OPEN_RULES} onChange={setMaxOpen} title="Your rule: how many positions may be open at once — a buy past it is refused" testId="review-rule-open" />
-          <DropdownSelect label="A trade may cost" value={maxRisk} options={RISK_RULES} onChange={setMaxRisk} title="Your rule: the most one trade may cost, as a share of what the account is worth" testId="review-rule-risk" />
-          <DropdownSelect label="Stop the day at" value={dayStop} options={DAY_RULES} onChange={setDayStop} title="Your rule: down this much since the open, the day is over — no new positions until the next one" testId="review-rule-day" />
-          <button type="button" onClick={start} className="inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: '#0a0a0a' }} data-review-start>
+          {/* YOUR RULES — hard blocks, chosen here and nowhere else. On a phone they take the row, one under another, each as
+              wide as the card, so a rule's value reads whole (the audit's PR-5: "No …", "N", "N…") */}
+          <span className="inline-flex items-center gap-2 flex-wrap max-sm:col-span-2 max-sm:flex max-sm:flex-col max-sm:items-stretch max-sm:[&>button]:w-full max-sm:[&>button]:justify-between" data-review-rules-cards>
+            <DropdownSelect label="Open at once" value={maxOpen} options={OPEN_RULES} onChange={setMaxOpen} title="Your rule: how many positions may be open at once — a buy past it is refused" testId="review-rule-open" />
+            <DropdownSelect label="A trade may cost" value={maxRisk} options={RISK_RULES} onChange={setMaxRisk} title="Your rule: the most one trade may cost, as a share of what the account is worth" testId="review-rule-risk" />
+            <DropdownSelect label="Stop the day at" value={dayStop} options={DAY_RULES} onChange={setDayStop} title="Your rule: down this much since the open, the day is over — no new positions until the next one" testId="review-rule-day" />
+          </span>
+          <button type="button" onClick={start} className="hit inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }} data-review-start>
             <Play className="w-3 h-3" /> Start the session
           </button>
         </>
@@ -229,13 +244,13 @@ const Sessions = () => {
         <>
           A new session opens <span className="text-textPrimary font-semibold">{tickers.map(nameWords).join(' and ')}</span>
           {tickers.length > 1 ? ' on one clock and one account,' : ''} at the bell of <span className="text-textPrimary font-semibold">{dayWords(startDay, true)}</span> with <span className="text-textPrimary font-semibold">{usd(cash, 0)}</span>.{' '}
-          You play the day forward, pick a contract off the chain as it stood, and trade it at its real bid and ask — long calls and puts, paid in cash.{' '}
+          You play the day forward — the clock only moves forward, so what is ahead is never seen before it is traded — pick a contract off the chain as it stood, and trade it at its bid and ask: {TRADES_WORDS}.{' '}
           {ruleWords.length > 0 ? (
             <>
               Your rules: <span className="text-textPrimary font-semibold">{ruleWords.join(' · ')}</span>. A buy that breaks one is refused, a way out never is — and they cannot be changed once the session starts.
             </>
           ) : (
-            'No rules of your own on this one: set them in the three cards at the right, before it starts — they cannot be added later.'
+            'No rules of your own on this one: set them in the rule cards — Open at once, A trade may cost, Stop the day at — before it starts; they cannot be added later.'
           )}
         </>
       }

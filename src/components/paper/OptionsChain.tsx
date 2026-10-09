@@ -47,13 +47,12 @@ import { ChainCard, CHAIN_COLUMNS, COLUMN_GROUPS } from '../weigher/ChainGrid';
 import { card, head, headWord } from '../review/DeskShell';
 import LadderFields, { LADDER_AT_REST, bracketOf, type LadderDraft } from '../review/LadderFields';
 import { dirInk, usd, usdSigned } from '../review/words';
-import { Act, BracketsHead, Pills, PriceBox, SizeRow, labelCls, whyWords } from './OrderPieces';
+import { Act, BracketsHead, Pills, PriceBox, SizeRow, labelCls, readPrice, whyWords } from './OrderPieces';
 import { MULT, type OrderKind } from '../../data/review/engine';
 import { contractWords, legsOf, longLeg, spreadWidth, strikeWords, type ContractId, type Quote, type Right } from '../../data/review/quotes';
 import type { OptDraft } from '../../data/paper/engine';
 import type { DeskChain, DeskContract } from '../../data/weigherDesk';
 
-const num = (v: string) => (v.trim() === '' ? undefined : Number(v));
 const COLS_KEY = 'slayer_paper_chain_cols';
 /** What the chain opens with: the quote, the delta, the vol, the decay in dollars a day, the interest */
 const PAPER_COLS = ['bid', 'ask', 'delta', 'iv', 'decay', 'oi'];
@@ -80,7 +79,7 @@ const SideSwitch = ({ right, onRight }: { right: Right; onRight: (r: Right) => v
           aria-pressed={on}
           onClick={() => onRight(r)}
           title={r === 'C' ? 'Calls — they gain when the name rises' : 'Puts — they gain when the name falls'}
-          className={`px-3 rounded-[4px] font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${on ? fill : `text-textSecondary hover:text-[#0a0a0a] ${r === 'C' ? 'hover:bg-bull' : 'hover:bg-bear'}`}`}
+          className={`hit px-3 rounded-[4px] font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${on ? fill : `text-textSecondary hover:text-[rgb(var(--night))] ${r === 'C' ? 'hover:bg-bull' : 'hover:bg-bear'}`}`}
           data-paper-chain-side-pick={r}
         >
           {r === 'C' ? 'Calls' : 'Puts'}
@@ -181,6 +180,9 @@ export interface ChainOrderDesk {
   onClose: (c: ContractId, qty: number) => void;
   /** The strike sold against the one in hand changed (0: a single again) — a host that marks the sold leg in its chain */
   onShort?: (k: number) => void;
+  /** WHAT THE LAST PRESS DID, in a line ("Filled 1 × SPY 480C at 2.34", "Refused — …") — said where the press was, and to a
+      screen reader (the audit's PR-9) */
+  said?: string | null;
 }
 
 /** The order in full view inside the chain's own scroll, never the page's: as little as it takes, its top kept in sight,
@@ -207,8 +209,15 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
   const quote = desk.quoteWith(contract, spot);
   const mid = Math.round(((quote.bid + quote.ask) / 2) * 100) / 100;
   /** A limit's price, as typed — empty is the middle */
-  const [limit, setLimit] = useState('');
-  const limitPx = Math.max(0.01, num(limit) ?? mid);
+  const [limit, setLimitRaw] = useState('');
+  /** What leaving the price box did to it, said in the status line ("the lowest price is 0.01") */
+  const [snapped, setSnapped] = useState<string | null>(null);
+  const setLimit = (v: string) => {
+    setLimitRaw(v);
+    setSnapped(null);
+  };
+  const typed = readPrice(limit);
+  const limitPx = typed.px ?? Math.max(0.01, mid);
   const [bracketsOpen, setBracketsOpen] = useState(false);
   const [ladder, setLadder] = useState<LadderDraft>(LADDER_AT_REST);
   const [basis, setBasis] = useState<'contract' | 'name'>('contract');
@@ -234,9 +243,9 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
   const why = useMemo(
     () => ({
       buy: desk.locked ?? desk.refuse(buyDraft('market')),
-      buyLimit: desk.locked ?? desk.refuse(buyDraft('limit')),
+      buyLimit: desk.locked ?? typed.why ?? desk.refuse(buyDraft('limit')),
       sell: pos ? (desk.locked ?? desk.refuse(sellDraft('market'))) : 'Nothing held here',
-      sellLimit: pos ? (desk.locked ?? desk.refuse(sellDraft('limit'))) : 'Nothing held here',
+      sellLimit: pos ? (desk.locked ?? typed.why ?? desk.refuse(sellDraft('limit'))) : 'Nothing held here',
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [desk.version, desk.locked, n, limit, short, ladder, basis, bracketsOpen, !!pos]
@@ -261,7 +270,13 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
   const width = spreadWidth(contract);
   const levelFor = (bid: number) => desk.spotForBid(contract, +bid.toFixed(2))?.toFixed(2) ?? '';
   const fallsOrRises = contract.right === 'C' ? 'falls to' : 'rises to';
-  const priceBox = <PriceBox value={limit} onChange={setLimit} step={dir => setLimit(Math.max(0.01, limitPx + dir * 0.01).toFixed(2))} label="Limit price" placeholder={mid.toFixed(2)} />;
+  const priceBox = <PriceBox value={limit} onChange={setLimit} onSnap={setSnapped} step={dir => setLimit(Math.max(0.01, limitPx + dir * 0.01).toFixed(2))} label="Limit price" placeholder={mid.toFixed(2)} />;
+  /* THE LAST PRESS, said (role=status: a screen reader hears it once) — and what the price box did on the way out */
+  const saidLine = (desk.said || snapped) && (
+    <div role="status" aria-live="polite" className="text-textPrimary" data-order-said>
+      {snapped ?? desk.said}
+    </div>
+  );
 
   if (pos) {
     const proceeds = quote.bid * MULT * sellN;
@@ -269,7 +284,7 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
     return (
       <div ref={rootRef} className="pt-2.5 border-t border-ink/[0.08] flex flex-col gap-2.5" data-chain-order="held">
         <div className="flex items-center gap-2 flex-wrap font-mono text-[11px] tnum">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-textSecondary">Your position</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-textSecondary">Your position</span>
           <span className="font-semibold text-bull">Long {pos.qty}</span>
           <span className="text-textPrimary">{contractWords(pos.contract)}</span>
           <span className="text-textMuted">@ {pos.avg.toFixed(2)}</span>
@@ -303,6 +318,8 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
             {sellN} × {usd(quote.bid)} × 100 = <span className="text-textPrimary font-semibold">{usd(proceeds)}</span> <span className="text-textMuted">· fee {usd(fees)}</span>
           </div>
           {whyLine ? <div className="text-warn">{whyLine}</div> : <div className="text-textMuted">Sells {sellN === pos.qty ? 'all of it' : `${sellN} of ${pos.qty}`} — what is working on it gives way where it has to</div>}
+          {typed.why && !whyLine && <div className="text-warn">Limit — {typed.why}</div>}
+          {saidLine}
         </div>
       </div>
     );
@@ -314,7 +331,7 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
   return (
     <div ref={rootRef} className="pt-2.5 border-t border-ink/[0.08] flex flex-col gap-2.5" data-chain-order="buy">
       <div className="flex items-center gap-2 flex-wrap">
-        {word && <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">Order</span>}
+        {word && <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-textSecondary">Order</span>}
         <span className="font-mono text-[11px] font-semibold text-textPrimary">{contractWords(contract)}</span>
         {spreadOptions.length > 1 && <DropdownSelect label="Spread" value={short} options={spreadOptions} onChange={k => { setShort(k); desk.onShort?.(k); }} title="Sell a strike further out against it — a vertical spread, bought for a debit: cheaper, and capped at the distance between the two" testId="chain-order-spread" size="sm" />}
         <span className="ml-auto font-mono text-[10px] tnum text-textMuted">
@@ -360,6 +377,10 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
             Free after {usd(desk.free - cost - fees)} · {width > 0 ? `can lose what it costs, can make ${usd(Math.max(0, width - px) * MULT * n)}` : 'the most a buy can lose is what it costs'}
           </div>
         )}
+        {/* the limit's own word, where the market press is fine but the limit is not — or is over the ask (it fills at once, at the ask) */}
+        {!whyLine && why.buyLimit && <div className="text-warn">Limit — {why.buyLimit}</div>}
+        {!whyLine && !why.buyLimit && typed.px != null && typed.px > quote.ask && <div className="text-textMuted" data-order-over-ask>A limit of {typed.px.toFixed(2)} is over the ask — it fills at once, at the ask ({quote.ask.toFixed(2)})</div>}
+        {saidLine}
       </div>
     </div>
   );

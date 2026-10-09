@@ -107,7 +107,7 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
         <div className="max-lg:min-w-[760px] flex-1 flex flex-col gap-1.5">
           <div className={GRID}>
             {[...WEEKDAYS, 'Week'].map(w => (
-              <div key={w} className={`px-2.5 h-6 flex items-center font-mono text-[9px] font-semibold uppercase tracking-widest text-[rgb(var(--grid-head))] ${w === 'Week' ? 'justify-end' : ''}`}>
+              <div key={w} className={`px-2.5 h-6 flex items-center font-mono text-[10px] font-semibold uppercase tracking-widest text-[rgb(var(--grid-head))] ${w === 'Week' ? 'justify-end' : ''}`}>
                 {w}
               </div>
             ))}
@@ -142,14 +142,14 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                     >
                       <span className="flex items-center gap-1.5">
                         <span className={`font-mono text-[11px] font-bold tnum ${isToday || on ? 'text-silver' : t ? 'text-textPrimary' : future ? 'text-textMuted/80' : 'text-textMuted'}`}>{date.getDate()}</span>
-                        {isToday && <span className="font-mono text-[8px] font-semibold uppercase tracking-widest text-silver">Today</span>}
+                        {isToday && <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-silver">Today</span>}
                         {noted.has(d) && <PenLine className="ml-auto w-3 h-3 text-silver" strokeWidth={2} aria-label="This day has words of its own" data-journal-day-noted />}
                       </span>
                       {t && (
                         <span className="mt-1.5 block">
                           <span className={`block font-mono text-[14px] font-semibold tnum leading-none ${dirInk(t.net)}`}>{usdSigned(t.net, 0)}</span>
                           {/* the two halves wrap as wholes on a narrow month */}
-                          <span className="mt-1 block font-mono text-[9px] tnum text-textSecondary leading-snug">
+                          <span className="mt-1 block font-mono text-[10px] tnum text-textSecondary leading-snug">
                             <span className="whitespace-nowrap">
                               {t.n} {t.n === 1 ? 'trade' : 'trades'} ·
                             </span>{' '}
@@ -165,7 +165,7 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                   {wN > 0 ? (
                     <>
                       <span className={`font-mono text-[14px] font-semibold tnum leading-none ${dirInk(wNet)}`}>{usdSigned(wNet, 0)}</span>
-                      <span className="mt-1.5 font-mono text-[9px] tnum text-textMuted">
+                      <span className="mt-1.5 font-mono text-[10px] tnum text-textMuted">
                         {wN} {wN === 1 ? 'trade' : 'trades'}
                       </span>
                     </>
