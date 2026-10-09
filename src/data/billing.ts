@@ -70,7 +70,8 @@ export const SAMPLE_BILLING: Billing = {
   plan: 'compass',
   status: 'active',
   renewsOn: monthsFrom(1),
-  card: { brand: 'Visa', last4: '4242', expMonth: 8, expYear: 2028 },
+  /* not 4242 — the card every payment test uses, which read as nobody's (the audit's X7.13) */
+  card: { brand: 'Visa', last4: '7310', expMonth: 8, expYear: 2028 },
   invoices: [0, -1, -2, -3].map((m, i) => ({ id: `in_${1000 - i}`, date: monthsFrom(m), plan: 'compass' as const, amount: planOf('compass').monthly ?? 0, status: 'paid' as const })),
 };
 
@@ -92,15 +93,55 @@ const subscribe = (fn: () => void) => {
   };
 };
 
-/** A plan switch — at launch this is Stripe Checkout (up) or the Portal (down); the sample just moves */
-export function setPlan(plan: PlanKey): void {
-  billing = { ...billing, plan, status: 'active' };
+const keep = () => {
   try {
     localStorage.setItem(KEY, JSON.stringify({ plan: billing.plan, status: billing.status, renewsOn: billing.renewsOn, card: billing.card }));
   } catch {
     /* storage off — the choice lives for the session */
   }
   listeners.forEach(fn => fn());
+};
+
+/** A plan switch — Stripe Checkout (up) or the Portal (down) once the keys are in; on this machine it moves at once */
+export function setPlan(plan: PlanKey): void {
+  billing = { ...billing, plan, status: 'active' };
+  keep();
+}
+
+/** Renew at the end of the term, or let it end (Settings › Billing's "Renews" switch, the notices' Renew and Restart) */
+export function setRenewing(on: boolean): void {
+  billing = { ...billing, status: on ? 'active' : 'canceled' };
+  keep();
+}
+
+/** The card's face — its brand, last four and expiry; the number itself is never kept */
+export function setCard(card: Billing['card']): void {
+  billing = { ...billing, card, status: billing.status === 'past_due' ? 'active' : billing.status };
+  keep();
+}
+
+/** A card number's brand by its first digits — what the receipt and the row print */
+export function cardBrand(digits: string): string {
+  if (/^4/.test(digits)) return 'Visa';
+  if (/^(5[1-5]|2[2-7])/.test(digits)) return 'Mastercard';
+  if (/^3[47]/.test(digits)) return 'Amex';
+  if (/^6(011|5)/.test(digits)) return 'Discover';
+  return 'Card';
+}
+
+/** Luhn's check — a number typed wrong by a digit is caught here */
+export function luhnOk(digits: string): boolean {
+  if (!/^\d{12,19}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    let d = Number(digits[digits.length - 1 - i]);
+    if (i % 2 === 1) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+  }
+  return sum % 10 === 0;
 }
 
 export const useBilling = (): Billing => useSyncExternalStore(subscribe, () => billing, () => SAMPLE_BILLING);
