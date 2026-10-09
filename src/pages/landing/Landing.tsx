@@ -52,7 +52,7 @@ import { Block, GroundProvider, useBlockGround, useGround, type Ground } from '.
 import TerminalWindow, { savingData, warmOtherGround } from './TerminalWindow';
 import { warmShell } from '../../components/layout/shell';
 import Session, { type Story as StoryHold } from './Session';
-import Opening, { HOW_AT, Quote, TRACK, Tease } from './Opening';
+import Opening, { HOW_AT, Quote, RUN_CSS, Tease } from './Opening';
 import Rooms, { type Room } from './Rooms';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
@@ -806,7 +806,7 @@ const Reveal = () => {
   const calm = useReducedMotion();
   const head = useArrival<HTMLDivElement>();
   return (
-    <Wrap className="pb-[4vh] md:pb-[6vh]" data-landing-reveal>
+    <Wrap className="pb[min(4vh,2.25rem)] md:pb[min(6vh,3.375rem)]" data-landing-reveal>
       <div ref={head} className="landing-lines text-center">
         <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[0.98] text-[clamp(2.25rem,8vw,4.25rem)] [text-wrap:balance]">
           Trade what you can see.
@@ -862,7 +862,7 @@ const Story = ({ theme, doors }: { theme: Ground; doors: ReactNode }) => {
         data-focus="[data-session-lead] h2"
         aria-hidden="true"
         className="absolute left-0 w-px h-px pointer-events-none"
-        style={{ top: `${HOW_AT * (TRACK - 100)}svh`, scrollMarginTop: 0 } as CSSProperties}
+        style={{ top: `calc(${HOW_AT} * ${RUN_CSS})`, scrollMarginTop: 0 } as CSSProperties}
       />
       <Opening theme={theme} story={targets} onNear={onNear} onLanded={setLanded} doors={doors} />
       <Wrap className="relative">
@@ -960,9 +960,11 @@ const InPlaceOf = () => (
     stands raised on a panel, one border round it, with a small "Recommended" and the page's solid door, so the eye lands
     there first; the other stands on the ground with the outline door, its words on the column's own edge (2026-10-06 —
     the owner's directive: "Make Compass the recommended plan … Do not write 'Most popular'") */
-const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => void }) => {
+const Plan = ({ planKey, period, onChoose }: { planKey: Sold; period: BillingPeriod; onChoose: (key: Sold) => void }) => {
   const plan = PLANS.find(p => p.key === planKey)!;
   const raised = planKey === RECOMMENDED;
+  const line = priceLine(planKey, period);
+  const door = `/signup?plan=${planKey}${period === 'yearly' ? '&billing=yearly' : ''}`;
   return (
     <div
       className={`flex flex-col ${raised ? 'p-6 sm:p-8 rounded-[1.25rem] border border-borderMuted bg-panel' : 'py-6 lg:py-8 lg:pr-8'}`}
@@ -978,10 +980,14 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
           </span>
         )}
       </div>
-      {/* the page's big numbers are its prices — the only figures of ours it shows; the currency rides on the price line */}
-      <p className="mt-6 flex items-baseline gap-2">
-        <span className="text-[2.375rem] sm:text-[2.75rem] landing-display font-light leading-none tracking-[-0.03em] tnum">{plan.price}</span>{' '}
-        <span className="text-[0.9375rem] text-textMuted">USD {plan.period}</span>
+      {/* the page's big numbers are its prices — the only figures of ours it shows; the currency rides on the price line,
+          and a year paid at once says what it comes to a month, with the year's total under it */}
+      <p className="mt-6 flex items-baseline gap-2" data-landing-price={period}>
+        <span className="text-[2.375rem] sm:text-[2.75rem] landing-display font-light leading-none tracking-[-0.03em] tnum">{line.each}</span>{' '}
+        <span className="text-[0.9375rem] text-textMuted">{line.unit}</span>
+      </p>
+      <p className="mt-2 text-[0.8125rem] text-textMuted tnum" aria-live="polite">
+        {line.year ? `${line.year} billed once a year · ${line.saves ?? ''}` : 'Billed monthly'}
       </p>
       <dl className="mt-6 border-t border-borderSubtle">
         <div className="py-3.5 border-b border-borderSubtle">
@@ -994,7 +1000,7 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
         </div>
       </dl>
       <div className="mt-7 lg:mt-auto lg:pt-7">
-        <Pill href={`/signup?plan=${planKey}`} onClick={() => onChoose(planKey)} kind={raised ? 'solid' : 'ghost'} testId={`plan-${planKey}`}>
+        <Pill href={door} onClick={() => onChoose(planKey)} kind={raised ? 'solid' : 'ghost'} testId={`plan-${planKey}`}>
           Choose {plan.name}
         </Pill>
       </div>
@@ -1002,8 +1008,58 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
   );
 };
 
+/** MONTHLY OR YEARLY (2026-10-09, the ideas report's "annual billing is the cheapest lever"): a radio group of two — the
+    arrows move it, as a radio group's do — and the prices answer at once. A year is ten months' price: two months free. */
+const PeriodSwitch = ({ period, onChange }: { period: BillingPeriod; onChange: (p: BillingPeriod) => void }) => {
+  const opts: { value: BillingPeriod; label: string }[] = [
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+  ];
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-landing-period={period}>
+      <div
+        role="radiogroup"
+        aria-label="How you pay"
+        className="inline-flex p-1 rounded-full border border-borderSubtle"
+        onKeyDown={e => {
+          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+          e.preventDefault();
+          const next = period === 'monthly' ? 1 : 0;
+          onChange(opts[next].value);
+          refs.current[next]?.focus();
+        }}
+      >
+        {opts.map((o, i) => {
+          const on = o.value === period;
+          return (
+            <button
+              key={o.value}
+              ref={el => {
+                refs.current[i] = el;
+              }}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              tabIndex={on ? 0 : -1}
+              onClick={() => onChange(o.value)}
+              className={`hit h-9 px-4 rounded-full text-[0.84375rem] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver ${
+                on ? 'bg-ink/[0.09] text-textPrimary' : 'text-textSecondary hover:text-textPrimary'
+              }`}
+              data-landing-period-door={o.value}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      <span className="text-[0.8125rem] text-textMuted">Yearly: two months free</span>
+    </div>
+  );
+};
+
 /** EVERY PLAN, SIDE BY SIDE — PLAN_ROWS read whole, folded under its own door so the prices stay the end of the section */
-const Compare = () => {
+const Compare = ({ period }: { period: BillingPeriod }) => {
   const [open, setOpen] = useState(false);
   const mark = (h: Holds) =>
     h ? (
@@ -1047,7 +1103,7 @@ const Compare = () => {
                   <th key={p.key} scope="col" className="py-3 px-1 sm:px-3 w-[5.25rem] sm:w-[20%] text-center align-bottom">
                     <span className="block text-[0.8125rem] sm:text-[0.9375rem] font-medium text-textPrimary">{p.name}</span>
                     <span className="block text-[0.6875rem] sm:text-[0.75rem] font-normal text-textMuted tnum whitespace-nowrap">
-                      {p.price} {p.period}
+                      {priceLine(p.key, period).each} {p.period}
                     </span>
                   </th>
                 ))}
@@ -1073,6 +1129,49 @@ const Compare = () => {
           </table>
         </div>
       )}
+    </div>
+  );
+};
+
+/** WHAT THE WORDS MEAN — a fold of its own beside the questions (open on a desk, where it fills the questions' column; folded
+    on a phone and a tablet), reached from the session's note (#words). A disclosure, found by the page's find. */
+const Words = ({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void }) => {
+  const body = useRef<HTMLDListElement | null>(null);
+  useLayoutEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    if (open) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', 'until-found');
+  }, [open]);
+  useEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    const found = () => setOpen(true);
+    el.addEventListener('beforematch', found);
+    return () => el.removeEventListener('beforematch', found);
+  }, [setOpen]);
+  return (
+    <div id="words" className="mt-8 border-t border-borderSubtle scroll-mt-28" data-landing-words>
+      <h3>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="words-list"
+          onClick={() => setOpen(!open)}
+          className="group w-full min-h-[2.75rem] py-2.5 flex items-center justify-between gap-4 text-left text-[0.9375rem] font-medium text-textPrimary focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-silver"
+          data-landing-words-door
+        >
+          What the words mean
+          <ChevronDown className={`w-4 h-4 shrink-0 text-textMuted group-hover:text-textPrimary transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+      </h3>
+      <dl ref={body} id="words-list" hidden className="pb-2 grid gap-y-2.5">
+        {WORDS.map(w => (
+          <div key={w.term} className="text-[0.84375rem] leading-snug">
+            <dt className="inline font-medium text-textPrimary">{w.term}</dt> <dd className="inline text-textSecondary">{w.says}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 };
@@ -1134,9 +1233,18 @@ const Page = () => {
   /* "Sign up free": the account form, outside the terminal; a plan's door names the plan */
   const signUp = useCallback(() => navigate('/signup'), [navigate]);
   const faqHead = useArrival<HTMLDivElement>();
-  const choose = useCallback((key: Sold) => navigate(`/signup?plan=${key}`), [navigate]);
   /* the plans stand one under the other below lg (the grid's own break), the recommended one first */
   const onePerRow = useIsBelowLg();
+  /* how the prices are said: by the month, or by the year (two months free) */
+  const [period, setPeriod] = useState<BillingPeriod>('monthly');
+  const choose = useCallback((key: Sold) => navigate(`/signup?plan=${key}${period === 'yearly' ? '&billing=yearly' : ''}`), [navigate, period]);
+  /* what the words mean: open on a desk, folded below it; the session's note opens it and goes there */
+  const [words, setWords] = useState(!onePerRow);
+  useEffect(() => setWords(!onePerRow), [onePerRow]);
+  const toWords = useCallback(() => {
+    setWords(true);
+    requestAnimationFrame(() => toAnchor('#words'));
+  }, []);
 
   /* WHERE THE KEYS LAND: a control the keys move to stands clear of the floating bar. The browser scrolls a control in only
      when none of it is on screen; one it can partly see stays where it is, under the bar — so, a frame after the keys land,
@@ -1211,7 +1319,7 @@ const Page = () => {
             session (Story); on a phone, or where less motion is asked for, the first screen still, the terminal under it,
             and the session's head and moments */}
         {stage ? (
-          <Block on="a" as="div" className="pb-[2vh]">
+          <Block on="a" as="div" className="pb[min(2vh,1.125rem)]">
             <Story theme={a} doors={doors} />
           </Block>
         ) : (
@@ -1222,14 +1330,14 @@ const Page = () => {
             <Block on="a" label="The terminal">
               <Reveal />
             </Block>
-            <Block on="a" id="how" label="How it works" className="pb-[4vh] md:pb-[6vh] scroll-mt-10">
+            <Block on="a" id="how" label="How it works" className="pb[min(4vh,2.25rem)] md:pb[min(6vh,3.375rem)] scroll-mt-10">
               <Wrap>
                 <Head
                   first="One session, as the terminal saw it."
                   aside={<>Three moments from one session on SPY, each read off the terminal as it ran.{!small && !calm && ' Scroll, and the session plays between them.'}</>}
                 />
                 <div className={small ? 'mt-6' : 'mt-6 lg:mt-0'}>
-                  <Session theme={a} />
+                  <Session theme={a} onWords={toWords} />
                 </div>
               </Wrap>
             </Block>
@@ -1242,7 +1350,7 @@ const Page = () => {
             <Rooms rooms={ROOMS} head={<RoomsHead stage />} onOpen={open} anchor="rooms" />
           </Block>
         ) : (
-          <Block on="a" id="rooms" label="The rooms" className="py-[6vh] md:py-[8vh] scroll-mt-10">
+          <Block on="a" id="rooms" label="The rooms" className="py[min(6vh,3.375rem)] md:py[min(8vh,4.5rem)] scroll-mt-10">
             <Wrap>
               <Rooms rooms={ROOMS} head={<RoomsHead stage={false} />} onOpen={open} />
             </Wrap>
@@ -1250,30 +1358,33 @@ const Page = () => {
         )}
 
         {/* ── A READ, NEVER AN INSTRUCTION ─────────────────────────────────────────────────────── */}
-        <Block on="a" id="trust" label="Why Slayer" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
+        <Block on="a" id="trust" label="Why Slayer" className="py[min(6vh,3.375rem)] md:py[min(8vh,4.5rem)] scroll-mt-10 border-t border-borderSubtle">
           <Trust />
         </Block>
 
         {/* ── HOW MUCH IS IT? ───────────────────────────────────────────────────────────────────── */}
-        <Block on="a" id="pricing" label="Pricing" className="py-[6vh] md:py-[8vh] scroll-mt-10 border-t border-borderSubtle">
+        <Block on="a" id="pricing" label="Pricing" className="py[min(6vh,3.375rem)] md:py[min(8vh,4.5rem)] scroll-mt-10 border-t border-borderSubtle">
           <Wrap>
             <Head
               first="Simple plans. Cancel any time."
-              aside="Making an account is free. A plan opens the rooms; cancel whenever you like and keep it until the month you paid for ends."
+              aside="An account is free. A plan opens its rooms; cancel whenever you like and keep it to the end of the period you paid for."
             />
+            <div className="mt-8">
+              <PeriodSwitch period={period} onChange={setPeriod} />
+            </div>
             {/* the recommended plan first where the plans stand one under the other (a phone, a tablet) */}
-            <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-2 lg:items-stretch" data-landing-plans>
               {(onePerRow ? [RECOMMENDED, ...PLAN_ORDER.filter(k => k !== RECOMMENDED)] : PLAN_ORDER).map(k => (
-                <Plan key={k} planKey={k} onChoose={choose} />
+                <Plan key={k} planKey={k} period={period} onChoose={choose} />
               ))}
             </div>
             <InPlaceOf />
-            <Compare />
+            <Compare period={period} />
           </Wrap>
         </Block>
 
         {/* ── THE QUESTIONS, THE LAST DOOR, THE FOOTER ─────────────────────────────────────────── */}
-        <Block on="a" id="faq" label="Questions" className="pt-[6vh] md:pt-[8vh] scroll-mt-10 border-t border-borderSubtle">
+        <Block on="a" id="faq" label="Questions" className="pt[min(6vh,3.375rem)] md:pt[min(8vh,4.5rem)] scroll-mt-10 border-t border-borderSubtle">
           <Wrap>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-16 gap-y-10">
               <div ref={faqHead} className="landing-lines lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
@@ -1286,6 +1397,11 @@ const Page = () => {
                   </Pill>
                   <span className="text-[0.8125rem] text-textMuted">Anything else, ask. A person reads it.</span>
                 </div>
+                {/* the words the page uses, said plainly — in the questions' own column (the audit's L-11: on a desk it stood
+                    two thirds empty beside the list) */}
+                <div className="landing-line [--i:2]">
+                  <Words open={words} setOpen={setWords} />
+                </div>
               </div>
               <div className="lg:col-span-7 border-t border-borderSubtle" data-landing-faq-list>
                 {FAQ.map((f, i) => (
@@ -1295,7 +1411,7 @@ const Page = () => {
             </div>
 
             {/* THE LAST WORDS — the rooms once more, a door each, and the line read by the scroll */}
-            <div className="pt-[8vh] pb-[6vh] md:pt-[12vh] md:pb-[8vh] text-center" data-landing-close>
+            <div className="pt[min(8vh,4.5rem)] pb[min(6vh,3.375rem)] md:pt[min(12vh,6.75rem)] md:pb[min(8vh,4.5rem)] text-center" data-landing-close>
               <ul className="mb-12 mx-auto max-w-[24rem] sm:max-w-none grid grid-cols-4 sm:flex sm:flex-wrap justify-center gap-x-2 gap-y-5 sm:gap-x-5" aria-label="The rooms" data-landing-close-rooms>
                 {ROOMS.map(r => (
                   <li key={r.id}>

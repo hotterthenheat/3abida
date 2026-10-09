@@ -102,23 +102,31 @@ const AT = 0.62;
 const ease = (t: number) => t * t * (3 - 2 * t);
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
+/** the ladder's strike column, from the row's left edge (the desk's px): the call stands just after it, never on it */
+const STRIKE_W = 50;
+/** the ladder's middle — the line the puts and the calls grow from (the desk's px) */
+const SPINE_X = 1110;
+
 /** THE CALL ON THE LEVEL (2026-10-06 — the owner's directive: "replace the hairline Marks with a 2 px silver rule on the
     exact level and a label chip, for example 'Call wall 475 → 477'"): a silver rule under the ladder's row for the level
-    the beat's words name, and the chip — its words read off the run (session.json `call`) — standing on the row's strike,
-    which it names: at the end of the row it covered the next row's figures. Laid in the picture's own measure: `frame` is
-    the part of the 1440 × 1000 desk the window shows. */
-const Callout = ({ beat, on, frame }: { beat: Beat; on: boolean; frame: Box }) => {
+    the beat's words name, and the chip — its words read off the run (session.json `call`). THE CHIP STANDS BESIDE THE
+    STRIKE IT NAMES (2026-10-09, the audit's L-5 and L-6: standing on the strike, it hid the very figure it named; at the
+    end of the row it covered the next row's figures): just past the strike column, over the row's own distance figure.
+    Laid in the picture's own measure: `frame` is the part of the 1440 × 1000 desk the window shows; `chipAt`, where the
+    chip starts (the desk's px from the frame's left), when the frame is not one piece of the desk (a phone's, below). */
+const Callout = ({ beat, on, frame, chipAt }: { beat: Beat; on: boolean; frame: Box; chipAt?: number }) => {
   if (!beat.level || !beat.call) return null;
   const [fx, fy, fw, fh] = frame;
   const [lx, ly, lw, lh] = beat.level;
   const left = Math.max(0, lx - fx);
   const right = Math.min(fw, lx + lw - fx);
+  const chip = chipAt ?? lx + STRIKE_W - fx;
   return (
     <div aria-hidden="true" className="absolute inset-0 pointer-events-none transition-opacity duration-300 motion-reduce:transition-none" style={{ opacity: on ? 1 : 0 }} data-session-call>
       <span className="absolute h-[2px] -translate-y-1/2 rounded-full bg-silver" style={{ top: pct(ly + lh + 1 - fy, fh), left: pct(left, fw), width: pct(Math.max(0, right - left), fw) }} />
       <span
         className="absolute -translate-y-1/2 rounded-full border border-silver bg-panel px-2.5 py-1 text-[0.75rem] font-medium leading-none tnum text-textPrimary whitespace-nowrap"
-        style={{ top: pct(ly + lh / 2 - fy, fh), left: `calc(${pct(left, fw)} - 0.25rem)` }}
+        style={{ top: pct(ly + lh / 2 - fy, fh), left: pct(chip, fw) }}
       >
         {beat.call}
       </span>
@@ -164,19 +172,33 @@ const framing = (boxes: Box[]): Box => {
     in the middle, as wide as keeps the ladder's 10 px figures at 11 px in the frame (325 × 200 of the desk in a 358 px
     column; narrower on a narrower phone), the 9 px column heads left above it — cut from the beat's focus (drawn at
     three times its size, so it stays sharp on a phone's screen) */
+/* A WIDER COLUMN TAKES THE WHOLE FOCUS (2026-10-09, the audit's L-5: on a tablet the phone's 325 px cut stood 2.2 times
+   its size, rows 20 px tall, the dollar column cut at "$5"): as much of the focus as keeps the 10 px figures at 11 px or
+   more — on a column of 616 px or wider, all 560 px of it, the strike through the calls, whole. ON A PHONE, TWO PIECES
+   SIDE BY SIDE (L-6: the strike, the distance and the puts, the calls cut off "◂ P…" though the beat named the call
+   wall): the strike column, and the puts and the calls round the ladder's middle — the distance column left out. */
 const NEAR_W = 325;
 const NEAR_H = 200;
 const SMALLEST = 10;
 const READ_AT = 11;
-const near = (beat: Beat, frameW: number): Box | null => {
+interface Near {
+  /** the frame, as wide as the pieces put together */
+  box: Box;
+  /** the pieces, each a part of the desk, left to right */
+  parts: Box[];
+}
+const near = (beat: Beat, frameW: number): Near | null => {
   if (!beat.level) return null;
   const [fx, fy, fw, fh] = beat.focus;
   const [lx, ly, , lh] = beat.level;
-  const w = Math.min(NEAR_W, (frameW * SMALLEST) / READ_AT);
-  const h = (w * NEAR_H) / NEAR_W;
-  const x = Math.max(fx, Math.min(fx + fw - w, lx - 8));
+  const w = Math.min(fw, (frameW * SMALLEST) / READ_AT);
+  const h = Math.min(fh, (w * NEAR_H) / NEAR_W);
   const y = Math.max(fy, Math.min(fy + fh - h, ly + lh / 2 - h / 2));
-  return [x, y, w, h];
+  if (w >= fw - 1) return { box: [fx, y, fw, h], parts: [[fx, y, fw, h]] };
+  const strike: Box = [lx - 4, y, STRIKE_W, h];
+  const rest = w - STRIKE_W;
+  const rx = Math.max(fx, Math.min(fx + fw - rest, SPINE_X - rest / 2));
+  return { box: [lx - 4, y, w, h], parts: [strike, [rx, y, rest, h]] };
 };
 
 const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
@@ -194,23 +216,38 @@ const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
     return () => ro.disconnect();
   }, []);
   const close = near(beat, frameW);
-  const f = close ?? framing(beat.boxes);
+  const f = close?.box ?? framing(beat.boxes);
+  const parts = close?.parts ?? [f];
   /* the picture the frame is cut from: the beat's focus, or the whole desk */
   const [bx, by, bw] = close ? beat.focus : [0, 0, DATA.w];
+  const src = close ? focusSrc(theme, k) : beatSrc(theme, k);
+  const alt = `The Pulse desk at ${beat.time}: ${WORDS[k].title.toLowerCase()}`;
+  /* the chip after the strike piece (two pieces), else just past the strike column */
+  const chipAt = parts.length > 1 ? parts[0][2] + 4 : undefined;
+  let at = 0;
   return (
     <div className="mt-6 overflow-hidden rounded-[0.625rem] border border-borderMuted bg-canvas" data-theme={theme}>
       <Bar time={beat.time} />
-      <div ref={frame} className="relative overflow-hidden" style={{ aspectRatio: `${f[2]} / ${f[3]}` }}>
-        <img
-          src={close ? focusSrc(theme, k) : beatSrc(theme, k)}
-          alt={`The Pulse desk at ${beat.time}: ${WORDS[k].title.toLowerCase()}`}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          className="absolute max-w-none select-none"
-          style={{ width: pct(bw, f[2]), left: `-${pct(f[0] - bx, f[2])}`, top: `-${pct(f[1] - by, f[3])}` }}
-        />
-        <Callout beat={beat} on frame={f} />
+      <div ref={frame} className="relative overflow-hidden" style={{ aspectRatio: `${f[2]} / ${f[3]}` }} data-session-near={parts.length}>
+        {parts.map((p, i) => {
+          const left = at;
+          at += p[2];
+          return (
+            <div key={i} className={`absolute top-0 bottom-0 overflow-hidden ${i ? 'border-l border-borderSubtle' : ''}`} style={{ left: pct(left, f[2]), width: pct(p[2], f[2]) }}>
+              <img
+                src={src}
+                alt={i ? '' : alt}
+                aria-hidden={i ? true : undefined}
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+                className="absolute max-w-none select-none"
+                style={{ width: pct(bw, p[2]), left: `-${pct(p[0] - bx, p[2])}`, top: `-${pct(p[1] - by, p[3])}` }}
+              />
+            </div>
+          );
+        })}
+        <Callout beat={beat} on frame={f} chipAt={chipAt} />
       </div>
     </div>
   );
@@ -283,9 +320,11 @@ export interface Story {
     words stand from a little above the screen's middle (PROLOGUE_AT) until their stretch is spent (112: the opening's run
     of 80 — Opening.tsx TRACK — and a breath of about 32 after it, the words standing alone) */
 export const PROLOGUE = 112;
+/** …as CSS: never longer than a 900 px screen's in the design's px (the audit's L-13 — a tall screen's run grew with it) */
+const PROLOGUE_CSS = `min(${PROLOGUE}svh, ${PROLOGUE * 0.5625}rem)`;
 const PROLOGUE_AT = '24svh';
 
-const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
+const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWords?: () => void }) => {
   /* a phone, a tablet, or a screen taller than it is wide: each beat carries its own picture (scale.ts) */
   const small = useStacked();
   /* in the story (a desk): the window and the first words are the opening's to bring in */
@@ -536,7 +575,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
     <div ref={wrap} className={small ? '' : 'grid grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-x-10'} data-session>
       {/* the column ends just far enough under the last beat for the window to stay put while it is read (the beat is read
           at AT of the screen; the window lets go when the column's foot passes its own) — no empty screen after it */}
-      <div className={small ? '' : 'pb-[2svh]'}>
+      <div className={small ? '' : 'pb-[min(6svh,3.375rem)]'}>
         {told && (
           /* THE FIRST WORDS, beside the window: they stand from a little above the middle of the screen while the opening hands
              its window over and a breath after (hidden until then — Opening.tsx), then go up the page ahead of the beats */
@@ -544,10 +583,17 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
             <div ref={story.intro} className="sticky" style={{ top: PROLOGUE_AT, opacity: 0, visibility: 'hidden' }} data-session-lead>
               {story.lead}
             </div>
-            <div aria-hidden="true" style={{ height: `${PROLOGUE}svh` }} />
+            <div aria-hidden="true" style={{ height: PROLOGUE_CSS }} />
           </div>
         )}
-        <ol ref={list} aria-label={`${COUNT} moments from the session`}>
+        {/* in the story the beats wait for the opening's picture to have gone: "09:32" peeked under the terminal as it opened
+            (the audit's L-8) */}
+        <ol
+          ref={list}
+          aria-label={`${COUNT} moments from the session`}
+          className="transition-opacity duration-300 motion-reduce:transition-none"
+          style={told && !story.landed ? { opacity: 0 } : undefined}
+        >
           {BEATS.map((b, i) => {
             const on = small || (i === lit && !view.pre);
             return (
@@ -556,7 +602,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
                 ref={el => {
                   beatEls.current[i] = el;
                 }}
-                className={small ? 'py-6 border-t border-borderSubtle first:border-t-0' : 'min-h-[34svh] pt-[8svh]'}
+                className={small ? 'py-6 border-t border-borderSubtle first:border-t-0' : 'min-h-[min(34svh,19.125rem)] pt-[min(8svh,4.5rem)]'}
                 data-session-beat={i}
                 data-on={on || undefined}
               >
@@ -575,7 +621,11 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
         </ol>
         {/* said once, under the last beat */}
         <p className={`${small ? 'mt-2' : 'mt-10'} max-w-[34ch] text-[0.8125rem] leading-relaxed text-textMuted`} data-session-note>
-          Read off the terminal at each moment, nothing added after. It shows what is there; it doesn’t predict what comes next.
+          Read off the terminal at each moment, nothing added after. It shows what is there; it doesn’t predict what comes next.{' '}
+          {/* the words a beat uses, said plainly further down the page (Landing.tsx WORDS) */}
+          <a href="#words" onClick={e => (e.preventDefault(), onWords?.())} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary" data-session-words>
+            What the words mean
+          </a>
         </p>
       </div>
       {!small && (
@@ -592,7 +642,7 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
             data-theme={theme}
           >
             {/* in the story the opening's own window typed the prompt: this one takes it over already typed */}
-            <Bar time={DATA.times[view.k] ?? BEATS[lit].time} still={told} />
+            <Bar time={calm ? BEATS[lit].time : DATA.times[view.k] ?? BEATS[lit].time} still={told} />
             <div
               ref={el => {
                 screen.current = el;
@@ -603,6 +653,19 @@ const Session = ({ theme, story }: { theme: Theme; story?: Story }) => {
               data-session-rest={view.rest ?? undefined}
             >
               {!calm && <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 w-full h-full" />}
+              {/* where less motion is asked for, the beat being read stands as its own picture, changed at once (the audit's
+                  L-1: the window stood empty under its call) */}
+              {calm && (
+                <img
+                  key={lit}
+                  src={beatSrc(theme, lit)}
+                  alt={`The Pulse desk at ${BEATS[lit].time}: ${WORDS[lit].title.toLowerCase()}`}
+                  decoding="async"
+                  draggable={false}
+                  className="absolute inset-0 w-full h-full object-cover select-none"
+                  data-session-still={lit}
+                />
+              )}
               {BEATS.map((b, i) => (
                 <Callout key={b.step} beat={b} frame={FULL} on={i === lit && (calm ? true : view.rest === i)} />
               ))}
