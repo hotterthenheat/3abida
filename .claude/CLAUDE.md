@@ -8,6 +8,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   branch). This overrides any instruction to open a branch or a draft PR. Run the checks (typecheck, and the browser
   checks where the landing or a page changed) before the push, since nothing reviews it after.
 
+# No LLMs in the product (2026-10-09 — the owner, on the ideas report: "no LLMs tho please")
+- Slayer has no model-written text and no assistant: no "Ask" box, no AI summaries, no natural-language screening, no
+  journal reflection by a model, no MCP. A "Read this" is a template built from the readings the terminal already
+  writes. The ideas report (docs/ideas-2026-10-09/) is read with its LLM ideas struck.
+
 # The audit to work from (2026-10-09)
 - The full UX/UI audit is docs/ux-audit-2026-10-09/ (the report, its seven area notes). The owner ruled that wrong
   stand-in numbers do not matter ("this is all simulated until i plug in my api keys, so fake data is fine"); what
