@@ -45,7 +45,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -368,7 +368,7 @@ const Stocks = () => {
         </div>
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
-      <div ref={gridRef} className="slayer-board border-t border-borderSubtle" data-stocks-grid>
+      <div ref={gridRef} className="grid-keys slayer-board border-t border-borderSubtle" data-stocks-grid>
         <AgGridProvider modules={GRID_MODULES}>
           <AgGridReact<StockPick>
             theme={GRID_THEME}
@@ -378,8 +378,8 @@ const Stocks = () => {
             defaultColDef={defaultColDef}
             getRowId={p => p.data.ticker}
             onRowClicked={open}
+            {...openRowOnEnter<StockPick>(row => navigate(`/dossier/stocks/${row.ticker}`))}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-            suppressCellFocus
             animateRows={false}
             tooltipShowDelay={350}
             tooltipHideDelay={8000}

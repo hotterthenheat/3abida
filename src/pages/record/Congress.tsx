@@ -22,7 +22,7 @@
                   scrolls inside itself, its head
                   pinned
 
-  A row's name opens it on the Map.
+  A row opens the name's own page in the Dossier.
 ==================================================
 */
 
@@ -30,7 +30,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -266,7 +266,7 @@ const Congress = () => {
     () => [
       { headerName: 'Filed', field: 'filedDaysAgo', width: 126, cellRenderer: FiledCell, sort: 'asc', headerTooltip: 'The day the report was filed, and how far back that is — newest first' },
       { headerName: 'Member', field: 'member', flex: 1.7, minWidth: 220, cellRenderer: MemberCell, cellDataType: false, comparator: (a: CongressTrade['member'], b: CongressTrade['member']) => a.name.localeCompare(b.name), headerTooltip: "Who filed it, with party and seat — and their own committee under the name when the trade sits in a sector it oversees" },
-      { headerName: 'Asset', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: AssetCell, headerTooltip: 'The stock the report names — click the row to open it on the Map' },
+      { headerName: 'Asset', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: AssetCell, headerTooltip: 'The stock the report names — a row opens the name’s page in the Dossier' },
       { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellRenderer: TypeCell, headerTooltip: 'Purchase, sale (full or partial), or an exchange' },
       { headerName: 'Owner', field: 'owner', flex: 0.7, minWidth: 96, cellRenderer: OwnerCell, headerTooltip: "Whose holding the report covers — the member's own, their spouse's, a joint account or a dependent's" },
       {
@@ -284,10 +284,13 @@ const Congress = () => {
     []
   );
   const defaultColDef = useMemo<ColDef<CongressTrade>>(() => ({ sortable: true, resizable: true, suppressMovable: true }), []);
+  /* A ROW OPENS THE NAME'S OWN PAGE, here in the Dossier (the audit's DO-8: a click went to Pinpoint's Map with no word) */
+  const openName = (t: CongressTrade) => {
+    changeTicker(t.ticker);
+    navigate(`/dossier/stocks/${t.ticker}`);
+  };
   const open = (e: RowClickedEvent<CongressTrade>) => {
-    if (!e.data) return;
-    changeTicker(e.data.ticker);
-    navigate('/pinpoint/map');
+    if (e.data) openName(e.data);
   };
 
   return (
@@ -302,7 +305,7 @@ const Congress = () => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What Congress reported</h3>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first</p>
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · a row opens the name’s page</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
@@ -361,7 +364,7 @@ const Congress = () => {
         )}
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
-      <div className="slayer-board border-t border-borderSubtle" data-congress-grid>
+      <div className="grid-keys slayer-board border-t border-borderSubtle" data-congress-grid>
         <AgGridProvider modules={GRID_MODULES}>
           <AgGridReact<CongressTrade>
             theme={GRID_THEME}
@@ -371,8 +374,8 @@ const Congress = () => {
             defaultColDef={defaultColDef}
             getRowId={p => p.data.id}
             onRowClicked={open}
+            {...openRowOnEnter<CongressTrade>(openName)}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-            suppressCellFocus
             animateRows
             tooltipShowDelay={350}
             tooltipHideDelay={8000}
