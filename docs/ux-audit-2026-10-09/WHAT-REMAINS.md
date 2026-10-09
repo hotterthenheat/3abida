@@ -84,6 +84,9 @@ report under the ID given.
 - `/legal/data` claims a "licensed feed" — X7
 - Trade calls: News "buy the first pullback", Compass "Scalp the pop", puts described as "buy walls … protective
   floor" — X8, CO-6
+- Dark Pool copy gives trade calls: "Trade the break", "Don't chase it", "Level becomes support", "Rallies… should
+  struggle", and calls a print "bought"/"sold" from its place against spot alone — src/data/darkpool.ts:155–215
+  (found by the ideas research, 2026-10-09)
 
 ## The owner's call (not bugs)
 Whole-page landing windows vs the 11 px rule; "Won %", "The case: strong" and other grade-like scales; merging Trace's
