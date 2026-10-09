@@ -59,6 +59,8 @@ interface ExposureMatrixProps {
   onSelectStrike?: (strike: number) => void;
   /** The greek the pointer card reads — the band's lead */
   lead?: Greek;
+  /** Today's max pain (data/maxPain.ts) — one plain marked line on its strike */
+  maxPain?: number | null;
 }
 
 type Leg = 'put' | 'call' | 'net';
@@ -83,7 +85,6 @@ interface Row {
 /* A shade more on the dark terminal (Noah: "a slight bit more for the dark mode, the light mode is pretty good") — the
    light values are untouched; the two grounds get their own hairline and wash. */
 const groupSkin = (gi: number, leg: Leg, paper: boolean) => `${leg === 'put' ? `border-l ${paper ? 'border-borderSubtle' : 'border-borderMuted'} pl-3` : ''} ${leg === 'net' ? 'pr-3' : ''} ${gi % 2 === 1 ? (paper ? 'bg-ink/[0.02]' : 'bg-ink/[0.045]') : ''}`;
-const groupWash = (gi: number, paper: boolean) => (gi % 2 === 1 ? (paper ? 'bg-ink/[0.02]' : 'bg-ink/[0.045]') : '');
 
 const Cell = ({ value, leg, cap, mode, paper, gi }: { value: number; leg: Leg; cap: number; mode: HeatMode; paper: boolean; gi: number }) => {
   const pct = Math.min(100, (Math.abs(value) / Math.max(1, cap)) * 100);
@@ -98,7 +99,7 @@ const Cell = ({ value, leg, cap, mode, paper, gi }: { value: number; leg: Leg; c
   );
 };
 
-const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrike, palette = 'house', selectedStrike, marks, onPointer, onSelectStrike, lead: leadProp }: ExposureMatrixProps) => {
+const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrike, palette = 'house', selectedStrike, marks, onPointer, onSelectStrike, lead: leadProp, maxPain }: ExposureMatrixProps) => {
   const mode: HeatMode = palette === 'thermal' ? 'thermal-yellow' : HEAT_MODE;
   const paper = useResolvedTheme() === 'light';
   const shownGreeks = useMemo(() => GREEKS.filter(g => greeks.includes(g)), [greeks]);
@@ -227,8 +228,36 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
     box.scrollTop = Math.max(0, row.offsetTop - box.clientHeight / 2);
   }, [surface.ticker, rows.length]);
 
+  /* THE ROWS BY THE KEYS (X6): one Tab stop for the whole matrix — the kept strike, else the one at spot — the arrows
+     walk the strikes, Home and End the ends, Enter or Space keeps the strike (it was one 1152 × 787 tab stop) */
+  const rovingStrike = keptStrike != null && rows.some(r => r.strike === keptStrike) ? keptStrike : rowsBelow[0]?.strike ?? rowsAbove[rowsAbove.length - 1]?.strike ?? null;
+  const onRowKey = (r: Row) => (ev: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (ev.target !== ev.currentTarget) return;
+    const i = rows.findIndex(x => x.strike === r.strike);
+    const go = (j: number) => {
+      const k = rows[Math.max(0, Math.min(rows.length - 1, j))]?.strike;
+      if (k == null) return;
+      ev.preventDefault();
+      const el = (ev.currentTarget.closest('[data-matrix-scroll]') as HTMLElement | null)?.querySelector<HTMLElement>(`[data-matrix-row="${k}"]`);
+      el?.focus();
+    };
+    if (ev.key === 'ArrowDown') go(i + 1);
+    else if (ev.key === 'ArrowUp') go(i - 1);
+    else if (ev.key === 'Home') go(0);
+    else if (ev.key === 'End') go(rows.length - 1);
+    else if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      onSelectStrike?.(r.strike);
+    }
+  };
+
+  /* the head's ground: the island's own (bg-inset on paper, the panel on black), the group's wash as a layer on it */
+  const ground = paper ? 'bg-inset' : 'bg-panel';
+  const washOf = (gi: number) => (gi % 2 === 1 ? { backgroundImage: `linear-gradient(rgb(var(--ink) / ${paper ? 0.02 : 0.045}), rgb(var(--ink) / ${paper ? 0.02 : 0.045}))` } : undefined);
+
   const renderRow = (r: Row) => {
     const on = keptStrike === r.strike;
+    const pain = maxPain != null && Math.abs(maxPain - r.strike) < 1e-9;
     const lit = hoverStrike === r.strike || hovered === r.strike;
     const tag = tagFor(r.strike);
     const you = marks?.get(r.strike);
@@ -252,7 +281,14 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           }, 70);
         }}
         onClick={() => onSelectStrike?.(r.strike)}
-        className={`relative border-b border-borderSubtle/30 transition-colors ${onSelectStrike ? 'cursor-pointer' : ''} ${on ? 'bg-ink/[0.05]' : lit ? 'bg-ink/[0.04]' : ''} ${pinned && !on ? 'opacity-60' : ''}`}
+        onKeyDown={onRowKey(r)}
+        onFocus={() => setHovered(r.strike)}
+        onBlur={() => setHovered(h => (h === r.strike ? null : h))}
+        tabIndex={onSelectStrike ? (r.strike === rovingStrike ? 0 : -1) : undefined}
+        role={onSelectStrike ? 'button' : undefined}
+        aria-pressed={onSelectStrike ? on : undefined}
+        aria-label={`${fmtStrike(r.strike)}${tag ? `, the ${tag.word}` : ''}${pain ? ', max pain' : ''}: net ${GREEK_LABEL[lead]} ${fmtUsd(r.legs[lead].net)}`}
+        className={`relative transition-colors outline-none focus-visible:shadow-[inset_0_0_0_2px_rgb(var(--silver)/0.55)] ${pain ? 'border-b border-dashed border-textSecondary/70' : 'border-b border-borderSubtle/30'} ${onSelectStrike ? 'cursor-pointer' : ''} ${on ? 'bg-ink/[0.05]' : lit ? 'bg-ink/[0.04]' : ''} ${pinned && !on ? 'opacity-60' : ''}`}
         style={{ height: ROW_H, ...(on ? { boxShadow: `inset 2px 0 0 0 ${SILVER}` } : {}) }}
         data-matrix-row={r.strike}
         data-kept={on || undefined}
@@ -261,11 +297,17 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         <td className="px-2 py-1 bg-inset border-r border-borderSubtle/40 font-mono text-[11px] font-semibold tnum text-textSecondary whitespace-nowrap">
           <span className={on || lit ? 'text-textPrimary' : ''}>{fmtStrike(r.strike)}</span>
           {tag && (
-            <span className="ml-1.5 font-mono text-[7.5px] font-bold" style={{ color: tag.ink }} data-matrix-role={tag.word}>
+            <span className="ml-1.5 font-mono text-[11px] font-semibold" style={{ color: tag.ink }} data-matrix-role={tag.word}>
               {tag.word}
             </span>
           )}
-          {you && <span className="ml-1.5 font-mono text-[7.5px] font-bold text-silver">you own</span>}
+          {/* MAX PAIN, one plain mark: the row's dashed rule and its name, no ink of its own (data/maxPain.ts) */}
+          {pain && (
+            <span className="ml-1.5 font-mono text-[11px] text-textMuted" title="Max pain — the close at which today's contracts pay their holders least; marked, not a target" data-matrix-maxpain>
+              max pain
+            </span>
+          )}
+          {you && <span className="ml-1.5 font-mono text-[11px] font-semibold text-silver">you own</span>}
         </td>
         {shownGreeks.map((g, gi) => LEGS.map(leg => <Cell key={`${g}-${leg}`} value={r.legs[g][leg]} leg={leg} cap={caps[g][leg]} mode={mode} paper={paper} gi={gi} />))}
       </tr>
@@ -273,22 +315,24 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
   };
 
   return (
-    <div className="overflow-auto h-full min-h-0" data-matrix-scroll data-exposure-matrix={surface.ticker} data-matrix-palette={palette}>
+    <div className="overflow-auto h-full min-h-0 scroll-pt-[64px]" data-matrix-scroll data-exposure-matrix={surface.ticker} data-matrix-palette={palette}>
       <table className="w-full border-collapse" style={{ minWidth: 84 + shownGreeks.length * 3 * 66 }}>
-        <thead className="sticky top-0 z-10 bg-panel">
+        {/* THE HEAD IS SOLID (PP-16): its cells' washes were see-through, so the rows scrolled under showed between its two
+            lines as cut figures — each head cell now stands on the island's own ground with the wash laid over it */}
+        <thead className={`sticky top-0 z-10 ${ground}`}>
           <tr>
-            <th className={`${head} px-2 pt-2 pb-1 text-left text-textSecondary border-b border-borderSubtle`}>Strike</th>
+            <th className={`${head} ${ground} px-2 pt-2 pb-1 text-left text-textSecondary border-b border-borderSubtle`}>Strike</th>
             {shownGreeks.map((g, gi) => (
-              <th key={g} colSpan={3} className={`${head} px-2 pt-2 pb-1 text-center border-b border-l ${paper ? 'border-borderSubtle' : 'border-borderMuted'} ${groupWash(gi, paper)} ${g === lead && shownGreeks.length > 1 ? 'text-silver' : 'text-textPrimary'}`} data-matrix-group={g} data-lead={g === lead || undefined}>
+              <th key={g} colSpan={3} style={washOf(gi)} className={`${head} ${ground} px-2 pt-2 pb-1 text-center border-b border-l ${paper ? 'border-borderSubtle' : 'border-borderMuted'} ${g === lead && shownGreeks.length > 1 ? 'text-silver' : 'text-textPrimary'}`} data-matrix-group={g} data-lead={g === lead || undefined}>
                 {GREEK_LABEL[g]} <span className="text-textSecondary font-medium">· {GREEK_UNIT[g]}</span>
               </th>
             ))}
           </tr>
           <tr>
-            <th className="border-b border-borderSubtle" />
+            <th className={`${ground} border-b border-borderSubtle`} />
             {shownGreeks.map((g, gi) =>
               LEGS.map(leg => (
-                <th key={`${g}-${leg}`} className={`${head} px-2 py-1 text-right text-textSecondary border-b border-borderSubtle ${groupSkin(gi, leg, paper)}`}>
+                <th key={`${g}-${leg}`} style={washOf(gi)} className={`${head} ${ground} px-2 py-1 text-right text-textSecondary border-b border-borderSubtle ${groupSkin(gi, leg, paper).replace(/bg-ink\/\[[\d.]+\]/, '')}`}>
                   {leg}
                 </th>
               ))
