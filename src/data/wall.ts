@@ -460,7 +460,9 @@ export function buildWallContext(
   const strikes = profile.strikes; // descending
   const heaviest = Math.max(1, ...strikes.map(s => Math.abs(s.gex.net)));
   const todayBars = bars as Candle[];
-  const marketPer1Pct = dollarsPer1Pct(todayBars) ?? 1;
+  /* Minutes after the open there are too few of today's bars to say what moves the name; the last session's worth of
+     bars says it until today has its own (it was a dollar, which priced every wall as unbreakable at 09:31) */
+  const marketPer1Pct = dollarsPer1Pct(todayBars) ?? dollarsPer1Pct((Simulator.peekCandles(snapshot.ticker) ?? []).slice(-SESSION_MIN)) ?? 1;
   const sigmaDay = impliedDaySigma(spot, iv) ?? spot * 0.01;
   const sigmaLeft = sigmaDay * Math.sqrt(clock.minutesLeft / SESSION_MIN);
   return {
@@ -500,11 +502,13 @@ export function buildWallBoard(
   bars: readonly Candle[],
   clock: AheadClock,
   iv: number,
-  focusStrike?: number | null
+  focusStrike?: number | null,
+  /** The context already built for this book (data/pinpointBook.ts) — built here when absent */
+  ctxIn?: WallContext
 ): WallBoard {
   const { ticker, spot } = snapshot;
   const strikes = profile.strikes; // descending
-  const ctx = buildWallContext(snapshot, profile, building, surface, bars, clock, iv);
+  const ctx = ctxIn ?? buildWallContext(snapshot, profile, building, surface, bars, clock, iv);
   const { heaviest, marketPer1Pct, sigmaLeft } = ctx;
 
   /* Every shelf on the book that PUSHES BACK (a shelf whose hedging pushes

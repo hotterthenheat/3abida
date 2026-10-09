@@ -213,7 +213,7 @@ const LedgerGuide = ({ surface, greek }: LedgerGuideProps) => {
         </p>
       </div>
       <div className="border-t border-borderSubtle/60 pt-2.5">
-        <p className="text-[10px] text-textMuted">Today's calendar, in words</p>
+        <p className="text-[11px] text-textMuted">Today's calendar, in words</p>
         <ul className="mt-1 flex flex-col gap-1.5">
           <li className="text-[11.5px] leading-relaxed text-textSecondary">
             The supreme is <span className="font-mono tnum font-semibold" style={{ color: SUPREME }}>{fmtStrike(supreme.strike)}</span>: <span className="font-mono tnum text-textPrimary">{fmtUsd(Math.abs(supreme.total))}</span> of {label} hedging across the whole book, most of it on{' '}
@@ -236,7 +236,7 @@ const LedgerGuide = ({ surface, greek }: LedgerGuideProps) => {
           )}
         </ul>
       </div>
-      <p className="text-[10px] text-textMuted">Hover any cell to read it in the line above the grid · click to keep it there.</p>
+      <p className="text-[11px] text-textMuted">Hover any cell to read it in the line above the grid · click to keep it there.</p>
     </div>
   );
 };

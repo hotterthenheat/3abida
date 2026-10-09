@@ -102,13 +102,13 @@ const SpotCell = ({ data }: ICellRendererParams<BoardRow>) =>
   data ? (
     <span className="inline-flex items-baseline gap-2 font-mono tnum">
       <span className="text-[12px] text-textPrimary">${data.spot.toFixed(2)}</span>
-      <span className={`text-[10px] ${data.changePct >= 0 ? 'text-bull' : 'text-bear'}`}>{fmtPct(data.changePct)}</span>
+      <span className={`text-[11px] ${data.changePct >= 0 ? 'text-bull' : 'text-bear'}`}>{fmtPct(data.changePct)}</span>
     </span>
   ) : null;
 
 const YoursCell = ({ data }: ICellRendererParams<BoardRow>) => {
   if (!data) return null;
-  if (!data.yours.positions) return <span className="font-mono text-[10px] text-textMuted">—</span>;
+  if (!data.yours.positions) return <span className="font-mono text-[11px] text-textMuted">—</span>;
   return (
     <span className="font-mono text-[11px] tnum text-silver">
       {data.yours.contracts} contract{data.yours.contracts === 1 ? '' : 's'} · {data.yours.positions} position{data.yours.positions === 1 ? '' : 's'}
@@ -118,7 +118,7 @@ const YoursCell = ({ data }: ICellRendererParams<BoardRow>) => {
 
 const RegimeCell = ({ data }: ICellRendererParams<BoardRow>) => {
   if (!data) return null;
-  if (!data.regime) return <span className="font-mono text-[10px] text-textMuted">one-sided — no flip</span>;
+  if (!data.regime) return <span className="font-mono text-[11px] text-textMuted">one-sided — no flip</span>;
   const w = REGIME_WORDS[data.regime];
   /* The shell's words, not "LONG GAMMA" (2026-09-09): plain English on Pinpoint */
   return (
@@ -134,20 +134,20 @@ const FlipCell = ({ data }: ICellRendererParams<BoardRow>) =>
       <span className="text-[11px] font-semibold" style={{ color: FLIP }}>
         {fmtStrike(data.flip)}
       </span>
-      {data.flipDistPct != null && <span className="text-[10px] text-textSecondary">{fmtPct(data.flipDistPct)}</span>}
+      {data.flipDistPct != null && <span className="text-[11px] text-textSecondary">{fmtPct(data.flipDistPct)}</span>}
     </span>
   ) : (
-    <span className="font-mono text-[10px] text-textMuted">—</span>
+    <span className="font-mono text-[11px] text-textMuted">—</span>
   );
 
 const WallCell = ({ data }: ICellRendererParams<BoardRow>) =>
   data ? (
     <span className="inline-flex items-baseline gap-2 font-mono tnum">
-      <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: data.nearest.kind === 'call' ? CALL_WALL : PUT_WALL }}>
+      <span className="text-[11px] font-bold" style={{ color: data.nearest.kind === 'call' ? CALL_WALL : PUT_WALL }}>
         {data.nearest.kind === 'call' ? 'Call wall' : 'Put wall'}
       </span>
       <span className="text-[11px] font-semibold text-textPrimary">{fmtStrike(data.nearest.strike)}</span>
-      <span className="text-[10px] text-textSecondary">{fmtPct(data.nearest.distPct)}</span>
+      <span className="text-[11px] text-textSecondary">{fmtPct(data.nearest.distPct)}</span>
     </span>
   ) : null;
 
@@ -155,22 +155,22 @@ const WallCell = ({ data }: ICellRendererParams<BoardRow>) =>
 const WatchCell = ({ data }: ICellRendererParams<BoardRow>) => {
   if (!data) return null;
   const w = data.watch;
-  if (!w) return <span className="font-mono text-[10px] text-textMuted">—</span>;
+  if (!w) return <span className="font-mono text-[11px] text-textMuted">—</span>;
   const kind = w.role ?? (w.isShelf ? 'shelf' : w.isWall ? null : 'trapdoor');
   const ink = w.role ? ROLE_INK[w.role] : w.isShelf ? 'rgb(var(--text-muted))' : w.isWall ? undefined : WARM;
   return (
     <span className="inline-flex items-baseline gap-2 font-mono tnum">
       <span className="text-[11px] font-semibold text-textPrimary">{fmtStrike(w.strike)}</span>
       {kind && (
-        <span className="text-[8px] uppercase tracking-widest" style={{ color: ink }}>
+        <span className="text-[11px]" style={{ color: ink }}>
           {kind}
         </span>
       )}
-      <span className="text-[10px] text-textSecondary">
+      <span className="text-[11px] text-textSecondary">
         {Math.round(w.reach * 100)}% reached{w.isShelf ? ' · holds ' : ''}
         {w.isShelf && <span style={{ color: SILVER }}>{Math.round(w.hold * 100)}%</span>}
       </span>
-      <span className="text-[10px] text-textMuted">{fmtDollars(w.stake)}</span>
+      <span className="text-[11px] text-textMuted">{fmtDollars(w.stake)}</span>
     </span>
   );
 };
@@ -198,7 +198,7 @@ const BellCell = ({ data }: ICellRendererParams<BoardRow>) =>
       </span>
     </span>
   ) : (
-    <span className="font-mono text-[10px] text-textMuted">—</span>
+    <span className="font-mono text-[11px] text-textMuted">—</span>
   );
 
 const CrossCell = ({ data }: ICellRendererParams<BoardRow>) =>
@@ -206,7 +206,7 @@ const CrossCell = ({ data }: ICellRendererParams<BoardRow>) =>
 
 /** The session's closes as one quiet line — the day's shape, not a chart */
 const SparkCell = ({ data }: ICellRendererParams<BoardRow>) => {
-  if (!data || data.spark.length < 2) return <span className="font-mono text-[10px] text-textMuted">—</span>;
+  if (!data || data.spark.length < 2) return <span className="font-mono text-[11px] text-textMuted">—</span>;
   const W = 120;
   const H = 26;
   const min = Math.min(...data.spark);
@@ -395,8 +395,8 @@ const Board = () => {
       <div className="shrink-0 flex items-center gap-3 flex-wrap px-2 py-1.5 bg-panel border-b border-borderSubtle/70" data-board-toolbar>
         {/* The rows are the names the terminal carries — "every name you follow" read as a
             watchlist nobody had made (Noah, 2026-09-09: "i still dont understand what it means") */}
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">The names on your board</span>
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted tnum" data-board-count>
+        <span className="font-mono text-[11px] text-textSecondary">The names on your board</span>
+        <span className="font-mono text-[11px] text-textMuted tnum" data-board-count>
           {rows.length < names.length ? `${rows.length} of ${names.length} names so far` : `${names.length} names`} · closest to its flip first · click a name to open it on the map
         </span>
         <input
@@ -405,7 +405,7 @@ const Board = () => {
           placeholder="Filter · SPY QQQ NVDA"
           aria-label="Filter names — as many as you like, spaces or commas between"
           title="As many names as you like, spaces or commas between"
-          className="ml-auto w-44 h-7 bg-transparent border border-borderSubtle rounded-md px-2 font-mono text-[10px] text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-silver/50"
+          className="ml-auto w-44 h-7 bg-transparent border border-borderSubtle rounded-md px-2 font-mono text-[11px] text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-silver/50"
           data-board-filter
         />
         <span ref={addRootRef} className="relative inline-flex">
@@ -432,7 +432,7 @@ const Board = () => {
                 className="z-[120] w-72 border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 overflow-x-hidden overflow-y-auto overscroll-contain animate-slide-in"
                 data-board-add-menu
               >
-                <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[10px] text-textMuted">Add a name to the board — it stays until you take it off</div>
+                <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[11px] text-textMuted">Add a name to the board — it stays until you take it off</div>
                 <TickerLookup
                   onPick={sym => {
                     addBoardName(sym);
@@ -443,7 +443,7 @@ const Board = () => {
               document.body
             )}
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted tnum">updated {scanAt} · every 10s</span>
+        <span className="font-mono text-[11px] text-textMuted tnum">updated {scanAt} · every 10s</span>
       </div>
       <div className="slayer-board">
         <AgGridProvider modules={MODULES}>

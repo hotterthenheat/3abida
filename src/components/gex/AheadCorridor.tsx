@@ -344,7 +344,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
         ) : (
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The range</h3>
+              <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">The range</h2>
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the scale, the posts and the half hours mean" testId="corridor-guide" />
             </div>
@@ -353,25 +353,25 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
         )}
         <dl className={`flex flex-wrap gap-x-6 gap-y-2 ${headless ? 'ml-auto' : ''}`}>
           <div>
-            <dt className="text-[10px] text-textMuted">Likely range</dt>
+            <dt className="text-[11px] text-textMuted">Likely range</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-corridor-range>
               {fmtPrice(likely.low.price)} – {fmtPrice(likely.high.price)}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Top edge</dt>
+            <dt className="text-[11px] text-textMuted">Top edge</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: highWall ? CALL_WALL : 'rgb(var(--text-primary))' }}>
               {fmtPrice(likely.high.price)} <span className="text-textMuted">· {likely.high.why}</span>
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Floor</dt>
+            <dt className="text-[11px] text-textMuted">Floor</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: lowWall ? PUT_WALL : 'rgb(var(--text-primary))' }}>
               {fmtPrice(likely.low.price)} <span className="text-textMuted">· {likely.low.why}</span>
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Expected move</dt>
+            <dt className="text-[11px] text-textMuted">Expected move</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-corridor-sigma>
               ±{fmtPrice(sigma)} <span className="text-textMuted">· {movePct}% {moveWords}</span>
             </dd>
@@ -486,7 +486,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                   <div className="font-mono text-[11px] font-semibold tnum" style={{ color: snapped.ink }}>
                     {snapped.name} → {fmtStrike(snapped.price)}
                   </div>
-                  <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px]">
+                  <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
                     <span className="text-textMuted">If vol</span>
                     <span className="text-textPrimary">{volWords(vol?.points ?? 0)}</span>
                     <span className="text-textMuted">From</span>
@@ -500,7 +500,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
               ) : snapped && snapped.key === 'spot' ? (
                 <>
                   <div className="font-mono text-[11px] font-semibold tnum text-textPrimary">spot {fmtPrice(spot)}</div>
-                  <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px]">
+                  <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
                     <span className="text-textMuted">Likely</span>
                     <span className="font-mono text-[11px] tnum text-textPrimary">
                       {fmtPrice(likely.low.price)} – {fmtPrice(likely.high.price)}
@@ -520,7 +520,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                   <div className="font-mono text-[11px] font-semibold tnum" style={{ color: snapped.ink }}>
                     {snapped.name} {fmtStrike(snapped.price)}
                   </div>
-                  <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px]">
+                  <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
                     <span className="text-textMuted">From spot</span>
                     <span className="font-mono text-[11px] tnum" style={{ color: fromSpot(snapped.price).ink }}>
                       {fromSpot(snapped.price).text}
@@ -546,7 +546,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                     <div className="font-mono text-[11px] font-semibold tnum" style={{ color: SILVER }}>
                       {fmtPrice(readout)}
                     </div>
-                    <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px]">
+                    <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
                       <span className="text-textMuted">From spot</span>
                       <span className="font-mono text-[11px] tnum" style={{ color: fromSpot(readout).ink }}>
                         {fromSpot(readout).text}
@@ -576,8 +576,8 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
 
       {/* WHAT DEALERS MUST TRADE — the pane's head line: the name (the clock is CHARM, said as such —
           2026-09-09), the three facts, the If vol card at the right */}
-      <div className={`${headless ? 'px-4' : 'px-5'} pt-4 flex items-center gap-x-5 gap-y-1 flex-wrap font-mono text-[10px] tnum`} data-flow-head>
-        <span className="uppercase tracking-widest text-textSecondary whitespace-nowrap max-sm:whitespace-normal">
+      <div className={`${headless ? 'px-4' : 'px-5'} pt-4 flex items-center gap-x-5 gap-y-1 flex-wrap font-mono text-[11px] tnum`} data-flow-head>
+        <span className=" text-textSecondary whitespace-nowrap max-sm:whitespace-normal">
           What dealers must trade · half hour by half hour <span className="text-textMuted">· charm</span>
         </span>
         <span className="text-textSecondary whitespace-nowrap">
@@ -612,10 +612,10 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
       <div className={headless ? 'px-4' : 'px-5'}>
         <div className={`mt-2 relative h-[210px] rounded-md border border-borderSubtle/60 ${paper ? 'bg-inset' : 'bg-panel'}`} data-theme={paper ? 'light' : 'dark'} onPointerLeave={() => setHoverFrom(null)} data-flow-pane>
           <span className="absolute left-0 right-0 top-1/2 h-px bg-ink/25" />
-          <span className="absolute left-2 top-[6px] font-mono text-[9px] uppercase tracking-wider" style={{ color: GREEN }}>
+          <span className="absolute left-2 top-[6px] font-mono text-[11px]" style={{ color: GREEN }}>
             buying
           </span>
-          <span className="absolute left-2 bottom-[34px] font-mono text-[9px] uppercase tracking-wider" style={{ color: RED }}>
+          <span className="absolute left-2 bottom-[34px] font-mono text-[11px]" style={{ color: RED }}>
             selling
           </span>
           <div className="absolute inset-x-12 top-3 bottom-8 flex items-stretch gap-[6px]">
@@ -638,12 +638,12 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                     data-flow-sign={up ? 'buy' : 'sell'}
                   />
                   {show && (
-                    <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] font-semibold tnum max-sm:hidden" style={{ ...figureSide, color: barInk, transition: `bottom 520ms ${GLIDE_CSS}, top 520ms ${GLIDE_CSS}` }} data-flow-figure={big ? 'biggest' : 'matters'}>
+                    <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] font-semibold tnum max-sm:hidden" style={{ ...figureSide, color: barInk, transition: `bottom 520ms ${GLIDE_CSS}, top 520ms ${GLIDE_CSS}` }} data-flow-figure={big ? 'biggest' : 'matters'}>
                       {fmtDollars(b.flow)}
                     </span>
                   )}
-                  {b.past && <span className="absolute left-1/2 -translate-x-1/2 top-[calc(50%-14px)] font-mono text-[8px] uppercase tracking-wider text-textMuted">done</span>}
-                  <span className="absolute left-1/2 -translate-x-1/2 -bottom-[18px] font-mono text-[9px] tnum text-textSecondary">{hhmm(b.from)}</span>
+                  {b.past && <span className="absolute left-1/2 -translate-x-1/2 top-[calc(50%-14px)] font-mono text-[11px] text-textMuted">done</span>}
+                  <span className="absolute left-1/2 -translate-x-1/2 -bottom-[18px] font-mono text-[11px] tnum text-textSecondary">{hhmm(b.from)}</span>
                 </div>
               );
             })}
@@ -651,7 +651,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
         </div>
       </div>
       {/* ONE FIXED READ LINE, never a card over the pane */}
-      <div className={`${headless ? 'px-4' : 'px-5'} h-[18px] font-mono text-[10px] text-textSecondary truncate`} data-flow-read>
+      <div className={`${headless ? 'px-4' : 'px-5'} h-[18px] font-mono text-[11px] text-textSecondary truncate`} data-flow-read>
         {readLine}
       </div>
 
@@ -661,7 +661,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
         </p>
         {/* THE VOL MOVE IS VANNA, said as such — its own line, the figure in its direction's ink */}
         <p className="mt-1 text-[12px] leading-relaxed text-textSecondary" data-vol-sentence>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted mr-2">If vol {volWords(vol?.points ?? 0)} · vanna</span>
+          <span className="font-mono text-[11px] text-textMuted mr-2">If vol {volWords(vol?.points ?? 0)} · vanna</span>
           {vol ? (
             <>
               <span className="font-mono text-[11px] tnum font-semibold" style={{ color: vol.flow >= 0 ? GREEN : RED }} data-flow-vol>

@@ -54,7 +54,8 @@ import { ALERT, CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_WARM } from './palet
 import { AGENDA_COLUMNS, AGENDA_MIN_W, CARD_H, ROW_H } from './targetsSkeletons';
 import { AGENDA_ORDERS, DRIVER_WORDS, buildWords, type Agenda, type AgendaOrder, type Target } from '../../data/agenda';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
-import { STRIKE_WINDOWS, type StrikeWindow } from '../../data/exposure';
+import { STRIKE_OPTIONS, STRIKES_TITLE, type RoomWindow } from '../../data/pinpointBook';
+import { rowProps } from '../ui/rowKeys';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /* An armed alert wore lime here until 2026-09-10; it is a watch, not a live
@@ -65,7 +66,9 @@ export const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put w
 const WARM = THERMAL_WARM;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const ORDER_OPTIONS: DropdownOption<AgendaOrder>[] = AGENDA_ORDERS.map(o => ({ value: o.value, label: o.label, hint: o.hint }));
-const WINDOW_OPTIONS: DropdownOption<number>[] = STRIKE_WINDOWS.map(w => ({ value: w, label: `${w} each side`, hint: w === 30 ? 'The whole book' : `${w} strikes above spot and ${w} below` }));
+/** The reach odds never print as nothing — 2% is their floor (data/wall.ts), so the floor reads as "under 2%" (PP-25) */
+const REACH_FLOOR = 0.02;
+const reachWords = (r: number) => (r <= REACH_FLOOR + 1e-9 ? '<2%' : pct(r));
 
 /* ---- small parts ------------------------------------------------------------------ */
 
@@ -91,13 +94,13 @@ const HoldBeam = ({ t, w = 52, h = 6 }: { t: Target; w?: number | string; h?: nu
 const Tags = ({ t, yours }: { t: Target; yours?: string }) => (
   <>
     {kindOf(t) !== 'thin' && (
-      <span className="text-[8px] uppercase tracking-widest whitespace-nowrap" style={{ color: t.role ? ROLE_INK[t.role] : t.isShelf ? 'rgb(var(--text-muted))' : WARM }}>
+      <span className="text-[11px] whitespace-nowrap" style={{ color: t.role ? ROLE_INK[t.role] : t.isShelf ? 'rgb(var(--text-muted))' : WARM }}>
         {t.role ?? (t.isShelf ? 'shelf' : 'trapdoor')}
       </span>
     )}
-    {t.pin && <span className="text-[8px] uppercase tracking-widest text-textMuted">pin</span>}
+    {t.pin && <span className="text-[11px] text-textMuted">pin</span>}
     {yours && (
-      <span className="text-[8px] uppercase tracking-widest whitespace-nowrap" style={{ color: SILVER }} title={yours} data-yours>
+      <span className="text-[11px] whitespace-nowrap" style={{ color: SILVER }} title={yours} data-yours>
         you
       </span>
     )}
@@ -118,8 +121,8 @@ const fmtContracts = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const CardLine = ({ label, children }: { label: string; children: ReactNode }) => (
   <>
-    <dt className="text-[10px] text-textMuted leading-[17px] whitespace-nowrap">{label}</dt>
-    <dd className="min-w-0 font-mono text-[11px] tnum leading-[17px] text-textPrimary whitespace-nowrap truncate">{children}</dd>
+    <dt className="text-[11px] text-textMuted leading-[17px] whitespace-nowrap">{label}</dt>
+    <dd className="min-w-0 font-mono text-[11px] tnum leading-[17px] text-textPrimary" title={typeof children === 'string' ? children : undefined}>{children}</dd>
   </>
 );
 
@@ -157,18 +160,18 @@ const RowCard = ({ t, at, inSession, onClose }: { t: Target; at: CardAt; inSessi
       <div className="flex items-center gap-2 h-5">
         <span className="font-mono text-[12px] font-bold tnum text-textPrimary">{fmtStrike(t.strike)}</span>
         <Tags t={t} />
-        <span className={`ml-auto font-mono text-[10px] tnum ${t.distancePct >= 0 ? 'text-bull' : 'text-bear'}`}>
+        <span className={`ml-auto font-mono text-[11px] tnum ${t.distancePct >= 0 ? 'text-bull' : 'text-bear'}`}>
           {t.distancePct >= 0 ? '+' : ''}
           {t.distancePct.toFixed(2)}%
         </span>
-        <span className="text-[10px] text-textMuted">{dir} spot</span>
-        <button type="button" onClick={onClose} className="inline-flex items-center justify-center w-5 h-5 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" title="Close (Esc)" data-card-close>
+        <span className="text-[11px] text-textMuted">{dir} spot</span>
+        <button type="button" onClick={onClose} aria-label="Close the card" className="hit inline-flex items-center justify-center w-5 h-5 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" title="Close (Esc)" data-card-close>
           <X className="w-3 h-3" />
         </button>
       </div>
       <dl className="mt-1.5 grid gap-x-3" style={{ gridTemplateColumns: '84px minmax(0, 1fr)' }}>
         <CardLine label={inSession ? 'Reached' : 'Reached next'}>
-          {pct(t.reach)}
+          {reachWords(t.reach)}
           {t.closes > 0 && (
             <span className="text-textMuted">
               {' '}
@@ -204,9 +207,11 @@ const RowCard = ({ t, at, inSession, onClose }: { t: Target; at: CardAt; inSessi
         </CardLine>
         {t.beside && <CardLine label="Beside it">{t.beside}</CardLine>}
       </dl>
-      <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[10px] text-textMuted whitespace-nowrap truncate" data-card-driver>
-        <span className="font-mono tnum text-textPrimary">#{t.rank}</span> {DRIVER_WORDS[t.driver]} · <span className="font-mono tnum text-textPrimary">{pct(t.reach)}</span> reached ×{' '}
+      <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[11px] leading-[15px] text-textMuted" data-card-driver>
+        <span className="font-mono tnum text-textPrimary">#{t.rank}</span> {DRIVER_WORDS[t.driver]} · <span className="font-mono tnum text-textPrimary">{reachWords(t.reach)}</span> reached ×{' '}
         <span className="font-mono tnum text-textPrimary">{fmtDollars(t.stake)}</span> at stake
+        {/* "why it ranks here" lived in a column that pushed the row's Alert off the box at 1440 (PP-13) — it is the card's now */}
+        <div className="mt-0.5 text-textSecondary">{t.why}</div>
       </div>
     </div>,
     document.body
@@ -214,11 +219,14 @@ const RowCard = ({ t, at, inSession, onClose }: { t: Target; at: CardAt; inSessi
 };
 
 const Actions = ({ t, armed, onChart, onAlert }: { t: Target; armed: boolean; onChart: (t: Target) => void; onAlert: (t: Target) => void }) => (
-  <span className="flex items-center justify-end gap-1" onClick={ev => ev.stopPropagation()}>
+  <span className="flex items-center justify-end gap-1" onClick={ev => ev.stopPropagation()} onKeyDown={ev => ev.stopPropagation()}>
+    {/* THE CHART IS PULSE'S (PP-1): the strike in focus on the terminal's chart, and back here from its fullscreen */}
     <button
       onClick={() => onChart(t)}
-      title="See this strike on the Map"
-      className="inline-flex items-center gap-1 px-2 py-1 rounded font-mono text-[9px] font-semibold uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+      title={`See ${fmtStrike(t.strike)} on the chart`}
+      aria-label={`See ${fmtStrike(t.strike)} on the chart`}
+      className="hit inline-flex items-center gap-1 h-6 px-2 rounded font-mono text-[11px] font-semibold text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+      data-row-chart
     >
       Chart <ArrowUpRight className="w-3 h-3" />
     </button>
@@ -227,8 +235,9 @@ const Actions = ({ t, armed, onChart, onAlert }: { t: Target; armed: boolean; on
     <button
       onClick={() => onAlert(t)}
       aria-pressed={armed}
+      aria-label={armed ? `Alert set at ${fmtStrike(t.strike)} — remove it` : `Alert me when price crosses ${fmtStrike(t.strike)}`}
       title={armed ? 'Alert set at this strike — click to remove it' : 'Alert me when price crosses this strike'}
-      className="inline-flex items-center gap-1 px-2 py-1 rounded font-mono text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap hover:bg-ink/[0.06]"
+      className="hit inline-flex items-center gap-1 h-6 px-2 rounded font-mono text-[11px] font-semibold whitespace-nowrap hover:bg-ink/[0.06]"
       style={{ color: armed ? ALERT : undefined, transition: `color 0.25s ease ${armed ? '0.45s' : '0s'}, background-color 0.15s` }}
       data-row-alert={armed ? 'armed' : 'quiet'}
     >
@@ -273,57 +282,62 @@ interface CardProps {
   onAlert: (t: Target) => void;
 }
 
+/** One thin bar and its figure — the card's two odds each get their own (PP-26: one bar between "Reached 45%" and
+    "Holds 72%" was filled to 72% and read as either) */
+const OddsBar = ({ label, value, words, ink }: { label: string; value: number | null; words: ReactNode; ink: string }) => (
+  <div className="flex items-center gap-2 h-[16px]">
+    <span className="w-[62px] shrink-0 text-[11px] text-textMuted">{label}</span>
+    <span className="relative flex-1 h-[5px] rounded-full bg-ink/[0.06] overflow-hidden" aria-hidden>
+      {value != null && <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700" style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: ink, opacity: 0.85, transitionTimingFunction: EASE }} />}
+    </span>
+    <span className="w-[86px] shrink-0 text-right font-mono text-[11px] tnum whitespace-nowrap">{words}</span>
+  </div>
+);
+
 const Card = ({ t, n, pick, kept, yours, armed, inSession, marketPer1Pct, onPick, onChart, onAlert }: CardProps) => {
   const material = t.verdict !== 'steady';
+  const kind = kindOf(t);
   return (
     <div
-      className={`relative rounded-md border p-3 flex flex-col cursor-pointer transition-colors ${kept ? 'border-silver/60 bg-silver/[0.04]' : pick ? 'border-supreme/40 bg-panel hover:border-supreme/60' : 'border-borderSubtle bg-panel hover:border-borderMuted'}`}
-      style={{ height: CARD_H }}
+      /* #1 WEARS SILVER, never the supreme's magenta (PP-23): magenta means the heaviest strike of the book and nothing else */
+      className={`relative rounded-md border p-3 flex flex-col cursor-pointer transition-colors focus-visible:outline-offset-[-2px] ${kept ? 'border-silver/60 bg-silver/[0.04]' : pick ? 'border-silver/40 bg-panel hover:border-silver/60' : 'border-borderSubtle bg-panel hover:border-borderMuted'}`}
+      style={{ minHeight: CARD_H }}
       data-target-card={t.strike}
-      onClick={() => onPick(t.strike)}
+      {...rowProps(() => onPick(t.strike), `#${n} ${fmtStrike(t.strike)}${t.role ? `, the ${t.role}` : ''}: reached ${reachWords(t.reach)}${t.isShelf ? `, holds ${pct(t.hold)}` : ''}`)}
+      aria-pressed={kept}
     >
       <div className="flex items-center gap-2 h-[22px] min-w-0">
-        <span className={`shrink-0 inline-flex items-center h-4 px-2 rounded-full font-mono text-[9px] font-bold uppercase tracking-widest ${pick ? 'text-supreme bg-supreme/10 border border-supreme/30' : 'text-textSecondary bg-ink/[0.04] border border-borderSubtle'}`}>
+        <span className={`shrink-0 inline-flex items-center h-5 px-2 rounded-full font-mono text-[11px] font-semibold ${pick ? 'text-silver bg-silver/10 border border-silver/30' : 'text-textSecondary bg-ink/[0.04] border border-borderSubtle'}`}>
           {pick ? '#1 · watch first' : `#${n}`}
         </span>
         <span className={`font-mono text-[16px] leading-none font-bold tnum ${kept ? 'text-silver' : 'text-textPrimary'}`}>{fmtStrike(t.strike)}</span>
         <Tags t={t} yours={yours} />
-        <span className="ml-auto font-mono text-[10px] tnum text-textSecondary whitespace-nowrap">
+        <span className="ml-auto font-mono text-[11px] tnum text-textSecondary whitespace-nowrap">
           {t.distancePct >= 0 ? '+' : ''}
           {t.distancePct.toFixed(2)}%
         </span>
       </div>
-      <div className="mt-2 flex items-center justify-between h-[14px] font-mono text-[9px] uppercase tracking-widest text-textMuted">
-        <span>
-          Reached <span className="normal-case tracking-normal text-[11px] text-textPrimary tnum">{pct(t.reach)}</span>
-        </span>
-        <span>
-          {kindOf(t) === 'named' || kindOf(t) === 'shelf' ? (
-            <>
-              Holds <span className="normal-case tracking-normal text-[11px] tnum" style={{ color: SILVER }}>{pct(t.hold)}</span>
-            </>
-          ) : kindOf(t) === 'trapdoor' ? (
-            <span style={{ color: WARM }}>pushes the move along</span>
-          ) : (
-            <span>too thin to be a wall</span>
-          )}
-        </span>
+      <div className="mt-2 flex flex-col gap-1">
+        <OddsBar label={inSession ? 'Reached' : 'Reached next'} value={t.reach} words={<span className="text-textPrimary">{reachWords(t.reach)}</span>} ink="rgb(var(--text-secondary))" />
+        <OddsBar
+          label="Holds"
+          value={kind === 'named' || kind === 'shelf' ? t.hold : null}
+          words={kind === 'named' || kind === 'shelf' ? <span style={{ color: SILVER }}>{pct(t.hold)}</span> : kind === 'trapdoor' ? <span style={{ color: WARM }}>pushes along</span> : <span className="text-textMuted">too thin</span>}
+          ink={SILVER}
+        />
       </div>
-      <div className="mt-1">
-        <HoldBeam t={t} w="100%" h={8} />
-      </div>
-      <p className="mt-2 h-[15px] font-mono text-[10px] tnum truncate">
+      <p className="mt-2 font-mono text-[11px] leading-[15px] tnum line-clamp-2">
         <span className="text-textMuted">if it {t.isShelf ? 'breaks' : 'goes'} · </span>
         {breakWords(t)}
       </p>
-      <p className="mt-1 h-[15px] font-mono text-[10px] tnum truncate flex items-center gap-3">
+      <p className="mt-1 font-mono text-[11px] leading-[15px] tnum flex items-center gap-x-3 flex-wrap">
         <span className={material ? 'text-textPrimary' : 'text-textMuted'}>{buildWords(t, inSession)}</span>
         {t.closes > 0 && <span className="text-textSecondary">closes here {t.closes.toFixed(0)}%</span>}
         <span className="text-textSecondary">
           {fmtDollars(t.stake)} at stake · {(t.stake / Math.max(1, marketPer1Pct)).toFixed(1)}×
         </span>
       </p>
-      <div className="mt-auto flex items-center justify-end h-[22px] -mr-1">
+      <div className="mt-auto pt-1 flex items-center justify-end h-[26px] -mr-1">
         <Actions t={t} armed={armed} onChart={onChart} onAlert={onAlert} />
       </div>
     </div>
@@ -338,8 +352,9 @@ interface Props {
   clock: AheadClock;
   order: AgendaOrder;
   onOrder: (o: AgendaOrder) => void;
-  window: StrikeWindow;
-  onWindow: (w: StrikeWindow) => void;
+  /** The room's strike window — which strikes are listed */
+  window: RoomWindow;
+  onWindow: (w: RoomWindow) => void;
   updatedAt: string;
   yours?: ReadonlyMap<number, string>;
   armedAt: (strike: number) => boolean;
@@ -385,7 +400,8 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       globalThis.removeEventListener('scroll', onScroll, true);
     };
   }, [card]);
-  const onRowClick = (t: Target) => (e: ReactMouseEvent<HTMLDivElement>) => {
+  /* A ROW OPENS BY THE KEYS TOO (X6): Enter or Space keeps the strike and opens its card at the row's middle */
+  const openRow = (t: Target, el: Element, x?: number) => {
     /* Which card was open, read before the pick — the focus store flushes a render inside it */
     const was = cardRef.current;
     onPick(t.strike);
@@ -393,13 +409,20 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       setCard(null);
       return;
     }
-    const r = e.currentTarget.getBoundingClientRect();
-    setCard({ strike: t.strike, x: e.clientX, rowTop: r.top, rowBottom: r.bottom });
+    const r = el.getBoundingClientRect();
+    setCard({ strike: t.strike, x: x ?? r.left + Math.min(r.width / 2, 240), rowTop: r.top, rowBottom: r.bottom });
   };
+  const onRowClick = (t: Target) => (e: ReactMouseEvent<HTMLDivElement>) => openRow(t, e.currentTarget, e.detail > 0 ? e.clientX : undefined);
+  /* THE FAINT TAIL FOLDS (PP-25): strikes the day reaches less than 2% of the time and that hold nothing — "2% reached ·
+     no shelf behind it · steady", row after row — stand as one line until it is opened */
+  const [tailOpen, setTailOpen] = useState(false);
   const cardTarget = card ? (agenda.targets.find(t => Math.abs(t.strike - card.strike) < 1e-9) ?? null) : null;
   const three = agenda.first;
   const threeSet = useMemo(() => new Set(three.map(t => t.strike)), [three]);
   const rest = useMemo(() => agenda.targets.filter(t => !threeSet.has(t.strike)), [agenda.targets, threeSet]);
+  const faint = (t: Target) => t.reach <= REACH_FLOOR + 1e-9 && t.verdict === 'steady' && !t.role && !(focus != null && Math.abs(focus - t.strike) < 1e-9);
+  const tail = rest.filter(faint);
+  const listed = tailOpen || tail.length < 2 ? rest : rest.filter(t => !faint(t));
   const maxStake = Math.max(1, ...agenda.targets.map(t => t.stake));
   const lead = three[0];
   const reachedWord = clock.inSession ? 'reached by the close' : 'reached next session';
@@ -414,31 +437,31 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Targets</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Targets</h2>
             {scope}
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the order, the cards and the rows mean" testId="targets-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">Every strike in the order it matters today — how likely price gets there × how much happens if it does</p>
+          <p className="mt-0.5 text-[11px] text-textMuted">Every strike in the order it matters today — how likely price gets there × how much happens if it does</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
-            <dt className="text-[10px] text-textMuted">Watch first</dt>
+            <dt className="text-[11px] text-textMuted">Watch first</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: lead?.role ? ROLE_INK[lead.role] : 'rgb(var(--text-primary))' }} data-watch-first>
-              {lead ? fmtStrike(lead.strike) : '—'} {lead?.role && <span className="text-[9px] uppercase tracking-widest">{lead.role}</span>}
+              {lead ? fmtStrike(lead.strike) : '—'} {lead?.role && <span className="text-[11px]">{lead.role}</span>}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Most likely reached</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{agenda.mostReached ? `${fmtStrike(agenda.mostReached.strike)} · ${pct(agenda.mostReached.reach)}` : '—'}</dd>
+            <dt className="text-[11px] text-textMuted">Most likely reached</dt>
+            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{agenda.mostReached ? `${fmtStrike(agenda.mostReached.strike)} · ${reachWords(agenda.mostReached.reach)}` : '—'}</dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Weakest wall in reach</dt>
+            <dt className="text-[11px] text-textMuted" title="In reach: reached more than 15% of the time by the close">Weakest wall in reach</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }}>
               {agenda.weakestWall ? `${fmtStrike(agenda.weakestWall.strike)} · holds ${pct(agenda.weakestWall.hold)}` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">The close leans to</dt>
+            <dt className="text-[11px] text-textMuted">The close leans to</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{agenda.closesNear ? `${fmtStrike(agenda.closesNear.strike)} · ${agenda.closesNear.odds.toFixed(0)}%` : '—'}</dd>
           </div>
         </dl>
@@ -447,8 +470,8 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-targets-controls>
         <DropdownSelect label="Ranked by" value={order} options={ORDER_OPTIONS} onChange={onOrder} title="The order of the list" testId="targets-order" />
-        <DropdownSelect label="Strikes" value={window} options={WINDOW_OPTIONS} onChange={v => onWindow(v as StrikeWindow)} title="How many strikes around spot" testId="targets-strikes" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-targets-updated>
+        <DropdownSelect label="Strikes" value={window} options={STRIKE_OPTIONS} onChange={onWindow} title={STRIKES_TITLE} testId="targets-strikes" />
+        <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap" data-targets-updated>
           {ticker} · {agenda.targets.length} strikes · updated {updatedAt} · every 10s
         </span>
         {watch}
@@ -456,7 +479,7 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
 
       {/* THE SENTENCE */}
       <div className="mx-5 px-3 py-2 border-y border-borderSubtle/60 min-h-[34px] flex items-center gap-2 flex-wrap" data-targets-sentence>
-        <span className="font-mono text-[9px] font-bold uppercase tracking-widest" style={{ color: SUPREME }}>
+        <span className="font-mono text-[11px] font-semibold" style={{ color: SILVER }}>
           Watch
         </span>
         <span className="text-[12px] leading-snug text-textSecondary">{agenda.sentence.replace(/^Watch /, '')}</span>
@@ -486,32 +509,41 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
       {/* THE LIST */}
       <div className="px-5 pb-2 overflow-x-auto" data-targets-rows onPointerLeave={() => setHover(null)}>
         <div className="grid items-center gap-x-3 gap-y-0" style={{ gridTemplateColumns: AGENDA_COLUMNS, minWidth: AGENDA_MIN_W }}>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted">#</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted">Strike</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted text-right">From spot</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted text-right whitespace-nowrap">{clock.inSession ? 'Reached' : 'Reached next'}</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted text-right">Holds</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted">If it breaks</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap">{clock.inSession ? 'Built today' : 'Built last session'}</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted">At stake</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted">Why it ranks here</div>
-          <div className="h-[14px] text-[9px] uppercase tracking-widest text-textMuted text-right">Actions</div>
-          {rest.map(t => {
+          <div className="h-[18px] text-[11px] text-textMuted">#</div>
+          <div className="h-[18px] text-[11px] text-textMuted">Strike</div>
+          <div className="h-[18px] text-[11px] text-textMuted text-right">From spot</div>
+          <div className="h-[18px] text-[11px] text-textMuted text-right whitespace-nowrap">{clock.inSession ? 'Reached' : 'Reached next'}</div>
+          <div className="h-[18px] text-[11px] text-textMuted text-right">Holds</div>
+          <div className="h-[18px] text-[11px] text-textMuted">If it breaks</div>
+          <div className="h-[18px] text-[11px] text-textMuted whitespace-nowrap">{clock.inSession ? 'Built today' : 'Built last session'}</div>
+          <div className="h-[18px] text-[11px] text-textMuted">At stake</div>
+          <div className="h-[18px] text-[11px] text-textMuted text-right">Actions</div>
+          {listed.map(t => {
             const kept = focus != null && Math.abs(focus - t.strike) < 1e-9;
             const wash = kept || hover === t.strike ? 'bg-silver/[0.05]' : '';
             const material = t.verdict !== 'steady';
+            const row = rowProps(() => undefined, `#${t.rank} ${fmtStrike(t.strike)}${t.role ? `, the ${t.role}` : ''}: reached ${reachWords(t.reach)}${t.isShelf ? `, holds ${pct(t.hold)}` : ''} — open its card`);
             return (
               <div
                 key={t.strike}
-                className={`grid grid-cols-subgrid col-span-10 items-center border-t border-borderSubtle/40 rounded cursor-pointer ${wash}`}
+                className={`grid grid-cols-subgrid col-span-9 items-center border-t border-borderSubtle/40 rounded cursor-pointer focus-visible:outline-offset-[-2px] ${wash}`}
                 style={{ height: ROW_H }}
                 data-target-row={t.strike}
                 onPointerEnter={() => setHover(t.strike)}
+                role={row.role}
+                tabIndex={row.tabIndex}
+                aria-label={row['aria-label']}
+                aria-pressed={kept}
                 onClick={onRowClick(t)}
-                title="Click for its card"
+                onKeyDown={e => {
+                  if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                  e.preventDefault();
+                  openRow(t, e.currentTarget);
+                }}
+                title={t.why}
               >
-                <div className="font-mono text-[10px] tnum text-textSecondary">#{t.rank}</div>
-                <div className={`flex items-center gap-1.5 px-2 font-mono text-[11px] tnum whitespace-nowrap overflow-hidden ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)] h-full' : 'text-textPrimary'}`}>
+                <div className="font-mono text-[11px] tnum text-textSecondary">#{t.rank}</div>
+                <div className={`flex items-center gap-1.5 px-2 font-mono text-[12px] tnum whitespace-nowrap overflow-hidden ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)] h-full' : 'text-textPrimary'}`}>
                   {fmtStrike(t.strike)}
                   <Tags t={t} yours={yours?.get(t.strike)} />
                 </div>
@@ -519,26 +551,40 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
                   {t.distancePct >= 0 ? '+' : ''}
                   {t.distancePct.toFixed(2)}%
                 </div>
-                <div className="text-right font-mono text-[11px] tnum text-textPrimary">{pct(t.reach)}</div>
+                <div className="text-right font-mono text-[11px] tnum text-textPrimary">{reachWords(t.reach)}</div>
                 <div className="flex items-center justify-end gap-2 font-mono text-[11px] tnum font-semibold" style={{ color: t.isShelf ? SILVER : kindOf(t) === 'trapdoor' ? WARM : 'rgb(var(--text-muted))' }}>
                   {t.isShelf ? pct(t.hold) : '—'}
                   <HoldBeam t={t} />
                 </div>
-                <div className="font-mono text-[10px] tnum truncate">{breakWords(t)}</div>
-                <div className={`font-mono text-[10px] tnum truncate ${material ? 'text-textPrimary' : 'text-textMuted'}`}>{buildWords(t, clock.inSession)}</div>
+                <div className="font-mono text-[11px] tnum truncate">{breakWords(t)}</div>
+                <div className={`font-mono text-[11px] tnum truncate ${material ? 'text-textPrimary' : 'text-textMuted'}`}>{buildWords(t, clock.inSession)}</div>
                 <div className="relative h-full flex items-center">
-                  <span className="absolute inset-y-[12px] left-0 right-14 rounded-full bg-ink/[0.04]" />
+                  <span className="absolute inset-y-[13px] left-0 right-14 rounded-full bg-ink/[0.04]" />
                   <span
-                    className="absolute inset-y-[12px] left-0 rounded-full transition-[width] duration-700"
+                    className="absolute inset-y-[13px] left-0 rounded-full transition-[width] duration-700"
                     style={{ width: `calc(${(t.stake / maxStake) * 100}% - ${(t.stake / maxStake) * 56}px)`, background: t.isWall ? heatLaneColor(-t.stake, maxStake, 'thermal-yellow', 0.35) : heatLaneColor(t.stake, maxStake, 'thermal-yellow', 0.35), transitionTimingFunction: EASE }}
                   />
-                  <span className="absolute right-0 font-mono text-[10px] tnum text-textPrimary">{fmtDollars(t.stake)}</span>
+                  <span className="absolute right-0 font-mono text-[11px] tnum text-textPrimary">{fmtDollars(t.stake)}</span>
                 </div>
-                <div className="text-[10px] text-textMuted truncate">{t.why}</div>
                 <Actions t={t} armed={armedAt(t.strike)} onChart={onChart} onAlert={onAlert} />
               </div>
             );
           })}
+          {tail.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => setTailOpen(v => !v)}
+              aria-expanded={tailOpen}
+              className="col-span-9 flex items-center gap-3 px-2 h-[30px] border-t border-borderSubtle/40 rounded text-left font-mono text-[11px] text-textMuted hover:text-textSecondary"
+              data-targets-tail={tail.length}
+            >
+              <span className="whitespace-nowrap">
+                {tail.length} strikes reached under 2% of the time, holding nothing · {fmtStrike(Math.max(...tail.map(t => t.strike)))} – {fmtStrike(Math.min(...tail.map(t => t.strike)))}
+              </span>
+              <span className="flex-1 h-px bg-ink/[0.07]" />
+              <span className="text-textSecondary">{tailOpen ? 'fold' : 'show'}</span>
+            </button>
+          )}
         </div>
       </div>
       {card && cardTarget && <RowCard t={cardTarget} at={card} inSession={clock.inSession} onClose={() => setCard(null)} />}

@@ -642,7 +642,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
   const supremeGreek: Greek = greeks[0] ?? 'gex';
   if (!snapshot || !surface) {
     return (
-      <div className="h-full min-h-[300px] grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">
+      <div className="h-full min-h-[300px] grid place-items-center font-mono text-[11px] text-textMuted">
         Waiting for the first tick
       </div>
     );
@@ -722,7 +722,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
       className="ml-auto inline-flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
       data-ledger-supreme={doorsTight ? 'compact' : 'full'}
     >
-      <span className="text-[9px] font-bold uppercase tracking-widest text-supreme">Supreme</span>
+      <span className="text-[11px] font-bold text-supreme">Supreme</span>
       <span className="text-[12px] font-semibold tnum text-textPrimary whitespace-nowrap">
         {fmtStrike(supreme.strike)}
         {/* tight: the strike alone — the date and the amount stay in the title */}
@@ -751,7 +751,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
   const backButton = full ? (
     <button
       onClick={close}
-      className="group inline-flex items-center gap-1.5 border border-borderSubtle hover:border-borderMuted rounded-md px-2.5 py-1 font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors"
+      className="group inline-flex items-center gap-1.5 border border-borderSubtle hover:border-borderMuted rounded-md px-2.5 py-1 font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
     >
       <ArrowLeft className="w-3 h-3 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> Back
     </button>
@@ -783,7 +783,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
             data-ledger-add
           >
             <Plus className="w-3 h-3 text-textMuted" />
-            <span className="text-[9px] uppercase tracking-widest text-textMuted">Names</span>
+            <span className="text-[11px] text-textMuted">Names</span>
             <span className="text-[11px] font-semibold text-textPrimary tnum">{1 + names.length}</span>
           </button>
           {adding &&
@@ -797,7 +797,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                 className="z-[120] w-72 border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 overflow-x-hidden overflow-y-auto overscroll-contain animate-slide-in"
                 data-ledger-add-menu
               >
-                <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[10px] text-textMuted">Show another name beside this one — up to four side by side, on the same choices</div>
+                <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[11px] text-textMuted">Show another name beside this one — up to four side by side, on the same choices</div>
                 <TickerLookup
                   onPick={sym => {
                     addName(sym);
@@ -962,7 +962,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                 <Fold axis="y" open={many} className="shrink-0" testId="data-field-column-fold">
                   <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 bg-ink/[0.03] font-mono min-w-0" data-field-column-head={c.ticker}>
                     <span className="shrink-0 inline-flex items-center">{chip}</span>
-                    <span className="ml-auto text-[9px] uppercase tracking-widest text-textMuted truncate">Reading the book…</span>
+                    <span className="ml-auto text-[11px] text-textMuted truncate">Reading the book…</span>
                     {removeDoor}
                   </div>
                 </Fold>
@@ -991,7 +991,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                     className="shrink-0 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
                     data-column-supreme={sup.strike}
                   >
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-supreme">Supreme</span>
+                    <span className="text-[11px] font-bold text-supreme">Supreme</span>
                     <span className="text-[11px] font-semibold tnum text-textPrimary whitespace-nowrap">
                       {fmtStrike(sup.strike)}
                       {!tight && (

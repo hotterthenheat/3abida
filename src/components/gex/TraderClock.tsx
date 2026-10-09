@@ -273,7 +273,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The trader's clock</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">The trader's clock</h2>
             {scope}
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the strip and the phases mean" testId="clock-guide" />
           </div>
@@ -282,7 +282,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
         <dl className="grid grid-cols-3 gap-x-6">
           {lookingAt ? (
             <div className="col-span-2">
-              <dt className="text-[10px] text-textMuted">Looking at</dt>
+              <dt className="text-[11px] text-textMuted">Looking at</dt>
               <dd className="mt-0.5 flex items-baseline gap-3 whitespace-nowrap" data-clock-looking>
                 <span className="font-mono text-[12px] tnum" style={{ color: SILVER }}>
                   {lookingAt}
@@ -295,19 +295,19 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
           ) : (
             <>
               <div>
-                <dt className="text-[10px] text-textMuted">Now</dt>
+                <dt className="text-[11px] text-textMuted">Now</dt>
                 <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-clock-now>
                   {inSession && current ? `${hhmm(nowMin)} · ${current.name.toLowerCase()}` : clock.label}
                 </dd>
               </div>
               <div>
-                <dt className="text-[10px] text-textMuted">Next</dt>
+                <dt className="text-[11px] text-textMuted">Next</dt>
                 <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{next ? `${next.name.toLowerCase()} in ${next.from - nowMin}m` : inSession ? 'the close' : `${PHASES[0].name.toLowerCase()} at 09:30`}</dd>
               </div>
             </>
           )}
           <div>
-            <dt className="text-[10px] text-textMuted">Expires at 4:00</dt>
+            <dt className="text-[11px] text-textMuted">Expires at 4:00</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SUPREME }} data-clock-bell>
               {facts.bellShare != null ? `${facts.bellShare}% of today's gamma` : '—'}
             </dd>
@@ -399,7 +399,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
             {[OPEN_MIN, 10 * 60, 11 * 60, 12 * 60, 13 * 60, 14 * 60, 15 * 60, CLOSE_MIN].map(t => (
               <span
                 key={t}
-                className="absolute top-0 font-mono text-[9px] tnum text-textMuted"
+                className="absolute top-0 font-mono text-[11px] tnum text-textMuted"
                 style={{ left: `${pct(t)}%`, transform: t === CLOSE_MIN ? 'translateX(-100%)' : t === OPEN_MIN ? undefined : 'translateX(-50%)' }}
               >
                 {hhmm(t)}
@@ -420,21 +420,21 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
                   {hhmm(shownMin)}
                 </span>
                 <span className="text-[11px] font-medium text-textPrimary">{shownPhase.name}</span>
-                <span className="ml-auto font-mono text-[10px] tnum text-textMuted">
+                <span className="ml-auto font-mono text-[11px] tnum text-textMuted">
                   {hhmm(shownPhase.from)}–{hhmm(shownPhase.to)}
                 </span>
               </div>
               <p className="mt-1 text-[11px] leading-snug text-textSecondary">{shownPhase.words(facts)}.</p>
               {shownPhase.pressure && (
                 <span
-                  className="mt-1.5 inline-flex items-center h-5 px-2 rounded-full text-[10px] font-medium"
+                  className="mt-1.5 inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium"
                   data-pressure={shownPhase.pressure}
                   style={{ color: shownPhase.pressure === 'absorbs' ? GLACIER : EMBER, background: alpha(shownPhase.pressure === 'absorbs' ? GLACIER : EMBER, 0.1) }}
                 >
                   {PRESSURE_WORDS[shownPhase.pressure]}
                 </span>
               )}
-              <span className="block mt-1 text-[10px] text-textMuted">{keptBlock === shownBlock ? 'kept · click anywhere else to let go' : 'click to keep · the phase names above keep a whole phase'}</span>
+              <span className="block mt-1 text-[11px] text-textMuted">{keptBlock === shownBlock ? 'kept · click anywhere else to let go' : 'click to keep · the phase names above keep a whole phase'}</span>
             </div>
           )}
         </div>

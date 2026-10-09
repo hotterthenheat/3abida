@@ -74,7 +74,7 @@ const RULER_OPTIONS: DropdownOption<DistanceUnit>[] = [
 
 const Fact = ({ label, children, title, testId }: { label: string; children: React.ReactNode; title?: string; testId?: string }) => (
   <div className="min-w-0" data-shell-fact={testId}>
-    <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+    <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" title={title}>
       {children}
     </dd>
@@ -141,10 +141,10 @@ const PinpointLayout = () => {
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
             {focused != null && (
               <span data-focus-chip className="inline-flex items-center gap-2 rounded-md border border-silver/40 bg-silver/[0.06] pl-2.5 pr-1 py-0.5 font-mono">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-silver">Focus</span>
+                <span className="text-[11px] font-bold text-silver">Focus</span>
                 <span className="text-[12px] font-semibold tnum text-textPrimary">{fmtStrike(focused)}</span>
                 {dist != null && (
-                  <span className={`text-[9px] tnum ${dist > 0 ? 'text-bull' : dist < 0 ? 'text-bear' : 'text-textMuted'}`}>
+                  <span className={`text-[11px] tnum ${dist > 0 ? 'text-bull' : dist < 0 ? 'text-bear' : 'text-textMuted'}`}>
                     {dist > 0 ? '+' : ''}
                     {dist.toFixed(2)}%
                   </span>
@@ -153,7 +153,7 @@ const PinpointLayout = () => {
                   /* `from`: leaving the chart's fullscreen brings the reader back here (Noah, 2026-09-09) */
                   onClick={() => navigate('/pulse', { state: { focusPrice: focused, ticker: activeTicker, from: location.pathname } })}
                   title="See this strike on the chart"
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
                 >
                   Chart <ArrowUpRight className="w-3 h-3" />
                 </button>

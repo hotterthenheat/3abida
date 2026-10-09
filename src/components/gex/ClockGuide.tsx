@@ -178,7 +178,7 @@ const ClockGuide = ({ nowBlock, line, bellShare, pin, supreme, charmStrike }: Cl
       </div>
     </div>
     <div className="border-t border-borderSubtle/60 pt-2.5">
-      <p className="text-[10px] text-textMuted">Today's clock, in words</p>
+      <p className="text-[11px] text-textMuted">Today's clock, in words</p>
       <ul className="mt-1 flex flex-col gap-1.5">
         <li className="text-[11.5px] leading-relaxed text-textSecondary">{line}</li>
         {bellShare != null && (
@@ -208,7 +208,7 @@ const ClockGuide = ({ nowBlock, line, bellShare, pin, supreme, charmStrike }: Cl
         )}
       </ul>
     </div>
-    <p className="text-[10px] text-textMuted">The clock is New York time, the real one, not the replayed day.</p>
+    <p className="text-[11px] text-textMuted">The clock is New York time, the real one, not the replayed day.</p>
   </div>
 );
 

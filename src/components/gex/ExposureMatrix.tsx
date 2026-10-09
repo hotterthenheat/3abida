@@ -69,7 +69,7 @@ const PUT_INK = PUT_WALL;
 const CALL_INK = CALL_WALL;
 const ROW_H = 27;
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const head = 'font-mono text-[9px] font-semibold uppercase tracking-widest';
+const head = 'font-mono text-[11px] font-semibold';
 
 interface Row {
   strike: number;
@@ -191,12 +191,12 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           <>
             {fmtStrike(r.strike)}
             {tag && (
-              <span className="text-[8px] uppercase tracking-widest font-normal" style={{ color: tag.ink }}>
+              <span className="text-[11px] font-normal" style={{ color: tag.ink }}>
                 {tag.word}
               </span>
             )}
             {you && (
-              <span className="text-[8px] uppercase tracking-widest font-normal" style={{ color: SILVER }}>
+              <span className="text-[11px] font-normal" style={{ color: SILVER }}>
                 you
               </span>
             )}
@@ -258,14 +258,14 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         data-kept={on || undefined}
         title={you}
       >
-        <td className="px-2 py-1 bg-inset border-r border-borderSubtle/40 font-mono text-[10.5px] font-semibold tnum text-textSecondary whitespace-nowrap">
+        <td className="px-2 py-1 bg-inset border-r border-borderSubtle/40 font-mono text-[11px] font-semibold tnum text-textSecondary whitespace-nowrap">
           <span className={on || lit ? 'text-textPrimary' : ''}>{fmtStrike(r.strike)}</span>
           {tag && (
-            <span className="ml-1.5 font-mono text-[7.5px] font-bold uppercase tracking-[0.12em]" style={{ color: tag.ink }} data-matrix-role={tag.word}>
+            <span className="ml-1.5 font-mono text-[7.5px] font-bold" style={{ color: tag.ink }} data-matrix-role={tag.word}>
               {tag.word}
             </span>
           )}
-          {you && <span className="ml-1.5 font-mono text-[7.5px] font-bold uppercase tracking-[0.12em] text-silver">you own</span>}
+          {you && <span className="ml-1.5 font-mono text-[7.5px] font-bold text-silver">you own</span>}
         </td>
         {shownGreeks.map((g, gi) => LEGS.map(leg => <Cell key={`${g}-${leg}`} value={r.legs[g][leg]} leg={leg} cap={caps[g][leg]} mode={mode} paper={paper} gi={gi} />))}
       </tr>
@@ -280,7 +280,7 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
             <th className={`${head} px-2 pt-2 pb-1 text-left text-textSecondary border-b border-borderSubtle`}>Strike</th>
             {shownGreeks.map((g, gi) => (
               <th key={g} colSpan={3} className={`${head} px-2 pt-2 pb-1 text-center border-b border-l ${paper ? 'border-borderSubtle' : 'border-borderMuted'} ${groupWash(gi, paper)} ${g === lead && shownGreeks.length > 1 ? 'text-silver' : 'text-textPrimary'}`} data-matrix-group={g} data-lead={g === lead || undefined}>
-                {GREEK_LABEL[g]} <span className="text-textSecondary font-medium normal-case tracking-normal">· {GREEK_UNIT[g]}</span>
+                {GREEK_LABEL[g]} <span className="text-textSecondary font-medium">· {GREEK_UNIT[g]}</span>
               </th>
             ))}
           </tr>

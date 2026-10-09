@@ -97,7 +97,7 @@ const WatchMenu = ({ ticker, levels }: { ticker: string; spot?: number; levels: 
         Alerts
       </span>
       {armed.length > 0 && (
-        <span className="px-1 rounded-sm text-[9px] font-bold tnum" style={{ background: SILVER_FILL, color: '#0a0a0a' }} data-armed-count>
+        <span className="px-1 rounded-sm text-[11px] font-bold tnum" style={{ background: SILVER_FILL, color: '#0a0a0a' }} data-armed-count>
           {armed.length}
         </span>
       )}
@@ -116,7 +116,7 @@ const WatchMenu = ({ ticker, levels }: { ticker: string; spot?: number; levels: 
             <li key={w.key} className="flex items-center gap-3 px-3 py-2 border-b border-borderSubtle/40 last:border-b-0" data-watch={w.key}>
               <label htmlFor={id} className="flex-1 min-w-0 flex flex-col gap-[1px] cursor-pointer">
                 <span className={`font-mono text-[11px] leading-snug ${on ? 'font-semibold text-silver' : 'text-textPrimary'}`}>{w.words(levels)}</span>
-                <span className="font-mono text-[9px] leading-snug text-textMuted">{blocked ? `${MAX_ALERTS} is the most for one name — turn one off first` : w.hint}</span>
+                <span className="font-mono text-[11px] leading-snug text-textMuted">{blocked ? `${MAX_ALERTS} is the most for one name — turn one off first` : w.hint}</span>
               </label>
               <Switch.Root
                 id={id}

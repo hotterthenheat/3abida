@@ -31,6 +31,7 @@
 import { useState, type ReactNode } from 'react';
 import { ROLE_INK } from './AtTheWall';
 import { heatLaneColor } from './heatmap';
+import { rowProps } from '../ui/rowKeys';
 import { BOARD_COLUMNS as COLUMNS, boardRows } from './wallSkeletons';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { WallBoard as Board } from '../../data/wall';
@@ -44,8 +45,8 @@ const madeOfInk = (weight: number, max: number) => heatLaneColor(-Math.abs(weigh
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 /* the one row's sizes */
 const fig = '11px';
-const small = '10px';
-const tagSize = '8px';
+const small = '11px';
+const tagSize = '11px';
 const beamH = 6;
 const beamW = 52;
 const barInset = '11px';
@@ -68,24 +69,25 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
       <div className="shrink-0 px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Every wall on the strikes shown</h3>
+            {/* the whole book, not a window: the page draws every wall the chain carries (PP-20) */}
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Every wall on the book</h2>
             {scope}
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             The named walls and the shelves between them — every strike that pushes back with at least a third of the biggest · nearest first · about {fmtDollars(board.marketPer1Pct)} moves this name 1% today
           </p>
         </div>
       </div>
       <div className="px-5 pb-2 overflow-x-auto" data-wall-rows onPointerLeave={() => setHover(null)}>
         <div className="grid min-w-[900px] items-center gap-x-3 gap-y-[3px]" style={{ gridTemplateColumns: COLUMNS, gridTemplateRows: boardRows(n) }}>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted">Wall</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted text-right">{clock.inSession ? 'Reached' : 'Reached next'}</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted text-right">Holds</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted">Made of · per 1% move</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted text-right">Tested today</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted text-right">{clock.inSession ? 'Expires 4:00' : 'Expired 4:00'}</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted">If it breaks</div>
-          <div className="text-[9px] uppercase tracking-widest text-textMuted">If it holds</div>
+          <div className="text-[11px] text-textMuted">Wall</div>
+          <div className="text-[11px] text-textMuted text-right">{clock.inSession ? 'Reached' : 'Reached next'}</div>
+          <div className="text-[11px] text-textMuted text-right">Holds</div>
+          <div className="text-[11px] text-textMuted">Made of · per 1% move</div>
+          <div className="text-[11px] text-textMuted text-right">Tested today</div>
+          <div className="text-[11px] text-textMuted text-right">{clock.inSession ? 'Expires 4:00' : 'Expired 4:00'}</div>
+          <div className="text-[11px] text-textMuted">If it breaks</div>
+          <div className="text-[11px] text-textMuted">If it holds</div>
           {board.walls.map(w => {
             const kept = focus != null && Math.abs(focus - w.strike) < 1e-9;
             const hovered = hover === w.strike;
@@ -93,15 +95,23 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
             const ink = w.role ? ROLE_INK[w.role] : undefined;
             const tag = w.strike === board.weakest ? 'weakest' : w.strike === board.strongest ? 'strongest' : null;
             return (
-              <div key={w.strike} className={`grid grid-cols-subgrid col-span-8 items-center h-full min-h-0 rounded cursor-pointer ${wash}`} data-wall-row={w.strike} data-tag={tag ?? undefined} onPointerEnter={() => setHover(w.strike)} onClick={() => onPick?.(w.strike)}>
+              <div
+                key={w.strike}
+                className={`grid grid-cols-subgrid col-span-8 items-center h-full min-h-0 rounded cursor-pointer focus-visible:outline-offset-[-2px] ${wash}`}
+                data-wall-row={w.strike}
+                data-tag={tag ?? undefined}
+                onPointerEnter={() => setHover(w.strike)}
+                {...rowProps(() => onPick?.(w.strike), `${fmtStrike(w.strike)}, ${w.role ?? 'shelf'}${tag ? `, the ${tag}` : ''}: reached ${pct(w.reach)}, holds ${pct(w.hold)} when reached`)}
+                aria-pressed={kept}
+              >
                 <div className={`h-full flex items-center gap-1.5 px-2 font-mono tnum ${kept ? 'text-silver font-bold shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'text-textPrimary'}`} style={{ fontSize: fig }}>
                   {fmtStrike(w.strike)}
                   {/* A named level wears its ink; the rest are shelves — heavy strikes the Map does not name */}
-                  <span className="uppercase tracking-widest whitespace-nowrap" style={{ color: ink ?? 'rgb(var(--text-muted))', fontSize: tagSize }}>
+                  <span className="whitespace-nowrap" style={{ color: ink ?? 'rgb(var(--text-muted))', fontSize: tagSize }}>
                     {w.role ?? 'shelf'}
                   </span>
                   {tag && (
-                    <span className="ml-auto uppercase tracking-widest whitespace-nowrap" style={{ color: SILVER, fontSize: tagSize }}>
+                    <span className="ml-auto whitespace-nowrap" style={{ color: SILVER, fontSize: tagSize }}>
                       {tag}
                     </span>
                   )}
@@ -140,7 +150,7 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
           })}
         </div>
       </div>
-      <p className="shrink-0 px-5 pb-4 pt-2 text-[12px] leading-relaxed text-textSecondary whitespace-nowrap truncate" data-wall-board-sentence title={board.sentence}>
+      <p className="shrink-0 px-5 pb-4 pt-2 text-[12px] leading-relaxed text-textSecondary" data-wall-board-sentence>
         {board.sentence}
       </p>
     </section>

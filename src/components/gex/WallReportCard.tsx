@@ -148,7 +148,7 @@ const SessionStrip = ({ row, bars }: { row: Row; bars: readonly Candle[] }) => {
         >
           <span className="font-mono text-[11px] font-semibold tnum text-textPrimary">{hhmm(hover.time)}</span>
           <span className={`ml-2 text-[11px] font-medium ${hover.kind === 'broke' ? 'text-bear' : 'text-bull'}`}>{hover.kind === 'broke' ? 'broke' : 'tested, held'}</span>
-          <span className="ml-2 font-mono text-[10px] tnum text-textMuted">close {hover.close.toFixed(2)}</span>
+          <span className="ml-2 font-mono text-[11px] tnum text-textMuted">close {hover.close.toFixed(2)}</span>
         </div>
       )}
     </div>
@@ -205,7 +205,7 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       </GuideFocus>
       <div className="px-5 pt-4 pb-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">How the levels held today</h3>
+          <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">How the levels held today</h2>
           {scope}
           <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the strips and the ticks mean" testId="report-guide" />
         </div>
@@ -232,13 +232,13 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
                     {r.label}
                   </span>
                   <span className={`block font-mono text-[15px] font-semibold tnum leading-tight ${isFocus ? 'text-silver' : 'text-textPrimary group-hover:text-silver'} transition-colors`}>{fmtStrike(r.price)}</span>
-                  <span className={`mt-1 inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-medium ${TONE[r.grade.tone]}`} data-grade>
+                  <span className={`mt-1 inline-flex items-center h-5 px-2 rounded-full border text-[11px] font-medium ${TONE[r.grade.tone]}`} data-grade>
                     {r.grade.words}
                   </span>
                 </button>
                 <div className="min-w-0">
                   <SessionStrip row={r} bars={bars} />
-                  <div className="flex justify-between font-mono text-[9px] tnum text-textMuted px-1 -mt-0.5">
+                  <div className="flex justify-between font-mono text-[11px] tnum text-textMuted px-1 -mt-0.5">
                     <span>{first != null ? hhmm(first) : ''}</span>
                     <span>now</span>
                   </div>
@@ -247,7 +247,7 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
                 <dl className="grid grid-cols-[52px_52px_52px_88px_172px] gap-x-5 max-lg:flex max-lg:flex-wrap max-lg:gap-y-1.5">
                   {facts.map(f => (
                     <div key={f.k} className="min-w-0">
-                      <dt className="text-[10px] text-textMuted whitespace-nowrap">{f.k}</dt>
+                      <dt className="text-[11px] text-textMuted whitespace-nowrap">{f.k}</dt>
                       <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${f.cls ?? 'text-textPrimary'}`}>{f.v}</dd>
                     </div>
                   ))}

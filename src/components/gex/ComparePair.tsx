@@ -130,7 +130,7 @@ const ComparePair = ({ a, b, aInk, bInk, nonce, guideOpen = false, onGuide }: Pr
       <div className="px-5 pt-4 pb-3 flex items-start gap-6">
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3 min-w-0">
-            <h3 className="shrink-0 text-[15px] font-semibold leading-tight text-textPrimary">The pair</h3>
+            <h2 className="shrink-0 text-[15px] font-semibold leading-tight text-textPrimary">The pair</h2>
             <span className="min-w-0 truncate text-[11px] text-textSecondary">which of the two has been stronger, and whether today's gap is normal</span>
             {onGuide && <GuideDoor open={guideOpen} onClick={onGuide} title="What the line, the range and the marks mean" testId="pair-guide" />}
           </div>
@@ -167,17 +167,17 @@ const ComparePair = ({ a, b, aInk, bInk, nonce, guideOpen = false, onGuide }: Pr
                 <>
                   <span className="font-mono text-[11px] font-bold tnum text-textPrimary">
                     {p.today ? 'Today' : dayWords(h.time)}
-                    {p.today && <span className="ml-1.5 font-normal text-[9px] uppercase tracking-widest" style={{ color: SILVER }}>still moving</span>}
+                    {p.today && <span className="ml-1.5 font-normal text-[11px]" style={{ color: SILVER }}>still moving</span>}
                   </span>
-                  <span className="font-mono text-[10.5px] tnum text-textSecondary">
+                  <span className="font-mono text-[11px] tnum text-textSecondary">
                     {a} <span className="text-textPrimary">{fmtClose(p.closeA)}</span> ÷ {b} <span className="text-textPrimary">{fmtClose(p.closeB)}</span> = <span className="font-bold text-textPrimary">{fmtRatio(p.ratio)}</span>
                   </span>
                   {place && (
-                    <span className="text-[10.5px] leading-snug" style={{ color: place.where === 'inside' ? undefined : WARM }}>
+                    <span className="text-[11px] leading-snug" style={{ color: place.where === 'inside' ? undefined : WARM }}>
                       {place.words}
                     </span>
                   )}
-                  {place && <span className="text-[10px] text-textMuted">{place.ahead === 'a' ? `${a} further ahead of ${b} than on an average day` : place.ahead === 'b' ? `${b} further ahead of ${a} than on an average day` : 'right where the two usually sit'}</span>}
+                  {place && <span className="text-[11px] text-textMuted">{place.ahead === 'a' ? `${a} further ahead of ${b} than on an average day` : place.ahead === 'b' ? `${b} further ahead of ${a} than on an average day` : 'right where the two usually sit'}</span>}
                 </>
               );
             }}
@@ -189,7 +189,7 @@ const ComparePair = ({ a, b, aInk, bInk, nonce, guideOpen = false, onGuide }: Pr
 
       {/* THE READ LINE — where today stands, at rest: the ratio, the usual range, where today sits, the days outside;
           the day under the pointer is the card's */}
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: PAIR_READ_H }} data-pair-read>
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[11px] text-textSecondary" style={{ height: PAIR_READ_H }} data-pair-read>
         {pair.now != null ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">now</span>

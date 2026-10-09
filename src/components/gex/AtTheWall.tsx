@@ -204,7 +204,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
         ) : (
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">At the wall</h3>
+              <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">At the wall</h2>
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the beam, the reasons and the two paths mean" testId="wall-guide" />
             </div>
@@ -213,29 +213,29 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
         )}
         <dl className={`grid grid-cols-5 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
           <div>
-            <dt className="text-[10px] text-textMuted">The wall</dt>
+            <dt className="text-[11px] text-textMuted">The wall</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: ink }} data-wall-name>
-              {fmtStrike(wall.strike)} <span className="text-[9px] uppercase tracking-widest">{wall.role ?? (wall.weight > 0 ? `shelf ${wall.side === 'call' ? 'above' : 'below'}` : wall.side === 'call' ? 'above' : 'below')}</span>
+              {fmtStrike(wall.strike)} <span className="text-[11px]">{wall.role ?? (wall.weight > 0 ? `shelf ${wall.side === 'call' ? 'above' : 'below'}` : wall.side === 'call' ? 'above' : 'below')}</span>
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">{reachedWord}</dt>
+            <dt className="text-[11px] text-textMuted">{reachedWord}</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-wall-reach>
               {pct(wall.reach)}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Holds if reached</dt>
+            <dt className="text-[11px] text-textMuted">Holds if reached</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }} data-wall-hold-pct>
               {wall.weight > 0 ? pct(wall.hold) : 'not a wall'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">If it breaks</dt>
+            <dt className="text-[11px] text-textMuted">If it breaks</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{wall.breakPath.to != null ? `runs to ${fmtStrike(wall.breakPath.to)}` : 'no shelf behind'}</dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">If it holds</dt>
+            <dt className="text-[11px] text-textMuted">If it holds</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{wall.holdPath.to != null ? `back to ${fmtStrike(wall.holdPath.to)}` : '—'}</dd>
           </div>
         </dl>
@@ -244,17 +244,17 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-wall-controls>
         <DropdownSelect label="Wall" value={wall.strike} options={options} onChange={onPick} title="Which wall to read" testId="wall-pick" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-wall-updated>
+        <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap" data-wall-updated>
           {ticker} · updated {updatedAt} · every 10s
         </span>
       </div>
 
       {/* THE BEAM */}
       <div className="px-5 pt-1 pb-3" data-wall-beam>
-        <div className="h-[14px] flex items-center justify-between text-[9px] uppercase tracking-widest text-textMuted">
+        <div className="h-[14px] flex items-center justify-between text-[11px] text-textMuted">
           <span>If price gets there</span>
           <span>
-            {reachedWord} <span className="font-mono normal-case tracking-normal text-textPrimary tnum">{pct(wall.reach)}</span> · {wall.distanceSigma.toFixed(1)}× the expected move away
+            {reachedWord} <span className="font-mono text-textPrimary tnum">{pct(wall.reach)}</span> · {wall.distanceSigma.toFixed(1)}× the expected move away
           </span>
         </div>
         <div className="relative mt-1.5 h-[14px] rounded-full bg-ink/[0.06] overflow-hidden">
@@ -272,7 +272,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE REASONS */}
       {/* On a phone the reasons scroll sideways inside their box at a readable width (the phone pass, 2026-09-13) */}
       <div className="px-5 pb-2 max-lg:overflow-x-auto" data-wall-reasons>
-        <div className="grid items-center gap-x-4 h-[14px] text-[9px] uppercase tracking-widest text-textMuted max-lg:min-w-[560px]" style={{ gridTemplateColumns: REASON_COLUMNS }}>
+        <div className="grid items-center gap-x-4 h-[14px] text-[11px] text-textMuted max-lg:min-w-[560px]" style={{ gridTemplateColumns: REASON_COLUMNS }}>
           <span>Reason</span>
           <span>The fact</span>
           <span className="whitespace-nowrap">

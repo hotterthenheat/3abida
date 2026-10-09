@@ -36,6 +36,7 @@
 import Simulator from '../core/simulator';
 import { OPEN_MIN, hhmm } from './ahead';
 import { sessionBars } from './levelview';
+import { nyDay, nyMinutes } from '../core/nyTime';
 import type { Candle, GexLevel, GexSnapshot, MarketSnapshot, StrikeNode } from '../types/market';
 
 /** The book is read every five seconds of session time */
@@ -72,15 +73,14 @@ export function replayRange(ticker: string): ReplayRange | null {
   return bars ? rangeOf(ticker, bars) : null;
 }
 
-/** The clock at a position: minutes from midnight ET, as if the session opened at 09:30 */
-export const replayMinute = (pos: number) => OPEN_MIN + Math.floor(pos / BAR_SEC);
-export const replayLabel = (pos: number) => hhmm(replayMinute(pos));
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-/** The day the session is — from its first bar */
-export const replayDay = (range: ReplayRange) => {
-  const d = new Date(range.bars[0].time * 1000);
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
-};
+/** New York's minute at the session's first bar — 570 when the tape starts at the open (levelview.ts sessionCut) */
+export const replayStart = (range: ReplayRange | null | undefined): number => (range && range.bars.length ? nyMinutes(range.bars[0].time * 1000) : OPEN_MIN);
+/** The clock at a position: minutes from midnight, New York's — from the session's own first bar when it is given, else
+    as if the session opened at 09:30 */
+export const replayMinute = (pos: number, range?: ReplayRange | null) => replayStart(range) + Math.floor(pos / BAR_SEC);
+export const replayLabel = (pos: number, range?: ReplayRange | null) => hhmm(replayMinute(pos, range));
+/** The day the session is — from its first bar, New York's calendar */
+export const replayDay = (range: ReplayRange) => nyDay(range.bars[0].time * 1000);
 /** A position snapped to the frame grid */
 export const snapPos = (pos: number, length: number) => Math.max(0, Math.min(length, Math.floor(pos / FRAME_SEC) * FRAME_SEC));
 
@@ -140,6 +140,21 @@ function levelsAt(range: ReplayRange, pos: number): GexLevel[] {
    gamma, delta and vega for the moment, and today's vanna and charm. */
 const EMPTY_NODE: Omit<StrikeNode, 'strike'> = { callOI: 0, putOI: 0, gamma: 0, callGex: 0, putGex: 0, netGex: 0, callDex: 0, putDex: 0, netDex: 0, callVex: 0, putVex: 0, netVex: 0, vanna: 0, charm: 0, callVanna: 0, putVanna: 0, netVanna: 0, callCharm: 0, putCharm: 0, netCharm: 0 };
 
+/*
+  THE LEGS OF A REWOUND STRIKE, BOUNDED (the audit's PP-19, 2026-10-09: at 09:33 DEX at 475 read "$175.4B / −$107.0B",
+  thirty times its neighbours). The history keeps each strike's NET and both legs' open interest. The legs were the net
+  divided out by the legs' weights — and where the two weighted legs nearly cancel, that divisor is near nothing and the
+  legs run to any size. Now each leg is the live leg at that strike scaled by its own open interest then and now (what a
+  leg is made of), and the small difference to the kept net is shared between the legs by their size, so the two still
+  add to the net exactly and neither can be larger than its contracts allow.
+*/
+function legsOf(net: number, callEst: number, putEst: number): { call: number; put: number } {
+  const size = Math.abs(callEst) + Math.abs(putEst);
+  if (size < 1e-9) return { call: net / 2, put: net / 2 };
+  const rest = net - (callEst + putEst);
+  return { call: callEst + (rest * Math.abs(callEst)) / size, put: putEst + (rest * Math.abs(putEst)) / size };
+}
+
 /** The market as it stood at a position — the live snapshot's shape, the book of that moment */
 export function snapshotAt(live: MarketSnapshot, range: ReplayRange, pos: number): MarketSnapshot {
   const bars = barsAt(range, pos);
@@ -149,16 +164,17 @@ export function snapshotAt(live: MarketSnapshot, range: ReplayRange, pos: number
     const t = template.get(l.strike);
     const callOI = l.callOI ?? t?.callOI ?? 0;
     const putOI = l.putOI ?? t?.putOI ?? 0;
-    /* both legs share the strike's gamma, so net gamma splits by the legs' weighted open interest */
-    const wc = callOI * W_CALL;
-    const wp = putOI * W_PUT;
-    const denom = wc + wp;
-    const callGex = denom !== 0 ? (l.value * wc) / denom : t?.callGex ?? 0;
-    const putGex = denom !== 0 ? (l.value * wp) / denom : t?.putGex ?? 0;
+    /* each leg: the live leg at the strike, per contract, times that moment's contracts (legsOf above) */
+    const perC = (leg: number | undefined, oi: number | undefined) => (leg != null && oi ? leg / oi : 0);
+    const cGex = t ? perC(t.callGex, t.callOI) * callOI : callOI * W_CALL;
+    const pGex = t ? perC(t.putGex, t.putOI) * putOI : putOI * W_PUT;
+    const g = legsOf(l.value, cGex, pGex);
+    const callGex = g.call;
+    const putGex = g.put;
     const dex = l.dex ?? t?.netDex ?? 0;
     const vex = l.vex ?? t?.netVex ?? 0;
-    const dexShare = t && t.netDex !== 0 ? t.callDex / t.netDex : 0.5;
-    const vexShare = t && t.netVex !== 0 ? t.callVex / t.netVex : 0.5;
+    const dx = legsOf(dex, t ? perC(t.callDex, t.callOI) * callOI : dex / 2, t ? perC(t.putDex, t.putOI) * putOI : dex / 2);
+    const vx = legsOf(vex, t ? perC(t.callVex, t.callOI) * callOI : vex / 2, t ? perC(t.putVex, t.putOI) * putOI : vex / 2);
     return {
       ...(t ?? { strike: l.strike, ...EMPTY_NODE }),
       strike: l.strike,
@@ -167,11 +183,11 @@ export function snapshotAt(live: MarketSnapshot, range: ReplayRange, pos: number
       callGex,
       putGex,
       netGex: l.value,
-      callDex: dex * dexShare,
-      putDex: dex * (1 - dexShare),
+      callDex: dx.call,
+      putDex: dx.put,
       netDex: dex,
-      callVex: vex * vexShare,
-      putVex: vex * (1 - vexShare),
+      callVex: vx.call,
+      putVex: vx.put,
       netVex: vex,
     };
   });

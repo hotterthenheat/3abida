@@ -22,15 +22,15 @@
 */
 
 import Simulator from '../core/simulator';
-import { SESSION_MIN, buildCloseOdds, type AheadClock } from './ahead';
+import { SESSION_MIN, type AheadClock } from './ahead';
 import { sessionStarts } from './indicators';
 import { impliedDaySigma, sessionAtr, type DistanceScales, type DistanceUnit } from './atr';
-import { bellShareOf, watchOf, type BoardRow } from './board';
+import { bellShareOf, type BoardRow } from './board';
+import { agendaOf, bookOf, closeOddsOf } from './pinpointBook';
 import { buildExposureProfile } from './exposure';
-import { buildExposureSurface, CALENDAR_DTES, GREEKS, type ExposureSurface, type Greek } from './exposureSurface';
+import { GREEKS, type ExposureSurface, type Greek } from './exposureSurface';
 import { buildFlipGauge, type GammaRegime } from './flipGauge';
 import { spotChangePct } from './gex';
-import { sessionBars } from './levelview';
 import type { ExposureExpiry, ExposureLevels } from '../types/gex';
 import type { Candle, GexLevel, MarketSnapshot } from '../types/market';
 
@@ -176,17 +176,15 @@ export function buildCompareSide(snapshot: MarketSnapshot, clock: AheadClock, ex
     weight: Math.abs(rows.gex.find(r => Math.abs(r.strike - k) < 1e-9)?.value ?? 0),
   });
 
-  let surface: ExposureSurface | null = null;
-  let bellShare: number | null = null;
-  try {
-    surface = buildExposureSurface(snapshot, 20, CALENDAR_DTES);
-    bellShare = bellShareOf(surface);
-  } catch {
-    /* no surface for this name yet */
-  }
-  const bars = sessionBars(ticker) ?? [];
-  const watch = watchOf(snapshot, profile, surface, bars, clock);
-  const close = buildCloseOdds(profile, spot, sigmaLeft, clock);
+  /* THE ONE BOOK (data/pinpointBook.ts): the first strike, the close odds and the bell's share are the same book every
+     Pinpoint page reads for this name, whatever expiry the ruler weighs — the Expiry card changes the drawing, never
+     the odds */
+  const book = bookOf(snapshot, clock);
+  const surface: ExposureSurface | null = book.surface;
+  const bellShare = surface ? bellShareOf(surface) : null;
+  const lead = agendaOf(book).first[0];
+  const watch: BoardRow['watch'] = lead ? { strike: lead.strike, role: lead.role, isShelf: lead.isShelf, isWall: lead.isWall, reach: lead.reach, hold: lead.hold, stake: lead.stake } : null;
+  const close = closeOddsOf(book);
   const top = close.top[0];
 
   return {

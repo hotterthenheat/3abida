@@ -190,7 +190,7 @@ const MapDesk = () => {
       type="button"
       onClick={startReplay}
       title="Replay today's session from the open — every box on the page reads the book as it stood"
-      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
       data-map-replay
     >
       <Play className="w-3 h-3" /> Replay

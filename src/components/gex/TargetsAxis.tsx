@@ -18,6 +18,7 @@
 import { useState, type ReactNode } from 'react';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { AXIS_BASE, AXIS_H, AXIS_M, AXIS_W } from './targetsSkeletons';
+import { rowProps } from '../ui/rowKeys';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Agenda, Target } from '../../data/agenda';
 import { FONT_SANS } from '../../theme/fonts';
@@ -76,10 +77,10 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Where they sit</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Where they sit</h2>
             {scope}
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             The agenda on the strike axis — a tick as tall as what is at stake, the ruler one expected move {clock.inSession ? 'to the close' : 'for the next session'} each side of spot
           </p>
         </div>
@@ -89,22 +90,22 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
           {/* the ruler: one expected move each side, two faintly */}
           <rect x={x(spot - 2 * sigmaLeft)} y={24} width={x(spot + 2 * sigmaLeft) - x(spot - 2 * sigmaLeft)} height={BASE - 24} fill="rgb(var(--ink))" fillOpacity={0.018} />
           <rect x={x(spot - sigmaLeft)} y={24} width={x(spot + sigmaLeft) - x(spot - sigmaLeft)} height={BASE - 24} fill="rgb(var(--ink))" fillOpacity={0.035} />
-          <text x={x(spot + sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
+          <text x={x(spot + sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={11} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             one expected move
           </text>
-          <text x={x(spot - sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
+          <text x={x(spot - sigmaLeft)} y={BASE + 24} textAnchor="middle" fontSize={11} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             one expected move
           </text>
           {/* the axis */}
           <line x1={M.l} x2={W - M.r} y1={BASE} y2={BASE} stroke="rgb(var(--ink))" strokeOpacity={0.12} />
           {ticks.map(k => (
-            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG}>
+            <text key={k} x={x(k)} y={BASE + 12} textAnchor="middle" fontSize={10} fill="rgb(var(--text-muted))" fontFamily={FIG}>
               {fmtStrike(k)}
             </text>
           ))}
           {/* spot */}
           <line x1={x(spot)} x2={x(spot)} y1={12} y2={BASE + 6} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
-          <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
+          <text x={x(spot)} y={10} textAnchor="middle" fontSize={11} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
             {spot.toFixed(2)}
           </text>
           {/* the ticks */}
@@ -114,11 +115,22 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
             const ink = isLit ? SILVER : inkOf(t);
             const r = rankOf.get(t.strike);
             return (
-              <g key={t.strike} data-axis-tick={t.strike} className="cursor-pointer" onPointerEnter={() => setHover(t.strike)} onClick={() => onPick(t.strike)}>
+              /* A TICK THE KEYS CAN KEEP (X6): Tab walks the ticks, Enter or Space keeps the strike */
+              <g
+                key={t.strike}
+                data-axis-tick={t.strike}
+                className="cursor-pointer outline-none"
+                onPointerEnter={() => setHover(t.strike)}
+                onFocus={() => setHover(t.strike)}
+                onBlur={() => setHover(null)}
+                {...rowProps(() => onPick(t.strike), `${fmtStrike(t.strike)}: reached ${Math.round(t.reach * 100)}% of the time, ${fmtDollars(t.stake)} at stake`)}
+                aria-pressed={focus != null && Math.abs(focus - t.strike) < 1e-9}
+              >
                 <rect x={x(t.strike) - 8} y={BASE - TICK_MAX - 4} width={16} height={TICK_MAX + 6} fill="transparent" />
                 <rect x={x(t.strike) - 2} y={BASE - h} width={4} height={h} rx={1.5} fill={ink} fillOpacity={isLit ? 1 : 0.35 + 0.65 * t.reach} />
+                {isLit && hover === t.strike && <rect x={x(t.strike) - 7} y={BASE - TICK_MAX - 3} width={14} height={TICK_MAX + 4} rx={2} fill="none" stroke={SILVER} strokeOpacity={0.5} className="axis-tick-ring" />}
                 {r != null && (
-                  <text x={x(t.strike)} y={BASE - h - 6} textAnchor="middle" fontSize={9} fontWeight={700} fill={r === 1 ? SUPREME : ink} fontFamily={FIG}>
+                  <text x={x(t.strike)} y={BASE - h - 6} textAnchor="middle" fontSize={11} fontWeight={700} fill={r === 1 ? SILVER : ink} fontFamily={FIG}>
                     {r}
                   </text>
                 )}
@@ -127,12 +139,12 @@ const TargetsAxis = ({ agenda, clock, focus, onPick, scope }: Props) => {
           })}
           {/* the strike in hand */}
           {litT && (
-            <text x={x(litT.strike)} y={BASE - Math.max(4, Math.sqrt(litT.stake / maxStake) * TICK_MAX) - (rankOf.has(litT.strike) ? 17 : 6)} textAnchor="middle" fontSize={9} fill={SILVER} fontFamily={FIG}>
+            <text x={x(litT.strike)} y={BASE - Math.max(4, Math.sqrt(litT.stake / maxStake) * TICK_MAX) - (rankOf.has(litT.strike) ? 19 : 6)} textAnchor="middle" fontSize={11} fill={SILVER} fontFamily={FIG}>
               {fmtStrike(litT.strike)} · {Math.round(litT.reach * 100)}% reached · {fmtDollars(litT.stake)}
             </text>
           )}
         </svg>
-        <div className="mt-1 pl-2 flex items-center gap-4 h-[14px] font-mono text-[9px] text-textMuted" data-axis-key>
+        <div className="mt-1 pl-2 flex items-center gap-x-4 gap-y-1 flex-wrap font-mono text-[11px] text-textMuted" data-axis-key>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-[3px] h-2.5 rounded-sm" style={{ background: COOL }} /> a wall or shelf
           </span>

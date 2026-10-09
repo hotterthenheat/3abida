@@ -227,7 +227,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Since the open</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Since the open</h2>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">
             Today, both as percent from their own open · <span style={{ color: aInk }}>{a}</span> and <span style={{ color: bInk }}>{b}</span>, the same line each · the band beneath is the gap, in the leader's ink
@@ -235,7 +235,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
         </div>
         <dl className="grid grid-cols-3 gap-x-6">
           <div>
-            <dt className="text-[10px] text-textMuted">Since the open</dt>
+            <dt className="text-[11px] text-textMuted">Since the open</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" data-tapes-since>
               <span style={{ color: aInk }}>
                 {a} {today.lastA == null ? '—' : signedPct(today.lastA)}
@@ -247,13 +247,13 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Ahead now</dt>
+            <dt className="text-[11px] text-textMuted">Ahead now</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-tapes-ahead>
               {today.lastA == null || today.lastB == null ? '—' : Math.abs(today.lastA - today.lastB) < 0.005 ? 'level' : `${today.lastA > today.lastB ? a : b} by ${Math.abs(today.lastA - today.lastB).toFixed(2)}%`}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">The gap today</dt>
+            <dt className="text-[11px] text-textMuted">The gap today</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-tapes-gap>
               {today.gap ? `${signedPct(today.gap.min)} to ${signedPct(today.gap.max)}` : '—'}
             </dd>
@@ -266,7 +266,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
         <div ref={hostRef} className="absolute inset-0" data-tapes-chart />
         {hp && hover && (
           <div
-            className="absolute z-10 pointer-events-none rounded-md border border-borderSubtle px-2.5 py-2 flex flex-col gap-1 text-[10.5px] text-textSecondary"
+            className="absolute z-10 pointer-events-none rounded-md border border-borderSubtle px-2.5 py-2 flex flex-col gap-1 text-[11px] text-textSecondary"
             style={{ left: hover.left, top: hover.top, width: CARD_W, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }}
             /* THE CARD IS ITS OWN DARK GLASS: its ground is typed dark, so its words must be the dark set — over a light
                ground (paper, or a Stone tape on either page) they were the box's dark ink on the dark card, unreadable */
@@ -310,7 +310,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       </div>
 
       {/* THE READ LINE — now */}
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[11px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
         {at ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">now</span>

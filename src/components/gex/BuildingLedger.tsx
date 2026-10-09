@@ -55,7 +55,7 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import SpotRule from '../ui/SpotRule';
@@ -65,7 +65,8 @@ import { LEDGER_COLUMNS, LEDGER_FOLD_H, LEDGER_ROW_H } from './buildingSkeletons
 import { BULL, CALL_WALL, PUT_WALL, SUPREME, alpha } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import { sideWords, type BuildRow, type Building } from '../../data/building';
-import { STRIKE_WINDOWS, type StrikeWindow } from '../../data/exposure';
+import { inWindow, STRIKE_OPTIONS, STRIKES_TITLE, type RoomWindow } from '../../data/pinpointBook';
+import { rowProps } from '../ui/rowKeys';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME };
@@ -76,6 +77,27 @@ const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
    Noah, 2026-09-13: "make this red section have a slow moving animation") */
 const HATCH = `repeating-linear-gradient(135deg, ${alpha(PUT_WALL, 0.6)} 0 3px, transparent 3px 6px)`;
 const HATCH_TILE = '8.485px 100%';
+const HATCH_PERIOD = 8.485;
+
+/* THE DRIFT BY TRANSFORM (2026-10-09, the speed rules): `.hatch-drift` slid the background itself, which repaints the
+   bar every frame for as long as a drained row is on screen. The stripes now sit on a layer one tile wider than the
+   bar and the LAYER slides — a transform, which the compositor moves without repainting — so the drift Noah asked for
+   stays and the cost goes. Under reduced motion it stands still. */
+const HatchDrift = ({ className = '', style }: { className?: string; style?: React.CSSProperties }) => {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof el.animate !== 'function') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const a = el.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${HATCH_PERIOD}px)` }], { duration: 1800, iterations: Infinity, easing: 'linear' });
+    return () => a.cancel();
+  }, []);
+  return (
+    <span className={`overflow-hidden ${className}`} style={style}>
+      <span ref={ref} className="absolute inset-y-0 will-change-transform" style={{ left: -HATCH_PERIOD, right: 0, background: HATCH, backgroundSize: HATCH_TILE }} />
+    </span>
+  );
+};
 
 export type BuildOrder = 'strike' | 'built' | 'drained';
 export type BuildShow = 'moved' | 'all';
@@ -84,7 +106,6 @@ export const ORDER_OPTIONS: DropdownOption<BuildOrder>[] = [
   { value: 'built', label: 'Most built first', hint: 'The strikes gaining the most hedging today' },
   { value: 'drained', label: 'Most drained first', hint: 'The strikes losing the most hedging today' },
 ];
-export const WINDOW_OPTIONS: DropdownOption<StrikeWindow>[] = STRIKE_WINDOWS.map(w => ({ value: w, label: `±${w}`, hint: w === 30 ? 'Every strike' : `${w} strikes each side of spot` }));
 export const SHOW_OPTIONS: DropdownOption<BuildShow>[] = [
   { value: 'moved', label: 'What moved', hint: 'The strikes that built, drained or changed sides · the steady ones fold into one line' },
   { value: 'all', label: 'Every strike', hint: 'The whole window, steady strikes and all' },
@@ -208,13 +229,11 @@ const Wall = ({ row, max }: { row: BuildRow; max: number }) => {
     <div className="relative h-[12px] rounded-full bg-ink/[0.06] paper-clear" data-build-wall data-wall-now={Math.round(now)} data-wall-open={Math.round(open)}>
       <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct(base).toFixed(2)}%`, background: SILVER, opacity: 0.32, transition }} data-wall-base />
       {moved && grew && now > base && <span className="absolute inset-y-0 rounded-r-full" style={{ left: `${pct(base).toFixed(2)}%`, width: `${(pct(now) - pct(base)).toFixed(2)}%`, background: BULL, transition }} data-wall-added />}
-      {moved && !grew && open > now && (
-        <span className="absolute inset-y-0 rounded-r-full hatch-drift" style={{ left: `${pct(now).toFixed(2)}%`, width: `${(pct(open) - pct(now)).toFixed(2)}%`, background: HATCH, backgroundSize: HATCH_TILE, transition }} data-wall-gone />
-      )}
+      {moved && !grew && open > now && <HatchDrift className="absolute inset-y-0 rounded-r-full" style={{ left: `${pct(now).toFixed(2)}%`, width: `${(pct(open) - pct(now)).toFixed(2)}%`, transition }} />}
       {/* the figure sits past the drawn end, the hatch included — the amount, its unit (Noah, 2026-09-13: "$123M… of what?"), the open's */}
-      <span className="absolute -top-px font-mono text-[10px] font-semibold tnum whitespace-nowrap leading-[14px] text-textPrimary" style={{ left: `calc(${end.toFixed(2)}% + 8px)`, transition }} data-wall-figure>
+      <span className="absolute -top-px font-mono text-[11px] font-semibold tnum whitespace-nowrap leading-[14px] text-textPrimary" style={{ left: `calc(${end.toFixed(2)}% + 8px)`, transition }} data-wall-figure>
         {fmtDollars(now)}
-        <span className="font-sans font-normal text-[9px] text-textMuted"> net gamma</span>
+        <span className="font-sans font-normal text-[11px] text-textMuted"> net gamma</span>
         {moved && <span className="font-normal text-textMuted"> · was {fmtDollars(open)}</span>}
       </span>
     </div>
@@ -227,8 +246,9 @@ interface Props {
   clock: AheadClock;
   order: BuildOrder;
   onOrder: (o: BuildOrder) => void;
-  window: StrikeWindow;
-  onWindow: (w: StrikeWindow) => void;
+  /** The room's strike window — which rows are drawn (the figures are the whole book's) */
+  window: RoomWindow;
+  onWindow: (w: RoomWindow) => void;
   show: BuildShow;
   onShow: (s: BuildShow) => void;
   /** How far a strike sits from spot, in the shell's ruler — "1.30%" */
@@ -250,7 +270,12 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
   const [hover, setHover] = useState<number | null>(null);
   /** The folds the reader opened — forgotten when the list is re-cut */
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
-  const { rows, maxAbs, spotAfter, spot } = data;
+  const { spot } = data;
+  /* THE WINDOW DRAWS, THE BOOK SAYS (data/pinpointBook.ts): the rows are the whole chain's; the page shows the
+     strikes in its window, and the bars' scale and the spot rule are the rows on screen */
+  const rows = useMemo(() => inWindow(data.rows, spot, window), [data.rows, spot, window]);
+  const maxAbs = Math.max(1, ...rows.map(r => Math.abs(r.now)), ...rows.map(r => Math.abs(r.open)));
+  const spotAfter = rows.findIndex(r => r.strike < spot);
   const cut = `${order}-${window}-${show}`;
   useEffect(() => setOpened(new Set()), [cut]);
 
@@ -324,35 +349,35 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What's being built</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">What's being built</h2>
             {scope}
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the bar, the chip and the line mean" testId="build-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             {clock.inSession ? "Today's trading" : 'The last session'}, strike by strike · the hedging added or taken off since the open, so a wall shows up before it is the wall · the steady strikes fold away
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
-            <dt className="text-[10px] text-textMuted">{clock.inSession ? 'Built today' : 'Built last session'}</dt>
+            <dt className="text-[11px] text-textMuted">{clock.inSession ? 'Built today' : 'Built last session'}</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-build-built>
               +{fmtDollars(data.built)}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">{clock.inSession ? 'Drained today' : 'Drained last session'}</dt>
+            <dt className="text-[11px] text-textMuted">{clock.inSession ? 'Drained today' : 'Drained last session'}</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-build-drained>
               −{fmtDollars(data.drained)}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Growing fastest</dt>
+            <dt className="text-[11px] text-textMuted">Growing fastest</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }} data-build-up>
               {data.fastestUp ? `${fmtStrike(data.fastestUp.strike)} · ${signed(data.fastestUp.sizeChange)}` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Fading fastest</dt>
+            <dt className="text-[11px] text-textMuted">Fading fastest</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-build-down>
               {data.fastestDown ? `${fmtStrike(data.fastestDown.strike)} · ${signed(data.fastestDown.sizeChange)}` : '—'}
             </dd>
@@ -364,10 +389,10 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-build-controls>
         <DropdownSelect label="Show" value={show} options={SHOW_OPTIONS} onChange={onShow} title="The movers alone, or every strike" testId="build-show" />
         <DropdownSelect label="Order" value={order} options={ORDER_OPTIONS} onChange={onOrder} title="How the strikes are listed" testId="build-order" />
-        <DropdownSelect label="Strikes" value={window} options={WINDOW_OPTIONS} onChange={onWindow} title="How many strikes each side of spot" testId="build-window" />
+        <DropdownSelect label="Strikes" value={window} options={STRIKE_OPTIONS} onChange={onWindow} title={STRIKES_TITLE} testId="build-window" />
         {/* THE KEY — three capsules saying what the bars' colours mean (Noah, 2026-09-13: "the three different
             colored capsules up top") — on this line, where a 1440 screen still has room for it */}
-        <span className="ml-3 inline-flex items-center gap-3 font-mono text-[9px] text-textMuted whitespace-nowrap max-lg:flex-wrap max-lg:gap-y-1" data-build-key>
+        <span className="ml-3 inline-flex items-center gap-3 font-mono text-[11px] text-textMuted whitespace-nowrap max-lg:flex-wrap max-lg:gap-y-1" data-build-key>
           {/* the track first — the faint full length every bar sits on (Noah, 2026-09-13: "what is the second gray?") */}
           <span className="inline-flex items-center gap-1.5 paper-hide">
             <span className="w-4 h-[6px] rounded-full shrink-0 bg-ink/[0.06] ring-1 ring-inset ring-ink/[0.12]" data-key-swatch="track" /> the track · the biggest wall shown
@@ -379,11 +404,11 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
             <span className="w-4 h-[6px] rounded-full shrink-0" style={{ background: BULL }} data-key-swatch="added" /> arrived {clock.inSession ? 'today' : 'last session'}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-4 h-[6px] rounded-full shrink-0 hatch-drift" style={{ background: HATCH, backgroundSize: HATCH_TILE }} data-key-swatch="gone" /> left {clock.inSession ? 'today' : 'last session'}
+            <HatchDrift className="relative w-4 h-[6px] rounded-full shrink-0" /> left {clock.inSession ? 'today' : 'last session'}
           </span>
         </span>
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-build-updated>
-          {movers} of {rows.length} moved · {updatedAt}
+        <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap" data-build-updated>
+          {movers} of {rows.length} moved · updated {updatedAt}
         </span>
       </div>
 
@@ -404,18 +429,18 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
       <div className="px-5 pt-2 pb-2 overflow-x-auto" data-build-rows={items.filter(i => i.kind === 'row').length} onPointerLeave={() => setHover(null)}>
         {/* The column template is the skeleton's own (buildingSkeletons.tsx), so the two cannot drift */}
         <div key={cut} className="grid min-w-[1060px] items-center gap-x-[14px] animate-fade-in" style={{ gridTemplateColumns: LEDGER_COLUMNS }}>
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted">Strike</div>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted">Strike</div>
           {/* the head names the measure — net gamma, in dollars (Noah, 2026-09-13: "what does that number even mean?… can we get
               the 'net gamma' in there somewhere so it doesn't have to be a mystery") — and the full definition on hover */}
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap flex items-center gap-2 min-w-0" data-build-measure>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted whitespace-nowrap flex items-center gap-2 min-w-0" data-build-measure>
             <Term k="The wall now">The wall now</Term>
-            <span className="normal-case tracking-normal text-textMuted">· net gamma at the strike, in dollars</span>
+            <span className="text-textMuted">· net gamma at the strike, in dollars</span>
           </div>
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted text-right">Change</div>
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted text-right">Calls</div>
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted text-right">Puts</div>
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted">The day</div>
-          <div className="h-[20px] px-2 font-mono text-[9px] uppercase tracking-widest text-textMuted">What's happening</div>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted text-right">Change</div>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted text-right">Calls</div>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted text-right">Puts</div>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted">The day</div>
+          <div className="h-[20px] px-2 font-mono text-[11px] text-textMuted">What's happening</div>
 
           {items.map((it, idx) => {
             if (it.kind === 'spot')
@@ -433,7 +458,7 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
                   key={`fold-${it.key}`}
                   type="button"
                   onClick={() => setOpened(prev => new Set(prev).add(it.key))}
-                  className={`col-span-7 flex items-center gap-3 px-2 rounded text-left font-mono text-[10px] tracking-wide text-textMuted hover:text-textSecondary transition-[filter,opacity] duration-[420ms] ${anyKept ? soft : crisp}`}
+                  className={`col-span-7 flex items-center gap-3 px-2 rounded text-left font-mono text-[11px] text-textMuted hover:text-textSecondary transition-[filter,opacity] duration-[420ms] ${anyKept ? soft : crisp}`}
                   style={{ height: LEDGER_FOLD_H }}
                   data-build-fold={it.key}
                   data-fold-count={it.rows.length}
@@ -459,53 +484,63 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
             return (
               <div
                 key={`r-${r.strike}`}
-                className={`grid grid-cols-subgrid col-span-7 items-center rounded cursor-pointer transition-[filter,opacity] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${wash} ${dim ? soft : crisp}`}
+                className={`grid grid-cols-subgrid col-span-7 items-center rounded cursor-pointer focus-visible:outline-offset-[-2px] transition-[filter,opacity] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${wash} ${dim ? soft : crisp}`}
                 style={{ height: LEDGER_ROW_H, boxShadow: kept ? `inset 2px 0 0 0 ${SILVER}` : undefined }}
                 data-build-row={r.strike}
                 data-verdict={r.verdict}
                 data-soft={dim ? '' : undefined}
                 onPointerEnter={() => setHover(r.strike)}
-                onClick={() => onPick?.(r.strike)}
+                {...rowProps(() => onPick?.(r.strike), `${fmtStrike(r.strike)}${r.role ? `, the ${r.role}` : ''}: ${r.words}`)}
+                aria-pressed={kept}
               >
                 {/* THE STRIKE, its tag, and how far from spot */}
                 <div className="px-2 min-w-0">
                   <div className={`flex items-baseline gap-2 font-mono text-[14px] font-semibold tnum whitespace-nowrap ${kept ? 'text-silver' : 'text-textPrimary'}`}>
                     {fmtStrike(r.strike)}
                     {r.role && (
-                      <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: ink }} data-build-role={r.role}>
+                      <span className="text-[11px] font-semibold" style={{ color: ink }} data-build-role={r.role}>
                         {r.role}
                       </span>
                     )}
                     {yours?.has(r.strike) && (
-                      <span className="text-[8px] font-bold uppercase tracking-wider text-warn" data-yours>
+                      <span className="text-[11px] font-semibold text-warn" data-yours>
                         you own
                       </span>
                     )}
                   </div>
-                  <div className="mt-[3px] font-mono text-[10px] tnum text-textMuted whitespace-nowrap" data-build-distance>
+                  <div className="mt-[3px] font-mono text-[11px] tnum text-textMuted whitespace-nowrap" data-build-distance>
                     {at ? 'at spot' : `${distance} ${above ? 'above' : 'below'} spot`}
                   </div>
                 </div>
                 {/* THE WALL NOW, and the lean under it */}
                 <div className="px-2 pr-[168px] min-w-0">
                   <Wall row={r} max={maxAbs} />
-                  <div className="mt-[6px] text-[10px] text-textMuted whitespace-nowrap truncate" data-build-lean>
-                    {r.verdict === 'switched' ? `${r.now < 0 ? 'call-heavy' : 'put-heavy'} now · was ${r.open < 0 ? 'call-heavy' : 'put-heavy'} at the open` : sideWords(r.now).replace(', so ', ' · ')}
-                  </div>
+                  {/* TWO LINES, NEVER CUT (PP-15): "call-heavy · dealers pus…" was cut on every row; the line wraps once and
+                      the whole sentence is the row's title and its name for the keys */}
+                  {(() => {
+                    const lean = r.verdict === 'switched' ? `${r.now < 0 ? 'call-heavy' : 'put-heavy'} now · was ${r.open < 0 ? 'call-heavy' : 'put-heavy'} at the open` : sideWords(r.now).replace(', so ', ' · ');
+                    return (
+                      <div className="mt-[4px] text-[11px] leading-[13px] text-textMuted line-clamp-2" title={lean} data-build-lean>
+                        {lean}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className={`px-2 text-right font-mono text-[12px] tnum ${r.verdict === 'steady' ? 'text-textMuted' : 'text-textPrimary font-semibold'}`} data-build-change>
                   {signed(r.sizeChange)}
                 </div>
-                <div className="px-2 text-right font-mono text-[10px] tnum text-textSecondary">{contracts(r.dCall)}</div>
-                <div className="px-2 text-right font-mono text-[10px] tnum text-textSecondary">{contracts(r.dPut)}</div>
+                <div className="px-2 text-right font-mono text-[11px] tnum text-textSecondary">{contracts(r.dCall)}</div>
+                <div className="px-2 text-right font-mono text-[11px] tnum text-textSecondary">{contracts(r.dPut)}</div>
                 <div className="px-2">
                   <Shape shape={r.shape} live={clock.inSession} verdict={r.verdict} />
                 </div>
                 <div className="px-2 flex items-center gap-2 min-w-0" data-build-word={r.verdict}>
-                  <span className={`inline-flex items-center h-[18px] px-2 rounded border font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${TONE[v.tone]}`} data-build-chip={v.tone}>
+                  <span className={`inline-flex items-center h-[20px] px-2 rounded border font-mono text-[11px] font-semibold whitespace-nowrap ${TONE[v.tone]}`} data-build-chip={v.tone}>
                     {v.chip}
                   </span>
-                  <span className="text-[10.5px] text-textSecondary whitespace-nowrap truncate">{v.words}</span>
+                  <span className="text-[11px] leading-[13px] text-textSecondary line-clamp-2" title={v.words}>
+                    {v.words}
+                  </span>
                 </div>
               </div>
             );

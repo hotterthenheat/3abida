@@ -200,11 +200,11 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3 flex-wrap">
             {full && (
-              <button type="button" onClick={() => onFull(false)} className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle hover:border-borderMuted font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors" title="Back to the page (Esc)" data-axis-back>
+              <button type="button" onClick={() => onFull(false)} className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle hover:border-borderMuted font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors" title="Back to the page (Esc)" data-axis-back>
                 <ArrowLeft className="w-3 h-3" /> Back
               </button>
             )}
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The two books on one ruler</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">The two books on one ruler</h2>
             <GuideDoor open={guideOpen} onClick={onGuide} title="What the two sides and the ruler mean" testId="compare-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
@@ -221,20 +221,20 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
             lane heads and the controls line — the head had more chrome than drawing */}
         <dl className="grid grid-cols-3 gap-x-6">
           <div>
-            <dt className="text-[10px] text-textMuted">Shown</dt>
+            <dt className="text-[11px] text-textMuted">Shown</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-axis-shown>
               {Math.abs(target) < 1e-6 ? `±${tickWords(lay.R, lay.U).replace(/^[+−]/, '')}` : `${tickWords(target - lay.R, lay.U)} to ${tickWords(target + lay.R, lay.U)}`}
             </dd>
           </div>
           {/* WHO IS HEAVIER within reach, above spot and below it — the comparison the four rows used to say */}
           <div title={reachFacts.up.tail ? `${GREEK_LABEL[greek]} above spot within reach · ${cmp.a.ticker} vs ${cmp.b.ticker} · ${reachFacts.up.tail}` : undefined}>
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Overhead, in reach</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Overhead, in reach</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-axis-reach-up>
               {reachFacts.up.lead}
             </dd>
           </div>
           <div title={reachFacts.down.tail ? `${GREEK_LABEL[greek]} below spot within reach · ${cmp.a.ticker} vs ${cmp.b.ticker} · ${reachFacts.down.tail}` : undefined}>
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Below, in reach</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Below, in reach</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-axis-reach-down>
               {reachFacts.down.lead}
             </dd>
@@ -263,7 +263,7 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
         <DropdownSelect label="Reach" value={reach} options={REACH_OPTIONS} onChange={onReach} title="How far the ruler runs, in the day's expected moves" testId="reach" />
         <DropdownMulti label="Greek" values={greekPick} groups={greekGroups} onChange={onGreekPick} emptyWord="All" title="One, some, or all five — a lane each, on one ruler" testId="compare-greek" align="start" />
         <DropdownSelect label="Colours" value={palette} options={PALETTE_OPTIONS} onChange={onPalette} title="What the colours mean" testId="compare-colours" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" title={unit === '$' ? 'Dollars do not compare across names, so the ruler reads percent here' : undefined} data-axis-ruler-words>
+        <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap" title={unit === '$' ? 'Dollars do not compare across names, so the ruler reads percent here' : undefined} data-axis-ruler-words>
           {rulerWords(lay.U)}
           {lay.U === '%' && unit === '$' ? ' · not dollars' : ''}
         </span>
@@ -289,7 +289,7 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
           {/* THE LANE HEADS */}
           {/* THE LANE HEADS — each name at its own end: the name, its spot, what its longest capsule is, what lies beyond
               the ruler and what is too light to draw (one line each; the caption that stood between them is gone) */}
-          <div className="px-5 flex items-center justify-between gap-4 font-mono text-[10px] tnum shrink-0 whitespace-nowrap" style={{ height: AXIS_HEADS_H }} data-axis-heads>
+          <div className="px-5 flex items-center justify-between gap-4 font-mono text-[11px] tnum shrink-0 whitespace-nowrap" style={{ height: AXIS_HEADS_H }} data-axis-heads>
             <span className="min-w-0 truncate text-textSecondary" data-axis-head="a">
               <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> · {cmp.a.spot.toFixed(2)} · <span className="text-textMuted">longest capsule {fmtDollars(scale.a)} {GREEK_LABEL[greek]}</span>
               {view.off.a > 0 && <span className="text-textMuted"> · {view.off.a} beyond the ruler</span>}

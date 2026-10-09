@@ -131,7 +131,7 @@ interface Focus {
 /** One figure of the read line: the word quiet, the number in its ink */
 const Read = ({ k, v, ink, bold }: { k: string; v: string; ink?: string; bold?: boolean }) => (
   <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-    <span className="text-[8px] uppercase tracking-widest text-textMuted">{k}</span>
+    <span className="text-[11px] text-textMuted">{k}</span>
     <span className={`text-[11px] tnum ${bold ? 'font-bold' : ''}`} style={{ color: ink ?? 'rgb(var(--text-primary))' }}>
       {v}
     </span>
@@ -487,24 +487,24 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         {/* max-sm:flex-wrap — on a phone the read line folds instead of running off the box (the phone pass, 2026-09-13) */}
         <span className="inline-flex items-baseline gap-2 whitespace-nowrap max-sm:flex-wrap">
           <span className="text-[13px] font-bold text-textPrimary tnum">{fmtStrike(focus.strike)}</span>
-          {role && <span className="text-[8px] uppercase tracking-widest text-textSecondary">{role}</span>}
-          <span className="text-[10px] text-textSecondary">
+          {role && <span className="text-[11px] text-textSecondary">{role}</span>}
+          <span className="text-[11px] text-textSecondary">
             {ex?.date ?? ''} <span className="text-textMuted">· {focus.e === todayIdx ? 'today' : (ex?.short ?? '')}</span>
           </span>
-          <span className="text-[9px] text-textMuted tnum">
+          <span className="text-[11px] text-textMuted tnum">
             {distPct >= 0 ? '+' : ''}
             {distPct.toFixed(2)}% · OI {oi.toLocaleString('en-US')}
           </span>
           {isSupreme && (
-            <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: SUPREME }}>
+            <span className="text-[11px] font-bold" style={{ color: SUPREME }}>
               supreme
             </span>
           )}
-          {isKingCell && <span className="text-[8px] uppercase tracking-widest text-textSecondary">★ heaviest cell</span>}
+          {isKingCell && <span className="text-[11px] text-textSecondary">★ heaviest cell</span>}
         </span>
         <span className="inline-flex items-baseline gap-3 whitespace-nowrap max-sm:flex-wrap">
-          <span className="text-[8px] uppercase tracking-widest text-textSecondary">
-            {GREEK_LABEL[focus.greek]} <span className="text-textMuted normal-case tracking-normal">· $ per {GREEK_UNIT[focus.greek]}</span>
+          <span className="text-[11px] text-textSecondary">
+            {GREEK_LABEL[focus.greek]} <span className="text-textMuted">· $ per {GREEK_UNIT[focus.greek]}</span>
           </span>
           <Read k="put" v={fmtUsd(putV)} ink={PUT_INK} />
           <Read k="call" v={fmtUsd(callV)} ink={CALL_INK} />
@@ -513,10 +513,10 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
               verdict's WORDS keep the regime inks */}
           <Read k="net" v={fmtUsd(netV)} ink={heatLadderColor(netV, surface.maxAbs[focus.greek], mode ?? HEAT_MODE, paper)} bold />
         </span>
-        <span className="text-[9px] tracking-wide whitespace-nowrap" style={{ color: verdictInk }}>
+        <span className="text-[11px] tracking-wide whitespace-nowrap" style={{ color: verdictInk }}>
           {verdict}
         </span>
-        <span className="ml-auto inline-flex items-baseline gap-4 font-mono text-[8px] uppercase tracking-widest whitespace-nowrap">
+        <span className="ml-auto inline-flex items-baseline gap-4 font-mono text-[11px] whitespace-nowrap">
           {bellWords && <span className={afterBell ? 'text-textPrimary' : 'text-textSecondary'}>{bellWords}</span>}
           <span className={pinned ? 'text-textSecondary' : 'text-textMuted'}>{why}</span>
         </span>
@@ -558,13 +558,13 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           style={{ gridTemplateColumns: `${STRIKE_W}px repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: rowsTemplate }}
         >
           {/* HEAD — sticky under scroll */}
-          <div className={`sticky top-0 z-10 ${ground} px-2 flex items-end pb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary border-b border-borderSubtle`} style={{ gridRow: 'span 2' }}>
+          <div className={`sticky top-0 z-10 ${ground} px-2 flex items-end pb-1 font-mono text-[11px] font-semibold text-textSecondary border-b border-borderSubtle`} style={{ gridRow: 'span 2' }}>
             Strike
           </div>
           {greeks.map(g => (
             <div
               key={`g-${g}`}
-              className={`sticky top-0 z-10 ${ground} px-2 flex items-center justify-center font-mono text-[10px] font-bold uppercase tracking-widest text-textPrimary border-l border-borderSubtle`}
+              className={`sticky top-0 z-10 ${ground} px-2 flex items-center justify-center font-mono text-[11px] font-bold text-textPrimary border-l border-borderSubtle`}
               style={{ gridColumn: `span ${shownIdx.length}` }}
             >
               {GREEK_LABEL[g]} <span className="ml-1 font-normal text-textMuted">· {GREEK_UNIT[g]}</span>
@@ -578,7 +578,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
                   key={`h-${g}-${exp.dte}`}
                   data-exp-head
                   data-pinned-col={pinned && pinned.greek === g && pinned.e === e ? '' : undefined}
-                  className={`sticky z-10 ${ground} ${narrowHead ? 'px-1 overflow-hidden' : 'px-2'} flex items-center justify-end font-mono text-[9px] uppercase tracking-wider text-textSecondary border-b border-borderSubtle whitespace-nowrap ${
+                  className={`sticky z-10 ${ground} ${narrowHead ? 'px-1 overflow-hidden' : 'px-2'} flex items-center justify-end font-mono text-[11px] text-textSecondary border-b border-borderSubtle whitespace-nowrap ${
                     ci === 0 ? 'border-l' : ''
                   } ${(pinned ? pinned.greek === g && pinned.e === e : hovered && hovered.greek === g && hovered.e === e) ? 'text-textPrimary' : ''}`}
                   style={{ top: HEAD_H / 2 }}
@@ -619,7 +619,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
                     slot, two at most, so they stand on one edge down the column
                     (Noah, 2026-09-08: "supreme, you, and pin … look crooked") */}
                 {fmtStrike(strike)}
-                <span className="ml-auto inline-flex items-center gap-1 text-[8px] uppercase tracking-widest whitespace-nowrap" data-row-tags>
+                <span className="ml-auto inline-flex items-center gap-1 text-[11px] whitespace-nowrap" data-row-tags>
                   {tagsFor(strike).map(t => (
                     <span key={t} className={t === 'you' ? 'text-silver' : 'text-textMuted'} title={t === 'you' ? marks?.get(strike) : undefined} data-yours={t === 'you' ? '' : undefined}>
                       {t}
