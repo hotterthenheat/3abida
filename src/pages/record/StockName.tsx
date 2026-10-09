@@ -52,6 +52,7 @@
 ==================================================
 */
 
+import { SayPage } from '../../components/layout/PageMeta';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, ChevronDown } from 'lucide-react';
@@ -73,6 +74,8 @@ import { StockGuide } from '../../components/record/StockGuide';
 import { buildStockOverview, fmtMoney, gradeOf, gradeOfComposite, GRADES, healthWord, ordinal, type Factor, type Grade, type Lean, type Pillar, type SourceStatus, type StockOverview, type TimelineKind } from '../../data/stockOverview';
 import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { bracketLabel, buildCongress } from '../../data/congress';
+import { lookup } from '../../data/universe';
+import { REVIEW_NAMES } from '../../data/review/tape';
 import type { BookContract, FlowPrint } from '../../types/trace';
 import { StockNameSkeleton } from './recordSkeletons';
 import { FONT_SANS } from '../../theme/fonts';
@@ -448,7 +451,30 @@ const PrintRow = ({ p, maxPrem, onOpen, onWarm }: { p: FlowPrint; maxPrem: numbe
 
 /* ---- the page ------------------------------------------------------------------- */
 
+/* A NAME THE TERMINAL KNOWS (the audit's DO-1: any text typed into the address got a whole page): the universe, the names
+   the practice desks trade, the funds */
+const FUNDS = ['SPY', 'QQQ', 'IWM', 'DIA'];
+const knownName = (t: string): boolean => !!lookup(t) || REVIEW_NAMES.some(n => n.ticker === t) || FUNDS.includes(t);
+
+/** No such name: said plainly, with the way back to the board */
+const NoSuchName = ({ T }: { T: string }) => (
+  <div className="border border-borderSubtle rounded-md bg-panel px-6 py-10 flex flex-col items-center gap-3 text-center" data-stock-missing={T}>
+    <SayPage words="Not found" />
+    <p className="text-[15px] font-semibold text-textPrimary">Not found — no name called {T || 'that'}</p>
+    <p className="text-[12px] text-textMuted max-w-[420px]">The Dossier keeps a page for each name on its board. Check the ticker, or pick a name from the board.</p>
+    <Link to="/dossier/stocks" className="hit inline-flex items-center h-8 px-4 rounded-full border border-borderMuted text-[12px] font-semibold text-textPrimary hover:border-silver/60 transition-colors">
+      Back to the stocks
+    </Link>
+  </div>
+);
+
 const StockName = () => {
+  const { ticker = '' } = useParams();
+  const T = ticker.toUpperCase();
+  return knownName(T) ? <StockNameBody key={T} /> : <NoSuchName T={T} />;
+};
+
+const StockNameBody = () => {
   const { ticker = '' } = useParams();
   const T = ticker.toUpperCase();
   const navigate = useNavigate();

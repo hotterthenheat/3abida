@@ -372,6 +372,8 @@ interface DeskShellProps {
 /** That address holds no session of this browser's */
 export const DeskMissing = () => (
   <div className={`${card} px-6 py-14 text-center`} data-review-desk="missing">
+    {/* the tab says "Session not found", never the address's id as if it were a ticker (the audit's PR-12) */}
+    <SayPage words="Session not found" />
     <p className="text-[13px] text-textPrimary">That session is not on this machine.</p>
     <p className="mt-1 text-[11px] text-textMuted">Sessions are kept in this browser until accounts carry them.</p>
     <Link to="/practice/backtest" className="mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">

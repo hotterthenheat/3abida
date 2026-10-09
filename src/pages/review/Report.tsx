@@ -14,6 +14,7 @@
 ==================================================
 */
 
+import { SayPage } from '../../components/layout/PageMeta';
 import { useEffect, useMemo } from 'react';
 import { sayPage } from '../../components/layout/PageMeta';
 import { Link, useParams } from 'react-router-dom';
@@ -70,6 +71,7 @@ const Report = () => {
   if (!session)
     return (
       <div className="border border-borderSubtle rounded-md bg-panel px-6 py-14 text-center" data-review-report="missing">
+        <SayPage words="Session not found" />
         <p className="text-[13px] text-textPrimary">That session is not on this machine.</p>
         <Link to="/practice/backtest" className="mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
           Your sessions

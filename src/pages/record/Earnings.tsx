@@ -39,7 +39,7 @@ import { useNavigate } from 'react-router-dom';
 import { Moon, Sunrise } from 'lucide-react';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import CompanyLogo from '../../components/ui/CompanyLogo';
@@ -199,22 +199,28 @@ const Earnings = () => {
   const [layout, setLayout] = useState<Layout>('board');
   const [guideOpen, setGuideOpen] = useState(false);
 
-  const shown = useMemo(() => (show === 'all' ? events : events.filter(e => stateOf(e) === show)), [events, show]);
-  const rich = events.filter(e => stateOf(e) === 'RICH').length;
-  const cheap = events.filter(e => stateOf(e) === 'CHEAP').length;
-  const fair = events.length - rich - cheap;
-  const biggest = events.reduce<EarningsEvent | null>((a, e) => (a === null || e.impliedMovePct > a.impliedMovePct ? e : a), null);
-  const today = events.filter(e => e.daysOut === 0);
-
   const weeks: (0 | 1)[] = week === 'both' ? [0, 1] : [Number(week) as 0 | 1];
+  /* THE WEEK SCOPES EVERYTHING (the audit's DO-6: the board changed, the grid and the facts still said "two weeks") */
+  const inWeeks = useMemo(() => events.filter(e => weeks.includes(e.weekIdx)), [events, week]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => (show === 'all' ? inWeeks : inWeeks.filter(e => stateOf(e) === show)), [inWeeks, show]);
+  const rich = inWeeks.filter(e => stateOf(e) === 'RICH').length;
+  const cheap = inWeeks.filter(e => stateOf(e) === 'CHEAP').length;
+  const fair = inWeeks.length - rich - cheap;
+  const biggest = inWeeks.reduce<EarningsEvent | null>((a, e) => (a === null || e.impliedMovePct > a.impliedMovePct ? e : a), null);
+  const today = events.filter(e => e.daysOut === 0);
+  const span = week === 'both' ? 'two weeks' : week === '0' ? 'this week' : 'next week';
+  /* THE BOARD STARTS ON TODAY (the audit's DO-7: on a Friday three of five columns read "no reports" and a phone's only
+     report sat off screen): this week's days already gone are left off */
+  const todayWd = new Date().getDay();
+  const daysOf = (weekIdx: 0 | 1) => (weekIdx === 0 && todayWd >= 1 && todayWd <= 5 ? WEEKDAYS.filter(wd => wd >= todayWd) : WEEKDAYS);
   const open = (t: string) => navigate(`/dossier/earnings/${t}`);
 
   const sentence = useMemo(() => {
-    const parts = [`${events.length} reports over two weeks`, `${rich} priced rich, ${fair} fair, ${cheap} cheap`];
+    const parts = [`${inWeeks.length} reports ${week === 'both' ? 'over two weeks' : span}`, `${rich} priced rich, ${fair} fair, ${cheap} cheap`];
     if (biggest) parts.push(`the biggest move priced is ${biggest.ticker} at ±${biggest.impliedMovePct.toFixed(1)}% on ${biggest.dateLabel}`);
     parts.push(today.length ? `today: ${today.map(e => `${e.ticker} ${slotWord(e)}`).join(', ')}` : 'nothing reports today');
     return parts.join(' · ') + '.';
-  }, [events.length, rich, fair, cheap, biggest, today]);
+  }, [inWeeks.length, week, span, rich, fair, cheap, biggest, today]);
 
   const columnDefs = useMemo<ColDef<EarningsEvent>[]>(
     () => [
@@ -252,7 +258,7 @@ const Earnings = () => {
           </div>
           <dl className="flex flex-wrap gap-x-6 gap-y-2">
             <Fact label="Reports" testId="reports">
-              {events.length} <span className="text-textMuted">· two weeks</span>
+              {inWeeks.length} <span className="text-textMuted">· {span}</span>
             </Fact>
             <Fact label="Priced" testId="priced">
               <span className="text-warn">{rich} rich</span> <span className="text-textMuted">·</span> {fair} fair <span className="text-textMuted">·</span> <span className="text-bull">{cheap} cheap</span>
@@ -294,17 +300,16 @@ const Earnings = () => {
         {layout === 'list' ? (
           <div key={`list-${week}-${show}`} className="border-t border-borderSubtle animate-soft-in" data-earnings-list>
             {weeks.map(weekIdx =>
-              WEEKDAYS.map(wd => {
+              daysOf(weekIdx).map(wd => {
                 const date = weekDayDate(weekIdx, wd);
                 const { isToday } = weekDayLabel(weekIdx, wd);
                 const iso = isoOf(date);
                 const dayEvents = shown.filter(e => e.weekIdx === weekIdx && e.weekday === wd).sort((a, b) => (a.slot === b.slot ? b.impliedMovePct - a.impliedMovePct : a.slot === 'BMO' ? -1 : 1));
                 const dayMacro = macro.filter(m => m.iso === iso);
-                const past = !isToday && date.getTime() < new Date().setHours(0, 0, 0, 0);
                 return (
                   <div
                     key={`${weekIdx}-${wd}`}
-                    className={`flex items-stretch border-b border-borderSubtle/60 last:border-0 min-h-[58px] ${isToday ? 'bg-silver/[0.04] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : ''} ${past ? 'opacity-50' : ''}`}
+                    className={`flex items-stretch border-b border-borderSubtle/60 last:border-0 min-h-[58px] ${isToday ? 'bg-silver/[0.04] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : ''}`}
                     data-earnings-day={iso}
                     data-today={isToday || undefined}
                   >
@@ -336,8 +341,8 @@ const Earnings = () => {
             data-earnings-board
           >
             {weeks.map(weekIdx => (
-              <div key={weekIdx} className="grid grid-cols-5 gap-px bg-borderSubtle/60 border-b border-borderSubtle/60 last:border-0 max-lg:min-w-[640px]">
-                {WEEKDAYS.map(wd => {
+              <div key={weekIdx} className="grid gap-px bg-borderSubtle/60 border-b border-borderSubtle/60 last:border-0" style={{ gridTemplateColumns: `repeat(${daysOf(weekIdx).length}, minmax(128px, 1fr))` }}>
+                {daysOf(weekIdx).map(wd => {
                   const { label, isToday } = weekDayLabel(weekIdx, wd);
                   const dayEvents = shown.filter(e => e.weekIdx === weekIdx && e.weekday === wd);
                   /* the macro calendar's dates under the day's head (2026-09-10 night: the list had them, the board did not) */
@@ -393,10 +398,10 @@ const Earnings = () => {
         <div className="px-5 pt-4 pb-3">
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Every report</h3>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            Both weeks · {show === 'all' ? 'every report' : `the reports priced ${PRICED_WORD[show]}`} · soonest first · click a row for the name's page
+            {span.charAt(0).toUpperCase() + span.slice(1)} · {show === 'all' ? 'every report' : `the reports priced ${PRICED_WORD[show]}`} · soonest first · a row opens the name's page
           </p>
         </div>
-        <div className="slayer-board border-t border-borderSubtle">
+        <div className="slayer-board grid-keys border-t border-borderSubtle">
           <AgGridProvider modules={GRID_MODULES}>
             <AgGridReact<EarningsEvent>
               theme={GRID_THEME}
@@ -406,8 +411,8 @@ const Earnings = () => {
               defaultColDef={defaultColDef}
               getRowId={p => p.data.ticker}
               onRowClicked={onRow}
+              {...openRowOnEnter<EarningsEvent>(row => open(row.ticker))}
               rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-              suppressCellFocus
               animateRows
               tooltipShowDelay={350}
               tooltipHideDelay={8000}

@@ -132,6 +132,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
   if (!row || !ex) {
     return (
       <div className={`${card} px-6 py-14 text-center`} data-journal-trade="missing">
+        <SayPage words="Trade not found" />
         <p className="text-[13px] text-textPrimary">That trade is not in this browser’s journal.</p>
         <p className="mt-1 text-[11px] text-textMuted">{kind === 'paper' ? 'A trade lives with its paper account on this machine.' : 'A trade lives with its session — if the session was deleted, its trades went with it.'}</p>
         <Link to={source.base} className="mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">

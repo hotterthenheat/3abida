@@ -35,6 +35,7 @@
 ==================================================
 */
 
+import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyMinutes } from '../../core/nyTime';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, LayoutGrid } from 'lucide-react';
@@ -297,6 +298,9 @@ const EarningsName = () => {
   };
   const marketInsiders = insiders.trades.filter(t => TX_CODES[t.code].openMarket).slice(0, 6);
 
+  /* A REPORT THAT IS OUT (the audit's DO-5: at 13:50 a before-the-open report still read "today", an upcoming move): a
+     morning report is out from the 09:30 open, an evening one from the 16:00 bell — New York's clock */
+  const out = e.daysOut === 0 && nyMinutes() >= (e.slot === 'BMO' ? SESSION_OPEN_MIN : SESSION_CLOSE_MIN);
   return (
     <>
       {back}
@@ -312,14 +316,29 @@ const EarningsName = () => {
                 <span className="font-mono text-[11px] font-bold text-textSecondary">{e.ticker}</span>
               </div>
               {/* max-lg:flex-wrap — an inline-flex line does not truncate, it spills; on a phone it folds instead (the phone pass, 2026-09-13) */}
-              <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate inline-flex items-center gap-1.5 max-lg:flex-wrap">
-                Reports {e.dateLabel} <SlotMark slot={e.slot} className="w-3 h-3" /> {slotWord(e)}
-                <span className="text-textMuted">·</span>
-                <span className={e.confirmed ? 'text-textMuted' : 'text-warn'}>{e.confirmed ? 'the company has confirmed the date' : 'the date is still an estimate'}</span>
-                {e.daysOut === 0 && (
+              {/* a line that folds where it must, its words kept together (the audit's DO-12: "· today" fell under the facts) */}
+              <p className="mt-0.5 text-[11px] text-textMuted flex flex-wrap items-center gap-x-1.5 gap-y-0.5" data-earnings-when={out ? 'reported' : 'coming'}>
+                {out ? (
                   <>
+                    <span className="whitespace-nowrap inline-flex items-center gap-1.5">
+                      Reported {e.slot === 'BMO' ? 'this morning, before the open' : 'today, after the close'} <SlotMark slot={e.slot} className="w-3 h-3" />
+                    </span>
                     <span className="text-textMuted">·</span>
-                    <span className="text-silver">today</span>
+                    <span className="whitespace-nowrap">the move below is what the options priced before the print</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="whitespace-nowrap inline-flex items-center gap-1.5">
+                      Reports {e.dateLabel} <SlotMark slot={e.slot} className="w-3 h-3" /> {slotWord(e)}
+                    </span>
+                    <span className="text-textMuted">·</span>
+                    <span className={`whitespace-nowrap ${e.confirmed ? 'text-textMuted' : 'text-warn'}`}>{e.confirmed ? 'the company has confirmed the date' : 'the date is still an estimate'}</span>
+                    {e.daysOut === 0 && (
+                      <>
+                        <span className="text-textMuted">·</span>
+                        <span className="text-silver whitespace-nowrap">today</span>
+                      </>
+                    )}
                   </>
                 )}
               </p>
