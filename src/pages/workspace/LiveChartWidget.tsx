@@ -73,6 +73,18 @@ export interface LiveChartWidgetProps {
 
 const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
   const { flowTape } = useMarketData();
+  /* the floating bar's height, so the legend can stand under it (PU-1) */
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [barH, setBarH] = useState(0);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const read = () => setBarH(Math.round(el.getBoundingClientRect().height));
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   /* opens on the desk's timeframe when the reader set one (Settings › The desk) */
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readDeskPrefs().opensOn.timeframe ?? '1m');
   const [overlays, setOverlays] = useState<ChartOverlays>(DEFAULT_OVERLAYS);
@@ -281,6 +293,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
             : `absolute top-0 inset-x-0 ${full ? 'px-3 py-2 gap-3' : 'px-2 py-1.5 gap-2'}`
         }${superFull ? ' opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200' : ''}`}
         data-taskbar-rest={superFull ? 'hidden' : undefined}
+        ref={barRef}
         style={{ background: strip }}
         /* Floating chrome the chart's scripts legend measures and sits under (2026-09-10) */
         data-chart-chrome
@@ -371,7 +384,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
                sole chart (the alerts rule, 2026-09-11: set in place — a windowed
                Pulse with the chart alone had no way to set a price alert) */
             alertTicker={full || soleChart ? ctx.ticker : undefined}
-            alertSpot={ctx.gex.levels.spot}
+            alertSpot={ctx.liveSpot ?? ctx.gex.levels.spot}
             /* the door's own focus would hold the resting taskbar up (focus-within) — let it go as the tape takes the screen */
             onTotalFullscreen={full ? () => { setSuperFull(true); (document.activeElement as HTMLElement | null)?.blur(); } : undefined}
             /* The 4-way board is four charts, which is the one thing the
@@ -476,11 +489,15 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
             under the taskbar (which the tape now runs beneath). Facts only —
             no buy/sell, we are not a broker. pointer-events-none: the tape
             pans straight through it. */}
+        {/* UNDER THE BAR, HOWEVER TALL IT WRAPS (the audit's PU-1: at 1280 the bar wrapped to two rows and its Theme
+            button sat on the legend — "SPY THEME $477.85"): the legend stands 6px under the bar's measured foot */}
         <div
           className={`absolute left-2 z-10 pointer-events-none select-none flex flex-col gap-1 font-mono ${
             superFull ? 'top-2' : full ? 'top-12' : 'top-10'
           }`}
+          style={!superFull && !soleChart && barH > 0 ? { top: barH + 6 } : undefined}
           data-chart-chrome
+          data-chart-legend
         >
           <div className="flex items-baseline gap-1.5">
             <span className="text-[11px] font-semibold text-textPrimary">{ctx.ticker}</span>
@@ -488,7 +505,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
             <span className="text-[10px] text-textMuted">{timeframe}</span>
             <span className="text-[10px] text-textMuted" aria-hidden>·</span>
             <SpotPrice
-              value={Simulator.TICKERS[ctx.ticker]?.currentPrice ?? ctx.gex.levels.spot}
+              value={ctx.liveSpot ?? Simulator.TICKERS[ctx.ticker]?.currentPrice ?? ctx.gex.levels.spot}
               className="text-[11px] font-semibold tnum text-textPrimary"
             />
           </div>

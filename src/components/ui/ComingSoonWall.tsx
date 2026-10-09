@@ -216,8 +216,9 @@ const ComingSoonWall = ({ kicker, blurb, foot }: Props) => {
             data-room-notify
           >
             {noted ? (
-              <span className="text-[12px] text-textSecondary">
-                We will write to <span className="font-mono text-textPrimary">{noted}</span> the day it opens.
+              /* WHERE THE ADDRESS IS KEPT, SAID (the audit's SH-19): on this machine — it shows here, kept, until the room opens */
+              <span className="text-[12px] text-textSecondary" role="status">
+                Kept on this machine: <span className="font-mono text-textPrimary">{noted}</span>. You will see it here when the room opens.
               </span>
             ) : (
               <>

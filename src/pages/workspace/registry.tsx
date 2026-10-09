@@ -51,6 +51,9 @@ export interface WorkspaceCtx {
       views (their own metric, their own expiry) rebuild from it. */
   snapshot: MarketSnapshot;
   revision: number;
+  /** THE PRICE TO PRINT (2026-10-09, the audit's X1.5): the live tick the rail and the chart print — the snapshot's spot is
+      the 10 s scan's, kept for the book it was built with */
+  liveSpot?: number;
   /** The 1s heat tick — widgets that rebuild their own matrix re-pulse with it */
   pulseTick: number;
   /** A strike another page sent here to be seen on the chart (Targets, the
@@ -142,7 +145,7 @@ export const WIDGETS: WidgetDef[] = [
     // pills became the Exposure Ledger — the capsules, full, under a head
     // (2026-09-03 → 09-05).
     key: 'exposure-matrix',
-    title: 'Exposure Ledger',
+    title: 'Exposure ledger',
     sub: 'Every strike and expiry as a capsule — the book across the calendar',
     description: 'The book across the calendar as capsules — every strike and expiry a cell with its figure inside; blue where hedging pushes back, warm where it pushes along; one greek or all five; hover to read, click to pin',
     w: 7,
@@ -150,7 +153,9 @@ export const WIDGETS: WidgetDef[] = [
     minW: 5,
     minH: 4,
     maxH: 8,
-    render: ctx => <ExposureField snapshot={ctx.snapshot} fullOpen={ctx.fullOpen} headFull />,
+    /* the live price on the ledger's pill — the field keeps its book until spot has moved a tenth of a percent, so a new
+       spot each tick costs no rebuild */
+    render: ctx => <ExposureField snapshot={ctx.liveSpot != null && ctx.liveSpot !== ctx.snapshot.spot ? { ...ctx.snapshot, spot: ctx.liveSpot } : ctx.snapshot} fullOpen={ctx.fullOpen} headFull />,
     skeleton: chartSkeleton,
     page: { path: '/pinpoint/map', label: 'the Map', prepare: MAP_VIEW('calendar') },
   },
@@ -158,7 +163,7 @@ export const WIDGETS: WidgetDef[] = [
     // Key kept from the heatmap so saved desks upgrade in place — the strike ×
     // expiry grid became the Strike Pressure Ladder (Mo, 2026-08-19).
     key: 'gex-heatmap',
-    title: 'Strike Pressure Ladder',
+    title: 'Strike pressure ladder',
     sub: 'Put and call hedging at every strike, and the levels it names',
     description: 'Every strike a row — put & call hedging as bars, net, distance, open interest — with a Levels view: walls, pin, flip & supreme at a glance',
     w: 6,

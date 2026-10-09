@@ -78,6 +78,6 @@ export const KeyLevelsView = ({ ticker, rows, spot }: { ticker: string; rows: Ke
   );
 };
 
-const KeyLevelsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => <KeyLevelsView ticker={ctx.ticker} rows={ctx.pulse.keyLevels} spot={ctx.gex.levels.spot} />;
+const KeyLevelsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => <KeyLevelsView ticker={ctx.ticker} rows={ctx.pulse.keyLevels} spot={ctx.liveSpot ?? ctx.gex.levels.spot} />;
 
 export default KeyLevelsWidget;

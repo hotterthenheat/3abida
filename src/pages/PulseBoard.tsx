@@ -1,6 +1,6 @@
 /*
 ==================================================
-  SLAYER TERMINAL - 4-WAY BOARD (/pulse/board)
+  SLAYER TERMINAL - FOUR CHARTS (/pulse/board)
   A dedicated page of nothing but four live charts,
   opened from the main chart's toolbar. Every cell
   is its own cockpit: its own ticker (the sim
@@ -10,12 +10,21 @@
   carries. Each chart derives its walls/flip/supreme
   and dark-pool prints from its OWN book. The back
   arrow returns to Pulse; the whole layout persists.
+
+  ONE NAME AND THE HOUSE HEAD (2026-10-09, the audit's
+  PU-2, PU-3, PU-8, PU-15, PU-16): "Four charts" on
+  the tab, the head, the palette and the rail alike;
+  the shell head with Pulse's glyph; a cell under
+  600px wears the compact strip, so the four charts
+  start level; the expanded cell carries its own way
+  out.
 ==================================================
 */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
+import ShellHead from '../components/layout/ShellHead';
 import Simulator from '../core/simulator';
 import { useMarketData } from '../context/MarketDataContext';
 import { readDeskPrefs } from '../data/deskPrefs';
@@ -102,6 +111,15 @@ const BoardCell = ({ cfg, onCfg, revision, expanded, onToggleExpand, index }: Bo
   const cellRef = useRef<HTMLDivElement | null>(null);
   /* On a phone the taskbar wears the compact strip — the interval as one trigger, the icons — instead of four wrapped rows */
   const isPhone = useIsPhone();
+  /* a cell under 600px wears the compact strip, so each cell's bar is one row and the four charts start level */
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const el = cellRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setNarrow(el.getBoundingClientRect().width < 600));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     // 'contents' keeps the grid slot when docked; expanding lifts the same
@@ -144,7 +162,7 @@ const BoardCell = ({ cfg, onCfg, revision, expanded, onToggleExpand, index }: Bo
               /* Docked, the menus are the small ones, and every menu stays inside the cell (Noah, 2026-09-13) */
               dense={!expanded}
               menuBounds={cellRef}
-              compact={isPhone}
+              compact={isPhone || (narrow && !expanded)}
               timeframe={cfg.timeframe}
               onTimeframe={tf => onCfg({ timeframe: tf })}
               overlays={cfg.overlays}
@@ -153,6 +171,12 @@ const BoardCell = ({ cfg, onCfg, revision, expanded, onToggleExpand, index }: Bo
               onToggleFullscreen={onToggleExpand}
             />
           </div>
+          {/* the way out, inside the cell that took the screen (the audit's PU-16: it sat under the takeover) */}
+          {expanded && (
+            <button type="button" onClick={onToggleExpand} title="Back to the four (Esc)" className="hit shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary" data-board-esc>
+              <Minimize2 className="w-3.5 h-3.5" /> Esc
+            </button>
+          )}
         </div>
         <div className={expanded ? 'flex-1 min-h-0' : 'h-[38vh] min-h-[300px]'}>
           <StrikeChart
@@ -206,42 +230,25 @@ const PulseBoard = ({ onBack }: { onBack?: () => void }) => {
 
   return (
     <>
-      {/* Slim header — a back arrow and the name; the charts are the page */}
-      <div className="flex items-center gap-3">
-        {onBack ? (
-          <button
-            onClick={onBack}
-            title="Back"
-            className="group inline-flex items-center justify-center w-8 h-8 rounded-md border border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" />
-          </button>
-        ) : (
-          <Link
-            to="/pulse"
-            title="Back"
-            className="group inline-flex items-center justify-center w-8 h-8 rounded-md border border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" />
-          </Link>
-        )}
-        <div>
-          <h1 className="font-mono text-[13px] font-bold uppercase tracking-wider text-textPrimary">
-            4-way board
-          </h1>
-          <p className="font-mono text-[10px] text-textMuted uppercase tracking-widest">
-            four books · every chart its own controls
-          </p>
-        </div>
-        {expanded !== null && (
-          <button
-            onClick={() => setExpanded(null)}
-            className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary"
-          >
-            <Minimize2 className="w-3.5 h-3.5" /> Esc
-          </button>
-        )}
-      </div>
+      {/* THE SHELL HEAD (the audit's PU-2, PU-3): Pulse's glyph, the page's one name, the way back to the desk */}
+      <ShellHead
+        glyph="pulse"
+        title="Four charts"
+        line="Four names at once, each with its own timeframe and overlays — every chart reads its own book"
+        facts={cells.map((c, i) => ({ label: `Chart ${i + 1}`, value: `${c.ticker} · ${c.timeframe}`, wide: i > 1 }))}
+        aside={
+          onBack ? (
+            <button type="button" onClick={onBack} title="Back to Pulse" aria-label="Back to Pulse" className="hit ml-1 group inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+              <ArrowLeft className="w-3 h-3 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> Pulse
+            </button>
+          ) : (
+            <Link to="/pulse" title="Back to Pulse" aria-label="Back to Pulse" className="hit ml-1 group inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+              <ArrowLeft className="w-3 h-3 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> Pulse
+            </Link>
+          )
+        }
+        testId="board-shell"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {cells.map((cfg, i) => (

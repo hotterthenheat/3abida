@@ -59,7 +59,7 @@ export const CloseWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   if (!data) return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;
   return (
     <div className="h-full min-h-0 overflow-y-auto" data-close-widget>
-      <CloseOdds odds={data.odds} levels={data.levels} spot={ctx.snapshot.spot} ticker={ctx.ticker} clock={clock} focus={ctx.focusPrice ?? null} onPick={price => ctx.focusStrike?.(price)} headless />
+      <CloseOdds odds={data.odds} levels={data.levels} spot={ctx.liveSpot ?? ctx.snapshot.spot} ticker={ctx.ticker} clock={clock} focus={ctx.focusPrice ?? null} onPick={price => ctx.focusStrike?.(price)} headless />
     </div>
   );
 };

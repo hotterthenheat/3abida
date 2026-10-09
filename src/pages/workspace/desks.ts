@@ -102,6 +102,8 @@ export const PRESET_BLURBS: Record<string, string> = {
 
 export const PRESET_NAMES = Object.keys(PRESETS);
 export const isPreset = (name: string) => name in PRESETS;
+/** A preset's name in any case — "flow" is Flow's (the audit's PU-4: "flow" saved beside the preset) */
+export const presetNamed = (name: string): string | null => PRESET_NAMES.find(p => p.toLowerCase() === name.trim().toLowerCase()) ?? null;
 
 /* A PANEL THAT LEFT THE TERMINAL, IN A DESK SOMEONE ALREADY HAS (2026-09-20, order flow). A saved desk is the reader's own
    arrangement, so it is not reset to the new template: in the two PRESET desks the retired panel's cell is handed, where
