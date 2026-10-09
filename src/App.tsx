@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigationType, useParams } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MarketDataProvider } from './context/MarketDataContext';
 import { TrackerProvider } from './context/TrackerContext';
@@ -10,13 +10,22 @@ import { loadShell } from './components/layout/shell';
    requests — half a second on a phone's connection before the hero could be drawn. The terminal's shell went the other
    way (components/layout/shell.ts). */
 import Landing from './pages/landing/Landing';
-import { LaunchProvider } from './components/layout/LaunchTransition';
+import { LaunchProvider, isTerminalPath } from './components/layout/LaunchTransition';
+import { stampRoot } from './theme/theme';
+import { readBase } from './pages/landing/ground';
 import { FocusProvider } from './context/FocusContext';
 import EmbedBridge from './components/layout/EmbedBridge';
 import PageMeta from './components/layout/PageMeta';
 import { EMBEDDED } from './embed';
 import { FaviconFollowsMark } from './brand/favicon';
 import AlertsDoor from './components/alerts/AlertsDoor';
+
+/* THE PAGES OUTSIDE THE TERMINAL STAND ON THE VISITOR'S GROUND FROM THE FIRST PAINT (2026-10-09, the audit's OU-T1), as
+   the landing does: index.html sets it before the stylesheet, and the theme's own first word (theme/theme.ts, dark for a
+   reader who has made no choice) is put right here, in the same task, before anything is painted — the page's frame
+   (pages/outside/OutsideFrame.tsx) holds it once its code has come, and hands the root back on the way into the
+   terminal */
+if (typeof window !== 'undefined' && !EMBEDDED && window.location.pathname !== '/' && !isTerminalPath(window.location.pathname)) stampRoot(readBase());
 
 /*
   EVERY PAGE IS ITS OWN CHUNK (2026-09-06, the perf sweep). The app used to
@@ -79,6 +88,35 @@ const EarningsRedirect = () => {
   const { ticker } = useParams();
   return <Navigate to={ticker ? `/dossier/earnings/${ticker}` : '/dossier/earnings'} replace />;
 };
+
+/* THE OLD SECTIONS' ADDRESSES KEEP THEIR PAGE (2026-10-09, the audit's LG-1 and LG-2): /pinpoint-gex/targets went to the
+   Map by way of /pinpoint, and /flow-desk/net-flow to the Live Tape — in one hop now, to the page of the same name where
+   it lives on, the rest to the section's own front page */
+const PINPOINT_PAGES = ['map', 'ahead', 'building', 'wall', 'targets', 'board', 'compare'];
+const PINPOINT_ALIASES: Record<string, string> = { 'ranked-targets': 'targets' };
+const TRACE_ALIASES: Record<string, string> = { 'flow-alerts': 'watchers', intervals: 'windows', 'dark-feed': 'dark-pool', scanner: 'screener' };
+const OldSection = ({ to }: { to: (page: string) => string }) => {
+  const params = useParams();
+  const { search } = useLocation();
+  const page = (params['*'] ?? '').split('/')[0].toLowerCase();
+  return <Navigate to={`${to(page)}${search}`} replace />;
+};
+const oldPinpoint = (page: string) => `/pinpoint/${PINPOINT_ALIASES[page] ?? (PINPOINT_PAGES.includes(page) ? page : 'map')}`;
+/* a page Trace never had is still forwarded under /trace, where the in-terminal page says there is nothing there */
+const oldTrace = (page: string) => `/trace/${TRACE_ALIASES[page] ?? (page || 'live-tape')}`;
+
+/* A SECTION OR A DOCUMENT THAT DOES NOT EXIST says so (the audit's LG-5): /settings/nope opened Account and /legal/nope
+   the Terms, silently — every other wrong address shows "Nothing at this address" */
+const SETTINGS_SECTIONS = ['account', 'billing', 'data', 'appearance', 'desk', 'sounds', 'invite', 'mail', 'keyboard', 'about'];
+const SettingsAt = () => {
+  const { section } = useParams();
+  return !section || SETTINGS_SECTIONS.includes(section.toLowerCase()) ? <Settings /> : <NotFoundInside />;
+};
+const LEGAL_DOCS = ['terms', 'privacy', 'risk', 'refunds', 'data'];
+const LegalAt = () => {
+  const { doc } = useParams();
+  return doc && LEGAL_DOCS.includes(doc.toLowerCase()) ? <Legal /> : <NotFoundPrompt />;
+};
 const Tracker = lazy(() => import('./pages/Tracker'));
 /* THE SETTINGS (2026-09-12): the theme first, the rest of the desk's preferences behind it */
 const Settings = lazy(() => import('./pages/settings/Settings'));
@@ -115,6 +153,53 @@ const Maintenance = lazy(() => import('./pages/outside/Maintenance'));
 const Invite = lazy(() => import('./pages/outside/Invite').then(m => ({ default: m.Invite })));
 const Welcome = lazy(() => import('./pages/outside/Invite').then(m => ({ default: m.Welcome })));
 
+/* WHERE A PAGE OUTSIDE THE TERMINAL OPENS (2026-10-09, the audit's L-3 and OU-B2): a page reached by a link opens at its
+   top — the landing's "Choose Compass", after a Back from the sign-up form, opened /signup scrolled to its foot, the
+   heading and the plan above the screen — and one reached by Back or Forward opens where the reader left it, once it has
+   laid itself out (the browser put /status back before its words had come, 400 px off). The landing keeps its own way
+   with the history (its jumps along the page), and the terminal its own. */
+const placeOf = new Map<string, number>();
+const outside = (path: string) => path !== '/' && !isTerminalPath(path);
+const ScrollPlace = () => {
+  const { pathname, hash, key } = useLocation();
+  const how = useNavigationType();
+  /* where the reader is on each entry of the history, kept as they scroll */
+  useEffect(() => {
+    let raf = 0;
+    const keep = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        placeOf.set(key, window.scrollY);
+      });
+    };
+    window.addEventListener('scroll', keep, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', keep);
+      cancelAnimationFrame(raf);
+    };
+  }, [key]);
+  useLayoutEffect(() => {
+    if (!outside(pathname)) return;
+    if (how !== 'POP') {
+      if (!hash) window.scrollTo(0, 0);
+      return;
+    }
+    const to = placeOf.get(key);
+    if (to == null) return;
+    /* the page's words may still be on their way (each page is its own chunk): put the reader back once it is tall enough */
+    let tries = 0;
+    let t = 0;
+    const put = () => {
+      if (document.documentElement.scrollHeight - window.innerHeight >= to - 1 || ++tries > 40) window.scrollTo(0, to);
+      else t = window.setTimeout(put, 25);
+    };
+    put();
+    return () => window.clearTimeout(t);
+  }, [pathname, key, how, hash]);
+  return null;
+};
+
 const App = () => {
   return (
     <MotionConfig reducedMotion="user">
@@ -127,6 +212,7 @@ const App = () => {
         <EmbedBridge />
         {/* every page's own tab title and description (2026-09-19) */}
         <PageMeta />
+        <ScrollPlace />
         {/* the tab's icon is the mark in its state — still, loading, alert, closed (brand/favicon.ts); not inside the
             landing's window, whose tab is the landing's */}
         {!EMBEDDED && <FaviconFollowsMark />}
@@ -142,15 +228,17 @@ const App = () => {
               welcome, status and the changelog, about, the legal pages, maintenance — each on its own frame, no rail */}
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/i/:code" element={<Invite />} />
-          <Route path="/signup" element={<Auth />} />
-          <Route path="/signin" element={<Auth />} />
-          <Route path="/reset" element={<Auth />} />
-          <Route path="/verified" element={<Auth />} />
-          <Route path="/expired" element={<Auth />} />
+          {/* each form is told which it is (the audit's OU-A1: read off the address, /signin/ and /SIGNUP matched no form
+              and fell through to "You're in.") */}
+          <Route path="/signup" element={<Auth screen="signup" />} />
+          <Route path="/signin" element={<Auth screen="signin" />} />
+          <Route path="/reset" element={<Auth screen="reset" />} />
+          <Route path="/verified" element={<Auth screen="verified" />} />
+          <Route path="/expired" element={<Auth screen="expired" />} />
           <Route path="/status" element={<Status />} />
           <Route path="/about" element={<About />} />
           <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
-          <Route path="/legal/:doc" element={<Legal />} />
+          <Route path="/legal/:doc" element={<LegalAt />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route element={<AppShell />}>
             <Route path="/home" element={<Navigate to="/pulse" replace />} />
@@ -214,6 +302,8 @@ const App = () => {
               <Route path="stocks/:ticker" element={<StockName />} />
             </Route>
             <Route path="/stocks" element={<Navigate to="/dossier/stocks" replace />} />
+            {/* an old stock page keeps its name (the audit's LG-4: it was "Page not found") */}
+            <Route path="/stocks/:ticker" element={<Moved to={(p, s) => `/dossier/stocks/${p.ticker}${s}`} />} />
             <Route path="/news" element={<Navigate to="/dossier/news" replace />} />
             <Route path="/newsroom" element={<Navigate to="/dossier/news" replace />} />
             <Route path="/earnings" element={<Navigate to="/dossier/earnings" replace />} />
@@ -222,16 +312,14 @@ const App = () => {
             <Route path="/watchlist" element={<Navigate to="/weigher" replace />} />
             <Route path="/tracker" element={<Navigate to="/compass/tracker" replace />} />
             {/* each settings section is its own page (2026-09-12); /settings alone lands on Account (2026-09-14) */}
-            <Route path="/settings/:section?" element={<Settings />} />
+            <Route path="/settings/:section?" element={<SettingsAt />} />
             <Route path="/pinpoint" element={<PinpointLayout />}>
-              {/* THE BLANK CANVAS (Noah, 2026-09-05): Pinpoint restarts from
-                  scratch. Targets is the one page that survived his review;
-                  every other path — the three-tab cut's included — lands on it
-                  until the new desk exists. The Strike Pressure Ladder and the
-                  Exposure Ledger live on as Pulse widgets meanwhile. */}
+              {/* THE MAP IS PINPOINT'S FRONT PAGE: /pinpoint opens on it, and so does every retired page's address — the
+                  three-tab cut's, the old command desk and flow map (their ledger is the Map's Matrix; they went to Pulse
+                  until 2026-10-09, the audit's LG-3 and LG-7) and the pages listed below. Ranked targets is Targets. */}
               <Route index element={<Navigate to="/pinpoint/map" replace />} />
-              <Route path="command" element={<Navigate to="/pulse" replace />} />
-              <Route path="flow-map" element={<Navigate to="/pulse" replace />} />
+              <Route path="command" element={<Navigate to="/pinpoint/map" replace />} />
+              <Route path="flow-map" element={<Navigate to="/pinpoint/map" replace />} />
               {/* THE MAP — band 2 of the roadmap, the first thing built on the canvas */}
               <Route path="map" element={<MapDesk />} />
               {/* AHEAD — from now to the bell (2026-09-06) */}
@@ -272,10 +360,10 @@ const App = () => {
               <Route path="scanner" element={<Navigate to="/trace/screener" replace />} />
               <Route path="tracker" element={<FlowTracker />} />
             </Route>
-            <Route path="/liquidity" element={<Navigate to="/trace" replace />} />
-            {/* Legacy section paths from before the rebrand */}
-            <Route path="/flow-desk/*" element={<Navigate to="/trace" replace />} />
-            <Route path="/pinpoint-gex/*" element={<Navigate to="/pinpoint" replace />} />
+            <Route path="/liquidity" element={<Navigate to="/trace/live-tape" replace />} />
+            {/* Legacy section paths from before the rebrand, page for page */}
+            <Route path="/flow-desk/*" element={<OldSection to={oldTrace} />} />
+            <Route path="/pinpoint-gex/*" element={<OldSection to={oldPinpoint} />} />
             <Route path="/community" element={<Room />} />
             {/* Alerts are a drawer, not a page: their address opens it over Pulse (components/alerts/AlertsDoor.tsx) */}
             <Route path="/alerts" element={<AlertsDoor />} />

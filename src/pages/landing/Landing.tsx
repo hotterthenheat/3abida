@@ -43,7 +43,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
 import { ArrowRight, Check, ChevronDown, Menu, Minus, Moon, Plus, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { PLANS, type PlanKey } from '../../data/billing';
+import { PLANS, priceLine, type BillingPeriod, type PlanKey } from '../../data/billing';
 import { COMPANY } from '../../data/company';
 import { useLaunch } from '../../components/layout/LaunchTransition';
 import SiteFooter from '../../components/layout/SiteFooter';
@@ -95,6 +95,9 @@ const ROOMS: Room[] = [
     rest: 'Add them, drag them, link them to one name or let each hold its own. It is kept the way you left it.',
     path: '/pulse',
     sweep: 'all',
+    /* on a phone or a tablet the room opens on its four charts: the desk's phone page opens on one chart, mostly empty at
+       the top of the window (the audit's L-10) */
+    phoneFirst: '/pulse/board',
     rows: [
       { title: 'The desk', says: 'The chart beside the hedging at every strike, the setups and the earnings under them.', path: '/pulse' },
       { title: 'Four charts', says: 'Four names at once, each with its own timeframe and overlays.', path: '/pulse/board' },
@@ -162,12 +165,15 @@ const ROOMS: Room[] = [
       { title: 'Dark pool', says: 'Off-exchange crosses, largest first.', path: '/trace/dark-pool' },
       { title: 'Screener', says: 'Every contract, filtered your way.', path: '/trace/screener' },
     ],
+    /* the room's other pages, named (the audit's L-20: four rows read as the whole room) */
+    more: 'And six more pages: Footprints, 0DTE, Multi-leg, Compare, Watchers and Windows.',
   },
   {
     id: 'weigher',
     glyph: 'weigher',
     kind: 'The scale',
-    name: 'The Weigher',
+    /* the terminal's own name for it — the rail, the footer, the tab (the audit's L-17: "The Weigher" here, "Weigher" there) */
+    name: 'Weigher',
     lead: 'Weigh any contract before you take it.',
     rest: 'The chart, the chain and your watchlist on one desk.',
     path: '/weigher',
@@ -194,7 +200,7 @@ const ROOMS: Room[] = [
       { title: 'News', says: 'The wire, on a map.', path: '/dossier/news' },
       { title: 'Insiders', says: 'Who filed, what, and when.', path: '/dossier/insiders' },
       { title: 'Congress', says: 'Trades disclosed by members of Congress.', path: '/dossier/congress' },
-      { title: 'Stocks', says: 'A plain read of any name: strong, good, caution or poor.', path: '/dossier/stocks' },
+      { title: 'Stocks', says: 'How every name screens on momentum, quality, flow and news.', path: '/dossier/stocks' },
     ],
   },
   {
@@ -220,7 +226,7 @@ const ROOM_COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven',
 /* A READ, NEVER AN INSTRUCTION — every line true of the terminal today */
 const IT_DOES = [
   'Shows where dealer hedging sits, and redraws it as the day moves',
-  'Reads a contract against that and says it in a word: strong, good, caution or poor',
+  'Reads a contract against that, and says in plain words why it was chosen and what would retire it',
   'Keeps a setup current: watch while it forms, active while it holds, fading when it breaks',
   'Explains its reads in plain English',
 ];
@@ -230,7 +236,8 @@ const IT_NEVER_SAID = 'It never tells you what to buy or sell, places an order (
 
 /* WHAT IT PRODUCES, NEVER HOW (the brief of 2026-10-03: "Recipe stays private. Result is visible" — no formula, weighting,
    threshold or assumption that would let the engine be rebuilt). The kinds are /legal/data's, in three: a name and a line
-   each (2026-10-06 — the directive: "no item lists. 'The Data page, in full' carries the detail"). */
+   each (2026-10-06 — the directive: "no item lists. 'The Data page, in full' carries the detail" — the page is "Data
+   sources", and is called that here: the audit's L-17). /legal/data says the same three since 2026-10-09 (OU-L4). */
 const KINDS: { name: string; says: string }[] = [
   { name: 'Observed', says: 'What the market printed: trades, quotes, open interest, filings.' },
   { name: 'Calculated', says: 'Worked out from what was observed, by fixed rules.' },
@@ -244,10 +251,10 @@ type Sold = Exclude<PlanKey, 'lifetime'>;
 const PLAN_ORDER: Sold[] = ['pinpoint', 'compass'];
 const RECOMMENDED: Sold = 'compass';
 
-/* WHAT EACH PLAN HOLDS — one list (the plans side by side read it whole). A line marked `soon` is sold with the plan but
-   not open yet, and says so: Community is behind the terminal's "coming soon" wall. Re-deciding a plan is changing its
-   letters here. */
-type Holds = boolean | 'soon';
+/* WHAT EACH PLAN HOLDS — one list (the plans side by side read it whole). Only what is open today: Community, behind the
+   terminal's "coming soon" wall, was sold here as "Soon" until 2026-10-09 (the audit's X7.16 — it left the menu on
+   2026-09-30). Re-deciding a plan is changing its letters here. */
+type Holds = boolean;
 interface PlanRow {
   text: string;
   glyph?: GlyphName;
@@ -260,10 +267,9 @@ const PLAN_ROWS: PlanRow[] = [
   { text: 'Trace, the tape and the dark pool', glyph: 'trace', in: { pinpoint: true, compass: true } },
   { text: 'Alerts on any level', glyph: 'alerts', in: { pinpoint: true, compass: true } },
   { text: 'Compass, contracts that fit the levels', glyph: 'compass', in: { pinpoint: false, compass: true } },
-  { text: 'The Weigher, for any contract you name', glyph: 'weigher', in: { pinpoint: false, compass: true } },
+  { text: 'Weigher, for any contract you name', glyph: 'weigher', in: { pinpoint: false, compass: true } },
   { text: 'Dossier: news, earnings, insiders, Congress, stocks', glyph: 'dossier', in: { pinpoint: false, compass: true } },
   { text: 'Practice: paper trading, backtesting and the journal', glyph: 'practice', in: { pinpoint: false, compass: true } },
-  { text: "Community, the traders' room", glyph: 'community', in: { pinpoint: false, compass: 'soon' } },
 ];
 
 /* EACH PLAN, IN TWO LINES (the brief: "Plan, Price, Who it's for, Main difference, CTA") — who it is for, said from the
@@ -274,7 +280,7 @@ const PLAN_FOR: Record<Sold, string> = {
 };
 const PLAN_HOLDS: Record<Sold, string> = {
   pinpoint: 'Pulse, Terrain, Pinpoint, Trace and alerts.',
-  compass: 'Everything in Pinpoint, plus Compass, the Weigher, Dossier and Practice.',
+  compass: 'Everything in Pinpoint, plus Compass, Weigher, Dossier and Practice.',
 };
 const PLAN_GLYPH: Record<Sold, GlyphName> = { pinpoint: 'pinpoint', compass: 'compass' };
 
@@ -291,7 +297,7 @@ const IN_PLACE_OF: { glyph: GlyphName; text: string; room: string }[] = [
 
 /* THE QUESTIONS A BUYER ASKS (kept to purchase objections — not product documentation). No refunds, said kindly, here and
    never as a banner. */
-const FAQ: { q: string; a: string }[] = [
+const FAQ: { q: string; a: ReactNode }[] = [
   {
     q: 'What is Slayer Terminal?',
     a: 'A terminal for trading US stocks and options. It puts where options positions sit, the levels they make, what is trading right now and what was filed on one screen, and keeps it current as the session moves.',
@@ -303,7 +309,7 @@ const FAQ: { q: string; a: string }[] = [
   { q: 'What markets are supported?', a: 'US-listed stocks and ETFs and their options, and the SPX, NDX and RUT indexes. Paper trading is options only.' },
   {
     q: 'Where does the data come from?',
-    a: 'From the market’s own record: trades and quotes for US stocks and options, open interest as the exchanges publish it, and public filings. The Data page lists what every number stands on.',
+    a: 'From the market’s own record: trades and quotes for US stocks and options, open interest as the exchanges publish it, and public filings. The Data sources page lists what every number stands on.',
   },
   {
     q: 'Is the data real-time?',
@@ -311,19 +317,40 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What does each room do?',
-    a: 'Pulse is your desk of live panels. Compass picks contracts that fit today’s levels. Terrain draws positioning on the chart. Pinpoint shows where it concentrates and where hedging flips. Trace follows every print as it crosses. The Weigher weighs any contract, Dossier keeps the file on a name, and Practice trades with paper money.',
+    a: 'Pulse is your desk of live panels. Compass picks contracts that fit today’s levels. Terrain draws positioning on the chart. Pinpoint shows where it concentrates and where hedging flips. Trace follows every print as it crosses. Weigher shows what any contract would return at every price, Dossier keeps the file on a name, and Practice trades with paper money.',
   },
   {
     q: 'What is included in each plan?',
-    a: 'Pinpoint holds Pulse, Terrain, Pinpoint, Trace and alerts. Compass adds Compass, the Weigher, Dossier and Practice. The full list is under the plans.',
+    a: 'Pinpoint holds Pulse, Terrain, Pinpoint, Trace and alerts. Compass adds Compass, Weigher, Dossier and Practice. The full list is under the plans.',
   },
+  /* the period said once, in the same words as the prices' line (the audit's L-21) */
   { q: 'Can I cancel?', a: 'Yes, any time in Settings. Your plan runs to the end of the period you paid for.' },
   {
     q: 'Are there refunds?',
-    a: 'We don’t offer refunds. Making an account is free, so look around before you pay. If a charge ever looks wrong, write to billing@slayerterminal.com and a person will look into it.',
+    a: (
+      <>
+        We don’t offer refunds, so look around before you pay. If a charge ever looks wrong, write to{' '}
+        <a href={`mailto:${COMPANY.billing}`} className="hit text-textPrimary underline decoration-borderMuted underline-offset-4 hover:decoration-textPrimary">
+          {COMPANY.billing}
+        </a>{' '}
+        and a person will look into it.
+      </>
+    ),
   },
   { q: 'Does Slayer place trades?', a: 'No. Slayer is not a broker and never places an order. Practice trades with paper money, and nothing in it reaches a broker.' },
   { q: 'Is Slayer financial advice?', a: 'No. Slayer shows the market and how it is positioned; it never tells you what to buy or sell. Every decision is yours.' },
+];
+
+/* WHAT THE WORDS MEAN (2026-10-09, the audit's L-18: "call wall", "flip", "the supreme" and "dealer hedging" are on the
+   page from its first screen, and nowhere said). Each a plain line, what the word names — never how it is worked out
+   (the recipe stays private) and never what to do at it. The terminal's own glossary says the same (data/terms.ts). */
+const WORDS: { term: string; says: string }[] = [
+  { term: 'Dealer hedging', says: 'The stock that option dealers trade to stay neutral as price moves. Where it is heavy, it can absorb a move or push it along.' },
+  { term: 'Positioning', says: 'Where the open options contracts sit, strike by strike and date by date.' },
+  { term: 'Call wall', says: 'The strike above price with the most call-side hedging. Rallies have often stalled there.' },
+  { term: 'Put wall', says: 'The strike below price with the most put-side hedging. Dips have often held there.' },
+  { term: 'Flip', says: 'The price where dealer hedging changes sides: above it moves tend to be absorbed, below it pushed along.' },
+  { term: 'The supreme', says: 'The single largest strike on the whole book: the level that matters most today.' },
 ];
 
 /* ---- the pieces ---------------------------------------------------------------------------- */
@@ -394,7 +421,7 @@ const Statement = ({ title, aside, id }: { title: string; aside?: ReactNode; id?
   const ref = useArrival<HTMLDivElement>();
   return (
     <div ref={ref} id={id} className="landing-lines mx-auto max-w-[56rem] text-center">
-      <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[1] text-[2.25rem] sm:text-[3rem] lg:text-[3.75rem] [text-wrap:balance] outline-none">{title}</h2>
+      <h2 className="landing-line landing-settle [--i:0] landing-display font-light tracking-[-0.03em] leading-[1] text-[2.25rem] sm:text-[2.625rem] lg:text-[3.125rem] [text-wrap:balance] outline-none">{title}</h2>
       {aside && <p className="landing-line [--i:1] mt-6 mx-auto max-w-[40rem] text-[1rem] leading-relaxed text-textSecondary [text-wrap:balance]">{aside}</p>}
     </div>
   );
@@ -495,7 +522,7 @@ const LitLines = ({ lines, className = '' }: { lines: { text: string; ink: strin
     and a ghost is a hairline. UNDER THE POINTER THE FOIL ANSWERS (v5, 2026-10-05: the silver "used slightly more"): the
     solid takes the foil as its surface, sweeping across it; the ghost takes it as its edge (index.css .door-foil,
     .door-edge). NO GROWING UNDER THE POINTER (2026-09-20: "look laggy"); only a press gives. */
-const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: { children: ReactNode; onClick?: () => void; href: string; kind?: 'solid' | 'ghost'; size?: 'lg' | 'sm'; testId?: string }) => {
+const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId, className = '' }: { children: ReactNode; onClick?: () => void; href: string; kind?: 'solid' | 'ghost'; size?: 'lg' | 'sm'; testId?: string; className?: string }) => {
   const fill = kind === 'solid' ? 'door-foil door-foil-rest bg-textPrimary text-canvas' : 'door-edge border border-borderMuted text-textPrimary hover:border-transparent hover:bg-ink/[0.05]';
   return (
     <a
@@ -506,7 +533,7 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
         onClick();
       }}
       data-landing-door={testId}
-      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[0.9375rem]' : `h-9 px-4 text-[0.8125rem] ${kind === 'ghost' ? HIT_SM : ''}`} ${fill}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 ease-out active:scale-[0.98] active:duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-silver ${size === 'lg' ? 'h-12 px-7 text-[0.9375rem]' : `h-9 px-4 text-[0.8125rem] ${kind === 'ghost' ? HIT_SM : ''}`} ${fill} ${className}`}
     >
       {children}
     </a>
@@ -516,6 +543,12 @@ const Pill = ({ children, onClick, href, kind = 'solid', size = 'lg', testId }: 
 /** A SMALL DOOR'S REACH: a 36 px pill takes a hit area of 48 — 44 at least, as a finger needs (2026-10-06 — the
     directive's phone pass) — without changing how it looks (an outline door's ::before is free; a solid one's is its foil) */
 const HIT_SM = "relative before:content-[''] before:absolute before:-inset-y-1.5 before:inset-x-0";
+
+/** Every arrival inside a block stands as arrived, at once */
+const arrive = (block: Element) => {
+  block.querySelectorAll<HTMLElement>('[data-arrival="wait"]').forEach(el => (el.dataset.arrival = 'in'));
+  if (block instanceof HTMLElement && block.dataset.arrival === 'wait') block.dataset.arrival = 'in';
+};
 
 /** A jump along the page glides — unless the visitor asked their system for less motion: then it is a cut */
 const glideOrCut = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
@@ -528,6 +561,9 @@ const toAnchor = (href: string) => {
   if (location.hash !== href) history.pushState(null, '', href);
   const to = document.querySelector<HTMLElement>(href);
   if (!to) return;
+  /* a section reached by a jump stands arrived: its words were still coming into focus as the glide landed (the audit's
+     L-12 — "Asked before you buy." blurred, the mail door a third lit) */
+  arrive(to.closest('[data-landing-section]') ?? to);
   to.scrollIntoView({ behavior: glideOrCut(), block: 'start' });
   const named = to.dataset.focus ? document.querySelector<HTMLElement>(to.dataset.focus) : null;
   const head = named ?? to.querySelector<HTMLElement>('h2') ?? to;
@@ -568,6 +604,9 @@ const Nav = ({ ground }: { ground: Ground }) => {
   const { scrollY } = useScroll();
   const [lifted, setLifted] = useState(false);
   useMotionValueEvent(scrollY, 'change', y => setLifted(y > 24));
+  /* A JUMP LEAVES NO STRAY HOVER (the audit's L-7): the bar lifts into its pill under a pointer that has not moved, and the
+     tint went to whichever word was now under it — the hover comes back when the pointer moves */
+  const [jumped, setJumped] = useState(false);
   /* THE PHONE'S MENU: the page's own doors as a small sheet under the bar, rows on hairlines. It closes on a pick, on
      Escape (the keys go back to its button), on a tap outside it, and when the page scrolls on from under it. */
   const [menu, setMenu] = useState(false);
@@ -621,6 +660,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
   return (
     <header data-theme={ground} className="fixed top-0 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pt-2.5 sm:pt-3.5 pointer-events-none" data-landing-nav={ground} data-lifted={lifted || undefined}>
       <div
+        onPointerMove={jumped ? () => setJumped(false) : undefined}
         className={`pointer-events-auto relative w-full h-[3.25rem] flex items-center gap-2 sm:gap-4 rounded-full border ${glide} ${
           lifted ? 'max-w-[47.5rem] pl-2.5 pr-1.5 border-borderSubtle bg-panel shadow-[0_1rem_3.125rem_-1.25rem_rgb(0_0_0/0.55)]' : 'max-w-[calc(var(--landing-col)_-_2rem)] pl-1 sm:pl-2 lg:pl-6 pr-0 sm:pr-1 lg:pr-5 border-transparent bg-transparent'
         }`}
@@ -641,9 +681,10 @@ const Nav = ({ ground }: { ground: Ground }) => {
               href={l.href}
               onClick={e => {
                 e.preventDefault();
+                setJumped(true);
                 toAnchor(l.href);
               }}
-              className="h-8 px-3.5 inline-flex items-center rounded-full text-[0.84375rem] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver whitespace-nowrap"
+              className={`h-8 px-3.5 inline-flex items-center rounded-full text-[0.84375rem] text-textSecondary ${jumped ? '' : 'hover:text-textPrimary hover:bg-ink/[0.06]'} transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver whitespace-nowrap`}
             >
               {l.label}
             </a>
@@ -714,19 +755,19 @@ const Nav = ({ ground }: { ground: Ground }) => {
                 <ArrowRight className="w-4 h-4 text-textMuted" aria-hidden="true" />
               </a>
             ))}
+            {/* the page's primary door, as it is everywhere else on it: the foil at rest (the audit's L-24 — a flat ink pill) */}
             <div className="pt-3 pb-4">
-              <a
+              <Pill
                 href="/signup"
-                onClick={e => {
-                  e.preventDefault();
+                onClick={() => {
                   setMenu(false);
                   navigate('/signup');
                 }}
-                className="h-12 flex items-center justify-center rounded-full text-[0.9375rem] font-medium bg-textPrimary text-panel"
-                data-landing-door="menu"
+                testId="menu"
+                className="w-full"
               >
                 Sign up free
-              </a>
+              </Pill>
             </div>
           </motion.nav>
         )}
@@ -737,7 +778,7 @@ const Nav = ({ ground }: { ground: Ground }) => {
 
 /** THE CUE: the page goes on (a foil dot down a hairline, three times, then still) */
 const Cue = ({ className = '' }: { className?: string }) => (
-  <div aria-hidden="true" className={`landing-rise [--rise-delay:900ms] flex flex-col items-center gap-3 ${className}`}>
+  <div aria-hidden="true" className={`landing-rise [--rise-delay:600ms] flex flex-col items-center gap-3 ${className}`}>
     <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
       <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
     </span>
@@ -750,7 +791,7 @@ const FirstScreen = ({ doors }: { doors: ReactNode }) => (
   <Wrap className="relative min-h-[100svh] flex flex-col items-center justify-center text-center pt-[6.5rem] pb-[6rem]" data-landing-hero>
     <Quote className="text-[clamp(2.4rem,9.6vw,4rem)] lg:text-[clamp(4rem,min(8.4vw,14.5svh),8.5rem)]" />
     <Tease className="mt-8 max-w-[54rem]" />
-    <div className="landing-rise [--rise-delay:700ms] mt-9 flex flex-wrap items-center justify-center gap-3" data-landing-hero-doors>
+    <div className="landing-rise [--rise-delay:420ms] mt-9 flex flex-wrap items-center justify-center gap-3" data-landing-hero-doors>
       {doors}
     </div>
     <Cue className="absolute bottom-7 left-1/2 -translate-x-1/2" />
@@ -762,6 +803,7 @@ const FirstScreen = ({ doors }: { doors: ReactNode }) => (
 const Reveal = () => {
   const ground = useBlockGround();
   const small = useStacked();
+  const calm = useReducedMotion();
   const head = useArrival<HTMLDivElement>();
   return (
     <Wrap className="pb-[4vh] md:pb-[6vh]" data-landing-reveal>
@@ -772,8 +814,17 @@ const Reveal = () => {
       </div>
       <figure className="mt-8 lg:mt-10" data-landing-hero-window>
         {/* on a phone the window stands at most 70% of the screen, its picture cut at the foot (it stood 740 px tall) */}
-        <TerminalWindow path={small ? HERO.phone : HERO.path} theme={ground} desk={!small} natural boot="switch" cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined} />
-        <figcaption className="mt-4 text-[0.8125rem] text-textMuted">The terminal itself, in use — played three times as fast.</figcaption>
+        <TerminalWindow
+          path={small ? HERO.phone : HERO.path}
+          title={small ? 'Compass, the board' : 'Pulse, the desk'}
+          theme={ground}
+          desk={!small}
+          natural
+          boot="switch"
+          cap={small ? 'calc(70svh - 2.5rem - 2px)' : undefined}
+        />
+        {/* where nothing plays, the caption says what stands there (the audit's L-14) */}
+        <figcaption className="mt-4 text-[0.8125rem] text-textMuted">{calm ? 'The terminal itself, as it stood in use.' : 'The terminal itself, in use — played three times as fast.'}</figcaption>
       </figure>
     </Wrap>
   );
@@ -954,11 +1005,8 @@ const Plan = ({ planKey, onChoose }: { planKey: Sold; onChoose: (key: Sold) => v
 /** EVERY PLAN, SIDE BY SIDE — PLAN_ROWS read whole, folded under its own door so the prices stay the end of the section */
 const Compare = () => {
   const [open, setOpen] = useState(false);
-  /* "Soon" is a ghost pill, outlined (the Logo System's own) */
   const mark = (h: Holds) =>
-    h === 'soon' ? (
-      <span className="h-[1.25rem] px-2 inline-flex items-center rounded-full border border-borderMuted text-[0.6875rem] font-medium text-textSecondary">Soon</span>
-    ) : h ? (
+    h ? (
       <>
         <Check className="w-4 h-4 text-textPrimary" aria-hidden="true" />
         <span className="sr-only">Included</span>
@@ -1033,7 +1081,7 @@ const Compare = () => {
     the length": the eleven answers stood open, a screen and a half of the page). The WAI-ARIA disclosure: a button in the
     question's heading, the answer a region it names. A closed answer is hidden until found, so the page's find opens the
     one it finds (set on the element itself: this React writes `hidden` as a plain switch). */
-const Question = ({ q, a, i }: { q: string; a: string; i: number }) => {
+const Question = ({ q, a, i }: { q: string; a: ReactNode; i: number }) => {
   const [open, setOpen] = useState(false);
   const body = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
@@ -1097,6 +1145,9 @@ const Page = () => {
     let raf = 0;
     const landed = (e: FocusEvent) => {
       const el = e.target;
+      /* the keys on a control still arriving: it stands arrived (the audit's L-12 — the mail door was a third lit) */
+      const waiting = el instanceof HTMLElement ? el.closest<HTMLElement>('[data-arrival="wait"]') : null;
+      if (waiting) waiting.dataset.arrival = 'in';
       if (!(el instanceof HTMLElement) || el.tabIndex < 0 || el.closest('header')) return;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {

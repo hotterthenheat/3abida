@@ -23,15 +23,51 @@
 import { useSyncExternalStore } from 'react';
 
 export type PlanKey = 'pinpoint' | 'compass' | 'lifetime';
+/** How a plan is paid for: each month, or a year at a time */
+export type BillingPeriod = 'monthly' | 'yearly';
 
 /** The tiers as the landing prices them. Noah, 2026-09-19: Pinpoint $75 and Compass $180 (they were $125 and $275).
-    Each plan's line is the Logo System's (Web and App · Pricing, 2026-09-30). */
-export const PLANS: { key: PlanKey; name: string; kicker: string; price: string; period: string; monthly: number | null }[] = [
-  { key: 'pinpoint', name: 'Pinpoint', kicker: 'Where dealer hedging holds and pushes price.', price: '$75', period: '/ month', monthly: 75 },
-  { key: 'compass', name: 'Compass', kicker: 'Contracts that fit the levels right now.', price: '$180', period: '/ month', monthly: 180 },
-  { key: 'lifetime', name: 'Lifetime', kicker: 'One payment, every desk, for good.', price: 'Custom', period: 'one payment', monthly: null },
+    Each plan's line is the Logo System's (Web and App · Pricing, 2026-09-30).
+    YEARLY (2026-10-09, the ideas report's "annual billing is the cheapest lever"): a year paid at once is ten months'
+    price — two months free — and is said as what it comes to a month, with the year's total beside it: Pinpoint $750 a
+    year ($62.50 a month), Compass $1,800 ($150). Lifetime has no year. */
+export const PLANS: { key: PlanKey; name: string; kicker: string; price: string; period: string; monthly: number | null; yearly: number | null }[] = [
+  { key: 'pinpoint', name: 'Pinpoint', kicker: 'Where dealer hedging holds and pushes price.', price: '$75', period: '/ month', monthly: 75, yearly: 750 },
+  { key: 'compass', name: 'Compass', kicker: 'Contracts that fit the levels right now.', price: '$180', period: '/ month', monthly: 180, yearly: 1800 },
+  { key: 'lifetime', name: 'Lifetime', kicker: 'One payment, every desk, for good.', price: 'Custom', period: 'one payment', monthly: null, yearly: null },
 ];
 export const planOf = (key: PlanKey) => PLANS.find(p => p.key === key) ?? PLANS[1];
+
+/** "$62.50", "$150", "$1,800": whole dollars without cents, a part dollar with them */
+export const dollars = (n: number): string => `$${n.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+
+/** A plan's price as a period says it: what it comes to a month, and — billed yearly — the year's total and what it
+    saves against twelve months. The currency is the line's own ("$75 USD / month"). */
+export interface PriceLine {
+  /** "$75", "$62.50" — a month */
+  each: string;
+  /** "USD / month" */
+  unit: string;
+  /** billed yearly: the year's total, "$750 USD"; null monthly */
+  year: string | null;
+  /** billed yearly: "Two months free" — against twelve months at the monthly price */
+  saves: string | null;
+}
+export function priceLine(key: PlanKey, period: BillingPeriod): PriceLine {
+  const p = planOf(key);
+  if (period === 'yearly' && p.yearly != null && p.monthly != null) {
+    const free = Math.round((p.monthly * 12 - p.yearly) / p.monthly);
+    return {
+      each: dollars(p.yearly / 12),
+      unit: 'USD / month',
+      year: `${dollars(p.yearly)} USD`,
+      saves: free > 0 ? `${['No', 'One', 'Two', 'Three', 'Four'][free] ?? free} month${free === 1 ? '' : 's'} free` : null,
+    };
+  }
+  return { each: p.price, unit: p.monthly != null ? `USD ${p.period}` : p.period, year: null, saves: null };
+}
+/** ?billing= as written in an address: yearly, else monthly */
+export const periodOf = (raw: string | null | undefined): BillingPeriod => (raw === 'yearly' ? 'yearly' : 'monthly');
 
 /** Stripe's standings for a plan, less the trial's: there is no trial — an account is free and a plan is paid for (the
     owner, 2026-10-01) */

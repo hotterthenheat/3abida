@@ -38,7 +38,17 @@
   the journal — says that thing's name here (`SayPage`),
   and the tab reads "SPY from Jun 29 · Backtest". Until it
   does, the parent page's own name stands; only a segment
-  that looks like a ticker (NVDA, BRK.B) is read as one.
+  that looks like a ticker (NVDA, BRK.B) under a page
+  built round a name (a stock's, an earnings page) is
+  read as one — /practice/backtest/abc123 read as a
+  ticker, "ABC123" (the audit's R5, 2026-10-09).
+
+  ONE ADDRESS, HOWEVER IT IS TYPED (2026-10-09, the
+  audit's R3): the router opens /About and /STATUS/ as
+  /about and /status, so the lookup reads the address in
+  lower case without its trailing slash. And every page
+  says its own address to a reader that asks (og:url and
+  the canonical link), on the site's own domain.
 ==================================================
 */
 
@@ -48,6 +58,7 @@ import { GEX_SUBPAGES } from '../../pages/pinpoint/subnav';
 import { TRACE_SUBPAGES } from '../../pages/trace/subnav';
 import { RECORD_SUBPAGES } from '../../pages/record/subnav';
 import { PRACTICE_SUBPAGES } from '../../pages/practice/subnav';
+import { COMPANY } from '../../data/company';
 
 const SITE = 'Slayer Terminal';
 const LANDING = {
@@ -74,17 +85,26 @@ const TOP: Record<string, Meta> = {
   /* the pages outside the terminal (pages/outside, pages/auth — the Logo System's Web and App, 2026-10-01) */
   '/status': page('Status', 'What’s up and what’s new: each part of the terminal, the market’s last 30 days and the changelog.'),
   '/about': page('About', 'Slayer Terminal gathers what moves a price into one terminal: the prints, the positions, the levels, the filings.'),
-  '/signup': page('Make your account', 'It’s free. Choose a plan when you’re ready.'),
+  '/signup': page('Sign up', 'An account is free. Choose a plan when you’re ready.'),
   '/signin': page('Sign in', 'Your desks are where you left them.'),
   '/reset': page('Reset your password', 'We’ll send a link. It works for one hour.'),
-  '/verified': page('You’re in', 'Your email is confirmed. Start on the landing desk.'),
+  '/verified': page('You’re in', 'Your email is confirmed. Start on Pulse, the live desk.'),
   '/expired': page('That link has expired', 'Links work for one hour. Send a fresh one.'),
   '/maintenance': page('Down for maintenance', 'Follow along on the status page.'),
   '/legal/terms': page('Terms', 'The terms for using Slayer Terminal.', 'Legal'),
   '/legal/privacy': page('Privacy', 'What we keep about you, why, and how to have it removed.', 'Legal'),
   '/legal/risk': page('Risk disclosure', 'Trading options can lose money quickly, and can lose all of it.', 'Legal'),
   '/legal/refunds': page('Refund policy', 'We don’t offer refunds. Making an account is free, so see what each plan holds before you pay.', 'Legal'),
-  '/legal/data': page('Data sources', 'What every number stands on: live, measured, derived or model.', 'Legal'),
+  '/legal/data': page('Data sources', 'What every number stands on: observed, calculated or modeled.', 'Legal'),
+};
+/* the legal documents and the settings' sections that exist — any other is a page that is not there (App.tsx) */
+const NOT_FOUND: Meta = { title: `Page not found · ${SITE}`, description: LANDING.description };
+
+/** A name read off a handle ("zak" → "Zak"), as the invite page reads it (pages/outside/Invite.tsx inviterOf): only a
+    plain one, of 24 letters at most */
+const handleName = (handle: string): string | null => {
+  const clean = handle.replace(/[^a-z0-9._]/gi, '');
+  return clean && clean === handle && clean.length <= 24 && /[a-z]/i.test(clean) ? clean.charAt(0).toUpperCase() + clean.slice(1) : null;
 };
 
 /* each is the line the section itself wears under its heading (pages/settings/Settings.tsx) */
@@ -146,34 +166,57 @@ export const SayPage = ({ words }: { words: string | null | undefined }) => {
   }, [words]);
   return null;
 };
+/** A part of an address as typed — a broken escape ("%E0") read as it stands, not thrown */
+const decoded = (part: string): string => {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
+};
 /** A segment of an address that is a NAME (a ticker), not an id */
 const TICKER = /^[A-Za-z^][A-Za-z0-9.^-]{0,5}$/;
 
-export function metaFor(pathname: string, own: string | null = null): Meta {
-  const path = pathname.replace(/\/+$/, '') || '/';
+export function metaFor(pathname: string, own: string | null = null, search = ''): Meta {
+  /* the address as the router reads it: no trailing slash, any case (a ticker's part keeps its own, below) */
+  const exact = pathname.replace(/\/+$/, '') || '/';
+  const path = exact.toLowerCase();
   if (path === '/') return LANDING;
   if (TOP[path]) return TOP[path];
 
+  /* an invite and its welcome name who sent them */
+  if (path.startsWith('/i/')) {
+    /* the code is "handle-KEY"; a code with no handle names nobody */
+    const code = decoded(exact.split('/')[2] ?? '');
+    const who = code.includes('-') ? handleName(code.split('-')[0]) : null;
+    return page(who ? `${who} invited you` : 'An invite', 'An invite to Slayer Terminal: look around the terminal, and sign up free if you want to stay.');
+  }
+  if (path === '/welcome') {
+    const who = handleName(new URLSearchParams(search).get('from') ?? '');
+    return page('Welcome', who ? `Brought in by ${who}. Start on Pulse, the live desk.` : 'Start on Pulse, the live desk.');
+  }
+  if (path.startsWith('/legal/')) return NOT_FOUND;
+
   if (path === '/settings' || path.startsWith('/settings/')) {
     const s = path.split('/')[2] ?? 'account';
-    return SETTINGS[s] ? page(SETTINGS_NAME[s], SETTINGS[s], 'Settings') : page('Settings', SETTINGS.account);
+    return SETTINGS[s] ? page(SETTINGS_NAME[s], SETTINGS[s], 'Settings') : NOT_FOUND;
   }
   /* a setup's own page: /compass/NVDA-480-C-weekly-… — the name is the address's first part */
   if (path.startsWith('/compass/')) {
-    const name = decodeURIComponent(path.split('/')[2] ?? '').split('-')[0].toUpperCase();
+    const name = decoded(path.split('/')[2] ?? '').split('-')[0].toUpperCase();
     return page(name ? `${name} setup` : 'Setup', 'One setup on its own page: why it was chosen, the levels it leans on, and its live state.', 'Compass');
   }
   for (const sec of SECTIONS) {
     if (path !== sec.base && !path.startsWith(`${sec.base}/`)) continue;
-    const exact = sec.pages.find(p => p.path === path);
-    if (exact) return page(exact.label, sentence(exact.subtitle), sec.name);
+    const at = sec.pages.find(p => p.path === path);
+    if (at) return page(at.label, sentence(at.subtitle), sec.name);
     /* a page under one of the section's pages: a NAME's own (/record/stocks/NVDA — the segment is the name), or a thing
        with an id (/practice/backtest/smuaf0fpb3x, /practice/journal/<account>/<trade>) that says its own words, or none */
     const parent = sec.pages.find(p => path.startsWith(`${p.path}/`));
     if (parent) {
       if (own) return page(own, sentence(parent.subtitle), parent.label);
-      const seg = decodeURIComponent(path.slice(parent.path.length + 1).split('/')[0]);
-      if (!TICKER.test(seg)) return page(parent.label, sentence(parent.subtitle), sec.name);
+      const seg = decoded(exact.slice(parent.path.length + 1).split('/')[0]);
+      if (!NAME_PAGE[parent.path] || !TICKER.test(seg)) return page(parent.label, sentence(parent.subtitle), sec.name);
       const name = seg.toUpperCase();
       const about = NAME_PAGE[parent.path]?.(name) ?? sentence(parent.subtitle);
       return page(`${name} · ${parent.label}`, about, sec.name);
@@ -187,18 +230,34 @@ const setMeta = (selector: string, content: string) => {
   document.head.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', content);
 };
 
+/** The page's own address on the site's domain — what og:url and the canonical link say (the audit's F3: og:url stayed
+    the front page's on every page, and there was no canonical) */
+export const addressOf = (pathname: string): string => `https://${COMPANY.site}${(pathname.replace(/\/+$/, '') || '/').toLowerCase()}`;
+const setCanonical = (href: string) => {
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.appendChild(link);
+  }
+  link.href = href;
+};
+
 const PageMeta = () => {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const own = useSaid();
   useEffect(() => {
-    const m = metaFor(pathname, own);
+    const m = metaFor(pathname, own, search);
     document.title = m.title;
     setMeta('meta[name="description"]', m.description);
     setMeta('meta[property="og:title"]', m.title);
     setMeta('meta[property="og:description"]', m.description);
     setMeta('meta[name="twitter:title"]', m.title);
     setMeta('meta[name="twitter:description"]', m.description);
-  }, [pathname, own]);
+    const href = addressOf(pathname);
+    setMeta('meta[property="og:url"]', href);
+    setCanonical(href);
+  }, [pathname, own, search]);
   return null;
 };
 

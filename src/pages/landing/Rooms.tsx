@@ -68,15 +68,26 @@ export interface Room {
   sweep: Sweep;
   /** its window plays in the page's other theme: the one room that shows it, since the turn was cut */
   other?: boolean;
+  /** on a phone or a tablet, the page the room opens on, ahead of its rows' order (Pulse's four charts: its desk opens on
+      one chart, mostly empty at the top of a phone's window) */
+  phoneFirst?: string;
+  /** the room's other pages, in a line under its rows */
+  more?: string;
 }
 
 /** a page every DWELL; a pointer holds the room until it has been still STILL_FOR */
 const DWELL = 3500;
 const STILL_FOR = 2500;
 
-const pagesOf = (r: Room): string[] => {
+const pagesOf = (r: Room, stacked = false): string[] => {
   const p = r.rows.flatMap(row => (row.path ? [row.path] : []));
-  return p.length ? p : [r.path];
+  const all = p.length ? p : [r.path];
+  return stacked && r.phoneFirst && all.includes(r.phoneFirst) ? [r.phoneFirst, ...all.filter(x => x !== r.phoneFirst)] : all;
+};
+/** what a page of a room is, in its own words: "Compass, the board" (TerminalWindow `title`) */
+const titleOf = (r: Room, path: string): string => {
+  const row = r.rows.find(x => x.path === path);
+  return row ? `${r.name}, ${row.title.charAt(0).toLowerCase()}${row.title.slice(1)}` : r.name;
 };
 const doorName = (name: string) => name.replace(/^The /, 'the ');
 
@@ -104,7 +115,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
     {/* what kind of room, in words (no number: the rooms are not a sequence — the owner's directive, 2026-10-06) */}
     <p className="text-[0.875rem] text-textMuted">{room.kind}</p>
     {/* the room's head wears its glyph, as a product's page head does inside the terminal (brand rules) */}
-    <h3 className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
+    <h3 tabIndex={-1} className="mt-4 flex items-center gap-3.5 text-[2.25rem] sm:text-[2.5rem] landing-display font-light leading-[1] tracking-[-0.03em] outline-none" data-room-head={room.id}>
       <Glyph name={room.glyph} size={26} bare className="shrink-0 size-[1.625rem]" />
       <span className="min-w-0">{room.name}</span>
     </h3>
@@ -144,6 +155,7 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
         );
       })}
     </ul>
+    {room.more && <p className="mt-3 pl-4 text-[0.8125rem] leading-snug text-textMuted" data-room-more>{room.more}</p>}
     <a
       href={door}
       onClick={e => {
