@@ -22,11 +22,12 @@ report under the ID given.
   sentence contradicts its totals (TR-27); Net Flow's net ≠ calls − puts (TR-38); "spread + theta 692%" (TR-6)~~ fixed
   2026-10-10 (data/tape.ts premium ratio and real kinds, LiveTape's sentence off its own numbers, NetFlow's parts add
   up, PrintDrilldown bounded)
-- Clocks mix New York and the browser's zone (~~Trace windows from 00:00~~, Paper's chart axis, ~~Pinpoint "since the
-  open" at 07:55, the rail clock~~) — X2. Partly fixed 2026-10-10: Trace's book is New York's session (flowBook
+- ~~Clocks mix New York and the browser's zone (Trace windows from 00:00, Paper's chart axis, Pinpoint "since the
+  open" at 07:55, the rail clock) — X2~~ fixed 2026-10-10: Trace's book is New York's session (flowBook
   `bookSession`), Pinpoint cuts at 09:30 New York (levelview `sessionCut`), the rail clock reads Settings and names its
-  zone (SessionStrip `railClock`), Terrain and the Weigher draw on New York (StrikeChart `nyClock`). Paper's live chart
-  still follows the Settings clock (machine's by default) — DeskShell passes no `nyClock`.
+  zone (SessionStrip `railClock`), and every StrikeChart draws on New York (`nyClock`) — Terrain, the Weigher, Pulse's
+  chart, the four charts, Paper's and the Backtest's charts (components/review/DeskShell.tsx) and the Journal's trade
+  tape.
 - ~~Pulse panels refresh every 10 s while the rail and chart are live: several prices for one name — X1, Pulse.tsx:131~~
   fixed 2026-10-10 (Pulse hands every panel the live price, `ctx.liveSpot`)
 - ~~Compass "All kinds 99" vs 30 found (double count, CO-3); "found at" is page-open time (CO-5)~~ fixed 2026-10-10 (All
@@ -75,27 +76,27 @@ report under the ID given.
 - ~~Pinpoint Board does not fit at 1440 or 1920 — PP-4~~ fixed 2026-10-10
 - ~~Trace grids: key columns off screen, the sideways scrollbar thousands of px down (autoHeight) — TR-3~~ fixed 2026-10-10
   (pinned key columns, a sticky sideways scroller, TraceBox)
-- Charts leave a third to half of their width empty on the right — X11. Partly fixed 2026-10-10: Terrain, the Weigher
-  (StrikeChart `historyShare`) and Net Flow run near their right edge; Pulse's chart, the four charts and Paper's
-  chart still open at the default 0.64.
+- ~~Charts leave a third to half of their width empty on the right — X11~~ fixed 2026-10-10 (StrikeChart
+  `historyShare`: 0.88 on Terrain, Pulse's chart, the four charts, Paper and the Backtest, 0.9 on the Weigher; Net Flow
+  runs near its right edge)
 - ~~Pulse keeps the old breadcrumb head; the four-chart board a third style — PU-2~~ fixed 2026-10-10 (both wear ShellHead)
 
 ## Keyboard and accessibility
 - ~~Rows open by mouse only (Trace, Pinpoint, Compass Tracker) — X6~~ fixed 2026-10-10 (houseGrid `openRowOnEnter`, keyed
   rows on Building, Targets, the walls and the Matrix; the Tracker's rows open)
 - ~~The search box's highlight scrolls out of view — SH-1~~ fixed 2026-10-10 (the command line keeps its row in view)
-- ~~Search box, alerts drawer, cards~~ and guides do not take or hold focus — X13. Partly fixed 2026-10-10: the command
-  line, the alerts drawer, the print card and 0DTE's full screen are dialogs that take, hold and give back the keys; the
-  "How to read" guides (ui/GuideFocus.tsx) now close on Esc but still do not take or return focus.
+- ~~Search box, alerts drawer, cards and guides do not take or hold focus — X13~~ fixed 2026-10-10: the command line,
+  the alerts drawer, the print card, 0DTE's full screen and the "How to read" guides are dialogs that take, hold and
+  give back the keys (ui/GuideFocus.tsx through ui/layers.ts `useOverlay`, focus back to the door)
 - ~~Invisible wall doors (L-2) and the Community room behind "Coming soon" (SH-16) take focus~~ fixed 2026-10-10
-- ~~1 px focus ring, no skip link, no `<main>`~~, missing h1s — X4. Partly fixed 2026-10-10: a 2 px ring, SkipLink to
-  `<main>` in the shell, the outside pages and the landing; Pulse and the four charts have their h1 (ShellHead).
-  `/terrain` still has no h1.
+- ~~1 px focus ring, no skip link, no `<main>`, missing h1s — X4~~ fixed 2026-10-10: a 2 px ring, SkipLink to `<main>`
+  in the shell, the outside pages and the landing; Pulse and the four charts have their h1 (ShellHead), Terrain its own
+  (pages/terrain/Terrain.tsx, sr-only)
 
 ## Phone
-- Most terminal controls under 44 px — X3. Partly fixed 2026-10-10: the rooms' own controls carry `.hit` (index.css);
-  the shared house controls (ui/DropdownSelect, FilterTabs, CardTabs, GuideDoor, ScopeChip, ExpiryCalendar) do not, and
-  the footer's links (X3.1) are the footer's (never touched).
+- ~~Most terminal controls under 44 px — X3~~ fixed 2026-10-10: the rooms' own controls and every shared house control
+  (ui/DropdownSelect, DropdownMulti, FilterTabs, CardTabs, GuideDoor, ScopeChip, ExpiryCalendar) carry `.hit`, a 44 px
+  box on a coarse pointer (index.css). The footer's links (X3.1) are the footer's (never touched) — the owner's rule.
 - ~~Terrain has no ladder below 1024 px (TE-6); the Weigher's watch column off screen (WE-2); the Journal calendar
   loses Thu–Sat (PR-6); Trace grids show about 2½ columns (TR-7); Pinpoint's head takes 65% of the first screen (PP-8);
   Pinpoint clock labels overlap (PP-6), Compare cuts values (PP-7); News map covered (DO-4); Backtest rules "N…" (PR-5)~~
@@ -105,8 +106,8 @@ report under the ID given.
 - ~~Small type: 45–76% of Pinpoint's text under 11 px; the Weigher's 7.5 px tags — X9~~ fixed 2026-10-10: no word under 11
   px on any page the routes open (chart ticks stay 10) — the house grid heads 11 px in sentence case (houseGrid,
   index.css), every text-[8–10.5px] class in the terminal at 11, the Weigher's ruler and Pinpoint's drawings set their
-  words in pixels off their own width (ui/svgFloor.ts), News's map words at 11 on any screen. The "How to read" guides'
-  drawings (TraceGuide and the rest) are not walked by the check — they open on a press.
+  words in pixels off their own width (ui/svgFloor.ts), News's map words at 11 on any screen. Left (below, Still
+  open): the "How to read" guides' drawings and two pieces the check does not walk.
 - ~~Formats: four date formats, theta with no units (CO-7), "15M" reading as months, mixed decimals and signs~~ fixed
   2026-10-10: one rule, core/format.ts — the true minus, a sign on a change, prices to the cent, big dollars to three
   figures, percent to one decimal (two under 1%), greeks, IV, "Oct 9" and "14:03 ET" — the rooms' formatters on it.
@@ -135,13 +136,17 @@ Whole-page landing windows vs the 11 px rule; "Won %", "The case: strong" and ot
 11 pages into about 6; Pinpoint's shape and the Map's name; plan names matching room names.
 
 ## Still open (2026-10-10)
-After the six streams of 2026-10-09/10, what is left, and why:
-- Paper's live chart axis on the machine's clock (X2.4) — not done: DeskShell passes no `nyClock` for Paper.
-- Pulse's chart, the four charts and Paper's chart still leave room on the right (X11) — not done.
-- "How to read" guides take no focus and give none back (X13) — not done (ui/GuideFocus.tsx).
-- `/terrain` has no h1 (X4.9) — not done.
-- The shared house controls under 44 px on a phone (X3) — not done; the footer's links (X3.1) — footer rule.
-- The Weigher's shape tags, the shared menus' labels (X9) — fixed 2026-10-10 (11 px); the guides' drawings still small.
-- Decimals and signs as one rule across the rooms (formats) — fixed 2026-10-10 (core/format.ts).
+After the ten streams of 2026-10-09/10 (checked in `src` after the shared, speed, ideas and polish merges), what is
+left, and why:
+- The "How to read" guides' drawings set their words at 6–9 units on a fixed viewBox (components/trace/TraceGuide.tsx,
+  gex/WallGuide.tsx, BuildingGuide, TargetsGuide, AheadGuide, weigher/WeigherGuide.tsx, compass/CompassGuide.tsx,
+  SetupGuide, record/*Guide.tsx) — X9, not done: they open on a press, so the floor's check does not walk them; the fix
+  is ui/svgFloor.ts `useSvgFloor`, as the Weigher's ruler has.
+- Two drawn charts under the floor that the check does not reach: the print card's flow chart prints "LARGEST PRINT" in
+  9 px capitals and "THIS PRINT" / "THIS CONTRACT" in 10 px capitals (components/trace/ContractFlowChart.tsx, opened on
+  a press); Pulse's exposure band (components/gex/StrikeExposureBand.tsx, under the chart when its Overlays menu asks)
+  draws its figures at 8–9 px and its spot tag on a literal dark fill and white hairline, not tokens — X9 and the
+  theme rule, not done.
+- The footer's links under 44 px on a phone (X3.1) — the footer is never touched (the owner's rule).
 - The stand-in data items at the top — needs real data (the keys).
 - The owner's call, above — owner's call.

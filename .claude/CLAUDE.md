@@ -82,9 +82,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   and --live-* (theme/tokens.css) are the silver family: the pale silver on black, the deep steel as an ink on paper,
   a silver highlighter with the dark word as a surface; a canvas or chart option reads them through
   readToken/resolveInk. Up-green and down-red (--bull/--bear), the supreme's magenta and the other data colours are
-  unchanged — but a reader may swap the direction pair (2026-10-10, Settings › Appearance, kept as slayer_cvd):
-  `data-cvd="blue-orange"` on the root turns --bull/--bear blue and orange (theme/tokens.css) and puts ▲/▼ before any
-  figure marked `data-dir` (theme.ts dirOf), so direction never rests on hue alone; a new signed figure carries `data-dir`.
+  unchanged — but a reader may change the direction pair (2026-10-10, Settings › Appearance, kept as slayer_cvd and set
+  before the first paint by index.html): `data-cvd` on the root is `blue-orange` (--bull/--bear blue and orange) or
+  `high-contrast` (the pair stronger, the text tiers nearer the lead ink), theme/tokens.css. Under either, ▲/▼ stands
+  before any figure marked `data-dir` (theme.ts dirOf) or wearing `dir-up`/`dir-down` (review/words.ts dirInk), a
+  down-side key dot is a ring (`.cvd-hollow`), the puts' lines are dashed, and the Neon and Market candle themes draw
+  blue and orange with hollow up bodies (gex/candleTheme.ts) — direction never rests on hue alone; a new signed figure
+  carries `data-dir`.
   A user-chosen candle theme ("Neon") or drawing swatch that is lime by name may stay. Type: Helvetica for
   every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font — but for the landing's display words
   (2026-10-06 — the owner's pick, "Inter Display": Windows has no Helvetica, and Arial has no Light, so every light
@@ -415,39 +419,86 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   reads the hand-back as script focus). A new Radix DropdownMenu takes the same handler; a popover's trigger takes the
   mouse's own focus and needs none.
 
-# The terminal after the audit (2026-10-10 — six streams fixed WHAT-REMAINS and built the ideas' shortlist)
+# The terminal after the audit (2026-10-10 — the streams of 2026-10-09/10 fixed WHAT-REMAINS and built the ideas' shortlist)
 - THE HOUSE PIECES every page uses now: a destructive hand acts AT ONCE with an undo chip, never "are you sure?"
   (ui/undo.tsx `undoable` — 6 s, Ctrl+Z runs the newest; Flatten, Close, a new account, "Take them here", delete
   session, delete desk, untrack, clear the log); Esc closes the top layer every time (ui/layers.ts — a new overlay
   joins it, takes focus, traps Tab and gives focus back: ui/useFocusTrap.ts, Modal); a row a click opens also opens
   from the keys (houseGrid `openRowOnEnter` with the `grid-keys` ring for an AG Grid, ui/rowKeys.ts for a div, tr or
-  SVG row); a small control wears `.hit` (`.hit-after` where ::before is taken), a 44 px box on a coarse pointer; the
-  shell, OutsideFrame and the landing have a SkipLink to `<main id="content">`; the focus ring is 2 px, offset 2.
+  SVG row); a small control wears `.hit` (`.hit-after` where ::before is taken), a 44 px box on a coarse pointer —
+  every house trigger and tab has it (DropdownSelect, DropdownMulti, FilterTabs, CardTabs, ExpiryCalendar, GuideDoor,
+  ScopeChip); the shell, OutsideFrame and the landing have a SkipLink to `<main id="content">`; the focus ring is 2 px,
+  offset 2. `useOverlay` and `useEscapeLayer` return `onTop()` — a layer's own key handler acts only while it is on top.
+  The "How to read" guides (ui/GuideFocus.tsx) are dialogs like the rest: the card takes the keys, holds Tab and hands
+  them back to its door. A house menu opened from the keys starts on its checked row.
+- THE TYPE FLOOR (2026-10-10): no word under 11 px in the terminal; a chart's ticks may be 10. The house grid heads are
+  11 px in sentence case, no tracking (houseGrid, index.css). A drawing on a fixed viewBox sets its words through
+  ui/svgFloor.ts `useSvgFloor` (in pixels off its own width); past 1.25× it keeps a minimum width and scrolls sideways,
+  opened on the spot (`useCentredScroll`). The "How to read" guides' drawings are not on the floor yet (WHAT-REMAINS).
+- ONE WAY TO SAY A FIGURE (core/format.ts): the true minus, a sign on a change, prices to the cent, big dollars to three
+  figures, percent to one decimal (two under 1%), the greeks, IV, "Oct 9" and "14:03 ET" — every figure goes through it,
+  and the rooms' formatters are built on it. Never a toFixed of your own on screen.
 - NEW YORK'S CLOCK (core/nyTime.ts — the one module for it): a time of the MARKET's day is New York's whatever the
   reader chose (Trace's book, Pinpoint's session, the Weigher's and Terrain's charts, Compass's dates, the Tracker); the
   rail's clock follows Settings › The desk › Clock and names its zone (SessionStrip `railClock`). StrikeChart takes
   `nyClock` (the axis and crosshair on New York's clock) and `historyShare` (how much of the opening view the bars fill,
-  0.64 by default; Terrain 0.88, the Weigher 0.9, so the tape runs near the right edge). Paper's and Pulse's charts
-  do not pass them yet (WHAT-REMAINS).
+  0.64 by default; Pulse's chart, the four charts, Terrain, Paper and the Backtest 0.88, the Weigher 0.9, so the tape
+  runs near the right edge); every one of those passes `nyClock`, and so does the Journal's trade tape. The chart's
+  Reset pill stands at the bottom middle, clear of the level tags; the exposure ledger fades where it goes on.
 - THE COMMAND LINE (⌘K / Ctrl K, CommandPalette.tsx; the ideas' first pick, Bloomberg's grammar in the house's words):
   a name and a function opens that page on that name ("NVDA flow", "SPY walls", "AAPL chain"); every page has a short
   code of its own (components/layout/commands.ts CODES — one word to one page, the first page claiming it keeps it);
   "SPY alert 480" arms an alert; Actions (rank before Settings rows) and the recents (slayer_palette_recent). It is a
   combobox in a dialog. THE KEYS are one list, components/layout/keys.ts: `?` opens the sheet of the keys that work on
   this page (ShortcutSheet.tsx) and Settings › Keyboard prints them all, from the same list; `/` focuses the page's own
-  search; `MOD` is ⌘ on a Mac and Ctrl elsewhere (the owner is on Windows) — print a chord with `modKey('K')` or
-  PALETTE_KEY, never a literal "⌘K" or "Ctrl K".
+  search; j and k step rows wherever the arrows do (components/layout/rowStepKeys.ts ROW_STEPS); g then a room's letter
+  goes to the room (ROOM_KEYS); `MOD` is ⌘ on a Mac and Ctrl elsewhere (the owner is on Windows) — print a chord with
+  `modKey('K')` or PALETTE_KEY, never a literal "⌘K" or "Ctrl K". "watch NVDA" puts a name on the watchlist
+  (components/layout/watchCommand.ts).
+- THE MARKET STORE (context/marketStore.ts, re-exported by MarketDataContext): a reader subscribes to the KEY it reads —
+  useActiveTicker, useQuote/useSpot, useSnapshot, useScanSnapshot(ms), useFlowTape, useTickSeq, useNow(ms),
+  useLinkedName/useLinkGroups — and the store publishes once a frame: the small reads through useSyncExternalStore, the
+  heavy ones as one transition. Work that must run on every tick, even hidden, takes `onMarketTick`. useMarketData() is
+  kept for the old readers only — no new reader takes it; keep a tick reader in a small leaf. `useNow` has one timer and
+  ONE `subscribe` function per period (an inline one re-subscribed every render and looped). The name the reader last
+  had is remembered (slayer_name; Settings › Opens on wins). Live Tape opens with half a minute of backfill from a
+  hashed stream — never Math.random there. No Worker: paint and compositing, not script, are the cost now (measured
+  2026-10-10: Pulse's script 621 → 414 ms in 20 s, Compass 413 → 228, the Map 371 → 196).
+- LINK GROUPS A–D ACROSS THE SHELL (marketStore `setLinkGroup`, components/link/LinkGroupChip.tsx — letters only, None
+  by default): Terrain's panes, Pulse's panels, the Weigher's desk and the watchlist; a panel that reads a name joins
+  through `useLinkedName`.
+- ONE WATCHLIST OF NAMES (data/nameWatch.ts, slayer_watch_names; components/layout/WatchlistDrawer.tsx, a door on the
+  rail): sections, flags, price, change and the nearest wall or flip; a press sets the name or a link group's. The
+  contract lists stay separate (it links to them).
+- READ THIS (components/read/ReadThis.tsx): a panel's own figures said in three short parts — on the panel now, what it
+  assumes, and what would change it — from templates alone (data/reads.ts, the rooms' own sentences; TraceBox `read`,
+  the Pulse registry's `read`, and the Weigher, Compass and Pinpoint panels). Never a model's words.
+- THE GLOSSARY (/glossary, pages/glossary/Glossary.tsx on data/glossary.ts): every word the terminal defines, each with
+  its group, its kind (Observed, Calculated, Modeled) and what it stands on. A new term goes in data/terms.ts and gets a
+  PLACE row in data/glossary.ts.
+- POP-OUTS (pages/popout: /out/pulse/:key — one Pulse panel — and /out/terrain, bare windows in PopOutFrame): the name,
+  the link groups and the theme keep in step across one desk's windows (components/layout/deskChannel.ts, a
+  BroadcastChannel; the desk is the tab and the windows it opened, sessionStorage slayer_desk_id). A pop-out never
+  writes the desk's storage, and each window runs its own simulator, so its prices differ until a feed is connected.
+- THE FIRST OPEN OF PULSE offers the four preset desks, one line each (pages/workspace/DeskChooser.tsx), once
+  (slayer_desk_chooser). Pinpoint's Map and Targets copy today's levels as a Pine v5 script, a price list or CSV
+  (components/levels/CopyLevels.tsx, data/levelExport.ts).
 - THE SHELL'S SWITCHES (components/layout/shellPrefs.ts, slayer_shell_prefs): the session strip under the signature
   (on — where New York's day stands, pre-market to after hours, and the time to the next phase), the machine's own
   notification for an alert that fires while the tab is hidden (off until asked; the browser asks its own question),
   and an alert said aloud (speechSynthesis, off). Nothing leaves the machine.
 - AN ALERT LIVES PAST ONE FIRING (gex/alertStore.ts): how often it may fire (`repeat`: once, every time, once a bar,
   once a minute), when it ends (`expiresAt`), a snooze (`quietUntil`); after its quiet it is put back on watch from
-  where the market stands, so a crossing it slept through is not a firing. The fired log is kept on this machine
+  where the market stands, so a crossing it slept through is not a firing. An alert may sit on a drawn line (`kind:
+  'line'` — touch, break or bounce; a drawing keeps its id once alerted, and saveDrawings moves its alert with it) or
+  hold two or three conditions together (`kind: 'all'`, ALL_MAX 3); scripts/alerts-proof.ts runs in `npm test`. The
+  fired log is kept on this machine
   (slayer_alert_log, twenty a name, two hundred in all); clearing it is undoable. The drawer is a dialog, opened from
   anywhere through data/alertsDrawer.ts (`openAlertsDrawer` — the bell, a toast, the command line).
-- PULSE: every panel prints the one live price (`ctx.liveSpot` — the book is still rebuilt on the 10 s scan, the
-  price is not), so one name shows one price on one screen. Pulse and the four-chart board wear the house head
+- PULSE: the desk renders on its 10 s scan and every panel prints the one live price (`ctx.liveSpot`, `ctx.revision`
+  — the tile reads the tick, the book does not), so one name shows one price on one screen; copy a WorkspaceCtx with
+  its property descriptors, never by spreading it (the getters are read live). Its Targets, At the wall, Range and
+  Close panels read Pinpoint's one book (below). Pulse and the four-chart board wear the house head
   (components/layout/ShellHead.tsx: glyph, the page's h1, one line, facts — no breadcrumb, no tracked caps); the board
   is "Four charts" on the tab, the head, the rail and the command line alike.
 - PINPOINT READS ONE BOOK (data/pinpointBook.ts — the call wall read 480 on two pages and 481 on four): one scan a name
@@ -456,11 +507,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   chooses which rows it DRAWS (`inWindow`), never what they say. "Since the open" is New York's 09:30
   (levelview `sessionCut`). MAGENTA IS THE SUPREME'S ALONE — no other Pinpoint mark wears it. Shared level pieces are
   components/levels/: HowSure (what a level assumes, how fresh its open interest is, where it would sit were the
-  dealers' side the other way — data/levelSureness.ts; Pinpoint now, Terrain to follow), OiChange (overnight open
-  interest by strike, on Building) and Glossary (the room's own words, at the foot of every guide that uses them). Max
+  dealers' side the other way — data/levelSureness.ts; on Pinpoint's walls, Pulse's At the wall and Targets, and
+  Terrain's ladder head as HowSureBook, ProfilePanel `sure`), OiChange (overnight open interest by strike, on
+  Building), DealerTimeline (Building's fourth box: net GEX and price's distance from the flip minute by minute,
+  data/dealerTimeline.ts) and Glossary (the room's own words, at the foot of every guide that uses them). A day's walls
+  and flip, per expiry too, follow the book's own sign rule (core/walls.ts `pickWalls`, `pickFlip`). Max
   pain (data/maxPain.ts) is one plain marked line, never a pull. A level's record counts its misses beside a strike as
   far away (data/levelRecord.ts — "held through 14 of 20 … a strike as far held through 9 of 20"), never a rate.
-  Pinpoint's text is 11 px at the least, ticks 10.
 - TRACE'S DAY BOOK IS NEW YORK'S CASH SESSION (data/flowBook.ts `bookSession`: 09:30 to 16:00; outside it the last
   session, whole) — windows, catches and structures inside it, the caches keyed on their rows. Print kinds are real
   (a block is size in one print; a print with legs is its own kind), P/C is premium against premium. A grid pins its
@@ -479,7 +532,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   pane's Overlays menu): walls through the day — a strike × time heat behind the candles in the pane's lens (GEX,
   Charm or DEX), one cached bitmap an update — and the session's phases (the open, lunch, power hour) as quiet token
   bands on New York's minutes. The trend strip is the pane's timeframe tabs; below lg a Strikes door lays the ladder
-  over the chart.
+  over the chart. Terrain's h1 is its own (sr-only), the page's name.
 - THE WEIGHER HAS ONE PRICER: a position's projection is priced by the chain's own estimator from the mark's clock
   (data/positionCurve.ts), so a watched contract's curve starts at its mark. The payoff card shows the model's bell
   under the curve and the chance above or below a price on hover. The chart card's third view is "Vol"
@@ -490,7 +543,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   them on, marked on the new load's prices — nothing is closed when the page shuts, and a close the page made never
   counts as an evaluation day. A paper fill is stamped with the name's flip and walls at entry (`lv`), so the Journal
   cuts trades by where they stood. THE BACKTEST CLOCK ONLY MOVES FORWARD (review/engine.ts `floorOf`): a press behind
-  it is said, not swallowed. The Journal has three views on the address (`?view=` — the calendar at rest, `today`:
+  it is said, not swallowed, and ReplayStrip shuts its back doors at the floor (`minPos`, why in `minTitle`). Paper's
+  chart has the session's phases too, Terrain's quiet bands, off until its Overlays menu asks
+  (components/review/DeskShell.tsx). The Journal has three views on the address (`?view=` — the calendar at rest, `today`:
   before the open and how it went, `week`: the week reviewed); its cuts by days to expiry and delta are the Report's
   own (review/engine.ts DTE_CUTS, DELTA_CUTS). The two accounts a first visit gets are named "Starter · practice" and
   "Starter · 50K evaluation" (data/paper/sample.ts) — never "sample".
