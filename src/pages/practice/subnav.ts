@@ -16,13 +16,13 @@ export const PRACTICE_SUBPAGES: PracticeSubpage[] = [
   {
     path: '/practice/paper',
     label: 'Paper',
-    subtitle: 'Trade today’s prices with paper money — a practice account or a prop firm’s evaluation, options only: calls, puts and spreads off the chain',
+    subtitle: 'Trade today’s prices with paper money — a practice account or a prop firm’s evaluation; options only — calls and puts, and debit spreads, off the chain',
     icon: LineChart,
   },
   {
     path: '/practice/backtest',
     label: 'Backtest',
-    subtitle: 'Replay a past market minute by minute and trade it with paper money — a name’s option contracts off the chain as it stood',
+    subtitle: 'Replay a past market minute by minute and trade it with paper money; options only — calls and puts, and debit spreads, off the chain as it stood',
     icon: History,
   },
   {

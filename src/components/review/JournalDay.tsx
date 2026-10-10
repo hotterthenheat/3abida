@@ -56,7 +56,7 @@ const NOTES = [
   { key: 'plan', ask: 'The plan, before', hint: 'What you were looking for, and what would have kept you out' },
   { key: 'review', ask: 'The review, after', hint: 'How the day went against the plan — one thing to keep, one to drop' },
 ] as const;
-const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: string; value: string; onKeep: (v: string) => void; testId: string }) => {
+export const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: string; value: string; onKeep: (v: string) => void; testId: string }) => {
   const [mark, setMark] = useState<'empty' | 'keeping' | 'kept'>(value.trim() ? 'kept' : 'empty');
   /* the newest of what it was handed, for a flush after it has gone */
   const latest = useRef({ value, onKeep });
@@ -89,7 +89,7 @@ const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: st
     <label className="flex flex-col gap-1.5 min-w-0">
       <span className="flex items-baseline justify-between gap-3">
         <span className="text-[12px] font-medium text-textPrimary">{ask}</span>
-        <span className={`inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
+        <span className={`inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
           {mark === 'keeping' && 'Keeping…'}
           {mark === 'kept' && (
             <>
@@ -104,6 +104,7 @@ const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: st
         onChange={e => keepSoon(e.target.value)}
         onBlur={e => keepNow(e.target.value)}
         placeholder={hint}
+        aria-label={ask}
         data-day-note={testId}
       />
     </label>
@@ -165,7 +166,7 @@ const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, co
             <span className="text-textMuted">{day > today ? 'Still to come — a plan can be written now' : 'Nothing closed on this day'}</span>
           )}
         </span>
-        <button type="button" onClick={onClose} title="Close the day" aria-label="Close the day" className="ml-auto -mr-1.5 inline-flex items-center justify-center w-8 h-8 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-journal-day-close>
+        <button type="button" onClick={onClose} title="Close the day" aria-label="Close the day" className="hit ml-auto -mr-1.5 inline-flex items-center justify-center w-8 h-8 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-journal-day-close>
           <X className="w-4 h-4" />
         </button>
       </div>

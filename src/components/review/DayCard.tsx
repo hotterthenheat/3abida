@@ -37,10 +37,10 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
           type="button"
           title={title}
           data-dropdown={testId ?? label}
-          className={`group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
+          className={`hit group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
         >
           <CalendarDays className="w-3 h-3 shrink-0 text-textMuted" aria-hidden="true" />
-          {label && <span className="shrink-0 text-[9px] uppercase tracking-widest text-textMuted">{label}</span>}
+          {label && <span className="shrink-0 text-[10px] uppercase tracking-widest text-textMuted">{label}</span>}
           <span className="text-[11px] font-semibold text-textPrimary whitespace-nowrap">{dayWords(value, true).replace(/, \d{4}$/, '')}</span>
         </button>
       </Popover.Trigger>
@@ -81,7 +81,7 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
               week: '',
               day: 'p-0 text-center',
               day_button: 'w-9 h-8 rounded-md font-mono text-[12px] tnum text-textPrimary hover:bg-ink/[0.06] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-silver/60',
-              selected: '[&>button]:bg-silverFill [&>button]:text-[#0a0a0a] [&>button]:font-semibold [&>button:hover]:bg-silverFill',
+              selected: '[&>button]:bg-silverFill [&>button]:text-[rgb(var(--night))] [&>button]:font-semibold [&>button:hover]:bg-silverFill',
               today: '',
               outside: '[&>button]:text-textMuted/40',
               disabled: '[&>button]:text-textMuted/30 [&>button]:cursor-not-allowed [&>button:hover]:bg-transparent',

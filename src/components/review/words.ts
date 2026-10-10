@@ -23,3 +23,10 @@ export const heldWords = (min: number, dayMin = 390): string => {
   const n = d < 10 ? +d.toFixed(1) : Math.round(d);
   return `${n} ${n === 1 ? 'day' : 'days'}`;
 };
+/** A signed figure with the true minus (U+2212), never a hyphen: "+0.42" · "−0.50" · "−0.3%" with `unit` */
+export const numSigned = (v: number, digits = 2, unit = ''): string => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(digits)}${unit}`;
+/** A figure that may be below nothing, with the true minus and no plus: "0.54" · "−0.54" */
+export const num = (v: number, digits = 2): string => `${v < 0 ? MINUS : ''}${Math.abs(v).toFixed(digits)}`;
+/** WHAT PRACTICE TRADES — one sentence for both desks (the audit's PR-20: Paper said "calls, puts and debit spreads", the
+    Backtest "long calls and puts" while its ticket offered a spread) */
+export const TRADES_WORDS = 'options only — calls and puts, and debit spreads, paid in cash';

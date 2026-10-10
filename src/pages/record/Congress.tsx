@@ -22,7 +22,7 @@
                   scrolls inside itself, its head
                   pinned
 
-  A row's name opens it on the Map.
+  A row opens the name's own page in the Dossier.
 ==================================================
 */
 
@@ -30,7 +30,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -119,7 +119,7 @@ const TypeCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   ) : null;
 
 const OwnerCell = ({ data }: ICellRendererParams<CongressTrade>) =>
-  data ? <span className={`font-mono text-[8px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
+  data ? <span className={`font-mono text-[10px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
 
 /** The ten rungs as a ladder, the disclosed one lit — never a midpoint */
 const Ladder = ({ bracket }: { bracket: number }) => (
@@ -144,11 +144,11 @@ const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <Wh
 
 const LagCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   if (!data) return null;
-  if (data.lagDays < 0) return <span className="font-mono text-[10px] text-textMuted" title="Filed before the trade date — a filing artefact real feeds carry">before the trade</span>;
+  if (data.lagDays < 0) return <span className="font-mono text-[10px] text-textMuted" title="Filed before the trade date">before the trade</span>;
   return (
     <span className="inline-flex items-center gap-2 font-mono text-[11px] tnum">
       <span className={data.late ? 'text-bear font-semibold' : data.lagDays > 30 ? 'text-textPrimary' : 'text-textSecondary'}>{data.lagDays}d</span>
-      {data.late && <span className="text-[8px] uppercase tracking-widest text-bear">late</span>}
+      {data.late && <span className="text-[10px] uppercase tracking-widest text-bear">late</span>}
     </span>
   );
 };
@@ -162,24 +162,24 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
     onClick={onToggle}
     aria-pressed={on}
     title={on ? `Showing ${t.member.name} only — click to show every member` : `Keep the grid to ${t.member.name}`}
-    className={`group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
+    className={`hit group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
     data-congress-report={t.id}
     data-on={on || undefined}
   >
     <span className="flex items-center gap-2 min-w-0">
       <CompanyLogo ticker={t.ticker} size={18} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{t.ticker}</span>
-      <span className="text-[10px] text-textSecondary truncate">
+      <span className="text-[10px] text-textSecondary truncate" title={`${t.member.name} ${seat(t)}`}>
         {t.member.name} <span className="font-mono text-textMuted">{seat(t)}</span>
       </span>
     </span>
-    {/* the bracket as its words — the ladder lives in the grid; at six across it pushed the label off the card */}
+    {/* the bracket on a line of its own, whole (the audit's DO-11: "$250,001 – $500,…" was cut) — the ladder lives in the grid */}
     <span className="mt-1.5 flex items-center gap-2 font-mono tnum">
       <span className={`text-[11px] ${typeInk(t)}`}>{typeWord(t)}</span>
-      <span className="text-[11px] font-bold text-textPrimary truncate">{bracketLabel(t.bracket)}</span>
-      {t.late && <span className="ml-auto text-[8px] uppercase tracking-widest text-bear">late</span>}
+      {t.late && <span className="ml-auto text-[10px] uppercase tracking-widest text-bear">late</span>}
     </span>
-    <span className="mt-1 block font-mono text-[8px] uppercase tracking-widest text-textSecondary truncate">
+    <span className="block font-mono tnum text-[11px] font-bold text-textPrimary leading-snug">{bracketLabel(t.bracket)}</span>
+    <span className="mt-1 block font-mono text-[10px] uppercase tracking-widest text-textSecondary truncate" title={`${t.committeeOverlap} · own committee`}>
       {t.committeeOverlap} <span className="text-silver">· own committee</span>
     </span>
   </button>
@@ -266,7 +266,7 @@ const Congress = () => {
     () => [
       { headerName: 'Filed', field: 'filedDaysAgo', width: 126, cellRenderer: FiledCell, sort: 'asc', headerTooltip: 'The day the report was filed, and how far back that is — newest first' },
       { headerName: 'Member', field: 'member', flex: 1.7, minWidth: 220, cellRenderer: MemberCell, cellDataType: false, comparator: (a: CongressTrade['member'], b: CongressTrade['member']) => a.name.localeCompare(b.name), headerTooltip: "Who filed it, with party and seat — and their own committee under the name when the trade sits in a sector it oversees" },
-      { headerName: 'Asset', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: AssetCell, headerTooltip: 'The stock the report names — click the row to open it on the Map' },
+      { headerName: 'Asset', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: AssetCell, headerTooltip: 'The stock the report names — a row opens the name’s page in the Dossier' },
       { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellRenderer: TypeCell, headerTooltip: 'Purchase, sale (full or partial), or an exchange' },
       { headerName: 'Owner', field: 'owner', flex: 0.7, minWidth: 96, cellRenderer: OwnerCell, headerTooltip: "Whose holding the report covers — the member's own, their spouse's, a joint account or a dependent's" },
       {
@@ -284,10 +284,13 @@ const Congress = () => {
     []
   );
   const defaultColDef = useMemo<ColDef<CongressTrade>>(() => ({ sortable: true, resizable: true, suppressMovable: true }), []);
+  /* A ROW OPENS THE NAME'S OWN PAGE, here in the Dossier (the audit's DO-8: a click went to Pinpoint's Map with no word) */
+  const openName = (t: CongressTrade) => {
+    changeTicker(t.ticker);
+    navigate(`/dossier/stocks/${t.ticker}`);
+  };
   const open = (e: RowClickedEvent<CongressTrade>) => {
-    if (!e.data) return;
-    changeTicker(e.data.ticker);
-    navigate('/pinpoint/map');
+    if (e.data) openName(e.data);
   };
 
   return (
@@ -300,9 +303,9 @@ const Congress = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What Congress reported</h3>
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
+            <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · the people are invented until the feed lands, the shape is the real one</p>
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · a row opens the name’s page</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
@@ -361,7 +364,7 @@ const Congress = () => {
         )}
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
-      <div className="slayer-board border-t border-borderSubtle" data-congress-grid>
+      <div className="grid-keys slayer-board border-t border-borderSubtle" data-congress-grid>
         <AgGridProvider modules={GRID_MODULES}>
           <AgGridReact<CongressTrade>
             theme={GRID_THEME}
@@ -371,8 +374,8 @@ const Congress = () => {
             defaultColDef={defaultColDef}
             getRowId={p => p.data.id}
             onRowClicked={open}
+            {...openRowOnEnter<CongressTrade>(openName)}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-            suppressCellFocus
             animateRows
             tooltipShowDelay={350}
             tooltipHideDelay={8000}

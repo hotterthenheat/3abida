@@ -69,7 +69,7 @@
 ==================================================
 */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import type { ChartOverlays } from '../../components/gex/StrikeChart';
@@ -98,7 +98,10 @@ import type { Timeframe } from '../../data/timeframe';
 import { bankedOf, evalRead, optLadderRoom, optLadderTake, optRefusal, viewOf, type MarkedOpt, type OptOrder, type OptTrade } from '../../data/paper/engine';
 import { LIFE, PAPER_INDEXES, candlesOf, isPaperIndex, liveDeskChain, paperIndex, baseIvOf, listedNow, spotOf, spotForAskNow, spotForBidNow, stepOf } from '../../data/paper/feed';
 import { dayBeginsAt, nyMomentWords } from '../../data/paper/clock';
-import { amendOrder, attachOpt, breakevenOrder, cancelOrder, cancelWorking, closeOpt, endEval, flattenAccount, liveMarket, placeOptOrder, readPaper, rebaseOrder, setInHand, startEvaluation, startPractice, takeHere, trailOrder, usePaper } from '../../data/paper/store';
+import { amendOrder, attachOpt, breakevenOrder, cancelOrder, cancelWorking, endEval, liveMarket, placeOptOrder, readPaper, rebaseOrder, setInHand, startEvaluation, startPractice, trailOrder, usePaper } from '../../data/paper/store';
+import { closeWithUndo, flattenWithUndo, startPracticeWithUndo, takeHereWithUndo } from './undoHands';
+import EvalStrip from '../../components/paper/EvalStrip';
+import { paceOf, paceWords } from '../../data/paper/pace';
 
 /* THE CHART'S SETTINGS ON THIS DESK. A name's live chart has its book: the walls, the trails, the vol pane. An index's is
    its fund's candles turned into its level — no book of its own, so the overlays that read one are not offered, and a
@@ -137,7 +140,16 @@ const writeDesk = (patch: DeskPrefs) => {
   }
 };
 
-const OPT_ENDED: Record<OptTrade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', scaled: 'Scaled out', rule: 'Closed by the rules', page: 'Closed with the page' };
+const OPT_ENDED: Record<OptTrade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', scaled: 'Scaled out', rule: 'Closed by the rules', page: 'Closed as the page shut' };
+/** What a press did, in a line — the order the press just made, as the engine left it */
+const saidOf = (o: OptOrder | undefined): string | null => {
+  if (!o) return null;
+  const what = `${o.qty} × ${contractWords(o.contract)}`;
+  if (o.status === 'refused') return `Refused — ${o.why}`;
+  if (o.status === 'filled') return `${o.side === 'buy' ? 'Bought' : 'Sold'} ${what} at ${o.fillPrice?.toFixed(2)}`;
+  if (o.status === 'working') return `Working — ${o.side === 'buy' ? 'buy' : 'sell'} ${what} at ${o.price?.toFixed(2)} or better`;
+  return null;
+};
 
 type OpenRow = { key: string; p: MarkedOpt };
 type OrderRow = { key: string; o: OptOrder };
@@ -145,7 +157,27 @@ type ClosedRow = { key: string; t: OptTrade; at: number };
 
 const titleOf = (ticker: string): string => paperIndex(ticker)?.name ?? REVIEW_NAMES.find(n => n.ticker === ticker)?.name ?? ticker;
 
+/** A phone's width (below sm) — the book keeps the columns a thumb needs there */
+const PHONE_Q = '(max-width: 639px)';
+function usePhone(): boolean {
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(PHONE_Q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(PHONE_Q);
+    if (!mq) return;
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+/* ON A PHONE THE BOOK FITS ITS CARD (the audit's PR-15: "Now" and the P&L sat past a sideways scroll): what it is, how many,
+   the P&L and Close — the rest is a press away on the row (it opens the contract in the chain) */
+const PHONE_OPEN_HIDDEN = new Set(['avg', 'now', 'carry']);
+const PHONE_CLOSED_HIDDEN = new Set(['in', 'out', 'how']);
+const PHONE_ORDERS_HIDDEN = new Set(['placed']);
+
 const PaperDesk = () => {
+  const phone = usePhone();
   const { accounts, inHand, holding, elsewhere } = usePaper();
   const account = accounts.find(a => a.id === inHand) ?? null;
   /* the desk moves with the feed: a render a tick (the live chart's revision, the book's marks, the chain's quotes) */
@@ -164,6 +196,8 @@ const PaperDesk = () => {
   const centreRef = useRef<{ key: string; at: number } | null>(null);
   /** A drawn long or short, being placed: whose, and at what size */
   const [markOrder, setMarkOrder] = useState<{ name: string; mark: TradeMark; qty: number } | null>(null);
+  /** What the last press on the ticket did, said in the ticket */
+  const [said, setSaid] = useState<string | null>(null);
 
   /* an index's candles are a minute each from its fund's, round the clock: no daily candle */
   const panes = desk.panes.map(p => ({ name: p.name, timeframe: isPaperIndex(p.name) && p.timeframe === '1D' ? ('1h' as Timeframe) : p.timeframe }));
@@ -222,6 +256,7 @@ const PaperDesk = () => {
     if (openStrike === strike && clicks === 1) return setDrillOpen(false);
     setPicked({ ticker: name, strike, right, expiry: exp });
     setDrillOpen(true);
+    setSaid(null);
   };
 
   /* ---- WHAT THE DESK'S HANDS DO OFF A CHART (pages/paper/deskHands.tsx): the menu, the bar, a drawn long or short ---- */
@@ -279,7 +314,23 @@ const PaperDesk = () => {
     for (const g of groups.values()) if (g.length > 1) [...g].sort((x, y) => Math.abs(x.money) / x.qty - Math.abs(y.money) / y.qty).forEach((b, i) => (b.nth = i + 1));
   }
   /* the fills of THIS page load, as arrows where the chart stood (an earlier load's market is not this one) */
-  const marks: ChartMark[] = account.opt.fills.filter(f => f.contract.ticker === name && f.life === LIFE).map(f => ({ time: f.bar, side: f.side, quiet: f.how === 'expired' || f.how === 'rule' || f.how === 'page', text: `${f.side === 'buy' ? 'Bought' : f.how === 'expired' ? 'Expired' : 'Sold'} ${f.qty} · ${contractWords(f.contract).replace(`${name} `, '')}` }));
+  /* FILLS ON ONE BAR ARE ONE TAG (the audit's PR-17: "Bought 1 · 480C" and "Sold 1 · 480C" stacked on each other after a buy,
+     a sell and a buy): a bar's buys are one arrow and its sells another, each saying what they were */
+  const marks: ChartMark[] = [];
+  {
+    const byBar = new Map<string, { time: number; side: 'buy' | 'sell'; quiet: boolean; words: string[] }>();
+    for (const f of account.opt.fills) {
+      if (f.contract.ticker !== name || f.life !== LIFE) continue;
+      const k = `${f.bar}|${f.side}`;
+      const one = `${f.side === 'buy' ? 'Bought' : f.how === 'expired' ? 'Expired' : 'Sold'} ${f.qty} · ${contractWords(f.contract).replace(`${name} `, '')}`;
+      const hit = byBar.get(k);
+      if (hit) {
+        if (!hit.words.includes(one)) hit.words.push(one);
+        hit.quiet = hit.quiet && (f.how === 'expired' || f.how === 'rule' || f.how === 'page');
+      } else byBar.set(k, { time: f.bar, side: f.side, quiet: f.how === 'expired' || f.how === 'rule' || f.how === 'page', words: [one] });
+    }
+    for (const b of byBar.values()) marks.push({ time: b.time, side: b.side, quiet: b.quiet, text: b.words.length > 2 ? `${b.words[0]} · +${b.words.length - 1} more` : b.words.join(' · ') });
+  }
   const made: DeskName = {
     symbol: name,
     title: titleOf(name),
@@ -289,7 +340,7 @@ const PaperDesk = () => {
     held: positions.length,
     /* an index's chart is its own candles (made from its fund's) — an index is never asked of the simulator by its own name,
        and has no book of its own to draw walls from */
-    tape: isPaperIndex(name) ? { bars: candlesOf(name), iv: baseIvOf(name), key: `paper:idx:${name}`, precision: { decimals: 2, tick: 0.01 } } : undefined,
+    tape: isPaperIndex(name) ? { bars: candlesOf(name), iv: baseIvOf(name), key: `paper:idx:${name}`, precision: { decimals: 2, tick: 0.01 }, clock: 'ny' } : undefined,
     levels: isPaperIndex(name) ? { spot, callWall: NaN, putWall: NaN, flip: NaN, supreme: NaN } : buildLevelsFor(name),
     layer: {
       fills: [],
@@ -298,7 +349,7 @@ const PaperDesk = () => {
       brackets,
       entries,
       marketShut: !holding || account.status !== 'open',
-      onClosePosition: c => closeOpt(account.id, c, v.opt.find(p => p.key === contractKey(c))?.qty ?? 0),
+      onClosePosition: c => closeWithUndo(account.id, c, v.opt.find(p => p.key === contractKey(c))?.qty ?? 0),
       onAmend: (oid, px) => amendOrder(account.id, oid, px),
       onRebase: (oid, to) => rebaseOrder(account.id, oid, to),
       onCancelOrder: oid => cancelOrder(account.id, oid),
@@ -324,6 +375,9 @@ const PaperDesk = () => {
   };
   const deskName = deskNameOf(name);
 
+  /* THE DAY'S PACE (data/paper/pace.ts): a calm line when today runs well past the reader's usual — the reader's own accounts */
+  const pace = paceOf(accounts, account.day);
+
   /* ---- THE CARDS AT THE RIGHT ---- */
   /* held: the contract itself, or the bought leg of a spread; sold: the other leg of one (open, or on the ticket) */
   const legOf = (p: ContractId) => p.ticker === name && p.expiry === exp && p.right === right;
@@ -335,10 +389,10 @@ const PaperDesk = () => {
       ev={ev}
       now={m.now}
       onPick={setInHand}
-      onPractice={holding ? size => startPractice(size) : null}
+      onPractice={holding ? size => startPracticeWithUndo(size) : null}
       onEvaluation={holding ? plan => startEvaluation(plan) : null}
       onEndEvaluation={holding ? id => endEval(id) : null}
-      onFlatten={holding ? () => flattenAccount(account.id) : null}
+      onFlatten={holding ? () => flattenWithUndo(account) : null}
       onCancelAll={holding ? () => cancelWorking(account.id) : null}
     />
   );
@@ -362,12 +416,15 @@ const PaperDesk = () => {
     strikes: chain?.rows.map(r => r.strike) ?? [],
     onPlace: d => {
       placeOptOrder(account.id, d);
+      const a = readPaper().accounts.find(x => x.id === account.id);
+      setSaid(saidOf(a?.opt.orders[a.opt.orders.length - 1]));
       setTab(d.kind === 'market' ? (d.side === 'buy' ? 'open' : 'closed') : 'orders');
     },
     onClose: (c, q) => {
-      closeOpt(account.id, c, q);
+      closeWithUndo(account.id, c, q);
       setTab('closed');
     },
+    said,
   };
   const heldStrikes = new Set(v.opt.filter(p => legOf(p.contract)).map(p => p.contract.strike));
   const sideCard = (
@@ -403,8 +460,8 @@ const PaperDesk = () => {
     { key: 'qty', header: 'Held', align: 'right', render: r => <span className="text-textPrimary">{r.p.qty}</span> },
     { key: 'avg', header: 'In at', align: 'right', render: r => <span className="text-textSecondary">{r.p.avg.toFixed(2)}</span> },
     { key: 'now', header: 'Now', align: 'right', render: r => <span className="text-textPrimary">{`${r.p.quote.bid.toFixed(2)} · ${r.p.quote.ask.toFixed(2)}`}</span> },
-    { key: 'carry', header: 'Holding it', align: 'right', render: r => <span className="text-textSecondary" title="What the contract loses a day, all else equal">{`${usd(Math.abs(r.p.quote.theta) * 100 * r.p.qty)} a day`}</span> },
-    { key: 'pnl', header: 'Up or down', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.p.pnl)}`}>{usdSigned(r.p.pnl)} {r.p.r != null && <span className="text-[10px] font-normal opacity-80">{rWords(r.p.r)}</span>}</span> },
+    { key: 'carry', header: 'Decay/day', align: 'right', render: r => <span className="text-textSecondary" title="What the contract loses a day, all else equal">{`${usd(Math.abs(r.p.quote.theta) * 100 * r.p.qty)}`}</span> },
+    { key: 'pnl', header: 'P&L', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.p.pnl)}`}>{usdSigned(r.p.pnl)} {r.p.r != null && <span className="text-[10px] font-normal text-textSecondary">{rWords(r.p.r)}</span>}</span> },
     {
       key: 'close',
       header: '',
@@ -414,7 +471,7 @@ const PaperDesk = () => {
           type="button"
           onClick={e => {
             e.stopPropagation();
-            closeOpt(account.id, r.p.contract, r.p.qty);
+            closeWithUndo(account.id, r.p.contract, r.p.qty);
           }}
           disabled={!!lock || r.p.quote.dead}
           title={lock ?? (r.p.quote.dead ? 'No bid to sell into right now' : 'Sell all of it at the bid, now')}
@@ -444,9 +501,7 @@ const PaperDesk = () => {
         ) : r.o.status === 'filled' ? (
           <span className="text-textPrimary">Filled at {r.o.fillPrice?.toFixed(2)}</span>
         ) : (
-          <span className="text-textMuted">
-            {r.o.status === 'refused' ? 'Refused' : 'Cancelled'} — {r.o.why}
-          </span>
+          <span className="text-textMuted">{r.o.status === 'refused' ? `Refused — ${r.o.why}` : r.o.why === 'cancelled by you' ? 'Cancelled by you' : `Cancelled — ${r.o.why}`}</span>
         ),
     },
     {
@@ -455,7 +510,7 @@ const PaperDesk = () => {
       align: 'right',
       render: r =>
         r.o.status === 'working' ? (
-          <button type="button" onClick={e => { e.stopPropagation(); cancelOrder(account.id, r.o.id); }} disabled={!!lock} title={lock ?? 'Cancel this order'} aria-label="Cancel this order" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] disabled:opacity-30 transition-colors align-middle" data-order-cancel={r.o.id}>
+          <button type="button" onClick={e => { e.stopPropagation(); cancelOrder(account.id, r.o.id); }} disabled={!!lock} title={lock ?? 'Cancel this order'} aria-label="Cancel this order" className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] disabled:opacity-30 transition-colors align-middle" data-order-cancel={r.o.id}>
             <X className="w-3 h-3" />
           </button>
         ) : null,
@@ -467,7 +522,7 @@ const PaperDesk = () => {
     { key: 'in', header: 'In', render: r => <span className="text-textSecondary">{nyMomentWords(r.t.opened.at)} · {r.t.avgIn.toFixed(2)}</span> },
     { key: 'out', header: 'Out', render: r => <span className="text-textSecondary">{nyMomentWords(r.t.closed.at)} · {r.t.avgOut.toFixed(2)}</span> },
     { key: 'how', header: 'Ended', render: r => <span className="text-textSecondary" title={r.t.note}>{OPT_ENDED[r.t.how]}</span> },
-    { key: 'pnl', header: 'Made or lost', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[10px] font-normal opacity-80">{r.t.r != null ? rWords(r.t.r) : 'no stop · no R'}</span></span> },
+    { key: 'pnl', header: 'P&L', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[10px] font-normal text-textSecondary">{r.t.r != null ? rWords(r.t.r) : 'no stop · no R'}</span></span> },
   ];
 
   /* ---- THE HEAD'S PICKER: what is on the chart — the partner's grouped list, with one search over all of it
@@ -486,13 +541,19 @@ const PaperDesk = () => {
   return (
     <div className="flex flex-col gap-2.5">
       {!holding && elsewhere && <HeldElsewhere />}
+      {ev && <EvalStrip account={account} ev={ev} />}
+      {pace && (
+        <p className="px-1 text-[12px] text-textSecondary" data-paper-pace>
+          {paceWords(pace)}
+        </p>
+      )}
       <DeskShell
         session={{ id: account.id, name: account.name }}
         kind="paper"
         /* no strip over the chart: the account is the right column's first card */
         strip={false}
         picker={picker}
-        foot="Practice, not advice. What is open is closed when the page closes: the market starts fresh on every load."
+        foot="Practice, not advice. What is open stays open when you leave or reload — it is marked again when the page comes back."
         revision={revision}
         account={{ equity: v.equity, openPnl: v.openPnl, third: ev ? { label: 'room', value: usd(Math.max(0, ev.room), 0) } : { label: 'free', value: usd(v.free, 0) } }}
         names={[deskName]}
@@ -532,11 +593,11 @@ const PaperDesk = () => {
         counts={{ open: openRows.length, working, closed: closedRows.length }}
         book={
           tab === 'open' ? (
-            <TraceGrid key="open" rows={openRows} columns={openCols} rowKey={r => r.key} onRowClick={r => setName(r.p.contract.ticker, r.p.contract)} autoHeight animate={false} widths={{ qty: 70, avg: 90, close: 84, now: 130, carry: 130 }} emptyText={account.status === 'open' ? 'Nothing open — place an order at the right, or off the chart' : 'This account is closed'} testId="paper-open" />
+            <TraceGrid key="open" rows={openRows} columns={openCols} hidden={phone ? PHONE_OPEN_HIDDEN : undefined} rowKey={r => r.key} onRowClick={r => setName(r.p.contract.ticker, r.p.contract)} autoHeight animate={false} widths={{ qty: 60, avg: 76, close: 76, now: 116, carry: 96 }} emptyText={account.status === 'open' ? 'Nothing open — place an order at the right, or off the chart' : 'This account is closed'} testId="paper-open" />
           ) : tab === 'orders' ? (
-            <TraceGrid key="orders" rows={orderRows} columns={orderCols} rowKey={r => r.key} onRowClick={r => setName(r.o.contract.ticker, r.o.contract)} autoHeight animate={false} widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="paper-orders" />
+            <TraceGrid key="orders" rows={orderRows} columns={orderCols} hidden={phone ? PHONE_ORDERS_HIDDEN : undefined} rowKey={r => r.key} onRowClick={r => setName(r.o.contract.ticker, r.o.contract)} autoHeight animate={false} widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="paper-orders" />
           ) : (
-            <TraceGrid key="closed" rows={closedRows} columns={closedCols} rowKey={r => r.key} autoHeight animate={false} widths={{ qty: 70 }} flexes={{ in: 1.4, out: 1.4 }} emptyText="No closed trades yet" testId="paper-closed" />
+            <TraceGrid key="closed" rows={closedRows} columns={closedCols} hidden={phone ? PHONE_CLOSED_HIDDEN : undefined} rowKey={r => r.key} autoHeight animate={false} widths={{ qty: 70 }} flexes={{ in: 1.4, out: 1.4 }} emptyText="No closed trades yet" testId="paper-closed" />
           )
         }
       />
@@ -569,13 +630,13 @@ const MarkCard = ({ plan, qty, onQty, onCancel }: { plan: ReturnType<typeof plan
           plan.place(qty);
           onCancel();
         }}
-        className="ml-auto h-8 px-4 rounded-full text-[12px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90"
-        style={{ background: 'rgb(var(--silver-fill))', color: '#0a0a0a' }}
+        className="hit ml-auto h-8 px-4 rounded-full text-[12px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90"
+        style={{ background: 'rgb(var(--silver-fill))', color: 'rgb(var(--night))' }}
         data-paper-mark-place
       >
         Place it
       </button>
-      <button type="button" onClick={onCancel} className="h-8 px-3 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors">
+      <button type="button" onClick={onCancel} className="hit h-8 px-3 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors">
         Not now
       </button>
     </div>
@@ -587,9 +648,9 @@ const HeldElsewhere = () => (
   <div className={`${card} px-5 py-3 flex items-center gap-4 flex-wrap border-warn/40`} data-paper-elsewhere>
     <div className="min-w-0 flex-1">
       <p className="text-[12px] font-medium text-textPrimary">Your paper accounts are open in another tab.</p>
-      <p className="mt-0.5 text-[11px] text-textMuted">This tab only reads them. Taking them here closes whatever is open there, at the last price that tab saw — each tab runs its own market.</p>
+      <p className="mt-0.5 text-[11px] text-textMuted">This tab only reads them. Take them here to trade in this tab — what is open stays open, and the other tab goes back to reading.</p>
     </div>
-    <button type="button" onClick={takeHere} className="h-8 px-4 rounded-full text-[12px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: '#0a0a0a' }} data-paper-take-here>
+    <button type="button" onClick={takeHereWithUndo} className="hit h-8 px-4 rounded-full text-[12px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: 'rgb(var(--night))' }} data-paper-take-here>
       Take them here
     </button>
   </div>

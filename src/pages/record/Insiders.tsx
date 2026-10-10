@@ -31,7 +31,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -45,6 +45,9 @@ import { ALL_CODES, OPEN_MARKET_CODES, TX_CODES, insiderBuyers, insiderFeed, ins
 import { tickerName } from '../../data/tickers';
 import type { InsiderFlow, InsiderRole, InsiderTrade } from '../../types/record';
 import { NAMES_TO_KNOW } from './recordSkeletons';
+
+/** Rows the grid shows before "show the rest" */
+const REST_ROWS = 80;
 
 type Window = 30 | 90 | 180;
 type Show = 'market' | 'all';
@@ -135,11 +138,11 @@ const StakeCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span
 const PlanCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
   if (!data) return null;
   if (!TX_CODES[data.code].openMarket) return <span className="font-mono text-[10px] text-textMuted">—</span>;
-  if (data.plan === 'plan') return <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted" title="Ran off a 10b5-1 plan adopted months earlier — no view on the day">planned</span>;
-  if (data.plan === 'unknown') return <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted" title="The filing carried no plan box either way">unstated</span>;
+  if (data.plan === 'plan') return <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted" title="Ran off a 10b5-1 plan adopted months earlier — no view on the day">planned</span>;
+  if (data.plan === 'unknown') return <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted" title="The filing carried no plan box either way">unstated</span>;
   const loud = isChosenBuy(data);
   return (
-    <span className={`font-mono text-[8px] uppercase tracking-widest ${loud ? 'text-textPrimary font-bold' : 'text-textSecondary'}`} title={loud ? 'A purchase the insider chose to make with their own money — the loudest row here' : 'A trade the insider chose to make'}>
+    <span className={`font-mono text-[10px] uppercase tracking-widest ${loud ? 'text-textPrimary font-bold' : 'text-textSecondary'}`} title={loud ? 'A purchase the insider chose to make with their own money — the loudest row here' : 'A trade the insider chose to make'}>
       chosen
     </span>
   );
@@ -170,7 +173,7 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
       title={on ? `Showing ${f.ticker} only — click to show every name` : `Keep the grid to ${f.ticker}`}
       /* Lifted a tier from the panel (Noah, 2026-09-09: "too many grays … practically invisible"):
          the stronger border on a lighter ground, the words in the secondary and primary inks */
-      className={`group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
+      className={`hit group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
       data-insiders-name={f.ticker}
       data-on={on || undefined}
     >
@@ -181,12 +184,12 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
       </span>
       <span className="mt-1.5 flex items-baseline gap-2 font-mono tnum">
         <span className="text-[13px] font-bold text-bull">{fmtDollars(f.openMarketBuys)}</span>
-        <span className="text-[9px] text-textSecondary">chosen buying</span>
+        <span className="text-[10px] text-textSecondary">chosen buying</span>
         <span className="ml-auto text-[10px] text-textPrimary">
           {buyers} {buyers === 1 ? 'buyer' : 'buyers'}
         </span>
       </span>
-      <span className={`mt-1 block font-mono text-[8px] uppercase tracking-widest ${s.ink}`}>{s.word}</span>
+      <span className={`mt-1 block font-mono text-[10px] uppercase tracking-widest ${s.ink}`}>{s.word}</span>
     </button>
   );
 };
@@ -264,8 +267,8 @@ const Insiders = () => {
   const columnDefs = useMemo<ColDef<InsiderTrade>[]>(
     () => [
       { headerName: 'When', field: 'daysAgo', width: 126, cellRenderer: WhenCell, sort: 'asc', headerTooltip: 'The day the trade happened, and how far back that is — newest first' },
-      { headerName: 'Name', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: NameCell, headerTooltip: 'The company — click the row to open it on the Map' },
-      { headerName: 'Who', field: 'person', flex: 1.4, minWidth: 180, cellRenderer: WhoCell, headerTooltip: 'The insider and their role — invented names until the feed lands' },
+      { headerName: 'Name', field: 'ticker', flex: 1.3, minWidth: 170, cellRenderer: NameCell, headerTooltip: 'The company — a row opens the name’s page in the Dossier' },
+      { headerName: 'Who', field: 'person', flex: 1.4, minWidth: 180, cellRenderer: WhoCell, headerTooltip: 'The insider and their role' },
       { headerName: 'Trade', field: 'code', flex: 0.9, minWidth: 120, cellRenderer: TradeCell, headerTooltip: 'Bought or sold in the market; with Every filing on, the grants, conversions and withholdings are named for what they are' },
       { headerName: 'Shares', field: 'shares', width: 100, cellRenderer: SharesCell, type: 'rightAligned', headerTooltip: 'Shares in the transaction' },
       { headerName: 'Price', field: 'price', width: 96, cellRenderer: PriceCell, type: 'rightAligned', headerTooltip: 'The filed price per share' },
@@ -284,11 +287,17 @@ const Insiders = () => {
     []
   );
   const defaultColDef = useMemo<ColDef<InsiderTrade>>(() => ({ sortable: true, resizable: true, suppressMovable: true }), []);
-  const open = (e: RowClickedEvent<InsiderTrade>) => {
-    if (!e.data) return;
-    changeTicker(e.data.ticker);
-    navigate('/pinpoint/map');
+  /* A ROW OPENS THE NAME'S OWN PAGE, here in the Dossier (the audit's DO-8: a click went to Pinpoint's Map with no word) */
+  const openName = (t: InsiderTrade) => {
+    changeTicker(t.ticker);
+    navigate(`/dossier/stocks/${t.ticker}`);
   };
+  const open = (e: RowClickedEvent<InsiderTrade>) => {
+    if (e.data) openName(e.data);
+  };
+  /* THE GRID RESTS AT 80 ROWS (the house's long-grid rule; the audit's DO-9: every row drawn, 5,400 px) */
+  const [all, setAll] = useState(false);
+  const drawn = all ? rows : rows.slice(0, REST_ROWS);
 
   return (
     <div className="relative border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col" data-insiders data-window={window} data-show={show}>
@@ -300,10 +309,10 @@ const Insiders = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What insiders did</h3>
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
+            <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first · the people are invented until the feed lands
+            {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first · a row opens the name’s page
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
@@ -363,23 +372,33 @@ const Insiders = () => {
         )}
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
-      <div className="slayer-board border-t border-borderSubtle" data-insiders-grid>
+      <div className="slayer-board grid-keys border-t border-borderSubtle" data-insiders-grid>
         <AgGridProvider modules={GRID_MODULES}>
           <AgGridReact<InsiderTrade>
             theme={GRID_THEME}
             domLayout="autoHeight"
-            rowData={rows}
+            rowData={drawn}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             getRowId={p => p.data.id}
             onRowClicked={open}
+            {...openRowOnEnter<InsiderTrade>(openName)}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-            suppressCellFocus
             animateRows
             tooltipShowDelay={350}
             tooltipHideDelay={8000}
           />
         </AgGridProvider>
+        {rows.length > REST_ROWS && (
+          <div className="px-5 py-2.5 border-t border-borderSubtle/60 flex items-center gap-3 font-mono text-[11px] text-textMuted" data-insiders-rest>
+            <span>
+              {all ? `All ${rows.length} rows` : `The newest ${REST_ROWS} of ${rows.length}`}
+            </span>
+            <button type="button" onClick={() => setAll(a => !a)} className="hit h-7 px-2.5 rounded-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-insiders-rest-door>
+              {all ? `Back to the newest ${REST_ROWS}` : `Show the other ${rows.length - REST_ROWS}`}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

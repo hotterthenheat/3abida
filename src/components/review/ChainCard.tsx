@@ -116,13 +116,13 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
             <span className="text-textPrimary">{spot.toFixed(2)}</span>
           </span>
         )}
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{stamp}</span>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">{stamp}</span>
         <span className="ml-auto flex items-center gap-2">
           <DropdownSelect label="Side" value={right} options={SIDES} onChange={onRight} title="Calls or puts" testId="review-side" size="sm" />
           {expiry && <DropdownSelect label="Expiry" value={expiry} options={expiryOptions} onChange={onExpiry} title={expiryTitle} align="end" testId="review-expiry" size="sm" />}
         </span>
       </div>
-      <div className="grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-7 items-center border-b border-borderSubtle/70 font-mono text-[9px] font-semibold uppercase tracking-widest text-[rgb(var(--grid-head))]">
+      <div className="grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-7 items-center border-b border-borderSubtle/70 font-mono text-[10px] font-semibold uppercase tracking-widest text-[rgb(var(--grid-head))]">
         <span className="pl-4">Strike</span>
         <span className="text-right">Bid</span>
         <span className="text-right">Ask</span>
@@ -147,7 +147,7 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
               {line && (
                 <div className="flex items-center gap-2 px-4 h-5" aria-hidden="true" data-chain-money>
                   <span className="flex-1 h-px bg-borderMuted" />
-                  <span className="font-mono text-[9px] tnum text-textSecondary">{spot.toFixed(2)}</span>
+                  <span className="font-mono text-[10px] tnum text-textSecondary">{spot.toFixed(2)}</span>
                   <span className="flex-1 h-px bg-borderMuted" />
                 </div>
               )}
@@ -157,14 +157,14 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
                 aria-selected={on}
                 aria-expanded={on && drillOpen}
                 onClick={() => onPick(c)}
-                className={`w-full grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-[26px] items-center font-mono text-[11px] tnum text-left transition-colors ${on ? 'bg-silver/[0.10]' : right === 'C' ? 'hover:bg-bull/[0.08]' : 'hover:bg-bear/[0.08]'}`}
+                className={`hit w-full grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-[26px] items-center font-mono text-[11px] tnum text-left transition-colors ${on ? 'bg-silver/[0.10]' : right === 'C' ? 'hover:bg-bull/[0.08]' : 'hover:bg-bear/[0.08]'}`}
                 data-chain-row={r.strike}
               >
                 <span className={`inline-flex items-center gap-1 font-semibold ${on ? 'text-silver' : 'text-textPrimary'}`}>
                   <ChevronRight className={`w-3 h-3 shrink-0 text-textMuted transition-transform duration-200 ${on && drillOpen ? 'rotate-90' : ''}`} aria-hidden="true" />
                   {strikeWords(r.strike)}
-                  {mine && <span className="ml-1 text-[8px] font-bold uppercase tracking-wider text-silver">held</span>}
-                  {soldHere && <span className="ml-1 text-[8px] font-bold uppercase tracking-wider text-textSecondary" title="The strike sold against the one bought — the other leg of a spread">sold</span>}
+                  {mine && <span className="ml-1 text-[10px] font-bold uppercase tracking-wider text-silver">held</span>}
+                  {soldHere && <span className="ml-1 text-[10px] font-bold uppercase tracking-wider text-textSecondary" title="The strike sold against the one bought — the other leg of a spread">sold</span>}
                 </span>
                 <span className="text-right text-textPrimary">{q.bid.toFixed(2)}</span>
                 <span className="text-right text-textPrimary">{q.ask.toFixed(2)}</span>

@@ -132,9 +132,10 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
   if (!row || !ex) {
     return (
       <div className={`${card} px-6 py-14 text-center`} data-journal-trade="missing">
+        <SayPage words="Trade not found" />
         <p className="text-[13px] text-textPrimary">That trade is not in this browser’s journal.</p>
         <p className="mt-1 text-[11px] text-textMuted">{kind === 'paper' ? 'A trade lives with its paper account on this machine.' : 'A trade lives with its session — if the session was deleted, its trades went with it.'}</p>
-        <Link to={source.base} className="mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+        <Link to={source.base} className="hit mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
           The journal <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
@@ -248,7 +249,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
           <div className={`${card} min-w-0 flex-1 flex flex-col`} data-journal-shape data-shape-area={shape.area.toFixed(2)}>
             <div className={`${head} flex-wrap h-auto min-h-9 py-1.5`}>
               <span className={headWord}>The shape of it</span>
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">six reads of the trade · {row.paper ? 'as the ticks had it' : 'at the bid you could have sold into'}{usual ? ' · your usual behind it' : ''}</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">six reads of the trade · {row.paper ? 'as the ticks had it' : 'at the bid you could have sold into'}{usual ? ' · your usual behind it' : ''}</span>
             </div>
             <div className="px-5 pt-3 pb-5 flex-1 flex flex-col justify-center gap-4">
               <div className="grid gap-x-8 gap-y-4 items-center md:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
@@ -286,7 +287,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
           <div className={`${card} min-w-0`} data-journal-facts>
             <div className={head}>
               <span className={headWord}>The trade</span>
-              <Link to={source.containerPath(row.s.id)} className="ml-auto font-mono text-[10px] text-textMuted hover:text-silver transition-colors truncate" title={`Open its ${source.containerWord}`}>
+              <Link to={source.containerPath(row.s.id)} className="hit ml-auto font-mono text-[10px] text-textMuted hover:text-silver transition-colors truncate" title={`Open its ${source.containerWord}`}>
                 {row.s.name}
               </Link>
             </div>
@@ -299,6 +300,12 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
               <Fact label="Expiry · days left at entry">{dayWords(row.t.contract.expiry)} · {row.t.dteIn}d</Fact>
               <Fact label="Delta · vol at entry">{row.t.deltaIn.toFixed(2)} · {Math.round(row.t.ivIn * 100)}%</Fact>
               <Fact label="The name, in → out">{row.t.spotIn.toFixed(2)} → <span className={dirInk(row.t.spotOut - row.t.spotIn)}>{row.t.spotOut.toFixed(2)}</span></Fact>
+              {/* WHERE IT STOOD when it was opened — the name against its flip and walls (a paper fill's stamp) */}
+              {row.paper && row.t.lvIn && (
+                <Fact label="Where it stood at entry">
+                  {row.t.spotIn >= row.t.lvIn.flip ? 'above' : 'below'} the flip {row.t.lvIn.flip.toFixed(2)} <span className="text-textMuted">· walls {row.t.lvIn.putWall.toFixed(2)} / {row.t.lvIn.callWall.toFixed(2)}</span>
+                </Fact>
+              )}
               <Fact label="Held">{heldWords(row.t.heldMin, dayMinOf(row))}</Fact>
               <Fact label="Decay it paid a day"><span className="text-warn">{usd(decayPerDay(row.t))}</span></Fact>
             </dl>
@@ -309,7 +316,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
             <div className={`${card} min-w-0`} data-journal-pieces>
               <div className={head}>
                 <span className={headWord}>The pieces</span>
-                <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted">every fill, in order</span>
+                <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-textMuted">every fill, in order</span>
               </div>
               <div className="px-4 py-1.5 flex flex-col">
                 {row.t.legs.map((l, i) => {
@@ -331,7 +338,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
           <div className={`${card} min-w-0`} data-journal-tag-card>
             <div className={head}>
               <span className={headWord}>Your tags</span>
-              <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted">what the journal can count</span>
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-textMuted">what the journal can count</span>
             </div>
             <div className="px-4 py-3">
               <TagCards entry={entry} onChange={save} />
@@ -342,7 +349,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
             <div className={head}>
               <span className={headWord}>Your words</span>
               {/* the head counts what is kept — the card's own state, never a promise */}
-              <span className={`ml-auto font-mono text-[9px] uppercase tracking-widest ${answered ? 'text-silver' : 'text-textMuted'}`} data-journal-answered={answered}>
+              <span className={`ml-auto font-mono text-[10px] uppercase tracking-widest ${answered ? 'text-silver' : 'text-textMuted'}`} data-journal-answered={answered}>
                 {answered === 0 ? 'nothing kept yet' : `${answered} of ${QUESTIONS.length} kept`} · on this machine
               </span>
             </div>
@@ -355,7 +362,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
                   <label key={q.key} className="flex-1 min-h-0 flex flex-col gap-1.5">
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="text-[12px] font-medium text-textPrimary">{q.ask}</span>
-                      <span className={`inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
+                      <span className={`inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
                         {mark === 'keeping' && 'Keeping…'}
                         {mark === 'kept' && (
                           <>

@@ -45,7 +45,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
-import { GRID_MODULES, GRID_THEME } from '../../components/ui/houseGrid';
+import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -93,7 +93,7 @@ const PHASE_BAR: Record<SectorRow['phase'], string> = { LEADING: 'bg-bull', IMPR
 /** The two consumer sectors by their second word on a card 150px wide — the mark and the grid carry the whole name */
 const SHORT_SECTOR: Partial<Record<Sector, string>> = { 'Consumer Discretionary': 'Discretionary', 'Consumer Staples': 'Staples' };
 
-const signedPct = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const signedPct = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 const dirInk = (v: number) => (v >= 0 ? 'text-bull' : 'text-bear');
 /** "A, B and C" — never "A and B and C" */
 const listPhrase = (items: string[]) => (items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
@@ -162,20 +162,20 @@ const SectorCard = ({ s, rank, leader, top, on, onToggle }: { s: SectorRow; rank
     onClick={onToggle}
     aria-pressed={on}
     title={`${s.note} ${on ? 'Click to show every sector.' : `Click to keep the grid to ${s.sector}.`}`}
-    className={`group text-left rounded-md border px-3 py-2.5 transition-colors min-w-0 ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
+    className={`hit group text-left rounded-md border px-3 py-2.5 transition-colors min-w-0 ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
     data-stocks-sector={s.sector}
     data-on={on || undefined}
   >
     <span className="flex items-center gap-1.5 min-w-0 h-[18px]">
-      <span className="font-mono text-[9px] text-textMuted tnum">{String(rank).padStart(2, '0')}</span>
+      <span className="font-mono text-[10px] text-textMuted tnum">{String(rank).padStart(2, '0')}</span>
       <SectorMark sector={s.sector} />
       <span className="text-[11px] font-bold text-textPrimary truncate">{SHORT_SECTOR[s.sector] ?? s.sector}</span>
     </span>
     <span className="mt-1.5 block h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
       <span className={`block h-full rounded-full ${leader ? 'bg-supreme' : PHASE_BAR[s.phase]}`} style={{ width: `${Math.round((s.score / top) * 100)}%` }} />
     </span>
-    <span className={`mt-1 block h-[12px] font-mono text-[8px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
-    <span className="mt-0.5 block h-[12px] font-mono text-[9px] tnum whitespace-nowrap">
+    <span className={`mt-1 block h-[12px] font-mono text-[10px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
+    <span className="mt-0.5 block h-[12px] font-mono text-[10px] tnum whitespace-nowrap">
       <span className="text-textMuted">1w </span>
       <span className={dirInk(s.rs1w)}>{signedPct(s.rs1w)}</span>
       <span className="text-textMuted"> · 1m </span>
@@ -306,7 +306,7 @@ const Stocks = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">How every name screens</h3>
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
+            <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
             The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map
@@ -328,7 +328,7 @@ const Stocks = () => {
           <div>
             <dt className="text-[10px] text-textMuted">Leading sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-leader>
-              <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
+              <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
                 {top.sector}
               </button>
             </dd>
@@ -336,7 +336,7 @@ const Stocks = () => {
           <div>
             <dt className="text-[10px] text-textMuted">Trailing sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-trailer>
-              <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
+              <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
                 {bottom.sector}
               </button>
             </dd>
@@ -368,7 +368,7 @@ const Stocks = () => {
         </div>
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
-      <div ref={gridRef} className="slayer-board border-t border-borderSubtle" data-stocks-grid>
+      <div ref={gridRef} className="grid-keys slayer-board border-t border-borderSubtle" data-stocks-grid>
         <AgGridProvider modules={GRID_MODULES}>
           <AgGridReact<StockPick>
             theme={GRID_THEME}
@@ -378,8 +378,8 @@ const Stocks = () => {
             defaultColDef={defaultColDef}
             getRowId={p => p.data.ticker}
             onRowClicked={open}
+            {...openRowOnEnter<StockPick>(row => navigate(`/dossier/stocks/${row.ticker}`))}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-            suppressCellFocus
             animateRows={false}
             tooltipShowDelay={350}
             tooltipHideDelay={8000}

@@ -11,6 +11,7 @@
 
 import { dayKey, hGauss, h01, hRange } from '../core/rng';
 import { isoDate } from '../core/calendar';
+import { now as appNow } from '../core/clock';
 import { tickerSentiment } from './news';
 import { UNIVERSE } from './universe';
 import type { Sector } from './universe';
@@ -101,11 +102,17 @@ export function weekDayLabel(weekIdx: 0 | 1, weekday: number): { label: string; 
   return { label: labelFor(d), isToday: d.getTime() === today.getTime() };
 }
 
-/** "Q2'26"-style labels for the last N quarters, oldest first. */
+/** "Q2'26"-style labels for the last N REPORTED quarters, oldest first (the audit's DO-2: the list ran to the quarter we are
+    in, so a quarter nobody has reported showed a beat and a move). The coming report covers the quarter just ended, so the
+    last one reported is the quarter before that — read off the app's clock (core/clock), never the wall's. */
 function quarterLabels(count: number): string[] {
-  const now = new Date();
-  let q = Math.floor(now.getMonth() / 3) + 1;
-  let y = now.getFullYear() % 100;
+  const at = appNow();
+  let q = Math.floor(at.getMonth() / 3) + 1 - 2;
+  let y = at.getFullYear() % 100;
+  while (q < 1) {
+    q += 4;
+    y -= 1;
+  }
   const out: string[] = [];
   for (let i = 0; i < count; i++) {
     out.unshift(`Q${q}'${String(y).padStart(2, '0')}`);
@@ -328,8 +335,14 @@ export function buildEarningsDossier(ticker: string, tick = 0): EarningsDossier 
   const expiryKey = isoDate(weekDayDate(event.weekIdx, 5));
   const straddleCost = (px * im) / 100;
 
+  /* ONE ROW A STRIKE (the audit's DO-3: the ATM and the half-move offsets rounded to the same $137.5 put, listed twice, a
+     duplicate key): a strike already taken on a side steps one strike further out */
+  const taken = new Set<string>();
+  const strikeStep = px > 400 ? 5 : px > 120 ? 2.5 : px > 40 ? 1 : 0.5;
   const mkActive = (right: 'CALL' | 'PUT', distPct: number, seed: string): ActiveContract => {
-    const strike = roundStrike(px, distPct);
+    let strike = roundStrike(px, distPct);
+    while (taken.has(`${right}-${strike}`)) strike = Number((strike + (right === 'CALL' ? strikeStep : -strikeStep)).toFixed(2));
+    taken.add(`${right}-${strike}`);
     const away = Math.abs(distPct);
     const decay = Math.exp(-away / (im * 0.9));
     const base = 9000 + px * 16;

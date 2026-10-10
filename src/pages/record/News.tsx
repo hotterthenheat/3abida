@@ -100,7 +100,7 @@ const SORT_OPTIONS: DropdownOption<Sort>[] = [
 /* THE IMPACT MARK lives in components/record/impactMark.tsx since 2026-09-13 — the All news box and the month draw the same square */
 
 const ago = (m: number) => (m < 1 ? 'just now' : m < 60 ? `${Math.round(m)}m ago` : `${Math.floor(m / 60)}h ${Math.round(m % 60)}m ago`);
-const signed = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const signed = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 
 /*
   THE TAPE (2026-09-13), WITH A WAY BACK (Noah, 2026-09-16: "what if a user
@@ -239,7 +239,7 @@ const NewsTape = ({ tape, selectedId, onPick }: { tape: GeoNewsEvent[]; selected
     e.preventDefault();
     e.stopPropagation();
   };
-  const arrow = 'shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
+  const arrow = 'hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
 
   return (
     <div
@@ -278,14 +278,14 @@ const NewsTape = ({ tape, selectedId, onPick }: { tape: GeoNewsEvent[]; selected
                     type="button"
                     tabIndex={half === 1 ? -1 : 0}
                     onClick={() => onPick(e)}
-                    className={`group inline-flex items-center gap-2 mr-9 transition-colors ${e.id === selectedId ? 'text-textPrimary' : 'text-textSecondary hover:text-textPrimary'}`}
+                    className={`hit group inline-flex items-center gap-2 mr-9 transition-colors ${e.id === selectedId ? 'text-textPrimary' : 'text-textSecondary hover:text-textPrimary'}`}
                     title={`${e.item.headline} · ${e.item.source} · ${ago(e.item.minutesAgo)}`}
                     data-news-tape-item={half === 0 ? e.id : undefined}
                   >
                     <ImpactMark tier={tierOf(e.severity)} />
                     <span className="font-mono text-[10px] font-bold text-textPrimary">{e.item.ticker ?? 'MACRO'}</span>
                     <span className="text-[11px]">{e.item.headline}</span>
-                    <span className="font-mono text-[9px] text-textMuted">{ago(e.item.minutesAgo)}</span>
+                    <span className="font-mono text-[10px] text-textMuted">{ago(e.item.minutesAgo)}</span>
                   </button>
                 ))}
               </span>
@@ -306,7 +306,7 @@ const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () 
     type="button"
     onClick={onClick}
     onMouseEnter={onWarm}
-    className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[9px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
+    className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
   >
     <ArrowUpRight className="w-3 h-3" />
     {children}
@@ -327,7 +327,7 @@ const NewsAlertDoor = ({ ticker }: { ticker: string }) => {
       onClick={() => (set ? removeAlert(ticker, set.id) : armNews(ticker, Date.now()))}
       aria-pressed={!!set}
       title={set ? `The bell rings when a headline lands on ${ticker} · click to take it off` : `Ring the bell when a headline lands on ${ticker}`}
-      className={`inline-flex items-center gap-1 h-6 px-2 rounded-md border font-mono text-[9px] uppercase tracking-widest transition-colors ${set ? 'border-silver/50 text-silver bg-silver/[0.08]' : 'border-borderSubtle bg-chip hover:border-borderMuted text-textSecondary hover:text-textPrimary'}`}
+      className={`hit inline-flex items-center gap-1 h-6 px-2 rounded-md border font-mono text-[10px] uppercase tracking-widest transition-colors ${set ? 'border-silver/50 text-silver bg-silver/[0.08]' : 'border-borderSubtle bg-chip hover:border-borderMuted text-textSecondary hover:text-textPrimary'}`}
       data-news-alert={set ? 'set' : 'off'}
     >
       <Bell className="w-3 h-3" />
@@ -348,7 +348,7 @@ const Fact = ({ label, children, testId }: { label: string; children: React.Reac
 /** A figure on the story card — label over value, the card's own smaller scale */
 const Figure = ({ label, tone = 'text-textPrimary', children, title }: { label: string; tone?: string; children: React.ReactNode; title?: string }) => (
   <div className="min-w-0" title={title}>
-    <div className="text-[9px] text-textMuted whitespace-nowrap truncate">{label}</div>
+    <div className="text-[10px] text-textMuted whitespace-nowrap truncate">{label}</div>
     <div className={`mt-0.5 font-mono text-[12px] font-semibold tnum whitespace-nowrap ${tone}`}>{children}</div>
   </div>
 );
@@ -360,7 +360,7 @@ const OddsBar = ({ probUp }: { probUp: number }) => (
       <span className={probUp < 50 ? 'text-bear font-semibold' : 'text-textSecondary'}>
         down <AnimatedNumber value={100 - probUp} format={v => `${Math.round(v)}%`} />
       </span>
-      <span className="text-[9px] uppercase tracking-widest text-textMuted">odds next session</span>
+      <span className="text-[10px] uppercase tracking-widest text-textMuted">how similar stories closed next session</span>
       <span className={probUp >= 50 ? 'text-bull font-semibold' : 'text-textSecondary'}>
         up <AnimatedNumber value={probUp} format={v => `${Math.round(v)}%`} />
       </span>
@@ -397,7 +397,7 @@ const StoryText = ({ storyId, body, source, url }: { storyId: string; body: stri
             type="button"
             onClick={() => setWhole(w => !w)}
             aria-expanded={whole}
-            className="self-start inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-textMuted hover:text-textPrimary transition-colors"
+            className="hit self-start inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-textMuted hover:text-textPrimary transition-colors"
             data-news-body-door
           >
             {whole ? 'Fold the story' : 'Read the whole story'}
@@ -571,7 +571,7 @@ const News = () => {
           <div className="min-w-0 flex-1">
             <div className="h-6 flex items-center gap-3">
               <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">The wire</h3>
-              <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the pins, the lean and the numbers mean" testId="news-guide" />
+              <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the pins, the lean and the numbers mean" testId="news-guide" />
             </div>
             <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every story on the wire today · a pin on every city a story comes from · click a pin or a row and the story opens beside the map</p>
           </div>
@@ -621,12 +621,13 @@ const News = () => {
             <NewsTape tape={tape} selectedId={selectedId} onPick={pick} />
             {/* a column, so the map fills the box when the story beside it is the taller of the two (NewsMap's frameFor) */}
             <div className="relative flex-1 min-h-0 flex flex-col px-2 pt-2">
-              <NewsMap className="flex-1 min-h-0" pins={pins} selectedCity={selected?.origin.city ?? null} hoverCity={hoverCity?.city ?? null} onPick={p => { const e = rows.find(r => r.id === p.topId) ?? events.find(r => r.id === p.topId); if (e) pick(e); else setSelectedId(p.topId); }} onHover={setHoverCity} heat={heat} reach={reach} at={at} flyTo={flyTo} />
+              <NewsMap className="flex-1 min-h-0 max-lg:flex-none max-lg:h-[260px]" pins={pins} selectedCity={selected?.origin.city ?? null} hoverCity={hoverCity?.city ?? null} onPick={p => { const e = rows.find(r => r.id === p.topId) ?? events.find(r => r.id === p.topId); if (e) pick(e); else setSelectedId(p.topId); }} onHover={setHoverCity} heat={heat} reach={reach} at={at} flyTo={flyTo} />
               {/* THE KINDS, AT THE MAP'S FOOT (Noah, 2026-09-13, his partner's reference map: "the different subsections… with the
                   buttons at the bottom, the different sections pulling it up"): the choice pills of the type design — one on,
                   solid holo silver — each pulling that kind of story up on the map, the tape, the rows and the story */}
               {/* Below lg the kinds fold into two centred rows inside the map's width (the phone pass, 2026-09-13): centred on a point, eight pills ran off both sides */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 p-1 rounded-full border border-borderSubtle bg-chip/90 backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)] max-lg:left-2 max-lg:right-2 max-lg:translate-x-0 max-lg:flex max-lg:flex-wrap max-lg:justify-center max-lg:rounded-2xl" role="group" aria-label="What kind of story" data-news-kinds={category}>
+              {/* below lg the kinds stand ABOVE the map, never over it (the audit's DO-4: the two rows of pills covered a 160 px map) */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 p-1 rounded-full border border-borderSubtle bg-chip/90 backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)] max-lg:static max-lg:order-first max-lg:mb-2 max-lg:translate-x-0 max-lg:flex max-lg:flex-wrap max-lg:justify-center max-lg:rounded-2xl max-lg:shadow-none" role="group" aria-label="What kind of story" data-news-kinds={category}>
                 {CATEGORY_OPTIONS.map(o => {
                   const on = o.value === category;
                   return (
@@ -637,7 +638,7 @@ const News = () => {
                       aria-pressed={on}
                       title={o.hint}
                       /* the silver SURFACE, not the silver ink (2026-09-16): on paper the ink is a deep steel and black on it was 2.4:1 */
-                      className={`h-6 px-3 rounded-full font-mono text-[10px] tracking-wide transition-colors ${on ? 'bg-silverFill text-[#0a0a0a] font-semibold' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+                      className={`hit h-6 px-3 rounded-full font-mono text-[10px] tracking-wide transition-colors ${on ? 'bg-silverFill text-[rgb(var(--night))] font-semibold' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
                       data-news-kind={o.value}
                     >
                       {o.label}
@@ -692,16 +693,17 @@ const News = () => {
               <>
                 <div className="flex items-center gap-2 flex-wrap">
                   {selected.item.ticker ? (
-                    <button type="button" onClick={() => openName(selected.item.ticker!)} className="inline-flex items-center gap-1.5 group" title={`Open ${selected.item.ticker} on the Map`}>
+                    <button type="button" onClick={() => openName(selected.item.ticker!)} className="hit inline-flex items-center gap-1.5 group" title={`Open ${selected.item.ticker} on the Map`}>
                       <CompanyLogo ticker={selected.item.ticker} size={16} />
                       <span className="font-mono text-[12px] font-bold text-textPrimary group-hover:underline underline-offset-2">{selected.item.ticker}</span>
                     </button>
                   ) : (
                     <span className="font-mono text-[12px] font-bold text-textPrimary">MACRO</span>
                   )}
-                  <span className={`font-mono text-[9px] font-semibold uppercase tracking-widest ${GRADE_INK[selected.grade]}`}>{GRADE_WORD[selected.grade]}</span>
-                  <CatTag category={selected.item.category} size={9} />
-                  <span className="ml-auto font-mono text-[9px] text-textMuted whitespace-nowrap">
+                  <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${GRADE_INK[selected.grade]}`}>{GRADE_WORD[selected.grade]}</span>
+                  {/* a story with no name already reads MACRO — its kind is not said twice (the audit's DO-13) */}
+                  {!(selected.item.category === 'Macro' && !selected.item.ticker) && <CatTag category={selected.item.category} size={10} />}
+                  <span className="ml-auto font-mono text-[10px] text-textMuted whitespace-nowrap">
                     {selected.item.source} · {ago(selected.item.minutesAgo)}
                   </span>
                 </div>
@@ -713,7 +715,7 @@ const News = () => {
                 <StoryText storyId={selected.id} body={selected.item.body} source={selected.item.source} url={selected.item.url} />
                 {/* the impact, as a meter, in the grade's ink */}
                 <div>
-                  <div className="flex items-center justify-between text-[9px] text-textMuted">
+                  <div className="flex items-center justify-between text-[10px] text-textMuted">
                     <span className="inline-flex items-center gap-1.5">
                       <ImpactMark tier={tierOf(selected.severity)} />
                       <span>
@@ -752,19 +754,19 @@ const News = () => {
                 {/* THE WORDS — the playbook, the analog, what kills it — keyed so they soft-fade per story */}
                 <div key={selected.id} className="flex flex-col gap-2 animate-soft-in text-[11.5px] leading-relaxed text-textSecondary">
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-textMuted">Playbook</div>
+                    <div className="text-[10px] uppercase tracking-widest text-textMuted">What tends to be watched</div>
                     <p className="mt-0.5">
                       <RichRead text={selected.item.prediction.playbook} />
                     </p>
                   </div>
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-textMuted">Before, stories like this</div>
+                    <div className="text-[10px] uppercase tracking-widest text-textMuted">Before, stories like this</div>
                     <p className="mt-0.5">
                       <RichRead text={selected.item.prediction.analog} />
                     </p>
                   </div>
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-textMuted">What kills it</div>
+                    <div className="text-[10px] uppercase tracking-widest text-textMuted">What would change the read</div>
                     <p className="mt-0.5">
                       <RichRead text={deep.invalidation} />
                     </p>
@@ -773,7 +775,7 @@ const News = () => {
                 {/* WHERE IT LANDS — the story's zones, the heaviest first */}
                 {selected.impacts.length > 0 && (
                   <div className="flex flex-col gap-1.5" data-news-zones>
-                    <div className="text-[9px] uppercase tracking-widest text-textMuted">Where it lands · {selected.impacts.length} zones</div>
+                    <div className="text-[10px] uppercase tracking-widest text-textMuted">Where it lands · {selected.impacts.length} zones</div>
                     {[...selected.impacts]
                       .sort((a, b) => b.w - a.w)
                       .slice(0, 4)
@@ -783,7 +785,7 @@ const News = () => {
                           <span className="flex-1 h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
                             <span className={`block h-full rounded-full ${GRADE_BAR[selected.grade]}`} style={{ width: `${Math.min(100, z.w * 10)}%` }} />
                           </span>
-                          <span className="font-mono text-[9px] text-textMuted w-9 text-right">{z.w >= 7 ? 'heavy' : z.w >= 4 ? 'firm' : 'light'}</span>
+                          <span className="font-mono text-[10px] text-textMuted w-9 text-right">{z.w >= 7 ? 'heavy' : z.w >= 4 ? 'firm' : 'light'}</span>
                         </div>
                       ))}
                   </div>
@@ -825,7 +827,7 @@ const News = () => {
         {/* THE ROWS — every story on the cut, in the chosen order */}
         {/* Below lg the rows scroll sideways inside their box at a readable width (the phone pass, 2026-09-13) */}
         <div className="border-t border-borderSubtle max-lg:overflow-x-auto" data-news-rows>
-          <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted max-lg:min-w-[640px]" style={{ gridTemplateColumns: '72px 104px 96px 72px minmax(0, 1fr) 76px 72px' }}>
+          <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted max-lg:min-w-[640px]" style={{ gridTemplateColumns: '72px 104px 96px 72px minmax(0, 1fr) 76px 72px' }}>
             <span>Time</span>
             <span>Name</span>
             <span>Kind</span>
@@ -852,7 +854,7 @@ const News = () => {
                 key={e.id}
                 type="button"
                 onClick={() => pick(e)}
-                className={`group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
+                className={`hit group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
                 style={{ height: NEWS_ROW_H, gridTemplateColumns: '72px 104px 96px 72px minmax(0, 1fr) 76px 72px' }}
                 data-news-row={e.id}
                 data-open={open || undefined}
@@ -870,9 +872,9 @@ const News = () => {
                   )}
                 </span>
                 <span className="min-w-0">
-                  <CatTag category={e.item.category} size={9} />
+                  <CatTag category={e.item.category} size={10} />
                 </span>
-                <span className={`font-mono text-[9px] font-semibold uppercase tracking-widest ${GRADE_INK[e.grade]}`}>{GRADE_WORD[e.grade]}</span>
+                <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${GRADE_INK[e.grade]}`}>{GRADE_WORD[e.grade]}</span>
                 <span className="min-w-0 flex items-center gap-2">
                   <ImpactMark tier={tierOf(e.severity)} />
                   <span className={`min-w-0 truncate text-[12px] ${open ? 'text-textPrimary' : quiet ? 'text-textMuted group-hover:text-textPrimary' : 'text-textSecondary group-hover:text-textPrimary'} transition-colors`}>{e.item.headline}</span>

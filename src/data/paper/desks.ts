@@ -144,5 +144,12 @@ export const setQuick = (n: number) => commit({ ...state, quick: Math.max(1, Mat
 export function deleteDesk(id: string): void {
   if (state.desks.length < 2) return;
   const desks = state.desks.filter(d => d.id !== id);
-  commit({ desks, current: state.current === id ? desks[0].id : state.current });
+  commit({ ...state, desks, current: state.current === id ? desks[0].id : state.current });
+}
+/** Put a deleted desk back where it stood (the Undo of a delete), and on the desk again if it was there */
+export function restoreDesk(d: SavedDesk, at: number, wasCurrent: boolean): void {
+  if (state.desks.some(x => x.id === d.id)) return;
+  const desks = [...state.desks];
+  desks.splice(Math.max(0, Math.min(at, desks.length)), 0, d);
+  commit({ ...state, desks, current: wasCurrent ? d.id : state.current });
 }

@@ -208,7 +208,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
       <div className="min-h-9 px-4 py-1 flex items-center gap-3 border-b border-borderSubtle/70">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">The name while it was on</span>
         {/* a phone's head has room for the title and the card, not for the line between them */}
-        <span className="min-w-0 font-mono text-[9px] uppercase tracking-widest text-textMuted truncate max-sm:hidden">{row.paper ? 'the hour before · the trade · as the desk drew it' : 'the day before · the trade · the rest of its last day'}</span>
+        <span className="min-w-0 font-mono text-[10px] uppercase tracking-widest text-textMuted truncate max-sm:hidden">{row.paper ? 'the hour before · the trade · as the desk drew it' : 'the day before · the trade · the rest of its last day'}</span>
         <span className="ml-auto">
           <DropdownSelect label="Candles" value={frame} options={FRAMES} onChange={setFrame} title="How long a candle is" align="end" size="sm" testId="journal-frame" />
         </span>

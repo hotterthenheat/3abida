@@ -44,7 +44,8 @@ const RecordLayout = () => {
             </span>
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{page.subtitle}</p>
+          {/* two lines on a phone, never cut (the audit's X10); the whole of it in the title */}
+          <p className="mt-0.5 text-[11px] text-textMuted md:whitespace-nowrap md:truncate" title={page.subtitle}>{page.subtitle}</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           <div className="min-w-0">

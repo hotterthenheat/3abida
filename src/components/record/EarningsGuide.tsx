@@ -244,7 +244,7 @@ export const EarningsGuide = () => (
       <PricedFigure />
     </Section>
     <Section title="Today's price, replayed">
-      <p>On a name's page, today's price for the move is tested against its last eight real prints — how often the move would have covered it.</p>
+      <p>On a name's page, today's price for the move is tested against its last eight prints — how often the move would have covered it.</p>
       <ReplayFigure />
     </Section>
     <Section title="On the record">

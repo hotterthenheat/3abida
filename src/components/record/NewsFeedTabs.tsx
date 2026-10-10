@@ -57,7 +57,7 @@ const GRADE_INK: Record<NewsGrade, string> = { THREAT: 'text-bear', ALLY: 'text-
 const GRADE_WORD: Record<NewsGrade, string> = { THREAT: 'negative', ALLY: 'positive', WATCH: 'neutral' };
 /** The wire's columns — the same seven the rows under the map wear */
 export const FEED_COLS = '72px 104px 96px 72px minmax(0, 1fr) 76px 72px';
-const signed = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+const signed = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
 /** The tab in hand outlives the page — back from a story's page, the reader lands on the tab they left */
 let tabMemory: FeedTab = 'all';
 
@@ -139,7 +139,7 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
       {/* THE NAMES YOU FOLLOW — on the Following tab: a chip per name with its bell, and the door to add one */}
       {tab === 'following' && (
         <div className="px-5 h-[44px] border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap" data-news-follows={follows.length}>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted mr-1">Following</span>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted mr-1">Following</span>
           {follows.length === 0 && <span className="text-[11px] text-textSecondary">no names yet — add one and its stories gather here</span>}
           {follows.map(f => (
             <span key={f.ticker} className="inline-flex items-center gap-1 h-7 pl-2 pr-1 rounded-md border border-borderSubtle bg-chip font-mono text-[11px] font-semibold text-textPrimary" data-follow={f.ticker} data-alerts={f.alerts || undefined}>
@@ -150,12 +150,12 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
                 onClick={() => setFollowAlerts(f.ticker, !f.alerts)}
                 title={f.alerts ? `The bell rings when a headline lands on ${f.ticker} · click to take it off` : `Ring the bell when a headline lands on ${f.ticker}`}
                 aria-pressed={f.alerts}
-                className={`ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${f.alerts ? 'text-silver bg-silver/[0.12]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+                className={`hit ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${f.alerts ? 'text-silver bg-silver/[0.12]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'}`}
                 data-follow-bell={f.alerts ? 'set' : 'off'}
               >
                 {f.alerts ? <Bell className="w-3 h-3" /> : <BellOff className="w-3 h-3" />}
               </button>
-              <button type="button" onClick={() => unfollowName(f.ticker)} title={`Stop following ${f.ticker}`} aria-label={`Stop following ${f.ticker}`} className="inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-follow-remove>
+              <button type="button" onClick={() => unfollowName(f.ticker)} title={`Stop following ${f.ticker}`} aria-label={`Stop following ${f.ticker}`} className="hit inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-follow-remove>
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -165,7 +165,7 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
               type="button"
               onClick={() => setAdding(v => !v)}
               aria-expanded={adding}
-              className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
+              className={`hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
               data-follow-add
             >
               <Plus className="w-3 h-3 text-textMuted" />
@@ -183,13 +183,13 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
               </div>
             )}
           </div>
-          <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted">the bell rings in the alerts drawer when a headline lands</span>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-textMuted">the bell rings in the alerts drawer when a headline lands</span>
         </div>
       )}
 
       {/* THE ROWS — the wire's grammar; below lg they scroll sideways inside the box at a readable width (the phone pass, 2026-09-13) */}
       <div className="max-lg:overflow-x-auto">
-      <div className="px-5 h-[22px] grid items-center gap-x-3 text-[9px] uppercase tracking-widest text-textMuted max-lg:min-w-[640px]" style={{ gridTemplateColumns: FEED_COLS }}>
+      <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted max-lg:min-w-[640px]" style={{ gridTemplateColumns: FEED_COLS }}>
         <span>Time</span>
         <span>Name</span>
         <span>Kind</span>
@@ -207,8 +207,8 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
         <div key={p.id} className="px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 max-lg:min-w-[640px]" style={{ height: NEWS_ROW_H, gridTemplateColumns: FEED_COLS }} data-news-print-row={p.id}>
           <span className="font-mono text-[10px] tnum text-textSecondary">{p.timeLabel}</span>
           <span className="font-mono text-[11px] font-bold text-textSecondary">{p.region}</span>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">print</span>
-          <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary">landed</span>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">print</span>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textSecondary">landed</span>
           <span className="min-w-0 flex items-center gap-2">
             <ImpactMark tier={p.impact} />
             <span className="min-w-0 truncate text-[12px] text-textPrimary">{p.title}</span>
@@ -244,7 +244,7 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
             key={e.id}
             type="button"
             onClick={() => onPick(e)}
-            className={`group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
+            className={`hit group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
             style={{ height: NEWS_ROW_H, gridTemplateColumns: FEED_COLS }}
             data-news-feed-row={e.id}
             data-open={open || undefined}
@@ -263,13 +263,13 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
               )}
             </span>
             <span className="min-w-0">
-              <CatTag category={e.item.category} size={9} />
+              <CatTag category={e.item.category} size={10} />
             </span>
-            <span className={`font-mono text-[9px] font-semibold uppercase tracking-widest ${GRADE_INK[e.grade]}`}>{GRADE_WORD[e.grade]}</span>
+            <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${GRADE_INK[e.grade]}`}>{GRADE_WORD[e.grade]}</span>
             <span className="min-w-0 flex items-center gap-2">
               <ImpactMark tier={tierOf(e.severity)} />
               <span className={`min-w-0 truncate text-[12px] ${open ? 'text-textPrimary' : quiet ? 'text-textMuted group-hover:text-textPrimary' : 'text-textSecondary group-hover:text-textPrimary'} transition-colors`}>{e.item.headline}</span>
-              <span className="font-mono text-[9px] text-textMuted whitespace-nowrap">{e.item.source}</span>
+              <span className="font-mono text-[10px] text-textMuted whitespace-nowrap">{e.item.source}</span>
             </span>
             <span className={`text-right font-mono text-[11px] font-semibold tnum ${e.item.prediction.expMove1dPct >= 0 ? 'text-bull' : 'text-bear'}`}>{signed(e.item.prediction.expMove1dPct)}</span>
             <span className={`text-right font-mono text-[10px] font-semibold ${READ_INK[gradeOfNewsConfidence(e.item.prediction.confidencePct)]}`} data-news-row-sure>

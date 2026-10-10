@@ -743,9 +743,13 @@ export function rebase(s: Session, orderId: string, to: 'name' | 'contract', now
 }
 
 /* ---- the clock ---- */
-/** The earliest the clock may be pulled back to: the reader's last order or fill */
+/** THE EARLIEST THE CLOCK MAY STAND: where it stands now. THE CLOCK ONLY MOVES FORWARD (the audit's PR-2, 2026-10-09: run
+    to 15:21, the day seen, back to 09:50 and a buy made $56.70 — the floor was only the last order or fill, so any part of
+    the day ahead of the first trade could be looked at and then traded). A minute the clock has stood on is never stood
+    on again before it. */
 export function floorOf(s: Session): Moment {
-  let at: Moment = { day: s.startDay, minute: 0 };
+  let at: Moment = s.cursor;
+  /* a session kept from before the rule: its clock is never behind its own book */
   for (const o of s.orders) if (stampOf(o.placed) > stampOf(at)) at = o.placed;
   for (const f of s.fills) if (stampOf(f.at) > stampOf(at)) at = f.at;
   return at;
@@ -808,14 +812,11 @@ function bell(s: Session, day: string): Session {
   return next;
 }
 
-/** Move the clock forward to a moment, running every minute between. Backward moves never touch the book. */
+/** Move the clock forward to a moment, running every minute between. A move back is refused: the clock stays (floorOf). */
 export function advance(s: Session, to: Moment, now: number): Session {
   const days = tapeDays();
   const from = s.cursor;
-  if (stampOf(to) <= stampOf(from)) {
-    const floor = floorOf(s);
-    return { ...s, touchedAt: now, cursor: stampOf(to) < stampOf(floor) ? floor : to };
-  }
+  if (stampOf(to) <= stampOf(from)) return s;
   let next = s;
   for (let di = dayIndex(from.day); di <= dayIndex(to.day) && di < days.length; di++) {
     const day = days[di];
@@ -908,17 +909,21 @@ const cutBy = (trades: Trade[], groups: [string, (t: Trade) => boolean][]): Cut[
       return { label, n: g.length, winRate: g.length ? g.filter(t => t.pnl > 0).length / g.length : 0, net: cents(g.reduce((a, t) => a + t.pnl, 0)), avgR: g.length ? g.reduce((a, t) => a + t.r, 0) / g.length : 0 };
     })
     .filter(c => c.n > 0);
+/** THE OPTIONS' OWN CUTS, said once — the Report's (below) and the journal's lanes (journalFigures.ts) read the same groups */
+type AtEntry = { dteIn: number; deltaIn: number };
+export const DTE_CUTS: [string, (t: AtEntry) => boolean][] = [['Same day', t => t.dteIn === 0], ['1 to 7 days', t => t.dteIn >= 1 && t.dteIn <= 7], ['8 to 30 days', t => t.dteIn >= 8 && t.dteIn <= 30], ['Over 30 days', t => t.dteIn > 30]];
+const absDelta = (t: AtEntry) => Math.abs(t.deltaIn);
+export const DELTA_CUTS: [string, (t: AtEntry) => boolean][] = [['Far out · under 0.25', t => absDelta(t) < 0.25], ['Out · 0.25 to 0.45', t => absDelta(t) >= 0.25 && absDelta(t) < 0.45], ['At the money · 0.45 to 0.60', t => absDelta(t) >= 0.45 && absDelta(t) <= 0.6], ['In the money · over 0.60', t => absDelta(t) > 0.6]];
 /** The cuts only options have */
 export function cutsOf(trades: Trade[]): { title: string; rows: Cut[] }[] {
-  const ad = (t: Trade) => Math.abs(t.deltaIn);
   const names = [...new Set(trades.map(t => t.contract.ticker))];
   return [
     /* a session of two names: which one the edge lives in (a single name would be one row saying what the head already does) */
     { title: 'By name', rows: names.length > 1 ? cutBy(trades, names.map(n => [n, (t: Trade) => t.contract.ticker === n] as [string, (t: Trade) => boolean])) : [] },
     { title: 'Single contracts against spreads', rows: trades.some(t => t.contract.short != null) ? cutBy(trades, [['Single contracts', t => t.contract.short == null], ['Spreads', t => t.contract.short != null]]) : [] },
     { title: 'Calls against puts', rows: cutBy(trades, [['Calls', t => t.contract.right === 'C'], ['Puts', t => t.contract.right === 'P']]) },
-    { title: 'By days to expiry at entry', rows: cutBy(trades, [['Same day', t => t.dteIn === 0], ['1 to 7 days', t => t.dteIn >= 1 && t.dteIn <= 7], ['8 to 30 days', t => t.dteIn >= 8 && t.dteIn <= 30], ['Over 30 days', t => t.dteIn > 30]]) },
-    { title: 'By delta at entry', rows: cutBy(trades, [['Far out · under 0.25', t => ad(t) < 0.25], ['Out · 0.25 to 0.45', t => ad(t) >= 0.25 && ad(t) < 0.45], ['At the money · 0.45 to 0.60', t => ad(t) >= 0.45 && ad(t) <= 0.6], ['In the money · over 0.60', t => ad(t) > 0.6]]) },
+    { title: 'By days to expiry at entry', rows: cutBy(trades, DTE_CUTS) },
+    { title: 'By delta at entry', rows: cutBy(trades, DELTA_CUTS) },
     { title: 'How it ended', rows: cutBy(trades, [['Sold by you', t => t.how === 'sold'], ['Target hit', t => t.how === 'target'], ['Stopped out', t => t.how === 'stopped'], ['Held to the bell', t => t.how === 'expired'], ['Scaled out · in pieces', t => t.how === 'scaled']]) },
     { title: 'By the hour it was entered', rows: cutBy(trades, [['09:30 to 10:30', t => t.opened.minute < 60], ['10:30 to 12:00', t => t.opened.minute >= 60 && t.opened.minute < 150], ['12:00 to 14:00', t => t.opened.minute >= 150 && t.opened.minute < 270], ['14:00 to the bell', t => t.opened.minute >= 270]]) },
   ].filter(c => c.rows.length > 0);

@@ -44,6 +44,7 @@
 
 import { directionOf, entryOf, instantOf, nameOf, type JournalRow } from './journal';
 import { nyAt } from '../paper/clock';
+import { DELTA_CUTS, DTE_CUTS } from './engine';
 
 /** THE CALENDAR DAY a trade closed on, New York's — what the journal's calendar files it under (see the head note) */
 export const calendarDayOf = (r: JournalRow): string => nyAt(instantOf(r, r.t.closed) * 1000).date;
@@ -273,4 +274,132 @@ export function bySize(rows: JournalRow[]): { lanes: Lane[]; step: number } {
     laneOf('lost-big', `Lost over ${dollars(2 * s)}`, `Lost more than ${dollars(2 * s)}`, pick(-Infinity, -2 * s, false, false), 'bear'),
   ];
   return { lanes, step };
+}
+
+/* ================================================================== */
+/*  MORE CUTS (the ideas of 2026-10-09): what the reader's own tags    */
+/*  cost, the options' own cuts, how much of a run-up was kept, and    */
+/*  where a paper trade stood against the book when it was opened      */
+/* ================================================================== */
+
+const money0 = (v: number) => `${v < 0 ? '−' : v > 0 ? '+' : ''}$${Math.round(Math.abs(v)).toLocaleString('en-US')}`;
+const across = (n: number) => `across ${n} ${n === 1 ? 'trade' : 'trades'}`;
+
+/** WHAT EACH MISTAKE COST: every mistake tag, what the trades that carry it made — the costliest first ("Chased it ·
+    −$412 across 6 trades"). A trade with two mistakes counts in both. */
+export function byMistake(rows: JournalRow[]): Lane[] {
+  const by = new Map<string, JournalRow[]>();
+  for (const r of rows) for (const m of entryOf(r).mistakes ?? []) by.set(m, [...(by.get(m) ?? []), r]);
+  return [...by.entries()]
+    .map(([m, list]) => {
+      const l = laneOf(m, m, '', list);
+      return { ...l, hint: `${m}: ${money0(l.net)} ${across(l.n)}` };
+    })
+    .sort((a, b) => a.net - b.net || b.n - a.n);
+}
+
+/** THE PLAN FOLLOWED OR NOT — the reader's own answer on each trade */
+export function byPlan(rows: JournalRow[]): Lane[] {
+  const by = groupBy(rows, r => entryOf(r).plan ?? 'unsaid');
+  return [laneOf('yes', 'Followed', 'You said you followed the plan', by.get('yes') ?? []), laneOf('no', 'Left it', 'You said you left the plan', by.get('no') ?? []), laneOf('unsaid', 'Not said', 'No answer on the plan', by.get('unsaid') ?? [])];
+}
+
+/** BY MOOD — how the reader felt going in; the trades with no mood said last */
+export function byMood(rows: JournalRow[]): Lane[] {
+  const by = groupBy(rows, r => entryOf(r).mood ?? '');
+  const said = [...by.entries()].filter(([k]) => k).map(([k, list]) => laneOf(k, k, `Felt ${k.toLowerCase()} going in`, list)).sort((a, b) => b.n - a.n || (a.key < b.key ? -1 : 1));
+  const none = by.get('');
+  return none && said.length ? [...said, laneOf('none', 'Not said', 'No mood written down', none)] : said;
+}
+
+/** The options' own cuts, as lanes — the Report's groups (review/engine.ts DTE_CUTS, DELTA_CUTS) */
+const lanesOfCuts = (rows: JournalRow[], cuts: [string, (t: { dteIn: number; deltaIn: number }) => boolean][], hint: (label: string) => string): Lane[] =>
+  cuts.map(([label, pick]) => laneOf(label, label.split(' · ')[0], hint(label), rows.filter(r => pick(r.t))));
+export const byDte = (rows: JournalRow[]): Lane[] => lanesOfCuts(rows, DTE_CUTS, l => `Days to expiry when it was opened: ${l.toLowerCase()}`);
+export const byDelta = (rows: JournalRow[]): Lane[] => lanesOfCuts(rows, DELTA_CUTS, l => `Delta when it was opened: ${l.toLowerCase()}`);
+/** BY THE CONTRACT'S IMPLIED VOL WHEN IT WAS OPENED */
+export function byIv(rows: JournalRow[]): Lane[] {
+  const iv = (r: JournalRow) => r.t.ivIn * 100;
+  const cuts: [string, string, (v: number) => boolean][] = [
+    ['under 20%', 'Implied vol under 20% at entry', v => v < 20],
+    ['20–30%', 'Implied vol from 20% to 30% at entry', v => v >= 20 && v < 30],
+    ['30–45%', 'Implied vol from 30% to 45% at entry', v => v >= 30 && v < 45],
+    ['45% and up', 'Implied vol of 45% or more at entry', v => v >= 45],
+  ];
+  return cuts.map(([label, hint, pick]) => laneOf(label, label, hint, rows.filter(r => r.t.ivIn > 0 && pick(iv(r)))));
+}
+
+/** HOW MUCH OF THE RUN-UP WAS KEPT (exit efficiency, in the reader's words): what a trade closed at against the best it was up
+    while held. `bestOf` hands the best (excursion.ts — the page's, so this file stays free of the drawings). */
+export function byKept(rows: JournalRow[], bestOf: (r: JournalRow) => number): Lane[] {
+  const share = (r: JournalRow) => {
+    const best = bestOf(r);
+    return best > 0 ? r.t.pnl / best : null;
+  };
+  const pick = (f: (s: number | null, r: JournalRow) => boolean) => rows.filter(r => f(share(r), r));
+  return [
+    laneOf('most', 'Kept ¾+', 'Closed with three quarters or more of its best run-up', pick(s => s != null && s >= 0.75), 'bull'),
+    laneOf('half', 'Kept ½–¾', 'Closed with half to three quarters of its best run-up', pick(s => s != null && s >= 0.5 && s < 0.75), 'bull'),
+    laneOf('some', 'Kept under ½', 'Closed up, with under half of its best run-up', pick(s => s != null && s > 0 && s < 0.5), 'bull'),
+    laneOf('gave', 'Up, closed down', 'Was up while held, and closed at nothing or less', pick(s => s != null && s <= 0), 'bear'),
+    laneOf('never', 'Never up', 'Was never up while held', pick(s => s == null), 'bear'),
+  ];
+}
+
+/** WHERE A PAPER TRADE STOOD AGAINST THE BOOK WHEN IT WAS OPENED (data/paper/engine.ts `lv`): above the flip or below it, and
+    against the walls — a trade from before the stamp, or a backtest's, has none and is left out */
+export function byFlip(rows: JournalRow[]): Lane[] {
+  const stamped = rows.filter(r => r.paper && r.t.lvIn);
+  const above = stamped.filter(r => r.paper && r.t.lvIn && r.t.spotIn >= r.t.lvIn.flip);
+  const below = stamped.filter(r => r.paper && r.t.lvIn && r.t.spotIn < r.t.lvIn.flip);
+  return [laneOf('above', 'Above the flip', 'Opened with the name above its flip', above), laneOf('below', 'Below the flip', 'Opened with the name below its flip', below)];
+}
+/** …and against the walls: near one (within a quarter of a percent), between them, or past one */
+export function byWalls(rows: JournalRow[]): Lane[] {
+  const near = 0.0025;
+  const place = (r: JournalRow): 'call' | 'put' | 'between' | 'past' | null => {
+    if (!r.paper || !r.t.lvIn) return null;
+    const { callWall, putWall } = r.t.lvIn;
+    const s = r.t.spotIn;
+    if (Math.abs(s - callWall) / s <= near) return 'call';
+    if (Math.abs(s - putWall) / s <= near) return 'put';
+    if (s > callWall || s < putWall) return 'past';
+    return 'between';
+  };
+  const by = groupBy(rows.filter(r => place(r) != null), r => place(r)!);
+  return [
+    laneOf('call', 'At the call wall', 'Opened within a quarter of a percent of the call wall', by.get('call') ?? []),
+    laneOf('put', 'At the put wall', 'Opened within a quarter of a percent of the put wall', by.get('put') ?? []),
+    laneOf('between', 'Between the walls', 'Opened between the put wall and the call wall', by.get('between') ?? []),
+    laneOf('past', 'Past a wall', 'Opened above the call wall or below the put wall', by.get('past') ?? []),
+  ];
+}
+
+/** THE RULES KEPT, WEEK BY WEEK — never called a score: of the trades with an answer on the plan, how many followed it with
+    no mistake on them. A week a column, the oldest first (the last `weeks`). */
+export interface KeptWeek {
+  /** The week's Sunday */
+  from: string;
+  /** Trades with the plan answered */
+  said: number;
+  /** …of them, followed with no mistake */
+  kept: number;
+  /** Every trade that week */
+  n: number;
+}
+export function rulesKeptByWeek(rows: JournalRow[], weeks = 12): KeptWeek[] {
+  const by = new Map<string, KeptWeek>();
+  for (const r of rows) {
+    const day = calendarDayOf(r);
+    const from = shiftDay(day, -noon(day).getDay());
+    const w = by.get(from) ?? { from, said: 0, kept: 0, n: 0 };
+    const e = entryOf(r);
+    w.n += 1;
+    if (e.plan) {
+      w.said += 1;
+      if (e.plan === 'yes' && !(e.mistakes ?? []).length) w.kept += 1;
+    }
+    by.set(from, w);
+  }
+  return [...by.values()].sort((a, b) => (a.from < b.from ? -1 : 1)).slice(-weeks);
 }

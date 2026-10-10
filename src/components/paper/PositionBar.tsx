@@ -49,23 +49,26 @@ const PositionBar = ({ lines }: { lines: BarLine[] }) => {
     <div className="inline-flex flex-col gap-1 pointer-events-auto max-w-full" data-paper-position-bar={lines.length}>
       {shown.map(l => (
         <div key={l.key} className="inline-flex items-center gap-3 h-8 pl-1.5 pr-1.5 max-w-full overflow-hidden rounded-lg border border-borderMuted bg-panel/80 backdrop-blur-md backdrop-saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-mono text-[10px] tnum whitespace-nowrap" data-paper-position-line={l.key}>
-          <span className={`h-5 px-1.5 inline-flex items-center rounded font-bold text-[11px] ${l.tone === 'bull' ? 'bg-bull/[0.14] text-bull' : 'bg-bear/[0.14] text-bear'}`}>{l.label}</span>
-          <span className={`text-[12px] font-semibold ${dirInk(l.pnl)}`}>
-            {usdSigned(l.pnl)} {l.r != null && <span className="text-[10px] font-normal opacity-80">{rWords(l.r)}</span>}
+          <span className={`shrink-0 h-5 px-1.5 inline-flex items-center rounded font-bold text-[11px] ${l.tone === 'bull' ? 'bg-bull/[0.14] text-bull' : 'bg-bear/[0.14] text-bear'}`}>{l.label}</span>
+          <span className={`shrink-0 text-[12px] font-semibold ${dirInk(l.pnl)}`}>
+            {usdSigned(l.pnl)} {l.r != null && <span className="text-[10px] font-normal text-textSecondary">{rWords(l.r)}</span>}
           </span>
-          {l.facts.map(f => (
-            <span key={f.label} className="min-w-0 truncate">
-              <span className="text-textMuted">{f.label}</span> <span className={f.ink ?? 'text-textPrimary'}>{f.value}</span>
-            </span>
-          ))}
+          {/* the facts give way first, and on a phone stay in the book — Close is never cut (the audit's PR-15: "× Cl") */}
+          <span className="min-w-0 flex-1 inline-flex items-center gap-3 overflow-hidden max-sm:hidden">
+            {l.facts.map(f => (
+              <span key={f.label} className="min-w-0 truncate">
+                <span className="text-textMuted">{f.label}</span> <span className={f.ink ?? 'text-textPrimary'}>{f.value}</span>
+              </span>
+            ))}
+          </span>
           <span className="ml-1 inline-flex items-center gap-1 shrink-0">
-            <button type="button" onClick={l.onClose} disabled={!!l.locked} title={l.locked ?? 'Close all of it at the market — what is working on it goes first'} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-textSecondary hover:text-bear hover:border-bear/50 disabled:opacity-30 transition-colors" data-paper-bar-close={l.key}>
+            <button type="button" onClick={l.onClose} disabled={!!l.locked} title={l.locked ?? 'Close all of it at the market — what is working on it goes first'} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-textSecondary hover:text-bear hover:border-bear/50 disabled:opacity-30 transition-colors" data-paper-bar-close={l.key}>
               <X className="w-3 h-3" /> Close
             </button>
           </span>
         </div>
       ))}
-      {rest > 0 && <span className="self-start px-2 h-5 inline-flex items-center rounded border border-borderSubtle bg-panel/80 font-mono text-[9px] text-textMuted">+{rest} more in the book</span>}
+      {rest > 0 && <span className="self-start px-2 h-5 inline-flex items-center rounded border border-borderSubtle bg-panel/80 font-mono text-[10px] text-textMuted">+{rest} more in the book</span>}
     </div>
   );
 };

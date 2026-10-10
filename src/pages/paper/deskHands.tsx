@@ -42,7 +42,8 @@ import { usd } from '../../components/review/words';
 import { MULT, nameGoesUp } from '../../data/review/engine';
 import { contractWords, type ContractId, type Quote } from '../../data/review/quotes';
 import type { PaperAccount, PaperMarket, PaperView, OptDraft } from '../../data/paper/engine';
-import { attachOpt, cancelOrder, closeOpt, placeOptOrder } from '../../data/paper/store';
+import { attachOpt, cancelOrder, placeOptOrder } from '../../data/paper/store';
+import { closeWithUndo } from './undoHands';
 import { setQuick } from '../../data/paper/desks';
 
 export interface Hands {
@@ -99,7 +100,7 @@ export function positionLines(h: Hands, name: string): BarLine[] {
         facts,
         pnl: p.pnl,
         r: p.r,
-        onClose: () => closeOpt(account.id, c, p.qty),
+        onClose: () => closeWithUndo(account.id, c, p.qty),
         locked: lock ?? (p.quote.dead ? 'No bid to sell into right now' : account.status !== 'open' ? 'This account is closed' : null),
       };
     });
@@ -116,13 +117,13 @@ const MenuHead = ({ at, q, unit }: { at: string; q: number; unit: string }) => (
       At {at}
     </span>
     <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tnum text-textSecondary" data-chart-menu-size={q}>
-      <button type="button" onClick={() => setQuick(q - 1)} disabled={q <= 1} aria-label="One fewer" className="inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors">
+      <button type="button" onClick={() => setQuick(q - 1)} disabled={q <= 1} aria-label="One fewer" className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors">
         <Minus className="w-2.5 h-2.5" />
       </button>
       <span className="min-w-[46px] text-center">
         {q} {unit}
       </span>
-      <button type="button" onClick={() => setQuick(q + 1)} aria-label="One more" className="inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle hover:text-textPrimary hover:border-borderMuted transition-colors">
+      <button type="button" onClick={() => setQuick(q + 1)} aria-label="One more" className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle hover:text-textPrimary hover:border-borderMuted transition-colors">
         <Plus className="w-2.5 h-2.5" />
       </button>
     </span>
@@ -147,7 +148,7 @@ export function chartMenu(h: Hands, name: string): (price: number) => ChartMenu 
       const items: ChartMenuItem[] = [];
       if (tIs('limit')) items.push({ label: `Target when ${name} reaches ${at.toFixed(2)}`, hint: 'Sells at the bid when the name gets there — the level holds, the dollars drift with decay', tone: 'bull', off, run: () => attachOpt(account.id, c, 'target', at, 'name'), testId: 'opt-target' });
       if (tIs('stop')) items.push({ label: `Stop if ${name} ${nameGoesUp('stop', c.right) ? 'rises' : 'falls'} to ${at.toFixed(2)}`, hint: 'Sells at the bid when the name gets there', tone: 'bear', off, run: () => attachOpt(account.id, c, 'stop', at, 'name'), testId: 'opt-stop' });
-      items.push({ label: `Close all ${p.qty}`, off: off ?? (p.quote.dead ? 'No bid to sell into right now' : null), run: () => closeOpt(account.id, c, p.qty), testId: 'opt-close' });
+      items.push({ label: `Close all ${p.qty}`, off: off ?? (p.quote.dead ? 'No bid to sell into right now' : null), run: () => closeWithUndo(account.id, c, p.qty), testId: 'opt-close' });
       sections.push({ title: `${p.qty} × ${contractWords(c)}`, items });
     }
     const exp = h.expiryOf(name);

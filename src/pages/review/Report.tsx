@@ -14,6 +14,7 @@
 ==================================================
 */
 
+import { SayPage } from '../../components/layout/PageMeta';
 import { useEffect, useMemo } from 'react';
 import { sayPage } from '../../components/layout/PageMeta';
 import { Link, useParams } from 'react-router-dom';
@@ -70,8 +71,9 @@ const Report = () => {
   if (!session)
     return (
       <div className="border border-borderSubtle rounded-md bg-panel px-6 py-14 text-center" data-review-report="missing">
+        <SayPage words="Session not found" />
         <p className="text-[13px] text-textPrimary">That session is not on this machine.</p>
-        <Link to="/practice/backtest" className="mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
+        <Link to="/practice/backtest" className="hit mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
           Your sessions
         </Link>
       </div>
@@ -107,7 +109,7 @@ const Report = () => {
         </>
       }
       controls={
-        <Link to={`/practice/backtest/${session.id}`} className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-review-desk-door>
+        <Link to={`/practice/backtest/${session.id}`} className="hit inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-review-desk-door>
           <ArrowLeft className="w-3 h-3" /> Back to the desk
         </Link>
       }
@@ -143,10 +145,10 @@ const Report = () => {
             <div key={c.title} className="min-w-0">
               <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">{c.title}</div>
               <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-x-4 font-mono text-[11px] tnum">
-                <span className="text-[9px] uppercase tracking-widest text-textMuted pb-1">&nbsp;</span>
-                <span className="text-[9px] uppercase tracking-widest text-textMuted text-right pb-1">Trades</span>
-                <span className="text-[9px] uppercase tracking-widest text-textMuted text-right pb-1">Won</span>
-                <span className="text-[9px] uppercase tracking-widest text-textMuted text-right pb-1">Made or lost</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted pb-1">&nbsp;</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Trades</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Won</span>
+                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Made or lost</span>
                 {c.rows.map(r => (
                   <div key={r.label} className="contents">
                     <span className="py-1 border-t border-borderSubtle/70 text-textPrimary truncate">{r.label}</span>

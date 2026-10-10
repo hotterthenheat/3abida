@@ -55,7 +55,7 @@ interface ClosingProps {
 }
 
 const shell = 'pointer-events-auto rounded-md border bg-panel shadow-[0_8px_28px_rgba(0,0,0,0.4)] animate-soft-in';
-const closeDoor = 'inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors';
+const closeDoor = 'hit inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors';
 
 /** The last fifteen minutes: one line */
 export const ClosingLine = ({ minutesLeft, expiring, onDismiss }: ClosingProps) => (
@@ -89,7 +89,7 @@ export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
     <div className="flex items-center gap-2">
       <BellRing className="w-3.5 h-3.5 text-silver" aria-hidden="true" />
       <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">The bell · 16:00 New York</span>
-      <button type="button" onClick={onDismiss} title="Put this away" aria-label="Put this away" className={`${closeDoor} ml-auto`}>
+      <button type="button" onClick={onDismiss} title="Put this away" aria-label="Put this away" className={`hit ${closeDoor} ml-auto`}>
         <X className="w-3 h-3" />
       </button>
     </div>
@@ -117,7 +117,7 @@ export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
     )}
     <div className="mt-2.5 flex items-center gap-2">
       {onNextDay ? (
-        <button type="button" onClick={onNextDay} className="inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: '#0a0a0a' }} data-review-bell-next>
+        <button type="button" onClick={onNextDay} className="hit inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: 'rgb(var(--silver-fill))', color: 'rgb(var(--night))' }} data-review-bell-next>
           Open the next day <ArrowRight className="w-3 h-3" />
         </button>
       ) : (
