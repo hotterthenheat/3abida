@@ -20,7 +20,7 @@ import { Suspense } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TracePageSkeleton } from './traceSkeletons';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker, changeTicker } from '../../context/MarketDataContext';
 import TickerSearch from '../../components/ui/TickerSearch';
 import BackToTop from '../../components/ui/BackToTop';
 import ScrollHome from '../../components/layout/ScrollHome';
@@ -36,7 +36,7 @@ import MarkLoad from '../../brand/MarkLoad';
 const NO_PICKER = /^\/trace\/(live-tape|screener|net-flow|footprints|watchers|windows|odte|multi-leg|tracker|compare)/;
 
 const TraceLayout = () => {
-  const { activeTicker, changeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const location = useLocation();
   const outlet = useOutlet();
   const active = TRACE_SUBPAGES.find(page => location.pathname.startsWith(page.path)) ?? TRACE_SUBPAGES[0];

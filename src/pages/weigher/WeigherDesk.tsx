@@ -51,7 +51,9 @@ import { chartGround, useCandleThemeKey } from '../../components/gex/candleTheme
 import Simulator from '../../core/simulator';
 import { onGlide } from '../../core/glide';
 import { DOCK_ROOM } from '../../data/editorDock';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useTickSeq } from '../../context/MarketDataContext';
+import { isLinkGroup, setLinkGroup, useLinkGroups, type LinkGroup } from '../../context/marketStore';
+import LinkGroupChip from '../../components/link/LinkGroupChip';
 import { buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { estimatePremium } from '../../data/compass';
 import { buildDeskChain, buildScan, contractIvFor, dteForDate, deskExpiries, marketMood, marketSession, type DeskContract, type ScanPreset, type ScanRow } from '../../data/weigherDesk';
@@ -120,8 +122,9 @@ const SIDE_OPTIONS: DropdownOption<OptionRight>[] = [
 /* THE CHAIN HEAD'S ROOM, in px of card (measured 2026-09-20 with the longest everyday values — a five-letter name, a
    "Sep 22 · Tue" expiry, "Mark, Delta +4"): the whole line on one row needs ~760; the four NAMED cards on a row of their
    own need ~590; under that they go bare (~395). A little air on each so a longer value does not break the row. */
-const CHAIN_ONE_ROW_PX = 790;
-const CHAIN_NAMED_ROW_PX = 610;
+/* +26 each for the link chip beside the name (2026-10-10) */
+const CHAIN_ONE_ROW_PX = 816;
+const CHAIN_NAMED_ROW_PX = 636;
 
 const REACH_OPTIONS: DropdownOption<number>[] = DESK_DEPTHS.map(d => ({ value: d, label: `±${d}`, hint: `${d} strikes each side of the market` }));
 /** What the desk's list card lists: THE WATCHLIST first (Noah, 2026-09-14 — Robinhood's list
@@ -150,6 +153,9 @@ interface DeskState {
   depth: number;
   /** Which catalog columns the chain shows, in catalog order */
   cols: string[];
+  /** The desk's link group (A–D, context/marketStore.ts): the chain and the chart read the group's name, and a name
+      picked here — on the chain, the chart or a watchlist row — moves the group */
+  group?: LinkGroup | null;
 }
 
 /* An old record may still carry `layout`/`rowsV`/`colsV` from the movable
@@ -177,6 +183,7 @@ function loadDesk(): DeskState {
       preset: c.preset === 'losers' || c.preset === 'voliv' || c.preset === 'gainers' || c.preset === 'watchlist' ? c.preset : def.preset,
       depth: typeof c.depth === 'number' && (DESK_DEPTHS as readonly number[]).includes(c.depth) ? c.depth : def.depth,
       cols: cols.length ? cols : [...def.cols],
+      group: isLinkGroup(c.group) ? c.group : null,
     });
   } catch {
     return def;
@@ -448,10 +455,10 @@ const StrikePick = memo(StrikePickInner);
    desk for nothing. This null component takes the hit instead — the desk
    renders once per APPLIED tick, through its own state, as a transition. */
 const TickPump = memo(function TickPump({ onTick }: { onTick: () => void }) {
-  const { marketData } = useMarketData();
+  const seq = useTickSeq();
   useEffect(() => {
     onTick();
-  }, [marketData, onTick]);
+  }, [seq, onTick]);
   return null;
 });
 
@@ -637,10 +644,23 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
 
   const pickTicker = (t: string) => {
     if (t === ticker) return;
+    if (desk.group) setLinkGroup(desk.group, t);
     Simulator.ensureTicker(t);
     setSel(null);
     setListSel(null);
     patch({ ticker: t, lens: lens === 'vol' ? 'vol' : 'stock' });
+  };
+  /* THE LINK GROUP (the ideas report's item 10): the desk in a group reads the group's name — moved on a Terrain pane, a
+     Pulse panel or here — and a group nobody has named takes the desk's when it joins */
+  const groups = useLinkGroups();
+  const groupName = desk.group ? groups[desk.group] : null;
+  useEffect(() => {
+    if (groupName && groupName !== ticker) pickTicker(groupName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupName]);
+  const setGroup = (g: LinkGroup | null) => {
+    if (g && !groups[g]) setLinkGroup(g, ticker);
+    patch({ group: g });
   };
 
   /* A deep link arrives with a name (Trace's "Weigh it") — or with a CONTRACT
@@ -656,6 +676,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
   const pointTo = useCallback(
     (req: WeighRequest) => {
       const t = req.ticker;
+      if (desk.group) setLinkGroup(desk.group, t);
       Simulator.ensureTicker(t);
       setSel(null);
       /* the contract's OWN expiry, as the desk's horizon for that date — listed
@@ -665,7 +686,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
       patch({ ticker: t, lens: 'stock', ...(req.right ? { right: req.right } : {}), ...(near != null ? { dte: near } : {}) });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dte]
+    [dte, desk.group]
   );
   useEffect(() => {
     if (incoming) pointTo(incoming);
@@ -986,7 +1007,12 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
      chain's identity on the title's row (whose chain · the move it is charging for · the door at the row's end) and the
      four cards on a row of their own; and where even four NAMED cards do not fit a row, the cards drop their printed
      names (`bare` — the name stays in the tooltip and the open card's heading) rather than break again. */
-  const chainName = <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />;
+  const chainName = (
+    <>
+      <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />
+      <LinkGroupChip group={desk.group ?? null} onChange={setGroup} noneHint="Its own name — the chain and the chart hold it" what="this desk" testId="weigher" />
+    </>
+  );
   const chainMove = (
     <span className="font-mono text-[10px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
       ±{chain.expectedMovePct.toFixed(1)}%

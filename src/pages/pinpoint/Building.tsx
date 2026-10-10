@@ -29,7 +29,7 @@
 
 import { useMemo, useState } from 'react';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import { Deferred } from '../../components/ui/Skeleton';
 import BuildingLedger, { type BuildOrder, type BuildShow } from '../../components/gex/BuildingLedger';
@@ -50,7 +50,7 @@ let orderMemory: BuildOrder = 'strike';
 let showMemory: BuildShow = 'moved';
 
 const Building = () => {
-  const { activeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const { toggleFocus, clearFocus } = useFocus();
   const [order, setOrderState] = useState<BuildOrder>(orderMemory);
   /* THE STRIKES — the room's one window (usePinpoint.tsx): which rows are drawn, never what they say */

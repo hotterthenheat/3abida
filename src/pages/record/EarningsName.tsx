@@ -45,7 +45,7 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import HoverReadout from '../../components/ui/HoverReadout';
 import { stateOf } from '../../components/earnings/volState';
 import { BULL } from '../../components/gex/paletteInk';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { fmtDollars } from '../../data/ahead';
 import { bracketLabel, buildCongress } from '../../data/congress';
@@ -243,7 +243,6 @@ const EarningsName = () => {
   const { ticker = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { changeTicker } = useMarketData();
   const fromDesk = (location.state as { from?: string } | null)?.from === 'desk';
   /* The busiest contracts refresh on the scan tier (10s); everything structural is tick-stable */
   const [scanTick, setScanTick] = useState(0);

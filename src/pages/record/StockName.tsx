@@ -57,7 +57,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, ChevronDown } from 'lucide-react';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useFlowTape, changeTicker } from '../../context/MarketDataContext';
 import { useSeeded } from '../../components/gex/useSeeded';
 import GradeMeter, { GRADE_FILL, GRADE_INK } from '../../components/ui/GradeMeter';
 import { gradeOfConviction, postureRead } from '../../data/darkpool';
@@ -480,7 +480,7 @@ const StockNameBody = () => {
   const T = ticker.toUpperCase();
   const navigate = useNavigate();
   const location = useLocation();
-  const { changeTicker, flowTape } = useMarketData();
+  const flowTape = useFlowTape();
   const seeded = useSeeded(T);
   /* the flow, the dark pool and the wire move on the scan tier; the sessions and the sample are tick-stable */
   const [tick, setTick] = useState(0);

@@ -29,7 +29,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import { Deferred } from '../../components/ui/Skeleton';
 import TargetsBoard from '../../components/gex/TargetsBoard';
@@ -51,7 +51,7 @@ let orderMemory: AgendaOrder = 'matters';
 const drawn = (a: Agenda, half: number): Agenda => ({ ...a, targets: inWindow(a.targets, a.spot, half) });
 
 const RankedTargets = () => {
-  const { activeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const { focusOn, toggleFocus } = useFocus();
   const navigate = useNavigate();
   const location = useLocation();

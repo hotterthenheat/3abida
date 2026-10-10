@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { PinpointPageSkeleton } from './pinpointSkeletons';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, X } from 'lucide-react';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker, useSpot } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import Simulator from '../../core/simulator';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
@@ -14,7 +14,6 @@ import { REGIME_WORDS, buildFlipGauge } from '../../data/flipGauge';
 import { fmtDistance, impliedDaySigma, sessionAtr, type DistanceScales, type DistanceUnit } from '../../data/atr';
 import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
 import { readSessionClock } from '../../data/sessionClock';
-import { readDeskPrefs } from '../../data/deskPrefs';
 import { useFrameScan } from './usePinpoint';
 import { FLIP, LONG_GAMMA, SHORT_GAMMA } from '../../components/gex/paletteInk';
 import { GEX_SUBPAGES } from './subnav';
@@ -83,44 +82,26 @@ const Fact = ({ label, children, title, testId }: { label: string; children: Rea
   </div>
 );
 
-/* THE NAME COMES BACK ON A RELOAD (the audit's PP-11): pick QQQ, reload, and every page read SPY again. Pinpoint keeps
-   the name it was last on, on this machine, and a load that LANDS on a Pinpoint page takes it back up through the
-   terminal's own changeTicker — once, and never over the reader's "Opens on" choice in Settings. Coming to Pinpoint
-   from another room keeps whatever name that room was on. (The whole terminal remembering its name is the shell's —
-   MarketDataContext — and is left to it.) */
-const NAME_KEY = 'slayer_pinpoint_name';
-let nameRestored = false;
-const landedHere = (): boolean => {
-  try {
-    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-    return !!nav && new URL(nav.name).pathname.startsWith('/pinpoint');
-  } catch {
-    return false;
-  }
+/* THE NAME COMES BACK ON A RELOAD (the audit's PP-11) — in every room now: the terminal keeps the last name chosen
+   (context/marketStore.ts), and Settings' "Opens on" still wins. */
+
+/** The focus's distance from spot — its own reader of the tick, so the head and the page under it do not render on it */
+const FocusDistance = ({ price }: { price: number }) => {
+  const spot = useSpot();
+  const dist = spot ? ((price - spot) / spot) * 100 : null;
+  if (dist == null) return null;
+  return (
+    <span className={`text-[11px] tnum ${dist > 0 ? 'text-bull' : dist < 0 ? 'text-bear' : 'text-textMuted'}`}>
+      {dist > 0 ? '+' : ''}
+      {dist.toFixed(2)}%
+    </span>
+  );
 };
 
 const PinpointLayout = () => {
-  const { activeTicker, marketData, changeTicker } = useMarketData();
-  useEffect(() => {
-    if (nameRestored) return;
-    nameRestored = true;
-    if (readDeskPrefs().opensOn.ticker || !landedHere()) return;
-    try {
-      const kept = localStorage.getItem(NAME_KEY);
-      if (kept && kept !== activeTicker) changeTicker(kept);
-    } catch {
-      /* storage off — the terminal's own name */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (!nameRestored) return;
-    try {
-      localStorage.setItem(NAME_KEY, activeTicker);
-    } catch {
-      /* storage off — nothing kept */
-    }
-  }, [activeTicker]);
+  /* THE ROOM'S FRAME READS THE SCAN, NOT THE TICK (2026-10-10, the speed store): it rendered on every tick, and the page
+     under it — its outlet — with it. The head's facts are the scan's; the focus's distance reads the tick on its own. */
+  const activeTicker = useActiveTicker();
   const { focus, clearFocus } = useFocus();
   /* Alerts are watched by the app shell on every page now (components/alerts/AlertWatcher.tsx, 2026-09-10) */
   const location = useLocation();
@@ -131,8 +112,6 @@ const PinpointLayout = () => {
      strike, its distance from spot, the door to the chart, and the one place
      to let it go. It belongs to the name the desk is on. */
   const focused = focus && focus.ticker === activeTicker ? focus.price : null;
-  const spot = marketData?.spot;
-  const dist = focused != null && spot ? ((focused - spot) / spot) * 100 : null;
 
   /* WHICH SIDE OF THE FLIP the market is on and how far the flip is, in the
      desk's own ruler. */
@@ -143,12 +122,13 @@ const PinpointLayout = () => {
   const unit = useDistanceUnit();
   /* THE ATR moves a bar at a time — it was walked over the whole tape on every 1.5 s tick (PP-5); it is read again when a
      bar closes */
-  const barsLen = marketData ? (Simulator.peekCandles(marketData.ticker)?.length ?? 0) : 0;
-  const atr = useMemo(() => (marketData ? sessionAtr(Simulator.getCandles(marketData.ticker) ?? []) : null), [marketData?.ticker, barsLen]); // eslint-disable-line react-hooks/exhaustive-deps
+  const snap = scan?.snap ?? null;
+  const barsLen = snap ? (Simulator.peekCandles(snap.ticker)?.length ?? 0) : 0;
+  const atr = useMemo(() => (snap ? sessionAtr(Simulator.getCandles(snap.ticker) ?? []) : null), [snap?.ticker, barsLen]); // eslint-disable-line react-hooks/exhaustive-deps
   const scales = useMemo<DistanceScales>(() => {
-    if (!marketData) return { atr: null, sigma: null };
-    return { atr, sigma: impliedDaySigma(marketData.spot, Simulator.TICKERS[marketData.ticker]?.iv ?? 0) };
-  }, [marketData, atr]);
+    if (!snap) return { atr: null, sigma: null };
+    return { atr, sigma: impliedDaySigma(snap.spot, Simulator.TICKERS[snap.ticker]?.iv ?? 0) };
+  }, [snap, atr]);
   const words = gauge?.regime ? REGIME_WORDS[gauge.regime] : null;
   const flipDist = gauge && gauge.distAbs !== null ? Math.abs(gauge.distAbs) : null;
   const flipLead =
@@ -184,12 +164,7 @@ const PinpointLayout = () => {
               <span data-focus-chip className="inline-flex items-center gap-2 rounded-md border border-silver/40 bg-silver/[0.06] pl-2.5 pr-1 py-0.5 font-mono">
                 <span className="text-[11px] font-semibold text-silver">Focus</span>
                 <span className="text-[12px] font-semibold tnum text-textPrimary">{fmtStrike(focused)}</span>
-                {dist != null && (
-                  <span className={`text-[11px] tnum ${dist > 0 ? 'text-bull' : dist < 0 ? 'text-bear' : 'text-textMuted'}`}>
-                    {dist > 0 ? '+' : ''}
-                    {dist.toFixed(2)}%
-                  </span>
-                )}
+                <FocusDistance price={focused} />
                 <button
                   /* `from`: leaving the chart's fullscreen brings the reader back here (Noah, 2026-09-09) */
                   onClick={() => navigate('/pulse', { state: { focusPrice: focused, ticker: activeTicker, from: location.pathname } })}

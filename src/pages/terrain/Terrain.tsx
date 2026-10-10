@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Code2, Link2, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
+import { Code2, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useFlowTape, useTickSeq } from '../../context/MarketDataContext';
+import { isLinkGroup, setLinkGroup, useLinkGroups, type LinkGroup } from '../../context/marketStore';
+import LinkGroupChip from '../../components/link/LinkGroupChip';
 import DistanceUnitPicker from '../../components/ui/DistanceUnitPicker';
 import { futuresPhaseAt, FUTURES_PHASE_WORDS } from '../../core/calendar';
 import {
@@ -136,10 +138,10 @@ export type TerrainLayout = (typeof LAYOUTS)[number];
   why the rail in particular has to.
 */
 export interface PaneCfg {
-  /** T-20 — the pane's link group. Panes sharing a letter follow each
-      other's SYMBOL changes; null stands alone. Not a setup key: linking is
-      slot business, like the rail. */
-  link?: 'A' | 'B' | null;
+  /** T-20 — the pane's link group, A–D and shell-wide since 2026-10-10 (context/marketStore.ts): panes, Pulse panels
+      and the Weigher sharing a letter follow each other's SYMBOL changes; null stands alone. Not a setup key: linking
+      is slot business, like the rail. */
+  link?: LinkGroup | null;
   ticker: string;
   timeframe: Timeframe;
   overlays: ChartOverlays;
@@ -409,7 +411,7 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
       typeof c.ladderW === 'number' && c.ladderW >= PROFILE_MIN_W && c.ladderW < 4000 ? c.ladderW : def.ladderW,
     lane: c.lane === 'both' || c.lane === 'size' || c.lane === 'flow' ? c.lane : def.lane,
     theme: typeof c.theme === 'string' && c.theme in CANDLE_THEMES ? (c.theme as CandleThemeKey) : def.theme,
-    link: c.link === 'A' || c.link === 'B' ? c.link : null,
+    link: isLinkGroup(c.link) ? c.link : null,
     wallsLens: c.wallsLens === 'dex' || c.wallsLens === 'charm' || c.wallsLens === 'gex' ? c.wallsLens : undefined,
   };
 }
@@ -1000,7 +1002,7 @@ const Pane = ({
      than threaded down from Terrain: this component already takes fourteen
      props, and every pane wants the same unfiltered tape — StrikeChart narrows
      it to its own symbol. */
-  const { flowTape } = useMarketData();
+  const flowTape = useFlowTape();
 
   /* Add / remove a crossed symbol. Capped at the ink list's length so every
      comparison on a pane is a DIFFERENT colour — two lines sharing an ink is
@@ -1254,18 +1256,12 @@ const Pane = ({
              where it gets named. */
           title="Switch ticker — S · ↑ ↓ step your symbols"
         />
-        {/* T-20's link chip: ∅ → A → B → ∅. Letters, not colours — the
-            palette's inks all mean something already. */}
-        {(cfg.link !== null && cfg.link !== undefined || showCompareAdd || expanded) && <button
-          onClick={() => onCfg({ link: cfg.link === 'A' ? 'B' : cfg.link === 'B' ? null : 'A' })}
-          aria-label={cfg.link ? `Link group ${cfg.link} — linked panes follow this pane's symbol` : 'Link this pane — panes sharing a letter follow each other\'s symbol'}
-          title={cfg.link ? `Link group ${cfg.link} — panes sharing ${cfg.link} follow each other's symbol` : 'Link this pane to others — shared letters change symbols together'}
-          className={`hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[3px] font-mono text-[10px] font-bold transition-colors ${
-            cfg.link ? 'bg-ink/[0.14] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'
-          }`}
-        >
-          {cfg.link ?? <Link2 className="w-3 h-3" />}
-        </button>}
+        {/* T-20's link chip, shell-wide since 2026-10-10 (components/link/LinkGroupChip.tsx): none, or a group A–D that
+            every room shares — a pane in A reads group A's name and a name picked on it moves the group. Letters, not
+            colours — the palette's inks all mean something already. */}
+        {(cfg.link !== null && cfg.link !== undefined || showCompareAdd || expanded) && (
+          <LinkGroupChip size="sm" group={cfg.link ?? null} onChange={g => onCfg({ link: g })} noneHint="Stands alone — its own name" what="this pane" />
+        )}
         {/* TradingView's "+" beside the symbol capsule — cross another
             symbol onto this tape. Fullscreen always has room for it. */}
         {(showCompareAdd || expanded) && (
@@ -1686,22 +1682,14 @@ const Pane = ({
                        moves is where it gets named. */
                     title="Switch ticker — S · ↑ ↓ step your symbols"
                   />
-                  {/* T-20's link chip: ∅ → A → B → ∅. Letters, not colours —
-                      the palette's inks all mean something already, and a
-                      letter reads at 9px where a fourth colour would need a
-                      legend. Unlinked it is a convenience and sheds with the
-                      compare tier; LINKED it is state and stays at every
-                      width (ID_ROW_* above). */}
-                  {(cfg.link !== null && cfg.link !== undefined || showCompareAdd) && <button
-                    onClick={() => onCfg({ link: cfg.link === 'A' ? 'B' : cfg.link === 'B' ? null : 'A' })}
-                    aria-label={cfg.link ? `Link group ${cfg.link} — linked panes follow this pane's symbol` : 'Link this pane — panes sharing a letter follow each other\'s symbol'}
-                    title={cfg.link ? `Link group ${cfg.link} — panes sharing ${cfg.link} follow each other's symbol` : 'Link this pane to others — shared letters change symbols together'}
-                    className={`hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[3px] font-mono text-[10px] font-bold transition-colors ${
-                      cfg.link ? 'bg-ink/[0.14] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'
-                    }`}
-                  >
-                    {cfg.link ?? <Link2 className="w-3 h-3" />}
-                  </button>}
+                  {/* T-20's link chip, shell-wide since 2026-10-10 (components/link/LinkGroupChip.tsx): none, or a
+                      group A–D every room shares. Letters, not colours — the palette's inks all mean something
+                      already, and a letter reads at 9px where a fourth colour would need a legend. Unlinked it is a
+                      convenience and sheds with the compare tier; LINKED it is state and stays at every width
+                      (ID_ROW_* above). */}
+                  {(cfg.link !== null && cfg.link !== undefined || showCompareAdd) && (
+                    <LinkGroupChip size="sm" group={cfg.link ?? null} onChange={g => onCfg({ link: g })} noneHint="Stands alone — its own name" what="this pane" />
+                  )}
                   {/* TradingView's "+" beside the symbol capsule — cross
                       another symbol onto this tape. Per pane, like the rest.
 
@@ -2012,9 +2000,8 @@ const Pane = ({
 
 /** Terrain — the charts-only desk. */
 const Terrain = () => {
-  const { marketData } = useMarketData();
-  const revRef = useRef(0);
-  const revision = useMemo(() => ++revRef.current, [marketData]);
+  /* the published tick's counter — the panes' books and levels follow it (context/marketStore.ts) */
+  const revision = useTickSeq();
 
   const [cfg, setCfg] = useState<TerrainCfg>(() => {
     const c = loadCfg();
@@ -2097,7 +2084,17 @@ const Terrain = () => {
     chart's own "same ticker" fade guard. This is one commit: symbol and
     settings land together.
   */
-  const setPane = (i: number, patch: Partial<PaneCfg>) =>
+  const groups = useLinkGroups();
+  const setPane = (i: number, patch: Partial<PaneCfg>) => {
+    /* THE SHELL'S LINK GROUPS (2026-10-10): a symbol picked on a pane in a group is the group's name, in every room; a
+       pane joining a group nobody has named gives it its own */
+    const cur = cfg.panes[i];
+    const group = patch.link !== undefined ? patch.link : (cur?.link ?? null);
+    if (group && patch.ticker) setLinkGroup(group, patch.ticker);
+    else if (patch.link && cur && !groups[patch.link]) setLinkGroup(patch.link, cur.ticker);
+    setPaneCfg(i, patch);
+  };
+  const setPaneCfg = (i: number, patch: Partial<PaneCfg>) =>
     setCfg(prev => {
       const cur = prev.panes[i];
       if (!cur) return prev;
@@ -2146,6 +2143,15 @@ const Terrain = () => {
       return put(next, evict({ ...prev.setups, [symKey(cur.ticker)]: captureSetup(next, now) }));
     });
   setPaneRef.current = setPane;
+  /* …and a group's name moved elsewhere (a Pulse panel, the Weigher, another pane) comes to every pane in it, through
+     the same restore path a pick takes */
+  useEffect(() => {
+    cfg.panes.forEach((p, i) => {
+      const name = p.link ? groups[p.link] : null;
+      if (name && symKey(name) !== symKey(p.ticker)) setPaneCfg(i, { ticker: name });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, cfg.panes]);
 
   const [expanded, setExpanded] = useState<number | null>(null);
   const expandedRef = useRef<number | null>(null);

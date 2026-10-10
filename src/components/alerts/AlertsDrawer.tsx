@@ -44,7 +44,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker, changeTicker } from '../../context/MarketDataContext';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import CompanyLogo from '../ui/CompanyLogo';
 import {
@@ -267,7 +267,7 @@ const Empty = ({ icon: Icon, children }: { icon: LucideIcon; children: React.Rea
 const AlertsDrawer = () => {
   const open = useAlertsDrawer();
   const names = useAllAlerts();
-  const { activeTicker, changeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const navigate = useNavigate();
   const [name, setName] = useState<string>(ALL);
   const [refused, setRefused] = useState('');

@@ -27,6 +27,8 @@ export interface WidgetInstance {
   key: string;
   /** Pinned (UNLINKED) to its own name; undefined = linked to the terminal. */
   ticker?: string;
+  /** A link group (A–D): the panel reads and sets that group's name, and `ticker` is not read (context/marketStore.ts) */
+  group?: string;
 }
 
 export interface SavedWorkspace {

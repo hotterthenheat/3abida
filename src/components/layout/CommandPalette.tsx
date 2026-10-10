@@ -35,7 +35,8 @@ import {
   Megaphone, Rows3,
 } from 'lucide-react';
 import Working from '../ui/Working';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker, useActiveTicker } from '../../context/MarketDataContext';
+import { marketStore } from '../../context/marketStore';
 import Simulator from '../../core/simulator';
 import { armDrawTool, canArmDrawTool, searchDrawTools } from '../gex/drawTools';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -113,7 +114,7 @@ const matches = (q: string, ...fields: (string | undefined)[]) => fields.some(f 
 
 const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const navigate = useNavigate();
-  const { changeTicker, activeTicker, marketData } = useMarketData();
+  const activeTicker = useActiveTicker();
   const theme = useResolvedTheme();
   const cvd = useColourVision();
   const desk = useDeskPrefs();
@@ -255,7 +256,7 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
           hint: 'Set now — the bell and the alerts keep it',
           icon: <BellRing className={ICON} />,
           run: () => {
-            const spot = Simulator.TICKERS[sym]?.currentPrice ?? (sym === activeTicker ? marketData?.spot : undefined);
+            const spot = Simulator.TICKERS[sym]?.currentPrice ?? (sym === activeTicker ? marketStore.get().snapshot?.spot : undefined);
             if (spot == null) return;
             const set = armPrice(sym, level, spot);
             if (!set) return;
