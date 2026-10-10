@@ -139,7 +139,7 @@ export const COLUMN_GROUPS: MultiGroup[] = [{ title: 'Facts', options: CHAIN_COL
    floats up when the spot row leaves the window. The progressive first paint
    (forty rows, then sixty a frame) is gone with the table: the grid never
    renders a row nobody can see. */
-const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, headerFontSize: 10, cellHorizontalPadding: 8 });
+const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, cellHorizontalPadding: 8 });
 const CHAIN_COL: ColDef<ChainGridRow> = { sortable: false, resizable: true, suppressMovable: true };
 type ChainGridRow = { kind: 'row'; key: string; c: DeskContract } | { kind: 'divider'; key: string; spot: number } | { kind: 'drill'; key: string; c: DeskContract; extra?: (c: DeskContract) => ReactNode };
 const CHAIN_ROW_H = 30;

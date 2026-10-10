@@ -1070,14 +1070,10 @@ body.room-walled .room-lit { animation: room-lit 11s linear infinite; }
   .shell-toast { animation: none; }
 }
 
-/* THE BOARD (pages/pinpoint/Board.tsx) — AG Grid on the house tokens. The
-   theme parameters carry the colours; these are the two things the Theming
-   API has no parameter for: the header's uppercase tracking (the desk's
-   caption grammar) and the mono figures in the cells. */
-.slayer-board .ag-header-cell-text {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
+/* THE HOUSE GRID (components/ui/houseGrid.ts) — AG Grid on the house tokens.
+   The theme parameters carry the colours and the heads' 11 px; the heads are
+   written in sentence case and read so (2026-10-10, the audit's X9.4 — the
+   tracked caps are gone). */
 .slayer-board .ag-row {
   cursor: pointer;
 }
