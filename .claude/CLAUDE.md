@@ -26,7 +26,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   so (the owner, 2026-10-01): no "simulated", "demo", "fake", "preview", "pretend" or "at launch" anywhere a reader
   can see or hear it — not in a label, a tooltip, an aria-label, a page title or the landing. Paper trading is "paper
   money"; a what-if return is "projected". A "[placeholder]" never shows: company.ts `filled()` leaves an unfilled
-  name out, and a legal page shows only the sections that have words (and Contact).
+  name out, and a legal page shows only the sections that have words (and Contact). `npm run words:check`
+  (scripts/check-words.mjs) scans every string a reader can see for these words, the banned grade words and trade
+  instructions ("buy the", "scalp", "take profit", "should struggle" …); a true exception goes in
+  scripts/check-words.allow.json with its reason.
 - Paper and the backtest trade options only; the futures backtest and the Python engine were removed on 2026-09-30.
 - Speed rules (2026-09-30 perf pass): no endless animation of a background, a shadow or an SVG part — those repaint
   every frame (the holo foil pans on appear and hover only; the clock ticks); opacity and transform loops are fine. Seeded simulator
@@ -79,7 +82,10 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   and --live-* (theme/tokens.css) are the silver family: the pale silver on black, the deep steel as an ink on paper,
   a silver highlighter with the dark word as a surface; a canvas or chart option reads them through
   readToken/resolveInk. Up-green and down-red (--bull/--bear), the supreme's magenta and the other data colours are
-  unchanged; a user-chosen candle theme ("Neon") or drawing swatch that is lime by name may stay. Type: Helvetica for
+  unchanged — but a reader may swap the direction pair (2026-10-10, Settings › Appearance, kept as slayer_cvd):
+  `data-cvd="blue-orange"` on the root turns --bull/--bear blue and orange (theme/tokens.css) and puts ▲/▼ before any
+  figure marked `data-dir` (theme.ts dirOf), so direction never rests on hue alone; a new signed figure carries `data-dir`.
+  A user-chosen candle theme ("Neon") or drawing swatch that is lime by name may stay. Type: Helvetica for
   every word (--font-sans / theme/fonts.ts), tabular figures; no hosted font — but for the landing's display words
   (2026-10-06 — the owner's pick, "Inter Display": Windows has no Helvetica, and Arial has no Light, so every light
   headline drew at regular weight there): the quote, the heads, the prices and the last words wear .landing-display
@@ -88,8 +94,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the signature ("slayer:~ $ ● live" — the market's own word, live while it is open and closed when it is shut; live
   wears the moving silver dot and the silver word) and code use --font-code. Product one-liners are nav.ts's (the brand's own); never write grade, score, win
   rate, signal (as a trade call), guaranteed, confluence, market intelligence. Pages outside the terminal (status,
-  about, legal, the account forms, invite) use pages/outside/OutsideFrame; the account forms send nothing until a
-  backend exists, and signing in opens the terminal. The static icons and og.jpg are drawn by `npm run brand:assets`
+  about, legal, the account forms, invite) use pages/outside/OutsideFrame; they and the 404's prompt stand on THE
+  LANDING'S GROUND (landing/ground.tsx), the frame with the landing's theme button (2026-10-10 — a light machine's
+  visitor pressed "Sign up free" into a black form); App.tsx stamps the root for them before the first paint. THE LAUNCH GATE ("Entering terminal") stands only where a
+  load lands in the terminal (LaunchTransition `isTerminalPath`); every other page opens bare, as the front page does.
+  Each account form is told which it is by its route (never read off the address — /signin/ and /SIGNUP fell through
+  to "You're in."); the account forms send nothing until a backend exists, and signing in opens the terminal. The static icons and og.jpg are drawn by `npm run brand:assets`
   (scripts/make-brand-assets.ts); the landing's stills by `npm run landing:shots`.
 - Landing films (2026-10-01 — the owner: "why are my photos just a photo and dont move", then "it should just be a
   cursor make it a sped up version of you actually using the desk"): every page the landing shows — the rooms' 22 pages since v5
@@ -151,7 +161,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   produces, never a formula, weight, threshold or assumption that would let it be rebuilt ("Recipe stays private. Result
   is visible.").
   PRICING: two plans, Pinpoint and Compass, who each is for and the one difference, "One terminal, in place of" (five
-  kinds of tool, a room each, never anybody's product), the full list folded under them. QUESTIONS (each answer folded under its question — a
+  kinds of tool, a room each, never anybody's product), the full list folded under them; a Monthly / Yearly switch in
+  the prices' head (2026-10-10), every figure from data/billing.ts `priceLine` — yearly is ten months' price
+  ($750, $1,800: "Two months free"), said as a month and the year's total. QUESTIONS (each answer folded under its question — a
   disclosure, found by the page's find), then the rooms' glyphs, "Seen enough? / Step inside."
   (LitLines: lit a letter at a time by the scroll) and "Sign up free". THE FOOTER as it is (SiteFooter — never touched
   here). A phone and less motion: the first screen still (FirstScreen), the answer over the terminal itself (Reveal: on a
@@ -173,10 +185,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   Lifetime" — data/billing.ts keeps it for the terminal's Settings); a price says its currency on its own line ("$75 USD /
   month").
   THE LENGTH (2026-10-06 — the owner's directive: "under 8,500 px on desktop and under 10,000 px on a phone", and no
-  screen more than 40% empty): 8,427 px at 1440 × 900 (7,748 under less motion), 9,963 at 390 × 844 — the turn's two
+  screen more than 40% empty): 8,469 px at 1440 × 900, 9,904 at 390 × 844 (2026-10-10) — the turn's two
   screens cut, the opening's run 80 svh, the session's column ending just under its last beat, the questions folded, the
-  sections' padding 8vh (6vh on a phone), and on a phone the first terminal cut at 70svh. Measure again when a run
-  changes; the sweep's docs/landing-sweeps/tools/empty.py measures the empty space (the directive's before-and-after
+  sections' padding 8vh (6vh on a phone), and on a phone the first terminal cut at 70svh. A RUN NEVER OUTGROWS A
+  900 PX SCREEN'S (2026-10-10, the audit's L-13: in svh a tall screen's runs grew — 1920 × 1080 stood 889 px longer):
+  every scroll run (the opening's, the session's PROLOGUE, the rooms' SEG) is `min(Nsvh, max(9N px, 0.5625N rem))`, the
+  same in the scripts (Rooms `stepPx`). Measure again when a run changes; the sweep's docs/landing-sweeps/tools/empty.py measures the empty space (the directive's before-and-after
   sheets and sweep tools, docs/landing-sweeps — README there).
 - THE LANDING'S SCALE (2026-10-03 — the owner: "i think the entire lading page is too zoomed in"): THE COLUMN IS A WINDOW
   THE SCREEN HOLDS WHOLE — as wide as a terminal window whose whole height stands on the screen under the bar (index.css
@@ -285,8 +299,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   framing() crop … with the P0 callout on it. Same 11 px minimum"): a cut of the desk from the level's strike, its row
   in the middle, as wide as keeps the ladder's 10 px figures at 11 px in the frame it is measured in (325 × 200 in a
   358 px column, narrower on a narrower phone), the 9 px column heads left above — cut from the beat's 3× focus, with
-  the call; under less motion a beat's focus and
-  call change at once. Never edit src while it runs (the dev server reloads the desk); the run deletes and rewrites
+  the call. ON A PHONE THE CUT IS TWO PIECES side by side (2026-10-10, the audit's L-6 — one cut lost the calls the
+  beat named): the strike column, and the puts and the calls round the ladder's middle, the distance column left out;
+  a column of 616 px or more (a tablet) takes the whole focus. THE CHIP STANDS BESIDE THE STRIKE IT NAMES, never on it
+  (L-5): just past the strike column, or after the strike piece. Under less motion a beat's focus and call change at
+  once, and on a desk the beat being read stands as its own still (it stood empty under its call — L-1). Never edit src while it runs (the dev server reloads the desk); the run deletes and rewrites
   public/landing/session, after which a dev server serves those pictures only once restarted.
 - THE ROOMS (pages/landing/Rooms.tsx; the rooms and their rows are Landing.tsx ROOMS, so the film script films every
   page a row names — a row with no `path` says what the room's page holds). ON A DESK ONE STAGE (sticky; SEG in svh: the
@@ -299,7 +316,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   name coming in as its card lands, no grain; nothing is drawn before the deal; THE WALL STANDS IN DEPTH (2026-10-08 — the
   owner: "it should be [a] 3d image"): the canvas and the grid of doors turn together about the stage's middle (Rooms.tsx
   `depth`: tilted back 16°, turned 14°, leaning a little toward the pointer), the head flat, and the plane settles flat
-  as the wall becomes the tour, so the first room lands in the window as before — stills, never films; each slot is a door to its room below
+  as the wall becomes the tour; THE NAMES STAND FLAT (2026-10-10, the audit's L-9 — turned with the plane they read as
+  a faux italic): each is drawn upright under its picture where the plane puts it (Rooms `placeLabels`); a slot stops
+  taking the pointer and the keys once the wall has gone (L-2), so the first room lands in the window as before — stills, never films; each slot is a door to its room below
   (the bar's "Rooms" lands here). THE TOUR (700 ms) — the first room's picture grows into the window, its chrome coming
   in, zooming from the whole page into the room's panel and landing on the panel's own picture, and the window takes
   over on that picture (its film held on its first frame until it has — TerminalWindow `hold`; the canvas keeps that
@@ -395,3 +414,83 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   drew a focus ring round the trigger until the next click (Radix keeps the press from focusing the trigger, so Chrome
   reads the hand-back as script focus). A new Radix DropdownMenu takes the same handler; a popover's trigger takes the
   mouse's own focus and needs none.
+
+# The terminal after the audit (2026-10-10 — six streams fixed WHAT-REMAINS and built the ideas' shortlist)
+- THE HOUSE PIECES every page uses now: a destructive hand acts AT ONCE with an undo chip, never "are you sure?"
+  (ui/undo.tsx `undoable` — 6 s, Ctrl+Z runs the newest; Flatten, Close, a new account, "Take them here", delete
+  session, delete desk, untrack, clear the log); Esc closes the top layer every time (ui/layers.ts — a new overlay
+  joins it, takes focus, traps Tab and gives focus back: ui/useFocusTrap.ts, Modal); a row a click opens also opens
+  from the keys (houseGrid `openRowOnEnter` with the `grid-keys` ring for an AG Grid, ui/rowKeys.ts for a div, tr or
+  SVG row); a small control wears `.hit` (`.hit-after` where ::before is taken), a 44 px box on a coarse pointer; the
+  shell, OutsideFrame and the landing have a SkipLink to `<main id="content">`; the focus ring is 2 px, offset 2.
+- NEW YORK'S CLOCK (core/nyTime.ts — the one module for it): a time of the MARKET's day is New York's whatever the
+  reader chose (Trace's book, Pinpoint's session, the Weigher's and Terrain's charts, Compass's dates, the Tracker); the
+  rail's clock follows Settings › The desk › Clock and names its zone (SessionStrip `railClock`). StrikeChart takes
+  `nyClock` (the axis and crosshair on New York's clock) and `historyShare` (how much of the opening view the bars fill,
+  0.64 by default; Terrain 0.88, the Weigher 0.9, so the tape runs near the right edge). Paper's and Pulse's charts
+  do not pass them yet (WHAT-REMAINS).
+- THE COMMAND LINE (⌘K / Ctrl K, CommandPalette.tsx; the ideas' first pick, Bloomberg's grammar in the house's words):
+  a name and a function opens that page on that name ("NVDA flow", "SPY walls", "AAPL chain"); every page has a short
+  code of its own (components/layout/commands.ts CODES — one word to one page, the first page claiming it keeps it);
+  "SPY alert 480" arms an alert; Actions (rank before Settings rows) and the recents (slayer_palette_recent). It is a
+  combobox in a dialog. THE KEYS are one list, components/layout/keys.ts: `?` opens the sheet of the keys that work on
+  this page (ShortcutSheet.tsx) and Settings › Keyboard prints them all, from the same list; `/` focuses the page's own
+  search; `MOD` is ⌘ on a Mac and Ctrl elsewhere (the owner is on Windows) — print a chord with `modKey('K')` or
+  PALETTE_KEY, never a literal "⌘K" or "Ctrl K".
+- THE SHELL'S SWITCHES (components/layout/shellPrefs.ts, slayer_shell_prefs): the session strip under the signature
+  (on — where New York's day stands, pre-market to after hours, and the time to the next phase), the machine's own
+  notification for an alert that fires while the tab is hidden (off until asked; the browser asks its own question),
+  and an alert said aloud (speechSynthesis, off). Nothing leaves the machine.
+- AN ALERT LIVES PAST ONE FIRING (gex/alertStore.ts): how often it may fire (`repeat`: once, every time, once a bar,
+  once a minute), when it ends (`expiresAt`), a snooze (`quietUntil`); after its quiet it is put back on watch from
+  where the market stands, so a crossing it slept through is not a firing. The fired log is kept on this machine
+  (slayer_alert_log, twenty a name, two hundred in all); clearing it is undoable. The drawer is a dialog, opened from
+  anywhere through data/alertsDrawer.ts (`openAlertsDrawer` — the bell, a toast, the command line).
+- PULSE: every panel prints the one live price (`ctx.liveSpot` — the book is still rebuilt on the 10 s scan, the
+  price is not), so one name shows one price on one screen. Pulse and the four-chart board wear the house head
+  (components/layout/ShellHead.tsx: glyph, the page's h1, one line, facts — no breadcrumb, no tracked caps); the board
+  is "Four charts" on the tab, the head, the rail and the command line alike.
+- PINPOINT READS ONE BOOK (data/pinpointBook.ts — the call wall read 480 on two pages and 481 on four): one scan a name
+  per 10 s (`scanOf`), one book on the whole chain, 30 strikes each side (`bookOf`), every read off it. A page's
+  strike window (15, 20, 25 or 30; one pick for the room, slayer_pinpoint_strikes, usePinpoint `useRoomWindow`)
+  chooses which rows it DRAWS (`inWindow`), never what they say. "Since the open" is New York's 09:30
+  (levelview `sessionCut`). MAGENTA IS THE SUPREME'S ALONE — no other Pinpoint mark wears it. Shared level pieces are
+  components/levels/: HowSure (what a level assumes, how fresh its open interest is, where it would sit were the
+  dealers' side the other way — data/levelSureness.ts; Pinpoint now, Terrain to follow), OiChange (overnight open
+  interest by strike, on Building) and Glossary (the room's own words, at the foot of every guide that uses them). Max
+  pain (data/maxPain.ts) is one plain marked line, never a pull. A level's record counts its misses beside a strike as
+  far away (data/levelRecord.ts — "held through 14 of 20 … a strike as far held through 9 of 20"), never a rate.
+  Pinpoint's text is 11 px at the least, ticks 10.
+- TRACE'S DAY BOOK IS NEW YORK'S CASH SESSION (data/flowBook.ts `bookSession`: 09:30 to 16:00; outside it the last
+  session, whole) — windows, catches and structures inside it, the caches keyed on their rows. Print kinds are real
+  (a block is size in one print; a print with legs is its own kind), P/C is premium against premium. A grid pins its
+  who-and-what columns left and its one figure right (TraceBox `pinLeft` / `pinRight`), its sideways scroller sticky
+  at the foot of the screen; on a phone a grid gives `phoneRow` (TraceBox `PhoneRow`, two lines) in place of its
+  columns. A book page's cut IS its address (components/trace/addressCut.ts `useAddressCut` — validated, written with
+  replace, only what differs from the default). The print card says what else a print could be and what "unusual" is
+  measured against; Watchers' follow-through counts every flagged print, misses too ("N of M", data/followThrough.ts).
+  Dark Pool says where a cross printed, never who traded it or what to do.
+- COMPASS TELLS ONE STORY A SETUP (components/compass/campaignStore.ts): the sweep's moment, entry and frozen targets
+  are noted once per setup (kept for New York's day in the tab), and the card, table, page head, both charts and the
+  Tracker all read `statusOf(recordOf(id))`; "found at" is the sweep's moment (a page no sweep listed says "opened
+  at"). The board holds its order under the pointer or the keys. The why-texts are reads, never instructions; the
+  kind once called "Quick scalp" is "Fast movers" (its key stays `quick-scalp`).
+- TERRAIN'S OVERLAYS (components/terrain/TerrainLayers.tsx, through StrikeChart's `layer`; both off by default, in the
+  pane's Overlays menu): walls through the day — a strike × time heat behind the candles in the pane's lens (GEX,
+  Charm or DEX), one cached bitmap an update — and the session's phases (the open, lunch, power hour) as quiet token
+  bands on New York's minutes. The trend strip is the pane's timeframe tabs; below lg a Strikes door lays the ladder
+  over the chart.
+- THE WEIGHER HAS ONE PRICER: a position's projection is priced by the chain's own estimator from the mark's clock
+  (data/positionCurve.ts), so a watched contract's curve starts at its mark. The payoff card shows the model's bell
+  under the curve and the chance above or below a price on hover. The chart card's third view is "Vol"
+  (components/weigher/VolCurves.tsx): the smile for the chain's expiry and the at-the-money term with each expiry's
+  1σ move, read off the chain's own IV.
+- PAPER KEEPS WHAT IS OPEN (data/paper/store.ts; docs/paper-rules.md "When the page closes" and "One tab at a time"):
+  positions and working orders are saved as they change and as the page hides, and a reload or a tab hand-over carries
+  them on, marked on the new load's prices — nothing is closed when the page shuts, and a close the page made never
+  counts as an evaluation day. A paper fill is stamped with the name's flip and walls at entry (`lv`), so the Journal
+  cuts trades by where they stood. THE BACKTEST CLOCK ONLY MOVES FORWARD (review/engine.ts `floorOf`): a press behind
+  it is said, not swallowed. The Journal has three views on the address (`?view=` — the calendar at rest, `today`:
+  before the open and how it went, `week`: the week reviewed); its cuts by days to expiry and delta are the Report's
+  own (review/engine.ts DTE_CUTS, DELTA_CUTS). The two accounts a first visit gets are named "Starter · practice" and
+  "Starter · 50K evaluation" (data/paper/sample.ts) — never "sample".

@@ -90,9 +90,9 @@ two starts.
 ## The prices
 
 **Today the feed is the terminal's simulator.** It trades round the clock, and it is a new market on every page load —
-so the rules below say what happens at the page's edges (below, "When the page closes"). When the real feed is wired in,
-`src/data/paper/feed.ts` is the one file that changes, and the market's hours become the exchange's: options 09:30 to
-16:00 New York. Until then the page says "Simulated feed" wherever a figure is shown.
+what is open is carried across a load and marked on the new one's prices (below, "When the page closes"). When the real
+feed is wired in, `src/data/paper/feed.ts` is the one file that changes, and the market's hours become the exchange's:
+options 09:30 to 16:00 New York. The page never says the feed is simulated (the house rule, 2026-10-01).
 
 ### Options
 
@@ -135,7 +135,7 @@ A **dead quote gives no fill** (a zero bid, or a spread wider than 60% of the ma
   it.
 - **Fees**: $0.65 a contract each way (both legs of a spread).
 - **A day order** is cancelled at the end of the trading day (the 16:00 bell, New York). A GTC order waits until it fills
-  or is cancelled — and, on the simulated feed, until the page closes.
+  or is cancelled; a reload or a closed page does not cancel it (below, "When the page closes").
 - **Expiry**: at 16:00 New York on its expiry date, a held option settles at what it is worth in the money, at the name's
   price then; what was working on it is cancelled. **It settles on its own day**: the settlement is written at the bell,
   before the day rolls there, so a contract that is next seen after the bell (a Friday's, on Monday) is still Friday's —
@@ -219,25 +219,39 @@ reader can end the pause early; the account says it was ended early.
 - **The sandbox** (practice only): fees off. The account says so in its head. (Queued limits, planned for round 3, were
   a future's and went with them.)
 
-## When the page closes (the simulated feed)
+## When the page closes
 
-The simulator makes a **new market on every page load**, so nothing open can honestly be carried across one:
+**What is open stays open** (2026-10-10, the audit's PR-1: a reload closed an open AAPL call "with the page" and counted
+the day toward an evaluation). `src/data/paper/store.ts` keeps it:
 
-- When the page closes or reloads, **everything open is closed at the last price the page saw** and everything working is
-  cancelled. The fills say so ("the page closed").
-- If the page did not get the chance (a crash, a killed tab), the next load closes what was left open at the last price
-  that page wrote down, and says so.
-- The account itself — its cash, its trades, its days, an evaluation's record — carries across reloads.
+- Positions and working orders are **written down as they change** — a fill, an order placed or cancelled, a hand on the
+  account, at once; a tick that only moved a price, within two seconds — and **again as the page hides** (`pagehide`).
+- When the page closes or reloads, **nothing is closed and nothing is cancelled**. The next load reads the accounts back,
+  **marks what is open on its own prices** and keeps working the orders. On the simulated feed that is a new market every
+  load, so a mark can move across a reload; with the real feed it is the market's own price.
+- A day order still ends at the 16:00 bell and an expiry still settles on its own day — whenever the next load comes, the
+  roll writes them as they fell (above, "The day").
+- An evaluation's days count trades the reader closed; a close the page made (the old rule's "the page closed" fills,
+  still in older accounts) never counts as a day traded.
+- The account itself — its cash, its trades, its days, an evaluation's record — carries across reloads as before. The
+  journal's words and tags are kept apart (`slayer_paper_journal_v1`), so a note written in a tab that does not hold the
+  account is never lost under the holder's next save.
 
-With the real feed this section goes away and positions stay open across a reload. Orders are still **watched only while
-the terminal is open in a browser**: a prop firm's server watches round the clock, and that needs the backend. The
-account lives in this browser until accounts move to the server.
+Orders are still **watched only while the terminal is open in a browser**: a working stop does not fill while every tab
+is shut, and a prop firm's server watches round the clock — that needs the backend. The account lives in this browser
+until accounts move to the server.
 
 ## One tab at a time
 
-The account is **held by one tab**. A second tab opens the Live Chart read-only, says the account is open elsewhere, and can
-take it over — the first tab then goes read-only. Two tabs trading one account against two different simulated markets
-would write nonsense into it.
+The account is **held by one tab** (a lease in `slayer_paper_lease_v1`, renewed every 2.5 s and good for 8 s). A second
+tab reads the accounts and takes nothing: the Live Chart says "Your paper accounts are open in another tab", and every
+way in is locked until it takes them.
+
+- **Take them here** moves the accounts to this tab **as they stand** — what is open stays open and is marked on this
+  tab's prices from the next tick; the other tab goes back to reading. An undo chip hands them back.
+- When the holding tab closes, it writes everything down and lets the lease go; a reading tab takes the accounts over on
+  its next renewal, fresh from what was written — what is open stays open.
+- A tab that does not hold the accounts never writes them, so two tabs never trade one account against two markets.
 
 ## Fill alerts
 
