@@ -51,12 +51,13 @@ export function earnMarks<T>(rows: T[], get: (r: T) => number): InkMarks {
 export const weightInk = (v: number, m: InkMarks): string =>
   Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? 'font-bold text-textPrimary' : 'text-textPrimary';
 
-/** A signed fact's ink: direction colour once loud, magenta for the champion. */
+/** A signed fact's ink: direction colour once loud, magenta for the champion. Inked by direction it carries the mark too
+    (`dir-up` / `dir-down`, theme/tokens.css): ▲ or ▼ under the blue–orange pair */
 export const directionInk = (v: number, m: InkMarks): string =>
   Math.abs(v) >= m.top
     ? 'text-supreme font-bold'
     : Math.abs(v) >= m.bar
       ? v > 0
-        ? 'text-bull'
-        : 'text-bear'
+        ? 'text-bull dir-up'
+        : 'text-bear dir-down'
       : 'text-textPrimary';

@@ -70,14 +70,14 @@ export const CHAIN_COLUMNS: ChainCol[] = [
     head: 'Net chg',
     render: c => ({
       text: `${c.netChange >= 0 ? '+' : '\u2212'}$${Math.abs(c.netChange).toFixed(2)}`,
-      ink: c.netChange >= 0 ? 'text-bull' : 'text-bear',
+      ink: c.netChange > 0 ? 'text-bull dir-up' : c.netChange < 0 ? 'text-bear dir-down' : 'text-bull',
     }),
   },
   {
     key: 'changePct',
     label: 'Change %',
     head: 'Chg %',
-    render: c => ({ text: signedPct(c.netChangePct), ink: c.netChangePct >= 0 ? 'text-bull' : 'text-bear' }),
+    render: c => ({ text: signedPct(c.netChangePct), ink: c.netChangePct > 0 ? 'text-bull dir-up' : c.netChangePct < 0 ? 'text-bear dir-down' : 'text-bull' }),
   },
   { key: 'high', label: 'High', head: 'High', render: c => ({ text: money(c.high) }) },
   { key: 'low', label: 'Low', head: 'Low', render: c => ({ text: money(c.low) }) },

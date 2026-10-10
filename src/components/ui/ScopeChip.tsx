@@ -55,6 +55,7 @@ import useFocusTrap from './useFocusTrap';
 import { useAnchoredMenu } from './useAnchoredMenu';
 import { MorphingInfinity, useWorking } from './Working';
 import { useNameArriving } from '../gex/useSeeded';
+import { dirOf } from '../../theme/theme';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /** Matches the `w-72` on the menu — the placement keeps its far edge on screen */
@@ -190,7 +191,7 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
             <span className="text-[11px] tnum text-textPrimary leading-none" data-scope-price>
               ${price.toFixed(2)}
             </span>
-            <span className={`text-[11px] tnum leading-none ${change >= 0 ? 'text-bull' : 'text-bear'}`}>
+            <span className={`text-[11px] tnum leading-none ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
               {change >= 0 ? '+' : ''}
               {change.toFixed(2)}%
             </span>
