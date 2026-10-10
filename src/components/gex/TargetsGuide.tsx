@@ -9,6 +9,7 @@
 ==================================================
 */
 
+import Glossary from '../levels/Glossary';
 import type { ReactNode } from 'react';
 import { PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
@@ -237,6 +238,7 @@ export const TargetsGuide = ({ agenda, clock }: { agenda: Agenda; clock: AheadCl
           </p>
         )}
       </Section>
+      <Glossary words={['wall', 'shelf', 'trapdoor', 'pocket', 'reach', 'supreme', 'pin']} />
     </div>
   );
 };

@@ -11,6 +11,7 @@
 ==================================================
 */
 
+import Glossary from '../levels/Glossary';
 import type { Compare } from '../../data/compare';
 import { FONT_SANS } from '../../theme/fonts';
 
@@ -142,6 +143,7 @@ const CompareGuide = ({ cmp }: { cmp: Compare }) => {
         </p>
       </div>
       <p className="text-[11px] text-textMuted">The ruler at the top of the page changes the distances everywhere on this page.</p>
+      <Glossary words={['wall', 'flip', 'supreme', 'ruler', 'sign']} />
     </div>
   );
 };

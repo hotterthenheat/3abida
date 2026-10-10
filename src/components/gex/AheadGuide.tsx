@@ -14,6 +14,7 @@
 ==================================================
 */
 
+import Glossary from '../levels/Glossary';
 import type { ReactNode } from 'react';
 import { CALL_WALL, PUT_WALL, FLIP, SUPREME } from './paletteInk';
 import { fmtDollars, fmtPrice, fmtStrike, hhmm, type AheadClock, type CloseOdds, type Corridor, type Schedule } from '../../data/ahead';
@@ -185,7 +186,7 @@ export const CorridorGuide = ({ corridor, schedule, levels, clock }: { corridor:
       <ReachFigure />
     </Section>
     <Section title="The half hours · charm">
-      <p>Dealers hold stock against today's options. As those options lose their delta, that stock has to go, whatever the news — that pull of the clock on their hedges is charm. Every half hour is a bar from the pane's middle line: up in green for buying, down in red for selling, its figure at its end and the hour under it. The half hours gone say done; the one under way wears the silver edge. Hover any bar and the read line speaks it.</p>
+      <p>Dealers hold stock against today's options. As those options lose their delta, that stock has to go, whatever the news — that pull of the clock on their hedges is charm. Every half hour is a bar from the pane's middle line: up in green for buying, down in red for selling, its figure at its end and the hour under it. The half hours gone say done; the one under way wears the silver edge. Hover any bar and the read line speaks it. When every half hour left trades the same way, the middle line moves to the pane's edge so the bars use its height.</p>
       <FlowFigure />
     </Section>
     <Section title="A vol move · vanna">
@@ -323,5 +324,6 @@ export const CloseGuide = ({ odds, spot, clock }: { odds: CloseOdds; spot: numbe
         Spot {fmtPrice(spot)} · curve ±{fmtPrice(odds.sigma)} {clock.inSession ? 'for the time left' : 'for a session'} · pull {Math.round(odds.gravity * 100)}%
       </p>
     </Section>
+    <Glossary words={['run', 'pull', 'wall', 'supreme', 'pin']} />
   </div>
 );

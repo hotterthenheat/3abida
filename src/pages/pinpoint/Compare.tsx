@@ -5,7 +5,7 @@
 
   The seventh page of Pinpoint (2026-09-08, Noah:
   "a compare page of 2 different stocks/tickers in
-  multiple ways you see fit"). Two names, three
+  multiple ways you see fit"). Two names, four
   boxes, read top to bottom:
 
     HEAD TO HEAD    the same ten reads for both,
@@ -17,6 +17,8 @@
     SINCE THE OPEN  today's session, both names as
                     one line each of percent from
                     their own open, the gap beneath
+    THE PAIR        whether today's gap between the
+                    two is usual, session by session
 
   A COMPOSITION: the reads are the Board's, Ahead's
   and Targets'; the ruler is the desk's; the lines

@@ -731,7 +731,8 @@ const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selected
     <button
       onClick={() => onSelectStrike?.(supreme.strike)}
       title={`The heaviest strike of the whole book by ${GREEK_LABEL[supremeGreek]} — the one every Pinpoint page marks in magenta — most of it on ${supremeEx?.date ?? ''} · click to pin the strike`}
-      className="ml-auto inline-flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
+      aria-label={`Supreme ${fmtStrike(supreme.strike)}, ${supremeEx?.date ?? ''}, ${fmtUsd(supreme.total)} — keep the strike`}
+      className="hit ml-auto inline-flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
       data-ledger-supreme={doorsTight ? 'compact' : 'full'}
     >
       <span className="text-[11px] font-bold text-supreme">Supreme</span>
@@ -792,7 +793,8 @@ const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selected
             aria-expanded={adding}
             disabled={names.length >= EXTRA_MAX}
             title={names.length >= EXTRA_MAX ? 'Four names at most — take one off to add another' : 'Show another name beside this one — up to four side by side'}
-            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none disabled:opacity-50 ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
+            aria-label={`Names side by side: ${1 + names.length} — add another`}
+            className={`hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none disabled:opacity-50 ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
             data-ledger-add
           >
             <Plus className="w-3 h-3 text-textMuted" />
@@ -943,7 +945,8 @@ const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selected
               type="button"
               onClick={() => removeName(c.ticker)}
               title={`Take ${c.ticker} off`}
-              className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+              aria-label={`Take ${c.ticker} off`}
+              className="hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
               data-field-remove={c.ticker}
             >
               <X className="w-3 h-3" />

@@ -14,6 +14,7 @@
 ==================================================
 */
 
+import Glossary from '../levels/Glossary';
 import { fmtUsd } from '../../data/gex';
 import type { ExposureSurface, Greek } from '../../data/exposureSurface';
 import { maxPainOf, MAX_PAIN_WORDS } from '../../data/maxPain';
@@ -319,6 +320,7 @@ const LedgerGuide = ({ surface, greek, view = 'calendar', snapshot }: LedgerGuid
         </ul>
       </div>
       <p className="text-[11px] text-textMuted">Point at any row or cell for its card · a click keeps the strike for every box on the page.</p>
+      <Glossary words={['wall', 'flip', 'supreme', 'pin', 'maxPain', 'sign']} />
     </div>
   );
 };

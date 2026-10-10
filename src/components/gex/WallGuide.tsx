@@ -10,6 +10,7 @@
 ==================================================
 */
 
+import Glossary from '../levels/Glossary';
 import type { ReactNode } from 'react';
 import { CALL_WALL, PUT_WALL, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
@@ -232,6 +233,7 @@ export const WallGuide = ({ board, clock }: { board: WallBoard; clock: AheadCloc
           </p>
         )}
       </Section>
+      <Glossary words={['wall', 'shelf', 'trapdoor', 'pocket', 'reach', 'flip', 'supreme']} />
     </div>
   );
 };
