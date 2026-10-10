@@ -1350,7 +1350,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
           </Fact>
         </dl>
       </header>
-      <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read the Weigher" testId="weigher-guide" viewport>
+      <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read the Weigher" testId="weigher-guide" viewport width={620}>
         <WeigherGuide />
       </GuideFocus>
 

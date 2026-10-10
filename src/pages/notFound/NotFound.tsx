@@ -38,7 +38,7 @@ import { useReducedMotion } from 'framer-motion';
 import PageHeader from '../../components/ui/PageHeader';
 import { NAV_ITEMS } from '../../components/layout/nav';
 import { useLaunch } from '../../components/layout/LaunchTransition';
-import { openPalette } from '../../components/layout/paletteDoor';
+import { PALETTE_KEY, openPalette } from '../../components/layout/paletteDoor';
 import { metaFor } from '../../components/layout/PageMeta';
 import { productOf, suggest, type Suggestion } from './suggest';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -161,7 +161,7 @@ export const NotFoundInside = () => {
           >
             <Search className="w-3.5 h-3.5" aria-hidden />
             Search every page and every name
-            <kbd className="ml-4 font-mono text-[9.5px] text-textMuted">Ctrl K</kbd>
+            <kbd className="ml-4 font-mono text-[11px] text-textMuted">{PALETTE_KEY}</kbd>
           </button>
         </div>
       </div>

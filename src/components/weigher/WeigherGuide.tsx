@@ -28,6 +28,8 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
+/* EVERY WORD IN A FIGURE AT THE HOUSE'S FLOOR (2026-10-10, the audit's X9.2): the drawings' words were 5–7.5 units, read at
+   about 7 px; at 8.5 units in the guide's 620 px card (WeigherDesk) they read at 11, in sentence case, untracked */
 const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
     <svg viewBox={`0 0 420 ${h}`} width="100%" role="img" aria-label={label} data-guide-figure>
@@ -39,13 +41,13 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
 /* The chain: strikes down the left, the market's hairline between two of them, the picked row in silver */
 const ChainFigure = () => (
   <Figure label="Five chain rows with the strike, mark, delta, IV, ITM odds and volume; the market's hairline reads 515.94 between 516 and 515; the 515 row is picked, its chevron turned and its strike in silver" h={118}>
-    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
-      <text x={12} y={12}>STRIKE</text>
-      <text x={130} y={12} textAnchor="end">MARK</text>
-      <text x={200} y={12} textAnchor="end">DELTA</text>
+    <g fontFamily={FIG} fontSize={8.5} fill={MUTED}>
+      <text x={12} y={12}>Strike</text>
+      <text x={130} y={12} textAnchor="end">Mark</text>
+      <text x={200} y={12} textAnchor="end">Delta</text>
       <text x={260} y={12} textAnchor="end">IV</text>
-      <text x={340} y={12} textAnchor="end">ITM ODDS</text>
-      <text x={408} y={12} textAnchor="end">VOL</text>
+      <text x={340} y={12} textAnchor="end">ITM odds</text>
+      <text x={408} y={12} textAnchor="end">Vol</text>
     </g>
     <line x1={0} x2={420} y1={17} y2={17} stroke="#ffffff" strokeOpacity={0.08} />
     {[
@@ -63,23 +65,23 @@ const ChainFigure = () => (
         <text x={130} y={r.y} textAnchor="end" fontSize={8.5} fontWeight={700} fill={INK}>
           {r.m}
         </text>
-        <text x={200} y={r.y} textAnchor="end" fontSize={8} fill={SECOND}>
+        <text x={200} y={r.y} textAnchor="end" fontSize={8.5} fill={SECOND}>
           {r.d}
         </text>
-        <text x={260} y={r.y} textAnchor="end" fontSize={8} fill={SECOND}>
+        <text x={260} y={r.y} textAnchor="end" fontSize={8.5} fill={SECOND}>
           {r.iv}
         </text>
-        <text x={340} y={r.y} textAnchor="end" fontSize={8} fill={SECOND}>
+        <text x={340} y={r.y} textAnchor="end" fontSize={8.5} fill={SECOND}>
           {r.o}
         </text>
-        <text x={408} y={r.y} textAnchor="end" fontSize={8} fill={SECOND}>
+        <text x={408} y={r.y} textAnchor="end" fontSize={8.5} fill={SECOND}>
           {r.v}
         </text>
       </g>
     ))}
     <line x1={12} x2={182} y1={64} y2={64} stroke={INK} strokeOpacity={0.25} />
     <rect x={186} y={58} width={48} height={12} rx={2} fill="#ffffff" fillOpacity={0.06} />
-    <text x={210} y={67} textAnchor="middle" fontSize={7} fontWeight={700} fill={INK} fontFamily={FIG}>
+    <text x={210} y={67} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       515.94
     </text>
     <line x1={238} x2={408} y1={64} y2={64} stroke={INK} strokeOpacity={0.25} />
@@ -89,12 +91,12 @@ const ChainFigure = () => (
 /* The watchlist: two rows of the list — the pill, when it was added, the mark, today's and the total return — the picked one in silver */
 const ListFigure = () => (
   <Figure label="Two watchlist rows: SPY 512C added today at a mark of $2.19, +$0 today and +$0 in all; SPY 507C picked, in the silver selection, added today at $3.24, −$7 and −0.02R today and in all" h={72}>
-    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
-      <text x={12} y={12}>CONTRACT</text>
-      <text x={190} y={12}>ADDED</text>
-      <text x={280} y={12} textAnchor="end">MARK</text>
-      <text x={345} y={12} textAnchor="end">TODAY</text>
-      <text x={408} y={12} textAnchor="end">TOTAL</text>
+    <g fontFamily={FIG} fontSize={8.5} fill={MUTED}>
+      <text x={12} y={12}>Contract</text>
+      <text x={190} y={12}>Added</text>
+      <text x={280} y={12} textAnchor="end">Mark</text>
+      <text x={345} y={12} textAnchor="end">Today</text>
+      <text x={408} y={12} textAnchor="end">Total</text>
     </g>
     <line x1={0} x2={420} y1={17} y2={17} stroke="#ffffff" strokeOpacity={0.08} />
     {[
@@ -104,22 +106,22 @@ const ListFigure = () => (
       <g key={r.c} fontFamily={FIG}>
         {r.on && <rect x={0} y={r.y - 15} width={420} height={24} fill={SILVER} fillOpacity={0.08} />}
         <rect x={12} y={r.y - 10} width={60} height={13} rx={2} fill={BULL} fillOpacity={0.08} stroke={BULL} strokeOpacity={0.35} />
-        <text x={42} y={r.y} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={BULL}>
+        <text x={42} y={r.y} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={BULL}>
           {r.c}
         </text>
-        <text x={80} y={r.y} fontSize={6.5} fill={MUTED}>
+        <text x={80} y={r.y} fontSize={8.5} fill={MUTED}>
           · Fri
         </text>
-        <text x={190} y={r.y} fontSize={7.5} fill={SECOND}>
+        <text x={190} y={r.y} fontSize={8.5} fill={SECOND}>
           today
         </text>
-        <text x={280} y={r.y} textAnchor="end" fontSize={8} fill={INK}>
+        <text x={280} y={r.y} textAnchor="end" fontSize={8.5} fill={INK}>
           {r.m}
         </text>
-        <text x={345} y={r.y} textAnchor="end" fontSize={7.5} fill={r.ink}>
+        <text x={345} y={r.y} textAnchor="end" fontSize={8.5} fill={r.ink}>
           {r.t}
         </text>
-        <text x={408} y={r.y} textAnchor="end" fontSize={7.5} fontWeight={700} fill={r.ink}>
+        <text x={408} y={r.y} textAnchor="end" fontSize={8.5} fontWeight={700} fill={r.ink}>
           {r.t}
         </text>
       </g>
@@ -130,27 +132,27 @@ const ListFigure = () => (
 /* The contract card: the watchlist position's eight facts over the Stats, the doors under */
 const PositionFigure = () => (
   <Figure label="The position card for a watched contract: WATCHLIST POSITION with Market value $324, Cost when added $3.24 · 1R, Today's return −$7 · −0.02R in red, Total return the same, Breakeven, Contracts 1, Date added and Expiry; under it By price — profit or loss across the stock's price, red below the strike and green above at expiry, today's softer dashed line, the market's hairline with its dot on today's line and the ruler's price as a second hairline with a dot on each line; the foot reads 'On your watchlist · since today' with the Watching and Close doors" h={118}>
-    <text x={12} y={14} fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={SECOND} fontFamily={FIG}>
-      WATCHLIST POSITION
+    <text x={12} y={14} fontSize={8.5} fontWeight={700} fill={SECOND} fontFamily={FIG}>
+      Watchlist position
     </text>
-    <text x={98} y={14} fontSize={6.5} fill={MUTED} fontFamily={FIG}>
+    <text x={104} y={14} fontSize={8.5} fill={MUTED} fontFamily={FIG}>
       · marked by the model
     </text>
     {[
-      { x: 12, y: 30, l: 'MARKET VALUE', v: '$324.00', ink: INK },
-      { x: 112, y: 30, l: 'COST WHEN ADDED', v: '$3.24 · 1R', ink: INK },
-      { x: 212, y: 30, l: "TODAY'S RETURN", v: '−$7 · −0.02R', ink: BEAR },
-      { x: 312, y: 30, l: 'TOTAL RETURN', v: '−$7 · −0.02R', ink: BEAR },
-      { x: 12, y: 56, l: 'BREAKEVEN', v: '$510.24 · +0.5% away', ink: INK },
-      { x: 112, y: 56, l: 'CONTRACTS', v: '− 1 +', ink: INK },
-      { x: 212, y: 56, l: 'DATE ADDED', v: 'today', ink: INK },
-      { x: 312, y: 56, l: 'EXPIRY', v: 'Fri · 2 sessions', ink: INK },
+      { x: 12, y: 30, l: 'Market value', v: '$324.00', ink: INK },
+      { x: 112, y: 30, l: 'Cost when added', v: '$3.24 · 1R', ink: INK },
+      { x: 212, y: 30, l: "Today's return", v: '−$7 · −0.02R', ink: BEAR },
+      { x: 312, y: 30, l: 'Total return', v: '−$7 · −0.02R', ink: BEAR },
+      { x: 12, y: 56, l: 'Breakeven', v: '$510.24 · +0.5% away', ink: INK },
+      { x: 112, y: 56, l: 'Contracts', v: '− 1 +', ink: INK },
+      { x: 212, y: 56, l: 'Date added', v: 'today', ink: INK },
+      { x: 312, y: 56, l: 'Expiry', v: 'Fri · 2 sessions', ink: INK },
     ].map(f => (
       <g key={f.l} fontFamily={FIG}>
-        <text x={f.x} y={f.y} fontSize={6} letterSpacing={0.6} fill={SILVER}>
+        <text x={f.x} y={f.y} fontSize={8.5} fill={SILVER}>
           {f.l}
         </text>
-        <text x={f.x} y={f.y + 11} fontSize={7.5} fontWeight={700} fill={f.ink}>
+        <text x={f.x} y={f.y + 11} fontSize={8.5} fontWeight={700} fill={f.ink}>
           {f.v}
         </text>
       </g>
@@ -169,20 +171,20 @@ const PositionFigure = () => (
     <line x1={350} x2={350} y1={62} y2={104} stroke={SILVER} strokeOpacity={0.6} strokeWidth={0.8} />
     <circle cx={350} cy={74} r={1.8} fill="#0e0e0f" stroke={SILVER} strokeWidth={0.8} />
     <circle cx={350} cy={76} r={2} fill={BULL} stroke="#0e0e0f" strokeWidth={0.8} />
-    <text x={408} y={60} textAnchor="end" fontSize={5} fill={SILVER} fontFamily={FIG}>
+    <text x={408} y={60} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={FIG}>
       ┄ today
     </text>
     <line x1={0} x2={420} y1={106} y2={106} stroke="#ffffff" strokeOpacity={0.08} />
-    <text x={12} y={115} fontSize={6.5} fill={INK} fontFamily={FIG}>
+    <text x={12} y={115} fontSize={8.5} fill={INK} fontFamily={FIG}>
       On your watchlist · since today
     </text>
-    <rect x={318} y={108} width={44} height={10} rx={2} fill="#ffffff" fillOpacity={0.06} />
-    <text x={340} y={115.5} textAnchor="middle" fontSize={5.5} letterSpacing={0.5} fill={INK} fontFamily={FIG}>
-      WATCHING
+    <rect x={312} y={107} width={50} height={12} rx={2} fill="#ffffff" fillOpacity={0.06} />
+    <text x={337} y={116} textAnchor="middle" fontSize={8.5} fill={INK} fontFamily={FIG}>
+      Watching
     </text>
-    <rect x={368} y={108} width={40} height={10} rx={2} fill="#ffffff" fillOpacity={0.06} />
-    <text x={388} y={115.5} textAnchor="middle" fontSize={5.5} letterSpacing={0.5} fill={SECOND} fontFamily={FIG}>
-      CLOSE
+    <rect x={368} y={107} width={40} height={12} rx={2} fill="#ffffff" fillOpacity={0.06} />
+    <text x={388} y={116} textAnchor="middle" fontSize={8.5} fill={SECOND} fontFamily={FIG}>
+      Close
     </text>
   </Figure>
 );
@@ -191,32 +193,32 @@ const PositionFigure = () => (
 const StripFigure = () => (
   <Figure label="The chart's strip: the name capsule SPY with its price, Stock and Premium with Stock underlined, the timeframes, the overlay and indicator glyphs, the expand door at the right" h={44}>
     <rect x={10} y={12} width={54} height={20} rx={10} fill="#ffffff" fillOpacity={0.06} />
-    <text x={37} y={25.5} textAnchor="middle" fontSize={8} fontWeight={700} fill={INK} fontFamily={FIG}>
+    <text x={37} y={25.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       SPY ▾
     </text>
-    <text x={72} y={25.5} fontSize={8} fontWeight={600} fill={INK} fontFamily={FIG}>
+    <text x={72} y={25.5} fontSize={8.5} fontWeight={600} fill={INK} fontFamily={FIG}>
       $515.87
     </text>
-    <text x={118} y={25.5} fontSize={8} fontWeight={600} fill={BULL} fontFamily={FIG}>
+    <text x={118} y={25.5} fontSize={8.5} fontWeight={600} fill={BULL} fontFamily={FIG}>
       ▲ +3.2%
     </text>
-    <text x={170} y={25.5} fontSize={7} letterSpacing={0.8} fill={INK} fontFamily={FIG}>
-      STOCK
+    <text x={170} y={25.5} fontSize={8.5} fill={INK} fontFamily={FIG}>
+      Stock
     </text>
     <line x1={170} x2={196} y1={29} y2={29} stroke={INK} />
-    <text x={206} y={25.5} fontSize={7} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
-      PREMIUM
+    <text x={206} y={25.5} fontSize={8.5} fill={MUTED} fontFamily={FIG}>
+      Premium
     </text>
     <rect x={256} y={14} width={24} height={16} rx={8} fill="#ffffff" fillOpacity={0.1} />
-    <text x={268} y={25.5} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={INK} fontFamily={FIG}>
+    <text x={268} y={25.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
       1m
     </text>
     {['5m', '15m', '1h'].map((t, i) => (
-      <text key={t} x={292 + i * 24} y={25.5} textAnchor="middle" fontSize={7.5} fill={MUTED} fontFamily={FIG}>
+      <text key={t} x={292 + i * 24} y={25.5} textAnchor="middle" fontSize={8.5} fill={MUTED} fontFamily={FIG}>
         {t}
       </text>
     ))}
-    <text x={370} y={25.5} fontSize={7} fill={MUTED} fontFamily={FIG}>
+    <text x={370} y={25.5} fontSize={8.5} fill={MUTED} fontFamily={FIG}>
       ◈ ∿ ♪
     </text>
     <text x={404} y={26} textAnchor="end" fontSize={9} fill={MUTED} fontFamily={FIG}>

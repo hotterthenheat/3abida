@@ -34,6 +34,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { EMBEDDED } from '../../embed';
+import { isTerminalPath } from '../../core/terminalPath';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
 import Signature from '../../brand/Signature';
@@ -60,10 +61,9 @@ const REVEAL_MS = 300;
 
 const captionFor = (path: string) => (path === '/' ? 'Loading' : 'Entering terminal');
 
-/** THE TERMINAL'S ADDRESSES — its rooms and the old addresses that land in them (App.tsx). A full load of anything else
-    (the front page, the pages outside the terminal, a wrong address's prompt) opens WITHOUT the gate. */
-const TERMINAL = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i;
-export const isTerminalPath = (path: string): boolean => TERMINAL.test(path);
+/* THE TERMINAL'S ADDRESSES are core/terminalPath.ts (theme.ts reads them too): a full load of anything else opens WITHOUT
+   the gate */
+export { isTerminalPath };
 const bootsBare = (): boolean => EMBEDDED || !isTerminalPath(window.location.pathname);
 
 export const LaunchProvider = ({ children }: { children: ReactNode }) => {
