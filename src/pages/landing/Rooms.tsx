@@ -155,7 +155,8 @@ const RoomWords = ({ room, shown, playing, bar, onPick, onOpen, door }: WordsPro
         );
       })}
     </ul>
-    {room.more && <p className="mt-3 pl-4 text-[0.8125rem] leading-snug text-textMuted" data-room-more>{room.more}</p>}
+    {/* (on a short desk screen the stage has no room for it under the rows: the door would go under the screen's foot) */}
+    {room.more && <p className="mt-3 pl-4 text-[0.8125rem] leading-snug text-textMuted lg:[@media(max-height:799px)]:hidden" data-room-more>{room.more}</p>}
     <a
       href={door}
       onClick={e => {
