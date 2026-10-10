@@ -325,6 +325,11 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
   /* THE PANE — the partner's plain bars: the tallest half hour takes 38% of
      the pane, so its figure always has room before the hour under it */
   const maxFlow = Math.max(1, ...blocks.map(b => Math.abs(b.flow)));
+  const ahead = blocks.filter(b => !b.past);
+  const hasBuy = ahead.some(b => b.flow > 0) || !ahead.length;
+  const hasSell = ahead.some(b => b.flow < 0) || !ahead.length;
+  /* where the middle line stands, percent from the pane's top */
+  const zero = hasBuy && hasSell ? 50 : hasBuy ? 86 : 14;
   const hoveredBlock = hoverFrom != null ? blocks.find(b => b.from === hoverFrom) ?? null : null;
   const readLine = hoveredBlock ? blockWords(hoveredBlock) : clock.inSession ? 'hover a half hour · forced buying or selling, whatever the news' : 'hover a half hour · drawn for the next session';
   const ink = toClose >= 0 ? GREEN : RED;
@@ -597,7 +602,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
         {bellShare != null && (
           <span className="text-textSecondary whitespace-nowrap">
             expires at 4:00{' '}
-            <span style={{ color: SUPREME }} data-flow-bell>
+            <span className="text-textPrimary" data-flow-bell>
               {bellShare}%
             </span>
           </span>
@@ -611,29 +616,38 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
           dark terminal; on paper the same soft grey as the scale above, the page's inks (2026-09-19) */}
       <div className={headless ? 'px-4' : 'px-5'}>
         <div className={`mt-2 relative h-[210px] rounded-md border border-borderSubtle/60 ${paper ? 'bg-inset' : 'bg-panel'}`} data-theme={paper ? 'light' : 'dark'} onPointerLeave={() => setHoverFrom(null)} data-flow-pane>
-          <span className="absolute left-0 right-0 top-1/2 h-px bg-ink/25" />
-          <span className="absolute left-2 top-[6px] font-mono text-[11px]" style={{ color: GREEN }}>
-            buying
-          </span>
-          <span className="absolute left-2 bottom-[34px] font-mono text-[11px]" style={{ color: RED }}>
-            selling
-          </span>
+          {/* THE MIDDLE LINE WHERE THE DAY'S SIGNS PUT IT (PP-34): a day of buying left the selling half empty — the line
+              sits low when every half hour left buys, high when every one sells, in the middle when both */}
+          <span className="absolute left-0 right-0 h-px bg-ink/25" style={{ top: `calc(12px + (100% - 44px) * ${zero / 100})` }} />
+          {hasBuy && (
+            <span className="absolute left-2 top-[6px] inline-flex items-center gap-1.5 font-mono text-[11px] text-textSecondary">
+              <span className="w-1.5 h-1.5 rounded-sm" style={{ background: GREEN }} />
+              buying
+            </span>
+          )}
+          {hasSell && (
+            <span className="absolute left-2 bottom-[34px] inline-flex items-center gap-1.5 font-mono text-[11px] text-textSecondary">
+              <span className="w-1.5 h-1.5 rounded-sm" style={{ background: RED }} />
+              selling
+            </span>
+          )}
           <div className="absolute inset-x-12 top-3 bottom-8 flex items-stretch gap-[6px]">
             {blocks.map(b => {
-              const h = (Math.abs(b.flow) / maxFlow) * 38;
               const up = b.flow >= 0;
+              const room = up ? zero - 6 : 100 - zero - 6;
+              const h = (Math.abs(b.flow) / maxFlow) * room;
               const barInk = up ? GREEN : RED;
               const big = biggest != null && b.from === biggest.from;
               const on = hoverFrom === b.from;
               const show = !b.past && (Math.abs(b.flow) >= maxFlow * 0.12 || big);
-              const side = up ? { bottom: '50%' } : { top: '50%' };
-              const figureSide = up ? { bottom: `calc(50% + ${h}% + 4px)` } : { top: `calc(50% + ${h}% + 4px)` };
+              const side = up ? { bottom: `${100 - zero}%` } : { top: `${zero}%` };
+              const figureSide = up ? { bottom: `calc(${100 - zero}% + ${h}% + 4px)` } : { top: `calc(${zero}% + ${h}% + 4px)` };
               return (
                 <div key={b.from} className="relative flex-1 min-w-0" onPointerEnter={() => setHoverFrom(b.from)} data-flow-block={b.from} data-past={b.past || undefined} data-current={b.current || undefined} data-biggest={big || undefined}>
                   {/* the bar, from the middle line up or down */}
                   <span
                     className="absolute left-[15%] right-[15%] rounded-[3px]"
-                    style={{ ...side, height: `${Math.max(b.past ? 0 : 1.5, h)}%`, background: barInk, opacity: b.past ? 0.25 : big || on ? 1 : 0.8, outline: b.current ? `1px solid ${SILVER}` : undefined, outlineOffset: 2, transition: `opacity 160ms ease-out, height 520ms ${GLIDE_CSS}, background-color 520ms ${GLIDE_CSS}` }}
+                    style={{ ...side, height: `${Math.max(b.past ? 0 : b.current ? 4 : 1.5, h)}%`, background: barInk, opacity: b.past ? 0.25 : big || on || b.current ? 1 : 0.8, outline: b.current ? `1px solid ${SILVER}` : undefined, outlineOffset: 2, transition: `opacity 160ms ease-out, height 520ms ${GLIDE_CSS}, background-color 520ms ${GLIDE_CSS}` }}
                     data-flow-bar={b.from}
                     data-flow-sign={up ? 'buy' : 'sell'}
                   />
@@ -642,7 +656,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                       {fmtDollars(b.flow)}
                     </span>
                   )}
-                  {b.past && <span className="absolute left-1/2 -translate-x-1/2 top-[calc(50%-14px)] font-mono text-[11px] text-textMuted">done</span>}
+                  {b.past && <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[11px] text-textMuted" style={{ top: `calc(${zero}% - 16px)` }}>done</span>}
                   <span className="absolute left-1/2 -translate-x-1/2 -bottom-[18px] font-mono text-[11px] tnum text-textSecondary">{hhmm(b.from)}</span>
                 </div>
               );

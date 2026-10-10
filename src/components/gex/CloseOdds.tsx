@@ -224,6 +224,9 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
                 className={`w-full grid ${COLS} items-center gap-x-3 h-[24px] rounded px-1 text-left transition-colors hover:bg-ink/[0.05] ${wash}`}
                 style={kept ? { boxShadow: `inset 2px 0 0 0 ${SILVER}` } : undefined}
                 title={`${fmtStrike(r.strike)} · ${pct(r.odds)} · the expected move alone says ${pct(r.plain)}${r.role ? ` · ${r.role}` : ''}`}
+                /* one name, said in words (PP-29: "4831.2%", "479#215%") */
+                aria-label={`${fmtStrike(r.strike)}${r.role ? `, the ${r.role}` : ''}${n ? `, number ${n}` : ''} — ${pct(r.odds)} chance the close lands here`}
+                aria-pressed={kept}
                 data-close-row={r.strike}
                 data-close-rank={n}
                 data-close-kept={kept || undefined}
