@@ -939,7 +939,7 @@ const Trust = () => (
         className="relative before:content-[''] before:absolute before:-inset-y-3 before:-inset-x-1 group/door mt-6 inline-flex items-center gap-2 text-[0.84375rem] text-textSecondary hover:text-textPrimary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-silver rounded-sm"
         data-landing-door="data"
       >
-        The Data page, in full
+        Data sources, in full
         <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover/door:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
       </a>
     </div>
@@ -948,11 +948,13 @@ const Trust = () => (
 
 /** ONE TERMINAL, IN PLACE OF… what a trader would otherwise keep open beside it */
 const InPlaceOf = () => (
-  <div className="mt-12 lg:mt-14 flex flex-col lg:flex-row lg:items-start gap-x-8 gap-y-4" data-landing-in-place-of>
-    <p className="shrink-0 text-[0.9375rem] font-medium text-textSecondary lg:pt-[0.5rem]">One terminal, in place of</p>
+  /* the line over its chips, so the five have the column's whole width: beside them, the fifth stood alone on a second row
+     (the audit's L-26) */
+  <div className="mt-12 lg:mt-14 flex flex-col gap-y-4" data-landing-in-place-of>
+    <p className="shrink-0 text-[0.9375rem] font-medium text-textSecondary">One terminal, in place of</p>
     <ul className="flex flex-wrap gap-2">
       {IN_PLACE_OF.map(t => (
-        <li key={t.text} className="h-9 pl-2 pr-3.5 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[0.84375rem] text-textSecondary">
+        <li key={t.text} className="h-9 pl-2 pr-3 inline-flex items-center gap-2 rounded-full border border-borderSubtle text-[0.8125rem] text-textSecondary">
           <Glyph name={t.glyph} size={14} bare className="size-[0.875rem]" />
           {t.text}
           {/* the room that does it, in words as well as on its glyph (on a phone, its glyph and the words a reader hears) */}
