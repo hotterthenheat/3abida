@@ -14,7 +14,7 @@
 import { Fragment } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Modal from '../ui/Modal';
-import { keyGroupsFor } from './keys';
+import { keyGroupsFor, keyJoin } from './keys';
 
 const Key = ({ children }: { children: string }) => (
   <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[11px] text-textSecondary">{children}</kbd>
@@ -36,7 +36,7 @@ const ShortcutSheet = ({ open, onClose }: { open: boolean; onClose: () => void }
                   <span className="inline-flex items-center gap-1 shrink-0">
                     {s.keys.map((k, i) => (
                       <span key={k} className="inline-flex items-center gap-1">
-                        {i > 0 && <span className="text-[11px] text-textMuted">{s.alt ? '/' : '+'}</span>}
+                        {i > 0 && <span className="text-[11px] text-textMuted">{keyJoin(s)}</span>}
                         <Key>{k}</Key>
                       </span>
                     ))}

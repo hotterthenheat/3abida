@@ -54,7 +54,7 @@ import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
 import type { DistanceUnit } from '../../data/atr';
 import { setColourVision, setThemeChoice, useColourVision, useResolvedTheme, useThemeChoice, type ColourVision, type ThemeChoice } from '../../theme/theme';
 import SlayerMark from '../../brand/SlayerMark';
-import { KEY_GROUPS } from '../../components/layout/keys';
+import { KEY_GROUPS, keyJoin } from '../../components/layout/keys';
 import { canSpeak, enableNotify, notifyPermission, setShellPrefs, speak, useShellPrefs } from '../../components/layout/shellPrefs';
 import { downloadReceipt } from './receipt';
 import Wordmark from '../../brand/Wordmark';
@@ -1293,7 +1293,7 @@ const Settings = () => {
                     <span className="inline-flex items-center gap-1 shrink-0">
                       {s.keys.map((k, i) => (
                         <span key={k} className="inline-flex items-center gap-1">
-                          {i > 0 && <span className="text-[10px] text-textMuted">{s.alt ? '/' : '+'}</span>}
+                          {i > 0 && <span className="text-[10px] text-textMuted">{keyJoin(s)}</span>}
                           <Key>{k}</Key>
                         </span>
                       ))}

@@ -2460,14 +2460,15 @@ const Terrain = () => {
           nobody can see, so "NVDA" alone leaves a reader with no idea whether
           the next press wraps — `4 of 7` says it.
         */
-        case 'ArrowUp': case 'ArrowDown': {
+        /* j and k are ↓ and ↑ here too (2026-10-10, the ideas' keyboard leftovers) */
+        case 'ArrowUp': case 'ArrowDown': case 'j': case 'k': {
           if (!deskOwnsViewportRef.current && expandedRef.current === null) return;
           if (menuOpenRef.current) return;
           const q = cur.panes[i];
           if (!q) return;
           e.preventDefault();
           const ring = flipRing(Simulator.WATCHLIST, Object.keys(cur.setups));
-          const next = stepSymbol(ring, q.ticker, e.key === 'ArrowDown' ? 1 : -1);
+          const next = stepSymbol(ring, q.ticker, e.key === 'ArrowDown' || e.key === 'j' ? 1 : -1);
           const at = ring.indexOf(next);
           /* A one-name ring steps onto itself. Announce it — silence on a
              keypress reads as a broken key — but do not push a patch that the
