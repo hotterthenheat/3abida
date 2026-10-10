@@ -66,6 +66,7 @@ import RichRead from '../../components/ui/RichRead';
 import AnimatedNumber from '../../components/ui/AnimatedNumber';
 import Fold from '../../components/ui/Fold';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
+import { nyParts, nyWallTime } from '../../core/nyTime';
 import SessionsChart, { type ChartMark, type ChartPoint } from '../../components/record/SessionsChart';
 import type { UTCTimestamp } from 'lightweight-charts';
 import { fmtClockLocal, fmtDayLocal } from '../../components/gex/chartTime';
@@ -579,18 +580,21 @@ const StockNameBody = () => {
     for (const p of money.dark.prints) {
       let time = minuteOf.get(p.time);
       if (time == null) {
+        /* a print's minute off the tape is New York's wall clock on the tape's day — read in the browser's zone, it
+           landed on another minute's time and the chart refused the pair ("data must be asc ordered by time") */
         const [h, m] = p.time.split(':').map(Number);
         if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        time = Math.floor(d.getTime() / 1000);
+        const day = nyParts(money.today[0] ? money.today[0].time * 1000 : Date.now());
+        time = Math.floor(nyWallTime(day.year, day.month, day.day, h, m) / 1000);
       }
-      const had = byMin.get(p.time);
+      /* one bar a minute, whatever the print's own stamp says past it */
+      const key = String(time);
+      const had = byMin.get(key);
       if (had) {
         had.value += p.size;
         had.n += 1;
         if (p.size > had.biggest.size) had.biggest = p;
-      } else byMin.set(p.time, { time, value: p.size, n: 1, biggest: p });
+      } else byMin.set(key, { time, value: p.size, n: 1, biggest: p });
     }
     return [...byMin.values()].sort((a, b) => a.time - b.time);
   })();
