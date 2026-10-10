@@ -169,17 +169,17 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
     <span className="flex items-center gap-2 min-w-0">
       <CompanyLogo ticker={t.ticker} size={18} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{t.ticker}</span>
-      <span className="text-[10px] text-textSecondary truncate">
+      <span className="text-[10px] text-textSecondary truncate" title={`${t.member.name} ${seat(t)}`}>
         {t.member.name} <span className="font-mono text-textMuted">{seat(t)}</span>
       </span>
     </span>
-    {/* the bracket as its words — the ladder lives in the grid; at six across it pushed the label off the card */}
+    {/* the bracket on a line of its own, whole (the audit's DO-11: "$250,001 – $500,…" was cut) — the ladder lives in the grid */}
     <span className="mt-1.5 flex items-center gap-2 font-mono tnum">
       <span className={`text-[11px] ${typeInk(t)}`}>{typeWord(t)}</span>
-      <span className="text-[11px] font-bold text-textPrimary truncate">{bracketLabel(t.bracket)}</span>
       {t.late && <span className="ml-auto text-[10px] uppercase tracking-widest text-bear">late</span>}
     </span>
-    <span className="mt-1 block font-mono text-[10px] uppercase tracking-widest text-textSecondary truncate">
+    <span className="block font-mono tnum text-[11px] font-bold text-textPrimary leading-snug">{bracketLabel(t.bracket)}</span>
+    <span className="mt-1 block font-mono text-[10px] uppercase tracking-widest text-textSecondary truncate" title={`${t.committeeOverlap} · own committee`}>
       {t.committeeOverlap} <span className="text-silver">· own committee</span>
     </span>
   </button>

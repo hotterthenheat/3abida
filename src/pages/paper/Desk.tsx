@@ -69,7 +69,7 @@
 ==================================================
 */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import type { ChartOverlays } from '../../components/gex/StrikeChart';
@@ -157,7 +157,27 @@ type ClosedRow = { key: string; t: OptTrade; at: number };
 
 const titleOf = (ticker: string): string => paperIndex(ticker)?.name ?? REVIEW_NAMES.find(n => n.ticker === ticker)?.name ?? ticker;
 
+/** A phone's width (below sm) — the book keeps the columns a thumb needs there */
+const PHONE_Q = '(max-width: 639px)';
+function usePhone(): boolean {
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(PHONE_Q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(PHONE_Q);
+    if (!mq) return;
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+/* ON A PHONE THE BOOK FITS ITS CARD (the audit's PR-15: "Now" and the P&L sat past a sideways scroll): what it is, how many,
+   the P&L and Close — the rest is a press away on the row (it opens the contract in the chain) */
+const PHONE_OPEN_HIDDEN = new Set(['avg', 'now', 'carry']);
+const PHONE_CLOSED_HIDDEN = new Set(['in', 'out', 'how']);
+const PHONE_ORDERS_HIDDEN = new Set(['placed']);
+
 const PaperDesk = () => {
+  const phone = usePhone();
   const { accounts, inHand, holding, elsewhere } = usePaper();
   const account = accounts.find(a => a.id === inHand) ?? null;
   /* the desk moves with the feed: a render a tick (the live chart's revision, the book's marks, the chain's quotes) */
@@ -573,11 +593,11 @@ const PaperDesk = () => {
         counts={{ open: openRows.length, working, closed: closedRows.length }}
         book={
           tab === 'open' ? (
-            <TraceGrid key="open" rows={openRows} columns={openCols} rowKey={r => r.key} onRowClick={r => setName(r.p.contract.ticker, r.p.contract)} autoHeight animate={false} widths={{ qty: 60, avg: 76, close: 76, now: 116, carry: 96 }} emptyText={account.status === 'open' ? 'Nothing open — place an order at the right, or off the chart' : 'This account is closed'} testId="paper-open" />
+            <TraceGrid key="open" rows={openRows} columns={openCols} hidden={phone ? PHONE_OPEN_HIDDEN : undefined} rowKey={r => r.key} onRowClick={r => setName(r.p.contract.ticker, r.p.contract)} autoHeight animate={false} widths={{ qty: 60, avg: 76, close: 76, now: 116, carry: 96 }} emptyText={account.status === 'open' ? 'Nothing open — place an order at the right, or off the chart' : 'This account is closed'} testId="paper-open" />
           ) : tab === 'orders' ? (
-            <TraceGrid key="orders" rows={orderRows} columns={orderCols} rowKey={r => r.key} onRowClick={r => setName(r.o.contract.ticker, r.o.contract)} autoHeight animate={false} widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="paper-orders" />
+            <TraceGrid key="orders" rows={orderRows} columns={orderCols} hidden={phone ? PHONE_ORDERS_HIDDEN : undefined} rowKey={r => r.key} onRowClick={r => setName(r.o.contract.ticker, r.o.contract)} autoHeight animate={false} widths={{ cancel: 56 }} flexes={{ status: 2, what: 1.4 }} emptyText="No orders yet" testId="paper-orders" />
           ) : (
-            <TraceGrid key="closed" rows={closedRows} columns={closedCols} rowKey={r => r.key} autoHeight animate={false} widths={{ qty: 70 }} flexes={{ in: 1.4, out: 1.4 }} emptyText="No closed trades yet" testId="paper-closed" />
+            <TraceGrid key="closed" rows={closedRows} columns={closedCols} hidden={phone ? PHONE_CLOSED_HIDDEN : undefined} rowKey={r => r.key} autoHeight animate={false} widths={{ qty: 70 }} flexes={{ in: 1.4, out: 1.4 }} emptyText="No closed trades yet" testId="paper-closed" />
           )
         }
       />

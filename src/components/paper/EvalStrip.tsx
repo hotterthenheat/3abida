@@ -29,7 +29,7 @@
 
 import type { ReactNode } from 'react';
 import { card } from '../review/DeskShell';
-import { usd, usdSigned } from '../review/words';
+import { dirInk, usd, usdSigned } from '../review/words';
 import type { EvalRead, PaperAccount } from '../../data/paper/engine';
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
@@ -66,7 +66,7 @@ const EvalStrip = ({ account, ev }: { account: PaperAccount; ev: EvalRead }) => 
         testId="target"
         value={
           <>
-            <span className={made >= 0 ? 'text-bull' : 'text-bear'}>{usdSigned(made, 0)}</span> <span className="text-textMuted">of {usd(need, 0)}</span>
+            <span className={dirInk(made)}>{usdSigned(made, 0)}</span> <span className="text-textMuted">of {usd(need, 0)}</span>
           </>
         }
         share={made / need}
