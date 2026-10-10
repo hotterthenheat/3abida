@@ -710,6 +710,8 @@ const Simulator = (() => {
     return sym;
   }
 
+  let pumping = false;
+  let startPump: () => void = () => undefined;
   /* THE FIRST PAINT SEEDS ONE NAME (2026-09-06, the perf sweep): the module
      used to forward-sim the whole watchlist before anything could render —
      four histories, the better part of a second, inside the app's first
@@ -727,16 +729,26 @@ const Simulator = (() => {
        A short timer, not an idle callback: a desk of charts keeps a frame
        loop running, so the browser never sees a quiet moment and idle
        callbacks only fire on their timeout — three names took minutes. */
-    const order = [activeTicker, ...WATCHLIST.filter(t => t !== activeTicker)];
+    /* The order is read on every slice, so a name set lazily (setActiveTicker's `lazy`: the name the terminal
+       opens on, context/marketStore.ts) is the next one walked, ahead of the watchlist */
     const pump = () => {
-      const next = order.find(t => !candleHistory[t]);
-      if (!next) return;
+      const next = [activeTicker, ...WATCHLIST].find(t => !candleHistory[t]);
+      if (!next) {
+        pumping = false;
+        return;
+      }
+      pumping = true;
       const urgent = next === activeTicker;
       seedAsync(next, urgent ? 8 : 5);
       setTimeout(pump, urgent ? 16 : 24);
     };
-    if (typeof window !== 'undefined') setTimeout(pump, 0);
-    else order.forEach(seedHistory);
+    startPump = () => {
+      if (pumping || typeof window === 'undefined') return;
+      pumping = true;
+      setTimeout(pump, 0);
+    };
+    if (typeof window !== 'undefined') startPump();
+    else [activeTicker, ...WATCHLIST].forEach(t => candleHistory[t] || seedHistory(t));
   }
 
   // Calculate Indicators
@@ -1078,7 +1090,16 @@ const Simulator = (() => {
     seedAsync,
     /** True once a name's history exists — no seeding side effect */
     isSeeded: (sym: string): boolean => !!candleHistory[sym.toUpperCase()],
-    setActiveTicker: (t: string): string => {
+    /** `lazy`: registered now, its history walked by the boot pump in slices — the tick emits nothing until it is
+        whole. Without it the history is walked at once, as a click on a name needs. */
+    setActiveTicker: (t: string, opts?: { lazy?: boolean }): string => {
+      if (opts?.lazy) {
+        const sym = t.toUpperCase();
+        if (!TICKERS[sym]) registerTicker(sym);
+        activeTicker = sym;
+        if (!candleHistory[sym]) startPump();
+        return sym;
+      }
       activeTicker = ensureTicker(t);
       return activeTicker;
     },

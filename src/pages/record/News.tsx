@@ -33,7 +33,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Bell, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import Fold from '../../components/ui/Fold';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker } from '../../context/MarketDataContext';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import DropdownMulti, { type MultiGroup } from '../../components/ui/DropdownMulti';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
@@ -417,7 +417,6 @@ const StoryText = ({ storyId, body, source, url }: { storyId: string; body: stri
 const News = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { changeTicker } = useMarketData();
   const boardNames = useBoardNames();
 
   /* THE WIRE TICKS — stories drip in through the session; re-read every half minute */

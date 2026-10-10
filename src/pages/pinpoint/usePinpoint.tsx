@@ -19,9 +19,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker, useActiveTicker } from '../../context/MarketDataContext';
+import { useMarketBackground } from '../../context/marketStore';
 import { useFocus } from '../../context/FocusContext';
-import ScopeChip from '../../components/ui/ScopeChip';
+import LiveScopeChip from '../../components/link/LiveScopeChip';
 import { aheadClock, type AheadClock } from '../../data/ahead';
 import { readSessionClock } from '../../data/sessionClock';
 import { ROOM_WINDOW_REST, ROOM_WINDOWS, scanOf, SCAN_MS, type RoomWindow, type Scan } from '../../data/pinpointBook';
@@ -40,14 +41,8 @@ export function useBookClock(): AheadClock {
 
 /** The frame's name on the room's scan — the same snapshot every page reads within the ten seconds */
 export function useFrameScan(): Scan | null {
-  const { marketData } = useMarketData();
-  const [scan, setScan] = useState<Scan | null>(() => (marketData ? scanOf(marketData.ticker, marketData) : null));
-  useEffect(() => {
-    if (!marketData) return;
-    const next = scanOf(marketData.ticker, marketData);
-    setScan(prev => (prev === next ? prev : next));
-  }, [marketData]);
-  return scan;
+  /* read off the store (context/marketStore.ts): a page renders when the scan turns, not on every tick inside it */
+  return useMarketBackground(s => (s.snapshot ? scanOf(s.snapshot.ticker, s.snapshot) : null));
 }
 
 /** "updated 14:03:42 ET" — the scan's stamp, New York's clock */
@@ -72,7 +67,7 @@ export interface Boxes<K extends string> {
 }
 
 export function useBoxes<K extends string>(page: string, scan: Scan | null): Boxes<K> {
-  const { activeTicker, changeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const { focus } = useFocus();
   const [scopes, setScopes] = useState<Record<string, string>>(() => scopeMemory.get(page) ?? {});
   const setScope = useCallback(
@@ -106,7 +101,7 @@ export function useBoxes<K extends string>(page: string, scan: Scan | null): Box
     return ownSnaps.get(t) ?? scan.snap;
   };
   const chipFor = (key: K, t = tickerFor(key)) => (
-    <ScopeChip
+    <LiveScopeChip
       ticker={t}
       linked={scopes[key] === undefined}
       quote

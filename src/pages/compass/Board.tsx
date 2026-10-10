@@ -36,7 +36,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, LayoutGrid, Search, Shapes, Table } from 'lucide-react';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker, useActiveTicker, useScanSnapshot } from '../../context/MarketDataContext';
 import type { MarketSnapshot } from '../../types/market';
 import Simulator from '../../core/simulator';
 import { useSeeded } from '../../components/gex/useSeeded';
@@ -80,7 +80,7 @@ const LAYOUT_OPTIONS: DropdownOption<BoardLayout>[] = [
 const CARD_INK = { expiry: NAV_INK.record, kind: NAV_INK.weigher, name: NAV_INK.compass, layout: NAV_INK.terrain } as const;
 
 const Board = () => {
-  const { activeTicker, marketData, changeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const location = useLocation();
   const navigate = useNavigate();
   const { sleeve, scanner, layout, tickerFilter, selectedId } = useCompassView();
@@ -112,26 +112,11 @@ const Board = () => {
 
   // ---- two-tier cadence -----------------------------------------------------
   // Scan tier (every SCAN_INTERVAL_MS): the board, the counts, the rail.
-  const [scanSnapshot, setScanSnapshot] = useState<MarketSnapshot | null>(null);
-  const [lastScanAt, setLastScanAt] = useState<string>('');
-  const scanRef = useRef<MarketSnapshot | null>(null);
-  const lastScanTimeRef = useRef(0);
-
-  useEffect(() => {
-    if (!marketData) return;
-    const now = Date.now();
-    const due =
-      !scanRef.current ||
-      now - lastScanTimeRef.current >= SCAN_INTERVAL_MS ||
-      scanRef.current.ticker !== marketData.ticker; // ticker switch refreshes immediately
-    if (due) {
-      scanRef.current = marketData;
-      lastScanTimeRef.current = now;
-      setScanSnapshot(marketData);
-      /* New York's clock, as every session time the terminal prints (the audit's X2) */
-      setLastScanAt(nyClock(now, { seconds: true }));
-    }
-  }, [marketData]);
+  /* THE BOARD RENDERS ON THE SWEEP, NOT THE TICK (2026-10-10, the speed store): it read the whole feed and rendered on
+     every tick to learn, nine times in ten, that the sweep was not due */
+  const scanSnapshot = useScanSnapshot(SCAN_INTERVAL_MS);
+  /* New York's clock, as every session time the terminal prints (the audit's X2) */
+  const lastScanAt = useMemo(() => (scanSnapshot ? nyClock(Date.now(), { seconds: true }) : ''), [scanSnapshot]);
 
   // The live harness's market state for the whole board — the engine takes it
   // as an argument (never reads the simulator itself), so replay and live run
@@ -387,7 +372,7 @@ const Board = () => {
   const railSticks = boxH > window.innerHeight - 40;
 
   /* Before the first sweep, the board's own skeleton — never a line of caps saying what it waits for (the audit's CO-20) */
-  if (!data || !marketData) return <CompassPageSkeleton />;
+  if (!data || !scanSnapshot) return <CompassPageSkeleton />;
 
   const rail = <ImpactLeaderboard ticker={railSnapshot?.ticker ?? data.chain.ticker} note={railNote} rows={railRows} onOpen={handleOpenContract} />;
 

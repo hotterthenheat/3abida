@@ -41,7 +41,7 @@
 */
 
 import { useMemo, useState } from 'react';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import { Deferred } from '../../components/ui/Skeleton';
 import { AheadPageSkeleton, CloseInner, CorridorInner } from './pinpointSkeletons';
@@ -55,7 +55,7 @@ import { useBookClock, useBoxes, useFrameScan } from './usePinpoint';
 type BoxKey = 'corridor' | 'close';
 
 const Ahead = () => {
-  const { activeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const { toggleFocus } = useFocus();
   /* THE CLOCK — New York time, re-read every 15s; every band moves with it */
   const clock = useBookClock();

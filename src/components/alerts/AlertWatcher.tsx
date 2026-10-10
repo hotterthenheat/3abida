@@ -23,7 +23,7 @@
 
 import { useEffect, useState } from 'react';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { marketStore, onMarketTick } from '../../context/marketStore';
 import { exposureNowFor } from '../../data/gex';
 import { newsPulse } from '../../data/news';
 import { emaSeries, rsiSeries, vwapSeries } from '../../data/indicators';
@@ -88,15 +88,18 @@ const barsFor = (ticker: string, tf: string) => {
 };
 
 const AlertWatcher = () => {
-  /* `marketData` changes on every tick — the watcher's clock */
-  const { marketData, flowTape } = useMarketData();
+  /* THE WATCHER'S CLOCK IS THE TICK ITSELF (context/marketStore.ts onMarketTick) — heard as it lands, a hidden tab
+     included: the page's readers are told once a frame, and a hidden tab has no frames, but an alert still rings */
+  const [tick, setTick] = useState(0);
+  useEffect(() => onMarketTick(() => setTick(t => t + 1)), []);
   const names = useAllAlerts();
   /* bumped when a fetched script has compiled, so its alert is judged now, not next tick */
-  const [, setPoke] = useState(0);
+  const [poked, setPoke] = useState(0);
 
   useEffect(() => {
     const now = Date.now();
     const poke = () => setPoke(p => p + 1);
+    const flowTape = marketStore.latest().tape;
     for (const { ticker, alerts } of names) {
       /* THE LIFECYCLE (2026-10-09): an alert whose end has come goes; one whose rest is over goes back on watch from
          where the market stands now (a snooze, a repeat's quiet) — and is judged from the next tick, not this one */
@@ -202,7 +205,7 @@ const AlertWatcher = () => {
         for (const a of group) judge(a, ctx);
       }
     }
-  }, [names, marketData, flowTape]);
+  }, [names, tick, poked]);
 
   return null;
 };

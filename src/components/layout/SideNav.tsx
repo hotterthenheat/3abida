@@ -64,7 +64,7 @@ import { dirOf } from '../../theme/theme';
 import Fold from '../ui/Fold';
 import Avatar from '../ui/Avatar';
 import { useProfile } from '../../data/profile';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useActiveTicker, useNow, useQuote, useSpot } from '../../context/MarketDataContext';
 import { useLaunch } from './LaunchTransition';
 import CompanyLogo from '../ui/CompanyLogo';
 import { NAV_GROUPS, NAV_GROUP_META, NAV_INK, itemsByGroup } from './nav';
@@ -115,8 +115,135 @@ interface Tip {
   y: number;
 }
 
+/* THE RAIL READS THE TICK IN ITS SMALL PARTS (2026-10-10, the speed store): the subject's price and the signature's
+   clock render on their own beats — the whole rail, a hundred and more rows, rendered on every tick and every second. */
+
+/** THE SUBJECT, dressed as the search field under the mark: the name you are on, its price and change, and the key
+    that changes it */
+const RailSubject = ({
+  collapsed,
+  onOpenPalette,
+  tipProps,
+}: {
+  collapsed: boolean;
+  onOpenPalette: () => void;
+  tipProps: (label: string) => Record<string, unknown>;
+}) => {
+  const activeTicker = useActiveTicker();
+  const quote = useQuote();
+  const name = lookup(activeTicker)?.name ?? null;
+  const change = quote?.changePct ?? 0;
+  const priceText = quote ? `$${quote.spot.toFixed(2)}` : '—';
+  const changeText = quote ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
+  /* THE SUBJECT, dressed as the search field under the mark: the name you
+     are on, its price and change, and the key that changes it. */
+  return collapsed ? (
+    <button
+      type="button"
+      onClick={onOpenPalette}
+      data-subject
+      aria-label={`Watching ${activeTicker} ${priceText} — switch`}
+      {...tipProps(`${activeTicker} ${priceText} ${changeText} · ${PALETTE_KEY} to switch`)}
+      className="ml-[10px] w-8 h-8 rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
+    >
+      <CompanyLogo ticker={activeTicker} size={16} />
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={onOpenPalette}
+      data-subject
+      aria-label={`Watching ${activeTicker} — switch`}
+      title={name ? `${name} · ${PALETTE_KEY} to switch` : `${PALETTE_KEY} to switch`}
+      className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
+    >
+      <CompanyLogo ticker={activeTicker} size={16} />
+      <span className="text-[12px] font-semibold text-textPrimary" data-subject-ticker>
+        {activeTicker}
+      </span>
+      <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price>
+        {priceText}
+      </span>
+      {quote && (
+        <span className={`font-mono text-[10px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
+          {changeText}
+        </span>
+      )}
+      <span className="ml-auto inline-flex items-center gap-1 text-textMuted group-hover:text-textSecondary transition-colors">
+        <Search className="w-3 h-3" />
+        <kbd className="font-mono text-[10px]">{PALETTE_KEY}</kbd>
+      </span>
+    </button>
+  );
+};
+
+/** The phone strip's subject: the name and its price */
+const PhoneSubject = ({ onOpenPalette }: { onOpenPalette: () => void }) => {
+  const activeTicker = useActiveTicker();
+  const spot = useSpot();
+  const priceText = spot != null ? `$${spot.toFixed(2)}` : '—';
+  return (
+    <button type="button" onClick={onOpenPalette} aria-label={`Watching ${activeTicker} ${priceText} — switch`} className="inline-flex items-center gap-2 h-11 rounded-md border border-borderMuted bg-chip px-3" data-mobile-subject>
+      <CompanyLogo ticker={activeTicker} size={16} />
+      <span className="text-[12px] font-semibold text-textPrimary">{activeTicker}</span>
+      {spot != null && <span className="font-mono text-[11px] tnum text-textPrimary">${spot.toFixed(2)}</span>}
+    </button>
+  );
+};
+
+/** THE SIGNATURE (Slayer Logo System): "slayer:~ $ ● live" — the market's own word, live while it is open and closed
+    when it is shut — over the session's own line and the clock, on the terminal's one second (useNow) */
+const RailSignature = ({
+  collapsed,
+  showTip,
+  hideTip,
+  sessionStrip,
+  deskClock,
+}: {
+  collapsed: boolean;
+  showTip: (e: MouseEvent<HTMLElement>, label: string) => void;
+  hideTip: () => void;
+  sessionStrip: boolean;
+  deskClock: Parameters<typeof railClock>[0];
+}) => {
+  const now = useNow(1000);
+  const clock = readSessionClock();
+  const time = railClock(deskClock, now);
+  const day = readDay(now);
+  const open = clock.phase === 'OPEN' || clock.phase === 'AUCTION';
+  /* the signature's word, read on the clock's own tick so the dot and the line never disagree */
+  const marketWord = readMarketState().word;
+  return (
+    <div
+      className={`shrink-0 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[22px] pr-0 py-3.5' : 'px-3.5 py-2.5'}`}
+      title={collapsed ? `slayer:~ $ ${marketWord} · ${day.name} · ${time}` : undefined}
+      onMouseEnter={e => showTip(e, `slayer:~ $ ${marketWord} · ${day.name}${day.next ? ` · ${day.next}` : ''} · ${time}`)}
+      onMouseLeave={hideTip}
+      data-sidenav-signature
+    >
+      {collapsed ? (
+        <SignatureDot state={marketWord} className="w-2 h-2" label={`slayer:~ $ ${marketWord}`} />
+      ) : (
+        <>
+          <Signature state={marketWord} rule={false} className="text-[10.5px]" />
+          {/* WHERE THE DAY STANDS (SessionStrip.tsx; Settings › The desk turns it off) — else the session's own line */}
+          {sessionStrip ? (
+            <SessionStrip read={day} time={time} />
+          ) : (
+            <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
+              <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
+                {open ? clock.label : clock.label.toLowerCase()}
+              </span>
+              <span className="ml-auto text-textMuted select-none">{time}</span>
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 const SideNav = ({ onOpenPalette }: SideNavProps) => {
-  const { activeTicker, marketData } = useMarketData();
   /* the contract the reader is inside — Compass's tree keeps its row (see subpagesFor) */
   const { chosenId } = useCompassView();
   const profile = useProfile();
@@ -125,12 +252,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
-  const [clock, setClock] = useState(() => readSessionClock());
   const desk = useDeskPrefs();
   const shell = useShellPrefs();
-  const [now, setNow] = useState(() => Date.now());
-  const time = railClock(desk.clock, now);
-  const day = readDay(now);
   const asideRef = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const [bar, setBar] = useState<{ top: number } | null>(null);
@@ -141,14 +264,6 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
   const counts = useAlertCounts();
   const { set: setTotal, unseen } = counts;
   const drawerOpen = useAlertsDrawer();
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setClock(readSessionClock());
-      setNow(Date.now());
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
 
   const toggleCollapsed = () => {
     /* The main column is told where it is going (core/glide.ts): its width
@@ -237,13 +352,6 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     onBlur: hideTip,
   });
 
-  const name = lookup(activeTicker)?.name ?? null;
-  const change = marketData?.changePercent ?? 0;
-  const open = clock.phase === 'OPEN' || clock.phase === 'AUCTION';
-  /* the signature's word, read on the clock's own tick so the dot and the line never disagree */
-  const marketWord = readMarketState().word;
-  const priceText = marketData ? `$${marketData.spot.toFixed(2)}` : '—';
-  const changeText = marketData ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
 
   /* THE MARK AND THE WORDMARK — the door home. The mark brightens as the pointer nears it (the Logo System's own rule) */
   const brand = (
@@ -263,46 +371,8 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     </a>
   );
 
-  /* THE SUBJECT, dressed as the search field under the mark: the name you
-     are on, its price and change, and the key that changes it. */
-  const subject = collapsed ? (
-    <button
-      type="button"
-      onClick={onOpenPalette}
-      data-subject
-      aria-label={`Watching ${activeTicker} ${priceText} — switch`}
-      {...tipProps(`${activeTicker} ${priceText} ${changeText} · ${PALETTE_KEY} to switch`)}
-      className="ml-[10px] w-8 h-8 rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 transition-colors flex items-center justify-center"
-    >
-      <CompanyLogo ticker={activeTicker} size={16} />
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={onOpenPalette}
-      data-subject
-      aria-label={`Watching ${activeTicker} — switch`}
-      title={name ? `${name} · ${PALETTE_KEY} to switch` : `${PALETTE_KEY} to switch`}
-      className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
-    >
-      <CompanyLogo ticker={activeTicker} size={16} />
-      <span className="text-[12px] font-semibold text-textPrimary" data-subject-ticker>
-        {activeTicker}
-      </span>
-      <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price>
-        {priceText}
-      </span>
-      {marketData && (
-        <span className={`font-mono text-[10px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
-          {changeText}
-        </span>
-      )}
-      <span className="ml-auto inline-flex items-center gap-1 text-textMuted group-hover:text-textSecondary transition-colors">
-        <Search className="w-3 h-3" />
-        <kbd className="font-mono text-[10px]">{PALETTE_KEY}</kbd>
-      </span>
-    </button>
-  );
+  /* THE SUBJECT, dressed as the search field under the mark (RailSubject below) */
+  const subject = <RailSubject collapsed={collapsed} onOpenPalette={onOpenPalette} tipProps={tipProps} />;
 
   /* THE UTILITY ROW — every alert, with the count: fired-and-unseen in the red
      badge, else how many are set. It used to be a link to the Targets page
@@ -594,32 +664,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
         </Link>
         {/* THE SIGNATURE (Slayer Logo System): "slayer:~ $ ● live" — the market's own word, live while it is open and
             closed when it is shut — over the session's own line and the clock. The rail, folded, keeps the state's dot. */}
-        <div
-          className={`shrink-0 border-t border-ink/[0.07] bg-ink/[0.02] ${collapsed ? 'pl-[22px] pr-0 py-3.5' : 'px-3.5 py-2.5'}`}
-          title={collapsed ? `slayer:~ $ ${marketWord} · ${day.name} · ${time}` : undefined}
-          onMouseEnter={e => showTip(e, `slayer:~ $ ${marketWord} · ${day.name}${day.next ? ` · ${day.next}` : ''} · ${time}`)}
-          onMouseLeave={hideTip}
-          data-sidenav-signature
-        >
-          {collapsed ? (
-            <SignatureDot state={marketWord} className="w-2 h-2" label={`slayer:~ $ ${marketWord}`} />
-          ) : (
-            <>
-              <Signature state={marketWord} rule={false} className="text-[10.5px]" />
-              {/* WHERE THE DAY STANDS (SessionStrip.tsx; Settings › The desk turns it off) — else the session's own line */}
-              {shell.sessionStrip ? (
-                <SessionStrip read={day} time={time} />
-              ) : (
-                <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
-                  <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
-                    {open ? clock.label : clock.label.toLowerCase()}
-                  </span>
-                  <span className="ml-auto text-textMuted select-none">{time}</span>
-                </span>
-              )}
-            </>
-          )}
-        </div>
+        <RailSignature collapsed={collapsed} showTip={showTip} hideTip={hideTip} sessionStrip={shell.sessionStrip} deskClock={desk.clock} />
       </aside>
 
       {/* The rail's hover tip — portalled so no scroller clips it */}
@@ -645,11 +690,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
         <button type="button" onClick={() => setMenuOpen(true)} aria-label="Menu" aria-haspopup="dialog" aria-expanded={menuOpen} className="inline-flex items-center justify-center w-11 h-11 rounded-md border border-borderSubtle text-textSecondary" data-mobile-menu-door>
           <Menu className="w-4 h-4" />
         </button>
-        <button type="button" onClick={onOpenPalette} aria-label={`Watching ${activeTicker} ${priceText} — switch`} className="inline-flex items-center gap-2 h-11 rounded-md border border-borderMuted bg-chip px-3" data-mobile-subject>
-          <CompanyLogo ticker={activeTicker} size={16} />
-          <span className="text-[12px] font-semibold text-textPrimary">{activeTicker}</span>
-          {marketData && <span className="font-mono text-[11px] tnum text-textPrimary">${marketData.spot.toFixed(2)}</span>}
-        </button>
+        <PhoneSubject onOpenPalette={onOpenPalette} />
         <button type="button" onClick={onOpenPalette} aria-label="Search a name or a page" className="ml-auto inline-flex items-center justify-center w-11 h-11 rounded-md border border-borderSubtle text-textMuted" data-mobile-search>
           <Search className="w-4 h-4" />
         </button>

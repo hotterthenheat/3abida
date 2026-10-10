@@ -38,7 +38,7 @@ import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import { InsidersGuide } from '../../components/record/InsidersGuide';
 import { When } from '../../components/record/when';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker } from '../../context/MarketDataContext';
 import { fmtDollars } from '../../data/ahead';
 import { useBoardNames } from '../../data/boardNames';
 import { ALL_CODES, OPEN_MARKET_CODES, TX_CODES, insiderBuyers, insiderFeed, insidersSentence, isChosenBuy } from '../../data/insiders';
@@ -197,7 +197,6 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
 /* ---- the page ------------------------------------------------------------------ */
 
 const Insiders = () => {
-  const { changeTicker } = useMarketData();
   const navigate = useNavigate();
   const boardNames = useBoardNames();
   const [window, setWindow] = useState<Window>(90);

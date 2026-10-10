@@ -46,7 +46,7 @@ import { weighContract } from '../../core/contractScore';
 import { makeSetup, sleeveForDte } from '../../data/compass';
 import Simulator from '../../core/simulator';
 import VerdictBadge from '../compass/VerdictBadge';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker } from '../../context/MarketDataContext';
 import type { FlowPrint, PrintSentiment } from '../../types/trace';
 import type { MarketSnapshot } from '../../types/market';
 import { toneBar, type Tone } from '../ui/tones';
@@ -269,7 +269,6 @@ const SequenceStrip = ({
 const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onStep, hasPrev, hasNext, tapeRows, onOpenPrint }: PrintDrilldownProps) => {
   const navigate = useNavigate();
   const calendarRef = useRef(false);
-  const { changeTicker } = useMarketData();
 
   // Buffer order is newest-first; a filter keeps it, so index 0 = latest leg.
   const siblings = useMemo(

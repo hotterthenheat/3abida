@@ -37,7 +37,7 @@ import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import { CongressGuide } from '../../components/record/CongressGuide';
 import { When } from '../../components/record/when';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker } from '../../context/MarketDataContext';
 import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketLabel, buildCongress, congressSentence, summariseCongress } from '../../data/congress';
 import { tickerName } from '../../data/tickers';
 import type { Chamber, CongressTrade, ReportOwner } from '../../types/record';
@@ -188,7 +188,6 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
 /* ---- the page ------------------------------------------------------------------ */
 
 const Congress = () => {
-  const { changeTicker } = useMarketData();
   const navigate = useNavigate();
   const [window, setWindow] = useState<Window>(90);
   const [chamber, setChamber] = useState<ChamberPick>('both');

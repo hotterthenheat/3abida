@@ -33,9 +33,9 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker, useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
-import ScopeChip from '../../components/ui/ScopeChip';
+import LiveScopeChip from '../../components/link/LiveScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import { CalendarInner, DayInner, MapPageSkeleton, ReportInner } from './pinpointSkeletons';
 import ExposureField from '../../components/gex/ExposureField';
@@ -70,7 +70,7 @@ type Scopes = Partial<Record<BoxKey, string>>;
 let scopesMemory: Scopes = {};
 
 const MapDesk = () => {
-  const { marketData, activeTicker, changeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
   const { focus, toggleFocus } = useFocus();
 
   /* Which boxes have stepped off the frame, and onto which name */
@@ -225,7 +225,7 @@ const MapDesk = () => {
   const focusFor = (t: string) => (focus && focus.ticker === t ? focus.price : null);
   /** A box's chip: follows the frame, or holds its own name */
   const chipFor = (key: BoxKey, t: string) => (
-    <ScopeChip
+    <LiveScopeChip
       ticker={t}
       linked={scopes[key] === undefined}
       quote
