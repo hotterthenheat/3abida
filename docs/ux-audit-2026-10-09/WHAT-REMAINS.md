@@ -102,12 +102,14 @@ report under the ID given.
   fixed 2026-10-10
 
 ## Text
-- Small type: ~~45–76% of Pinpoint's text under 11 px~~; the Weigher's 7.5 px tags — X9. Partly fixed 2026-10-10:
-  Pinpoint's pages at 11 px, the Weigher's chain figures at 11 px; its shape tags (BookBlock) are 9–10 px, the guide
-  drawings (WeigherGuide) 7–7.5 px, and the shared menus' labels 9 px.
-- Formats: ~~four date formats, theta with no units (CO-7), "15M" reading as months~~, mixed decimals and signs. Partly
-  fixed 2026-10-10: one date style in Compass, theta in dollars a day, timeframes as written ("15m"), true minus signs
-  in Dossier and Practice; decimals and signs are not one rule across the rooms yet.
+- ~~Small type: 45–76% of Pinpoint's text under 11 px; the Weigher's 7.5 px tags — X9~~ fixed 2026-10-10: no word under 11
+  px on any page the routes open (chart ticks stay 10) — the house grid heads 11 px in sentence case (houseGrid,
+  index.css), every text-[8–10.5px] class in the terminal at 11, the Weigher's ruler and Pinpoint's drawings set their
+  words in pixels off their own width (ui/svgFloor.ts), News's map words at 11 on any screen. The "How to read" guides'
+  drawings (TraceGuide and the rest) are not walked by the check — they open on a press.
+- ~~Formats: four date formats, theta with no units (CO-7), "15M" reading as months, mixed decimals and signs~~ fixed
+  2026-10-10: one rule, core/format.ts — the true minus, a sign on a change, prices to the cent, big dollars to three
+  figures, percent to one decimal (two under 1%), greeks, IV, "Oct 9" and "14:03 ET" — the rooms' formatters on it.
 
 ## Outside pages
 - ~~About, Legal, even the 404 open behind "Entering terminal" — OU-O1~~ fixed 2026-10-10 (the gate only on terminal
@@ -139,7 +141,7 @@ After the six streams of 2026-10-09/10, what is left, and why:
 - "How to read" guides take no focus and give none back (X13) — not done (ui/GuideFocus.tsx).
 - `/terrain` has no h1 (X4.9) — not done.
 - The shared house controls under 44 px on a phone (X3) — not done; the footer's links (X3.1) — footer rule.
-- The Weigher's shape tags at 9–10 px and its guide drawings at 7–7.5 px; the shared menus' 9 px labels (X9) — not done.
-- Decimals and signs as one rule across the rooms (formats) — not done.
+- The Weigher's shape tags, the shared menus' labels (X9) — fixed 2026-10-10 (11 px); the guides' drawings still small.
+- Decimals and signs as one rule across the rooms (formats) — fixed 2026-10-10 (core/format.ts).
 - The stand-in data items at the top — needs real data (the keys).
 - The owner's call, above — owner's call.
