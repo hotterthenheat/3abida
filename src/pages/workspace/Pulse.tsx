@@ -25,6 +25,7 @@ import { undoable } from '../../components/ui/undo';
 import Panel from '../../components/ui/Panel';
 import { WIDGETS, widgetByKey, type WidgetDef, type WorkspaceCtx } from './registry';
 import WidgetThumb from './WidgetThumb';
+import DeskChooser from './DeskChooser';
 import LiveScopeChip from '../../components/link/LiveScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import { afterGlide, beginGlide, glideTarget, onGlide } from '../../core/glide';
@@ -711,6 +712,9 @@ const Pulse = () => {
         ]}
         testId="pulse-shell"
       />
+
+      {/* START FROM A DESK (2026-10-10): the first open only, until a desk is picked or the chooser is closed */}
+      <DeskChooser active={active} onPick={switchDesk} />
 
       {/* Desk rail — two named groups so the house's desks and yours never
           read as one undifferentiated row (Noah, 2026-08-19: "these buttons
