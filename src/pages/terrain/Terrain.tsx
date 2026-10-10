@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Code2, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
+import { Code2, ExternalLink, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
 import Simulator from '../../core/simulator';
 import { useFlowTape, useTickSeq } from '../../context/MarketDataContext';
@@ -57,6 +57,7 @@ import {
 } from './setups';
 import { flipRing, stepSymbol, stepTf } from './paneKeys';
 import TerrainLayers from '../../components/terrain/TerrainLayers';
+import { openPopOut } from '../../components/layout/deskChannel';
 import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
 
 /*
@@ -883,6 +884,10 @@ interface PaneProps {
   /** Which contracts this pane's rail reads — the desk's one choice, changed from any rail's head */
   railCut: RailCut;
   onRailCut: (cut: RailCut) => void;
+  /** POP-OUT (2026-10-10): open this pane in a window of its own — a door beside the fullscreen one */
+  onPopOut?: () => void;
+  /** The pane alone in a pop-out window: no fullscreen and no pop-out doors (it is the window) */
+  bare?: boolean;
 }
 
 const Pane = ({
@@ -890,7 +895,7 @@ const Pane = ({
   onCrosshair, registerSync, replay, onToggleReplay, onExitReplay,
   drawing, onToggleDrawing, onExitDraw,
   isActive, onActivate, paneCount, closing = false, menuOpen, onMenu,
-  boxRef, cell = '', palette, railCut, onRailCut,
+  boxRef, cell = '', palette, railCut, onRailCut, onPopOut, bare = false,
 }: PaneProps) => {
   const { ticker, timeframe, overlays, indicators, chartStyle, clock, compares, priceScale, sessionOr, ladder } = cfg;
   /* its own theme, else the page's default — Glacier on the dark terminal, Stone on paper — re-read on a flip */
@@ -1196,11 +1201,13 @@ const Pane = ({
      plus the toolbar as it would draw — full or compact — plus the fullscreen door, which
      joins the row's end then, against the strip's usable width. It never wraps inside the
      row; short of the room it keeps its own line below the book. */
-  const inlineFull = !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_FULL_PX + ROW_DOOR_PX;
+  /* the doors at the row's end: the fullscreen one, the pop-out beside it on the desk, none in a pop-out */
+  const rowDoorPx = bare ? 0 : onPopOut ? ROW_DOOR_PX + 28 : ROW_DOOR_PX;
+  const inlineFull = !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_FULL_PX + rowDoorPx;
   /* short of the full labels beside the identity, the compact toolbar rides the row before a
      row of its own is spent (a one-up with the rail open: 1073 usable, the identity 514, the
      full toolbar 994, the compact 350) */
-  const inlineCompact = !inlineFull && !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_COMPACT_PX + ROW_DOOR_PX;
+  const inlineCompact = !inlineFull && !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_COMPACT_PX + rowDoorPx;
   const toolbarInline = inlineFull || inlineCompact;
   const toolbarCompactShown = toolbarInline ? inlineCompact : toolbarCompact;
 
@@ -1323,17 +1330,31 @@ const Pane = ({
      identity row's last item when the toolbar rides that row (Noah, 2026-09-16: "does the full
      screen button look aligned to you with the rest?" — the chip stood 4px above the row's
      centre and its 28px covered the Theme button's end). */
-  const expandDoor = (
-    <button
-      onClick={onToggleExpand}
-      aria-pressed={expanded}
-      aria-label={`Expand ${ticker} to the full screen`}
-      title="Expand this pane — F"
-      className="hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
-      data-expand-door
-    >
-      <Maximize2 className="w-3.5 h-3.5" />
-    </button>
+  const expandDoor = bare ? null : (
+    <span className="inline-flex items-center gap-1">
+      {/* POP-OUT (2026-10-10): this pane in a window of its own, for a second screen — kept in step with the terminal */}
+      {onPopOut && (
+        <button
+          onClick={onPopOut}
+          aria-label={`Open ${ticker}'s pane in its own window`}
+          title="Open this pane in its own window — for a second screen; it keeps the name, the link group and the theme in step"
+          className="hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+          data-popout-door="terrain"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      )}
+      <button
+        onClick={onToggleExpand}
+        aria-pressed={expanded}
+        aria-label={`Expand ${ticker} to the full screen`}
+        title="Expand this pane — F"
+        className="hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+        data-expand-door
+      >
+        <Maximize2 className="w-3.5 h-3.5" />
+      </button>
+    </span>
   );
 
   return (
@@ -3028,6 +3049,7 @@ const Terrain = () => {
             onRailCut={c => setCfg(prev => ({ ...prev, railCut: c }))}
             menuOpen={menu?.pane === i ? menu.which : null}
             onMenu={which => setMenu(which ? { pane: i, which } : null)}
+            onPopOut={isPhone ? undefined : () => openPopOut(`/out/terrain?pane=${encodeURIComponent(JSON.stringify(pane))}&rail=${encodeURIComponent(JSON.stringify({ palette: cfg.palette, railCut: cfg.railCut }))}`, `terrain-${i + 1}`, { w: 1100, h: 700 })}
             boxRef={el => { paneRefs.current[i] = el; }}
             /*
               THE ODD PANE OUT TAKES THE WHOLE ROW.
@@ -3044,6 +3066,83 @@ const Terrain = () => {
           )
         )}
       </div>
+    </div>
+  );
+};
+
+/* ---- ONE PANE IN A WINDOW OF ITS OWN (2026-10-10, the ideas report's pop-outs) --------------------------------------
+
+   A pane opened from the desk's pop-out door stands alone in its window (pages/popout/PopOut.tsx): the same Pane, on
+   the configuration it left the desk with, held by the window — the desk's own storage is never written from here, so a
+   pop-out can change its interval without moving the desk's. Its link group is the shell's, so a name picked in the
+   group anywhere comes here, and one picked here goes everywhere; the window's channel keeps the rest in step
+   (components/layout/deskChannel.ts). A reload keeps what was changed (the window's session). */
+const SOLO_KEY = 'slayer_popout_pane';
+export const TerrainSoloPane = ({ initial, rail, onName }: { initial: unknown; rail?: unknown; onName?: (ticker: string) => void }) => {
+  const revision = useTickSeq();
+  const groups = useLinkGroups();
+  const [pane, setPaneState] = useState<PaneCfg>(() => {
+    let kept: unknown = null;
+    try {
+      kept = JSON.parse(sessionStorage.getItem(SOLO_KEY) ?? 'null');
+    } catch {
+      kept = null;
+    }
+    return readPane(kept ?? initial, defaultPanes()[0]);
+  });
+  const r = (rail && typeof rail === 'object' ? rail : {}) as { palette?: unknown; railCut?: unknown };
+  const palette: ProfilePalette = r.palette === 'house' ? 'house' : 'thermal';
+  const [railCut, setRailCut] = useState<RailCut>(() => (typeof r.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(r.railCut) ? r.railCut : 'book'));
+  const [replay, setReplay] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [menu, setMenu] = useState<'symbol' | 'compare' | null>(null);
+  useEffect(() => {
+    onName?.(pane.ticker);
+    try {
+      sessionStorage.setItem(SOLO_KEY, JSON.stringify(pane));
+    } catch {
+      /* the window keeps it for the visit */
+    }
+  }, [pane]);
+  const onCfg = (patch: Partial<PaneCfg>) => {
+    const group = patch.link !== undefined ? patch.link : (pane.link ?? null);
+    if (group && patch.ticker) setLinkGroup(group, patch.ticker);
+    else if (patch.link && !groups[patch.link]) setLinkGroup(patch.link, pane.ticker);
+    setPaneState(p => ({ ...p, ...patch }));
+  };
+  /* a name the group took elsewhere comes to this pane */
+  useEffect(() => {
+    const name = pane.link ? groups[pane.link] : null;
+    if (name && symKey(name) !== symKey(pane.ticker)) setPaneState(p => ({ ...p, ticker: name }));
+  }, [groups, pane.link, pane.ticker]);
+  return (
+    <div className="h-full min-h-0 grid grid-cols-1 grid-rows-1" data-terrain-solo>
+      <Pane
+        cfg={pane}
+        onCfg={onCfg}
+        revision={revision}
+        expanded={false}
+        onToggleExpand={() => undefined}
+        index={0}
+        tall
+        onCrosshair={() => undefined}
+        registerSync={() => undefined}
+        replay={replay}
+        onToggleReplay={() => setReplay(v => !v)}
+        onExitReplay={() => setReplay(false)}
+        drawing={drawing}
+        onToggleDrawing={() => setDrawing(v => !v)}
+        onExitDraw={() => setDrawing(false)}
+        isActive
+        onActivate={() => undefined}
+        paneCount={1}
+        palette={palette}
+        railCut={railCut}
+        onRailCut={setRailCut}
+        menuOpen={menu}
+        onMenu={setMenu}
+        bare
+      />
     </div>
   );
 };

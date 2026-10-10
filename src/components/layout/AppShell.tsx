@@ -21,6 +21,7 @@ import MarketBell from './MarketBell';
 import InstallPrompt from './InstallPrompt';
 import SkipLink, { CONTENT_ID } from '../ui/SkipLink';
 import { G_WAIT_MS, aliasRowStep, roomFor } from './rowStepKeys';
+import { useDeskChannel } from './deskChannel';
 
 /** A page crash must never black-screen the terminal — it renders a readable
     fault panel instead. Recovers via the resetKey prop (NOT a React key: a key
@@ -91,6 +92,8 @@ const AppShell = () => {
   const openKeys = useCallback(() => setKeysOpen(true), []);
   const closeKeys = useCallback(() => setKeysOpen(false), []);
   const navigate = useNavigate();
+  /* POP-OUT WINDOWS KEEP IN STEP (2026-10-10, deskChannel.ts): the name, the link groups and the theme, both ways */
+  useDeskChannel();
 
   /* g, THEN A ROOM'S LETTER (2026-10-10, the ideas' keyboard leftovers — rowStepKeys.ts): heard in the capture phase, so
      the letter after g goes to the room and not to the page's own key (Terrain's P is its replay) */

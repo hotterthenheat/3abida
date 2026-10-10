@@ -1,20 +1,16 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RGL, { type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { ArrowUpRight, Check, GripHorizontal, Maximize2, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, Check, ExternalLink, GripHorizontal, Maximize2, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react';
+import { openPopOut } from '../../components/layout/deskChannel';
 import { changeTicker, useActiveTicker, useScanSnapshot } from '../../context/MarketDataContext';
-import { isLinkGroup, marketStore, setLinkGroup, useLinkGroups, useMarketBackground, type LinkGroup } from '../../context/marketStore';
+import { isLinkGroup, marketStore, setLinkGroup, useLinkGroups, type LinkGroup } from '../../context/marketStore';
 import LinkGroupChip from '../../components/link/LinkGroupChip';
 import { useFocus } from '../../context/FocusContext';
 import Simulator from '../../core/simulator';
-import { buildGexView } from '../../data/gex';
-import { buildExposureProfile } from '../../data/exposure';
-import { buildPulseView } from '../../data/pulse';
-import { buildVannaCharm } from '../../data/vannacharm';
-import { buildCompassView } from '../../data/compass';
 import Chip from '../../components/ui/Chip';
 import { useIsPhone } from '../../components/ui/useMediaQuery';
 import LiveChartWidget from './LiveChartWidget';
@@ -25,6 +21,7 @@ import { undoable } from '../../components/ui/undo';
 import Panel from '../../components/ui/Panel';
 import { WIDGETS, widgetByKey, type WidgetDef, type WorkspaceCtx } from './registry';
 import WidgetThumb from './WidgetThumb';
+import { TileBody, buildCtxFor, extendCtx, withLive } from './tileContext';
 import DeskChooser from './DeskChooser';
 import ReadThis from '../../components/read/ReadThis';
 import LiveScopeChip from '../../components/link/LiveScopeChip';
@@ -43,7 +40,6 @@ import {
   type SavedWorkspace,
   type WidgetInstance,
 } from './desks';
-import type { MarketSnapshot } from '../../types/market';
 
 /* THE DESK'S WIDTH, MEASURED BEFORE THE FIRST PAINT (Noah, 2026-09-12:
    "everytime i re-enter the page and the cards start sliding into their
@@ -167,67 +163,6 @@ const DeskPeek = ({ name, ws }: { name: string; ws: SavedWorkspace }) => {
     </>
   );
 };
-
-/* ---- THE TILE READS THE TICK, NOT THE DESK (2026-10-10, the speed store) ------------------------------------------
-
-   The desk used to render on every tick and on a one-second heat timer, and every render built every panel's context
-   again — so every panel on the desk rendered two and a half times a second, whatever it showed, and the contexts'
-   spread read the lazy views (the pulse view, the vanna read, the whole Compass board) that were meant to be built
-   only for a panel that asks. Now the desk renders on the 10 s scan and on what a person does; each tile reads the
-   tick itself, and only if its panel ever reads the tick's two live fields (`revision`, `liveSpot`) — a panel of the
-   scan alone (the targets, the walls, the news) renders on the scan alone. */
-
-/** A copy of a context that keeps its lazy views lazy — a spread would build them all */
-const extendCtx = (base: WorkspaceCtx, extra: Partial<WorkspaceCtx>): WorkspaceCtx => {
-  const out = Object.defineProperties({}, Object.getOwnPropertyDescriptors(base)) as WorkspaceCtx;
-  for (const [k, v] of Object.entries(extra)) Object.defineProperty(out, k, { value: v, enumerable: true, configurable: true, writable: true });
-  return out;
-};
-
-/** The live fields, read off the published tick — the getter marks the tile as one that reads them */
-const withLive = (ctx: WorkspaceCtx, mark: () => void): WorkspaceCtx => {
-  const s = marketStore.get();
-  Object.defineProperty(ctx, 'revision', {
-    get: () => (mark(), s.seq),
-    enumerable: true,
-    configurable: true,
-  });
-  Object.defineProperty(ctx, 'liveSpot', {
-    get: () => (mark(), s.quotes[ctx.ticker]?.spot ?? (s.snapshot?.ticker === ctx.ticker ? s.snapshot.spot : ctx.snapshot.spot)),
-    enumerable: true,
-    configurable: true,
-  });
-  return ctx;
-};
-
-interface TileBodyProps {
-  base: WorkspaceCtx;
-  render: (ctx: WorkspaceCtx) => ReactNode;
-  extra: Partial<WorkspaceCtx>;
-}
-
-/** One panel's body: its context built once per scan, per tick only when the panel reads the tick */
-const TileBody = memo(({ base, render, extra }: TileBodyProps) => {
-  const live = useRef(false);
-  const seq = useMarketBackground(s => (live.current ? s.seq : 0));
-  /* the functions are called through to the latest render's — the context is rebuilt only when a value moves */
-  const latest = useRef(extra);
-  latest.current = extra;
-  const extraKey = Object.values(extra).map(v => (typeof v === 'function' ? 'fn' : String(v))).join('|');
-  const ctx = useMemo(
-    () => {
-      const through = Object.fromEntries(
-        Object.entries(extra).map(([k, v]) => [k, typeof v === 'function' ? (...a: unknown[]) => (latest.current[k as keyof WorkspaceCtx] as (...a: unknown[]) => unknown)?.(...a) : v])
-      ) as Partial<WorkspaceCtx>;
-      return withLive(extendCtx(base, through), () => {
-        live.current = true;
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [base, seq, extraKey]
-  );
-  return <>{useMemo(() => render(ctx), [render, ctx])}</>;
-});
 
 /** The phone's one chart */
 const phoneChart = (ctx: WorkspaceCtx) => <LiveChartWidget ctx={ctx} soleChart />;
@@ -467,44 +402,6 @@ const Pulse = () => {
 
   // Scan tier — one snapshot feeds every widget (a name switch refreshes at once)
   const scanSnapshot = useScanSnapshot(SCAN_INTERVAL_MS);
-
-  /** Build the whole widget context for one name. */
-  const buildCtxFor = (snapshot: MarketSnapshot): WorkspaceCtx => {
-    const gex = buildGexView(snapshot, 'GEX', 10);
-    /* THE VIEWS A DESK DOES NOT SHOW ARE NEVER BUILT (2026-09-06, the perf
-       sweep): every scan used to build the pulse view, the vanna/charm read
-       and the whole Compass board for a desk of three charts that read none
-       of them. They are getters now — built the first time a panel asks,
-       remembered for the rest of the scan. */
-    const lazy = <T,>(build: () => T) => {
-      let v: T | undefined;
-      let built = false;
-      return () => {
-        if (!built) {
-          v = build();
-          built = true;
-        }
-        return v as T;
-      };
-    };
-    const pulse = lazy(() => buildPulseView(snapshot));
-    const vanna = lazy(() => buildVannaCharm(snapshot, 'CHARM', -1));
-    const setups = lazy(() => buildCompassView(snapshot, 'top-setups', Simulator.universeQuotes(snapshot.ticker)));
-    const ctx = {
-      ticker: snapshot.ticker,
-      snapshot,
-      revision: 0, // the tile's own read of the tick (TileBody)
-      /* the 1 s heat the matrix once pulsed with — no panel reads it now; kept on the context, unpulsed */
-      pulseTick: 0,
-      gex,
-      matrix: gex.matrix,
-      exposure: buildExposureProfile(snapshot, '0DTE', 10),
-    } as WorkspaceCtx;
-    Object.defineProperty(ctx, 'pulse', { get: pulse, enumerable: true, configurable: true });
-    Object.defineProperty(ctx, 'vanna', { get: vanna, enumerable: true, configurable: true });
-    Object.defineProperty(ctx, 'setups', { get: setups, enumerable: true, configurable: true });
-    return ctx;
-  };
 
   // Every name any panel is unlinked to. Linked panels use the desk's ticker,
   // so an untouched desk still builds exactly one context.
@@ -1025,6 +922,21 @@ const Pulse = () => {
                           quote
                         />
                       )}
+                      {/* POP-OUT (2026-10-10): this panel in a window of its own, for a second screen — kept in step through
+                          the channel (deskChannel.ts); its name is read the way this tile's is */}
+                      <button
+                        onClick={() => {
+                          const g = groupOf(inst);
+                          const q = g ? `?group=${g}` : inst.ticker ? `?name=${encodeURIComponent(inst.ticker)}` : '';
+                          openPopOut(`/out/pulse/${def.key}${q}`, `pulse-${inst.id}`);
+                        }}
+                        aria-label={`Open ${def.title} in its own window`}
+                        title="Open this panel in its own window — for a second screen; the name, the link group and the theme keep in step"
+                        className="p-1.5 -my-1.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+                        data-popout-door="pulse"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
                       {(def.ownFull || def.page) && (
                         <button
                           onClick={() => (def.ownFull ? setFullReq({ id: inst.id, token: Date.now() }) : openPage(def.page!, inst))}

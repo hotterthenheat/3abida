@@ -116,6 +116,9 @@ const LegalAt = () => {
 const Tracker = lazy(() => import('./pages/Tracker'));
 /* THE GLOSSARY (2026-10-10, the ideas report): every word the terminal defines, on one page */
 const GlossaryPage = lazy(() => import('./pages/glossary/Glossary'));
+/* POP-OUTS (2026-10-10, the ideas report): a Pulse panel or a Terrain pane in a window of its own — bare, no shell */
+const PulsePopOut = lazy(() => import('./pages/popout/PulsePopOut'));
+const TerrainPopOut = lazy(() => import('./pages/popout/TerrainPopOut'));
 /* THE SETTINGS (2026-09-12): the theme first, the rest of the desk's preferences behind it */
 const Settings = lazy(() => import('./pages/settings/Settings'));
 const PinpointLayout = lazy(() => import('./pages/pinpoint/PinpointLayout'));
@@ -238,6 +241,8 @@ const App = () => {
           <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
           <Route path="/legal/:doc" element={<LegalAt />} />
           <Route path="/maintenance" element={<Maintenance />} />
+          <Route path="/out/pulse/:key" element={<PulsePopOut />} />
+          <Route path="/out/terrain" element={<TerrainPopOut />} />
           <Route element={<AppShell />}>
             <Route path="/home" element={<Navigate to="/pulse" replace />} />
             <Route path="/pulse" element={<Pulse />} />

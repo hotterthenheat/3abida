@@ -255,6 +255,8 @@ const PageMeta = () => {
   const { pathname, search } = useLocation();
   const own = useSaid();
   useEffect(() => {
+    /* a pop-out names its own window (pages/popout/PopOutFrame.tsx) */
+    if (pathname.startsWith('/out/')) return;
     const m = metaFor(pathname, own, search);
     document.title = m.title;
     setMeta('meta[name="description"]', m.description);
