@@ -334,7 +334,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
             <>
               {/* one unit each, said (the audit's WE-8: "$470.00" per contract beside "$4.77" per share) */}
               <Fact5 k="Market value" v={`$${(row.r.mark * per).toFixed(2)} · ${row.r.mark.toFixed(2)} × ${per}`} />
-              <Fact5 k="Cost when added, a share" v={`$${row.w.addedMark.toFixed(2)} · 1R`} />
+              <Fact5 k="Cost a share" v={`$${row.w.addedMark.toFixed(2)} · 1R`} />
               <Fact5 k="Today's return" v={open ? `${usdSigned(row.r.todayDollars)} · ${rSigned(row.r.todayR)}` : '—'} tone={open ? dirInk(row.r.todayDollars) : 'text-textMuted'} />
               <Fact5 k="Total return" v={`${usdSigned(row.r.totalDollars)} · ${rSigned(row.r.totalR)}`} tone={dirInk(row.r.totalDollars)} />
               <div className="min-w-0">
