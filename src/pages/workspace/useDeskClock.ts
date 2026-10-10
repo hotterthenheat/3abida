@@ -23,4 +23,3 @@ export function useDeskClock(): AheadClock {
   return useMemo(() => aheadClock(raw), [raw]);
 }
 
-export const hhmmss = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
