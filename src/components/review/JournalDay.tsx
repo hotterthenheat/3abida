@@ -56,7 +56,7 @@ const NOTES = [
   { key: 'plan', ask: 'The plan, before', hint: 'What you were looking for, and what would have kept you out' },
   { key: 'review', ask: 'The review, after', hint: 'How the day went against the plan — one thing to keep, one to drop' },
 ] as const;
-const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: string; value: string; onKeep: (v: string) => void; testId: string }) => {
+export const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: string; value: string; onKeep: (v: string) => void; testId: string }) => {
   const [mark, setMark] = useState<'empty' | 'keeping' | 'kept'>(value.trim() ? 'kept' : 'empty');
   /* the newest of what it was handed, for a flush after it has gone */
   const latest = useRef({ value, onKeep });

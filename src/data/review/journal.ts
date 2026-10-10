@@ -74,6 +74,8 @@ export interface DayNote {
   plan?: string;
   /** After: how the day went */
   review?: string;
+  /** The recap's one question, answered: did I trade my plan? */
+  followed?: 'yes' | 'partly' | 'no';
 }
 
 export type JournalRow = { key: string; s: Session; t: Trade; paper?: undefined } | { key: string; s: PaperAccount; t: PaperOptTrade; paper: true };
