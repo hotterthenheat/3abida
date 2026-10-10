@@ -34,6 +34,7 @@ import {
   ArrowRightLeft, Bell, BellRing, CornerDownLeft, Eye, History, Keyboard, Moon, PanelLeft, Save, Settings as SettingsIcon, SlidersHorizontal, Sun, Volume2,
   Megaphone, Rows3,
 } from 'lucide-react';
+import { watchCommand } from './watchCommand';
 import Working from '../ui/Working';
 import { changeTicker, useActiveTicker } from '../../context/MarketDataContext';
 import { marketStore } from '../../context/marketStore';
@@ -267,6 +268,9 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       }
       return out;
     }
+    /* "watch NVDA": the name onto the one watchlist (watchCommand.ts) */
+    const w = watchCommand(q, knownName);
+    if (w) return [{ ...w, group: 'Go', icon: <Eye className={ICON} /> }];
     /* a name and a function, either way round: "NVDA flow", "flow NVDA", "SPY dark pool" */
     if (words.length >= 2) {
       const tries: [string, string][] = [
