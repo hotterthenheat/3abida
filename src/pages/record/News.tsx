@@ -661,7 +661,7 @@ const News = () => {
                 </>
               ) : (
                 <>
-                  <span className="text-textMuted truncate">
+                  <span className="text-textMuted truncate" title={`${pins.length} ${pins.length === 1 ? 'city' : 'cities'} · the land warms where the news lands · the arcs are where the open story reaches · scroll to zoom, pull to pan`}>
                     {pins.length} {pins.length === 1 ? 'city' : 'cities'} · the land warms where the news lands · the arcs are where the open story reaches · scroll to zoom, pull to pan
                   </span>
                   <span className="ml-auto shrink-0" data-news-session-read>
@@ -780,7 +780,7 @@ const News = () => {
                       .slice(0, 4)
                       .map(z => (
                         <div key={z.label} className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] text-textPrimary w-28 truncate">{z.label}</span>
+                          <span className="font-mono text-[11px] text-textPrimary w-40 truncate" title={z.label}>{z.label}</span>
                           <span className="flex-1 h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
                             <span className={`block h-full rounded-full ${GRADE_BAR[selected.grade]}`} style={{ width: `${Math.min(100, z.w * 10)}%` }} />
                           </span>
