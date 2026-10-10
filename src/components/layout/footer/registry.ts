@@ -47,6 +47,8 @@ const BY_PATH: [RegExp, SceneName][] = [
   [/^\/status/, 'status'],
   [/^\/about/, 'about'],
   [/^\/legal/, 'legal'],
+  /* the glossary is words being read, as a legal page is */
+  [/^\/glossary/, 'legal'],
   [/^\/(signup|signin|reset|verified|expired)/, 'account'],
   [/^\/(i\/|welcome)/, 'invite'],
   [/^\/maintenance/, 'maintenance'],

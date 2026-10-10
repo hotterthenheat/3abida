@@ -114,6 +114,8 @@ const LegalAt = () => {
   return doc && LEGAL_DOCS.includes(doc.toLowerCase()) ? <Legal /> : <NotFoundPrompt />;
 };
 const Tracker = lazy(() => import('./pages/Tracker'));
+/* THE GLOSSARY (2026-10-10, the ideas report): every word the terminal defines, on one page */
+const GlossaryPage = lazy(() => import('./pages/glossary/Glossary'));
 /* THE SETTINGS (2026-09-12): the theme first, the rest of the desk's preferences behind it */
 const Settings = lazy(() => import('./pages/settings/Settings'));
 const PinpointLayout = lazy(() => import('./pages/pinpoint/PinpointLayout'));
@@ -309,6 +311,7 @@ const App = () => {
             <Route path="/tracker" element={<Navigate to="/compass/tracker" replace />} />
             {/* each settings section is its own page (2026-09-12); /settings alone lands on Account (2026-09-14) */}
             <Route path="/settings/:section?" element={<SettingsAt />} />
+            <Route path="/glossary" element={<GlossaryPage />} />
             <Route path="/pinpoint" element={<PinpointLayout />}>
               {/* THE MAP IS PINPOINT'S FRONT PAGE: /pinpoint opens on it, and so does every retired page's address — the
                   three-tab cut's, the old command desk and flow map (their ledger is the Map's Matrix; they went to Pulse
@@ -370,7 +373,7 @@ const App = () => {
                 footer — the reader is a click from where they meant to be. A real page always outranks a splat, so these
                 catch only what nothing else did. (/compass/<one part> is a setup's own address and answers for itself;
                 /community/* already lands on the room.) */}
-            {['/pulse/*', '/terrain/*', '/weigher/*', '/compass/*', '/pinpoint/*', '/trace/*', '/dossier/*', '/practice/*', '/settings/*'].map(p => (
+            {['/glossary/*', '/pulse/*', '/terrain/*', '/weigher/*', '/compass/*', '/pinpoint/*', '/trace/*', '/dossier/*', '/practice/*', '/settings/*'].map(p => (
               <Route key={p} path={p} element={<NotFoundInside />} />
             ))}
           </Route>

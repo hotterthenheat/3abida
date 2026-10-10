@@ -47,10 +47,15 @@ const ShortcutSheet = ({ open, onClose }: { open: boolean; onClose: () => void }
           </Fragment>
         ))}
         <div className="px-1 pt-3 flex items-center justify-between gap-4 text-[11px] text-textMuted">
-          <span>Every page's keys are in Settings.</span>
-          <Link to="/settings/keyboard" onClick={onClose} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
-            Settings › Keyboard
-          </Link>
+          <span>Every page's keys are in Settings; every word the terminal uses, in the glossary.</span>
+          <span className="shrink-0 inline-flex items-center gap-3">
+            <Link to="/glossary" onClick={onClose} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary" data-key-sheet-glossary>
+              Glossary
+            </Link>
+            <Link to="/settings/keyboard" onClick={onClose} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
+              Settings › Keyboard
+            </Link>
+          </span>
         </div>
       </div>
     </Modal>

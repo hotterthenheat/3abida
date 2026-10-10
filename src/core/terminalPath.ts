@@ -10,6 +10,6 @@
 ==================================================
 */
 
-const TERMINAL = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i;
+const TERMINAL = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|glossary|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i;
 
 export const isTerminalPath = (path: string): boolean => TERMINAL.test(path);

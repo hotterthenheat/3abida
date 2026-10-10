@@ -58,7 +58,7 @@
       };
       /* …and the pages outside the terminal stand on the same ground as the landing (2026-10-09): every address but the
          terminal's (components/layout/LaunchTransition.tsx TERMINAL, the same list) */
-      var terminal = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i.test(location.pathname);
+      var terminal = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|glossary|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i.test(location.pathname);
       if (c === 'light' || c === 'dark') t = c;
       else if (c === 'system' || (c == null && !terminal)) t = machine();
       /* THE TERMINAL IN THE LANDING'S WINDOW (src/embed.ts): the page outside names the theme */

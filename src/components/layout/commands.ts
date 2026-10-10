@@ -78,6 +78,7 @@ const CODES: Record<string, { code: string; words: string[]; pathFor?: (t: strin
   '/practice/backtest': { code: 'BT', words: ['backtest', 'replay', 'review'] },
   '/practice/journal': { code: 'JRN', words: ['journal', 'trades', 'log'] },
   '/settings': { code: 'SET', words: ['settings', 'preferences', 'prefs'] },
+  '/glossary': { code: 'GLOS', words: ['glossary', 'words', 'terms', 'definitions', 'dictionary', 'meaning'] },
 };
 
 const make = (path: string, label: string, hint: string): PageCommand => {
@@ -96,6 +97,8 @@ export const PAGE_COMMANDS: PageCommand[] = [
     if (item.path === '/compass') return [make('/compass', 'Compass → The board', item.description), make('/compass/tracker', 'Compass → Tracker', 'The setups you keep, live')];
     return [own];
   }),
+  /* THE GLOSSARY (2026-10-10): not a room, a page every room's words lead to */
+  make('/glossary', 'Glossary', 'Every word the terminal uses — what it means, and what it stands on'),
 ];
 
 /* EVERY SETTINGS SECTION (the audit's SH-5: "appearance" and "keyboard" found nothing) */
