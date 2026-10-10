@@ -611,7 +611,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                 <Mini
                   label="Conviction"
                   value={print.flowScore > 15 ? 'BUYERS' : print.flowScore < -15 ? 'SELLERS' : 'MIXED'}
-                  tone={print.flowScore > 15 ? 'text-bull' : print.flowScore < -15 ? 'text-bear' : 'text-textMuted'}
+                  tone={Math.abs(print.flowScore) > 15 ? 'text-textPrimary' : 'text-textMuted'}
                 />
                 <Mini label="Day lean" value={print.ratioLabel} tone={print.ratioLabel === 'MID' ? 'text-textMuted' : 'text-textPrimary'} />
                 <Mini label="Strike vs spot" value={`${print.otmPct >= 0 ? '+' : ''}${fixed(print.otmPct, 1)}%`} />
