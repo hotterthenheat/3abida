@@ -136,9 +136,9 @@ export type TerrainLayout = (typeof LAYOUTS)[number];
   why the rail in particular has to.
 */
 export interface PaneCfg {
-  /** T-20 — the pane's link group. Panes sharing a letter follow each
-      other's SYMBOL changes; null stands alone. Not a setup key: linking is
-      slot business, like the rail. */
+  /** T-20 — the pane's link group, A–D and shell-wide since 2026-10-10 (context/marketStore.ts): panes, Pulse panels
+      and the Weigher sharing a letter follow each other's SYMBOL changes; null stands alone. Not a setup key: linking
+      is slot business, like the rail. */
   link?: LinkGroup | null;
   ticker: string;
   timeframe: Timeframe;

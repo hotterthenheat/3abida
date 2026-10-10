@@ -371,7 +371,11 @@ const LiveTape = () => {
      34ms later and keep growing tick by tick for forty seconds. The provider
      already keeps a rolling buffer of enriched prints for exactly this; the
      first paint now shows it. */
-  const [rows, setRows] = useState<FlowPrint[]>(() => flowTape.slice(0, MAX_ROWS));
+  /* THE TAPE'S OWN PRINTS (2026-10-10): the rows are the terminal's one tape (context/marketStore.ts), print for print —
+     the page used to stamp the tick's orders a second time, so the same order read one premium here and another on the
+     chart's markers — and read straight off it, one render a tick (copying them into state was a second). A live tape
+     RUNS (Noah, 2026-09-12) — every tick lands, nothing holds it. */
+  const rows: FlowPrint[] = useMemo(() => flowTape.slice(0, MAX_ROWS), [flowTape]);
   /* The bookmarks live in the Trace watch store now (2026-09-03) — they
      survive the page, and the Tracker reads them. */
   const { isWatched, toggle: toggleWatch } = useWatch();
@@ -390,23 +394,7 @@ const LiveTape = () => {
       buffer is capped, so a print the user is reading eventually scrolls out of
       it — looking it up by id would silently close the drilldown mid-read. */
   const [openPrint, setOpenPrint] = useState<FlowPrint | null>(null);
-  /* THE TAPE'S OWN PRINTS (2026-10-10): the rows are the terminal's one tape (context/marketStore.ts), print for print —
-     the page used to stamp the tick's orders a second time, so the same order read one premium here and another on the
-     chart's markers. The newest print already on the page; the next ones are those above it. */
-  const seenRef = useRef(flowTape[0]?.id ?? 0);
   const lastReadRef = useRef(0);
-
-  /* A live tape RUNS (Noah, 2026-09-12) — every tick lands, nothing holds it. */
-  useEffect(() => {
-    const fresh: FlowPrint[] = [];
-    for (const p of flowTape) {
-      if (p.id <= seenRef.current) break;
-      fresh.push(p);
-    }
-    if (fresh.length === 0) return;
-    seenRef.current = fresh[0].id;
-    setRows(prev => [...fresh, ...prev].slice(0, MAX_ROWS));
-  }, [flowTape]);
 
   const summary = useMemo(() => summarizeTape(rows), [rows]);
 

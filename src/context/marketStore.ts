@@ -40,6 +40,7 @@ import { readDeskPrefs } from '../data/deskPrefs';
 import { enrichPrint } from '../data/tape';
 import { announceFeedTick } from '../data/feedTicks';
 import { nyClock } from '../core/nyTime';
+import { h01 } from '../core/rng';
 import type { FlowPrint } from '../types/trace';
 import type { ExecuteResult, LedgerStats, MarketSnapshot, TapeOrder, TickerSymbol, TradeRecord } from '../types/market';
 
@@ -242,7 +243,8 @@ const absorbTape = (fresh: StampedPrint[], now: number) => {
 
 /* THE TAPE OPENS FULL (the audit's TR-30: Live Tape opened on 8–15 prints and ~120 px of empty table). The first tick
    lays down the half-minute before it — thirty ticks' worth, a few prints a name a tick as the feed prints them, each
-   stamped at its own moment — so the tape's first screen is a screen of prints. */
+   stamped at its own moment — so the tape's first screen is a screen of prints. Drawn from its own hashed stream, never
+   Math.random: the landing's session and films seed Math.random and replay it, and the backfill must not move them. */
 const BACKFILL_TICKS = 32;
 function backfill(now: number): StampedPrint[] {
   const names = Array.from(new Set([state.active, ...Simulator.WATCHLIST]));
@@ -253,18 +255,20 @@ function backfill(now: number): StampedPrint[] {
     for (const sym of names) {
       const cfg = Simulator.TICKERS[sym];
       if (!cfg) continue;
-      const count = sym === state.active ? Math.floor(Math.random() * 2) + 1 : Math.random() > 0.45 ? Math.floor(Math.random() * 2) + 1 : 0;
+      const r = (tag: string) => h01(`tape-backfill-${at}-${sym}-${tag}`);
+      const count = sym === state.active ? Math.floor(r('n') * 2) + 1 : r('on') > 0.45 ? Math.floor(r('n') * 2) + 1 : 0;
       for (let i = 0; i < count; i++) {
-        const offset = (Math.floor(Math.random() * 7) - 3) * cfg.step;
+        const q = (tag: string) => r(`${i}-${tag}`);
+        const offset = (Math.floor(q('k') * 7) - 3) * cfg.step;
         const strike = Math.round(cfg.currentPrice / cfg.step) * cfg.step + offset;
         orders.push({
           time: '',
           ticker: sym,
           strike: strike.toFixed(2),
-          type: Math.random() > 0.5 ? 'C' : 'P',
-          size: Math.floor(Math.random() * 250) + 10,
-          orderType: Math.random() > 0.65 ? 'SWEEP' : 'BLOCK',
-          side: Math.random() > 0.48 ? 'ASK' : 'BID',
+          type: q('cp') > 0.5 ? 'C' : 'P',
+          size: Math.floor(q('sz') * 250) + 10,
+          orderType: q('ot') > 0.65 ? 'SWEEP' : 'BLOCK',
+          side: q('sd') > 0.48 ? 'ASK' : 'BID',
         });
       }
     }
