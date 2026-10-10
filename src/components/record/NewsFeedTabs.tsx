@@ -263,7 +263,7 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
               )}
             </span>
             <span className="min-w-0">
-              <CatTag category={e.item.category} size={9} />
+              <CatTag category={e.item.category} size={10} />
             </span>
             <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${GRADE_INK[e.grade]}`}>{GRADE_WORD[e.grade]}</span>
             <span className="min-w-0 flex items-center gap-2">

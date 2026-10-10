@@ -289,8 +289,8 @@ const labelOf = (g: NamedGeo) => {
     small ones where there is room) */
 const CountryNames = ({ shown, z, s, theme, minArea }: { shown: NamedGeo[]; z: number; s: number; theme: Theme; minArea: number }) => {
   const { projection } = useMapContext();
-  const fs = (6.5 * s) / z;
-  const gap = (0.9 * s) / z;
+  const fs = (13 * s) / z;
+  const gap = (0.6 * s) / z;
   const pad = 2.5 / z;
   const placed: { x: number; y: number; w: number; h: number }[] = [];
   const names: { key: string; name: string; at: [number, number] }[] = [];
@@ -354,7 +354,7 @@ const SessionBands = ({ sessions, zoom, labelLat = 79 }: { sessions: SessionDef[
         <g key={s.key}>
           <path d={path(bandFeature(s.west, s.east)) ?? undefined} fill={SILVER} fillOpacity={0.16} stroke={SILVER} strokeOpacity={0.45} strokeWidth={0.7 / zoom} data-news-session={s.key} />
           <Marker coordinates={[(s.west + s.east) / 2, labelLat]}>
-            <text textAnchor="middle" fontSize={8 / zoom} fontFamily={FONT_SANS} letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.85}>
+            <text textAnchor="middle" fontSize={10 / zoom} fontFamily={FONT_SANS} letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.85}>
               {`${s.label.toUpperCase()} · OPEN`}
             </text>
           </Marker>
@@ -616,7 +616,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
                   {p.freshest === 'fresh' && <circle r={r + (5 * s) / z} fill={ink} fillOpacity={0.14} />}
                   <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : 'rgb(var(--night))'} strokeWidth={((open ? 2 : 1) * s) / z} />
                   {p.n > 1 && (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={(9 * s) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={(13 * s) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
                       {p.n}
                     </text>
                   )}
