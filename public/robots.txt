@@ -1,0 +1,3 @@
+# Slayer Terminal — every page may be read; the not-found pages mark themselves noindex.
+User-agent: *
+Allow: /

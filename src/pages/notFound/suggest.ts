@@ -16,7 +16,14 @@
     A GUESS FROM OUTSIDE /pricing · /login · /charts
         → the words people type by hand, mapped by hand
           (ALIASES): /login to the sign-in form, /register
-          to the sign-up form.
+          to the sign-up form, /terms to the legal page,
+          /changelog to the status page.
+    A PAGE THAT EXISTS, AND MORE AFTER IT
+                         /about/x · /settings/account/extra
+        → that page (2026-10-09, the audit's OU-N2 and
+          LG-5: /about/x was "About, in Settings", and
+          /settings/account/extra was sign-in, out of the
+          terminal).
 
   Everything it can suggest is READ FROM THE NAV'S OWN
   LISTS (nav.ts, the three subnavs, the settings'
@@ -36,7 +43,7 @@ import { RECORD_SUBPAGES } from '../record/subnav';
 export interface Suggestion {
   path: string;
   label: string;
-  /** The product it sits under — "Pinpoint", "Settings", "Front page" */
+  /** The product it sits under — "Pinpoint", "Settings", "Front page"; none for a page that names itself */
   where?: string;
   /** Said with it when the address asked for something that does not exist yet */
   note?: string;
@@ -62,11 +69,21 @@ export const KNOWN: Suggestion[] = [
   ...TRACE_SUBPAGES.map(p => ({ path: p.path, label: p.label, where: 'Trace' })),
   ...RECORD_SUBPAGES.map(p => ({ path: p.path, label: p.label, where: 'Dossier' })),
   ...SETTINGS.map(([id, label]) => ({ path: `/settings/${id}`, label, where: 'Settings' })),
-  { path: '/#tools', label: 'The tools', where: 'Front page' },
+  /* the front page's own sections (the rooms were "the tools" until v5 — /#tools went nowhere, the audit's OU-N1) */
+  { path: '/#rooms', label: 'The rooms', where: 'Front page' },
   { path: '/#pricing', label: 'Pricing', where: 'Front page' },
   { path: '/#faq', label: 'Questions', where: 'Front page' },
-  { path: '/signup', label: 'Make your account', where: 'Account' },
-  { path: '/signin', label: 'Sign in', where: 'Account' },
+  /* the pages outside the terminal */
+  { path: '/signup', label: 'Sign up' },
+  { path: '/signin', label: 'Sign in' },
+  { path: '/reset', label: 'Reset your password' },
+  { path: '/about', label: 'About' },
+  { path: '/status', label: 'Status and changelog' },
+  { path: '/legal/terms', label: 'Terms', where: 'Legal' },
+  { path: '/legal/privacy', label: 'Privacy', where: 'Legal' },
+  { path: '/legal/risk', label: 'Risk disclosure', where: 'Legal' },
+  { path: '/legal/refunds', label: 'Refund policy', where: 'Legal' },
+  { path: '/legal/data', label: 'Data sources', where: 'Legal' },
 ];
 const byPath = (path: string): Suggestion => KNOWN.find(k => k.path === path) ?? { path, label: path };
 
@@ -74,8 +91,14 @@ const byPath = (path: string): Suggestion => KNOWN.find(k => k.path === path) ??
 const ALIASES: Record<string, { path: string; note?: string }> = {
   pricing: { path: '/#pricing' }, prices: { path: '/#pricing' }, price: { path: '/#pricing' }, plans: { path: '/#pricing' }, plan: { path: '/#pricing' }, subscribe: { path: '/#pricing' }, buy: { path: '/#pricing' }, upgrade: { path: '/#pricing' },
   faq: { path: '/#faq' }, faqs: { path: '/#faq' }, questions: { path: '/#faq' }, help: { path: '/#faq' }, support: { path: '/#faq' },
-  tools: { path: '/#tools' }, features: { path: '/#tools' }, products: { path: '/#tools' }, tour: { path: '/#tools' },
-  login: { path: '/signin' }, logon: { path: '/signin' }, auth: { path: '/signin' }, account: { path: '/signin' },
+  tools: { path: '/#rooms' }, features: { path: '/#rooms' }, products: { path: '/#rooms' }, tour: { path: '/#rooms' }, rooms: { path: '/#rooms' },
+  login: { path: '/signin' }, logon: { path: '/signin' }, auth: { path: '/signin' }, account: { path: '/signin' }, logout: { path: '/signin' }, signout: { path: '/signin' },
+  forgot: { path: '/reset' }, forgotpassword: { path: '/reset' }, resetpassword: { path: '/reset' }, password: { path: '/reset' },
+  terms: { path: '/legal/terms' }, tos: { path: '/legal/terms' }, termsofservice: { path: '/legal/terms' }, privacy: { path: '/legal/privacy' }, privacypolicy: { path: '/legal/privacy' },
+  refund: { path: '/legal/refunds' }, refunds: { path: '/legal/refunds' }, risk: { path: '/legal/risk' }, disclaimer: { path: '/legal/risk' }, legal: { path: '/legal/terms' },
+  datasources: { path: '/legal/data' }, sources: { path: '/legal/data' },
+  changelog: { path: '/status' }, changes: { path: '/status' }, whatsnew: { path: '/status' }, updates: { path: '/status' }, releases: { path: '/status' }, uptime: { path: '/status' },
+  contact: { path: '/about' }, contactus: { path: '/about' }, company: { path: '/about' }, team: { path: '/about' },
   register: { path: '/signup' }, join: { path: '/signup' }, createaccount: { path: '/signup' }, getstarted: { path: '/signup' },
   app: { path: '/pulse' }, terminal: { path: '/pulse' }, dashboard: { path: '/pulse' }, launch: { path: '/pulse' }, desk: { path: '/pulse' }, start: { path: '/pulse' },
   chart: { path: '/terrain' }, charts: { path: '/terrain' }, charting: { path: '/terrain' },
@@ -128,8 +151,11 @@ export function suggest(pathname: string): Suggestion[] {
   const whole = squash(typed);
 
   const scored: { s: Suggestion; score: number }[] = [];
+  /* a page that exists, with more after it: that page, ahead of anything else (the deepest one that fits) */
+  const under = KNOWN.filter(k => k.path !== '/' && !k.path.startsWith('/#') && typed.startsWith(`${k.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
+  if (under) scored.push({ s: under, score: -0.1 });
   /* the words people type by hand — the last part first, then any part */
-  for (const seg of [...segs].reverse()) {
+  for (const seg of under ? [] : [...segs].reverse()) {
     const hit = ALIASES[squash(seg)];
     if (hit) {
       scored.push({ s: { ...byPath(hit.path), note: hit.note }, score: 0 });

@@ -87,6 +87,9 @@ export const PHONE_H = 760;
 interface Props {
   /** The page the tour wants shown */
   path: string;
+  /** what the page is, in the room's own words — "Compass, the board" — for a reader who hears the window (the audit's
+      L-23: "The terminal's practice backtest page", read off the address) */
+  title?: string;
   /** The theme of the ground behind the window */
   theme: Theme;
   /** The landing is laid out for a desk: the desk's picture. Otherwise the terminal's phone layout, or on a tablet what a
@@ -218,7 +221,7 @@ const frameOf = (view: HTMLElement | null): HTMLCanvasElement | null => {
   return c;
 };
 
-const TerminalWindow = ({ path, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false, panel = false, cap }: Props) => {
+const TerminalWindow = ({ path, title, theme, desk, natural = false, className = '', onLap, onTime, note, lazy = false, boot, bootSweep, hold = false, panel = false, cap }: Props) => {
   const lapRef = useRef(onLap);
   lapRef.current = onLap;
   const timeRef = useRef(onTime);
@@ -487,7 +490,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
           <img
             key={shown.src}
             src={shown.src}
-            alt={`The terminal's ${crumbs(shown.path).join(' ').replace(/-/g, ' ')} page`}
+            alt={shown.path === path && title ? title : `The terminal's ${crumbs(shown.path).join(' ').replace(/-/g, ' ')} page`}
             draggable={false}
             onAnimationEnd={() => setUnder(null)}
             className={`absolute inset-0 w-full h-full ${fitOf(shown.src)} select-none animate-fade-in`}
@@ -508,7 +511,7 @@ const TerminalWindow = ({ path, theme, desk, natural = false, className = '', on
             playsInline
             preload="auto"
             disablePictureInPicture
-            aria-label={`The terminal's ${crumbs(r.path).join(' ').replace(/-/g, ' ')} page, in use`}
+            aria-label={`${r.path === path && title ? title : `The terminal's ${crumbs(r.path).join(' ').replace(/-/g, ' ')} page`}, in use`}
             onLoadedMetadata={e => {
               /* a film loaded afresh counts from its own start */
               lastAt.current.delete(r.key);

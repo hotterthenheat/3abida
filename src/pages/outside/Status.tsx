@@ -7,7 +7,11 @@
   change.
 
   WHAT IT DOES NOT CLAIM: there is no uptime history to show on a terminal that runs on this machine, so the thirty days
-  are the MARKET's days (grey is a closed day), not a record of outages. Sign-in says it opens at launch.
+  are the MARKET's days (a filled square an open day, an outlined one a closed day — 2026-10-09, the audit's OU-S1: the
+  grey said "closed" read as the open days on black, under 3:1 apart), not a record of outages.
+
+  A LINE'S DOOR (OU-S5): a change inside the terminal opens it through the gate, as every door into the terminal does;
+  one on the front page is a plain link there.
 ==================================================
 */
 
@@ -20,7 +24,7 @@ import { PRODUCTS } from '../../brand/products';
 import { CHANGELOG, WHATS_NEW } from '../../data/release';
 import { isTradingDay, isoDate } from '../../core/calendar';
 import { readMarketState } from '../../data/marketState';
-import { useLaunch } from '../../components/layout/LaunchTransition';
+import { isTerminalPath, useLaunch } from '../../components/layout/LaunchTransition';
 
 const PARTS: { name: string; state: string; tone: 'normal' | 'muted' }[] = [
   { name: 'Website', state: 'Normal', tone: 'normal' },
@@ -48,6 +52,9 @@ const Status = () => {
     return out;
   }, []);
   const news = WHATS_NEW;
+  const openDays = days.filter(d => d.open).length;
+  /** a door to where a change is: through the gate into the terminal, else a plain link */
+  const door = (path: string) => (isTerminalPath(path) ? { href: path, onClick: (e: React.MouseEvent) => (e.preventDefault(), launch(path)) } : null);
   return (
     <OutsideFrame testId="status">
       <div className="w-full max-w-[880px] mx-auto px-5 sm:px-8 pt-10 pb-20 flex flex-col gap-6">
@@ -70,12 +77,15 @@ const Status = () => {
             ))}
           </ul>
           <div className="mt-6" data-status-days>
-            <div className="grid gap-[3px]" style={{ gridTemplateColumns: 'repeat(30, minmax(0, 1fr))' }}>
+            {/* the strip says itself whole to a reader that hears it; each square keeps its day for a pointer */}
+            <div role="img" aria-label={`The market’s last 30 days: open on ${openDays} of them, closed on ${30 - openDays}.`} className="grid gap-[3px]" style={{ gridTemplateColumns: 'repeat(30, minmax(0, 1fr))' }}>
               {days.map(d => (
-                <span key={d.key} title={`${d.label} · ${d.open ? 'market open' : 'market closed'}`} className={`h-6 rounded-[3px] ${d.open ? 'bg-silver/45' : 'bg-ink/[0.09]'}`} />
+                <span key={d.key} title={`${d.label} · ${d.open ? 'market open' : 'market closed'}`} className={`h-6 rounded-[3px] ${d.open ? 'bg-silver/85' : 'border border-borderMuted'}`} data-status-day={d.open ? 'open' : 'closed'} />
               ))}
             </div>
-            <p className="mt-3 text-[13px] text-textMuted">The market’s last 30 days · gray is a closed market day · {market.line}</p>
+            <p className="mt-3 text-[13px] text-textMuted">
+              The market’s last 30 days <span aria-hidden="true">·</span> filled: open <span aria-hidden="true">·</span> outlined: closed <span aria-hidden="true">·</span> {market.line}
+            </p>
           </div>
         </section>
 
@@ -83,14 +93,21 @@ const Status = () => {
           <h2 className="text-[20px] font-medium tracking-tight">Changelog</h2>
           <ul className="mt-4 flex flex-col">
             {CHANGELOG.map(r => (
-              <li key={`${r.version}-${r.line}`} className="grid grid-cols-[96px_22px_1fr] sm:grid-cols-[120px_24px_1fr] items-start gap-x-3 py-3.5 border-t border-borderSubtle/70">
-                <span className="text-[13px] text-textMuted tnum pt-[3px]">{r.version}</span>
+              /* on a phone the version stands over its line, so the line has the width (the audit's OU-S4) */
+              <li key={`${r.version}-${r.line}`} className="grid grid-cols-[22px_1fr] sm:grid-cols-[120px_24px_1fr] items-start gap-x-3 py-3.5 border-t border-borderSubtle/70">
+                <span className="col-span-2 sm:col-span-1 text-[13px] text-textMuted tnum sm:pt-[3px] max-sm:mb-1">{r.version}</span>
                 <ProductGlyph name={glyphFor(r.product)} size={20} bare className="mt-[2px]" />
                 <span className="text-[15px] leading-snug text-textPrimary">
                   {r.path ? (
-                    <Link to={r.path} className="hover:underline decoration-borderMuted underline-offset-4">
-                      {r.line}
-                    </Link>
+                    door(r.path) ? (
+                      <a {...door(r.path)!} className="hover:underline decoration-borderMuted underline-offset-4">
+                        {r.line}
+                      </a>
+                    ) : (
+                      <Link to={r.path} className="hover:underline decoration-borderMuted underline-offset-4">
+                        {r.line}
+                      </Link>
+                    )
                   ) : (
                     r.line
                   )}
@@ -105,18 +122,16 @@ const Status = () => {
           <div className="min-w-0">
             <p className="text-[13px] text-textMuted">What’s new</p>
             <p className="mt-1 text-[16px] leading-snug text-textPrimary">{news.line}</p>
-            {news.path && (
-              <a
-                href={news.path}
-                onClick={e => {
-                  e.preventDefault();
-                  launch(news.path!);
-                }}
-                className="mt-4 h-9 px-4 inline-flex items-center rounded-full bg-textPrimary text-canvas text-[13px] font-medium"
-              >
-                Open in {news.product ?? 'the terminal'}
-              </a>
-            )}
+            {news.path &&
+              (door(news.path) ? (
+                <a {...door(news.path)!} className="mt-4 h-11 px-5 inline-flex items-center rounded-full bg-textPrimary text-canvas text-[13.5px] font-medium">
+                  Open in {news.product ?? 'the terminal'}
+                </a>
+              ) : (
+                <Link to={news.path} className="mt-4 h-11 px-5 inline-flex items-center rounded-full bg-textPrimary text-canvas text-[13.5px] font-medium">
+                  See it
+                </Link>
+              ))}
           </div>
         </section>
       </div>

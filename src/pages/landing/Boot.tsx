@@ -61,6 +61,10 @@ const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, star
   const calm = useReducedMotion();
   const [gone, setGone] = useState(() => (!replay && booted) || calm === true || typeof document === 'undefined' || document.visibilityState !== 'visible');
   const [letGo, setLetGo] = useState(false);
+  /* A SWITCH WAITING ON ITS STILL SHOWS WHAT WAS THERE (2026-10-09, the audit's L-4: the canvas stood as the window's bare
+     ground for as long as the new still took to come — up to WAIT — and a stop held there read as a blank window): with a
+     page before it, the canvas is unseen until its run begins */
+  const [begun, setBegun] = useState(false);
   const done = useRef(onDone);
   done.current = onDone;
   /* the page it had, as it was when the switch began (read once: the boot is mounted afresh for each page) */
@@ -92,6 +96,7 @@ const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, star
 
     const run = () => {
       started = true;
+      setBegun(true);
       window.clearTimeout(giveUp);
       const box = c.getBoundingClientRect();
       const W = Math.max(1, Math.round(box.width));
@@ -207,7 +212,7 @@ const Boot = ({ src, from = null, onDone, replay = false, run: runMs = RUN, star
       ref={ref}
       aria-hidden="true"
       className="absolute inset-0 w-full h-full bg-canvas pointer-events-none transition-opacity ease-out"
-      style={{ opacity: letGo ? 0 : 1, transitionDuration: `${LET_GO}ms` }}
+      style={{ opacity: letGo || (!begun && had.current) ? 0 : 1, transitionDuration: `${begun ? LET_GO : 0}ms` }}
       data-window-boot-art
     />
   );

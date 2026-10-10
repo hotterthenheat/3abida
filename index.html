@@ -23,6 +23,8 @@
   <meta property="og:title" content="Slayer Terminal — Trade what you can see">
   <meta property="og:description" content="Most of what moves a price is public, just scattered. Slayer gathers it into one terminal: the prints, the positions, the levels, the filings.">
   <meta property="og:url" content="https://slayerterminal.com/">
+  <!-- each page names its own address once the app is up (components/layout/PageMeta.tsx); this is the front page's -->
+  <link rel="canonical" href="https://slayerterminal.com/">
   <meta property="og:image" content="https://slayerterminal.com/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -54,8 +56,11 @@
           return 'dark';
         }
       };
+      /* …and the pages outside the terminal stand on the same ground as the landing (2026-10-09): every address but the
+         terminal's (components/layout/LaunchTransition.tsx TERMINAL, the same list) */
+      var terminal = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i.test(location.pathname);
       if (c === 'light' || c === 'dark') t = c;
-      else if (c === 'system' || (c == null && location.pathname === '/')) t = machine();
+      else if (c === 'system' || (c == null && !terminal)) t = machine();
       /* THE TERMINAL IN THE LANDING'S WINDOW (src/embed.ts): the page outside names the theme */
       try {
         if (window.self !== window.top && /[?&]embed\b/.test(location.search)) {

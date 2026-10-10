@@ -52,8 +52,10 @@ const hasStoredChoice = (): boolean => {
     return false;
   }
 };
-/** The visitor's ground: the choice they once made, else what their machine says */
-const readBase = (): Ground => (hasStoredChoice() ? getResolvedTheme() : media && !media.matches ? 'light' : 'dark');
+/** The visitor's ground: the choice they once made, else what their machine says. THE PAGES OUTSIDE THE TERMINAL STAND
+    ON IT TOO (2026-10-09, the audit's OU-T1: a light machine's landing sent its "Sign up free" to a black form) — they
+    wear this provider (pages/outside/OutsideFrame.tsx), and App.tsx stamps the root with it before the first paint of one */
+export const readBase = (): Ground => (hasStoredChoice() ? getResolvedTheme() : media && !media.matches ? 'light' : 'dark');
 
 interface GroundValue {
   /** The ground the page opens on — the visitor's own */
@@ -136,7 +138,7 @@ export const Block = ({ on, as: Tag = 'section', id, label, className = '', chil
   const { a, b } = useGround();
   const ground = on === 'a' ? a : b;
   return (
-    <Tag id={id} aria-label={label} data-theme={ground} data-ground={ground} className={`relative bg-canvas text-textPrimary ${className}`}>
+    <Tag id={id} aria-label={label} data-theme={ground} data-ground={ground} data-landing-section className={`relative bg-canvas text-textPrimary ${className}`}>
       <BlockCtx.Provider value={ground}>{children}</BlockCtx.Provider>
     </Tag>
   );

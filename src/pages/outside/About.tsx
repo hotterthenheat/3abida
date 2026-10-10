@@ -25,17 +25,21 @@ const About = () => (
         <p>
           Most of what moves a price is public, just scattered. Slayer Terminal gathers it into one terminal: the prints, the positions, the levels, the filings.
         </p>
+        {/* every room, and Alerts (the audit's OU-O5: Terrain and Alerts were in the list below and not here) */}
         <p>
-          Pulse is the live desk, arranged your way. Trace reads the live tape: dark pool, net flow, footprints. Dossier is the full file on a ticker. Pinpoint shows
-          where dealer hedging holds and pushes price. Compass finds contracts that fit the levels; Weigher shows what each returns at every price.
+          Pulse is the live desk, arranged your way. Terrain is charts and nothing in the way. Trace reads the live tape: dark pool, net flow, footprints. Dossier is
+          the full file on a ticker. Pinpoint shows where dealer hedging holds and pushes price. Compass finds contracts that fit the levels; Weigher shows what each
+          returns at every price. Alerts sound on any level, on every page.
         </p>
-        <p>Practice lets you trade with paper money, replay the past and review every trade. It says what every number stands on.</p>
+        <p>
+          Practice lets you trade with paper money, replay the past and review every trade. Every number says what it stands on: observed, calculated or modeled.
+        </p>
       </div>
       <div className="mt-8 flex items-center gap-4 flex-wrap">
         <Link to="/signup" className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-textPrimary text-canvas text-[14px] font-medium whitespace-nowrap hover:bg-textPrimary/90" data-about-signup>
           Sign up free
         </Link>
-        <a href={`mailto:${COMPANY.info}`} className="text-[14px] text-textSecondary hover:text-textPrimary underline decoration-borderMuted underline-offset-4">
+        <a href={`mailto:${COMPANY.info}`} className="hit text-[14px] text-textSecondary hover:text-textPrimary underline decoration-borderMuted underline-offset-4">
           {COMPANY.info}
         </a>
       </div>

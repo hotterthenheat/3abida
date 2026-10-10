@@ -43,6 +43,7 @@ import { metaFor } from '../../components/layout/PageMeta';
 import { productOf, suggest, type Suggestion } from './suggest';
 import ProductGlyph from '../../brand/ProductGlyph';
 import Wordmark from '../../brand/Wordmark';
+import { GroundProvider } from '../landing/ground';
 
 /** The tab's name and a `noindex` mark, for as long as the page stands. `active` lets a page that is only SOMETIMES a
     dead end wear it (Compass's setup page, when the address names no setup). */
@@ -50,6 +51,7 @@ export const useNotFoundHead = (active = true) => {
   useEffect(() => {
     if (!active) return;
     document.title = 'Page not found · Slayer Terminal';
+    document.head.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
     const robots = document.createElement('meta');
     robots.name = 'robots';
     robots.content = 'noindex';
@@ -58,7 +60,8 @@ export const useNotFoundHead = (active = true) => {
       robots.remove();
       /* NOT "the title it had before": by the time this page leaves, PageMeta has already named the page being opened
          (measured: restoring the old one left /pinpoint/ahead called "Pinpoint"). Ask for the address's own title. */
-      document.title = metaFor(window.location.pathname).title;
+      document.title = metaFor(window.location.pathname, null, window.location.search).title;
+      document.head.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
     };
   }, [active]);
 };
@@ -185,7 +188,24 @@ export const NotFoundInside = () => {
 
 // ---- the prompt ------------------------------------------------------------------------------------
 
-export const NotFoundPrompt = () => {
+/* THE PROMPT STANDS ON THE VISITOR'S GROUND, as the front page and the pages outside the terminal do (landing/ground.tsx —
+   2026-10-09, the audit's OU-T1) */
+export const NotFoundPrompt = () => (
+  <GroundProvider>
+    <Prompt />
+  </GroundProvider>
+);
+
+/** THE CURSOR: the brand's own (index.css .window-cursor — the wordmark's ink on the mark's beat, sm-blink, which
+    brand/brandClock.ts pins to the page's clock with every other cursor; it had a blink of its own, out of step — the
+    audit's OU-N5) */
+const Cursor = ({ className = '' }: { className?: string }) => <span aria-hidden="true" className={`window-cursor w-[0.55em] h-[1.05em] align-[-0.15em] ${className}`} />;
+
+/** "Front page" is where a section is; a product is the room a page is in; a page with no `where` names itself (the
+    audit's OU-N3: "That looks like Sign in, on the Account page" — there is no Account page) */
+const whereWords = (where?: string): string => (!where ? '' : where === 'Front page' ? ', on the front page' : `, in ${where}`);
+
+const Prompt = () => {
   useNotFoundHead();
   const { pathname } = useLocation();
   const { launch } = useLaunch();
@@ -222,20 +242,22 @@ export const NotFoundPrompt = () => {
   return (
     <div className="min-h-screen bg-canvas text-textPrimary flex flex-col" data-not-found="prompt">
       <header className="shrink-0 h-[64px] flex items-center px-5 sm:px-8">
-        <Link to="/" className="inline-flex" aria-label="Slayer Terminal, the front page">
+        <Link to="/" className="hit inline-flex" aria-label="Slayer Terminal, the front page">
           <Wordmark height={14} cursor label="" />
         </Link>
       </header>
 
       <main className="flex-1 flex items-center px-5 sm:px-8 pb-[12vh]">
         <div className="w-full max-w-[760px] mx-auto">
-          <h1 className="sr-only">Page not found</h1>
-          <div className="font-mono text-[clamp(1.05rem,2.6vw,1.6rem)] leading-[1.7] break-all" aria-hidden={!answered}>
+          {/* one heading for both wrong-address pages (the audit's LG-6) */}
+          <h1 className="sr-only">Nothing at this address</h1>
+          {/* the prompt is set in the one monospace, as the signature is (the audit's OU-N4); it is said once it has answered */}
+          <div className="font-code text-[clamp(1.05rem,2.6vw,1.6rem)] leading-[1.7] break-all" aria-hidden={!answered} aria-live="polite">
             <p>
               <span className="text-textMuted">slayer:~ $ </span>
               {command.slice(0, typed)}
               {answered && <span className="text-textSecondary" data-not-found-answer> → no such page.</span>}
-              {!answered && <span className="inline-block w-[0.55em] h-[1.05em] ml-0.5 bg-textPrimary align-[-0.15em] animate-cursor-blink" />}
+              {!answered && <Cursor className="ml-0.5" />}
             </p>
             {answered && (
               <div className="animate-fade-in">
@@ -250,7 +272,7 @@ export const NotFoundPrompt = () => {
                 )}
                 <p>
                   <span className="text-textMuted">slayer:~ $ </span>
-                  <span className="inline-block w-[0.55em] h-[1.05em] bg-textPrimary align-[-0.15em] animate-cursor-blink" />
+                  <Cursor />
                 </p>
               </div>
             )}
@@ -261,7 +283,7 @@ export const NotFoundPrompt = () => {
               {found[0] ? (
                 <p className="text-[15px] text-textSecondary leading-relaxed">
                   That looks like <span className="text-textPrimary font-medium">{found[0].label}</span>
-                  {found[0].where ? `, on the ${found[0].where === 'Front page' ? 'front page' : `${found[0].where} page`}` : ''}. {found[0].note ?? ''}
+                  {whereWords(found[0].where)}. {found[0].note ?? ''}
                   <span className="ml-2 align-middle">
                     <EnterKey />
                   </span>
@@ -291,12 +313,12 @@ export const NotFoundPrompt = () => {
                     e.preventDefault();
                     launch('/pulse');
                   }}
-                  className="launch-pill h-12 px-6 inline-flex items-center rounded-full text-[14.5px] font-medium"
+                  className="launch-pill h-11 px-6 inline-flex items-center rounded-full text-[14.5px] font-medium"
                   data-not-found-door="launch"
                 >
                   Launch terminal
                 </a>
-                <Link to="/" className="h-12 px-5 inline-flex items-center rounded-full border border-borderMuted text-[14.5px] font-medium text-textPrimary hover:bg-ink/[0.05] transition-colors" data-not-found-door="front">
+                <Link to="/" className="h-11 px-5 inline-flex items-center rounded-full border border-borderMuted text-[14.5px] font-medium text-textPrimary hover:bg-ink/[0.05] transition-colors" data-not-found-door="front">
                   Front page
                 </Link>
               </div>

@@ -18,6 +18,15 @@
   screen (2026-09-30). Then the destination fades in
   beneath it. Fixed duration — when a real boot
   sequence exists it slots into the same hold.
+
+  ONLY INTO THE TERMINAL (2026-10-09, the audit's
+  OU-O1): a load of About, Status, a legal page, the
+  account forms, an invite or a wrong address opened
+  behind "Entering terminal" for 1.35 s — on a wrong
+  address over the prompt typing it. The gate stands
+  only where a load lands in the terminal (TERMINAL,
+  below); everywhere else the page opens bare, as the
+  front page does.
 ==================================================
 */
 
@@ -31,8 +40,9 @@ import Signature from '../../brand/Signature';
 import { warmShell } from './shell';
 
 interface LaunchCtxValue {
-  /** Play the gate, then navigate (defaults to the terminal's front door). */
-  launch: (to?: string) => void;
+  /** Play the gate, then navigate (defaults to the terminal's front door). `replace`: the page the gate leaves is not
+      kept in the history — signing in, whose form Back would otherwise reopen filled (the audit's OU-A9) */
+  launch: (to?: string, opts?: { replace?: boolean }) => void;
 }
 
 const LaunchCtx = createContext<LaunchCtxValue | null>(null);
@@ -50,8 +60,11 @@ const REVEAL_MS = 300;
 
 const captionFor = (path: string) => (path === '/' ? 'Loading' : 'Entering terminal');
 
-/** A full load of the front page opens WITHOUT the gate. (`/welcome` is the front page's old address.) */
-const bootsBare = (): boolean => EMBEDDED || /^\/(welcome\/?)?$/.test(window.location.pathname);
+/** THE TERMINAL'S ADDRESSES — its rooms and the old addresses that land in them (App.tsx). A full load of anything else
+    (the front page, the pages outside the terminal, a wrong address's prompt) opens WITHOUT the gate. */
+const TERMINAL = /^\/(pulse|terrain|compass|weigher|dossier|practice|pinpoint|trace|settings|community|alerts|home|live-terminal|workspace|record|paper|review|stocks|news|newsroom|earnings|watchlist|tracker|skys-vision|liquidity|flow-desk|pinpoint-gex|auditor-log)(\/|$)/i;
+export const isTerminalPath = (path: string): boolean => TERMINAL.test(path);
+const bootsBare = (): boolean => EMBEDDED || !isTerminalPath(window.location.pathname);
 
 export const LaunchProvider = ({ children }: { children: ReactNode }) => {
   // Boot gate: every full page load (first visit, refresh) opens through it.
@@ -74,7 +87,7 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const launch = useCallback(
-    (to: string = '/pulse') => {
+    (to: string = '/pulse', opts?: { replace?: boolean }) => {
       if (busyRef.current) return;
       busyRef.current = true;
       /* the terminal's shell is fetched as the gate goes up (it is its own chunk — shell.ts) */
@@ -83,7 +96,7 @@ export const LaunchProvider = ({ children }: { children: ReactNode }) => {
       setCaption(captionFor(to));
       setActive(true);
       window.setTimeout(() => {
-        navigate(to);
+        navigate(to, { replace: !!opts?.replace });
         window.setTimeout(() => {
           setActive(false);
           busyRef.current = false;

@@ -23,5 +23,10 @@ export const COMPANY = {
   descriptor: 'SLAYER TERMINAL',
 } as const;
 
+/** WHEN A MAINTENANCE WINDOW ENDS (an instant, ISO 8601), for /maintenance to say — set here when one is planned; the
+    host's maintenance page may name it in the address instead (`/maintenance?until=…`). Null: none is planned, and the
+    page says only that the terminal is down. */
+export const MAINTENANCE_UNTIL: string | null = null;
+
 /** A field as written, or null while it is still a "[placeholder]" */
 export const filled = (value: string): string | null => (/^\[.*\]$/.test(value.trim()) ? null : value);

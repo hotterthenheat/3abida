@@ -109,6 +109,10 @@ export const Tease = ({ className = '' }: { className?: string }) => (
     directive: "shorten it to where the reveal actually finishes"; it was 240, and the run ended in long stretches of
     nothing changing) */
 export const TRACK = 180;
+/** THE RUN AS CSS: the screen the stage stands on, and a run never longer than a 900 px screen's in the design's px
+    (2026-10-09, the audit's L-13: in svh it grew with a tall screen) — the run's shares below are of whatever it is */
+export const RUN_CSS = `min(${TRACK - 100}svh, max(${(TRACK - 100) * 9}px, ${(TRACK - 100) * 0.5625}rem))`;
+export const TRACK_CSS = `calc(100svh + ${RUN_CSS})`;
 
 /* THE RUN, in shares of it: the first scroll turns the quote and draws the line, the terminal is open within the first
    screen of scrolling, stands whole a while, then goes to stand beside the session */
@@ -493,7 +497,7 @@ const Opening = ({ theme, story, onNear, onLanded, doors }: Props) => {
   }, [theme, story.stage, story.screen, story.intro]);
 
   return (
-    <div ref={wrap} className="absolute inset-x-0 top-0 z-[1] pointer-events-none" style={{ height: `${TRACK}svh` }} data-opening>
+    <div ref={wrap} className="absolute inset-x-0 top-0 z-[1] pointer-events-none" style={{ height: TRACK_CSS }} data-opening>
       <div ref={stage} className="sticky top-0 h-[100svh] overflow-hidden">
         {/* the pool of light the words stand in — still, and gone as the terminal opens */}
         <div ref={pool} aria-hidden="true" className="landing-pool absolute inset-0" />
@@ -516,13 +520,13 @@ const Opening = ({ theme, story, onNear, onLanded, doors }: Props) => {
           <div ref={rest} className="mt-8 flex flex-col items-center will-change-transform">
             <Tease className="max-w-[54rem]" />
             {/* the doors are the one part of the stage a hand can press */}
-            <div className="landing-rise [--rise-delay:700ms] mt-9 flex flex-wrap items-center justify-center gap-3 pointer-events-auto" data-landing-hero-doors>
+            <div className="landing-rise [--rise-delay:420ms] mt-9 flex flex-wrap items-center justify-center gap-3 pointer-events-auto" data-landing-hero-doors>
               {doors}
             </div>
           </div>
         </div>
         {/* THE CUE: the page goes on — gone with the first scroll */}
-        <div ref={cue} aria-hidden="true" className="landing-rise [--rise-delay:900ms] absolute bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
+        <div ref={cue} aria-hidden="true" className="landing-rise [--rise-delay:600ms] absolute bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
           <span className="relative block w-px h-9 overflow-hidden bg-ink/[0.14]">
             <span className="landing-cue absolute inset-x-0 top-0 h-1/3 foil-fill" />
           </span>
