@@ -41,6 +41,7 @@
 ==================================================
 */
 
+import { nyDay } from '../../core/nyTime';
 import { useMemo } from 'react';
 import { buildPair, pairPlace, type Pair } from '../../data/compare';
 import SessionsChart, { type ChartBand, type ChartLine, type ChartMark, type ChartPoint } from '../record/SessionsChart';
@@ -53,7 +54,8 @@ const WARM = THERMAL_WARM;
 
 const fmtRatio = (v: number) => v.toFixed(v >= 10 ? 2 : 3);
 const fmtClose = (v: number) => v.toFixed(2);
-const dayWords = (t: number) => new Date(t * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+/* the session's day, New York's calendar (X2) */
+const dayWords = (t: number) => nyDay(t * 1000, { weekday: true });
 
 interface Props {
   a: string;

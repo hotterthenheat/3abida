@@ -25,7 +25,9 @@ import { sessionBars } from '../../data/levelview';
 import { DARK_FIGURE_SURFACE } from './candleTheme';
 import { readToken, useResolvedTheme } from '../../theme/theme';
 import { alpha, resolveInk } from './paletteInk';
-import { fmtClockLocal, localTickMarks } from './chartTime';
+import { nyClock, nyTickMarks, nyTimeFormatter } from '../../core/nyTime';
+/* The session's minutes are New York's (X2): the axis said 08:00 → 14:20 beside a clock reading 09:30 to 16:00 */
+const fmtClockNy = (t: UTCTimestamp) => nyClock(t * 1000);
 import { TAPES_H, TAPES_READ_H } from './compareSkeletons';
 import { FONT_SANS } from '../../theme/fonts';
 
@@ -111,13 +113,13 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       : DARK_FIGURE_SURFACE; /* the page, never the candle pick (candleTheme.ts: a figure is not a tape) */
     const chart = createChart(host, {
       autoSize: true,
-      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: FONT_SANS, fontSize: 10, attributionLogo: true },
-      localization: { timeFormatter: fmtClockLocal },
+      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: FONT_SANS, fontSize: 10, attributionLogo: false },
+      localization: { timeFormatter: nyTimeFormatter },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       /* Room above the lines: at 0.08 the leader's live chip sat over the top axis
          figure and hid half of it (the lock walk, 2026-09-09) */
       rightPriceScale: { borderColor: surface.line, scaleMargins: { top: 0.16, bottom: 0.28 } },
-      timeScale: { borderColor: surface.line, timeVisible: true, secondsVisible: false, rightOffset: 4, tickMarkFormatter: localTickMarks },
+      timeScale: { borderColor: surface.line, timeVisible: true, secondsVisible: false, rightOffset: 4, tickMarkFormatter: nyTickMarks },
       crosshair: {
         vertLine: { color: surface.crosshair, labelBackgroundColor: surface.label },
         horzLine: { color: surface.crosshair, labelBackgroundColor: surface.label },
@@ -229,7 +231,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
           <div className="h-6 flex items-center gap-3 flex-wrap">
             <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Since the open</h2>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             Today, both as percent from their own open · <span style={{ color: aInk }}>{a}</span> and <span style={{ color: bInk }}>{b}</span>, the same line each · the band beneath is the gap, in the leader's ink
           </p>
         </div>
@@ -274,7 +276,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
             data-chart-glass
             data-tapes-card
           >
-            <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtClockLocal(hp.time as UTCTimestamp)}</span>
+            <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtClockNy(hp.time as UTCTimestamp)}</span>
             <span className="flex items-center gap-1.5 font-mono tnum">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: aInk }} aria-hidden />
               <span className="font-semibold text-textPrimary">{a}</span>
@@ -329,12 +331,19 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
                 )}
               </span>
             )}
-            <span className="ml-auto text-textMuted">hover the chart for any minute</span>
+            <span className="ml-auto text-textMuted">hover the chart for any minute · times New York</span>
           </>
         ) : (
           <span className="text-textMuted">no session on the tape yet</span>
         )}
       </div>
+      {/* THE LIBRARY'S CREDIT, under the chart rather than on it (PP-33: its mark sat over the gap band) */}
+      <p className="px-5 pb-3 -mt-1 text-[11px] text-textMuted">
+        Chart by{' '}
+        <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-textPrimary">
+          TradingView Lightweight Charts
+        </a>
+      </p>
     </section>
   );
 };

@@ -42,7 +42,7 @@ import ExposureField from '../../components/gex/ExposureField';
 import TraderClock from '../../components/gex/TraderClock';
 import WallReportCard from '../../components/gex/WallReportCard';
 import ReplayStrip from '../../components/gex/ReplayStrip';
-import { barsAt, replayDay, replayMinute, replayRange, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
+import { barsAt, replayDay, replayMinute, replayRange, replayStart, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
 import { readPosition, usePositions } from '../../data/positions';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import type { ExposureExpiry } from '../../types/gex';
@@ -165,6 +165,7 @@ const MapDesk = () => {
       pos={playing?.pos ?? 0}
       length={playing?.range.length ?? 0}
       day={playing ? replayDay(playing.range) : undefined}
+      startMin={playing ? replayStart(playing.range) : undefined}
       playing={playing?.playing ?? false}
       onPlay={p => setReplay(r => (r ? { ...r, playing: p } : r))}
       pace={playing?.pace ?? 60}
