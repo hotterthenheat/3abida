@@ -1751,7 +1751,7 @@ const ProfilePanel = ({
           Vol
         </button>
       )}
-      {sure && sure.length > 0 && <HowSureBook sures={sure} compact={narrow} align={twoRowHead ? 'start' : 'end'} className="pointer-events-auto" />}
+      {sure && sure.length > 0 && <HowSureBook sures={sure} compact={!roomForLanes} align={twoRowHead ? 'start' : 'end'} className="pointer-events-auto" />}
       {guide}
     </>
   );

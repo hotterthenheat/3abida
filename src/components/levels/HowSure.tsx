@@ -18,7 +18,7 @@
 ==================================================
 */
 
-import { Info } from 'lucide-react';
+import { Gauge, Info } from 'lucide-react';
 import PopoverCard from '../ui/PopoverCard';
 import type { Sureness } from '../../data/levelSureness';
 
@@ -105,7 +105,8 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
       className={`hit shrink-0 inline-flex items-center gap-1 h-6 px-1.5 rounded-md text-[11px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-expanded:text-textPrimary transition-colors ${className}`}
       data-how-sure="book"
     >
-      <Info className="w-3 h-3" />
+      {/* as its icon alone it stands beside the guide's ⓘ, so it wears a mark of its own */}
+      {compact ? <Gauge className="w-3 h-3" /> : <Info className="w-3 h-3" />}
       {!compact && 'How sure'}
     </button>
   );
