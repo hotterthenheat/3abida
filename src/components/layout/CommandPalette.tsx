@@ -333,7 +333,7 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     const settingsHit = (c: Command) => matches(q, c.label, c.hint, c.code) || SETTINGS_COMMANDS.find(s => s.id === c.id)?.words.some(w => w.includes(q));
     const go = goCmds;
     const seen = new Set(go.map(c => c.id));
-    return [...go, ...pages.filter(c => hit(c) && !seen.has(c.id)), ...settingsCmds.filter(c => settingsHit(c) && !seen.has(c.id)), ...actions.filter(c => matches(q, c.label, c.hint)), ...drawCmds, ...nameCmds];
+    return [...go, ...pages.filter(c => hit(c) && !seen.has(c.id)), ...actions.filter(c => matches(q, c.label, c.hint)), ...settingsCmds.filter(c => settingsHit(c) && !seen.has(c.id)), ...drawCmds, ...nameCmds];
   }, [query, recentCmds, pages, actions, nameCmds, goCmds, settingsCmds, drawCmds]);
 
   /* THE ROW UNDER THE MARK STAYS IN VIEW (the audit's SH-1: after 25 presses it was 920px below the window) */

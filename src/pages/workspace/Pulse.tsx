@@ -615,7 +615,7 @@ const Pulse = () => {
         <div className="shrink-0 flex items-center gap-2 px-4 h-11 border-b border-borderSubtle" data-pulse-phone-head>
           <ProductGlyphSmall />
           <h1 className="text-[13px] font-semibold text-textPrimary">Pulse</h1>
-          <span className="min-w-0 truncate text-[11px] text-textMuted">the live chart · {active}’s panels open on a wider screen</span>
+          <span className="min-w-0 truncate text-[11px] text-textMuted">the live chart · your desks open on a wider screen</span>
         </div>
         {pulsedCtx ? (
           <LiveChartWidget
