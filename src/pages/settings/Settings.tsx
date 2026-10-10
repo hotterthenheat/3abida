@@ -236,11 +236,14 @@ const ThemeTile = ({ choice, current, onPick }: { choice: ThemeChoice; current: 
 const CVD_WORDS: Record<ColourVision, [string, string]> = {
   standard: ['Green and red', 'Up in green, down in red — the house’s pair'],
   'blue-orange': ['Blue and orange', 'For red–green colour blindness: up in blue, down in orange, with ▲ and ▼'],
+  'high-contrast': ['High contrast', 'The house’s pair stronger, the quieter words darker on paper and brighter on black, with ▲ and ▼'],
 };
+const CVD_CHOICES: ColourVision[] = ['standard', 'blue-orange', 'high-contrast'];
 /* each tile shows its own pair whatever is chosen — the channels tokens.css gives each (kept in step with it) */
 const CVD_PAIR: Record<ColourVision, Record<'dark' | 'light', [string, string]>> = {
   standard: { dark: ['48 209 88', '255 59 48'], light: ['0 140 56', '220 32 32'] },
   'blue-orange': { dark: ['80 164 255', '255 133 38'], light: ['0 104 200', '196 72 0'] },
+  'high-contrast': { dark: ['110 245 140', '255 120 110'], light: ['0 100 36', '170 0 0'] },
 };
 const CvdTile = ({ choice, current }: { choice: ColourVision; current: ColourVision }) => {
   const on = choice === current;
@@ -253,14 +256,14 @@ const CvdTile = ({ choice, current }: { choice: ColourVision; current: ColourVis
       role="radio"
       aria-checked={on}
       tabIndex={on ? 0 : -1}
-      onKeyDown={radioKeys(['standard', 'blue-orange'] as ColourVision[], current, setColourVision)}
+      onKeyDown={radioKeys(CVD_CHOICES, current, setColourVision)}
       className={`text-left rounded-md border p-3 flex flex-col gap-2 transition-colors ${on ? 'border-silver/60 bg-ink/[0.02]' : 'border-borderSubtle hover:border-borderMuted'}`}
       data-cvd-tile={choice}
     >
       {/* the pair as it will read, in the tile's own scope so it shows its own colours whatever is chosen */}
       <span className="flex items-center gap-3 font-mono text-[12px] tnum" data-cvd-sample={choice} style={{ '--bull': CVD_PAIR[choice][theme][0], '--bear': CVD_PAIR[choice][theme][1] } as React.CSSProperties}>
-        <span className="text-bull">{choice === 'blue-orange' ? '▲ ' : ''}+1.24%</span>
-        <span className="text-bear">{choice === 'blue-orange' ? '▼ ' : ''}−0.87%</span>
+        <span className="text-bull">{choice !== 'standard' ? '▲ ' : ''}+1.24%</span>
+        <span className="text-bear">{choice !== 'standard' ? '▼ ' : ''}−0.87%</span>
       </span>
       <span className="flex items-center justify-between gap-2">
         <span className={`text-[12px] ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>{name}</span>
@@ -299,7 +302,7 @@ const NotifyRow = () => {
 };
 
 const Key = ({ children }: { children: ReactNode }) => (
-  <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[10px] text-textSecondary">{children}</kbd>
+  <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[11px] text-textSecondary">{children}</kbd>
 );
 
 /* ---- the page ----------------------------------------------------------------- */
@@ -320,7 +323,7 @@ const Key = ({ children }: { children: ReactNode }) => (
 const Door = ({ children, onClick, to, href, title, tone = 'plain', testId, disabled }: { children: ReactNode; onClick?: () => void | Promise<unknown>; to?: string; href?: string; title?: string; tone?: 'plain' | 'bear'; testId: string; disabled?: boolean }) => {
   const [busy, run] = useBusy();
   const working = useWorking(busy);
-  const cls = `hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors whitespace-nowrap ${
+  const cls = `hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[11px] uppercase tracking-wider transition-colors whitespace-nowrap ${
     tone === 'bear' ? 'border-bear/40 text-bear hover:bg-bear/10' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
   }`;
   if (to)
@@ -345,7 +348,7 @@ const Door = ({ children, onClick, to, href, title, tone = 'plain', testId, disa
 
 /** A small mono word in a pill — a state, never a control */
 const Tag = ({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain' | 'silver' }) => (
-  <span className={`font-mono text-[9px] uppercase tracking-widest rounded px-2 py-0.5 whitespace-nowrap border ${tone === 'silver' ? 'bg-silverFill border-silverFill text-[#0a0a0a]' : 'border-borderSubtle text-textMuted'}`}>
+  <span className={`font-mono text-[11px] uppercase tracking-widest rounded px-2 py-0.5 whitespace-nowrap border ${tone === 'silver' ? 'bg-silverFill border-silverFill text-[#0a0a0a]' : 'border-borderSubtle text-textMuted'}`}>
     {children}
   </span>
 );
@@ -394,7 +397,7 @@ const Field = ({ value, onSave, prefix, width = 200, type = 'text', testId, chec
         />
       </span>
       {problem && (
-        <span id={errId} role="alert" className="font-mono text-[10px] text-warn" data-settings-problem={testId}>
+        <span id={errId} role="alert" className="font-mono text-[11px] text-warn" data-settings-problem={testId}>
           {problem}
         </span>
       )}
@@ -453,7 +456,7 @@ const AccountBox = () => {
               <MonitorSmartphone className="w-3.5 h-3.5 text-textMuted shrink-0" />
               <span className="font-mono text-[11px] text-textPrimary">{d.name}</span>
               {d.thisOne && <Tag tone="silver">this machine</Tag>}
-              <span className="ml-auto font-mono text-[10px] tnum text-textMuted">{d.lastSeen}</span>
+              <span className="ml-auto font-mono text-[11px] tnum text-textMuted">{d.lastSeen}</span>
             </li>
           ))}
         </ul>
@@ -517,7 +520,7 @@ const AccountBox = () => {
               <Door onClick={() => setDeleting(0)} testId="delete-cancel">
                 Keep it
               </Door>
-              <button type="submit" disabled={typed.trim().toUpperCase() !== 'DELETE'} className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-bear/40 text-bear hover:bg-bear/10 font-mono text-[10px] uppercase tracking-wider disabled:opacity-40" data-settings-door="delete-confirm">
+              <button type="submit" disabled={typed.trim().toUpperCase() !== 'DELETE'} className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-bear/40 text-bear hover:bg-bear/10 font-mono text-[11px] uppercase tracking-wider disabled:opacity-40" data-settings-door="delete-confirm">
                 <Trash2 className="w-3 h-3" /> Delete the account
               </button>
             </div>
@@ -564,7 +567,7 @@ const BillingNotice = ({ kind, until, held, onDismiss, onCard }: { kind: NoticeK
   }[kind];
   return (
     <div className={`mx-5 mb-4 rounded-lg border p-4 ${kind === 'failed' ? 'border-warn/60' : 'border-borderMuted'} bg-ink/[0.02]`} data-billing-notice={kind}>
-      <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${kind === 'failed' ? 'text-warn' : 'text-textMuted'}`}>{word}</div>
+      <div className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${kind === 'failed' ? 'text-warn' : 'text-textMuted'}`}>{word}</div>
       <div className="mt-1.5 text-[15px] font-medium text-textPrimary">{head}</div>
       <div className="mt-1 text-[12.5px] text-textSecondary">{line}</div>
       <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -668,14 +671,14 @@ const CardForm = ({ onDone }: { onDone: () => void }) => {
         Expires
         <input value={exp} onChange={e => { setExp(e.target.value); setProblem(null); }} inputMode="numeric" autoComplete="cc-exp" placeholder="MM/YY" className={`${field} w-[84px] border-borderSubtle`} />
       </label>
-      <button type="submit" className="hit inline-flex items-center h-8 px-3 rounded-md border border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05]" data-settings-door="card-save">
+      <button type="submit" className="hit inline-flex items-center h-8 px-3 rounded-md border border-borderMuted font-mono text-[11px] uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05]" data-settings-door="card-save">
         Save the card
       </button>
-      <button type="button" onClick={onDone} className="hit inline-flex items-center h-8 px-2 rounded-md font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary" data-settings-door="card-cancel">
+      <button type="button" onClick={onDone} className="hit inline-flex items-center h-8 px-2 rounded-md font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary" data-settings-door="card-cancel">
         Cancel
       </button>
       {problem && (
-        <span role="alert" className="basis-full font-mono text-[10px] text-warn">
+        <span role="alert" className="basis-full font-mono text-[11px] text-warn">
           {problem}
         </span>
       )}
@@ -741,7 +744,7 @@ const BillingBox = () => {
                 </div>
                 <div className="font-mono text-[14px] font-semibold tnum text-textPrimary">
                   {t.price}
-                  <span className="text-[10px] font-normal text-textMuted"> {t.period}</span>
+                  <span className="text-[11px] font-normal text-textMuted"> {t.period}</span>
                 </div>
                 <div className="text-[11px] text-textMuted">{t.kicker}</div>
                 <div className="mt-2 h-7 flex items-center">
@@ -803,7 +806,7 @@ const BillingBox = () => {
                   <button
                     type="button"
                     onClick={() => downloadReceipt(inv, { planName: planOf(inv.plan).name, date: fmtDate(inv.date), billing: b, name: p.name, email: p.email, descriptor: COMPANY.descriptor, company: COMPANY.product })}
-                    className="hit inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                    className="hit inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
                     title="Download the receipt as a PDF"
                     aria-label={`Download the receipt for ${fmtDate(inv.date)} as a PDF`}
                     data-settings-receipt={inv.id}
@@ -895,7 +898,7 @@ const DataBox = () => {
     <Section id="data" title="Data" line="What's yours on this machine — the board, the marks, the alerts, the desks, these settings — and where the feed stands">
       <Row name="The feed" line="Live options and quotes, the tape and the record — delayed while a payment is due" testId="feed">
         <span className="inline-flex items-center gap-2">
-          <span className="tone-live rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest font-semibold">live</span>
+          <span className="tone-live rounded-full border px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest font-semibold">live</span>
           <span className="font-mono text-[11px] text-textMuted">every tick · the book every 10 seconds</span>
         </span>
       </Row>
@@ -911,7 +914,7 @@ const DataBox = () => {
           }}
           data-settings-import-input
         />
-        {note && <span className="font-mono text-[10px] text-textMuted">{note}</span>}
+        {note && <span className="font-mono text-[11px] text-textMuted">{note}</span>}
         <Door onClick={exportLocal} title="Downloads a file of what is kept here" testId="export">
           <Download className="w-3 h-3" /> Export
         </Door>
@@ -1156,13 +1159,13 @@ const Settings = () => {
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           <div className="min-w-0">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Plan</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Plan</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-settings-plan-fact={plan.key}>
               {plan.name}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Theme</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Theme</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-settings-theme={theme}>
               {THEME_WORDS[choice][0]}
               {choice === 'system' && <span className="text-textMuted"> · {theme}</span>}
@@ -1170,11 +1173,11 @@ const Settings = () => {
           </div>
           {/* facts, not a statement (the audit's SE-12) — and a phone keeps the first two */}
           <div className="min-w-0 max-sm:hidden">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Clock</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Clock</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{desk.clock === 'ny' ? 'New York' : 'Your own'}</dd>
           </div>
           <div className="min-w-0 max-sm:hidden">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Kept on</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Kept on</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">this machine</dd>
           </div>
         </dl>
@@ -1237,9 +1240,9 @@ const Settings = () => {
             </div>
             <div className="px-5 pb-4 border-t border-borderSubtle/60 pt-3" data-settings-row="colour-vision">
               <div className="text-[12px] text-textPrimary" id="cvd-head">Direction colours</div>
-              <div className="text-[11px] text-textMuted">What up and down are drawn in, on every page and chart</div>
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-labelledby="cvd-head">
-                {(['standard', 'blue-orange'] as ColourVision[]).map(c => (
+              <div className="text-[11px] text-textMuted">What up and down are drawn in — and, in high contrast, how strongly the quieter words stand — on every page and chart</div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-labelledby="cvd-head">
+                {CVD_CHOICES.map(c => (
                   <CvdTile key={c} choice={c} current={cvd} />
                 ))}
               </div>
@@ -1293,7 +1296,7 @@ const Settings = () => {
                     <span className="inline-flex items-center gap-1 shrink-0">
                       {s.keys.map((k, i) => (
                         <span key={k} className="inline-flex items-center gap-1">
-                          {i > 0 && <span className="text-[10px] text-textMuted">{keyJoin(s)}</span>}
+                          {i > 0 && <span className="text-[11px] text-textMuted">{keyJoin(s)}</span>}
                           <Key>{k}</Key>
                         </span>
                       ))}

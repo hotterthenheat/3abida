@@ -75,6 +75,7 @@ import type { Candle, MarketSnapshot } from '../types/market';
 import type { ExposureLevels } from '../types/gex';
 import type { BookContract, FlowPrint } from '../types/trace';
 import type { DarkPoolView } from '../types/darkpool';
+import { pctSigned, usdCompact } from '../core/format';
 
 export type PillarKey = 'trend' | 'numbers' | 'money' | 'news';
 export type Screen = 'STRONG' | 'MIXED' | 'WEAK';
@@ -318,12 +319,8 @@ export const ordinal = (n: number): string => {
   const s = r >= 11 && r <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
   return `${n}${s}`;
 };
-const pct = (v: number, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
-export const fmtMoney = (v: number): string => {
-  const a = Math.abs(v);
-  const s = a >= 1e9 ? `$${(a / 1e9).toFixed(1)}B` : a >= 1e6 ? `$${(a / 1e6).toFixed(0)}M` : a >= 1e3 ? `$${(a / 1e3).toFixed(0)}K` : `$${a.toFixed(0)}`;
-  return v < 0 ? `−${s}` : s;
-};
+const pct = (v: number, d = 1) => pctSigned(v, d);
+export const fmtMoney = (v: number): string => usdCompact(v);
 const fmtCount = (v: number): string => (v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : `${Math.round(v)}`);
 /** A pillar's score from its factors: 50 + 50 × the leans' weighted mean */
 const scoreOf = (factors: Factor[]): number => {

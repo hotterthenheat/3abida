@@ -123,7 +123,7 @@ const AlertToasts = () => {
           {t.account && <span className="text-textSecondary">{t.account} ·</span>}
           <span className="text-textPrimary">{t.words}</span>
           {t.pnl != null && <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)}</span>}
-          <span className="text-[10px] text-textMuted">paper</span>
+          <span className="text-[11px] text-textMuted">paper</span>
         </button>
       ))}
       {shown.map(x => (

@@ -125,7 +125,7 @@ const ColumnChooser = ({
         onClick={() => setOpen(o => !o)}
         aria-haspopup="true"
         aria-expanded={open}
-        className={`hit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+        className={`hit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border font-mono text-[11px] uppercase tracking-wider transition-colors ${
           open ? 'border-borderMuted bg-ink/[0.05] text-textPrimary' : 'border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary'
         }`}
       >
@@ -139,13 +139,13 @@ const ColumnChooser = ({
       {open && (
         <div className="absolute right-0 top-full mt-1 z-40 w-[236px] border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 overflow-hidden animate-slide-in">
           <div className="flex items-center justify-between px-3 py-2 border-b border-borderSubtle">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">Row columns</span>
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">Row columns</span>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onAll} className="font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
+              <button type="button" onClick={onAll} className="font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
                 All
               </button>
               <span className="text-borderMuted">·</span>
-              <button type="button" onClick={onNone} className="font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
+              <button type="button" onClick={onNone} className="font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-select transition-colors">
                 None
               </button>
             </div>
@@ -158,8 +158,8 @@ const ColumnChooser = ({
                 <div key={group || '_'} className="px-1 py-0.5">
                   {group && (
                     <div className="flex items-center justify-between px-2 py-1">
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted">{group}</span>
-                      <span className="font-mono text-[10px] tnum text-textMuted">
+                      <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-textMuted">{group}</span>
+                      <span className="font-mono text-[11px] tnum text-textMuted">
                         {cols.filter(c => !hidden.has(c.key)).length}/{cols.length}
                       </span>
                     </div>

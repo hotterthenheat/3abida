@@ -87,14 +87,14 @@ const MemberCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   data ? (
     <span className="flex flex-col leading-tight min-w-0">
       <span className="text-[12px] font-semibold text-textPrimary truncate">
-        {data.member.name} <span className="font-mono text-[10px] font-normal text-textMuted">{seat(data)}</span>
+        {data.member.name} <span className="font-mono text-[11px] font-normal text-textMuted">{seat(data)}</span>
       </span>
       {data.committeeOverlap ? (
-        <span className="text-[10px] text-textSecondary truncate" title="A trade in a sector this committee oversees">
+        <span className="text-[11px] text-textSecondary truncate" title="A trade in a sector this committee oversees">
           {data.committeeOverlap} · <span className="text-textPrimary">own committee</span>
         </span>
       ) : (
-        <span className="text-[10px] text-textMuted truncate">{data.member.chamber}</span>
+        <span className="text-[11px] text-textMuted truncate">{data.member.chamber}</span>
       )}
     </span>
   ) : null;
@@ -105,7 +105,7 @@ const AssetCell = ({ data }: ICellRendererParams<CongressTrade>) =>
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
-        <span className="text-[10px] text-textMuted truncate">{data.assetKind === 'Stock' ? tickerName(data.ticker) : data.assetKind}</span>
+        <span className="text-[11px] text-textMuted truncate">{data.assetKind === 'Stock' ? tickerName(data.ticker) : data.assetKind}</span>
       </span>
     </span>
   ) : null;
@@ -119,7 +119,7 @@ const TypeCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   ) : null;
 
 const OwnerCell = ({ data }: ICellRendererParams<CongressTrade>) =>
-  data ? <span className={`font-mono text-[10px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
+  data ? <span className={`font-mono text-[11px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
 
 /** The ten rungs as a ladder, the disclosed one lit — never a midpoint */
 const Ladder = ({ bracket }: { bracket: number }) => (
@@ -131,7 +131,7 @@ const Ladder = ({ bracket }: { bracket: number }) => (
 );
 const AmountCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   if (!data) return null;
-  if (data.bracket === null) return <span className="font-mono text-[10px] text-textMuted">not disclosed</span>;
+  if (data.bracket === null) return <span className="font-mono text-[11px] text-textMuted">not disclosed</span>;
   return (
     <span className="inline-flex items-center gap-2.5" title={`Rung ${AMOUNT_BRACKETS[data.bracket].column} of ${AMOUNT_BRACKETS.length}`}>
       <Ladder bracket={data.bracket} />
@@ -144,11 +144,11 @@ const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <Wh
 
 const LagCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   if (!data) return null;
-  if (data.lagDays < 0) return <span className="font-mono text-[10px] text-textMuted" title="Filed before the trade date">before the trade</span>;
+  if (data.lagDays < 0) return <span className="font-mono text-[11px] text-textMuted" title="Filed before the trade date">before the trade</span>;
   return (
     <span className="inline-flex items-center gap-2 font-mono text-[11px] tnum">
       <span className={data.late ? 'text-bear font-semibold' : data.lagDays > 30 ? 'text-textPrimary' : 'text-textSecondary'}>{data.lagDays}d</span>
-      {data.late && <span className="text-[10px] uppercase tracking-widest text-bear">late</span>}
+      {data.late && <span className="text-[11px] uppercase tracking-widest text-bear">late</span>}
     </span>
   );
 };
@@ -169,17 +169,17 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
     <span className="flex items-center gap-2 min-w-0">
       <CompanyLogo ticker={t.ticker} size={18} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{t.ticker}</span>
-      <span className="text-[10px] text-textSecondary truncate" title={`${t.member.name} ${seat(t)}`}>
+      <span className="text-[11px] text-textSecondary truncate" title={`${t.member.name} ${seat(t)}`}>
         {t.member.name} <span className="font-mono text-textMuted">{seat(t)}</span>
       </span>
     </span>
     {/* the bracket on a line of its own, whole (the audit's DO-11: "$250,001 – $500,…" was cut) — the ladder lives in the grid */}
     <span className="mt-1.5 flex items-center gap-2 font-mono tnum">
       <span className={`text-[11px] ${typeInk(t)}`}>{typeWord(t)}</span>
-      {t.late && <span className="ml-auto text-[10px] uppercase tracking-widest text-bear">late</span>}
+      {t.late && <span className="ml-auto text-[11px] uppercase tracking-widest text-bear">late</span>}
     </span>
     <span className="block font-mono tnum text-[11px] font-bold text-textPrimary leading-snug">{bracketLabel(t.bracket)}</span>
-    <span className="mt-1 block font-mono text-[10px] uppercase tracking-widest text-textSecondary truncate" title={`${t.committeeOverlap} · own committee`}>
+    <span className="mt-1 block font-mono text-[11px] uppercase tracking-widest text-textSecondary truncate" title={`${t.committeeOverlap} · own committee`}>
       {t.committeeOverlap} <span className="text-silver">· own committee</span>
     </span>
   </button>
@@ -308,25 +308,25 @@ const Congress = () => {
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
-            <dt className="text-[10px] text-textMuted">Reports</dt>
+            <dt className="text-[11px] text-textMuted">Reports</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-congress-count>
               {stats.trades.length} <span className="text-textMuted">· {stats.purchases} bought · {stats.sales} sold</span>
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Median lag</dt>
+            <dt className="text-[11px] text-textMuted">Median lag</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-congress-lag>
               {stats.medianLag}d
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Past the deadline</dt>
+            <dt className="text-[11px] text-textMuted">Past the deadline</dt>
             <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${stats.lateFilings ? 'text-bear' : 'text-textPrimary'}`} data-congress-late>
               {stats.lateFilings}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">In own committee</dt>
+            <dt className="text-[11px] text-textMuted">In own committee</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-congress-overlap>
               {stats.overlaps}
             </dd>
@@ -348,12 +348,12 @@ const Congress = () => {
       </p>
       {/* THE REPORTS TO KNOW */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-congress-to-know>
-        <div className="h-[26px] flex items-center gap-3 text-[10px] font-semibold uppercase tracking-widest text-textPrimary">
+        <div className="h-[26px] flex items-center gap-3 text-[11px] font-semibold uppercase tracking-widest text-textPrimary">
           <span>The reports to know</span>
-          <span className="normal-case tracking-normal font-normal text-[10px] text-textSecondary">trades in a sector the member's own committee oversees, the biggest bracket first · click one to keep the grid to that member</span>
+          <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">trades in a sector the member's own committee oversees, the biggest bracket first · click one to keep the grid to that member</span>
         </div>
         {toKnow.length === 0 ? (
-          <div className="h-[70px] flex items-center font-mono text-[10px] uppercase tracking-widest text-textMuted">No trade in a member's own committee on this cut</div>
+          <div className="h-[70px] flex items-center font-mono text-[11px] uppercase tracking-widest text-textMuted">No trade in a member's own committee on this cut</div>
         ) : (
           <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${REPORTS_TO_KNOW}, minmax(0, 1fr))` }}>
             {toKnow.map(t => (

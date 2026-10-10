@@ -38,7 +38,7 @@ const ShellHead = ({ glyph, title, line, facts = [], aside, testId }: { glyph: G
       <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
         {facts.map(f => (
           <div key={f.label} className={`min-w-0 ${f.wide ? 'max-sm:hidden' : ''}`} data-shell-fact={f.testId ?? f.label}>
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">{f.label}</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">{f.label}</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{f.value}</dd>
           </div>
         ))}

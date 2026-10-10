@@ -27,12 +27,12 @@ interface RowProps {
    persistent cards (the meters-glide doctrine: values ROLL, never snap). */
 const Row = ({ label, value, format, arrow = null, tone = 'text-textPrimary', flash = false }: RowProps) => (
   <div className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
-    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">
+    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">
       {label in TERMS ? <Term k={label as TermKey} /> : label}
     </span>
     <span className={`font-mono text-[12px] font-semibold tnum inline-flex items-center gap-1 ${tone}`}>
-      {arrow === 'up' && <span className="text-bull text-[9px]">▲</span>}
-      {arrow === 'down' && <span className="text-bear text-[9px]">▼</span>}
+      {arrow === 'up' && <span className="text-bull text-[11px]">▲</span>}
+      {arrow === 'down' && <span className="text-bear text-[11px]">▼</span>}
       <AnimatedNumber value={value} format={format} flash={flash} />
     </span>
   </div>

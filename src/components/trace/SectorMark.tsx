@@ -66,7 +66,7 @@ export const SectorMark = ({ sector, className = '' }: { sector: string; classNa
 /** Glyph + name, the table cell — "—" when a name is not filed. */
 export const SectorName = ({ sector }: { sector: string | null }) =>
   sector ? (
-    <span className="inline-flex items-center gap-1.5 text-[10px] text-textSecondary">
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-textSecondary">
       <SectorMark sector={sector} />
       {sector}
     </span>

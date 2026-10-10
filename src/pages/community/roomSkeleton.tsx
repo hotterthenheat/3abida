@@ -34,7 +34,7 @@ export const RoomRouteSkeleton = () => (
             <Users className="w-3.5 h-3.5" />
           </span>
           <span className="text-[15px] font-semibold leading-tight text-textPrimary">Community</span>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">· the room</span>
+          <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">· the room</span>
         </div>
         <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Traders, their setups and the record they build — every $name a door, every @handle a person</p>
       </div>

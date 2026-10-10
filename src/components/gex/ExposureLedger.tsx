@@ -319,9 +319,9 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
   // mono glyphs at ~0.62em each inside the capsule's 16px of padding (All at
   // 24 columns on a 1900 screen truncated at 13px — measured 2026-09-05).
   const cellW = (box.w - STRIKE_W) / Math.max(1, cols);
-  /* the floor is 10px, not 9 (the partner, 2026-09-14: the figures "difficult to see") — a 20px
-     row held 9px type; a short figure at 10px bold is 32px in a 42px cell, the full one 65 in 71 */
-  const fontSize = clamp(Math.min(rowH * 0.46, (cellW - 22) / (8 * 0.68)), 10, 13);
+  /* the floor is 11px, the terminal's (2026-10-10; 10 since the partner's "difficult to see", 2026-09-14) — a short
+     figure at 11px bold is 35px in a 42px cell; a cell too narrow for the full one prints the short one (below) */
+  const fontSize = clamp(Math.min(rowH * 0.46, (cellW - 22) / (8 * 0.68)), 11, 13);
   /* Under 71px the full figure no longer fits at 9px (All at forty columns
      on a page-width calendar): print the short one on half the padding. Under
      CELL_MIN_W the colour would stand alone — unreachable now that the columns

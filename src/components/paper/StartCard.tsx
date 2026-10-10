@@ -29,7 +29,7 @@ const StartCard = ({ onPractice, onEvaluation, canStart }: { onPractice: (size: 
         ))}
       </div>
       {/* in the landing's window nothing trades (data/paper/store.ts: never EMBEDDED) — say that, not "another tab" */}
-      <p className="text-[10px] text-textMuted">{canStart ? 'Pick what it starts with.' : EMBEDDED ? 'Open the terminal to start one — nothing trades from this window.' : 'The accounts are open in another tab — take them here first.'}</p>
+      <p className="text-[11px] text-textMuted">{canStart ? 'Pick what it starts with.' : EMBEDDED ? 'Open the terminal to start one — nothing trades from this window.' : 'The accounts are open in another tab — take them here first.'}</p>
     </div>
     <div className={`${card} px-6 py-5 flex flex-col gap-3`}>
       <div className="flex items-center gap-2.5">

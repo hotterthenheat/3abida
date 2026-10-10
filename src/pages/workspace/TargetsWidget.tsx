@@ -64,16 +64,16 @@ const TargetsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
       {/* THE ONE LINE OF CONTROLS — the head above is the drag handle */}
       <div className="shrink-0 px-2 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap">
         <DropdownSelect label="Ranked by" value={order} options={ORDER_OPTIONS} onChange={setOrder} title="The order of the list" testId="desk-targets-order" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted tnum whitespace-nowrap">{agenda.targets.length} strikes · click one to see it on the chart</span>
+        <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted tnum whitespace-nowrap">{agenda.targets.length} strikes · click one to see it on the chart</span>
       </div>
       {/* THE SENTENCE */}
       <div className="shrink-0 px-2.5 py-1.5 border-b border-borderSubtle/60 flex items-baseline gap-2 flex-wrap">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-widest" style={{ color: SUPREME }}>
+        <span className="font-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: SUPREME }}>
           Watch
         </span>
         <span className="text-[11px] leading-snug text-textSecondary line-clamp-2">{agenda.sentence.replace(/^Watch /, '')}</span>
       </div>
-      <div className="shrink-0 grid items-center gap-x-2 px-2.5 h-6 border-b border-borderSubtle bg-chip select-none font-mono text-[9px] uppercase tracking-widest text-textSecondary" style={{ gridTemplateColumns: COLS }}>
+      <div className="shrink-0 grid items-center gap-x-2 px-2.5 h-6 border-b border-borderSubtle bg-chip select-none font-mono text-[11px] uppercase tracking-widest text-textSecondary" style={{ gridTemplateColumns: COLS }}>
         <span>#</span>
         <span>Strike</span>
         <span className="text-right">{clock.inSession ? 'Reached' : 'Next'}</span>
@@ -94,17 +94,17 @@ const TargetsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
               style={{ gridTemplateColumns: COLS, boxShadow: kept ? `inset 2px 0 0 0 ${SILVER}` : undefined }}
               data-desk-target={t.strike}
             >
-              <span className="font-mono text-[10px] tnum" style={{ color: pick ? SUPREME : undefined }}>
+              <span className="font-mono text-[11px] tnum" style={{ color: pick ? SUPREME : undefined }}>
                 <span className={pick ? 'font-bold' : 'text-textSecondary'}>#{t.rank}</span>
               </span>
               <span className="flex items-center gap-1.5 min-w-0 whitespace-nowrap overflow-hidden">
                 <span className={`font-mono text-[12px] font-bold tnum ${kept ? 'text-silver' : 'text-textPrimary'}`}>{fmtStrike(t.strike)}</span>
                 {kind !== 'thin' && (
-                  <span className="text-[8px] uppercase tracking-widest" style={{ color: t.role ? ROLE_INK[t.role] : t.isShelf ? 'rgb(var(--text-muted))' : WARM }}>
+                  <span className="text-[11px] uppercase tracking-widest" style={{ color: t.role ? ROLE_INK[t.role] : t.isShelf ? 'rgb(var(--text-muted))' : WARM }}>
                     {t.role ?? (t.isShelf ? 'shelf' : 'trapdoor')}
                   </span>
                 )}
-                <span className="font-mono text-[9px] tnum text-textMuted">
+                <span className="font-mono text-[11px] tnum text-textMuted">
                   {t.distancePct >= 0 ? '+' : ''}
                   {t.distancePct.toFixed(2)}%
                 </span>
@@ -123,7 +123,7 @@ const TargetsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
               <span className="relative h-full flex items-center">
                 <span className="absolute inset-y-[12px] left-0 right-12 rounded-full bg-ink/[0.04]" />
                 <span className="absolute inset-y-[12px] left-0 rounded-full" style={{ width: `calc(${(t.stake / maxStake) * 100}% - ${(t.stake / maxStake) * 48}px)`, background: heatLaneColor(t.isWall ? -t.stake : t.stake, maxStake, 'thermal-yellow', 0.35) }} />
-                <span className="absolute right-0 font-mono text-[10px] tnum text-textPrimary">{fmtDollars(t.stake)}</span>
+                <span className="absolute right-0 font-mono text-[11px] tnum text-textPrimary">{fmtDollars(t.stake)}</span>
               </span>
             </button>
           );

@@ -68,8 +68,9 @@ import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/
 import { createViewStore } from '../../data/savedViews';
 import { followThrough, FLAT_PCT, type Follow } from '../../data/followThrough';
 import { rowProps } from '../../components/ui/rowKeys';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 /* THE CARDS (the walk, 2026-09-09) */
 const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
@@ -390,7 +391,7 @@ const Watchers = () => {
         sortValue: a => a.clipSize,
         render: a => (
           <span className="text-textPrimary">
-            {num(a.clipSize)} <span className="text-[10px] text-textSecondary">@ ${a.clipFill.toFixed(2)}</span>
+            {num(a.clipSize)} <span className="text-[11px] text-textSecondary">@ ${a.clipFill.toFixed(2)}</span>
           </span>
         ),
       },
@@ -407,7 +408,7 @@ const Watchers = () => {
         align: 'right',
         sortValue: a => a.side,
         // The tape's rule: at the ask = the contract being bought — the side in one ink (the audit's X12)
-        render: a => <span className="text-[10px] text-textPrimary">{a.side === 'ASK' ? 'ask' : 'bid'}</span>,
+        render: a => <span className="text-[11px] text-textPrimary">{a.side === 'ASK' ? 'ask' : 'bid'}</span>,
       },
       {
         key: 'vol',
@@ -441,8 +442,7 @@ const Watchers = () => {
         sortValue: a => a.row.otmPct,
         render: a => (
           <span className="text-textPrimary">
-            {a.row.otmPct >= 0 ? '+' : ''}
-            {a.row.otmPct.toFixed(1)}%
+            {pctSigned(a.row.otmPct, 1)}
           </span>
         ),
       },
@@ -553,7 +553,7 @@ const Watchers = () => {
           <>
             <SavedCutsList store={WATCHER_CUTS} query="" onOpen={addr.open} noun="cut" testId="watchers" onSay={cuts.say} open={cuts.open} />
             {cuts.said && (
-              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+              <p role="status" className="mb-2 font-mono text-[11px] text-textSecondary">
                 {cuts.said}
               </p>
             )}
@@ -589,7 +589,7 @@ const Watchers = () => {
                 {missesOpen ? 'Hide' : 'List'} the {num(misses.length)} that did not <ChevronDown className={`w-3 h-3 transition-transform ${missesOpen ? 'rotate-180' : ''}`} aria-hidden />
               </button>
             </div>
-            <p className="mt-0.5 text-[10px] text-textMuted">
+            <p className="mt-0.5 text-[11px] text-textMuted">
               A call at the ask or a put on the bid leans up; a put at the ask or a call on the bid leans down. The stock from the minute the print was flagged to {record.closed ? 'the close' : 'now'} — every flagged print counted, not only the tracked ones.
             </p>
             {missesOpen && (

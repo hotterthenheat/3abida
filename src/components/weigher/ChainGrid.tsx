@@ -139,7 +139,7 @@ export const COLUMN_GROUPS: MultiGroup[] = [{ title: 'Facts', options: CHAIN_COL
    floats up when the spot row leaves the window. The progressive first paint
    (forty rows, then sixty a frame) is gone with the table: the grid never
    renders a row nobody can see. */
-const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, headerFontSize: 10, cellHorizontalPadding: 8 });
+const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, cellHorizontalPadding: 8 });
 const CHAIN_COL: ColDef<ChainGridRow> = { sortable: false, resizable: true, suppressMovable: true };
 type ChainGridRow = { kind: 'row'; key: string; c: DeskContract } | { kind: 'divider'; key: string; spot: number } | { kind: 'drill'; key: string; c: DeskContract; extra?: (c: DeskContract) => ReactNode };
 const CHAIN_ROW_H = 30;
@@ -226,7 +226,7 @@ const FullRow = (p: ICellRendererParams<ChainGridRow>) => {
     return (
       <div className="h-full px-2 flex items-center select-none" data-chain-divider>
         <span className="flex-1 h-px bg-textPrimary/25" />
-        <span className="mx-2 font-mono text-[10px] font-semibold tnum text-textPrimary bg-ink/[0.06] rounded px-1.5 py-0.5">{data.spot.toFixed(2)}</span>
+        <span className="mx-2 font-mono text-[11px] font-semibold tnum text-textPrimary bg-ink/[0.06] rounded px-1.5 py-0.5">{data.spot.toFixed(2)}</span>
         <span className="flex-1 h-px bg-textPrimary/25" />
       </div>
     );
@@ -543,7 +543,7 @@ export const ChainCard = memo(function ChainCard({
 /** One labeled figure in the drilldown - silver label, bright number. */
 export const StatCell = ({ label, value, term, ink }: { label: string; value: string; term?: string; ink?: string }) => (
   <span className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[9px] uppercase tracking-widest text-silver whitespace-nowrap">
+    <span className="font-mono text-[11px] uppercase tracking-widest text-silver whitespace-nowrap">
       {term ? <Term k={term as never}>{label}</Term> : label}
     </span>
     <span className={`font-mono text-[11px] font-semibold tnum ${ink ?? 'text-textPrimary'}`}>{value}</span>
@@ -557,7 +557,7 @@ export const StatCell = ({ label, value, term, ink }: { label: string; value: st
 export const WeighGrids = ({ c }: { c: DeskContract }) => (
   <>
         <div className="flex flex-col gap-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">Stats</span>
+          <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-textSecondary">Stats</span>
           <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2.5">
             <StatCell label="Bid" value={`$${c.bid.toFixed(2)}`} />
             <StatCell label="Mark" term="Mark" value={`$${c.mark.toFixed(2)}`} />
@@ -578,7 +578,7 @@ export const WeighGrids = ({ c }: { c: DeskContract }) => (
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">The Greeks</span>
+          <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-textSecondary">The Greeks</span>
           <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2.5">
             <StatCell label="Delta" term="Delta" value={num(c.delta, 4)} />
             <StatCell label="Gamma" term="Gamma" value={c.gamma.toFixed(4)} />

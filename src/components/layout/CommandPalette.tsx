@@ -435,7 +435,7 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
             return (
               <div key={`${c.id}:${i}`} role="presentation">
                 {showGroup && (
-                  <div className="px-4 pt-2 pb-1 text-[10px] text-textMuted select-none" role="presentation">
+                  <div className="px-4 pt-2 pb-1 text-[11px] text-textMuted select-none" role="presentation">
                     {GROUP_WORD[c.group]}
                   </div>
                 )}
@@ -455,7 +455,7 @@ const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                     <span className="shrink-0 text-[13px] text-textPrimary">{c.label}</span>
                     <span className="min-w-0 truncate text-[11px] text-textMuted">{c.hint}</span>
                   </span>
-                  {c.code && <kbd className="shrink-0 inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[10px] text-textSecondary">{c.code}</kbd>}
+                  {c.code && <kbd className="shrink-0 inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[11px] text-textSecondary">{c.code}</kbd>}
                 </div>
               </div>
             );

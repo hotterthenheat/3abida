@@ -40,7 +40,7 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
           className={`hit group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
         >
           <CalendarDays className="w-3 h-3 shrink-0 text-textMuted" aria-hidden="true" />
-          {label && <span className="shrink-0 text-[10px] uppercase tracking-widest text-textMuted">{label}</span>}
+          {label && <span className="shrink-0 text-[11px] text-textMuted">{label}</span>}
           <span className="text-[11px] font-semibold text-textPrimary whitespace-nowrap">{dayWords(value, true).replace(/, \d{4}$/, '')}</span>
         </button>
       </Popover.Trigger>
@@ -76,7 +76,7 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
               chevron: '',
               month_grid: 'w-full border-collapse mt-1',
               weekdays: '',
-              weekday: 'h-7 text-[10px] font-normal text-textMuted text-center',
+              weekday: 'h-7 text-[11px] font-normal text-textMuted text-center',
               weeks: '',
               week: '',
               day: 'p-0 text-center',
@@ -89,7 +89,7 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
               focused: '',
             }}
           />
-          <p className="mt-2 pt-2 border-t border-borderSubtle/70 text-[10px] text-textMuted">Trading days on the tape{min ? ', from where the clock stands' : ''}.</p>
+          <p className="mt-2 pt-2 border-t border-borderSubtle/70 text-[11px] text-textMuted">Trading days on the tape{min ? ', from where the clock stands' : ''}.</p>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

@@ -28,14 +28,23 @@
 
   A drawn scale, with the hover read the house
   demands: the pointer's price prints under it.
+  ITS WORDS AT THE FLOOR (2026-10-10, the audit's
+  X9.2): the scale stretches to its card, so a
+  size in the ruler's units drew the levels'
+  words at 6 px and the prices at 7.6. The ruler
+  reads its own width (`k`, units a pixel) and
+  sets every word in pixels — the levels and the
+  prices 11, the dollars' names 10 — and stands
+  50 px tall whatever its width.
 ==================================================
 */
 
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { FONT_SANS } from '../../theme/fonts';
 
 const W = 600;
-const H = 46;
+/* THE RULER'S ROWS, in pixels (times `k` in the drawing): the pills and the levels' words, the scale's line, the dollars */
+const PX = { pillH: 15, word: 11, tick: 10, line: 34, names: 46, h: 50, pillW: 52, capW: 66, gap: 4 };
 /* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
 const FIG = FONT_SANS;
 const SILVER = 'rgb(var(--silver))';
@@ -56,10 +65,6 @@ const PX_PER_DOLLAR = W / SPAN;
 /** The glide home, on the house curve */
 const GLIDE_MS = 420;
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
-/** The marker's pill and the way-home capsule, in the ruler's units */
-const PILL_W = 48;
-const CAP_W = 58;
-const GAP = 4;
 
 interface Props {
   value: number;
@@ -78,6 +83,28 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
   const drag = useRef<{ x: number; start: number } | null>(null);
   const glide = useRef<number | null>(null);
   const [hoverPrice, setHoverPrice] = useState<number | null>(null);
+  /* the ruler's units a screen pixel: its width is its card's, so a pixel is k units */
+  const [k, setK] = useState(600 / 540);
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const read = () => {
+      const w = svg.getBoundingClientRect().width;
+      if (w > 0) setK(W / w);
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
+  const H = PX.h * k;
+  const LINE = PX.line * k;
+  const PILL_H = PX.pillH * k;
+  const PILL_W = PX.pillW * k;
+  const CAP_W = PX.capW * k;
+  const GAP = PX.gap * k;
+  /* a level's word clears the pill (or the capsule) by its own half-width and a breath */
+  const wordHalf = (label: string) => (label.length * 5.6 * k) / 2;
   const lo = value - SPAN / 2;
   const hi = value + SPAN / 2;
   const x = (price: number) => ((price - lo) / SPAN) * W;
@@ -154,7 +181,7 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
   const spotIn = spotX >= 0 && spotX <= W;
   const chevron: 'left' | 'right' = spotX < 0 ? 'left' : 'right';
   const capX = chevron === 'left' ? CAP_W / 2 + GAP : W - CAP_W / 2 - GAP;
-  const capTextX = chevron === 'left' ? capX + 5 : capX - 5;
+  const capTextX = chevron === 'left' ? capX + 5 * k : capX - 5 * k;
 
   return (
     <div className="relative select-none" data-price-ruler={value.toFixed(2)} data-testid={testId}>
@@ -179,13 +206,13 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
         onKeyDown={onKey}
       >
         {/* the baseline */}
-        <line x1={0} x2={W} y1={32} y2={32} stroke={WASH} strokeOpacity={0.16} />
+        <line x1={0} x2={W} y1={LINE} y2={LINE} stroke={WASH} strokeOpacity={0.16} strokeWidth={k} />
         {/* the ticks and the dollars' names */}
         {ticks.map(t => (
           <g key={t.price} fontFamily={FIG}>
-            <line x1={x(t.price)} x2={x(t.price)} y1={32} y2={t.kind === 'dollar' ? 20 : t.kind === 'half' ? 24 : 27.5} stroke={WASH} strokeOpacity={t.kind === 'dollar' ? 0.45 : t.kind === 'half' ? 0.3 : 0.18} strokeWidth={1} />
-            {t.kind === 'dollar' && Math.abs(x(t.price) - W / 2) > 28 && (
-              <text x={x(t.price)} y={43} textAnchor="middle" fontSize={8.5} fill={MUTED}>
+            <line x1={x(t.price)} x2={x(t.price)} y1={LINE} y2={LINE - (t.kind === 'dollar' ? 12 : t.kind === 'half' ? 8 : 4.5) * k} stroke={WASH} strokeOpacity={t.kind === 'dollar' ? 0.45 : t.kind === 'half' ? 0.3 : 0.18} strokeWidth={k} />
+            {t.kind === 'dollar' && Math.abs(x(t.price) - W / 2) > 30 * k && (
+              <text x={x(t.price)} y={PX.names * k} textAnchor="middle" fontSize={PX.tick * k} fill={MUTED}>
                 {Math.round(t.price)}
               </text>
             )}
@@ -194,9 +221,9 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
         {/* the dealer map's levels — silver ticks with their words, stepping aside for the two pills */}
         {shown.map(m => (
           <g key={m.label} fontFamily={FIG} data-ruler-mark={m.label}>
-            <line x1={x(m.price)} x2={x(m.price)} y1={16} y2={32} stroke={SILVER} strokeOpacity={0.9} strokeWidth={1} />
-            {Math.abs(x(m.price) - W / 2) > 56 && (spotIn || Math.abs(x(m.price) - capX) > 52) && (
-              <text x={x(m.price)} y={12} textAnchor="middle" fontSize={7} fill={SILVER} letterSpacing={0.4}>
+            <line x1={x(m.price)} x2={x(m.price)} y1={PILL_H + 2 * k} y2={LINE} stroke={SILVER} strokeOpacity={0.9} strokeWidth={k} />
+            {Math.abs(x(m.price) - W / 2) > PILL_W / 2 + wordHalf(m.label) + 6 * k && (spotIn || Math.abs(x(m.price) - capX) > CAP_W / 2 + wordHalf(m.label) + 6 * k) && (
+              <text x={x(m.price)} y={11 * k} textAnchor="middle" fontSize={PX.word * k} fill={SILVER}>
                 {m.label}
               </text>
             )}
@@ -206,14 +233,14 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
             signature's live dot), so the silver dash is never read as one of the silver levels */}
         {spotIn && (
           <g data-ruler-now>
-            <line x1={spotX} x2={spotX} y1={18} y2={32} stroke={LIVE} strokeWidth={2} strokeLinecap="round" />
-            <circle cx={spotX} cy={15} r={2.25} fill={LIVE} />
+            <line x1={spotX} x2={spotX} y1={PILL_H + 4 * k} y2={LINE} stroke={LIVE} strokeWidth={2 * k} strokeLinecap="round" />
+            <circle cx={spotX} cy={PILL_H + 1 * k} r={2.25 * k} fill={LIVE} />
           </g>
         )}
         {/* the marker: a hairline down the middle and the pill with the price under it */}
-        <line x1={W / 2} x2={W / 2} y1={12} y2={38} stroke={INK} strokeWidth={1.25} />
-        <rect x={W / 2 - PILL_W / 2} y={0} width={PILL_W} height={13} rx={3} fill={INK} />
-        <text x={W / 2} y={9.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={GROUND} fontFamily={FIG} data-ruler-value>
+        <line x1={W / 2} x2={W / 2} y1={PILL_H - 1 * k} y2={LINE + 6 * k} stroke={INK} strokeWidth={1.25 * k} />
+        <rect x={W / 2 - PILL_W / 2} y={0} width={PILL_W} height={PILL_H} rx={3 * k} fill={INK} />
+        <text x={W / 2} y={11 * k} textAnchor="middle" fontSize={PX.word * k} fontWeight={700} fill={GROUND} fontFamily={FIG} data-ruler-value>
           {value.toFixed(2)}
         </text>
         {/* THE WAY HOME — the capsule at the edge, only while the market is out of view; a click glides the ruler home and it goes */}
@@ -232,20 +259,20 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
             }}
             data-ruler-back={chevron}
           >
-            <rect x={capX - CAP_W / 2} y={0} width={CAP_W} height={13} rx={6.5} fill="rgb(var(--panel))" stroke={INK} strokeOpacity={0.55} strokeWidth={1} />
+            <rect x={capX - CAP_W / 2} y={0} width={CAP_W} height={PILL_H} rx={PILL_H / 2} fill="rgb(var(--panel))" stroke={INK} strokeOpacity={0.55} strokeWidth={k} />
             {chevron === 'left' ? (
-              <path d={`M${capX - CAP_W / 2 + 9},4 l-3,2.5 l3,2.5`} fill="none" stroke={INK} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={`M${capX - CAP_W / 2 + 10 * k},${4.5 * k} l${-3 * k},${3 * k} l${3 * k},${3 * k}`} fill="none" stroke={INK} strokeWidth={1.2 * k} strokeLinecap="round" strokeLinejoin="round" />
             ) : (
-              <path d={`M${capX + CAP_W / 2 - 9},4 l3,2.5 l-3,2.5`} fill="none" stroke={INK} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={`M${capX + CAP_W / 2 - 10 * k},${4.5 * k} l${3 * k},${3 * k} l${-3 * k},${3 * k}`} fill="none" stroke={INK} strokeWidth={1.2 * k} strokeLinecap="round" strokeLinejoin="round" />
             )}
-            <text x={capTextX} y={9.5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
+            <text x={capTextX} y={11 * k} textAnchor="middle" fontSize={PX.word * k} fontWeight={700} fill={INK} fontFamily={FIG}>
               {spot.toFixed(2)}
             </text>
           </g>
         )}
         {/* the pointer's own price, while it hovers off the marker */}
-        {hoverPrice != null && !drag.current && Math.abs(x(hoverPrice) - W / 2) > 30 && (
-          <text x={x(hoverPrice)} y={43} textAnchor="middle" fontSize={8.5} fontWeight={600} fill={INK} fontFamily={FIG} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--ruler-halo, 14 14 15))', strokeWidth: 4 }} data-ruler-hover>
+        {hoverPrice != null && !drag.current && Math.abs(x(hoverPrice) - W / 2) > 32 * k && (
+          <text x={x(hoverPrice)} y={PX.names * k} textAnchor="middle" fontSize={PX.word * k} fontWeight={600} fill={INK} fontFamily={FIG} style={{ paintOrder: 'stroke', stroke: 'rgb(var(--ruler-halo, 14 14 15))', strokeWidth: 4 * k }} data-ruler-hover>
             {hoverPrice.toFixed(2)}
           </text>
         )}

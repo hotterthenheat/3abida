@@ -86,7 +86,7 @@ export const SlotMark = ({ slot, className = 'w-3 h-3' }: { slot: EarningsEvent[
 
 const Fact = ({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) => (
   <div>
-    <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+    <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
     {/* one line on a desk; on a phone a busy day ("NIO before the open · GS after the close · COST after the close") is 355px
         of one line and pushed the page sideways (the phone sweep, 2026-09-19) — there it wraps */}
     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary sm:whitespace-nowrap" data-earnings-fact={testId}>
@@ -113,14 +113,14 @@ const NameDoor = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void
         <span className={`font-mono text-[11px] tnum ${PRICED_INK[stateOf(e)]}`}>±{e.impliedMovePct.toFixed(1)}%</span>
         <SlotMark slot={e.slot} />
       </span>
-      <span className="text-[10px] text-textMuted truncate max-w-[180px]">{e.name}</span>
+      <span className="text-[11px] text-textMuted truncate max-w-[180px]">{e.name}</span>
     </span>
   </button>
 );
 
 /** A macro date on the list — a quiet chip */
 const MacroChip = ({ m }: { m: MacroDate }) => (
-  <span title={m.detail} className="inline-flex items-center self-center h-6 rounded-md border border-borderSubtle bg-chip px-2 font-mono text-[10px] uppercase tracking-widest text-textSecondary whitespace-nowrap" data-earnings-macro>
+  <span title={m.detail} className="inline-flex items-center self-center h-6 rounded-md border border-borderSubtle bg-chip px-2 font-mono text-[11px] uppercase tracking-widest text-textSecondary whitespace-nowrap" data-earnings-macro>
     {MACRO_WORD[m.label] ?? m.label}
   </span>
 );
@@ -137,7 +137,7 @@ const Card = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void }) 
     <CompanyLogo ticker={e.ticker} size={28} />
     <span className="font-mono text-[12px] font-bold text-textPrimary leading-none mt-0.5">{e.ticker}</span>
     <span className={`font-mono text-[11px] tnum leading-none ${PRICED_INK[stateOf(e)]}`}>±{e.impliedMovePct.toFixed(1)}%</span>
-    <span className={`font-mono text-[10px] uppercase tracking-widest ${e.confirmed ? 'text-textMuted' : 'text-warn'}`}>{e.confirmed ? 'confirmed' : 'estimated'}</span>
+    <span className={`font-mono text-[11px] uppercase tracking-widest ${e.confirmed ? 'text-textMuted' : 'text-warn'}`}>{e.confirmed ? 'confirmed' : 'estimated'}</span>
   </button>
 );
 
@@ -149,7 +149,7 @@ const NameCell = ({ data }: ICellRendererParams<EarningsEvent>) =>
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
-        <span className="text-[10px] text-textMuted truncate">{data.name}</span>
+        <span className="text-[11px] text-textMuted truncate">{data.name}</span>
       </span>
     </span>
   ) : null;
@@ -160,10 +160,10 @@ const WhenCell = ({ data }: ICellRendererParams<EarningsEvent>) =>
       <span className="font-mono text-[11px] tnum text-textPrimary">
         {data.dateLabel} <span className="text-textMuted">· {data.daysOut === 0 ? 'today' : `in ${data.daysOut}d`}</span>
       </span>
-      <span className="inline-flex items-center gap-1.5 text-[10px]">
+      <span className="inline-flex items-center gap-1.5 text-[11px]">
         <SlotMark slot={data.slot} className="w-2.5 h-2.5" />
         <span className="text-textSecondary">{slotWord(data)}</span>
-        <span className={`font-mono text-[10px] uppercase tracking-widest ${data.confirmed ? 'text-textMuted' : 'text-warn'}`}>{data.confirmed ? 'confirmed' : 'estimated'}</span>
+        <span className={`font-mono text-[11px] uppercase tracking-widest ${data.confirmed ? 'text-textMuted' : 'text-warn'}`}>{data.confirmed ? 'confirmed' : 'estimated'}</span>
       </span>
     </span>
   ) : null;
@@ -175,7 +175,7 @@ const PricedCell = ({ data }: ICellRendererParams<EarningsEvent>) => {
   const s = stateOf(data);
   return (
     <span className={`font-mono text-[11px] tnum ${PRICED_INK[s]}`}>
-      {data.richness.toFixed(2)}× <span className="text-[10px] uppercase tracking-widest">{PRICED_WORD[s]}</span>
+      {data.richness.toFixed(2)}× <span className="text-[11px] uppercase tracking-widest">{PRICED_WORD[s]}</span>
     </span>
   );
 };
@@ -317,7 +317,7 @@ const Earnings = () => {
                       <span className={`font-mono text-[14px] font-bold leading-none tnum ${isToday ? 'text-silver' : 'text-textPrimary'}`}>
                         {MONTHS[date.getMonth()]} {date.getDate()}
                       </span>
-                      <span className={`mt-1 font-mono text-[10px] uppercase tracking-widest ${isToday ? 'text-silver' : 'text-textMuted'}`}>{isToday ? 'today' : DAYS[date.getDay()]}</span>
+                      <span className={`mt-1 font-mono text-[11px] uppercase tracking-widest ${isToday ? 'text-silver' : 'text-textMuted'}`}>{isToday ? 'today' : DAYS[date.getDay()]}</span>
                     </div>
                     <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5">
                       {dayEvents.map(e => (
@@ -326,7 +326,7 @@ const Earnings = () => {
                       {dayMacro.map(m => (
                         <MacroChip key={m.iso + m.label} m={m} />
                       ))}
-                      {dayEvents.length === 0 && dayMacro.length === 0 && <span className="px-2 font-mono text-[10px] uppercase tracking-widest text-textMuted">{show === 'all' ? 'nothing on the calendar' : 'none priced this way'}</span>}
+                      {dayEvents.length === 0 && dayMacro.length === 0 && <span className="px-2 font-mono text-[11px] uppercase tracking-widest text-textMuted">{show === 'all' ? 'nothing on the calendar' : 'none priced this way'}</span>}
                     </div>
                   </div>
                 );
@@ -352,7 +352,7 @@ const Earnings = () => {
                   const shelf = (list: EarningsEvent[], slot: EarningsEvent['slot']) =>
                     list.length === 0 ? null : (
                       <div>
-                        <span className="flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">
+                        <span className="flex items-center gap-1.5 px-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">
                           <SlotMark slot={slot} className="w-2.5 h-2.5" /> {slot === 'BMO' ? 'before the open' : 'after the close'}
                         </span>
                         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
@@ -366,7 +366,7 @@ const Earnings = () => {
                     <div key={wd} className={`bg-panel px-3 py-3 min-h-[176px] ${isToday ? 'bg-silver/[0.04]' : ''}`} data-earnings-board-day={label} data-today={isToday || undefined}>
                       <div className="flex items-center justify-between">
                         <span className={`font-mono text-[11px] font-bold tnum ${isToday ? 'text-silver' : 'text-textPrimary'}`}>{label}</span>
-                        {isToday && <span className="font-mono text-[10px] uppercase tracking-widest text-silver">today</span>}
+                        {isToday && <span className="font-mono text-[11px] uppercase tracking-widest text-silver">today</span>}
                       </div>
                       <span className={`block h-px mt-1.5 ${isToday ? 'bg-silver' : 'bg-borderSubtle'}`} />
                       {dayMacro.length > 0 && (
@@ -377,7 +377,7 @@ const Earnings = () => {
                         </div>
                       )}
                       {dayEvents.length === 0 ? (
-                        dayMacro.length === 0 && <div className="mt-7 text-center font-mono text-[10px] uppercase tracking-widest text-textMuted">{show === 'all' ? 'no reports' : 'none priced this way'}</div>
+                        dayMacro.length === 0 && <div className="mt-7 text-center font-mono text-[11px] uppercase tracking-widest text-textMuted">{show === 'all' ? 'no reports' : 'none priced this way'}</div>
                       ) : (
                         <div className="mt-2.5 flex flex-col gap-3">
                           {shelf(bmo, 'BMO')}

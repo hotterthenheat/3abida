@@ -201,7 +201,7 @@ const ToolList = ({ title, tools, anchor, dock, host, drawTool, favs, onPick, on
       className="absolute z-50 w-[232px] overflow-y-auto rounded-md border border-borderMuted bg-panel/95 backdrop-blur-md p-1 shadow-2xl shadow-black/60 select-none"
       style={{ left: pos?.left ?? 0, top: pos?.top ?? 0, maxHeight: pos?.maxH, visibility: pos ? 'visible' : 'hidden' }}
     >
-      <div className="px-2 pt-1.5 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title}</div>
+      <div className="px-2 pt-1.5 pb-1 font-mono text-[11px] text-textMuted">{title}</div>
       {tools.length === 0 && empty && <div className="px-2 py-3 text-[11px] leading-snug text-textSecondary">{empty}</div>}
       {tools.map(t => {
         const head = t.sub !== lastSub && tools.some(o => o.sub !== tools[0].sub);
@@ -209,7 +209,7 @@ const ToolList = ({ title, tools, anchor, dock, host, drawTool, favs, onPick, on
         const on = drawTool === t.tool;
         return (
           <div key={t.tool}>
-            {head && <div className="px-2 pt-2 pb-0.5 text-[10px] text-textMuted">{t.sub}</div>}
+            {head && <div className="px-2 pt-2 pb-0.5 text-[11px] text-textMuted">{t.sub}</div>}
             <button
               type="button"
               role="menuitem"
@@ -293,7 +293,7 @@ export const DrawSheet = ({ host, dock, drawTool, onPick, onClose }: SheetProps)
     >
       <div className="shrink-0 flex items-center gap-2 px-3 pt-2.5 pb-2">
         <span className="text-[13px] font-semibold text-textPrimary">Drawings</span>
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{searching ? `${shown.length} found` : `${DRAW_FAMILIES.reduce((n, f) => n + f.tools.length, 0)} tools`}</span>
+        <span className="font-mono text-[11px] text-textMuted">{searching ? `${shown.length} found` : `${DRAW_FAMILIES.reduce((n, f) => n + f.tools.length, 0)} tools`}</span>
         <button type="button" onClick={onClose} title="Close" aria-label="Close" className="ml-auto inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]">
           <X className="w-3.5 h-3.5" />
         </button>
@@ -356,7 +356,7 @@ export const DrawSheet = ({ host, dock, drawTool, onPick, onClose }: SheetProps)
                   data-draw-tile={t.tool}
                 >
                   <span className={`text-[18px] inline-flex ${on ? '' : 'text-textSecondary'}`}>{t.icon}</span>
-                  <span className="text-[10.5px] leading-[1.15] text-center line-clamp-2">{t.label}</span>
+                  <span className="text-[11px] leading-[1.15] text-center line-clamp-2">{t.label}</span>
                   <StarToggle kind={t.tool} on={prefs.favs.includes(t.tool)} className="absolute right-0.5 top-0.5 w-5 h-5" />
                 </button>
               );

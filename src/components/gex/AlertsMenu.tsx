@@ -116,7 +116,7 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
   };
 
   const chipClass = (active: boolean) =>
-    `px-1.5 py-[3px] rounded border font-mono text-[9px] leading-[12px] transition-all ${
+    `px-1.5 py-[3px] rounded border font-mono text-[11px] leading-[14px] transition-all ${
       active
         ? 'hover:opacity-70'
         : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
@@ -125,7 +125,7 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
     active ? { color: ALERT, borderColor: alpha(ALERT, 0.6) } : undefined;
 
   const section = (label: string) => (
-    <div className="px-2.5 pt-1.5 pb-1 font-mono text-[8px] uppercase tracking-[0.14em] text-textMuted">
+    <div className="px-2.5 pt-1.5 pb-1 font-mono text-[11px] text-textMuted">
       {label}
     </div>
   );
@@ -157,14 +157,14 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
           onClick={submit}
           disabled={full}
           title={full ? capMsg : `Alert me at this price`}
-          className="shrink-0 px-2 py-1 rounded border border-borderSubtle bg-inset font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-40 disabled:hover:text-textSecondary transition-colors"
+          className="shrink-0 px-2 py-1 rounded border border-borderSubtle bg-inset font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-40 disabled:hover:text-textSecondary transition-colors"
         >
           Set
         </button>
       </div>
 
       {refused && (
-        <div role="status" className="px-2.5 pb-1 font-mono text-[9px] text-bear">
+        <div role="status" className="px-2.5 pb-1 font-mono text-[11px] text-bear">
           {refused}
         </div>
       )}

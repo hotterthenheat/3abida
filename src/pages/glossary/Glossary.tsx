@@ -117,7 +117,7 @@ const GlossaryPage = () => {
             ] as const
           ).map(([label, n]) => (
             <div key={label} className="min-w-0">
-              <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+              <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
               <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary">{n}</dd>
             </div>
           ))}
@@ -178,7 +178,7 @@ const GlossaryPage = () => {
                 <li key={g.group}>
                   <a href={`#group-${g.group.toLowerCase().replace(/\s+/g, '-')}`} className="flex items-baseline justify-between gap-2 h-7 px-2 -mx-2 rounded-md text-[12px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]">
                     {g.group}
-                    <span className="font-mono text-[10px] tnum text-textMuted">{g.words.length}</span>
+                    <span className="font-mono text-[11px] tnum text-textMuted">{g.words.length}</span>
                   </a>
                 </li>
               ))}
@@ -188,7 +188,7 @@ const GlossaryPage = () => {
             {byGroup.map(g => (
               <section key={g.group} id={`group-${g.group.toLowerCase().replace(/\s+/g, '-')}`} className="scroll-mt-24" data-glossary-group={g.group}>
                 <h2 className="pb-2 text-[13px] font-semibold text-textPrimary">
-                  {g.group} <span className="font-mono text-[10px] font-normal tnum text-textMuted">{g.words.length}</span>
+                  {g.group} <span className="font-mono text-[11px] font-normal tnum text-textMuted">{g.words.length}</span>
                 </h2>
                 {g.words.some(e => e.dealers) && (
                   <p className="pb-3 max-w-[72ch] text-[12px] leading-relaxed text-textMuted" data-glossary-dealers>

@@ -40,11 +40,11 @@ const EarningsWidget = () => {
       {/* Controls sit in the body — the header is the drag handle. */}
       <div className="shrink-0 px-2 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2">
         <DropdownSelect label="Priced" value={filter} options={FILTERS} onChange={setFilter} title="What the market charges for the move" testId="earnings-priced" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted tnum">
+        <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted tnum">
           {rows.length} reports · two weeks
         </span>
       </div>
-      <div className="shrink-0 grid grid-cols-[22px_minmax(0,1fr)_96px_52px_52px_16px] items-center gap-x-2.5 px-2.5 h-6 border-b border-borderSubtle bg-chip select-none font-mono text-[9px] uppercase tracking-widest text-textSecondary">
+      <div className="shrink-0 grid grid-cols-[22px_minmax(0,1fr)_96px_52px_52px_16px] items-center gap-x-2.5 px-2.5 h-6 border-b border-borderSubtle bg-chip select-none font-mono text-[11px] uppercase tracking-widest text-textSecondary">
         <span />
         <span>Name</span>
         <span>Reports</span>
@@ -70,11 +70,11 @@ const EarningsWidget = () => {
               <CompanyLogo ticker={e.ticker} size={22} />
               <span className="flex flex-col min-w-0">
                 <span className="font-mono text-[11px] font-bold text-textPrimary leading-tight">{e.ticker}</span>
-                <span className="text-[10px] text-textSecondary truncate leading-tight">{e.name}</span>
+                <span className="text-[11px] text-textSecondary truncate leading-tight">{e.name}</span>
               </span>
               <span className="flex flex-col min-w-0">
                 <span className="font-mono text-[11px] text-textPrimary tnum leading-tight">{e.dateLabel}</span>
-                <span className="font-mono text-[9px] leading-tight">
+                <span className="font-mono text-[11px] leading-tight">
                   <span className={e.slot === 'BMO' ? 'text-warn' : 'text-flip'}>{e.slot === 'BMO' ? 'before open' : 'after close'}</span>
                   <span className="text-textSecondary"> · {e.daysOut === 0 ? 'today' : `${e.daysOut}d`}</span>
                 </span>

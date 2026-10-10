@@ -79,9 +79,9 @@ const TickerLookup = ({ onPick, active, limit = 40 }: TickerLookupProps) => {
       </div>
       <div ref={listRef} className="max-h-56 overflow-y-auto py-1">
         {!mod ? (
-          <div className="px-2.5 py-4 text-center font-mono text-[10px] text-textMuted">Loading tickers…</div>
+          <div className="px-2.5 py-4 text-center font-mono text-[11px] text-textMuted">Loading tickers…</div>
         ) : results.length === 0 ? (
-          <div className="px-2.5 py-4 text-center font-mono text-[10px] text-textMuted">
+          <div className="px-2.5 py-4 text-center font-mono text-[11px] text-textMuted">
             No listing — Enter picks “{query.trim().toUpperCase().slice(0, 6)}”
           </div>
         ) : (
@@ -101,7 +101,7 @@ const TickerLookup = ({ onPick, active, limit = 40 }: TickerLookupProps) => {
               >
                 {t.symbol}
               </span>
-              <span className="text-[10px] text-textSecondary truncate">{t.name === t.symbol ? '' : t.name}</span>
+              <span className="text-[11px] text-textSecondary truncate">{t.name === t.symbol ? '' : t.name}</span>
             </button>
           ))
         )}

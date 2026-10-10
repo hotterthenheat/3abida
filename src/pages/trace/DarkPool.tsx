@@ -47,9 +47,10 @@ import { SectorName } from '../../components/trace/SectorMark';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { DarkPoolGuide } from '../../components/trace/TraceGuide';
 import { Name } from '../../components/ui/Name';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signedPct = (v: number, dp = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
+const num = (v: number) => fmtNum(v);
+const signedPct = (v: number) => pctSigned(v);
 
 /* ---- the cards ------------------------------------------------------------------ */
 
@@ -233,9 +234,9 @@ const DarkPool = () => {
         key: 'shelf',
         header: 'Shelf',
         sortValue: p => (p.atLevel ? 1 : 0),
-        render: p => (p.atLevel ? <span className="text-[10px] font-semibold text-select">On a shelf</span> : <span className="text-[10px] text-textSecondary">Between</span>),
+        render: p => (p.atLevel ? <span className="text-[11px] font-semibold text-select">On a shelf</span> : <span className="text-[11px] text-textSecondary">Between</span>),
       },
-      { key: 'intent', header: 'Read', sortValue: p => p.intent, render: p => <span className={`text-[10px] font-semibold uppercase tracking-wider ${INTENT_INK[p.intent]}`}>{INTENT_WORD[p.intent]}</span> },
+      { key: 'intent', header: 'Read', sortValue: p => p.intent, render: p => <span className={`text-[11px] font-semibold uppercase tracking-wider ${INTENT_INK[p.intent]}`}>{INTENT_WORD[p.intent]}</span> },
       { key: 'conviction', header: 'Conviction', sortValue: p => p.conviction, render: p => <ConvictionCell value={p.conviction} ink={INTENT_INK[p.intent]} /> },
       { key: 'read', header: 'What it says', render: p => <span className="text-[11px] text-textPrimary block truncate" title={p.read}>{p.read}</span> },
     ],
@@ -317,7 +318,7 @@ const DarkPool = () => {
         sortValue: r => r.price,
         render: r => (
           <span className="text-textPrimary">
-            ${r.price.toFixed(2)} <span className={`text-[10px] ${r.dirUp ? 'text-bull' : 'text-bear'}`}>{r.dirUp ? '▲' : '▼'}</span>
+            ${r.price.toFixed(2)} <span className={`text-[11px] ${r.dirUp ? 'text-bull' : 'text-bear'}`}>{r.dirUp ? '▲' : '▼'}</span>
           </span>
         ),
       },
@@ -333,7 +334,7 @@ const DarkPool = () => {
               <span className="relative flex-1 h-[4px] rounded-full bg-ink/[0.06]">
                 <span className="absolute inset-y-0 left-0 rounded-full bg-ink/45" style={{ width: `${w}%` }} />
               </span>
-              <span className="font-mono text-[10px] tnum text-textPrimary w-9 text-right">{w}%</span>
+              <span className="font-mono text-[11px] tnum text-textPrimary w-9 text-right">{w}%</span>
             </span>
           );
         },
@@ -419,7 +420,7 @@ const DarkPool = () => {
                 type="button"
                 onClick={() => setShelfSel(null)}
                 title="Every shelf again"
-                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider ${ROLE_INK[shelf.role].border} ${ROLE_INK[shelf.role].text} bg-ink/[0.03] hover:bg-ink/[0.06] transition-colors`}
+                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[11px] uppercase tracking-wider ${ROLE_INK[shelf.role].border} ${ROLE_INK[shelf.role].text} bg-ink/[0.03] hover:bg-ink/[0.06] transition-colors`}
                 data-dark-pool-shelf-chip
               >
                 {ROLE_WORD[shelf.role]} ${shelf.price.toFixed(2)} <span aria-hidden>×</span>
@@ -439,7 +440,7 @@ const DarkPool = () => {
           <aside className="md:w-[320px] shrink-0 md:border-r max-md:border-b border-borderSubtle flex flex-col" data-dark-pool-shelves>
             <div className="px-4 pt-3 pb-2">
               <h3 className="text-[11px] font-semibold text-textPrimary leading-tight">The shelves</h3>
-              <p className="text-[10px] text-textSecondary">Where the dark dollars rested · {facts.support} support · {facts.resistance} resistance</p>
+              <p className="text-[11px] text-textSecondary">Where the dark dollars rested · {facts.support} support · {facts.resistance} resistance</p>
             </div>
             <div className="flex flex-col">
               {levels.map(l => {
@@ -456,23 +457,23 @@ const DarkPool = () => {
                     data-dark-pool-shelf={l.price}
                   >
                     <span className="flex items-center gap-2">
-                      <span className={`font-mono text-[10px] font-semibold uppercase tracking-wider w-[74px] ${ink.text}`}>{ROLE_WORD[l.role]}</span>
+                      <span className={`font-mono text-[11px] font-semibold uppercase tracking-wider w-[74px] ${ink.text}`}>{ROLE_WORD[l.role]}</span>
                       <span className="font-mono text-[12px] font-bold tnum text-textPrimary">${l.price.toFixed(2)}</span>
-                      <span className="font-mono text-[10px] tnum text-textSecondary" title="From the spot">{signedPct(l.distPct)}</span>
+                      <span className="font-mono text-[11px] tnum text-textSecondary" title="From the spot">{signedPct(l.distPct)}</span>
                       <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(l.notional)}</span>
                     </span>
                     <span className="mt-1 flex items-center gap-2">
                       <span className="relative flex-1 h-[4px] rounded-full bg-ink/[0.06]">
                         <span className={`absolute inset-y-0 left-0 rounded-full ${ink.bar}`} style={{ width: `${Math.max(3, Math.round(l.sharePct))}%` }} />
                       </span>
-                      <span className="font-mono text-[10px] tnum text-textPrimary whitespace-nowrap">
+                      <span className="font-mono text-[11px] tnum text-textPrimary whitespace-nowrap">
                         {l.sharePct.toFixed(0)}% · {l.prints} prints · {l.defended > 0 ? <span className="text-textPrimary font-semibold" title="Times price turned within a hair of this shelf today">turned here {l.defended >= 5 ? '5×+' : `${l.defended}×`}</span> : 'untested'}
                       </span>
                     </span>
                   </button>
                 );
               })}
-              {levels.length === 0 && <span className="block font-mono text-[10px] text-textSecondary uppercase tracking-widest py-6 text-center">Awaiting prints…</span>}
+              {levels.length === 0 && <span className="block font-mono text-[11px] text-textSecondary uppercase tracking-widest py-6 text-center">Awaiting prints…</span>}
             </div>
             {shelf && (
               <p className="px-4 py-3 border-t border-borderSubtle text-[11px] leading-relaxed text-textPrimary" data-dark-pool-usage>
@@ -489,16 +490,16 @@ const DarkPool = () => {
                     <span className="font-mono text-[11px] tnum text-textPrimary">
                       {num(open.size)} @ ${open.price.toFixed(2)}
                     </span>
-                    <span className="ml-auto font-mono text-[10px] tnum text-textPrimary">{open.time}</span>
+                    <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{open.time}</span>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                    <span className={`font-mono text-[10px] font-semibold uppercase tracking-wider ${INTENT_INK[open.intent]}`}>{INTENT_WORD[open.intent]}</span>
+                    <span className={`font-mono text-[11px] font-semibold uppercase tracking-wider ${INTENT_INK[open.intent]}`}>{INTENT_WORD[open.intent]}</span>
                     <ConvictionCell value={open.conviction} ink={INTENT_INK[open.intent]} />
-                    <span className="font-mono text-[10px] text-textPrimary">{open.venue}</span>
-                    <span className="font-mono text-[10px] tnum text-textPrimary">{fmtUsd(open.notional)}</span>
+                    <span className="font-mono text-[11px] text-textPrimary">{open.venue}</span>
+                    <span className="font-mono text-[11px] tnum text-textPrimary">{fmtUsd(open.notional)}</span>
                   </div>
                   <p className="mt-2 text-[11px] leading-relaxed text-textPrimary">{open.read}</p>
-                  <p className="mt-1 text-[10px] text-textSecondary">
+                  <p className="mt-1 text-[11px] text-textSecondary">
                     Printed {signedPct(open.vsSpotPct)} from the spot{open.atLevel ? ' · on a tracked shelf' : ' · between the shelves'}
                   </p>
                 </>
@@ -542,7 +543,7 @@ const DarkPool = () => {
         controls={
           <>
             <DropdownSelect label="Sector" value={sectorCut} options={sectorOptions} onChange={setSectorCut} title="One sector, or the whole tape" testId="dark-pool-sector" />
-            <span className="text-[10px] text-textSecondary">Updated {leaders.updated}</span>
+            <span className="text-[11px] text-textSecondary">Updated {leaders.updated}</span>
           </>
         }
         sentence={leadersRead}

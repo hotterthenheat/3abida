@@ -39,9 +39,9 @@ import type { Column } from '../ui/DataTable';
 import DataState, { type DataStateKind } from '../ui/DataState';
 import { withLeadingMark } from '../ui/Name';
 
-/** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30). The heads at 10px, not the house's
-    9 (the audit's X9: every Trace grid head was 9px uppercase). */
-export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12, headerFontSize: 10 });
+/** The tape's rows: 39px on a 32px head (the house grid's feed pages run 44 on 30). The heads are the house's, 11px in
+    sentence case (the audit's X9: every Trace grid head was 9px uppercase). */
+export const TRACE_GRID_THEME = GRID_THEME.withParams({ rowHeight: 39, headerHeight: 32, fontSize: 12 });
 /** A phone's row: two lines, the contract over its figures (see PhoneRow) */
 const TRACE_PHONE_THEME = GRID_THEME.withParams({ rowHeight: 58, headerHeight: 0, fontSize: 12 });
 
@@ -50,7 +50,7 @@ const TRACE_PHONE_THEME = GRID_THEME.withParams({ rowHeight: 58, headerHeight: 0
 
 export const Fact = ({ label, children, testId, title }: { label: string; children: ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0" title={title}>
-    <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+    <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-trace-fact={testId}>
       {children}
     </dd>
@@ -65,7 +65,7 @@ const INK: Record<Ink, string> = { supreme: 'text-supreme', bull: 'text-bull', b
 /** A champion: the label in its ink, the row's words as a door onto the row */
 export const Champion = ({ label, ink, onOpen, children, testId, title = "Open the contract's card" }: { label: string; ink: Ink; onOpen: () => void; children: ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0">
-    <dt className={`text-[10px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
+    <dt className={`text-[11px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
     <dd className="mt-0.5 whitespace-nowrap" data-trace-champion={testId}>
       {/* the door's own hover, silver (door.ts) — it underlined on hover before 2026-09-16 */}
       <button type="button" onClick={onOpen} title={title} className="hit font-mono text-[12px] tnum font-semibold text-textPrimary hover:text-silver transition-colors">
@@ -193,6 +193,25 @@ export const PhoneRow = ({ lead, title, aside, figures }: { lead?: ReactNode; ti
 /* ---- the grid in its window ------------------------------------------------------ */
 
 /** A page's Column<T> definitions as AG Grid columns — the cells, inks and doors untouched */
+/* A HEAD IS NEVER CUT (2026-10-10, the heads at 11 px in sentence case): a flexible column's floor is its head's own
+   width — the words at the grid's head font, the cell's padding either side, and room for the sort arrow — so a narrow
+   screen scrolls the grid sideways before it cuts "The clock stands at" to "The clock st…". Measured once a head. */
+const headWidths = new Map<string, number>();
+let headPen: CanvasRenderingContext2D | null | undefined;
+function headWidth(words: string): number {
+  const known = headWidths.get(words);
+  if (known !== undefined) return known;
+  if (headPen === undefined) headPen = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  let w = words.length * 6.4;
+  if (headPen) {
+    headPen.font = `600 11px ${getComputedStyle(document.body).fontFamily || 'Helvetica, Arial, sans-serif'}`;
+    w = headPen.measureText(words).width;
+  }
+  const out = Math.ceil(w) + 24 + 18;
+  headWidths.set(words, out);
+  return out;
+}
+
 export function columnsToColDefs<T>(columns: Column<T>[], hidden: Set<string>, widths: Record<string, number> = {}, tooltips: Record<string, string> = {}, flexes: Record<string, number> = {}): ColDef<T>[] {
   return columns.map(c => {
     const fixed = widths[c.key] ?? (c.width ? parseInt(c.width, 10) : undefined);
@@ -217,7 +236,7 @@ export function columnsToColDefs<T>(columns: Column<T>[], hidden: Set<string>, w
          single stray dot at the cell's edge that reads as a rendering
          fault. A floor below what the house's own cells need is not a
          floor. */
-      def.minWidth = 92;
+      def.minWidth = Math.max(92, headWidth(def.headerName ?? ''));
     }
     return def;
   });

@@ -259,7 +259,7 @@ const Desk = () => {
       { key: 'avg', header: 'Paid', align: 'right', render: p => <span className="text-textSecondary">{p.avg.toFixed(2)}</span> },
       { key: 'mark', header: 'Bid · ask', align: 'right', render: p => <span className="text-textPrimary">{p.quote.bid.toFixed(2)} · {p.quote.ask.toFixed(2)}</span> },
       { key: 'theta', header: 'Decay a day', align: 'right', render: p => <span className="text-textSecondary">{usd(Math.abs(p.quote.theta) * 100 * p.qty)}</span> },
-      { key: 'pnl', header: 'P&L', align: 'right', render: p => <span className={`font-semibold ${dirInk(p.pnl)}`}>{usdSigned(p.pnl)} <span className="text-[10px] font-normal text-textSecondary">{rWords(p.r)}</span></span> },
+      { key: 'pnl', header: 'P&L', align: 'right', render: p => <span className={`font-semibold ${dirInk(p.pnl)}`}>{usdSigned(p.pnl)} <span className="text-[11px] font-normal text-textSecondary">{rWords(p.r)}</span></span> },
       {
         key: 'close',
         header: '',
@@ -305,7 +305,7 @@ const Desk = () => {
       { key: 'in', header: 'In', render: t => <span className="text-textSecondary">{momentWords(t.opened)} · {t.avgIn.toFixed(2)}</span> },
       { key: 'out', header: 'Out', render: t => <span className="text-textSecondary">{momentWords(t.closed)} · {t.avgOut.toFixed(2)}</span> },
       { key: 'how', header: 'Ended', render: t => <span className="text-textSecondary">{t.how === 'scaled' ? 'Scaled out' : t.how === 'sold' ? 'Sold by you' : t.how === 'target' ? 'Target hit' : t.how === 'stopped' ? 'Stopped out' : 'Held to the bell'}</span> },
-      { key: 'pnl', header: 'P&L', align: 'right', render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[10px] font-normal text-textSecondary">{rWords(t.r)}</span></span> },
+      { key: 'pnl', header: 'P&L', align: 'right', render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[11px] font-normal text-textSecondary">{rWords(t.r)}</span></span> },
     ],
     []
   );
@@ -439,7 +439,7 @@ const Desk = () => {
       <div className={head}>
         <span className={headWord}>Order</span>
         {picked && (
-          <button type="button" onClick={() => setPicked(null)} className="hit ml-auto font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors">
+          <button type="button" onClick={() => setPicked(null)} className="hit ml-auto font-mono text-[11px] text-textMuted hover:text-textPrimary transition-colors">
             Clear
           </button>
         )}
@@ -490,7 +490,7 @@ const Desk = () => {
           />
         </div>
       ) : (
-        <div className="h-full min-h-[180px] flex items-center justify-center px-6 text-center font-mono text-[10px] uppercase tracking-widest text-textMuted" data-review-ticket="empty">
+        <div className="h-full min-h-[180px] flex items-center justify-center px-6 text-center font-mono text-[11px] uppercase tracking-widest text-textMuted" data-review-ticket="empty">
           Pick a contract in the chain — its order opens here
         </div>
       )}

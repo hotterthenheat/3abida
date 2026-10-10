@@ -175,7 +175,7 @@ const Shelf = ({ label, count, action, onAction, children }: { label: string; co
   <section className="px-3.5 pt-4" data-alerts-shelf={label.toLowerCase()}>
     <div className="flex items-baseline gap-1.5 pb-2">
       <span className="text-[12px] font-semibold text-textPrimary">{label}</span>
-      <span className="font-mono text-[10px] tnum text-textSecondary">{count}</span>
+      <span className="font-mono text-[11px] tnum text-textSecondary">{count}</span>
       {action && count > 0 && (
         <button type="button" onClick={onAction} className="hit ml-auto h-6 px-2 -mr-2 rounded-md text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05] transition-colors" data-alerts-clear={label.toLowerCase()}>
           {action}
@@ -197,7 +197,7 @@ const NameHead = ({ ticker, note }: { ticker: string; note: string }) => (
   <div className="flex items-center gap-2 h-8 px-3 border-b border-borderSubtle/70 bg-ink/[0.02]" data-alert-name={ticker}>
     <CompanyLogo ticker={ticker} size={14} />
     <span className="font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>
-    <span className="font-mono text-[10px] tnum text-textMuted">{note}</span>
+    <span className="font-mono text-[11px] tnum text-textMuted">{note}</span>
   </div>
 );
 
@@ -206,7 +206,7 @@ const Door = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
     onClick={onClick}
     title={`Open the ${label.toLowerCase()} on this name`}
-    className="hit shrink-0 inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip/70 font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
+    className="hit shrink-0 inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip/70 font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
     data-alert-door
   >
     {label}
@@ -231,13 +231,13 @@ const Row = ({ kind, alerted, ticker, words, state, door, action, testId, below 
       </span>
       <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
         <span className="flex items-baseline gap-1.5 min-w-0">
-          {ticker && <span className="shrink-0 font-mono text-[10px] font-bold text-textPrimary">{ticker}</span>}
+          {ticker && <span className="shrink-0 font-mono text-[11px] font-bold text-textPrimary">{ticker}</span>}
           {/* two lines before it is cut — an AND's conditions and a line's words run long (2026-10-10); the whole in its title */}
           <span className="min-w-0 line-clamp-2 text-[12px] leading-snug text-textPrimary" title={words}>
             {words}
           </span>
         </span>
-        <span className={`font-mono text-[10px] tnum ${alerted ? '' : 'text-textMuted'}`} style={alerted ? { color: ALERT } : undefined}>
+        <span className={`font-mono text-[11px] tnum ${alerted ? '' : 'text-textMuted'}`} style={alerted ? { color: ALERT } : undefined}>
           {state}
         </span>
       </span>
@@ -257,7 +257,7 @@ const Lifecycle = ({ ticker, a }: { ticker: string; a: Alert }) => (
     <button
       type="button"
       onClick={() => snoozeAlert(ticker, a.id, isResting(a) ? 0 : SNOOZE_MS)}
-      className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
+      className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
       title={isResting(a) ? 'Back on watch now, from where the market stands' : 'Rest it for 15 minutes — nothing it sleeps through counts'}
       data-alert-snooze-row={a.id}
     >
@@ -382,7 +382,7 @@ const AlertsDrawer = () => {
             <Bell className="w-3.5 h-3.5 text-textSecondary" strokeWidth={1.75} />
           </span>
           <h2 id="alerts-drawer-title" className="text-[14px] font-semibold text-textPrimary">Alerts</h2>
-          <span className="font-mono text-[10px] tnum text-textMuted" data-alerts-facts>
+          <span className="font-mono text-[11px] tnum text-textMuted" data-alerts-facts>
             <span className="text-textSecondary">{setTotal}</span> set · <span className={firedTotal ? 'text-textSecondary' : ''}>{firedTotal}</span> alerted
           </span>
           <button type="button" onClick={closeAlertsDrawer} aria-label="Close the alerts" title="Close (Esc)" className="hit ml-auto shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-alerts-close>
@@ -421,7 +421,7 @@ const AlertsDrawer = () => {
             </section>
           )}
           {composed && (
-            <p role="status" className="px-3.5 pt-3 font-mono text-[10px] text-textSecondary" data-alerts-composed>
+            <p role="status" className="px-3.5 pt-3 font-mono text-[11px] text-textSecondary" data-alerts-composed>
               {composed}
             </p>
           )}
@@ -508,14 +508,14 @@ const AlertsDrawer = () => {
               </Card>
             )}
             {refused && (
-              <p role="status" className="pt-2 font-mono text-[10px] text-bear" data-alerts-refused>
+              <p role="status" className="pt-2 font-mono text-[11px] text-bear" data-alerts-refused>
                 {refused}
               </p>
             )}
           </Shelf>
         </div>
 
-        <p className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/70 font-mono text-[10px] leading-snug text-textMuted">
+        <p className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/70 font-mono text-[11px] leading-snug text-textMuted">
           Runs while this tab is open. Nothing leaves this machine.
         </p>
       </motion.aside>

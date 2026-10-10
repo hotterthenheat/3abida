@@ -12,7 +12,10 @@
   custom properties, so a theme flip re-inks every
   grid in the same frame with no re-theme call.
   Pair with the `slayer-board` class (index.css)
-  for the mono uppercase heads.
+  for the rows' pointer. THE HEADS READ AT THE
+  FLOOR (2026-10-10, the audit's X9.4): 11 px in
+  sentence case, no tracking — they were 9 px
+  tracked caps, the smallest words on the page.
 ==================================================
 */
 
@@ -63,7 +66,7 @@ export const GRID_THEME = themeQuartz.withParams({
   headerBackgroundColor: 'rgb(var(--chip))',
   /* grey on the dark terminal, black on paper (tokens.css --grid-head, the light sweep 2026-09-19) */
   headerTextColor: 'rgb(var(--grid-head))',
-  headerFontSize: 9,
+  headerFontSize: 11,
   headerFontWeight: 600,
   headerHeight: 30,
   rowHeight: 44,

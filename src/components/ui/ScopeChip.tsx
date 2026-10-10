@@ -56,6 +56,8 @@ import { useAnchoredMenu } from './useAnchoredMenu';
 import { MorphingInfinity, useWorking } from './Working';
 import { useNameArriving } from '../gex/useSeeded';
 import { dirOf } from '../../theme/theme';
+import { useQuote } from '../../context/marketStore';
+import { pctSigned, usd } from '../../core/format';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /** Matches the `w-72` on the menu — the placement keeps its far edge on screen */
@@ -134,12 +136,15 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
   const hasLink = linked !== undefined;
   const follows = linked === true;
 
-  /* The live quote, read straight from the simulator: a pure read, and the
-     host re-renders on every tick anyway. */
-  const cfg = quote && (!follows || full) ? Simulator.TICKERS[ticker] : undefined;
-  const price = cfg?.currentPrice;
-  /* the day's change from the last close (Simulator.dayChangePct) — never from the name's config price */
-  const change = cfg ? Simulator.dayChangePct(ticker) : undefined;
+  /* THE LIVE QUOTE THROUGH THE STORE (2026-10-10): the chip reads its name's price and day change off the market store
+     (useQuote), so it renders when that name moves — not when its host happens to — and agrees with the rail's quote
+     to the frame. A name the feed has not seeded yet is read once off the simulator, as before. The change is from the
+     last close (Simulator.dayChangePct), never from the name's config price. */
+  const wantQuote = !!quote && (!follows || full);
+  const live = useQuote(wantQuote ? ticker : null);
+  const cfg = wantQuote && !live ? Simulator.TICKERS[ticker] : undefined;
+  const price = live?.spot ?? cfg?.currentPrice;
+  const change = live?.changePct ?? (cfg ? Simulator.dayChangePct(ticker) : undefined);
 
   const menu =
     open &&
@@ -191,11 +196,10 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
           /* the quote gives way first where the chip's cell is narrow (a phone's Compare head): it clips, the name never does */
           <span className="min-w-0 overflow-hidden inline-flex items-center gap-1.5">
             <span className="text-[11px] tnum text-textPrimary leading-none" data-scope-price>
-              ${price.toFixed(2)}
+              {usd(price)}
             </span>
             <span className={`text-[11px] tnum leading-none ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
-              {change >= 0 ? '+' : ''}
-              {change.toFixed(2)}%
+              {pctSigned(change)}
             </span>
           </span>
         )}

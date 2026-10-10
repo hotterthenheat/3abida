@@ -77,7 +77,7 @@ const AlertSwitches = ({ script, chart, paneId }: { script: Script; chart: Chart
   };
   return (
     <div className="col-span-3 mt-1 pt-2 border-t border-borderSubtle/60" data-script-alerts>
-      <div className="pb-1 font-mono text-[8px] uppercase tracking-[0.14em] text-textMuted">
+      <div className="pb-1 font-mono text-[11px] uppercase tracking-[0.14em] text-textMuted">
         Tell me when · {ticker} · {pane.timeframe}
       </div>
       {conditions.map(c => {
@@ -116,7 +116,7 @@ const InputsForm = ({ inputs, chart, paneId, script }: { inputs: ScriptInput[]; 
     <div className="mx-2 mb-2 px-3 py-2.5 rounded-md border border-borderSubtle/60 bg-chip grid grid-cols-3 gap-x-4 gap-y-2" data-script-inputs>
       {inputs.map(i => (
         <label key={i.id} className="flex items-center gap-2 min-w-0" title={i.tooltip}>
-          <span className="w-[120px] shrink-0 truncate text-[10px] text-textSecondary">{i.title}</span>
+          <span className="w-[120px] shrink-0 truncate text-[11px] text-textSecondary">{i.title}</span>
           {i.kind === 'bool' ? (
             <input type="checkbox" checked={!!val(i)} onChange={e => set(i.id, e.target.checked)} className="accent-silver" />
           ) : i.kind === 'color' ? (
@@ -146,7 +146,7 @@ const InputsForm = ({ inputs, chart, paneId, script }: { inputs: ScriptInput[]; 
       ))}
       {inputs.length > 0 && (
         <div className="col-span-3 flex justify-end">
-          <button onClick={reset} className="font-mono text-[9px] uppercase tracking-wider text-textMuted hover:text-textPrimary transition-colors">
+          <button onClick={reset} className="font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary transition-colors">
             Back to the script's defaults
           </button>
         </div>
@@ -340,7 +340,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
           <div className="flex items-center gap-3 min-w-0">
             <SlayerMark size={20} bare label="" />
             <span className="text-[15px] font-semibold leading-tight text-textPrimary">Indicators and scripts</span>
-            <span className="font-mono text-[10px] text-textMuted whitespace-nowrap" data-library-count>
+            <span className="font-mono text-[11px] text-textMuted whitespace-nowrap" data-library-count>
               {onThisPane} on this pane
             </span>
           </div>
@@ -350,7 +350,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
             onClick={() => edit(null)}
             disabled={!fullscreen}
             title={fullscreen ? 'A new script on the template, in the editor beside the chart' : EDITOR_SHUT}
-            className="inline-flex items-center h-7 px-2.5 rounded-md border border-silver/40 bg-silver/[0.06] font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:bg-silver/[0.1] transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:bg-silver/[0.06]"
+            className="inline-flex items-center h-7 px-2.5 rounded-md border border-silver/40 bg-silver/[0.06] font-mono text-[11px] uppercase tracking-wider text-textPrimary hover:bg-silver/[0.1] transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:bg-silver/[0.06]"
             data-library-write
           >
             Write your own
@@ -379,7 +379,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
           <nav className="flex flex-col gap-1 pr-4 border-r border-borderSubtle overflow-y-auto" aria-label="Shelves">
             {(['Personal', 'Built in'] as const).map(section => (
               <div key={section} className="mb-2">
-                <div className="px-2 pb-1 font-mono text-[8px] uppercase tracking-widest text-textMuted">{section}</div>
+                <div className="px-2 pb-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">{section}</div>
                 {SHELVES.filter(s => s.section === section && (s.key !== 'chart' || !!onIndicators)).map(s => {
                   const on = shelf === s.key && !q;
                   return (
@@ -394,7 +394,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
                       className={`w-full flex items-center justify-between h-8 px-2 rounded-md text-[12px] transition-colors ${on ? 'bg-silver/[0.08] text-textPrimary shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'}`}
                     >
                       <span className={on ? 'font-semibold' : ''}>{s.label}</span>
-                      <span className="font-mono text-[10px] tnum text-textMuted">{counts[s.key]}</span>
+                      <span className="font-mono text-[11px] tnum text-textMuted">{counts[s.key]}</span>
                     </button>
                   );
                 })}
@@ -406,7 +406,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
               new search fades its rows up softly (the house soft-in, keyed) instead of
               swapping them in a frame */}
           <div className="min-w-0 h-full flex flex-col" role="table" aria-label="Scripts">
-            <div className="grid grid-cols-[60px_minmax(0,1fr)_96px_28px_28px_40px] items-center h-7 px-2 font-mono text-[8px] uppercase tracking-widest text-textMuted border-b border-borderSubtle shrink-0" role="row">
+            <div className="grid grid-cols-[60px_minmax(0,1fr)_96px_28px_28px_40px] items-center h-7 px-2 font-mono text-[11px] uppercase tracking-widest text-textMuted border-b border-borderSubtle shrink-0" role="row">
               <span>Kind</span>
               <span>Name</span>
               <span>Shelf</span>
@@ -416,13 +416,13 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
             </div>
             <div key={`${q ? 'search' : shelf}|${q}`} className="flex-1 min-h-0 overflow-y-auto animate-soft-in" data-library-rows>
             {rows.length === 0 && (
-              <div className="h-[200px] flex items-center justify-center font-mono text-[10px] uppercase tracking-widest text-textMuted">
+              <div className="h-[200px] flex items-center justify-center font-mono text-[11px] uppercase tracking-widest text-textMuted">
                 {q ? 'Nothing on any shelf matches' : shelf === 'mine' ? 'Nothing of your own yet — Write your own, or copy a built-in' : shelf === 'favourites' ? 'No favourites yet — the star on any row keeps it here' : shelf === 'recent' ? 'Nothing used yet — what you add to a chart or open lands here, newest first' : 'Nothing here'}
               </div>
             )}
             {groups.map(g => (
               <div key={g.title}>
-                <div className="px-2 pt-3 pb-1 font-mono text-[8px] uppercase tracking-widest text-textMuted">{g.title}</div>
+                <div className="px-2 pt-3 pb-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">{g.title}</div>
                 {g.rows.map(r => {
                   const idx = rows.indexOf(r);
                   const hi = idx === highlight;
@@ -437,7 +437,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
                         data-library-row={r.key}
                         data-on={r.on || undefined}
                       >
-                        <span className={`inline-flex w-fit items-center font-mono text-[8px] uppercase tracking-widest border rounded px-1.5 py-0.5 ${r.kind === 'slayer' ? 'text-silver/90 border-silver/30' : 'text-textMuted border-borderSubtle'}`}>{KIND_WORD[r.kind]}</span>
+                        <span className={`inline-flex w-fit items-center font-mono text-[11px] uppercase tracking-widest border rounded px-1.5 py-0.5 ${r.kind === 'slayer' ? 'text-silver/90 border-silver/30' : 'text-textMuted border-borderSubtle'}`}>{KIND_WORD[r.kind]}</span>
                         <span className="min-w-0 flex items-baseline gap-2">
                           {r.script && fullscreen ? (
                             <button onClick={() => edit(r.script!)} className="font-semibold text-[12px] text-textPrimary hover:underline underline-offset-2 whitespace-nowrap" title="Open in the editor">
@@ -450,10 +450,10 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
                           ) : (
                             <span className="font-semibold text-[12px] text-textPrimary whitespace-nowrap">{r.title}</span>
                           )}
-                          <span className="text-[10px] text-textMuted truncate">{r.description}</span>
-                          {r.script?.status === 'error' && <span className="font-mono text-[8px] uppercase tracking-widest text-bear">does not read</span>}
+                          <span className="text-[11px] text-textMuted truncate">{r.description}</span>
+                          {r.script?.status === 'error' && <span className="font-mono text-[11px] uppercase tracking-widest text-bear">does not read</span>}
                         </span>
-                        <span className="font-mono text-[10px] text-textMuted whitespace-nowrap" title={r.pane === 'own' ? 'Takes its own pane under the tape — two at most' : 'Draws on the tape itself'}>
+                        <span className="font-mono text-[11px] text-textMuted whitespace-nowrap" title={r.pane === 'own' ? 'Takes its own pane under the tape — two at most' : 'Draws on the tape itself'}>
                           {r.pane === 'own' ? 'own pane' : 'on the tape'}
                         </span>
                         <span>
@@ -495,7 +495,7 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
         </div>
 
         {/* THE FOOT */}
-        <div className="flex items-center gap-3 pt-3 border-t border-borderSubtle font-mono text-[10px] text-textMuted" data-library-foot>
+        <div className="flex items-center gap-3 pt-3 border-t border-borderSubtle font-mono text-[11px] text-textMuted" data-library-foot>
           <span>
             <span className="text-textSecondary">{shipped}</span> shipped · <span className="text-textSecondary">{allRows.mine.length}</span> of your own
           </span>

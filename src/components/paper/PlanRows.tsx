@@ -29,7 +29,7 @@ const figuresOf = (p: EvalPlan): { node: ReactNode; ink: string }[] => [
   { node: `up to ${p.contracts}`, ink: 'text-textSecondary' },
 ];
 
-const headClass = 'text-[10px] uppercase tracking-wider text-textMuted whitespace-nowrap';
+const headClass = 'text-[11px] uppercase tracking-wider text-textMuted whitespace-nowrap';
 
 interface Props {
   onStart: (plan: EvalPlan) => void;
@@ -65,7 +65,7 @@ const PlanRows = ({ onStart, disabled = false, titleOf, compact = false, rowKey,
       disabled={disabled}
       onClick={() => onStart(p)}
       title={titleOf(p)}
-      className={`hit ${compact ? 'h-6 px-2.5 text-[10px]' : 'h-7 px-3 text-[11px]'} rounded-full font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-opacity hover:opacity-90`}
+      className={`hit ${compact ? 'h-6 px-2.5 text-[11px]' : 'h-7 px-3 text-[11px]'} rounded-full font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-opacity hover:opacity-90`}
       style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }}
       {...(attr ? { [`data-${startKey}`]: p.label } : {})}
     >
@@ -75,7 +75,7 @@ const PlanRows = ({ onStart, disabled = false, titleOf, compact = false, rowKey,
   return (
     <div ref={box} className="min-w-0" data-paper-plans-box={narrow ? 'narrow' : 'table'}>
       {/* the table, where four columns have room */}
-      <div className={`${narrow ? 'hidden' : 'grid'} items-center font-mono tnum ${compact ? 'grid-cols-[32px_repeat(4,minmax(0,1fr))_auto] gap-x-2 text-[10px]' : 'grid-cols-[40px_repeat(4,minmax(0,1fr))_auto] gap-x-3 text-[11px]'}`} data-paper-plans>
+      <div className={`${narrow ? 'hidden' : 'grid'} items-center font-mono tnum ${compact ? 'grid-cols-[32px_repeat(4,minmax(0,1fr))_auto] gap-x-2 text-[11px]' : 'grid-cols-[40px_repeat(4,minmax(0,1fr))_auto] gap-x-3 text-[11px]'}`} data-paper-plans>
         {/* the head row: what each figure is */}
         <span aria-hidden="true" />
         {HEADS.map(h => (

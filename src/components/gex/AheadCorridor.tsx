@@ -73,6 +73,7 @@
 */
 
 import { useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCentredScroll, useSvgFloor } from '../ui/svgFloor';
 import { motion } from 'framer-motion';
 import DropdownSelect from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
@@ -190,6 +191,23 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
   }, [outer, levels, spot, sigmaDay, ghosts]);
   const iw = W - SM.l - SM.r;
   const x = (p: number) => SM.l + ((p - lo) / (hi - lo || 1)) * iw;
+  /* the words at the floor: 11 px (ticks 10) whatever the box; a phone scrolls the scale, opened on spot (ui/svgFloor) */
+  const floor = useSvgFloor(W, scaleRef);
+  const fk = floor.k;
+  const scroller = useCentredScroll(x(spot) / W);
+  /* the rows grow with the words, so the scale keeps its height on the screen and no name rides on the next row's */
+  const R = {
+    names: ROW.names.map(v => v * fk),
+    postTop: ROW.postTop * fk,
+    postBot: ROW.postBot * fk,
+    track: ROW.track * fk,
+    bandTop: ROW.bandTop * fk,
+    bandH: ROW.bandH * fk,
+    tick: ROW.tick * fk,
+    figure: ROW.figure * fk,
+    bracket: ROW.bracket * fk,
+    words: ROW.words * fk,
+  };
   const priceAt = (u: number) => lo + ((u - SM.l) / iw) * (hi - lo);
 
   const highWall = likely.high.why === 'the call wall';
@@ -229,7 +247,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
       ...posts.map(p => ({ key: p.key, price: p.price, ink: p.ink, text: `${p.name} ${fmtStrike(p.price)}`, extra: p.reach != null ? `in reach ${hhmm(p.reach)}` : '', spot: false })),
       { key: 'spot', price: spot, ink: FIG.spot, text: fmtPrice(spot), extra: '', spot: true },
     ]
-      .map(i => ({ ...i, x: x(i.price), w: i.spot ? i.text.length * 7 : i.text.length * 6 + (i.extra ? (i.extra.length + 3) * 6.4 : 0) }))
+      .map(i => ({ ...i, x: x(i.price), w: fk * (i.spot ? i.text.length * 7 : i.text.length * 6 + (i.extra ? (i.extra.length + 3) * 6.4 : 0)) }))
       .sort((a, b) => a.x - b.x);
     const ends = ROW.names.map(() => -Infinity);
     return items.map(i => {
@@ -388,16 +406,16 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
           grey between two hairlines, the page's inks (2026-09-19, see DARK_FIG / PAPER_FIG) */}
       <div data-theme={paper ? 'light' : 'dark'} className={`relative ${paper ? 'bg-inset border-y border-borderSubtle' : 'bg-panel'}`} onPointerLeave={() => setAt(null)} data-corridor-island>
         {/* THE RANGE ON ONE PRICE SCALE */}
-        <div className="relative px-3">
+        <div ref={scroller} className="relative px-3 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
           <svg
             ref={scaleRef}
-            viewBox={`0 0 ${W} ${SH}`}
+            style={{ minWidth: floor.minWidth, cursor: pickable ? 'pointer' : 'default' }}
+            viewBox={`0 0 ${W} ${SH * fk}`}
             width="100%"
             role="img"
             aria-label={`The range on a price scale: the likely range ${fmtPrice(likely.low.price)} to ${fmtPrice(likely.high.price)} as the band, the walls, the flip and the supreme as posts, spot ${fmtPrice(spot)} as the rule, one expected move each side as the bracket`}
             onPointerMove={onScaleMove}
             onClick={onScaleClick}
-            style={{ cursor: pickable ? 'pointer' : 'default' }}
             data-corridor-svg
             data-corridor-shut={shut || undefined}
             data-corridor-at={snapped ? snapped.key : readout != null ? 'price' : 'rest'}
@@ -408,7 +426,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                 the same element moving */}
             {/* THE TRACK — the rarer stretch, two expected moves each side; dashed on the flip's fast side, where moves run */}
             {track.map(t => (
-              <motion.line key={t.fast ? 'fast' : 'slow'} initial={false} animate={{ x1: x(t.a), x2: x(t.b) }} transition={GLIDE} y1={ROW.track} y2={ROW.track} stroke={FIG.wash} strokeOpacity={0.22} strokeWidth={1} strokeDasharray={t.fast ? '3 3' : undefined} data-corridor-track={t.fast ? 'fast' : 'slow'} />
+              <motion.line key={t.fast ? 'fast' : 'slow'} initial={false} animate={{ x1: x(t.a), x2: x(t.b) }} transition={GLIDE} y1={R.track} y2={R.track} stroke={FIG.wash} strokeOpacity={0.22} strokeWidth={1} strokeDasharray={t.fast ? '3 3' : undefined} data-corridor-track={t.fast ? 'fast' : 'slow'} />
             ))}
             {(
               [
@@ -416,18 +434,18 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                 ['hi', outer.high],
               ] as const
             ).map(([k, p]) => (
-              <motion.line key={k} initial={false} animate={{ x1: x(p), x2: x(p) }} transition={GLIDE} y1={ROW.track - 4} y2={ROW.track + 4} stroke={FIG.wash} strokeOpacity={0.3} strokeWidth={1} />
+              <motion.line key={k} initial={false} animate={{ x1: x(p), x2: x(p) }} transition={GLIDE} y1={R.track - 4} y2={R.track + 4} stroke={FIG.wash} strokeOpacity={0.3} strokeWidth={1} />
             ))}
             {/* THE LIKELY RANGE — the silver band with its two edges */}
-            <motion.rect initial={false} animate={{ attrX: x(likely.low.price), width: Math.max(0, x(likely.high.price) - x(likely.low.price)) }} transition={GLIDE} y={ROW.bandTop} height={ROW.bandH} fill={SILVER} fillOpacity={FIG.band} data-corridor-likely />
-            <motion.line initial={false} animate={{ x1: x(likely.low.price), x2: x(likely.low.price) }} transition={GLIDE} y1={ROW.bandTop - 2} y2={ROW.bandTop + ROW.bandH + 2} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} data-corridor-edge="low" />
-            <motion.line initial={false} animate={{ x1: x(likely.high.price), x2: x(likely.high.price) }} transition={GLIDE} y1={ROW.bandTop - 2} y2={ROW.bandTop + ROW.bandH + 2} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} data-corridor-edge="high" />
+            <motion.rect initial={false} animate={{ attrX: x(likely.low.price), width: Math.max(0, x(likely.high.price) - x(likely.low.price)) }} transition={GLIDE} y={R.bandTop} height={R.bandH} fill={SILVER} fillOpacity={FIG.band} data-corridor-likely />
+            <motion.line initial={false} animate={{ x1: x(likely.low.price), x2: x(likely.low.price) }} transition={GLIDE} y1={R.bandTop - 2} y2={R.bandTop + R.bandH + 2} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} data-corridor-edge="low" />
+            <motion.line initial={false} animate={{ x1: x(likely.high.price), x2: x(likely.high.price) }} transition={GLIDE} y1={R.bandTop - 2} y2={R.bandTop + R.bandH + 2} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} data-corridor-edge="high" />
             {/* THE AXIS — regular ticks under the track, priced; one gives way to the pointer's readout */}
             {ticks.map(v => (
               <g key={v}>
-                <motion.line initial={false} animate={{ x1: x(v), x2: x(v) }} transition={GLIDE} y1={ROW.tick} y2={ROW.tick + 4} stroke={FIG.wash} strokeOpacity={0.25} />
+                <motion.line initial={false} animate={{ x1: x(v), x2: x(v) }} transition={GLIDE} y1={R.tick} y2={R.tick + 4} stroke={FIG.wash} strokeOpacity={0.25} />
                 {tickShown(v) && (
-                  <motion.text initial={false} animate={{ attrX: x(v) }} transition={GLIDE} y={ROW.figure} textAnchor="middle" fontSize={10} fill={FIG.tick} fontFamily={FIGS} data-axis-tick>
+                  <motion.text initial={false} animate={{ attrX: x(v) }} transition={GLIDE} y={R.figure} textAnchor="middle" fontSize={10 * fk} fill={FIG.tick} fontFamily={FIGS} data-axis-tick>
                     {fmtStrike(v)}
                   </motion.text>
                 )}
@@ -438,23 +456,23 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
               const on = snapped?.key === p.key || (focus != null && Math.abs(focus - p.price) < 1e-9);
               return (
                 <g key={p.key} data-level={p.name} data-post={p.key} data-post-on={on || undefined}>
-                  <motion.line initial={false} animate={{ x1: x(p.price), x2: x(p.price) }} transition={GLIDE} y1={ROW.postTop} y2={ROW.postBot} stroke={p.ink} strokeOpacity={on ? 1 : 0.8} strokeWidth={on ? 2 : 1.25} strokeDasharray={p.key === 'flip' ? '2 2' : undefined} />
+                  <motion.line initial={false} animate={{ x1: x(p.price), x2: x(p.price) }} transition={GLIDE} y1={R.postTop} y2={R.postBot} stroke={p.ink} strokeOpacity={on ? 1 : 0.8} strokeWidth={on ? 2 : 1.25} strokeDasharray={p.key === 'flip' ? '2 2' : undefined} />
                 </g>
               );
             })}
             {/* THE GHOSTS — where a level goes under the vol move, dashed in its ink; named in the pointer's card */}
             {ghostPosts.map(g => (
-              <motion.line key={g.key} initial={false} animate={{ x1: x(g.price), x2: x(g.price) }} transition={GLIDE} y1={ROW.postTop} y2={ROW.postBot} stroke={g.ink} strokeOpacity={snapped?.key === g.key ? 0.8 : 0.4} strokeWidth={1} strokeDasharray="1.5 4" data-ghost={g.key.slice(6)} />
+              <motion.line key={g.key} initial={false} animate={{ x1: x(g.price), x2: x(g.price) }} transition={GLIDE} y1={R.postTop} y2={R.postBot} stroke={g.ink} strokeOpacity={snapped?.key === g.key ? 0.8 : 0.4} strokeWidth={1} strokeDasharray="1.5 4" data-ghost={g.key.slice(6)} />
             ))}
             {/* SPOT — the white rule and the silver ring where we are; no pill (Noah, 2026-09-06) */}
-            <motion.line initial={false} animate={{ x1: x(spot), x2: x(spot) }} transition={GLIDE} y1={ROW.postTop} y2={ROW.postBot} stroke={FIG.spot} strokeOpacity={0.9} strokeWidth={1.5} data-corridor-spot-rule />
-            <motion.circle initial={false} animate={{ cx: x(spot) }} transition={GLIDE} cy={ROW.track} r={3} fill={FIG.hole} stroke={SILVER} strokeWidth={1.5} data-corridor-origin />
+            <motion.line initial={false} animate={{ x1: x(spot), x2: x(spot) }} transition={GLIDE} y1={R.postTop} y2={R.postBot} stroke={FIG.spot} strokeOpacity={0.9} strokeWidth={1.5} data-corridor-spot-rule />
+            <motion.circle initial={false} animate={{ cx: x(spot) }} transition={GLIDE} cy={R.track} r={3} fill={FIG.hole} stroke={SILVER} strokeWidth={1.5} data-corridor-origin />
             {/* THE NAMES — sans in the level's ink with the price; a wall in reach carries its clock time in grey; spot's price bold and white */}
             {names.map(n => (
-              <motion.text key={n.key} initial={false} animate={{ attrX: n.cx, attrY: ROW.names[n.row] }} transition={GLIDE} textAnchor="middle" fontSize={11} fontWeight={n.spot ? 700 : 500} fill={n.ink} fillOpacity={0.92} fontFamily={n.spot ? FIGS : SANS} data-level-label={n.key}>
+              <motion.text key={n.key} initial={false} animate={{ attrX: n.cx, attrY: R.names[n.row] }} transition={GLIDE} textAnchor="middle" fontSize={11 * fk} fontWeight={n.spot ? 700 : 500} fill={n.ink} fillOpacity={0.92} fontFamily={n.spot ? FIGS : SANS} data-level-label={n.key}>
                 {n.text}
                 {n.extra && (
-                  <tspan fill={FIG.faint} fontWeight={400} fontSize={11} fontFamily={FIGS}>
+                  <tspan fill={FIG.faint} fontWeight={400} fontSize={11 * fk} fontFamily={FIGS}>
                     {' '}
                     · {n.extra}
                   </tspan>
@@ -462,15 +480,15 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
               </motion.text>
             ))}
             {/* THE BRACKET — one expected move each side of spot, under the ticks */}
-            <motion.path initial={false} animate={{ d: `M${x(spot - sigma).toFixed(1)},${ROW.bracket - 5} V${ROW.bracket} H${x(spot + sigma).toFixed(1)} V${ROW.bracket - 5}` }} transition={GLIDE} fill="none" stroke={SILVER} strokeOpacity={0.6} strokeWidth={1} data-corridor-bracket />
-            <motion.text initial={false} animate={{ attrX: x(spot) }} transition={GLIDE} y={ROW.words} textAnchor="middle" fontSize={11} fill={FIG.faint} fontFamily={FIGS} data-corridor-bracket-words>
+            <motion.path initial={false} animate={{ d: `M${x(spot - sigma).toFixed(1)},${R.bracket - 5} V${R.bracket} H${x(spot + sigma).toFixed(1)} V${R.bracket - 5}` }} transition={GLIDE} fill="none" stroke={SILVER} strokeOpacity={0.6} strokeWidth={1} data-corridor-bracket />
+            <motion.text initial={false} animate={{ attrX: x(spot) }} transition={GLIDE} y={R.words} textAnchor="middle" fontSize={11 * fk} fill={FIG.faint} fontFamily={FIGS} data-corridor-bracket-words>
               one expected move each side · ±{fmtPrice(sigma)}
             </motion.text>
             {/* THE POINTER — a hairline at its price, the price on the axis in silver */}
             {at != null && readout != null && (
               <g data-corridor-cursor>
-                <line x1={at} x2={at} y1={ROW.postTop} y2={ROW.postBot} stroke={SILVER} strokeOpacity={0.45} strokeWidth={1} />
-                <text x={at} y={ROW.figure} textAnchor="middle" fontSize={11} fontWeight={600} fill={SILVER} fontFamily={FIGS} data-traced-price>
+                <line x1={at} x2={at} y1={R.postTop} y2={R.postBot} stroke={SILVER} strokeOpacity={0.45} strokeWidth={1} />
+                <text x={at} y={R.figure} textAnchor="middle" fontSize={11 * fk} fontWeight={600} fill={SILVER} fontFamily={FIGS} data-traced-price>
                   {fmtPrice(readout)}
                 </text>
               </g>

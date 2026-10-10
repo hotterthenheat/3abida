@@ -335,7 +335,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
                    (T-17). Not ported with this pass — the signature change
                    reaches every twin reader on the desk. */
                 return (
-                  <span className="font-mono text-[10px] text-textMuted tnum">
+                  <span className="font-mono text-[11px] text-textMuted tnum">
                     {fam.index} {fmtTwin(twinPrice(fam, 'index', s, s))} · {fam.futures}{' '}
                     {fmtTwin(twinPrice(fam, 'futures', s, s))}
                   </span>
@@ -402,7 +402,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
             desk changes name). The silver accent = the selection voice: what you clicked. */}
         {ctx.focusPrice != null && (
           <span
-            className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded border font-mono text-[9px] uppercase tracking-widest animate-soft-in"
+            className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded border font-mono text-[11px] uppercase tracking-widest animate-soft-in"
             style={{ color: FOCUS, borderColor: alpha(FOCUS, 0.4), background: alpha(FOCUS, 0.06) }}
           >
             Focus
@@ -418,7 +418,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
                 level is about to matter: distance, tests today, gamma trend.
                 Neutral ink: none of these is a market direction. */}
             {levelRead && (
-              <span className="inline-flex items-center gap-1.5 normal-case tracking-normal text-[10px] text-textSecondary tnum">
+              <span className="inline-flex items-center gap-1.5 normal-case tracking-normal text-[11px] text-textSecondary tnum">
                 <span aria-hidden="true" className="text-textMuted">·</span>
                 <span className="text-textPrimary">
                   {levelRead.distPct > 0 ? '+' : ''}
@@ -458,7 +458,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
         <button
           onClick={() => setSuperFull(false)}
           title="Back to fullscreen — the toolbar returns (Esc); or reach the top edge for it"
-          className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[9px] uppercase tracking-widest text-textSecondary opacity-40 hover:opacity-100 hover:text-textPrimary transition-opacity"
+          className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-widest text-textSecondary opacity-40 hover:opacity-100 hover:text-textPrimary transition-opacity"
           data-total-esc
         >
           Esc · the toolbar
@@ -501,9 +501,9 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
         >
           <div className="flex items-baseline gap-1.5">
             <span className="text-[11px] font-semibold text-textPrimary">{ctx.ticker}</span>
-            <span className="text-[10px] text-textMuted" aria-hidden>·</span>
-            <span className="text-[10px] text-textMuted">{timeframe}</span>
-            <span className="text-[10px] text-textMuted" aria-hidden>·</span>
+            <span className="text-[11px] text-textMuted" aria-hidden>·</span>
+            <span className="text-[11px] text-textMuted">{timeframe}</span>
+            <span className="text-[11px] text-textMuted" aria-hidden>·</span>
             <SpotPrice
               value={ctx.liveSpot ?? Simulator.TICKERS[ctx.ticker]?.currentPrice ?? ctx.gex.levels.spot}
               className="text-[11px] font-semibold tnum text-textPrimary"
@@ -514,13 +514,13 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
           {compares.map(c => (
             <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
               <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
-              <span className="text-[10px] font-semibold" style={{ color: c.ink }}>
+              <span className="text-[11px] font-semibold" style={{ color: c.ink }}>
                 {c.ticker}
               </span>
               {Simulator.TICKERS[c.ticker] && (
                 <SpotPrice
                   value={Simulator.TICKERS[c.ticker].currentPrice}
-                  className="text-[10px] tnum text-textSecondary"
+                  className="text-[11px] tnum text-textSecondary"
                 />
               )}
               <button

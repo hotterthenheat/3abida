@@ -179,7 +179,7 @@ const ContractTrack = ({ setup, entryMid, revision, retired = false, actions, fu
           {actions}
           <TimeframeStrip value={timeframe} onChange={setTimeframe} />
           <span className="inline-flex items-center gap-2 pl-1" title="The premium now — the bid/ask midpoint this tick">
-            <span className="font-mono text-[10px] text-textMuted">now</span>
+            <span className="font-mono text-[11px] text-textMuted">now</span>
             <SpotPrice value={setup.mid} />
             <span className={`font-mono text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
               {up ? '▲' : '▼'} ${changeAbs.toFixed(2)} ({up ? '+' : '−'}
@@ -190,7 +190,7 @@ const ContractTrack = ({ setup, entryMid, revision, retired = false, actions, fu
             <button
               onClick={onToggleFullscreen}
               title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen chart'}
-              className="ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
+              className="ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
               data-premium-full
             >
               {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -200,12 +200,12 @@ const ContractTrack = ({ setup, entryMid, revision, retired = false, actions, fu
 
         {/* The whispers — the clock left, the off-scale rules and the modeled note right */}
         <div className="pl-3 pr-16 flex items-baseline justify-between gap-3 pointer-events-none">
-          <span className="font-mono text-[10px] text-textMuted">
+          <span className="font-mono text-[11px] text-textMuted">
             the contract's premium over {barsToSpan(track.pastMinutes)} · entry ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from {setup.ticker}
             's bars, not a traded tape
           </span>
           {docked.length > 0 && (
-            <span className="font-mono text-[10px] text-textMuted tnum text-right">
+            <span className="font-mono text-[11px] text-textMuted tnum text-right">
               Off scale ↑ {docked.map(l => `${l.label.replace(/^TP(\d)/, 'Target $1')} $${l.premium.toFixed(2)}`).join(' · ')}
             </span>
           )}

@@ -13,7 +13,7 @@ interface SignalBadgeProps {
 const SignalBadge = ({ tone = 'neutral', dot = false, pulse = false, children, className = '' }: SignalBadgeProps) => {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider ${toneBadge[tone]} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider ${toneBadge[tone]} ${className}`}
     >
       {dot && <span className={`w-1.5 h-1.5 rounded-full ${toneDot[tone]} ${pulse ? 'custom-pulse' : ''}`} />}
       {children}

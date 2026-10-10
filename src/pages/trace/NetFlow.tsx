@@ -39,9 +39,10 @@ import ExpiryCalendar, { expiryWords } from '../../components/ui/ExpiryCalendar'
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { netFlowReading } from '../../data/reads';
 import { isoDate } from '../../core/calendar';
+import { num as fmtNum, usdCompactSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
+const num = (v: number) => fmtNum(v);
+const signed = usdCompactSigned;
 
 /** What another page may hand this one (the 0DTE desk's door, 2026-09-03). */
 interface NetFlowHandoff {
@@ -235,11 +236,11 @@ const NetFlow = () => {
                 className={`w-full flex flex-col gap-1 px-3 py-2 border-b border-borderSubtle/60 text-left transition-colors ${isSel ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-textPrimary tnum w-5">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="font-mono text-[11px] text-textPrimary tnum w-5">{String(i + 1).padStart(2, '0')}</span>
                   <CompanyLogo ticker={l.ticker} size={15} />
                   <span className="font-mono text-[11px] font-bold text-textPrimary">{l.ticker}</span>
                   {/* the name's share of the board's gross lean */}
-                  <span className="font-mono text-[10px] tnum text-textSecondary" title="This name's share of the board's whole lean">
+                  <span className="font-mono text-[11px] tnum text-textSecondary" title="This name's share of the board's whole lean">
                     {Math.round((Math.abs(l.net) / facts.gross) * 100)}%
                   </span>
                   <span className={`ml-auto font-mono text-[11px] tnum ${directionInk(l.net, netMarks)}`}>{fmtUsd(l.net)}</span>
@@ -248,7 +249,7 @@ const NetFlow = () => {
                   <span className="relative h-0.5 flex-1 rounded-full bg-ink/[0.06] overflow-hidden">
                     <span className={`absolute left-0 top-0 h-full ${l.net >= 0 ? 'bg-bull/60' : 'bg-bear/60'}`} style={{ width: `${Math.round((Math.abs(l.net) / maxAbs) * 100)}%` }} />
                   </span>
-                  <span className="font-mono text-[10px] text-textPrimary tnum whitespace-nowrap" title={`Net calls, net puts, volume and the ${l.count} contracts traded on ${l.ticker} today`}>
+                  <span className="font-mono text-[11px] text-textPrimary tnum whitespace-nowrap" title={`Net calls, net puts, volume and the ${l.count} contracts traded on ${l.ticker} today`}>
                     C {fmtUsd(l.netCall)} · P {fmtUsd(l.netPut)} · {num(l.volume)} vol · {l.count} cons
                   </span>
                 </span>

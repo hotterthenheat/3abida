@@ -59,7 +59,7 @@ const closeDoor = 'hit inline-flex items-center justify-center w-5 h-5 rounded t
 
 /** The last fifteen minutes: one line */
 export const ClosingLine = ({ minutesLeft, expiring, onDismiss }: ClosingProps) => (
-  <div className={`${shell} border-warn/40 h-7 pl-2.5 pr-1 inline-flex items-center gap-2 font-mono text-[10px] whitespace-nowrap`} role="status" data-chart-chrome data-review-closing={minutesLeft}>
+  <div className={`${shell} border-warn/40 h-7 pl-2.5 pr-1 inline-flex items-center gap-2 font-mono text-[11px] whitespace-nowrap`} role="status" data-chart-chrome data-review-closing={minutesLeft}>
     <BellRing className="w-3 h-3 text-warn" aria-hidden="true" />
     <span className="font-semibold text-textPrimary">
       {minutesLeft} {minutesLeft === 1 ? 'minute' : 'minutes'} to the bell
@@ -88,7 +88,7 @@ export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
   <div className={`${shell} border-borderMuted w-[min(420px,calc(100vw-48px))] px-3.5 pt-2.5 pb-3`} role="status" aria-live="polite" data-chart-chrome data-review-bell>
     <div className="flex items-center gap-2">
       <BellRing className="w-3.5 h-3.5 text-silver" aria-hidden="true" />
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">The bell · 16:00 New York</span>
+      <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">The bell · 16:00 New York</span>
       <button type="button" onClick={onDismiss} title="Put this away" aria-label="Put this away" className={`hit ${closeDoor} ml-auto`}>
         <X className="w-3 h-3" />
       </button>
@@ -96,7 +96,7 @@ export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
     <p className="mt-1.5 text-[12px] leading-snug text-textPrimary">{facts.dayWords}’s market is shut.</p>
     <p className="mt-0.5 text-[11px] leading-snug text-textSecondary">Contracts trade 09:30 to 16:00 — nothing can be bought or sold at the market until the next open. A limit or a stop left now waits for it.</p>
     {(facts.dayOrders > 0 || facts.settled.length > 0 || facts.carried > 0) && (
-      <ul className="mt-2 pt-2 border-t border-borderSubtle/70 flex flex-col gap-1 font-mono text-[10px] text-textSecondary">
+      <ul className="mt-2 pt-2 border-t border-borderSubtle/70 flex flex-col gap-1 font-mono text-[11px] text-textSecondary">
         {facts.settled.map(s => (
           <li key={s.contract} className="flex items-baseline gap-1.5">
             <span className="text-textPrimary">{s.contract}</span> expired — settled at {s.price.toFixed(2)} a share
@@ -121,7 +121,7 @@ export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
           Open the next day <ArrowRight className="w-3 h-3" />
         </button>
       ) : (
-        <span className="font-mono text-[10px] text-textMuted">This is the tape’s last day.</span>
+        <span className="font-mono text-[11px] text-textMuted">This is the tape’s last day.</span>
       )}
     </div>
   </div>

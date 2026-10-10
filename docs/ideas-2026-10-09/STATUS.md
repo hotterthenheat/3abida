@@ -20,7 +20,7 @@ why. **Struck** — it uses an LLM.
 | # | Idea | Status | Where, or why not |
 | --- | --- | --- | --- |
 | 1 | Command line that acts | Built | `components/layout/CommandPalette.tsx`, `commands.ts`: "NVDA flow", page codes, "SPY alert 480", Actions, Recents, a combobox in a dialog. Not in it: saved Pulse desks and Terrain layouts by name with codes the reader chooses |
-| 2 | Walls through the day | Partly built | Terrain: strike × time heat behind the candles in the GEX, Charm or DEX lens (`components/terrain/wallsHeatPrimitive.ts`, the pane's Overlays menu, off by default). Not built: the dealer-positioning timeline (net GEX, net DEX, the flip through the session) and the Pulse widget |
+| 2 | Walls through the day | Built | Terrain: strike × time heat behind the candles in the GEX, Charm or DEX lens (`components/terrain/wallsHeatPrimitive.ts`, the pane's Overlays menu, off by default). The dealer-positioning timeline: Pinpoint › Building's fourth box, net GEX and price's distance from the flip minute by minute (`components/levels/DealerTimeline.tsx`, `data/dealerTimeline.ts`). Not built: net DEX on the timeline, the Pulse widget |
 | 3 | "How sure is this" | Partly built | Pinpoint: `components/levels/HowSure.tsx` on `data/levelSureness.ts` (what a level assumes, how fresh its open interest is, where it would sit were the side the other way). Trace's print card: "could also be" and what "unusual" is measured against (`components/trace/PrintDrilldown.tsx`). Not built: the line on Terrain and Pulse, a wall's bar split into settled OI and today's build, and the sign-flip ghost drawn on the chart (the card says it in words) |
 | 4 | Records that count the misses | Built | Levels: `data/levelRecord.ts`, shown in `components/gex/WallReportCard.tsx` (held N of M beside a strike as far away). Flow: `data/followThrough.ts` on Watchers (every flagged print, "N of M"), to now or the close; the +30 min and +1 day marks are not there. The records carry weight only once real history flows |
 | 5 | Before the open, how it went | Built | The Journal's `?view=today` (`pages/practice/TodayBrief.tsx`) and `?view=week` (`pages/practice/WeekReview.tsx`); the plan writes the day's plan note, "Did you trade your plan?" the review |
@@ -33,10 +33,10 @@ why. **Struck** — it uses an LLM.
 | 8 | Undo instead of confirm | Built | `components/ui/undo.tsx`: Flatten, Close, a new account, "Take them here", delete session, delete desk, untrack, clear the log, forget a saved cut |
 | 9 | Keyboard-first grids and layers | Partly built | Enter opens a row (`houseGrid.ts` `openRowOnEnter`, `ui/rowKeys.ts`), Esc closes the top layer (`ui/layers.ts`), `/` the page's search and `?` the keys sheet (`AppShell.tsx`, `ShortcutSheet.tsx`). Not built: j/k; the "How to read" guides still take no focus |
 | 10 | Link groups A–D across the shell | Not built | Terrain keeps its own link letters; the shell-wide model was not taken up |
-| 11 | The session in every room | Partly built | The session strip under the rail's signature, pre-market to after hours (`components/layout/SessionStrip.tsx`); Terrain's session phases (`sessionPhasesPrimitive.ts`, Overlays). Not built: shading on Paper's chart |
+| 11 | The session in every room | Built | The session strip under the rail's signature, pre-market to after hours (`components/layout/SessionStrip.tsx`); Terrain's session phases (`sessionPhasesPrimitive.ts`, Overlays); Paper's chart, the same bands in its Overlays menu, off by default (`components/review/DeskShell.tsx`) |
 | 12 | "Read this" from templates | Not built | Not taken up by the streams. Templates only, when it is built — see the struck part below |
 | 12 | …"a model can smooth the phrasing later" | Struck | Uses an LLM |
-| 13 | Colour-vision setting | Partly built | Settings › Appearance: standard or blue–orange with ▲/▼ (`theme/theme.ts`, `data-cvd` in `theme/tokens.css`, `data-dir`). Not built: "High contrast", hollow candles under the setting, outlined bubbles; `data-dir` is on few figures yet, and index.html does not set `data-cvd` before the first paint |
+| 13 | Colour-vision setting | Built | Settings › Appearance: standard, blue–orange or high contrast, with ▲/▼ under either choice (`theme/theme.ts`, `data-cvd` in `theme/tokens.css`, set before the first paint by index.html); under either, a down-side key dot is a ring (`cvd-hollow`) and the puts' lines are dashed (Net Flow, the Weigher's smile). Hollow candles under the setting: the shared stream's blue–orange candles |
 | 14 | Speed: a store per key, a worker, batched grids | Not built | `context/MarketDataContext.tsx` still ticks one context every 1.5 s; no Worker, no `applyTransactionAsync`. Pinpoint's one book per name made the Map's idle cost fall (827 ms to 57 ms), and Pulse's one price came from `ctx.liveSpot`, not a store |
 | 15 | Annual pricing | Built | `data/billing.ts` `priceLine` (yearly at ten months' price, "Two months free"); the landing's Monthly / Yearly switch |
 
@@ -45,7 +45,7 @@ why. **Struck** — it uses an LLM.
 | Idea | Status | Why |
 | --- | --- | --- |
 | Copy today's levels (Pine, price-line paste, CSV) | Not built | Not on the shortlist |
-| One watchlist of names | Not built | M–L; not on the shortlist |
+| One watchlist of names | Built | The rail's Watchlist door: sections, flags, price, change and the nearest wall or flip; a press sets the name or a link group; links to the contract lists (`components/layout/WatchlistDrawer.tsx`, `data/nameWatch.ts`). "watch NVDA" is `components/layout/watchCommand.ts`, for the command line to call |
 | Pop-out windows (BroadcastChannel) | Not built | Not on the shortlist |
 | "Start from a desk" chooser | Not built | Not on the shortlist |
 | A glossary page from `data/terms.ts` | Not built as a page | Pinpoint's words are defined at the foot of its guides (`components/levels/Glossary.tsx`) |

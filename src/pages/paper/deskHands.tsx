@@ -116,7 +116,7 @@ const MenuHead = ({ at, q, unit }: { at: string; q: number; unit: string }) => (
     <span className="font-mono text-[12px] tnum font-semibold text-textPrimary" data-chart-menu-at>
       At {at}
     </span>
-    <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tnum text-textSecondary" data-chart-menu-size={q}>
+    <span className="ml-auto inline-flex items-center gap-1 font-mono text-[11px] tnum text-textSecondary" data-chart-menu-size={q}>
       <button type="button" onClick={() => setQuick(q - 1)} disabled={q <= 1} aria-label="One fewer" className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors">
         <Minus className="w-2.5 h-2.5" />
       </button>

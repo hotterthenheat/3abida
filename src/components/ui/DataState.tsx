@@ -95,7 +95,7 @@ const DataState = ({ kind, title, body, onRetry, pad = 'md', className = '' }: D
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle rounded px-2 py-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+          className="mt-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle rounded px-2 py-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent"
         >
           Try again
         </button>

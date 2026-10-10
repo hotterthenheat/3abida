@@ -151,7 +151,7 @@ interface Props {
 }
 
 const iconBtn = 'shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-textSecondary transition-colors';
-const doorBtn = 'shrink-0 inline-flex items-center gap-1.5 h-6 rounded-md border border-borderSubtle hover:border-borderMuted font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors';
+const doorBtn = 'shrink-0 inline-flex items-center gap-1.5 h-6 rounded-md border border-borderSubtle hover:border-borderMuted font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors';
 
 const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace, onPace, onSeek, onExit, compact = false, words, marks, paceUnit = 'seconds', candleMin = 1, step = 60, counter, wordsAt, exitWords = 'Back to live', stateWord = 'replaying', minPos = 0, minTitle, className = '' }: Props) => {
   /* candles a real second at a pace: a chart's own bars ARE candles; a session clock's seconds are folded into the host's candle */
@@ -240,7 +240,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
       </div>
       {withMarks &&
         ticks.map(t => (
-          <span key={`${t.u}-${t.label}`} className="absolute bottom-0 -translate-x-1/2 font-mono text-[8px] leading-none text-textMuted tnum whitespace-nowrap pointer-events-none" style={{ left: `${t.u * 100}%` }}>
+          <span key={`${t.u}-${t.label}`} className="absolute bottom-0 -translate-x-1/2 font-mono text-[11px] leading-none text-textMuted tnum whitespace-nowrap pointer-events-none" style={{ left: `${t.u * 100}%` }}>
             {t.label}
           </span>
         ))}
@@ -248,7 +248,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
           it), and the moment beside the track already follows a drag */}
       {over != null && withMarks !== undefined && !compact && (
         <span
-          className="absolute bottom-full mb-0.5 -translate-x-1/2 px-1.5 py-0.5 rounded border border-borderMuted bg-card font-mono text-[9px] tnum text-textPrimary whitespace-nowrap pointer-events-none shadow-[0_6px_18px_rgba(0,0,0,0.45)]"
+          className="absolute bottom-full mb-0.5 -translate-x-1/2 px-1.5 py-0.5 rounded border border-borderMuted bg-card font-mono text-[11px] tnum text-textPrimary whitespace-nowrap pointer-events-none shadow-[0_6px_18px_rgba(0,0,0,0.45)]"
           style={{ left: `${over * 100}%` }}
           data-replay-over
         >
@@ -286,7 +286,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
   const moment = (
     <span className="shrink-0 font-mono text-[11px] font-semibold tnum whitespace-nowrap" style={{ color: SILVER }} data-replay-time>
       {when}
-      {!(narrow && !compact) && <span className="text-[9px] font-normal uppercase tracking-widest"> · {stateWord}</span>}
+      {!(narrow && !compact) && <span className="text-[11px] font-normal uppercase tracking-widest"> · {stateWord}</span>}
     </span>
   );
   const exitDoor = (wordsToo: boolean) => (
@@ -337,7 +337,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
       <div className="flex items-center gap-2.5 h-10 pl-3.5 pr-2">
         <Crosshair className="w-3.5 h-3.5 shrink-0" style={{ color: SILVER }} aria-hidden="true" />
         <span className="min-w-0 truncate font-mono text-[11px]" style={{ color: SILVER }}>
-          Select a bar on the chart <span className="text-[9px] uppercase tracking-widest">· the replay starts there</span>
+          Select a bar on the chart <span className="text-[11px] uppercase tracking-widest">· the replay starts there</span>
         </span>
         <span className="ml-auto">{exitDoor(true)}</span>
       </div>,
@@ -349,7 +349,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
       <div className="flex items-center gap-2 h-10 pl-1.5 pr-1.5">
         {playButton('sm')}
         {moment}
-        {counter && <span className="font-mono text-[10px] tnum text-textMuted whitespace-nowrap">{counter}</span>}
+        {counter && <span className="font-mono text-[11px] tnum text-textMuted whitespace-nowrap">{counter}</span>}
         <button type="button" onClick={() => setFolded(false)} title="Open the replay bar" aria-label="Open the replay bar" className={iconBtn} data-replay-fold="open">
           <ChevronUp className="w-3.5 h-3.5" />
         </button>
@@ -365,7 +365,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
         {moment}
         {track(narrow ? 'flex-1 min-w-[72px]' : 'flex-1 min-w-[120px]', !narrow)}
         {counter && (
-          <span className="shrink-0 font-mono text-[10px] tnum text-textMuted whitespace-nowrap" data-replay-counter>
+          <span className="shrink-0 font-mono text-[11px] tnum text-textMuted whitespace-nowrap" data-replay-counter>
             {counter}
           </span>
         )}
@@ -381,7 +381,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
           <DropdownSelect label="Pace" value={pace} options={paceOptions} onChange={onPace} title="How fast it plays back" testId="replay-pace" size="sm" />
           {/* the few words: what that multiple moves, in this chart's candles — they give before the card does */}
           {!narrow && (
-            <span className="ml-2 min-w-0 truncate font-mono text-[9px] tnum text-textMuted whitespace-nowrap" title={candlePace(perSecond(pace)).long} data-replay-pace-words>
+            <span className="ml-2 min-w-0 truncate font-mono text-[11px] tnum text-textMuted whitespace-nowrap" title={candlePace(perSecond(pace)).long} data-replay-pace-words>
               {candlePace(perSecond(pace)).short}
             </span>
           )}

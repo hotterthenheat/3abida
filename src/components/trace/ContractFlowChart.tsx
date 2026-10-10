@@ -95,7 +95,7 @@ const printLine = (min: number, yAxisId: string, withLabel: boolean, nearRight =
 const axisTick = { fill: AXIS, fontSize: 10, fontFamily: FONT_SANS };
 
 const Box = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded border border-borderMuted bg-panel px-2.5 py-1.5 shadow-2xl shadow-black/60 font-mono text-[10px]">
+  <div className="rounded border border-borderMuted bg-panel px-2.5 py-1.5 shadow-2xl shadow-black/60 font-mono text-[11px]">
     {children}
   </div>
 );
@@ -106,7 +106,7 @@ export { default as Chip } from '../ui/Chip';
 /** One figure in a panel's stat strip. */
 const Stat = ({ label, value, tone = 'text-textPrimary' }: { label: string; value: string; tone?: string }) => (
   <span className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted truncate">{label}</span>
+    <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted truncate">{label}</span>
     <span className={`font-mono text-[12px] font-semibold tnum ${tone} truncate`}>{value}</span>
   </span>
 );
@@ -132,7 +132,7 @@ const TugBar = ({
   className?: string;
 }) => (
   <div className={`flex flex-col gap-1 ${className}`}>
-    <div className="flex items-baseline justify-between gap-3 font-mono text-[10px] uppercase tracking-wider">
+    <div className="flex items-baseline justify-between gap-3 font-mono text-[11px] uppercase tracking-wider">
       <span className={leftPct >= 50 ? 'text-bear font-semibold' : 'text-textSecondary'}>
         {leftLabel} {Math.round(leftPct)}%
       </span>
@@ -382,8 +382,8 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
     <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5">
       {/* Strip header: what it is, the window's own figures, the overlays */}
       <div className="flex items-baseline gap-2.5 flex-wrap">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The contract's prints</span>
-        <span className="font-mono text-[10px] text-textMuted tnum">
+        <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">The contract's prints</span>
+        <span className="font-mono text-[11px] text-textMuted tnum">
           <RichRead text={`avg $${s.avgPrice.toFixed(2)} · ${fmtUsd(s.premium)} in window · ${s.multiPct}% multi-leg`} />
         </span>
         <span className="ml-auto flex items-center gap-0.5">
@@ -495,20 +495,20 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
 
       {/* Legend */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: ASK }} /> Paid the offer · stacks up
         </span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: BID }} /> Hit the bid · stacks down
         </span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: FENCE }} /> Mid · on the fence
         </span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: SUPREME }} /> Largest print
         </span>
         {printMin !== null && (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-textSecondary">
             <span className="w-3 h-[2px]" style={{ background: PRICE_LINE }} /> This print
           </span>
         )}
@@ -568,7 +568,7 @@ const MetricPicker = ({ value, onChange }: { value: NetMetric; onChange: (v: Net
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors ${
           open ? 'border-borderMuted bg-ink/[0.05] text-textPrimary' : 'border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary'
         }`}
       >
@@ -593,7 +593,7 @@ const MetricPicker = ({ value, onChange }: { value: NetMetric; onChange: (v: Net
                 <span className={`font-mono text-[11px] ${m.value === value ? 'text-textPrimary font-semibold' : 'text-textSecondary'}`}>
                   {m.label}
                 </span>
-                <span className="font-mono text-[10px] text-textMuted">{m.hint}</span>
+                <span className="font-mono text-[11px] text-textMuted">{m.hint}</span>
               </span>
             </button>
           ))}
@@ -697,26 +697,26 @@ export const NetPanel = ({
       <div className="flex items-center gap-2.5 flex-wrap">
         {/* "Tide" was the competition's word (Noah, 2026-08-30) — this panel
             reads the ticker's premium, so it says so. */}
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary">
           <CompanyLogo ticker={ticker} size={12} />
           {ticker} net premium
         </span>
         <MetricPicker value={metric} onChange={onMetric} />
         {isVolOrUsd ? (
-          <span className="font-mono text-[10px] text-textMuted tnum">
+          <span className="font-mono text-[11px] text-textMuted tnum">
             {(u.callVol + u.putVol).toLocaleString()} contracts · {fmtUsd(u.callPrem + u.putPrem)} traded · calls minus puts{' '}
             <span className={(isUsd ? u.callPrem - u.putPrem : u.callVol - u.putVol) >= 0 ? 'text-bull font-semibold' : 'text-bear font-semibold'}>
               {isUsd ? fmtUsd(u.callPrem - u.putPrem) : (u.callVol - u.putVol).toLocaleString()}
             </span>
           </span>
         ) : metric === 'netPremium' ? (
-          <span className="font-mono text-[10px] text-textMuted tnum">
+          <span className="font-mono text-[11px] text-textMuted tnum">
             net <span className={n.netPrem >= 0 ? 'text-bull font-semibold' : 'text-bear font-semibold'}>{fmtUsd(n.netPrem)}</span> · calls{' '}
             <span className={n.netCallPrem >= 0 ? 'text-bull font-semibold' : 'text-bear font-semibold'}>{fmtUsd(n.netCallPrem)}</span> · puts{' '}
             <span className={n.netPutPrem >= 0 ? 'text-bear font-semibold' : 'text-bull font-semibold'}>{fmtUsd(n.netPutPrem)}</span>
           </span>
         ) : (
-          <span className="font-mono text-[10px] text-textMuted tnum">
+          <span className="font-mono text-[11px] text-textMuted tnum">
             {cf.strikes.length} strikes · busiest{' '}
             {String(cf.strikes.reduce((a, b) => (b.callVol - b.putVol > a.callVol - a.putVol ? b : a), cf.strikes[0])?.strike ?? '—')} · this contract{' '}
             <span className="text-select font-semibold">{String(cf.strikes.find(s2 => s2.isFocus)?.strike ?? '—')}</span>

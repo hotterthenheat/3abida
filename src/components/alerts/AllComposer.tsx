@@ -138,7 +138,7 @@ const AllComposer = ({ ticker, onDone }: { ticker: string; onDone: (said: string
       </p>
       {conds.map((c, i) => (
         <div key={i} className="flex items-start gap-1.5" data-all-cond={i}>
-          <span className="shrink-0 w-7 h-7 inline-flex items-center font-mono text-[10px] text-textMuted">{i === 0 ? 'When' : 'and'}</span>
+          <span className="shrink-0 w-7 h-7 inline-flex items-center font-mono text-[11px] text-textMuted">{i === 0 ? 'When' : 'and'}</span>
           <div className="min-w-0 flex-1">
             <Row c={c} spot={spot} set={next => setConds(cs => cs.map((x, j) => (j === i ? next : x)))} />
           </div>
@@ -151,7 +151,7 @@ const AllComposer = ({ ticker, onDone }: { ticker: string; onDone: (said: string
       ))}
       <div className="flex items-center gap-2 flex-wrap">
         {conds.length < ALL_MAX && (
-          <button type="button" onClick={() => setConds(cs => [...cs, freshCond('dealers', spot)])} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted" data-all-add>
+          <button type="button" onClick={() => setConds(cs => [...cs, freshCond('dealers', spot)])} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted" data-all-add>
             <Plus className="w-3 h-3" /> A condition
           </button>
         )}
@@ -159,7 +159,7 @@ const AllComposer = ({ ticker, onDone }: { ticker: string; onDone: (said: string
           Set it
         </button>
       </div>
-      <p className="font-mono text-[10px] leading-snug text-textMuted">
+      <p className="font-mono text-[11px] leading-snug text-textMuted">
         It alerts when they come together, not while they stay together.{note ? ` ${note}.` : ''}
       </p>
     </div>

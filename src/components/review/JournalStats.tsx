@@ -47,7 +47,7 @@ const dayWords = (day: string) => {
 
 const Row = ({ label, title, children, testId }: { label: string; title?: string; children: ReactNode; testId: string }) => (
   <div className="h-7 flex items-center justify-between gap-4" title={title} data-journal-stat={testId}>
-    <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted whitespace-nowrap">{label}</span>
+    <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted whitespace-nowrap">{label}</span>
     <span className="font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{children}</span>
   </div>
 );
@@ -77,7 +77,7 @@ const JournalStats = ({ rows, periodDays, periodLabel }: Props) => {
   return (
     <div className={`${card} flex flex-col min-w-0 h-full`} data-journal-stats={s.n}>
       <div className="px-5 pt-3.5 pb-2.5">
-        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">{periodLabel}</div>
+        <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">{periodLabel}</div>
         <div className={`mt-1.5 font-mono text-[24px] font-semibold tnum leading-none ${s.n ? dirInk(s.net) : 'text-textMuted'}`} data-journal-stats-net>
           {s.n ? usdSigned(s.net) : '$0.00'}
         </div>

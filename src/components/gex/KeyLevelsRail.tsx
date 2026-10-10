@@ -60,7 +60,7 @@ const KIND_TERM: Partial<Record<KeyLevelKind, TermKey>> = {
 /** Price-ordered ladder of structural levels: distance from spot + parked exposure. */
 const KeyLevelsRail = ({ rows, maxPressure, onSelect, priceFormat }: KeyLevelsRailProps) => (
   <div className="flex flex-col">
-    <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-2.5 py-1.5 border-b border-borderSubtle font-mono text-[8px] font-semibold uppercase tracking-widest text-textMuted select-none">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-2.5 py-1.5 border-b border-borderSubtle font-mono text-[11px] font-semibold uppercase tracking-widest text-textMuted select-none">
       <span>Level</span>
       <span className="text-right w-14">Dist</span>
       <span className="text-right w-16">Pressure</span>
@@ -79,7 +79,7 @@ const KeyLevelsRail = ({ rows, maxPressure, onSelect, priceFormat }: KeyLevelsRa
           } ${onSelect ? 'cursor-pointer hover:bg-ink/[0.03]' : ''}`}
         >
           <span className="min-w-0">
-            <span className={`block font-mono text-[10px] font-semibold uppercase tracking-wider ${KIND_TEXT[row.kind]}`}>
+            <span className={`block font-mono text-[11px] font-semibold uppercase tracking-wider ${KIND_TEXT[row.kind]}`}>
               {KIND_TERM[row.kind] ? <Term k={KIND_TERM[row.kind] as TermKey}>{row.label}</Term> : row.label}
             </span>
             <span className="block font-mono text-[11px] font-bold tnum text-textPrimary">
@@ -87,14 +87,14 @@ const KeyLevelsRail = ({ rows, maxPressure, onSelect, priceFormat }: KeyLevelsRa
             </span>
           </span>
           <span
-            className={`w-14 text-right font-mono text-[10px] tnum ${
+            className={`w-14 text-right font-mono text-[11px] tnum ${
               isSpot ? 'text-textMuted' : row.distPct >= 0 ? 'text-bull' : 'text-bear'
             }`}
           >
             {isSpot ? '—' : `${row.distPct >= 0 ? '+' : ''}${row.distPct.toFixed(2)}%`}
           </span>
           <span className="w-16 text-right">
-            <span className="block font-mono text-[10px] tnum text-textSecondary">
+            <span className="block font-mono text-[11px] tnum text-textSecondary">
               {isSpot ? '—' : fmtUsd(row.pressure)}
             </span>
             {!isSpot && (

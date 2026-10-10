@@ -66,10 +66,11 @@ import ReadDoor from '../../components/trace/ReadDoor';
 import WatchStar from '../../components/trace/WatchStar';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { TrackerGuide } from '../../components/trace/TraceGuide';
+import { expiryLabel, num as fmtNum, numSigned, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signedPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
-const signedNum = (v: number) => `${v >= 0 ? '+' : ''}${num(v)}`;
+const num = (v: number) => fmtNum(v);
+const signedPct = (v: number) => pctSigned(v);
+const signedNum = (v: number) => numSigned(v);
 const pct = (now: number, then: number) => (then > 0 ? ((now - then) / then) * 100 : 0);
 
 const SOURCE_LABEL: Record<WatchSource, string> = {
@@ -251,7 +252,7 @@ const FlowTracker = () => {
             <span className={`group/door inline-flex items-baseline gap-1.5 pb-[2px] ${DOOR}`}>
               <span className={`font-mono text-xs font-bold text-textPrimary tnum ${DOOR_GROUP_TEXT}`}>{r.w.strikesLabel}</span>
               <span className="font-mono text-[11px] font-semibold text-textPrimary">{r.w.spreadKind}</span>
-              <span className="font-mono text-[10px] text-textSecondary tnum">{r.w.expiry}</span>
+              <span className="font-mono text-[11px] text-textSecondary tnum">{expiryLabel(r.w.expiry)}</span>
             </span>
           ) : (
             <ContractCell strike={r.w.strike} right={r.w.right} expiry={r.w.expiry} />
@@ -262,7 +263,7 @@ const FlowTracker = () => {
         header: 'Marked',
         sortValue: r => r.w.watchedAt,
         render: r => (
-          <span className="text-[10px] text-textPrimary whitespace-nowrap">
+          <span className="text-[11px] text-textPrimary whitespace-nowrap">
             {markedAt(r.w.watchedAt)} <span className="text-textSecondary">· {SOURCE_LABEL[r.w.from]}</span>
           </span>
         ),
@@ -286,7 +287,7 @@ const FlowTracker = () => {
             return (
               <span className="text-textSecondary">
                 <span className="text-textPrimary">{num(w.size)}</span> @ <span className="text-textPrimary">${w.fill.toFixed(2)}</span>{' '}
-                <span className={`text-[10px] ${w.side === 'ASK' ? 'text-bull' : w.side === 'BID' ? 'text-bear' : 'text-textSecondary'}`}>
+                <span className={`text-[11px] ${w.side === 'ASK' ? 'text-bull' : w.side === 'BID' ? 'text-bear' : 'text-textSecondary'}`}>
                   {w.side === 'ASK' ? 'BUY' : w.side === 'BID' ? 'SELL' : 'MID'}
                   {w.sweep ? ' · SWEEP' : ''}
                 </span>
@@ -295,7 +296,7 @@ const FlowTracker = () => {
           return (
             <span className="text-textSecondary">
               <span className="text-textPrimary">{num(w.size)}×</span> @ <span className="text-textPrimary">${Math.abs(w.net).toFixed(2)}</span>{' '}
-              <span className="text-[10px]">{w.net >= 0 ? 'debit' : 'credit'}</span>
+              <span className="text-[11px]">{w.net >= 0 ? 'debit' : 'credit'}</span>
             </span>
           );
         },
@@ -317,13 +318,13 @@ const FlowTracker = () => {
         render: r =>
           r.live ? (
             <span className="text-textPrimary">
-              ${r.live.last.toFixed(2)} <span className={`text-[10px] ${directionInk(r.chg ?? 0, marks.chg)}`}>{signedPct(r.chg ?? 0)}</span>
+              ${r.live.last.toFixed(2)} <span className={`text-[11px] ${directionInk(r.chg ?? 0, marks.chg)}`}>{signedPct(r.chg ?? 0)}</span>
             </span>
           ) : r.w.kind === 'structure' ? (
             <Dash />
           ) : (
             <span
-              className="text-[10px] text-textSecondary"
+              className="text-[11px] text-textSecondary"
               title={
                 r.w.kind === 'contract'
                   ? 'This contract is not on today’s book — it expired, or the day rolled'
@@ -345,7 +346,7 @@ const FlowTracker = () => {
           ) : (
             <span className="text-textPrimary">
               ${r.spotThen.toFixed(2)} <span className="text-textSecondary">→</span> <span className="text-textPrimary">${r.spotNow.toFixed(2)}</span>{' '}
-              <span className={`text-[10px] ${directionInk(r.spotChg ?? 0, marks.spot)}`}>{signedPct(r.spotChg ?? 0)}</span>
+              <span className={`text-[11px] ${directionInk(r.spotChg ?? 0, marks.spot)}`}>{signedPct(r.spotChg ?? 0)}</span>
             </span>
           ),
       },
@@ -373,7 +374,7 @@ const FlowTracker = () => {
           const then = r.leanThen != null ? leanWord(r.leanThen) : null;
           const now = r.leanNow != null ? leanWord(r.leanNow) : null;
           return (
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
               {then ? <span className={then.ink}>{then.text}</span> : <span className="text-textSecondary">—</span>}
               <span className="text-textSecondary"> → </span>
               {now ? <span className={now.ink}>{now.text}</span> : <span className="text-textSecondary">—</span>}

@@ -93,7 +93,7 @@ const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Ev
         <DropdownMenu.Content align={align} sideOffset={6} className={`${CARD} p-1.5`} data-dropdown-card={testId ?? label} onCloseAutoFocus={focusBackForKeys}>
           <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[11px] text-textMuted">{title ?? label}</DropdownMenu.Label>
           {shown.length === 0 ? (
-            <div className="px-2 py-3 font-mono text-[10px] text-textMuted">Nothing on the page to pick from</div>
+            <div className="px-2 py-3 font-mono text-[11px] text-textMuted">Nothing on the page to pick from</div>
           ) : (
             <div className="grid gap-x-2" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(200px, 1fr))` }}>
               {shown.map(g => (
@@ -117,9 +117,9 @@ const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Ev
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             <span className={`min-w-0 truncate font-mono text-[11px] font-semibold ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>{o.label}</span>
-                            {o.count != null && <span className="ml-auto font-mono text-[9px] tnum text-textMuted">{o.count}</span>}
+                            {o.count != null && <span className="ml-auto font-mono text-[11px] tnum text-textMuted">{o.count}</span>}
                           </span>
-                          {o.hint && <span className="block text-[10px] text-textMuted leading-snug truncate">{o.hint}</span>}
+                          {o.hint && <span className="block text-[11px] text-textMuted leading-snug truncate">{o.hint}</span>}
                         </span>
                       </DropdownMenu.CheckboxItem>
                     );
@@ -133,7 +133,7 @@ const DropdownMulti = ({ label, values, groups, onChange, title, emptyWord = 'Ev
               <DropdownMenu.Separator className="my-1 h-px bg-borderSubtle" />
               <DropdownMenu.Item
                 onSelect={() => onChange([])}
-                className="px-2 py-1.5 rounded outline-none cursor-pointer font-mono text-[10px] uppercase tracking-widest text-textSecondary data-[highlighted]:bg-ink/[0.04] data-[highlighted]:text-textPrimary"
+                className="px-2 py-1.5 rounded outline-none cursor-pointer font-mono text-[11px] uppercase tracking-widest text-textSecondary data-[highlighted]:bg-ink/[0.04] data-[highlighted]:text-textPrimary"
                 data-multi-clear
               >
                 Clear · show everything

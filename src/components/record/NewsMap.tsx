@@ -346,7 +346,7 @@ const Water = ({ theme }: { theme: Theme }) => {
     "the shaded region of the current open market like we had before") — a
     fifth over the blue water and the slate, its edges and its name plainer
     than the first cut's, which sat at a twentieth on black and vanished. */
-const SessionBands = ({ sessions, zoom, labelLat = 79 }: { sessions: SessionDef[]; zoom: number; labelLat?: number }) => {
+const SessionBands = ({ sessions, zoom, wordZoom = zoom, labelLat = 79 }: { sessions: SessionDef[]; zoom: number; wordZoom?: number; labelLat?: number }) => {
   const { path } = useMapContext();
   return (
     <g data-news-sessions={sessions.map(s => s.key).join(' ')}>
@@ -354,7 +354,7 @@ const SessionBands = ({ sessions, zoom, labelLat = 79 }: { sessions: SessionDef[
         <g key={s.key}>
           <path d={path(bandFeature(s.west, s.east)) ?? undefined} fill={SILVER} fillOpacity={0.16} stroke={SILVER} strokeOpacity={0.45} strokeWidth={0.7 / zoom} data-news-session={s.key} />
           <Marker coordinates={[(s.west + s.east) / 2, labelLat]}>
-            <text textAnchor="middle" fontSize={10 / zoom} fontFamily={FONT_SANS} letterSpacing={1.2 / zoom} fill={SILVER} fillOpacity={0.85}>
+            <text textAnchor="middle" fontSize={10 / wordZoom} fontFamily={FONT_SANS} letterSpacing={1.2 / wordZoom} fill={SILVER} fillOpacity={0.85}>
               {`${s.label.toUpperCase()} · OPEN`}
             </text>
           </Marker>
@@ -404,7 +404,7 @@ const HEAT_RUNGS: [string, number][] = [
 ];
 export const HeatLegend = ({ className = '' }: { className?: string }) => (
   <span
-    className={`inline-flex items-center gap-3 font-mono text-[10px] text-textSecondary whitespace-nowrap ${className}`}
+    className={`inline-flex items-center gap-3 font-mono text-[11px] text-textSecondary whitespace-nowrap ${className}`}
     title="The land warms where the day's news lands — every story's zones, summed over what the cards leave. Not where it was written."
     data-heat-legend
   >
@@ -501,10 +501,13 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<Frame>(REST);
   const frameRef = useRef<Frame>(REST);
+  /* the box's own width, for the words' floor (below) */
+  const [boxW, setBoxW] = useState(0);
   useLayoutEffect(() => {
     const el = rootRef.current;
     if (!el || figure) return;
     const read = () => {
+      setBoxW(el.clientWidth);
       const next = frameFor(el.clientWidth, el.clientHeight);
       const prev = frameRef.current;
       if (next.w === prev.w && next.h === prev.h) return;
@@ -549,6 +552,13 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
   const z = figure ? 1 : view.zoom;
   /* the figure's pins and words, two and a half times their size — the figure is 416px wide against the page's 1186 */
   const s = figure ? 2.5 : 1;
+  /* THE WORDS AT THE FLOOR (2026-10-10): a country's name is 13 of the drawing's units and the open sessions' 10, which a
+     narrow box drew at 4.6 px on a phone and 10 on a desk. A pixel is frame.w / boxW units; the names and the sessions'
+     words scale up to 11 px on the screen (fewer names find room — CountryNames places only what fits), and the pins and
+     their counts with the names, so a phone's pin is a finger's mark, not a 3 px dot. */
+  const unitPx = !figure && boxW > 0 ? boxW / frame.w : 0;
+  const nameS = unitPx > 0 ? Math.max(s, 11 / (13 * unitPx)) : s;
+  const bandS = unitPx > 0 ? Math.max(s, 11 / (10 * unitPx)) : s;
   const sessions = useMemo(() => openSessions(at), [at]);
   /* Which country a zone sits in never changes — found once per zone, kept */
   const zoneHome = useRef(new Map<string, string | null>());
@@ -595,28 +605,28 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
                     );
                   })}
                   {/* THE NAMES — the countries big enough at this zoom whose names have room, under the pins */}
-                  <CountryNames shown={shown as NamedGeo[]} z={z} s={s} theme={theme} minArea={labelBar} />
+                  <CountryNames shown={shown as NamedGeo[]} z={z} s={nameS} theme={theme} minArea={labelBar} />
                 </>
               );
             }}
           </Geographies>
           {/* the wash's name near the frame's top at rest, over the Arctic coasts — lat 68 in the resting frame, further north in a taller one */}
-          <SessionBands sessions={sessions} zoom={z / s} labelLat={figure ? 60 : Math.min(80, MERCATOR.invert?.([0, restTop(frame) + 30])?.[1] ?? 68)} />
+          <SessionBands sessions={sessions} zoom={z / s} wordZoom={z / bandS} labelLat={figure ? 60 : Math.min(80, MERCATOR.invert?.([0, restTop(frame) + 30])?.[1] ?? 68)} />
           {/* THE REACH */}
           {reach && arcs.length > 0 && <ReachArcs reach={reach} zones={arcs} zoom={z / s} />}
           {/* THE PINS */}
           {ordered.map(p => {
             const open = p.city === selectedCity;
             const hot = p.city === hoverCity;
-            const r = ((5 + 2.2 * Math.sqrt(p.n)) * s) / z;
+            const r = ((5 + 2.2 * Math.sqrt(p.n)) * nameS) / z;
             const ink = INK[p.grade];
             return (
               <Marker key={p.city} coordinates={[p.lng, p.lat]} onClick={() => onPick(p)} onMouseEnter={() => onHover(p)} onMouseLeave={() => onHover(null)} style={{ default: { cursor: figure ? 'default' : 'pointer' }, hover: { cursor: figure ? 'default' : 'pointer' }, pressed: { cursor: figure ? 'default' : 'pointer' } }}>
                 <g data-news-pin={p.city} data-grade={p.grade} data-open={open || undefined}>
-                  {p.freshest === 'fresh' && <circle r={r + (5 * s) / z} fill={ink} fillOpacity={0.14} />}
-                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : 'rgb(var(--night))'} strokeWidth={((open ? 2 : 1) * s) / z} />
+                  {p.freshest === 'fresh' && <circle r={r + (5 * nameS) / z} fill={ink} fillOpacity={0.14} />}
+                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : 'rgb(var(--night))'} strokeWidth={((open ? 2 : 1) * nameS) / z} />
                   {p.n > 1 && (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={(13 * s) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={(13 * nameS) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
                       {p.n}
                     </text>
                   )}
@@ -673,7 +683,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
         <button
           type="button"
           onClick={() => glideTo(homeView)}
-          className="hit absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
+          className="hit absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
           title="Back to the whole world"
           data-news-map-fit
         >

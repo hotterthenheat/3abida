@@ -20,6 +20,7 @@
 */
 
 import { DOOR, DOOR_GROUP_TEXT } from './door';
+import { expiryLabel, pctSigned } from '../../core/format';
 
 /* The COLUMN is right-aligned (header included), so header and endings share
    one edge and read as one parent — the cell itself just hugs its content.
@@ -54,7 +55,7 @@ const ContractCell = ({
       <span className={`font-mono text-[11px] font-semibold ${right === 'C' ? 'text-bull' : 'text-bear'}`}>
         {right === 'C' ? 'call' : 'put'}
       </span>
-      <span className="font-mono text-[10px] text-textMuted tnum">{expiry}</span>
+      <span className="font-mono text-[11px] text-textMuted tnum">{expiryLabel(expiry)}</span>
     </span>
   );
   /* Without context the cell is EXACTLY what it always was — one line, one
@@ -69,15 +70,14 @@ const ContractCell = ({
   return (
     <span className="inline-flex flex-col items-end gap-[3px] leading-none align-middle">
       {head}
-      <span className="inline-flex items-baseline gap-1 font-mono text-[10px] leading-none tnum text-textSecondary whitespace-nowrap">
+      <span className="inline-flex items-baseline gap-1 font-mono text-[11px] leading-none tnum text-textSecondary whitespace-nowrap">
         {dte !== undefined && <span>{dte}d</span>}
         {dte !== undefined && (spot !== undefined || otmPct !== undefined) && <span aria-hidden>·</span>}
         {spot !== undefined && <span>spot ${spot.toFixed(2)}</span>}
         {spot !== undefined && otmPct !== undefined && <span aria-hidden>·</span>}
         {otmPct !== undefined && (
           <span>
-            {otmPct >= 0 ? '+' : ''}
-            {otmPct.toFixed(1)}%
+            {pctSigned(otmPct, 1)}
           </span>
         )}
       </span>

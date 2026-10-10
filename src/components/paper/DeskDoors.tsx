@@ -58,7 +58,7 @@ const Tick = ({ on, onChange, label, hint, testId }: { on: boolean; onChange: (v
     <span className={`mt-0.5 inline-flex w-3.5 h-3.5 shrink-0 items-center justify-center rounded-[3px] border ${on ? 'bg-silverFill border-silverFill' : 'border-borderMuted'}`}>{on && <Check className="w-2.5 h-2.5 text-[rgb(var(--night))]" />}</span>
     <span className="min-w-0">
       <span className={`block text-[11px] ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>{label}</span>
-      <span className="block text-[10px] leading-snug text-textMuted">{hint}</span>
+      <span className="block text-[11px] leading-snug text-textMuted">{hint}</span>
     </span>
   </button>
 );
@@ -93,7 +93,7 @@ export const DeskMenu = ({ compact }: { compact: boolean }) => {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content align="end" sideOffset={6} collisionPadding={12} className={`${CARD} w-[280px] p-1.5 z-[95]`} data-paper-desk-card>
-          <div className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-widest text-textMuted">Your desks</div>
+          <div className="px-2 pt-1 pb-1.5 font-mono text-[11px] uppercase tracking-widest text-textMuted">Your desks</div>
           {s.desks.map(d => (
             <div key={d.id} className="group flex items-center gap-1">
               {naming?.id === d.id ? (
@@ -106,7 +106,7 @@ export const DeskMenu = ({ compact }: { compact: boolean }) => {
                   }}
                 >
                   <input ref={field} value={draft} onChange={e => setDraft(e.target.value.slice(0, 32))} aria-label="The desk's name" className="flex-1 h-7 px-2 rounded-md border border-silver/50 bg-panel text-[12px] text-textPrimary outline-none" data-paper-desk-name-field />
-                  <button type="submit" className="hit h-7 px-2 rounded-md text-[10px] font-mono uppercase tracking-wider text-silver hover:bg-silver/[0.08]">
+                  <button type="submit" className="hit h-7 px-2 rounded-md text-[11px] font-mono uppercase tracking-wider text-silver hover:bg-silver/[0.08]">
                     Keep
                   </button>
                 </form>
@@ -117,7 +117,7 @@ export const DeskMenu = ({ compact }: { compact: boolean }) => {
                       <Check className="w-3.5 h-3.5" />
                     </span>
                     <span className="min-w-0 truncate text-[12px]">{d.name}</span>
-                    <span className="ml-auto font-mono text-[10px] text-textMuted whitespace-nowrap">
+                    <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap">
                       {d.panes.length} · {[...new Set(d.panes.map(p => p.name))].join(', ')}
                     </span>
                   </button>
@@ -153,7 +153,7 @@ export const DeskMenu = ({ compact }: { compact: boolean }) => {
             </button>
           </div>
           <div className="mt-1.5 pt-1.5 border-t border-borderSubtle">
-            <div className="px-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Keep the charts in step</div>
+            <div className="px-2 pb-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">Keep the charts in step</div>
             <Tick on={desk.sync.name} onChange={v => setSync('name', v)} label="The name" hint="Every chart shows the name the chart on the desk shows — one name at several intervals" testId="name" />
             <Tick on={desk.sync.timeframe} onChange={v => setSync('timeframe', v)} label="The interval" hint="Every chart at the interval of the chart on the desk — several names side by side" testId="timeframe" />
             <Tick on={desk.sync.crosshair} onChange={v => setSync('crosshair', v)} label="The crosshair" hint="A moment you point at on one chart is marked on the others" testId="crosshair" />

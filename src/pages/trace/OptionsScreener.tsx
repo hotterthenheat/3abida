@@ -47,11 +47,12 @@ import { contractKey, watchContract } from '../../context/WatchContext';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
 /* ALL OR NONE (the audit's TR-34): the filters were kept and the screen, the search and the expiry were not, so a
    reopened page came back "Weekly, Swing +1" with no word why. The whole screen is kept now, as the address it is. */
 const SCREEN_KEY = 'slayer_screener_screen_v2';
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 function loadScreen(): URLSearchParams {
   try {
@@ -279,8 +280,7 @@ const OptionsScreener = () => {
         sortValue: r => r.otmPct,
         render: r => (
           <span className="text-textPrimary">
-            {r.otmPct >= 0 ? '+' : ''}
-            {r.otmPct.toFixed(1)}%
+            {pctSigned(r.otmPct, 1)}
           </span>
         ),
       },
@@ -292,9 +292,8 @@ const OptionsScreener = () => {
         render: r => (
           <span className="text-textPrimary">
             ${r.last.toFixed(2)}{' '}
-            <span className={`text-[10px] ${r.chgPct >= 0 ? 'text-bull' : 'text-bear'}`}>
-              {r.chgPct >= 0 ? '+' : ''}
-              {r.chgPct.toFixed(1)}%
+            <span className={`text-[11px] ${r.chgPct >= 0 ? 'text-bull' : 'text-bear'}`}>
+              {pctSigned(r.chgPct, 1)}
             </span>
           </span>
         ),
@@ -315,7 +314,7 @@ const OptionsScreener = () => {
               {r.deltaOI > 0 ? '+' : ''}
               {num(r.deltaOI)}{' '}
               {/* a tier down, never opacity (the house's rule — opacity took this red under 3:1 on paper, the audit's X12) */}
-              <span className="text-[10px]">
+              <span className="text-[11px]">
                 {r.deltaOIPct > 0 ? '+' : ''}
                 {r.deltaOIPct.toFixed(0)}%
               </span>
@@ -332,7 +331,7 @@ const OptionsScreener = () => {
         render: r => (
           <span className="text-textPrimary">
             {r.iv.toFixed(0)}%{' '}
-            <span className={`text-[10px] ${r.ivChg >= 0 ? 'text-bull' : 'text-bear'}`}>
+            <span className={`text-[11px] ${r.ivChg >= 0 ? 'text-bull' : 'text-bear'}`}>
               {r.ivChg >= 0 ? '+' : ''}
               {r.ivChg.toFixed(1)}
             </span>
@@ -432,7 +431,7 @@ const OptionsScreener = () => {
               open={cuts.open}
             />
             {cuts.said && (
-              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-screener-said>
+              <p role="status" className="mb-2 font-mono text-[11px] text-textSecondary" data-screener-said>
                 {cuts.said}
               </p>
             )}

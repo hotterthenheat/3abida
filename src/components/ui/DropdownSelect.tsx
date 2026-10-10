@@ -160,7 +160,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
                 </span>
                 <span className="flex flex-col gap-[1px] min-w-0">
                   <span className="font-mono text-[11px] leading-snug group-data-[state=checked]:font-semibold">{o.label}</span>
-                  {o.hint && <span className="font-mono text-[10px] leading-snug text-textMuted">{o.hint}</span>}
+                  {o.hint && <span className="font-mono text-[11px] leading-snug text-textMuted">{o.hint}</span>}
                 </span>
               </DropdownMenu.RadioItem>
             ))}

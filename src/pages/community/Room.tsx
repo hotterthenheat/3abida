@@ -50,9 +50,10 @@ import { initials, useProfile } from '../../data/profile';
 import { fmtFollowers, fmtR, loadRoom, ME, PEOPLE, personOf, rMultiple, recordOf, saveRoom, SEED_NOTICES, SEED_POSTS, timeAgo, tokenize, trendingOf } from '../../data/room';
 import type { Lean, Post, RoomState, Setup, SetupState } from '../../types/room';
 import { ROOM_FOLLOW_H, ROOM_GRID, ROOM_NOTICE_H, ROOM_POST_H, ROOM_TREND_H } from './roomSkeleton';
+import { num as fmtNum } from '../../core/format';
 
 const SILVER = 'rgb(var(--silver))';
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 const leanInk = (l: Lean) => (l === 'BULLISH' ? 'text-bull' : 'text-bear');
 
 /* THE CARDS — the feed's cuts as labelled cards (the house's, never chip rows) */
@@ -81,7 +82,7 @@ const Small = ({ children, onClick, armed = false, disabled = false, title, test
     onClick={onClick}
     disabled={disabled}
     title={title}
-    className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider whitespace-nowrap transition-colors disabled:opacity-40 disabled:pointer-events-none ${
+    className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[11px] uppercase tracking-wider whitespace-nowrap transition-colors disabled:opacity-40 disabled:pointer-events-none ${
       armed ? 'border-silver/50 bg-silver/[0.08] text-silver hover:bg-silver/[0.14]' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
     } ${className}`}
     data-room-button={testId}
@@ -115,19 +116,19 @@ const SetupCard = ({ s }: { s: Setup }) => {
           <CompanyLogo ticker={s.ticker} size={14} />
           <span className="font-mono font-bold text-textPrimary">{s.ticker}</span>
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">entry</span>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">entry</span>
         <span className="font-mono tnum text-textPrimary">{s.entry}</span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">target</span>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">target</span>
         <span className="font-mono tnum text-bull">{s.target}</span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">stop</span>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">stop</span>
         <span className="font-mono tnum text-bear">{s.stop}</span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">over</span>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">over</span>
         <span className="text-textPrimary">{s.timeframe.toLowerCase()}</span>
-        <span className={`ml-auto inline-flex items-center h-5 px-1.5 rounded border font-mono text-[9px] font-semibold uppercase tracking-wider ${STATE_INK[s.state]}`}>{s.state === 'OPEN' ? 'open' : s.state}</span>
+        <span className={`ml-auto inline-flex items-center h-5 px-1.5 rounded border font-mono text-[11px] font-semibold uppercase tracking-wider ${STATE_INK[s.state]}`}>{s.state === 'OPEN' ? 'open' : s.state}</span>
       </div>
       {s.settledAt != null && r != null && (
         <div className="mt-1.5 flex items-center gap-2 text-[11px]">
-          <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">settled at</span>
+          <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">settled at</span>
           <span className="font-mono tnum text-textPrimary">{s.settledAt}</span>
           <span className={`font-mono tnum font-semibold ${r >= 0 ? 'text-bull' : 'text-bear'}`} data-room-r>
             {fmtR(r)}
@@ -136,10 +137,10 @@ const SetupCard = ({ s }: { s: Setup }) => {
         </div>
       )}
       {s.events.map((e, i) => (
-        <div key={i} className="mt-1 flex items-center gap-3 text-[10.5px]">
+        <div key={i} className="mt-1 flex items-center gap-3 text-[11px]">
           <span className="font-mono tnum text-textMuted w-7 shrink-0">{timeAgo(e.at)}</span>
-          <span className="font-mono text-[9px] uppercase tracking-wider text-textSecondary shrink-0">{e.kind}</span>
-          <span className="text-textSecondary truncate">{e.note}</span>
+          <span className="font-mono text-[11px] uppercase tracking-wider text-textSecondary shrink-0">{e.kind}</span>
+          <span className="min-w-0 text-textSecondary">{e.note}</span>
         </div>
       ))}
     </div>
@@ -346,7 +347,7 @@ const Room = () => {
               <Users className="w-3.5 h-3.5" />
             </span>
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Community</h1>
-            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">· the room</span>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">· the room</span>
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Traders, their setups and the record they build — every $name a door, every @handle a person</p>
         </div>
@@ -374,7 +375,7 @@ const Room = () => {
                 ].map(([k, v]) => (
                   <div key={k}>
                     <dd className="font-mono text-[13px] font-bold tnum text-textPrimary">{v}</dd>
-                    <dt className="text-[10px] text-textMuted">{k}</dt>
+                    <dt className="text-[11px] text-textMuted">{k}</dt>
                   </div>
                 ))}
               </dl>
@@ -390,10 +391,10 @@ const Room = () => {
                 )}
               </div>
               <div className="px-4 py-2.5 border-t border-borderSubtle/60 flex items-center gap-2">
-                <Link to="/settings/account" className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+                <Link to="/settings/account" className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
                   Profile
                 </Link>
-                <Link to="/settings" className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+                <Link to="/settings" className="inline-flex items-center h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
                   Settings
                 </Link>
               </div>
@@ -403,7 +404,7 @@ const Room = () => {
             <div className="border border-borderSubtle rounded-md bg-panel overflow-hidden" data-room-trending>
               <div className="px-4 h-10 flex items-center gap-2">
                 <h3 className="text-[12px] font-semibold text-textPrimary">Trending</h3>
-                <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted">last 24h</span>
+                <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted">last 24h</span>
               </div>
               {trending.slice(0, 8).map((t, i) => {
                 const on = name === t.name;
@@ -418,11 +419,11 @@ const Room = () => {
                     data-room-trend={t.name}
                     data-on={on || undefined}
                   >
-                    <span className="font-mono text-[9px] tnum text-textMuted w-3">{i + 1}</span>
+                    <span className="font-mono text-[11px] tnum text-textMuted w-3">{i + 1}</span>
                     <CompanyLogo ticker={t.name} size={15} />
                     <span className={`font-mono text-[11px] font-bold ${i === 0 ? 'text-supreme' : 'text-textPrimary'}`}>${t.name}</span>
-                    {t.lean && <span className={`font-mono text-[8px] font-semibold uppercase tracking-wider ${leanInk(t.lean)}`}>{t.lean}</span>}
-                    <span className="ml-auto font-mono text-[10px] tnum text-textMuted whitespace-nowrap">
+                    {t.lean && <span className={`font-mono text-[11px] font-semibold uppercase tracking-wider ${leanInk(t.lean)}`}>{t.lean}</span>}
+                    <span className="ml-auto font-mono text-[11px] tnum text-textMuted whitespace-nowrap">
                       {t.posts} post{t.posts === 1 ? '' : 's'}
                     </span>
                   </button>
@@ -459,7 +460,7 @@ const Room = () => {
                       ] as const
                     ).map(([label, v, set]) => (
                       <label key={label} className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md border border-borderSubtle bg-chip">
-                        <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">{label}</span>
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">{label}</span>
                         <input value={v} onChange={e => set(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-16 bg-transparent font-mono text-[11px] tnum text-textPrimary placeholder:text-textMuted outline-none" />
                       </label>
                     ))}
@@ -470,7 +471,7 @@ const Room = () => {
                   <Small onClick={() => setSetupOpen(v => !v)} armed={setupOpen} title="Post a trade with its levels — it settles on your record" testId="setup">
                     Trade setup
                   </Small>
-                  <span className="font-mono text-[10px] tnum text-textMuted">{text.length} / 1000</span>
+                  <span className="font-mono text-[11px] tnum text-textMuted">{text.length} / 1000</span>
                   <Small onClick={post} armed={canPost} disabled={!canPost} className="ml-auto" testId="post">
                     <Send className="w-3 h-3" /> Post
                   </Small>
@@ -489,15 +490,15 @@ const Room = () => {
                 </div>
                 <dl className="flex flex-wrap gap-x-6 gap-y-2" data-room-facts>
                   <div>
-                    <dt className="text-[10px] text-textMuted">Posts</dt>
+                    <dt className="text-[11px] text-textMuted">Posts</dt>
                     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary">{num(posts.length)}</dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] text-textMuted">People</dt>
+                    <dt className="text-[11px] text-textMuted">People</dt>
                     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary">{PEOPLE.length + 1}</dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] text-supreme">Most named</dt>
+                    <dt className="text-[11px] text-supreme">Most named</dt>
                     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary">{top ? `$${top.name} · ${top.posts} posts` : '—'}</dd>
                   </div>
                 </dl>
@@ -507,14 +508,14 @@ const Room = () => {
                 <DropdownSelect label="Lean" value={lean} options={LEAN_OPTIONS} onChange={setLean} title="Which way the posts lean" testId="room-lean" />
                 <DropdownSelect label="Name" value={name} options={nameOptions} onChange={setName} title="Only posts naming one name" testId="room-name" />
                 {person && (
-                  <span className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[10px] text-silver" data-room-person-chip>
+                  <span className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[11px] text-silver" data-room-person-chip>
                     @{handleOf(person)}'s posts
                     <button type="button" onClick={() => setPerson(null)} className="inline-flex items-center justify-center w-5 h-5 rounded hover:bg-ink/[0.08]" aria-label="Every person again">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 )}
-                <span className="ml-auto font-mono text-[10px] tnum text-textMuted whitespace-nowrap">{shown.length} shown</span>
+                <span className="ml-auto font-mono text-[11px] tnum text-textMuted whitespace-nowrap">{shown.length} shown</span>
               </div>
               <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-room-sentence>
                 {sentence}
@@ -560,7 +561,7 @@ const Room = () => {
                             @{handleOf(p.handle)}
                           </button>
                           <span className="font-mono text-[11px] tnum text-textMuted">· {timeAgo(p.at)}</span>
-                          {p.lean && <span className={`ml-auto font-mono text-[9px] font-semibold uppercase tracking-wider shrink-0 ${leanInk(p.lean)}`}>{p.lean}</span>}
+                          {p.lean && <span className={`ml-auto font-mono text-[11px] font-semibold uppercase tracking-wider shrink-0 ${leanInk(p.lean)}`}>{p.lean}</span>}
                         </div>
                         <p className="mt-1 text-[12.5px] leading-relaxed text-textPrimary">{drawBody(p.body)}</p>
                         {p.setup && <SetupCard s={p.setup} />}
@@ -634,7 +635,7 @@ const Room = () => {
                     <div className="text-[11.5px] text-textSecondary truncate">
                       <span className="font-semibold text-textPrimary">{nameOf(n.handle)}</span> {n.what}
                     </div>
-                    <div className="font-mono text-[10px] tnum text-textMuted">{timeAgo(n.at)} ago</div>
+                    <div className="font-mono text-[11px] tnum text-textMuted">{timeAgo(n.at)} ago</div>
                   </div>
                 </div>
               ))}
@@ -651,7 +652,7 @@ const Room = () => {
                       {p.name}
                       {p.verified && <Verified />}
                     </div>
-                    <div className="font-mono text-[10px] text-textMuted truncate">
+                    <div className="font-mono text-[11px] text-textMuted truncate">
                       @{p.handle} · {fmtFollowers(p.followers)}
                     </div>
                   </div>
@@ -663,14 +664,14 @@ const Room = () => {
               {state.following.length > 0 && (
                 <div className="px-4 py-2.5 border-t border-borderSubtle/60 flex flex-wrap gap-1.5" data-room-following>
                   {state.following.map(h => (
-                    <button key={h} type="button" onClick={() => toggleIn('following', h)} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[10px] text-silver hover:bg-silver/[0.14] transition-colors" title="Unfollow">
+                    <button key={h} type="button" onClick={() => toggleIn('following', h)} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[11px] text-silver hover:bg-silver/[0.14] transition-colors" title="Unfollow">
                       @{h} <X className="w-3 h-3" />
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            <p className="px-1 text-[10px] leading-relaxed text-textMuted" data-room-rules>
+            <p className="px-1 text-[11px] leading-relaxed text-textMuted" data-room-rules>
               New accounts read before they post · five posts in ten minutes at most · a report goes to the moderators and hides the post from your feed · block anyone · the silver mark is a verified member
             </p>
           </div>
@@ -699,7 +700,7 @@ const Room = () => {
                 <span className="w-px h-4 bg-borderSubtle" />
                 <div className="flex items-center gap-1.5">
                   {['SPY', 'NVDA', 'META', 'AAPL'].map(t => (
-                    <span key={t} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] font-bold text-textPrimary">
+                    <span key={t} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip font-mono text-[11px] font-bold text-textPrimary">
                       <CompanyLogo ticker={t} size={12} />${t}
                     </span>
                   ))}

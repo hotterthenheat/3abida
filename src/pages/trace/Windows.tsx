@@ -49,8 +49,9 @@ import { WindowsGuide } from '../../components/trace/TraceGuide';
 import WatchStar from '../../components/trace/WatchStar';
 import { contractKey, watchContract } from '../../context/WatchContext';
 import LeanCell from '../../components/trace/LeanCell';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 type CutKey = 'all' | 'bursts' | 'ask' | 'bid';
 
@@ -234,8 +235,7 @@ const Windows = () => {
         sortValue: s => s.row.otmPct,
         render: s => (
           <span className="text-textPrimary">
-            {s.row.otmPct >= 0 ? '+' : ''}
-            {s.row.otmPct.toFixed(1)}%
+            {pctSigned(s.row.otmPct, 1)}
           </span>
         ),
       },
@@ -436,7 +436,7 @@ const Windows = () => {
           <>
             <Fact label="In the window" testId="window">
               {num(facts.total)} <span className="text-textSecondary">contracts ·</span> {fmtUsd(facts.prem)}
-              {win?.live && (hold.paused ? <span className="ml-2 text-[10px] text-warn">held</span> : <span className="ml-2 text-[10px] text-select animate-live-breathe">still filling</span>)}
+              {win?.live && (hold.paused ? <span className="ml-2 text-[11px] text-warn">held</span> : <span className="ml-2 text-[11px] text-select animate-live-breathe">still filling</span>)}
             </Fact>
             <Fact label="Names" testId="names">
               {facts.names}
@@ -468,9 +468,9 @@ const Windows = () => {
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <span className="inline-flex items-center gap-2 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono">
-                <span className="text-[10px] text-textMuted">Window</span>
+                <span className="text-[11px] text-textMuted">Window</span>
                 <span className="text-[11px] font-semibold tnum text-textPrimary">{win ? `${win.label} ET` : '—'}</span>
-                {win?.live && (hold.paused ? <span className="text-[10px] text-warn">held</span> : <span className="text-[10px] text-select animate-live-breathe">live</span>)}
+                {win?.live && (hold.paused ? <span className="text-[11px] text-warn">held</span> : <span className="text-[11px] text-select animate-live-breathe">live</span>)}
               </span>
               <button type="button" onClick={() => setWinSel(Math.min(windows.length - 1, winIdx + 1))} disabled={winIdx >= windows.length - 1} aria-label="Next window" className={stepBtn}>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -480,7 +480,7 @@ const Windows = () => {
                 onClick={() => setWinSel('latest')}
                 aria-pressed={winSel === 'latest'}
                 title="Follow the newest complete window"
-                className={`hit h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-widest transition-colors ${winSel === 'latest' ? 'border-silver/50 bg-silver/[0.06] text-textPrimary' : 'border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`}
+                className={`hit h-7 px-2.5 rounded-md border font-mono text-[11px] uppercase tracking-widest transition-colors ${winSel === 'latest' ? 'border-silver/50 bg-silver/[0.06] text-textPrimary' : 'border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`}
                 data-windows-latest
               >
                 Latest
@@ -500,7 +500,7 @@ const Windows = () => {
           <>
             <SavedCutsList store={WINDOW_CUTS} query="" onOpen={addr.open} noun="cut" testId="windows" onSay={cuts.say} open={cuts.open} />
             {cuts.said && (
-              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+              <p role="status" className="mb-2 font-mono text-[11px] text-textSecondary">
                 {cuts.said}
               </p>
             )}

@@ -781,10 +781,10 @@ const ConfluenceStrip = ({ rows, form, current, onPick }: { rows: ConfluenceRow[
             className={`hit inline-flex items-baseline gap-0.5 h-5 px-1 rounded-[3px] transition-colors ${on ? 'bg-ink/[0.14]' : 'hover:bg-ink/[0.07]'}`}
             data-tf={r.tf}
           >
-            {(form === 'full' || on) && <span className={`font-mono text-[10px] ${on ? 'text-textPrimary font-semibold' : 'text-textMuted'}`}>{r.tf}</span>}
+            {(form === 'full' || on) && <span className={`font-mono text-[11px] ${on ? 'text-textPrimary font-semibold' : 'text-textMuted'}`}>{r.tf}</span>}
             <span
               aria-hidden
-              className={`font-mono text-[10px] leading-none ${
+              className={`font-mono text-[11px] leading-none ${
                 r.state === 'up' ? 'text-bull' : r.state === 'down' ? 'text-bear' : 'text-textMuted'
               }`}
             >
@@ -805,8 +805,8 @@ const ConfluenceStrip = ({ rows, form, current, onPick }: { rows: ConfluenceRow[
    line it came from are the same colour a few pixels apart. */
 const ReadoutCell = ({ k, v, ink }: { k: string; v: string; ink?: string }) => (
   <span className="shrink-0 whitespace-nowrap">
-    <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted">{k}</span>
-    <span className="ml-1 font-mono text-[10px] tnum" style={ink ? { color: ink } : undefined}>
+    <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">{k}</span>
+    <span className="ml-1 font-mono text-[11px] tnum" style={ink ? { color: ink } : undefined}>
       {v}
     </span>
   </span>
@@ -1229,7 +1229,7 @@ const Pane = ({
       {showBadge && (
         <span
           aria-hidden
-          className={`shrink-0 w-4 h-4 rounded-[3px] font-mono text-[9px] font-bold tnum inline-flex items-center justify-center ${
+          className={`shrink-0 w-4 h-4 rounded-[3px] font-mono text-[11px] font-bold tnum inline-flex items-center justify-center ${
             isActive ? 'holo-bg text-[#0a0a0a]' : 'bg-ink/[0.08] text-textPrimary'
           }`}
         >
@@ -1246,7 +1246,7 @@ const Pane = ({
       {replay && (
         <span
           title="This pane is replaying history — it is not live"
-          className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[9px] font-bold uppercase tracking-wider"
+          className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold uppercase tracking-wider"
         >
           Replay
         </span>
@@ -1647,11 +1647,11 @@ const Pane = ({
                    controls; the controls all moved up into the strip. */
                 <div className="pointer-events-none select-none flex items-baseline gap-1.5 font-mono">
                   <span className="text-[11px] font-semibold text-textPrimary">{ticker}</span>
-                  <span className="text-[10px] text-textMuted" aria-hidden>·</span>
-                  <span className="text-[10px] text-textMuted">{timeframe}</span>
-                  <span className="text-[10px] text-textMuted" aria-hidden>·</span>
+                  <span className="text-[11px] text-textMuted" aria-hidden>·</span>
+                  <span className="text-[11px] text-textMuted">{timeframe}</span>
+                  <span className="text-[11px] text-textMuted" aria-hidden>·</span>
                   <SpotPrice value={levels.spot} className="font-mono text-[11px] font-semibold tnum text-textPrimary" />
-                  <span className={`text-[10px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
+                  <span className={`text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
                     {up ? '+' : ''}
                     {changePct.toFixed(2)}%
                   </span>
@@ -1663,7 +1663,7 @@ const Pane = ({
                 {showBadge && (
                   <span
                     aria-hidden
-                    className={`shrink-0 w-4 h-4 rounded-[3px] font-mono text-[9px] font-bold tnum inline-flex items-center justify-center ${
+                    className={`shrink-0 w-4 h-4 rounded-[3px] font-mono text-[11px] font-bold tnum inline-flex items-center justify-center ${
                       isActive ? 'holo-bg text-[#0a0a0a]' : 'bg-ink/[0.08] text-textPrimary'
                     }`}
                   >
@@ -1688,7 +1688,7 @@ const Pane = ({
                 {replay && (
                   <span
                     title="This pane is replaying history — it is not live"
-                    className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[9px] font-bold uppercase tracking-wider"
+                    className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold uppercase tracking-wider"
                   >
                     Replay
                   </span>
@@ -1739,7 +1739,7 @@ const Pane = ({
                     onClick={() => setNarrowLadder(v => !v)}
                     aria-pressed={narrowLadder}
                     title={narrowLadder ? 'Hide the strike ladder' : 'Show the strike ladder over the chart'}
-                    className={`hit shrink-0 inline-flex items-center h-5 px-1.5 rounded-[3px] font-mono text-[10px] font-semibold transition-colors ${narrowLadder ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+                    className={`hit shrink-0 inline-flex items-center h-5 px-1.5 rounded-[3px] font-mono text-[11px] font-semibold transition-colors ${narrowLadder ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
                     data-narrow-ladder
                   >
                     Strikes
@@ -1761,7 +1761,7 @@ const Pane = ({
                 )}
                 {/* the pane's timeframe stays named at rest even where the strip has no room (TE-1, TE-12) */}
                 {(mtfForm === 'none' || !confluence.some(c => c.tf === timeframe)) && (
-                  <span className="shrink-0 font-mono text-[10px] font-semibold text-textSecondary" title="This pane's timeframe — the toolbar under the pointer changes it" data-pane-tf>
+                  <span className="shrink-0 font-mono text-[11px] font-semibold text-textSecondary" title="This pane's timeframe — the toolbar under the pointer changes it" data-pane-tf>
                     {timeframe}
                   </span>
                 )}
@@ -1841,18 +1841,18 @@ const Pane = ({
                         {WALLS_LENSES.map(o => {
                           const on = (cfg.wallsLens ?? 'gex') === o.value;
                           return (
-                            <button key={o.value} type="button" aria-pressed={on} title={o.hint} onClick={() => onCfg({ wallsLens: o.value })} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[10px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+                            <button key={o.value} type="button" aria-pressed={on} title={o.hint} onClick={() => onCfg({ wallsLens: o.value })} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
                               {o.label}
                             </button>
                           );
                         })}
                       </span>
                     )}
-                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-textMuted" title="The heaviest strikes near spot, by dealer gamma — gold where hedging amplifies a move (+), ice where it absorbs one (−)">
+                    <span className="shrink-0 font-mono text-[11px] uppercase tracking-wider text-textMuted" title="The heaviest strikes near spot, by dealer gamma — gold where hedging amplifies a move (+), ice where it absorbs one (−)">
                       Heaviest
                     </span>
                     {heavy.map(row => (
-                      <span key={row.strike} className="shrink-0 font-mono text-[10px] tnum whitespace-nowrap">
+                      <span key={row.strike} className="shrink-0 font-mono text-[11px] tnum whitespace-nowrap">
                         <span className="text-textSecondary">
                           {row.strike % 1 === 0 ? row.strike.toFixed(0) : row.strike.toFixed(2)}
                         </span>
@@ -1862,7 +1862,7 @@ const Pane = ({
                       </span>
                     ))}
                     {showHeavyKey && (
-                      <span className="shrink-0 text-[10px] text-textMuted" data-heaviest-key>
+                      <span className="shrink-0 text-[11px] text-textMuted" data-heaviest-key>
                         <span className="text-[rgb(var(--ember))]">+</span> amplifies · <span className="text-[rgb(var(--glacier))]">−</span> absorbs
                       </span>
                     )}
@@ -1898,13 +1898,13 @@ const Pane = ({
                 {compares.map(c => (
                   <span key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
                     <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
-                    <span className="font-mono text-[10px] font-semibold" style={{ color: c.ink }}>
+                    <span className="font-mono text-[11px] font-semibold" style={{ color: c.ink }}>
                       {c.ticker}
                     </span>
                     {Simulator.TICKERS[c.ticker] && (
                       <SpotPrice
                         value={Simulator.TICKERS[c.ticker].currentPrice}
-                        className="font-mono text-[10px] tnum text-textSecondary"
+                        className="font-mono text-[11px] tnum text-textSecondary"
                       />
                     )}
                     <button
@@ -2831,7 +2831,7 @@ const Terrain = () => {
           onClick={() => setCfg(prev => ({ ...prev, panes: prev.panes.map(p => ({ ...p, ladder: !anyLadder })) }))}
           aria-pressed={anyLadder}
           title={anyLadder ? 'Hide every strike rail — Shift R' : 'Show the strike rail beside every chart — Shift R'}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
+          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider transition-colors ${
             anyLadder ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
           }`}
         >
@@ -2862,7 +2862,7 @@ const Terrain = () => {
             aria-haspopup="dialog"
             aria-expanded={layoutsOpen}
             title="Named layouts — save this arrangement, recall another"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider transition-colors ${
               layoutsOpen ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
             }`}
           >
@@ -2887,7 +2887,7 @@ const Terrain = () => {
                 }}
                 className="absolute bottom-full right-0 mb-2 z-40 w-64 border border-borderMuted bg-panel/95 rounded-md p-2 shadow-xl shadow-black/50"
               >
-                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted px-1 pb-1.5">
+                <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted px-1 pb-1.5">
                   Named layouts · {Object.keys(namedLayouts).length}/{MAX_NAMED_LAYOUTS}
                 </div>
                 {Object.entries(namedLayouts)
@@ -2900,7 +2900,7 @@ const Terrain = () => {
                         className="flex-1 min-w-0 text-left px-1.5 py-1 rounded font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05] truncate transition-colors"
                       >
                         {name}
-                        <span className="ml-1.5 text-[9px] text-textMuted tnum">
+                        <span className="ml-1.5 text-[11px] text-textMuted tnum">
                           {entry.layout}× {entry.panes.slice(0, entry.layout).map(pn => pn.ticker).join('·')}
                         </span>
                       </button>
@@ -2914,7 +2914,7 @@ const Terrain = () => {
                     </div>
                   ))}
                 {Object.keys(namedLayouts).length === 0 && (
-                  <div className="px-1.5 py-1 font-mono text-[10px] text-textMuted">Nothing saved yet — name this desk below.</div>
+                  <div className="px-1.5 py-1 font-mono text-[11px] text-textMuted">Nothing saved yet — name this desk below.</div>
                 )}
                 <div className="mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-1">
                   <input
@@ -2927,12 +2927,12 @@ const Terrain = () => {
                   />
                   <button
                     onClick={saveCurrentLayout}
-                    className="shrink-0 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider text-select hover:bg-select/10 transition-colors"
+                    className="shrink-0 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider text-select hover:bg-select/10 transition-colors"
                   >
                     Save
                   </button>
                 </div>
-                {layoutNote && <div className="px-1.5 pt-1 font-mono text-[9px] text-textMuted">{layoutNote}</div>}
+                {layoutNote && <div className="px-1.5 pt-1 font-mono text-[11px] text-textMuted">{layoutNote}</div>}
               </div>
             </>
           )}
@@ -2948,7 +2948,7 @@ const Terrain = () => {
           <button
             onClick={() => openEditor(null, `terrain:${expanded + 1}`)}
             title="Write a Pine script for this chart — the editor opens beside it"
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
             data-terrain-pine
           >
             <Code2 className="w-3 h-3" /> Pine
@@ -2963,7 +2963,7 @@ const Terrain = () => {
             <span
               /* no promise of a feature to come (the audit's X7.15) — the phases are on every pane's Overlays menu now */
               title={`${words.blurb}. The session's phases can be shaded on any pane — Overlays, Session phases.`}
-              className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider ${
+              className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider ${
                 words.label === 'RTH' ? 'text-textPrimary' : 'text-textSecondary'
               }`}
             >
@@ -2975,7 +2975,7 @@ const Terrain = () => {
         {expanded !== null && (
           <button
             onClick={() => closeExpanded()}
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle bg-canvas/70 backdrop-blur-[2px] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary"
+            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle bg-canvas/70 backdrop-blur-[2px] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary"
           >
             <X className="w-3.5 h-3.5" /> Esc
           </button>

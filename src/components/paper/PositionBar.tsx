@@ -48,10 +48,10 @@ const PositionBar = ({ lines }: { lines: BarLine[] }) => {
   return (
     <div className="inline-flex flex-col gap-1 pointer-events-auto max-w-full" data-paper-position-bar={lines.length}>
       {shown.map(l => (
-        <div key={l.key} className="inline-flex items-center gap-3 h-8 pl-1.5 pr-1.5 max-w-full overflow-hidden rounded-lg border border-borderMuted bg-panel/80 backdrop-blur-md backdrop-saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-mono text-[10px] tnum whitespace-nowrap" data-paper-position-line={l.key}>
+        <div key={l.key} className="inline-flex items-center gap-3 h-8 pl-1.5 pr-1.5 max-w-full overflow-hidden rounded-lg border border-borderMuted bg-panel/80 backdrop-blur-md backdrop-saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-mono text-[11px] tnum whitespace-nowrap" data-paper-position-line={l.key}>
           <span className={`shrink-0 h-5 px-1.5 inline-flex items-center rounded font-bold text-[11px] ${l.tone === 'bull' ? 'bg-bull/[0.14] text-bull' : 'bg-bear/[0.14] text-bear'}`}>{l.label}</span>
           <span className={`shrink-0 text-[12px] font-semibold ${dirInk(l.pnl)}`}>
-            {usdSigned(l.pnl)} {l.r != null && <span className="text-[10px] font-normal text-textSecondary">{rWords(l.r)}</span>}
+            {usdSigned(l.pnl)} {l.r != null && <span className="text-[11px] font-normal text-textSecondary">{rWords(l.r)}</span>}
           </span>
           {/* the facts give way first, and on a phone stay in the book — Close is never cut (the audit's PR-15: "× Cl") */}
           <span className="min-w-0 flex-1 inline-flex items-center gap-3 overflow-hidden max-sm:hidden">
@@ -68,7 +68,7 @@ const PositionBar = ({ lines }: { lines: BarLine[] }) => {
           </span>
         </div>
       ))}
-      {rest > 0 && <span className="self-start px-2 h-5 inline-flex items-center rounded border border-borderSubtle bg-panel/80 font-mono text-[10px] text-textMuted">+{rest} more in the book</span>}
+      {rest > 0 && <span className="self-start px-2 h-5 inline-flex items-center rounded border border-borderSubtle bg-panel/80 font-mono text-[11px] text-textMuted">+{rest} more in the book</span>}
     </div>
   );
 };

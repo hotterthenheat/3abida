@@ -165,6 +165,7 @@ import CompanyLogo from '../ui/CompanyLogo';
 import { useFadeClose } from '../ui/useFadeClose';
 import DayCard from './DayCard';
 import PositionLayer, { type PositionLayerProps } from './PositionLayer';
+import TerrainLayers from '../terrain/TerrainLayers';
 import RenameDoor from './RenameDoor';
 import { dirInk, usd, usdSigned } from './words';
 import { DOCK_ROOM, useEditorDock } from '../../data/editorDock';
@@ -176,10 +177,10 @@ import type { KeyLevels } from '../../types/gex';
 /* ---- the desk's looks, shared with the cards a desk brings ---- */
 export const card = 'desk-card border border-borderSubtle rounded-md bg-panel overflow-clip';
 export const head = 'h-9 px-4 flex items-center gap-3 border-b border-borderSubtle/70';
-export const headWord = 'font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary';
-export const smallDoor = 'hit inline-flex items-center leading-normal align-middle h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
+export const headWord = 'font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary';
+export const smallDoor = 'hit inline-flex items-center leading-normal align-middle h-6 px-2 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
 /** A door in the chart's top row — the house toolbar's own button, so the desk's doors and the toolbar's read as one row */
-export const barDoor = 'hit inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
+export const barDoor = 'hit inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
 
 /* THE DESK'S HEIGHTS. The book is never shorter than BOOK_PX — its tabs, its column names and three rows — and grows with
    its rows; the desk is never shorter than a two-line top row, the chart's own floor, and the book. */
@@ -376,7 +377,7 @@ export const DeskMissing = () => (
     <SayPage words="Session not found" />
     <p className="text-[13px] text-textPrimary">That session is not on this machine.</p>
     <p className="mt-1 text-[11px] text-textMuted">Sessions are kept in this browser until accounts carry them.</p>
-    <Link to="/practice/backtest" className="hit mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+    <Link to="/practice/backtest" className="hit mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
       Your sessions <ArrowRight className="w-3 h-3" />
     </Link>
   </div>
@@ -632,9 +633,9 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                   {(here || compact) && !split && <CompanyLogo ticker={n.symbol} size={13} />}
                   <span className={`font-bold ${here ? 'text-silver' : 'text-textSecondary'}`}>{n.symbol}</span>
                   {(here || compact) && !split && <span className={here ? 'text-textPrimary' : 'text-textSecondary'}>{n.priceWords}</span>}
-                  {!split && <span className={`text-[10px] font-semibold ${dayInk(n.dayPct)}`}>{dayWordsOf(n.dayPct)}</span>}
+                  {!split && <span className={`text-[11px] font-semibold ${dayInk(n.dayPct)}`}>{dayWordsOf(n.dayPct)}</span>}
                   {n.held > 0 && (
-                    <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver text-[10px] font-bold leading-[14px] text-center" title={`${n.held} open in ${n.symbol}`}>
+                    <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver text-[11px] font-bold leading-[14px] text-center" title={`${n.held} open in ${n.symbol}`}>
                       {n.held}
                     </span>
                   )}
@@ -781,6 +782,8 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                       return (
                         <>
                           <PositionLayer api={api} ticker={p.name.symbol} minutes={tfMinutes(p.timeframe)} {...p.name.layer} />
+                          {/* THE SESSION'S PHASES (the ideas' 11, 2026-10-10) — Terrain's quiet bands, off until the Overlays menu asks */}
+                          {prefs.overlays.phases && <TerrainLayers api={api} ticker={p.name.symbol} walls={false} lens="gex" phases ground={chartGround(themeKey)} />}
                           {/* EVERY PANE SAYS WHOSE IT IS AND AT WHAT INTERVAL, at its top left against the wall: "ES · 1m", no box
                               round it (Noah, 2026-09-22, with a picture of one: "the timeframe one should look like this at all times
                               minus the ticker price") — among several, the one on the desk in silver; then, on the page, its corner
@@ -849,6 +852,8 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                     return (
                       <>
                         <PositionLayer api={api} ticker={n.symbol} minutes={tfMinutes(prefs.timeframe)} {...n.layer} />
+                        {/* THE SESSION'S PHASES (the ideas' 11, 2026-10-10) — Terrain's quiet bands, off until the Overlays menu asks */}
+                        {prefs.overlays.phases && <TerrainLayers api={api} ticker={n.symbol} walls={false} lens="gex" phases ground={chartGround(themeKey)} />}
                         {/* every chart says whose it is and at what interval at its top left, "ES · 1m" with no box round it — side
                             by side, the one on the desk in silver — then, on the page, its corner (RP&L · UP&L; in the full screen those
                             ride the strip); the chrome stamp sends the scripts' legend under it */}
@@ -933,7 +938,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
             </Fact>
           ))}
           <div className="min-w-0 self-end">
-            <Link to={`/practice/backtest/${session.id}/report`} className="hit inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-review-report-door>
+            <Link to={`/practice/backtest/${session.id}/report`} className="hit inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-chip font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-review-report-door>
               The report <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -988,7 +993,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
           </div>,
           document.body
         )}
-      <p className="px-1 font-mono text-[10px] text-textMuted">{foot ?? 'Practice, not advice. Past results promise nothing.'}</p>
+      <p className="px-1 font-mono text-[11px] text-textMuted">{foot ?? 'Practice, not advice. Past results promise nothing.'}</p>
     </div>
   );
 };

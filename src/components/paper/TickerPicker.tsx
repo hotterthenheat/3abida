@@ -149,14 +149,14 @@ const TickerPicker = ({ value, onChange, indexes, indexPrice }: Props) => {
           </div>
           <div ref={listRef} className="max-h-[420px] overflow-y-auto overscroll-contain py-1.5" role="listbox" aria-label="What to put on the chart">
             {flat.length === 0 ? (
-              <div className="px-4 py-6 text-center font-mono text-[10px] text-textMuted" data-paper-ticker-none>
+              <div className="px-4 py-6 text-center font-mono text-[11px] text-textMuted" data-paper-ticker-none>
                 Nothing matches — try a ticker, a company or an index
               </div>
             ) : (
               groups.map(g =>
                 g.rows.length === 0 ? null : (
                   <div key={g.key} className="pb-1" data-paper-ticker-group={g.key}>
-                    <div className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">{g.title}</div>
+                    <div className="px-4 pt-2 pb-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">{g.title}</div>
                     {(
                       g.rows.map(r => {
                         index += 1;

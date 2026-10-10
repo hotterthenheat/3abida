@@ -72,7 +72,8 @@
       /* THE DIRECTION PAIR before the first paint too (Settings › Appearance, theme/theme.ts CVD_KEY): a reader on blue and
          orange never sees a frame of the green and red */
       try {
-        if (localStorage.getItem('slayer_cvd') === 'blue-orange') document.documentElement.setAttribute('data-cvd', 'blue-orange');
+        var cvd = localStorage.getItem('slayer_cvd');
+        if (cvd === 'blue-orange' || cvd === 'high-contrast') document.documentElement.setAttribute('data-cvd', cvd);
       } catch (e) {}
       /* THE LANDING'S SCALE (2026-10-06, index.css html[data-landing-scale]): the page grows with a big screen from its
          first frame; the landing keeps it while it is up (pages/landing/scale.ts) */

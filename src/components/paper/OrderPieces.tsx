@@ -24,7 +24,7 @@ const SILVER_FILL = 'rgb(var(--silver-fill))';
 const ON_SILVER = 'rgb(var(--night))';
 /** The sizes a press away — TopstepX's row */
 const SIZES = [1, 3, 5, 10, 15];
-export const labelCls = 'text-[10px] text-textMuted whitespace-nowrap';
+export const labelCls = 'text-[11px] text-textMuted whitespace-nowrap';
 const HOVER = { plain: 'hover:text-textPrimary hover:bg-ink/[0.05]', bull: 'hover:text-bull hover:bg-bull/[0.12]', bear: 'hover:text-bear hover:bg-bear/[0.12]' } as const;
 const stepBtn = 'hit w-7 inline-flex items-center justify-center text-textSecondary enabled:hover:text-textPrimary enabled:hover:bg-ink/[0.06] disabled:opacity-35 disabled:cursor-not-allowed transition-colors';
 
@@ -186,7 +186,7 @@ export const whyWords = (buy: string | null, sell: string | null): string | null
 /** THE BRACKETS' HEADING — handed to LadderFields, which puts it on its counts' row */
 export const BracketsHead = ({ words, says }: { words: string; says?: string }) => (
   <span className="inline-flex items-baseline gap-2 min-w-0 grow basis-[120px] overflow-hidden" title={says ?? words}>
-    <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">Brackets</span>
-    <span className="text-[10px] text-textMuted truncate">{words}</span>
+    <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">Brackets</span>
+    <span className="text-[11px] text-textMuted truncate">{words}</span>
   </span>
 );

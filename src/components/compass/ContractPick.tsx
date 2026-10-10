@@ -111,7 +111,7 @@ const ContractPick = ({
             className="z-[120] w-[288px] border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 overflow-x-hidden overflow-y-auto overscroll-contain animate-slide-in p-1"
           >
             {rows === null && (
-              <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-textMuted">Sweeping the book…</div>
+              <div className="px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-textMuted">Sweeping the book…</div>
             )}
             {rows?.map(r => {
               const isCur =
@@ -130,15 +130,15 @@ const ContractPick = ({
                   }`}
                 >
                   <span className="font-mono text-[11px] font-bold text-textPrimary">{r.title}</span>
-                  <span className="px-1 py-px rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[8px] font-semibold uppercase tracking-wider text-textSecondary">
+                  <span className="px-1 py-px rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[11px] font-semibold uppercase tracking-wider text-textSecondary">
                     {r.tag}
                   </span>
-                  <span className="ml-auto font-mono text-[10px] tnum text-textSecondary">{r.sub}</span>
+                  <span className="ml-auto font-mono text-[11px] tnum text-textSecondary">{r.sub}</span>
                 </button>
               );
             })}
             {rows !== null && rows.length === 0 && (
-              <div className="px-3 py-2 font-mono text-[10px] text-textMuted">Nothing else surfaced for this name today</div>
+              <div className="px-3 py-2 font-mono text-[11px] text-textMuted">Nothing else surfaced for this name today</div>
             )}
           </div>,
           document.body

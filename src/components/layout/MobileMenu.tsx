@@ -33,7 +33,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, Eye, X } from 'lucide-react';
 import JingleBell from '../ui/JingleBell';
 import { useOverlay } from '../ui/layers';
 import Avatar from '../ui/Avatar';
@@ -47,6 +47,7 @@ import { NAV_GROUPS, NAV_GROUP_META, itemsByGroup, type NavGroup } from './nav';
 import { subpagesFor } from './navTree';
 import { useCompassView } from '../../data/compassView';
 import { toggleAlertsDrawer } from '../../data/alertsDrawer';
+import { toggleWatchlist } from '../../data/nameWatch';
 import ProductGlyph from '../../brand/ProductGlyph';
 import SlayerMark from '../../brand/SlayerMark';
 import Wordmark from '../../brand/Wordmark';
@@ -104,7 +105,7 @@ const MobileMenu = ({ open, onClose }: Props) => {
   /* ONE GROUP OF THE MENU — Home (Pulse) stands above the Alerts row, the captioned groups under it, More last (the rail's order, nav.ts) */
   const groupBlock = (group: NavGroup) => (
         <div key={group} className={group === 'Home' ? '' : 'mt-4'} data-mobile-group={group}>
-          {NAV_GROUP_META[group].caption && <span className="block px-3 pb-1 text-[10px] uppercase tracking-[0.1em] text-textMuted">{NAV_GROUP_META[group].caption}</span>}
+          {NAV_GROUP_META[group].caption && <span className="block px-3 pb-1 text-[11px] uppercase tracking-[0.1em] text-textMuted">{NAV_GROUP_META[group].caption}</span>}
           {itemsByGroup(group).map(item => {
             const inside = pathname.startsWith(item.path);
             const subs = subpagesFor(item.path, pathname, chosenId);
@@ -209,6 +210,19 @@ const MobileMenu = ({ open, onClose }: Props) => {
             <JingleBell count={counts.set} lit={counts.unseen > 0} glyph={20} />
             <span>Alerts</span>
             <AlertBadge counts={counts} className="ml-auto" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              toggleWatchlist();
+            }}
+            aria-haspopup="dialog"
+            className="w-full flex items-center gap-3 h-11 px-3 rounded-lg text-[14px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]"
+            data-mobile-watchlist
+          >
+            <Eye className="w-5 h-5" strokeWidth={1.75} aria-hidden />
+            <span>Watchlist</span>
           </button>
 
           {NAV_GROUPS.filter(g => g !== 'Home').map(groupBlock)}

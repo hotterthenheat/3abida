@@ -374,7 +374,7 @@ const Dropdown = ({
       aria-haspopup="menu"
       aria-expanded={open}
       aria-label={label ? undefined : title}
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] ${cased ? '' : 'uppercase'} tracking-wider transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] ${cased ? '' : 'uppercase'} tracking-wider transition-colors ${
         open
           ? 'bg-ink/[0.07] text-textPrimary'
           : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
@@ -684,7 +684,7 @@ const ChartToolbar = ({
             <button
               onClick={onToggleReplay}
               title={replay ? 'Exit replay — P' : 'Replay session history — P'}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider transition-colors ${
                 /* Armed = the holo silver (Noah, 2026-09-08) */
                 replay ? 'bg-silver/[0.12] text-silver' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
               }`}
@@ -709,7 +709,7 @@ const ChartToolbar = ({
                 aria-haspopup="dialog"
                 aria-expanded={libraryOpen}
                 aria-label={vertical || compact ? 'Indicators and scripts' : undefined}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider transition-colors ${
                   libraryOpen ? 'bg-ink/[0.07] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
                 }`}
                 data-scripts-door
@@ -718,7 +718,7 @@ const ChartToolbar = ({
                 {!(vertical || compact) && 'Indicators'}
                 {onPaneCount > 0 && (
                   /* how many draw on this pane — silver, a where-you-are count, not a status */
-                  <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver font-mono text-[8px] font-bold leading-[14px] text-center" data-scripts-count>
+                  <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver font-mono text-[11px] font-bold leading-[14px] text-center" data-scripts-count>
                     {onPaneCount}
                   </span>
                 )}
@@ -754,10 +754,10 @@ const ChartToolbar = ({
                   return (
                     <div key={item.key} className="contents">
                     {idx === 0 && (
-                      <div className="px-2.5 pt-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">On the tape</div>
+                      <div className="px-2.5 pt-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">On the tape</div>
                     )}
                     {idx === firstSub && (
-                      <div className="px-2.5 pt-2 font-mono text-[9px] uppercase tracking-widest text-textMuted">
+                      <div className="px-2.5 pt-2 font-mono text-[11px] uppercase tracking-widest text-textMuted">
                         Own pane — two at most{capped ? '' : ''}
                       </div>
                     )}
@@ -795,7 +795,7 @@ const ChartToolbar = ({
                             {item.label}
                           </span>
                         </span>
-                        <span className="block text-[10px] text-textSecondary leading-snug">{item.hint}</span>
+                        <span className="block text-[11px] text-textSecondary leading-snug">{item.hint}</span>
                       </span>
                     </button>
                     </div>
@@ -878,7 +878,7 @@ const ChartToolbar = ({
                     Opening range's grammar (a docked pane's menu) */}
                 {onPriceScale && dense && (
                   <div className="mt-1 pt-1.5 px-2.5 pb-1 border-t border-borderSubtle flex items-center gap-2">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted shrink-0">Price scale</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted shrink-0">Price scale</span>
                     <span
                       role="group"
                       aria-label="Price scale"
@@ -896,7 +896,7 @@ const ChartToolbar = ({
                             }}
                             aria-pressed={live}
                             title={priceScaleLock ? `${priceScaleLock.reason} — the axis is held` : `${opt.label} — ${opt.blurb}`}
-                            className={`px-1.5 py-0.5 rounded font-mono text-[10px] tnum transition-colors ${priceScaleLock ? 'cursor-not-allowed' : ''} ${
+                            className={`px-1.5 py-0.5 rounded font-mono text-[11px] tnum transition-colors ${priceScaleLock ? 'cursor-not-allowed' : ''} ${
                               live
                                 ? 'bg-ink/[0.16] text-textPrimary font-semibold'
                                 : `text-textSecondary ${priceScaleLock ? '' : 'hover:text-textPrimary hover:bg-ink/[0.06]'}`
@@ -911,7 +911,7 @@ const ChartToolbar = ({
                 )}
                 {onPriceScale && !dense && (
                   <>
-                    <span className="mt-1 mb-0.5 px-2.5 pt-1.5 border-t border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textMuted">
+                    <span className="mt-1 mb-0.5 px-2.5 pt-1.5 border-t border-borderSubtle font-mono text-[11px] uppercase tracking-widest text-textMuted">
                       Price scale
                     </span>
                     {PRICE_SCALES.map(opt => {
@@ -943,17 +943,17 @@ const ChartToolbar = ({
                           </span>
                           <span className="flex flex-col min-w-0">
                             <span className="truncate">{opt.label}</span>
-                            <span className="text-[9px] text-textMuted truncate">{opt.blurb}</span>
+                            <span className="text-[11px] text-textMuted truncate">{opt.blurb}</span>
                           </span>
                           {live && <Check className="w-3 h-3 ml-auto shrink-0 text-select" />}
                           {!live && chosen && (
-                            <span className="ml-auto shrink-0 font-mono text-[8px] uppercase tracking-wider text-textMuted">yours</span>
+                            <span className="ml-auto shrink-0 font-mono text-[11px] uppercase tracking-wider text-textMuted">yours</span>
                           )}
                         </button>
                       );
                     })}
                     {priceScaleLock && (
-                      <p className="px-2.5 pt-1.5 mt-0.5 border-t border-borderSubtle font-mono text-[9px] leading-relaxed text-textMuted">
+                      <p className="px-2.5 pt-1.5 mt-0.5 border-t border-borderSubtle font-mono text-[11px] leading-relaxed text-textMuted">
                         {priceScaleLock.reason}, so the axis is held in{' '}
                         {(PRICE_SCALES.find(o => o.value === priceScaleLock.mode) ?? PRICE_SCALES[0]).label.toLowerCase()}. Remove
                         it and your pick comes back.
@@ -964,7 +964,7 @@ const ChartToolbar = ({
                 {/* DENSE: the five clocks as one row of chips, the same way */}
                 {onBarClock && dense && (
                   <div className="mt-1 pt-1.5 px-2.5 pb-1 border-t border-borderSubtle flex items-center gap-2">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted shrink-0">Bar clock</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted shrink-0">Bar clock</span>
                     <span role="group" aria-label="Bar clock" className="ml-auto inline-flex items-center gap-0.5 rounded border border-borderMuted p-0.5">
                       {BAR_CLOCKS.map(opt => {
                         const on = (barClock ?? 'time') === opt.key;
@@ -977,7 +977,7 @@ const ChartToolbar = ({
                             }}
                             aria-pressed={on}
                             title={`${opt.label} — ${opt.blurb}`}
-                            className={`px-1.5 py-0.5 rounded font-mono text-[10px] tnum transition-colors ${
+                            className={`px-1.5 py-0.5 rounded font-mono text-[11px] tnum transition-colors ${
                               on ? 'bg-ink/[0.16] text-textPrimary font-semibold' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'
                             }`}
                           >
@@ -989,13 +989,13 @@ const ChartToolbar = ({
                   </div>
                 )}
                 {onBarClock && dense && (barClock ?? 'time') !== 'time' && (
-                  <p className="px-2.5 pt-1 font-mono text-[9px] leading-relaxed text-textMuted">
+                  <p className="px-2.5 pt-1 font-mono text-[11px] leading-relaxed text-textMuted">
                     Rule bars fold the live seconds tape — no history before connect, and the interval-based overlays sit out.
                   </p>
                 )}
                 {onBarClock && !dense && (
                   <>
-                    <span className="mt-1 mb-0.5 px-2.5 pt-1.5 border-t border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textMuted">
+                    <span className="mt-1 mb-0.5 px-2.5 pt-1.5 border-t border-borderSubtle font-mono text-[11px] uppercase tracking-widest text-textMuted">
                       Bar clock
                     </span>
                     {BAR_CLOCKS.map(opt => {
@@ -1015,14 +1015,14 @@ const ChartToolbar = ({
                         >
                           <span className="flex flex-col min-w-0">
                             <span className="truncate">{opt.label}</span>
-                            <span className="text-[9px] text-textMuted truncate">{opt.blurb}</span>
+                            <span className="text-[11px] text-textMuted truncate">{opt.blurb}</span>
                           </span>
                           {on && <Check className="w-3 h-3 ml-auto shrink-0 text-select" />}
                         </button>
                       );
                     })}
                     {(barClock ?? 'time') !== 'time' && (
-                      <p className="px-2.5 pt-1 font-mono text-[9px] leading-relaxed text-textMuted">
+                      <p className="px-2.5 pt-1 font-mono text-[11px] leading-relaxed text-textMuted">
                         Rule bars fold the live seconds tape — no history before
                         connect, and the interval-based overlays sit out.
                       </p>
@@ -1039,7 +1039,7 @@ const ChartToolbar = ({
                     >
                       <span className="flex flex-col min-w-0">
                         <span>Export PNG</span>
-                        {!dense && <span className="text-[9px] text-textMuted">This pane as an image — levels, drawings, watermark</span>}
+                        {!dense && <span className="text-[11px] text-textMuted">This pane as an image — levels, drawings, watermark</span>}
                       </span>
                     </button>
                   </>
@@ -1104,7 +1104,7 @@ const ChartToolbar = ({
                     {item.label}
                   </span>
                   {!dense && (
-                    <span className="block text-[10px] text-textSecondary leading-snug">
+                    <span className="block text-[11px] text-textSecondary leading-snug">
                       {heldByClock ? 'Needs time bars — held while the rule clock is on' : item.hint}
                     </span>
                   )}
@@ -1127,7 +1127,7 @@ const ChartToolbar = ({
           */}
           {onSessionOr && overlays.session && overlayItems.some(i => i.key === 'session') && (
             <div className="flex items-center gap-2 pl-[26px] pr-2.5 pb-2 -mt-1">
-              <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted shrink-0">Opening range</span>
+              <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted shrink-0">Opening range</span>
               <span role="group" aria-label="Opening range minutes" className="inline-flex items-center gap-0.5 rounded border border-borderMuted p-0.5">
                 {OPENING_RANGES.map(m => (
                   <button
@@ -1135,7 +1135,7 @@ const ChartToolbar = ({
                     onClick={() => onSessionOr(m)}
                     aria-pressed={sessionOr === m}
                     title={`The session's first ${m} minutes`}
-                    className={`px-1.5 py-0.5 rounded font-mono text-[10px] tnum transition-colors ${
+                    className={`px-1.5 py-0.5 rounded font-mono text-[11px] tnum transition-colors ${
                       sessionOr === m
                         ? 'bg-ink/[0.16] text-textPrimary font-semibold'
                         : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'
@@ -1198,7 +1198,7 @@ const ChartToolbar = ({
                   </span>
                   <span className="flex flex-col min-w-0">
                     <span className={`text-[12px] font-semibold ${opt.value === themeKey ? 'text-silver' : 'text-textPrimary'}`}>{opt.label}</span>
-                    {!dense && <span className="text-[10px] text-textMuted truncate">{opt.hint}</span>}
+                    {!dense && <span className="text-[11px] text-textMuted truncate">{opt.hint}</span>}
                   </span>
                   {opt.value === themeKey && <Check className="w-3 h-3 ml-auto shrink-0 text-silver" />}
                 </button>
@@ -1208,13 +1208,13 @@ const ChartToolbar = ({
           <div className={`flex-1 min-w-0 flex flex-col ${dense ? 'p-2.5 gap-1.5' : 'p-3 gap-2'}`}>
             <ThemePreview ticker={previewTicker} timeframe={timeframe} themeKey={themePreview ?? themeKey} width={themePreviewW} height={themePreviewH} />
             <span className={`font-semibold text-textPrimary ${dense ? 'text-[11px]' : 'text-[12px]'}`}>{shownTheme.label}</span>
-            <span className={`text-textSecondary leading-snug ${dense ? 'text-[9px]' : 'text-[10px]'}`}>
+            <span className={`text-textSecondary leading-snug ${dense ? 'text-[11px]' : 'text-[11px]'}`}>
               {dense ? shownTheme.hint : `${shownTheme.hint} · today's bars on ${previewTicker}, drawn by the chart itself`}
             </span>
             <button
               onClick={() => pickTheme(shownTheme.value)}
               className={`mt-auto w-full rounded bg-textPrimary text-[rgb(var(--panel))] hover:bg-textPrimary/90 font-mono font-semibold uppercase tracking-wider transition-all ${
-                dense ? 'py-1 text-[9px]' : 'py-1.5 text-[10px]'
+                dense ? 'py-1 text-[11px]' : 'py-1.5 text-[11px]'
               }`}
               data-theme-use
             >
@@ -1254,7 +1254,7 @@ const ChartToolbar = ({
         <button
           onClick={onToggleFullscreen}
           title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen chart'}
-          className="inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
+          className="inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
         >
           {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
@@ -1264,7 +1264,7 @@ const ChartToolbar = ({
         <button
           onClick={onTotalFullscreen}
           title="Total fullscreen — the taskbar goes too; Esc brings it back"
-          className="inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
+          className="inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary hover:bg-ink/[0.03] transition-colors"
         >
           <Fullscreen className="w-3.5 h-3.5" />
         </button>

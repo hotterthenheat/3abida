@@ -68,7 +68,7 @@ const WeigherChainWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
         <DropdownSelect label="Side" value={right} options={SIDE_OPTIONS} onChange={setRight} title="Calls or puts" testId="weigher-side" />
         <ExpiryCard label="Expiry" value={dte} choices={choices} onChange={setDte} free={{ days: 90, toValue: d => dteForDate(isoDate(d)) }} title="How far out the chain runs" testId="weigher-expiry" />
         {selected && sel != null && (
-          <span className="ml-auto font-mono text-[10px] font-semibold tnum text-textSecondary whitespace-nowrap">
+          <span className="ml-auto font-mono text-[11px] font-semibold tnum text-textSecondary whitespace-nowrap">
             {ctx.ticker} {fmtStrike(sel)}
             {right} · {chain.expiry.dte}d
           </span>

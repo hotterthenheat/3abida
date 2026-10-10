@@ -89,11 +89,13 @@ const firstGround = (): Theme | null => {
 let stamp: Theme | null = firstGround();
 
 /* ── COLOUR VISION (2026-10-09) ─────────────────────────────────────────────────────────────────────────────────── */
-export type ColourVision = 'standard' | 'blue-orange';
+/* 'high-contrast' (2026-10-10): the house's pair stronger and the text tiers nearer the lead ink (tokens.css) */
+export type ColourVision = 'standard' | 'blue-orange' | 'high-contrast';
 export const CVD_KEY = 'slayer_cvd';
 function loadCvd(): ColourVision {
   try {
-    return localStorage.getItem(CVD_KEY) === 'blue-orange' ? 'blue-orange' : 'standard';
+    const kept = localStorage.getItem(CVD_KEY);
+    return kept === 'blue-orange' || kept === 'high-contrast' ? kept : 'standard';
   } catch {
     return 'standard';
   }
@@ -106,7 +108,7 @@ function apply(): void {
   const on = stamp ?? resolved;
   root.dataset.theme = on;
   /* the direction pair, on every page — the landing included, whose only colour is the market's */
-  if (cvd === 'blue-orange') root.dataset.cvd = cvd;
+  if (cvd !== 'standard') root.dataset.cvd = cvd;
   else delete root.dataset.cvd;
   tokenCache.clear();
   /* a phone's browser bar takes the ground (index.html sets it before the first paint) */

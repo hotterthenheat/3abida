@@ -43,7 +43,7 @@ export const ImpactMark = ({ tier }: { tier: ImpactTier }) => (
 
 /** The legend, one thin line: ■ high ■ medium ■ low impact */
 export const ImpactLegend = ({ className = '' }: { className?: string }) => (
-  <span className={`inline-flex items-center gap-3 normal-case tracking-normal text-[10px] text-textSecondary ${className}`} data-impact-legend>
+  <span className={`inline-flex items-center gap-3 normal-case tracking-normal text-[11px] text-textSecondary ${className}`} data-impact-legend>
     {IMPACT_TIERS.map(t => (
       <span key={t} className="inline-flex items-center gap-1.5" title={IMPACT_WORD[t]}>
         <ImpactMark tier={t} />

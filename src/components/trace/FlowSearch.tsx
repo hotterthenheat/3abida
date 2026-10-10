@@ -276,7 +276,7 @@ const FlowSearch = ({
       className={rowClass(idx)}
     >
       {s.kind === 'contract' ? (
-        <span className={`inline-flex w-3.5 justify-center font-mono text-[10px] font-bold ${s.right === 'C' ? 'text-bull' : 'text-bear'}`}>
+        <span className={`inline-flex w-3.5 justify-center font-mono text-[11px] font-bold ${s.right === 'C' ? 'text-bull' : 'text-bear'}`}>
           {s.right}
         </span>
       ) : s.kind === 'back' ? (
@@ -290,7 +290,7 @@ const FlowSearch = ({
       <span className={`font-mono text-[11px] ${s.kind === 'back' || s.kind === 'door' ? 'text-textSecondary' : 'font-semibold text-textPrimary'}`}>
         {s.primary}
       </span>
-      {s.kind !== 'back' && s.kind !== 'door' && <span className="ml-auto font-mono text-[10px] tnum text-textMuted">{s.sub}</span>}
+      {s.kind !== 'back' && s.kind !== 'door' && <span className="ml-auto font-mono text-[11px] tnum text-textMuted">{s.sub}</span>}
     </button>
   );
 
@@ -367,7 +367,7 @@ const FlowSearch = ({
           {scope ? (
             <>
               {renderRow(flat[0], 0)}
-              <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
+              <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[11px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
                 {scope}
               </div>
               {flat.slice(1).map((s, i) => renderRow(s, i + 1))}
@@ -376,13 +376,13 @@ const FlowSearch = ({
             <>
               {tickers.length > 0 && (
                 <>
-                  <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted">Tickers</div>
+                  <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[11px] font-bold uppercase tracking-widest text-textMuted">Tickers</div>
                   {tickers.map((s, i) => renderRow(s, i))}
                 </>
               )}
               {contracts.length > 0 && (
                 <>
-                  <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
+                  <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[11px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
                     Contracts
                   </div>
                   {contracts.map((s, i) => renderRow(s, tickers.length + i))}

@@ -469,7 +469,7 @@ const Board = () => {
                 {newOrder && (
                   <>
                     <span className="text-[11px] text-textMuted">The sweep has a new order — the cards hold still under your hand</span>
-                    <button type="button" onClick={showNewOrder} className="hit font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle hover:border-borderMuted rounded px-2 py-0.5 transition-colors" data-board-new-order>
+                    <button type="button" onClick={showNewOrder} className="hit font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle hover:border-borderMuted rounded px-2 py-0.5 transition-colors" data-board-new-order>
                       Show it
                     </button>
                   </>

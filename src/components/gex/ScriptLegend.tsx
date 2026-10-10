@@ -86,13 +86,13 @@ const ScriptLegend = ({ paneId, scripts }: { paneId: string; scripts: PaneScript
         return (
           <div
             key={ps.chart.id}
-            className="group pointer-events-auto inline-flex items-center gap-1.5 h-[20px] pl-1.5 pr-1 rounded bg-canvas/75 backdrop-blur-[2px] font-mono text-[10.5px] leading-none"
+            className="group pointer-events-auto inline-flex items-center gap-1.5 h-[20px] pl-1.5 pr-1 rounded bg-canvas/75 backdrop-blur-[2px] font-mono text-[11px] leading-none"
             data-legend-row={ps.script.id}
             data-hidden={!on || undefined}
           >
             <span className={`whitespace-nowrap ${on && !broken ? 'text-textPrimary' : 'text-textMuted'}`}>{ps.script.title}</span>
             {summary(ps) && <span className="text-textMuted whitespace-nowrap tnum">{summary(ps)}</span>}
-            {broken && <span className="text-bear text-[9px] uppercase tracking-wider">does not read</span>}
+            {broken && <span className="text-bear text-[11px] uppercase tracking-wider">does not read</span>}
             <span className={`inline-flex items-center gap-0.5 ${on ? 'opacity-0 group-hover:opacity-100' : ''} transition-opacity`}>
               <button
                 onClick={() => void updateOnPane(paneId, { ...ps.chart, visible: !on })}

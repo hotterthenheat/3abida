@@ -139,7 +139,7 @@ const Working = ({ active = true, delay, label, stacked = false, mark, className
   return (
     <span role="status" aria-live="polite" className={`inline-flex items-center text-textMuted animate-fade-in ${stacked ? 'flex-col gap-3' : 'gap-2'} ${className}`} data-working>
       <MorphingInfinity className={mark ?? (stacked ? 'w-12 h-12' : 'w-4 h-4')} />
-      {label ? <span className="font-mono text-[10.5px] uppercase tracking-[0.2em]">{label}</span> : <span className="sr-only">Working</span>}
+      {label ? <span className="font-mono text-[11px] uppercase tracking-[0.2em]">{label}</span> : <span className="sr-only">Working</span>}
     </span>
   );
 };

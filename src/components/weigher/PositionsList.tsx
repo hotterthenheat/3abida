@@ -115,7 +115,7 @@ export const ListGrid = memo(function ListGrid({
           return (
             <span className="inline-flex items-center gap-1.5 min-w-0">
               <ContractLabel contract={`${c.ticker} ${fmtStrike(c.strike)}${c.right}`} right={c.right} logo={c.ticker} size="sm" />
-              <span className="font-mono text-[9px] text-textMuted whitespace-nowrap">
+              <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">
                 {size > 1 ? `× ${size} · ` : '· '}
                 {tag ? `${tag} · ` : ''}
                 {monthDay(c.expiry)}
@@ -136,7 +136,7 @@ export const ListGrid = memo(function ListGrid({
         headerTooltip: 'When it was added — a watched contract is marked then; a position you own carries what you paid',
         cellRenderer: ({ data }: ICellRendererParams<ListRow>) =>
           data ? (
-            <span className="font-mono text-[10px] tnum text-textSecondary whitespace-nowrap">
+            <span className="font-mono text-[11px] tnum text-textSecondary whitespace-nowrap">
               <When days={daysSince(contractOf(data).addedAt)} size={10} />
             </span>
           ) : null,
@@ -160,11 +160,11 @@ export const ListGrid = memo(function ListGrid({
                 if (!data) return null;
                 const v = hedgeOf(data);
                 return v ? (
-                  <span className={`font-mono text-[9px] font-semibold uppercase tracking-wider ${HEDGE_INK[v]}`} title={HEDGE_SAYS[v]} data-list-hedge={v}>
+                  <span className={`font-mono text-[11px] font-semibold uppercase tracking-wider ${HEDGE_INK[v]}`} title={HEDGE_SAYS[v]} data-list-hedge={v}>
                     {v}
                   </span>
                 ) : (
-                  <span className="font-mono text-[10px] text-textMuted">—</span>
+                  <span className="font-mono text-[11px] text-textMuted">—</span>
                 );
               },
             } satisfies ColDef<ListRow>,
@@ -180,10 +180,10 @@ export const ListGrid = memo(function ListGrid({
           data ? (
             data.kind === 'watch' && data.w.status === 'open' ? (
               <span className={`font-mono text-[11px] tnum ${dirInk(data.r.todayDollars)}`}>
-                {usdSigned(data.r.todayDollars)} <span className="text-[10px]">{rSigned(data.r.todayR)}</span>
+                {usdSigned(data.r.todayDollars)} <span className="text-[11px]">{rSigned(data.r.todayR)}</span>
               </span>
             ) : (
-              <span className="font-mono text-[10px] text-textMuted">—</span>
+              <span className="font-mono text-[11px] text-textMuted">—</span>
             )
           ) : null,
       },
@@ -197,10 +197,10 @@ export const ListGrid = memo(function ListGrid({
           if (!data) return null;
           const d = data.kind === 'watch' ? data.r.totalDollars : data.total;
           const r = data.kind === 'watch' ? data.r.totalR : data.totalR;
-          if (d == null || r == null) return <span className="font-mono text-[10px] text-textMuted">no cost given</span>;
+          if (d == null || r == null) return <span className="font-mono text-[11px] text-textMuted">no cost given</span>;
           return (
             <span className={`font-mono text-[11px] font-semibold tnum ${dirInk(d)}`}>
-              {usdSigned(d)} <span className="text-[10px] font-normal">{rSigned(r)}</span>
+              {usdSigned(d)} <span className="text-[11px] font-normal">{rSigned(r)}</span>
             </span>
           );
         },
@@ -266,7 +266,7 @@ export const ListGrid = memo(function ListGrid({
           onFirstDataRendered={() => setReady(true)}
           onGridSizeChanged={onGridSizeChanged}
           tooltipShowDelay={350}
-          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${emptyText}</span>`}
+          overlayNoRowsTemplate={`<span class="font-mono text-[11px] uppercase tracking-widest text-textMuted">${emptyText}</span>`}
         />
       </AgGridProvider>
     </div>

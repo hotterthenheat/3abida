@@ -48,6 +48,7 @@ import { REGIME_WORDS } from '../../data/flipGauge';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import { CALL_WALL, FLIP, LONG_GAMMA, PUT_WALL, SHORT_GAMMA, SUPREME, THERMAL_WARM } from '../../components/gex/paletteInk';
 import { fmtDollars } from '../../data/ahead';
+import { pctSigned } from '../../core/format';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
@@ -57,10 +58,10 @@ const WARM = THERMAL_WARM;
 const SCAN_INTERVAL_MS = 10_000;
 /* The grid's theme and modules are the house's (components/ui/houseGrid.ts) — the Record's tables wear the same */
 const MODULES = GRID_MODULES;
-/* the house grid at the terminal's reading floor: an 11px head (the house's is 9) */
-const THEME = GRID_THEME.withParams({ headerFontSize: 11 });
+/* the house grid, its heads at the terminal's reading floor (11 px, the house's own since 2026-10-10) */
+const THEME = GRID_THEME;
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const fmtPct = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
+const fmtPct = (v: number) => pctSigned(v);
 
 // ---- cell renderers: the house grammar inside the grid -----------------------
 

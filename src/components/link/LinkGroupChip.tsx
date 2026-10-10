@@ -54,7 +54,7 @@ const LinkGroupChip = ({ group, onChange, noneHint, what = 'this panel', testId,
           aria-label={label}
           title={label}
           className={`hit shrink-0 inline-flex items-center justify-center border font-mono leading-none transition-colors select-none data-[state=open]:border-silver/50 ${
-            size === 'sm' ? 'w-5 h-5 rounded-[3px] text-[10px] font-bold' : 'h-6 min-w-6 px-1 rounded-md text-[11px] font-semibold'
+            size === 'sm' ? 'w-5 h-5 rounded-[3px] text-[11px] font-bold' : 'h-6 min-w-6 px-1 rounded-md text-[11px] font-semibold'
           } ${
             group ? 'border-borderMuted bg-ink/[0.10] text-textPrimary' : 'border-transparent text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'
           }`}
@@ -66,7 +66,7 @@ const LinkGroupChip = ({ group, onChange, noneHint, what = 'this panel', testId,
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={6} className={`${CARD} min-w-[220px] p-1.5`} data-link-menu onCloseAutoFocus={focusBackForKeys}>
-          <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">Link group</DropdownMenu.Label>
+          <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[11px] uppercase tracking-widest text-textMuted">Link group</DropdownMenu.Label>
           <DropdownMenu.RadioGroup value={group ?? ''} onValueChange={v => onChange(v === '' ? null : (v as LinkGroup))}>
             {(['', ...LINK_GROUPS] as const).map(g => (
               <DropdownMenu.RadioItem
@@ -81,7 +81,7 @@ const LinkGroupChip = ({ group, onChange, noneHint, what = 'this panel', testId,
                 </span>
                 <span className="flex flex-col gap-[1px] min-w-0">
                   <span className="font-mono text-[11px] leading-snug group-data-[state=checked]:font-semibold">{g ? `Group ${g}` : 'None'}</span>
-                  <span className="font-mono text-[9px] leading-snug text-textMuted">
+                  <span className="font-mono text-[11px] leading-snug text-textMuted">
                     {g ? (groups[g] ? `Reads ${groups[g]}` : `No name yet — ${what} gives it its own`) : noneHint}
                   </span>
                 </span>

@@ -40,7 +40,7 @@ const BookBlock = ({ read, c }: { read: BookAtStrike | null; c: DeskContract }) 
   return (
     <div className="flex flex-col gap-2" data-book-block={read.strike}>
       <span className="inline-flex items-center gap-2">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">The book at {fmtStrike(read.strike)}</span>
+        <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-textSecondary">The book at {fmtStrike(read.strike)}</span>
         {read.shape && <ShapeChip shape={read.shape} />}
       </span>
       {/* three across, two rows: these cells hold WORDS (Stats' five-across holds figures) — five across ran the words into

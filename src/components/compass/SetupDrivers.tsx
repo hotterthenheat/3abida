@@ -23,6 +23,7 @@ import type { Column } from '../ui/DataTable';
 import { TraceGrid } from '../trace/TraceBox';
 import { fmtUsd } from '../../data/gex';
 import type { DriverRow, OptionRight } from '../../types/compass';
+import { pctSigned } from '../../core/format';
 
 interface SetupDriversProps {
   ticker: string;
@@ -32,10 +33,7 @@ interface SetupDriversProps {
 }
 
 /** Signed distance; at the money reads 0.0%, never "-0.0%". */
-const fmtDist = (v: number) => {
-  const d = Math.abs(v) < 0.05 ? 0 : v;
-  return `${d > 0 ? '+' : ''}${d.toFixed(1)}%`;
-};
+const fmtDist = (v: number) => pctSigned(Math.abs(v) < 0.005 ? 0 : v);
 
 const WIDTHS: Record<string, number> = { role: 150, gamma: 110, voloi: 100, dist: 110, exposure: 120, open: 72 };
 const TOOLTIPS: Record<string, string> = {
@@ -57,9 +55,9 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         header: 'Role',
         render: r =>
           r.role === 'This contract' ? (
-            <span className="font-mono text-[10px] uppercase tracking-wider font-semibold text-silver">{r.role}</span>
+            <span className="font-mono text-[11px] uppercase tracking-wider font-semibold text-silver">{r.role}</span>
           ) : (
-            <span className="font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-textSecondary">
               <Term k={r.role}>{r.role}</Term>
             </span>
           ),
@@ -71,7 +69,7 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         render: r => (
           <span className="inline-flex items-center gap-2 min-w-0">
             <ContractLabel contract={r.contract} right={r.right} logo={r.contract.split(' ')[0]} size="sm" />
-            <span className="font-mono text-[9px] text-textMuted">{r.expiry}</span>
+            <span className="font-mono text-[11px] text-textMuted">{r.expiry}</span>
           </span>
         ),
       },
@@ -94,7 +92,7 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         align: 'right',
         render: r =>
           r.role === 'This contract' ? null : (
-            <button type="button" onClick={() => onOpen(r.strike, r.right)} title={`Open ${r.contract} ${r.expiry}`} className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
+            <button type="button" onClick={() => onOpen(r.strike, r.right)} title={`Open ${r.contract} ${r.expiry}`} className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
               Open <ArrowUpRight className="w-3 h-3" />
             </button>
           ),

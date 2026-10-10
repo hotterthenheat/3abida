@@ -49,7 +49,7 @@ const JournalLanes = ({ title, lanes, measure = 'net', rest, labelW = 92, testId
       </div>
       <div className="py-1 flex-1" onPointerLeave={() => setOver(null)}>
         {!any ? (
-          <div className="px-5 py-8 text-center font-mono text-[10px] text-textMuted">Nothing closed in this period</div>
+          <div className="px-5 py-8 text-center font-mono text-[11px] text-textMuted">Nothing closed in this period</div>
         ) : (
           lanes.map(l => {
             const w = biggest > 0 ? ((measure === 'net' ? Math.abs(l.net) : l.n) / biggest) * 100 : 0;
@@ -78,7 +78,7 @@ const JournalLanes = ({ title, lanes, measure = 'net', rest, labelW = 92, testId
                   </span>
                 )}
                 <span className={`font-mono text-[11px] font-semibold tnum text-right ${l.n ? dirInk(l.net) : 'text-textMuted'}`}>{l.n ? usdSigned(l.net, 0) : '—'}</span>
-                <span className="font-mono text-[10px] tnum text-right text-textMuted" title={`${l.n} closed`}>
+                <span className="font-mono text-[11px] tnum text-right text-textMuted" title={`${l.n} closed`}>
                   {l.n}
                 </span>
               </div>
@@ -86,7 +86,7 @@ const JournalLanes = ({ title, lanes, measure = 'net', rest, labelW = 92, testId
           })
         )}
       </div>
-      <div className="min-h-9 px-5 py-2 border-t border-borderSubtle/70 font-mono text-[10px] leading-snug tnum text-textMuted" data-journal-lanes-foot>
+      <div className="min-h-9 px-5 py-2 border-t border-borderSubtle/70 font-mono text-[11px] leading-snug tnum text-textMuted" data-journal-lanes-foot>
         {lit ? (
           lit.n ? (
             <>

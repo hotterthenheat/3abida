@@ -90,7 +90,7 @@ const useEnterFor = (target: Suggestion | undefined, go: (s: Suggestion) => void
 };
 
 const EnterKey = () => (
-  <kbd className="inline-flex items-center gap-1 h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[9.5px] uppercase tracking-wider text-textMuted">
+  <kbd className="inline-flex items-center gap-1 h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[11px] uppercase tracking-wider text-textMuted">
     <CornerDownLeft className="w-2.5 h-2.5" aria-hidden /> Enter
   </kbd>
 );
@@ -111,7 +111,7 @@ export const NotFoundInside = () => {
 
       <div className="border border-borderSubtle rounded-md bg-panel">
         <div className="px-4 py-3 border-b border-borderSubtle flex items-center gap-3 min-w-0">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted shrink-0">You asked for</span>
+          <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted shrink-0">You asked for</span>
           <code className="min-w-0 truncate font-mono text-[12.5px] text-textPrimary" data-not-found-address>
             {pathname}
           </code>
@@ -119,7 +119,7 @@ export const NotFoundInside = () => {
 
         {found.length > 0 ? (
           <div className="px-4 py-4" data-not-found-suggest>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Did you mean</span>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Did you mean</span>
             <div className="mt-2 flex flex-col">
               {found.map((s, i) => (
                 <Link
@@ -129,7 +129,7 @@ export const NotFoundInside = () => {
                   data-not-found-link={s.path}
                 >
                   <span className={`${i === 0 ? 'text-[20px] font-semibold tracking-tight' : 'text-[14px] font-medium'} text-textPrimary group-hover:text-silver transition-colors`}>{s.label}</span>
-                  {s.where && <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">{s.where}</span>}
+                  {s.where && <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">{s.where}</span>}
                   <code className="hidden sm:inline font-mono text-[11px] text-textMuted">{s.path}</code>
                   <span className="ml-auto inline-flex items-center gap-2 text-textMuted group-hover:text-textPrimary transition-colors">
                     {i === 0 && <EnterKey />}
@@ -167,7 +167,7 @@ export const NotFoundInside = () => {
       </div>
 
       <div className="border border-borderSubtle rounded-md bg-panel">
-        <div className="px-4 py-2.5 border-b border-borderSubtle font-mono text-[10px] uppercase tracking-widest text-textMuted">Every product</div>
+        <div className="px-4 py-2.5 border-b border-borderSubtle font-mono text-[11px] uppercase tracking-widest text-textMuted">Every product</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {NAV_ITEMS.map(item => (
             <Link key={item.path} to={item.path} className="group flex items-center gap-3 h-11 px-4 border-b border-borderSubtle/60 hover:bg-ink/[0.03] transition-colors" data-not-found-product={item.path}>
@@ -177,7 +177,7 @@ export const NotFoundInside = () => {
                 <item.icon className="w-4 h-4 shrink-0 text-textMuted group-hover:text-[color:var(--ink)] transition-colors" strokeWidth={1.75} style={{ '--ink': item.ink } as CSSProperties} />
               )}
               <span className="text-[13px] text-textPrimary">{item.label}</span>
-              <code className="ml-auto font-mono text-[10.5px] text-textMuted">{item.path}</code>
+              <code className="ml-auto font-mono text-[11px] text-textMuted">{item.path}</code>
             </Link>
           ))}
         </div>

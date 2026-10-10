@@ -33,6 +33,7 @@ import {
   createChart,
   HistogramSeries,
   LineSeries,
+  LineStyle,
   LineType,
   type IChartApi,
   type ISeriesApi,
@@ -45,7 +46,7 @@ import Simulator from '../../core/simulator';
 import { earnMarks, weightInk, type InkMarks } from './earnedInk';
 import { nyClock, nyTimeFormatter, nyTickMarks, SESSION_OPEN_MIN } from '../../core/nyTime';
 import ResetViewControl from '../gex/ResetViewControl';
-import { readToken, useResolvedTheme } from '../../theme/theme';
+import { readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import {
   bookSession,
@@ -195,7 +196,7 @@ const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegmen
         aria-expanded={open}
         aria-label={`Cut of the book: ${label}`}
         title="Which cut of the book this pane watches — by family, or by sector"
-        className="hit inline-flex items-center gap-1 h-6 px-2 rounded-full bg-ink/[0.06] hover:bg-ink/[0.10] font-mono text-[10px] font-bold text-textPrimary transition-colors"
+        className="hit inline-flex items-center gap-1 h-6 px-2 rounded-full bg-ink/[0.06] hover:bg-ink/[0.10] font-mono text-[11px] font-bold text-textPrimary transition-colors"
       >
         {label}
         <ChevronDown className={`w-3 h-3 text-textSecondary transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
@@ -213,7 +214,7 @@ const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegmen
         >
           {groups.map((g, gi) => (
             <div key={g} role="group" aria-label={g} className={gi > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
-              <div className="px-2 pt-1 pb-0.5 font-mono text-[10px] font-bold text-textSecondary" aria-hidden>
+              <div className="px-2 pt-1 pb-0.5 font-mono text-[11px] font-bold text-textSecondary" aria-hidden>
                 {g}
               </div>
               {NET_SEGMENTS.filter(s => s.group === g).map(s => (
@@ -322,6 +323,11 @@ const NetFlowPane = ({
   /** Re-applies the hover pick in the current inks (the theme turned under it) */
   const repickRef = useRef<() => void>(() => {});
   const theme = useResolvedTheme();
+  /* UNDER EITHER COLOUR-VISION CHOICE THE PUTS ARE DASHED (2026-10-10, the ideas' 13): the two lines never differ by ink
+     alone — the calls solid, the puts dashed, their key's dot a ring */
+  const vision = useColourVision();
+  const visionRef = useRef(vision);
+  visionRef.current = vision;
 
   /* The spot ribbon: the picked name's own tape, or SPY's under a cut of the book. */
   const ref = ticker ?? 'SPY';
@@ -420,6 +426,7 @@ const NetFlowPane = ({
     });
     const puts = chart.addSeries(LineSeries, {
       color: k.puts,
+      lineStyle: visionRef.current === 'standard' ? LineStyle.Solid : LineStyle.Dashed,
       lineWidth: 2,
       lineType: LineType.Simple,
       priceLineVisible: false,
@@ -676,6 +683,9 @@ const NetFlowPane = ({
     putRef.current?.applyOptions({ color: k.puts });
     repickRef.current();
   }, [theme]);
+  useEffect(() => {
+    putRef.current?.applyOptions({ lineStyle: vision === 'standard' ? LineStyle.Solid : LineStyle.Dashed });
+  }, [vision]);
 
   /* data-menu-clip: this box clips its overflow, so the menus in its head
      size themselves to the room it leaves (ui/menuRoom). */
@@ -716,7 +726,7 @@ const NetFlowPane = ({
         {ticker && onTenor && <DropdownSelect label="Tenor" value={tenor} options={TENOR_OPTIONS} onChange={onTenor} title={sharedNote ? `How far out the contracts run — ${sharedNote}` : 'How far out the contracts run'} testId="pane-clock" />}
         {/* The figures wear their MEANING's ink (TR-53): net puts bought lean bearish (red), sold lean bullish (green); a
             zero is no lean at all */}
-        <span className="ml-auto flex items-center gap-2.5 font-mono text-[10px] tnum whitespace-nowrap">
+        <span className="ml-auto flex items-center gap-2.5 font-mono text-[11px] tnum whitespace-nowrap">
           <span className="text-textPrimary">{ref}</span>
           <span>
             <span className="text-textSecondary mr-1">net calls</span>
@@ -750,12 +760,12 @@ const NetFlowPane = ({
           aria-hidden
           className="pointer-events-none absolute top-2 left-14 z-20 w-[168px] opacity-0 transition-opacity duration-100 border border-borderSubtle bg-panel/60 backdrop-blur-md rounded-md shadow-lg shadow-black/30 px-2.5 py-2"
         >
-          <span ref={tipTimeRef} className="block font-mono text-[10px] text-textSecondary mb-1">
+          <span ref={tipTimeRef} className="block font-mono text-[11px] text-textSecondary mb-1">
             --:--
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-textPrimary" />
-            <span ref={tipSpotLabelRef} className="font-mono text-[10px] text-textSecondary">
+            <span ref={tipSpotLabelRef} className="font-mono text-[11px] text-textSecondary">
               SPY
             </span>
             <span ref={tipSpotRef} className="ml-auto font-mono text-[11px] tnum text-textPrimary">
@@ -764,21 +774,21 @@ const NetFlowPane = ({
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bull" />
-            <span className="font-mono text-[10px] text-textSecondary">Net calls</span>
+            <span className="font-mono text-[11px] text-textSecondary">Net calls</span>
             <span ref={tipCallRef} className="ml-auto font-mono text-[11px] tnum text-bull">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bear" />
-            <span className="font-mono text-[10px] text-textSecondary">Net puts</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bear text-bear cvd-hollow" />
+            <span className="font-mono text-[11px] text-textSecondary">Net puts</span>
             <span ref={tipPutRef} className="ml-auto font-mono text-[11px] tnum text-bear">
               —
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-textSecondary" />
-            <span className="font-mono text-[10px] text-textSecondary">Volume</span>
+            <span className="font-mono text-[11px] text-textSecondary">Volume</span>
             <span ref={tipVolRef} className={`${TIP_VOL_BASE} text-textSecondary`}>
               —
             </span>

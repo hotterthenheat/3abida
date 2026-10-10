@@ -30,8 +30,9 @@ import { nyClock, nyTickMarks, nyTimeFormatter } from '../../core/nyTime';
 const fmtClockNy = (t: UTCTimestamp) => nyClock(t * 1000);
 import { TAPES_H, TAPES_READ_H } from './compareSkeletons';
 import { FONT_SANS } from '../../theme/fonts';
+import { pctSigned } from '../../core/format';
 
-const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`;
+const signedPct = (v: number) => pctSigned(v);
 
 interface Props {
   a: string;

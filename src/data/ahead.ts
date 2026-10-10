@@ -51,6 +51,7 @@ import { buildVannaCharm } from './vannacharm';
 import type { SessionClock } from './sessionClock';
 import type { ExposureProfileData, IvShift, LevelShift } from '../types/gex';
 import type { MarketSnapshot } from '../types/market';
+import { usdCompact } from '../core/format';
 
 export const OPEN_MIN = 9 * 60 + 30;
 export const CLOSE_MIN = 16 * 60;
@@ -59,14 +60,9 @@ export const SESSION_MIN = CLOSE_MIN - OPEN_MIN; // 390
 export const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 export const fmtPrice = (v: number) => v.toFixed(2);
 export const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-/** "$48M" / "$1.2B" — the schedule's dollars */
-export const fmtDollars = (v: number): string => {
-  const a = Math.abs(v);
-  if (a >= 1e9) return `$${(a / 1e9).toFixed(1)}B`;
-  if (a >= 1e6) return `$${(a / 1e6).toFixed(0)}M`;
-  if (a >= 1e3) return `$${(a / 1e3).toFixed(0)}K`;
-  return `$${a.toFixed(0)}`;
-};
+/** "$48.3M" / "$1.2B" — the schedule's dollars, unsigned (the sentence says buying or selling); the house's compact
+    dollars (core/format.ts) */
+export const fmtDollars = (v: number): string => usdCompact(Math.abs(v));
 
 // ---- the clock, as minutes -----------------------------------------------------
 

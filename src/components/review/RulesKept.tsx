@@ -39,7 +39,7 @@ const RulesKept = ({ weeks }: { weeks: KeptWeek[] }) => {
                 <span className="relative w-full h-[72px] rounded-[3px] bg-ink/[0.05] overflow-hidden" aria-hidden="true">
                   {w.said > 0 && <span className="absolute inset-x-0 bottom-0 bg-silver/70" style={{ height: `${Math.max(4, share * 100)}%` }} />}
                 </span>
-                <span className="font-mono text-[10px] tnum text-textMuted whitespace-nowrap">{short(w.from)}</span>
+                <span className="font-mono text-[11px] tnum text-textMuted whitespace-nowrap">{short(w.from)}</span>
               </div>
             );
           })}

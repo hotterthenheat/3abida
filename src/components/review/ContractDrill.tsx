@@ -13,7 +13,7 @@ const count = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : 
 
 const Stat = ({ label, value, term, ink }: { label: string; value: string; term?: string; ink?: string }) => (
   <span className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[10px] uppercase tracking-widest text-silver whitespace-nowrap">{term ? <Term k={term as never}>{label}</Term> : label}</span>
+    <span className="font-mono text-[11px] uppercase tracking-widest text-silver whitespace-nowrap">{term ? <Term k={term as never}>{label}</Term> : label}</span>
     <span className={`font-mono text-[11px] font-semibold tnum ${ink ?? 'text-textPrimary'}`}>{value}</span>
   </span>
 );
@@ -21,7 +21,7 @@ const Stat = ({ label, value, term, ink }: { label: string; value: string; term?
 const ContractDrill = ({ contract, quote: q, day: d }: { contract: ContractId; quote: Quote; day: ContractDay }) => (
   <div className="px-4 py-3 bg-silver/[0.04] border-y border-borderSubtle/70 flex flex-col gap-3 animate-soft-in" data-chain-drill={contract.strike}>
     <div className="flex flex-col gap-2">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-textSecondary">Stats</span>
+      <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-textSecondary">Stats</span>
       <div className="grid grid-cols-3 gap-x-4 gap-y-2.5">
         <Stat label="Bid" value={`$${q.bid.toFixed(2)}`} />
         <Stat label="Mark" term="Mark" value={`$${q.mark.toFixed(2)}`} />
@@ -38,7 +38,7 @@ const ContractDrill = ({ contract, quote: q, day: d }: { contract: ContractId; q
       </div>
     </div>
     <div className="flex flex-col gap-2">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-textSecondary">The Greeks</span>
+      <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-textSecondary">The Greeks</span>
       <div className="grid grid-cols-3 gap-x-4 gap-y-2.5">
         <Stat label="Delta" term="Delta" value={q.delta.toFixed(4)} />
         <Stat label="Gamma" term="Gamma" value={q.gamma.toFixed(4)} />

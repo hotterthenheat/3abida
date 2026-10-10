@@ -136,7 +136,7 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
           </div>
           <div ref={listRef} className="max-h-64 overflow-y-auto p-1.5" role="listbox">
             {matches.length === 0 ? (
-              <div className="px-2.5 py-4 text-center font-mono text-[10px] text-textMuted">Nothing on the board matches</div>
+              <div className="px-2.5 py-4 text-center font-mono text-[11px] text-textMuted">Nothing on the board matches</div>
             ) : (
               matches.map((o, i) => {
                 const on = o.value === value;
@@ -156,7 +156,7 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
                       <span className={`font-mono text-[11px] leading-snug ${on ? 'font-semibold' : ''}`} style={on ? { color: SILVER } : undefined}>
                         {o.label}
                       </span>
-                      {o.hint && <span className="font-mono text-[10px] leading-snug text-textMuted truncate">{o.hint}</span>}
+                      {o.hint && <span className="font-mono text-[11px] leading-snug text-textMuted truncate">{o.hint}</span>}
                     </span>
                   </button>
                 );
