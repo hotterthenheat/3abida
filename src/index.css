@@ -732,34 +732,63 @@
    every eleven seconds, on a linear clock so each dip is a cut, not a fade.
    ONE CLOCK FOR ALL OF IT (Noah: "the flicker of the lightbulb and the flicker
    of the actual light is not in sync" — three animations on three elements
-   started on three frames): the body animates one inherited number while the
-   wall is up, and the bulb, the beam and the wordmark each read it at the
-   same instant — the bulb goes darkest, the beam less, the wordmark a shade. */
-@property --room-flicker {
-  syntax: '<number>';
-  inherits: true;
-  initial-value: 1;
+   started on three frames): the bulb goes darkest, the beam less, the wordmark
+   a shade, on the same eleven seconds — and all three START on one frame, the
+   one the wall's class lands on the body (ComingSoonWall adds it once its parts
+   are up), so they never drift apart. OPACITY ON THE PARTS, NOT A NUMBER ON THE
+   BODY (the audit's SH-17, 2026-10-10): an inherited custom property animated
+   on <body> restyled the whole page every frame, against the speed rules; an
+   opacity loop runs on the compositor. */
+@keyframes room-bulb {
+  0%, 3.6%, 5.4%, 40.8%, 43.6%, 69.6%, 71.2%, 88.4%, 89.4%, 100% { opacity: 1; }
+  3.9% { opacity: 0.2; }
+  4.3% { opacity: 0.9; }
+  4.8% { opacity: 0.35; }
+  41.1% { opacity: 0.1; }
+  41.5% { opacity: 0.85; }
+  42.2% { opacity: 0.25; }
+  42.9% { opacity: 0.8; }
+  69.9% { opacity: 0.3; }
+  70.4% { opacity: 1; }
+  70.8% { opacity: 0.45; }
+  88.8% { opacity: 0.4; }
 }
-@keyframes room-flicker {
-  0%, 3.6%, 5.4%, 40.8%, 43.6%, 69.6%, 71.2%, 88.4%, 89.4%, 100% { --room-flicker: 1; }
-  3.9% { --room-flicker: 0.2; }
-  4.3% { --room-flicker: 0.9; }
-  4.8% { --room-flicker: 0.35; }
-  41.1% { --room-flicker: 0.1; }
-  41.5% { --room-flicker: 0.85; }
-  42.2% { --room-flicker: 0.25; }
-  42.9% { --room-flicker: 0.8; }
-  69.9% { --room-flicker: 0.3; }
-  70.4% { --room-flicker: 1; }
-  70.8% { --room-flicker: 0.45; }
-  88.8% { --room-flicker: 0.4; }
+@keyframes room-beam {
+  0%, 3.6%, 5.4%, 40.8%, 43.6%, 69.6%, 71.2%, 88.4%, 89.4%, 100% { opacity: 0.85; }
+  3.9% { opacity: 0.374; }
+  4.3% { opacity: 0.79; }
+  4.8% { opacity: 0.463; }
+  41.1% { opacity: 0.315; }
+  41.5% { opacity: 0.761; }
+  42.2% { opacity: 0.404; }
+  42.9% { opacity: 0.731; }
+  69.9% { opacity: 0.433; }
+  70.4% { opacity: 0.85; }
+  70.8% { opacity: 0.523; }
+  88.8% { opacity: 0.493; }
 }
-body.room-walled { animation: room-flicker 11s linear infinite; }
-.room-bulb { opacity: var(--room-flicker); }
-.room-beam { opacity: calc(0.85 * (0.3 + 0.7 * var(--room-flicker))); }
-.room-lit { opacity: calc(0.7 + 0.3 * var(--room-flicker)); }
+@keyframes room-lit {
+  0%, 3.6%, 5.4%, 40.8%, 43.6%, 69.6%, 71.2%, 88.4%, 89.4%, 100% { opacity: 1.0; }
+  3.9% { opacity: 0.76; }
+  4.3% { opacity: 0.97; }
+  4.8% { opacity: 0.805; }
+  41.1% { opacity: 0.73; }
+  41.5% { opacity: 0.955; }
+  42.2% { opacity: 0.775; }
+  42.9% { opacity: 0.94; }
+  69.9% { opacity: 0.79; }
+  70.4% { opacity: 1.0; }
+  70.8% { opacity: 0.835; }
+  88.8% { opacity: 0.82; }
+}
+.room-beam { opacity: 0.85; }
+body.room-walled .room-bulb { animation: room-bulb 11s linear infinite; }
+body.room-walled .room-beam { animation: room-beam 11s linear infinite; }
+body.room-walled .room-lit { animation: room-lit 11s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
-  body.room-walled { animation: none; }
+  body.room-walled .room-bulb,
+  body.room-walled .room-beam,
+  body.room-walled .room-lit { animation: none; }
 }
 
 /* Launch-gate progress fill — CSS transform so it runs on the compositor and
@@ -1079,15 +1108,18 @@ body.room-walled { animation: room-flicker 11s linear infinite; }
   background-color: transparent !important;
 }
 /* THE WATCHLIST DOOR on a chain row (2026-09-14): the + shows on the row's hover, on the
-   picked row, and under the keyboard; once the contract is watched the check stays */
-.slayer-chain [data-chain-watch]:not([data-on]) {
-  opacity: 0;
-  transition: opacity 120ms ease-out;
-}
-.slayer-chain .ag-row:hover [data-chain-watch],
-.slayer-chain .ag-row-selected [data-chain-watch],
-.slayer-chain [data-chain-watch]:focus-visible {
-  opacity: 1;
+   picked row, and under the keyboard; once the contract is watched the check stays. Only where
+   there IS a hover (2026-10-10): a touch screen has none, and the + stood invisible there */
+@media (hover: hover) {
+  .slayer-chain [data-chain-watch]:not([data-on]) {
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+  }
+  .slayer-chain .ag-row:hover [data-chain-watch],
+  .slayer-chain .ag-row-selected [data-chain-watch],
+  .slayer-chain [data-chain-watch]:focus-visible {
+    opacity: 1;
+  }
 }
 /* THE LIVE CHART'S CHAIN under a scrollbar that floats OVER the grid (headless Chromium, some Macs — the grid marks it
    `ag-scrollbar-invisible`): the last column's figures and a strike's dropdown keep the right 16px clear, the room the
@@ -1753,10 +1785,12 @@ html[data-landing-scale] {
   opacity: 1;
 }
 /* THE QUOTE'S WORDS come up one after another and into focus, once, as the page opens (pages/landing/Opening.tsx) */
+/* 0.6 s a word since 2026-10-10 (the audit's L-29: at 0.9 s the quote settled at ~1.35 s, and it is the page's largest
+   paint) */
 .landing-word {
   animation:
-    landing-rise 0.9s cubic-bezier(0.2, 0, 0, 1) calc(var(--w, 0) * 55ms + 60ms) backwards,
-    landing-focus 0.9s cubic-bezier(0.2, 0, 0, 1) calc(var(--w, 0) * 55ms + 60ms) backwards;
+    landing-rise 0.6s cubic-bezier(0.2, 0, 0, 1) calc(var(--w, 0) * 55ms + 60ms) backwards,
+    landing-focus 0.6s cubic-bezier(0.2, 0, 0, 1) calc(var(--w, 0) * 55ms + 60ms) backwards;
 }
 /* the light the first screen's words stand in — still (never a loop), silver on black, a cool wash on paper */
 .landing-pool {
@@ -1856,13 +1890,12 @@ html[data-landing-scale] {
   align-items: stretch;
 }
 
-/* the label inside the first pill — the house's card label (DropdownSelect's), so the pill reads as one of the cards */
+/* the label inside the first pill — the house's card label (DropdownSelect's), so the pill reads as one of the cards:
+   11 px in sentence case since 2026-10-10 (it was 9 px tracked capitals, under the house's floor) */
 .pal-label {
   flex: none;
   padding: 0 4px 0 2px;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-size: 11px;
   color: rgb(var(--text-muted));
   white-space: nowrap;
   user-select: none;
@@ -1978,10 +2011,11 @@ html[data-landing-scale] {
   color: color-mix(in srgb, var(--fill-on, var(--ink-2)) 55%, var(--fill-slab, var(--card)));
 }
 
+/* the house's own ring (the audit's X4.3, 2026-10-10): the ring here was rgba() round the house's space-separated
+   channels — not a colour, so the swatch's key showed no ring at all */
 .pal-go:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--fill-slab, var(--card)),
-    0 0 0 4px rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.45);
+  outline: 2px solid rgb(var(--silver) / var(--ring-a));
+  outline-offset: 2px;
 }
 
 /* ── the glyph turns, and only one way ──────────────────────
