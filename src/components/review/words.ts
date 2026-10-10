@@ -10,8 +10,10 @@ export const usdSigned = (v: number, digits = 2): string => (Math.abs(v) < 0.005
 /** "+0.42R" */
 export const rWords = (r: number): string => `${r >= 0 ? '+' : MINUS}${Math.abs(r).toFixed(2)}R`;
 export const pct = (v: number): string => `${Math.round(v * 100)}%`;
-/** The direction's ink for a signed figure — flat money is plain */
-export const dirInk = (v: number): string => (Math.abs(v) < 0.005 ? 'text-textSecondary' : v > 0 ? 'text-bull' : 'text-bear');
+/** The direction's ink for a signed figure — flat money is plain. It carries the direction as a mark too (`dir-up` /
+    `dir-down`, theme/tokens.css): under the blue–orange pair the figure wears ▲ or ▼, so a gain and a loss never rest on
+    hue alone (Settings › Appearance, 2026-10-10) — every figure inked here gets it, wherever it is printed */
+export const dirInk = (v: number): string => (Math.abs(v) < 0.005 ? 'text-textSecondary' : v > 0 ? 'text-bull dir-up' : 'text-bear dir-down');
 /** "Mar 14 · 10:42" */
 export const momentWords = (m: Moment): string => `${dayWords(m.day)} · ${clockWords(m.minute)}`;
 /** Session minutes as a trader would say them. `dayMin`: the minutes in a trading day of that kind — a replayed day's 390, a

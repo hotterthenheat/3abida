@@ -345,18 +345,23 @@
   --bear: 196 72 0;
 }
 /* …AND A MARK THAT IS NOT A COLOUR: a figure that carries its direction (`data-dir="up"` / `"down"`, written by the
-   formatter that signs it) wears ▲ or ▼ before it while the setting is on, so a direction never rests on hue alone */
+   formatter that signs it, or the `dir-up` / `dir-down` class review/words.ts dirInk puts beside its ink) wears ▲ or ▼
+   before it while the setting is on, so a direction never rests on hue alone */
 :root[data-cvd='blue-orange'] [data-dir='up']::before,
-:root[data-cvd='blue-orange'] [data-dir='down']::before {
+:root[data-cvd='blue-orange'] [data-dir='down']::before,
+:root[data-cvd='blue-orange'] .dir-up::before,
+:root[data-cvd='blue-orange'] .dir-down::before {
   display: inline-block;
   margin-right: 0.2em;
   font-size: 0.78em;
   line-height: 1;
   vertical-align: 0.06em;
 }
-:root[data-cvd='blue-orange'] [data-dir='up']::before {
+:root[data-cvd='blue-orange'] [data-dir='up']::before,
+:root[data-cvd='blue-orange'] .dir-up::before {
   content: '▲';
 }
-:root[data-cvd='blue-orange'] [data-dir='down']::before {
+:root[data-cvd='blue-orange'] [data-dir='down']::before,
+:root[data-cvd='blue-orange'] .dir-down::before {
   content: '▼';
 }

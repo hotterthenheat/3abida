@@ -36,8 +36,10 @@ import { RotateCcw } from 'lucide-react';
 
 const ResetViewControl = ({
   onReset,
-  /** Where the pill floats — override to dodge a host's own furniture. */
-  pillClass = 'right-16 bottom-8',
+  /** Where the pill floats — override to dodge a host's own furniture. At the foot's middle by rest (the audit's PU-13,
+      2026-10-10): at the right it lay over the level tags ("474 · 9%") the walls print against the price axis, and the
+      left foot is the drawing rail's and the engine's mark. */
+  pillClass = 'left-1/2 -translate-x-1/2 bottom-8',
 }: {
   onReset: () => void;
   pillClass?: string;

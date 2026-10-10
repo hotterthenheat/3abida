@@ -53,15 +53,15 @@ import { DrawingsPrimitive, gestureOf, isFreehand, isWordsKind, loadDrawings, ne
 import DrawRailTools, { DrawSheet } from './DrawRailTools';
 import { drawToolLabel, registerDrawChart, rememberDrawTool, touchDrawChart } from './drawTools';
 import {
-  CANDLE_THEMES,
   chartGround,
+  themeFor,
   useCandleThemeKey,
   candleSeriesOptions,
   chartSurface,
   type CandleTheme,
   type CandleThemeKey,
 } from './candleTheme';
-import { readToken, useResolvedTheme } from '../../theme/theme';
+import { readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
 import { barClockSpec, buildAltBars, type AltBarSpec } from '../../data/altBars';
 import type { Candle } from '../../types/market';
 import type { DarkPoolPrint, KeyLevels } from '../../types/gex';
@@ -1065,9 +1065,13 @@ const StrikeChart = ({
      pane alike. A pinned pane takes the prop; everything unpinned keeps
      following the app-wide store. */
   const globalThemeKey = useCandleThemeKey();
-  /* The app's theme moves the ground of a theme without a canvas of its own (2026-09-12) */
-  const appTheme = useResolvedTheme();
+  /* The app's theme moves the ground of a theme without a canvas of its own (2026-09-12) — and the reader's colour vision
+     re-inks a green-and-red tape in blue and orange, its up bodies hollow (candleTheme.ts themeFor): both re-run the
+     recolour, and the vision is part of the theme a load is made in (the volume bars wear it) */
+  const vision = useColourVision();
+  const appTheme = `${useResolvedTheme()}|${vision}`;
   const themeKey = themeKeyProp ?? globalThemeKey;
+  const themeTag = vision === 'blue-orange' ? `${themeKey}|cvd` : themeKey;
   /* THE RAIL STAYS BLACK ON A LIGHT TAPE (the brand rule; the audit's TE-11): at the dark tape's 55% rest-dim its black
      read as a translucent grey slab on paper, so on a light ground it rests near whole */
   const railRest = chartGround(themeKey) === 'light' ? 'opacity-95' : 'opacity-55';
@@ -1077,8 +1081,8 @@ const StrikeChart = ({
      holding its own theme (Terrain's prop) repainted with the app-wide one — the pick changed
      the pane's setting and the toolbar's word, never the candles. A ref, so a callback that
      runs later still paints the theme this render resolved. */
-  const themeRef = useRef<CandleTheme>(CANDLE_THEMES[themeKey]);
-  themeRef.current = CANDLE_THEMES[themeKey];
+  const themeRef = useRef<CandleTheme>(themeFor(themeKey, vision));
+  themeRef.current = themeFor(themeKey, vision);
   /* Read straight from the store rather than taken as a prop: alerts belong to
      the SYMBOL, and two panes showing the same symbol must draw the same set.
      The drawings store is read the same way, from this same component. */
@@ -3008,7 +3012,7 @@ const StrikeChart = ({
 
     const loaded = loadedRef.current;
     const newWorld = loaded.ticker !== ticker || loaded.timeframe !== timeframe || loaded.clock !== barClock;
-    const changed = newWorld || loaded.theme !== themeKey || loaded.full !== full;
+    const changed = newWorld || loaded.theme !== themeTag || loaded.full !== full;
     let armTimer = 0;
 
     /* A HOST'S TAPE CAN JUMP. The live tape moves a tick at a time, so the path below only ever rewrites the last bar; a
@@ -3092,7 +3096,7 @@ const StrikeChart = ({
           window.setTimeout(lift, 40);
         }
       }
-      loadedRef.current = { ticker, timeframe, theme: themeKey, clock: barClock, full };
+      loadedRef.current = { ticker, timeframe, theme: themeTag, clock: barClock, full };
       /* ARMED A FRAME LATER: the library reports a range on the setData
          itself, before it has laid the view out (−83..6 was measured on a
          mount), and that would have asked for the whole store at once. */
@@ -3153,7 +3157,7 @@ const StrikeChart = ({
     }
     handTrails();
     return () => cancelAnimationFrame(armTimer);
-  }, [ticker, revision, timeframe, themeKey, overlays.trails, showRecent, reloadNonce, mainNonce, toMain, compact, altSpec, barClock, fullNonce, trailsGreek]);
+  }, [ticker, revision, timeframe, themeTag, overlays.trails, showRecent, reloadNonce, mainNonce, toMain, compact, altSpec, barClock, fullNonce, trailsGreek]);
 
   /* `compact` can change without the chart being rebuilt — a desktop window
      dragged across the phone line, a handset rotated. The mount effect read it

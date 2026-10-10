@@ -188,6 +188,9 @@ const BoardCell = ({ cfg, onCfg, revision, expanded, onToggleExpand, index }: Bo
             overlays={cfg.overlays}
             prints={prints}
             frameless
+            /* New York's clock (X2), and the tape near the right edge (X11) */
+            nyClock
+            historyShare={0.88}
           />
         </div>
       </div>
