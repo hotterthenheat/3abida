@@ -44,7 +44,8 @@ import { PayoffSketch } from '../gex/PayoffSketch';
 import PriceRuler from './PriceRuler';
 import { buildPositionCurve, fmtPnl, valueOn } from '../../data/positionCurve';
 import { readPosition, subjectWords, type Position, type Verdict } from '../../data/positions';
-import { setWatchedSize } from '../../data/watchlist';
+import { setWatchedSize, yearsToExpiry } from '../../data/watchlist';
+import { contractIvFor } from '../../data/weigherDesk';
 import { fmtUsd } from '../../data/gex';
 import { isoDate, nextSession, today } from '../../core/calendar';
 import type { DeskContract } from '../../data/weigherDesk';
@@ -52,7 +53,7 @@ import type { ExposureProfileData } from '../../types/gex';
 import { daysSince, dirInk, fmtStrike, monthDay, rSigned, usdSigned, type ListRow } from './PositionsList';
 
 const DOOR_CLS =
-  'inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
+  'hit inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
 const VERDICT_WORD: Record<Verdict, string> = { with: 'Hedging with you', against: 'Hedging against you', mixed: 'Hedging both ways' };
 const VERDICT_CLS: Record<Verdict, string> = { with: 'bg-bull/10 text-bull border-bull/20', against: 'bg-bear/10 text-bear border-bear/20', mixed: 'bg-ink/[0.05] text-textSecondary border-borderSubtle' };
 const VIEWS = [
@@ -173,9 +174,10 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
      card must still share the list cards' bottom edge */
   if (!picked && !row) {
     return (
-      <div className="h-full min-h-[404px] flex flex-col items-center justify-center gap-1.5 select-none animate-soft-in">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted">Nothing picked yet</span>
-        <span className="font-mono text-[9px] text-textMuted">Press + on a strike in the chain to watch it, add a position, or click a row of the list — its returns land here</span>
+      /* CENTRED, READABLE (the audit's WE-10: a 9 px line at the foot of an empty 400 px panel) */
+      <div className="h-full min-h-[404px] flex flex-col items-center justify-center gap-2 px-6 text-center select-none animate-soft-in">
+        <span className="text-[13px] font-semibold text-textSecondary">Nothing picked yet</span>
+        <span className="max-w-[340px] text-[12px] leading-relaxed text-textMuted">Press + on a strike in the chain to watch it, add a position, or press a row of a list — its projected returns land here.</span>
       </div>
     );
   }
@@ -184,8 +186,8 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
       <div className="h-full flex flex-col animate-soft-in">
         {/* 363 + the 41px foot = the same 404 */}
         <div key={contractKey} className="flex-1 min-h-[363px] flex flex-col items-center justify-center gap-1.5 px-6 text-center select-none animate-soft-in" data-contract-unwatched>
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted">Not on your list</span>
-          <span className="font-mono text-[9px] text-textMuted">Watch it marks the contract at this tick's price — its projected returns land here</span>
+          <span className="text-[13px] font-semibold text-textSecondary">Not on your list</span>
+          <span className="max-w-[340px] text-[12px] leading-relaxed text-textMuted">Watch it marks the contract at this tick's price — its projected returns land here.</span>
         </div>
         <div className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap" data-contract-foot>
           <span className="font-mono text-[10px] text-textMuted">Not on your list — Watch it marks it at this tick's price</span>
@@ -232,7 +234,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                 contract price, and the clock */}
             <div className="flex items-end gap-4 flex-wrap" data-sim-figures>
               <div className="min-w-0">
-                <span className="block font-mono text-[9px] uppercase tracking-widest text-textMuted">Projected return</span>
+                <span className="block font-mono text-[10px] uppercase tracking-wider text-textMuted">Projected return</span>
                 <span className={`block font-mono text-[26px] font-bold tnum leading-none mt-1 ${dirInk(retNow)}`} data-sim-return>
                   {fmtPnl(retNow)}
                 </span>
@@ -297,7 +299,20 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
             ) : (
               /* BY PRICE — the payoff sketch, the kept price on it; no level words (the ruler names them) */
               <div data-sim-by-price>
-                <PayoffSketch curve={curve} spot={spot} levels={profile.levels} strike={pos.strike} wantsUp={(pos.right === 'C') === (pos.side === 'long')} labels={false} levelMarks={false} pinned={at} onPin={p => setPrice(p ?? spot)} softLabel="today" />
+                <PayoffSketch
+                  curve={curve}
+                  spot={spot}
+                  levels={profile.levels}
+                  strike={pos.strike}
+                  wantsUp={(pos.right === 'C') === (pos.side === 'long')}
+                  labels={false}
+                  levelMarks={false}
+                  pinned={at}
+                  onPin={p => setPrice(p ?? spot)}
+                  softLabel="today"
+                  /* the chance of finishing above or below a price, from the contract's own vol and clock */
+                  dist={{ iv: contractIvFor(pos.ticker, pos.strike, pos.right), years: yearsToExpiry(pos.expiry) }}
+                />
               </div>
             )}
 
@@ -317,18 +332,19 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
         <dl className="grid grid-cols-5 gap-x-4 gap-y-1 border-t border-borderSubtle/50 pt-3" data-position-facts="watch">
           {row.kind === 'watch' ? (
             <>
-              <Fact5 k="Market value" v={`$${(row.r.mark * per).toFixed(2)}`} />
-              <Fact5 k="Cost when added" v={`$${row.w.addedMark.toFixed(2)} · 1R`} />
+              {/* one unit each, said (the audit's WE-8: "$470.00" per contract beside "$4.77" per share) */}
+              <Fact5 k="Market value" v={`$${(row.r.mark * per).toFixed(2)} · ${row.r.mark.toFixed(2)} × ${per}`} />
+              <Fact5 k="Cost a share" v={`$${row.w.addedMark.toFixed(2)} · 1R`} />
               <Fact5 k="Today's return" v={open ? `${usdSigned(row.r.todayDollars)} · ${rSigned(row.r.todayR)}` : '—'} tone={open ? dirInk(row.r.todayDollars) : 'text-textMuted'} />
               <Fact5 k="Total return" v={`${usdSigned(row.r.totalDollars)} · ${rSigned(row.r.totalR)}`} tone={dirInk(row.r.totalDollars)} />
               <div className="min-w-0">
                 <dt className="text-[10px] text-textMuted truncate">Contracts</dt>
                 <dd className="mt-0.5 inline-flex items-center gap-1 font-mono text-[12px] tnum leading-snug text-textPrimary">
-                  <button type="button" onClick={() => setWatchedSize(row.w.id, row.w.size - 1)} disabled={row.w.size <= 1 || !open} className="inline-flex items-center justify-center w-4 h-4 rounded border border-borderSubtle text-textMuted hover:text-textPrimary disabled:opacity-30 transition-colors" aria-label="One contract fewer" data-watch-size="less">
+                  <button type="button" onClick={() => setWatchedSize(row.w.id, row.w.size - 1)} disabled={row.w.size <= 1 || !open} className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle text-textMuted hover:text-textPrimary disabled:opacity-30 transition-colors" aria-label="One contract fewer" data-watch-size="less">
                     <Minus className="w-2.5 h-2.5" />
                   </button>
                   <span data-watch-size-value>{row.w.size}</span>
-                  <button type="button" onClick={() => setWatchedSize(row.w.id, row.w.size + 1)} disabled={!open} className="inline-flex items-center justify-center w-4 h-4 rounded border border-borderSubtle text-textMuted hover:text-textPrimary disabled:opacity-30 transition-colors" aria-label="One contract more" data-watch-size="more">
+                  <button type="button" onClick={() => setWatchedSize(row.w.id, row.w.size + 1)} disabled={!open} className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle text-textMuted hover:text-textPrimary disabled:opacity-30 transition-colors" aria-label="One contract more" data-watch-size="more">
                     <Plus className="w-2.5 h-2.5" />
                   </button>
                   <span className="ml-1 text-[10px] text-textMuted">
@@ -339,7 +355,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
             </>
           ) : (
             <>
-              <Fact5 k="Market value" v={`$${(row.value * per).toFixed(2)}`} />
+              <Fact5 k="Market value" v={`$${(row.value * per).toFixed(2)} · ${row.value.toFixed(2)} × ${per}`} />
               {/* the cost the return reads from: typed, else the mark when it was added (2026-09-16) */}
               <Fact5 k={curve.refKind === 'added' ? 'Marked when added' : pos.side === 'long' ? 'What you paid' : 'What you collected'} v={curve.refKind !== 'now' ? `$${curve.ref.toFixed(2)} · 1R` : 'no cost given'} tone={curve.refKind !== 'now' ? undefined : 'text-textMuted'} />
               <Fact5 k="Total return" v={row.total != null && row.totalR != null ? `${usdSigned(row.total)} · ${rSigned(row.totalR)}` : '—'} tone={row.total != null ? dirInk(row.total) : 'text-textMuted'} />

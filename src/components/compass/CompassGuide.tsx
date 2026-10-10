@@ -52,7 +52,7 @@ const CardFigure = () => (
     </text>
     <rect x={98} y={14} width={70} height={15} rx={3} fill="none" stroke="#2a2a2a" />
     <text x={133} y={25} textAnchor="middle" fontSize={7} fill={SECOND} fontFamily={FIG}>
-      0DTE · 09/11/26
+      0DTE · today
     </text>
     <rect x={174} y={14} width={52} height={15} rx={3} fill={SUPREME} fillOpacity={0.1} stroke={SUPREME} strokeOpacity={0.5} />
     <text x={200} y={25} textAnchor="middle" fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={SUPREME} fontFamily={FIG}>
@@ -64,7 +64,7 @@ const CardFigure = () => (
       MOVING
     </text>
     <text x={16} y={46} fontSize={6.5} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
-      1σ MOVE
+      1σ move
     </text>
     <text x={16} y={60} fontSize={10} fontWeight={700} fill={INK} fontFamily={FIG}>
       ±1.6%
@@ -166,7 +166,7 @@ const RailFigure = () => (
 export const CompassGuide = () => (
   <div data-compass-guide>
     <Section title="A card">
-      <p>One setup: its rank, the contract in its side's ink, the expiry, and its state. Under them the one-sigma move to expiry, the stock's line today, and the premium. The amber line is the stock price that retires it. One click selects a card, a second opens its page.</p>
+      <p>One setup: its rank, the contract in its side's ink, the expiry, and its state. Under them the one-sigma move to expiry, the stock's line today, and the premium. The amber line is the stock price that retires it. Pressing a card selects it, and the heaviest contracts beside the board follow its name; Open, or a second press, opens its page. A target hit since the sweep found the setup shows as a green chip.</p>
       <CardFigure />
     </Section>
     <Section title="The states">
@@ -174,7 +174,7 @@ export const CompassGuide = () => (
       <StatesFigure />
     </Section>
     <Section title="Expiry and kind">
-      <p>The Expiry card picks how long the trade lives, from today's contracts to a year out. The Kind card picks what found it: the strongest by trend and hedging, a quick scalp, a discount, a rebound, or big orders. Not every kind sells on every expiry: a scalp has no business a year out.</p>
+      <p>The Expiry card picks how long the trade lives, from today's contracts to a year out. The Kind card picks what found it: the strongest by trend and hedging, fast movers where gamma is concentrated, a discount, a rebound, or big orders. Not every kind is listed on every expiry: fast movers live on intraday moves, so none is listed a year out. While the pointer or the keys are on the board, the cards hold their places; a new order from the sweep waits until they leave.</p>
     </Section>
     <Section title="The heaviest contracts">
       <p>Beside the board, the contracts that carry the most weight on the selected card's name. Click a column head to rank by it; the ranked column lights up with a bar. A row opens that contract's page.</p>

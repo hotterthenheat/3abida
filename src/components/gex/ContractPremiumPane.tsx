@@ -37,7 +37,7 @@ import { estimatePremium } from '../../data/compass';
 import { contractIvFor } from '../../data/weigherDesk';
 import { candleSeriesOptions, chartGround, chartSurface, getCandleTheme, useCandleThemeKey } from './candleTheme';
 import { useResolvedTheme } from '../../theme/theme';
-import { LOCAL_TIME, localTickMarks } from './chartTime';
+import { NY_TIME, nyTickMarks } from './chartTime';
 import type { OptionRight } from '../../types/compass';
 import ResetViewControl from './ResetViewControl';
 import { FONT_SANS } from '../../theme/fonts';
@@ -119,11 +119,11 @@ const ContractPremiumPane = ({ ticker, strike, right, tYears, timeframe, revisio
         fontSize: 10,
         attributionLogo: false,
       },
-      // The reader's clock, not Greenwich's — see chartTime.ts.
-      localization: LOCAL_TIME,
+      /* New York's clock — a contract trades the New York session (the audit's X2) */
+      localization: NY_TIME,
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       rightPriceScale: { borderColor: s0.line },
-      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 7, tickMarkFormatter: localTickMarks },
+      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 7, tickMarkFormatter: nyTickMarks },
       crosshair: {
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
         horzLine: { color: s0.crosshair, labelBackgroundColor: s0.label },

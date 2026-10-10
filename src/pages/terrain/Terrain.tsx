@@ -52,6 +52,8 @@ import {
   SETUP_KEYS, applySetup, captureSetup, evict, readSetups, symKey, type SetupMap,
 } from './setups';
 import { flipRing, stepSymbol, stepTf } from './paneKeys';
+import TerrainLayers from '../../components/terrain/TerrainLayers';
+import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
 
 /*
 ==================================================
@@ -184,6 +186,8 @@ export interface PaneCfg {
       store holds there, or a light-theme change has moved the dark theme. A pane
       that is given a theme keeps it on both. */
   theme?: CandleThemeKey;
+  /** Walls through the day's lens — gamma, charm or delta. A SLOT field, a way of reading a pane, like `lane`. */
+  wallsLens?: WallsLens;
 }
 
 interface TerrainCfg {
@@ -225,7 +229,7 @@ const railCutChoices = (): ExpiryChoice<RailCut>[] => {
     const day = `${MONTHS[e.date.getMonth()]} ${e.date.getDate()}`;
     out.push({ value: dte, label: dte === 0 ? `Today · ${day}` : day, hint: dte === 0 ? "The contracts that expire at today's bell" : `${e.sessions} sessions out`, date: e.date });
   }
-  out.push({ value: 'book', label: 'Every expiry', hint: 'Every expiry the name carries', date: null });
+  out.push({ value: 'book', label: 'All expiries', hint: 'Every expiry the name carries', date: null });
   return out;
 };
 type RailData = ReturnType<typeof buildLadderFor> & { levels: ReturnType<typeof buildLevelsFor>; legs: Map<number, { put: number; call: number }> };
@@ -418,6 +422,7 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
     lane: c.lane === 'both' || c.lane === 'size' || c.lane === 'flow' ? c.lane : def.lane,
     theme: typeof c.theme === 'string' && c.theme in CANDLE_THEMES ? (c.theme as CandleThemeKey) : def.theme,
     link: c.link === 'A' || c.link === 'B' ? c.link : null,
+    wallsLens: c.wallsLens === 'dex' || c.wallsLens === 'charm' || c.wallsLens === 'gex' ? c.wallsLens : undefined,
   };
 }
 
@@ -721,8 +726,8 @@ const HEAVY_MAX = 3;
   Measured tiers with two panes: full to 1440 · tight at 1366 and 1280 · gone
   at 1180 and below, where the row is already shedding its own parts.
 */
-const MTF_FULL_PX = 148;
-const MTF_TIGHT_PX = 69;
+const MTF_FULL_PX = 196;
+const MTF_TIGHT_PX = 104;
 
 const READOUT_C_PX = 55;
 const READOUT_OHL_PX = 168;
@@ -766,30 +771,39 @@ const fmtVol = (v: number): string => {
   glyph: five tooltips on five 20px targets is five things to hover, and in
   the tight form the labels are the only way to know which is which.
 */
-const ConfluenceStrip = ({ rows, form }: { rows: ConfluenceRow[]; form: 'full' | 'tight' }) => {
+/* THE STRIP IS THE PANE'S TIMEFRAMES (the audit's TE-1, 2026-10-09: "1m ▼ 5m ▼ 15m ▼ 1h ▼ 1D ▼" looked like tabs and
+   pressed like nothing, while the real "15m ▾" showed only under the pointer). Each entry is now a tab: a press puts the
+   pane on that timeframe, the pane's own timeframe stands lit at rest, and the arrow beside each still says its trend. */
+const ConfluenceStrip = ({ rows, form, current, onPick }: { rows: ConfluenceRow[]; form: 'full' | 'tight'; current: Timeframe; onPick: (tf: Timeframe) => void }) => {
   const words = rows.map(trendWords).join(' · ');
   return (
-    <span
-      className="shrink-0 inline-flex items-center gap-1.5"
-      title={words}
-      role="img"
-      aria-label={`Timeframe trend — ${words}`}
-    >
-      {rows.map(r => (
-        <span key={r.tf} className="inline-flex items-baseline gap-0.5">
-          {form === 'full' && <span className="font-mono text-[9px] text-textMuted">{r.tf}</span>}
-          <span
-            aria-hidden
-            className={`font-mono text-[9px] leading-none ${
-              r.state === 'up' ? 'text-bull' : r.state === 'down' ? 'text-bear' : 'text-textMuted'
-            }`}
+    <span className="shrink-0 inline-flex items-center gap-0.5 pointer-events-auto" role="group" aria-label={`Timeframe — and each one's trend: ${words}`} title={words} data-confluence-tabs>
+      {rows.map(r => {
+        const on = r.tf === current;
+        return (
+          <button
+            key={r.tf}
+            type="button"
+            onClick={() => onPick(r.tf)}
+            aria-pressed={on}
+            aria-label={`${r.tf}${on ? ', on this pane' : ''} — ${trendWords(r)}`}
+            className={`hit inline-flex items-baseline gap-0.5 h-5 px-1 rounded-[3px] transition-colors ${on ? 'bg-ink/[0.14]' : 'hover:bg-ink/[0.07]'}`}
+            data-tf={r.tf}
           >
-            {/* A timeframe with too little history gets a dash, never a bar —
-                "no view" and "flat" are different claims (data/confluence.ts). */}
-            {r.state === null ? '–' : TREND_GLYPH[r.state]}
-          </span>
-        </span>
-      ))}
+            {(form === 'full' || on) && <span className={`font-mono text-[10px] ${on ? 'text-textPrimary font-semibold' : 'text-textMuted'}`}>{r.tf}</span>}
+            <span
+              aria-hidden
+              className={`font-mono text-[10px] leading-none ${
+                r.state === 'up' ? 'text-bull' : r.state === 'down' ? 'text-bear' : 'text-textMuted'
+              }`}
+            >
+              {/* A timeframe with too little history gets a dash, never a bar —
+                  "no view" and "flat" are different claims (data/confluence.ts). */}
+              {r.state === null ? '–' : TREND_GLYPH[r.state]}
+            </span>
+          </button>
+        );
+      })}
     </span>
   );
 };
@@ -987,9 +1001,13 @@ const Pane = ({
   /* At least one entry: a HEAVIEST label with nothing after it is chrome that
      says nothing, so the row hides itself entirely rather than print a header
      over an empty line (see `heavy.length > 0` at the row). */
+  /* the walls' lens chips ride the same line when the walls are drawn (measured ~130 px with their gap) */
+  const lensPx = overlays.walls ? 130 : 0;
   const heavyCount = stripInner === 0
     ? HEAVY_MAX
-    : Math.max(1, Math.min(HEAVY_MAX, Math.floor((stripInner - HEAVY_LABEL_PX) / HEAVY_ENTRY_PX)));
+    : Math.max(1, Math.min(HEAVY_MAX, Math.floor((stripInner - HEAVY_LABEL_PX - lensPx) / HEAVY_ENTRY_PX)));
+  /* the + / − key (~150 px) only where the line still has the room for it — never onto the price ticks */
+  const showHeavyKey = stripInner === 0 || stripInner >= HEAVY_LABEL_PX + lensPx + heavyCount * HEAVY_ENTRY_PX + 150;
   /* The tape, straight from the provider that accumulates it. Read HERE rather
      than threaded down from Terrain: this component already takes fourteen
      props, and every pane wants the same unfiltered tape — StrikeChart narrows
@@ -1088,6 +1106,10 @@ const Pane = ({
 
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => setFocus(null), [ticker]);
+  /* THE LADDER UNDER `lg` (the audit's TE-6: the room's defining panel was simply missing on a phone and a tablet): a
+     Strikes door on the pane lays the ladder over the chart's right side, on the chart's own price rows — the rail
+     beside the chart needs a desk's width, the overlay does not. Off until pressed; a slot's business, never stored. */
+  const [narrowLadder, setNarrowLadder] = useState(false);
 
   /* What a move to each strike forces dealers to trade — the panel's second
      lane, off the SAME rows the size lane draws, so the flow beside a capsule
@@ -1250,7 +1272,7 @@ const Pane = ({
           onClick={() => onCfg({ link: cfg.link === 'A' ? 'B' : cfg.link === 'B' ? null : 'A' })}
           aria-label={cfg.link ? `Link group ${cfg.link} — linked panes follow this pane's symbol` : 'Link this pane — panes sharing a letter follow each other\'s symbol'}
           title={cfg.link ? `Link group ${cfg.link} — panes sharing ${cfg.link} follow each other's symbol` : 'Link this pane to others — shared letters change symbols together'}
-          className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[3px] font-mono text-[9px] font-bold transition-colors ${
+          className={`hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[3px] font-mono text-[10px] font-bold transition-colors ${
             cfg.link ? 'bg-ink/[0.14] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'
           }`}
         >
@@ -1291,7 +1313,7 @@ const Pane = ({
          chart only (no Terrain surface mounts it — his tree included), and a
          switch that cannot turn anything on is a lie in a menu. Inherited
          dead toggle, caught 2026-08-28. */
-      overlayKeys={['trails', 'levels', 'darkpool', 'volume', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'alerts']}
+      overlayKeys={['trails', 'levels', 'darkpool', 'volume', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'alerts', 'walls', 'phases']}
       indicators={indicators}
       onIndicators={i => onCfg({ indicators: i })}
       paneId={`terrain:${index + 1}`}
@@ -1323,7 +1345,7 @@ const Pane = ({
       aria-pressed={expanded}
       aria-label={`Expand ${ticker} to the full screen`}
       title="Expand this pane — F"
-      className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+      className="hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
       data-expand-door
     >
       <Maximize2 className="w-3.5 h-3.5" />
@@ -1457,7 +1479,14 @@ const Pane = ({
               projectionRef={projectionRef}
               exportRef={exportPngRef}
               pageScroll={belowLg}
+              /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
+                 not a third of the chart (X11) */
+              nyClock
+              historyShare={0.88}
               frameless
+              /* WALLS THROUGH THE DAY and THE SESSION'S PHASES (the ideas report, 2026-10-09) — drawn behind the candles
+                 through the chart's own layer, off until the Overlays menu turns them on */
+              layer={api => <TerrainLayers api={api} ticker={ticker} walls={!!overlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} />}
             />
             </Deferred>
 
@@ -1539,7 +1568,7 @@ const Pane = ({
                 <span className="shrink-0 flex items-center gap-2 pointer-events-auto">{identityControls}</span>
                 {mtfForm !== 'none' && confluence.length > 0 && (
                   <span className="shrink-0 hidden xl:inline-flex pointer-events-auto">
-                    <ConfluenceStrip rows={confluence} form={mtfForm} />
+                    <ConfluenceStrip rows={confluence} form={mtfForm} current={timeframe} onPick={tf => onCfg({ timeframe: tf })} />
                   </span>
                 )}
                 <span className="shrink-0 w-px h-4 bg-borderSubtle" aria-hidden />
@@ -1679,7 +1708,7 @@ const Pane = ({
                     onClick={() => onCfg({ link: cfg.link === 'A' ? 'B' : cfg.link === 'B' ? null : 'A' })}
                     aria-label={cfg.link ? `Link group ${cfg.link} — linked panes follow this pane's symbol` : 'Link this pane — panes sharing a letter follow each other\'s symbol'}
                     title={cfg.link ? `Link group ${cfg.link} — panes sharing ${cfg.link} follow each other's symbol` : 'Link this pane to others — shared letters change symbols together'}
-                    className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[3px] font-mono text-[9px] font-bold transition-colors ${
+                    className={`hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[3px] font-mono text-[10px] font-bold transition-colors ${
                       cfg.link ? 'bg-ink/[0.14] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'
                     }`}
                   >
@@ -1707,6 +1736,18 @@ const Pane = ({
                 <span className="shrink-0">
                   <SpotPrice value={levels.spot} />
                 </span>
+                {belowLg && rail.rows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNarrowLadder(v => !v)}
+                    aria-pressed={narrowLadder}
+                    title={narrowLadder ? 'Hide the strike ladder' : 'Show the strike ladder over the chart'}
+                    className={`hit shrink-0 inline-flex items-center h-5 px-1.5 rounded-[3px] font-mono text-[10px] font-semibold transition-colors ${narrowLadder ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+                    data-narrow-ladder
+                  >
+                    Strikes
+                  </button>
+                )}
                 {/* First thing the row gives up when the column is narrow
                     (ID_ROW_FULL_PX) — the price it is a delta of is directly
                     to its left, and the chart draws the same move. */}
@@ -1719,7 +1760,13 @@ const Pane = ({
                 {/* Do the timeframes agree — T-12. At rest, not on hover: the
                     whole value of it is the glance. */}
                 {mtfForm !== 'none' && confluence.length > 0 && (
-                  <ConfluenceStrip rows={confluence} form={mtfForm} />
+                  <ConfluenceStrip rows={confluence} form={mtfForm} current={timeframe} onPick={tf => onCfg({ timeframe: tf })} />
+                )}
+                {/* the pane's timeframe stays named at rest even where the strip has no room (TE-1, TE-12) */}
+                {(mtfForm === 'none' || !confluence.some(c => c.tf === timeframe)) && (
+                  <span className="shrink-0 font-mono text-[10px] font-semibold text-textSecondary" title="This pane's timeframe — the toolbar under the pointer changes it" data-pane-tf>
+                    {timeframe}
+                  </span>
                 )}
                 {/* THE TOOLBAR IN THE ROW, SPREAD THE PULSE WAY (Noah, 2026-09-16: "the timeframes
                     should be on the left side like how the Pulse page has its live charts"): the
@@ -1786,19 +1833,42 @@ const Pane = ({
                 </div>
               ) : (
               heavy.length > 0 && (
-                <div className="chrome-hover relative z-10 pointer-events-none hidden sm:block w-fit max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                /* AT REST, QUIETLY (the audit's TE-12: the most decision-relevant line on the pane showed only under the
+                   pointer); its inks are the tokens and say what they mean (X12: "exposure colours get a legend") */
+                <div className="chrome-hover relative z-10 pointer-events-none hidden sm:block w-fit max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" data-heaviest>
                   <span className="flex items-center gap-2.5 whitespace-nowrap">
-                    <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-textMuted">Heaviest</span>
+                    {/* WALLS THROUGH THE DAY'S LENS, chosen in the pane while the walls are drawn — on the book's line, where the
+                        identity row's width budget is not spent */}
+                    {overlays.walls && (
+                      <span role="group" aria-label="Walls through the day — the lens" className="shrink-0 pointer-events-auto inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-walls-lens>
+                        {WALLS_LENSES.map(o => {
+                          const on = (cfg.wallsLens ?? 'gex') === o.value;
+                          return (
+                            <button key={o.value} type="button" aria-pressed={on} title={o.hint} onClick={() => onCfg({ wallsLens: o.value })} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[10px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+                              {o.label}
+                            </button>
+                          );
+                        })}
+                      </span>
+                    )}
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-textMuted" title="The heaviest strikes near spot, by dealer gamma — gold where hedging amplifies a move (+), ice where it absorbs one (−)">
+                      Heaviest
+                    </span>
                     {heavy.map(row => (
                       <span key={row.strike} className="shrink-0 font-mono text-[10px] tnum whitespace-nowrap">
                         <span className="text-textSecondary">
                           {row.strike % 1 === 0 ? row.strike.toFixed(0) : row.strike.toFixed(2)}
                         </span>
-                        <span className={`ml-1.5 font-semibold ${row.value >= 0 ? 'text-[#F5C542]' : 'text-[#AAB6C6]'}`}>
+                        <span className={`ml-1.5 font-semibold ${row.value >= 0 ? 'text-[rgb(var(--ember))]' : 'text-[rgb(var(--glacier))]'}`}>
                           {fmtUsd(row.value)}
                         </span>
                       </span>
                     ))}
+                    {showHeavyKey && (
+                      <span className="shrink-0 text-[10px] text-textMuted" data-heaviest-key>
+                        <span className="text-[rgb(var(--ember))]">+</span> amplifies · <span className="text-[rgb(var(--glacier))]">−</span> absorbs
+                      </span>
+                    )}
                   </span>
                 </div>
               )
@@ -1844,7 +1914,7 @@ const Pane = ({
                       onClick={() => removeCompare(c.ticker, c.mode)}
                       aria-label={`Remove the ${c.ticker} comparison`}
                       title="Remove comparison"
-                      className="pointer-events-auto inline-flex items-center justify-center w-4 h-4 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
+                      className="hit pointer-events-auto inline-flex items-center justify-center w-4 h-4 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
@@ -1866,16 +1936,21 @@ const Pane = ({
             window is wide enough. Turning it off in storage would silently
             rewrite a preference because they picked up their phone.
           */}
-          {ladder && rail.rows.length > 0 && (
+          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && (
             <ProfilePanel
               /* THE REST WIDTH follows the pane count (2026-09-16): 520 alone or expanded, 340 on
                  two or four, 240 three across — the reader's own width once dragged */
-              width={cfg.ladderW ?? profileRestWidth(paneCount, expanded)}
+              width={belowLg ? 340 : cfg.ladderW ?? profileRestWidth(paneCount, expanded)}
               restWidth={profileRestWidth(paneCount, expanded)}
               onWidth={w => onCfg({ ladderW: w })}
               /* THE EXPIRY CARD in the rail's head beside the view tabs (Noah, 2026-09-16) — the
                  desk's one cut, so a change here changes every pane */
-              headCard={<ExpiryCard label="Expiry" size="sm" value={railCut} choices={railCutChoices()} onChange={onRailCut} title="Which contracts the rails read" testId="terrain-expiry" />}
+              /* bare beside another pane: the card's word went, its value cut to "Every expir…" in every pane (the
+                 audit's TE-2) — the value says it, the tooltip names it */
+              headCard={<ExpiryCard label="Expiry" size="sm" bare={!expanded && paneCount > 1} value={railCut} choices={railCutChoices()} onChange={onRailCut} title="Expiry — which contracts the rails read" testId="terrain-expiry" />}
+              /* THE CHART KEEPS ITS SHARE (the audit's TE-5: in three and four panes the ladder took ~60% and the chart
+                 shrank to ~175 px): beside other panes the rail stops at 40% of the pane */
+              maxShare={belowLg ? 0.82 : !expanded && paneCount >= 3 ? 0.4 : 0.6}
               ticker={ticker}
               rows={rail.rows}
               maxAbs={rail.maxAbs}
@@ -1893,6 +1968,10 @@ const Pane = ({
               focusPrice={focus}
               projection={projectionRef}
               onClose={() => {
+                if (belowLg) {
+                  setNarrowLadder(false);
+                  return;
+                }
                 onCfg({ ladder: false });
                 /*
                   A control that removes ITSELF has to say where focus goes.
@@ -1922,7 +2001,7 @@ const Pane = ({
               onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
               /* the ladder is drawn on the ground of the tape beside it */
               ground={ground}
-              className="hidden lg:block"
+              className={belowLg ? 'absolute right-0 inset-y-0 z-[25] shadow-2xl shadow-black/50' : 'hidden lg:block'}
             />
           )}
         </div>
@@ -2699,7 +2778,7 @@ const Terrain = () => {
                 aria-pressed={active}
                 aria-label={`${n} ${n === 1 ? 'chart' : 'charts'}`}
                 title={`${n} ${n === 1 ? 'chart' : 'charts'} — press ${n}`}
-                className={`px-2.5 py-1 rounded font-mono text-[11px] font-semibold tnum transition-colors ${
+                className={`hit px-2.5 py-1 rounded font-mono text-[11px] font-semibold tnum transition-colors ${
                   active ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'
                 }`}
               >
@@ -2858,15 +2937,14 @@ const Terrain = () => {
           </button>
         )}
 
-        {/* T-16's first piece: WHERE IN THE GLOBEX WEEK the wall clock sits.
-            The session shading down the pane waits on the futures tape (MKT
-            Futures — there are no overnight bars to shade yet); the chip is
-            the real fact available today, re-read on every tick's render. */}
+        {/* WHERE IN THE WEEK the wall clock sits — the chip, re-read on every tick's render; the shading down the panes is
+            each pane's Session phases overlay (components/terrain/sessionPhasesPrimitive.ts). */}
         {(() => {
           const words = FUTURES_PHASE_WORDS[futuresPhaseAt(new Date())];
           return (
             <span
-              title={`${words.blurb}. Session shading over the tape arrives with the futures feed.`}
+              /* no promise of a feature to come (the audit's X7.15) — the phases are on every pane's Overlays menu now */
+              title={`${words.blurb}. The session's phases can be shaded on any pane — Overlays, Session phases.`}
               className={`pointer-events-auto inline-flex items-center px-2 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[10px] uppercase tracking-wider ${
                 words.label === 'RTH' ? 'text-textPrimary' : 'text-textSecondary'
               }`}

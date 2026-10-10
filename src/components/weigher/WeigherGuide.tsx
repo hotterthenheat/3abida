@@ -108,10 +108,10 @@ const ListFigure = () => (
           {r.c}
         </text>
         <text x={80} y={r.y} fontSize={6.5} fill={MUTED}>
-          · Sep 16
+          · Fri
         </text>
         <text x={190} y={r.y} fontSize={7.5} fill={SECOND}>
-          09/14 · today
+          today
         </text>
         <text x={280} y={r.y} textAnchor="end" fontSize={8} fill={INK}>
           {r.m}
@@ -129,7 +129,7 @@ const ListFigure = () => (
 
 /* The contract card: the watchlist position's eight facts over the Stats, the doors under */
 const PositionFigure = () => (
-  <Figure label="The position card for a watched contract: WATCHLIST POSITION with Market value $324, Cost when added $3.24 · 1R, Today's return −$7 · −0.02R in red, Total return the same, Breakeven, Contracts 1, Date added and Expiry; under it By price — profit or loss across the stock's price, red below the strike and green above at expiry, today's softer dashed line, the market's hairline with its dot on today's line and the ruler's price as a second hairline with a dot on each line; the foot reads 'On your watchlist · since Sep 14' with the Watching and Close doors" h={118}>
+  <Figure label="The position card for a watched contract: WATCHLIST POSITION with Market value $324, Cost when added $3.24 · 1R, Today's return −$7 · −0.02R in red, Total return the same, Breakeven, Contracts 1, Date added and Expiry; under it By price — profit or loss across the stock's price, red below the strike and green above at expiry, today's softer dashed line, the market's hairline with its dot on today's line and the ruler's price as a second hairline with a dot on each line; the foot reads 'On your watchlist · since today' with the Watching and Close doors" h={118}>
     <text x={12} y={14} fontSize={6.5} fontWeight={700} letterSpacing={0.6} fill={SECOND} fontFamily={FIG}>
       WATCHLIST POSITION
     </text>
@@ -143,8 +143,8 @@ const PositionFigure = () => (
       { x: 312, y: 30, l: 'TOTAL RETURN', v: '−$7 · −0.02R', ink: BEAR },
       { x: 12, y: 56, l: 'BREAKEVEN', v: '$510.24 · +0.5% away', ink: INK },
       { x: 112, y: 56, l: 'CONTRACTS', v: '− 1 +', ink: INK },
-      { x: 212, y: 56, l: 'DATE ADDED', v: '09/14 · today', ink: INK },
-      { x: 312, y: 56, l: 'EXPIRY', v: 'Sep 16 · 2 sessions', ink: INK },
+      { x: 212, y: 56, l: 'DATE ADDED', v: 'today', ink: INK },
+      { x: 312, y: 56, l: 'EXPIRY', v: 'Fri · 2 sessions', ink: INK },
     ].map(f => (
       <g key={f.l} fontFamily={FIG}>
         <text x={f.x} y={f.y} fontSize={6} letterSpacing={0.6} fill={SILVER}>
@@ -174,7 +174,7 @@ const PositionFigure = () => (
     </text>
     <line x1={0} x2={420} y1={106} y2={106} stroke="#ffffff" strokeOpacity={0.08} />
     <text x={12} y={115} fontSize={6.5} fill={INK} fontFamily={FIG}>
-      On your watchlist · since Sep 14
+      On your watchlist · since today
     </text>
     <rect x={318} y={108} width={44} height={10} rx={2} fill="#ffffff" fillOpacity={0.06} />
     <text x={340} y={115.5} textAnchor="middle" fontSize={5.5} letterSpacing={0.5} fill={INK} fontFamily={FIG}>

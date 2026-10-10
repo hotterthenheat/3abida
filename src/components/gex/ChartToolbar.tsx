@@ -304,6 +304,8 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
   { key: 'cone', label: 'Expected move', hint: "The ±1σ/±2σ band the options priced for today, and what's left of it" },
   { key: 'events', label: 'Events', hint: 'Earnings, FOMC/CPI/NFP and the biggest option prints, marked on the tape' },
   { key: 'alerts', label: 'Alert lines', hint: 'A dotted line where each price alert waits — the bell tells you either way' },
+  { key: 'walls', label: 'Walls through the day', hint: "Each strike's exposure through the session, drawn behind the candles — the lens is the pane's" },
+  { key: 'phases', label: 'Session phases', hint: 'The open, lunch and power hour as quiet bands on the tape, on New York time' },
 ];
 
 /* T-15 — the overlays a rule clock holds: each assumes a fixed bar interval
@@ -312,7 +314,7 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
    MENU honest about it, and the two agree by construction because the chart
    gates on the same idea — no interval, no interval-based layer. */
 const CLOCK_HELD_OVERLAYS = new Set<keyof ChartOverlays>([
-  'trails', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events',
+  'trails', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'walls', 'phases',
 ]);
 
 /* Re-exported so every consumer keeps importing its menu vocabulary from the
@@ -336,9 +338,12 @@ const Dropdown = ({
   menuSide = 'bottom',
   title,
   bounds,
+  cased = false,
   children,
 }: {
   label: string;
+  /** The label as written, never upper-cased — a timeframe: "15m" upper-cased reads "15M", fifteen months (the audit's WE-9) */
+  cased?: boolean;
   icon?: ReactNode;
   open: boolean;
   onToggle: () => void;
@@ -369,7 +374,7 @@ const Dropdown = ({
       aria-haspopup="menu"
       aria-expanded={open}
       aria-label={label ? undefined : title}
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] ${cased ? '' : 'uppercase'} tracking-wider transition-colors ${
         open
           ? 'bg-ink/[0.07] text-textPrimary'
           : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
@@ -588,6 +593,7 @@ const ChartToolbar = ({
           onToggle={() => setOpenMenu(m => (m === 'timeframe' ? null : 'timeframe'))}
           menuSide={menuSide} bounds={menuBounds}
           title="Timeframe"
+          cased
         >
           <div role="group" aria-label="Timeframe">
             {(timeframes ? TIMEFRAME_OPTIONS.filter(o => timeframes.includes(o.value)) : TIMEFRAME_OPTIONS).map(opt => {
@@ -1207,7 +1213,7 @@ const ChartToolbar = ({
             </span>
             <button
               onClick={() => pickTheme(shownTheme.value)}
-              className={`mt-auto w-full rounded holo-bg text-[#0a0a0a] hover:brightness-105 font-mono font-semibold uppercase tracking-wider transition-all ${
+              className={`mt-auto w-full rounded bg-textPrimary text-[rgb(var(--panel))] hover:bg-textPrimary/90 font-mono font-semibold uppercase tracking-wider transition-all ${
                 dense ? 'py-1 text-[9px]' : 'py-1.5 text-[10px]'
               }`}
               data-theme-use

@@ -112,9 +112,19 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
         <div className="h-6 flex items-center gap-3">
           <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Heaviest contracts</h3>
         </div>
-        <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+        <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate" title={`on ${ticker}${note ? ` · ${note}` : ''} · a column head ranks by it · a row opens the contract`}>
           on {ticker}
           {note ? ` · ${note}` : ''} · a column head ranks by it · a row opens the contract
+        </p>
+        {/* THE EXPOSURE INKS SAY WHAT THEY MEAN (the audit's X12: negative figures wore green with no key) */}
+        <p className="mt-1 flex items-center gap-3 text-[11px] text-textMuted" data-exposure-key>
+          <span className="font-medium text-textSecondary">Exposure</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="text-bull font-mono">−</span> dealers absorb a move
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="text-bear font-mono">+</span> dealers amplify it
+          </span>
         </p>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto border-t border-borderSubtle">
@@ -137,7 +147,7 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
                   key={f.key}
                   aria-pressed={active}
                   onClick={() => setMetric(f.key)}
-                  className="relative pb-1 text-left font-mono text-[9px] uppercase tracking-widest transition-colors"
+                  className="relative pb-1 text-left font-mono text-[10px] uppercase tracking-wider transition-colors"
                 >
                   <span className={active ? 'text-textPrimary' : 'text-textMuted hover:text-textSecondary'}>{f.label}</span>
                   {active && (
@@ -159,7 +169,10 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
             row on a ticker change and everything snapped; a slot persists
             across the swap, so each figure ROLLS to its new value, the bar
             glides to its new length, and only the name cross-fades —
-            the persist-DOM doctrine the campaign card already follows. */}
+            the persist-DOM doctrine the campaign card already follows.
+            A RE-RANK IS NOT A ROLL (the audit's CO-11: after a column head re-ranked, each figure rolled from the previous
+            contract's value and its ink eased between sides — a call row was caught red): the figures are keyed by the
+            ranking column, so a re-rank lands them at once, and the ink never eases between signs. A name change still rolls. */}
         {ranked.map(r => {
           const isCall = r.right === 'C';
           return (
@@ -185,7 +198,7 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
                 <span key={r.contract} className="min-w-0 animate-soft-in">
                   <ContractLabel contract={r.contract} right={isCall ? 'C' : 'P'} logo={r.contract.split(' ')[0]} size="sm" />
                 </span>
-                <span className="font-mono text-[9px] text-textMuted">{r.expiry}</span>
+                <span className="font-mono text-[10px] text-textMuted">{r.expiry}</span>
                 <ArrowUpRight
                   aria-hidden="true"
                   className="ml-auto w-3 h-3 shrink-0 text-textSecondary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -201,8 +214,8 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
                     <span key={f.key} className="min-w-0 flex flex-col gap-1">
                       {/* Figures ROLL between values; the exposure ink eases
                           between its sign colors rather than snapping. */}
-                      <span className={`font-mono text-[11px] tnum truncate transition-colors duration-500 ${tone} ${active ? 'font-semibold' : ''}`}>
-                        <AnimatedNumber value={f.raw(r)} format={f.format} />
+                      <span className={`font-mono text-[11px] tnum truncate ${tone} ${active ? 'font-semibold' : ''}`}>
+                        <AnimatedNumber key={metric} value={f.raw(r)} format={f.format} />
                       </span>
                       {active && (
                         <span className="relative w-full h-[2px] rounded-full bg-ink/[0.07] overflow-hidden">

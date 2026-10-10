@@ -28,6 +28,7 @@ import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME } from '../ui/houseGrid';
 import type { MultiGroup } from '../ui/DropdownMulti';
 import Term from '../ui/Term';
+import { useIsPhone } from '../ui/useMediaQuery';
 import type { DeskContract, DeskChain } from '../../data/weigherDesk';
 import type { OptionRight } from '../../types/compass';
 
@@ -87,7 +88,8 @@ export const CHAIN_COLUMNS: ChainCol[] = [
   /* what the contract loses a day in DOLLARS a contract — theta × 100, the figure a buyer feels (the Live Chart's chain,
      2026-09-22: "you would need the actual options chain to see the vol, decay etc") */
   { key: 'decay', label: 'Decay a day', head: 'Decay/day', term: 'Theta', render: c => ({ text: `$${Math.abs(c.theta * 100).toFixed(2)}`, ink: 'text-bear' }) },
-  { key: 'iv', label: 'IV', head: 'IV', term: 'IV', render: c => ({ text: `${c.iv.toFixed(0)}%` }) },
+  /* to a tenth: whole points hid the smile (the audit's CO-21) */
+  { key: 'iv', label: 'IV', head: 'IV', term: 'IV', render: c => ({ text: `${c.iv.toFixed(1)}%` }) },
   { key: 'itm', label: 'Probability ITM', head: 'ITM odds', term: 'ITM odds', render: c => ({ text: `${c.itmOdds.toFixed(0)}%` }) },
   { key: 'otm', label: 'Probability OTM', head: 'OTM odds', term: 'OTM odds', render: c => ({ text: `${(100 - c.itmOdds).toFixed(0)}%` }) },
   {
@@ -135,7 +137,7 @@ export const COLUMN_GROUPS: MultiGroup[] = [{ title: 'Facts', options: CHAIN_COL
    floats up when the spot row leaves the window. The progressive first paint
    (forty rows, then sixty a frame) is gone with the table: the grid never
    renders a row nobody can see. */
-const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, cellHorizontalPadding: 8 });
+const CHAIN_THEME = GRID_THEME.withParams({ rowHeight: 30, headerHeight: 28, fontSize: 11, headerFontSize: 10, cellHorizontalPadding: 8 });
 const CHAIN_COL: ColDef<ChainGridRow> = { sortable: false, resizable: true, suppressMovable: true };
 type ChainGridRow = { kind: 'row'; key: string; c: DeskContract } | { kind: 'divider'; key: string; spot: number } | { kind: 'drill'; key: string; c: DeskContract; extra?: (c: DeskContract) => ReactNode };
 const CHAIN_ROW_H = 30;
@@ -157,7 +159,7 @@ const StrikeCell = ({ data, held, book }: ICellRendererParams<ChainGridRow> & { 
       <ChevronRight aria-hidden className="w-3 h-3 shrink-0 text-textMuted" data-chain-chevron />
       {fmtStrike(data.c.strike)}
       {held?.has(data.c.strike) && (
-        <span className="ml-1 inline-flex items-center h-[14px] px-1 rounded-sm bg-silver/[0.15] text-[8px] font-bold uppercase tracking-wider text-silver leading-none" data-chain-held>
+        <span className="ml-1 inline-flex items-center h-[16px] px-1 rounded-sm bg-silver/[0.15] text-[10px] font-bold text-silver leading-none" data-chain-held>
           Held
         </span>
       )}
@@ -182,7 +184,8 @@ const factCell =
   ({ data }: ICellRendererParams<ChainGridRow>) => {
     if (data?.kind !== 'row') return null;
     const v = col.render(data.c);
-    return <span className={`font-mono whitespace-nowrap tnum ${v.bold ? 'text-[11px] font-bold' : 'text-[10px]'} ${v.ink ?? (v.bold ? 'text-textPrimary' : 'text-textSecondary')}`}>{v.text}</span>;
+    /* 11 px, the figures a reader acts on (the audit's X9.2: 164 figures at 10 px) */
+    return <span className={`font-mono whitespace-nowrap tnum text-[11px] ${v.bold ? 'font-bold' : ''} ${v.ink ?? (v.bold ? 'text-textPrimary' : 'text-textSecondary')}`}>{v.text}</span>;
   };
 
 /* The two full-width rows: the market's hairline, and (Pulse) the weigh-up
@@ -194,24 +197,34 @@ const FullRow = (p: ICellRendererParams<ChainGridRow>) => {
   useEffect(() => {
     if (data?.kind !== 'drill' || !ref.current) return;
     const el = ref.current;
+    /* ON THE NEXT FRAME, never inside the commit: telling the grid a row's height from a React effect made it re-render
+       through flushSync inside a lifecycle — the console's "flushSync was called from inside a lifecycle method" on every
+       strike pressed (the audit's X14, ChainGrid:158) */
+    let raf = 0;
     const set = () => {
-      const h = Math.ceil(el.getBoundingClientRect().height);
-      if (h > 0 && p.node.rowHeight !== h) {
-        p.node.setRowHeight(h);
-        p.api.onRowHeightChanged();
-      }
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const h = Math.ceil(el.getBoundingClientRect().height);
+        if (h > 0 && p.node.rowHeight !== h) {
+          p.node.setRowHeight(h);
+          p.api.onRowHeightChanged();
+        }
+      });
     };
     set();
     const ro = new ResizeObserver(set);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, [data, p.node, p.api]);
   if (!data) return null;
   if (data.kind === 'divider') {
     return (
       <div className="h-full px-2 flex items-center select-none" data-chain-divider>
         <span className="flex-1 h-px bg-textPrimary/25" />
-        <span className="mx-2 font-mono text-[9px] font-semibold tnum text-textPrimary bg-ink/[0.06] rounded px-1.5 py-0.5">{data.spot.toFixed(2)}</span>
+        <span className="mx-2 font-mono text-[10px] font-semibold tnum text-textPrimary bg-ink/[0.06] rounded px-1.5 py-0.5">{data.spot.toFixed(2)}</span>
         <span className="flex-1 h-px bg-textPrimary/25" />
       </div>
     );
@@ -232,7 +245,7 @@ const FullRow = (p: ICellRendererParams<ChainGridRow>) => {
 /* THE DOOR TO THE WATCHLIST ON EVERY STRIKE (Noah, 2026-09-14: "there should be some sort
    of add to watchlist on the chain like a plus button or something") — a + at the row's end,
    shown on the row's hover; once watched it stays, a check in the where-you-are ink */
-const WatchCell = ({ strike, on, onWatch }: { strike: number; on: boolean; onWatch: (strike: number) => void }) => (
+const WatchCell = ({ strike, on, onWatch, always = false }: { strike: number; on: boolean; onWatch: (strike: number) => void; always?: boolean }) => (
   <button
     type="button"
     onClick={e => {
@@ -241,9 +254,11 @@ const WatchCell = ({ strike, on, onWatch }: { strike: number; on: boolean; onWat
     }}
     title={on ? 'On your watchlist — open it' : "Add to your watchlist — marked at this tick's price"}
     aria-label={on ? 'On your watchlist' : 'Add to your watchlist'}
-    className={`inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${on ? 'text-silver hover:bg-silver/[0.10]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
+    className={`hit inline-flex items-center justify-center w-6 h-6 rounded transition-colors ${on ? 'text-silver hover:bg-silver/[0.10]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
     data-chain-watch={strike}
     data-on={on || undefined}
+    /* a touch screen has no hover to bring the + up — it stands on every row there */
+    style={always ? { opacity: 1 } : undefined}
   >
     {on ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
   </button>
@@ -298,6 +313,18 @@ export const ChainCard = memo(function ChainCard({
   const gridRef = useRef<AgGridReact<ChainGridRow>>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [away, setAway] = useState<'above' | 'below' | null>(null);
+  /* the back-to-the-market pill stands at the window's top while a strike's weigh-up fills its foot (the audit's WE-6:
+     "↓ $476.76" sat on the drill's "A move through it") */
+  const [pillUp, setPillUp] = useState(false);
+  /* A PHONE'S CHAIN FITS ITS CARD (the audit's WE-2: 556 px of columns in a 358 px card — the odds, the volume, the open
+     interest and the watch door off screen, with no cue): the strike, the mark and the delta, and the + — the rest of a
+     contract is in its weigh-up, a press away */
+  const phone = useIsPhone();
+  const shown = useMemo(() => {
+    if (!phone) return cols;
+    const keep = cols.filter(c => c.key === 'mark' || c.key === 'delta');
+    return keep.length ? keep : cols.slice(0, 2);
+  }, [cols, phone]);
   const [ready, setReady] = useState(false);
 
   /* High strikes at the top, like a price axis; the market's hairline slots
@@ -319,23 +346,33 @@ export const ChainCard = memo(function ChainCard({
     return { rows: out, dividerIdx: divider };
   }, [chain, right, sel, inlineDrill, drillExtra]);
 
+  /* THE ROWS GO IN BY THE GRID'S API, on a frame after React's commit — handed as a prop, every strike pressed (the drill
+     row coming and going) made the grid re-render its React cells through flushSync inside the commit: the console's
+     "flushSync was called from inside a lifecycle method" (the audit's X14). The first set rides the prop. */
+  const [firstRows] = useState(rows);
+  useEffect(() => {
+    if (!ready) return;
+    const raf = requestAnimationFrame(() => gridRef.current?.api?.setGridOption('rowData', rows));
+    return () => cancelAnimationFrame(raf);
+  }, [rows, ready]);
+
   const columnDefs = useMemo<ColDef<ChainGridRow>[]>(
     () => [
       {
         colId: 'strike',
         headerName: 'Strike',
         headerTooltip: book ? 'The strike, with what the dealer book says about it — its shape (wall · cliff · shelf · void) and, as the bar under it, the weight of hedging there; open the strike for the whole read' : undefined,
-        width: held || book ? 104 : 84,
+        width: held || book ? 116 : 84,
         cellRenderer: StrikeCell,
         cellRendererParams: { held, book },
         resizable: false,
       },
-      ...cols.map<ColDef<ChainGridRow>>(col => ({
+      ...shown.map<ColDef<ChainGridRow>>(col => ({
         colId: col.key,
         headerName: col.head,
         headerTooltip: col.label,
         flex: 1,
-        minWidth: 68,
+        minWidth: phone ? 56 : 72,
         type: 'rightAligned',
         cellRenderer: factCell(col),
       })),
@@ -350,23 +387,28 @@ export const ChainCard = memo(function ChainCard({
                  overlay scrollbar (headless Chromium, some Macs) — the right 16px stay clear */
               width: 44,
               resizable: false,
-              cellRenderer: ({ data }: ICellRendererParams<ChainGridRow>) => (data?.kind === 'row' ? <WatchCell strike={data.c.strike} on={!!watched?.has(data.c.strike)} onWatch={onWatch} /> : null),
+              cellRenderer: ({ data }: ICellRendererParams<ChainGridRow>) => (data?.kind === 'row' ? <WatchCell strike={data.c.strike} on={!!watched?.has(data.c.strike)} onWatch={onWatch} always={phone} /> : null),
             } satisfies ColDef<ChainGridRow>,
           ]
         : []),
     ],
-    [cols, watched, onWatch, held, book]
+    [shown, phone, watched, onWatch, held, book]
   );
 
   /* The picked strike is the grid's selection — synced, never clicked into
      (a click is the desk's: one weighs, two chart) */
   useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api || !ready) return;
-    api.forEachNode(n => {
-      const on = n.data?.kind === 'row' && sel != null && Math.abs(n.data.c.strike - sel) < 1e-9;
-      if (n.isSelected() !== on) n.setSelected(on);
+    if (!ready) return;
+    /* on the next frame, outside React's commit — selecting inside it made the grid re-render through flushSync (X14) */
+    const raf = requestAnimationFrame(() => {
+      const api = gridRef.current?.api;
+      if (!api) return;
+      api.forEachNode(n => {
+        const on = n.data?.kind === 'row' && sel != null && Math.abs(n.data.c.strike - sel) < 1e-9;
+        if (n.isSelected() !== on) n.setSelected(on);
+      });
     });
+    return () => cancelAnimationFrame(raf);
   }, [sel, rows, ready]);
 
   const viewport = () => wrapRef.current?.querySelector<HTMLElement>('.ag-grid-viewport, .ag-body-viewport') ?? null;
@@ -380,6 +422,15 @@ export const ChainCard = memo(function ChainCard({
     const range = api.getVerticalPixelRange();
     const mid = node.rowTop + (node.rowHeight ?? DIVIDER_H) / 2;
     setAway(mid < range.top + 34 ? 'above' : mid > range.bottom - 8 ? 'below' : null);
+    /* a weigh-up reaching into the window's foot sends the pill to the top */
+    let drillAtFoot = false;
+    api.forEachNode(n => {
+      if (n.data?.kind !== 'drill' || n.rowTop == null) return;
+      const top = n.rowTop;
+      const bottom = top + (n.rowHeight ?? DRILL_H);
+      if (bottom > range.bottom - 48 && top < range.bottom) drillAtFoot = true;
+    });
+    setPillUp(drillAtFoot);
   }, [dividerIdx]);
   const centerOnSpot = useCallback(
     (smooth: boolean) => {
@@ -398,8 +449,12 @@ export const ChainCard = memo(function ChainCard({
   /* A new ladder (name, expiry, depth) opens centred on the market */
   useEffect(() => {
     if (!ready) return;
-    centerOnSpot(false);
-    locate();
+    /* a frame on, after the new ladder's rows are in (the rowData frame above runs first) */
+    const raf = requestAnimationFrame(() => {
+      centerOnSpot(false);
+      locate();
+    });
+    return () => cancelAnimationFrame(raf);
   }, [centerKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   /* …unless a contract was carried in: its row is brought to the top third
      (the market's centring above runs first, this lands after it). Waits for
@@ -432,7 +487,7 @@ export const ChainCard = memo(function ChainCard({
         <AgGridReact<ChainGridRow>
           ref={gridRef}
           theme={CHAIN_THEME}
-          rowData={rows}
+          rowData={firstRows}
           columnDefs={columnDefs}
           defaultColDef={CHAIN_COL}
           getRowId={p => p.data.key}
@@ -470,7 +525,8 @@ export const ChainCard = memo(function ChainCard({
         <button
           onClick={() => centerOnSpot(true)}
           title="Back to the market price"
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 inline-flex items-center gap-1.5 rounded-full border border-ink/10 px-3 py-1 font-mono text-[10px] font-semibold tnum text-textPrimary backdrop-blur-[3px] transition-colors hover:bg-ink/[0.08]"
+          className={`hit absolute ${pillUp ? 'top-9' : 'bottom-3'} left-1/2 -translate-x-1/2 z-20 inline-flex items-center gap-1.5 rounded-full border border-ink/10 px-3 py-1 font-mono text-[11px] font-semibold tnum text-textPrimary backdrop-blur-[3px] transition-colors hover:bg-ink/[0.08]`}
+          data-pill-pos={pillUp ? 'top' : 'bottom'}
           style={{ background: 'rgb(var(--panel) / 0.85)' }}
           data-chain-away={away}
         >

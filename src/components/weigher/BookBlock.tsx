@@ -20,7 +20,7 @@ import type { DeskContract } from '../../data/weigherDesk';
 /** The shape as the Map's chip — WALL firmer, the rest quiet */
 export const ShapeChip = ({ shape }: { shape: NonNullable<BookAtStrike['shape']> }) => (
   <span
-    className={`inline-flex items-center h-[14px] px-1 rounded-[3px] border font-mono text-[7.5px] font-bold uppercase tracking-[0.14em] leading-none whitespace-nowrap ${shape === 'wall' ? 'border-textSecondary/60 text-textPrimary' : 'border-borderSubtle text-textMuted'}`}
+    className={`inline-flex items-center h-[16px] px-1 rounded-[3px] border font-mono text-[10px] font-semibold leading-none whitespace-nowrap ${shape === 'wall' ? 'border-textSecondary/60 text-textPrimary' : 'border-borderSubtle text-textMuted'}`}
     title={SHAPE_SAYS[shape]}
     data-book-shape={shape}
   >

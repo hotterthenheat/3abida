@@ -89,36 +89,80 @@ const SLEEVE_MOVE_MUL: Record<SleeveKey, number> = {
   leaps: 3.2,
 };
 
-const WHY_LIBRARY: Record<ScannerKey, { chips: string[]; text: (t: string, k: number) => string }> = {
+/* THE WHY, AS A READ (the audit's CO-6 and X8.2, 2026-10-09): what the book and the tape show, and what would follow if
+   it holds — never what to do. Chosen by kind AND SIDE: a put's case is dealers SELLING into a fall, never "buy walls …
+   a protective floor under our entry", which every top put read two rows above "a put, bearish". */
+type WhyCopy = { chips: string[]; text: (t: string, k: number) => string };
+const WHY_LIBRARY: Record<ScannerKey, Record<OptionRight, WhyCopy>> = {
   'top-setups': {
-    chips: ['TREND ALIGNED', 'DEALER SUPPORT', 'RSI CONFIRM'],
-    text: (t, k) =>
-      `Solid institutional buy walls are supporting price at ${k}. Market makers are heavily short this strike and must buy ${t} to stay hedged, forming an automatic protective floor under our entry.`,
+    C: {
+      chips: ['Trend aligned', 'Dealer buying', 'RSI agrees'],
+      text: (t, k) =>
+        `Trend and hedging lean the same way on ${t}. ${k} carries heavy dealer gamma: as ${t} rises into it, the hedging there has dealers buying the stock, which tends to add to a move up while the level holds.`,
+    },
+    P: {
+      chips: ['Trend aligned', 'Dealer selling', 'RSI agrees'],
+      text: (t, k) =>
+        `Trend and hedging lean the same way on ${t}. ${k} carries heavy dealer gamma: as ${t} falls into it, the hedging there has dealers selling the stock, which tends to add to a move down while the level holds.`,
+    },
   },
   'quick-scalp': {
-    chips: ['HIGH GAMMA', 'FAST DECAY', 'TIGHT STOP'],
-    text: (t) =>
-      `Concentrated gamma at this strike makes ${t} whippy — dealer re-hedging amplifies small moves. Scalp the pop and take profit fast before theta bleeds the premium.`,
+    C: {
+      chips: ['High gamma', 'Fast decay', 'Tight floor'],
+      text: (t, k) =>
+        `Gamma is concentrated at ${k}, so dealer re-hedging makes small moves in ${t} larger and faster. A rise carries quickly here; a contract this short also loses premium fast while the stock stands still.`,
+    },
+    P: {
+      chips: ['High gamma', 'Fast decay', 'Tight ceiling'],
+      text: (t, k) =>
+        `Gamma is concentrated at ${k}, so dealer re-hedging makes small moves in ${t} larger and faster. A fall carries quickly here; a contract this short also loses premium fast while the stock stands still.`,
+    },
   },
   discounted: {
-    chips: ['CHEAP PREMIUM', 'ASYMMETRIC', 'VALUE'],
-    text: (t) =>
-      `Premium is mispriced relative to the projected move. Implied vol is underpricing the expected ${t} range, giving an asymmetric payout if the move materializes.`,
+    C: {
+      chips: ['Priced under the move', 'Asymmetric', 'Value'],
+      text: t =>
+        `The premium prices a smaller range for ${t} than the move the model projects. If the projected rise arrives, the payout is large against what the contract costs; if it does not, the premium decays.`,
+    },
+    P: {
+      chips: ['Priced under the move', 'Asymmetric', 'Value'],
+      text: t =>
+        `The premium prices a smaller range for ${t} than the move the model projects. If the projected fall arrives, the payout is large against what the contract costs; if it does not, the premium decays.`,
+    },
   },
   rebounds: {
-    chips: ['OVERSOLD', 'STRUCTURE SUPPORT', 'MEAN REVERSION'],
-    text: (t, k) =>
-      `${t} is oversold near key support at ${k}. Price has compressed into a structure floor where dealer hedging creates a natural bounce zone. Reversal probability is elevated.`,
+    C: {
+      chips: ['Oversold', 'Support level', 'Mean reversion'],
+      text: (t, k) =>
+        `${t} has fallen into support near ${k}, where dealer hedging has absorbed selling before. Price is pressed against that level; a turn up from it is what this contract is priced for.`,
+    },
+    P: {
+      chips: ['Overbought', 'Resistance level', 'Mean reversion'],
+      text: (t, k) =>
+        `${t} has risen into resistance near ${k}, where dealer hedging has absorbed buying before. Price is pressed against that level; a turn down from it is what this contract is priced for.`,
+    },
   },
   'whale-sweeps': {
-    chips: ['BLOCK PRINTS', 'SMART MONEY', 'ACCUMULATION'],
-    text: (t, k) =>
-      `Repeated large sweep orders are accumulating ${t} exposure near ${k}. Following the institutional footprint — size and persistence of prints suggest informed positioning.`,
+    C: {
+      chips: ['Block prints', 'Repeat size', 'Accumulation'],
+      text: (t, k) =>
+        `Large sweep orders have hit ${t} calls near ${k} again and again. The size and the persistence of the prints point to positioning built for a rise, not a single order.`,
+    },
+    P: {
+      chips: ['Block prints', 'Repeat size', 'Accumulation'],
+      text: (t, k) =>
+        `Large sweep orders have hit ${t} puts near ${k} again and again. The size and the persistence of the prints point to positioning built for a fall, not a single order.`,
+    },
   },
   all: {
-    chips: ['MULTI-SIGNAL', 'COMPOSITE', 'BROAD SCAN'],
-    text: (t, k) =>
-      `${t} at ${k} qualifies across multiple scanner criteria — trend alignment, premium value and the flow all pulling the same way.`,
+    C: {
+      chips: ['Several scans', 'Composite', 'Broad scan'],
+      text: (t, k) => `${t} at ${k} clears more than one kind of scan — the trend, the premium and the flow all lean up.`,
+    },
+    P: {
+      chips: ['Several scans', 'Composite', 'Broad scan'],
+      text: (t, k) => `${t} at ${k} clears more than one kind of scan — the trend, the premium and the flow all lean down.`,
+    },
   },
 };
 
@@ -299,7 +343,7 @@ export function makeSetup(
      downstream — one fact, every surface). */
   const tpCount = score >= 94 ? 3 : score >= 80 ? 2 : score >= 72 ? 1 : 0;
 
-  const why = WHY_LIBRARY[scanner];
+  const why = (WHY_LIBRARY[scanner] ?? WHY_LIBRARY['top-setups'])[right];
   // States, not orders — the engine's ENTER/EXIT call stays internal.
   const headline =
     verdict === 'ENTER'
@@ -375,7 +419,14 @@ export function makeSetup(
     greeks: {
       delta: Number(delta.toFixed(2)),
       gamma: Number(greeks.gamma.toFixed(4)),
-      theta: Number((-Math.abs(greeks.vega) * 0.4 - rng() * 4).toFixed(2)),
+      /* THETA OFF THE PRICER (the audit's CO-7: "THETA −3.42" on a $0.82 premium beside "DECAY $47/session" — the field
+         was a roll, not a decay): what one session costs the contract per share, spot held, by the model that minted the
+         mid; a contract with less than a session left loses all its time value by the bell */
+      theta: Number(
+        (
+          estimatePremium(spot, strike, right, iv, Math.max(sessionsLeft - 1, 0) / 252) - estimatePremium(spot, strike, right, iv, sessionsLeft / 252)
+        ).toFixed(2)
+      ),
       vega: Number(greeks.vega.toFixed(2)),
       iv: Number((iv * 100).toFixed(1)),
     },

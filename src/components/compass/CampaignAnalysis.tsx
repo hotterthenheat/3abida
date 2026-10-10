@@ -31,7 +31,7 @@ import Simulator from '../../core/simulator';
 import { chartGround, getCandleTheme, useCandleThemeKey, candleSeriesOptions, chartSurface } from '../gex/candleTheme';
 import { useIsPhone } from '../ui/useMediaQuery';
 import { useResolvedTheme } from '../../theme/theme';
-import { LOCAL_TIME, localTickMarks } from '../gex/chartTime';
+import { NY_CHART_TIME, nyClock } from '../../core/nyTime';
 import ChartToolbar from '../gex/ChartToolbar';
 import ResetViewControl from '../gex/ResetViewControl';
 import { DEFAULT_OVERLAYS, type ChartOverlays } from '../gex/StrikeChart';
@@ -58,7 +58,9 @@ import { SetupMarksPrimitive, type SetupMarks } from './setupMarksPrimitive';
 import { CardRow, PointerFollowCard } from '../ui/PointerCard';
 import { resolveInk } from '../gex/paletteInk';
 import { spotForPremium } from './trackModel';
+import { frozen, noteFound, recordOf, statusOf, type CampaignBreak, type CampaignHit } from './campaignStore';
 import { useFadeClose } from '../ui/useFadeClose';
+import { undoable } from '../ui/undo';
 import { useTracker } from '../../context/TrackerContext';
 import {
   SCANNERS,
@@ -89,7 +91,8 @@ interface CampaignAnalysisProps {
   scanner: ScannerKey;
   /** The tenor — it decides which exit-clock copy the floor panel speaks */
   sleeve: SleeveKey;
-  /** Provenance: when this page opened — the numbers that earned the click are frozen from then */
+  /** No longer read: the page says when the SWEEP found the setup (campaignStore — the audit's CO-5). Kept for the
+      Pulse widget that still passes it. */
   gradedAt?: string;
   /** Open another contract on the same name — a driver row, or the capsule's
       pick (which may carry a different tenor). The page's route does the rest
@@ -109,20 +112,8 @@ export interface CampaignEntry {
   /** The graded mid — frozen at open, like the provenance line */
   mid: number;
 }
-export interface CampaignHit {
-  /** TP rung, 1-based */
-  level: number;
-  /** Bar time (UTC seconds) of the candle that crossed the target */
-  time: number;
-}
-export interface CampaignBreak {
-  /** Bar time (UTC seconds) of the candle that CLOSED through the floor */
-  time: number;
-  /** That bar's close */
-  price: number;
-  /** The floor as it stood when it broke — frozen for the post-mortem */
-  floor: number;
-}
+/* The hits and the break are campaignStore's — one derivation for every surface (the audit's CO-1) */
+export type { CampaignHit, CampaignBreak };
 
 interface CampaignChartProps {
   setup: Setup;
@@ -225,10 +216,10 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
          horizontal lines... that look like a grid layout") — the tape's
          only lines are the campaign's own rules. */
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
-      // The reader's clock, not Greenwich's — see chartTime.ts.
-      localization: LOCAL_TIME,
+      /* New York's clock — the session's (core/nyTime.ts; the audit's X2: this axis read the machine's zone) */
+      localization: NY_CHART_TIME.localization,
       rightPriceScale: { borderColor: s0.line },
-      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 6, tickMarkFormatter: localTickMarks },
+      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 6, tickMarkFormatter: NY_CHART_TIME.timeScale.tickMarkFormatter },
       crosshair: {
         vertLine: { color: s0.light ? s0.crosshair : 'rgba(255,255,255,0.25)', labelBackgroundColor: s0.label },
         horzLine: { color: s0.light ? s0.crosshair : 'rgba(255,255,255,0.25)', labelBackgroundColor: s0.label },
@@ -525,7 +516,10 @@ const CampaignChart = ({ setup, revision, entry, hits, brk, timeframe, overlays,
        (invalidation/targets derive from it), so comparing values re-framed
        every second and yanked the user's zoom (Noah caught it live). After
        the first frame, the view belongs to the user. */
-    scaleLevelsRef.current = [...setup.priceTargets, ...(setup.takeProfits.length > 0 ? [setup.invalidationPrice] : [])];
+    /* THE CANDLES KEEP THEIR ROOM (the audit's CO-16: every target and the floor in the opening frame squashed a 4-point
+       session into a 17-point range) — the first target and the floor join it; the targets past them stand in the ladder
+       at the right edge */
+    scaleLevelsRef.current = [...setup.priceTargets.slice(0, 1), ...(setup.takeProfits.length > 0 ? [setup.invalidationPrice] : [])];
     if (framedForRef.current !== setup.id) {
       framedForRef.current = setup.id;
       chartRef.current?.priceScale('right').applyOptions({ autoScale: true });
@@ -573,10 +567,9 @@ const CampaignAnalysis = ({
   spot,
   scanner,
   sleeve,
-  gradedAt,
   onOpenContract,
 }: CampaignAnalysisProps) => {
-  const { trackSetup, untrackSetup, isTracked } = useTracker();
+  const { trackSetup, untrackSetup, restoreTracked, trackedSetups, isTracked } = useTracker();
   const navigate = useNavigate();
   const tracked = isTracked(setup.id);
   /* The charts' strips wear the ground of the tape's theme (index.css re-scopes their
@@ -589,97 +582,35 @@ const CampaignAnalysis = ({
      a timer, never an animation-completion wait — the wedge law. */
   const { closing: doorClosing, close: closeDoor } = useFadeClose(() => {}, 340);
 
-  /* ENTRY = the bar on the tape when this review opened — and with it, THE
-     WHOLE CAMPAIGN FROZEN: entry premium, price targets, premium ladder,
-     floor. The engine derives targets as a percentage OF SPOT and this page
-     regrades every tick, so live targets recede exactly as fast as price
-     approaches them (Noah caught it: "same side magnets" — measured: spot
-     +0.29 toward TP1 while TP1 fled +0.41). A campaign whose milestones move
-     is unhittable by construction. Frozen at open, the same anchor as the
-     provenance line: the numbers that earned the click must not silently
-     become other numbers. */
-  const entryRef = useRef<
-    | (CampaignEntry & {
-        id: string;
-        priceTargets: number[];
-        invalidationPrice: number;
-        takeProfits: Setup['takeProfits'];
-      })
-    | null
-  >(null);
-  {
-    const bars = Simulator.getCandles(setup.ticker);
-    if (entryRef.current?.id !== setup.id && bars && bars.length > 0) {
-      entryRef.current = {
-        id: setup.id,
-        time: bars[bars.length - 1].time,
-        mid: setup.mid,
-        priceTargets: setup.priceTargets,
-        invalidationPrice: setup.invalidationPrice,
-        takeProfits: setup.takeProfits,
-      };
-    }
-  }
-  const entry = entryRef.current && entryRef.current.id === setup.id ? entryRef.current : null;
+  /* ENTRY = THE BAR THE SWEEP FOUND IT ON — and with it, THE WHOLE CAMPAIGN FROZEN: entry premium, price targets, the
+     premium ladder, the floor (campaignStore — the audit's CO-1 and CO-5). The engine derives targets as a percentage OF
+     SPOT and this page regrades every tick, so live targets recede exactly as fast as price approaches them (Noah caught
+     it: "same side magnets"); frozen at the sweep's bar, the numbers that earned the click stay those numbers. A page
+     opened on an address no sweep has listed notes itself, and says "opened at". */
+  const rec = useMemo(() => recordOf(setup.id) ?? noteFound(setup, 'opened'), [setup.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const entry: CampaignEntry = useMemo(() => ({ time: rec.time, mid: rec.mid }), [rec]);
 
-  /* The campaign view of the setup: defining fields frozen at open, market
-     reads (liveMid, score, greeks, spread) live. Every campaign surface on
-     this page — chart lines, ladder, floor panel, facts, track — speaks c,
-     never the regrading setup. */
-  const c = useMemo<Setup>(
-    () =>
-      entry
-        ? {
-            ...setup,
-            mid: entry.mid,
-            priceTargets: entry.priceTargets,
-            invalidationPrice: entry.invalidationPrice,
-            takeProfits: entry.takeProfits,
-          }
-        : setup,
-    [setup, entry]
+  /* TP hits AND the floor break are read off the TAPE since that bar, by the one derivation the board's card, the
+     table and the Tracker read — every event has a candle to point at, and the chart, the ladder and the count tell
+     one story. Once the floor breaks, nothing banks after it. */
+  const { hits: tpHits, brk: floorBreak } = useMemo(
+    () => statusOf(rec),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rec, revision]
   );
 
-  /* TP hits AND the floor break are read off the TAPE, not the simulator's
-     rolled status flags — every event must have a candle to point at, and
-     the chart, the ladder and the count must all tell one story. Judged
-     against the FROZEN campaign levels (c), latched with a scan watermark
-     for cheap incremental sweeps — and once the floor breaks, nothing banks
-     after it: the campaign died first. */
-  const tapeRef = useRef<{ id: string; scanned: number; hits: Map<number, number>; brk: CampaignBreak | null }>({
-    id: '',
-    scanned: 0,
-    hits: new Map(),
-    brk: null,
-  });
-  const { tpHits, floorBreak } = useMemo(() => {
-    if (!entry) return { tpHits: [] as CampaignHit[], floorBreak: null as CampaignBreak | null };
-    if (tapeRef.current.id !== setup.id) {
-      tapeRef.current = { id: setup.id, scanned: entry.time, hits: new Map(), brk: null };
-    }
-    const st = tapeRef.current;
-    if (!st.brk) {
-      const bars = Simulator.getCandles(setup.ticker) ?? [];
-      for (const b of bars) {
-        if (b.time <= st.scanned) continue;
-        st.scanned = b.time;
-        c.priceTargets.forEach((target, i) => {
-          if (!st.hits.has(i + 1) && (setup.right === 'C' ? b.high >= target : b.low <= target)) {
-            st.hits.set(i + 1, b.time);
-          }
-        });
-        if (setup.right === 'C' ? b.close < c.invalidationPrice : b.close > c.invalidationPrice) {
-          st.brk = { time: b.time, price: b.close, floor: c.invalidationPrice };
-          break;
-        }
-      }
-    }
-    return {
-      tpHits: [...st.hits.entries()].map(([level, time]) => ({ level, time })).sort((a, b) => a.level - b.level),
-      floorBreak: st.brk,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry, c, setup.id, setup.right, setup.ticker, revision]);
+  /* The campaign view of the setup: defining fields frozen at the sweep, market reads (the live mid, the greeks, the
+     spread) live — and THE LADDER'S STATUSES FROM THE TAPE, so the premium chart's "· hit" is the head's count. Every
+     campaign surface on this page speaks c, never the regrading setup. */
+  const c = useMemo<Setup>(() => {
+    const f = frozen(setup, rec);
+    const won = new Set(tpHits.map(h => h.level));
+    const working = floorBreak ? null : (f.takeProfits.map((_, i) => i + 1).find(l => !won.has(l)) ?? null);
+    return { ...f, takeProfits: f.takeProfits.map((tp, i) => ({ ...tp, status: won.has(i + 1) ? 'HIT' : i + 1 === working ? 'IN PROGRESS' : 'PENDING' })) };
+  }, [setup, rec, tpHits, floorBreak]);
+  /* when it was found, in New York's clock with the seconds — two sweeps can land in one minute */
+  const foundWord = rec.how === 'sweep' ? 'found' : 'opened';
+  const foundAt = nyClock(rec.foundAt, { seconds: true });
   const retired = floorBreak != null;
 
   /* The contracts driving THIS setup — its own strike, the walls, supreme, pin,
@@ -765,9 +696,7 @@ const CampaignAnalysis = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setup.ticker, setup.strike, setup.right, scanner, sleeve, revision]);
 
-  const breakTimeLabel = floorBreak
-    ? new Date(floorBreak.time * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    : '';
+  const breakTimeLabel = floorBreak ? nyClock(floorBreak.time * 1000) : '';
 
   const bankedLevels = useMemo(() => new Set(tpHits.map(h => h.level)), [tpHits]);
   /* Retired: no rung is "working" anymore — the ladder freezes. */
@@ -840,7 +769,7 @@ const CampaignAnalysis = ({
      read "otherwise it runs into Friday", and a scalp's real clock is its own. */
   const clockCopy =
     scanner === 'quick-scalp'
-      ? "Through it the scalp is over — and the scalp's own clock retires it well before the contract's expiry does."
+      ? 'A close through it retires the setup — and a fast mover lives on intraday moves, so its own clock retires it well before the expiry does.'
       : sleeve === 'odte'
         ? "A close through it retires the setup — and nothing here outlives today's close anyway."
         : sleeve === 'weekly'
@@ -897,18 +826,22 @@ const CampaignAnalysis = ({
               </div>
               <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
                 {sideWord} · {tenorWord}
-                {gradedAt != null && (
-                  <>
-                    {' '}
-                    · found at <span className="text-textSecondary tnum">{gradedAt}</span>, read live since
-                  </>
-                )}
+                {/* the sweep's moment, and that every figure has been read live since (the audit's CO-22: "…, read live since") */}
+                {' '}
+                · {foundWord} at <span className="text-textSecondary tnum">{foundAt}</span>, read live since then
               </p>
             </div>
           </div>
           <dl className="flex flex-wrap gap-x-6 gap-y-2" data-setup-facts>
-            <Fact label="Premium" testId="premium">
-              <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
+            {/* THE PREMIUMS, EACH NAMED (the audit's X1.4: one contract showed $0.76, $0.82, $0.73 and $0.70 at one moment, none
+                of them labelled) — the entry frozen where the sweep found it, now the bid/ask midpoint this tick */}
+            <Fact label="Premium" testId="premium" title="Entry: the bid/ask midpoint when the sweep found it · now: the midpoint this tick">
+              <span className="inline-flex items-baseline gap-1.5">
+                <span className="text-[10px] text-textMuted">entry</span>
+                <span>${c.mid.toFixed(2)}</span>
+                <span className="text-[10px] text-textMuted">now</span>
+                <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
+              </span>
             </Fact>
             <Fact label="The case" testId="case">
               <span className="inline-flex items-center gap-2" data-case={caseWord}>
@@ -1025,7 +958,10 @@ const CampaignAnalysis = ({
                   aria-hidden={chartView !== 'premium'}
                 >
                   <ContractTrack
-                    setup={c}
+                    /* the campaign's frozen figures with the premium NOW — the chart's last point is the live midpoint, its
+                       dotted rule the entry (X1.4: the premium view printed the entry as if it were the live mark) */
+                    setup={{ ...c, mid: setup.mid }}
+                    entryMid={c.mid}
                     revision={revision}
                     retired={retired}
                     loadPickRows={loadTickerCons}
@@ -1175,14 +1111,19 @@ const CampaignAnalysis = ({
               </div>
 
               <div className={`col-start-1 row-start-1 flex flex-col gap-4 transition-opacity duration-300 ${cardTab === 'contract' ? 'opacity-100' : 'invisible opacity-0'}`}>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
+                {/* entry · now · fair value — the contract's three premiums, each named (X1.4) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2" title="The bid/ask midpoint when the sweep found the setup">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Entry</div>
+                    <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${c.mid.toFixed(2)}</div>
+                  </div>
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2" title="The bid/ask midpoint this tick">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Now</div>
                     <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
                       <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
                     </div>
                   </div>
-                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
+                  <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2" title="What the model says the contract is worth">
                     <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
                     <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
                       <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
@@ -1203,7 +1144,7 @@ const CampaignAnalysis = ({
 
                 {/* The contract's dollars as a LEDGER — values on the same right rail as the greeks above */}
                 <div>
-                  <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1.5">In dollars</div>
+                  <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1.5">In dollars, at entry</div>
                   <ContractFacts setup={c} spot={spot} ledger />
                 </div>
               </div>
@@ -1234,7 +1175,7 @@ const CampaignAnalysis = ({
                     </p>
                     <span className="flex items-center gap-1.5 flex-wrap">
                       {setup.whyChips.map(chip => (
-                        <span key={chip} className="font-mono text-[8px] uppercase tracking-wider text-textSecondary border border-borderSubtle rounded px-1 py-px">
+                        <span key={chip} className="font-mono text-[10px] text-textSecondary border border-borderSubtle rounded px-1.5 py-px">
                           {chip}
                         </span>
                       ))}
@@ -1249,11 +1190,11 @@ const CampaignAnalysis = ({
                     <tbody className="divide-y divide-borderSubtle">
                       {[
                         { k: 'The lens', v: `${kindLabel} — ${SCANNERS.find(s => s.key === scanner)?.blurb ?? ''}`, ink: 'text-textPrimary' },
-                        { k: 'Priced against', v: `${setup.liveMid > setup.mid * 1.02 ? 'under' : setup.liveMid < setup.mid * 0.98 ? 'over' : 'at'} fair value — $${setup.mid.toFixed(2)} entry vs $${setup.liveMid.toFixed(2)} fair`, ink: setup.liveMid > setup.mid * 1.02 ? 'text-bull' : setup.liveMid < setup.mid * 0.98 ? 'text-bear' : 'text-textPrimary' },
+                        { k: 'Priced against', v: `${setup.liveMid > setup.mid * 1.02 ? 'under' : setup.liveMid < setup.mid * 0.98 ? 'over' : 'at'} fair value — $${setup.mid.toFixed(2)} now vs $${setup.liveMid.toFixed(2)} fair value · $${c.mid.toFixed(2)} at entry`, ink: setup.liveMid > setup.mid * 1.02 ? 'text-bull' : setup.liveMid < setup.mid * 0.98 ? 'text-bear' : 'text-textPrimary' },
                         { k: 'The move it needs', v: `±${setup.sigmaMovePct}% is the stock's 1σ to expiry · the setup asks +${setup.expectedMovePct.toFixed(1)}% of the premium`, ink: 'text-textPrimary' },
                         { k: 'The side', v: `${sideWord} — ${setup.right === 'C' ? 'dealers must buy the stock to stay hedged as it rises' : 'dealers must sell the stock to stay hedged as it falls'}`, ink: setup.right === 'C' ? 'text-bull' : 'text-bear' },
                         { k: 'The clock', v: tenorWord, ink: 'text-textPrimary' },
-                        { k: 'The greeks', v: `delta ${setup.greeks.delta.toFixed(2)} · IV ${setup.greeks.iv.toFixed(1)}% · theta ${setup.greeks.theta.toFixed(2)}/day`, ink: 'text-textPrimary' },
+                        { k: 'The greeks', v: `delta ${setup.greeks.delta.toFixed(2)} · IV ${setup.greeks.iv.toFixed(1)}% · theta −$${Math.abs(setup.greeks.theta).toFixed(2)} a day per share ($${Math.round(Math.abs(setup.greeks.theta) * 100)} per contract)`, ink: 'text-textPrimary' },
                         { k: 'The liquidity', v: `${setup.liquidityLabel} — ${setup.liquiditySpread}`, ink: setup.liquidityLabel === 'Tight' ? 'text-bull' : setup.liquidityLabel === 'Wide' ? 'text-bear' : 'text-textPrimary' },
                         {
                           k: "Today's board",
@@ -1276,7 +1217,7 @@ const CampaignAnalysis = ({
                   </div>
                   <p className="text-[11px] text-textPrimary leading-snug">
                     A close {setup.right === 'C' ? 'below' : 'above'} <span className="font-mono font-semibold tnum text-warn">${c.invalidationPrice.toFixed(2)}</span> — {c.invalidationReason.toLowerCase()} gives way and the case is gone.{' '}
-                    {c.takeProfits.length === 0 ? 'The case is already fading: no targets were earned.' : `${c.takeProfits.length} ${c.takeProfits.length === 1 ? 'target was' : 'targets were'} earned by the math; ${hitCount} ${hitCount === 1 ? 'has' : 'have'} been hit.`}
+                    {c.takeProfits.length === 0 ? 'The case is already fading: it set no targets.' : `${c.takeProfits.length} ${c.takeProfits.length === 1 ? 'target' : 'targets'} set; ${hitCount === 0 ? 'none hit yet' : `${hitCount} hit`}.`}
                   </p>
                 </div>
                 <button
@@ -1298,14 +1239,21 @@ const CampaignAnalysis = ({
               <button
                 onClick={() => {
                   if (tracked) {
+                    /* at once, with the way back (the audit's X5.9) */
+                    const at = trackedSetups.findIndex(t => t.id === setup.id);
+                    const row = trackedSetups[at];
                     untrackSetup(setup.id);
                     closeDoor();
+                    if (row) undoable({ label: `Untracked ${setup.contract}`, undo: () => restoreTracked(row, at), key: `untrack-${setup.id}` });
                   } else {
                     trackSetup(setup, scanner);
                   }
                 }}
                 className={`flex-1 min-w-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
-                  tracked ? 'border border-bear/40 text-bear hover:bg-bear/[0.06]' : 'text-[#0a0a0a] holo-bg hover:brightness-105'
+                  /* the plain ink pill (the brand rule: the moving foil is "Launch terminal"'s alone, and every colour a token — the
+                     audit's X12 caught this door in the foil with a literal #0a0a0a word): the --text-primary fill takes the
+                     panel's ink for its word */
+                  tracked ? 'border border-bear/40 text-bear hover:bg-bear/[0.06]' : 'bg-textPrimary text-[rgb(var(--panel))] hover:bg-textPrimary/90'
                 }`}
                 data-setup-track={tracked ? 'on' : 'off'}
               >

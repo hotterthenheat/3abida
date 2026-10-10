@@ -42,8 +42,11 @@ const GreeksRow = ({ greeks, fourth = 'vega', flash = false }: GreeksRowProps) =
   return (
     <div className="divide-y divide-borderSubtle">
       <Row label="Delta" value={greeks.delta} format={v => v.toFixed(2)} arrow={greeks.delta >= 0 ? 'up' : 'down'} flash={flash} />
-      <Row label="Gamma" value={greeks.gamma} format={v => v.toFixed(4)} flash={flash} />
-      <Row label="Theta" value={greeks.theta} format={v => v.toFixed(2)} tone="text-warn" flash={flash} />
+      {/* one precision per field (the audit's CO-21: "GAMMA 0.2343" beside "DELTA 0.54") */}
+      <Row label="Gamma" value={greeks.gamma} format={v => v.toFixed(3)} flash={flash} />
+      {/* THETA SAYS ITS UNITS (the audit's CO-7: "THETA −3.42" beside a $0.82 premium read as losing four times the
+          premium a day) — dollars a day per share, and what that is for one contract of 100 */}
+      <Row label="Theta" value={greeks.theta} format={v => `${v < 0 ? '−' : ''}$${Math.abs(v).toFixed(2)}/day · $${Math.round(Math.abs(v) * 100)} a contract`} tone="text-warn" flash={flash} />
       {fourth === 'vega' ? (
         // No arrow, no lime: vega is a magnitude, not a direction — the old
         // hardcoded bull-green ▲ beside a neon-lime number was two greens

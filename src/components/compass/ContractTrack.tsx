@@ -52,6 +52,9 @@ const LEVEL_INK: Record<TrackLevel['status'], string> = {
 
 interface ContractTrackProps {
   setup: Setup;
+  /** The premium the setup was found at — the dotted Entry rule and the change figures are measured from it. Absent,
+      the setup's own mid. */
+  entryMid?: number;
   /** Tick pulse — recomputes the series so the NOW pin follows the live mid. */
   revision: number;
   /** Setup retired (floor broken): the past stays, the future doesn't —
@@ -75,7 +78,7 @@ interface ContractTrackProps {
   ) => void;
 }
 
-const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen = false, onToggleFullscreen, loadPickRows, onOpenContract }: ContractTrackProps) => {
+const ContractTrack = ({ setup, entryMid, revision, retired = false, actions, fullscreen = false, onToggleFullscreen, loadPickRows, onOpenContract }: ContractTrackProps) => {
   const [timeframe, setTimeframe] = useState<Timeframe>('1m');
 
   /* The chrome's real height, handed to the pane as reserved headroom —
@@ -101,7 +104,7 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
   const { track, projections } = useMemo(() => {
     void revision;
     const bars = Simulator.getCandles(setup.ticker) ?? [];
-    const built = buildSetupTrack(setup, bars);
+    const built = buildSetupTrack(setup, bars, entryMid);
     /* The modeled futures, restated on the clock: trackModel speaks in
        1-minute bar offsets from NOW; the engine wants timestamps. Thinned to
        the shown timeframe so the projected region keeps the tape's own bar
@@ -125,7 +128,7 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
     }
     return { track: built, projections: projs };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup.id, setup.mid, revision, retired, timeframe]);
+  }, [setup.id, setup.mid, entryMid, revision, retired, timeframe]);
 
   const up = track.sessionChangePct >= 0;
   const undocked = track.levels.filter(l => !l.docked);
@@ -139,7 +142,7 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
      as states, not a rendering bug (Noah, 2026-08-29). */
   const paneLevels: PremiumLevel[] = undocked.map(l => ({
     price: l.premium,
-    label: `${l.label.replace(/^TP(\d)/, 'TARGET $1')} $${l.premium.toFixed(2)}${l.status === 'HIT' ? ' · hit' : l.status === 'IN PROGRESS' ? ' · in progress' : ''}`,
+    label: `${l.label.replace(/^TP(\d)/, 'TARGET $1').toUpperCase()} $${l.premium.toFixed(2)}${l.status === 'HIT' ? ' · hit' : l.status === 'IN PROGRESS' ? ' · in progress' : ''}`,
     color: LEVEL_INK[l.status],
     style: l.status === 'REF' ? 'dotted' : 'dashed',
   }));
@@ -175,7 +178,8 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
           )}
           {actions}
           <TimeframeStrip value={timeframe} onChange={setTimeframe} />
-          <span className="inline-flex items-center gap-2 pl-1">
+          <span className="inline-flex items-center gap-2 pl-1" title="The premium now — the bid/ask midpoint this tick">
+            <span className="font-mono text-[10px] text-textMuted">now</span>
             <SpotPrice value={setup.mid} />
             <span className={`font-mono text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
               {up ? '▲' : '▼'} ${changeAbs.toFixed(2)} ({up ? '+' : '−'}
@@ -197,7 +201,7 @@ const ContractTrack = ({ setup, revision, retired = false, actions, fullscreen =
         {/* The whispers — the clock left, the off-scale rules and the modeled note right */}
         <div className="pl-3 pr-16 flex items-baseline justify-between gap-3 pointer-events-none">
           <span className="font-mono text-[10px] text-textMuted">
-            the contract's premium over {barsToSpan(track.pastMinutes)} · reference ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from {setup.ticker}
+            the contract's premium over {barsToSpan(track.pastMinutes)} · entry ${track.ref.toFixed(2)} · {retired ? 'setup retired' : `${barsToSpan(track.forwardMinutes)} left`} · modeled from {setup.ticker}
             's bars, not a traded tape
           </span>
           {docked.length > 0 && (

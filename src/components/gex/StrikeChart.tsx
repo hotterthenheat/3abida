@@ -233,6 +233,13 @@ export interface ChartOverlays {
     An absent key on a saved set reads as off.
   */
   alerts?: boolean;
+  /* TERRAIN'S OWN LAYERS (2026-10-09, the ideas report): this chart never reads them — a Terrain pane draws them
+     through its `layer` (components/terrain). On this type so the reader toggles them from the same Overlays menu and
+     they are kept with the pane. Absent reads as off. */
+  /** Walls through the day — each strike's exposure through the session, behind the candles */
+  walls?: boolean;
+  /** The session's phases — the open, lunch, power hour (and the extended hours a tape carries) as quiet bands */
+  phases?: boolean;
 }
 
 /* Chart styles, TradingView's picker (Noah, 2026-08-23: "notice how candles
@@ -716,6 +723,13 @@ interface StrikeChartProps {
    * A reader who cannot reach the controls at all has lost more.
    */
   pageScroll?: boolean;
+  /** NEW YORK'S CLOCK on the axis and the crosshair whatever the reader chose in Settings — a chart of the market's own
+      session (Terrain, the Weigher; the audit's X2, 2026-10-09). Read once, when the chart is made. */
+  nyClock?: boolean;
+  /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
+      default). A host whose tape should run near its right edge passes more (the audit's X11: a third to half of the
+      chart stood empty past the last candle). */
+  historyShare?: number;
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -983,7 +997,11 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
+  nyClock = false,
+  historyShare,
 }: StrikeChartProps) => {
+  const historyShareRef = useRef(historyShare);
+  historyShareRef.current = historyShare;
   /* WHERE THE BARS COME FROM — the simulator, or the host's tape. Every read below goes through these four. */
   const tapeRef = useRef<ChartTape | undefined>(tape);
   tapeRef.current = tape;
@@ -1050,6 +1068,9 @@ const StrikeChart = ({
   /* The app's theme moves the ground of a theme without a canvas of its own (2026-09-12) */
   const appTheme = useResolvedTheme();
   const themeKey = themeKeyProp ?? globalThemeKey;
+  /* THE RAIL STAYS BLACK ON A LIGHT TAPE (the brand rule; the audit's TE-11): at the dark tape's 55% rest-dim its black
+     read as a translucent grey slab on paper, so on a light ground it rests near whole */
+  const railRest = chartGround(themeKey) === 'light' ? 'opacity-95' : 'opacity-55';
   /* THE THEME THIS CHART PAINTS, wherever it is read (2026-09-13; Noah: "if I try to change
      the theme color of the charts on Pulse or Terrain it doesn't work but on the Weigher it
      works fine"): eight places below used to call the STORE's `themeRef.current`, so a pane
@@ -1374,8 +1395,9 @@ const StrikeChart = ({
       keeping the same history/runway split — the bars stay readable and the
       runway stays a runway, not a prairie.
     */
-    total = Math.min(total, Math.max(Math.ceil(len / HISTORY_SHARE) + 8, 48));
-    const history = Math.round(total * HISTORY_SHARE);
+    const share = historyShareRef.current ?? HISTORY_SHARE;
+    total = Math.min(total, Math.max(Math.ceil(len / share) + 8, 48));
+    const history = Math.round(total * share);
     const ahead = total - history;
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - history), to: len + ahead });
   }, []);
@@ -1873,7 +1895,7 @@ const StrikeChart = ({
         attributionLogo: true,
       },
       // The reader's clock, not Greenwich's — see chartTime.ts.
-      localization: tapeRef.current?.clock === 'ny' ? NY_TIME : LOCAL_TIME,
+      localization: nyClock || tapeRef.current?.clock === 'ny' ? NY_TIME : LOCAL_TIME,
       // No grid (Noah, 2026-08-22): the nodes and the levels ARE the
       // structure; a grid behind them competes with the ribbons
       grid: {
@@ -1887,7 +1909,7 @@ const StrikeChart = ({
       // price-line titles, and ate the date off every dark-pool print near spot.
       // 68 + 4 + 2 clear. Charts without the capsule keep the default 0.
       rightPriceScale: { borderColor: s0.line, minimumWidth: priceTag ? PRICE_SCALE_MIN_WIDTH : 0 },
-      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
+      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: nyClock || tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
       crosshair: {
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
         horzLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
@@ -4641,7 +4663,7 @@ const StrikeChart = ({
             aria-label="Show the drawing tools"
             /* Black on any tape, like the rail it opens (index.css) */
             data-chart-rail
-            className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md text-textSecondary hover:text-textPrimary shadow-lg shadow-black/40 transition-[opacity,color] duration-300 opacity-55 hover:opacity-100 ${
+            className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md text-textSecondary hover:text-textPrimary shadow-lg shadow-black/40 transition-[opacity,color] duration-300 ${railRest} hover:opacity-100 ${
               rail.dock === 'left'
                 ? 'left-0 top-1/2 -translate-y-1/2 rounded-r-md border-l-0 px-1 py-2.5'
                 : /* the tab hangs from the pane's top edge, in the strip's middle, over the strip */
@@ -4689,7 +4711,7 @@ const StrikeChart = ({
                chart's ground (index.css [data-chart-rail]). */
             data-chart-rail
             className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md backdrop-saturate-150 rounded-md p-1 shadow-xl shadow-black/50 select-none flex items-stretch ${rail.dock === 'top' ? 'gap-px' : 'gap-0.5'} transition-opacity duration-300 ${
-              drawing ? 'opacity-100' : 'opacity-55 hover:opacity-100 focus-within:opacity-100'
+              drawing ? 'opacity-100' : `${railRest} hover:opacity-100 focus-within:opacity-100`
             } ${
               rail.dock === 'left'
                 ? /* 44 wide, not 34: a 24px ICON COLUMN and a 10px ARROW COLUMN beside it (Noah, 2026-09-19, TradingView's rail: "the arrow

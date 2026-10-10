@@ -10,6 +10,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { TrackedSetup } from '../types/tracker';
 import { SCANNERS, type Setup, type ScannerKey } from '../types/compass';
+import { noteFound, recordOf } from '../components/compass/campaignStore';
 
 const STORAGE_KEY = 'slayer_tracked_setups';
 
@@ -57,6 +58,8 @@ interface TrackerContextValue {
   trackedSetups: TrackedSetup[];
   trackSetup: (setup: Setup, scanner: ScannerKey) => void;
   untrackSetup: (id: string) => void;
+  /** Put an untracked row back exactly as it was, in its place — the Undo after an untrack */
+  restoreTracked: (row: TrackedSetup, at: number) => void;
   isTracked: (id: string) => boolean;
 }
 
@@ -81,6 +84,8 @@ export const TrackerProvider = ({ children }: { children: React.ReactNode }) => 
           trackedAt: Date.now(),
           scoreAtTrack: setup.score,
           verdictAtTrack: setup.verdict,
+          expiryDate: setup.expiryDate,
+          campaign: recordOf(setup.id) ?? noteFound(setup, 'opened'),
         },
       ];
       saveToStorage(next);
@@ -96,13 +101,23 @@ export const TrackerProvider = ({ children }: { children: React.ReactNode }) => 
     });
   }, []);
 
+  const restoreTracked = useCallback((row: TrackedSetup, at: number) => {
+    setTrackedSetups(prev => {
+      if (prev.some(t => t.id === row.id)) return prev;
+      const next = [...prev];
+      next.splice(Math.max(0, Math.min(at, next.length)), 0, row);
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
   const isTracked = useCallback(
     (id: string) => trackedSetups.some(t => t.id === id),
     [trackedSetups]
   );
 
   return (
-    <TrackerContext.Provider value={{ trackedSetups, trackSetup, untrackSetup, isTracked }}>
+    <TrackerContext.Provider value={{ trackedSetups, trackSetup, untrackSetup, restoreTracked, isTracked }}>
       {children}
     </TrackerContext.Provider>
   );

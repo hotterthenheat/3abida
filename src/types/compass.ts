@@ -59,7 +59,9 @@ export interface ScannerDef {
    reference's brand word, banned on Trace the same way). */
 export const SCANNERS: ScannerDef[] = [
   { key: 'top-setups', label: 'Top ranked', blurb: 'The strongest by trend and hedging' },
-  { key: 'quick-scalp', label: 'Quick scalp', blurb: 'Fast intraday moves, held for minutes' },
+  /* "Fast movers", not "Quick scalp" (the audit's X8.2, 2026-10-09: a kind named for what to do is an instruction) —
+     what the kind finds: strikes where concentrated gamma makes small moves fast. The key stays the engine's. */
+  { key: 'quick-scalp', label: 'Fast movers', blurb: 'Where concentrated gamma makes small moves fast' },
   { key: 'discounted', label: 'Discounted', blurb: 'Priced under the move expected' },
   { key: 'rebounds', label: 'Rebounds', blurb: 'A turn off a level that held' },
   { key: 'whale-sweeps', label: 'Big orders', blurb: 'Large orders swept across the exchanges' },
