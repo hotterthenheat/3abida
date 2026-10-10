@@ -10,7 +10,7 @@
 */
 
 import { useSyncExternalStore } from 'react';
-import { getResolvedTheme, subscribeTheme, type Theme } from '../../theme/theme';
+import { getColourVision, getResolvedTheme, subscribeTheme, type ColourVision, type Theme } from '../../theme/theme';
 
 export interface CandleTheme {
   up: string;
@@ -23,6 +23,9 @@ export interface CandleTheme {
       canvas color and bordering with the real ink (see `wire`). */
   borderUp?: string;
   borderDown?: string;
+  /** Up bodies drawn hollow — the border and the wick in `up`, no fill — while `up` stays the ink a line or a bar is
+      drawn in (the colour-vision cut, `themeFor`) */
+  hollowUp?: boolean;
   /** Chart surface tint. Absent = transparent, the house canvas shows through.
       `light` marks a LIGHT ground (Stone, 2026-09-11): the chart's own ink
       (the axis text, the scale borders, the crosshair — see `chartSurface`)
@@ -65,7 +68,7 @@ export interface ChartSurface {
     so hollow-body themes can't be half-applied. */
 export function candleSeriesOptions(t: CandleTheme) {
   return {
-    upColor: t.up,
+    upColor: t.hollowUp ? 'rgba(0,0,0,0)' : t.up,
     downColor: t.down,
     borderUpColor: t.borderUp ?? t.up,
     borderDownColor: t.borderDown ?? t.down,
@@ -250,6 +253,37 @@ export const CANDLE_THEMES = {
 
 export type CandleThemeKey = keyof typeof CANDLE_THEMES;
 
+/* THE TAPES IN GREEN AND RED, FOR A READER WHO CANNOT TELL THEM APART (Settings › Appearance, the blue–orange pair,
+   2026-10-10): Neon and Market are the two themes whose up and down are the green and the red, so under `data-cvd` they
+   take the blue and the orange the house's direction inks become (tokens.css), and their up bodies are drawn HOLLOW — a
+   rise and a fall told apart by shape as well as hue, as a signed figure wears ▲/▼. Every other theme is a pair of
+   lightness already and is left as picked. */
+const CVD_BLUE = '#50A4FF';
+const CVD_ORANGE = '#FF8526';
+const RED_GREEN: readonly CandleThemeKey[] = ['classic', 'market'];
+const CVD_CUTS: Partial<Record<CandleThemeKey, CandleTheme>> = Object.fromEntries(
+  RED_GREEN.map(k => [
+    k,
+    {
+      ...CANDLE_THEMES[k],
+      up: CVD_BLUE,
+      down: CVD_ORANGE,
+      wickUp: CVD_BLUE,
+      wickDown: CVD_ORANGE,
+      borderUp: CVD_BLUE,
+      borderDown: CVD_ORANGE,
+      volUp: 'rgba(80,164,255,0.26)',
+      volDown: 'rgba(255,133,38,0.26)',
+      hollowUp: true,
+    } satisfies CandleTheme,
+  ])
+);
+
+/** The theme a chart paints for a key, cut for the reader's colour vision (the same object every time, so a ref compare holds) */
+export function themeFor(key: CandleThemeKey, vision: ColourVision = getColourVision()): CandleTheme {
+  return (vision === 'blue-orange' ? CVD_CUTS[key] : undefined) ?? CANDLE_THEMES[key];
+}
+
 // Noah's pick order: Chrome is the locked house default; Velvet then Glacier
 // are the sanctioned fallbacks if it wears badly. The gallery block (with
 // themed surfaces) follows the originals.
@@ -345,7 +379,7 @@ export function getCandleThemeKey(): CandleThemeKey {
 }
 
 export function getCandleTheme(): CandleTheme {
-  return CANDLE_THEMES[getCandleThemeKey()];
+  return themeFor(getCandleThemeKey());
 }
 
 /** A pick belongs to the page theme it was made on */

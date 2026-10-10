@@ -103,7 +103,7 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
           aria-label={`${label}: ${current?.label ?? ''}`}
           title={note ?? (bare ? label : undefined)}
           data-expiry-note={note ? '' : undefined}
-          className={`group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
+          className={`hit group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
           style={ink ? ({ '--ink': ink } as CSSProperties) : undefined}
         >
           <Icon
@@ -111,7 +111,7 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
             aria-hidden="true"
             data-dropdown-icon
           />
-          {!bare && <span className="text-[9px] uppercase tracking-widest text-textMuted">{label}</span>}
+          {!bare && <span className="text-[11px] text-textMuted">{label}</span>}
           <span className="text-[11px] font-semibold text-textPrimary">{current?.label ?? '—'}</span>
           <ChevronDown className="w-3 h-3 text-textMuted" />
         </button>
@@ -122,7 +122,7 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
               choices as pills above the grid: "over complicated, shouldn't it
               just be the calendar, that's it?") — the title, the grid with the
               desk's days lit, one line at the foot */}
-          <div className="px-0.5 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</div>
+          <div className="px-0.5 pb-1 font-mono text-[11px] text-textMuted">{title ?? label}</div>
           <DayPicker
             mode="single"
             selected={selected}

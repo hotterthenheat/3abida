@@ -13,28 +13,22 @@
 */
 
 import { useMemo } from 'react';
-import Simulator from '../../core/simulator';
 import AtTheWall from '../../components/gex/AtTheWall';
-import { buildBuilding } from '../../data/building';
-import { buildExposureProfile } from '../../data/exposure';
-import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
-import { sessionBars } from '../../data/levelview';
-import { buildWallBoard } from '../../data/wall';
-import { hhmmss, useDeskClock } from './useDeskClock';
+import { bookOf, scanOf, wallBoardOf } from '../../data/pinpointBook';
+import { stampOf } from '../pinpoint/usePinpoint';
+import { useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
 
 const AtTheWallWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const clock = useDeskClock();
   const focus = ctx.focusPrice ?? null;
+  /* PINPOINT'S ONE BOOK (data/pinpointBook.ts, 2026-10-10): the At the wall page's scan and book, so the hold odds here
+     are the page's; the stamp is the scan's, on New York's clock */
   const built = useMemo(() => {
-    const snap = ctx.snapshot;
-    const t = snap.ticker;
     try {
-      const profile = buildExposureProfile(snap, '0DTE', 30);
-      const building = buildBuilding(snap, Simulator.getGexHistory(t), Simulator.getCandles(t), profile, clock);
-      const surface = buildExposureSurface(snap, 30, CALENDAR_DTES);
-      const iv = Simulator.TICKERS[t]?.iv ?? 0.2;
-      return { board: buildWallBoard(snap, profile, building, surface, sessionBars(t) ?? [], clock, iv, focus), at: hhmmss(new Date()) };
+      const scan = scanOf(ctx.snapshot.ticker, ctx.snapshot);
+      if (!scan) return null;
+      return { board: wallBoardOf(bookOf(scan.snap, clock), focus), at: stampOf(scan.at) };
     } catch {
       return null;
     }

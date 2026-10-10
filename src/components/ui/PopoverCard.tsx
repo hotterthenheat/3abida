@@ -45,8 +45,8 @@ const PopoverCard = ({ trigger, title, meta, children, width = 360, align = 'end
       >
         {title && (
           <div className="flex items-baseline gap-2 px-3 pt-2.5 pb-2 border-b border-borderSubtle/70">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary">{title}</span>
-            {meta && <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted tnum">{meta}</span>}
+            <span className="font-mono text-[11px] font-semibold text-textSecondary">{title}</span>
+            {meta && <span className="ml-auto font-mono text-[11px] text-textMuted tnum">{meta}</span>}
           </div>
         )}
         {children}

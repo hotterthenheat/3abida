@@ -143,13 +143,17 @@ interface Props {
   exitWords?: string;
   /** The word after the moment — "replaying" unless the host says otherwise */
   stateWord?: string;
+  /** THE FLOOR the position cannot go behind, in its own units (a backtest's clock only moves forward: where it stands) —
+      the back doors are shut at it, and say why in `minTitle` (the audit's PR-11, 2026-10-10) */
+  minPos?: number;
+  minTitle?: string;
   className?: string;
 }
 
 const iconBtn = 'shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-textSecondary transition-colors';
 const doorBtn = 'shrink-0 inline-flex items-center gap-1.5 h-6 rounded-md border border-borderSubtle hover:border-borderMuted font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors';
 
-const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace, onPace, onSeek, onExit, compact = false, words, marks, paceUnit = 'seconds', candleMin = 1, step = 60, counter, wordsAt, exitWords = 'Back to live', stateWord = 'replaying', className = '' }: Props) => {
+const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace, onPace, onSeek, onExit, compact = false, words, marks, paceUnit = 'seconds', candleMin = 1, step = 60, counter, wordsAt, exitWords = 'Back to live', stateWord = 'replaying', minPos = 0, minTitle, className = '' }: Props) => {
   /* candles a real second at a pace: a chart's own bars ARE candles; a session clock's seconds are folded into the host's candle */
   const perSecond = (p: number) => (paceUnit === 'bars' ? p : p / (60 * Math.max(1 / 60, candleMin)));
   const paceOptions: DropdownOption<number>[] = (paceUnit === 'bars' ? BAR_PACES : CLOCK_PACES).map(o => ({ ...o, hint: o.value === 1 && paceUnit === 'seconds' ? `As it happened — ${candlePace(perSecond(1)).long.toLowerCase()}` : candlePace(perSecond(o.value)).long }));
@@ -209,7 +213,9 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
     if (playing) onPlay(false);
     onSeek(Math.max(0, Math.min(length, next)));
   };
-  const atStart = pos <= 0;
+  const atStart = pos <= minPos;
+  /* a door shut at the floor says why; at the session's own start it needs no words */
+  const backTitle = (own: string) => (atStart && minPos > 0 && minTitle ? minTitle : own);
   const atEnd = pos >= length;
 
   /* ---- the pieces ---- */
@@ -266,7 +272,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
     </button>
   );
   const stepBack = (
-    <button type="button" onClick={() => stepTo(pos - step)} disabled={atStart} title="One step back" aria-label="One step back" className={iconBtn} data-replay-step="back">
+    <button type="button" onClick={() => stepTo(pos - step)} disabled={atStart} title={backTitle('One step back')} aria-label="One step back" className={iconBtn} data-replay-step="back">
       <StepBack className="w-3.5 h-3.5" />
     </button>
   );
@@ -382,7 +388,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
         </span>
         <span className="flex items-center gap-0.5" data-replay-transport>
           {!narrow && (
-            <button type="button" onClick={() => stepTo(0)} disabled={atStart} title="To the start" aria-label="To the start" className={iconBtn} data-replay-jump="start">
+            <button type="button" onClick={() => stepTo(minPos)} disabled={atStart} title={backTitle('To the start')} aria-label="To the start" className={iconBtn} data-replay-jump="start">
               <SkipBack className="w-3.5 h-3.5" />
             </button>
           )}

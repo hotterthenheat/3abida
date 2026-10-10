@@ -234,6 +234,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
           onExitDraw={() => setDrawing(false)}
           height={height}
           frameless
+          nyClock
           layer={api => <TradeLayer api={api} marks={marks} levels={levels} from={tIn - pad} to={tOut + pad} tradeKey={row.key} />}
         />
       </div>

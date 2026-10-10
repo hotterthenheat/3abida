@@ -90,10 +90,10 @@ const ComingSoonWall = ({ kicker, blurb, foot }: Props) => {
       ro.disconnect();
     };
   }, []);
-  /* ONE CLOCK for the lamp's flicker: the body animates the number the bulb, the beam and the
-     wordmark all read (index.css `room-flicker`) — three animations on three elements started on
-     three frames and drifted apart (Noah: "the flicker of the lightbulb and the flicker of the
-     actual light is not in sync") */
+  /* ONE CLOCK for the lamp's flicker: the class on the body starts the bulb's, the beam's and the
+     wordmark's opacity loops on one frame, after all three are up (index.css `room-bulb`) — three
+     animations started on three frames drifted apart (Noah: "the flicker of the lightbulb and the
+     flicker of the actual light is not in sync") */
   useEffect(() => {
     document.body.classList.add('room-walled');
     return () => document.body.classList.remove('room-walled');

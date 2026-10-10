@@ -283,7 +283,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       data-subject
       aria-label={`Watching ${activeTicker} — switch`}
       title={name ? `${name} · ${PALETTE_KEY} to switch` : `${PALETTE_KEY} to switch`}
-      className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-2 pl-2 pr-2 text-left"
+      className="group w-full h-[34px] rounded-lg border border-ink/[0.08] bg-ink/[0.03] hover:border-silver/50 hover:bg-ink/[0.05] transition-colors flex items-center gap-1.5 pl-2 pr-2 text-left whitespace-nowrap"
     >
       <CompanyLogo ticker={activeTicker} size={16} />
       <span className="text-[12px] font-semibold text-textPrimary" data-subject-ticker>

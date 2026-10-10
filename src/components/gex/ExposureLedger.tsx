@@ -211,6 +211,15 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
      columns are cut to the width, below) */
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  /* MORE BELOW (the audit's PU-14, 2026-10-10): past ROW_MIN the rows scroll, and the box's foot cut a row in half with
+     nothing saying the calendar goes on — while there is more under the foot, it fades into the ground */
+  const [more, setMore] = useState(false);
+  const readMore = useCallback(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const next = el.scrollHeight - el.scrollTop - el.clientHeight > 1;
+    setMore(prev => (prev === next ? prev : next));
+  }, []);
   useLayoutEffect(() => {
     const el = boxRef.current;
     if (!el) return;
@@ -328,6 +337,11 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
   ]
     .filter(Boolean)
     .join(' ');
+  /* the rows or the box changed: is there more under the foot now? (after the commit, so the grid is laid out) */
+  useEffect(() => {
+    const raf = requestAnimationFrame(readMore);
+    return () => cancelAnimationFrame(raf);
+  }, [readMore, rowsTemplate, box.h, box.w]);
 
   /* FOCUS: the pinned cell holds, else the hovered, else the supreme */
   const [hovered, setHovered] = useState<Focus | null>(null);
@@ -541,6 +555,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         <div
           ref={boxRef}
           className="h-full overflow-auto"
+          onScroll={readMore}
           /* Invisible for the one frame before its box is measured (see the effect above) */
           style={box.w ? undefined : { visibility: 'hidden' }}
         >
@@ -668,6 +683,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           })}
           </div>
         </div>
+        {more && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-7 z-10" style={{ background: `linear-gradient(to bottom, transparent, rgb(var(--${paper ? 'inset' : 'panel'})))` }} data-ledger-more />}
       </div>
     </div>
   );

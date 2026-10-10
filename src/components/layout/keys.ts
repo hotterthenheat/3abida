@@ -90,8 +90,8 @@ export const KEY_GROUPS: KeyGroup[] = [
     on: ['/practice/backtest/'],
     keys: [
       { keys: ['Space'], does: 'Play the clock, and pause it' },
-      { keys: ['←', '→'], alt: true, does: 'Step a minute back, a minute on — never back past your last order' },
-      { keys: ['Shift', '→'], does: 'Five minutes on (Shift ← for five back)' },
+      { keys: ['→'], does: 'A minute on — the clock only moves forward' },
+      { keys: ['Shift', '→'], does: 'Five minutes on' },
       { keys: ['End'], does: 'Run to the bell' },
       { keys: ['N'], does: 'Ring the bell and open the next day' },
       { keys: ['F'], does: 'The chart to the full screen, and back' },

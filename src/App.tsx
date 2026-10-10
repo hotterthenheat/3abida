@@ -11,8 +11,6 @@ import { loadShell } from './components/layout/shell';
    way (components/layout/shell.ts). */
 import Landing from './pages/landing/Landing';
 import { LaunchProvider, isTerminalPath } from './components/layout/LaunchTransition';
-import { stampRoot } from './theme/theme';
-import { readBase } from './pages/landing/ground';
 import { FocusProvider } from './context/FocusContext';
 import EmbedBridge from './components/layout/EmbedBridge';
 import PageMeta from './components/layout/PageMeta';
@@ -21,11 +19,9 @@ import { FaviconFollowsMark } from './brand/favicon';
 import AlertsDoor from './components/alerts/AlertsDoor';
 
 /* THE PAGES OUTSIDE THE TERMINAL STAND ON THE VISITOR'S GROUND FROM THE FIRST PAINT (2026-10-09, the audit's OU-T1), as
-   the landing does: index.html sets it before the stylesheet, and the theme's own first word (theme/theme.ts, dark for a
-   reader who has made no choice) is put right here, in the same task, before anything is painted — the page's frame
-   (pages/outside/OutsideFrame.tsx) holds it once its code has come, and hands the root back on the way into the
-   terminal */
-if (typeof window !== 'undefined' && !EMBEDDED && window.location.pathname !== '/' && !isTerminalPath(window.location.pathname)) stampRoot(readBase());
+   the landing does: index.html sets it before the stylesheet, and the theme's own first word stamps the root with it
+   (theme/theme.ts firstGround) — the page's frame (pages/outside/OutsideFrame.tsx) holds it once its code has come, and
+   hands the root back on the way into the terminal */
 
 /*
   EVERY PAGE IS ITS OWN CHUNK (2026-09-06, the perf sweep). The app used to

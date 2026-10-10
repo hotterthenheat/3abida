@@ -30,7 +30,7 @@ const FilterTabs = <V extends string>({ options, value, onChange, ariaLabel }: F
               key={opt.value}
               aria-pressed={active}
               onClick={() => onChange(opt.value)}
-              className="relative px-3 py-1 rounded-md text-xs font-medium transition-colors"
+              className="hit relative px-3 py-1 rounded-md text-xs font-medium transition-colors"
             >
               {active && (
                 <motion.span

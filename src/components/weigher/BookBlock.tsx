@@ -17,10 +17,10 @@ import { fmtDollars } from '../../data/ahead';
 import { SHAPE_SAYS, SHAPE_WORD } from '../../data/mapShape';
 import type { DeskContract } from '../../data/weigherDesk';
 
-/** The shape as the Map's chip — WALL firmer, the rest quiet */
+/** The shape as the Map's chip — WALL firmer, the rest quiet; at the house's 11 px floor (2026-10-10, the audit's X9.2) */
 export const ShapeChip = ({ shape }: { shape: NonNullable<BookAtStrike['shape']> }) => (
   <span
-    className={`inline-flex items-center h-[16px] px-1 rounded-[3px] border font-mono text-[10px] font-semibold leading-none whitespace-nowrap ${shape === 'wall' ? 'border-textSecondary/60 text-textPrimary' : 'border-borderSubtle text-textMuted'}`}
+    className={`inline-flex items-center h-[18px] px-1 rounded-[3px] border font-mono text-[11px] font-semibold leading-none whitespace-nowrap ${shape === 'wall' ? 'border-textSecondary/60 text-textPrimary' : 'border-borderSubtle text-textMuted'}`}
     title={SHAPE_SAYS[shape]}
     data-book-shape={shape}
   >

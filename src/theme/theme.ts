@@ -37,6 +37,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { EMBEDDED, EMBED_THEME } from '../embed';
+import { isTerminalPath } from '../core/terminalPath';
 
 export type ThemeChoice = 'dark' | 'light' | 'system';
 export type Theme = 'dark' | 'light';
@@ -72,9 +73,12 @@ const tokenCache = new Map<string, string>();
    choice made stays dark (pages/landing/ground.tsx readBase). While it is up it stamps the root with that ground
    (stampRoot), so the house's root-written rules and readToken answer for the page on screen; leaving, it hands the root
    back to the reader's choice. The stamp starts here as index.html set it before the first paint — set to dark here, the
-   root went black under a light landing until the landing's own code had come. */
+   root went black under a light landing until the landing's own code had come. THE PAGES OUTSIDE THE TERMINAL TOO (the
+   about, legal and account pages, a wrong address's prompt — the audit's OU-T1, 2026-10-09): every address but the
+   terminal's (core/terminalPath.ts) stands on the same ground from this first word; the page's frame
+   (pages/outside/OutsideFrame.tsx) holds it once its code has come. */
 const firstGround = (): Theme | null => {
-  if (typeof window === 'undefined' || EMBEDDED || window.location.pathname !== '/') return null;
+  if (typeof window === 'undefined' || EMBEDDED || isTerminalPath(window.location.pathname)) return null;
   try {
     if (localStorage.getItem(THEME_KEY) != null) return null;
   } catch {

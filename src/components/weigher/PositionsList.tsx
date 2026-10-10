@@ -44,7 +44,8 @@ export type ListRow =
 
 export const usdSigned = (v: number) => `${v < 0 ? '−' : '+'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 export const rSigned = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(2)}R`;
-export const dirInk = (v: number) => (v > 0 ? 'text-bull' : v < 0 ? 'text-bear' : 'text-textPrimary');
+/** The direction's ink, and its mark under the blue–orange pair (`dir-up` / `dir-down`, theme/tokens.css) */
+export const dirInk = (v: number) => (v > 0 ? 'text-bull dir-up' : v < 0 ? 'text-bear dir-down' : 'text-textPrimary');
 export const monthDay = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 export const daysSince = (at: number) => Math.max(0, Math.floor((Date.now() - at) / 86_400_000));
 export const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));

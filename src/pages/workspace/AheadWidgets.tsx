@@ -14,24 +14,28 @@
 */
 
 import { useMemo, useState } from 'react';
-import Simulator from '../../core/simulator';
 import AheadCorridor from '../../components/gex/AheadCorridor';
 import CloseOdds from '../../components/gex/CloseOdds';
-import { buildCloseOdds, buildCorridor, buildSchedule, type VolPoints } from '../../data/ahead';
-import { buildExposureProfile } from '../../data/exposure';
+import type { VolPoints } from '../../data/ahead';
+import { bookOf, closeOddsOf, corridorOf, scanOf, scheduleOf } from '../../data/pinpointBook';
 import { useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
 
-const WINDOW = 15;
+/* PINPOINT'S ONE BOOK (data/pinpointBook.ts, 2026-10-10): both panels read the Ahead page's scan and book — the whole
+   chain, not a fifteen-strike window of their own — so the range and the close odds here are the page's */
+const bookFor = (ctx: WorkspaceCtx, clock: ReturnType<typeof useDeskClock>) => {
+  const scan = scanOf(ctx.snapshot.ticker, ctx.snapshot);
+  return scan ? bookOf(scan.snap, clock) : null;
+};
 
 export const RangeWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const clock = useDeskClock();
   const [volPoints, setVolPoints] = useState<VolPoints>(-1);
   const data = useMemo(() => {
     try {
-      const profile = buildExposureProfile(ctx.snapshot, '0DTE', WINDOW);
-      const iv = Simulator.TICKERS[ctx.snapshot.ticker]?.iv ?? 0.2;
-      return { profile, corridor: buildCorridor(ctx.snapshot, profile, iv, clock), schedule: buildSchedule(ctx.snapshot, profile, clock, volPoints) };
+      const book = bookFor(ctx, clock);
+      if (!book) return null;
+      return { profile: book.profile, corridor: corridorOf(book), schedule: scheduleOf(book, volPoints) };
     } catch {
       return null;
     }
@@ -48,10 +52,9 @@ export const CloseWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const clock = useDeskClock();
   const data = useMemo(() => {
     try {
-      const profile = buildExposureProfile(ctx.snapshot, '0DTE', WINDOW);
-      const iv = Simulator.TICKERS[ctx.snapshot.ticker]?.iv ?? 0.2;
-      const corridor = buildCorridor(ctx.snapshot, profile, iv, clock);
-      return { odds: buildCloseOdds(profile, ctx.snapshot.spot, corridor.sigma, clock), levels: profile.levels };
+      const book = bookFor(ctx, clock);
+      if (!book) return null;
+      return { odds: closeOddsOf(book), levels: book.profile.levels };
     } catch {
       return null;
     }

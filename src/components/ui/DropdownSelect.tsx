@@ -21,7 +21,7 @@
 ==================================================
 */
 
-import type { CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
 import { focusBackForKeys } from './focusBack';
@@ -83,6 +83,10 @@ export const CARD = 'z-[90] rounded-lg border border-borderSubtle bg-chip shadow
 
 const DropdownSelect = <T extends string | number>({ label, value, options, onChange, title, align = 'start', icon: Icon, ink, testId, size = 'md', bare = false }: DropdownSelectProps<T>) => {
   const current = options.find(o => o.value === value);
+  /* OPENED BY THE KEYS, THE CARD STARTS ON THE CHOICE (2026-10-10, the audit's PR-27): Radix puts the keys on the first
+     row, so ↓ Enter on "Start with" at $25,000 picked $5,000. A card opened from the keys focuses the checked row; one
+     opened by the pointer focuses nothing, as before (a focused row wears the hover wash). */
+  const byKeys = useRef(false);
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
@@ -91,7 +95,11 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
           data-dropdown={testId ?? label}
           aria-label={`${label}: ${current?.label ?? ''}`}
           title={bare ? label : undefined}
-          className={`group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
+          onPointerDown={() => (byKeys.current = false)}
+          onKeyDown={() => (byKeys.current = true)}
+          /* `hit`: a finger's 44 px on a touch screen. ON A PHONE THE CHOICE WRAPS, never "0DTE · …" (the audit's CO-19): the
+             trigger grows a line rather than cutting its value */
+          className={`hit group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} max-sm:h-auto max-sm:py-1 ${size === 'sm' ? 'max-sm:min-h-6' : 'max-sm:min-h-7'} max-w-full rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none text-left`}
           style={ink ? ({ '--ink': ink } as CSSProperties) : undefined}
         >
           {Icon && (
@@ -101,18 +109,36 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
               data-dropdown-icon
             />
           )}
-          {!bare && <span className="shrink-0 text-[9px] uppercase tracking-widest text-textMuted">{label}</span>}
-          {/* min-w-0 + truncate: in a phone's two-column cards line the card is as wide as its cell, and a long value gives before the card does */}
+          {/* the name at the house's 11 px floor, in sentence case (2026-10-10 — it was 9 px tracked capitals) */}
+          {!bare && <span className="shrink-0 text-[11px] text-textMuted">{label}</span>}
+          {/* min-w-0 + truncate: a long value gives before the card does — on a desk; on a phone it wraps to a second line */}
           {/* the trigger wears the choice's tone — a Yes reads green, a No red, the way its row did (2026-09-22) */}
-          <span className={`min-w-0 truncate text-[11px] font-semibold ${current?.tone === 'bull' ? 'text-bull' : current?.tone === 'bear' ? 'text-bear' : current?.quiet ? 'text-textSecondary' : 'text-textPrimary'}`} data-tone={current?.tone ?? (current?.quiet ? 'quiet' : undefined)}>
+          <span className={`min-w-0 truncate max-sm:whitespace-normal max-sm:text-balance max-sm:leading-tight text-[11px] font-semibold ${current?.tone === 'bull' ? 'text-bull' : current?.tone === 'bear' ? 'text-bear' : current?.quiet ? 'text-textSecondary' : 'text-textPrimary'}`} data-tone={current?.tone ?? (current?.quiet ? 'quiet' : undefined)}>
             {current?.label ?? '—'}
           </span>
           <ChevronDown className="w-3 h-3 shrink-0 text-textMuted" />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align={align} sideOffset={6} className={`${CARD} min-w-[220px] p-1.5`} data-dropdown-card={testId ?? label} onCloseAutoFocus={focusBackForKeys}>
-          <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</DropdownMenu.Label>
+        <DropdownMenu.Content
+          align={align}
+          sideOffset={6}
+          className={`${CARD} min-w-[220px] p-1.5`}
+          data-dropdown-card={testId ?? label}
+          onCloseAutoFocus={focusBackForKeys}
+          /* the menu's entry focus (Radix's RovingFocusGroup, passed through though DropdownMenu's types leave it out): it
+             would put the keys on the first row */
+          {...({
+            onEntryFocus: (e: Event) => {
+              if (!byKeys.current) return;
+              const checked = (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>('[role="menuitemradio"][data-state="checked"]');
+              if (!checked) return;
+              e.preventDefault();
+              checked.focus({ preventScroll: true });
+            },
+          } as object)}
+        >
+          <DropdownMenu.Label className="px-2 pt-1 pb-1.5 font-mono text-[11px] text-textMuted">{title ?? label}</DropdownMenu.Label>
           <DropdownMenu.RadioGroup
             value={String(value)}
             onValueChange={v => {
@@ -134,7 +160,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
                 </span>
                 <span className="flex flex-col gap-[1px] min-w-0">
                   <span className="font-mono text-[11px] leading-snug group-data-[state=checked]:font-semibold">{o.label}</span>
-                  {o.hint && <span className="font-mono text-[9px] leading-snug text-textMuted">{o.hint}</span>}
+                  {o.hint && <span className="font-mono text-[10px] leading-snug text-textMuted">{o.hint}</span>}
                 </span>
               </DropdownMenu.RadioItem>
             ))}

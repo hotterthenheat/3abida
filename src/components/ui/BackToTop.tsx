@@ -71,7 +71,9 @@ const BackToTop = ({ testId = 'page' }: { testId?: string }) => {
       title="Back to top"
       aria-label="Scroll back to the top"
       data-back-to-top={testId}
-      className="fixed bottom-6 right-8 z-[70] inline-flex items-center justify-center w-9 h-9 rounded-full border border-borderMuted bg-panel/90 backdrop-blur-sm text-textSecondary hover:text-textPrimary hover:bg-panelHover shadow-lg shadow-black/40 transition-colors animate-soft-in"
+      /* ON A PHONE IT STANDS IN THE GUTTER (the audit's TR-21, 2026-10-10): at the desk's corner it covered a table's last
+         column (Trace's Compare ledger, the Windows grid) — smaller, against the screen's edge, a finger's hit round it */
+      className="hit fixed bottom-6 right-8 max-md:bottom-3 max-md:right-1 z-[70] inline-flex items-center justify-center w-9 h-9 max-md:w-8 max-md:h-8 rounded-full border border-borderMuted bg-panel/90 backdrop-blur-sm text-textSecondary hover:text-textPrimary hover:bg-panelHover shadow-lg shadow-black/40 transition-colors animate-soft-in"
     >
       <ArrowUp className="w-4 h-4" />
     </button>

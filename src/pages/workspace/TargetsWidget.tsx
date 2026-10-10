@@ -15,16 +15,13 @@
 */
 
 import { useMemo, useState } from 'react';
-import Simulator from '../../core/simulator';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import { heatLaneColor } from '../../components/gex/heatmap';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_WARM } from '../../components/gex/paletteInk';
-import { AGENDA_ORDERS, buildAgenda, type AgendaOrder, type Target } from '../../data/agenda';
+import { AGENDA_ORDERS, type AgendaOrder, type Target } from '../../data/agenda';
 import { fmtDollars, fmtStrike } from '../../data/ahead';
-import { buildBuilding } from '../../data/building';
-import { buildExposureProfile } from '../../data/exposure';
-import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
-import { sessionBars } from '../../data/levelview';
+import { agendaOf, bookOf, inWindow, scanOf } from '../../data/pinpointBook';
+import { useRoomWindow } from '../pinpoint/usePinpoint';
 import { useDeskClock } from './useDeskClock';
 import type { WorkspaceCtx } from './registry';
 
@@ -41,20 +38,20 @@ const kindOf = (t: Target) => (t.role ? 'named' : t.isShelf ? 'shelf' : t.isWall
 const TargetsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const [order, setOrder] = useState<AgendaOrder>('matters');
   const clock = useDeskClock();
-  /* Scan tier: ctx.snapshot is the desk's 10s reference — the order holds still between sweeps */
+  /* PINPOINT'S ONE BOOK (data/pinpointBook.ts, 2026-10-10): the desk's panel reads the very scan and book the Targets
+     page reads — the same ten-second snapshot, the whole chain, the same odds — and lists the strikes the room's window
+     draws, so a strike's reach reads the same here and there. The order holds still between sweeps. */
+  const [window] = useRoomWindow();
   const agenda = useMemo(() => {
-    const snap = ctx.snapshot;
-    const t = snap.ticker;
     try {
-      const profile = buildExposureProfile(snap, '0DTE', 15);
-      const building = buildBuilding(snap, Simulator.getGexHistory(t), Simulator.getCandles(t), profile, clock);
-      const surface = buildExposureSurface(snap, 30, CALENDAR_DTES);
-      const iv = Simulator.TICKERS[t]?.iv ?? 0.2;
-      return buildAgenda(snap, profile, building, surface, sessionBars(t) ?? [], clock, iv, order);
+      const scan = scanOf(ctx.snapshot.ticker, ctx.snapshot);
+      if (!scan) return null;
+      const a = agendaOf(bookOf(scan.snap, clock), order);
+      return { ...a, targets: inWindow(a.targets, a.spot, window) };
     } catch {
       return null;
     }
-  }, [ctx.snapshot, clock, order]);
+  }, [ctx.snapshot, clock, order, window]);
 
   if (!agenda) {
     return <div className="h-full grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">No book for {ctx.ticker}</div>;

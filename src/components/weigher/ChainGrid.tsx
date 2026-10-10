@@ -53,7 +53,9 @@ export interface ChainCol {
 }
 
 const money = (v: number) => `$${v.toFixed(2)}`;
-const signedPct = (v: number, dp = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
+/** A figure below nothing wears the true minus (U+2212), never a hyphen (the audit's PR-25: theta "-0.5439") */
+const num = (v: number, dp: number) => `${v < 0 && +Math.abs(v).toFixed(dp) !== 0 ? '\u2212' : ''}${Math.abs(v).toFixed(dp)}`;
+const signedPct = (v: number, dp = 1) => `${v >= 0 ? '+' : ''}${num(v, dp)}%`;
 
 export const CHAIN_COLUMNS: ChainCol[] = [
   { key: 'mark', label: 'Mark', head: 'Mark', term: 'Mark', render: c => ({ text: money(c.mark), bold: true }) },
@@ -67,24 +69,24 @@ export const CHAIN_COLUMNS: ChainCol[] = [
     label: 'Net change',
     head: 'Net chg',
     render: c => ({
-      text: `${c.netChange >= 0 ? '+' : '-'}$${Math.abs(c.netChange).toFixed(2)}`,
-      ink: c.netChange >= 0 ? 'text-bull' : 'text-bear',
+      text: `${c.netChange >= 0 ? '+' : '\u2212'}$${Math.abs(c.netChange).toFixed(2)}`,
+      ink: c.netChange > 0 ? 'text-bull dir-up' : c.netChange < 0 ? 'text-bear dir-down' : 'text-bull',
     }),
   },
   {
     key: 'changePct',
     label: 'Change %',
     head: 'Chg %',
-    render: c => ({ text: signedPct(c.netChangePct), ink: c.netChangePct >= 0 ? 'text-bull' : 'text-bear' }),
+    render: c => ({ text: signedPct(c.netChangePct), ink: c.netChangePct > 0 ? 'text-bull dir-up' : c.netChangePct < 0 ? 'text-bear dir-down' : 'text-bull' }),
   },
   { key: 'high', label: 'High', head: 'High', render: c => ({ text: money(c.high) }) },
   { key: 'low', label: 'Low', head: 'Low', render: c => ({ text: money(c.low) }) },
   { key: 'prevClose', label: 'Prev close', head: 'Prev close', render: c => ({ text: money(c.prevClose) }) },
-  { key: 'delta', label: 'Delta', head: 'Delta', term: 'Delta', render: c => ({ text: c.delta.toFixed(2) }) },
-  { key: 'gamma', label: 'Gamma', head: 'Gamma', term: 'Gamma', render: c => ({ text: c.gamma.toFixed(4) }) },
-  { key: 'theta', label: 'Theta', head: 'Theta', term: 'Theta', render: c => ({ text: c.theta.toFixed(4) }) },
-  { key: 'vega', label: 'Vega', head: 'Vega', term: 'Vega', render: c => ({ text: c.vega.toFixed(4) }) },
-  { key: 'rho', label: 'Rho', head: 'Rho', term: 'Rho', render: c => ({ text: c.rho.toFixed(4) }) },
+  { key: 'delta', label: 'Delta', head: 'Delta', term: 'Delta', render: c => ({ text: num(c.delta, 2) }) },
+  { key: 'gamma', label: 'Gamma', head: 'Gamma', term: 'Gamma', render: c => ({ text: num(c.gamma, 4) }) },
+  { key: 'theta', label: 'Theta', head: 'Theta', term: 'Theta', render: c => ({ text: num(c.theta, 4) }) },
+  { key: 'vega', label: 'Vega', head: 'Vega', term: 'Vega', render: c => ({ text: num(c.vega, 4) }) },
+  { key: 'rho', label: 'Rho', head: 'Rho', term: 'Rho', render: c => ({ text: num(c.rho, 4) }) },
   /* what the contract loses a day in DOLLARS a contract — theta × 100, the figure a buyer feels (the Live Chart's chain,
      2026-09-22: "you would need the actual options chain to see the vol, decay etc") */
   { key: 'decay', label: 'Decay a day', head: 'Decay/day', term: 'Theta', render: c => ({ text: `$${Math.abs(c.theta * 100).toFixed(2)}`, ink: 'text-bear' }) },
@@ -159,7 +161,7 @@ const StrikeCell = ({ data, held, book }: ICellRendererParams<ChainGridRow> & { 
       <ChevronRight aria-hidden className="w-3 h-3 shrink-0 text-textMuted" data-chain-chevron />
       {fmtStrike(data.c.strike)}
       {held?.has(data.c.strike) && (
-        <span className="ml-1 inline-flex items-center h-[16px] px-1 rounded-sm bg-silver/[0.15] text-[10px] font-bold text-silver leading-none" data-chain-held>
+        <span className="ml-1 inline-flex items-center h-[18px] px-1 rounded-sm bg-silver/[0.15] text-[11px] font-bold text-silver leading-none" data-chain-held>
           Held
         </span>
       )}
@@ -570,7 +572,7 @@ export const WeighGrids = ({ c }: { c: DeskContract }) => (
             <StatCell label="Breakeven" term="Breakeven" value={`$${c.breakeven.toFixed(2)}`} />
             <StatCell
               label="From spot"
-              value={`${c.fromSpotPct >= 0 ? '+' : ''}${c.fromSpotPct.toFixed(1)}%`}
+              value={signedPct(c.fromSpotPct)}
               ink={c.fromSpotPct >= 0 ? 'text-bull' : 'text-bear'}
             />
           </div>
@@ -578,11 +580,11 @@ export const WeighGrids = ({ c }: { c: DeskContract }) => (
         <div className="flex flex-col gap-2">
           <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textSecondary">The Greeks</span>
           <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2.5">
-            <StatCell label="Delta" term="Delta" value={c.delta.toFixed(4)} />
+            <StatCell label="Delta" term="Delta" value={num(c.delta, 4)} />
             <StatCell label="Gamma" term="Gamma" value={c.gamma.toFixed(4)} />
-            <StatCell label="Theta / day" term="Theta" value={c.theta.toFixed(4)} />
+            <StatCell label="Theta / day" term="Theta" value={num(c.theta, 4)} />
             <StatCell label="Vega" term="Vega" value={c.vega.toFixed(4)} />
-            <StatCell label="Rho" term="Rho" value={c.rho.toFixed(4)} />
+            <StatCell label="Rho" term="Rho" value={num(c.rho, 4)} />
           </div>
         </div>
   </>

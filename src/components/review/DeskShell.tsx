@@ -472,7 +472,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
     return () => window.clearInterval(t);
   }, [playing]);
   /* THE CLOCK ONLY MOVES FORWARD (engine.ts floorOf, the audit's PR-2 and PR-11): a press behind where it stands is said,
-     never silently swallowed — the bar's own back doors stay where they are */
+     never silently swallowed — and the bar's back doors are shut where it stands, their titles saying why (ReplayStrip minPos) */
   const [backSaid, setBackSaid] = useState<string | null>(null);
   useEffect(() => {
     if (!backSaid) return;
@@ -608,6 +608,9 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
       onSeek={p => seek(Math.round(p / 60) - 1)}
       onExit={() => navigate('/practice/backtest')}
       step={60}
+      /* the clock only moves forward: the back doors are shut where it stands, and say so */
+      minPos={(clock.minute + 1) * 60}
+      minTitle={`The clock only moves forward — it stands at ${clock.wordsAt(clock.minute)}, New York`}
     />
   );
   const dayInk = (pct: number) => (pct >= 0 ? 'text-bull' : 'text-bear');
@@ -767,6 +770,9 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                     /* a floor, not a size: four panes share the tape's height */
                     height={many ? 160 : full ? 430 : 400}
                     frameless
+                    /* New York's clock on the axis, Paper's as the backtest's (the audit's X2.4) */
+                    nyClock
+                    historyShare={0.88}
                     onTradeMark={p.name.onTradeMark}
                     onCrosshair={grid.crosshair && many ? t => emitCross(p.key, t) : undefined}
                     syncRegister={grid.crosshair && many ? apply => (apply ? sinks.set(p.key, apply) : sinks.delete(p.key)) : undefined}
@@ -833,6 +839,10 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                   /* a floor, not a size: on the desk the chart takes what the book leaves (see DESK_MIN_PX) */
                   height={full ? 430 : 400}
                   frameless
+                  /* New York's clock on the axis whatever the reader's zone — the head says "Clock: Today · New York" (the audit's X2.4) */
+                  nyClock
+                  /* the tape near the right edge, a little room ahead of the last bar (the audit's X11) */
+                  historyShare={0.88}
                   onTradeMark={n.onTradeMark}
                   layer={api => {
                     apis.current[n.symbol] = api;
