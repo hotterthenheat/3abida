@@ -443,13 +443,12 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   const barRef = useRef<HTMLDivElement | null>(null);
   const [span, setSpan] = useState({ sw: 0, cw: 0, left: 0 });
   const measure = useCallback(() => {
-    const v = wrapRef.current?.querySelector<HTMLElement>('.ag-body-horizontal-scroll-viewport');
-    const c = wrapRef.current?.querySelector<HTMLElement>('.ag-center-cols-viewport');
+    /* AG Grid 36 scrolls the whole grid sideways in one viewport, its pinned columns standing still inside it */
+    const v = viewport();
     if (!v) return;
     const sw = v.scrollWidth;
     const cw = v.clientWidth;
-    const left = c ? c.getBoundingClientRect().left - (wrapRef.current?.getBoundingClientRect().left ?? 0) : 0;
-    setSpan(o => (o.sw === sw && o.cw === cw && o.left === left ? o : { sw, cw, left }));
+    setSpan(o => (o.sw === sw && o.cw === cw ? o : { sw, cw, left: 0 }));
   }, []);
   useEffect(() => {
     if (!autoHeight || phone) return;
@@ -466,7 +465,7 @@ export const TraceGrid = <T,>({ rows, columns, hidden, widths, flexes, tooltips,
   const scrolling = useRef<'bar' | 'grid' | null>(null);
   const onBar = () => {
     if (scrolling.current === 'grid') return;
-    const v = wrapRef.current?.querySelector<HTMLElement>('.ag-body-horizontal-scroll-viewport');
+    const v = viewport();
     if (!v || !barRef.current) return;
     scrolling.current = 'bar';
     v.scrollLeft = barRef.current.scrollLeft;

@@ -43,7 +43,10 @@ import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import LeanCell from '../../components/trace/LeanCell';
-import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
+import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/addressCut';
+import { createViewStore } from '../../data/savedViews';
 import { FootprintsGuide } from '../../components/trace/TraceGuide';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
@@ -57,10 +60,41 @@ const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'C', label: 'Calls', hint: 'Calls only' },
   { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, doi: 104, doipct: 96, builton: 104, streak: 76, spark: 76, earn: 84 , lean: 96 };
+/* wide enough for their heads ("PREV D…" — the audit's TR-69) */
+const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, doi: 104, doipct: 96, builton: 104, prevavg: 100, prevprem: 92, streak: 84, spark: 96, earn: 92, lean: 96 };
+const PIN_LEFT = ['ticker', 'contract'];
+const PIN_RIGHT = ['doi'];
+const FOOT_CUTS = createViewStore('slayer_footprints_cuts_v1');
+/* A "fastest build" on a near-empty contract is a percentage of nothing ("+46,175%" on 77 contracts — the audit's
+   TR-43): the champion ranks only builds that stood on this much open interest */
+const FASTEST_MIN_PREV_OI = 500;
+
+/** A contract's overnight on a phone (the audit's TR-7) */
+const phoneRow = (r: BookContract) => (
+  <PhoneRow
+    lead={<WatchStar k={contractKey(r)} make={() => watchContract(r, 'footprints')} />}
+    title={
+      <>
+        <span className="font-bold">{r.ticker}</span>
+        <span className="font-bold tnum">{r.strike}</span>
+        <span className={r.right === 'C' ? 'text-bull' : 'text-bear'}>{r.right === 'C' ? 'call' : 'put'}</span>
+        <span className="text-[11px] text-textSecondary tnum">{r.expiry.slice(0, 5)}</span>
+      </>
+    }
+    aside={`${r.dte}d`}
+    figures={[
+      <span key="d" className={r.deltaOI > 0 ? 'font-semibold text-bull' : r.deltaOI < 0 ? 'font-semibold text-bear' : ''}>
+        {r.deltaOI > 0 ? '+' : ''}
+        {r.deltaOI.toLocaleString('en-US')} OI
+      </span>,
+      <span key="o">{r.oi.toLocaleString('en-US')} standing</span>,
+      <span key="b">built {r.prevAskPct >= 58 ? 'at the ask' : r.prevAskPct <= 42 ? 'on the bid' : 'at the mid'}</span>,
+    ]}
+  />
+);
 const TOOLTIPS: Record<string, string> = {
-  oi: 'Open interest standing this morning',
-  prevoi: 'Open interest standing yesterday morning',
+  oi: 'Open interest as of the last close',
+  prevoi: 'Open interest as of the close before',
   doi: 'What changed overnight — positions built or unwound',
   doipct: 'The change as a share of what stood before',
   builton: 'Which side did the building yesterday — at the ask, buyers; on the bid, sellers',
@@ -80,16 +114,28 @@ const PrevSpark = ({ values }: { values: number[] }) => (
   <svg width={52} height={14} aria-hidden className="block">
     {values.map((v, i) => {
       const h = Math.max(1, v * 13);
-      return <rect key={i} x={i * 2} y={14 - h} width={1.4} height={h} fill="rgba(237,237,237,0.6)" />;
+      /* the primary ink, a token — a literal near-white vanished on paper (the audit's TR-42) */
+      return <rect key={i} x={i * 2} y={14 - h} width={1.4} height={h} fill="rgb(var(--text-primary) / 0.6)" />;
     })}
   </svg>
 );
 
 const Footprints = () => {
   const { marketData, activeTicker } = useMarketData();
-  const [screen, setScreen] = useState<FootprintScreenKey>('builds');
-  const [side, setSide] = useState<'ALL' | 'C' | 'P'>('ALL');
-  const [query, setQuery] = useState('');
+  /* THE CUT IS THE ADDRESS (the audit's TR-13) */
+  const addr = useAddressCut({
+    screen: { def: 'builds', valid: oneOf(FOOTPRINT_SCREENS.map(x => x.key)) },
+    side: { def: 'ALL', valid: oneOf(['ALL', 'C', 'P']) },
+    q: { def: '', valid: isQuery },
+    exp: { def: '', valid: isIsoDay },
+  });
+  const screen = addr.cut.screen as FootprintScreenKey;
+  const setScreen = (v: FootprintScreenKey) => addr.set({ screen: v });
+  const side = addr.cut.side as 'ALL' | 'C' | 'P';
+  const setSide = (v: 'ALL' | 'C' | 'P') => addr.set({ side: v });
+  const query = addr.cut.q;
+  const setQuery = (v: string) => addr.set({ q: v });
+  const cuts = useSavedCuts();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -102,7 +148,7 @@ const Footprints = () => {
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
   /* THE EXPIRY CUT (2026-09-12): the dates on the book, as a calendar */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((r: { key: string }) => r.key, []);
   const openRow = useCallback((r: { key: string }) => setOpenKey(r.key), []);
@@ -133,7 +179,7 @@ const Footprints = () => {
        plain words — no "standing interest", no "builds and unwinds" puzzle. */
     const base = `Open interest grew by ${num(added)} contracts overnight — ${builds.length} contracts added interest, ${
       unwinds.length
-    } shed ${num(Math.abs(removed))}.`;
+    } contracts shed ${num(Math.abs(removed))}.`;
     if (!loudestBuild) return <RichRead text={base} />;
     return (
       <>
@@ -143,7 +189,7 @@ const Footprints = () => {
           {loudestBuild.right}
         </ReadDoor>
         <RichRead
-          text={` [[+${num(loudestBuild.deltaOI)}]], ${loudestBuild.prevAskPct >= 50 ? 'bought at the ask' : 'sold on the bid'}.`}
+          text={` [[+${num(loudestBuild.deltaOI)}]], built ${loudestBuild.prevAskPct >= 50 ? 'at the ask' : 'on the bid'}.`}
         />
       </>
     );
@@ -369,7 +415,7 @@ const Footprints = () => {
     const unwinds = shown.filter(r => r.deltaOI < 0);
     const build = builds.reduce<BookContract | null>((a, r) => (a === null || r.deltaOI > a.deltaOI ? r : a), null);
     const unwind = unwinds.reduce<BookContract | null>((a, r) => (a === null || r.deltaOI < a.deltaOI ? r : a), null);
-    const fastest = builds.reduce<BookContract | null>((a, r) => (a === null || r.deltaOIPct > a.deltaOIPct ? r : a), null);
+    const fastest = builds.filter(r => r.prevOI >= FASTEST_MIN_PREV_OI).reduce<BookContract | null>((a, r) => (a === null || r.deltaOIPct > a.deltaOIPct ? r : a), null);
     return { build, unwind, fastest };
   }, [shown]);
   const facts = useMemo(() => {
@@ -423,18 +469,29 @@ const Footprints = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
-            <DropdownSelect label="Cut" value={screen} options={screenOptions} onChange={setScreen} title="Which side of the overnight ledger" testId="footprints-cut" />
+            <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" span />
+            <DropdownSelect label="Screen" value={screen} options={screenOptions} onChange={setScreen} title="Which side of the overnight ledger" testId="footprints-cut" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="footprints-side" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="footprints-expiry" />
+            <SavedCutsControl store={FOOT_CUTS} query={addr.query} onOpen={addr.open} noun="cut" testId="footprints" onSay={cuts.say} open={cuts.open} onToggleOpen={cuts.toggle} />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
           </>
         }
-        sentence={read}
+        sentence={
+          <>
+            <SavedCutsList store={FOOT_CUTS} query="" onOpen={addr.open} noun="cut" testId="footprints" onSay={cuts.say} open={cuts.open} />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+                {cuts.said}
+              </p>
+            )}
+            {read}
+          </>
+        }
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight noun="contracts" emptyText="Nothing on this cut" emptyBody="No contract's open interest moved enough to show under these cards." testId="footprints" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="contracts" emptyText="Nothing on this cut" emptyBody="No contract's open interest moved enough to show under these cards." testId="footprints" />
       </TraceBox>
 
       <BookDrill
