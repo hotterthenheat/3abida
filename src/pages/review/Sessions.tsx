@@ -195,7 +195,7 @@ const Sessions = () => {
         <>
           <Fact label="Sessions">{sessions.length}</Fact>
           <Fact label="Closed trades">{totals.trades}</Fact>
-          <Fact label="All sessions, up or down">
+          <Fact label="All sessions, P&L">
             <span className={dirInk(totals.net)}>{usdSigned(totals.net)}</span>
           </Fact>
         </>
