@@ -43,8 +43,9 @@ import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/
 import { createViewStore } from '../../data/savedViews';
 import { StructureGuide } from '../../components/trace/TraceGuide';
 import Modal from '../../components/ui/Modal';
+import { expiryLabel, num as fmtNum } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 /* THE CARDS (the walk, 2026-09-09) */
 const SHAPE_OPTIONS: DropdownOption<SpreadKind | 'ALL'>[] = [{ value: 'ALL', label: 'Every shape', hint: 'Every structure on the tape' }, ...SPREAD_KINDS.map(k => ({ value: k.key, label: k.label, hint: k.read }))];
@@ -164,7 +165,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
                 {l.right === 'C' ? 'call' : 'put'}
               </span>
               <span className="text-[11px] text-textSecondary">
-                {l.expiry} · {l.dte}d
+                {expiryLabel(l.expiry)} · {l.dte}d
               </span>
               <span className="ml-auto tnum text-textPrimary">@ ${l.fill.toFixed(2)}</span>
             </div>
@@ -449,7 +450,7 @@ const MultiLeg = () => {
         sortValue: t => t.dte,
         render: t => (
           <span className="text-textPrimary text-[11px]">
-            {t.expiry} <span className="text-textSecondary">· {t.dte}d</span>
+            {expiryLabel(t.expiry)} <span className="text-textSecondary">· {t.dte}d</span>
           </span>
         ),
       },

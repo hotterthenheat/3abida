@@ -49,8 +49,9 @@ import { WindowsGuide } from '../../components/trace/TraceGuide';
 import WatchStar from '../../components/trace/WatchStar';
 import { contractKey, watchContract } from '../../context/WatchContext';
 import LeanCell from '../../components/trace/LeanCell';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 type CutKey = 'all' | 'bursts' | 'ask' | 'bid';
 
@@ -234,8 +235,7 @@ const Windows = () => {
         sortValue: s => s.row.otmPct,
         render: s => (
           <span className="text-textPrimary">
-            {s.row.otmPct >= 0 ? '+' : ''}
-            {s.row.otmPct.toFixed(1)}%
+            {pctSigned(s.row.otmPct, 1)}
           </span>
         ),
       },

@@ -25,6 +25,7 @@ import type {
   NodeLevel,
   StrikeRange,
 } from '../types/gex';
+import { usdCompact } from '../core/format';
 
 // ---- deterministic RNG ------------------------------------------------------
 function hash(seed: string): number {
@@ -41,13 +42,9 @@ function h01(seed: string): number {
 }
 
 // ---- formatting -------------------------------------------------------------
+/** "$1.2M" · "−$48.3M" · "$990M" — the house's compact dollars (core/format.ts: the true minus, three figures) */
 export function fmtUsd(v: number): string {
-  const sign = v < 0 ? '-' : '';
-  const a = Math.abs(v);
-  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(1)}B`;
-  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${sign}$${(a / 1e3).toFixed(1)}K`;
-  return `${sign}$${a.toFixed(0)}`;
+  return usdCompact(v);
 }
 
 // ---- metric extraction ------------------------------------------------------

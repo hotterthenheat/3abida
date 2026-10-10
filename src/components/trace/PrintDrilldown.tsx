@@ -51,6 +51,7 @@ import type { FlowPrint, PrintSentiment } from '../../types/trace';
 import type { MarketSnapshot } from '../../types/market';
 import { toneBar, type Tone } from '../ui/tones';
 import { Name } from '../ui/Name';
+import { expiryLabel, pctSigned } from '../../core/format';
 
 // recharts is heavy — it only loads when a print is actually opened
 const FlowPanels = lazy(() => import('./ContractFlowChart').then(m => ({ default: m.FlowPanel })));
@@ -548,7 +549,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               {print.right}
             </span>
             <span className="font-mono text-[11px] text-textSecondary tnum">
-              {print.expiry} · {print.dte}d
+              {expiryLabel(print.expiry)} · {print.dte}d
             </span>
             {/* White: a leg count is a fact, not a status — the tape's own rule (2026-08-30). */}
             {print.legs > 1 && <span className="font-mono text-[11px] text-textPrimary">×{print.legs} legs</span>}
@@ -613,7 +614,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   tone={Math.abs(print.flowScore) > 15 ? 'text-textPrimary' : 'text-textMuted'}
                 />
                 <Mini label="Day lean" value={print.ratioLabel} tone={print.ratioLabel === 'MID' ? 'text-textMuted' : 'text-textPrimary'} />
-                <Mini label="Strike vs spot" value={`${print.otmPct >= 0 ? '+' : ''}${fixed(print.otmPct, 1)}%`} />
+                <Mini label="Strike vs spot" value={pctSigned(print.otmPct, 1)} />
                 <Mini label="Volume" value={num(print.volume)} />
                 <Mini label="OI · last close" value={num(print.oi)} title="Open interest is counted once a day — this is as of the last close" />
                 <Mini label="Vol ÷ OI" value={`${fixed(print.volOverOI)}x`} tone={print.volOverOI >= 5 ? 'text-warn' : 'text-textPrimary'} />

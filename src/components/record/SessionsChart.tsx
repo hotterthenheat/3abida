@@ -38,6 +38,7 @@ import { alpha, resolveInk } from '../gex/paletteInk';
 import { fmtClockLocal, fmtDayLocal, fmtStampLocal, localTickMarks, nyTickMarks, type ChartClock } from '../gex/chartTime';
 import { PlotNotesPrimitive } from './plotNotesPrimitive';
 import { FONT_SANS } from '../../theme/fonts';
+import { usdCompactSigned } from '../../core/format';
 
 export interface ChartPoint {
   /** Unix seconds */
@@ -148,12 +149,7 @@ const STYLE: Record<NonNullable<ChartLine['style']>, LineStyle> = { dashed: Line
 const NONE: never[] = [];
 
 /** "+$1.2K" · "−$340" · "$0" — the pnl scale's words */
-const fmtSignedDollars = (v: number): string => {
-  if (Math.abs(v) < 0.5) return '$0';
-  const a = Math.abs(v);
-  const body = a >= 1e6 ? `$${(a / 1e6).toFixed(1)}M` : a >= 1e3 ? `$${(a / 1e3).toFixed(1)}K` : `$${a.toFixed(0)}`;
-  return `${v < 0 ? '−' : '+'}${body}`;
-};
+const fmtSignedDollars = (v: number): string => usdCompactSigned(v);
 
 /** The span's day strip under the tape */
 const DAY_STRIP_H = 18;

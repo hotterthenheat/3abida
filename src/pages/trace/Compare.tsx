@@ -63,9 +63,10 @@ import { CompareGuide } from '../../components/trace/TraceGuide';
 import { isoDate } from '../../core/calendar';
 import { Name } from '../../components/ui/Name';
 import DataState from '../../components/ui/DataState';
+import { expiryLabel, num as fmtNum, usdCompactSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
+const num = (v: number) => fmtNum(v);
+const signed = usdCompactSigned;
 const dirInk = (v: number) => (v > 0 ? 'text-bull' : v < 0 ? 'text-bear' : 'text-textPrimary');
 
 /** The Multi-Leg page's categorical dots — a shape is a kind, never a verdict; the house's categorical tokens */
@@ -404,7 +405,7 @@ const Compare = () => {
       {s.heaviest.map(r => (
         <button key={r.key} type="button" onClick={() => openRow(r)} className={`flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 text-left transition-colors ${openKey === r.key ? 'bg-silver/[0.06]' : 'hover:bg-silver/[0.04]'}`} title="Open the contract's card">
           <ContractLabel contract={`${r.ticker} ${r.strike}${r.right}`} right={r.right} logo={r.ticker} size="sm" />
-          <span className="font-mono text-[11px] tnum text-textPrimary">{r.expiry} · {r.dte}d</span>
+          <span className="font-mono text-[11px] tnum text-textPrimary">{expiryLabel(r.expiry)} · {r.dte}d</span>
           <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(r.premium)}</span>
           <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{num(r.volume)} vol</span>
           <LeanCell askPct={r.askPct} />
@@ -424,7 +425,7 @@ const Compare = () => {
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: KIND_DOT[t.kind] }} />
             <span className="font-mono text-[11px] font-semibold text-textPrimary w-20">{KIND_LABEL[t.kind]}</span>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{t.strikesLabel}</span>
-            <span className="font-mono text-[11px] tnum text-textPrimary">{t.expiry} · {t.dte}d</span>
+            <span className="font-mono text-[11px] tnum text-textPrimary">{expiryLabel(t.expiry)} · {t.dte}d</span>
             <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">
               ${Math.abs(t.net).toFixed(2)} <span className="text-[11px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
             </span>

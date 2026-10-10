@@ -51,8 +51,9 @@ import { FootprintsGuide } from '../../components/trace/TraceGuide';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 /* THE CARDS (the walk, 2026-09-09): the filters popover's chips as labelled cards */
 const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
@@ -271,8 +272,7 @@ const Footprints = () => {
         sortValue: r => r.otmPct,
         render: r => (
           <span className="text-textPrimary">
-            {r.otmPct >= 0 ? '+' : ''}
-            {r.otmPct.toFixed(1)}%
+            {pctSigned(r.otmPct, 1)}
           </span>
         ),
       },

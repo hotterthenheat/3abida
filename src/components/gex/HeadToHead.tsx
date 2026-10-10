@@ -44,11 +44,12 @@ import type { DistanceUnit } from '../../data/atr';
 import { LONG_GAMMA, SHORT_GAMMA } from './paletteInk';
 import { H2H_CAP_H, H2H_COLUMNS, H2H_COLUMNS_NARROW, H2H_GROUPS, H2H_HEAD_H, H2H_ROW_H, type H2HKey } from './compareSkeletons';
 import { useIsBelowLg, useIsPhone } from '../ui/useMediaQuery';
+import { pctSigned } from '../../core/format';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const pct = (v: number) => `${Math.round(v * 100)}%`;
-const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`;
+const signedPct = (v: number) => pctSigned(v);
 
 interface Props {
   cmp: Compare;

@@ -57,6 +57,7 @@ import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 import { LiveTapeGuide } from '../../components/trace/TraceGuide';
 import type { FlowPrint, PrintSentiment, TapeSummary } from '../../types/trace';
+import { pctSigned } from '../../core/format';
 
 const MAX_ROWS = 120;
 const READ_INTERVAL_MS = 8_000;
@@ -672,8 +673,7 @@ const LiveTape = () => {
         sortValue: r => r.p.otmPct,
         render: r => (
           <span className="text-textPrimary">
-            {r.p.otmPct >= 0 ? '+' : ''}
-            {r.p.otmPct.toFixed(1)}%
+            {pctSigned(r.p.otmPct, 1)}
           </span>
         ),
       },

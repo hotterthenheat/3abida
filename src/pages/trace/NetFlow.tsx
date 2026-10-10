@@ -38,9 +38,10 @@ import { NetFlowGuide } from '../../components/trace/TraceGuide';
 import ExpiryCalendar, { expiryWords } from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
+import { num as fmtNum, usdCompactSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
+const num = (v: number) => fmtNum(v);
+const signed = usdCompactSigned;
 
 /** What another page may hand this one (the 0DTE desk's door, 2026-09-03). */
 interface NetFlowHandoff {

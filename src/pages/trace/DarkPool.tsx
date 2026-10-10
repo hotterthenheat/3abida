@@ -47,9 +47,10 @@ import { SectorName } from '../../components/trace/SectorMark';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { DarkPoolGuide } from '../../components/trace/TraceGuide';
 import { Name } from '../../components/ui/Name';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signedPct = (v: number, dp = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`;
+const num = (v: number) => fmtNum(v);
+const signedPct = (v: number) => pctSigned(v);
 
 /* ---- the cards ------------------------------------------------------------------ */
 

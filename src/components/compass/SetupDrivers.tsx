@@ -23,6 +23,7 @@ import type { Column } from '../ui/DataTable';
 import { TraceGrid } from '../trace/TraceBox';
 import { fmtUsd } from '../../data/gex';
 import type { DriverRow, OptionRight } from '../../types/compass';
+import { pctSigned } from '../../core/format';
 
 interface SetupDriversProps {
   ticker: string;
@@ -32,10 +33,7 @@ interface SetupDriversProps {
 }
 
 /** Signed distance; at the money reads 0.0%, never "-0.0%". */
-const fmtDist = (v: number) => {
-  const d = Math.abs(v) < 0.05 ? 0 : v;
-  return `${d > 0 ? '+' : ''}${d.toFixed(1)}%`;
-};
+const fmtDist = (v: number) => pctSigned(Math.abs(v) < 0.005 ? 0 : v);
 
 const WIDTHS: Record<string, number> = { role: 150, gamma: 110, voloi: 100, dist: 110, exposure: 120, open: 72 };
 const TOOLTIPS: Record<string, string> = {

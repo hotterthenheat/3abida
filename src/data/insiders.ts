@@ -39,6 +39,7 @@
 import { dayKey, h01, hash } from '../core/rng';
 import { RECORD_UNIVERSE, recordPrice } from './recordUniverse';
 import type { InsiderFlow, InsiderKind, InsiderRole, InsiderSignal, InsiderTrade, PlanState, TxCode, TxCodeMeta } from '../types/record';
+import { usdCompact } from '../core/format';
 
 export const TX_CODES: Record<TxCode, TxCodeMeta> = {
   P: { code: 'P', label: 'Open-market purchase', discretionary: true, openMarket: true, acquires: true, note: 'The insider bought with their own money at a price they accepted — the one row here with a single obvious motive behind it.' },
@@ -183,7 +184,7 @@ export function insiderBuyers(windowDays = 90, day = dayKey()): InsiderFlow[] {
     .sort((a, b) => b.openMarketBuys - a.openMarketBuys);
 }
 
-const fmtM = (v: number) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${(v / 1e3).toFixed(0)}K` : `$${v.toFixed(0)}`);
+const fmtM = (v: number) => usdCompact(v);
 
 /** What the window adds up to across the feed shown */
 export function insidersSentence(rows: InsiderTrade[], windowDays: number): string {

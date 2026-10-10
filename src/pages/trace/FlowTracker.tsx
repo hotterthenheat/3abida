@@ -66,10 +66,11 @@ import ReadDoor from '../../components/trace/ReadDoor';
 import WatchStar from '../../components/trace/WatchStar';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { TrackerGuide } from '../../components/trace/TraceGuide';
+import { expiryLabel, num as fmtNum, numSigned, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
-const signedPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
-const signedNum = (v: number) => `${v >= 0 ? '+' : ''}${num(v)}`;
+const num = (v: number) => fmtNum(v);
+const signedPct = (v: number) => pctSigned(v);
+const signedNum = (v: number) => numSigned(v);
 const pct = (now: number, then: number) => (then > 0 ? ((now - then) / then) * 100 : 0);
 
 const SOURCE_LABEL: Record<WatchSource, string> = {
@@ -251,7 +252,7 @@ const FlowTracker = () => {
             <span className={`group/door inline-flex items-baseline gap-1.5 pb-[2px] ${DOOR}`}>
               <span className={`font-mono text-xs font-bold text-textPrimary tnum ${DOOR_GROUP_TEXT}`}>{r.w.strikesLabel}</span>
               <span className="font-mono text-[11px] font-semibold text-textPrimary">{r.w.spreadKind}</span>
-              <span className="font-mono text-[11px] text-textSecondary tnum">{r.w.expiry}</span>
+              <span className="font-mono text-[11px] text-textSecondary tnum">{expiryLabel(r.w.expiry)}</span>
             </span>
           ) : (
             <ContractCell strike={r.w.strike} right={r.w.right} expiry={r.w.expiry} />

@@ -2,11 +2,13 @@
 
 import { clockWords, dayWords } from '../../data/review/tape';
 import type { Moment } from '../../data/review/engine';
+import { numSigned as fmtNumSigned, usdSigned as fmtUsdSigned } from '../../core/format';
 
 const MINUS = '−';
+/* the signed figures are the house's (core/format.ts) — the review's own words keep their defaults */
 export const usd = (v: number, digits = 2): string => `$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 /** "+$1,240.50" · "−$310.00" · "$0.00" */
-export const usdSigned = (v: number, digits = 2): string => (Math.abs(v) < 0.005 ? usd(0, digits) : `${v > 0 ? '+' : MINUS}${usd(v, digits)}`);
+export const usdSigned = (v: number, digits = 2): string => fmtUsdSigned(v, digits);
 /** "+0.42R" */
 export const rWords = (r: number): string => `${r >= 0 ? '+' : MINUS}${Math.abs(r).toFixed(2)}R`;
 export const pct = (v: number): string => `${Math.round(v * 100)}%`;
@@ -26,7 +28,7 @@ export const heldWords = (min: number, dayMin = 390): string => {
   return `${n} ${n === 1 ? 'day' : 'days'}`;
 };
 /** A signed figure with the true minus (U+2212), never a hyphen: "+0.42" · "−0.50" · "−0.3%" with `unit` */
-export const numSigned = (v: number, digits = 2, unit = ''): string => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(digits)}${unit}`;
+export const numSigned = (v: number, digits = 2, unit = ''): string => `${fmtNumSigned(v, digits)}${unit}`;
 /** A figure that may be below nothing, with the true minus and no plus: "0.54" · "−0.54" */
 export const num = (v: number, digits = 2): string => `${v < 0 ? MINUS : ''}${Math.abs(v).toFixed(digits)}`;
 /** WHAT PRACTICE TRADES — one sentence for both desks (the audit's PR-20: Paper said "calls, puts and debit spreads", the

@@ -36,6 +36,7 @@ import { estimatePremium } from './compass';
 import { sessionsBetween, today } from '../core/calendar';
 import { contractIvFor } from './weigherDesk';
 import type { Position } from './positions';
+import { usdCompactSigned } from '../core/format';
 
 /** Where a position's cost comes from: typed by the reader, or the mark when it was added */
 export type CostKind = 'entry' | 'added';
@@ -136,8 +137,5 @@ export function buildPositionCurve(p: Position, spot: number, lo: number, hi: nu
 
 /** "+$1.2K" · "−$340" · "$0" */
 export function fmtPnl(v: number): string {
-  if (Math.abs(v) < 0.5) return '$0';
-  const a = Math.abs(v);
-  const body = a >= 1e6 ? `$${(a / 1e6).toFixed(1)}M` : a >= 1e3 ? `$${(a / 1e3).toFixed(1)}K` : `$${a.toFixed(0)}`;
-  return `${v < 0 ? '−' : '+'}${body}`;
+  return usdCompactSigned(v);
 }

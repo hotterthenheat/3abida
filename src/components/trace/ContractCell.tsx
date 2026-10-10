@@ -20,6 +20,7 @@
 */
 
 import { DOOR, DOOR_GROUP_TEXT } from './door';
+import { expiryLabel, pctSigned } from '../../core/format';
 
 /* The COLUMN is right-aligned (header included), so header and endings share
    one edge and read as one parent — the cell itself just hugs its content.
@@ -54,7 +55,7 @@ const ContractCell = ({
       <span className={`font-mono text-[11px] font-semibold ${right === 'C' ? 'text-bull' : 'text-bear'}`}>
         {right === 'C' ? 'call' : 'put'}
       </span>
-      <span className="font-mono text-[11px] text-textMuted tnum">{expiry}</span>
+      <span className="font-mono text-[11px] text-textMuted tnum">{expiryLabel(expiry)}</span>
     </span>
   );
   /* Without context the cell is EXACTLY what it always was — one line, one
@@ -76,8 +77,7 @@ const ContractCell = ({
         {spot !== undefined && otmPct !== undefined && <span aria-hidden>·</span>}
         {otmPct !== undefined && (
           <span>
-            {otmPct >= 0 ? '+' : ''}
-            {otmPct.toFixed(1)}%
+            {pctSigned(otmPct, 1)}
           </span>
         )}
       </span>

@@ -169,10 +169,10 @@ interface LedgerGuideProps {
 /** THE MATRIX, in one small table drawn the way the page draws it */
 const MatrixFigure = () => {
   const rows = [
-    { k: '480', tag: 'call wall', tagInk: 'rgb(var(--bull))', put: '$12M', call: '-$214M', net: '-$202M', w: [0.06, 0.92, 0.88] },
-    { k: '479', put: '$31M', call: '-$58M', net: '-$27M', w: [0.15, 0.25, 0.12] },
-    { k: '478', tag: 'flip', tagInk: 'rgb(var(--flip))', put: '$66M', call: '-$61M', net: '$5M', w: [0.3, 0.27, 0.02] },
-    { k: '477', put: '$118M', call: '-$22M', net: '$96M', w: [0.55, 0.1, 0.42] },
+    { k: '480', tag: 'call wall', tagInk: 'rgb(var(--bull))', put: '$12M', call: '−$214M', net: '−$202M', w: [0.06, 0.92, 0.88] },
+    { k: '479', put: '$31M', call: '−$58M', net: '−$27M', w: [0.15, 0.25, 0.12] },
+    { k: '478', tag: 'flip', tagInk: 'rgb(var(--flip))', put: '$66M', call: '−$61M', net: '$5M', w: [0.3, 0.27, 0.02] },
+    { k: '477', put: '$118M', call: '−$22M', net: '$96M', w: [0.55, 0.1, 0.42] },
   ];
   const X = { strike: 8, put: 150, call: 236, net: 322 };
   return (
@@ -205,7 +205,7 @@ const MatrixFigure = () => {
                   {r[leg]}
                 </Label>
                 <rect x={X[leg] - 56} y={y + 5} width={56} height={2.5} rx={1.25} fill="rgb(var(--ink) / 0.07)" />
-                <rect x={X[leg] - 56} y={y + 5} width={56 * r.w[j]} height={2.5} rx={1.25} fill={j === 1 || (j === 2 && r.net.startsWith('-')) ? COOL_2 : WARM_2} />
+                <rect x={X[leg] - 56} y={y + 5} width={56 * r.w[j]} height={2.5} rx={1.25} fill={j === 1 || (j === 2 && r.net.startsWith('−')) ? COOL_2 : WARM_2} />
               </g>
             ))}
             {i === 1 && <line x1={0} x2={368} y1={y + 12.5} y2={y + 12.5} stroke={INK} strokeOpacity="0.35" strokeDasharray="2 3" />}

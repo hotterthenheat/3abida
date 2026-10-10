@@ -87,6 +87,7 @@ import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
 import { afterGlide } from '../../core/glide';
 import { useResolvedTheme } from '../../theme/theme';
 import type { SurfaceCell } from './exposureView';
+import { pctSigned } from '../../core/format';
 
 interface ExposureLadderProps {
   surface: ExposureSurface;
@@ -127,10 +128,7 @@ const GREEK_LABEL: Record<Greek, string> = { gex: 'GEX', dex: 'DEX', vex: 'VEX',
 const ROW_MIN = 18;
 const SPOT_H = 18;
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const fmtDist = (pct: number) => {
-  const d = Math.abs(pct) < 0.005 ? 0 : pct;
-  return `${d > 0 ? '+' : ''}${d.toFixed(2)}%`;
-};
+const fmtDist = (pct: number) => pctSigned(Math.abs(pct) < 0.005 ? 0 : pct);
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 /* THE LEGS ARE THE CHART LADDER'S (Noah, 2026-09-12, the Strike Pressure
    Ladder beside a four-name book: "make it look like this ladder instead"):

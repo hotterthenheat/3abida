@@ -68,8 +68,9 @@ import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/
 import { createViewStore } from '../../data/savedViews';
 import { followThrough, FLAT_PCT, type Follow } from '../../data/followThrough';
 import { rowProps } from '../../components/ui/rowKeys';
+import { num as fmtNum, pctSigned } from '../../core/format';
 
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 
 /* THE CARDS (the walk, 2026-09-09) */
 const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
@@ -441,8 +442,7 @@ const Watchers = () => {
         sortValue: a => a.row.otmPct,
         render: a => (
           <span className="text-textPrimary">
-            {a.row.otmPct >= 0 ? '+' : ''}
-            {a.row.otmPct.toFixed(1)}%
+            {pctSigned(a.row.otmPct, 1)}
           </span>
         ),
       },

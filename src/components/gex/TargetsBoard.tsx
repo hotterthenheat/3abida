@@ -564,7 +564,7 @@ const TargetsBoard = ({ agenda, ticker, clock, order, onOrder, window, onWindow,
                   <HoldBeam t={t} />
                 </div>
                 <div className="font-mono text-[11px] tnum truncate">{breakWords(t)}</div>
-                <div className={`font-mono text-[11px] tnum truncate ${material ? 'text-textPrimary' : 'text-textMuted'}`}>{buildWords(t, clock.inSession)}</div>
+                <div className={`font-mono text-[11px] tnum truncate ${material ? 'text-textPrimary' : 'text-textMuted'}`}>{buildWords(t, true) /* the column's head says when — "last session" once, not on every row */}</div>
                 <div className="relative h-full flex items-center">
                   <span className="absolute inset-y-[13px] left-0 right-14 rounded-full bg-ink/[0.04]" />
                   <span

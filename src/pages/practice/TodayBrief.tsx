@@ -57,9 +57,10 @@ import { entryOf, titleOf, type DayNote, type JournalRow } from '../../data/revi
 import { calendarDayOf } from '../../data/review/journalFigures';
 import { useJournalSource } from '../../data/review/journalSource';
 import type { KeyLevels } from '../../types/gex';
+import { pctSigned } from '../../core/format';
 
 const pctOf = (v: number) => `${Math.round(v * 100)}%`;
-const signedPct = (v: number, d = 2) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
+const signedPct = (v: number) => pctSigned(v);
 const awayWords = (level: number, spot: number) => {
   const d = ((level - spot) / spot) * 100;
   return `${Math.abs(d).toFixed(2)}% ${d >= 0 ? 'above' : 'below'}`;

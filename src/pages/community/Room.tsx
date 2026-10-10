@@ -50,9 +50,10 @@ import { initials, useProfile } from '../../data/profile';
 import { fmtFollowers, fmtR, loadRoom, ME, PEOPLE, personOf, rMultiple, recordOf, saveRoom, SEED_NOTICES, SEED_POSTS, timeAgo, tokenize, trendingOf } from '../../data/room';
 import type { Lean, Post, RoomState, Setup, SetupState } from '../../types/room';
 import { ROOM_FOLLOW_H, ROOM_GRID, ROOM_NOTICE_H, ROOM_POST_H, ROOM_TREND_H } from './roomSkeleton';
+import { num as fmtNum } from '../../core/format';
 
 const SILVER = 'rgb(var(--silver))';
-const num = (v: number) => v.toLocaleString('en-US');
+const num = (v: number) => fmtNum(v);
 const leanInk = (l: Lean) => (l === 'BULLISH' ? 'text-bull' : 'text-bear');
 
 /* THE CARDS — the feed's cuts as labelled cards (the house's, never chip rows) */
