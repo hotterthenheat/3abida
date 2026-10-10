@@ -322,7 +322,9 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
 
       {/* THE TABLE'S HEAD ROW: the swap at the read's column, each name's chip over ITS OWN column (Noah, 2026-09-09: both
           pickers on the left while the columns sat elsewhere was a design flaw), the clock at the far right */}
-      <div className="mx-5 grid items-center gap-x-4 border-b border-borderSubtle/60" style={{ gridTemplateColumns: columns, height: H2H_HEAD_H }} data-h2h-controls>
+      {/* on a phone the head row gives the read's column to the chips — the swap alone stands there — so each name's chip
+          stands whole (its 102 px did not fit a 91 px column) */}
+      <div className="mx-5 grid items-center gap-x-4 border-b border-borderSubtle/60" style={{ gridTemplateColumns: narrow ? '24px minmax(0,1fr) minmax(0,1fr)' : columns, height: H2H_HEAD_H }} data-h2h-controls>
         <span className="min-w-0 flex items-center gap-2">
           <button
             type="button"
@@ -334,7 +336,7 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
           </button>
-          <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">the read</span>
+          {!narrow && <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">the read</span>}
         </span>
         <span className="min-w-0 flex items-center" data-h2h-chip="a">
           {chipA}

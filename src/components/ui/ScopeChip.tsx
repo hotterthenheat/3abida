@@ -170,8 +170,9 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
       /* h-6, not the triggers' h-7: the chip lives on 24px title rows, and every
          page's skeleton was measured with a 24px chip there. No overflow-hidden: the
          two buttons round their own ends, so each keeps a finger's hit area (`hit`)
-         past the chip's 24px on a touch screen */
-      className={`relative inline-flex items-stretch h-6 rounded-md border bg-chip transition-colors font-mono select-none ${open ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
+         past the chip's 24px on a touch screen; where its cell is narrower than it (a phone's
+         Compare head), the quote inside clips, never the cell */
+      className={`relative inline-flex items-stretch h-6 min-w-0 max-w-full rounded-md border bg-chip transition-colors font-mono select-none ${open ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
       data-scope={follows ? 'follows' : 'own'}
       data-scope-ticker={ticker}
     >
@@ -181,13 +182,14 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
         onClick={() => setOpen(!open)}
         aria-label={`${follows ? 'Follows' : 'Reads'} ${ticker} — pick another name`}
         title={title ?? (follows ? 'Follows the terminal · pick a name to move the whole terminal' : hasLink ? 'Its own name · pick a name for this panel alone' : 'Switch ticker')}
-        className={`hit inline-flex items-center gap-1.5 pl-2 pr-1.5 hover:bg-ink/[0.05] transition-colors ${hasLink ? 'rounded-l-[5px]' : 'rounded-[5px]'}`}
+        className={`hit min-w-0 inline-flex items-center gap-1.5 pl-2 pr-1.5 hover:bg-ink/[0.05] transition-colors ${hasLink ? 'rounded-l-[5px]' : 'rounded-[5px]'}`}
         data-scope-pick
       >
         <CompanyLogo ticker={ticker} size={14} />
-        <span className="text-[12px] font-semibold text-textPrimary leading-none">{ticker}</span>
+        <span className="shrink-0 text-[12px] font-semibold text-textPrimary leading-none">{ticker}</span>
         {price != null && change != null && (
-          <>
+          /* the quote gives way first where the chip's cell is narrow (a phone's Compare head): it clips, the name never does */
+          <span className="min-w-0 overflow-hidden inline-flex items-center gap-1.5">
             <span className="text-[11px] tnum text-textPrimary leading-none" data-scope-price>
               ${price.toFixed(2)}
             </span>
@@ -195,14 +197,14 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
               {change >= 0 ? '+' : ''}
               {change.toFixed(2)}%
             </span>
-          </>
+          </span>
         )}
         {/* THE NAME IS STILL ARRIVING (ui/Working.tsx): the panel keeps its shape and its last numbers, and the chip that names
             it says so — the mark takes the chevron's own 12px, so nothing on the head moves. Only if the wait lasts. */}
         {arriving ? (
-          <MorphingInfinity viewBox="4 4 16 16" className="w-3 h-3 text-textSecondary" data-scope-arriving />
+          <MorphingInfinity viewBox="4 4 16 16" className="w-3 h-3 shrink-0 text-textSecondary" data-scope-arriving />
         ) : (
-          <ChevronDown className={`w-3 h-3 text-textMuted transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3 h-3 shrink-0 text-textMuted transition-transform ${open ? 'rotate-180' : ''}`} />
         )}
       </button>
       {hasLink && (
@@ -212,7 +214,7 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
           aria-pressed={follows}
           aria-label={follows ? `Follows the terminal's ${ticker} — click to give this panel its own name` : `Holds ${ticker} — click to follow the terminal again`}
           title={follows ? 'Follows the terminal · click to give this panel its own name' : 'Its own name · click to follow the terminal again'}
-          className={`hit inline-flex items-center justify-center px-1.5 border-l border-borderSubtle rounded-r-[5px] hover:bg-ink/[0.05] transition-colors ${follows ? '' : 'text-textMuted hover:text-textPrimary'}`}
+          className={`hit shrink-0 inline-flex items-center justify-center px-1.5 border-l border-borderSubtle rounded-r-[5px] hover:bg-ink/[0.05] transition-colors ${follows ? '' : 'text-textMuted hover:text-textPrimary'}`}
           style={follows ? { color: SILVER } : undefined}
           data-scope-link
         >
