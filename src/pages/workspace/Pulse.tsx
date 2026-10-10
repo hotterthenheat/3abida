@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RGL, { type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { ArrowUpRight, Check, GripHorizontal, Maximize2, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react';
-import { useMarketData } from '../../context/MarketDataContext';
+import { changeTicker, useActiveTicker, useScanSnapshot } from '../../context/MarketDataContext';
+import { isLinkGroup, marketStore, setLinkGroup, useLinkGroups, useMarketBackground, type LinkGroup } from '../../context/marketStore';
+import LinkGroupChip from '../../components/link/LinkGroupChip';
 import { useFocus } from '../../context/FocusContext';
 import Simulator from '../../core/simulator';
-import { buildGexView, pulseMatrix } from '../../data/gex';
+import { buildGexView } from '../../data/gex';
 import { buildExposureProfile } from '../../data/exposure';
 import { buildPulseView } from '../../data/pulse';
 import { buildVannaCharm } from '../../data/vannacharm';
@@ -23,7 +25,7 @@ import { undoable } from '../../components/ui/undo';
 import Panel from '../../components/ui/Panel';
 import { WIDGETS, widgetByKey, type WidgetDef, type WorkspaceCtx } from './registry';
 import WidgetThumb from './WidgetThumb';
-import ScopeChip from '../../components/ui/ScopeChip';
+import LiveScopeChip from '../../components/link/LiveScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import { afterGlide, beginGlide, glideTarget, onGlide } from '../../core/glide';
 import {
@@ -164,6 +166,70 @@ const DeskPeek = ({ name, ws }: { name: string; ws: SavedWorkspace }) => {
   );
 };
 
+/* ---- THE TILE READS THE TICK, NOT THE DESK (2026-10-10, the speed store) ------------------------------------------
+
+   The desk used to render on every tick and on a one-second heat timer, and every render built every panel's context
+   again — so every panel on the desk rendered two and a half times a second, whatever it showed, and the contexts'
+   spread read the lazy views (the pulse view, the vanna read, the whole Compass board) that were meant to be built
+   only for a panel that asks. Now the desk renders on the 10 s scan and on what a person does; each tile reads the
+   tick itself, and only if its panel ever reads the tick's two live fields (`revision`, `liveSpot`) — a panel of the
+   scan alone (the targets, the walls, the news) renders on the scan alone. */
+
+/** A copy of a context that keeps its lazy views lazy — a spread would build them all */
+const extendCtx = (base: WorkspaceCtx, extra: Partial<WorkspaceCtx>): WorkspaceCtx => {
+  const out = Object.defineProperties({}, Object.getOwnPropertyDescriptors(base)) as WorkspaceCtx;
+  for (const [k, v] of Object.entries(extra)) Object.defineProperty(out, k, { value: v, enumerable: true, configurable: true, writable: true });
+  return out;
+};
+
+/** The live fields, read off the published tick — the getter marks the tile as one that reads them */
+const withLive = (ctx: WorkspaceCtx, mark: () => void): WorkspaceCtx => {
+  const s = marketStore.get();
+  Object.defineProperty(ctx, 'revision', {
+    get: () => (mark(), s.seq),
+    enumerable: true,
+    configurable: true,
+  });
+  Object.defineProperty(ctx, 'liveSpot', {
+    get: () => (mark(), s.quotes[ctx.ticker]?.spot ?? (s.snapshot?.ticker === ctx.ticker ? s.snapshot.spot : ctx.snapshot.spot)),
+    enumerable: true,
+    configurable: true,
+  });
+  return ctx;
+};
+
+interface TileBodyProps {
+  base: WorkspaceCtx;
+  render: (ctx: WorkspaceCtx) => ReactNode;
+  extra: Partial<WorkspaceCtx>;
+}
+
+/** One panel's body: its context built once per scan, per tick only when the panel reads the tick */
+const TileBody = memo(({ base, render, extra }: TileBodyProps) => {
+  const live = useRef(false);
+  const seq = useMarketBackground(s => (live.current ? s.seq : 0));
+  /* the functions are called through to the latest render's — the context is rebuilt only when a value moves */
+  const latest = useRef(extra);
+  latest.current = extra;
+  const extraKey = Object.values(extra).map(v => (typeof v === 'function' ? 'fn' : String(v))).join('|');
+  const ctx = useMemo(
+    () => {
+      const through = Object.fromEntries(
+        Object.entries(extra).map(([k, v]) => [k, typeof v === 'function' ? (...a: unknown[]) => (latest.current[k as keyof WorkspaceCtx] as (...a: unknown[]) => unknown)?.(...a) : v])
+      ) as Partial<WorkspaceCtx>;
+      return withLive(extendCtx(base, through), () => {
+        live.current = true;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [base, seq, extraKey]
+  );
+  return <>{useMemo(() => render(ctx), [render, ctx])}</>;
+});
+
+/** The phone's one chart */
+const phoneChart = (ctx: WorkspaceCtx) => <LiveChartWidget ctx={ctx} soleChart />;
+
 /** The product's glyph at the phone head's size */
 const ProductGlyphSmall = () => <ProductGlyph name="pulse" size={16} bare className="shrink-0" />;
 
@@ -172,7 +238,16 @@ const ProductGlyphSmall = () => <ProductGlyph name="pulse" size={16} bare classN
    workspace moves so lets just make pulse that." Named desks + the link
    (Mo, 2026-08-19) layered on without touching how it moves. */
 const Pulse = () => {
-  const { activeTicker, marketData, changeTicker } = useMarketData();
+  const activeTicker = useActiveTicker();
+  /* THE LINK GROUPS (the ideas report's item 10): a panel follows the terminal, holds its own name, or joins a group
+     A–D — and reads that group's name wherever its other members stand (Terrain's panes, the Weigher's chain) */
+  const groups = useLinkGroups();
+  const groupOf = (inst: WidgetInstance): LinkGroup | null => (isLinkGroup(inst.group) ? inst.group : null);
+  /** The name a panel reads */
+  const nameOf = (inst: WidgetInstance): string => {
+    const g = groupOf(inst);
+    return g ? (groups[g] ?? activeTicker) : (inst.ticker ?? activeTicker);
+  };
   const isPhone = useIsPhone();
   const location = useLocation();
   const navigate = useNavigate();
@@ -371,13 +446,10 @@ const Pulse = () => {
      its own that coped, is gone. */
   const [fullReq, setFullReq] = useState<{ id: string; token: number } | null>(null);
   const openPage = (page: NonNullable<WidgetDef['page']>, inst: WidgetInstance) => {
-    if (inst.ticker && inst.ticker !== activeTicker) changeTicker(inst.ticker);
+    if (nameOf(inst) !== activeTicker) changeTicker(nameOf(inst));
     page.prepare?.();
     navigate(page.path, { state: { wayBack: '/pulse' } });
   };
-
-  const revRef = useRef(0);
-  const revision = useMemo(() => ++revRef.current, [marketData]);
 
   /* Self-heal GHOSTS (Noah, 2026-08-17: "there is nothing there yet im still
      moving it and i see its 4 corners"): an instance whose widget key has
@@ -391,30 +463,8 @@ const Pulse = () => {
     setLayout(prev => prev.filter(l => alive.some(w => w.id === l.i)));
   }, [instances]);
 
-  // Scan tier — one snapshot feeds every widget
-  const [scanSnapshot, setScanSnapshot] = useState<MarketSnapshot | null>(null);
-  const scanRef = useRef<MarketSnapshot | null>(null);
-  const lastScanTimeRef = useRef(0);
-  useEffect(() => {
-    if (!marketData) return;
-    const now = Date.now();
-    const due =
-      !scanRef.current ||
-      now - lastScanTimeRef.current >= SCAN_INTERVAL_MS ||
-      scanRef.current.ticker !== marketData.ticker;
-    if (due) {
-      scanRef.current = marketData;
-      lastScanTimeRef.current = now;
-      setScanSnapshot(marketData);
-    }
-  }, [marketData]);
-
-  // 1s heatmap pulse (same treatment as Live Terminal)
-  const [pulseTick, setPulseTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setPulseTick(t => t + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
+  // Scan tier — one snapshot feeds every widget (a name switch refreshes at once)
+  const scanSnapshot = useScanSnapshot(SCAN_INTERVAL_MS);
 
   /** Build the whole widget context for one name. */
   const buildCtxFor = (snapshot: MarketSnapshot): WorkspaceCtx => {
@@ -441,8 +491,9 @@ const Pulse = () => {
     const ctx = {
       ticker: snapshot.ticker,
       snapshot,
-      revision,
-      pulseTick: 0, // stamped per render by ctxFor — the memo below must not depend on it
+      revision: 0, // the tile's own read of the tick (TileBody)
+      /* the 1 s heat the matrix once pulsed with — no panel reads it now; kept on the context, unpulsed */
+      pulseTick: 0,
       gex,
       matrix: gex.matrix,
       exposure: buildExposureProfile(snapshot, '0DTE', 10),
@@ -458,11 +509,12 @@ const Pulse = () => {
   const usedTickers = useMemo(() => {
     const set = new Set<string>();
     if (scanSnapshot) set.add(scanSnapshot.ticker);
-    instances.forEach(i => i.ticker && set.add(i.ticker));
+    instances.forEach(i => set.add(nameOf(i)));
     return [...set];
-  }, [instances, scanSnapshot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instances, scanSnapshot, groups, activeTicker]);
 
-  // One context per name in use, rebuilt on the scan tier. The active symbol
+  // One context per name in use, rebuilt on the scan tier (only — it was rebuilt on every tick). The active symbol
   // reuses the live snapshot (it carries the tape); unlinked names read their
   // own state straight from the simulator without advancing it.
   const ctxByTicker = useMemo<Map<string, WorkspaceCtx>>(() => {
@@ -477,27 +529,25 @@ const Pulse = () => {
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanSnapshot, revision, usedTickers.join('|')]);
+  }, [scanSnapshot, usedTickers.join('|')]);
 
-  /** The context a panel should render with, pulsed for the live heat. */
-  const ctxFor = (pinned?: string): WorkspaceCtx | null => {
-    const base = ctxByTicker.get(pinned ?? scanSnapshot?.ticker ?? '') ?? null;
-    if (!base) return null;
+  /** The scan's context for a name, and what a panel adds to it: the shared strike and the door to focus one. ONE PRICE
+      ON ONE SCREEN (the audit's X1.5): the book is rebuilt on the 10 s scan, but the price every panel prints is the
+      live tick the rail and the chart print — `liveSpot`, read by the tile off the published tick (TileBody). */
+  const baseFor = (pinned?: string): WorkspaceCtx | null => ctxByTicker.get(pinned ?? scanSnapshot?.ticker ?? '') ?? null;
+  const extraFor = (base: WorkspaceCtx): Partial<WorkspaceCtx> => {
     // The focus belongs to ONE name — a panel pinned elsewhere never draws it
     const focusPrice = focus && focus.ticker === base.ticker ? focus.price : null;
-    /* ONE PRICE ON ONE SCREEN (the audit's X1.5): the book is rebuilt on the 10 s scan, but the price every panel prints is
-       the live tick the rail and the chart print — never the scan's, which stood up to ten seconds behind */
-    const liveSpot = (base.ticker === marketData?.ticker ? marketData.spot : Simulator.TICKERS[base.ticker]?.currentPrice) ?? base.snapshot.spot;
     return {
-      ...base,
-      liveSpot,
-      pulseTick,
-      matrix: pulseMatrix(base.gex.matrix, pulseTick),
       focusPrice,
       clearFocus: focusPrice != null ? clearFocus : undefined,
       // Evaluated on click, after focusOn below exists — the in-desk door
       focusStrike: (price: number) => focusOn(price, base.ticker),
     };
+  };
+  const ctxFor = (pinned?: string): WorkspaceCtx | null => {
+    const base = baseFor(pinned);
+    return base ? withLive(extendCtx(base, extraFor(base)), () => undefined) : null;
   };
 
   /** The desk's own context — used by the add-menu preview. */
@@ -506,7 +556,7 @@ const Pulse = () => {
   /** The one chart that lifts on a focus arrival: the first live chart whose
       effective name is the focus's. */
   const focusChartId = focus
-    ? (instances.find(w => w.key === 'live-chart' && (w.ticker ?? activeTicker) === focus.ticker)?.id ?? null)
+    ? (instances.find(w => w.key === 'live-chart' && nameOf(w) === focus.ticker)?.id ?? null)
     : null;
 
   const addWidget = (key: string) => {
@@ -568,11 +618,22 @@ const Pulse = () => {
      An unlinked panel keeps its pick to itself. Unlinking pins the panel to
      whatever it shows right now, so nothing jumps at the moment of unlinking. */
   const pickFor = (inst: WidgetInstance) => (t: string) => {
-    if (inst.ticker === undefined) changeTicker(t);
+    const g = groupOf(inst);
+    if (g) setLinkGroup(g, t);
+    else if (inst.ticker === undefined) changeTicker(t);
     else setWidgetTicker(inst.id, t);
   };
   const toggleLink = (inst: WidgetInstance) =>
     setWidgetTicker(inst.id, inst.ticker === undefined ? activeTicker : undefined);
+  /* Joining a group: a group with a name is read at once; one with none takes this panel's. Leaving one: the panel holds
+     the name it showed (it follows the terminal again when that is the terminal's) — nothing jumps either way. */
+  const setGroup = (inst: WidgetInstance, g: LinkGroup | null) => {
+    const shown = nameOf(inst);
+    if (g && !groups[g]) setLinkGroup(g, shown);
+    setInstances(prev =>
+      prev.map(w => (w.id === inst.id ? { ...w, group: g ?? undefined, ticker: g ? undefined : shown === activeTicker ? undefined : shown } : w))
+    );
+  };
 
   const removeWidget = (id: string) => {
     const inst = instances.find(w => w.id === id);
@@ -604,6 +665,7 @@ const Pulse = () => {
     arrangement exactly as they left it, having been on a phone in between.
   */
   if (isPhone) {
+    const phoneBase = baseFor();
     return (
       /* Full bleed, cancelling the shell's own padding so the chart reaches
          all four edges. `dvh`, not `vh`: on a phone `100vh` is the height
@@ -617,13 +679,14 @@ const Pulse = () => {
           <h1 className="text-[13px] font-semibold text-textPrimary">Pulse</h1>
           <span className="min-w-0 truncate text-[11px] text-textMuted">the live chart · your desks open on a wider screen</span>
         </div>
-        {pulsedCtx ? (
-          <LiveChartWidget
+        {phoneBase ? (
+          <TileBody
             /* Remounts on a name change so the chart rebuilds cleanly rather
                than re-pointing a live series. */
-            key={pulsedCtx.ticker}
-            ctx={{ ...pulsedCtx, pickTicker: changeTicker }}
-            soleChart
+            key={phoneBase.ticker}
+            base={phoneBase}
+            render={phoneChart}
+            extra={{ ...extraFor(phoneBase), pickTicker: changeTicker }}
           />
         ) : (
           <div className="flex h-full items-center justify-center">
@@ -922,13 +985,28 @@ const Pulse = () => {
                         its own name. stopPropagation on mousedown so using
                         the picker never starts a panel drag. */}
                     <span className="ml-auto shrink-0 flex items-center gap-1.5" onMouseDown={e => e.stopPropagation()}>
-                      <ScopeChip
-                        ticker={inst.ticker ?? activeTicker}
-                        linked={inst.ticker === undefined}
-                        onPick={pickFor(inst)}
-                        onToggleLink={() => toggleLink(inst)}
-                        quote
+                      <LinkGroupChip
+                        group={groupOf(inst)}
+                        onChange={g => setGroup(inst, g)}
+                        noneHint="Follows the terminal, or holds its own name"
+                        testId={inst.id}
                       />
+                      {groupOf(inst) ? (
+                        <LiveScopeChip
+                          ticker={nameOf(inst)}
+                          onPick={pickFor(inst)}
+                          quote
+                          title={`Group ${groupOf(inst)} · a name picked here moves every panel in the group`}
+                        />
+                      ) : (
+                        <LiveScopeChip
+                          ticker={inst.ticker ?? activeTicker}
+                          linked={inst.ticker === undefined}
+                          onPick={pickFor(inst)}
+                          onToggleLink={() => toggleLink(inst)}
+                          quote
+                        />
+                      )}
                       {(def.ownFull || def.page) && (
                         <button
                           onClick={() => (def.ownFull ? setFullReq({ id: inst.id, token: Date.now() }) : openPage(def.page!, inst))}
@@ -956,25 +1034,29 @@ const Pulse = () => {
                   </div>
                   <div className="flex-grow min-h-0 overflow-hidden">
                     {(() => {
-                      const wctx = ctxFor(inst.ticker);
-                      return wctx ? (
+                      const base = baseFor(nameOf(inst));
+                      return base ? (
                         /* ONE PANEL PER FRAME (2026-09-06, the perf sweep): the
                            desk's panels mount staggered behind their skeletons,
                            so a desk of charts opens on its next frame instead
                            of building every chart inside the click. */
                         <Deferred index={idx} fallback={def.skeleton()} className="h-full animate-fade-in">
-                          {def.render({
-                            ...wctx,
-                            pickTicker: pickFor(inst),
-                            // The arrival token goes to ONE chart — the first on
-                            // the focus's name — so two charts never lift at once
-                            focusOpen: inst.id === focusChartId ? focus?.token : undefined,
-                            focusReturn: inst.id === focusChartId ? focusReturn : undefined,
-                            fullOpen: fullReq?.id === inst.id ? fullReq.token : undefined,
-                          })}
+                          <TileBody
+                            base={base}
+                            render={def.render}
+                            extra={{
+                              ...extraFor(base),
+                              pickTicker: pickFor(inst),
+                              // The arrival token goes to ONE chart — the first on
+                              // the focus's name — so two charts never lift at once
+                              focusOpen: inst.id === focusChartId ? focus?.token : undefined,
+                              focusReturn: inst.id === focusChartId ? focusReturn : undefined,
+                              fullOpen: fullReq?.id === inst.id ? fullReq.token : undefined,
+                            }}
+                          />
                         </Deferred>
                       ) : (
-                        <span className="flex h-full items-center justify-center text-[11px] text-textMuted">Nothing to show for {inst.ticker} yet</span>
+                        <span className="flex h-full items-center justify-center text-[11px] text-textMuted">Nothing to show for {nameOf(inst)} yet</span>
                       );
                     })()}
                   </div>

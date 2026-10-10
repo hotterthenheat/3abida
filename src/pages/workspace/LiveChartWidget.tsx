@@ -18,7 +18,7 @@ import { X } from 'lucide-react';
 import { DOCK_ROOM } from '../../data/editorDock';
 import { readDeskPrefs } from '../../data/deskPrefs';
 import Simulator from '../../core/simulator';
-import { useMarketData } from '../../context/MarketDataContext';
+import { useFlowTape } from '../../context/MarketDataContext';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import CompareControl from '../../components/gex/CompareControl';
 import { chartGround, useCandleThemeKey } from '../../components/gex/candleTheme';
@@ -72,7 +72,7 @@ export interface LiveChartWidgetProps {
 }
 
 const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
-  const { flowTape } = useMarketData();
+  const flowTape = useFlowTape();
   /* the floating bar's height, so the legend can stand under it (PU-1) */
   const barRef = useRef<HTMLDivElement | null>(null);
   const [barH, setBarH] = useState(0);
