@@ -40,7 +40,7 @@ export default ({ on, SEARCH_MENU }) => {
         /* the next print on the name, in the same card */
         { press: on(`${CARD} button[title="Next print (↓)"]`, 0), dur: 0.45 }, { hold: 0.8 },
         { press: on(`${CARD} button[aria-label="Close"]`, 0), dur: 0.45 }, { hold: 0.4 },
-        { press: on('button[aria-label="Clear search"]', 0), dur: 0.5 }, { hold: 0.5 },
+        { press: on('button[aria-label="Clear the search"]', 0), dur: 0.5 }, { hold: 0.5 },
       ],
       /* (no expiry cut: the board's figures are read once a minute, but a cut and its clearing read them again at once —
          META and DIS stand a few hundred thousand apart at the film's minute, and two takes out of two came back with DIS
@@ -62,7 +62,7 @@ export default ({ on, SEARCH_MENU }) => {
         { press: on('[data-trace-champion="busiest"] button', 0), dur: 0.5 }, { hold: 0.6 },
         { to: on(PANE, 0, 0.55, 0.5), dur: 0.45 },
         /* the search cleared: the board's leader back on the pane */
-        { press: on('button[aria-label="Clear search"]', 0), dur: 0.5 }, { hold: 0.4 },
+        { press: on('button[aria-label="Clear the search"]', 0), dur: 0.5 }, { hold: 0.4 },
       ],
     },
     PHONE: {
@@ -74,7 +74,7 @@ export default ({ on, SEARCH_MENU }) => {
         { press: on(`${CARD} button[title="Next print (↓)"]`, 0), dur: 0.45 }, { hold: 0.8 },
         { press: on(`${CARD} button[aria-label="Close"]`, 0), dur: 0.45 }, { hold: 0.35 },
         { scroll: -300, dur: 0.8 },
-        { press: on('button[aria-label="Clear search"]', 0), dur: 0.5 }, { hold: 0.5 },
+        { press: on('button[aria-label="Clear the search"]', 0), dur: 0.5 }, { hold: 0.5 },
       ],
       /* (a whole number of LIVE's breaths as on the desk: 232 frames, 231 = 11 × 21) */
       '/trace/net-flow': [
@@ -85,7 +85,7 @@ export default ({ on, SEARCH_MENU }) => {
         { pick: 'pane-clock', option: '0DTE', dur: 0.45 }, { hold: 0.6 },
         { unpick: 'pane-clock' }, { hold: 0.2 },
         { scroll: -640, dur: 0.9 }, { hold: 0.2 },
-        { press: on('button[aria-label="Clear search"]', 0), dur: 0.5 }, { hold: 0.28 },
+        { press: on('button[aria-label="Clear the search"]', 0), dur: 0.5 }, { hold: 0.28 },
       ],
     },
   };

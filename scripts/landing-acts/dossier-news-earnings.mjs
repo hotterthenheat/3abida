@@ -16,8 +16,8 @@ export default ({ on, at, off }) => {
   const kind = c => c.memo.kind;
   const other = c => (c.memo.kind === 'Macro' ? 'Earnings' : 'Macro');
   const pill = words => c => on(`[data-news-kind="${typeof words === 'function' ? words(c) : words}"]`, 0)(c);
-  /* A CITY'S PIN, not the open story's, standing clear of the kinds' pills (on a phone they cover the map's lower half and
-     a press there lands on a pill): the biggest first — the city with the most stories, or the freshest */
+  /* A CITY'S PIN, not the open story's, standing clear of the kinds' pills (where they cover the map's lower half a press
+     there lands on a pill): the biggest first — the city with the most stories, or the freshest */
   const pin = (rank = 0) => async ({ frame, size }) => {
     const all = await frame
       .locator('[data-news-pin]:not([data-open])')
@@ -25,7 +25,9 @@ export default ({ on, at, off }) => {
         const map = document.querySelector('[data-news-map]')?.getBoundingClientRect();
         const kinds = document.querySelector('[data-news-kinds]')?.getBoundingClientRect();
         if (!map) return [];
-        const floor = Math.min(map.bottom, kinds ? kinds.top : map.bottom) - 4;
+        /* (the pills stand over the map's foot only where they are inside it: a phone's stand above the map since
+           2026-10-10, and their top as the floor left no pin to press) */
+        const floor = Math.min(map.bottom, kinds && kinds.top > map.top ? kinds.top : map.bottom) - 4;
         return els
           .map(e => e.getBoundingClientRect())
           .filter(r => r.width > 2 && r.left > map.left + 6 && r.right < map.right - 6 && r.top > map.top + 6 && r.bottom < floor)
@@ -37,6 +39,28 @@ export default ({ on, at, off }) => {
     const [x, y, w, h] = shown[Math.min(rank, shown.length - 1)];
     return [x + w / 2, y + h / 2];
   };
+  /* A ROUTE'S FADE, KEPT TO THE FILM'S TIME (as the Filings and Stocks act does it): the Dossier's shell cross-fades a page
+     out and the next in on the browser's own animation clock, started at the page's held time, and by the time the act
+     opens a name the page's clock has run far ahead of the browser's — the fade waited out the difference in real time,
+     and the name's page stood blank to the film's end (measured 2026-10-10, desk and phone: the replay's bars and the
+     calendar's door found nothing). A fade that has not begun is played to its end, as the old page leaves and the new
+     one comes in */
+  const fadeOn = {
+    remember: 'fade',
+    of: async ({ frame, page }) => {
+      await page.waitForTimeout(40);
+      return frame.locator('body').evaluate(() => {
+        let k = 0;
+        for (const a of document.getAnimations())
+          if (a.effect?.getComputedTiming?.().iterations !== Infinity && a.playState === 'running' && Number(a.currentTime) < 0) {
+            a.finish();
+            k++;
+          }
+        return k;
+      }).catch(() => 0);
+    },
+  };
+  const fadesOn = [fadeOn, { hold: 0.05 }, fadeOn, { hold: 0.05 }, fadeOn];
   /* back to the calendar by the name page's own door: the calendar opens as it always does (this week, every report,
      the board), which is where the film began */
   const CALENDAR = '[data-name-back] a';
@@ -71,15 +95,16 @@ export default ({ on, at, off }) => {
         /* the week as a list of days, every name a door */
         { pick: 'earnings-layout', option: 'List', dur: 0.5 }, { hold: 0.7 },
         /* a name's own page: today's price for the move, replayed against its last eight prints — a bar read */
-        { press: on('[data-earnings-door]', 0, 0.4), dur: 0.5 }, { hold: 0.9 },
+        { press: on('[data-earnings-door]', 0, 0.4), dur: 0.5 }, ...fadesOn, { hold: 0.9 },
         { to: on('[data-replay-bar]', 2, 0.5, 0.45), dur: 0.45 }, { to: on('[data-replay-bar]', 5, 0.5, 0.45), dur: 0.4 }, { hold: 0.3 },
-        { press: on(CALENDAR, 0, 0.5), dur: 0.55 }, { hold: 0.6 },
+        { press: on(CALENDAR, 0, 0.5), dur: 0.55 }, ...fadesOn, { hold: 0.6 },
       ],
     },
     PHONE: {
       '/dossier/news': [
-        /* down until the map and the story in hand stand on the screen together */
-        { scroll: 300, dur: 0.9 }, { hold: 0.2 },
+        /* down until the map and the story in hand stand on the screen together (420 since the kinds' pills stand over
+           the map, 2026-10-10: at 300 the story's "Read the whole story" stood under the screen's foot) */
+        { scroll: 420, dur: 0.9 }, { hold: 0.2 },
         { press: pill(other), dur: 0.5 }, { hold: 0.8 },
         { press: pin(0), dur: 0.45 }, { hold: 0.8 },
         /* the story read whole (a new story opens folded again) */
@@ -87,19 +112,19 @@ export default ({ on, at, off }) => {
         { press: on('[data-news-map-fit]', 0), dur: 0.45 }, { hold: 0.4 },
         { press: pill(kind), dur: 0.45 }, { hold: 0.6 },
         { press: pill('all'), dur: 0.4 }, { hold: 0.4 },
-        { scroll: -300, dur: 0.9 }, { hold: 0.3 },
+        { scroll: -420, dur: 0.9 }, { hold: 0.3 },
       ],
       '/dossier/earnings': [
         /* the week as a list of days — a phone's board scrolls sideways */
         { pick: 'earnings-layout', option: 'List', dur: 0.6 }, { hold: 0.5 },
         { scroll: 330, dur: 1.0 }, { hold: 0.3 },
         /* a name's own page opens at its head; down to today's price replayed, a bar read */
-        { press: on('[data-earnings-door]', 2, 0.4), dur: 0.5 }, { hold: 0.8 },
+        { press: on('[data-earnings-door]', 2, 0.4), dur: 0.5 }, ...fadesOn, { hold: 0.8 },
         { scroll: 360, dur: 0.9 }, { hold: 0.2 },
         { to: on('[data-replay-bar]', 2, 0.5, 0.45), dur: 0.4 }, { to: on('[data-replay-bar]', 5, 0.5, 0.45), dur: 0.35 }, { hold: 0.3 },
         { to: at(0.5, 0.2), dur: 0.35 },
         { scroll: -360, dur: 0.8 }, { hold: 0.2 },
-        { press: on(CALENDAR, 0, 0.5), dur: 0.5 }, { hold: 0.6 },
+        { press: on(CALENDAR, 0, 0.5), dur: 0.5 }, ...fadesOn, { hold: 0.6 },
       ],
     },
     REMEMBER: {

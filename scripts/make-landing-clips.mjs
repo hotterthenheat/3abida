@@ -412,14 +412,15 @@ const film = async (browser, path, theme, size, manifest) => {
      so the film can make it again (a radio: the line that was on; ticks: the line that was ticked, ticked again). */
   const choose = async (id, option, dur, remember) => {
     const door = await on(`[data-dropdown="${id}"]`, 0, 0.5, 0.5)(c);
-    if (!door) return idle(dur + 0.6);
+    /* (a menu whose door is not on the screen found nothing: the run says so) */
+    if (!door) return idle(dur + 0.6).then(() => false);
     await glide(door, dur);
     await press();
     await idle(0.3);
     const lines = await menuLines(id);
     if (!lines.length) {
       await page.keyboard.press('Escape');
-      return idle(0.2);
+      return idle(0.2).then(() => false);
     }
     const ticks = lines.some(l => l.tick);
     const was = Math.max(0, lines.findIndex(l => l.on));
@@ -433,6 +434,8 @@ const film = async (browser, path, theme, size, manifest) => {
        its place alone then names another line (measured: a Wall film that came back on another wall) */
     const back = option?.words != null ? lines.findIndex(l => l.words === option.words) : -1;
     const k = back >= 0 ? back : i < 0 ? was : i;
+    /* a choice named by words the menu no longer has found nothing (the choice already made is pressed again) */
+    const lost = typeof option === 'string' && i < 0;
     if (remember && memo.was[id] == null) {
       memo.was[id] = ticks ? k : was;
       memo.words[id] = lines[ticks ? k : was]?.words;
@@ -445,6 +448,7 @@ const film = async (browser, path, theme, size, manifest) => {
       await glide(door, 0.3);
       await press();
     }
+    return !lost;
   };
 
   /* the stage may have opened what loads in its turn: the frame is held only once that has drawn too */
@@ -475,17 +479,23 @@ const film = async (browser, path, theme, size, manifest) => {
   writeFileSync(resolve(dir, 'poster.png'), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png', clip: { ...clip, scale: size.dpr } })).data, 'base64'));
   await fade(1, 8);
   let missed = 0;
-  for (const b of beats) {
+  /* which beats found nothing, by their place in the act and what they looked for — so a fix knows where to look */
+  const misses = [];
+  const miss = (b, k) => {
+    missed++;
+    misses.push(`#${k}${b.scrollTo ? ` ${b.scrollTo}` : ''}`);
+  };
+  for (const [k, b] of beats.entries()) {
     if (b.remember) {
       memo[b.remember] = await b.of(c);
       continue;
     }
     if (b.pick) {
-      await choose(b.pick, b.option ?? 1, b.dur ?? 0.5, true);
+      if ((await choose(b.pick, b.option ?? 1, b.dur ?? 0.5, true)) === false) miss(b, k);
       continue;
     }
     if (b.unpick) {
-      if (memo.was[b.unpick] != null) await choose(b.unpick, { index: memo.was[b.unpick], words: memo.words[b.unpick] }, b.dur ?? 0.5, false);
+      if (memo.was[b.unpick] != null && (await choose(b.unpick, { index: memo.was[b.unpick], words: memo.words[b.unpick] }, b.dur ?? 0.5, false)) === false) miss(b, k);
       continue;
     }
     const target = typeof b.press === 'function' ? b.press : b.to ?? b.drag;
@@ -499,7 +509,7 @@ const film = async (browser, path, theme, size, manifest) => {
         await glide(pt, b.dur ?? 0.5);
         if (b.drag) await page.mouse.up();
       } else {
-        if (!b.optional) missed++;
+        if (!b.optional) miss(b, k);
         /* the page did not have it: the beat's time passes all the same */
         await idle(b.dur ?? 0.5);
         if (b.press) continue;
@@ -537,7 +547,7 @@ const film = async (browser, path, theme, size, manifest) => {
         const m = document.querySelector('main');
         return m.scrollTop + e.getBoundingClientRect().top - innerHeight * frac;
       }, b.at ?? 0.3).catch(() => null);
-      if (y == null) missed++;
+      if (y == null) miss(b, k);
       const goal = y == null ? s0.top : Math.max(0, Math.min(s0.max, y));
       const count = frames(b.dur ?? 1);
       for (let k = 1; k <= count; k++) {
@@ -584,7 +594,7 @@ const film = async (browser, path, theme, size, manifest) => {
   /* a panel's film keeps its box: the landing zooms from the whole desk into it (Rooms.tsx) */
   manifest[key] = { d: Number((n / FPS).toFixed(2)), ...(panel ? { box: [panel.x, panel.y, panel.w, panel.h] } : {}) };
   const kb = Math.round(readFileSync(out).length / 1024);
-  console.log(`${key}.mp4  ${(n / FPS).toFixed(1)} s  ${kb} KB${missed ? `  · ${missed} beat${missed > 1 ? 's' : ''} found nothing` : ''}`);
+  console.log(`${key}.mp4  ${(n / FPS).toFixed(1)} s  ${kb} KB${missed ? `  · ${missed} beat${missed > 1 ? 's' : ''} found nothing (${misses.join(', ')})` : ''}`);
   return kb;
 };
 

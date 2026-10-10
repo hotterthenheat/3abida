@@ -4,7 +4,7 @@
    panels browsed, another desk put up and this one brought back. The 4-way board: a chart on another timeframe, another
    name typed into a chart's own chip, one chart taking the whole screen with its session levels switched on and off. */
 export default ({ on, near, btn, tf, at, off, SEARCH_MENU, tfButtonNow, tfVia, tfNow }) => {
-  /* the catalogue's names down its left (Pulse.tsx, "Add widget"): only hovered — a press would add the panel */
+  /* the catalogue's names down its left (Pulse.tsx, "Add a panel": data-pulse-add): only hovered — a press would add the panel */
   const CATALOGUE = 'div[class*="w-[228px]"] > button';
   /* the 4-way board's cell that has the screen (PulseBoard: the expanded cell is lifted into a fixed layer) */
   const LIFTED = 'div[class*="z-[80]"]';
@@ -34,11 +34,11 @@ export default ({ on, near, btn, tf, at, off, SEARCH_MENU, tfButtonNow, tfVia, t
         { to: at(0.42, 0.5), dur: 0.35 }, { to: at(0.62, 0.42), dur: 0.35 },
         { press: btn('The desk'), dur: 0.5 }, { hold: 0.35 },
         /* the catalogue of panels: each name hovered draws that panel, live, beside the list — nothing is added */
-        { press: btn('Add widget'), dur: 0.5 }, { hold: 0.3 },
+        { press: on('[data-pulse-add]', 0), dur: 0.5 }, { hold: 0.3 },
         { to: on(`${CATALOGUE}:has-text("The range")`, 0, 0.4), dur: 0.35 }, { hold: 0.3 },
         { to: on(`${CATALOGUE}:has-text("At the wall")`, 0, 0.4), dur: 0.3 }, { hold: 0.3 },
         { to: on(`${CATALOGUE}:has-text("Where the walls are heading")`, 0, 0.4), dur: 0.3 }, { hold: 0.3 },
-        { press: btn('Add widget'), dur: 0.4 }, { hold: 0.2 },
+        { press: on('[data-pulse-add]', 0), dur: 0.4 }, { hold: 0.2 },
         /* another desk put up, its panels named as the pointer comes to its chip, and this one brought back: a desk mounts
            its panels afresh, so the chart comes back on its first timeframe */
         { to: btn('The Day Ahead'), dur: 0.45 }, { hold: 0.25 },

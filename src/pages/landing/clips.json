@@ -1,15 +1,15 @@
 {
  "compass-dark-desk": {
-  "d": 10.27
+  "d": 10.67
  },
  "compass-dark-phone": {
-  "d": 10.5
+  "d": 10.97
  },
  "compass-light-desk": {
-  "d": 10.27
+  "d": 10.67
  },
  "compass-light-phone": {
-  "d": 10.5
+  "d": 10.97
  },
  "compass-tracker-dark-desk": {
   "d": 7.17
@@ -36,16 +36,16 @@
   "d": 7.23
  },
  "dossier-earnings-dark-desk": {
-  "d": 10
+  "d": 10.13
  },
  "dossier-earnings-dark-phone": {
-  "d": 8.33
+  "d": 8.47
  },
  "dossier-earnings-light-desk": {
-  "d": 10
+  "d": 10.13
  },
  "dossier-earnings-light-phone": {
-  "d": 8.33
+  "d": 8.47
  },
  "dossier-insiders-dark-desk": {
   "d": 11.83
@@ -132,16 +132,16 @@
   "d": 7.53
  },
  "practice-backtest-dark-desk": {
-  "d": 10.93
+  "d": 8.4
  },
  "practice-backtest-dark-phone": {
-  "d": 7.97
+  "d": 6.23
  },
  "practice-backtest-light-desk": {
-  "d": 10.93
+  "d": 8.4
  },
  "practice-backtest-light-phone": {
-  "d": 7.97
+  "d": 6.23
  },
  "practice-journal-dark-desk": {
   "d": 10.57

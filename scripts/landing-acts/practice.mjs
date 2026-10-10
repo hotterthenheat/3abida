@@ -2,10 +2,10 @@
    move fast"). PAPER: a target pulled up off the position's own chip and a stop down, the desk put on four charts — one
    name at four intervals, the position and its ways out on each — and back to one, the door to a new account read (the
    practice sizes, and a prop firm's evaluation with its plans side by side), another strike of the chain opened on its
-   order to buy and the held one again, and the target and the stop taken off by their own ×. BACKTEST: the replay sped up
-   and played — the day runs on under the position, its target and stop drifting as the contract decays — paused, another
-   strike of the chain opened as it stood that minute and the open one again, the book's closed trades, and the clock pulled
-   back along its bar and stepped on to the minute the film began on. THE JOURNAL: the month's best day opened under the
+   order to buy and the held one again, and the target and the stop taken off by their own ×. BACKTEST: the replay's pace set ten
+   times as fast and its bar read under the pointer (the clock only moves forward, so the film never plays it on), another
+   strike of the chain opened as it stood that minute and the open one again, the book's closed trades, and the pace put
+   back. THE JOURNAL: the month's best day opened under the
    calendar, down to its trades, one opened on its own page — the name while it was on, the shape of it — the next one
    walked to, back to the journal, the calendar read for one account and for all, and the day it opened on. */
 export default ({ on, off }) => {
@@ -75,10 +75,6 @@ export default ({ on, off }) => {
   const pull = (dy, fx = 0.3, dur = 0.6) => [aimNow(CHIP, fx, 0.5), { drag: off(on(CHIP, 0, fx, 0.5), 0, dy), dur }];
   /* a way out taken off by its own × */
   const takeOff = (kind, dur) => [{ to: on(`[data-chart-cancel="${kind}"]`, 0), dur }, clickNow(`[data-chart-cancel="${kind}"]`)];
-  /* THE REPLAY BAR'S FIRST MINUTE, a little past its left end: a drag there asks for the day's open, and the clock stops at
-     the floor (the last order or fill) wherever that is. (Not a share of the bar: 2% of it is 09:38, and the phone's stage
-     buys at 09:31 — measured, a phone take that came back to 09:38, seven minutes on from where it began) */
-  const TRACK_START = off(on('[data-replay-track]', 0, 0, 0.5), -10, 0);
   /* a day of the calendar that has trades — the n-th of the month's, in its order */
   const tradedDay = (n, fx = 0.5, fy = 0.5) => on('[data-journal-day][data-trades]:not([data-trades="0"])', n, fx, fy);
   /* THE TRADE PAGE'S CODE, FETCHED BEFORE ITS ROW IS PRESSED. The page is loaded on first use (App.tsx, lazy), and the
@@ -176,13 +172,12 @@ export default ({ on, off }) => {
       ],
       '/practice/backtest': [
         { to: on('[data-chart-ground]', 0, 0.4, 0.5), dur: 0.4 }, { to: on('[data-chart-ground]', 0, 0.7, 0.42), dur: 0.45 },
-        /* the replay ten times as fast, and played: the day runs on under the position — its candles, what it is up or down,
-           the target and the stop drifting as the contract decays, the chain as it stood each minute. (Not for longer: forty
-           minutes on, the day falls through the stop — measured, the stop fills near 13:25 — and a fill moves the clock's
-           floor past the minute the film began on) */
-        { pick: 'replay-pace', option: '10×', dur: 0.45 }, { hold: 0.15 },
-        { press: on('[data-replay-play]', 0), dur: 0.4 }, { hold: 0.9 },
-        { press: on('[data-replay-play]', 0), dur: 0.2 }, { hold: 0.3 },
+        /* THE CLOCK ONLY MOVES FORWARD (since 2026-10-10 the floor is where it stands — DeskShell `seek`): a film that played
+           the day on could never come back to the minute it began on (two takes ended 22 and 25 minutes from where they
+           began). So nothing moves it: the pace is set to ten times as fast and the bar read under the pointer — its tag
+           says the moment under it, the moment is not taken — and the pace put back at the end */
+        { pick: 'replay-pace', option: '10×', dur: 0.45 }, { hold: 0.3 },
+        { to: on('[data-replay-track]', 0, 0.62, 0.5), dur: 0.4 }, { to: on('[data-replay-track]', 0, 0.86, 0.5), dur: 0.55 }, { hold: 0.3 },
         /* THE CHAIN AS IT STOOD: a strike two above the open one opened onto its stats and its greeks at that minute, and the
            open one again — neither asks the chain's window to scroll (measured) */
         { press: c => on(`[data-chain-row="${c.memo.above}"]`, 0, 0.12)(c), dur: 0.5 }, { hold: 0.8 },
@@ -193,12 +188,6 @@ export default ({ on, off }) => {
            scroll of the chain) */
         { press: on(BOOK_TABS, 2), dur: 0.5 }, { hold: 0.7 },
         { press: on(BOOK_TABS, 0), dur: 0.4 }, { hold: 0.2 },
-        /* THE CLOCK ONLY MOVES FORWARD: pulled back along its bar it stops at the last order (the minute the stage set the
-           target and the stop), and is stepped on from there, a minute at a time, to the minute the film began on — the
-           stage's three steps, taken again */
-        { to: on('[data-replay-handle]', 0), dur: 0.45 },
-        { drag: TRACK_START, dur: 0.6 }, { hold: 0.3 },
-        { press: on('[data-replay-step="on"]', 0), dur: 0.4 }, { hold: 0.2 }, { press: true }, { hold: 0.2 }, { press: true }, { hold: 0.3 },
         { unpick: 'replay-pace' }, { hold: 0.3 },
       ],
       '/practice/journal': [
@@ -252,11 +241,9 @@ export default ({ on, off }) => {
          (and it sets no stop, so nothing on the way can fill) */
       '/practice/backtest': [
         { scroll: 400, dur: 0.8 }, { hold: 0.2 },
-        { pick: 'replay-pace', option: '10×', dur: 0.45 }, { hold: 0.2 },
-        { press: on('[data-replay-play]', 0), dur: 0.4 }, { hold: 1.2 },
-        { press: on('[data-replay-play]', 0), dur: 0.2 }, { hold: 0.3 },
-        { to: on('[data-replay-handle]', 0), dur: 0.4 },
-        { drag: TRACK_START, dur: 0.6 }, { hold: 0.4 },
+        /* (nothing moves the clock, as on the desk: it only moves forward) */
+        { pick: 'replay-pace', option: '10×', dur: 0.45 }, { hold: 0.3 },
+        { to: on('[data-replay-track]', 0, 0.55, 0.5), dur: 0.4 }, { to: on('[data-replay-track]', 0, 0.85, 0.5), dur: 0.55 }, { hold: 0.4 },
         { unpick: 'replay-pace' }, { hold: 0.2 },
         { scroll: -400, dur: 0.8 }, { hold: 0.3 },
       ],

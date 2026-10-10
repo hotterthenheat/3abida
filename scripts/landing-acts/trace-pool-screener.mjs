@@ -202,7 +202,9 @@ export default ({ on }) => {
         { press: DAY(2), dur: 0.35 }, { hold: 0.45 },
         { scrollTo: '[data-trace-grid="screener"]', at: 0.32, dur: 0.8 },
         /* the card fills the phone: the print, what it means, and ↓ to the next contract */
-        { press: press('screener', 1, 'ticker', 0.92), dur: 0.45 }, { hold: 0.7 },
+        /* (a phone's book is one column since 2026-10-10, each row in two lines — TraceGrid's `phone` cell: pressed on its
+           bare ground right of the second line's figures and left of the time) */
+        { press: press('screener', 1, 'phone', 0.62), dur: 0.45 }, { hold: 0.7 },
         { press: on(`${CARD} button[title="Next print (↓)"]`, 0), dur: 0.45 }, { hold: 0.55 },
         { press: on(`${CARD} button[aria-label="Close"]`, 0), dur: 0.4 }, { hold: 0.25 },
         { scroll: -4000, dur: 0.8 },

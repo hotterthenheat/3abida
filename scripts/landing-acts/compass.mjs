@@ -63,6 +63,10 @@ export default ({ on, btn }) => {
   const chooseAgain = [
     { to: sel, dur: 0.45 },
     { press: sel, dur: 0.15, unless: '[data-compass-card][data-selected]' }, { hold: 0.4 },
+    /* THE BOARD HOLDS STILL UNDER THE HAND (Board.tsx, 2026-10-09): a sweep that lands while the pointer is on the board
+       waits behind a line, "The sweep has a new order", and the film ended on that line where it began with none
+       (measured: a phone take). Where it stands, its "Show it" is pressed, so the board ends on its own order */
+    { press: on('[data-board-new-order]', 0), dur: 0.3, optional: true }, { hold: 0.2 },
   ];
 
   return {

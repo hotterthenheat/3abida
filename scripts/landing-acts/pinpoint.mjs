@@ -167,30 +167,35 @@ export default ({ on, near, at }) => {
     PHONE: {
       '/pinpoint/map': [
         { pick: 'ledger-view', option: 'Calendar', dur: 0.55 }, { hold: 0.6 },
-        { scroll: 300, dur: 0.8 }, { hold: 0.2 },
+        /* (since the band took the "Read this" icon and the matrix's legend, 2026-10-10, the read's door stands near 300 px
+           down: a scroll of 300 took it under the phone's top bar) */
+        { scroll: 180, dur: 0.8 }, { hold: 0.2 },
         { press: on('[data-ledger-read]', 0), dur: 0.5 }, { hold: 0.8 },
         { scroll: 340, dur: 0.8 }, { hold: 0.5 },
         { scroll: -340, dur: 0.7 },
         { press: on('[data-ledger-read]', 0), dur: 0.5 }, { hold: 0.3 },
-        { scroll: -300, dur: 0.7 },
+        { scroll: -180, dur: 0.7 },
         { unpick: 'ledger-view' }, { hold: 0.1 }, matrixHome, { hold: 0.3 },
       ],
       '/pinpoint/building': [
-        { scroll: 400, dur: 0.9 }, { hold: 0.2 },
+        /* (300, not 400, since the page's head grew on 2026-10-10: at 400 the Order menu stood under the phone's top bar) */
+        { scroll: 300, dur: 0.9 }, { hold: 0.2 },
         /* the strikes by most built first — before one is kept: a kept strike dims the rest, and the re-sort under them
            did not read */
         { pick: 'build-order', option: 1, dur: 0.5 }, { hold: 0.8 },
         { press: on('[data-build-row]', 1, 0.3), dur: 0.5 }, { hold: 0.7 },
         { unpick: 'build-order' }, { hold: 0.4 },
         /* up to the page's head, where the kept strike's chip lets it go */
-        { scroll: -400, dur: 0.8 },
+        { scroll: -300, dur: 0.8 },
         { press: on(LET_GO, 0), dur: 0.55 }, { hold: 0.4 },
       ],
       '/pinpoint/wall': [
-        { scroll: 380, dur: 0.9 }, { hold: 0.2 },
+        /* (280 and 620, not 380 and 520, since the page's head grew on 2026-10-10: at 380 the Wall menu stood under the
+           phone's top bar) */
+        { scroll: 280, dur: 0.9 }, { hold: 0.2 },
         { pick: 'wall-pick', option: 'call wall', dur: 0.55 }, { hold: 0.9 },
         /* down to every wall: another one picked off the table, and up to the head, where the box reads it */
-        { scroll: 520, dur: 1.0 }, { hold: 0.2 },
+        { scroll: 620, dur: 1.0 }, { hold: 0.2 },
         { press: strongest, dur: 0.45 }, { hold: 0.5 },
         { scroll: -900, dur: 1.1 }, { hold: 0.5 },
         { press: on(LET_GO, 0), dur: 0.55 }, { hold: 0.5 },
@@ -200,7 +205,7 @@ export default ({ on, near, at }) => {
         { press: on('[data-h2h-swap]', 0), dur: 0.55 }, { hold: 0.7 },
         { press: on('[data-h2h-swap]', 0), dur: 0.3 }, { hold: 0.4 },
         /* the two books on one ruler, the whole screen and back */
-        { scroll: 820, dur: 1.0 }, { hold: 0.1 },
+        { scrollTo: '[data-axis-full]', at: 0.25, dur: 1.0 }, { hold: 0.1 },
         { press: on('[data-axis-full]', 0), dur: 0.5 }, { hold: 0.8 },
         { press: on('[data-axis-full]', 0), dur: 0.4 }, { hold: 0.3 },
         /* down to the day: both names from their own open, the minute under the pointer read in its card */
