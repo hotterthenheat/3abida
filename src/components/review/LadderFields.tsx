@@ -80,7 +80,7 @@ const SPLIT = ['all at one', 'half and half', 'a third each'];
 
 /** The house's tick-box (ChartToolbar's overlays): a bordered square that fills silver and takes a tick */
 const CheckRow = ({ on, off, onChange, label, hint, testId }: { on: boolean; off: boolean; onChange: (v: boolean) => void; label: string; hint: string; testId: string }) => (
-  <button type="button" role="checkbox" aria-checked={on && !off} aria-disabled={off} disabled={off} onClick={() => onChange(!on)} title={hint} className={`inline-flex items-center gap-2 h-6 text-left transition-opacity ${off ? 'opacity-35 cursor-not-allowed' : ''}`} data-ticket-switch={testId}>
+  <button type="button" role="checkbox" aria-checked={on && !off} aria-disabled={off} disabled={off} onClick={() => onChange(!on)} title={hint} className={`hit inline-flex items-center gap-2 h-6 text-left transition-opacity ${off ? 'opacity-35 cursor-not-allowed' : ''}`} data-ticket-switch={testId}>
     <span className={`inline-flex w-3.5 h-3.5 shrink-0 items-center justify-center rounded-[3px] border ${on && !off ? 'bg-silverFill border-silverFill' : 'border-borderMuted'}`}>{on && !off && <Check className="w-2.5 h-2.5 text-[rgb(var(--night))]" />}</span>
     <span className={`text-[11px] ${on && !off ? 'text-textPrimary' : 'text-textSecondary'}`}>{label}</span>
   </button>

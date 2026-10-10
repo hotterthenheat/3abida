@@ -113,7 +113,7 @@ const TickerPicker = ({ value, onChange, indexes, indexPrice }: Props) => {
           type="button"
           aria-label={`What is on the chart: ${current?.code ?? value} — ${current?.name ?? ''}`}
           title={current ? `${current.code} · ${current.name}` : value}
-          className="group inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
+          className="hit group inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
           data-paper-ticker={value}
         >
           <CompanyLogo ticker={value} size={14} />
@@ -170,7 +170,7 @@ const TickerPicker = ({ value, onChange, indexes, indexPrice }: Props) => {
                             aria-selected={on}
                             onClick={() => pick(r.value)}
                             onMouseEnter={() => setHighlight(i)}
-                            className={`w-[calc(100%-12px)] mx-1.5 grid grid-cols-[18px_62px_minmax(0,1fr)_auto] items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-colors ${i === highlight ? 'bg-ink/[0.06]' : ''}`}
+                            className={`hit w-[calc(100%-12px)] mx-1.5 grid grid-cols-[18px_62px_minmax(0,1fr)_auto] items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-colors ${i === highlight ? 'bg-ink/[0.06]' : ''}`}
                             data-ticker-row={r.value}
                             data-ticker-row-index={i}
                           >

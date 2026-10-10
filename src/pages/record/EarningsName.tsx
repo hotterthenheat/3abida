@@ -85,7 +85,7 @@ const Fact = ({ label, children, testId }: { label: string; children: React.Reac
 
 /** A door out — small, labelled */
 const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () => void; children: React.ReactNode }) => (
-  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
     <ArrowUpRight className="w-3 h-3" />
     {children}
   </button>
@@ -131,7 +131,7 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
                 type="button"
                 onMouseEnter={ev => setHover({ r, x: ev.clientX, y: ev.clientY })}
                 onMouseMove={ev => setHover({ r, x: ev.clientX, y: ev.clientY })}
-                className="relative flex-1 min-w-0 rounded hover:bg-ink/[0.04] transition-colors cursor-default"
+                className="hit relative flex-1 min-w-0 rounded hover:bg-ink/[0.04] transition-colors cursor-default"
                 aria-label={`${r.label}: moved ${r.movePct >= 0 ? '+' : ''}${r.movePct.toFixed(1)}%, ${r.pl >= 0 ? 'covered' : 'fell short of'} today's price by $${Math.abs(r.pl).toFixed(2)} per share`}
                 data-replay-bar={r.label}
               >
@@ -203,7 +203,7 @@ const ActiveRow = ({ c, maxVol, onOpen, onWarm }: { c: ActiveContract; maxVol: n
     onMouseEnter={onWarm}
     onFocus={onWarm}
     title="Weigh this contract"
-    className="group/door w-full text-left px-5 py-2.5 border-t border-borderSubtle/40 flex flex-col gap-1 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors"
+    className="hit group/door w-full text-left px-5 py-2.5 border-t border-borderSubtle/40 flex flex-col gap-1 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors"
     data-name-contract={c.id}
     data-contract-strike={c.strike}
     data-contract-right={c.right}
@@ -262,11 +262,11 @@ const EarningsName = () => {
 
   const back = (
     <div className="flex items-center gap-4" data-name-back>
-      <Link to="/dossier/earnings" className="group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+      <Link to="/dossier/earnings" className="hit group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
         <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> The calendar
       </Link>
       {fromDesk && (
-        <Link to="/pulse" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+        <Link to="/pulse" className="hit inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
           <LayoutGrid className="w-3.5 h-3.5" /> The desk
         </Link>
       )}
@@ -537,7 +537,7 @@ const EarningsName = () => {
                   bought <span className={insiders.bought > 0 ? 'text-bull' : 'text-textMuted'}>{insiders.bought > 0 ? fmtDollars(insiders.bought) : 'nothing'}</span> · sold{' '}
                   <span className={insiders.sold > 0 ? 'text-bear' : 'text-textMuted'}>{insiders.sold > 0 ? fmtDollars(insiders.sold) : 'nothing'}</span>
                 </span>
-                <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/insiders" className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every insider
                 </Link>
               </div>
@@ -574,7 +574,7 @@ const EarningsName = () => {
                 </div>
               ))}
               <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center font-mono text-[10px]" data-name-foot="congress">
-                <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/congress" className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every report
                 </Link>
               </div>

@@ -259,7 +259,7 @@ const TodayBrief = () => {
         ) : (
           <p className="text-[12px] text-textSecondary">
             Start a paper account on the{' '}
-            <Link to="/practice/paper" className="text-textPrimary font-semibold hover:text-silver">
+            <Link to="/practice/paper" className="hit text-textPrimary font-semibold hover:text-silver">
               Paper page
             </Link>{' '}
             and the plan is kept on its day.

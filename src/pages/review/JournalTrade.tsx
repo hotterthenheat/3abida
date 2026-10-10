@@ -135,7 +135,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
         <SayPage words="Trade not found" />
         <p className="text-[13px] text-textPrimary">That trade is not in this browser’s journal.</p>
         <p className="mt-1 text-[11px] text-textMuted">{kind === 'paper' ? 'A trade lives with its paper account on this machine.' : 'A trade lives with its session — if the session was deleted, its trades went with it.'}</p>
-        <Link to={source.base} className="mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
+        <Link to={source.base} className="hit mt-4 inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors">
           The journal <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
@@ -287,7 +287,7 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
           <div className={`${card} min-w-0`} data-journal-facts>
             <div className={head}>
               <span className={headWord}>The trade</span>
-              <Link to={source.containerPath(row.s.id)} className="ml-auto font-mono text-[10px] text-textMuted hover:text-silver transition-colors truncate" title={`Open its ${source.containerWord}`}>
+              <Link to={source.containerPath(row.s.id)} className="hit ml-auto font-mono text-[10px] text-textMuted hover:text-silver transition-colors truncate" title={`Open its ${source.containerWord}`}>
                 {row.s.name}
               </Link>
             </div>

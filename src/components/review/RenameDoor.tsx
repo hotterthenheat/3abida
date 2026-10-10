@@ -42,7 +42,7 @@ const RenameDoor = ({ name, onSave, className = 'w-6 h-6' }: Props) => {
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
-        <button type="button" onClick={e => e.stopPropagation()} title="Rename this session" aria-label={`Rename ${name}`} className={`inline-flex items-center justify-center rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] data-[state=open]:text-silver transition-colors ${className}`} data-session-rename>
+        <button type="button" onClick={e => e.stopPropagation()} title="Rename this session" aria-label={`Rename ${name}`} className={`hit inline-flex items-center justify-center rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] data-[state=open]:text-silver transition-colors ${className}`} data-session-rename>
           <Pencil className="w-3 h-3" />
         </button>
       </Popover.Trigger>
@@ -68,7 +68,7 @@ const RenameDoor = ({ name, onSave, className = 'w-6 h-6' }: Props) => {
             }}
           >
             <input ref={field} value={draft} onChange={e => setDraft(e.target.value)} maxLength={60} aria-label="The session's name" className="h-8 min-w-0 flex-1 px-2 rounded-md border border-borderSubtle bg-panel text-[12px] text-textPrimary outline-none focus:border-silver/60 transition-colors" data-session-rename-field />
-            <button type="submit" disabled={!draft.trim()} className="shrink-0 h-8 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }}>
+            <button type="submit" disabled={!draft.trim()} className="hit shrink-0 h-8 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }}>
               Save
             </button>
           </form>

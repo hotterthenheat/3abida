@@ -196,7 +196,7 @@ const intoView = (el: HTMLElement | null) => {
   if (by > 0) vp.scrollTo({ top: vp.scrollTop + by, behavior: 'smooth' });
 };
 
-const quiet = 'h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-35 disabled:cursor-not-allowed transition-colors';
+const quiet = 'hit h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-35 disabled:cursor-not-allowed transition-colors';
 
 /** THE ORDER — inside a strike's dropdown on the live paper desk, and the backtest's Order card (2026-09-26, Noah: "make the
     contract orders look the same on the backtesting section"): one composition, two desks */
@@ -309,7 +309,7 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
           <button type="button" onClick={() => setLimit('')} className={quiet} title="The middle of the bid and the ask">
             Mid {mid.toFixed(2)}
           </button>
-          <button type="button" onClick={() => desk.onPlace(buyDraft('market'))} disabled={!!why.buy} title={why.buy ?? `Add ${n} at the ask`} className={`${quiet} ml-auto enabled:hover:text-bull enabled:hover:border-bull/50`} data-chain-order-more>
+          <button type="button" onClick={() => desk.onPlace(buyDraft('market'))} disabled={!!why.buy} title={why.buy ?? `Add ${n} at the ask`} className={`hit ${quiet} ml-auto enabled:hover:text-bull enabled:hover:border-bull/50`} data-chain-order-more>
             Buy {n} more @ {quote.ask.toFixed(2)}
           </button>
         </div>
@@ -349,7 +349,7 @@ export const ChainOrder = ({ c, ticker, expiry, spot, desk, word = true }: { c: 
         <button type="button" onClick={() => setLimit('')} className={quiet} title="The middle of the bid and the ask">
           Mid {mid.toFixed(2)}
         </button>
-        <button type="button" onClick={() => setBracketsOpen(o => !o)} aria-expanded={bracketsOpen} className={`${quiet} ml-auto ${bracketsOpen ? 'text-textPrimary border-silver/50' : ''}`} data-chain-order-brackets={bracketsOpen ? 'open' : 'folded'}>
+        <button type="button" onClick={() => setBracketsOpen(o => !o)} aria-expanded={bracketsOpen} className={`hit ${quiet} ml-auto ${bracketsOpen ? 'text-textPrimary border-silver/50' : ''}`} data-chain-order-brackets={bracketsOpen ? 'open' : 'folded'}>
           {bracketsOpen ? '− Target / Stop' : '+ Target / Stop'}
         </button>
       </div>

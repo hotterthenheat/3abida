@@ -371,11 +371,11 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
             {source.containers.length > 1 && <span className="contents max-sm:block max-sm:col-span-2 max-sm:[&>button]:w-full max-sm:[&>button]:justify-between"><DropdownSelect label={source.containerWord === 'account' ? 'Account' : 'Session'} value={liveAccount ?? 'all'} options={accountOptions} onChange={v => set({ session: v === 'all' ? null : v, day: null })} title={`Which ${source.containerWord}’s trades`} testId="journal-account" /></span>}
             {/* THE SAMPLE ACCOUNTS (data/paper/sample.ts) — a made-up September the journal shows for now; the door hides it here */}
             {source.sample && (
-              <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the starter accounts out of the journal — your own trades stay' : 'Put the starter accounts back in'} className="ml-auto h-7 px-2 font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
+              <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the starter accounts out of the journal — your own trades stay' : 'Put the starter accounts back in'} className="hit ml-auto h-7 px-2 font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
                 {source.sample.shown ? 'Hide the starter accounts' : 'Show the starter accounts'}
               </button>
             )}
-            <button type="button" onClick={exportCsv} disabled={!rows.length} title="This period’s trades as a file a spreadsheet opens — with your tags and your words" className={`${source.sample ? '' : 'ml-auto '}inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors`} data-journal-export>
+            <button type="button" onClick={exportCsv} disabled={!rows.length} title="This period’s trades as a file a spreadsheet opens — with your tags and your words" className={`hit ${source.sample ? '' : 'ml-auto '}inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors`} data-journal-export>
               <Download className="w-3 h-3" /> CSV
             </button>
           </>
@@ -384,7 +384,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
           source.rows.length === 0 ? (
             <>
               Nothing closed yet. Trade on the{' '}
-              <Link to={deskPath} className="text-textPrimary font-semibold hover:text-silver transition-colors">
+              <Link to={deskPath} className="hit text-textPrimary font-semibold hover:text-silver transition-colors">
                 {deskWord}
               </Link>{' '}
               and each trade lands here the moment it closes — on its day in the calendar.

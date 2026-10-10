@@ -37,7 +37,7 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
           type="button"
           title={title}
           data-dropdown={testId ?? label}
-          className={`group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
+          className={`hit group inline-flex items-center gap-1.5 ${size === 'sm' ? 'h-6 px-2' : 'h-7 px-2.5'} rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none`}
         >
           <CalendarDays className="w-3 h-3 shrink-0 text-textMuted" aria-hidden="true" />
           {label && <span className="shrink-0 text-[10px] uppercase tracking-widest text-textMuted">{label}</span>}

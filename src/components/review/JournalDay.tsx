@@ -166,7 +166,7 @@ const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, co
             <span className="text-textMuted">{day > today ? 'Still to come — a plan can be written now' : 'Nothing closed on this day'}</span>
           )}
         </span>
-        <button type="button" onClick={onClose} title="Close the day" aria-label="Close the day" className="ml-auto -mr-1.5 inline-flex items-center justify-center w-8 h-8 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-journal-day-close>
+        <button type="button" onClick={onClose} title="Close the day" aria-label="Close the day" className="hit ml-auto -mr-1.5 inline-flex items-center justify-center w-8 h-8 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-journal-day-close>
           <X className="w-4 h-4" />
         </button>
       </div>

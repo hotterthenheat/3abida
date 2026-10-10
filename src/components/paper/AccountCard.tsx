@@ -170,12 +170,12 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {onCancelAll && a.status === 'open' && working > 0 && (
-            <button type="button" onClick={onCancelAll} title="Every working order cancelled — what is open stays open" className={`${door} hover:text-textPrimary hover:border-borderMuted`} data-paper-cancel-all>
+            <button type="button" onClick={onCancelAll} title="Every working order cancelled — what is open stays open" className={`hit ${door} hover:text-textPrimary hover:border-borderMuted`} data-paper-cancel-all>
               Cancel all
             </button>
           )}
           {onFlatten && a.status === 'open' && open + working > 0 && (
-            <button type="button" onClick={onFlatten} title="Close everything open at the market and cancel everything working — now" className={`${door} hover:text-bear hover:border-bear/50`} data-paper-flatten>
+            <button type="button" onClick={onFlatten} title="Close everything open at the market and cancel everything working — now" className={`hit ${door} hover:text-bear hover:border-bear/50`} data-paper-flatten>
               <ShieldAlert className="w-3 h-3" /> Flatten
             </button>
           )}
@@ -188,7 +188,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
               }}
             >
               <Popover.Trigger asChild>
-                <button type="button" title="A new practice account, or an evaluation" className={`${door} hover:text-textPrimary hover:border-borderMuted data-[state=open]:text-textPrimary data-[state=open]:border-silver/50`} data-paper-new>
+                <button type="button" title="A new practice account, or an evaluation" className={`hit ${door} hover:text-textPrimary hover:border-borderMuted data-[state=open]:text-textPrimary data-[state=open]:border-silver/50`} data-paper-new>
                   <Plus className="w-3 h-3" /> New
                 </button>
               </Popover.Trigger>
@@ -247,7 +247,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                               setNewOpen(false);
                               onEndEvaluation(running.id);
                             }}
-                            className={`${door} shrink-0 ${ending ? 'text-bear border-bear/50' : 'hover:text-bear hover:border-bear/50'}`}
+                            className={`hit ${door} shrink-0 ${ending ? 'text-bear border-bear/50' : 'hover:text-bear hover:border-bear/50'}`}
                             data-paper-end-eval-button={ending ? 'sure' : 'ask'}
                           >
                             {ending ? 'End it — sure' : 'End it'}

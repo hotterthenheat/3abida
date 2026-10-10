@@ -162,7 +162,7 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
     onClick={onToggle}
     aria-pressed={on}
     title={on ? `Showing ${t.member.name} only — click to show every member` : `Keep the grid to ${t.member.name}`}
-    className={`group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
+    className={`hit group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
     data-congress-report={t.id}
     data-on={on || undefined}
   >
@@ -303,7 +303,7 @@ const Congress = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What Congress reported</h3>
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
+            <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · a row opens the name’s page</p>
         </div>

@@ -173,7 +173,7 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
       title={on ? `Showing ${f.ticker} only — click to show every name` : `Keep the grid to ${f.ticker}`}
       /* Lifted a tier from the panel (Noah, 2026-09-09: "too many grays … practically invisible"):
          the stronger border on a lighter ground, the words in the secondary and primary inks */
-      className={`group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
+      className={`hit group text-left rounded-md border px-3 py-2.5 transition-colors ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
       data-insiders-name={f.ticker}
       data-on={on || undefined}
     >
@@ -309,7 +309,7 @@ const Insiders = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What insiders did</h3>
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
+            <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
             {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first · a row opens the name’s page

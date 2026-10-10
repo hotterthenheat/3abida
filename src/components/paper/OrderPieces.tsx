@@ -168,7 +168,7 @@ export const Act = ({ side, count, at, why, onPress }: { side: Side; count: numb
     onClick={onPress}
     disabled={!!why}
     title={why ?? undefined}
-    className={`group h-10 min-w-0 px-2 rounded-md border border-borderMuted bg-ink/[0.04] font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap overflow-hidden text-ellipsis transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:text-[rgb(var(--night))] ${side === 'buy' ? 'enabled:hover:bg-bull enabled:hover:border-bull' : 'enabled:hover:bg-bear enabled:hover:border-bear'}`}
+    className={`hit group h-10 min-w-0 px-2 rounded-md border border-borderMuted bg-ink/[0.04] font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap overflow-hidden text-ellipsis transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:text-[rgb(var(--night))] ${side === 'buy' ? 'enabled:hover:bg-bull enabled:hover:border-bull' : 'enabled:hover:bg-bear enabled:hover:border-bear'}`}
     data-order-act={side}
   >
     {side === 'buy' ? 'Buy' : 'Sell'}{' '}

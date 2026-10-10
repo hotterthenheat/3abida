@@ -144,7 +144,7 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                       onClick={() => onPick(on ? null : d)}
                       aria-pressed={on}
                       title={`${DAYS[date.getDay()]}, ${monthName} ${date.getDate()} — ${t ? `${t.n} closed, ${usdSigned(t.net)}` : future ? 'still to come' : 'nothing closed'} · ${on ? 'close the day' : 'open the day'}`}
-                      className={`relative min-w-0 min-h-[52px] lg:min-h-[76px] rounded-md lg:rounded-lg border px-1 lg:px-2.5 py-1 lg:py-1.5 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-silver/60 ${on ? 'ring-2 ring-silver border-transparent' : isToday ? 'border-silver/60' : 'border-borderSubtle hover:border-borderMuted'} ${!t ? 'hover:bg-ink/[0.03]' : ''}`}
+                      className={`hit relative min-w-0 min-h-[52px] lg:min-h-[76px] rounded-md lg:rounded-lg border px-1 lg:px-2.5 py-1 lg:py-1.5 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-silver/60 ${on ? 'ring-2 ring-silver border-transparent' : isToday ? 'border-silver/60' : 'border-borderSubtle hover:border-borderMuted'} ${!t ? 'hover:bg-ink/[0.03]' : ''}`}
                       style={ink ? { background: `rgb(var(--${ink}) / calc(${wash.toFixed(3)} * var(--day-wash)))`, borderColor: on ? undefined : `rgb(var(--${ink}) / ${(0.3 + wash).toFixed(3)})` } : undefined}
                       data-journal-day={d}
                       data-trades={t?.n ?? 0}

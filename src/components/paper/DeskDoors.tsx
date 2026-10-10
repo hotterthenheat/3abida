@@ -43,7 +43,7 @@ export const LayoutDoors = ({ compact }: { compact: boolean }) => {
       {LAYOUTS.map(l => {
         const on = l.value === desk.layout;
         return (
-          <button key={l.value} type="button" onClick={() => setLayout(l.value)} aria-pressed={on} title={l.label} aria-label={l.label} className={`hit ${barDoor} ${compact ? 'px-1' : 'px-1.5'} ${on ? 'text-silver' : ''}`} data-paper-layout={l.value}>
+          <button key={l.value} type="button" onClick={() => setLayout(l.value)} aria-pressed={on} title={l.label} aria-label={l.label} className={`${barDoor} ${compact ? 'px-1' : 'px-1.5'} ${on ? 'text-silver' : ''}`} data-paper-layout={l.value}>
             <l.icon className="w-3.5 h-3.5" />
           </button>
         );
@@ -54,7 +54,7 @@ export const LayoutDoors = ({ compact }: { compact: boolean }) => {
 
 /** The house's tick-box (LadderFields' CheckRow): a bordered square that fills silver and takes a tick */
 const Tick = ({ on, onChange, label, hint, testId }: { on: boolean; onChange: (v: boolean) => void; label: string; hint: string; testId: string }) => (
-  <button type="button" role="checkbox" aria-checked={on} onClick={() => onChange(!on)} title={hint} className="flex items-start gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-ink/[0.05] transition-colors" data-paper-sync={testId}>
+  <button type="button" role="checkbox" aria-checked={on} onClick={() => onChange(!on)} title={hint} className="hit flex items-start gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-ink/[0.05] transition-colors" data-paper-sync={testId}>
     <span className={`mt-0.5 inline-flex w-3.5 h-3.5 shrink-0 items-center justify-center rounded-[3px] border ${on ? 'bg-silverFill border-silverFill' : 'border-borderMuted'}`}>{on && <Check className="w-2.5 h-2.5 text-[rgb(var(--night))]" />}</span>
     <span className="min-w-0">
       <span className={`block text-[11px] ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>{label}</span>
@@ -106,13 +106,13 @@ export const DeskMenu = ({ compact }: { compact: boolean }) => {
                   }}
                 >
                   <input ref={field} value={draft} onChange={e => setDraft(e.target.value.slice(0, 32))} aria-label="The desk's name" className="flex-1 h-7 px-2 rounded-md border border-silver/50 bg-panel text-[12px] text-textPrimary outline-none" data-paper-desk-name-field />
-                  <button type="submit" className="h-7 px-2 rounded-md text-[10px] font-mono uppercase tracking-wider text-silver hover:bg-silver/[0.08]">
+                  <button type="submit" className="hit h-7 px-2 rounded-md text-[10px] font-mono uppercase tracking-wider text-silver hover:bg-silver/[0.08]">
                     Keep
                   </button>
                 </form>
               ) : (
                 <>
-                  <button type="button" onClick={() => switchDesk(d.id)} onDoubleClick={() => setNaming(d)} title="Put this desk up — double-click to rename it" className={`flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors ${d.id === desk.id ? 'text-textPrimary bg-ink/[0.05]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'}`} data-paper-desk={d.id}>
+                  <button type="button" onClick={() => switchDesk(d.id)} onDoubleClick={() => setNaming(d)} title="Put this desk up — double-click to rename it" className={`hit flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors ${d.id === desk.id ? 'text-textPrimary bg-ink/[0.05]' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'}`} data-paper-desk={d.id}>
                     <span className={`w-3.5 shrink-0 ${d.id === desk.id ? 'text-silver' : 'text-transparent'}`}>
                       <Check className="w-3.5 h-3.5" />
                     </span>
@@ -145,10 +145,10 @@ export const DeskMenu = ({ compact }: { compact: boolean }) => {
             </div>
           ))}
           <div className="flex items-center gap-1 px-1 pt-1">
-            <button type="button" onClick={() => newDesk()} className="flex-1 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors" data-paper-desk-new>
+            <button type="button" onClick={() => newDesk()} className="hit flex-1 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors" data-paper-desk-new>
               <Plus className="w-3 h-3" /> A new desk — this one, copied
             </button>
-            <button type="button" onClick={() => setNaming(desk)} className="px-2 py-1.5 rounded-md text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors" data-paper-desk-rename>
+            <button type="button" onClick={() => setNaming(desk)} className="hit px-2 py-1.5 rounded-md text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] transition-colors" data-paper-desk-rename>
               Rename
             </button>
           </div>

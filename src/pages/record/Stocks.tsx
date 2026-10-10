@@ -162,7 +162,7 @@ const SectorCard = ({ s, rank, leader, top, on, onToggle }: { s: SectorRow; rank
     onClick={onToggle}
     aria-pressed={on}
     title={`${s.note} ${on ? 'Click to show every sector.' : `Click to keep the grid to ${s.sector}.`}`}
-    className={`group text-left rounded-md border px-3 py-2.5 transition-colors min-w-0 ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
+    className={`hit group text-left rounded-md border px-3 py-2.5 transition-colors min-w-0 ${on ? 'border-silver/60 bg-silver/[0.08]' : 'border-borderMuted bg-card hover:border-silver/40 hover:bg-silver/[0.05]'}`}
     data-stocks-sector={s.sector}
     data-on={on || undefined}
   >
@@ -306,7 +306,7 @@ const Stocks = () => {
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">How every name screens</h3>
-            <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
+            <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
             The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map
@@ -328,7 +328,7 @@ const Stocks = () => {
           <div>
             <dt className="text-[10px] text-textMuted">Leading sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-leader>
-              <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
+              <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
                 {top.sector}
               </button>
             </dd>
@@ -336,7 +336,7 @@ const Stocks = () => {
           <div>
             <dt className="text-[10px] text-textMuted">Trailing sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-trailer>
-              <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
+              <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
                 {bottom.sector}
               </button>
             </dd>

@@ -65,7 +65,7 @@ const PlanRows = ({ onStart, disabled = false, titleOf, compact = false, rowKey,
       disabled={disabled}
       onClick={() => onStart(p)}
       title={titleOf(p)}
-      className={`${compact ? 'h-6 px-2.5 text-[10px]' : 'h-7 px-3 text-[11px]'} rounded-full font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-opacity hover:opacity-90`}
+      className={`hit ${compact ? 'h-6 px-2.5 text-[10px]' : 'h-7 px-3 text-[11px]'} rounded-full font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-opacity hover:opacity-90`}
       style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }}
       {...(attr ? { [`data-${startKey}`]: p.label } : {})}
     >

@@ -39,7 +39,7 @@ const ListEditor = ({ list, title, placeholder, words }: { list: keyof TagLists;
         {words.map(w => (
           <div key={w} className="group flex items-center gap-2 h-7 border-b border-borderSubtle/60 text-[12px] text-textPrimary">
             <span className="min-w-0 flex-1 truncate">{w}</span>
-            <button type="button" onClick={() => removeTag(list, w)} title={`Take “${w}” off the list — trades that carry it keep it`} aria-label={`Take ${w} off the list`} className="inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors" data-tag-remove={w}>
+            <button type="button" onClick={() => removeTag(list, w)} title={`Take “${w}” off the list — trades that carry it keep it`} aria-label={`Take ${w} off the list`} className="hit inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors" data-tag-remove={w}>
               <X className="w-3 h-3" />
             </button>
           </div>
@@ -56,7 +56,7 @@ const ListEditor = ({ list, title, placeholder, words }: { list: keyof TagLists;
         }}
       >
         <input ref={field} value={draft} onChange={e => setDraft(e.target.value)} maxLength={40} placeholder={placeholder} aria-label={placeholder} className="h-7 min-w-0 flex-1 px-2 rounded-md border border-borderSubtle bg-panel text-[12px] text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60 transition-colors" data-tag-add={list} />
-        <button type="submit" disabled={!draft.trim()} title="Add it to the list" aria-label="Add it to the list" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors">
+        <button type="submit" disabled={!draft.trim()} title="Add it to the list" aria-label="Add it to the list" className="hit inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors">
           <Plus className="w-3.5 h-3.5" />
         </button>
       </form>

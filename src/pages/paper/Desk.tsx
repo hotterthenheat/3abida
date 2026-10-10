@@ -455,7 +455,7 @@ const PaperDesk = () => {
           }}
           disabled={!!lock || r.p.quote.dead}
           title={lock ?? (r.p.quote.dead ? 'No bid to sell into right now' : 'Sell all of it at the bid, now')}
-          className={`hit ${smallDoor}`}
+          className={smallDoor}
           data-position-close={r.key}
         >
           Close
@@ -610,13 +610,13 @@ const MarkCard = ({ plan, qty, onQty, onCancel }: { plan: ReturnType<typeof plan
           plan.place(qty);
           onCancel();
         }}
-        className="ml-auto h-8 px-4 rounded-full text-[12px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90"
+        className="hit ml-auto h-8 px-4 rounded-full text-[12px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90"
         style={{ background: 'rgb(var(--silver-fill))', color: 'rgb(var(--night))' }}
         data-paper-mark-place
       >
         Place it
       </button>
-      <button type="button" onClick={onCancel} className="h-8 px-3 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors">
+      <button type="button" onClick={onCancel} className="hit h-8 px-3 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors">
         Not now
       </button>
     </div>

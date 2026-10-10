@@ -112,7 +112,7 @@ const JournalDayBars = ({ days, picked, onPick, height }: Props) => {
                 onBlur={() => setOver(null)}
                 aria-label={`${long(d.day)}: ${usdSigned(d.net)}, ${d.n} closed — open the day`}
                 aria-pressed={on}
-                className="group relative flex-1 min-w-[2px] h-full focus:outline-none"
+                className="hit group relative flex-1 min-w-[2px] h-full focus:outline-none"
                 style={{ maxWidth: colW }}
                 data-journal-daybar={d.day}
               >

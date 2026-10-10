@@ -64,7 +64,7 @@ const Pill = ({ e, onOpen }: { e: CalEvent; onOpen: () => void }) => {
         ev.stopPropagation();
         onOpen();
       }}
-      className="w-full flex items-center gap-1 h-[18px] px-1.5 rounded-[3px] text-left font-mono text-[10px] font-semibold whitespace-nowrap overflow-hidden transition-[filter] hover:brightness-110"
+      className="hit w-full flex items-center gap-1 h-[18px] px-1.5 rounded-[3px] text-left font-mono text-[10px] font-semibold whitespace-nowrap overflow-hidden transition-[filter] hover:brightness-110"
       style={{ background: alpha(ink, 0.13), color: ink, boxShadow: `inset 2px 0 0 0 ${ink}` }}
       title={e.kind === 'earnings' ? `${e.ticker} reports ${e.time}${e.impliedMovePct ? ` · ±${e.impliedMovePct.toFixed(1)}% priced` : ''}` : `${e.time} · ${e.title}${e.forecast ? ` · fcst ${e.forecast}` : ''}`}
       data-cal-pill={e.id}
@@ -120,16 +120,16 @@ const NewsCalendar = () => {
       {/* THE MONTH */}
       <div className="min-w-0 border-r border-borderSubtle max-lg:border-r-0 max-lg:border-b">
         <div className="px-4 h-[40px] flex items-center gap-2 border-b border-borderSubtle max-lg:h-auto max-lg:py-2 max-lg:flex-wrap">
-          <button type="button" onClick={() => shift(-1)} className="inline-flex items-center justify-center w-6 h-6 rounded text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" title="The month before" aria-label="The month before" data-cal-prev>
+          <button type="button" onClick={() => shift(-1)} className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" title="The month before" aria-label="The month before" data-cal-prev>
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <button type="button" onClick={() => shift(1)} className="inline-flex items-center justify-center w-6 h-6 rounded text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" title="The month after" aria-label="The month after" data-cal-next>
+          <button type="button" onClick={() => shift(1)} className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" title="The month after" aria-label="The month after" data-cal-next>
             <ChevronRight className="w-4 h-4" />
           </button>
           <span className="text-[14px] font-semibold text-textPrimary" data-cal-label>
             {cal.label}
           </span>
-          <button type="button" onClick={home} className="inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-cal-today>
+          <button type="button" onClick={home} className="hit inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-cal-today>
             Today
           </button>
           <span className="font-mono text-[10px] tnum text-textSecondary ml-2" data-cal-counts>

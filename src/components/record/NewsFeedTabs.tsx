@@ -150,12 +150,12 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
                 onClick={() => setFollowAlerts(f.ticker, !f.alerts)}
                 title={f.alerts ? `The bell rings when a headline lands on ${f.ticker} · click to take it off` : `Ring the bell when a headline lands on ${f.ticker}`}
                 aria-pressed={f.alerts}
-                className={`ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${f.alerts ? 'text-silver bg-silver/[0.12]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+                className={`hit ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors ${f.alerts ? 'text-silver bg-silver/[0.12]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.06]'}`}
                 data-follow-bell={f.alerts ? 'set' : 'off'}
               >
                 {f.alerts ? <Bell className="w-3 h-3" /> : <BellOff className="w-3 h-3" />}
               </button>
-              <button type="button" onClick={() => unfollowName(f.ticker)} title={`Stop following ${f.ticker}`} aria-label={`Stop following ${f.ticker}`} className="inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-follow-remove>
+              <button type="button" onClick={() => unfollowName(f.ticker)} title={`Stop following ${f.ticker}`} aria-label={`Stop following ${f.ticker}`} className="hit inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-follow-remove>
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -165,7 +165,7 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
               type="button"
               onClick={() => setAdding(v => !v)}
               aria-expanded={adding}
-              className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
+              className={`hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
               data-follow-add
             >
               <Plus className="w-3 h-3 text-textMuted" />
@@ -244,7 +244,7 @@ const NewsFeedTabs = ({ events, calendar, selectedId, onPick }: Props) => {
             key={e.id}
             type="button"
             onClick={() => onPick(e)}
-            className={`group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
+            className={`hit group w-full text-left px-5 grid items-center gap-x-3 border-t border-borderSubtle/40 transition-colors max-lg:min-w-[640px] ${open ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.05]'}`}
             style={{ height: NEWS_ROW_H, gridTemplateColumns: FEED_COLS }}
             data-news-feed-row={e.id}
             data-open={open || undefined}

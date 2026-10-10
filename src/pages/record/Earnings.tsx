@@ -103,7 +103,7 @@ const NameDoor = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void
     type="button"
     onClick={() => onOpen(e.ticker)}
     title={`${e.name} — options price ±${e.impliedMovePct.toFixed(1)}%, ${slotWord(e)} · open its page`}
-    className="group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-borderSubtle hover:bg-silver/[0.05] transition-colors text-left"
+    className="hit group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-borderSubtle hover:bg-silver/[0.05] transition-colors text-left"
     data-earnings-door={e.ticker}
   >
     <CompanyLogo ticker={e.ticker} size={22} />
@@ -131,7 +131,7 @@ const Card = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void }) 
     type="button"
     onClick={() => onOpen(e.ticker)}
     title={`${e.name} — options price ±${e.impliedMovePct.toFixed(1)}%, ${slotWord(e)} · open its page`}
-    className="group relative flex flex-col items-center gap-1.5 rounded-md border border-borderSubtle bg-chip px-2 pt-3 pb-2.5 transition-colors hover:border-borderMuted hover:bg-silver/[0.05]"
+    className="hit group relative flex flex-col items-center gap-1.5 rounded-md border border-borderSubtle bg-chip px-2 pt-3 pb-2.5 transition-colors hover:border-borderMuted hover:bg-silver/[0.05]"
     data-earnings-card={e.ticker}
   >
     <CompanyLogo ticker={e.ticker} size={28} />
@@ -252,7 +252,7 @@ const Earnings = () => {
           <div className="min-w-0 flex-1">
             <div className="h-6 flex items-center gap-3">
               <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Who reports</h3>
-              <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the doors, the price and the words mean" testId="earnings-guide" />
+              <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the doors, the price and the words mean" testId="earnings-guide" />
             </div>
             <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">The fortnight's reports · the figure on every name is the move its options charge · click a name for its page</p>
           </div>

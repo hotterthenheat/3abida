@@ -157,7 +157,7 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
                 aria-selected={on}
                 aria-expanded={on && drillOpen}
                 onClick={() => onPick(c)}
-                className={`w-full grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-[26px] items-center font-mono text-[11px] tnum text-left transition-colors ${on ? 'bg-silver/[0.10]' : right === 'C' ? 'hover:bg-bull/[0.08]' : 'hover:bg-bear/[0.08]'}`}
+                className={`hit w-full grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-[26px] items-center font-mono text-[11px] tnum text-left transition-colors ${on ? 'bg-silver/[0.10]' : right === 'C' ? 'hover:bg-bull/[0.08]' : 'hover:bg-bear/[0.08]'}`}
                 data-chain-row={r.strike}
               >
                 <span className={`inline-flex items-center gap-1 font-semibold ${on ? 'text-silver' : 'text-textPrimary'}`}>

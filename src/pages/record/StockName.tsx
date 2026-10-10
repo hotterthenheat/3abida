@@ -204,7 +204,7 @@ const Fact = ({ label, children, testId }: { label: string; children: ReactNode;
   </div>
 );
 const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () => void; children: ReactNode }) => (
-  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
     <ArrowUpRight className="w-3 h-3" />
     {children}
   </button>
@@ -407,7 +407,7 @@ const Flags = ({ flags }: { flags: NonNullable<StockOverview['trend']['flags']> 
 
 /** A busiest contract — a door to the Weigher with the contract picked */
 const ContractRow = ({ c, maxVol, onOpen, onWarm }: { c: BookContract; maxVol: number; onOpen: () => void; onWarm?: () => void }) => (
-  <button type="button" onClick={onOpen} onMouseEnter={onWarm} onFocus={onWarm} title="Weigh this contract" className="group/door w-full text-left px-3 sm:px-5 py-2 border-t border-borderSubtle/40 grid grid-cols-[92px_64px_minmax(0,1fr)_12px] sm:grid-cols-[112px_96px_minmax(0,1fr)_72px_24px] items-center gap-x-2 sm:gap-x-3 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors" data-stock-contract={c.key} data-contract-strike={c.strike} data-contract-right={c.right}>
+  <button type="button" onClick={onOpen} onMouseEnter={onWarm} onFocus={onWarm} title="Weigh this contract" className="hit group/door w-full text-left px-3 sm:px-5 py-2 border-t border-borderSubtle/40 grid grid-cols-[92px_64px_minmax(0,1fr)_12px] sm:grid-cols-[112px_96px_minmax(0,1fr)_72px_24px] items-center gap-x-2 sm:gap-x-3 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors" data-stock-contract={c.key} data-contract-strike={c.strike} data-contract-right={c.right}>
     <span className="font-mono text-[11px] font-bold text-textPrimary group-hover/door:text-silver transition-colors">
       {c.strike}
       {c.right} <span className="text-[10px] font-normal text-textMuted">· {c.expiry.slice(0, 5)}</span>
@@ -427,7 +427,7 @@ const ContractRow = ({ c, maxVol, onOpen, onWarm }: { c: BookContract; maxVol: n
 );
 /** One of the tape's biggest prints on the name — a door to the Weigher with the contract picked */
 const PrintRow = ({ p, maxPrem, onOpen, onWarm }: { p: FlowPrint; maxPrem: number; onOpen: () => void; onWarm?: () => void }) => (
-  <button type="button" onClick={onOpen} onMouseEnter={onWarm} onFocus={onWarm} title="Weigh this contract" className="group/door w-full text-left px-3 sm:px-5 h-[34px] border-t border-borderSubtle/40 grid grid-cols-[88px_minmax(0,1fr)_64px_12px] sm:grid-cols-[44px_112px_minmax(0,1fr)_72px_48px_24px] items-center gap-x-2 sm:gap-x-3 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors" data-stock-print={p.id} data-print-side={p.side}>
+  <button type="button" onClick={onOpen} onMouseEnter={onWarm} onFocus={onWarm} title="Weigh this contract" className="hit group/door w-full text-left px-3 sm:px-5 h-[34px] border-t border-borderSubtle/40 grid grid-cols-[88px_minmax(0,1fr)_64px_12px] sm:grid-cols-[44px_112px_minmax(0,1fr)_72px_48px_24px] items-center gap-x-2 sm:gap-x-3 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors" data-stock-print={p.id} data-print-side={p.side}>
     {/* on a phone the row is the contract, its size and its money — the time and the sweep mark come back at 640px (its
         fixed columns alone were 400px) */}
     <span className="max-sm:hidden font-mono text-[10px] tnum text-textMuted">{p.time}</span>
@@ -500,13 +500,13 @@ const StockNameBody = () => {
   const jump = (id: string) => document.getElementById(`stock-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const back = (
     <div className="flex items-center gap-4 flex-wrap" data-name-back>
-      <Link to="/dossier/stocks" className="group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+      <Link to="/dossier/stocks" className="hit group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
         <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> The board
       </Link>
       {view && (
         <nav className="ml-auto flex items-center gap-1 flex-wrap font-mono text-[10px] uppercase tracking-widest" aria-label="Sections of the page" data-stock-jumps>
           {JUMPS.map(([id, label]) => (
-            <button key={id} type="button" onClick={() => jump(id)} className="inline-flex items-center h-6 px-2 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-stock-jump={id}>
+            <button key={id} type="button" onClick={() => jump(id)} className="hit inline-flex items-center h-6 px-2 rounded-md text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors" data-stock-jump={id}>
               {label}
             </button>
           ))}
@@ -653,7 +653,7 @@ const StockNameBody = () => {
               <div className="h-6 flex items-center gap-2.5">
                 <h3 className="text-[15px] font-semibold leading-tight text-textPrimary truncate">{view.name}</h3>
                 <span className="font-mono text-[11px] font-bold text-textSecondary">{T}</span>
-                <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the read, the pillars and the factors mean" testId="stock-guide" />
+                <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the read, the pillars and the factors mean" testId="stock-guide" />
               </div>
               <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
                 <span className="font-mono text-[12px] tnum text-textPrimary">
@@ -943,7 +943,7 @@ const StockNameBody = () => {
                     <span className="text-textMuted">
                       {pct(keptPrint.biggest.vsSpotPct)} from spot{keptPrint.biggest.atLevel ? ' · on a shelf' : ''}
                     </span>
-                    <button type="button" onClick={() => setPrintFocus(null)} className="ml-auto inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-stock-print-release>
+                    <button type="button" onClick={() => setPrintFocus(null)} className="hit ml-auto inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-stock-print-release>
                       let go
                     </button>
                     <span className="basis-full text-[10.5px] font-sans text-textSecondary truncate" data-stock-print-read>
@@ -956,7 +956,7 @@ const StockNameBody = () => {
                       the largest ·
                     </span>
                     {largestPrints.map(m => (
-                      <button key={m.time} type="button" onClick={() => setPrintFocus(m.time)} className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted transition-colors" title={`${clockOf(m.time)} · ${count(m.biggest.size)} @ ${m.biggest.price.toFixed(2)} · ${m.biggest.venue}`} data-stock-print-chip={m.time}>
+                      <button key={m.time} type="button" onClick={() => setPrintFocus(m.time)} className="hit inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted transition-colors" title={`${clockOf(m.time)} · ${count(m.biggest.size)} @ ${m.biggest.price.toFixed(2)} · ${m.biggest.venue}`} data-stock-print-chip={m.time}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: INTENT_INK[m.biggest.intent] ?? 'rgb(var(--text-muted))' }} />
                         <span className="text-textPrimary">{clockOf(m.time)}</span>
                         <span className="text-textSecondary">{count(m.biggest.size)}</span>
@@ -983,7 +983,7 @@ const StockNameBody = () => {
           ) : (
             <div>
               {news.stories.map(s => (
-                <button key={s.id} type="button" onClick={() => navigate('/dossier/news', { state: { selectedId: s.id, name: T } })} className="group w-full text-left px-5 h-[34px] grid items-center gap-x-3 border-t border-borderSubtle/40 hover:bg-ink/[0.03] transition-colors" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 64px 56px' }} data-stock-story={s.id}>
+                <button key={s.id} type="button" onClick={() => navigate('/dossier/news', { state: { selectedId: s.id, name: T } })} className="hit group w-full text-left px-5 h-[34px] grid items-center gap-x-3 border-t border-borderSubtle/40 hover:bg-ink/[0.03] transition-colors" style={{ gridTemplateColumns: '64px minmax(0, 1fr) 64px 56px' }} data-stock-story={s.id}>
                   <span className="font-mono text-[10px] tnum text-textMuted">{ago(s.item.minutesAgo)}</span>
                   <span className="min-w-0 truncate text-[11.5px] text-textSecondary group-hover:text-textPrimary transition-colors">{s.item.headline}</span>
                   <span className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${s.grade === 'ALLY' ? 'text-bull' : s.grade === 'THREAT' ? 'text-bear' : 'text-textSecondary'}`}>{s.grade === 'ALLY' ? 'positive' : s.grade === 'THREAT' ? 'negative' : 'neutral'}</span>
@@ -1034,7 +1034,7 @@ const StockNameBody = () => {
                   no report on the next two weeks' calendar{news.reaction ? ` · the last ${news.reaction.reports} moved it ±${news.reaction.pct.toFixed(1)}% on average` : ''}
                 </span>
               )}
-              <Link to="/dossier/news" state={{ name: T }} className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors whitespace-nowrap">
+              <Link to="/dossier/news" state={{ name: T }} className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors whitespace-nowrap">
                 <ArrowUpRight className="w-3 h-3" /> the wire
               </Link>
             </div>
@@ -1220,7 +1220,7 @@ const StockNameBody = () => {
         </div>
         {/* THE METHOD, behind a fold */}
         <div className="border-t border-borderSubtle/60">
-          <button type="button" onClick={() => setMethodOpen(v => !v)} aria-expanded={methodOpen} className="w-full px-5 h-[34px] flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-stock-method-door={methodOpen ? 'open' : 'shut'}>
+          <button type="button" onClick={() => setMethodOpen(v => !v)} aria-expanded={methodOpen} className="hit w-full px-5 h-[34px] flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors" data-stock-method-door={methodOpen ? 'open' : 'shut'}>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${methodOpen ? 'rotate-180' : ''}`} />
             How it is put together · what was observed, what was derived from it, what was inferred
           </button>
@@ -1368,7 +1368,7 @@ const StockNameBody = () => {
                 <span className={insiders.sold > 0 ? 'text-bear' : 'text-textMuted'}>{insiders.sold > 0 ? fmtMoney(insiders.sold) : 'nothing'}</span>
                 {insiders.buyerCluster > 1 && <span className="text-silver"> · {insiders.buyerCluster} buyers inside a month</span>}
               </span>
-              <Link to="/dossier/insiders" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+              <Link to="/dossier/insiders" className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                 <ArrowUpRight className="w-3 h-3" /> every insider
               </Link>
             </div>
@@ -1413,7 +1413,7 @@ const StockNameBody = () => {
                 {congress.some(t => t.committeeOverlap) && <span className="text-warn"> · {congress.filter(t => t.committeeOverlap).length} from a member whose committee oversees the sector</span>}
               </span>
             )}
-            <Link to="/dossier/congress" className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+            <Link to="/dossier/congress" className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
               <ArrowUpRight className="w-3 h-3" /> every report
             </Link>
           </div>

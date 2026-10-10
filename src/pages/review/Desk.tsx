@@ -290,7 +290,7 @@ const Desk = () => {
         align: 'right',
         render: o =>
           o.status === 'working' ? (
-            <button type="button" onClick={() => id && cancelOrder(id, o.id)} title="Cancel this order" aria-label="Cancel this order" className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors" data-order-cancel={o.id}>
+            <button type="button" onClick={() => id && cancelOrder(id, o.id)} title="Cancel this order" aria-label="Cancel this order" className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors" data-order-cancel={o.id}>
               <X className="w-3 h-3" />
             </button>
           ) : null,
@@ -439,7 +439,7 @@ const Desk = () => {
       <div className={head}>
         <span className={headWord}>Order</span>
         {picked && (
-          <button type="button" onClick={() => setPicked(null)} className="ml-auto font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors">
+          <button type="button" onClick={() => setPicked(null)} className="hit ml-auto font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors">
             Clear
           </button>
         )}

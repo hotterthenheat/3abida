@@ -673,7 +673,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
         <button
           type="button"
           onClick={() => glideTo(homeView)}
-          className="absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
+          className="hit absolute right-2 top-2 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle bg-chip/90 hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
           title="Back to the whole world"
           data-news-map-fit
         >

@@ -300,7 +300,7 @@ const TrailDoor = ({ b, dp, onTrail }: { b: ChartBracket; dp: number; onTrail: (
           aria-pressed={on}
           title={on ? `Trailing: it keeps ${b.trail!.toFixed(dp)} from the best price since, and never moves back. Press to change the distance, or let it rest` : 'Trail it — keep a distance from the best price, and never move back'}
           aria-label={on ? 'The trailing distance' : 'Trail the stop'}
-          className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${on ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'} data-[state=open]:text-silver`}
+          className={`hit inline-flex items-center justify-center w-4 h-4 rounded transition-colors ${on ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'} data-[state=open]:text-silver`}
           data-chart-trail={on ? 'on' : 'off'}
         >
           <Footprints className="w-3 h-3" />
@@ -336,11 +336,11 @@ const TrailDoor = ({ b, dp, onTrail }: { b: ChartBracket; dp: number; onTrail: (
               <input ref={field} value={draft} onChange={e => setDraft(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" aria-label="Trail by" className="h-8 px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60 transition-colors" data-chart-trail-field />
             </label>
             <div className="flex items-center gap-2">
-              <button type="submit" disabled={!(by > 0)} className="h-7 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }} data-chart-trail-apply>
+              <button type="submit" disabled={!(by > 0)} className="hit h-7 px-3 rounded-full text-[11px] font-semibold disabled:opacity-35 transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }} data-chart-trail-apply>
                 {on ? 'Trail by this' : 'Trail'}
               </button>
               {on && (
-                <button type="button" onClick={() => { onTrail(b.orderId, false); setOpen(false); }} className="h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-chart-trail-off>
+                <button type="button" onClick={() => { onTrail(b.orderId, false); setOpen(false); }} className="hit h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-chart-trail-off>
                   Let it rest
                 </button>
               )}
@@ -769,7 +769,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
               <span className={`${block} font-bold border-l border-black/25 ${fill(side)}`} data-chip-qty>
                 {`${p.qty} × ${p.label ?? short(p.contract, ticker)}`}
               </span>
-              <button type="button" onClick={() => onClosePosition(p.contract, p.qty)} disabled={p.dead || marketShut} title={marketShut ? 'The market is shut — open the next day' : p.dead ? 'No bid to sell into right now' : 'Sell all of it at the bid, now'} aria-label={`Close ${contractWords(p.contract)}`} className={`${xCell} rounded-r-[3px]`} data-chart-close>
+              <button type="button" onClick={() => onClosePosition(p.contract, p.qty)} disabled={p.dead || marketShut} title={marketShut ? 'The market is shut — open the next day' : p.dead ? 'No bid to sell into right now' : 'Sell all of it at the bid, now'} aria-label={`Close ${contractWords(p.contract)}`} className={`hit ${xCell} rounded-r-[3px]`} data-chart-close>
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -827,7 +827,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                       aria-pressed={!!b.breakeven}
                       title={!b.canBreakeven ? 'Breakeven needs a target: it is the first target’s fill that moves the stop' : b.breakeven ? 'Breakeven is armed: when the first target fills, the stop moves to what was paid. Press to let it be' : 'Breakeven — when the first target fills, move the stop to what was paid'}
                       aria-label={b.breakeven ? 'Let breakeven go' : 'Arm breakeven'}
-                      className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors disabled:opacity-30 ${b.breakeven ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
+                      className={`hit inline-flex items-center justify-center w-4 h-4 rounded transition-colors disabled:opacity-30 ${b.breakeven ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
                       data-chart-breakeven={b.breakeven ? 'on' : 'off'}
                     >
                       <Equal className="w-3 h-3" />
@@ -841,7 +841,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                     aria-pressed={pinned}
                     title={pinned ? `Pinned to ${ticker}’s price: the line holds, the dollars drift as the contract decays. Press to set it on the contract’s price again` : b.level == null ? `No price of ${ticker} gives this today — nothing to pin it to` : `Pin it to ${ticker}’s price — the line stops drifting as the contract decays; the dollars drift instead`}
                     aria-label={pinned ? `Set the ${b.kind} on the contract’s price` : `Pin the ${b.kind} to ${ticker}’s price`}
-                    className={`inline-flex items-center justify-center w-4 h-4 rounded transition-colors disabled:opacity-30 ${pinned ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
+                    className={`hit inline-flex items-center justify-center w-4 h-4 rounded transition-colors disabled:opacity-30 ${pinned ? 'text-silver bg-silver/[0.14]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
                     data-chart-pin={pinned ? 'name' : 'contract'}
                   >
                     <Pin className="w-3 h-3" />
@@ -869,7 +869,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                   onClick={() => onCancelOrder(b.orderId)}
                   title={`Take the ${b.kind} off — the position stays${brackets.some(o => o.orderId !== b.orderId && contractKey(o.contract) === contractKey(b.contract)) ? `, and so does its ${b.kind === 'target' ? 'stop' : 'target'}` : ''}`}
                   aria-label={`Take the ${b.kind} off`}
-                  className={`${xCell} rounded-r-[3px]`}
+                  className={`hit ${xCell} rounded-r-[3px]`}
                   data-chart-cancel={b.kind}
                 >
                   <X className="w-3 h-3" />
@@ -919,7 +919,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                   {held && !x.label && <span className="ml-1 text-textPrimary">{priceWords}</span>}
                 </span>
               </span>
-              <button type="button" onClick={() => onCancelOrder(x.orderId)} title={`Cancel the ${what.toLowerCase()}`} aria-label={`Cancel the ${what.toLowerCase()}`} className={`inline-flex items-center justify-center w-5 border-l border-current rounded-r-[2px] transition-colors ${buy ? 'hover:bg-bull' : 'hover:bg-bear'} hover:text-[rgb(var(--night))]`} data-chart-entry-cancel>
+              <button type="button" onClick={() => onCancelOrder(x.orderId)} title={`Cancel the ${what.toLowerCase()}`} aria-label={`Cancel the ${what.toLowerCase()}`} className={`hit inline-flex items-center justify-center w-5 border-l border-current rounded-r-[2px] transition-colors ${buy ? 'hover:bg-bull' : 'hover:bg-bear'} hover:text-[rgb(var(--night))]`} data-chart-entry-cancel>
                 <X className="w-3 h-3" />
               </button>
               {/* OUT OF THE PICTURE (shown by the frame loop): which way the line is */}
@@ -948,7 +948,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                     setOpen(null);
                     it.run();
                   }}
-                  className={`w-full flex flex-col items-start px-2 py-1.5 rounded-md text-left transition-colors disabled:opacity-35 disabled:cursor-not-allowed ${it.tone === 'bull' ? 'hover:bg-bull/[0.12] hover:text-bull' : it.tone === 'bear' ? 'hover:bg-bear/[0.12] hover:text-bear' : 'hover:bg-ink/[0.06]'} text-textPrimary`}
+                  className={`hit w-full flex flex-col items-start px-2 py-1.5 rounded-md text-left transition-colors disabled:opacity-35 disabled:cursor-not-allowed ${it.tone === 'bull' ? 'hover:bg-bull/[0.12] hover:text-bull' : it.tone === 'bear' ? 'hover:bg-bear/[0.12] hover:text-bear' : 'hover:bg-ink/[0.06]'} text-textPrimary`}
                   data-chart-menu-item={it.testId ?? it.label}
                 >
                   <span className="text-[12px] leading-snug">{it.label}</span>
