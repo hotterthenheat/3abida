@@ -432,6 +432,14 @@ class TrailsPaneRenderer {
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       const xRight = (wCss - 8) * hr;
+      /* THE CHIPS NEVER STACK (the audit's TE-3: QQQ's "408 · 10% / 407 · 10% / 406 · 9% / 405 · 19%" printed in 30 px).
+         Placed heaviest first — the focused strike, then the supreme, then by weight — each takes its own line's height;
+         one that would land on a chip already placed may nudge up to half a chip off its line, else it is left out (its
+         line and its beads still say it). And THE CHART'S RESET PILL keeps its corner (the audit's WE-6: "RESET" sat under
+         "474 · 9%"): a chip in the pill's band moves left of it, on its own line. */
+      const placed: { top: number; bottom: number }[] = [];
+      const hCss = scope.mediaSize.height;
+      const keepOut = { top: (hCss - 34) * vr, left: (wCss - 78) * hr };
 
       const drawLabel = (lvl: { strike: number; value: number }, color: string) => {
         const y = series.priceToCoordinate(lvl.strike);
@@ -460,14 +468,32 @@ class TrailsPaneRenderer {
         const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
         const boxTop = yPix - boxH / 2 - padY / 2;
         if (boxTop < floor) yPix += floor - boxTop;
+        const full = boxH + padY;
+        const gap = 2 * vr;
+        const hits = (c: number) => placed.some(p => c - full / 2 < p.bottom + gap && c + full / 2 > p.top - gap);
+        if (hits(yPix)) {
+          const nudges = [-full / 2, full / 2, -full * 0.35, full * 0.35];
+          const ok = nudges.map(d => yPix + d).find(c => !hits(c) && c - full / 2 >= floor);
+          if (ok === undefined) return;
+          yPix = ok;
+        }
+        placed.push({ top: yPix - full / 2, bottom: yPix + full / 2 });
+        const right = yPix + full / 2 > keepOut.top ? Math.min(xRight, keepOut.left) : xRight;
         ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
-        ctx.fillRect(xRight - w - padX, yPix - boxH / 2 - padY / 2, w + padX * 2, boxH + padY);
+        ctx.fillRect(right - w - padX, yPix - full / 2, w + padX * 2, full);
         ctx.fillStyle = color;
-        ctx.fillText(text, xRight, yPix);
+        ctx.fillText(text, right, yPix);
       };
 
+      // The focused level is always labelled — its share of the book, in its ink — and it is placed first
+      if (focus != null) {
+        const f = latest.levels.find(l => l.strike === focus);
+        if (f) drawLabel({ strike: f.strike, value: src.valueOf(f) }, inkCss);
+      }
+      /* the supreme next, then by weight (the list is heaviest first already) */
+      top.sort((a, b) => Number(b.strike === supreme) - Number(a.strike === supreme));
       for (const lvl of top) {
-        if (focus != null && lvl.strike === focus) continue; // drawn below, in its own ink
+        if (focus != null && lvl.strike === focus) continue; // placed above, in its own ink
         const isSupreme = supreme != null && lvl.strike === supreme;
         const rgb = paper ? (isSupreme ? paper.supreme : lvl.value >= 0 ? paper.put : paper.call) : isSupreme ? SUPREME_RGB : lvl.value >= 0 ? PUT_RGB : CALL_RGB;
         /* The field's labels step back while a strike is focused — the SUPREME's
@@ -475,11 +501,6 @@ class TrailsPaneRenderer {
            luminance), and the crown is the one label that must survive every
            state. */
         drawLabel(lvl, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${focus != null && !isSupreme ? 0.55 : 0.95})`);
-      }
-      // The focused level is always labelled — its share of the book, in its ink
-      if (focus != null) {
-        const f = latest.levels.find(l => l.strike === focus);
-        if (f) drawLabel(f, inkCss);
       }
     });
   }
