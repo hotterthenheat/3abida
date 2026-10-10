@@ -18,6 +18,9 @@
                          today's pace, with the
                          strike growing fastest on
                          each side
+    DEALERS THROUGH      the book's net GEX and price's
+    THE SESSION          distance from the flip, minute
+                         by minute (2026-10-10)
 
   A COMPOSITION, like Ahead: the open interest is
   the one every snapshot carries, the units are the
@@ -35,6 +38,8 @@ import { Deferred } from '../../components/ui/Skeleton';
 import BuildingLedger, { type BuildOrder, type BuildShow } from '../../components/gex/BuildingLedger';
 import WallHeading from '../../components/gex/WallHeading';
 import OiChange from '../../components/levels/OiChange';
+import DealerTimeline from '../../components/levels/DealerTimeline';
+import { dealerTimeline } from '../../data/dealerTimeline';
 import { BuildingLedgerSkeleton, BuildingPageSkeleton, WallHeadingSkeleton } from '../../components/gex/buildingSkeletons';
 import { fmtDistance, impliedDaySigma, sessionAtr } from '../../data/atr';
 import { useDistanceUnit } from '../../data/distanceUnits';
@@ -43,7 +48,7 @@ import { bookOf } from '../../data/pinpointBook';
 import { oiChangeByStrike } from '../../data/oiChange';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
 
-type BoxKey = 'ledger' | 'heading' | 'oi';
+type BoxKey = 'ledger' | 'heading' | 'oi' | 'timeline';
 /* The ledger's choices, held across route changes, reset on reload */
 let orderMemory: BuildOrder = 'strike';
 /* The movers alone by default — the steady strikes fold away (2026-09-13) */
@@ -81,6 +86,9 @@ const Building = () => {
   const ledger = useMemo(() => (ledgerSnap ? bookOf(ledgerSnap, clock).building : null), [ledgerSnap, clock]);
   const heading = useMemo(() => (headingSnap ? bookOf(headingSnap, clock).building : null), [headingSnap, clock]);
   const oi = useMemo(() => (oiSnap ? oiChangeByStrike(oiSnap.ticker, oiSnap.spot) : null), [oiSnap]);
+  /* the session's book minute by minute — re-read on the room's scan, so the line grows every ten seconds */
+  const timelineSnap = snapFor('timeline');
+  const timeline = useMemo(() => (timelineSnap ? dealerTimeline(timelineSnap.ticker) : null), [timelineSnap]);
 
   /* Your strikes, for the rows — only when the box is on the frame's name */
   const positions = usePositions(activeTicker);
@@ -96,6 +104,7 @@ const Building = () => {
   const ledgerTicker = tickerFor('ledger');
   const headingTicker = tickerFor('heading');
   const oiTicker = tickerFor('oi');
+  const timelineTicker = tickerFor('timeline');
   const scales = { atr: sessionAtr(Simulator.getCandles(ledger.ticker) ?? []), sigma: impliedDaySigma(ledger.spot, Simulator.TICKERS[ledger.ticker]?.iv ?? 0) };
   const distanceOf = (strike: number) => fmtDistance(strike - ledger.spot, ledger.spot, unit, scales);
 
@@ -136,6 +145,13 @@ const Building = () => {
       <div className="border border-borderSubtle rounded-md bg-panel" data-oi-change data-scope-ticker={oiTicker}>
         <Deferred index={2} fallback={<div className="h-[320px]" aria-busy="true" />} className="animate-fade-in">
           <OiChange data={oi} ticker={oiTicker} window={window} focus={focusFor(oiTicker)} onPick={price => toggleFocus(price, oiTicker)} scope={chipFor('oi', oiTicker)} />
+        </Deferred>
+      </div>
+
+      {/* BOX 4 — DEALERS THROUGH THE SESSION, net GEX and the flip's distance minute by minute (the ideas' 2, 2026-10-10) */}
+      <div className="border border-borderSubtle rounded-md bg-panel" data-timeline data-scope-ticker={timelineTicker}>
+        <Deferred index={3} fallback={<div className="h-[260px]" aria-busy="true" />} className="animate-fade-in">
+          <DealerTimeline data={timeline} ticker={timelineTicker} scope={chipFor('timeline', timelineTicker)} />
         </Deferred>
       </div>
     </>
