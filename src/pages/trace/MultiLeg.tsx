@@ -37,7 +37,10 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import WatchStar from '../../components/trace/WatchStar';
 import { structureKey, watchStructure } from '../../context/WatchContext';
 import RichRead from '../../components/ui/RichRead';
-import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
+import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/addressCut';
+import { createViewStore } from '../../data/savedViews';
 import { StructureGuide } from '../../components/trace/TraceGuide';
 import Modal from '../../components/ui/Modal';
 
@@ -50,7 +53,12 @@ const MONEY_OPTIONS: DropdownOption<'ALL' | 'DEBIT' | 'CREDIT'>[] = [
   { value: 'DEBIT', label: 'Paid', hint: 'Structures that cost money to put on' },
   { value: 'CREDIT', label: 'Collected', hint: 'Structures that paid the trader to put on' },
 ];
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 204, exp: 130, size: 80, net: 100, legs: 64, kind: 108 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 204, exp: 130, size: 80, net: 100, legs: 64, kind: 108, theta: 96, maxloss: 108, maxprofit: 108 };
+/* the structure's who on the left; its risk at the right, always on screen (the audit's TR-3: Max loss and Max profit
+   stood off a 1280 screen) */
+const PIN_LEFT = ['time', 'ticker'];
+const PIN_RIGHT = ['maxloss', 'maxprofit'];
+const ML_CUTS = createViewStore('slayer_multileg_cuts_v1');
 const TOOLTIPS: Record<string, string> = {
   strategy: 'The shape — its dot is its kind, never a verdict',
   strikes: 'Every strike the structure prints, in order; a strike is the door to that leg',
@@ -61,14 +69,15 @@ const TOOLTIPS: Record<string, string> = {
 };
 
 /** Categorical strategy dots — a shape is a kind, never a verdict. */
+/* the house's categorical tokens, cut deep on paper (the audit's X12: "#E0D080 is faint on paper") */
 const KIND_DOT: Record<SpreadKind, string> = {
-  vertical: '#7EA6F0',
-  condor: '#9B8FE8',
-  butterfly: '#E8C468',
-  straddle: '#6ECFC4',
-  strangle: '#E89AC0',
-  calendar: '#E0D080',
-  ratio: '#93B87A',
+  vertical: 'rgb(var(--cat-guidance))',
+  condor: 'rgb(var(--cat-analyst))',
+  butterfly: 'rgb(var(--cat-earnings))',
+  straddle: 'rgb(var(--cat-macro))',
+  strangle: 'rgb(var(--cat-ma))',
+  calendar: 'rgb(var(--cat-regulatory))',
+  ratio: 'rgb(var(--cat-product))',
 };
 
 const KIND_META = Object.fromEntries(SPREAD_KINDS.map(k => [k.key, k])) as Record<
@@ -147,7 +156,8 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
               key={i}
               className="flex items-center gap-2 px-2.5 py-1.5 border-b border-borderSubtle/60 last:border-0 font-mono text-[11px]"
             >
-              <span className={`font-bold ${l.side === 'BUY' ? 'text-bull' : 'text-bear'}`}>{l.side}</span>
+              {/* the side in one ink — a put sold is not bearish (the audit's X12) */}
+              <span className="font-bold text-textPrimary">{l.side === 'BUY' ? 'Buy' : 'Sell'}</span>
               <span className="text-textSecondary">×{l.ratio}</span>
               <span className="font-bold text-textPrimary tnum">{l.strike}</span>
               <span className={`font-semibold ${l.right === 'C' ? 'text-bull' : 'text-bear'}`}>
@@ -187,8 +197,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
             {fact(
               'Theta',
               <span className="text-textSecondary">
-                {trade.theta >= 0 ? '+' : ''}
-                {trade.theta.toFixed(2)}
+                {trade.theta >= 0 ? '+' : '−'}${Math.abs(trade.theta).toFixed(2)} a day
               </span>
             )}
           </div>
@@ -230,11 +239,44 @@ const distinctStrikes = (t: SpreadTrade): { strike: number; legIdx: number }[] =
   return out.sort((a, b) => a.strike - b.strike);
 };
 
+/** A structure on a phone (the audit's TR-7) */
+const phoneRow = (t: SpreadTrade) => (
+  <PhoneRow
+    lead={<span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: KIND_DOT[t.kind] }} />}
+    title={
+      <>
+        <span className="font-bold">{t.ticker}</span>
+        <span>{KIND_META[t.kind].label}</span>
+        <span className="font-bold tnum">{t.strikesLabel}</span>
+      </>
+    }
+    aside={t.time}
+    figures={[
+      <span key="p" className="font-semibold text-textPrimary">{fmtUsd(t.premium)}</span>,
+      <span key="n">
+        ${Math.abs(t.net).toFixed(2)} {t.net >= 0 ? 'debit' : 'credit'}
+      </span>,
+      <span key="l">max loss {t.maxLoss === 'uncapped' ? 'uncapped' : fmtUsd(t.maxLoss)}</span>,
+    ]}
+  />
+);
+
 const MultiLeg = () => {
   const { marketData, activeTicker } = useMarketData();
-  const [kind, setKind] = useState<SpreadKind | 'ALL'>('ALL');
-  const [money, setMoney] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
-  const [query, setQuery] = useState('');
+  /* THE CUT IS THE ADDRESS (the audit's TR-13) */
+  const addr = useAddressCut({
+    shape: { def: 'ALL', valid: oneOf(['ALL', ...SPREAD_KINDS.map(k => k.key)]) },
+    paid: { def: 'ALL', valid: oneOf(['ALL', 'DEBIT', 'CREDIT']) },
+    q: { def: '', valid: isQuery },
+    exp: { def: '', valid: isIsoDay },
+  });
+  const kind = addr.cut.shape as SpreadKind | 'ALL';
+  const setKind = (v: SpreadKind | 'ALL') => addr.set({ shape: v });
+  const money = addr.cut.paid as 'ALL' | 'DEBIT' | 'CREDIT';
+  const setMoney = (v: 'ALL' | 'DEBIT' | 'CREDIT') => addr.set({ paid: v });
+  const query = addr.cut.q;
+  const setQuery = (v: string) => addr.set({ q: v });
+  const cuts = useSavedCuts();
   const [drill, setDrill] = useState<SpreadTrade | null>(null);
   /* The tape card for ONE leg. Held as (structure, leg key) so ↑/↓ inside the
      card steps between that structure's own legs and nothing else. */
@@ -251,7 +293,7 @@ const MultiLeg = () => {
   const hold = useHold(useMemo(() => ({ trades: liveTrades, tick: marketData }), [liveTrades, marketData]), activeTicker);
   const { trades: heldTrades, tick } = hold.value;
   /* THE EXPIRY CUT (2026-09-12): a structure sits on its near leg's expiry */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldTrades, t => t.expiry);
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldTrades, t => t.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
   const trades = useMemo(() => cutExpiry(heldTrades), [heldTrades, cutExpiry]);
   const keyOf = useCallback((t: { id: string }) => t.id, []);
   const openRow = useCallback((t: SpreadTrade) => setDrill(t), []);
@@ -386,8 +428,9 @@ const MultiLeg = () => {
                     setLegTrade(t);
                     setLegKey(`${t.id}-l${legIdx}`);
                   }}
-                  title="Open this contract on the tape"
-                  className={`font-bold text-textPrimary pb-[2px] ${DOOR} ${DOOR_HOVER_TEXT}`}
+                  title="Open this contract's card"
+                  aria-label={`Open the ${strike} leg's card`}
+                  className={`hit font-bold text-textPrimary pb-[2px] ${DOOR} ${DOOR_HOVER_TEXT}`}
                 >
                   {strike}
                 </button>
@@ -475,9 +518,8 @@ const MultiLeg = () => {
         align: 'right',
         sortValue: t => t.theta,
         render: t => (
-          <span className="text-textPrimary">
-            {t.theta >= 0 ? '+' : ''}
-            {t.theta.toFixed(2)}
+          <span className="text-textPrimary" title="Dollars a day the structure gains (+) or loses (−) to time, a structure">
+            {t.theta >= 0 ? '+' : '−'}${Math.abs(t.theta).toFixed(2)}/day
           </span>
         ),
       },
@@ -565,18 +607,30 @@ const MultiLeg = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="structures" />
-            <DropdownSelect label="Shape" value={kind} options={SHAPE_OPTIONS} onChange={setKind} title="Which structures" testId="multi-leg-shape" />
-            <DropdownSelect label="Money" value={money} options={MONEY_OPTIONS} onChange={setMoney} title="Paid to put on, or collected" testId="multi-leg-money" />
+            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="structures" span />
+            <DropdownSelect label="Screen" value={kind} options={SHAPE_OPTIONS} onChange={setKind} title="Which structures" testId="multi-leg-shape" />
+            {/* "Debit · credit", not "Money" — Money meant moneyness on every other page (the audit's TR-11) */}
+            <DropdownSelect label="Debit · credit" value={money} options={MONEY_OPTIONS} onChange={setMoney} title="Paid to put on, or collected" testId="multi-leg-money" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only structures whose near leg sits on one expiry — or every expiry" testId="multi-leg-expiry" />
+            <SavedCutsControl store={ML_CUTS} query={addr.query} onOpen={addr.open} noun="cut" testId="multi-leg" onSay={cuts.say} open={cuts.open} onToggleOpen={cuts.toggle} />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
           </>
         }
-        sentence={read}
+        sentence={
+          <>
+            <SavedCutsList store={ML_CUTS} query="" onOpen={addr.open} noun="cut" testId="multi-leg" onSay={cuts.say} open={cuts.open} />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+                {cuts.said}
+              </p>
+            )}
+            {read}
+          </>
+        }
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} autoHeight noun="structures" emptyText="No structures on this cut" emptyBody="Nothing printed as a spread, a fly or a condor under these cards today." testId="multi-leg" />
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={drill?.id ?? null} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="structures" emptyText="No structures on this cut" emptyBody="Nothing printed as a spread, a fly or a condor under these cards today." testId="multi-leg" />
       </TraceBox>
 
       {drill && <SpreadCard trade={drill} onClose={() => setDrill(null)} />}

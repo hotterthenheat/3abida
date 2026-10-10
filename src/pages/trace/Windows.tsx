@@ -68,7 +68,7 @@ const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'C', label: 'Calls', hint: 'Calls only' },
   { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, wvol: 112, share: 120, lean: 96, daylean: 96, earn: 92 };
+const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, wvol: 112, share: 120, wprem: 100, lean: 96, daylean: 96, earn: 92 };
 const PIN_LEFT = ['ticker', 'contract'];
 const PIN_RIGHT = ['wprem'];
 const WINDOW_CUTS = createViewStore('slayer_windows_cuts_v1');
