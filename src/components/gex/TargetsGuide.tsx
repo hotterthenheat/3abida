@@ -15,6 +15,7 @@ import { PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Agenda } from '../../data/agenda';
 import { FONT_SANS } from '../../theme/fonts';
+import { GuideSvg, type GuideType } from '../ui/GuideSvg';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
@@ -31,11 +32,11 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: string; h?: number }) => (
+const Figure = ({ children, label, h = 110 }: { children: (t: GuideType) => ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
-    <svg viewBox={`0 0 420 ${h}`} width="100%" role="img" aria-label={label} data-guide-figure>
+    <GuideSvg w={420} h={h} label={label}>
       {children}
-    </svg>
+    </GuideSvg>
   </figure>
 );
 
@@ -54,95 +55,102 @@ const OrderFigure = () => {
   ];
   return (
     <Figure label="Three strikes: the odds price gets there as one bar, what is at stake as another, their product as the rank" h={96}>
-      <g fontFamily={FIG} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
-        <text x={10} y={12}>STRIKE</text>
-        <text x={100} y={12}>REACHED</text>
-        <text x={210} y={12}>AT STAKE</text>
-        <text x={340} y={12}>× = RANK</text>
-      </g>
-      {rows.map((r, i) => {
-        const y = 32 + i * 22;
-        return (
-          <g key={r.k}>
-            <line x1={10} x2={410} y1={y - 11} y2={y - 11} stroke="#ffffff" strokeOpacity={0.05} />
-            <text x={10} y={y + 3} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-              {r.k}
-            </text>
-            <text x={38} y={y + 3} fontSize={6} fill={r.ink} fontFamily={SANS} letterSpacing={0.5}>
-              {r.role.toUpperCase()}
-            </text>
-            <rect x={100} y={y - 2} width={90} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-            <rect x={100} y={y - 2} width={90 * r.reach} height={4} rx={2} fill="#ededed" fillOpacity={0.8} />
-            <text x={196} y={y + 3} fontSize={7} fill="#ededed" fontFamily={FIG}>
-              {pct(r.reach)}
-            </text>
-            <rect x={210} y={y - 2} width={110} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-            <rect x={210} y={y - 2} width={110 * r.stake} height={4} rx={2} fill={r.ink} fillOpacity={0.85} />
-            <text x={340} y={y + 3} fontSize={8.5} fontWeight={700} fill={r.rank === 1 ? SUPREME : 'rgb(var(--text-primary))'} fontFamily={FIG}>
-              #{r.rank}
-            </text>
-            <text x={362} y={y + 3} fontSize={7} fill="#7c8290" fontFamily={FIG}>
-              {(r.reach * r.stake * 2.2).toFixed(1)}×
-            </text>
+      {({ w }) => (
+        <>
+          <g fontFamily={FIG} fontSize={w} fill="#7c8290">
+            <text x={10} y={14}>Strike</text>
+            <text x={100} y={14}>Reached</text>
+            <text x={214} y={14}>At stake</text>
+            <text x={326} y={14}>× = rank</text>
           </g>
-        );
-      })}
+          {rows.map((r, i) => {
+            const y = 34 + i * 22;
+            return (
+              <g key={r.k}>
+                <line x1={10} x2={410} y1={y - 12} y2={y - 12} stroke="#ffffff" strokeOpacity={0.05} />
+                <text x={10} y={y + 4} fontSize={w} fontWeight={700} fill="#ededed" fontFamily={FIG}>
+                  {r.k}
+                </text>
+                <text x={38} y={y + 4} fontSize={w} fill={r.ink} fontFamily={SANS}>
+                  {r.role}
+                </text>
+                <rect x={100} y={y - 2} width={70} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+                <rect x={100} y={y - 2} width={70 * r.reach} height={4} rx={2} fill="#ededed" fillOpacity={0.8} />
+                <text x={176} y={y + 4} fontSize={w} fill="#ededed" fontFamily={FIG}>
+                  {pct(r.reach)}
+                </text>
+                <rect x={214} y={y - 2} width={100} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+                <rect x={214} y={y - 2} width={100 * r.stake} height={4} rx={2} fill={r.ink} fillOpacity={0.85} />
+                <text x={326} y={y + 4} fontSize={w} fontWeight={700} fill={r.rank === 1 ? SUPREME : 'rgb(var(--text-primary))'} fontFamily={FIG}>
+                  #{r.rank}
+                </text>
+                <text x={350} y={y + 4} fontSize={w} fill="#7c8290" fontFamily={FIG}>
+                  {(r.reach * r.stake * 2.2).toFixed(1)}×
+                </text>
+              </g>
+            );
+          })}
+        </>
+      )}
     </Figure>
   );
 };
 
-/* The row, small: strike and tag, reached, the beam, the break, the build, the stake bar */
+/* The row, small: strike and tag, reached, the beam, the build, the stake bar; the break under them */
 const RowFigure = () => (
-  <Figure label="One row: the strike and its tag, the odds it is reached, the beam for holds, what a break runs to, what was built today, the bar for what is at stake" h={66}>
-    <g fontFamily={FIG} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
-      <text x={10} y={12}>#</text>
-      <text x={30} y={12}>STRIKE</text>
-      <text x={112} y={12} textAnchor="end">REACHED</text>
-      <text x={172} y={12} textAnchor="end">HOLDS</text>
-      <text x={186} y={12}>IF IT BREAKS</text>
-      <text x={300} y={12}>BUILT TODAY</text>
-      <text x={362} y={12}>AT STAKE</text>
-    </g>
-    <line x1={10} x2={410} y1={21} y2={21} stroke="#ffffff" strokeOpacity={0.08} />
-    {[
-      { y: 36, n: 4, k: '534', tag: 'SHELF', ink: COOL, reach: '52%', hold: 0.76, wall: true, brk: 'to 533 · $345M selling', built: 'building +$43M', stake: 0.73, lit: true },
-      { y: 56, n: 5, k: '536', tag: 'TRAPDOOR', ink: WARM, reach: '84%', hold: 0, wall: false, brk: 'to 537 · $102M selling', built: 'steady', stake: 0.15, lit: false },
-    ].map(r => (
-      <g key={r.k}>
-        <text x={10} y={r.y + 3} fontSize={7} fill="#7c8290" fontFamily={FIG}>
-          #{r.n}
-        </text>
-        <text x={30} y={r.y + 3} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-          {r.k}
-        </text>
-        <text x={54} y={r.y + 3} fontSize={5.5} fill={r.ink} fontFamily={SANS} letterSpacing={0.5}>
-          {r.tag}
-        </text>
-        <text x={112} y={r.y + 3} textAnchor="end" fontSize={8} fill="#ededed" fontFamily={FIG}>
-          {r.reach}
-        </text>
-        <text x={144} y={r.y + 3} textAnchor="end" fontSize={8} fontWeight={600} fill={r.wall ? SILVER : WARM} fontFamily={FIG}>
-          {r.wall ? pct(r.hold) : '—'}
-        </text>
-        <rect x={148} y={r.y - 1.5} width={26} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
-        {r.wall ? <rect x={148} y={r.y - 1.5} width={26 * r.hold} height={3} rx={1.5} fill={SILVER} fillOpacity={0.85} /> : <rect x={148} y={r.y - 1.5} width={26} height={3} rx={1.5} fill={WARM} fillOpacity={0.35} />}
-        <text x={186} y={r.y + 3} fontSize={7} fill="#a3a3a3" fontFamily={FIG}>
-          {r.brk.split(' · ')[0]} · <tspan fill={WARM}>{r.brk.split(' · ')[1]}</tspan>
-        </text>
-        <text x={300} y={r.y + 3} fontSize={7} fill={r.lit ? 'rgb(var(--text-primary))' : '#7c8290'} fontFamily={FIG}>
-          {r.built}
-        </text>
-        <rect x={362} y={r.y - 2} width={48} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-        <rect x={362} y={r.y - 2} width={48 * r.stake} height={4} rx={2} fill={r.ink} fillOpacity={0.85} />
-      </g>
-    ))}
+  <Figure label="One row: the strike and its tag, the odds it is reached, the beam for holds, what was built today, the bar for what is at stake, and under them what a break runs to" h={100}>
+    {({ w }) => (
+      <>
+        <g fontFamily={FIG} fontSize={w} fill="#7c8290">
+          <text x={10} y={14}>#</text>
+          <text x={28} y={14}>Strike</text>
+          <text x={150} y={14} textAnchor="end">Reached</text>
+          <text x={160} y={14}>Holds</text>
+          <text x={236} y={14}>Built today</text>
+          <text x={340} y={14}>At stake</text>
+        </g>
+        <line x1={10} x2={410} y1={22} y2={22} stroke="#ffffff" strokeOpacity={0.08} />
+        {[
+          { y: 40, n: 4, k: '534', tag: 'Shelf', ink: COOL, reach: '52%', hold: 0.76, wall: true, brk: 'to 533 · $345M selling', built: 'building +$43M', stake: 0.73, lit: true },
+          { y: 78, n: 5, k: '536', tag: 'Trapdoor', ink: WARM, reach: '84%', hold: 0, wall: false, brk: 'to 537 · $102M selling', built: 'steady', stake: 0.15, lit: false },
+        ].map(r => (
+          <g key={r.k}>
+            <text x={10} y={r.y} fontSize={w} fill="#7c8290" fontFamily={FIG}>
+              #{r.n}
+            </text>
+            <text x={28} y={r.y} fontSize={w} fontWeight={700} fill="#ededed" fontFamily={FIG}>
+              {r.k}
+            </text>
+            <text x={54} y={r.y} fontSize={w} fill={r.ink} fontFamily={SANS}>
+              {r.tag}
+            </text>
+            <text x={150} y={r.y} textAnchor="end" fontSize={w} fill="#ededed" fontFamily={FIG}>
+              {r.reach}
+            </text>
+            <text x={186} y={r.y} textAnchor="end" fontSize={w} fontWeight={600} fill={r.wall ? SILVER : WARM} fontFamily={FIG}>
+              {r.wall ? pct(r.hold) : '—'}
+            </text>
+            <rect x={192} y={r.y - 5.5} width={26} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
+            {r.wall ? <rect x={192} y={r.y - 5.5} width={26 * r.hold} height={3} rx={1.5} fill={SILVER} fillOpacity={0.85} /> : <rect x={192} y={r.y - 5.5} width={26} height={3} rx={1.5} fill={WARM} fillOpacity={0.35} />}
+            <text x={236} y={r.y} fontSize={w} fill={r.lit ? 'rgb(var(--text-primary))' : '#7c8290'} fontFamily={FIG}>
+              {r.built}
+            </text>
+            <rect x={340} y={r.y - 6} width={68} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+            <rect x={340} y={r.y - 6} width={68 * r.stake} height={4} rx={2} fill={r.ink} fillOpacity={0.85} />
+            <text x={28} y={r.y + 15} fontSize={w} fill="#a3a3a3" fontFamily={FIG}>
+              <tspan fill="#7c8290">if it breaks</tspan> {r.brk.split(' · ')[0]} · <tspan fill={WARM}>{r.brk.split(' · ')[1]}</tspan>
+            </text>
+          </g>
+        ))}
+      </>
+    )}
   </Figure>
 );
 
 /* The axis, small: the ruler, spot, ticks by stake in their inks, ranks on the first three */
 const AxisFigure = () => {
   const x = (t: number) => 20 + t * 380;
-  const base = 70;
+  const base = 80;
   const ticks = [
     { t: 0.5, h: 44, ink: PUT_WALL, r: 1 },
     { t: 0.42, h: 58, ink: COOL, r: 2 },
@@ -156,34 +164,38 @@ const AxisFigure = () => {
     { t: 0.86, h: 16, ink: WARM },
   ];
   return (
-    <Figure label="The strike axis: spot dotted, the expected move as a ruler around it, every strike a tick as tall as what is at stake, the first three numbered" h={96}>
-      <rect x={x(0.34)} y={12} width={x(0.7) - x(0.34)} height={base - 12} fill="#ffffff" fillOpacity={0.035} />
-      <line x1={20} x2={400} y1={base} y2={base} stroke="#ffffff" strokeOpacity={0.12} />
-      <line x1={x(0.52)} x2={x(0.52)} y1={8} y2={base + 4} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(0.52)} y={6} textAnchor="middle" fontSize={7} fontWeight={600} fill="#ededed" fontFamily={FIG}>
-        535.53
-      </text>
-      {ticks.map((k, i) => (
-        <g key={i}>
-          <rect x={x(k.t) - 1.5} y={base - k.h} width={3} height={k.h} rx={1} fill={k.ink} fillOpacity={0.85 - Math.abs(k.t - 0.52) * 1.2} />
-          {k.r && (
-            <text x={x(k.t)} y={base - k.h - 4} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={k.r === 1 ? SUPREME : k.ink} fontFamily={FIG}>
-              {k.r}
+    <Figure label="The strike axis: spot dotted, the expected move as a ruler around it, every strike a tick as tall as what is at stake, the first three numbered" h={112}>
+      {({ w, t }) => (
+        <>
+          <rect x={x(0.34)} y={18} width={x(0.7) - x(0.34)} height={base - 18} fill="#ffffff" fillOpacity={0.035} />
+          <line x1={20} x2={400} y1={base} y2={base} stroke="#ffffff" strokeOpacity={0.12} />
+          <line x1={x(0.52)} x2={x(0.52)} y1={16} y2={base + 4} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
+          <text x={x(0.52) + 4} y={12} textAnchor="middle" fontSize={w} fontWeight={600} fill="#ededed" fontFamily={FIG}>
+            535.53
+          </text>
+          {ticks.map((k, i) => (
+            <g key={i}>
+              <rect x={x(k.t) - 1.5} y={base - k.h} width={3} height={k.h} rx={1} fill={k.ink} fillOpacity={0.85 - Math.abs(k.t - 0.52) * 1.2} />
+              {k.r && (
+                <text x={x(k.t)} y={base - k.h - 4} textAnchor="middle" fontSize={w} fontWeight={700} fill={k.r === 1 ? SUPREME : k.ink} fontFamily={FIG}>
+                  {k.r}
+                </text>
+              )}
+            </g>
+          ))}
+          {[0.1, 0.3, 0.5, 0.7, 0.9].map((v, i) => (
+            <text key={i} x={x(v)} y={base + 13} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
+              {531 + i * 2}
             </text>
-          )}
-        </g>
-      ))}
-      {[0.1, 0.3, 0.5, 0.7, 0.9].map((t, i) => (
-        <text key={i} x={x(t)} y={base + 10} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={FIG}>
-          {531 + i * 2}
-        </text>
-      ))}
-      <text x={x(0.34)} y={base + 20} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={SANS}>
-        one expected move
-      </text>
-      <text x={x(0.7)} y={base + 20} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={SANS}>
-        one expected move
-      </text>
+          ))}
+          <text x={x(0.34)} y={base + 28} textAnchor="middle" fontSize={w} fill="#7c8290" fontFamily={SANS}>
+            one expected move
+          </text>
+          <text x={x(0.7)} y={base + 28} textAnchor="middle" fontSize={w} fill="#7c8290" fontFamily={SANS}>
+            one expected move
+          </text>
+        </>
+      )}
     </Figure>
   );
 };

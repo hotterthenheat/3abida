@@ -15,6 +15,7 @@ import { BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME, alpha } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { Building } from '../../data/building';
 import { FONT_SANS } from '../../theme/fonts';
+import { GuideSvg, type GuideType } from '../ui/GuideSvg';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
@@ -28,11 +29,11 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: string; h?: number }) => (
+const Figure = ({ children, label, h = 110 }: { children: (t: GuideType) => ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
-    <svg viewBox={`0 0 420 ${h}`} width="100%" role="img" aria-label={label} data-guide-figure>
+    <GuideSvg w={420} h={h} label={label}>
       {children}
-    </svg>
+    </GuideSvg>
   </figure>
 );
 
@@ -42,14 +43,14 @@ const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: stri
    verdict chip with its words — a folded line of steady strikes and the spot
    rule between. Every part is one the reader can find behind the card. */
 const LedgerFigure = () => {
-  /* the columns fit the figure: the verdict's words ended 25 past its edge and the bars' figures ran into the change —
-     the bars are drawn at two thirds and the day's line is shorter (2026-09-30) */
-  const COL = { strike: 10, bar: 84, barW: 78, change: 254, day: 260, dayW: 30, word: 296 };
+  /* three lines a row since the words came up to 11 px (2026-10-10): the strike, the bar, the change, the day and the
+     verdict on the first; the distance, the wall's figure and the verdict's words on the second; the bar's read under */
+  const COL = { strike: 10, bar: 120, barW: 78, change: 262, day: 272, dayW: 30, word: 320 };
   type Row = { y: number; strike: string; dist: string; tag?: { text: string; ink: string }; base: number; lit: number; gone: boolean; now: string; was?: string; change: string; chip: string; tone: string; words: string; day: 'up' | 'down' };
   const rows: Row[] = [
-    { y: 34, strike: '487', dist: '0.3% above', tag: { text: 'CALL WALL', ink: CALL_WALL }, base: 44, lit: 19, gone: false, now: '$190M', was: '$165M', change: '+$25M', chip: 'BUILDING', tone: BULL, words: 'calls · mostly early', day: 'up' },
-    { y: 92, strike: '485', dist: '0.1% below', tag: { text: 'PUT WALL', ink: PUT_WALL }, base: 59, lit: 14, gone: true, now: '$226M', was: '$244M', change: '−$18M', chip: 'DRAINING', tone: PUT_WALL, words: 'puts · mostly late', day: 'down' },
-    { y: 118, strike: '484', dist: '0.3% below', base: 13, lit: 26, gone: false, now: '$40M', was: '$14M', change: '+$26M', chip: 'BUILDING', tone: BULL, words: 'puts · mostly midday', day: 'up' },
+    { y: 38, strike: '487', dist: '0.3% above', tag: { text: 'Call wall', ink: CALL_WALL }, base: 44, lit: 19, gone: false, now: '$190M', was: '$165M', change: '+$25M', chip: 'Building', tone: BULL, words: 'calls · mostly early', day: 'up' },
+    { y: 132, strike: '485', dist: '0.1% below', tag: { text: 'Put wall', ink: PUT_WALL }, base: 59, lit: 14, gone: true, now: '$226M', was: '$244M', change: '−$18M', chip: 'Draining', tone: PUT_WALL, words: 'puts · mostly late', day: 'down' },
+    { y: 184, strike: '484', dist: '0.3% below', base: 13, lit: 26, gone: false, now: '$40M', was: '$14M', change: '+$26M', chip: 'Building', tone: BULL, words: 'puts · mostly midday', day: 'up' },
   ];
   const dayLine = (kind: Row['day'], y: number) => {
     const x0 = COL.day;
@@ -70,129 +71,140 @@ const LedgerFigure = () => {
     );
   };
   return (
-    <Figure label="The rows, small: three movers with the strike and its distance from spot, the wall bar with today's part lit, the change, the day's line and the verdict chip; a folded line of steady strikes and the spot rule between" h={150}>
-      <g fontFamily={FIG} fontSize={6} fill="#7c8290" letterSpacing={0.4}>
-        <text x={COL.strike} y={14}>STRIKE</text>
-        <text x={COL.bar} y={14}>THE WALL NOW</text>
-        <text x={COL.change} y={14} textAnchor="end">CHANGE</text>
-        <text x={COL.day} y={14}>THE DAY</text>
-        <text x={COL.word} y={14}>WHAT'S HAPPENING</text>
-      </g>
-      <rect x={4} y={34 - 12} width={412} height={24} rx={3} fill={SILVER} fillOpacity={0.06} />
-      {rows.map(r => (
-        <g key={r.strike}>
-          <text x={COL.strike} y={r.y + 1} fontSize={9.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-            {r.strike}
+    <Figure label="The rows, small: three movers with the strike and its distance from spot, the wall bar with today's part lit, the change, the day's line and the verdict chip; a folded line of steady strikes and the spot rule between" h={248}>
+      {({ w }) => (
+        <>
+          <g fontFamily={FIG} fontSize={w} fill="#7c8290">
+            <text x={COL.strike} y={14}>Strike</text>
+            <text x={COL.bar} y={14}>The wall now</text>
+            <text x={COL.change} y={14} textAnchor="end">Change</text>
+            <text x={COL.day} y={14}>The day</text>
+            <text x={COL.word} y={14}>What's happening</text>
+          </g>
+          <rect x={4} y={38 - 16} width={412} height={50} rx={3} fill={SILVER} fillOpacity={0.06} />
+          {rows.map(r => (
+            <g key={r.strike}>
+              <text x={COL.strike} y={r.y} fontSize={w * 1.1} fontWeight={700} fill="#ededed" fontFamily={FIG}>
+                {r.strike}
+              </text>
+              {r.tag && (
+                <text x={COL.strike + 30} y={r.y} fontSize={w} fontWeight={700} fill={r.tag.ink} fontFamily={SANS}>
+                  {r.tag.text}
+                </text>
+              )}
+              <text x={COL.strike} y={r.y + 14} fontSize={w} fill="#7c8290" fontFamily={FIG}>
+                {r.dist} spot
+              </text>
+              {/* the wall bar: the base, today's part lit or hatched */}
+              <rect x={COL.bar} y={r.y - 7} width={COL.barW} height={7} rx={3.5} fill="#ffffff" fillOpacity={0.06} />
+              <rect x={COL.bar} y={r.y - 7} width={r.base} height={7} rx={3.5} fill={SILVER} fillOpacity={0.32} />
+              {r.gone ? (
+                <rect x={COL.bar + r.base} y={r.y - 7} width={r.lit} height={7} fill="url(#build-hatch)" />
+              ) : (
+                <rect x={COL.bar + r.base} y={r.y - 7} width={r.lit} height={7} fill={BULL} />
+              )}
+              <text x={COL.bar} y={r.y + 14} fontSize={w} fontWeight={600} fill="#ededed" fontFamily={FIG}>
+                {r.now}
+                <tspan fill="#7c8290" fontWeight={400}>
+                  {' '}
+                  · was {r.was}
+                </tspan>
+              </text>
+              <text x={COL.bar} y={r.y + 28} fontSize={w} fill="#7c8290" fontFamily={SANS}>
+                {r.strike === '487' ? 'call-heavy · dealers push back on moves here' : 'put-heavy · dealers push moves along here'}
+              </text>
+              <text x={COL.change} y={r.y} fontSize={w} fontWeight={700} textAnchor="end" fill="#ededed" fontFamily={FIG}>
+                {r.change}
+              </text>
+              {dayLine(r.day, r.y - 4)}
+              <rect x={COL.word} y={r.y - 11} width={r.chip.length * w * 0.6 + 8} height={w + 4} rx={2} fill={r.tone} fillOpacity={0.12} stroke={r.tone} strokeOpacity={0.25} />
+              <text x={COL.word + 4} y={r.y} fontSize={w} fontWeight={700} fill={r.tone} fontFamily={FIG}>
+                {r.chip}
+              </text>
+              <text x={COL.change + 10} y={r.y + 14} fontSize={w} fill="#a3a3a3" fontFamily={SANS}>
+                {r.words}
+              </text>
+            </g>
+          ))}
+          <defs>
+            <pattern id="build-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="2" height="5" fill={alpha(PUT_WALL, 0.6)} />
+            </pattern>
+          </defs>
+          {/* a folded line of steady strikes */}
+          <text x={COL.strike} y={88} fontSize={w} fill="#7c8290" fontFamily={FIG}>
+            2 steady strikes between · 486 – 486
           </text>
-          {r.tag && (
-            <text x={COL.strike + 24} y={r.y + 0.5} fontSize={5.5} fontWeight={700} fill={r.tag.ink} fontFamily={SANS} letterSpacing={0.8}>
-              {r.tag.text}
-            </text>
-          )}
-          <text x={COL.strike} y={r.y + 9.5} fontSize={6} fill="#7c8290" fontFamily={FIG}>
-            {r.dist} spot
+          <line x1={240} x2={380} y1={84} y2={84} stroke="#ffffff" strokeOpacity={0.08} />
+          <text x={410} y={88} fontSize={w} textAnchor="end" fill="#a3a3a3" fontFamily={FIG}>
+            show
           </text>
-          {/* the wall bar: the base, today's part lit or hatched */}
-          <rect x={COL.bar} y={r.y - 6} width={COL.barW} height={7} rx={3.5} fill="#ffffff" fillOpacity={0.06} />
-          <rect x={COL.bar} y={r.y - 6} width={r.base} height={7} rx={3.5} fill={SILVER} fillOpacity={0.32} />
-          {r.gone ? (
-            <rect x={COL.bar + r.base} y={r.y - 6} width={r.lit} height={7} fill="url(#build-hatch)" />
-          ) : (
-            <rect x={COL.bar + r.base} y={r.y - 6} width={r.lit} height={7} fill={BULL} />
-          )}
-          <text x={COL.bar + r.base + r.lit + 4} y={r.y} fontSize={6} fontWeight={600} fill="#ededed" fontFamily={FIG}>
-            {r.now}
-            <tspan fill="#7c8290" fontWeight={400}>
-              {' '}
-              · was {r.was}
-            </tspan>
+          {/* the spot rule */}
+          <line x1={10} x2={318} y1={106} y2={106} stroke="#ededed" strokeOpacity={0.35} />
+          <text x={326} y={110} fontSize={w} fill="#a3a3a3" fontFamily={FIG}>
+            SPY
           </text>
-          <text x={COL.bar} y={r.y + 9.5} fontSize={6} fill="#7c8290" fontFamily={SANS}>
-            {r.strike === '487' ? 'call-heavy · dealers push back on moves here' : 'put-heavy · dealers push moves along here'}
+          <rect x={358} y={99} width={52} height={w + 3} rx={2} fill="#ededed" />
+          <text x={384} y={110} fontSize={w} fontWeight={700} textAnchor="middle" fill="#0a0a0a" fontFamily={FIG}>
+            486.40
           </text>
-          <text x={COL.change} y={r.y + 1} fontSize={8} fontWeight={700} textAnchor="end" fill="#ededed" fontFamily={FIG}>
-            {r.change}
+          <text x={210} y={228} fontSize={w} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
+            hover a row for its words · click it to keep it
           </text>
-          {dayLine(r.day, r.y - 1)}
-          <rect x={COL.word} y={r.y - 6} width={r.chip.length * 4.6 + 8} height={11} rx={2} fill={r.tone} fillOpacity={0.12} stroke={r.tone} strokeOpacity={0.25} />
-          <text x={COL.word + 4} y={r.y + 2} fontSize={6} fontWeight={700} fill={r.tone} fontFamily={FIG} letterSpacing={0.6}>
-            {r.chip}
+          <text x={210} y={242} fontSize={w} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
+            show opens a fold
           </text>
-          <text x={COL.word + r.chip.length * 4.6 + 14} y={r.y + 2} fontSize={6.5} fill="#a3a3a3" fontFamily={SANS}>
-            {r.words}
-          </text>
-        </g>
-      ))}
-      <defs>
-        <pattern id="build-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="2" height="5" fill={alpha(PUT_WALL, 0.6)} />
-        </pattern>
-      </defs>
-      {/* a folded line of steady strikes */}
-      <text x={COL.strike} y={61} fontSize={6} fill="#7c8290" fontFamily={FIG} letterSpacing={0.4}>
-        2 steady strikes between · 486 – 486
-      </text>
-      <line x1={128} x2={392} y1={59} y2={59} stroke="#ffffff" strokeOpacity={0.08} />
-      <text x={410} y={61} fontSize={6} textAnchor="end" fill="#a3a3a3" fontFamily={FIG}>
-        show
-      </text>
-      {/* the spot rule */}
-      <line x1={10} x2={338} y1={74} y2={74} stroke="#ededed" strokeOpacity={0.35} />
-      <text x={346} y={76.5} fontSize={6.5} fill="#a3a3a3" fontFamily={FIG} letterSpacing={0.6}>
-        SPY
-      </text>
-      <rect x={378} y={69} width={34} height={10} rx={2} fill="#ededed" />
-      <text x={395} y={76.5} fontSize={7} fontWeight={700} textAnchor="middle" fill="#0a0a0a" fontFamily={FIG}>
-        486.40
-      </text>
-      <text x={210} y={143} fontSize={7} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
-        hover a row for its words · click it to keep it · show opens a fold
-      </text>
+        </>
+      )}
     </Figure>
   );
 };
 
 /* THE BAR, LARGE: one bar for the wall, a built one and a drained one */
 const BarFigure = () => {
-  const x0 = 28;
-  const W = 300;
+  const x0 = 14;
+  const W = 392;
   return (
-    <Figure label="The wall bar, large: the hedging sitting there now against the biggest wall shown; on a built wall the part that arrived today is green past the open's size, on a drained one the part that left is red hatching past the bar's end; the figure names now and the open" h={104}>
-      <defs>
-        <pattern id="build-hatch-big" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="2.5" height="6" fill={alpha(PUT_WALL, 0.6)} />
-        </pattern>
-      </defs>
-      <text x={x0} y={16} fontSize={7.5} fill="#7c8290" fontFamily={SANS}>
-        a wall that was built today
-      </text>
-      <rect x={x0} y={22} width={W} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
-      <rect x={x0} y={22} width={150} height={12} rx={6} fill={SILVER} fillOpacity={0.32} />
-      <rect x={x0 + 150} y={22} width={80} height={12} fill={BULL} />
-      <text x={x0 + 236} y={31} fontSize={8} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-        $190M <tspan fill="#7c8290" fontWeight={400} fontFamily={SANS}>net gamma</tspan> <tspan fill="#7c8290" fontWeight={400}>· was $124M</tspan>
-      </text>
-      <text x={x0 + 75} y={45} fontSize={7} textAnchor="middle" fill="#8a909c" fontFamily={SANS}>
-        there at the open, still there
-      </text>
-      <text x={x0 + 190} y={45} fontSize={7} textAnchor="middle" fill={BULL} fontFamily={SANS}>
-        arrived today
-      </text>
-      <text x={x0} y={66} fontSize={7.5} fill="#7c8290" fontFamily={SANS}>
-        a wall that drained today
-      </text>
-      <rect x={x0} y={72} width={W} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
-      <rect x={x0} y={72} width={180} height={12} rx={6} fill={SILVER} fillOpacity={0.32} />
-      <rect x={x0 + 180} y={72} width={60} height={12} fill="url(#build-hatch-big)" />
-      <text x={x0 + 246} y={81} fontSize={8} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-        $226M <tspan fill="#7c8290" fontWeight={400}>· was $301M</tspan>
-      </text>
-      <text x={x0 + 90} y={95} fontSize={7} textAnchor="middle" fill="#8a909c" fontFamily={SANS}>
-        still there
-      </text>
-      <text x={x0 + 210} y={95} fontSize={7} textAnchor="middle" fill={PUT_WALL} fontFamily={SANS}>
-        left today
-      </text>
+    <Figure label="The wall bar, large: the hedging sitting there now against the biggest wall shown; on a built wall the part that arrived today is green past the open's size, on a drained one the part that left is red hatching past the bar's end; the figure names now and the open" h={110}>
+      {({ w }) => (
+        <>
+          <defs>
+            <pattern id="build-hatch-big" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="2.5" height="6" fill={alpha(PUT_WALL, 0.6)} />
+            </pattern>
+          </defs>
+          <text x={x0} y={14} fontSize={w} fill="#7c8290" fontFamily={SANS}>
+            a wall that was built today
+          </text>
+          <text x={x0 + W} y={14} fontSize={w} textAnchor="end" fontWeight={700} fill="#ededed" fontFamily={FIG}>
+            $190M <tspan fill="#7c8290" fontWeight={400} fontFamily={SANS}>net gamma</tspan> <tspan fill="#7c8290" fontWeight={400}>· was $124M</tspan>
+          </text>
+          <rect x={x0} y={22} width={W} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
+          <rect x={x0} y={22} width={196} height={12} rx={6} fill={SILVER} fillOpacity={0.32} />
+          <rect x={x0 + 196} y={22} width={104} height={12} fill={BULL} />
+          <text x={x0 + 98} y={48} fontSize={w} textAnchor="middle" fill="#8a909c" fontFamily={SANS}>
+            there at the open, still there
+          </text>
+          <text x={x0 + 248} y={48} fontSize={w} textAnchor="middle" fill={BULL} fontFamily={SANS}>
+            arrived today
+          </text>
+          <text x={x0} y={70} fontSize={w} fill="#7c8290" fontFamily={SANS}>
+            a wall that drained today
+          </text>
+          <text x={x0 + W} y={70} fontSize={w} textAnchor="end" fontWeight={700} fill="#ededed" fontFamily={FIG}>
+            $226M <tspan fill="#7c8290" fontWeight={400}>· was $301M</tspan>
+          </text>
+          <rect x={x0} y={78} width={W} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
+          <rect x={x0} y={78} width={235} height={12} rx={6} fill={SILVER} fillOpacity={0.32} />
+          <rect x={x0 + 235} y={78} width={78} height={12} fill="url(#build-hatch-big)" />
+          <text x={x0 + 117} y={104} fontSize={w} textAnchor="middle" fill="#8a909c" fontFamily={SANS}>
+            still there
+          </text>
+          <text x={x0 + 274} y={104} fontSize={w} textAnchor="middle" fill={PUT_WALL} fontFamily={SANS}>
+            left today
+          </text>
+        </>
+      )}
     </Figure>
   );
 };
@@ -206,33 +218,37 @@ const DayFigure = () => {
     const t = i / n;
     const wig = (((i * 7) % 5) - 2) * 0.9;
     const shape = t < 0.25 ? 40 : t < 0.5 ? 40 - ((t - 0.25) / 0.25) * 22 : t < 0.7 ? 18 + ((t - 0.5) / 0.2) * 9 : 27 - ((t - 0.7) / 0.3) * 11;
-    return [x0 + t * (x1 - x0), shape + wig] as const;
+    return [x0 + t * (x1 - x0), shape + wig + 2] as const;
   });
   const pt = (p: readonly [number, number]) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
-  const steady = Array.from({ length: n + 1 }, (_, i) => [x0 + (i / n) * (x1 - x0), 76 + (((i * 5) % 3) - 1) * 0.8] as const);
+  const steady = Array.from({ length: n + 1 }, (_, i) => [x0 + (i / n) * (x1 - x0), 78 + (((i * 5) % 3) - 1) * 0.8] as const);
   return (
-    <Figure label="The day's line, large: the stretch with the biggest climb tinted green, the one with the biggest drop tinted red, the last point lit; a steady row under it as one quiet line" h={96}>
-      <polyline points={moved.map(pt).join(' ')} fill="none" stroke="#8a909c" strokeWidth={1.1} strokeLinejoin="round" />
-      <polyline points={moved.slice(8, 17).map(pt).join(' ')} fill="none" stroke={BULL} strokeOpacity={0.9} strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
-      <polyline points={moved.slice(22, 33).map(pt).join(' ')} fill="none" stroke={PUT_WALL} strokeOpacity={0.9} strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={moved[n][0]} cy={moved[n][1]} r={2.2} fill="#ededed" />
-      <text x={moved[12][0]} y={12} fontSize={7.5} textAnchor="middle" fill={BULL} fontFamily={SANS}>
-        the biggest climb, green
-      </text>
-      <text x={moved[27][0]} y={56} fontSize={7.5} textAnchor="middle" fill={PUT_WALL} fontFamily={SANS}>
-        the biggest drop, red
-      </text>
-      <text x={x0} y={56} fontSize={7} fill="#7c8290" fontFamily={FIG}>
-        open
-      </text>
-      <text x={x1} y={12} fontSize={7} textAnchor="end" fill="#7c8290" fontFamily={FIG}>
-        now
-      </text>
-      <polyline points={steady.map(pt).join(' ')} fill="none" stroke="#5c6270" strokeWidth={1} strokeLinejoin="round" />
-      <circle cx={steady[n][0]} cy={steady[n][1]} r={1.8} fill="#8a909c" />
-      <text x={x0} y={90} fontSize={7} fill="#7c8290" fontFamily={SANS}>
-        a steady row is one quiet line, nothing marked
-      </text>
+    <Figure label="The day's line, large: the stretch with the biggest climb tinted green, the one with the biggest drop tinted red, the last point lit; a steady row under it as one quiet line" h={100}>
+      {({ w }) => (
+        <>
+          <polyline points={moved.map(pt).join(' ')} fill="none" stroke="#8a909c" strokeWidth={1.1} strokeLinejoin="round" />
+          <polyline points={moved.slice(8, 17).map(pt).join(' ')} fill="none" stroke={BULL} strokeOpacity={0.9} strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={moved.slice(22, 33).map(pt).join(' ')} fill="none" stroke={PUT_WALL} strokeOpacity={0.9} strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={moved[n][0]} cy={moved[n][1]} r={2.2} fill="#ededed" />
+          <text x={moved[12][0]} y={12} fontSize={w} textAnchor="middle" fill={BULL} fontFamily={SANS}>
+            the biggest climb, green
+          </text>
+          <text x={moved[27][0] - 20} y={60} fontSize={w} textAnchor="middle" fill={PUT_WALL} fontFamily={SANS}>
+            the biggest drop, red
+          </text>
+          <text x={x0} y={60} fontSize={w} fill="#7c8290" fontFamily={FIG}>
+            open
+          </text>
+          <text x={x1} y={12} fontSize={w} textAnchor="end" fill="#7c8290" fontFamily={FIG}>
+            now
+          </text>
+          <polyline points={steady.map(pt).join(' ')} fill="none" stroke="#5c6270" strokeWidth={1} strokeLinejoin="round" />
+          <circle cx={steady[n][0]} cy={steady[n][1]} r={1.8} fill="#8a909c" />
+          <text x={x0} y={95} fontSize={w} fill="#7c8290" fontFamily={SANS}>
+            a steady row is one quiet line, nothing marked
+          </text>
+        </>
+      )}
     </Figure>
   );
 };
@@ -249,27 +265,31 @@ const FloorFigure = () => {
     { strike: '484', w: 12, word: 'steady' },
   ];
   return (
-    <Figure label="Five strikes' changes as bars against one dashed line at 5% of the biggest wall: the two past it are building or draining, the three short of it are steady" h={104}>
-      <line x1={floor} x2={floor} y1={10} y2={92} stroke={SILVER} strokeOpacity={0.6} strokeDasharray="2 3" />
-      <text x={floor + 4} y={14} fontSize={7} fill={SILVER} fontFamily={SANS}>
-        5% of the biggest wall shown
-      </text>
-      {rows.map((r, i) => {
-        const y = 26 + i * 14;
-        const past = r.w > floor - x0;
-        return (
-          <g key={r.strike}>
-            <text x={x0 - 8} y={y + 3} fontSize={8} textAnchor="end" fill="#ededed" fontFamily={FIG}>
-              {r.strike}
-            </text>
-            <rect x={x0} y={y - 3.5} width={r.w} height={7} rx={3.5} fill="#ffffff" fillOpacity={past ? 0.55 : 0.16} />
-            {/* a word never crosses the line: past it, beside the bar; short of it, just past the line */}
-            <text x={past ? x0 + r.w + 6 : floor + 8} y={y + 3} fontSize={7.5} fill={past ? 'rgb(var(--text-primary))' : 'rgb(var(--text-muted))'} fontFamily={SANS}>
-              {r.word}
-            </text>
-          </g>
-        );
-      })}
+    <Figure label="Five strikes' changes as bars against one dashed line at 5% of the biggest wall: the two past it are building or draining, the three short of it are steady" h={112}>
+      {({ w }) => (
+        <>
+          <line x1={floor} x2={floor} y1={20} y2={108} stroke={SILVER} strokeOpacity={0.6} strokeDasharray="2 3" />
+          <text x={floor + 4} y={13} fontSize={w} fill={SILVER} fontFamily={SANS}>
+            5% of the biggest wall shown
+          </text>
+          {rows.map((r, i) => {
+            const y = 32 + i * 17;
+            const past = r.w > floor - x0;
+            return (
+              <g key={r.strike}>
+                <text x={x0 - 8} y={y + 4} fontSize={w} textAnchor="end" fill="#ededed" fontFamily={FIG}>
+                  {r.strike}
+                </text>
+                <rect x={x0} y={y - 3.5} width={r.w} height={7} rx={3.5} fill="#ffffff" fillOpacity={past ? 0.55 : 0.16} />
+                {/* a word never crosses the line: past it, beside the bar; short of it, just past the line */}
+                <text x={past ? x0 + r.w + 6 : floor + 8} y={y + 4} fontSize={w} fill={past ? 'rgb(var(--text-primary))' : 'rgb(var(--text-muted))'} fontFamily={SANS}>
+                  {r.word}
+                </text>
+              </g>
+            );
+          })}
+        </>
+      )}
     </Figure>
   );
 };
@@ -283,7 +303,7 @@ const FloorFigure = () => {
    it is now, a dashed ring with an arrow where today's pace puts it, a
    diamond for the strike growing fastest on that side, tied to the wall. */
 const HeadingFigure = () => {
-  const L = 64;
+  const L = 84;
   const R = 408;
   const x = (t: number) => L + (R - L) * t;
   const rows: { name: string; ink: string; open?: number; now: number; close?: number; ch?: number }[] = [
@@ -292,52 +312,56 @@ const HeadingFigure = () => {
     { name: 'Flip', ink: FLIP, open: 0.4, now: 0.5 },
     { name: 'Put wall', ink: PUT_WALL, now: 0.3, ch: 0.2 },
   ];
-  const TOP = 18;
+  const TOP = 22;
   const PITCH = 25;
-  const H = TOP + rows.length * PITCH + 18;
+  const H = TOP + rows.length * PITCH + 20;
   const spot = 0.55;
   return (
     <Figure label="Where the walls are heading, small: each level on the strike axis, a hollow dot where it opened, a filled dot for now, a dashed ring where today's pace puts it, a diamond for the strike growing fastest on that side" h={H}>
-      {[0.05, 0.25, 0.45, 0.65, 0.85].map((t, i) => (
-        <g key={i}>
-          <line x1={x(t)} x2={x(t)} y1={TOP - 8} y2={H - 16} stroke="#ffffff" strokeOpacity={0.05} />
-          <text x={x(t)} y={H - 5} textAnchor="middle" fontSize={7.5} fill="#7c8290" fontFamily={FIG}>
-            {480 + i * 4}
+      {({ w, t }) => (
+        <>
+          {[0.05, 0.25, 0.45, 0.65, 0.85].map((v, i) => (
+            <g key={i}>
+              <line x1={x(v)} x2={x(v)} y1={TOP - 8} y2={H - 18} stroke="#ffffff" strokeOpacity={0.05} />
+              <text x={x(v)} y={H - 5} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
+                {480 + i * 4}
+              </text>
+            </g>
+          ))}
+          <line x1={x(spot)} x2={x(spot)} y1={TOP - 4} y2={H - 18} stroke="#ededed" strokeOpacity={0.5} strokeDasharray="1 3" />
+          <text x={x(spot)} y={TOP - 8} textAnchor="middle" fontSize={w} fontWeight={600} fill="#ededed" fontFamily={FIG}>
+            490.10
           </text>
-        </g>
-      ))}
-      <line x1={x(spot)} x2={x(spot)} y1={TOP - 4} y2={H - 16} stroke="#ededed" strokeOpacity={0.5} strokeDasharray="1 3" />
-      <text x={x(spot)} y={TOP - 7} textAnchor="middle" fontSize={7.5} fontWeight={600} fill="#ededed" fontFamily={FIG}>
-        490.10
-      </text>
-      {rows.map((r, i) => {
-        const y = TOP + i * PITCH + PITCH / 2;
-        const moves = r.close != null && r.close !== r.now;
-        return (
-          <g key={r.name}>
-            <line x1={L} x2={R} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.055} />
-            <text x={L - 10} y={y + 3} textAnchor="end" fontSize={8} fontWeight={600} fill={r.ink} fontFamily={SANS}>
-              {r.name}
-            </text>
-            {r.ch != null && r.ch !== r.close && (
-              <>
-                <line x1={x(r.ch)} x2={x(r.now)} y1={y} y2={y} stroke={r.ink} strokeOpacity={0.3} strokeDasharray="2 3" />
-                <rect x={x(r.ch) - 2.6} y={y - 2.6} width={5.2} height={5.2} transform={`rotate(45 ${x(r.ch)} ${y})`} fill="#0a0a0a" stroke={r.ink} strokeOpacity={0.75} strokeWidth={1} />
-              </>
-            )}
-            {r.open != null && r.open !== r.now && <line x1={x(r.open)} x2={x(r.now)} y1={y} y2={y} stroke={r.ink} strokeOpacity={0.35} strokeWidth={1} />}
-            {moves && (
-              <>
-                <line x1={x(r.now)} x2={x(r.close!) - 10} y1={y} y2={y} stroke={r.ink} strokeOpacity={0.75} strokeWidth={1} strokeDasharray="3 3" />
-                <path d={`M${x(r.close!) - 10},${y - 3} L${x(r.close!) - 5.5},${y} L${x(r.close!) - 10},${y + 3} Z`} fill={r.ink} fillOpacity={0.8} />
-                <circle cx={x(r.close!)} cy={y} r={3.2} fill="#0a0a0a" stroke={r.ink} strokeOpacity={0.8} strokeWidth={1} strokeDasharray="1.8 1.8" />
-              </>
-            )}
-            {r.open != null && r.open !== r.now && <circle cx={x(r.open)} cy={y} r={2.4} fill="none" stroke={r.ink} strokeOpacity={0.65} strokeWidth={1} />}
-            <circle cx={x(r.now)} cy={y} r={3.8} fill={r.ink} />
-          </g>
-        );
-      })}
+          {rows.map((r, i) => {
+            const y = TOP + i * PITCH + PITCH / 2;
+            const moves = r.close != null && r.close !== r.now;
+            return (
+              <g key={r.name}>
+                <line x1={L} x2={R} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.055} />
+                <text x={L - 10} y={y + 4} textAnchor="end" fontSize={w} fontWeight={600} fill={r.ink} fontFamily={SANS}>
+                  {r.name}
+                </text>
+                {r.ch != null && r.ch !== r.close && (
+                  <>
+                    <line x1={x(r.ch)} x2={x(r.now)} y1={y} y2={y} stroke={r.ink} strokeOpacity={0.3} strokeDasharray="2 3" />
+                    <rect x={x(r.ch) - 2.6} y={y - 2.6} width={5.2} height={5.2} transform={`rotate(45 ${x(r.ch)} ${y})`} fill="#0a0a0a" stroke={r.ink} strokeOpacity={0.75} strokeWidth={1} />
+                  </>
+                )}
+                {r.open != null && r.open !== r.now && <line x1={x(r.open)} x2={x(r.now)} y1={y} y2={y} stroke={r.ink} strokeOpacity={0.35} strokeWidth={1} />}
+                {moves && (
+                  <>
+                    <line x1={x(r.now)} x2={x(r.close!) - 10} y1={y} y2={y} stroke={r.ink} strokeOpacity={0.75} strokeWidth={1} strokeDasharray="3 3" />
+                    <path d={`M${x(r.close!) - 10},${y - 3} L${x(r.close!) - 5.5},${y} L${x(r.close!) - 10},${y + 3} Z`} fill={r.ink} fillOpacity={0.8} />
+                    <circle cx={x(r.close!)} cy={y} r={3.2} fill="#0a0a0a" stroke={r.ink} strokeOpacity={0.8} strokeWidth={1} strokeDasharray="1.8 1.8" />
+                  </>
+                )}
+                {r.open != null && r.open !== r.now && <circle cx={x(r.open)} cy={y} r={2.4} fill="none" stroke={r.ink} strokeOpacity={0.65} strokeWidth={1} />}
+                <circle cx={x(r.now)} cy={y} r={3.8} fill={r.ink} />
+              </g>
+            );
+          })}
+        </>
+      )}
     </Figure>
   );
 };

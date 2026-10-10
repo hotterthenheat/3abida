@@ -20,6 +20,7 @@ import { CALL_WALL, PUT_WALL, FLIP, SUPREME } from './paletteInk';
 import { fmtDollars, fmtPrice, fmtStrike, hhmm, type AheadClock, type CloseOdds, type Corridor, type Schedule } from '../../data/ahead';
 import type { ExposureLevels } from '../../types/gex';
 import { FONT_SANS } from '../../theme/fonts';
+import { GuideSvg, type GuideType } from '../ui/GuideSvg';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
@@ -33,11 +34,11 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-const Figure = ({ children, label }: { children: ReactNode; label: string }) => (
+const Figure = ({ children, label, h = 150 }: { children: (t: GuideType) => ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
-    <svg viewBox="0 0 420 150" width="100%" role="img" aria-label={label} data-guide-figure>
+    <GuideSvg w={420} h={h} label={label}>
       {children}
-    </svg>
+    </GuideSvg>
   </figure>
 );
 
@@ -47,83 +48,90 @@ const Figure = ({ children, label }: { children: ReactNode; label: string }) => 
 const ScaleFigure = () => {
   const x0 = 30;
   const x1 = 390;
-  const y = 74;
+  const y = 84;
   const px = (f: number) => x0 + f * (x1 - x0);
+  /* at 11 px the posts' names take two rows: the call wall's reach under its name, the flip's name past its post */
   const posts = [
-    { f: 0.22, name: 'put wall 109', ink: PUT_WALL, extra: '' },
-    { f: 0.4, name: 'flip 109.50', ink: FLIP, extra: '' },
-    { f: 0.78, name: 'call wall 111', ink: CALL_WALL, extra: ' · in reach 14:20' },
+    { f: 0.22, name: 'put wall 109', ink: PUT_WALL, extra: '', anchor: 'middle' as const, dx: 0, dy: -30 },
+    { f: 0.4, name: 'flip 109.50', ink: FLIP, extra: '', anchor: 'start' as const, dx: 3, dy: -30 },
+    { f: 0.78, name: 'call wall 111', ink: CALL_WALL, extra: 'in reach 14:20', anchor: 'middle' as const, dx: 0, dy: -44 },
   ];
   return (
     <Figure label="One price scale: the faint track is two expected moves each side, dashed where moves run; the silver band is the likely range; the walls and the flip are posts named above; spot is the white rule; the bracket under is one expected move each side">
-      <line x1={px(0.02)} x2={px(0.4)} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.25} strokeDasharray="3 3" />
-      <line x1={px(0.4)} x2={px(0.98)} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.25} />
-      <rect x={px(0.22)} y={y - 6} width={px(0.78) - px(0.22)} height={12} fill={SILVER} fillOpacity={0.12} />
-      <line x1={px(0.22)} x2={px(0.22)} y1={y - 8} y2={y + 8} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} />
-      <line x1={px(0.78)} x2={px(0.78)} y1={y - 8} y2={y + 8} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} />
-      {posts.map(p => (
-        <g key={p.name}>
-          <line x1={px(p.f)} x2={px(p.f)} y1={y - 22} y2={y + 18} stroke={p.ink} strokeOpacity={0.85} strokeWidth={1.25} strokeDasharray={p.ink === FLIP ? '2 2' : undefined} />
-          <text x={px(p.f)} y={y - 28} textAnchor="middle" fontSize={8.5} fontWeight={500} fill={p.ink} fontFamily={SANS}>
-            {p.name}
-            {p.extra && (
-              <tspan fill="#8a909c" fontFamily={FIG} fontSize={8}>
-                {p.extra}
-              </tspan>
-            )}
+      {({ w, t }) => (
+        <>
+          <line x1={px(0.02)} x2={px(0.4)} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.25} strokeDasharray="3 3" />
+          <line x1={px(0.4)} x2={px(0.98)} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.25} />
+          <rect x={px(0.22)} y={y - 6} width={px(0.78) - px(0.22)} height={12} fill={SILVER} fillOpacity={0.12} />
+          <line x1={px(0.22)} x2={px(0.22)} y1={y - 8} y2={y + 8} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} />
+          <line x1={px(0.78)} x2={px(0.78)} y1={y - 8} y2={y + 8} stroke={SILVER} strokeOpacity={0.7} strokeWidth={1.25} />
+          {posts.map(p => (
+            <g key={p.name}>
+              <line x1={px(p.f)} x2={px(p.f)} y1={y - 22} y2={y + 18} stroke={p.ink} strokeOpacity={0.85} strokeWidth={1.25} strokeDasharray={p.ink === FLIP ? '2 2' : undefined} />
+              <text x={px(p.f) + p.dx} y={y + p.dy} textAnchor={p.anchor} fontSize={w} fontWeight={500} fill={p.ink} fontFamily={SANS}>
+                {p.name}
+              </text>
+              {p.extra && (
+                <text x={px(p.f) + p.dx} y={y + p.dy + 14} textAnchor={p.anchor} fontSize={w} fill="#8a909c" fontFamily={FIG}>
+                  {p.extra}
+                </text>
+              )}
+            </g>
+          ))}
+          <line x1={px(0.55)} x2={px(0.55)} y1={y - 22} y2={y + 18} stroke="#ededed" strokeOpacity={0.9} strokeWidth={1.5} />
+          <circle cx={px(0.55)} cy={y} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.25} />
+          <text x={px(0.55)} y={y - 44} textAnchor="middle" fontSize={w} fontWeight={700} fill="#ededed" fontFamily={FIG}>
+            110.03
           </text>
-        </g>
-      ))}
-      <line x1={px(0.55)} x2={px(0.55)} y1={y - 22} y2={y + 18} stroke="#ededed" strokeOpacity={0.9} strokeWidth={1.5} />
-      <circle cx={px(0.55)} cy={y} r={3} fill="#0e0e0f" stroke={SILVER} strokeWidth={1.25} />
-      <text x={px(0.55)} y={y - 40} textAnchor="middle" fontSize={9} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-        110.03
-      </text>
-      {[0.1, 0.3, 0.5, 0.7, 0.9].map((f, i) => (
-        <text key={f} x={px(f)} y={y + 32} textAnchor="middle" fontSize={8} fill="#7c8290" fontFamily={FIG}>
-          {108 + i}
-        </text>
-      ))}
-      <path d={`M${px(0.36)},${y + 40} V${y + 45} H${px(0.74)} V${y + 40}`} fill="none" stroke={SILVER} strokeOpacity={0.6} />
-      <text x={px(0.55)} y={y + 58} textAnchor="middle" fontSize={7.5} fill="#8a909c" fontFamily={FIG} letterSpacing={1.1}>
-        ONE EXPECTED MOVE EACH SIDE · ±1.25
-      </text>
-      <text x={px(0.21)} y={y + 6 + 14} textAnchor="end" fontSize={8} fill="#8a909c" fontFamily={SANS}>
-        moves run
-      </text>
-      <text x={px(0.99)} y={y - 10} textAnchor="end" fontSize={8} fill="#8a909c" fontFamily={SANS}>
-        the rarer stretch
-      </text>
+          {[0.1, 0.3, 0.5, 0.7, 0.9].map((f, i) => (
+            <text key={f} x={px(f)} y={y + 32} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
+              {108 + i}
+            </text>
+          ))}
+          <path d={`M${px(0.36)},${y + 40} V${y + 45} H${px(0.74)} V${y + 40}`} fill="none" stroke={SILVER} strokeOpacity={0.6} />
+          <text x={px(0.55)} y={y + 59} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={FIG}>
+            one expected move each side · ±1.25
+          </text>
+          <text x={px(0.21)} y={y + 20} textAnchor="end" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+            moves run
+          </text>
+          <text x={px(0.78) + 6} y={y - 10} fontSize={w} fill="#8a909c" fontFamily={SANS}>
+            the rarer stretch
+          </text>
+        </>
+      )}
     </Figure>
   );
 };
 
 const ReachFigure = () => (
   <Figure label="Two days: a wall inside the expected move bends the corridor; a wall beyond it does not">
-    {[
-      /* two lines under each case — as one line apiece the two ran into each other */
-      { x: 40, wallInside: true, label: ['wall inside the reach', 'it becomes the edge'] },
-      { x: 230, wallInside: false, label: ['wall beyond the reach', 'the move is the edge'] },
-    ].map(p => (
-      <g key={p.x}>
-        <rect x={p.x} y={40} width={150} height={60} rx={6} fill={SILVER} fillOpacity={0.12} stroke={SILVER} strokeOpacity={0.5} />
-        <line x1={p.x} x2={p.x + 150} y1={p.wallInside ? 40 : 22} y2={p.wallInside ? 40 : 22} stroke={CALL_WALL} strokeOpacity={0.8} strokeDasharray="3 4" />
-        <text x={p.x + 150} y={(p.wallInside ? 40 : 22) - 4} textAnchor="end" fontSize={8.5} fill={CALL_WALL} fontFamily={FIG}>
-          call wall
-        </text>
-        {!p.wallInside && (
-          <text x={p.x + 150} y={36} textAnchor="end" fontSize={8.5} fill={SILVER} fontFamily={FIG}>
-            expected move
+    {({ w }) =>
+      [
+        /* two lines under each case — as one line apiece the two ran into each other */
+        { x: 40, wallInside: true, label: ['wall inside the reach', 'it becomes the edge'] },
+        { x: 230, wallInside: false, label: ['wall beyond the reach', 'the move is the edge'] },
+      ].map(p => (
+        <g key={p.x}>
+          <rect x={p.x} y={40} width={150} height={60} rx={6} fill={SILVER} fillOpacity={0.12} stroke={SILVER} strokeOpacity={0.5} />
+          <line x1={p.x} x2={p.x + 150} y1={p.wallInside ? 40 : 20} y2={p.wallInside ? 40 : 20} stroke={CALL_WALL} strokeOpacity={0.8} strokeDasharray="3 4" />
+          <text x={p.x + 150} y={(p.wallInside ? 40 : 20) - 4} textAnchor="end" fontSize={w} fill={CALL_WALL} fontFamily={FIG}>
+            call wall
           </text>
-        )}
-        <text x={p.x + 75} y={120} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
-          {p.label[0]}
-        </text>
-        <text x={p.x + 75} y={132} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
-          {p.label[1]}
-        </text>
-      </g>
-    ))}
+          {!p.wallInside && (
+            <text x={p.x + 150} y={36} textAnchor="end" fontSize={w} fill={SILVER} fontFamily={FIG}>
+              expected move
+            </text>
+          )}
+          <text x={p.x + 75} y={120} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+            {p.label[0]}
+          </text>
+          <text x={p.x + 75} y={134} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+            {p.label[1]}
+          </text>
+        </g>
+      ))
+    }
   </Figure>
 );
 
@@ -136,41 +144,48 @@ const FlowFigure = () => {
   const mid = 58;
   const reach = 44;
   return (
-    <Figure label="The dealers' pane: buying above the middle line and selling below it, a plain bar per half hour from the line, its dollars at its end and the hour under it; the half hours gone say done, the one under way wears the silver edge">
-      <rect x={6} y={6} width={408} height={124} rx={4} fill="none" stroke="#ffffff" strokeOpacity={0.1} />
-      <line x1={6} x2={414} y1={mid} y2={mid} stroke="#ffffff" strokeOpacity={0.25} />
-      <text x={12} y={17} fontSize={7} fill={CALL_WALL} fontFamily={FIG} letterSpacing={1}>
-        BUYING
-      </text>
-      <text x={12} y={mid + 46} fontSize={7} fill={PUT_WALL} fontFamily={FIG} letterSpacing={1}>
-        SELLING
-      </text>
-      {blocks.map((h, i) => {
-        const cx = x0 + i * slot + slot / 2;
-        return (
-          <g key={i}>
-            {h == null ? (
-              <text x={cx} y={mid - 5} textAnchor="middle" fontSize={6.5} fill="#6b7280" fontFamily={FIG} letterSpacing={0.8}>
-                DONE
-              </text>
-            ) : (
-              <>
-                {i === 2 && <rect x={cx - 13} y={mid - 2} width={26} height={h * reach + 4} rx={3} fill="none" stroke={SILVER} strokeOpacity={0.9} strokeWidth={1} />}
-                <rect x={cx - 11} y={mid} width={22} height={h * reach} rx={2} fill={PUT_WALL} fillOpacity={i === blocks.length - 1 ? 1 : 0.8} />
-                <text x={cx} y={mid + h * reach + 10} textAnchor="middle" fontSize={7.5} fontWeight={600} fill={PUT_WALL} fontFamily={FIG}>
-                  ${Math.round(h * 496)}M
+    <Figure label="The dealers' pane: buying above the middle line and selling below it, a plain bar per half hour from the line, its dollars at its end and the hour under it; the half hours gone say done, the one under way wears the silver edge" h={168}>
+      {({ w, t }) => (
+        <>
+          <rect x={6} y={6} width={408} height={130} rx={4} fill="none" stroke="#ffffff" strokeOpacity={0.1} />
+          <line x1={6} x2={414} y1={mid} y2={mid} stroke="#ffffff" strokeOpacity={0.25} />
+          <text x={12} y={20} fontSize={w} fill={CALL_WALL} fontFamily={FIG}>
+            buying
+          </text>
+          <text x={12} y={mid + 46} fontSize={w} fill={PUT_WALL} fontFamily={FIG}>
+            selling
+          </text>
+          {blocks.map((h, i) => {
+            const cx = x0 + i * slot + slot / 2;
+            return (
+              <g key={i}>
+                {h == null ? (
+                  <text x={cx} y={mid - 5} textAnchor="middle" fontSize={w} fill="#6b7280" fontFamily={FIG}>
+                    done
+                  </text>
+                ) : (
+                  <>
+                    {i === 2 && <rect x={cx - 13} y={mid - 2} width={26} height={h * reach + 4} rx={3} fill="none" stroke={SILVER} strokeOpacity={0.9} strokeWidth={1} />}
+                    <rect x={cx - 11} y={mid} width={22} height={h * reach} rx={2} fill={PUT_WALL} fillOpacity={i === blocks.length - 1 ? 1 : 0.8} />
+                    <text x={cx} y={mid + h * reach + 13} textAnchor="middle" fontSize={w} fontWeight={600} fill={PUT_WALL} fontFamily={FIG}>
+                      ${Math.round(h * 496)}M
+                    </text>
+                  </>
+                )}
+                <text x={cx} y={130} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
+                  {hours[i]}
                 </text>
-              </>
-            )}
-            <text x={cx} y={122} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={FIG}>
-              {hours[i]}
-            </text>
-          </g>
-        );
-      })}
-      <text x={210} y={144} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
-        a bar per half hour from the middle line · down in red sells, up in green buys
-      </text>
+              </g>
+            );
+          })}
+          <text x={210} y={150} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+            a bar per half hour from the middle line
+          </text>
+          <text x={210} y={164} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+            down in red sells, up in green buys
+          </text>
+        </>
+      )}
     </Figure>
   );
 };
@@ -218,56 +233,66 @@ const RowsFigure = () => {
   ];
   const barX = 100;
   const span = 240;
-  let y = 10;
+  const PITCH = 17;
   return (
-    <Figure label="A row per strike: the strike with its role tag, a bar as long as the chance the close lands there, the three likeliest numbered on silver bars, the odds at the right, the 50% and 80% runs shaded across the rows, spot as the rule between the strikes">
-      {rows.map(r => {
-        const ry = y;
-        y += 15;
-        const spotY = r.spotAfter ? ry + 15 : null;
-        if (r.spotAfter) y += 10;
+    <Figure label="A row per strike: the strike with its role tag, a bar as long as the chance the close lands there, the three likeliest numbered on silver bars, the odds at the right, the 50% and 80% runs shaded across the rows, spot as the rule between the strikes" h={176}>
+      {({ w }) => {
+        let y = 8;
         return (
-          <g key={r.k}>
-            {r.run && <rect x={6} y={ry - 1} width={408} height={14} rx={2} fill={SILVER} fillOpacity={r.run === 'half' ? 0.08 : 0.035} />}
-            <text x={14} y={ry + 9} fontSize={8.5} fontWeight={700} fill="#ededed" fontFamily={FIG}>
-              {r.k}
+          <>
+            {rows.map(r => {
+              const ry = y;
+              y += PITCH;
+              const spotY = r.spotAfter ? ry + PITCH : null;
+              if (r.spotAfter) y += 14;
+              return (
+                <g key={r.k}>
+                  {r.run && <rect x={6} y={ry - 1} width={408} height={16} rx={2} fill={SILVER} fillOpacity={r.run === 'half' ? 0.08 : 0.035} />}
+                  <text x={14} y={ry + 11} fontSize={w} fontWeight={700} fill="#ededed" fontFamily={FIG}>
+                    {r.k}
+                  </text>
+                  {r.role && (
+                    <text x={40} y={ry + 11} fontSize={w} fontWeight={700} fill={r.ink ?? '#8a909c'} fontFamily={SANS}>
+                      {r.role}
+                    </text>
+                  )}
+                  <rect x={barX} y={ry + 2} width={r.odds * span} height={11} rx={5.5} fill={r.n ? SILVER : '#ededed'} fillOpacity={r.n === 1 ? 1 : r.n ? 0.5 : 0.22} />
+                  <line x1={barX + r.plain * span} x2={barX + r.plain * span} y1={ry} y2={ry + 15} stroke="#ededed" strokeOpacity={0.5} />
+                  {r.n && (
+                    <>
+                      <rect x={barX + 3} y={ry + 1} width={22} height={13} rx={2} fill={SILVER} />
+                      <text x={barX + 14} y={ry + 11.5} textAnchor="middle" fontSize={w} fontWeight={700} fill="#0a0a0a" fontFamily={FIG}>
+                        #{r.n}
+                      </text>
+                    </>
+                  )}
+                  <text x={406} y={ry + 11} textAnchor="end" fontSize={w} fontWeight={600} fill="#ededed" fontFamily={FIG}>
+                    {r.pct}
+                  </text>
+                  {spotY != null && (
+                    <g>
+                      <line x1={14} x2={406} y1={spotY + 6} y2={spotY + 6} stroke="#ededed" strokeOpacity={0.3} />
+                      <text x={52} y={spotY + 10} textAnchor="end" fontSize={w} fill="#8a909c" fontFamily={FIG}>
+                        SPY
+                      </text>
+                      <rect x={56} y={spotY - 1} width={48} height={14} rx={2} fill="#ededed" />
+                      <text x={80} y={spotY + 10} textAnchor="middle" fontSize={w} fontWeight={700} fill="#0a0a0a" fontFamily={FIG}>
+                        497.33
+                      </text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+            <text x={210} y={156} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+              a row per strike, its bar the chance
             </text>
-            {r.role && (
-              <text x={40} y={ry + 9} fontSize={6.5} fontWeight={700} fill={r.ink ?? '#8a909c'} fontFamily={SANS} letterSpacing={0.6}>
-                {r.role.toUpperCase()}
-              </text>
-            )}
-            <rect x={barX} y={ry + 2} width={r.odds * span} height={8} rx={4} fill={r.n ? SILVER : '#ededed'} fillOpacity={r.n === 1 ? 1 : r.n ? 0.5 : 0.22} />
-            <line x1={barX + r.plain * span} x2={barX + r.plain * span} y1={ry} y2={ry + 12} stroke="#ededed" strokeOpacity={0.5} />
-            {r.n && (
-              <>
-                <rect x={barX + 3} y={ry + 1.5} width={14} height={9} rx={2} fill={SILVER} />
-                <text x={barX + 10} y={ry + 8.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={FIG}>
-                  #{r.n}
-                </text>
-              </>
-            )}
-            <text x={406} y={ry + 9} textAnchor="end" fontSize={8.5} fontWeight={600} fill="#ededed" fontFamily={FIG}>
-              {r.pct}
+            <text x={210} y={170} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+              silver says the rank, the tag the role
             </text>
-            {spotY != null && (
-              <g>
-                <line x1={14} x2={406} y1={spotY + 4} y2={spotY + 4} stroke="#ededed" strokeOpacity={0.3} />
-                <text x={56} y={spotY + 7} textAnchor="end" fontSize={6.5} fill="#8a909c" fontFamily={FIG} letterSpacing={0.8}>
-                  SPY
-                </text>
-                <rect x={60} y={spotY - 1} width={36} height={10} rx={2} fill="#ededed" />
-                <text x={78} y={spotY + 6.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#0a0a0a" fontFamily={FIG}>
-                  497.33
-                </text>
-              </g>
-            )}
-          </g>
+          </>
         );
-      })}
-      <text x={210} y={143} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
-        a row per strike, its bar the chance · silver says the rank, the tag the role
-      </text>
+      }}
     </Figure>
   );
 };
@@ -275,30 +300,32 @@ const RowsFigure = () => {
 /** The same bars at three times of day: they narrow and the wall's bar grows as the close nears */
 const PullFigure = () => (
   <Figure label="The same odds at three times of day: the bars narrow around the wall and its own bar grows as the close nears">
-    {[
-      { x: 30, t: '10:00', pull: 0.3, label: 'light' },
-      { x: 160, t: '13:00', pull: 0.6, label: 'building' },
-      { x: 290, t: '15:30', pull: 0.92, label: 'strong' },
-    ].map(p => {
-      const ys = [34, 50, 66, 82, 98, 114];
-      const base = [0.15, 0.45, 0.85, 1, 0.6, 0.2];
-      const vals = base.map((v, i) => (i === 3 ? v * (0.7 + p.pull * 0.6) : v * (1 - p.pull * 0.45)));
-      return (
-        <g key={p.t}>
-          <text x={p.x + 50} y={22} textAnchor="middle" fontSize={9} fill="#ededed" fontFamily={FIG}>
-            {p.t}
-          </text>
-          <line x1={p.x} x2={p.x} y1={ys[0] - 8} y2={ys[ys.length - 1] + 8} stroke="#ffffff" strokeOpacity={0.15} />
-          {ys.map((y, i) => (
-            <rect key={y} x={p.x + 2} y={y - 5} width={vals[i] * 80} height={10} fill={SILVER} fillOpacity={i === 3 ? 0.9 : 0.26} />
-          ))}
-          <line x1={p.x} x2={p.x + 100} y1={ys[3]} y2={ys[3]} stroke={PUT_WALL} strokeOpacity={0.6} strokeDasharray="3 4" />
-          <text x={p.x + 50} y={136} textAnchor="middle" fontSize={9} fill="#8a909c" fontFamily={SANS}>
-            pull {p.label}
-          </text>
-        </g>
-      );
-    })}
+    {({ w }) =>
+      [
+        { x: 30, t: '10:00', pull: 0.3, label: 'light' },
+        { x: 160, t: '13:00', pull: 0.6, label: 'building' },
+        { x: 290, t: '15:30', pull: 0.92, label: 'strong' },
+      ].map(p => {
+        const ys = [34, 50, 66, 82, 98, 114];
+        const base = [0.15, 0.45, 0.85, 1, 0.6, 0.2];
+        const vals = base.map((v, i) => (i === 3 ? v * (0.7 + p.pull * 0.6) : v * (1 - p.pull * 0.45)));
+        return (
+          <g key={p.t}>
+            <text x={p.x + 50} y={20} textAnchor="middle" fontSize={w} fill="#ededed" fontFamily={FIG}>
+              {p.t}
+            </text>
+            <line x1={p.x} x2={p.x} y1={ys[0] - 8} y2={ys[ys.length - 1] + 8} stroke="#ffffff" strokeOpacity={0.15} />
+            {ys.map((y, i) => (
+              <rect key={y} x={p.x + 2} y={y - 5} width={vals[i] * 80} height={10} fill={SILVER} fillOpacity={i === 3 ? 0.9 : 0.26} />
+            ))}
+            <line x1={p.x} x2={p.x + 100} y1={ys[3]} y2={ys[3]} stroke={PUT_WALL} strokeOpacity={0.6} strokeDasharray="3 4" />
+            <text x={p.x + 50} y={138} textAnchor="middle" fontSize={w} fill="#8a909c" fontFamily={SANS}>
+              pull {p.label}
+            </text>
+          </g>
+        );
+      })
+    }
   </Figure>
 );
 

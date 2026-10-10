@@ -30,6 +30,7 @@ import type { GexLevel } from '../../types/market';
 import type { PanelLevels } from './ProfilePanel';
 import { splinePath } from './spline';
 import { FONT_SANS } from '../../theme/fonts';
+import { GuideSvg } from '../ui/GuideSvg';
 
 const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
@@ -51,25 +52,25 @@ const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** A capsule with its figure inside, the panel's own drawing */
-const Capsule = ({ x, y, w, fill, text, ink = '#0a0a0a', h = 14 }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; h?: number }) => (
+const Capsule = ({ x, y, w, fill, text, ink = '#0a0a0a', h = 14, s }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; h?: number; s: number }) => (
   <g>
     <rect x={x} y={y - h / 2} width={w} height={h} rx={h / 2} fill={fill} />
     {text && (
-      <text x={x + w - 6} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fontWeight="600" fill={ink}>
+      <text x={x + w - 6} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize={s} fontWeight="600" fill={ink}>
         {text}
       </text>
     )}
   </g>
 );
 
-const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5 }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size?: number }) => (
+const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size: number }) => (
   <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={SANS} fontSize={size} fill={fill}>
     {children}
   </text>
 );
 
-const Strike = ({ y, children, fill = INK_2 }: { y: number; children: string; fill?: string }) => (
-  <text x={38} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fill={fill}>
+const Strike = ({ y, children, fill = INK_2, s }: { y: number; children: string; fill?: string; s: number }) => (
+  <text x={38} y={y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize={s} fill={fill}>
     {children}
   </text>
 );
@@ -121,65 +122,69 @@ const SizeFigure = ({ ks }: { ks: string[] }) => {
   const H = 6;
   const wallInk = (w: 'call' | 'put' | undefined) => (w === 'call' ? 'rgb(var(--bull))' : w === 'put' ? 'rgb(var(--bear))' : INK_2);
   return (
-    <svg viewBox="0 0 368 166" width="100%" role="img" aria-label="Five strikes on the ladder: the put leg grows left from a centre line, the call leg grows right, and one line leans through the rows toward the side that wins each strike" data-guide-figure="size">
-      <defs>
-        {rows.map(r => {
-          const ps = r.put / legMax;
-          const cs = r.call / legMax;
-          return (
-            <g key={r.k}>
-              <linearGradient id={`g-put-${r.k}`} x1="1" x2="0" y1="0" y2="0">
-                <stop offset="0" stopColor={YELLOW} />
-                <stop offset="0.33" stopColor={rampAt(WARM_RAMP, ps / 3)} />
-                <stop offset="0.66" stopColor={rampAt(WARM_RAMP, (2 * ps) / 3)} />
-                <stop offset="1" stopColor={rampAt(WARM_RAMP, ps)} />
-              </linearGradient>
-              <linearGradient id={`g-call-${r.k}`} x1="0" x2="1" y1="0" y2="0">
-                <stop offset="0" stopColor={YELLOW} />
-                <stop offset="0.33" stopColor={rampAt(COOL_RAMP, cs / 3)} />
-                <stop offset="0.66" stopColor={rampAt(COOL_RAMP, (2 * cs) / 3)} />
-                <stop offset="1" stopColor={rampAt(COOL_RAMP, cs)} />
-              </linearGradient>
-            </g>
-          );
-        })}
-      </defs>
-      {rows.map(r => (
-        <line key={r.k} x1={44} x2={362} y1={r.y + 0.5} y2={r.y + 0.5} stroke={GRID} />
-      ))}
-      {/* the centre line */}
-      <line x1={MID + 0.5} x2={MID + 0.5} y1={8} y2={120} stroke="rgba(255,255,255,0.10)" />
-      {rows.map(r => {
-        const pl = (r.put / legMax) * REACH;
-        const cl = (r.call / legMax) * REACH;
-        return (
-          <g key={r.k}>
-            <Strike y={r.y} fill={wallInk(r.wall)}>
-              {r.k}
-            </Strike>
-            {r.wall && <rect x={44} y={r.y - 7} width={2} height={14} fill={wallInk(r.wall)} />}
-            <rect x={MID - pl} y={r.y - H / 2} width={pl} height={H} rx={2} fill={`url(#g-put-${r.k})`} />
-            <rect x={MID} y={r.y - H / 2} width={cl} height={H} rx={2} fill={`url(#g-call-${r.k})`} />
-            <text x={MID - pl - 4} y={r.y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fill={INK}>
-              ${r.put}M
-            </text>
-            <text x={MID + cl + 4} y={r.y + 0.5} textAnchor="start" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fill={INK}>
-              ${r.call}M
-            </text>
-          </g>
-        );
-      })}
-      {/* the spine and its ghost at the open */}
-      <path d={ghost} fill="none" stroke="rgba(237,237,237,0.35)" strokeWidth={1} strokeDasharray="3 3" />
-      <path d={spine} fill="none" stroke="rgba(237,237,237,0.85)" strokeWidth={1.5} />
-      {/* What the drawing says, in three lines */}
-      <circle cx={50} cy={128} r={4} fill={SILVER} />
-      <Label x={59} y={128}>puts grow left, calls grow right · longer is more hedging</Label>
-      <circle cx={50} cy={143} r={4} fill={WARM_2} />
-      <Label x={59} y={143}>puts push moves along · calls push back · hotter is heavier</Label>
-      <line x1={45} x2={55} y1={158.5} y2={158.5} stroke="rgba(237,237,237,0.85)" strokeWidth={1.5} />
-      <Label x={59} y={158}>the line leans to the side that wins · dashed is at the open</Label>
-    </svg>
+    <GuideSvg w={368} h={166} word={9.75} label="Five strikes on the ladder: the put leg grows left from a centre line, the call leg grows right, and one line leans through the rows toward the side that wins each strike" figure="size">
+      {({ w, t }) => (
+        <>
+          <defs>
+            {rows.map(r => {
+              const ps = r.put / legMax;
+              const cs = r.call / legMax;
+              return (
+                <g key={r.k}>
+                  <linearGradient id={`g-put-${r.k}`} x1="1" x2="0" y1="0" y2="0">
+                    <stop offset="0" stopColor={YELLOW} />
+                    <stop offset="0.33" stopColor={rampAt(WARM_RAMP, ps / 3)} />
+                    <stop offset="0.66" stopColor={rampAt(WARM_RAMP, (2 * ps) / 3)} />
+                    <stop offset="1" stopColor={rampAt(WARM_RAMP, ps)} />
+                  </linearGradient>
+                  <linearGradient id={`g-call-${r.k}`} x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0" stopColor={YELLOW} />
+                    <stop offset="0.33" stopColor={rampAt(COOL_RAMP, cs / 3)} />
+                    <stop offset="0.66" stopColor={rampAt(COOL_RAMP, (2 * cs) / 3)} />
+                    <stop offset="1" stopColor={rampAt(COOL_RAMP, cs)} />
+                  </linearGradient>
+                </g>
+              );
+            })}
+          </defs>
+          {rows.map(r => (
+            <line key={r.k} x1={44} x2={362} y1={r.y + 0.5} y2={r.y + 0.5} stroke={GRID} />
+          ))}
+          {/* the centre line */}
+          <line x1={MID + 0.5} x2={MID + 0.5} y1={8} y2={120} stroke="rgba(255,255,255,0.10)" />
+          {rows.map(r => {
+            const pl = (r.put / legMax) * REACH;
+            const cl = (r.call / legMax) * REACH;
+            return (
+              <g key={r.k}>
+                <Strike s={w} y={r.y} fill={wallInk(r.wall)}>
+                  {r.k}
+                </Strike>
+                {r.wall && <rect x={44} y={r.y - 7} width={2} height={14} fill={wallInk(r.wall)} />}
+                <rect x={MID - pl} y={r.y - H / 2} width={pl} height={H} rx={2} fill={`url(#g-put-${r.k})`} />
+                <rect x={MID} y={r.y - H / 2} width={cl} height={H} rx={2} fill={`url(#g-call-${r.k})`} />
+                <text x={MID - pl - 4} y={r.y + 0.5} textAnchor="end" dominantBaseline="middle" fontFamily={FIG} fontSize={w} fill={INK}>
+                  ${r.put}M
+                </text>
+                <text x={MID + cl + 4} y={r.y + 0.5} textAnchor="start" dominantBaseline="middle" fontFamily={FIG} fontSize={w} fill={INK}>
+                  ${r.call}M
+                </text>
+              </g>
+            );
+          })}
+          {/* the spine and its ghost at the open */}
+          <path d={ghost} fill="none" stroke="rgba(237,237,237,0.35)" strokeWidth={1} strokeDasharray="3 3" />
+          <path d={spine} fill="none" stroke="rgba(237,237,237,0.85)" strokeWidth={1.5} />
+          {/* What the drawing says, in three lines */}
+          <circle cx={50} cy={128} r={4} fill={SILVER} />
+          <Label x={59} y={128} size={w}>puts grow left, calls grow right · longer is more hedging</Label>
+          <circle cx={50} cy={143} r={4} fill={WARM_2} />
+          <Label x={59} y={143} size={w}>puts push moves along · calls push back · hotter is heavier</Label>
+          <line x1={45} x2={55} y1={158.5} y2={158.5} stroke="rgba(237,237,237,0.85)" strokeWidth={1.5} />
+          <Label x={59} y={158} size={w}>the line leans to the side that wins · dashed is at the open</Label>
+        </>
+      )}
+    </GuideSvg>
   );
 };
 
@@ -192,38 +197,42 @@ const FlowFigure = ({ ks, spot }: { ks: string[]; spot: string }) => {
     { y: 32, k: ks[2], add: '+$69M', total: 150, text: 'sell $144M' },
   ];
   return (
-    <svg viewBox="0 0 368 162" width="100%" role="img" aria-label={`A move from spot up to ${ks[2]} crosses three strikes; each adds its weight and the running total on arrival is the forced flow`} data-guide-figure="flow">
-      {/* The price axis */}
-      <line x1={44} x2={44} y1={16} y2={132} stroke={GRID} />
-      {steps.map(s => (
-        <line key={s.k} x1={44} x2={200} y1={s.y + 0.5} y2={s.y + 0.5} stroke={GRID} />
-      ))}
-      {/* Spot, the chip */}
-      <rect x={14} y={spotY - 8} width={46} height={16} rx={4} fill={INK} />
-      <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={FIG} fontSize="9" fontWeight="700" fill="rgb(var(--panel))">
-        {spot}
-      </text>
-      <Label x={66} y={spotY} fill={INK_3}>where the market is now</Label>
-      {/* The trip: a dotted path up the axis, with an arrowhead */}
-      <line x1={44} x2={44} y1={spotY - 10} y2={40} stroke={SILVER} strokeWidth="1.25" strokeDasharray="2 3" />
-      <path d="M40 42 L44 34 L48 42" fill="none" stroke={SILVER} strokeWidth="1.25" />
-      {/* Each strike crossed adds its weight */}
-      {steps.map((s, i) => (
-        <g key={s.k}>
-          <Strike y={s.y}>{s.k}</Strike>
-          <circle cx={44} cy={s.y} r={3} fill={SILVER} />
-          <Capsule x={54} y={s.y} w={44} fill={i === 2 ? COOL_3 : i === 1 ? COOL_2 : COOL_1} text={s.add} ink={i === 2 ? '#ffffff' : '#0a0a0a'} h={12} />
-          {/* The running total on the right, growing with every strike crossed */}
-          <Capsule x={208} y={s.y} w={s.total} fill={i === 2 ? WARM_3 : i === 1 ? WARM_2 : WARM_1} text={s.text} ink={i === 2 ? '#ffffff' : '#0a0a0a'} />
-        </g>
-      ))}
-      <Label x={110} y={88} fill={INK_3}>crossed first</Label>
-      <Label x={110} y={60} fill={INK_3}>then this one</Label>
-      <Label x={110} y={32} fill={INK_3}>arrives here</Label>
-      <Label x={208} y={16} fill={SILVER}>the bill so far</Label>
-      <Label x={14} y={139} fill={INK_3}>every strike crossed adds what sits there to the bill</Label>
-      <Label x={14} y={153} fill={INK_3}>the total on arrival is what the lane shows</Label>
-    </svg>
+    <GuideSvg w={368} h={162} word={9.75} label={`A move from spot up to ${ks[2]} crosses three strikes; each adds its weight and the running total on arrival is the forced flow`} figure="flow">
+      {({ w, t }) => (
+        <>
+          {/* The price axis */}
+          <line x1={44} x2={44} y1={16} y2={132} stroke={GRID} />
+          {steps.map(s => (
+            <line key={s.k} x1={44} x2={200} y1={s.y + 0.5} y2={s.y + 0.5} stroke={GRID} />
+          ))}
+          {/* Spot, the chip */}
+          <rect x={14} y={spotY - 8} width={46} height={16} rx={4} fill={INK} />
+          <text x={37} y={spotY + 0.5} textAnchor="middle" dominantBaseline="middle" fontFamily={FIG} fontSize={w} fontWeight="700" fill="rgb(var(--panel))">
+            {spot}
+          </text>
+          <Label x={66} y={spotY} fill={INK_3} size={w}>where the market is now</Label>
+          {/* The trip: a dotted path up the axis, with an arrowhead */}
+          <line x1={44} x2={44} y1={spotY - 10} y2={40} stroke={SILVER} strokeWidth="1.25" strokeDasharray="2 3" />
+          <path d="M40 42 L44 34 L48 42" fill="none" stroke={SILVER} strokeWidth="1.25" />
+          {/* Each strike crossed adds its weight */}
+          {steps.map((s, i) => (
+            <g key={s.k}>
+              <Strike s={w} y={s.y}>{s.k}</Strike>
+              <circle cx={44} cy={s.y} r={3} fill={SILVER} />
+              <Capsule s={w} x={54} y={s.y} w={44} fill={i === 2 ? COOL_3 : i === 1 ? COOL_2 : COOL_1} text={s.add} ink={i === 2 ? '#ffffff' : '#0a0a0a'} h={12} />
+              {/* The running total on the right, growing with every strike crossed */}
+              <Capsule s={w} x={208} y={s.y} w={s.total} fill={i === 2 ? WARM_3 : i === 1 ? WARM_2 : WARM_1} text={s.text} ink={i === 2 ? '#ffffff' : '#0a0a0a'} />
+            </g>
+          ))}
+          <Label x={110} y={88} fill={INK_3} size={w}>crossed first</Label>
+          <Label x={110} y={60} fill={INK_3} size={w}>then this one</Label>
+          <Label x={110} y={32} fill={INK_3} size={w}>arrives here</Label>
+          <Label x={208} y={16} fill={SILVER} size={w}>the bill so far</Label>
+          <Label x={14} y={139} fill={INK_3} size={w}>every strike crossed adds what sits there to the bill</Label>
+          <Label x={14} y={153} fill={INK_3} size={w}>the total on arrival is what the lane shows</Label>
+        </>
+      )}
+    </GuideSvg>
   );
 };
 

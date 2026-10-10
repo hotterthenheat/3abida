@@ -16,6 +16,7 @@ import { CALL_WALL, PUT_WALL, THERMAL_COOL, THERMAL_WARM } from './paletteInk';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { WallBoard } from '../../data/wall';
 import { FONT_SANS } from '../../theme/fonts';
+import { GuideSvg, type GuideType } from '../ui/GuideSvg';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /** The surface's inks: breaks is the calendar's warm side, a shelf's weight its cool side */
@@ -32,80 +33,90 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: string; h?: number }) => (
+const Figure = ({ children, label, h = 110 }: { children: (t: GuideType) => ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
-    <svg viewBox={`0 0 420 ${h}`} width="100%" role="img" aria-label={label} data-guide-figure>
+    <GuideSvg w={420} h={h} label={label}>
       {children}
-    </svg>
+    </GuideSvg>
   </figure>
 );
 
+/* EVERY WORD AT THE HOUSE'S FLOOR (2026-10-10, the audit's X9): the drawings' words were 6.5–9 units in tracked
+   capitals; now 11 px at the card's size (ui/GuideSvg.tsx), sentence case, untracked, the rows spaced to hold them */
+
 /* The beam, small: reached above it, holds on the left, breaks on the right, the seam at the odds */
 const BeamFigure = () => (
-  <Figure label="The beam: the odds price reaches the wall above, the odds it holds as the silver share of one bar, breaks as the rest" h={74}>
-    <text x={14} y={16} fontSize={7} fill="#7c8290" fontFamily={FIG} letterSpacing={0.8}>
-      IF PRICE GETS THERE
-    </text>
-    <text x={406} y={16} fontSize={7} textAnchor="end" fill="#7c8290" fontFamily={FIG} letterSpacing={0.8}>
-      REACHED BY THE CLOSE <tspan fill="#ededed">61%</tspan>
-    </text>
-    <rect x={14} y={26} width={392} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
-    <rect x={14} y={26} width={392 * 0.72} height={12} rx={6} fill={SILVER} fillOpacity={0.85} />
-    <rect x={14 + 392 * 0.72 - 1} y={26} width={2} height={12} fill="#0a0a0a" />
-    <text x={14} y={56} fontSize={9} fill={SILVER} fontFamily={FIG}>
-      holds 72%
-    </text>
-    <text x={406} y={56} fontSize={9} textAnchor="end" fill={WARM} fontFamily={FIG}>
-      breaks 28%
-    </text>
-    <text x={210} y={68} fontSize={7.5} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
-      two different odds: getting there, and holding once there
-    </text>
+  <Figure label="The beam: the odds price reaches the wall above, the odds it holds as the silver share of one bar, breaks as the rest" h={82}>
+    {({ w }) => (
+      <>
+        <text x={14} y={14} fontSize={w} fill="#7c8290" fontFamily={FIG}>
+          If price gets there
+        </text>
+        <text x={406} y={14} fontSize={w} textAnchor="end" fill="#7c8290" fontFamily={FIG}>
+          Reached by the close <tspan fill="#ededed">61%</tspan>
+        </text>
+        <rect x={14} y={24} width={392} height={12} rx={6} fill="#ffffff" fillOpacity={0.06} />
+        <rect x={14} y={24} width={392 * 0.72} height={12} rx={6} fill={SILVER} fillOpacity={0.85} />
+        <rect x={14 + 392 * 0.72 - 1} y={24} width={2} height={12} fill="#0a0a0a" />
+        <text x={14} y={54} fontSize={w} fill={SILVER} fontFamily={FIG}>
+          holds 72%
+        </text>
+        <text x={406} y={54} fontSize={w} textAnchor="end" fill={WARM} fontFamily={FIG}>
+          breaks 28%
+        </text>
+        <text x={210} y={76} fontSize={w} textAnchor="middle" fill="#7c8290" fontFamily={SANS}>
+          two different odds: getting there, and holding once there
+        </text>
+      </>
+    )}
   </Figure>
 );
 
-/* Three reason rows, small: the fact, the push meter, the clause */
+/* Three reason rows, small: the reason and its fact on one line, the clause under the fact, the push meter on the right */
 const ReasonsFigure = () => {
   const rows = [
-    { label: 'What it is made of', fact: '$347M per 1% · 1.7× the market', push: 0.4, words: 'harder than the market pushes' },
+    { label: 'Made of', fact: '$347M per 1% · 1.7× the market', push: 0.4, words: 'harder than the market pushes' },
     { label: 'Tested today', fact: '3× · held 3 · broke 0', push: 0.6, words: 'every touch held' },
     { label: 'Expires at 4:00', fact: '24% of it · 1h 25m left', push: -0.25, words: 'thins into the close' },
   ];
-  /* the fact, the meter and the words each in their own lane — the words ran 15 past the figure's edge and the first
-     fact into the meter (2026-09-30) */
-  const meterX = 232;
+  /* the fact and its clause in one lane, the meter in its own — two lines a reason, so 11 px words keep their lanes */
+  const factX = 112;
+  const meterX = 344;
   const mid = meterX + 30;
   return (
-    <Figure label="Three reasons: a fact in mono, a meter that fills right for holding and left for breaking, and a clause" h={96}>
-      <g fontFamily={FIG} fontSize={6.5} fill="#7c8290" letterSpacing={0.6}>
-        <text x={10} y={12}>REASON</text>
-        <text x={100} y={12}>THE FACT</text>
-        <text x={mid} y={12} textAnchor="middle">
-          <tspan fill={WARM}>◂ BREAKS</tspan> · <tspan fill={SILVER}>HOLDS ▸</tspan>
-        </text>
-        <text x={306} y={12}>IN WORDS</text>
-      </g>
-      {rows.map((r, i) => {
-        const y = 30 + i * 22;
-        const w = Math.abs(r.push) * 30;
-        return (
-          <g key={r.label}>
-            <line x1={10} x2={410} y1={y - 11} y2={y - 11} stroke="#ffffff" strokeOpacity={0.05} />
-            <text x={10} y={y + 3} fontSize={8} fill="#a3a3a3" fontFamily={SANS}>
-              {r.label}
-            </text>
-            <text x={100} y={y + 3} fontSize={7} fill={i === 0 ? COOL : 'rgb(var(--text-primary))'} fontFamily={FIG}>
-              {r.fact}
-            </text>
-            <rect x={meterX} y={y - 1.5} width={60} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
-            <rect x={mid - 0.5} y={y - 3} width={1} height={6} fill="#ffffff" fillOpacity={0.25} />
-            <rect x={r.push >= 0 ? mid : mid - w} y={y - 1.5} width={w} height={3} rx={1.5} fill={r.push >= 0 ? SILVER : WARM} fillOpacity={0.9} />
-            <text x={306} y={y + 3} fontSize={7} fill="#7c8290" fontFamily={SANS}>
-              {r.words}
+    <Figure label="Three reasons: a fact, a meter that fills right for holding and left for breaking, and a clause" h={130}>
+      {({ w }) => (
+        <>
+          <g fontFamily={FIG} fontSize={w} fill="#7c8290">
+            <text x={10} y={14}>Reason</text>
+            <text x={factX} y={14}>The fact, in words</text>
+            <text x={mid} y={14} textAnchor="middle">
+              <tspan fill={WARM}>◂ breaks</tspan> <tspan fill={SILVER}>holds ▸</tspan>
             </text>
           </g>
-        );
-      })}
+          {rows.map((r, i) => {
+            const y = 40 + i * 36;
+            const pw = Math.abs(r.push) * 30;
+            return (
+              <g key={r.label}>
+                <line x1={10} x2={410} y1={y - 17} y2={y - 17} stroke="#ffffff" strokeOpacity={0.05} />
+                <text x={10} y={y} fontSize={w} fill="#a3a3a3" fontFamily={SANS}>
+                  {r.label}
+                </text>
+                <text x={factX} y={y} fontSize={w} fill={i === 0 ? COOL : 'rgb(var(--text-primary))'} fontFamily={FIG}>
+                  {r.fact}
+                </text>
+                <text x={factX} y={y + 14} fontSize={w} fill="#7c8290" fontFamily={SANS}>
+                  {r.words}
+                </text>
+                <rect x={meterX} y={y - 5.5} width={60} height={3} rx={1.5} fill="#ffffff" fillOpacity={0.06} />
+                <rect x={mid - 0.5} y={y - 7} width={1} height={6} fill="#ffffff" fillOpacity={0.25} />
+                <rect x={r.push >= 0 ? mid : mid - pw} y={y - 5.5} width={pw} height={3} rx={1.5} fill={r.push >= 0 ? SILVER : WARM} fillOpacity={0.9} />
+              </g>
+            );
+          })}
+        </>
+      )}
     </Figure>
   );
 };
@@ -118,41 +129,48 @@ const PathsFigure = () => {
   const breakTo = 0.86;
   const holdTo = 0.12;
   return (
-    <Figure label="The two paths on the strike axis: spot, the wall as a thick tick, a dashed arrow to the next shelf across an empty stretch, a silver arrow back toward the flip" h={104}>
-      {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
-        <text key={i} x={x(t)} y={98} textAnchor="middle" fontSize={7.5} fill="#7c8290" fontFamily={FIG}>
-          {480 + i * 5}
-        </text>
-      ))}
-      <rect x={x(K)} y={12} width={x(breakTo) - x(K)} height={74} fill="#ffffff" fillOpacity={0.035} />
-      <text x={(x(K) + x(breakTo)) / 2} y={82} textAnchor="middle" fontSize={7} fill="#7c8290" fontFamily={SANS}>
-        almost nothing in between
-      </text>
-      <line x1={x(spot)} x2={x(spot)} y1={12} y2={86} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(spot)} y={9} textAnchor="middle" fontSize={7.5} fontWeight={600} fill="#ededed" fontFamily={FIG}>
-        486.40
-      </text>
-      <rect x={x(K) - 1.5} y={18} width={3} height={62} rx={1.5} fill={CALL_WALL} fillOpacity={0.9} />
-      <text x={x(K) + 6} y={24} fontSize={7.5} fill={CALL_WALL} fontFamily={SANS}>
-        call wall 490
-      </text>
-      <line x1={x(K)} x2={x(breakTo) - 6} y1={46} y2={46} stroke={WARM} strokeOpacity={0.9} strokeDasharray="3 3" />
-      <path d={`M${x(breakTo) - 6},${43} L${x(breakTo)},${46} L${x(breakTo) - 6},${49} Z`} fill={WARM} fillOpacity={0.9} />
-      {/* over and under its arrow — as one line it ran 28 past the figure's edge */}
-      <text x={x(K) + 8} y={40} fontSize={7.5} fill={WARM} fontFamily={SANS}>
-        if it breaks · runs to 497
-      </text>
-      <text x={x(K) + 8} y={57} fontSize={7.5} fill={WARM} fontFamily={SANS}>
-        $210M of dealer buying on the way
-      </text>
-      <line x1={x(K)} x2={x(holdTo) + 6} y1={66} y2={66} stroke={SILVER} strokeOpacity={0.9} />
-      <path d={`M${x(holdTo) + 6},${63} L${x(holdTo)},${66} L${x(holdTo) + 6},${69} Z`} fill={SILVER} />
-      <text x={x(K) - 8} y={76} textAnchor="end" fontSize={7.5} fill={SILVER} fontFamily={SANS}>
-        if it holds · back toward 484 · $90M of dealer selling
-      </text>
-      <text x={x(holdTo)} y={9} textAnchor="middle" fontSize={7} fill={PUT_WALL} fontFamily={SANS}>
-        flip
-      </text>
+    <Figure label="The two paths on the strike axis: spot, the wall as a thick tick, a dashed arrow to the next shelf across an empty stretch, a silver arrow back toward the flip" h={136}>
+      {({ w, t }) => (
+        <>
+          {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
+            <text key={i} x={x(v)} y={130} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
+              {480 + i * 5}
+            </text>
+          ))}
+          <rect x={x(K)} y={18} width={x(breakTo) - x(K)} height={98} fill="#ffffff" fillOpacity={0.035} />
+          <text x={(x(K) + x(breakTo)) / 2 + 10} y={108} textAnchor="middle" fontSize={w} fill="#7c8290" fontFamily={SANS}>
+            almost nothing in between
+          </text>
+          <line x1={x(spot)} x2={x(spot)} y1={18} y2={116} stroke="#ededed" strokeOpacity={0.55} strokeDasharray="1 3" />
+          <text x={x(spot)} y={12} textAnchor="middle" fontSize={w} fontWeight={600} fill="#ededed" fontFamily={FIG}>
+            486.40
+          </text>
+          <rect x={x(K) - 1.5} y={22} width={3} height={90} rx={1.5} fill={CALL_WALL} fillOpacity={0.9} />
+          <text x={x(K) + 6} y={32} fontSize={w} fill={CALL_WALL} fontFamily={SANS}>
+            call wall 490
+          </text>
+          <line x1={x(K)} x2={x(breakTo) - 6} y1={56} y2={56} stroke={WARM} strokeOpacity={0.9} strokeDasharray="3 3" />
+          <path d={`M${x(breakTo) - 6},${53} L${x(breakTo)},${56} L${x(breakTo) - 6},${59} Z`} fill={WARM} fillOpacity={0.9} />
+          {/* over and under its arrow — as one line it ran past the figure's edge */}
+          <text x={x(K) + 8} y={50} fontSize={w} fill={WARM} fontFamily={SANS}>
+            if it breaks · runs to 497
+          </text>
+          <text x={x(K) + 8} y={70} fontSize={w} fill={WARM} fontFamily={SANS}>
+            $210M dealer buying on the way
+          </text>
+          <line x1={x(K)} x2={x(holdTo) + 6} y1={80} y2={80} stroke={SILVER} strokeOpacity={0.9} />
+          <path d={`M${x(holdTo) + 6},${77} L${x(holdTo)},${80} L${x(holdTo) + 6},${83} Z`} fill={SILVER} />
+          <text x={x(K) - 8} y={94} textAnchor="end" fontSize={w} fill={SILVER} fontFamily={SANS}>
+            if it holds · back toward 484
+          </text>
+          <text x={x(K) - 8} y={108} textAnchor="end" fontSize={w} fill={SILVER} fontFamily={SANS}>
+            $90M of dealer selling
+          </text>
+          <text x={x(holdTo)} y={12} textAnchor="middle" fontSize={w} fill={PUT_WALL} fontFamily={SANS}>
+            flip
+          </text>
+        </>
+      )}
     </Figure>
   );
 };

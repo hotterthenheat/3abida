@@ -76,7 +76,7 @@ const RIGHT_PAD = 6;
 /** The moment-marker — the print the drilldown was opened from. White, not
     lime (Noah, 2026-08-18): white = "where", the same voice as the spot rule. */
 /* The label sits on the line's open side: a print at the window's right edge put "THIS PRINT" past it, cut to "THIS
-   PRIN" (the audit's TR-69) */
+   PRIN" (the audit's TR-69). The chart's words are 11 px in sentence case, its ticks 10 (the type floor, 2026-10-10) */
 const printLine = (min: number, yAxisId: string, withLabel: boolean, nearRight = false) => (
   <ReferenceLine
     x={min}
@@ -86,7 +86,7 @@ const printLine = (min: number, yAxisId: string, withLabel: boolean, nearRight =
     strokeDasharray="4 3"
     label={
       withLabel
-        ? { value: 'THIS PRINT', position: nearRight ? 'insideTopRight' : 'insideTopLeft', fill: PRICE_LINE, fontSize: 10, fontFamily: FONT_SANS, offset: 8 }
+        ? { value: 'This print', position: nearRight ? 'insideTopRight' : 'insideTopLeft', fill: PRICE_LINE, fontSize: 11, fontFamily: FONT_SANS, offset: 8 }
         : undefined
     }
   />
@@ -301,18 +301,23 @@ const LedgerLayer = ({ bins, intervalMin, whale }: {
       const colEdge = isUp ? y(half + wb.upPrem) : y(-half - wb.downPrem);
       const first = x(bins[0].min);
       const last = x(bins[bins.length - 1].min);
-      const tx = Math.min(Math.max(x(wb.min), first + 56), Math.max(last - 56, first + 56));
+      const tx = Math.min(Math.max(x(wb.min), first + 64), Math.max(last - 64, first + 64));
+      /* a seller's whale at the plot's foot has no room under it for an 11 px line: the label goes over its column */
+      const range = (yScale as { range?: () => number[] }).range?.() ?? [Infinity, -Infinity];
+      const foot = Math.max(...range);
+      const below = colEdge + 12;
+      const ly = isUp ? colEdge - 5 : below <= foot - 2 ? below : y(half + wb.upPrem) - 5;
       whaleLabel = (
         <text
           x={tx}
-          y={isUp ? colEdge - 5 : colEdge + 11}
+          y={ly}
           textAnchor="middle"
           fill={SUPREME}
-          fontSize={9}
+          fontSize={11}
           fontWeight={600}
           fontFamily={FONT_SANS}
         >
-          LARGEST PRINT · {fmtUsd(whale.premium)}
+          Largest print · {fmtUsd(whale.premium)}
         </text>
       );
     }
@@ -762,7 +767,7 @@ export const NetPanel = ({
                   stroke={PRICE_LINE}
                   strokeOpacity={0.9}
                   strokeDasharray="4 3"
-                  label={{ value: 'THIS CONTRACT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 10, fontFamily: FONT_SANS, offset: 8 }}
+                  label={{ value: 'This contract', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 11, fontFamily: FONT_SANS, offset: 8 }}
                 />
               )}
             </ComposedChart>

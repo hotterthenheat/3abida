@@ -1,4 +1,5 @@
 import { FONT_SANS } from '../../theme/fonts';
+import { GuideSvg } from '../ui/GuideSvg';
 /*
 ==================================================
   SLAYER TERMINAL - HOW TO READ THE TRADER'S CLOCK
@@ -52,21 +53,24 @@ const HOURS = [
   { i: 78, t: '16:00' },
 ];
 
-const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size = 9.5, mono = false, weight = 400 }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size?: number; mono?: boolean; weight?: number }) => (
+const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size, mono = false, weight = 400 }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size: number; mono?: boolean; weight?: number }) => (
   <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? FIG : SANS} fontSize={size} fontWeight={weight} fill={fill}>
     {children}
   </text>
 );
 
-const Names = ({ y, dim }: { y: number; dim?: string }) => (
+/* THE NAMES IN TWO ROWS (2026-10-10): at 11 px the six names run wider than their phases, so the open, lunch and the
+   turn take one row and the morning, the charm window and the close the other — each still starts on its own blocks */
+const ROW_A = new Set(['open', 'lunch', 'turn']);
+const Names = ({ y, dim, s }: { y: number; dim?: string; s: number }) => (
   <>
     {PHASES.map(p => {
       /* the turn and the close are six blocks between them: the turn ends short of its blocks' end, the close ends at the
          figure's edge (from its own first block it ran off the figure) */
       const right = p.key === 'turn' || p.key === 'close';
-      const x = p.key === 'turn' ? bx(p.to) - 6 : p.key === 'close' ? 367 : bx(p.from);
+      const x = p.key === 'turn' ? bx(p.to) - 2 : p.key === 'close' ? 367 : bx(p.from);
       return (
-        <Label key={p.key} x={x} y={y} anchor={right ? 'end' : 'start'} fill={dim && dim !== p.key ? INK_3 : INK_2} size={8.5}>
+        <Label key={p.key} x={x} y={ROW_A.has(p.key) ? y : y + 14} anchor={right ? 'end' : 'start'} fill={dim && dim !== p.key ? INK_3 : INK_2} size={s}>
           {p.key === 'close' ? 'Close' : p.key === 'turn' ? 'Turn' : p.key === 'open' ? 'Open' : p.key === 'morning' ? 'Morning' : p.name}
         </Label>
       );
@@ -76,73 +80,86 @@ const Names = ({ y, dim }: { y: number; dim?: string }) => (
 
 /** FIGURE 1 — the strip: 78 blocks, brighter where hedging pushes harder, NOW solid and ringed */
 const StripFigure = ({ nowBlock }: { nowBlock: number | null }) => (
-  <svg viewBox="0 0 368 150" width="100%" role="img" aria-label="The trading day as 78 five-minute blocks with the phase names above; the current block is solid silver with a ring round it" data-guide-figure="strip">
-    <Names y={16} />
-    {Array.from({ length: BLOCKS }, (_, i) => {
-      const p = phaseOf(i);
-      const now = nowBlock === i;
-      const a = Math.min(0.8, 0.1 + p.weight * 0.3);
-      return (
-        <g key={i}>
-          <rect x={bx(i) + 0.5} y={28} width={BW - 1} height={16} rx={1.5} fill={now ? LIVE : SILVER} fillOpacity={now ? 1 : a} />
-          {now && <rect x={bx(i) - 0.5} y={27} width={BW + 1} height={18} rx={2} fill="none" stroke={LIVE} strokeWidth="1" />}
-        </g>
-      );
-    })}
-    {HOURS.map(h => (
-      <Label key={h.t} x={bx(h.i)} y={54} anchor="middle" fill={INK_3} size={8} mono>
-        {h.t}
-      </Label>
-    ))}
-    <Label x={bx(0)} y={54} fill={INK_3} size={8} mono>
-      09:30
-    </Label>
-    {/* What the shades mean */}
-    <rect x={X0} y={72} width={10} height={10} rx={1.5} fill={SILVER} fillOpacity={0.4} />
-    <Label x={X0 + 16} y={77}>a brighter block is a part of the day when dealer hedging pushes harder</Label>
-    <rect x={X0} y={90} width={10} height={10} rx={1.5} fill={SILVER} fillOpacity={0.19} />
-    <Label x={X0 + 16} y={95}>a dim block is a quiet stretch, when price tends to sit still</Label>
-    <rect x={X0} y={108} width={10} height={10} rx={1.5} fill={LIVE} />
-    <rect x={X0 - 1} y={107} width={12} height={12} rx={2} fill="none" stroke={LIVE} strokeWidth="1" />
-    <Label x={X0 + 16} y={113}>the ringed block is right now</Label>
-    <Label x={X0} y={136} fill={INK_3}>each block is five minutes · the names above are the day's phases, a rule of thumb</Label>
-  </svg>
+  <GuideSvg w={368} h={164} word={9.75} label="The trading day as 78 five-minute blocks with the phase names above; the current block is solid silver with a ring round it" figure="strip">
+    {({ w, t }) => (
+      <>
+        <Names y={11} s={w} />
+        {Array.from({ length: BLOCKS }, (_, i) => {
+          const p = phaseOf(i);
+          const now = nowBlock === i;
+          const a = Math.min(0.8, 0.1 + p.weight * 0.3);
+          return (
+            <g key={i}>
+              <rect x={bx(i) + 0.5} y={36} width={BW - 1} height={16} rx={1.5} fill={now ? LIVE : SILVER} fillOpacity={now ? 1 : a} />
+              {now && <rect x={bx(i) - 0.5} y={35} width={BW + 1} height={18} rx={2} fill="none" stroke={LIVE} strokeWidth="1" />}
+            </g>
+          );
+        })}
+        {HOURS.map(h => (
+          <Label key={h.t} x={bx(h.i)} y={63} anchor="middle" fill={INK_3} size={t} mono>
+            {h.t}
+          </Label>
+        ))}
+        <Label x={bx(0)} y={63} fill={INK_3} size={t} mono>
+          09:30
+        </Label>
+        {/* What the shades mean */}
+        <rect x={X0} y={80} width={10} height={10} rx={1.5} fill={SILVER} fillOpacity={0.4} />
+        <Label x={X0 + 16} y={85} size={w}>a brighter block: dealer hedging pushes harder</Label>
+        <rect x={X0} y={98} width={10} height={10} rx={1.5} fill={SILVER} fillOpacity={0.19} />
+        <Label x={X0 + 16} y={103} size={w}>a dim block: a quiet stretch, price tends to sit still</Label>
+        <rect x={X0} y={116} width={10} height={10} rx={1.5} fill={LIVE} />
+        <rect x={X0 - 1} y={115} width={12} height={12} rx={2} fill="none" stroke={LIVE} strokeWidth="1" />
+        <Label x={X0 + 16} y={121} size={w}>the ringed block is right now</Label>
+        <Label x={X0} y={142} fill={INK_3} size={w}>each block is five minutes</Label>
+        <Label x={X0} y={156} fill={INK_3} size={w}>the names above are the day's phases, a rule of thumb</Label>
+      </>
+    )}
+  </GuideSvg>
 );
 
 /** FIGURE 2 — a phase in focus, the rest blurred, its card above the block under the pointer */
 const FocusFigure = () => {
-  /* 15:10 — a block right of the phase's name, so the pointer does not strike through it */
+  /* 15:10 — a block under the card's corner; the names sit under the blocks, so the pointer crosses none of them */
   const hov = 68;
-  const CARD_X = 140;
+  const CARD_X = 112;
   return (
-    <svg viewBox="0 0 368 150" width="100%" role="img" aria-label="The charm window kept in focus, the other phases dimmed, and the card that opens over a block" data-guide-figure="focus">
-      <Names y={66} dim="charm" />
-      {Array.from({ length: BLOCKS }, (_, i) => {
-        const p = phaseOf(i);
-        const inFocus = p.key === 'charm';
-        const a = inFocus ? (i === hov ? 0.9 : 0.5) : 0.07;
-        return <rect key={i} x={bx(i) + 0.5} y={76} width={BW - 1} height={16} rx={1.5} fill={SILVER} fillOpacity={a} />;
-      })}
-      {/* The card above the hovered block, clear of the names */}
-      <path d={`M${bx(hov) + BW / 2} 76 v-18`} stroke={SILVER} strokeOpacity="0.6" />
-      {/* wide enough for its longer line (at 196 the line ran out of the card) */}
-      <rect x={CARD_X} y={16} width={216} height={40} rx={6} fill="rgb(var(--panel))" stroke="rgb(var(--border-muted))" />
-      <Label x={CARD_X + 10} y={28} fill={INK} size={9} mono weight={700}>
-        15:10
-      </Label>
-      <Label x={CARD_X + 48} y={28} fill={INK_2} size={9}>
-        Charm window · 14:00 to 15:30
-      </Label>
-      <circle cx={CARD_X + 15} cy={44} r={3.5} fill={EMBER} />
-      <Label x={CARD_X + 23} y={44} fill={INK_2} size={9}>
-        dealers unwind hedges · pushes moves along
-      </Label>
-      <Label x={X0} y={108} fill={SILVER}>click a phase name to keep the phase · click a block to keep the minute</Label>
-      <circle cx={X0 + 4} cy={125} r={3.5} fill={EMBER} />
-      <Label x={X0 + 13} y={125}>pushes moves along: the open, the charm window, the close</Label>
-      <circle cx={X0 + 4} cy={140} r={3.5} fill={GLACIER} />
-      <Label x={X0 + 13} y={140}>pushes back: lunch and the turn · the morning depends on the flip</Label>
-    </svg>
+    <GuideSvg w={368} h={206} word={9.75} label="The charm window kept in focus, the other phases dimmed, and the card that opens over a block" figure="focus">
+      {({ w }) => (
+        <>
+          {Array.from({ length: BLOCKS }, (_, i) => {
+            const p = phaseOf(i);
+            const inFocus = p.key === 'charm';
+            const a = inFocus ? (i === hov ? 0.9 : 0.5) : 0.07;
+            return <rect key={i} x={bx(i) + 0.5} y={72} width={BW - 1} height={16} rx={1.5} fill={SILVER} fillOpacity={a} />;
+          })}
+          <Names y={100} dim="charm" s={w} />
+          {/* The card above the hovered block */}
+          <path d={`M${bx(hov) + BW / 2} 72 v-10`} stroke={SILVER} strokeOpacity="0.6" />
+          <rect x={CARD_X} y={6} width={248} height={56} rx={6} fill="rgb(var(--panel))" stroke="rgb(var(--border-muted))" />
+          <Label x={CARD_X + 10} y={20} fill={INK} size={w} mono weight={700}>
+            15:10
+          </Label>
+          <Label x={CARD_X + 48} y={20} fill={INK_2} size={w}>
+            Charm window · 14:00 to 15:30
+          </Label>
+          <circle cx={CARD_X + 15} cy={36} r={3.5} fill={EMBER} />
+          <Label x={CARD_X + 23} y={36} fill={INK_2} size={w}>
+            dealers unwind hedges
+          </Label>
+          <Label x={CARD_X + 23} y={50} fill={INK_2} size={w}>
+            pushes moves along
+          </Label>
+          <Label x={X0} y={134} fill={SILVER} size={w}>click a phase name to keep the phase</Label>
+          <Label x={X0} y={148} fill={SILVER} size={w}>click a block to keep the minute</Label>
+          <circle cx={X0 + 4} cy={168} r={3.5} fill={EMBER} />
+          <Label x={X0 + 13} y={168} size={w}>pushes moves along: the open, the charm window, the close</Label>
+          <circle cx={X0 + 4} cy={184} r={3.5} fill={GLACIER} />
+          <Label x={X0 + 13} y={184} size={w}>pushes back: lunch and the turn</Label>
+          <Label x={X0 + 13} y={198} size={w}>the morning depends on the flip</Label>
+        </>
+      )}
+    </GuideSvg>
   );
 };
 

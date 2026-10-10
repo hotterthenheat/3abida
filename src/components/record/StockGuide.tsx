@@ -12,6 +12,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { GuideSvg, type GuideType } from '../ui/GuideSvg';
 import type { StockOverview } from '../../data/stockOverview';
 import { gradeOf, gradeOfComposite, type Grade } from '../../data/stockOverview';
 import { FONT_SANS } from '../../theme/fonts';
@@ -32,11 +33,11 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
     <div className="mt-2 text-[12px] leading-relaxed text-textSecondary">{children}</div>
   </section>
 );
-const Figure = ({ children, label, h = 150 }: { children: ReactNode; label: string; h?: number }) => (
+const Figure = ({ children, label, h = 150 }: { children: (t: GuideType) => ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
-    <svg viewBox={`0 0 420 ${h}`} width="100%" role="img" aria-label={label} data-guide-figure>
+    <GuideSvg w={420} h={h} label={label}>
       {children}
-    </svg>
+    </GuideSvg>
   </figure>
 );
 
@@ -58,39 +59,43 @@ const PillarsFigure = () => {
   const meter = (y: number, grade: Grade) =>
     steps.map((st, k) => <rect key={st} x={x0 + k * (seg + gap)} y={y - 3} width={seg} height={6} rx={3} fill={k <= steps.indexOf(grade) ? GRADE_FILL[grade] : '#ffffff'} fillOpacity={k <= steps.indexOf(grade) ? 1 : 0.07} />);
   return (
-    <Figure label="Four pillars, each on a four-step meter — poor, caution, good, strong — filled up to the word that holds, with the word beside it; under them the read, one of the same four words" h={140}>
-      {steps.map((st, k) => (
-        <text key={st} x={x0 + k * (seg + gap) + seg / 2} y={10} textAnchor="middle" fontSize={7} letterSpacing={0.8} fill={MUTED} fontFamily={FIG}>
-          {st.toUpperCase()}
-        </text>
-      ))}
-      {rows.map((r, i) => {
-        const y = 28 + i * 22;
-        return (
-          <g key={r.name}>
-            <text x={12} y={y + 3.5} fontSize={9} fill={MUTED} fontFamily={SANS}>
-              {r.name}
+    <Figure label="Four pillars, each on a four-step meter — poor, caution, good, strong — filled up to the word that holds, with the word beside it; under them the read, one of the same four words" h={146}>
+      {({ w }) => (
+        <>
+          {steps.map((st, k) => (
+            <text key={st} x={x0 + k * (seg + gap) + seg / 2} y={12} textAnchor="middle" fontSize={w} fill={MUTED} fontFamily={FIG}>
+              {st}
             </text>
-            {meter(y, r.grade)}
-            <text x={408} y={y + 3.5} textAnchor="end" fontSize={10} fontWeight={700} fill={GRADE_FILL[r.grade]} fontFamily={FIG}>
-              {r.grade}
-            </text>
-          </g>
-        );
-      })}
-      <line x1={12} x2={408} y1={114} y2={114} stroke="#ffffff" strokeOpacity={0.12} />
-      <text x={12} y={130} fontSize={9} fill={INK} fontFamily={SANS}>
-        the read
-      </text>
-      {meter(127, 'good')}
-      <text x={408} y={130} textAnchor="end" fontSize={11} fontWeight={700} fill={BULL} fontFamily={FIG}>
-        good
-      </text>
+          ))}
+          {rows.map((r, i) => {
+            const y = 32 + i * 22;
+            return (
+              <g key={r.name}>
+                <text x={12} y={y + 4} fontSize={w} fill={MUTED} fontFamily={SANS}>
+                  {r.name}
+                </text>
+                {meter(y, r.grade)}
+                <text x={408} y={y + 4} textAnchor="end" fontSize={w} fontWeight={700} fill={GRADE_FILL[r.grade]} fontFamily={FIG}>
+                  {r.grade}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={12} x2={408} y1={118} y2={118} stroke="#ffffff" strokeOpacity={0.12} />
+          <text x={12} y={136} fontSize={w} fill={INK} fontFamily={SANS}>
+            the read
+          </text>
+          {meter(132, 'good')}
+          <text x={408} y={137} textAnchor="end" fontSize={w * 1.15} fontWeight={700} fill={BULL} fontFamily={FIG}>
+            good
+          </text>
+        </>
+      )}
     </Figure>
   );
 };
 
-/** A factor row: the label and its note, the figure, the lean from the middle */
+/** A factor row: the label and its lean on the first line, its note and its figure on the second */
 const FactorFigure = () => {
   const rows = [
     { label: 'Price against its 20-day average', note: 'above its average — the trend holds', value: '+2.1% · 184.30', lean: 0.7 },
@@ -98,30 +103,32 @@ const FactorFigure = () => {
     { label: 'Relative volume', note: 'ordinary', value: '1.02×', lean: 0.02 },
   ];
   return (
-    <Figure label="Three factor rows: the words and the figure at the left, and at the right the lean — right in green for the name, left in red against it" h={110}>
-      {rows.map((r, i) => {
-        const y = 22 + i * 30;
-        const x0 = 300;
-        const w = 100;
-        const mid = x0 + w / 2;
-        const len = Math.abs(r.lean) * (w / 2);
-        return (
-          <g key={r.label}>
-            <text x={12} y={y} fontSize={9} fill={INK} fontFamily={SANS}>
-              {r.label}
-            </text>
-            <text x={12} y={y + 11} fontSize={7.5} fill={MUTED} fontFamily={SANS}>
-              {r.note}
-            </text>
-            <text x={290} y={y + 4} textAnchor="end" fontSize={8.5} fill={INK} fontFamily={FIG}>
-              {r.value}
-            </text>
-            <rect x={x0} y={y + 1} width={w} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-            <line x1={mid} x2={mid} y1={y - 1} y2={y + 7} stroke="#ffffff" strokeOpacity={0.25} />
-            <rect x={r.lean >= 0 ? mid : mid - len} y={y + 1} width={len} height={4} rx={2} fill={r.lean >= 0 ? BULL : BEAR} fillOpacity={r.lean >= 0 ? 1 : 0.7} />
-          </g>
-        );
-      })}
+    <Figure label="Three factor rows: the words at the left with the figure at the right under the lean — right in green for the name, left in red against it" h={110}>
+      {({ w }) =>
+        rows.map((r, i) => {
+          const y = 18 + i * 34;
+          const x0 = 300;
+          const bw = 100;
+          const mid = x0 + bw / 2;
+          const len = Math.abs(r.lean) * (bw / 2);
+          return (
+            <g key={r.label}>
+              <text x={12} y={y} fontSize={w} fill={INK} fontFamily={SANS}>
+                {r.label}
+              </text>
+              <text x={12} y={y + 14} fontSize={w} fill={MUTED} fontFamily={SANS}>
+                {r.note}
+              </text>
+              <text x={x0 + bw} y={y + 14} textAnchor="end" fontSize={w} fill={INK} fontFamily={FIG}>
+                {r.value}
+              </text>
+              <rect x={x0} y={y - 5} width={bw} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+              <line x1={mid} x2={mid} y1={y - 7} y2={y + 1} stroke="#ffffff" strokeOpacity={0.25} />
+              <rect x={r.lean >= 0 ? mid : mid - len} y={y - 5} width={len} height={4} rx={2} fill={r.lean >= 0 ? BULL : BEAR} fillOpacity={r.lean >= 0 ? 1 : 0.7} />
+            </g>
+          );
+        })
+      }
     </Figure>
   );
 };
@@ -129,39 +136,43 @@ const FactorFigure = () => {
 /** Three factors, each saying for or against — a bar's length for how much, a word at the end, a count under them */
 const PointsFigure = () => {
   const rows: [string, string, number][] = [
-    ["The wire's lean", 'NEWS', 1],
-    ['The structure', 'TREND', 0.64],
-    ['Price against fair value', 'NUMBERS', -0.2],
+    ["The wire's lean", 'news', 1],
+    ['The structure', 'trend', 0.64],
+    ['Price against fair value', 'numbers', -0.2],
   ];
   return (
     <Figure label="Three factors: the wire's lean with a long green bar to the right of the middle and the word for, the structure with a shorter one and the word for, price against fair value with a short red bar to the left and the word against; under them, 2 for it, 1 against, the read good" h={112}>
-      {rows.map(([label, pillar, v], i) => {
-        const y = 18 + i * 26;
-        const w = Math.abs(v) * 70;
-        return (
-          <g key={label}>
-            <text x={12} y={y + 4} fontSize={9} fill={INK} fontFamily={SANS}>
-              {label}
-            </text>
-            <text x={12 + label.length * 5.1 + 6} y={y + 4} fontSize={6} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
-              {pillar}
-            </text>
-            <rect x={230} y={y - 2} width={140} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-            <line x1={300} x2={300} y1={y - 4} y2={y + 6} stroke="#ffffff" strokeOpacity={0.25} />
-            <rect x={v >= 0 ? 300 : 300 - w} y={y - 2} width={w} height={4} rx={2} fill={v >= 0 ? BULL : BEAR} />
-            <text x={408} y={y + 4} textAnchor="end" fontSize={7.5} fontWeight={700} letterSpacing={0.8} fill={v >= 0 ? BULL : BEAR} fontFamily={FIG}>
-              {v >= 0 ? 'FOR' : 'AGAINST'}
-            </text>
-          </g>
-        );
-      })}
-      <line x1={12} x2={408} y1={92} y2={92} stroke="#ffffff" strokeOpacity={0.1} />
-      <text x={12} y={106} fontSize={8} fill={MUTED} fontFamily={FIG}>
-        <tspan fill={BULL} fontWeight={700}>2</tspan> for it · <tspan fill={BEAR} fontWeight={700}>1</tspan> against
-      </text>
-      <text x={408} y={106} textAnchor="end" fontSize={8} fill={MUTED} fontFamily={FIG}>
-        the read <tspan fill={BULL} fontWeight={700}>good</tspan>
-      </text>
+      {({ w }) => (
+        <>
+          {rows.map(([label, pillar, v], i) => {
+            const y = 18 + i * 26;
+            const bw = Math.abs(v) * 56;
+            return (
+              <g key={label}>
+                <text x={12} y={y + 4} fontSize={w} fill={INK} fontFamily={SANS}>
+                  {label}
+                </text>
+                <text x={12 + label.length * w * 0.53 + 6} y={y + 4} fontSize={w} fill={MUTED} fontFamily={FIG}>
+                  {pillar}
+                </text>
+                <rect x={232} y={y - 2} width={112} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+                <line x1={288} x2={288} y1={y - 4} y2={y + 6} stroke="#ffffff" strokeOpacity={0.25} />
+                <rect x={v >= 0 ? 288 : 288 - bw} y={y - 2} width={bw} height={4} rx={2} fill={v >= 0 ? BULL : BEAR} />
+                <text x={408} y={y + 4} textAnchor="end" fontSize={w} fontWeight={700} fill={v >= 0 ? BULL : BEAR} fontFamily={FIG}>
+                  {v >= 0 ? 'for' : 'against'}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={12} x2={408} y1={90} y2={90} stroke="#ffffff" strokeOpacity={0.1} />
+          <text x={12} y={106} fontSize={w} fill={MUTED} fontFamily={FIG}>
+            <tspan fill={BULL} fontWeight={700}>2</tspan> for it · <tspan fill={BEAR} fontWeight={700}>1</tspan> against
+          </text>
+          <text x={408} y={106} textAnchor="end" fontSize={w} fill={MUTED} fontFamily={FIG}>
+            the read <tspan fill={BULL} fontWeight={700}>good</tspan>
+          </text>
+        </>
+      )}
     </Figure>
   );
 };
@@ -176,24 +187,28 @@ const ScaleFigure = () => {
     ['call wall', '121', 372, BULL],
   ];
   return (
-    <Figure label="A price scale from left to right: put wall 116.5 in red, flip 116.75 dashed in silver, supreme 119 in magenta, spot 120.00 as a plain white tick, call wall 121 in green" h={64}>
-      <line x1={12} x2={408} y1={32} y2={32} stroke="#ffffff" strokeOpacity={0.14} />
-      <rect x={40} y={29} width={332} height={6} fill={SILVER} fillOpacity={0.1} />
-      {marks.map(([word, price, x, ink], i) => {
-        const up = i === 1;
-        const isSpot = word === 'spot';
-        return (
-          <g key={word}>
-            <line x1={x} x2={x} y1={isSpot ? 23 : 27} y2={isSpot ? 41 : 37} stroke={ink} strokeWidth={isSpot ? 2 : 1.25} strokeDasharray={word === 'flip' ? '2 2' : undefined} />
-            <text x={x} y={up ? 18 : 50} textAnchor="middle" fontSize={8.5} fontWeight={isSpot ? 700 : 500} fill={ink} fontFamily={FIG}>
-              {price}
-            </text>
-            <text x={x} y={up ? 9 : 59} textAnchor="middle" fontSize={6.5} letterSpacing={0.6} fill={ink} fillOpacity={0.75} fontFamily={FIG}>
-              {word.toUpperCase()}
-            </text>
-          </g>
-        );
-      })}
+    <Figure label="A price scale from left to right: put wall 116.5 in red, flip 116.75 dashed in silver, supreme 119 in magenta, spot 120.00 as a plain white tick, call wall 121 in green" h={80}>
+      {({ w }) => (
+        <>
+          <line x1={12} x2={408} y1={40} y2={40} stroke="#ffffff" strokeOpacity={0.14} />
+          <rect x={40} y={37} width={332} height={6} fill={SILVER} fillOpacity={0.1} />
+          {marks.map(([word, price, x, ink], i) => {
+            const up = i === 1;
+            const isSpot = word === 'spot';
+            return (
+              <g key={word}>
+                <line x1={x} x2={x} y1={isSpot ? 31 : 35} y2={isSpot ? 49 : 45} stroke={ink} strokeWidth={isSpot ? 2 : 1.25} strokeDasharray={word === 'flip' ? '2 2' : undefined} />
+                <text x={x} y={up ? 27 : 61} textAnchor="middle" fontSize={w} fontWeight={isSpot ? 700 : 500} fill={ink} fontFamily={FIG}>
+                  {price}
+                </text>
+                <text x={x} y={up ? 13 : 75} textAnchor="middle" fontSize={w} fill={ink} fillOpacity={0.75} fontFamily={FIG}>
+                  {word}
+                </text>
+              </g>
+            );
+          })}
+        </>
+      )}
     </Figure>
   );
 };

@@ -10,6 +10,7 @@
 */
 
 import type { ReactNode } from 'react';
+import { GuideSvg, type GuideType } from '../ui/GuideSvg';
 import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
@@ -29,136 +30,148 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-const Figure = ({ children, label, h = 110 }: { children: ReactNode; label: string; h?: number }) => (
+const Figure = ({ children, label, h = 110 }: { children: (t: GuideType) => ReactNode; label: string; h?: number }) => (
   <figure data-theme="dark" className="mt-3 rounded-md border border-borderSubtle/60 bg-panel p-2">
-    <svg viewBox={`0 0 420 ${h}`} width="100%" role="img" aria-label={label} data-guide-figure>
+    <GuideSvg w={420} h={h} label={label}>
       {children}
-    </svg>
+    </GuideSvg>
   </figure>
 );
 
 /* A day on the board: the day's head, the shelf, two cards */
 const BoardDayFigure = () => (
-  <Figure label="One day of the board: the date at the head in silver as today, a before-the-open shelf, two name cards with their options price and whether the date is confirmed" h={96}>
-    <rect x={0} y={0} width={420} height={96} fill={SILVER} fillOpacity={0.04} />
-    <text x={12} y={16} fontSize={9} fontWeight={700} fill={SILVER} fontFamily={FIG}>
-      Thu 09/10
-    </text>
-    <text x={408} y={16} textAnchor="end" fontSize={6} letterSpacing={1} fill={SILVER} fontFamily={FIG}>
-      TODAY
-    </text>
-    <line x1={12} x2={408} y1={22} y2={22} stroke={SILVER} strokeWidth={0.8} />
-    <g stroke={WARN} strokeWidth={1} fill="none">
-      <path d="M 14 36 a 3 3 0 0 1 6 0" />
-      <line x1={12} x2={22} y1={36} y2={36} />
-    </g>
-    <text x={28} y={38} fontSize={6.5} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
-      BEFORE THE OPEN
-    </text>
-    {[
-      { x: 12, t: 'CVX', mv: '±6.3%', ink: INK, set: 'CONFIRMED', setInk: MUTED },
-      { x: 212, t: 'NIO', mv: '±22.9%', ink: WARN, set: 'ESTIMATED', setInk: WARN },
-    ].map(d => (
-      <g key={d.t}>
-        <rect x={d.x} y={44} width={196} height={46} rx={4} fill="#0c0c0c" stroke="#1c1c1c" />
-        <rect x={d.x + 88} y={49} width={20} height={20} rx={4} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
-        <text x={d.x + 98} y={63} textAnchor="middle" fontSize={6} fontWeight={700} fill={INK} fontFamily={FIG}>
-          {d.t}
+  <Figure label="One day of the board: the date at the head in silver as today, a before-the-open shelf, two name cards with their options price and whether the date is confirmed" h={110}>
+    {({ w }) => (
+      <>
+        <rect x={0} y={0} width={420} height={110} fill={SILVER} fillOpacity={0.04} />
+        <text x={12} y={17} fontSize={w * 1.1} fontWeight={700} fill={SILVER} fontFamily={FIG}>
+          Thu 09/10
         </text>
-        <text x={d.x + 98} y={78} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
-          {d.t}
+        <text x={408} y={17} textAnchor="end" fontSize={w} fill={SILVER} fontFamily={FIG}>
+          today
         </text>
-        <text x={d.x + 98} y={87} textAnchor="middle" fontSize={7} fill={d.ink} fontFamily={FIG}>
-          {d.mv}
+        <line x1={12} x2={408} y1={23} y2={23} stroke={SILVER} strokeWidth={0.8} />
+        <g stroke={WARN} strokeWidth={1} fill="none">
+          <path d="M 14 39 a 3 3 0 0 1 6 0" />
+          <line x1={12} x2={22} y1={39} y2={39} />
+        </g>
+        <text x={28} y={41} fontSize={w} fill={MUTED} fontFamily={FIG}>
+          before the open
         </text>
-      </g>
-    ))}
+        {[
+          { x: 12, t: 'CVX', mv: '±6.3%', ink: INK },
+          { x: 212, t: 'NIO', mv: '±22.9%', ink: WARN },
+        ].map(d => (
+          <g key={d.t}>
+            <rect x={d.x} y={48} width={196} height={56} rx={4} fill="#0c0c0c" stroke="#1c1c1c" />
+            <rect x={d.x + 83} y={53} width={30} height={20} rx={4} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
+            <text x={d.x + 98} y={67} textAnchor="middle" fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+              {d.t}
+            </text>
+            <text x={d.x + 98} y={86} textAnchor="middle" fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+              {d.t}
+            </text>
+            <text x={d.x + 98} y={99} textAnchor="middle" fontSize={w} fill={d.ink} fontFamily={FIG}>
+              {d.mv}
+            </text>
+          </g>
+        ))}
+      </>
+    )}
   </Figure>
 );
 
 /* A day on the list: the date rail, two doors, a macro chip */
 const DayFigure = () => (
   <Figure label="One day of the list: the date on the left in silver as today, two name doors with their options price and slot mark, a CPI chip" h={62}>
-    <rect x={0} y={0} width={420} height={62} fill={SILVER} fillOpacity={0.04} />
-    <rect x={0} y={0} width={2} height={62} fill={SILVER} fillOpacity={0.7} />
-    <text x={14} y={28} fontSize={13} fontWeight={700} fill={SILVER} fontFamily={FIG}>
-      Sep 9
-    </text>
-    <text x={14} y={42} fontSize={6.5} letterSpacing={1} fill={SILVER} fontFamily={FIG}>
-      TODAY
-    </text>
-    <line x1={80} x2={80} y1={0} y2={62} stroke="#ffffff" strokeOpacity={0.08} />
-    {[
-      { x: 96, t: 'CVX', name: 'Chevron', mv: '±6.3%', ink: INK, slot: 'moon' },
-      { x: 220, t: 'NIO', name: 'NIO', mv: '±22.9%', ink: WARN, slot: 'sun' },
-    ].map(d => (
-      <g key={d.t}>
-        <rect x={d.x} y={12} width={20} height={20} rx={4} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
-        <text x={d.x + 10} y={26} textAnchor="middle" fontSize={6} fontWeight={700} fill={INK} fontFamily={FIG}>
-          {d.t}
+    {({ w }) => (
+      <>
+        <rect x={0} y={0} width={420} height={62} fill={SILVER} fillOpacity={0.04} />
+        <rect x={0} y={0} width={2} height={62} fill={SILVER} fillOpacity={0.7} />
+        <text x={14} y={28} fontSize={w * 1.2} fontWeight={700} fill={SILVER} fontFamily={FIG}>
+          Sep 9
         </text>
-        <text x={d.x + 28} y={22} fontSize={9} fontWeight={700} fill={INK} fontFamily={FIG}>
-          {d.t}
+        <text x={14} y={44} fontSize={w} fill={SILVER} fontFamily={FIG}>
+          today
         </text>
-        <text x={d.x + 56} y={22} fontSize={8} fill={d.ink} fontFamily={FIG}>
-          {d.mv}
-        </text>
-        {d.slot === 'moon' ? (
-          <path d={`M ${d.x + 96} 15 a 5 5 0 1 0 5 6 a 3.6 3.6 0 0 1 -5 -6 Z`} fill="none" stroke="#8EA2F5" strokeWidth={1} />
-        ) : (
-          <g stroke={WARN} strokeWidth={1} fill="none">
-            <path d={`M ${d.x + 92} 22 a 4 4 0 0 1 8 0`} />
-            <line x1={d.x + 90} x2={d.x + 102} y1={22} y2={22} />
+        <line x1={80} x2={80} y1={0} y2={62} stroke="#ffffff" strokeOpacity={0.08} />
+        {[
+          { x: 90, t: 'CVX', name: 'Chevron', mv: '±6.3%', ink: INK, slot: 'moon' },
+          { x: 222, t: 'NIO', name: 'NIO', mv: '±22.9%', ink: WARN, slot: 'sun' },
+        ].map(d => (
+          <g key={d.t}>
+            <rect x={d.x} y={12} width={28} height={20} rx={4} fill="#1f1f1f" stroke="#2a2a2a" strokeWidth={0.6} />
+            <text x={d.x + 14} y={26} textAnchor="middle" fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+              {d.t}
+            </text>
+            <text x={d.x + 34} y={26} fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+              {d.t}
+            </text>
+            <text x={d.x + 64} y={26} fontSize={w} fill={d.ink} fontFamily={FIG}>
+              {d.mv}
+            </text>
+            {d.slot === 'moon' ? (
+              <path d={`M ${d.x + 108} 18 a 5 5 0 1 0 5 6 a 3.6 3.6 0 0 1 -5 -6 Z`} fill="none" stroke="#8EA2F5" strokeWidth={1} />
+            ) : (
+              <g stroke={WARN} strokeWidth={1} fill="none">
+                <path d={`M ${d.x + 112} 25 a 4 4 0 0 1 8 0`} />
+                <line x1={d.x + 110} x2={d.x + 122} y1={25} y2={25} />
+              </g>
+            )}
+            <text x={d.x + 34} y={42} fontSize={w} fill={MUTED} fontFamily={SANS}>
+              {d.name}
+            </text>
           </g>
-        )}
-        <text x={d.x + 28} y={34} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
-          {d.name}
+        ))}
+        <rect x={360} y={12} width={46} height={20} rx={4} fill="#0c0c0c" stroke="#1c1c1c" />
+        <text x={383} y={26} textAnchor="middle" fontSize={w} fill="#a3a3a3" fontFamily={FIG}>
+          CPI
         </text>
-      </g>
-    ))}
-    <rect x={352} y={13} width={40} height={18} rx={4} fill="#0c0c0c" stroke="#1c1c1c" />
-    <text x={372} y={25} textAnchor="middle" fontSize={6.5} letterSpacing={1} fill="#a3a3a3" fontFamily={FIG}>
-      CPI
-    </text>
+      </>
+    )}
   </Figure>
 );
 
 /* Priced: the options price against the usual move, as a multiple with a word */
 const PricedFigure = () => (
   <Figure label="Three names: the options price as a bar against the usual move, the multiple and its word — rich in amber, fair in white, cheap in green" h={84}>
-    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
-      <text x={10} y={12}>NAME</text>
-      <text x={70} y={12}>OPTIONS PRICE</text>
-      <text x={210} y={12}>USUALLY MOVES</text>
-      <text x={340} y={12}>PRICED</text>
-    </g>
-    {[
-      { y: 30, t: 'NIO', imp: 22.9, usual: 13.3, x: 1.72, word: 'rich', ink: WARN },
-      { y: 50, t: 'CVX', imp: 6.3, usual: 6.0, x: 1.05, word: 'fair', ink: INK },
-      { y: 70, t: 'AMZN', imp: 5.1, usual: 7.2, x: 0.71, word: 'cheap', ink: BULL },
-    ].map(r => (
-      <g key={r.t}>
-        <text x={10} y={r.y + 3} fontSize={8.5} fontWeight={700} fill={INK} fontFamily={FIG}>
-          {r.t}
-        </text>
-        <rect x={70} y={r.y - 2} width={120} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-        <rect x={70} y={r.y - 2} width={120 * (r.imp / 24)} height={4} rx={2} fill={INK} fillOpacity={0.85} />
-        <text x={196} y={r.y + 3} fontSize={7} fill={INK} fontFamily={FIG}>
-          ±{r.imp.toFixed(1)}%
-        </text>
-        <rect x={210} y={r.y - 2} width={100} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
-        <rect x={210} y={r.y - 2} width={100 * (r.usual / 24)} height={4} rx={2} fill="#ffffff" fillOpacity={0.3} />
-        <text x={316} y={r.y + 3} fontSize={7} fill="#a3a3a3" fontFamily={FIG}>
-          ±{r.usual.toFixed(1)}%
-        </text>
-        <text x={340} y={r.y + 3} fontSize={8.5} fontWeight={700} fill={r.ink} fontFamily={FIG}>
-          {r.x.toFixed(2)}×
-        </text>
-        <text x={376} y={r.y + 3} fontSize={6} letterSpacing={1} fill={r.ink} fontFamily={FIG}>
-          {r.word.toUpperCase()}
-        </text>
-      </g>
-    ))}
+    {({ w }) => (
+      <>
+        <g fontFamily={FIG} fontSize={w} fill={MUTED}>
+          <text x={10} y={14}>Name</text>
+          <text x={62} y={14}>Options price</text>
+          <text x={198} y={14}>Usually moves</text>
+          <text x={326} y={14}>Priced</text>
+        </g>
+        {[
+          { y: 34, t: 'NIO', imp: 22.9, usual: 13.3, x: 1.72, word: 'rich', ink: WARN },
+          { y: 54, t: 'CVX', imp: 6.3, usual: 6.0, x: 1.05, word: 'fair', ink: INK },
+          { y: 74, t: 'AMZN', imp: 5.1, usual: 7.2, x: 0.71, word: 'cheap', ink: BULL },
+        ].map(r => (
+          <g key={r.t}>
+            <text x={10} y={r.y + 4} fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+              {r.t}
+            </text>
+            <rect x={62} y={r.y - 2} width={80} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+            <rect x={62} y={r.y - 2} width={80 * (r.imp / 24)} height={4} rx={2} fill={INK} fillOpacity={0.85} />
+            <text x={146} y={r.y + 4} fontSize={w} fill={INK} fontFamily={FIG}>
+              ±{r.imp.toFixed(1)}%
+            </text>
+            <rect x={198} y={r.y - 2} width={70} height={4} rx={2} fill="#ffffff" fillOpacity={0.06} />
+            <rect x={198} y={r.y - 2} width={70 * (r.usual / 24)} height={4} rx={2} fill="#ffffff" fillOpacity={0.3} />
+            <text x={272} y={r.y + 4} fontSize={w} fill="#a3a3a3" fontFamily={FIG}>
+              ±{r.usual.toFixed(1)}%
+            </text>
+            <text x={326} y={r.y + 4} fontSize={w} fontWeight={700} fill={r.ink} fontFamily={FIG}>
+              {r.x.toFixed(2)}×
+            </text>
+            <text x={366} y={r.y + 4} fontSize={w} fill={r.ink} fontFamily={FIG}>
+              {r.word}
+            </text>
+          </g>
+        ))}
+      </>
+    )}
   </Figure>
 );
 
@@ -167,65 +180,67 @@ const ReplayFigure = () => {
   const bars = [-0.9, 1.3, 0.3, -0.5, -1.1, 0.9, -0.2, -0.6];
   return (
     <Figure label="Eight bars from a centre line, one per past print: green above covered today's price, red below fell short — here four of eight" h={96}>
-      <line x1={90} x2={410} y1={48} y2={48} stroke="#ffffff" strokeOpacity={0.25} />
-      <text x={10} y={44} fontSize={6.5} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
-        COVERED IT
-      </text>
-      <text x={10} y={56} fontSize={6.5} letterSpacing={1} fill={MUTED} fontFamily={FIG}>
-        FELL SHORT
-      </text>
-      {bars.map((b, i) => {
-        const x = 104 + i * 38;
-        const h = Math.abs(b) * 28;
-        return <rect key={i} x={x} y={b >= 0 ? 48 - h : 48} width={14} height={Math.max(3, h)} rx={1.5} fill={b >= 0 ? BULL : BEAR} fillOpacity={b >= 0 ? 0.9 : 0.8} />;
-      })}
-      {['Q4', 'Q1', 'Q2', 'Q3', 'Q4', 'Q1', 'Q2', 'Q3'].map((q, i) => (
-        <text key={i} x={111 + i * 38} y={90} textAnchor="middle" fontSize={6.5} fill={MUTED} fontFamily={FIG}>
-          {q}
-        </text>
-      ))}
+      {({ w, t }) => (
+        <>
+          <line x1={90} x2={410} y1={48} y2={48} stroke="#ffffff" strokeOpacity={0.25} />
+          <text x={10} y={43} fontSize={w} fill={MUTED} fontFamily={FIG}>
+            covered it
+          </text>
+          <text x={10} y={61} fontSize={w} fill={MUTED} fontFamily={FIG}>
+            fell short
+          </text>
+          {bars.map((b, i) => {
+            const x = 104 + i * 38;
+            const h = Math.abs(b) * 28;
+            return <rect key={i} x={x} y={b >= 0 ? 48 - h : 48} width={14} height={Math.max(3, h)} rx={1.5} fill={b >= 0 ? BULL : BEAR} fillOpacity={b >= 0 ? 0.9 : 0.8} />;
+          })}
+          {['Q4', 'Q1', 'Q2', 'Q3', 'Q4', 'Q1', 'Q2', 'Q3'].map((q, i) => (
+            <text key={i} x={111 + i * 38} y={92} textAnchor="middle" fontSize={t} fill={MUTED} fontFamily={FIG}>
+              {q}
+            </text>
+          ))}
+        </>
+      )}
     </Figure>
   );
 };
 
 /* On the record: an insider row and a Congress row */
 const RecordFigure = () => (
-  <Figure label="Two rows: an insider who bought, chosen; a member of Congress who sold in a bracket, late" h={62}>
-    <g fontFamily={FIG} fontSize={6.5} fill={MUTED} letterSpacing={0.6}>
-      <text x={10} y={12}>INSIDERS</text>
-      <text x={220} y={12}>CONGRESS</text>
-    </g>
-    <text x={10} y={32} fontSize={8} fontWeight={600} fill={INK} fontFamily={SANS}>
-      R. Adeyemi
-    </text>
-    <text x={10} y={42} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
-      CFO · 12d ago
-    </text>
-    <text x={90} y={32} fontSize={7.5} fill={BULL} fontFamily={FIG}>
-      Bought
-    </text>
-    <text x={130} y={32} fontSize={7.5} fontWeight={600} fill={INK} fontFamily={FIG}>
-      $1.2M
-    </text>
-    <text x={170} y={32} fontSize={5.5} letterSpacing={1} fontWeight={700} fill={INK} fontFamily={FIG}>
-      CHOSEN
-    </text>
-    <line x1={205} x2={205} y1={20} y2={50} stroke="#ffffff" strokeOpacity={0.08} />
-    <text x={220} y={32} fontSize={8} fontWeight={600} fill={INK} fontFamily={SANS}>
-      Sen. M. Ashford
-    </text>
-    <text x={220} y={42} fontSize={6.5} fill={MUTED} fontFamily={SANS}>
-      D-VT · Finance · own committee
-    </text>
-    <text x={318} y={32} fontSize={7.5} fill={BEAR} fontFamily={FIG}>
-      Sale
-    </text>
-    <text x={344} y={32} fontSize={7.5} fill={INK} fontFamily={FIG}>
-      $50K–$100K
-    </text>
-    <text x={344} y={42} fontSize={6.5} fill={BEAR} fontFamily={FIG}>
-      61d late
-    </text>
+  <Figure label="Two rows: an insider who bought, chosen; a member of Congress who sold in a bracket, late" h={70}>
+    {({ w }) => (
+      <>
+        <g fontFamily={FIG} fontSize={w} fill={MUTED}>
+          <text x={10} y={14}>Insiders</text>
+          <text x={218} y={14}>Congress</text>
+        </g>
+        <text x={10} y={34} fontSize={w} fontWeight={600} fill={INK} fontFamily={SANS}>
+          R. Adeyemi
+        </text>
+        <text x={100} y={34} fontSize={w} fill={BULL} fontFamily={FIG}>
+          Bought
+        </text>
+        <text x={10} y={48} fontSize={w} fill={MUTED} fontFamily={SANS}>
+          CFO · 12d ago
+        </text>
+        <text x={10} y={62} fontSize={w} fontWeight={600} fill={INK} fontFamily={FIG}>
+          $1.2M <tspan fontWeight={700}>· chosen</tspan>
+        </text>
+        <line x1={205} x2={205} y1={22} y2={66} stroke="#ffffff" strokeOpacity={0.08} />
+        <text x={218} y={34} fontSize={w} fontWeight={600} fill={INK} fontFamily={SANS}>
+          Sen. M. Ashford
+        </text>
+        <text x={410} y={34} textAnchor="end" fontSize={w} fill={BEAR} fontFamily={FIG}>
+          Sale
+        </text>
+        <text x={218} y={48} fontSize={w} fill={MUTED} fontFamily={SANS}>
+          D-VT · Finance · own committee
+        </text>
+        <text x={218} y={62} fontSize={w} fill={INK} fontFamily={FIG}>
+          $50K–$100K <tspan fill={BEAR}>· 61d late</tspan>
+        </text>
+      </>
+    )}
   </Figure>
 );
 

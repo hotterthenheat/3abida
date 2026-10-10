@@ -4,6 +4,7 @@ import { ascendingSpotIndex, barGap, labelStride, layoutBand, spotX } from './st
    pair printed the dark theme's green/red on paper at 2:1 (2026-09-16) */
 import { BULL, CALL_WALL, SUPREME, PUT_WALL, SPOT } from './paletteInk';
 import { fmtUsd } from '../../data/gex';
+import { MINUS, num } from '../../core/format';
 import type { ExposureProfileData } from '../../types/gex';
 
 /*
@@ -74,10 +75,18 @@ export interface StrikeExposureBandProps {
   onClose?: () => void;
 }
 
+/* THE TYPE FLOOR (2026-10-10): the band's words — the extremes' figures, the spot tag — are 11 px, its ticks — the
+   strikes on the axis, the scale in the corners — 10 (they were 8 and 9); every ink a token, the spot tag on the panel's
+   own ground with the ink's hairline, never a literal dark fill and white edge */
+const WORD_PX = 11;
+const TICK_PX = 10;
 /* Room under the plot for the strike labels, and above it for the header. */
-const AXIS_H = 14;
+const AXIS_H = 15;
 /* The narrowest two strike labels may sit at before they touch. */
-const LABEL_MIN_PX = 42;
+const LABEL_MIN_PX = 46;
+/* The spot tag: tall enough for its 11 px figure */
+const TAG_H = 15;
+const TAG_W = 52;
 /* A bar never grows past this, however wide its slot — at desk width a
    90px slot made every bar a slab, and a slab row is a wall, not a
    histogram. The slot keeps its width for hover; only the ink narrows. */
@@ -174,8 +183,24 @@ const StrikeExposureBand = ({
     return null;
   };
 
+  /* At 10 and 11 px the scale in a corner and an extreme's figure at its tip can meet when the heaviest bar stands at
+     the right edge (a phone): the extreme says the same thing louder, so the corner gives way to it. Widths are the
+     mono figures' own, about 0.62 of the size a character. */
+  const charW = (px: number) => px * 0.62;
+  const cornerW = maxAbs > 0 ? (fmtUsd(maxAbs).length + 1) * charW(TICK_PX) : 0;
+  const meetsCorner = (b: (typeof bars)[number] | null, top: boolean) => {
+    if (!b || b.h <= 3) return false;
+    const half = (fmtUsd(b.value).length * charW(WORD_PX)) / 2;
+    const cx = Math.min(width - 30, Math.max(30, b.x + b.w / 2));
+    const nearX = cx + half > width - 4 - cornerW - 4;
+    const nearY = top ? b.y - 3 < TICK_PX + WORD_PX + 2 : b.y + b.h + WORD_PX > plotHeight - TICK_PX - 4;
+    return nearX && nearY;
+  };
+  const showTopCorner = !meetsCorner(topPos, true);
+  const showFootCorner = !meetsCorner(topNeg, false);
+
   const hovered = hover !== null ? bars[hover] : null;
-  const clampLabelX = (x: number) => Math.min(width - 26, Math.max(26, x));
+  const clampLabelX = (x: number) => Math.min(width - 30, Math.max(30, x));
 
   return (
     <div className="flex flex-col border-t border-borderSubtle bg-inset/40">
@@ -266,28 +291,33 @@ const StrikeExposureBand = ({
 
             {/* The hovered SLOT, lit before the bars so it sits under them. */}
             {hover !== null && slot > 0 && (
-              <rect x={hover * slot} y={0} width={slot} height={plotHeight} fill="rgba(255,255,255,0.04)" />
+              <rect x={hover * slot} y={0} width={slot} height={plotHeight} fill="rgb(var(--ink) / 0.04)" />
             )}
 
             {/* The zero rule — a solid hairline. Dashes made it read as one
                 more piece of noise among the bars it is supposed to anchor. */}
-            <line x1={0} x2={width} y1={mid} y2={mid} stroke="rgba(255,255,255,0.14)" />
+            <line x1={0} x2={width} y1={mid} y2={mid} stroke="rgb(var(--ink) / 0.14)" />
 
             {/* The scale, said out loud in the corners: a bar at full height
                 IS this number. Without it the heights were just shapes. */}
             {maxAbs > 0 && (
               <>
-                <text x={width - 4} y={9} textAnchor="end" className="fill-textMuted font-mono" style={{ fontSize: 8 }}>
-                  +{fmtUsd(maxAbs).replace('$', '$')}
-                </text>
-                <text x={width - 4} y={plotHeight - 3} textAnchor="end" className="fill-textMuted font-mono" style={{ fontSize: 8 }}>
-                  -{fmtUsd(maxAbs)}
-                </text>
+                {showTopCorner && (
+                  <text x={width - 4} y={TICK_PX} textAnchor="end" className="fill-textMuted font-mono" style={{ fontSize: TICK_PX }}>
+                    +{fmtUsd(maxAbs)}
+                  </text>
+                )}
+                {showFootCorner && (
+                  <text x={width - 4} y={plotHeight - 3} textAnchor="end" className="fill-textMuted font-mono" style={{ fontSize: TICK_PX }}>
+                    {MINUS}
+                    {fmtUsd(maxAbs)}
+                  </text>
+                )}
               </>
             )}
 
             {rule !== null && (
-              <line x1={rule} x2={rule} y1={12} y2={plotHeight} stroke={SPOT} strokeOpacity={0.45} strokeDasharray="2 3" />
+              <line x1={rule} x2={rule} y1={TAG_H + 1} y2={plotHeight} stroke={SPOT} strokeOpacity={0.45} strokeDasharray="2 3" />
             )}
 
             {bars.map((b, i) => {
@@ -304,7 +334,7 @@ const StrikeExposureBand = ({
                   /* Opacity is the bar's SHARE of the max — a whisper stays a
                      whisper even after the gradient, and the supreme glows. */
                   fillOpacity={0.45 + 0.55 * share}
-                  stroke={hover === i ? 'rgba(255,255,255,0.5)' : 'none'}
+                  stroke={hover === i ? 'rgb(var(--ink) / 0.5)' : 'none'}
                   strokeWidth={hover === i ? 1 : 0}
                 >
                   <title>{`${b.strike} · ${fmtUsd(b.value)}`}</title>
@@ -316,11 +346,11 @@ const StrikeExposureBand = ({
             {topPos && topPos.h > 3 && (
               <text
                 x={clampLabelX(topPos.x + topPos.w / 2)}
-                y={Math.max(9, topPos.y - 3)}
+                y={Math.max(WORD_PX, topPos.y - 3)}
                 textAnchor="middle"
                 fill={BULL}
                 className="font-mono"
-                style={{ fontSize: 8, fontWeight: 600 }}
+                style={{ fontSize: WORD_PX, fontWeight: 600 }}
               >
                 {fmtUsd(topPos.value)}
               </text>
@@ -328,11 +358,11 @@ const StrikeExposureBand = ({
             {topNeg && topNeg.h > 3 && (
               <text
                 x={clampLabelX(topNeg.x + topNeg.w / 2)}
-                y={Math.min(plotHeight - 2, topNeg.y + topNeg.h + 9)}
+                y={Math.min(plotHeight - 2, topNeg.y + topNeg.h + WORD_PX)}
                 textAnchor="middle"
                 fill={PUT_WALL}
                 className="font-mono"
-                style={{ fontSize: 8, fontWeight: 600 }}
+                style={{ fontSize: WORD_PX, fontWeight: 600 }}
               >
                 {fmtUsd(topNeg.value)}
               </text>
@@ -342,22 +372,22 @@ const StrikeExposureBand = ({
             {rule !== null && (
               <g>
                 <rect
-                  x={Math.min(width - 46, Math.max(2, rule - 22))}
+                  x={Math.min(width - TAG_W - 2, Math.max(2, rule - TAG_W / 2))}
                   y={1}
-                  width={44}
-                  height={11}
+                  width={TAG_W}
+                  height={TAG_H}
                   rx={2.5}
-                  fill="rgba(13,14,17,0.92)"
-                  stroke="rgba(255,255,255,0.14)"
+                  fill="rgb(var(--panel) / 0.92)"
+                  stroke="rgb(var(--ink) / 0.14)"
                 />
                 <text
-                  x={Math.min(width - 24, Math.max(24, rule))}
-                  y={9.5}
+                  x={Math.min(width - TAG_W / 2 - 2, Math.max(TAG_W / 2 + 2, rule))}
+                  y={12.5}
                   textAnchor="middle"
                   className="fill-textPrimary font-mono"
-                  style={{ fontSize: 8, fontWeight: 600 }}
+                  style={{ fontSize: WORD_PX, fontWeight: 600 }}
                 >
-                  {data.levels.spot.toFixed(2)}
+                  {num(data.levels.spot, 2)}
                 </text>
               </g>
             )}
@@ -375,7 +405,7 @@ const StrikeExposureBand = ({
                   textAnchor="middle"
                   fill={who ? who.ink : undefined}
                   className={who ? 'font-mono' : 'fill-textMuted font-mono'}
-                  style={{ fontSize: 9, fontWeight: who ? 700 : 400 }}
+                  style={{ fontSize: TICK_PX, fontWeight: who ? 700 : 400 }}
                 >
                   {b.strike}
                 </text>

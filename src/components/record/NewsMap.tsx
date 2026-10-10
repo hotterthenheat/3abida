@@ -103,6 +103,19 @@ const land = () => `rgb(${landRgb().join(',')})`;
    skips the extent. */
 const W = 960;
 const H = 440;
+/** The guide's figure: the world's width, cropped to its northern band */
+const FIGURE_H = 400;
+/** The figure's width in its own units — a guide reads its words' size against it */
+export const NEWS_FIGURE_W = W;
+/** What a guide's figure hands the names: its word, its notes to keep clear of, its frame */
+interface FigureWords {
+  word: number;
+  notes: MapNote[];
+  /** What else a name keeps off: the pins and the sessions' words, each a box round a point (half its size each way) */
+  marks: { lng: number; lat: number; w: number; h: number; dy?: number }[];
+  w: number;
+  h: number;
+}
 const SCALE = W / (2 * Math.PI);
 /** The world with lon 0 · lat 0 at the origin: its square is ±W/2 both ways — Mercator clips at ±85° */
 const MERCATOR = geoMercator().scale(SCALE).translate([0, 0]);
@@ -287,19 +300,35 @@ const labelOf = (g: NamedGeo) => {
     the drawing's own units, so zooming in shrinks them and lets the smaller
     countries' names out — the reference's feel: every big name always, the
     small ones where there is room) */
-const CountryNames = ({ shown, z, s, theme, minArea }: { shown: NamedGeo[]; z: number; s: number; theme: Theme; minArea: number }) => {
+const CountryNames = ({ shown, z, s, theme, minArea, figure }: { shown: NamedGeo[]; z: number; s: number; theme: Theme; minArea: number; figure?: FigureWords }) => {
   const { projection } = useMapContext();
   const fs = (13 * s) / z;
-  const gap = (0.6 * s) / z;
+  /* a guide's figure names them in sentence case, untracked (the house's floor, 2026-10-10) */
+  const gap = figure ? 0 : (0.6 * s) / z;
   const pad = 2.5 / z;
   const placed: { x: number; y: number; w: number; h: number }[] = [];
+  /* the figure's own words come first — a name never runs into them, nor off the figure's frame */
+  if (figure) {
+    for (const n of figure.notes) {
+      const p = projection([n.lng, n.lat]);
+      if (!p) continue;
+      const w = n.text.length * figure.word * 0.56;
+      const x0 = p[0] + (n.dx ?? 0) - ((n.anchor ?? 'middle') === 'middle' ? w / 2 : n.anchor === 'end' ? w : 0);
+      placed.push({ x: x0 - pad, y: p[1] + (n.dy ?? 30) - figure.word - pad, w: w + 2 * pad, h: figure.word * 1.3 + 2 * pad });
+    }
+    for (const m of figure.marks) {
+      const p = projection([m.lng, m.lat]);
+      if (p) placed.push({ x: p[0] - m.w / 2, y: p[1] + (m.dy ?? 0) - m.h / 2, w: m.w, h: m.h });
+    }
+  }
   const names: { key: string; name: string; at: [number, number] }[] = [];
   const cands = shown.map(g => ({ key: g.rsmKey, l: labelOf(g) })).filter(c => c.l.name && c.l.area >= minArea).sort((a, b) => b.l.area - a.l.area);
   for (const { key, l } of cands) {
     const p = projection(l.at);
     if (!p) continue;
-    const w = l.name.length * fs * 0.64 + (l.name.length - 1) * gap;
+    const w = l.name.length * fs * (figure ? 0.58 : 0.64) + (l.name.length - 1) * gap;
     const box = { x: p[0] - w / 2 - pad, y: p[1] - fs / 2 - pad, w: w + 2 * pad, h: fs + 2 * pad };
+    if (figure && (box.x < 0 || box.x + box.w > figure.w || box.y < 0 || box.y + box.h > figure.h)) continue;
     if (placed.some(b => b.x < box.x + box.w && b.x + b.w > box.x && b.y < box.y + box.h && b.y + b.h > box.y)) continue;
     placed.push(box);
     names.push({ key, name: l.name, at: l.at });
@@ -309,7 +338,7 @@ const CountryNames = ({ shown, z, s, theme, minArea }: { shown: NamedGeo[]; z: n
       {names.map(n => (
         <Marker key={`name-${n.key}`} coordinates={n.at}>
           <text textAnchor="middle" dominantBaseline="central" fontSize={fs} fontWeight={600} letterSpacing={gap} fontFamily={FONT_SANS} fill={LABEL_INK[theme]} fillOpacity={0.85} data-news-country={n.name}>
-            {n.name.toUpperCase()}
+            {figure ? n.name : n.name.toUpperCase()}
           </text>
         </Marker>
       ))}
@@ -346,7 +375,7 @@ const Water = ({ theme }: { theme: Theme }) => {
     "the shaded region of the current open market like we had before") — a
     fifth over the blue water and the slate, its edges and its name plainer
     than the first cut's, which sat at a twentieth on black and vanished. */
-const SessionBands = ({ sessions, zoom, wordZoom = zoom, labelLat = 79 }: { sessions: SessionDef[]; zoom: number; wordZoom?: number; labelLat?: number }) => {
+const SessionBands = ({ sessions, zoom, wordZoom = zoom, labelLat = 79, caps = true }: { sessions: SessionDef[]; zoom: number; wordZoom?: number; labelLat?: number; caps?: boolean }) => {
   const { path } = useMapContext();
   return (
     <g data-news-sessions={sessions.map(s => s.key).join(' ')}>
@@ -354,8 +383,8 @@ const SessionBands = ({ sessions, zoom, wordZoom = zoom, labelLat = 79 }: { sess
         <g key={s.key}>
           <path d={path(bandFeature(s.west, s.east)) ?? undefined} fill={SILVER} fillOpacity={0.16} stroke={SILVER} strokeOpacity={0.45} strokeWidth={0.7 / zoom} data-news-session={s.key} />
           <Marker coordinates={[(s.west + s.east) / 2, labelLat]}>
-            <text textAnchor="middle" fontSize={10 / wordZoom} fontFamily={FONT_SANS} letterSpacing={1.2 / wordZoom} fill={SILVER} fillOpacity={0.85}>
-              {`${s.label.toUpperCase()} · OPEN`}
+            <text textAnchor="middle" fontSize={10 / wordZoom} fontFamily={FONT_SANS} letterSpacing={caps ? 1.2 / wordZoom : 0} fill={SILVER} fillOpacity={0.85}>
+              {caps ? `${s.label.toUpperCase()} · OPEN` : `${s.label} · open`}
             </text>
           </Marker>
         </g>
@@ -485,12 +514,15 @@ interface Props {
       Fit — cropped to the northern half where the news is, the pins and
       words drawn twice their size so they read at a figure's width */
   figure?: boolean;
+  /** The figure's word at 11 px, in the drawing's units — the guide reads it off the figure's own width (NewsGuide
+      MapFigure, ui/svgFloor.ts); the names, the sessions' words and the notes take it */
+  figureWord?: number;
   notes?: MapNote[];
   /** The live map's box — `flex-1 min-h-0` in a column lets it fill a host taller than the map's own shape */
   className?: string;
 }
 
-const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, at, flyTo = null, figure = false, notes = [], className = '' }: Props) => {
+const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, at, flyTo = null, figure = false, figureWord, notes = [], className = '' }: Props) => {
   /* The land's ink is the theme's — a flip redraws the countries */
   const theme = useResolvedTheme();
   const [view, setView] = useState<View>(HOME);
@@ -557,8 +589,27 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
      words scale up to 11 px on the screen (fewer names find room — CountryNames places only what fits), and the pins and
      their counts with the names, so a phone's pin is a finger's mark, not a 3 px dot. */
   const unitPx = !figure && boxW > 0 ? boxW / frame.w : 0;
-  const nameS = unitPx > 0 ? Math.max(s, 11 / (13 * unitPx)) : s;
-  const bandS = unitPx > 0 ? Math.max(s, 11 / (10 * unitPx)) : s;
+  const nameS = figure && figureWord ? figureWord / 13 : unitPx > 0 ? Math.max(s, 11 / (13 * unitPx)) : s;
+  const bandS = figure && figureWord ? figureWord / 10 : unitPx > 0 ? Math.max(s, 11 / (10 * unitPx)) : s;
+  /* the figure's pins keep their drawn size; its words take the guide's floor */
+  const pinS = figure ? s : nameS;
+  const figureWords: FigureWords | undefined =
+    figure && figureWord
+      ? {
+          word: figureWord,
+          notes,
+          marks: [
+            ...pins.map(p => {
+              const d = 2 * ((5 + 2.2 * Math.sqrt(p.n)) * s + (p.freshest === 'fresh' ? 5 * s : 0));
+              return { lng: p.lng, lat: p.lat, w: d, h: d };
+            }),
+            /* a session's words sit over their latitude, centred on the band (SessionBands) */
+            ...openSessions(at).map(se => ({ lng: (se.west + se.east) / 2, lat: 60, w: (se.label.length + 7) * figureWord * 0.56, h: figureWord * 1.3, dy: -figureWord * 0.4 })),
+          ],
+          w: W,
+          h: FIGURE_H,
+        }
+      : undefined;
   const sessions = useMemo(() => openSessions(at), [at]);
   /* Which country a zone sits in never changes — found once per zone, kept */
   const zoneHome = useRef(new Map<string, string | null>());
@@ -605,28 +656,28 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
                     );
                   })}
                   {/* THE NAMES — the countries big enough at this zoom whose names have room, under the pins */}
-                  <CountryNames shown={shown as NamedGeo[]} z={z} s={nameS} theme={theme} minArea={labelBar} />
+                  <CountryNames shown={shown as NamedGeo[]} z={z} s={nameS} theme={theme} minArea={labelBar} figure={figureWords} />
                 </>
               );
             }}
           </Geographies>
           {/* the wash's name near the frame's top at rest, over the Arctic coasts — lat 68 in the resting frame, further north in a taller one */}
-          <SessionBands sessions={sessions} zoom={z / s} wordZoom={z / bandS} labelLat={figure ? 60 : Math.min(80, MERCATOR.invert?.([0, restTop(frame) + 30])?.[1] ?? 68)} />
+          <SessionBands sessions={sessions} zoom={z / s} wordZoom={z / bandS} caps={!figure} labelLat={figure ? 60 : Math.min(80, MERCATOR.invert?.([0, restTop(frame) + 30])?.[1] ?? 68)} />
           {/* THE REACH */}
           {reach && arcs.length > 0 && <ReachArcs reach={reach} zones={arcs} zoom={z / s} />}
           {/* THE PINS */}
           {ordered.map(p => {
             const open = p.city === selectedCity;
             const hot = p.city === hoverCity;
-            const r = ((5 + 2.2 * Math.sqrt(p.n)) * nameS) / z;
+            const r = ((5 + 2.2 * Math.sqrt(p.n)) * pinS) / z;
             const ink = INK[p.grade];
             return (
               <Marker key={p.city} coordinates={[p.lng, p.lat]} onClick={() => onPick(p)} onMouseEnter={() => onHover(p)} onMouseLeave={() => onHover(null)} style={{ default: { cursor: figure ? 'default' : 'pointer' }, hover: { cursor: figure ? 'default' : 'pointer' }, pressed: { cursor: figure ? 'default' : 'pointer' } }}>
                 <g data-news-pin={p.city} data-grade={p.grade} data-open={open || undefined}>
-                  {p.freshest === 'fresh' && <circle r={r + (5 * nameS) / z} fill={ink} fillOpacity={0.14} />}
-                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : 'rgb(var(--night))'} strokeWidth={((open ? 2 : 1) * nameS) / z} />
+                  {p.freshest === 'fresh' && <circle r={r + (5 * pinS) / z} fill={ink} fillOpacity={0.14} />}
+                  <circle r={r} fill={ink} fillOpacity={open || hot ? 0.95 : 0.78} stroke={open ? SILVER : hot ? 'rgb(var(--text-primary))' : 'rgb(var(--night))'} strokeWidth={((open ? 2 : 1) * pinS) / z} />
                   {p.n > 1 && (
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={(13 * nameS) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={(13 * pinS) / z} fontWeight={700} fontFamily={FONT_SANS} fill="rgb(var(--night))">
                       {p.n}
                     </text>
                   )}
@@ -638,7 +689,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
           {/* THE WORDS — the guide's figures only */}
           {notes.map(n => (
             <Marker key={n.text} coordinates={[n.lng, n.lat]}>
-              <text x={n.dx ?? 0} y={n.dy ?? 30} textAnchor={n.anchor ?? 'middle'} fontSize={17} fill="#a3a3a3" fontFamily={FONT_SANS} data-news-note>
+              <text x={n.dx ?? 0} y={n.dy ?? 30} textAnchor={n.anchor ?? 'middle'} fontSize={figureWord ?? 17} fill="#a3a3a3" fontFamily={FONT_SANS} data-news-note>
                 {n.text}
               </text>
             </Marker>
@@ -658,7 +709,7 @@ const NewsMap = ({ pins, selectedCity, hoverCity, onPick, onHover, heat, reach, 
         projection="geoMercator"
         projectionConfig={figure ? { scale: 196, center: [10, 40] } : { scale: SCALE }}
         width={W}
-        height={figure ? 400 : W}
+        height={figure ? FIGURE_H : W}
         {...(figure ? {} : { viewBox: windowOf(frame) })}
         preserveAspectRatio={figure ? undefined : 'xMidYMid slice'}
         style={figure ? { width: '100%', height: 'auto', display: 'block' } : { position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}

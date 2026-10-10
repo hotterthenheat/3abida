@@ -107,7 +107,7 @@ report under the ID given.
   px on any page the routes open (chart ticks stay 10) — the house grid heads 11 px in sentence case (houseGrid,
   index.css), every text-[8–10.5px] class in the terminal at 11, the Weigher's ruler and Pinpoint's drawings set their
   words in pixels off their own width (ui/svgFloor.ts), News's map words at 11 on any screen. Left (below, Still
-  open): the "How to read" guides' drawings and two pieces the check does not walk.
+  open): the "How to read" guides' drawings and two pieces the check does not walk — all three fixed the same day.
 - ~~Formats: four date formats, theta with no units (CO-7), "15M" reading as months, mixed decimals and signs~~ fixed
   2026-10-10: one rule, core/format.ts — the true minus, a sign on a change, prices to the cent, big dollars to three
   figures, percent to one decimal (two under 1%), greeks, IV, "Oct 9" and "14:03 ET" — the rooms' formatters on it.
@@ -138,15 +138,30 @@ Whole-page landing windows vs the 11 px rule; "Won %", "The case: strong" and ot
 ## Still open (2026-10-10)
 After the ten streams of 2026-10-09/10 (checked in `src` after the shared, speed, ideas and polish merges), what is
 left, and why:
-- The "How to read" guides' drawings set their words at 6–9 units on a fixed viewBox (components/trace/TraceGuide.tsx,
+- ~~The "How to read" guides' drawings set their words at 6–9 units on a fixed viewBox (components/trace/TraceGuide.tsx,
   gex/WallGuide.tsx, BuildingGuide, TargetsGuide, AheadGuide, weigher/WeigherGuide.tsx, compass/CompassGuide.tsx,
   SetupGuide, record/*Guide.tsx) — X9, not done: they open on a press, so the floor's check does not walk them; the fix
-  is ui/svgFloor.ts `useSvgFloor`, as the Weigher's ruler has.
-- Two drawn charts under the floor that the check does not reach: the print card's flow chart prints "LARGEST PRINT" in
-  9 px capitals and "THIS PRINT" / "THIS CONTRACT" in 10 px capitals (components/trace/ContractFlowChart.tsx, opened on
-  a press); Pulse's exposure band (components/gex/StrikeExposureBand.tsx, under the chart when its Overlays menu asks)
-  draws its figures at 8–9 px and its spot tag on a literal dark fill and white hairline, not tokens — X9 and the
-  theme rule, not done.
+  is ui/svgFloor.ts `useSvgFloor`, as the Weigher's ruler has.~~ fixed 2026-10-10 (every guide's drawing sits in
+  ui/GuideSvg.tsx, which reads its own width through `useSvgFloor` and hands the figure its sizes — a word 11 px, a
+  chart's tick 10 — so no word in a guide reads under 11 px at the card's size; past 1.1× the drawing keeps a least
+  width and scrolls sideways on a phone. The heads in sentence case, untracked; rows laid out again to hold the larger
+  words. The same for the guides the list missed — the clock, the level report, Pinpoint's Compare, the Map's ledger,
+  Terrain's profile — and the News guide's two maps, whose names, notes and session words take the guide's word
+  (NewsMap `figureWord`), in sentence case, kept off the pins and the notes. Measured in the browser on every guide
+  door: 1440 dark and light, 390.)
+- ~~The print card's flow chart prints "LARGEST PRINT" in 9 px capitals and "THIS PRINT" / "THIS CONTRACT" in 10 px
+  capitals (components/trace/ContractFlowChart.tsx, opened on a press) — X9, not done.~~ fixed 2026-10-10 ("Largest
+  print", "This print" and "This contract" at 11 px in sentence case, untracked; the ticks stay 10; a seller's largest
+  print at the plot's foot names itself over its column instead of under the plot's edge)
+- ~~Pulse's exposure band (components/gex/StrikeExposureBand.tsx, under the chart when its Overlays menu asks) draws its
+  figures at 8–9 px and its spot tag on a literal dark fill and white hairline, not tokens — X9 and the theme rule, not
+  done.~~ fixed 2026-10-10 (the extremes' figures and the spot tag 11 px, the axis strikes and the corner scale 10; the
+  tag on rgb(var(--panel) / 0.92) with the rgb(var(--ink) / 0.14) hairline, the zero rule, the hover slot and edge on
+  the ink token; the corner scale gives way to an extreme's figure where the two would meet; the true minus, the price
+  through core/format.ts)
+- The landing's session (public/landing/session, pages/landing/Session.tsx) was not re-taken on 2026-10-10: a `READ=1`
+  run no longer reads the page's beats (SPY never reaches 475 in the new run), so re-taking it needs new beats picked
+  (BEATS in scripts/make-landing-session.mjs) and their words rewritten.
 - The footer's links under 44 px on a phone (X3.1) — the footer is never touched (the owner's rule).
 - The stand-in data items at the top — needs real data (the keys).
 - The owner's call, above — owner's call.
