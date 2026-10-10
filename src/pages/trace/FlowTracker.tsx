@@ -40,6 +40,7 @@
 ==================================================
 */
 
+import { nyClock, nyIsoDate, nyStamp } from '../../core/nyTime';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays } from 'lucide-react';
@@ -81,13 +82,9 @@ const SOURCE_LABEL: Record<WatchSource, string> = {
   card: 'the card',
 };
 
-/** "14:22" today, "09/02 14:22" for an older mark — the house's 24-hour clock. */
+/** "14:22" today, "Oct 2, 14:22" for an older one — New York's 24-hour clock and the house's one date style (X2, X2.9) */
 function markedAt(ms: number): string {
-  const d = new Date(ms);
-  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const today = new Date();
-  const sameDay = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
-  return sameDay ? hm : `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${hm}`;
+  return nyIsoDate(ms) === nyIsoDate() ? nyClock(ms) : nyStamp(ms);
 }
 
 /** The lean as the Lean cell would say it, in its ink — for a then → now pair. */
@@ -376,7 +373,7 @@ const FlowTracker = () => {
           const then = r.leanThen != null ? leanWord(r.leanThen) : null;
           const now = r.leanNow != null ? leanWord(r.leanNow) : null;
           return (
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
               {then ? <span className={then.ink}>{then.text}</span> : <span className="text-textSecondary">—</span>}
               <span className="text-textSecondary"> → </span>
               {now ? <span className={now.ink}>{now.text}</span> : <span className="text-textSecondary">—</span>}
