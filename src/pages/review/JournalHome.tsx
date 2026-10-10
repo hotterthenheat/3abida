@@ -84,7 +84,8 @@ import { dirInk, heldWords, pct, rWords, usd, usdSigned } from '../../components
 import { statsOf } from '../../data/review/engine';
 import { excursionOf } from '../../data/review/excursion';
 import { ENDED, csvOf, dayMinOf, instantOf, titleOf, whenWords, type DayNote, type JournalRow } from '../../data/review/journal';
-import { PERIODS, byHour, byName, bySetup, bySide, bySize, byWeekday, calendarDayOf, dayTotals, isPeriod, monthOf, monthWords, runningOf, rowsIn, spanOf, type Period } from '../../data/review/journalFigures';
+import { PERIODS, byDelta, byDte, byFlip, byHour, byIv, byKept, byMistake, byMood, byName, byPlan, bySetup, bySide, bySize, byWalls, byWeekday, calendarDayOf, dayTotals, isPeriod, monthOf, monthWords, rulesKeptByWeek, runningOf, rowsIn, spanOf, type Period } from '../../data/review/journalFigures';
+import RulesKept from '../../components/review/RulesKept';
 import { useJournalSource, type JournalKind } from '../../data/review/journalSource';
 import { contractWords } from '../../data/review/quotes';
 
@@ -234,6 +235,17 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
   const sides = useMemo(() => bySide(rows), [rows]);
   const sizes = useMemo(() => bySize(rows), [rows]);
   const setups = useMemo(() => bySetup(rows).slice(0, 8), [rows]);
+  /* ---- more cuts (the ideas of 2026-10-09): the reader's own tags, the options' cuts, the run-up kept, the book at entry ---- */
+  const mistakes = useMemo(() => byMistake(rows).slice(0, 8), [rows]);
+  const plans = useMemo(() => byPlan(rows), [rows]);
+  const moods = useMemo(() => byMood(rows), [rows]);
+  const dtes = useMemo(() => byDte(rows), [rows]);
+  const deltas = useMemo(() => byDelta(rows), [rows]);
+  const ivs = useMemo(() => byIv(rows), [rows]);
+  const kept = useMemo(() => byKept(rows, r => excursionOf(r).best.pnl), [rows]);
+  const flips = useMemo(() => byFlip(rows), [rows]);
+  const walls = useMemo(() => byWalls(rows), [rows]);
+  const keptWeeks = useMemo(() => rulesKeptByWeek(accountRows), [accountRows]);
 
   /* ---- the words of the head ---- */
   const periodLabel = PERIODS.find(p => p.value === period)!.label;
@@ -492,6 +504,20 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
         <JournalLanes title="Sizes of wins and losses" lanes={sizes.lanes} measure="count" labelW={122} rest={`How often a trade is a big one — cut at ${usd(sizes.step, 0)} steps`} testId="size" />
         <JournalLanes title="By setup" lanes={setups} labelW={122} rest="Your own tags, counted — the setup each trade was written down as" testId="setup" />
       </div>
+
+      {/* ---- YOUR OWN TAGS, COUNTED · THE OPTIONS' CUTS · WHERE IT STOOD (the ideas of 2026-10-09) ---- */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-journal-more-cuts>
+        <JournalLanes title="What each mistake cost" lanes={mistakes} labelW={122} rest="The trades each mistake tag is on, and what they made between them — the costliest first" testId="mistake" />
+        <JournalLanes title="The plan, followed or not" lanes={plans} labelW={92} rest="Your answer on each trade — what the trades on each side made, how many, a trade on average" testId="plan" />
+        <JournalLanes title="By mood" lanes={moods} labelW={110} rest="How you felt going in, as you tagged it on the trade’s page" testId="mood" />
+        <JournalLanes title="By days to expiry" lanes={dtes} labelW={104} rest="How long the contract had to run when you opened it — the Report’s own cut" testId="dte" />
+        <JournalLanes title="By delta at entry" lanes={deltas} labelW={104} rest="How far from the money the contract was when you opened it" testId="delta" />
+        <JournalLanes title="By implied vol at entry" lanes={ivs} labelW={92} rest="What the contract’s implied vol was when you opened it" testId="iv" />
+        <JournalLanes title="How much of the run-up you kept" lanes={kept} measure="count" labelW={110} rest="What each trade closed at against the best it was up while you held it" testId="kept" />
+        {kind === 'paper' && <JournalLanes title="Where it stood: the flip" lanes={flips} labelW={110} rest="Paper trades, by where the name stood against its flip when you opened them" testId="flip" />}
+        {kind === 'paper' && <JournalLanes title="Where it stood: the walls" lanes={walls} labelW={122} rest="Paper trades, by where the name stood against its walls when you opened them" testId="walls" />}
+      </div>
+      <RulesKept weeks={keptWeeks} />
 
       {/* ---- EVERY TRADE IN THE PERIOD ---- */}
       <div className={`${card} flex flex-col min-w-0`} data-journal-trades>

@@ -145,7 +145,7 @@ const JournalStats = ({ rows, periodDays, periodLabel }: Props) => {
       </Group>
       <Group>
         <Row label="Worst drop from a high" title="The most the running total fell from its best before it made a new one" testId="drop">{!s.n ? none : s.maxDrawdown > 0 ? <span className="text-bear">−{usd(s.maxDrawdown)}</span> : <span className="text-textSecondary">none</span>}</Row>
-        <Row label="Kept of the best" title={kept.share != null ? `Your trades were up ${usdSigned(kept.best, 0)} at their best, added together; ${usdSigned(kept.made, 0)} of it was taken` : 'None of these trades was ever up'} testId="kept">
+        <Row label="Kept of the best run-up" title={kept.share != null ? `Your trades were up ${usdSigned(kept.best, 0)} at their best, added together; ${usdSigned(kept.made, 0)} of it was taken` : 'None of these trades was ever up'} testId="kept">
           {kept.share != null ? pct(kept.share) : none}
         </Row>
         <Row label="Held on average" testId="held">{s.n ? avgHeld : none}</Row>

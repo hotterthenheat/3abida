@@ -300,6 +300,12 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
               <Fact label="Expiry · days left at entry">{dayWords(row.t.contract.expiry)} · {row.t.dteIn}d</Fact>
               <Fact label="Delta · vol at entry">{row.t.deltaIn.toFixed(2)} · {Math.round(row.t.ivIn * 100)}%</Fact>
               <Fact label="The name, in → out">{row.t.spotIn.toFixed(2)} → <span className={dirInk(row.t.spotOut - row.t.spotIn)}>{row.t.spotOut.toFixed(2)}</span></Fact>
+              {/* WHERE IT STOOD when it was opened — the name against its flip and walls (a paper fill's stamp) */}
+              {row.paper && row.t.lvIn && (
+                <Fact label="Where it stood at entry">
+                  {row.t.spotIn >= row.t.lvIn.flip ? 'above' : 'below'} the flip {row.t.lvIn.flip.toFixed(2)} <span className="text-textMuted">· walls {row.t.lvIn.putWall.toFixed(2)} / {row.t.lvIn.callWall.toFixed(2)}</span>
+                </Fact>
+              )}
               <Fact label="Held">{heldWords(row.t.heldMin, dayMinOf(row))}</Fact>
               <Fact label="Decay it paid a day"><span className="text-warn">{usd(decayPerDay(row.t))}</span></Fact>
             </dl>

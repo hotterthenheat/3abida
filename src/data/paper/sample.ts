@@ -125,7 +125,19 @@ export function sampleAccounts(): PaperAccount[] {
     bar: () => Math.floor(now / 1000),
     candles: (t: string) => bars[t] ?? [],
     open: () => true,
+    /* the day's book round its open — the stamp a fill carries (WHERE THE TRADE STOOD), steady through the day */
+    levels: (t: string) => dayLevels[t] ?? null,
   });
+  let dayLevels: Record<string, { flip: number; callWall: number; putWall: number }> = {};
+  /** A day's flip and walls for a fund, from the day and the fund alone (never the walk's own draws, so the tape is unchanged) */
+  const levelsFor = (f: string, open: number) => {
+    const u = (k: string) => {
+      let h = 2166136261;
+      for (const ch of `${day}|${f}|${k}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+      return ((h >>> 0) % 10_000) / 10_000;
+    };
+    return { flip: +(open * (1 + (u('f') - 0.5) * 0.008)).toFixed(2), callWall: +(open * (1.003 + u('c') * 0.006)).toFixed(2), putWall: +(open * (0.997 - u('p') * 0.006)).toFixed(2) };
+  };
   /** A hand's action on the account, as the store makes one: the fill, then what the engine keeps of it */
   const hand = (a: PaperAccount, fn: (a: PaperAccount, m: PaperMarket) => PaperAccount) => afterHand(a, fn(a, market()), market());
 
@@ -137,6 +149,7 @@ export function sampleAccounts(): PaperAccount[] {
     if (wd >= 1 && wd <= 5 && day !== HOLIDAY) {
       /* the day opens with a small gap, and its tape starts an hour before the first trade could */
       for (const f of FUNDS) px[f] = +(px[f] * (1 + (r() - 0.5) * 0.006)).toFixed(2);
+      dayLevels = Object.fromEntries(FUNDS.map(f => [f, levelsFor(f, px[f])]));
       bars = {};
       lean = { SPY: 0, QQQ: 0 };
       minute = OPEN_MIN;
@@ -198,6 +211,16 @@ export function sampleAccounts(): PaperAccount[] {
   say(3, { setup: 'Fade of a stretched move', plan: 'yes', why: 'Three wide bars up into the wall, nothing behind them.', saw: 'Turned within two minutes.', again: 'Same trade, same place.' });
   say(5, { setup: 'Bounce off a wall', plan: 'no', mistakes: ['Held too long'], why: 'It had held twice already.', saw: 'It held a third time and I stayed for a fourth.', again: 'Take the second touch and go.' });
   say(8, { setup: 'Opening range break', plan: 'yes', why: 'Same as the 2nd — a clean break with size behind it.', saw: 'Slow, but it got there.', again: 'Yes.' });
+  /* the rest carry tags without words — a setup, the plan, a mood, now and then a mistake — so the journal's cuts have
+     something to count; drawn from the trade's place in the list, never the walk's draws */
+  const SETUPS = ['Opening range break', 'Pullback in a trend', 'Bounce off a wall', 'Break through a wall', 'Flip reclaimed', 'Fade of a stretched move'];
+  const MISTAKES = ['Chased it', 'Held too long', 'Cut it early', 'Too big', 'Moved my stop'];
+  const FEELS = ['Calm', 'Focused', 'Rushed', 'Tired', 'Frustrated', 'Calm', 'Focused'];
+  for (let i = 0; i < ids.length; i++) {
+    if (words[ids[i]] || i % 5 === 4) continue;
+    const slip = (i * 7) % 10 < 3;
+    words[ids[i]] = { setup: SETUPS[(i * 5) % SETUPS.length], plan: slip ? 'no' : 'yes', mood: FEELS[(i * 3) % FEELS.length], ...(slip ? { mistakes: [MISTAKES[(i * 3) % MISTAKES.length]] } : {}), keptAt: nyInstant(LAST, 17 * 60) };
+  }
   const days: Record<string, DayNote> = {
     '2026-09-02': { plan: 'Two trades at most. Nothing after 11:30.', review: 'Kept to it. The second was the better one.' },
     '2026-09-15': { plan: 'Only the first pullback in the trend.', review: 'Took a late one anyway. It cost the morning.' },

@@ -19,7 +19,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { ListPlus, Plus, X } from 'lucide-react';
 import DropdownMulti from '../ui/DropdownMulti';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
-import { addTag, removeTag, useTags, type JournalEntry, type TagLists } from '../../data/review/journal';
+import { MOODS, addTag, removeTag, useTags, type JournalEntry, type TagLists } from '../../data/review/journal';
 
 const NONE = '—';
 const PLAN: DropdownOption<string>[] = [
@@ -70,7 +70,7 @@ export const TagListsDoor = () => {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button type="button" title="Your own lists of setups and mistakes — add to them, take from them" className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary data-[state=open]:text-silver data-[state=open]:border-silver/50 transition-colors" data-tag-lists-door>
+        <button type="button" title="Your own lists of setups and mistakes — add to them, take from them" className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary data-[state=open]:text-silver data-[state=open]:border-silver/50 transition-colors" data-tag-lists-door>
           <ListPlus className="w-3 h-3" /> Your lists
         </button>
       </Popover.Trigger>
@@ -88,7 +88,40 @@ export const TagListsDoor = () => {
   );
 };
 
-/** The three cards on a trade, and the door to the lists */
+const MOOD_OPTIONS: DropdownOption<string>[] = [{ value: NONE, label: 'Not said', quiet: true }, ...MOODS.map(m => ({ value: m, label: m }))];
+
+/** A NEW TAG, WRITTEN RIGHT HERE (the audit's PR-14: only the lists' door could add one, so how to tag a trade was unclear):
+    the word goes on the list and on this trade at once — as its setup, or as one of its mistakes */
+const NewTag = ({ entry, onChange }: { entry: JournalEntry; onChange: (patch: Partial<JournalEntry>) => void }) => {
+  const [draft, setDraft] = useState('');
+  const word = draft.trim().slice(0, 40);
+  const put = (as: 'setup' | 'mistake') => {
+    if (!word) return;
+    addTag(as === 'setup' ? 'setups' : 'mistakes', word);
+    onChange(as === 'setup' ? { setup: word } : { mistakes: [...new Set([...(entry.mistakes ?? []), word])] });
+    setDraft('');
+  };
+  return (
+    <form
+      className="inline-flex items-center gap-1.5"
+      onSubmit={e => {
+        e.preventDefault();
+        put('setup');
+      }}
+      data-tag-new
+    >
+      <input value={draft} onChange={e => setDraft(e.target.value)} maxLength={40} placeholder="A new tag…" aria-label="A new tag for this trade" className="h-7 w-[150px] px-2 rounded-md border border-borderSubtle bg-panel text-[12px] text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60 transition-colors" data-tag-new-field />
+      <button type="submit" disabled={!word} className="hit h-7 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-tag-new-as="setup">
+        As the setup
+      </button>
+      <button type="button" disabled={!word} onClick={() => put('mistake')} className="hit h-7 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-tag-new-as="mistake">
+        As a mistake
+      </button>
+    </form>
+  );
+};
+
+/** The cards on a trade — the setup, the mistakes, the plan, the mood — a new tag, and the door to the lists */
 const TagCards = ({ entry, onChange }: { entry: JournalEntry; onChange: (patch: Partial<JournalEntry>) => void }) => {
   const tags = useTags();
   /* a tag the trade carries stays a choice even after it left the list */
@@ -100,6 +133,8 @@ const TagCards = ({ entry, onChange }: { entry: JournalEntry; onChange: (patch: 
       <DropdownSelect label="Setup" value={entry.setup ?? NONE} options={setupOptions} onChange={v => onChange({ setup: v === NONE ? undefined : v })} title="What kind of trade it was" testId="journal-setup" />
       <DropdownMulti label="Mistakes" values={entry.mistakes ?? []} groups={[{ title: 'What went wrong — as many as apply', options: mistakes.map(m => ({ value: m, label: m })) }]} onChange={v => onChange({ mistakes: v })} emptyWord="None" title="Mistakes made in it" testId="journal-mistakes" align="start" tone="warn" />
       <DropdownSelect label="Followed the plan" value={entry.plan ?? NONE} options={PLAN} onChange={v => onChange({ plan: v === NONE ? undefined : (v as 'yes' | 'no') })} title="Was it the trade you meant to take, taken the way you meant to" testId="journal-plan" />
+      <DropdownSelect label="Mood" value={entry.mood ?? NONE} options={MOOD_OPTIONS} onChange={v => onChange({ mood: v === NONE ? undefined : v })} title="How you felt going in" testId="journal-mood" />
+      <NewTag entry={entry} onChange={onChange} />
       <TagListsDoor />
     </div>
   );
