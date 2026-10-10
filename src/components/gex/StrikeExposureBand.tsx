@@ -180,12 +180,12 @@ const StrikeExposureBand = ({
   return (
     <div className="flex flex-col border-t border-borderSubtle bg-inset/40">
       <div className="flex items-center gap-2 px-2 py-1">
-        <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textSecondary">
           {meta.label}
         </span>
-        <span className="font-mono text-[9px] text-textMuted">· {meta.unit}</span>
+        <span className="font-mono text-[11px] text-textMuted">· {meta.unit}</span>
         <span
-          className="font-mono text-[10px] font-semibold tnum"
+          className="font-mono text-[11px] font-semibold tnum"
           style={{ color: net >= 0 ? BULL : PUT_WALL }}
         >
           {fmtUsd(net)}
@@ -193,7 +193,7 @@ const StrikeExposureBand = ({
         {/* The hover readout lives in the header the band already has, so
             pointing at a slot costs no extra chrome. */}
         {hovered && (
-          <span className="font-mono text-[9px] tnum text-textMuted">
+          <span className="font-mono text-[11px] tnum text-textMuted">
             ·{' '}
             <span className="text-textSecondary">{hovered.strike}</span>{' '}
             <span style={{ color: hovered.positive ? BULL : PUT_WALL }} className="font-semibold">
@@ -211,7 +211,7 @@ const StrikeExposureBand = ({
                 key={m.key}
                 onClick={() => onMetric(m.key)}
                 title={`${m.label} · ${m.unit}`}
-                className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-widest transition-colors ${
+                className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-widest transition-colors ${
                   m.key === metric
                     ? 'bg-ink/[0.10] text-textPrimary'
                     : 'text-textMuted hover:bg-ink/[0.06] hover:text-textSecondary'
@@ -227,7 +227,7 @@ const StrikeExposureBand = ({
             onClick={onClose}
             title="Hide this band"
             aria-label="Hide the exposure band"
-            className={`${onMetric ? '' : 'ml-auto'} rounded px-1 font-mono text-[10px] text-textMuted transition-colors hover:bg-ink/[0.08] hover:text-textPrimary`}
+            className={`${onMetric ? '' : 'ml-auto'} rounded px-1 font-mono text-[11px] text-textMuted transition-colors hover:bg-ink/[0.08] hover:text-textPrimary`}
           >
             ✕
           </button>

@@ -148,15 +148,15 @@ const DeskPeek = ({ name, ws }: { name: string; ws: SavedWorkspace }) => {
     <>
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-mono text-[11px] font-semibold text-textPrimary">{name}</span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted tnum">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted tnum">
           {ws.instances.length} panel{ws.instances.length === 1 ? '' : 's'}
         </span>
       </div>
-      {PRESET_BLURBS[name] && <p className="mt-1 text-[10px] leading-snug text-textSecondary">{PRESET_BLURBS[name]}</p>}
+      {PRESET_BLURBS[name] && <p className="mt-1 text-[11px] leading-snug text-textSecondary">{PRESET_BLURBS[name]}</p>}
       {/* words only — the block schematic read as noise (Noah, 2026-08-19) */}
       <ul className="mt-2 flex flex-col gap-0.5">
         {titles.map((t, i) => (
-          <li key={`${t}-${i}`} className="font-mono text-[10px] text-textSecondary">
+          <li key={`${t}-${i}`} className="font-mono text-[11px] text-textSecondary">
             <span className="text-textMuted">· </span>
             {t}
           </li>
@@ -722,7 +722,7 @@ const Pulse = () => {
             flat holo silver (the fact-slot label ink), smaller, letterspaced,
             and locked to the chips' line so they sit dead center. */}
         <span className="flex items-center gap-1.5">
-          <span className="h-7 inline-flex items-center text-[10px] leading-none text-textMuted select-none">Presets</span>
+          <span className="h-7 inline-flex items-center text-[11px] leading-none text-textMuted select-none">Presets</span>
           <span className="flex items-center gap-0.5">
             {PRESET_NAMES.map(name => (
               <span key={name} className="inline-flex" {...peekHandlers(name)}>
@@ -874,7 +874,7 @@ const Pulse = () => {
                     }`}
                   >
                     <span className="block text-[12px] font-semibold text-textPrimary">{def.title}</span>
-                    <span className="block text-[10px] text-textMuted truncate">{def.sub}</span>
+                    <span className="block text-[11px] text-textMuted truncate">{def.sub}</span>
                   </button>
                 ))}
               </div>
@@ -882,10 +882,10 @@ const Pulse = () => {
               <div className="flex-1 min-w-0 p-3 flex flex-col gap-2">
                 <WidgetThumb def={previewDef} ctx={pulsedCtx} width={352} />
                 <span className="text-[12px] font-semibold text-textPrimary">{previewDef.title}</span>
-                <span className="text-[10px] text-textSecondary leading-snug">{previewDef.description}</span>
+                <span className="text-[11px] text-textSecondary leading-snug">{previewDef.description}</span>
                 <button
                   onClick={() => addWidget(previewDef.key)}
-                  className="mt-auto w-full py-1.5 rounded holo-bg text-[#0a0a0a] hover:brightness-105 font-mono text-[10px] font-semibold uppercase tracking-wider transition-all"
+                  className="mt-auto w-full py-1.5 rounded holo-bg text-[#0a0a0a] hover:brightness-105 font-mono text-[11px] font-semibold uppercase tracking-wider transition-all"
                 >
                   Add {previewDef.title}
                 </button>
@@ -979,7 +979,7 @@ const Pulse = () => {
                     <GripHorizontal className="w-3.5 h-3.5 text-textMuted shrink-0" />
                     <span className="min-w-0 flex-1 flex flex-col justify-center leading-tight">
                       <span className="text-[12px] font-semibold text-textPrimary truncate">{def.title}</span>
-                      <span className="text-[10px] text-textMuted truncate">{def.sub}</span>
+                      <span className="text-[11px] text-textMuted truncate">{def.sub}</span>
                     </span>
                     {/* THE SCOPE CHIP (2026-09-06): follows the frame, or holds
                         its own name. stopPropagation on mousedown so using

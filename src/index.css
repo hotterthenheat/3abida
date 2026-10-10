@@ -1167,7 +1167,7 @@ body.room-walled .room-lit { animation: room-lit 11s linear infinite; }
   -webkit-backdrop-filter: blur(3px);
   color: #a3a3a3;
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.45;
   text-transform: none;
   letter-spacing: normal;

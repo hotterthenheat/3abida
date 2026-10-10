@@ -125,7 +125,7 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
         <span className="font-mono text-sm font-bold text-textPrimary tracking-tight">{live.contract}</span>
         {expired ? <SignalBadge tone="bear">EXPIRED</SignalBadge> : <VerdictBadge verdict={live.verdict} dot />}
         {status.hitLevel != null && !expired && <SignalBadge tone="bull">TP{status.hitLevel} HIT</SignalBadge>}
-        <span className="ml-auto font-mono text-[10px] text-textMuted">
+        <span className="ml-auto font-mono text-[11px] text-textMuted">
           Tracked {nyDay(tracked.trackedAt)}
         </span>
       </div>
@@ -134,18 +134,18 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
           BY A TEXT TIER, never by opacity (the theme rule — the audit's X12: opacity-50 took the figures under 3:1) */}
       <div className="grid grid-cols-2 gap-px bg-borderSubtle/30" data-expired={expired || undefined}>
         <div className="bg-panel px-3 py-2.5" title="Entry: the premium when the sweep found it · now: the bid/ask midpoint this tick">
-          <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Premium</div>
+          <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Premium</div>
           <div className={`mt-0.5 font-mono text-sm font-semibold tnum ${expired ? 'text-textMuted' : 'text-textPrimary'}`}>
             {entryMid != null && (
               <>
-                <span className="text-[10px] font-normal text-textMuted">entry </span>${entryMid.toFixed(2)}{' '}
+                <span className="text-[11px] font-normal text-textMuted">entry </span>${entryMid.toFixed(2)}{' '}
               </>
             )}
-            <span className="text-[10px] font-normal text-textMuted">now </span>${live.mid.toFixed(2)}
+            <span className="text-[11px] font-normal text-textMuted">now </span>${live.mid.toFixed(2)}
           </div>
         </div>
         <div className="bg-panel px-3 py-2.5">
-          <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
+          <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Expected move</div>
           <div className={`mt-0.5 font-mono text-sm font-semibold tnum ${expired ? 'text-textMuted' : moveUp ? 'text-bull' : 'text-bear'}`}>
             {moveUp ? '+' : ''}{live.expectedMovePct.toFixed(1)}%
           </div>
@@ -157,14 +157,14 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
           word and the four-step meter (ui/GradeMeter.tsx); the figure stays inside the engine and only SORTS the table. */}
       {expired ? (
         <div className="px-4 py-2.5">
-          <span className="font-mono text-[10px] text-textSecondary">
+          <span className="font-mono text-[11px] text-textSecondary">
             This contract expired {expiryWords(tracked)} — tracking ended.
           </span>
         </div>
       ) : (
         <div className="px-4 py-2.5">
           <div className="flex items-center justify-between mb-1.5" data-tracker-read={read}>
-            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted flex items-center gap-1.5">
+            <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted flex items-center gap-1.5">
               Confidence <SignalBadge tone="select" dot pulse>Live</SignalBadge>
             </span>
             <span className={`font-mono text-[11px] font-semibold ${GRADE_INK[read]}`}>{read}</span>
@@ -178,21 +178,21 @@ const TrackedCard = ({ tracked, live, expired, onUntrack, onReview, spotlight = 
         {expired ? (
           <span
             title="Expired contracts have no live setup to review"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-borderSubtle bg-ink/[0.02] font-mono text-[10px] text-textMuted uppercase tracking-wider cursor-not-allowed select-none"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-borderSubtle bg-ink/[0.02] font-mono text-[11px] text-textMuted uppercase tracking-wider cursor-not-allowed select-none"
           >
             Expired
           </span>
         ) : (
           <button
             onClick={onReview}
-            className="hit flex items-center gap-1 px-3 py-1.5 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[10px] text-textSecondary hover:text-textPrimary uppercase tracking-wider transition-colors"
+            className="hit flex items-center gap-1 px-3 py-1.5 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[11px] text-textSecondary hover:text-textPrimary uppercase tracking-wider transition-colors"
           >
             <ArrowUpRight className="w-3 h-3" /> Review
           </button>
         )}
         <button
           onClick={onUntrack}
-          className="hit flex items-center gap-1 px-3 py-1.5 rounded-md border border-bear/20 bg-bear/5 hover:bg-bear/10 font-mono text-[10px] text-bear uppercase tracking-wider transition-colors ml-auto"
+          className="hit flex items-center gap-1 px-3 py-1.5 rounded-md border border-bear/20 bg-bear/5 hover:bg-bear/10 font-mono text-[11px] text-bear uppercase tracking-wider transition-colors ml-auto"
         >
           <Trash2 className="w-3 h-3" /> Untrack
         </button>
@@ -292,7 +292,7 @@ const tableColumns = (open: (r: TableRow) => void, untrack: (r: TableRow) => voi
         }}
         aria-label={`Untrack ${r.live.contract}`}
         title="Untrack — Undo stays open a few seconds"
-        className="hit inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-bear/90 hover:text-bear transition-colors"
+        className="hit inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-bear/90 hover:text-bear transition-colors"
       >
         <Trash2 className="w-3 h-3" /> Untrack
       </button>
@@ -367,14 +367,14 @@ const Tracker = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
       {/* Tabs */}
       <div className="flex items-center gap-3">
-        <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-textMuted">View</span>
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textMuted">View</span>
         <SegmentedControl
           ariaLabel="Tracker view"
           options={TAB_OPTIONS}
           value={tab}
           onChange={setTab}
         />
-        <span className="font-mono text-[10px] text-textMuted">
+        <span className="font-mono text-[11px] text-textMuted">
           {trackedSetups.length} tracked setup{trackedSetups.length === 1 ? '' : 's'}
         </span>
       </div>

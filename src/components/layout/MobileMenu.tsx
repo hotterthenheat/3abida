@@ -104,7 +104,7 @@ const MobileMenu = ({ open, onClose }: Props) => {
   /* ONE GROUP OF THE MENU — Home (Pulse) stands above the Alerts row, the captioned groups under it, More last (the rail's order, nav.ts) */
   const groupBlock = (group: NavGroup) => (
         <div key={group} className={group === 'Home' ? '' : 'mt-4'} data-mobile-group={group}>
-          {NAV_GROUP_META[group].caption && <span className="block px-3 pb-1 text-[10px] uppercase tracking-[0.1em] text-textMuted">{NAV_GROUP_META[group].caption}</span>}
+          {NAV_GROUP_META[group].caption && <span className="block px-3 pb-1 text-[11px] uppercase tracking-[0.1em] text-textMuted">{NAV_GROUP_META[group].caption}</span>}
           {itemsByGroup(group).map(item => {
             const inside = pathname.startsWith(item.path);
             const subs = subpagesFor(item.path, pathname, chosenId);

@@ -138,16 +138,16 @@ const CampaignTakeover = ({
         <button
           type="button"
           onClick={trail.length > 1 ? () => setTrail(prev => prev.slice(0, -1)) : close}
-          className="group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
+          className="group inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> {trail.length > 1 ? contractLabel(trail[trail.length - 2]) : 'The desk'}
         </button>
         {trail.length > 1 && (
-          <button type="button" onClick={close} className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+          <button type="button" onClick={close} className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
             <LayoutGrid className="w-3.5 h-3.5" /> The desk
           </button>
         )}
-        <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Pulse · setup view</span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Pulse · setup view</span>
         <button
           onClick={() =>
             navigate('/compass', {
@@ -156,7 +156,7 @@ const CampaignTakeover = ({
               },
             })
           }
-          className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-borderSubtle bg-ink/[0.02] hover:bg-ink/[0.05] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+          className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-borderSubtle bg-ink/[0.02] hover:bg-ink/[0.05] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
         >
           Open in Compass <ArrowUpRight className="w-3 h-3" />
         </button>
@@ -271,7 +271,7 @@ const CompassSetupsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
           testId="setups-sleeve"
         />
         <DropdownSelect label="Scan" value={scanner} options={eligibleScanners.map(s => ({ value: s.key, label: s.label }))} onChange={setScanner} title="Which scan ranks the cards" testId="setups-scan" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted tnum whitespace-nowrap">
+        <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted tnum whitespace-nowrap">
           {ranked.length} setup{ranked.length === 1 ? '' : 's'} · {expiryChip}
         </span>
       </div>

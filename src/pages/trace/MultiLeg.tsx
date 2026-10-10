@@ -93,7 +93,7 @@ const riskCell = (v: number | 'uncapped' | null, tone: 'loss' | 'profit') => {
 };
 
 const doorBtn =
-  'inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle rounded px-2 py-1 hover:bg-ink/[0.04] transition-colors';
+  'inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary border border-borderSubtle rounded px-2 py-1 hover:bg-ink/[0.04] transition-colors';
 
 /** One structure opened up — the legs, the risk box, and the plain-English
     line saying what the shape does. */
@@ -107,7 +107,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
 
   const fact = (label: string, value: React.ReactNode) => (
     <div className="flex items-baseline justify-between gap-3 py-1 border-b border-borderSubtle/50 last:border-0">
-      <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">{label}</span>
+      <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">{label}</span>
       <span className="font-mono text-xs tnum text-textPrimary text-right">{value}</span>
     </div>
   );
@@ -132,14 +132,14 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
         <span className="flex items-center gap-2.5 min-w-0">
           <CompanyLogo ticker={trade.ticker} size={20} />
           <span className="font-mono text-sm font-bold text-textPrimary">{trade.ticker}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.06] px-2 py-0.5 font-mono text-[10px] font-semibold text-textPrimary whitespace-nowrap">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.06] px-2 py-0.5 font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: KIND_DOT[trade.kind] }} />
             {KIND_META[trade.kind].label}
           </span>
         </span>
       }
       headerActions={
-        <span className="font-mono text-[10px] text-textSecondary tnum whitespace-nowrap">
+        <span className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
           {trade.time} · spot ${trade.spot.toFixed(2)}
         </span>
       }
@@ -163,7 +163,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
               <span className={`font-semibold ${l.right === 'C' ? 'text-bull' : 'text-bear'}`}>
                 {l.right === 'C' ? 'call' : 'put'}
               </span>
-              <span className="text-[10px] text-textSecondary">
+              <span className="text-[11px] text-textSecondary">
                 {l.expiry} · {l.dte}d
               </span>
               <span className="ml-auto tnum text-textPrimary">@ ${l.fill.toFixed(2)}</span>
@@ -177,7 +177,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
               'Net',
               <>
                 ${Math.abs(trade.net).toFixed(2)}{' '}
-                <span className="text-[10px] text-textSecondary">{trade.net >= 0 ? 'debit' : 'credit'}</span>
+                <span className="text-[11px] text-textSecondary">{trade.net >= 0 ? 'debit' : 'credit'}</span>
               </>
             )}
             {fact('Size', `${num(trade.size)}×`)}
@@ -468,7 +468,7 @@ const MultiLeg = () => {
         render: t => (
           <span className="text-textPrimary">
             ${Math.abs(t.net).toFixed(2)}{' '}
-            <span className="text-[10px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
+            <span className="text-[11px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
           </span>
         ),
       },
@@ -622,7 +622,7 @@ const MultiLeg = () => {
           <>
             <SavedCutsList store={ML_CUTS} query="" onOpen={addr.open} noun="cut" testId="multi-leg" onSay={cuts.say} open={cuts.open} />
             {cuts.said && (
-              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+              <p role="status" className="mb-2 font-mono text-[11px] text-textSecondary">
                 {cuts.said}
               </p>
             )}

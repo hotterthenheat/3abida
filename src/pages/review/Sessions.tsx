@@ -145,7 +145,7 @@ const Sessions = () => {
           /* `leading-normal` + `align-middle`: a grid cell's line is as tall as its row, and a button inherits it — its word
              dropped to the button's floor and the pair rode high on the row (Noah, 2026-09-20, with a picture) */
           <span className="inline-flex items-center gap-1.5 leading-normal align-middle">
-            <button type="button" onClick={() => navigate(`/practice/backtest/${r.s.id}/report`)} className="hit inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-session-report={r.s.id}>
+            <button type="button" onClick={() => navigate(`/practice/backtest/${r.s.id}/report`)} className="hit inline-flex items-center h-6 px-2 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-session-report={r.s.id}>
               Report
             </button>
             <RenameDoor name={r.s.name} onSave={name => renameSession(r.s.id, name)} />
@@ -221,7 +221,7 @@ const Sessions = () => {
               </button>
             </span>
           ) : (
-            <button type="button" onClick={() => setAdding(true)} title="Optional — trade two names on the same clock and the same account" className="hit inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary transition-colors" data-review-name-2-add>
+            <button type="button" onClick={() => setAdding(true)} title="Optional — trade two names on the same clock and the same account" className="hit inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[11px] text-textMuted hover:text-textPrimary hover:border-textSecondary transition-colors" data-review-name-2-add>
               <Plus className="w-3 h-3" /> A second name
             </button>
           )}

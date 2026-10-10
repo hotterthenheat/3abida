@@ -158,7 +158,7 @@ const ExpiryRangeCard = ({ label = 'Expiries', days, from, through, onChange, ce
                   }}
                   aria-pressed={on}
                   title={s.hint}
-                  className="shrink-0 h-6 px-2 rounded-full border text-[10px] font-medium transition-colors"
+                  className="shrink-0 h-6 px-2 rounded-full border text-[11px] font-medium transition-colors"
                   style={on ? { background: SILVER_FILL, color: '#0a0a0a', borderColor: SILVER_FILL } : { color: 'rgb(var(--text-secondary))', borderColor: 'rgb(var(--border-muted))' }}
                   data-range-shortcut={s.label}
                 >
@@ -182,7 +182,7 @@ const ExpiryRangeCard = ({ label = 'Expiries', days, from, through, onChange, ce
                   data-range-side={s}
                   data-range-armed={on || undefined}
                 >
-                  <span className="text-[8px] uppercase tracking-widest text-textMuted">{s}</span>
+                  <span className="text-[11px] uppercase tracking-widest text-textMuted">{s}</span>
                   <span className={`text-[11px] font-semibold ${on ? 'text-silver' : 'text-textPrimary'}`}>{day.label}</span>
                 </button>
               );
@@ -215,7 +215,7 @@ const ExpiryRangeCard = ({ label = 'Expiries', days, from, through, onChange, ce
               chevron: '',
               month_grid: 'w-full border-collapse mt-1',
               weekdays: '',
-              weekday: 'h-7 text-[10px] font-normal text-textMuted text-center',
+              weekday: 'h-7 text-[11px] font-normal text-textMuted text-center',
               weeks: '',
               week: '',
               day: 'p-0 text-center',
@@ -229,15 +229,15 @@ const ExpiryRangeCard = ({ label = 'Expiries', days, from, through, onChange, ce
             }}
           />
           {note && (
-            <p className="mt-2 text-[10px] leading-snug text-textSecondary" data-expiry-card-note>
+            <p className="mt-2 text-[11px] leading-snug text-textSecondary" data-expiry-card-note>
               {note}
             </p>
           )}
           <div className="mt-2 pt-2 border-t border-borderSubtle/70 flex items-center justify-between gap-3">
-            <p className="text-[10px] text-textMuted">
+            <p className="text-[11px] text-textMuted">
               {count} {count === 1 ? 'expiry' : 'expiries'} · {ceilingWhy}
             </p>
-            <p className="text-[10px] text-textMuted whitespace-nowrap">The lit days are the book's expiries.</p>
+            <p className="text-[11px] text-textMuted whitespace-nowrap">The lit days are the book's expiries.</p>
           </div>
         </Popover.Content>
       </Popover.Portal>

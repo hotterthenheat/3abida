@@ -21,7 +21,7 @@ import { processState, PROCESS_META } from './setupProcess';
 /* `cased`: the label as written — "1σ move" upper-cased reads "1Σ MOVE", and Σ is a sum (the audit's CO-23) */
 const Stat = ({ label, value, ink = 'text-textPrimary', right = false, cased = false }: { label: string; value: string; ink?: string; right?: boolean; cased?: boolean }) => (
   <span className={`flex flex-col gap-0.5 min-w-0 ${right ? 'items-end text-right' : ''}`}>
-    <span className={`font-mono text-[9px] tracking-wider text-textMuted ${cased ? '' : 'uppercase'}`}>{label}</span>
+    <span className={`font-mono text-[11px] tracking-wider text-textMuted ${cased ? '' : 'uppercase'}`}>{label}</span>
     <span className={`font-mono text-[13px] font-semibold tnum ${ink}`}>{value}</span>
   </span>
 );
@@ -71,7 +71,7 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
     >
       {/* identity row */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="font-mono text-[10px] text-textMuted tnum">#{rank}</span>
+        <span className="font-mono text-[11px] text-textMuted tnum">#{rank}</span>
         {/* the name's mark and the whole contract in its side's ink — one component for every surface (2026-09-13); the
             keys' way to select the card */}
         <button
@@ -87,7 +87,7 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
         >
           <ContractLabel contract={setup.contract} right={isCall ? 'C' : 'P'} logo={setup.ticker} />
         </button>
-        <span className="font-mono text-[10px] text-textSecondary border border-borderSubtle rounded px-1.5 py-0.5">
+        <span className="font-mono text-[11px] text-textSecondary border border-borderSubtle rounded px-1.5 py-0.5">
           {setup.expiry} · {expiryChip}
         </span>
         {rank === 1 && <SignalBadge tone="crown">Top pick</SignalBadge>}
@@ -137,7 +137,7 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
           }}
           title="Open the setup's page"
           aria-label={`Open ${setup.contract}'s page`}
-          className={`hit relative ml-auto shrink-0 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider rounded px-2 py-1 border transition-colors ${
+          className={`hit relative ml-auto shrink-0 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider rounded px-2 py-1 border transition-colors ${
             selected ? 'text-textPrimary border-borderMuted bg-ink/[0.05]' : 'text-textSecondary hover:text-textPrimary border-borderSubtle hover:border-borderMuted'
           }`}
           data-compass-open

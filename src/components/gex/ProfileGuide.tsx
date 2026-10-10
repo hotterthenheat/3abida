@@ -283,11 +283,11 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
       </div>
       {examples.length > 0 && (
         <div className="border-t border-borderSubtle/60 pt-2.5">
-          <p className="text-[10px] text-textMuted">Today, read both ways</p>
+          <p className="text-[11px] text-textMuted">Today, read both ways</p>
           <ul className="mt-1 flex flex-col gap-1.5">{examples}</ul>
         </div>
       )}
-      <p className="text-[10px] text-textMuted">Hover any strike to see both numbers in the line under the lanes · click to keep it there.</p>
+      <p className="text-[11px] text-textMuted">Hover any strike to see both numbers in the line under the lanes · click to keep it there.</p>
     </div>
   );
 };

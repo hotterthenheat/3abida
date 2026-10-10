@@ -332,7 +332,7 @@ const TrailDoor = ({ b, dp, onTrail }: { b: ChartBracket; dp: number; onTrail: (
             }}
           >
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-textMuted leading-snug">Trail by — the distance it keeps from the best price since{on ? '' : ' (it starts as where the stop stands now)'}</span>
+              <span className="text-[11px] text-textMuted leading-snug">Trail by — the distance it keeps from the best price since{on ? '' : ' (it starts as where the stop stands now)'}</span>
               <input ref={field} value={draft} onChange={e => setDraft(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" aria-label="Trail by" className="h-8 px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60 transition-colors" data-chart-trail-field />
             </label>
             <div className="flex items-center gap-2">
@@ -340,7 +340,7 @@ const TrailDoor = ({ b, dp, onTrail }: { b: ChartBracket; dp: number; onTrail: (
                 {on ? 'Trail by this' : 'Trail'}
               </button>
               {on && (
-                <button type="button" onClick={() => { onTrail(b.orderId, false); setOpen(false); }} className="hit h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-chart-trail-off>
+                <button type="button" onClick={() => { onTrail(b.orderId, false); setOpen(false); }} className="hit h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-chart-trail-off>
                   Let it rest
                 </button>
               )}
@@ -791,7 +791,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                 {usdSigned(pull.money, 0)}
               </span>
             </span>
-            {pull.room === null && <span className="ml-1 inline-flex items-center px-1.5 rounded-[3px] bg-panel text-textMuted text-[10px]">no level has two contracts to give, or the ladder is full</span>}
+            {pull.room === null && <span className="ml-1 inline-flex items-center px-1.5 rounded-[3px] bg-panel text-textMuted text-[11px]">no level has two contracts to give, or the ladder is full</span>}
           </div>
         )}
         {brackets.map(b => {
@@ -813,11 +813,11 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                 {/* ITS SWITCHES, beside it while the pointer is on it: which of the ladder it is, the price it waits on, a stop's
                     trail and breakeven, an option's pin */}
                 <span className={tray} data-chip-tray>
-                  <span className={`px-0.5 text-[10px] font-semibold ${b.kind === 'target' ? 'text-bull' : 'text-bear'}`}>
+                  <span className={`px-0.5 text-[11px] font-semibold ${b.kind === 'target' ? 'text-bull' : 'text-bear'}`}>
                     {b.kind === 'target' ? 'Target' : 'Stop'}
                     {b.nth ? ` ${b.nth}` : ''}
                   </span>
-                  <span className="px-0.5 text-[10px] text-textPrimary">{figure}</span>
+                  <span className="px-0.5 text-[11px] text-textPrimary">{figure}</span>
                   {b.kind === 'stop' && onTrail && <TrailDoor b={b} dp={dp} onTrail={onTrail} />}
                   {b.kind === 'stop' && onBreakeven && (
                     <button
@@ -875,7 +875,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                   <X className="w-3 h-3" />
                 </button>
                 {/* OUT OF THE PICTURE (shown by the frame loop): which way the line is, and where the name would have to be */}
-                <span hidden className="ml-1 self-center px-1 rounded-[3px] bg-panel text-[10px] text-textMuted" data-chip-off>
+                <span hidden className="ml-1 self-center px-1 rounded-[3px] bg-panel text-[11px] text-textMuted" data-chip-off>
                   <span data-chip-arrow aria-hidden="true" />
                   {b.level == null ? ' out of reach' : pinned ? '' : ` ${ticker} ${b.level.toFixed(2)}`}
                 </span>
@@ -923,7 +923,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                 <X className="w-3 h-3" />
               </button>
               {/* OUT OF THE PICTURE (shown by the frame loop): which way the line is */}
-              <span hidden className="ml-1 self-center px-1 rounded-[3px] bg-panel text-[10px] text-textMuted" data-chip-off>
+              <span hidden className="ml-1 self-center px-1 rounded-[3px] bg-panel text-[11px] text-textMuted" data-chip-off>
                 <span data-chip-arrow aria-hidden="true" />
                 {x.level == null ? ' out of reach' : x.label ? ` ${ticker} ${x.level.toFixed(2)}` : ''}
               </span>
@@ -937,7 +937,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
           <div className="px-2 pt-1 pb-1.5">{open.card.head}</div>
           {[...open.card.sections, { items: [{ label: 'Reset chart view · Alt+R', hint: 'Back to how the chart first opened', run: () => api.reset(), testId: 'reset-view' }] } as ChartMenuSection].map((sec, si) => (
             <div key={si} className={si > 0 ? 'mt-1 pt-1 border-t border-borderSubtle' : ''}>
-              {sec.title && <div className="px-2 pt-0.5 pb-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">{sec.title}</div>}
+              {sec.title && <div className="px-2 pt-0.5 pb-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">{sec.title}</div>}
               {sec.items.map(it => (
                 <button
                   key={it.label}
@@ -952,7 +952,7 @@ const PositionLayer = ({ api, ticker, minutes, fills, marks: hostMarks, position
                   data-chart-menu-item={it.testId ?? it.label}
                 >
                   <span className="text-[12px] leading-snug">{it.label}</span>
-                  {it.hint && <span className="text-[10px] leading-snug text-textMuted">{it.hint}</span>}
+                  {it.hint && <span className="text-[11px] leading-snug text-textMuted">{it.hint}</span>}
                 </button>
               ))}
             </div>

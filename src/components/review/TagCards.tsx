@@ -34,7 +34,7 @@ const ListEditor = ({ list, title, placeholder, words }: { list: keyof TagLists;
   const field = useRef<HTMLInputElement | null>(null);
   return (
     <div className="min-w-0 flex-1" data-tag-list={list}>
-      <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted">{title}</div>
+      <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">{title}</div>
       <div className="mt-1.5 flex flex-col">
         {words.map(w => (
           <div key={w} className="group flex items-center gap-2 h-7 border-b border-borderSubtle/60 text-[12px] text-textPrimary">
@@ -70,7 +70,7 @@ export const TagListsDoor = () => {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button type="button" title="Your own lists of setups and mistakes — add to them, take from them" className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[10px] text-textMuted hover:text-textPrimary hover:border-textSecondary data-[state=open]:text-silver data-[state=open]:border-silver/50 transition-colors" data-tag-lists-door>
+        <button type="button" title="Your own lists of setups and mistakes — add to them, take from them" className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-dashed border-borderMuted font-mono text-[11px] text-textMuted hover:text-textPrimary hover:border-textSecondary data-[state=open]:text-silver data-[state=open]:border-silver/50 transition-colors" data-tag-lists-door>
           <ListPlus className="w-3 h-3" /> Your lists
         </button>
       </Popover.Trigger>
@@ -111,10 +111,10 @@ const NewTag = ({ entry, onChange }: { entry: JournalEntry; onChange: (patch: Pa
       data-tag-new
     >
       <input value={draft} onChange={e => setDraft(e.target.value)} maxLength={40} placeholder="A new tag…" aria-label="A new tag for this trade" className="h-7 w-[150px] px-2 rounded-md border border-borderSubtle bg-panel text-[12px] text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60 transition-colors" data-tag-new-field />
-      <button type="submit" disabled={!word} className="hit h-7 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-tag-new-as="setup">
+      <button type="submit" disabled={!word} className="hit h-7 px-2 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-tag-new-as="setup">
         As the setup
       </button>
-      <button type="button" disabled={!word} onClick={() => put('mistake')} className="hit h-7 px-2 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-tag-new-as="mistake">
+      <button type="button" disabled={!word} onClick={() => put('mistake')} className="hit h-7 px-2 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors" data-tag-new-as="mistake">
         As a mistake
       </button>
     </form>

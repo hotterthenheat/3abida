@@ -81,7 +81,7 @@ const WeekReview = ({ account }: { account: string | null }) => {
       </div>
       {/* A ROW A TRADING DAY */}
       <div className="border-t border-borderSubtle" role="table" aria-label="The week, day by day">
-        <div role="row" className="hidden sm:grid grid-cols-[120px_110px_80px_minmax(0,1fr)_120px] gap-x-4 px-5 h-8 items-center font-mono text-[10px] uppercase tracking-widest text-textMuted border-b border-borderSubtle/60">
+        <div role="row" className="hidden sm:grid grid-cols-[120px_110px_80px_minmax(0,1fr)_120px] gap-x-4 px-5 h-8 items-center font-mono text-[11px] uppercase tracking-widest text-textMuted border-b border-borderSubtle/60">
           <span role="columnheader">Day</span>
           <span role="columnheader" className="text-right">P&amp;L</span>
           <span role="columnheader" className="text-right">Closed</span>

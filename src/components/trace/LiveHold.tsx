@@ -84,7 +84,7 @@ export const LiveHold = ({ paused, onToggle, heldAt }: { paused: boolean; onTogg
       )}
     </button>
     {paused && heldAt && (
-      <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider whitespace-nowrap tnum">as of {clock(heldAt)} ET</span>
+      <span className="font-mono text-[11px] text-textMuted uppercase tracking-wider whitespace-nowrap tnum">as of {clock(heldAt)} ET</span>
     )}
   </span>
 );

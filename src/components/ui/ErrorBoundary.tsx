@@ -43,10 +43,10 @@ class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
     return (
       <div className="border border-bear/25 bg-bear/[0.04] rounded-md px-3 py-2.5 flex flex-col gap-1">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-bear">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-bear">
           {this.props.label ?? 'This panel'} could not render
         </span>
-        <span className="font-mono text-[10px] text-textMuted break-all">{this.state.error.message}</span>
+        <span className="font-mono text-[11px] text-textMuted break-all">{this.state.error.message}</span>
       </div>
     );
   }

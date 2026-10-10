@@ -57,9 +57,9 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         header: 'Role',
         render: r =>
           r.role === 'This contract' ? (
-            <span className="font-mono text-[10px] uppercase tracking-wider font-semibold text-silver">{r.role}</span>
+            <span className="font-mono text-[11px] uppercase tracking-wider font-semibold text-silver">{r.role}</span>
           ) : (
-            <span className="font-mono text-[10px] uppercase tracking-wider text-textSecondary">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-textSecondary">
               <Term k={r.role}>{r.role}</Term>
             </span>
           ),
@@ -71,7 +71,7 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         render: r => (
           <span className="inline-flex items-center gap-2 min-w-0">
             <ContractLabel contract={r.contract} right={r.right} logo={r.contract.split(' ')[0]} size="sm" />
-            <span className="font-mono text-[9px] text-textMuted">{r.expiry}</span>
+            <span className="font-mono text-[11px] text-textMuted">{r.expiry}</span>
           </span>
         ),
       },
@@ -94,7 +94,7 @@ const SetupDrivers = ({ ticker, rows, onOpen }: SetupDriversProps) => {
         align: 'right',
         render: r =>
           r.role === 'This contract' ? null : (
-            <button type="button" onClick={() => onOpen(r.strike, r.right)} title={`Open ${r.contract} ${r.expiry}`} className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
+            <button type="button" onClick={() => onOpen(r.strike, r.right)} title={`Open ${r.contract} ${r.expiry}`} className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
               Open <ArrowUpRight className="w-3 h-3" />
             </button>
           ),

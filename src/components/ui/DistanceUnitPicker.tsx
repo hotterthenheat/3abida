@@ -29,7 +29,7 @@ const DistanceUnitPicker = ({ dense = false }: { dense?: boolean }) => {
           onClick={() => setDistanceUnit(u)}
           aria-pressed={unit === u}
           title={`Distances in ${UNIT_WORDS[u]}`}
-          className={`px-1.5 h-[20px] font-mono text-[10px] tnum transition-colors ${
+          className={`px-1.5 h-[20px] font-mono text-[11px] tnum transition-colors ${
             unit === u ? 'bg-ink/[0.10] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'
           }`}
         >

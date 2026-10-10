@@ -62,7 +62,7 @@ export const KeyLevelsView = ({ ticker, rows, spot }: { ticker: string; rows: Ke
             testId="levels-instrument"
           />
           {/* The conversion state is itself a read — the carry, spoken. */}
-          <span className="ml-auto font-mono text-[9px] text-textMuted tnum">
+          <span className="ml-auto font-mono text-[11px] text-textMuted tnum">
             {fam.futures} {fmtTwin(twinPrice(fam, 'futures', etfSpot, etfSpot))} · +{fmtTwin(twinBasis(fam, etfSpot))} over {fam.index}
           </span>
         </div>

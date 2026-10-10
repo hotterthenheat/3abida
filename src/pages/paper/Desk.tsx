@@ -461,7 +461,7 @@ const PaperDesk = () => {
     { key: 'avg', header: 'In at', align: 'right', render: r => <span className="text-textSecondary">{r.p.avg.toFixed(2)}</span> },
     { key: 'now', header: 'Now', align: 'right', render: r => <span className="text-textPrimary">{`${r.p.quote.bid.toFixed(2)} · ${r.p.quote.ask.toFixed(2)}`}</span> },
     { key: 'carry', header: 'Decay/day', align: 'right', render: r => <span className="text-textSecondary" title="What the contract loses a day, all else equal">{`${usd(Math.abs(r.p.quote.theta) * 100 * r.p.qty)}`}</span> },
-    { key: 'pnl', header: 'P&L', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.p.pnl)}`}>{usdSigned(r.p.pnl)} {r.p.r != null && <span className="text-[10px] font-normal text-textSecondary">{rWords(r.p.r)}</span>}</span> },
+    { key: 'pnl', header: 'P&L', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.p.pnl)}`}>{usdSigned(r.p.pnl)} {r.p.r != null && <span className="text-[11px] font-normal text-textSecondary">{rWords(r.p.r)}</span>}</span> },
     {
       key: 'close',
       header: '',
@@ -522,7 +522,7 @@ const PaperDesk = () => {
     { key: 'in', header: 'In', render: r => <span className="text-textSecondary">{nyMomentWords(r.t.opened.at)} · {r.t.avgIn.toFixed(2)}</span> },
     { key: 'out', header: 'Out', render: r => <span className="text-textSecondary">{nyMomentWords(r.t.closed.at)} · {r.t.avgOut.toFixed(2)}</span> },
     { key: 'how', header: 'Ended', render: r => <span className="text-textSecondary" title={r.t.note}>{OPT_ENDED[r.t.how]}</span> },
-    { key: 'pnl', header: 'P&L', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[10px] font-normal text-textSecondary">{r.t.r != null ? rWords(r.t.r) : 'no stop · no R'}</span></span> },
+    { key: 'pnl', header: 'P&L', align: 'right', render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[11px] font-normal text-textSecondary">{r.t.r != null ? rWords(r.t.r) : 'no stop · no R'}</span></span> },
   ];
 
   /* ---- THE HEAD'S PICKER: what is on the chart — the partner's grouped list, with one search over all of it
@@ -616,10 +616,10 @@ const MarkCard = ({ plan, qty, onQty, onCancel }: { plan: ReturnType<typeof plan
   /* under the drawing's own bar (StrikeChart's mark bar sits at the chart's top while the mark is selected) */
   <div className="mt-11 pointer-events-auto w-[min(560px,calc(100%-24px))] rounded-lg border border-borderMuted bg-panel/95 backdrop-blur-md p-3 shadow-[0_14px_40px_rgba(0,0,0,0.45)] animate-soft-in" data-theme="dark" data-paper-mark-card>
     <p className="text-[12px] leading-snug text-textPrimary">{plan.words}</p>
-    {plan.money && <p className="mt-1 font-mono text-[10px] tnum text-textMuted">{plan.money}</p>}
+    {plan.money && <p className="mt-1 font-mono text-[11px] tnum text-textMuted">{plan.money}</p>}
     {plan.refused && <p className="mt-1 text-[11px] text-warn">{plan.refused}</p>}
     <div className="mt-2.5 flex items-center gap-2">
-      <label className="inline-flex items-center gap-1.5 font-mono text-[10px] text-textMuted">
+      <label className="inline-flex items-center gap-1.5 font-mono text-[11px] text-textMuted">
         Contracts
         <input value={qty} onChange={e => onQty(Math.max(1, Math.min(999, Number(e.target.value.replace(/[^0-9]/g, '')) || 1)))} inputMode="numeric" className="h-7 w-14 px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60" data-paper-mark-qty />
       </label>
@@ -636,7 +636,7 @@ const MarkCard = ({ plan, qty, onQty, onCancel }: { plan: ReturnType<typeof plan
       >
         Place it
       </button>
-      <button type="button" onClick={onCancel} className="hit h-8 px-3 rounded-md border border-borderSubtle font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors">
+      <button type="button" onClick={onCancel} className="hit h-8 px-3 rounded-md border border-borderSubtle font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors">
         Not now
       </button>
     </div>

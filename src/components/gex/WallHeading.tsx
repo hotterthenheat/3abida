@@ -32,6 +32,7 @@
 */
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useSvgFloor } from '../ui/svgFloor';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import { HeadingGuide } from './BuildingGuide';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
@@ -128,6 +129,9 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
   const W = fill && box.w > 0 ? box.w : W0;
   const rowH = fill && box.h > 0 && levels.length ? Math.max(ROW_H, (box.h - TOP - AXIS_H) / levels.length) : ROW_H;
   const H = TOP + levels.length * rowH + AXIS_H;
+  /* the words at the floor: 11 px (ticks 10) on the fixed drawing (ui/svgFloor) — the fill mode's drawing is the box already */
+  const floor = useSvgFloor(W, svgRef);
+  const fk = fill ? 1 : floor.k;
 
   /* The axis covers the ground the levels actually cover, never the whole
      window — the four of them live within a few strikes of spot, and a full
@@ -205,8 +209,8 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
 
       {/* THE DRAWING */}
       <div className={`px-3 pt-3 pb-3 ${fill ? 'flex-1 min-h-0 flex flex-col' : ''}`} onPointerLeave={() => setHover(null)}>
-        <div ref={boxRef} className={fill ? 'flex-1 min-h-0' : undefined}>
-        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? '100%' : undefined} preserveAspectRatio="xMidYMid meet" className="block" role="img" aria-label="The call wall, supreme, flip and put wall on the strike axis: where each stood at the open, where it is now, and where today's pace puts it" onPointerMove={onMove} data-heading-figure>
+        <div ref={boxRef} className={fill ? 'flex-1 min-h-0' : 'overflow-x-auto overscroll-x-contain [scrollbar-width:thin]'}>
+        <svg ref={svgRef} style={fill ? undefined : { minWidth: floor.minWidth }} viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? '100%' : undefined} preserveAspectRatio="xMidYMid meet" className="block" role="img" aria-label="The call wall, supreme, flip and put wall on the strike axis: where each stood at the open, where it is now, and where today's pace puts it" onPointerMove={onMove} data-heading-figure>
           <defs>
             {levels.map(l => (
               <marker key={l.name} id={`wh-arrow-${l.name.replace(/\s/g, '')}`} viewBox="0 0 8 8" refX={6.5} refY={4} markerWidth={K.arrowSize} markerHeight={K.arrowSize} orient="auto">
@@ -219,7 +223,7 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
           {ticks.map(k => (
             <g key={k}>
               <line x1={x(k)} x2={x(k)} y1={TOP - 10} y2={H - AXIS_H + 2} stroke={K.grid} strokeOpacity={K.colA} />
-              <text x={x(k)} y={H - 6} textAnchor="middle" fontSize={10} fill={K.tick} fontFamily={FIG}>
+              <text x={x(k)} y={H - 6} textAnchor="middle" fontSize={10 * fk} fill={K.tick} fontFamily={FIG}>
                 {fmtStrike(k)}
               </text>
             </g>
@@ -227,7 +231,7 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
 
           {/* spot — the dotted white rule through every row */}
           <line x1={x(spot)} x2={x(spot)} y1={TOP - 12} y2={H - AXIS_H + 2} stroke="rgb(var(--text-primary))" strokeOpacity={0.5} strokeDasharray="1 3" />
-          <text x={x(spot)} y={TOP - 16} textAnchor="middle" fontSize={11} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG} data-heading-spot>
+          <text x={x(spot)} y={TOP - 16} textAnchor="middle" fontSize={11 * fk} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG} data-heading-spot>
             {fmtStrike(spot)}
           </text>
 
@@ -246,12 +250,12 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
               <g key={l.name} opacity={dim ? 0.32 : 1} style={{ transition: 'opacity 220ms cubic-bezier(0.16,1,0.3,1)' }} data-level={l.name}>
                 {/* the row's own hairline and its name */}
                 <line x1={M.l} x2={W - M.r} y1={y} y2={y} stroke={K.grid} strokeOpacity={K.rowA} />
-                <text x={M.l - 14} y={y + 3.5} textAnchor="end" fontSize={11} fontWeight={600} fill={ink} fontFamily={SANS}>
+                <text x={M.l - 14} y={y + 3.5} textAnchor="end" fontSize={11 * fk} fontWeight={600} fill={ink} fontFamily={SANS}>
                   {l.name}
                 </text>
 
                 {l.now == null ? (
-                  <text x={x((lo + hi) / 2)} y={y + 3.5} textAnchor="middle" fontSize={11} fill={K.note} fontFamily={SANS}>
+                  <text x={x((lo + hi) / 2)} y={y + 3.5} textAnchor="middle" fontSize={11 * fk} fill={K.note} fontFamily={SANS}>
                     none {l.name === 'Call wall' ? 'overhead' : 'underneath'} on this book
                   </text>
                 ) : (
@@ -263,7 +267,7 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
                         <line x1={x(ch.strike)} x2={x(l.now)} y1={y} y2={y} stroke={ink} strokeOpacity={K.tie} strokeWidth={K.lineW === 1.25 ? undefined : 1.25} strokeDasharray="2 3" />
                         {/* a diamond, so it can never be read as the open's hollow dot */}
                         <rect x={x(ch.strike) - 3.4} y={y - 3.4} width={6.8} height={6.8} transform={`rotate(45 ${x(ch.strike)} ${y})`} fill={K.hole} stroke={ink} strokeOpacity={K.chal} strokeWidth={K.lineW === 1.25 ? 1.25 : 1.5} />
-                        <text x={x(ch.strike)} y={y + 15} textAnchor="middle" fontSize={10} fill={ink} fillOpacity={K.label} fontFamily={FIG}>
+                        <text x={x(ch.strike)} y={y + 15} textAnchor="middle" fontSize={10 * fk} fill={ink} fillOpacity={K.label} fontFamily={FIG}>
                           {fmtStrike(ch.strike)}
                         </text>
                       </g>
@@ -288,20 +292,20 @@ const WallHeading = ({ data, clock, scope, headless = false, fill = false }: Pro
                     {/* …its strike, unless the level is heading back to where it opened: the ring's own label stands there, and the
                         two were printed one over the other ("480" on "480", seen 2026-09-19) */}
                     {l.open != null && moved && !(moves && l.close === l.open) && (
-                      <text x={x(l.open)} y={y - 9} textAnchor="middle" fontSize={10} fill={ink} fillOpacity={K.label} fontFamily={FIG}>
+                      <text x={x(l.open)} y={y - 9} textAnchor="middle" fontSize={10 * fk} fill={ink} fillOpacity={K.label} fontFamily={FIG}>
                         {fmtStrike(l.open)}
                       </text>
                     )}
                     {/* by the close — a dashed ring */}
                     {moves && <circle cx={x(l.close!)} cy={y} r={4} fill={K.hole} stroke={ink} strokeOpacity={K.ring} strokeWidth={K.lineW === 1.25 ? 1.25 : 1.5} strokeDasharray="2.2 2.2" data-mark="close" />}
                     {moves && (
-                      <text x={x(l.close!)} y={y - 10} textAnchor="middle" fontSize={10} fontWeight={600} fill={ink} fillOpacity={K.closeLabel} fontFamily={FIG}>
+                      <text x={x(l.close!)} y={y - 10} textAnchor="middle" fontSize={10 * fk} fontWeight={600} fill={ink} fillOpacity={K.closeLabel} fontFamily={FIG}>
                         {fmtStrike(l.close!)}
                       </text>
                     )}
                     {/* now — the filled dot, always the loudest mark on the row */}
                     <circle cx={x(l.now)} cy={y} r={5} fill={ink} data-mark="now" />
-                    <text x={x(l.now)} y={y - 11} textAnchor="middle" fontSize={11} fontWeight={700} fill="rgb(var(--text-primary))" fontFamily={FIG} data-heading-now>
+                    <text x={x(l.now)} y={y - 11} textAnchor="middle" fontSize={11 * fk} fontWeight={700} fill="rgb(var(--text-primary))" fontFamily={FIG} data-heading-now>
                       {fmtStrike(l.now)}
                     </text>
                   </>

@@ -4584,7 +4584,7 @@ const StrikeChart = ({
             <div ref={pickFadeRef} aria-hidden className="absolute top-0 z-[5] pointer-events-none" style={{ left: pickXRef.current, right: pickFade.right, bottom: pickFade.bottom, background: 'rgba(10,10,10,0.72)' }} data-pick-fade />
             <div ref={pickLineRef} aria-hidden className="absolute top-0 z-[6] w-px pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom, background: 'rgba(199,211,232,0.9)' }} data-pick-line />
             {/* The bar's day and minute under the line — its text moves through the ref with the pointer */}
-            <div ref={pickLabelRef} aria-hidden className="absolute z-[6] -translate-x-1/2 px-1.5 py-0.5 rounded-[3px] font-mono text-[10px] tnum whitespace-nowrap pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom + 4, background: '#C7D3E8', color: '#0a0a0a' }} data-pick-label>
+            <div ref={pickLabelRef} aria-hidden className="absolute z-[6] -translate-x-1/2 px-1.5 py-0.5 rounded-[3px] font-mono text-[11px] tnum whitespace-nowrap pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom + 4, background: '#C7D3E8', color: '#0a0a0a' }} data-pick-label>
               {ownLabelRef.current}
             </div>
           </>
@@ -4607,7 +4607,7 @@ const StrikeChart = ({
             <span
               key={l.key}
               aria-hidden
-              className="pointer-events-none absolute left-2 z-10 rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-widest"
+              className="pointer-events-none absolute left-2 z-10 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-widest"
               style={{ bottom: l.bottom, background: look.bg, color: look.fg }}
             >
               {look.text}
@@ -4644,7 +4644,7 @@ const StrikeChart = ({
             data-price-tag
           >
             <div className="font-mono text-[12px] font-bold leading-[14px] tnum text-textPrimary" />
-            <div className="font-mono text-[9px] leading-[11px] tnum text-textMuted" />
+            <div className="font-mono text-[11px] leading-[11px] tnum text-textMuted" />
           </div>
         )}
 
@@ -4922,7 +4922,7 @@ const StrikeChart = ({
                   ) : (
                     <>
                       <span className="w-4 border-t border-current" style={{ borderTopWidth: m.width ?? 2 }} />
-                      <span className="font-mono text-[9px] tnum">{m.width ?? 2}px</span>
+                      <span className="font-mono text-[11px] tnum">{m.width ?? 2}px</span>
                     </>
                   )}
                 </button>
@@ -4944,14 +4944,14 @@ const StrikeChart = ({
                             <span className="w-8 text-textPrimary font-semibold leading-none" style={{ fontSize: 8 + wd * 2 }}>
                               Aa
                             </span>
-                            <span className="font-mono text-[10px] text-textPrimary">
+                            <span className="font-mono text-[11px] text-textPrimary">
                               {['Small', 'Medium', 'Large', 'Huge'][wd - 1]}
                             </span>
                           </>
                         ) : (
                           <>
                             <span className="w-6 border-t border-current text-textPrimary" style={{ borderTopWidth: wd }} />
-                            <span className="font-mono text-[10px] tnum text-textPrimary">{wd}px</span>
+                            <span className="font-mono text-[11px] tnum text-textPrimary">{wd}px</span>
                           </>
                         )}
                       </button>
@@ -4988,7 +4988,7 @@ const StrikeChart = ({
                         }`}
                       >
                         <span className="w-6 border-t-2 border-current text-textPrimary" style={{ borderTopStyle: o.css }} />
-                        <span className="font-mono text-[10px] text-textPrimary whitespace-nowrap">{o.label}</span>
+                        <span className="font-mono text-[11px] text-textPrimary whitespace-nowrap">{o.label}</span>
                       </button>
                     ))}
                   </span>
@@ -5033,7 +5033,7 @@ const StrikeChart = ({
              hears the hand change too. */
           <div
             aria-live="polite"
-            className={`absolute z-30 pointer-events-none rounded border border-borderMuted bg-panel/95 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-select shadow-lg shadow-black/40 ${
+            className={`absolute z-30 pointer-events-none rounded border border-borderMuted bg-panel/95 px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-widest text-select shadow-lg shadow-black/40 ${
               rail.dock === 'left' || !rail.open ? 'left-[54px] top-1/2 -translate-y-1/2' : 'top-11 left-[calc(50%-48px)] -translate-x-1/2'
             }`}
           >
@@ -5098,7 +5098,7 @@ const StrikeChart = ({
             actually printed since the app connected, and the empty region
             to the left is explained rather than silently blank. */}
         {liveFrom !== null && (
-          <span className="absolute bottom-12 left-2 z-10 pointer-events-none font-mono text-[9px] uppercase tracking-wider text-textMuted bg-canvas/60 border border-borderSubtle/60 rounded px-1.5 py-0.5">
+          <span className="absolute bottom-12 left-2 z-10 pointer-events-none font-mono text-[11px] uppercase tracking-wider text-textMuted bg-canvas/60 border border-borderSubtle/60 rounded px-1.5 py-0.5">
             {liveFrom === 0
               ? 'live only · awaiting first prints'
               : `live only · from ${new Date(liveFrom * 1000).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })}`}
@@ -5116,10 +5116,10 @@ const StrikeChart = ({
                 : { left: Math.max(4, eventCard.x + 6) }
             }
           >
-            <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">
+            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">
               {eventCard.e.label}
             </div>
-            <div className="font-mono text-[9px] text-textSecondary mt-0.5">{eventCard.e.detail}</div>
+            <div className="font-mono text-[11px] text-textSecondary mt-0.5">{eventCard.e.detail}</div>
           </div>
         )}
 

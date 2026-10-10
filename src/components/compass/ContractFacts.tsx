@@ -20,9 +20,9 @@ import type { Setup } from '../../types/compass';
     chrome naming a slot, visually distinct from the gray sentence below. */
 export const Fact = ({ label, value, sub, ink = 'text-textPrimary' }: { label: string; value: string; sub: string; ink?: string }) => (
   <div className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[9px] uppercase tracking-wider text-silver">{label}</span>
+    <span className="font-mono text-[11px] uppercase tracking-wider text-silver">{label}</span>
     <span className={`font-mono text-[14px] font-bold tnum ${ink}`}>{value}</span>
-    <span className="font-mono text-[10px] text-textSecondary leading-snug">
+    <span className="font-mono text-[11px] text-textSecondary leading-snug">
       <RichRead text={sub} />
     </span>
   </div>
@@ -35,8 +35,8 @@ export const Fact = ({ label, value, sub, ink = 'text-textPrimary' }: { label: s
 const LedgerFact = ({ label, value, sub, ink = 'text-textPrimary' }: { label: string; value: string; sub: string; ink?: string }) => (
   <div className="flex items-start justify-between gap-4 py-2 first:pt-0 last:pb-0">
     <span className="flex flex-col gap-0.5 min-w-0">
-      <span className="font-mono text-[9px] uppercase tracking-wider text-silver">{label}</span>
-      <span className="font-mono text-[10px] text-textSecondary leading-snug">
+      <span className="font-mono text-[11px] uppercase tracking-wider text-silver">{label}</span>
+      <span className="font-mono text-[11px] text-textSecondary leading-snug">
         <RichRead text={sub} />
       </span>
     </span>

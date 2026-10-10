@@ -239,7 +239,7 @@ const DeskCard = ({
           </button>
         )}
         {title && (
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">{title}</span>
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">{title}</span>
         )}
       </div>
       {/* NO overflow-x-auto here: overflow-x forces overflow-y clipping too,
@@ -340,7 +340,7 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
           animateRows={false}
           onFirstDataRendered={() => setReady(true)}
           tooltipShowDelay={350}
-          overlayNoRowsTemplate={`<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">${SCAN_EMPTY[preset]}</span>`}
+          overlayNoRowsTemplate={`<span class="font-mono text-[11px] uppercase tracking-widest text-textMuted">${SCAN_EMPTY[preset]}</span>`}
         />
       </AgGridProvider>
     </div>
@@ -412,7 +412,7 @@ const StrikePickInner = ({
       </button>
       {open && (
         <div className="absolute left-0 top-full mt-1 z-40 w-52 border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 overflow-hidden animate-slide-in">
-          <div className="px-3 py-1.5 border-b border-borderSubtle flex items-center justify-between font-mono text-[9px] font-semibold uppercase tracking-widest text-textMuted select-none">
+          <div className="px-3 py-1.5 border-b border-borderSubtle flex items-center justify-between font-mono text-[11px] font-semibold uppercase tracking-widest text-textMuted select-none">
             <span>Strike</span>
             <span>Mark</span>
           </div>
@@ -1014,7 +1014,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
     </>
   );
   const chainMove = (
-    <span className="font-mono text-[10px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
+    <span className="font-mono text-[11px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
       ±{chain.expectedMovePct.toFixed(1)}%
     </span>
   );
@@ -1462,7 +1462,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
                   align="end"
                   trigger={
                     /* the small size — a 28px control filled the head's 32px line to the borders (Noah, 2026-09-14) */
-                    <button className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[9px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" title="Add a position you own or sold — its projected returns land in the card" data-add-position>
+                    <button className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" title="Add a position you own or sold — its projected returns land in the card" data-add-position>
                       <Plus className="w-3 h-3" />
                       Add a position
                     </button>
@@ -1503,7 +1503,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
               cardRow || (selected && sel != null) ? (
                 /* the card's own contract where it draws a row — its strike AND its date, which the chain may not list
                    (a position from Sep 21 pressed on Sep 28 said "· 2d", the chain's, 2026-09-28) */
-                <span className="font-mono text-[10px] font-semibold tnum text-textSecondary whitespace-nowrap" data-position-head>
+                <span className="font-mono text-[11px] font-semibold tnum text-textSecondary whitespace-nowrap" data-position-head>
                   {(() => {
                     const c = cardRow ? (cardRow.kind === 'watch' ? cardRow.w : cardRow.p) : null;
                     return c ? `${c.ticker} ${fmtStrike(c.strike)}${c.right} · ${monthDay(c.expiry)}` : `${ticker} ${fmtStrike(sel!)}${right} · ${chain.expiry.dte}d`;

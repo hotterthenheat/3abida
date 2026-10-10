@@ -106,7 +106,7 @@ const NameCell = ({ data }: ICellRendererParams<StockPick>) =>
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
-        <span className="text-[10px] text-textMuted truncate">{data.name}</span>
+        <span className="text-[11px] text-textMuted truncate">{data.name}</span>
       </span>
     </span>
   ) : null;
@@ -140,7 +140,7 @@ const sleeveCell =
 
 const ScreenCell = ({ data }: ICellRendererParams<StockPick>) =>
   data ? (
-    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-textPrimary">
+    <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${SCREEN_DOT[gradeOfPick(data)]}`} />
       {gradeOfPick(data).toUpperCase()}
     </span>
@@ -167,15 +167,15 @@ const SectorCard = ({ s, rank, leader, top, on, onToggle }: { s: SectorRow; rank
     data-on={on || undefined}
   >
     <span className="flex items-center gap-1.5 min-w-0 h-[18px]">
-      <span className="font-mono text-[10px] text-textMuted tnum">{String(rank).padStart(2, '0')}</span>
+      <span className="font-mono text-[11px] text-textMuted tnum">{String(rank).padStart(2, '0')}</span>
       <SectorMark sector={s.sector} />
       <span className="text-[11px] font-bold text-textPrimary truncate">{SHORT_SECTOR[s.sector] ?? s.sector}</span>
     </span>
     <span className="mt-1.5 block h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
       <span className={`block h-full rounded-full ${leader ? 'bg-supreme' : PHASE_BAR[s.phase]}`} style={{ width: `${Math.round((s.score / top) * 100)}%` }} />
     </span>
-    <span className={`mt-1 block h-[12px] font-mono text-[10px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
-    <span className="mt-0.5 block h-[12px] font-mono text-[10px] tnum whitespace-nowrap">
+    <span className={`mt-1 block h-[12px] font-mono text-[11px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
+    <span className="mt-0.5 block h-[12px] font-mono text-[11px] tnum whitespace-nowrap">
       <span className="text-textMuted">1w </span>
       <span className={dirInk(s.rs1w)}>{signedPct(s.rs1w)}</span>
       <span className="text-textMuted"> · 1m </span>
@@ -314,19 +314,19 @@ const Stocks = () => {
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
-            <dt className="text-[10px] text-textMuted">Names</dt>
+            <dt className="text-[11px] text-textMuted">Names</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-stocks-names>
               {facts.names} <span className="text-textMuted">·</span> <span className="text-bull font-semibold">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-bull">{facts.good} good</span> <span className="text-textMuted">·</span> <span className="text-warn">{facts.mixed} caution</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} poor</span>
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Above their trend</dt>
+            <dt className="text-[11px] text-textMuted">Above their trend</dt>
             <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${facts.breadth >= 55 ? 'text-bull' : facts.breadth <= 40 ? 'text-bear' : 'text-textPrimary'}`} data-stocks-breadth>
               {facts.breadth}%
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Leading sector</dt>
+            <dt className="text-[11px] text-textMuted">Leading sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-leader>
               <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
                 {top.sector}
@@ -334,7 +334,7 @@ const Stocks = () => {
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Trailing sector</dt>
+            <dt className="text-[11px] text-textMuted">Trailing sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-trailer>
               <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
                 {bottom.sector}
@@ -357,9 +357,9 @@ const Stocks = () => {
       </p>
       {/* THE ROTATION */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-stocks-rotation>
-        <div className="h-[26px] flex items-center gap-3 text-[10px] font-semibold uppercase tracking-widest text-textPrimary">
+        <div className="h-[26px] flex items-center gap-3 text-[11px] font-semibold uppercase tracking-widest text-textPrimary">
           <span>The rotation</span>
-          <span className="normal-case tracking-normal font-normal text-[10px] text-textSecondary">every sector ranked by its names' screens, leader first · the two windows against the tape · click a sector to keep the grid to its names</span>
+          <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">every sector ranked by its names' screens, leader first · the two windows against the tape · click a sector to keep the grid to its names</span>
         </div>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${ROTATION_SECTORS}, minmax(0, 1fr))` }}>
           {sectors.map((s, i) => (
@@ -383,7 +383,7 @@ const Stocks = () => {
             animateRows={false}
             tooltipShowDelay={350}
             tooltipHideDelay={8000}
-            overlayNoRowsTemplate='<span class="font-mono text-[10px] uppercase tracking-widest text-textMuted">No name on this cut</span>'
+            overlayNoRowsTemplate='<span class="font-mono text-[11px] uppercase tracking-widest text-textMuted">No name on this cut</span>'
           />
         </AgGridProvider>
       </div>

@@ -147,7 +147,7 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
               chevron: '',
               month_grid: 'w-full border-collapse mt-1',
               weekdays: '',
-              weekday: 'h-7 text-[10px] font-normal text-textMuted text-center',
+              weekday: 'h-7 text-[11px] font-normal text-textMuted text-center',
               weeks: '',
               week: '',
               day: 'p-0 text-center',
@@ -161,12 +161,12 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
             }}
           />
           {note && (
-            <p className="mt-2 text-[10px] leading-snug text-textSecondary" data-expiry-card-note>
+            <p className="mt-2 text-[11px] leading-snug text-textSecondary" data-expiry-card-note>
               {note}
             </p>
           )}
           <div className="mt-2 pt-2 border-t border-borderSubtle/70 flex items-center justify-between gap-3">
-            <p className="text-[10px] text-textMuted">{free ? `Any trading day up to ${free.days} days out.` : 'The lit days are the expiries this desk prices.'}</p>
+            <p className="text-[11px] text-textMuted">{free ? `Any trading day up to ${free.days} days out.` : 'The lit days are the expiries this desk prices.'}</p>
             {/* a choice that is not a day (the book's "Every expiry") sits at the foot, alone */}
             {choices
               .filter(c => !c.date)
@@ -180,7 +180,7 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
                     aria-pressed={on}
                     disabled={c.disabled}
                     title={c.hint}
-                    className="shrink-0 h-6 px-2 rounded-full border text-[10px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="shrink-0 h-6 px-2 rounded-full border text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     style={on ? { background: SILVER_FILL, color: '#0a0a0a', borderColor: SILVER_FILL } : { color: 'rgb(var(--text-secondary))', borderColor: 'rgb(var(--border-muted))' }}
                     data-expiry-choice={String(c.value)}
                   >

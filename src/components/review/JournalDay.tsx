@@ -89,7 +89,7 @@ export const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; h
     <label className="flex flex-col gap-1.5 min-w-0">
       <span className="flex items-baseline justify-between gap-3">
         <span className="text-[12px] font-medium text-textPrimary">{ask}</span>
-        <span className={`inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
+        <span className={`inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest transition-colors ${mark === 'kept' ? 'text-silver' : 'text-textMuted'}`} data-journal-kept={mark} aria-live="polite">
           {mark === 'keeping' && 'Keeping…'}
           {mark === 'kept' && (
             <>
@@ -205,7 +205,7 @@ const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, co
                     if (!p.row) return <div className="font-mono text-[11px] text-textSecondary">Before the day’s first close</div>;
                     return (
                       <div className="font-mono text-[11px] tnum">
-                        <div className="text-[10px] text-textMuted">{fmtClockLocal(h.time as UTCTimestamp, 'ny')} New York</div>
+                        <div className="text-[11px] text-textMuted">{fmtClockLocal(h.time as UTCTimestamp, 'ny')} New York</div>
                         <div className="mt-0.5 text-textPrimary truncate">{titleOf(p.row)}</div>
                         <div className={`mt-0.5 font-semibold ${dirInk(p.row.t.pnl)}`}>{usdSigned(p.row.t.pnl)} on it</div>
                         <div className="mt-0.5 text-textSecondary">
@@ -224,7 +224,7 @@ const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, co
               <div className="flex items-center gap-4 flex-wrap">
                 <span className={headWord}>Your words on the day</span>
                 {holders.length > 1 && <CardTabs options={holders.map(h => ({ value: h.id, label: h.name }))} value={shown.id} onChange={setHolder} ariaLabel="Whose words" />}
-                {holders.length === 1 && rows.length === 0 && <span className="font-mono text-[10px] text-textMuted truncate">{shown.name}</span>}
+                {holders.length === 1 && rows.length === 0 && <span className="font-mono text-[11px] text-textMuted truncate">{shown.name}</span>}
               </div>
               <div className={`grid gap-4 ${rows.length ? '' : 'sm:grid-cols-2'}`} data-journal-day-holder={shown.id}>
                 {NOTES.map(n => (

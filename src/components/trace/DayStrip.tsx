@@ -160,7 +160,7 @@ const DayStrip = ({
 
         {/* The readout, pinned — glass enough to whisper over whatever it covers. */}
         {readout && (
-          <span className="pointer-events-none absolute top-0.5 right-0 z-10 px-1.5 py-0.5 rounded border border-borderSubtle bg-panel/70 backdrop-blur-sm font-mono text-[10px] tnum whitespace-nowrap text-textSecondary">
+          <span className="pointer-events-none absolute top-0.5 right-0 z-10 px-1.5 py-0.5 rounded border border-borderSubtle bg-panel/70 backdrop-blur-sm font-mono text-[11px] tnum whitespace-nowrap text-textSecondary">
             <span className={hover !== null && hover !== selectedIdx ? 'text-textPrimary' : 'text-silver'}>
               {readout}
             </span>
@@ -169,7 +169,7 @@ const DayStrip = ({
       </div>
 
       {/* The axis: every mark at its own x, the open and close brighter, "now" in status ink. */}
-      <div className="relative h-4 font-mono text-[10px] text-textMuted tnum">
+      <div className="relative h-4 font-mono text-[11px] text-textMuted tnum">
         {TICKS.map(t => {
           // "now" owns its neighbourhood: a fixed mark within a label's width of it steps aside.
           const near = nowMin !== null && Math.abs(t.min - nowMin) < 45;

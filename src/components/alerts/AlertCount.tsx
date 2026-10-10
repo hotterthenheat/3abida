@@ -33,7 +33,7 @@ export function useAlertCounts(): AlertCounts {
 /** The count at a row's end: the red square for what is new, else "N set" */
 export const AlertBadge = ({ counts, className = '' }: { counts: AlertCounts; className?: string }) =>
   counts.unseen > 0 ? (
-    <span className={`min-w-[18px] h-[18px] px-1 rounded-md bg-bear text-white font-mono text-[10px] font-bold leading-[18px] text-center tnum ${className}`} data-alerts-count aria-hidden>
+    <span className={`min-w-[18px] h-[18px] px-1 rounded-md bg-bear text-white font-mono text-[11px] font-bold leading-[18px] text-center tnum ${className}`} data-alerts-count aria-hidden>
       {counts.unseen > 99 ? '99+' : counts.unseen}
     </span>
   ) : counts.set > 0 ? (

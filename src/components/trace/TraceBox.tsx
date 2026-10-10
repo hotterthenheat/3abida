@@ -48,7 +48,7 @@ const TRACE_PHONE_THEME = GRID_THEME.withParams({ rowHeight: 58, headerHeight: 0
 
 export const Fact = ({ label, children, testId, title }: { label: string; children: ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0" title={title}>
-    <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+    <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-trace-fact={testId}>
       {children}
     </dd>
@@ -63,7 +63,7 @@ const INK: Record<Ink, string> = { supreme: 'text-supreme', bull: 'text-bull', b
 /** A champion: the label in its ink, the row's words as a door onto the row */
 export const Champion = ({ label, ink, onOpen, children, testId, title = "Open the contract's card" }: { label: string; ink: Ink; onOpen: () => void; children: ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0">
-    <dt className={`text-[10px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
+    <dt className={`text-[11px] whitespace-nowrap ${INK[ink]}`}>{label}</dt>
     <dd className="mt-0.5 whitespace-nowrap" data-trace-champion={testId}>
       {/* the door's own hover, silver (door.ts) — it underlined on hover before 2026-09-16 */}
       <button type="button" onClick={onOpen} title={title} className="hit font-mono text-[12px] tnum font-semibold text-textPrimary hover:text-silver transition-colors">

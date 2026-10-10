@@ -34,7 +34,7 @@ const NewsWidget = () => {
     <div className="h-full min-h-0 flex flex-col">
       <div className="shrink-0 px-2 py-1.5 border-b border-borderSubtle/60 flex items-center gap-2">
         <DropdownSelect label="Beat" value={filter} options={FILTERS} onChange={setFilter} title="Which beat of the wire" testId="news-beat" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted tnum">{rows.length} on the wire</span>
+        <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted tnum">{rows.length} on the wire</span>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
         {rows.map(n => {
@@ -49,14 +49,14 @@ const NewsWidget = () => {
             >
               <span className="flex items-center gap-2 min-w-0">
                 <CatTag category={n.category} size={9} />
-                {n.ticker && <span className="font-mono text-[10px] font-bold text-textPrimary">{n.ticker}</span>}
-                <span className="ml-auto font-mono text-[9px] text-textMuted whitespace-nowrap">
+                {n.ticker && <span className="font-mono text-[11px] font-bold text-textPrimary">{n.ticker}</span>}
+                <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap">
                   {n.source} · {n.time}
                 </span>
               </span>
               <span className="block text-[11px] text-textPrimary leading-snug line-clamp-2">{n.headline}</span>
               {/* The model's read — the direction the wire implies, in the market's ink */}
-              <span className="flex items-center gap-2 font-mono text-[10px] tnum">
+              <span className="flex items-center gap-2 font-mono text-[11px] tnum">
                 <span className={`font-semibold ${tone}`}>
                   {move > 0 ? '+' : ''}
                   {move.toFixed(1)}% next session

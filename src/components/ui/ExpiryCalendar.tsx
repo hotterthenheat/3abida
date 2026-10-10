@@ -166,7 +166,7 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Ico
 
             <div className="grid grid-cols-7 gap-1 mb-1.5">
               {DOW.map((d, i) => (
-                <span key={i} className="text-center font-mono text-[10px] uppercase text-textMuted">
+                <span key={i} className="text-center font-mono text-[11px] uppercase text-textMuted">
                   {d}
                 </span>
               ))}

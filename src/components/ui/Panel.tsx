@@ -63,7 +63,7 @@ const Panel = ({
               </h3>
             )}
             {subtitle && (
-              <span className="font-mono text-[10px] text-textSecondary uppercase tracking-wider truncate">{subtitle}</span>
+              <span className="font-mono text-[11px] text-textSecondary uppercase tracking-wider truncate">{subtitle}</span>
             )}
           </div>
           {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}

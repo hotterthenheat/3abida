@@ -141,7 +141,7 @@ const ExpiryPicker = ({ value, onChange, testId, width = 150 }: ExpiryPickerProp
               chevron: '',
               month_grid: 'w-full border-collapse mt-1',
               weekdays: '',
-              weekday: 'h-7 text-[10px] font-normal text-textMuted text-center',
+              weekday: 'h-7 text-[11px] font-normal text-textMuted text-center',
               weeks: '',
               week: '',
               day: 'p-0 text-center',
@@ -154,7 +154,7 @@ const ExpiryPicker = ({ value, onChange, testId, width = 150 }: ExpiryPickerProp
               focused: '',
             }}
           />
-          <p className="mt-2 pt-2 border-t border-borderSubtle/70 text-[10px] text-textMuted">Only trading days can be picked.</p>
+          <p className="mt-2 pt-2 border-t border-borderSubtle/70 text-[11px] text-textMuted">Only trading days can be picked.</p>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

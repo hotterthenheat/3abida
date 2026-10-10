@@ -99,7 +99,7 @@ const NameCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
-        <span className="text-[10px] text-textMuted truncate">{tickerName(data.ticker)}</span>
+        <span className="text-[11px] text-textMuted truncate">{tickerName(data.ticker)}</span>
       </span>
     </span>
   ) : null;
@@ -108,7 +108,7 @@ const WhoCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
   data ? (
     <span className="flex flex-col leading-tight min-w-0">
       <span className="text-[12px] font-semibold text-textPrimary truncate">{data.person}</span>
-      <span className="text-[10px] text-textMuted truncate">{data.role}</span>
+      <span className="text-[11px] text-textMuted truncate">{data.role}</span>
     </span>
   ) : null;
 
@@ -123,7 +123,7 @@ const TradeCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
       </span>
     );
   return (
-    <span className="font-mono text-[10px] text-textMuted" title={meta.note}>
+    <span className="font-mono text-[11px] text-textMuted" title={meta.note}>
       {meta.label}
     </span>
   );
@@ -137,12 +137,12 @@ const StakeCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span
 /** Chosen, planned or unstated — the flag the whole page turns on */
 const PlanCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
   if (!data) return null;
-  if (!TX_CODES[data.code].openMarket) return <span className="font-mono text-[10px] text-textMuted">—</span>;
-  if (data.plan === 'plan') return <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted" title="Ran off a 10b5-1 plan adopted months earlier — no view on the day">planned</span>;
-  if (data.plan === 'unknown') return <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted" title="The filing carried no plan box either way">unstated</span>;
+  if (!TX_CODES[data.code].openMarket) return <span className="font-mono text-[11px] text-textMuted">—</span>;
+  if (data.plan === 'plan') return <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted" title="Ran off a 10b5-1 plan adopted months earlier — no view on the day">planned</span>;
+  if (data.plan === 'unknown') return <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted" title="The filing carried no plan box either way">unstated</span>;
   const loud = isChosenBuy(data);
   return (
-    <span className={`font-mono text-[10px] uppercase tracking-widest ${loud ? 'text-textPrimary font-bold' : 'text-textSecondary'}`} title={loud ? 'A purchase the insider chose to make with their own money — the loudest row here' : 'A trade the insider chose to make'}>
+    <span className={`font-mono text-[11px] uppercase tracking-widest ${loud ? 'text-textPrimary font-bold' : 'text-textSecondary'}`} title={loud ? 'A purchase the insider chose to make with their own money — the loudest row here' : 'A trade the insider chose to make'}>
       chosen
     </span>
   );
@@ -150,7 +150,7 @@ const PlanCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
 
 const OthersCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
   if (!data) return null;
-  if (data.clusterCount < 2) return <span className="font-mono text-[10px] text-textMuted">—</span>;
+  if (data.clusterCount < 2) return <span className="font-mono text-[11px] text-textMuted">—</span>;
   return (
     <span className="font-mono text-[11px] tnum text-textPrimary" title={`${data.clusterCount} filers did the same in this name inside 30 days`}>
       {data.clusterCount} filers
@@ -180,16 +180,16 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
       <span className="flex items-center gap-2 min-w-0">
         <CompanyLogo ticker={f.ticker} size={18} />
         <span className="font-mono text-[12px] font-bold text-textPrimary">{f.ticker}</span>
-        <span className="text-[10px] text-textSecondary truncate">{tickerName(f.ticker)}</span>
+        <span className="text-[11px] text-textSecondary truncate">{tickerName(f.ticker)}</span>
       </span>
       <span className="mt-1.5 flex items-baseline gap-2 font-mono tnum">
         <span className="text-[13px] font-bold text-bull">{fmtDollars(f.openMarketBuys)}</span>
-        <span className="text-[10px] text-textSecondary">chosen buying</span>
-        <span className="ml-auto text-[10px] text-textPrimary">
+        <span className="text-[11px] text-textSecondary">chosen buying</span>
+        <span className="ml-auto text-[11px] text-textPrimary">
           {buyers} {buyers === 1 ? 'buyer' : 'buyers'}
         </span>
       </span>
-      <span className={`mt-1 block font-mono text-[10px] uppercase tracking-widest ${s.ink}`}>{s.word}</span>
+      <span className={`mt-1 block font-mono text-[11px] uppercase tracking-widest ${s.ink}`}>{s.word}</span>
     </button>
   );
 };
@@ -316,25 +316,25 @@ const Insiders = () => {
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
-            <dt className="text-[10px] text-textMuted">Filings</dt>
+            <dt className="text-[11px] text-textMuted">Filings</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-insiders-count>
               {facts.filings}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Chosen buying</dt>
+            <dt className="text-[11px] text-textMuted">Chosen buying</dt>
             <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${facts.chosen > 0 ? 'text-bull' : 'text-textMuted'}`} data-insiders-chosen>
               {facts.chosen > 0 ? fmtDollars(facts.chosen) : 'none'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Sold in the market</dt>
+            <dt className="text-[11px] text-textMuted">Sold in the market</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-insiders-sold>
               {facts.sold > 0 ? fmtDollars(facts.sold) : 'none'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Sales on a plan</dt>
+            <dt className="text-[11px] text-textMuted">Sales on a plan</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-insiders-planned>
               {facts.plannedPct == null ? '—' : `${facts.plannedPct}%`}
             </dd>
@@ -356,12 +356,12 @@ const Insiders = () => {
       </p>
       {/* THE NAMES TO KNOW */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-insiders-to-know>
-        <div className="h-[26px] flex items-center gap-3 text-[10px] font-semibold uppercase tracking-widest text-textPrimary">
+        <div className="h-[26px] flex items-center gap-3 text-[11px] font-semibold uppercase tracking-widest text-textPrimary">
           <span>The names to know</span>
-          <span className="normal-case tracking-normal font-normal text-[10px] text-textSecondary">where someone chose to buy with their own money in the last {window} days, heaviest first · click a name to keep the grid to it</span>
+          <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">where someone chose to buy with their own money in the last {window} days, heaviest first · click a name to keep the grid to it</span>
         </div>
         {toKnow.length === 0 ? (
-          <div className="h-[70px] flex items-center font-mono text-[10px] uppercase tracking-widest text-textMuted">No insider chose to buy in this window</div>
+          <div className="h-[70px] flex items-center font-mono text-[11px] uppercase tracking-widest text-textMuted">No insider chose to buy in this window</div>
         ) : (
           <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${NAMES_TO_KNOW}, minmax(0, 1fr))` }}>
             {toKnow.map(f => (

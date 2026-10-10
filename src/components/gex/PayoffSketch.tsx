@@ -336,27 +336,27 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
         >
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[12px] font-semibold tnum text-textPrimary">{pt.price.toFixed(2)}</span>
-            <span className="font-mono text-[10px] tnum text-textMuted">
+            <span className="font-mono text-[11px] tnum text-textMuted">
               {pt.price >= spot ? '+' : ''}
               {(((pt.price - spot) / spot) * 100).toFixed(2)}% from now
             </span>
           </div>
           <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 items-baseline">
-            <dt className="text-[10px] text-textMuted">At expiry</dt>
+            <dt className="text-[11px] text-textMuted">At expiry</dt>
             <dd className={`font-mono text-[11px] font-semibold tnum text-right ${pt.expiry > 0 ? 'text-bull' : pt.expiry < 0 ? 'text-bear' : 'text-textPrimary'}`}>{fmtPnl(pt.expiry)}</dd>
-            <dt className="text-[10px] text-textMuted">Today</dt>
+            <dt className="text-[11px] text-textMuted">Today</dt>
             <dd className={`font-mono text-[11px] tnum text-right ${pt.now > 0 ? 'text-bull' : pt.now < 0 ? 'text-bear' : 'text-textPrimary'}`}>{fmtPnl(pt.now)}</dd>
           </dl>
           {chance != null && (
             /* a chance, said as one — never a "win rate" */
-            <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[10px] leading-snug text-textSecondary" data-odds-read>
+            <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[11px] leading-snug text-textSecondary" data-odds-read>
               Chance it finishes above at expiry <span className="font-mono tnum text-textPrimary">{Math.round(chance * 100)}%</span>
               <br />
               below <span className="font-mono tnum text-textPrimary">{Math.round((1 - chance) * 100)}%</span>
               <span className="text-textMuted"> · from the contract's own vol</span>
             </p>
           )}
-          <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[10px] leading-snug text-textSecondary whitespace-nowrap">
+          <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[11px] leading-snug text-textSecondary whitespace-nowrap">
             {words.dealers}
             <br />
             <span className={words.withYou ? 'text-bull' : 'text-bear'}>{words.withYou ? 'with you' : 'against you'}</span>

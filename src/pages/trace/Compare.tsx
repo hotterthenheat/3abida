@@ -388,7 +388,7 @@ const Compare = () => {
 
   const head = (s: Side, which: 'A' | 'B') => (
     <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle" data-compare-head={which}>
-      <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">{which}</span>
+      <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">{which}</span>
       <CompanyLogo ticker={s.ticker} size={16} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{s.ticker}</span>
       <span className="font-mono text-[11px] tnum text-textPrimary">${s.spot.toFixed(2)}</span>
@@ -404,9 +404,9 @@ const Compare = () => {
       {s.heaviest.map(r => (
         <button key={r.key} type="button" onClick={() => openRow(r)} className={`flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 text-left transition-colors ${openKey === r.key ? 'bg-silver/[0.06]' : 'hover:bg-silver/[0.04]'}`} title="Open the contract's card">
           <ContractLabel contract={`${r.ticker} ${r.strike}${r.right}`} right={r.right} logo={r.ticker} size="sm" />
-          <span className="font-mono text-[10px] tnum text-textPrimary">{r.expiry} · {r.dte}d</span>
+          <span className="font-mono text-[11px] tnum text-textPrimary">{r.expiry} · {r.dte}d</span>
           <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(r.premium)}</span>
-          <span className="font-mono text-[10px] tnum text-textPrimary w-16 text-right">{num(r.volume)} vol</span>
+          <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{num(r.volume)} vol</span>
           <LeanCell askPct={r.askPct} />
         </button>
       ))}
@@ -415,7 +415,7 @@ const Compare = () => {
 
   const structures = (s: Side) => (
     <div className="flex flex-col" data-compare-structures={s.ticker}>
-      {s.structures.length === 0 && <span className="px-3 py-4 font-mono text-[10px] uppercase tracking-widest text-textSecondary">No structures on <Name t={s.ticker} size={12} /> on this cut</span>}
+      {s.structures.length === 0 && <span className="px-3 py-4 font-mono text-[11px] uppercase tracking-widest text-textSecondary">No structures on <Name t={s.ticker} size={12} /> on this cut</span>}
       {[...s.structures]
         .sort((a, b) => b.premium - a.premium)
         .slice(0, 5)
@@ -424,9 +424,9 @@ const Compare = () => {
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: KIND_DOT[t.kind] }} />
             <span className="font-mono text-[11px] font-semibold text-textPrimary w-20">{KIND_LABEL[t.kind]}</span>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{t.strikesLabel}</span>
-            <span className="font-mono text-[10px] tnum text-textPrimary">{t.expiry} · {t.dte}d</span>
+            <span className="font-mono text-[11px] tnum text-textPrimary">{t.expiry} · {t.dte}d</span>
             <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">
-              ${Math.abs(t.net).toFixed(2)} <span className="text-[10px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
+              ${Math.abs(t.net).toFixed(2)} <span className="text-[11px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
             </span>
             <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{fmtUsd(t.premium)}</span>
           </div>
@@ -472,14 +472,14 @@ const Compare = () => {
             {/* A, vs, B and the swap stand together on one line, on a phone too (the audit's TR-65) */}
             <span className="inline-flex max-sm:flex items-center gap-2" data-span data-compare-names>
               <span className="inline-flex items-center gap-1.5 min-w-0 max-sm:flex-1" data-compare-pick="a">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary" aria-hidden>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary" aria-hidden>
                   A
                 </span>
                 <FlowSearch value={aQuery} onChange={pickA} rows={book} countNoun="contracts" tickersOnly compact label="Name A" />
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">vs</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">vs</span>
               <span className="inline-flex items-center gap-1.5 min-w-0 max-sm:flex-1" data-compare-pick="b">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary" aria-hidden>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary" aria-hidden>
                   B
                 </span>
                 <FlowSearch value={bQuery} onChange={pickB} rows={book} countNoun="contracts" tickersOnly compact label="Name B" />
@@ -511,7 +511,7 @@ const Compare = () => {
                 <NetFlowPane book={cutRows} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={s.ticker} tenor={tenor} onTenor={setTenor} dteMax={Infinity} sharedNote="sets both panes" />
               </div>
               {/* the same-day money under the pane — the 0DTE desk's figures for the name */}
-              <div className="flex items-center gap-x-4 gap-y-0.5 flex-wrap px-3 min-h-8 py-1 border-t border-b border-borderSubtle font-mono text-[10px] tnum" data-compare-odte={s.ticker}>
+              <div className="flex items-center gap-x-4 gap-y-0.5 flex-wrap px-3 min-h-8 py-1 border-t border-b border-borderSubtle font-mono text-[11px] tnum" data-compare-odte={s.ticker}>
                 <span className="uppercase tracking-widest text-textSecondary">Same-day</span>
                 <span>
                   <Lean v={s.odteNet} className="font-normal" /> net
@@ -533,7 +533,7 @@ const Compare = () => {
         {/* THE LEDGER */}
         <div data-compare-ledger>
           {/* auto columns, rows that grow: on a phone B ran off the screen and two-line labels sat on the next row (TR-61) */}
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] sm:grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] gap-x-3 items-center px-5 max-sm:px-4 min-h-8 py-1 border-b border-borderSubtle font-mono text-[10px] uppercase tracking-widest text-textSecondary">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] sm:grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] gap-x-3 items-center px-5 max-sm:px-4 min-h-8 py-1 border-b border-borderSubtle font-mono text-[11px] uppercase tracking-widest text-textSecondary">
             <span>Fact</span>
             <span className="inline-flex items-center gap-1.5 justify-end">
               <CompanyLogo ticker={A} size={12} /> {A}
@@ -544,7 +544,7 @@ const Compare = () => {
           </div>
           {bands.map(band => (
             <div key={band.group}>
-              <div className="px-5 pt-2.5 pb-1 text-[10px] font-semibold text-textPrimary">{band.group}</div>
+              <div className="px-5 pt-2.5 pb-1 text-[11px] font-semibold text-textPrimary">{band.group}</div>
               {band.rows.map(r => (
                 <div key={r.label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] sm:grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] gap-x-3 items-center px-5 max-sm:px-4 min-h-8 py-1 border-t border-borderSubtle/50 font-mono text-[11px] tnum" title={r.hint} data-compare-row={r.label}>
                   <span className="text-textPrimary">{r.label}</span>
@@ -577,19 +577,19 @@ const Compare = () => {
               <div className="px-3 pt-3 pb-1.5 flex items-center gap-2">
                 <CompanyLogo ticker={s.ticker} size={14} />
                 <h3 className="text-[11px] font-semibold text-textPrimary">{s.ticker}'s heaviest contracts</h3>
-                <span className="text-[10px] text-textSecondary">· by dollars · a row opens the card</span>
+                <span className="text-[11px] text-textSecondary">· by dollars · a row opens the card</span>
               </div>
               {contracts(s)}
               <div className="px-3 pt-3 pb-1.5 flex items-center gap-2">
                 <CompanyLogo ticker={s.ticker} size={14} />
                 <h3 className="text-[11px] font-semibold text-textPrimary">{s.ticker}'s structures</h3>
-                <span className="text-[10px] text-textSecondary">· the tape reconstructed · heaviest first</span>
+                <span className="text-[11px] text-textSecondary">· the tape reconstructed · heaviest first</span>
               </div>
               {structures(s)}
             </div>
           ))}
         </div>
-        <div className="px-5 py-2 text-[10px] text-textSecondary border-t border-borderSubtle">
+        <div className="px-5 py-2 text-[11px] text-textSecondary border-t border-borderSubtle">
           Only names on today's book can be compared — the searches offer exactly those. <ReadDoor onOpen={() => setAQuery(activeTicker)} title="Put the terminal's name on A">Put {activeTicker} on A</ReadDoor>.
         </div>
       </TraceBox>

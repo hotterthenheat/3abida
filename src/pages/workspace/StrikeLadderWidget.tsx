@@ -182,7 +182,7 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
         {full && (
           <button
             onClick={close}
-            className="group inline-flex items-center gap-1.5 border border-borderSubtle hover:border-borderMuted rounded-md px-2.5 py-1 font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors"
+            className="group inline-flex items-center gap-1.5 border border-borderSubtle hover:border-borderMuted rounded-md px-2.5 py-1 font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
           >
             <ArrowLeft className="w-3 h-3 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> Back
           </button>

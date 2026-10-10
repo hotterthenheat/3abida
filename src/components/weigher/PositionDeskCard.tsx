@@ -53,7 +53,7 @@ import type { ExposureProfileData } from '../../types/gex';
 import { daysSince, dirInk, fmtStrike, monthDay, rSigned, usdSigned, type ListRow } from './PositionsList';
 
 const DOOR_CLS =
-  'hit inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
+  'hit inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
 const VERDICT_WORD: Record<Verdict, string> = { with: 'Hedging with you', against: 'Hedging against you', mixed: 'Hedging both ways' };
 const VERDICT_CLS: Record<Verdict, string> = { with: 'bg-bull/10 text-bull border-bull/20', against: 'bg-bear/10 text-bear border-bear/20', mixed: 'bg-ink/[0.05] text-textSecondary border-borderSubtle' };
 const VIEWS = [
@@ -65,7 +65,7 @@ type View = (typeof VIEWS)[number]['value'];
 /** One of the five facts under the sketch — the Position card's own grammar */
 const Fact5 = ({ k, v, tone }: { k: string; v: React.ReactNode; tone?: string }) => (
   <div className="min-w-0">
-    <dt className="text-[10px] text-textMuted truncate">{k}</dt>
+    <dt className="text-[11px] text-textMuted truncate">{k}</dt>
     <dd className={`mt-0.5 font-mono text-[12px] tnum leading-snug ${tone ?? 'text-textPrimary'}`}>{v}</dd>
   </div>
 );
@@ -190,7 +190,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
           <span className="max-w-[340px] text-[12px] leading-relaxed text-textMuted">Watch it marks the contract at this tick's price — its projected returns land here.</span>
         </div>
         <div className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap" data-contract-foot>
-          <span className="font-mono text-[10px] text-textMuted">Not on your list — Watch it marks it at this tick's price</span>
+          <span className="font-mono text-[11px] text-textMuted">Not on your list — Watch it marks it at this tick's price</span>
           <span className="ml-auto flex items-center gap-1.5">
             {onWatch && (
               <button onClick={onWatch} className={DOOR_CLS} title="Watch it — marked at this tick's price, tracked as if bought" data-watch-door="watch">
@@ -234,7 +234,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                 contract price, and the clock */}
             <div className="flex items-end gap-4 flex-wrap" data-sim-figures>
               <div className="min-w-0">
-                <span className="block font-mono text-[10px] uppercase tracking-wider text-textMuted">Projected return</span>
+                <span className="block font-mono text-[11px] uppercase tracking-wider text-textMuted">Projected return</span>
                 <span className={`block font-mono text-[26px] font-bold tnum leading-none mt-1 ${dirInk(retNow)}`} data-sim-return>
                   {fmtPnl(retNow)}
                 </span>
@@ -246,7 +246,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                   </span>{' '}
                   <span className="text-textMuted">estimated contract price</span>
                 </span>
-                <span className="block mt-0.5 font-mono text-[10px] text-textSecondary" data-sim-clock>
+                <span className="block mt-0.5 font-mono text-[11px] text-textSecondary" data-sim-clock>
                   Now · {sessions} DTE{Math.abs(at - spot) > 0.005 ? ` · at ${at.toFixed(2)}, ${((at / spot - 1) * 100).toFixed(2)}% from now` : ' · at the market'}
                 </span>
               </div>
@@ -280,7 +280,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                         <>
                           <span className="font-mono text-[11px] font-semibold text-textPrimary tnum">{s ? s.when : '—'}</span>
                           {s && (
-                            <span className={`font-mono text-[10px] tnum ${dirInk(s.value)}`}>
+                            <span className={`font-mono text-[11px] tnum ${dirInk(s.value)}`}>
                               {fmtPnl(s.value)} · worth ${s.worth.toFixed(2)} at {at.toFixed(2)}
                             </span>
                           )}
@@ -291,7 +291,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                 </div>
               ) : (
                 <div className="min-h-[96px] flex items-center justify-center rounded-md border border-borderSubtle/60 bg-ink/[0.02]" data-sim-today>
-                  <span className="font-mono text-[10px] text-textMuted">
+                  <span className="font-mono text-[11px] text-textMuted">
                     Expires today — at the bell, at {at.toFixed(2)}, this reads <span className={dirInk(series[series.length - 1]?.value ?? 0)}>{fmtPnl(series[series.length - 1]?.value ?? 0)}</span>
                   </span>
                 </div>
@@ -322,7 +322,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
         ) : (
           /* Robinhood's "only available for active positions", as one quiet line */
           <div className="min-h-[96px] flex items-center justify-center rounded-md border border-borderSubtle/60 bg-ink/[0.02]" data-sim-settled>
-            <span className="font-mono text-[10px] text-textMuted">
+            <span className="font-mono text-[11px] text-textMuted">
               {w ? (w.status === 'closed' ? 'Closed by hand' : 'Settled at the bell') : `Expired ${monthDay(pos.expiry)} — settled`} — projected returns are for open positions
             </span>
           </div>
@@ -338,7 +338,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
               <Fact5 k="Today's return" v={open ? `${usdSigned(row.r.todayDollars)} · ${rSigned(row.r.todayR)}` : '—'} tone={open ? dirInk(row.r.todayDollars) : 'text-textMuted'} />
               <Fact5 k="Total return" v={`${usdSigned(row.r.totalDollars)} · ${rSigned(row.r.totalR)}`} tone={dirInk(row.r.totalDollars)} />
               <div className="min-w-0">
-                <dt className="text-[10px] text-textMuted truncate">Contracts</dt>
+                <dt className="text-[11px] text-textMuted truncate">Contracts</dt>
                 <dd className="mt-0.5 inline-flex items-center gap-1 font-mono text-[12px] tnum leading-snug text-textPrimary">
                   <button type="button" onClick={() => setWatchedSize(row.w.id, row.w.size - 1)} disabled={row.w.size <= 1 || !open} className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle text-textMuted hover:text-textPrimary disabled:opacity-30 transition-colors" aria-label="One contract fewer" data-watch-size="less">
                     <Minus className="w-2.5 h-2.5" />
@@ -347,7 +347,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
                   <button type="button" onClick={() => setWatchedSize(row.w.id, row.w.size + 1)} disabled={!open} className="hit inline-flex items-center justify-center w-5 h-5 rounded border border-borderSubtle text-textMuted hover:text-textPrimary disabled:opacity-30 transition-colors" aria-label="One contract more" data-watch-size="more">
                     <Plus className="w-2.5 h-2.5" />
                   </button>
-                  <span className="ml-1 text-[10px] text-textMuted">
+                  <span className="ml-1 text-[11px] text-textMuted">
                     · added <When days={daysSince(row.w.addedAt)} size={10} />
                   </span>
                 </dd>
@@ -382,7 +382,7 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
 
       {/* THE FOOT, pinned: where the contract stands with the reader, then the doors */}
       <div key={`ft-${row.id}`} className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/60 flex items-center gap-2 flex-wrap animate-soft-in" data-contract-foot>
-        <span className="font-mono text-[10px] text-textPrimary">
+        <span className="font-mono text-[11px] text-textPrimary">
           {row.kind === 'watch' ? 'On your watchlist' : pos.side === 'long' ? 'A position you own' : 'A position you sold'}{' '}
           <span className="text-textMuted">
             · since {monthDay(isoDate(new Date(pos.addedAt)))}

@@ -88,7 +88,7 @@ const PickMenu = <V extends string>({
         aria-label={ariaLabel}
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-1 rounded border border-borderSubtle bg-ink/[0.03] px-2 py-1 text-[10px] text-textPrimary hover:border-borderMuted transition-colors"
+        className="w-full flex items-center gap-1 rounded border border-borderSubtle bg-ink/[0.03] px-2 py-1 text-[11px] text-textPrimary hover:border-borderMuted transition-colors"
       >
         <span className="truncate">{active?.label ?? value}</span>
         <ChevronDown className={`ml-auto w-3 h-3 shrink-0 text-textMuted transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -105,7 +105,7 @@ const PickMenu = <V extends string>({
                 onPick(o.value);
                 setOpen(false);
               }}
-              className={`w-full px-2.5 py-1.5 text-left text-[10.5px] transition-colors ${
+              className={`w-full px-2.5 py-1.5 text-left text-[11px] transition-colors ${
                 o.value === value ? 'bg-ink/[0.06] text-textPrimary font-semibold' : 'text-textSecondary hover:bg-ink/[0.04] hover:text-textPrimary'
               }`}
             >
@@ -164,7 +164,7 @@ const CommaInput = ({
         setText(shown);
         onChange(parseNum(shown));
       }}
-      className="shrink-0 w-[92px] bg-ink/[0.04] border border-borderSubtle rounded px-1.5 py-1 font-mono text-[10px] tnum text-textPrimary text-right outline-none focus:border-borderMuted placeholder:text-textMuted/60"
+      className="shrink-0 w-[92px] bg-ink/[0.04] border border-borderSubtle rounded px-1.5 py-1 font-mono text-[11px] tnum text-textPrimary text-right outline-none focus:border-borderMuted placeholder:text-textMuted/60"
     />
   );
 };
@@ -268,7 +268,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
         onClick={toggle}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="hit inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] font-mono text-[10px] uppercase tracking-wider transition-colors"
+        className="hit inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] font-mono text-[11px] uppercase tracking-wider transition-colors"
       >
         <ListPlus className="w-3 h-3" />
         Your reasons
@@ -290,10 +290,10 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
           {!draft && (
             <>
               <div className="flex items-baseline justify-between mb-2">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">
+                <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">
                   Reasons you wrote
                 </span>
-                <span className="font-mono text-[10px] text-textMuted tnum">
+                <span className="font-mono text-[11px] text-textMuted tnum">
                   {reasons.length} of {MAX_REASONS}
                 </span>
               </div>
@@ -316,7 +316,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                         {r.name}
                       </button>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-[10px] text-textMuted tnum">
+                        <span className="font-mono text-[11px] text-textMuted tnum">
                           {reasonMatchCount(r, book)} today
                         </span>
                         {/* AT ONCE, WITH AN UNDO (the audit's X5) */}
@@ -334,7 +334,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                         </button>
                       </div>
                     </div>
-                    <div className="text-[10px] text-textSecondary leading-snug mt-0.5">{reasonSentence(r)}</div>
+                    <div className="text-[11px] text-textSecondary leading-snug mt-0.5">{reasonSentence(r)}</div>
                   </div>
                 ))}
               </div>
@@ -343,7 +343,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                 onClick={() => setDraft(blankDraft())}
                 disabled={full}
                 title={full ? `Ten reasons is the most a feed stays readable with` : undefined}
-                className={`w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                className={`w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors ${
                   full
                     ? 'border-borderSubtle text-textMuted cursor-not-allowed'
                     : 'border-borderMuted text-textPrimary hover:bg-ink/[0.05]'
@@ -358,7 +358,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
           {draft && (
             <>
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">
+                <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">
                   {draft.id ? 'Edit reason' : 'New reason'}
                 </span>
                 <button onClick={() => setDraft(null)} className="text-textMuted hover:text-textPrimary">
@@ -367,7 +367,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
               </div>
 
               <label className="block mb-2.5">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Call it</span>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Call it</span>
                 <input
                   type="text"
                   value={draft.name}
@@ -379,7 +379,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
               </label>
 
               <div className="mb-2.5">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted mb-1">Side</div>
+                <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted mb-1">Side</div>
                 <div className="flex flex-wrap gap-1">
                   {(['ANY', 'C', 'P'] as const).map(s => (
                     <Chip
@@ -393,7 +393,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                 </div>
               </div>
 
-              <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted mb-1">
+              <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted mb-1">
                 All of these are true
               </div>
               <div className="flex flex-col gap-1.5 mb-2">
@@ -461,7 +461,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                   setDraft(d => (d && d.terms.length < MAX_TERMS ? { ...d, terms: [...d.terms, freshTerm()] } : d))
                 }
                 disabled={draft.terms.length >= MAX_TERMS}
-                className={`inline-flex items-center gap-1 mb-2.5 font-mono text-[10px] transition-colors ${
+                className={`inline-flex items-center gap-1 mb-2.5 font-mono text-[11px] transition-colors ${
                   draft.terms.length >= MAX_TERMS
                     ? 'text-textMuted cursor-not-allowed'
                     : 'text-textSecondary hover:text-textPrimary'
@@ -473,7 +473,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
 
               {/* What it will say in the feed, and what it catches — live. */}
               <div className="border-t border-borderSubtle pt-2 mb-2.5">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted mb-1">
+                <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted mb-1">
                   Reads as
                 </div>
                 <div className={`text-[11px] leading-snug ${incomplete ? 'text-textMuted' : 'text-textPrimary'}`}>
@@ -484,7 +484,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                       : reasonSentence(preview)}
                 </div>
                 {previewCount !== null && !incomplete && (
-                  <div className="text-[10px] text-textSecondary mt-1 tnum">
+                  <div className="text-[11px] text-textSecondary mt-1 tnum">
                     Catches <span className="font-bold text-textPrimary">{previewCount}</span> of today&apos;s{' '}
                     {book.length.toLocaleString('en-US')} contracts
                     {previewCount === 0
@@ -500,7 +500,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                 <button
                   onClick={commit}
                   disabled={draft.terms.length === 0 || incomplete}
-                  className={`flex-1 px-2 py-1.5 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  className={`flex-1 px-2 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors ${
                     draft.terms.length === 0 || incomplete
                       ? 'border-borderSubtle text-textMuted cursor-not-allowed'
                       : 'border-borderMuted text-textPrimary hover:bg-ink/[0.05]'
@@ -510,7 +510,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                 </button>
                 <button
                   onClick={() => setDraft(null)}
-                  className="px-2 py-1.5 rounded border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                  className="px-2 py-1.5 rounded border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
                 >
                   Cancel
                 </button>

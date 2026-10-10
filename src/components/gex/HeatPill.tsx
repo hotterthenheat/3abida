@@ -117,7 +117,7 @@ const HeatPill = ({
       title={title}
       onClick={onClick}
       style={{ ...heat, textShadow: halo, ...(selected ? { boxShadow: ring(ringColor ?? SELECTION_INK) } : null), ...(fontSize ? { fontSize } : null) }}
-      className={`flex min-w-0 items-center justify-end gap-1 rounded-full ${tight ? 'px-1' : 'px-2'} font-mono text-[10px] font-bold tnum leading-none transition-colors duration-700 ${
+      className={`flex min-w-0 items-center justify-end gap-1 rounded-full ${tight ? 'px-1' : 'px-2'} font-mono text-[11px] font-bold tnum leading-none transition-colors duration-700 ${
         onClick ? 'cursor-pointer' : ''
       } ${className}`}
     >

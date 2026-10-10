@@ -310,7 +310,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
         },
       },
       { key: 'how', header: 'Ended', sortValue: r => r.t.how, render: r => <span className="text-textSecondary">{ENDED[r.t.how]}</span> },
-      { key: 'pnl', header: 'P&L', align: 'right', sortValue: r => r.t.pnl, render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[10px] font-normal text-textSecondary">{r.t.r != null ? rWords(r.t.r) : 'no R'}</span></span> },
+      { key: 'pnl', header: 'P&L', align: 'right', sortValue: r => r.t.pnl, render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[11px] font-normal text-textSecondary">{r.t.r != null ? rWords(r.t.r) : 'no R'}</span></span> },
     ],
     [source.containerWord]
   );
@@ -371,11 +371,11 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
             {source.containers.length > 1 && <span className="contents max-sm:block max-sm:col-span-2 max-sm:[&>button]:w-full max-sm:[&>button]:justify-between"><DropdownSelect label={source.containerWord === 'account' ? 'Account' : 'Session'} value={liveAccount ?? 'all'} options={accountOptions} onChange={v => set({ session: v === 'all' ? null : v, day: null })} title={`Which ${source.containerWord}’s trades`} testId="journal-account" /></span>}
             {/* THE SAMPLE ACCOUNTS (data/paper/sample.ts) — a made-up September the journal shows for now; the door hides it here */}
             {source.sample && (
-              <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the starter accounts out of the journal — your own trades stay' : 'Put the starter accounts back in'} className="hit ml-auto h-7 px-2 font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
+              <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the starter accounts out of the journal — your own trades stay' : 'Put the starter accounts back in'} className="hit ml-auto h-7 px-2 font-mono text-[11px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
                 {source.sample.shown ? 'Hide the starter accounts' : 'Show the starter accounts'}
               </button>
             )}
-            <button type="button" onClick={exportCsv} disabled={!rows.length} title="This period’s trades as a file a spreadsheet opens — with your tags and your words" className={`hit ${source.sample ? '' : 'ml-auto '}inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors`} data-journal-export>
+            <button type="button" onClick={exportCsv} disabled={!rows.length} title="This period’s trades as a file a spreadsheet opens — with your tags and your words" className={`hit ${source.sample ? '' : 'ml-auto '}inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 transition-colors`} data-journal-export>
               <Download className="w-3 h-3" /> CSV
             </button>
           </>
@@ -436,10 +436,10 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
         <div className={`${card} flex flex-col min-w-0`}>
           <div className={chartHead}>
             <span className={headWord}>The running total</span>
-            <span className="font-mono text-[10px] text-textMuted">a point a trade, in the order they closed · a press opens its day</span>
+            <span className="font-mono text-[11px] text-textMuted">a point a trade, in the order they closed · a press opens its day</span>
           </div>
           {rows.length === 0 ? (
-            <div className="px-5 pb-5 h-[236px] flex items-center justify-center font-mono text-[10px] text-textMuted">Nothing closed in this period</div>
+            <div className="px-5 pb-5 h-[236px] flex items-center justify-center font-mono text-[11px] text-textMuted">Nothing closed in this period</div>
           ) : (
             <div className="px-5 pb-5" data-journal-running>
               <SessionsChart
@@ -466,7 +466,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
                   if (!p.row) return <div className="font-mono text-[11px] text-textSecondary">Before the period’s first close — nothing made, nothing lost</div>;
                   return (
                     <div className="font-mono text-[11px] tnum">
-                      <div className="text-[10px] text-textMuted">{fmtStampLocal(instantOf(p.row, p.row.t.closed) as UTCTimestamp, 'ny')} · New York</div>
+                      <div className="text-[11px] text-textMuted">{fmtStampLocal(instantOf(p.row, p.row.t.closed) as UTCTimestamp, 'ny')} · New York</div>
                       <div className="mt-0.5 text-textPrimary truncate">{titleOf(p.row)}</div>
                       <div className={`mt-0.5 font-semibold ${dirInk(p.row.t.pnl)}`}>{usdSigned(p.row.t.pnl)} on it</div>
                       <div className="mt-0.5 text-textSecondary">
@@ -483,10 +483,10 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
         <div className={`${card} flex flex-col min-w-0`}>
           <div className={chartHead}>
             <span className={headWord}>What each day made</span>
-            <span className="font-mono text-[10px] text-textMuted">{oneDay && rows.length ? 'one day in this period' : 'a bar a day · a press opens the day'}</span>
+            <span className="font-mono text-[11px] text-textMuted">{oneDay && rows.length ? 'one day in this period' : 'a bar a day · a press opens the day'}</span>
           </div>
           {rows.length === 0 ? (
-            <div className="px-5 pb-5 h-[260px] flex items-center justify-center text-center font-mono text-[10px] text-textMuted">Nothing closed in this period</div>
+            <div className="px-5 pb-5 h-[260px] flex items-center justify-center text-center font-mono text-[11px] text-textMuted">Nothing closed in this period</div>
           ) : (
             <div className="px-5 pb-4 pt-2" data-journal-daily>
               <JournalDayBars days={daily} picked={livePicked} onPick={openDay} height={260} />
@@ -523,13 +523,13 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
       <div className={`${card} flex flex-col min-w-0`} data-journal-trades>
         <div className={chartHead}>
           <span className={headWord}>The trades</span>
-          <span className="font-mono text-[10px] tnum text-textMuted">{rows.length}</span>
-          <span className="ml-auto font-mono text-[10px] text-textMuted truncate">a row opens the trade — its chart, what it did while you held it, your tags and your words</span>
+          <span className="font-mono text-[11px] tnum text-textMuted">{rows.length}</span>
+          <span className="ml-auto font-mono text-[11px] text-textMuted truncate">a row opens the trade — its chart, what it did while you held it, your tags and your words</span>
         </div>
         <TraceGrid rows={newestFirst} columns={columns} rowKey={r => r.key} onRowClick={openTrade} autoHeight animate={false} widths={{ qty: 64, held: 96, closed: 150, inout: 176 }} emptyText="Nothing closed in this period" noun="trades" testId={testId} />
       </div>
       </Swap>
-      <p className="px-1 font-mono text-[10px] text-textMuted">{source.foot}</p>
+      <p className="px-1 font-mono text-[11px] text-textMuted">{source.foot}</p>
     </div>
   );
 };

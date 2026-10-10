@@ -477,7 +477,7 @@ const SessionsChart = ({ points, kind = 'area', ink, inkBelow, baseline = 0, bar
           {dayTicks.map(t => (
             <span
               key={t.label}
-              className="absolute top-[3px] font-mono text-[10px] tnum text-textMuted whitespace-nowrap"
+              className="absolute top-[3px] font-mono text-[11px] tnum text-textMuted whitespace-nowrap"
               style={{ left: t.left, transform: t.edge === 'start' ? 'translateX(6px)' : t.edge === 'end' ? 'translateX(calc(-100% - 6px))' : 'translateX(-50%)' }}
               data-day-tick={t.label}
             >
@@ -488,7 +488,7 @@ const SessionsChart = ({ points, kind = 'area', ink, inkBelow, baseline = 0, bar
         </div>
       )}
       {at && (hp || bar) && (
-        <div className={`absolute z-10 pointer-events-none rounded-md border px-2.5 py-2 flex flex-col gap-1 text-[10.5px] text-textSecondary ${kept ? 'border-silver/40' : 'border-borderSubtle'}`} style={{ left: at.left, top: at.top, width: cardW, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }} data-theme="dark" data-chart-glass data-sessions-card={kept ? 'kept' : 'hover'}>
+        <div className={`absolute z-10 pointer-events-none rounded-md border px-2.5 py-2 flex flex-col gap-1 text-[11px] text-textSecondary ${kept ? 'border-silver/40' : 'border-borderSubtle'}`} style={{ left: at.left, top: at.top, width: cardW, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }} data-theme="dark" data-chart-glass data-sessions-card={kept ? 'kept' : 'hover'}>
           {card({ time: at.time, point: hp, prev, bar, marks: onPoint, kept })}
         </div>
       )}

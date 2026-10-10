@@ -25,7 +25,7 @@ const PageHeader = ({ breadcrumb, title, subtitle, actions }: PageHeaderProps) =
           this block on purpose — re-mounting them would kill the FilterTabs
           pill glide on the very control you just clicked. */}
       <div key={title} className="min-w-0 animate-soft-in">
-        <div className="flex items-center gap-1.5 font-mono text-[10px] text-textMuted uppercase tracking-widest mb-1.5">
+        <div className="flex items-center gap-1.5 font-mono text-[11px] text-textMuted uppercase tracking-widest mb-1.5">
           {breadcrumb.map((part, i) => (
             <React.Fragment key={part}>
               {i > 0 && <span>/</span>}

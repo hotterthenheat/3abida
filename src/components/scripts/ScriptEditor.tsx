@@ -120,7 +120,7 @@ interface ScriptEditorPanelProps {
 }
 
 const MENU_ITEM = 'flex items-center gap-2.5 w-full px-2 py-1.5 rounded text-left text-[12px] text-textPrimary outline-none data-[highlighted]:bg-ink/[0.05] data-[disabled]:opacity-40 cursor-default';
-const MENU_KEY = 'ml-auto font-mono text-[9px] text-textMuted';
+const MENU_KEY = 'ml-auto font-mono text-[11px] text-textMuted';
 
 const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEditorPanelProps) => {
   const draft = getDraft(script);
@@ -405,7 +405,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
                 {recent.length > 0 && (
                   <>
                     <DropdownMenu.Separator className="my-1.5 h-px bg-borderSubtle" />
-                    <DropdownMenu.Label className="px-2 pt-1 pb-1 font-mono text-[8px] uppercase tracking-widest text-textMuted">Recently used</DropdownMenu.Label>
+                    <DropdownMenu.Label className="px-2 pt-1 pb-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">Recently used</DropdownMenu.Label>
                     {recent.map(r => (
                       <DropdownMenu.Item key={r.id} className={MENU_ITEM} disabled={r.id === current?.id} onSelect={() => void openOther(r.id)} data-menu-recent={r.id}>
                         <span className="truncate">{r.title}</span>
@@ -421,22 +421,22 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         )}
-        {readOnly && <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted border border-borderSubtle rounded px-1.5 py-0.5 whitespace-nowrap">built-in · read-only</span>}
+        {readOnly && <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted border border-borderSubtle rounded px-1.5 py-0.5 whitespace-nowrap">built-in · read-only</span>}
         {!readOnly && current && (
-          <span className="font-mono text-[9px] text-textMuted whitespace-nowrap">
+          <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">
             v{current.version}
             {dirty ? ' · unsaved' : ''}
           </span>
         )}
-        {!readOnly && !current && <span className="font-mono text-[9px] text-textMuted whitespace-nowrap">new · unsaved</span>}
+        {!readOnly && !current && <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">new · unsaved</span>}
         <span className="ml-auto flex items-center gap-2">
           {paneId &&
             (onPane ? (
-              <button onClick={removeFromChart} disabled={!!busy} title="Take it off this pane" className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[10px] uppercase tracking-wider text-silver transition-colors disabled:opacity-50" data-script-remove>
+              <button onClick={removeFromChart} disabled={!!busy} title="Take it off this pane" className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-silver/50 bg-silver/[0.08] font-mono text-[11px] uppercase tracking-wider text-silver transition-colors disabled:opacity-50" data-script-remove>
                 On the chart · remove
               </button>
             ) : (
-              <button onClick={addToChart} disabled={!!busy || !status.ok} title={status.ok ? 'Draw it on this pane — Ctrl Enter' : 'Fix the line first'} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-selectFill font-mono text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a] transition-opacity disabled:opacity-40" data-script-add>
+              <button onClick={addToChart} disabled={!!busy || !status.ok} title={status.ok ? 'Draw it on this pane — Ctrl Enter' : 'Fix the line first'} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-selectFill font-mono text-[11px] font-bold uppercase tracking-wider text-[#0a0a0a] transition-opacity disabled:opacity-40" data-script-add>
                 <Play className="w-3 h-3" />
                 Add to chart
               </button>
@@ -454,23 +454,23 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
         {versions && (
           <aside className="w-[260px] shrink-0 border-l border-borderSubtle flex flex-col" data-script-versions>
             <div className="flex items-center h-8 px-3 border-b border-borderSubtle">
-              <span className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Version history</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Version history</span>
               <button onClick={() => setVersions(null)} aria-label="Close the versions" className="ml-auto p-1 rounded text-textMuted hover:text-textPrimary">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {versions.length === 0 && <div className="px-3 py-4 font-mono text-[10px] uppercase tracking-widest text-textMuted">No versions kept yet</div>}
+              {versions.length === 0 && <div className="px-3 py-4 font-mono text-[11px] uppercase tracking-widest text-textMuted">No versions kept yet</div>}
               {versions.map(v => (
                 <div key={v.version} className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/40" data-script-version={v.version}>
                   <span className={`font-mono text-[11px] tnum ${v.version === current?.version ? 'text-textPrimary font-bold' : 'text-textSecondary'}`}>v{v.version}</span>
-                  <span className="font-mono text-[9px] text-textMuted truncate">{v.message ?? ago(v.createdAt)}</span>
+                  <span className="font-mono text-[11px] text-textMuted truncate">{v.message ?? ago(v.createdAt)}</span>
                   {v.version !== current?.version && (
-                    <button onClick={() => void restore(v.version)} title={`Bring version ${v.version} back as a new version`} className="ml-auto inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-textMuted hover:text-textPrimary" data-script-restore={v.version}>
+                    <button onClick={() => void restore(v.version)} title={`Bring version ${v.version} back as a new version`} className="ml-auto inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary" data-script-restore={v.version}>
                       <RotateCcw className="w-3 h-3" /> Restore
                     </button>
                   )}
-                  {v.version === current?.version && <span className="ml-auto font-mono text-[8px] uppercase tracking-widest text-textMuted">current</span>}
+                  {v.version === current?.version && <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted">current</span>}
                 </div>
               ))}
             </div>
@@ -479,7 +479,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
       </div>
 
       {/* THE STATUS — what the script does right now */}
-      <div className="flex items-center gap-4 px-3 h-[34px] border-t border-borderSubtle font-mono text-[10px] tnum shrink-0" data-script-status data-ok={status.ok || undefined}>
+      <div className="flex items-center gap-4 px-3 h-[34px] border-t border-borderSubtle font-mono text-[11px] tnum shrink-0" data-script-status data-ok={status.ok || undefined}>
         <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${status.ok ? 'bg-bull' : 'bg-bear'}`} aria-hidden />
         {status.ok ? (
           <span className="text-bull truncate">{status.words}</span>

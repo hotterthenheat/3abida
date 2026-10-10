@@ -820,8 +820,8 @@ const CampaignAnalysis = ({
                     {state}
                   </SignalBadge>
                 )}
-                <span className="px-1.5 py-0.5 rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[9px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">{SLEEVE_LABEL[sleeve] ?? sleeve}</span>
-                <span className="font-mono text-[9px] tracking-wider text-textMuted whitespace-nowrap">{kindLabel}</span>
+                <span className="px-1.5 py-0.5 rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">{SLEEVE_LABEL[sleeve] ?? sleeve}</span>
+                <span className="font-mono text-[11px] tracking-wider text-textMuted whitespace-nowrap">{kindLabel}</span>
                 <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chart, the targets and the case mean" testId="setup-guide" />
               </div>
               <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
@@ -837,9 +837,9 @@ const CampaignAnalysis = ({
                 of them labelled) — the entry frozen where the sweep found it, now the bid/ask midpoint this tick */}
             <Fact label="Premium" testId="premium" title="Entry: the bid/ask midpoint when the sweep found it · now: the midpoint this tick">
               <span className="inline-flex items-baseline gap-1.5">
-                <span className="text-[10px] text-textMuted">entry</span>
+                <span className="text-[11px] text-textMuted">entry</span>
                 <span>${c.mid.toFixed(2)}</span>
-                <span className="text-[10px] text-textMuted">now</span>
+                <span className="text-[11px] text-textMuted">now</span>
                 <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
               </span>
             </Fact>
@@ -946,7 +946,7 @@ const CampaignAnalysis = ({
                         </div>
                       </div>
                       <div className="pl-3 pr-16 pointer-events-none">
-                        <span className="font-mono text-[10px] text-textMuted">the targets and the floor on the live chart</span>
+                        <span className="font-mono text-[11px] text-textMuted">the targets and the floor on the live chart</span>
                       </div>
                     </div>
                   </div>
@@ -1018,7 +1018,7 @@ const CampaignAnalysis = ({
               <div className={`col-start-1 row-start-1 flex flex-col gap-4 transition-opacity duration-300 ${cardTab === 'campaign' ? 'opacity-100' : 'invisible opacity-0'}`}>
                 <div className="border border-borderSubtle rounded-md overflow-hidden">
                   <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">{c.takeProfits.length > 0 ? 'Targets' : 'Targets — none, the case is fading'}</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">{c.takeProfits.length > 0 ? 'Targets' : 'Targets — none, the case is fading'}</span>
                   </div>
                   {/* The strict table (Noah, 2026-08-09; decoration stripped
                       2026-08-17): right-aligned figures, hairline rows, whisper
@@ -1028,10 +1028,10 @@ const CampaignAnalysis = ({
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-borderSubtle">
-                        <th className="text-left font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
-                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
-                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
-                        <th className="text-right font-mono text-[9px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">{setup.ticker} needs</th>
+                        <th className="text-left font-mono text-[11px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Target</th>
+                        <th className="text-right font-mono text-[11px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">Premium</th>
+                        <th className="text-right font-mono text-[11px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">From entry</th>
+                        <th className="text-right font-mono text-[11px] uppercase tracking-wider text-textMuted font-medium px-3 py-1.5">{setup.ticker} needs</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-borderSubtle">
@@ -1089,7 +1089,7 @@ const CampaignAnalysis = ({
                   </table>
 
                   {/* The floor's clock, spoken once as a caption — not shouted inside the row. */}
-                  <p className="px-3 py-2 border-t border-borderSubtle text-[10px] leading-snug text-textSecondary">
+                  <p className="px-3 py-2 border-t border-borderSubtle text-[11px] leading-snug text-textSecondary">
                     {c.invalidationReason}. {retired ? 'A close through it retired the setup — what remains is the post-mortem.' : clockCopy}
                   </p>
                 </div>
@@ -1101,12 +1101,12 @@ const CampaignAnalysis = ({
                 <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <AlertTriangle className="w-3 h-3 text-warn" />
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">What retires it</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">What retires it</span>
                   </div>
                   <div className={`font-mono text-sm font-semibold tnum ${retired ? 'text-bear' : 'text-warn'}`}>
                     {retired && floorBreak ? `Broke $${floorBreak.floor.toFixed(2)}` : `A close ${setup.right === 'C' ? 'below' : 'above'} $${c.invalidationPrice.toFixed(2)}`}
                   </div>
-                  <div className="font-mono text-[10px] text-textMuted">{c.invalidationReason}</div>
+                  <div className="font-mono text-[11px] text-textMuted">{c.invalidationReason}</div>
                 </div>
               </div>
 
@@ -1114,23 +1114,23 @@ const CampaignAnalysis = ({
                 {/* entry · now · fair value — the contract's three premiums, each named (X1.4) */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2" title="The bid/ask midpoint when the sweep found the setup">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Entry</div>
+                    <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Entry</div>
                     <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">${c.mid.toFixed(2)}</div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2" title="The bid/ask midpoint this tick">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Now</div>
+                    <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Now</div>
                     <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
                       <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
                     </div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2" title="What the model says the contract is worth">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Fair value</div>
+                    <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Fair value</div>
                     <div className="mt-1 font-mono text-sm font-semibold text-textPrimary tnum">
                       <AnimatedNumber value={setup.liveMid} format={v => `$${v.toFixed(2)}`} flash />
                     </div>
                   </div>
                   <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Expected move</div>
+                    <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Expected move</div>
                     <div className={`mt-1 font-mono text-sm font-semibold tnum ${setup.expectedMovePct >= 0 ? 'text-bull' : 'text-bear'}`}>
                       <AnimatedNumber value={setup.expectedMovePct} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`} />
                     </div>
@@ -1138,13 +1138,13 @@ const CampaignAnalysis = ({
                 </div>
 
                 <div>
-                  <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1.5">Greeks</div>
+                  <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted mb-1.5">Greeks</div>
                   <GreeksRow greeks={setup.greeks} fourth="iv" flash />
                 </div>
 
                 {/* The contract's dollars as a LEDGER — values on the same right rail as the greeks above */}
                 <div>
-                  <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1.5">In dollars, at entry</div>
+                  <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted mb-1.5">In dollars, at entry</div>
                   <ContractFacts setup={c} spot={spot} ledger />
                 </div>
               </div>
@@ -1164,18 +1164,18 @@ const CampaignAnalysis = ({
                   )}
                   <span className={`font-mono text-[11px] font-semibold ${caseInk}`}>a {caseWord} case</span>
                   <GradeMeter grade={caseWord} className="w-14" />
-                  <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap">found by {kindLabel}</span>
+                  <span className="ml-auto font-mono text-[11px] uppercase tracking-wider text-textSecondary whitespace-nowrap">found by {kindLabel}</span>
                 </div>
                 <div className="flex items-start gap-2 border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
                   <Info className="w-3.5 h-3.5 text-textSecondary shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-1.5 min-w-0">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Why it is on the board</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Why it is on the board</span>
                     <p key={setup.id} className="text-[11px] text-textPrimary leading-relaxed animate-soft-in">
                       <RichRead text={setup.whyText} />
                     </p>
                     <span className="flex items-center gap-1.5 flex-wrap">
                       {setup.whyChips.map(chip => (
-                        <span key={chip} className="font-mono text-[10px] text-textSecondary border border-borderSubtle rounded px-1.5 py-px">
+                        <span key={chip} className="font-mono text-[11px] text-textSecondary border border-borderSubtle rounded px-1.5 py-px">
                           {chip}
                         </span>
                       ))}
@@ -1184,7 +1184,7 @@ const CampaignAnalysis = ({
                 </div>
                 <div className="border border-borderSubtle rounded-md overflow-hidden">
                   <div className="px-3 py-1.5 border-b border-borderSubtle bg-inset">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">The numbers behind it</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">The numbers behind it</span>
                   </div>
                   <table className="w-full">
                     <tbody className="divide-y divide-borderSubtle">
@@ -1203,7 +1203,7 @@ const CampaignAnalysis = ({
                         },
                       ].map(row => (
                         <tr key={row.k} data-why-row={row.k}>
-                          <td className="px-3 py-1.5 align-top font-mono text-[9px] uppercase tracking-wider text-textSecondary whitespace-nowrap w-28">{row.k}</td>
+                          <td className="px-3 py-1.5 align-top font-mono text-[11px] uppercase tracking-wider text-textSecondary whitespace-nowrap w-28">{row.k}</td>
                           <td className={`px-3 py-1.5 text-[11px] leading-snug ${row.ink}`}>{row.v}</td>
                         </tr>
                       ))}
@@ -1213,7 +1213,7 @@ const CampaignAnalysis = ({
                 <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5">
                   <div className="flex items-center gap-1.5 mb-1">
                     <AlertTriangle className="w-3 h-3 text-warn" />
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">What would make us wrong</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">What would make us wrong</span>
                   </div>
                   <p className="text-[11px] text-textPrimary leading-snug">
                     A close {setup.right === 'C' ? 'below' : 'above'} <span className="font-mono font-semibold tnum text-warn">${c.invalidationPrice.toFixed(2)}</span> — {c.invalidationReason.toLowerCase()} gives way and the case is gone.{' '}
@@ -1223,7 +1223,7 @@ const CampaignAnalysis = ({
                 <button
                   type="button"
                   onClick={() => navigate('/compass', { state: { tickerFilter: setup.ticker } })}
-                  className="self-start inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                  className="self-start inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
                   data-why-board
                 >
                   <ArrowUpRight className="w-3 h-3" /> See <CompanyLogo ticker={setup.ticker} size={12} /> {setup.ticker} on the board

@@ -16,7 +16,7 @@ const LeanCell = ({ askPct }: { askPct: number }) => {
   const tone = mid ? 'text-textMuted' : 'text-textPrimary';
   return (
     <span className="inline-flex flex-col items-end gap-[3px] w-16" title={`${askPct}% of the volume at the ask, ${bidPct}% on the bid`}>
-      <span className={`font-mono text-[10px] font-semibold uppercase tracking-wide tnum leading-[14px] ${tone}`}>{label}</span>
+      <span className={`font-mono text-[11px] font-semibold uppercase tracking-wide tnum leading-[14px] ${tone}`}>{label}</span>
       <span className="flex w-16 h-[3px] rounded-full overflow-hidden bg-ink/[0.14]">
         <span className="h-full bg-textPrimary/80 ml-auto" style={{ width: `${askPct}%` }} />
       </span>

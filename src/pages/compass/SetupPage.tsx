@@ -80,12 +80,12 @@ const SetupPage = () => {
       <button
         type="button"
         onClick={() => (from ? navigate(-1) : navigate('/compass'))}
-        className="group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
+        className="group inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors"
       >
         <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> {from ?? 'The board'}
       </button>
       {from && (
-        <Link to="/compass" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+        <Link to="/compass" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
           <LayoutGrid className="w-3.5 h-3.5" /> The board
         </Link>
       )}
@@ -101,7 +101,7 @@ const SetupPage = () => {
         {back}
         <div className="border border-borderSubtle rounded-md bg-panel h-40 flex flex-col items-center justify-center gap-2" data-setup-missing>
           <span className="font-mono text-[13px] font-bold text-textPrimary">{id}</span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">no setup at this address</span>
+          <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">no setup at this address</span>
           {beyondReach && <span className="text-[12px] text-textSecondary">No chain lists that strike — it is more than half the price away from the market.</span>}
           {/* a slip of the hand lands here too — /compass/trakcer meant the Tracker (pages/notFound/suggest.ts, 2026-09-19) */}
           {meant && (

@@ -474,12 +474,12 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           <>
             {fmtS(r.strike)}
             {tag && (
-              <span className="text-[8px] uppercase tracking-widest font-normal" style={{ color: tag.ink }}>
+              <span className="text-[11px] uppercase tracking-widest font-normal" style={{ color: tag.ink }}>
                 {tag.word}
               </span>
             )}
             {you && (
-              <span className="text-[8px] uppercase tracking-widest font-normal" style={{ color: SILVER }}>
+              <span className="text-[11px] uppercase tracking-widest font-normal" style={{ color: SILVER }}>
                 you
               </span>
             )}
@@ -547,17 +547,17 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           <span className={`text-[11px] ${isSupreme ? 'font-bold' : 'font-semibold'} ${kept ? 'text-silver' : 'text-textPrimary'}`} style={!kept && isSupreme ? { color: SUPREME } : undefined}>{fmtS(r.strike)}</span>
           {/* the tag's word folds away in a narrow column — the edge in its ink stays, the read line and the card still name it */}
           {tag && !compact && (
-            <span className="uppercase tracking-widest" style={{ color: tag.ink, fontSize: '8px' }}>
+            <span className="text-[11px]" style={{ color: tag.ink }}>
               {tag.word}
             </span>
           )}
           {you && (
-            <span className="uppercase tracking-widest" style={{ color: SILVER, fontSize: '8px' }}>
+            <span className="text-[11px]" style={{ color: SILVER }}>
               you
             </span>
           )}
         </span>
-        <span className="font-mono text-[10px] tnum whitespace-nowrap text-right text-textPrimary">{fmtDist(distPct)}</span>
+        <span className="font-mono text-[11px] tnum whitespace-nowrap text-right text-textPrimary">{fmtDist(distPct)}</span>
         {greeks.map((g, gi) => {
           const l = r.legs[g];
           const putS = Math.abs(l.put) / maxLegAll[g];
@@ -601,7 +601,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
                   </>
                 )}
               </span>
-              <span className="text-right font-mono text-[10px] font-semibold tnum whitespace-nowrap transition-[color] duration-[450ms]" style={{ color: l.net === 0 ? 'rgb(var(--text-muted))' : netInk }} data-ladder-net={Math.round(Math.min(1, Math.abs(l.net) / maxAbs[g]) * 100)}>
+              <span className="text-right font-mono text-[11px] font-semibold tnum whitespace-nowrap transition-[color] duration-[450ms]" style={{ color: l.net === 0 ? 'rgb(var(--text-muted))' : netInk }} data-ladder-net={Math.round(Math.min(1, Math.abs(l.net) / maxAbs[g]) * 100)}>
                 {fmtUsd(l.net)}
               </span>
             </>
@@ -651,7 +651,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
      put and call figures are the one place the pure pair appears on the ladder, at 11px; regular weight read muted) */
   const figure = (word: string, v: number, ink: string, _bold = true) => (
     <span className="inline-flex items-baseline gap-1.5 min-w-0">
-      {readWords && <span className="text-[8px] uppercase tracking-widest text-textMuted">{word}</span>}
+      {readWords && <span className="text-[11px] uppercase tracking-widest text-textMuted">{word}</span>}
       <span className="text-[11px] tnum font-bold" style={{ color: ink }}>{fmtUsd(v)}</span>
     </span>
   );
@@ -681,11 +681,11 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         <span key={g} className={`${one ? 'col-span-2' : groupSkin(gi)} flex flex-col justify-center gap-0.5 min-w-0 pt-1`} data-read-greek={g}>
           {figures(l, netInk)}
           {g === lead ? (
-            <span className="text-[9px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ color: verdictInk }} title={verdict} data-read-verdict>
+            <span className="text-[11px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ color: verdictInk }} title={verdict} data-read-verdict>
               {verdict}
             </span>
           ) : (
-            <span className="text-[9px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ color: netInk }} title={`${GREEK_LABEL[g]} at this strike leans ${leanOf(l.net) === 'put-heavy' ? 'to the puts' : 'to the calls'}`} data-read-lean>
+            <span className="text-[11px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ color: netInk }} title={`${GREEK_LABEL[g]} at this strike leans ${leanOf(l.net) === 'put-heavy' ? 'to the puts' : 'to the calls'}`} data-read-lean>
               {leanOf(l.net)}
             </span>
           )}
@@ -698,16 +698,16 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           <span className="inline-flex items-baseline gap-2 min-w-0">
             <span className="text-[13px] font-bold text-textPrimary tnum leading-none">{fmtS(focusRow.strike)}</span>
             {tag && (
-              <span className="text-[8px] font-bold uppercase tracking-widest truncate" style={{ color: tag.ink }}>
+              <span className="text-[11px] font-bold uppercase tracking-widest truncate" style={{ color: tag.ink }}>
                 {tag.word}
               </span>
             )}
           </span>
-          <span className="text-[9px] text-textMuted tnum leading-none">
+          <span className="text-[11px] text-textMuted tnum leading-none">
             {distPct >= 0 ? '+' : ''}
             {distPct.toFixed(2)}% from spot
           </span>
-          <span className={`text-[8px] uppercase tracking-wider truncate leading-none ${pinned ? 'text-silver' : 'text-textMuted'}`} title={whyTitle} data-ladder-why>{why}</span>
+          <span className={`text-[11px] truncate leading-none ${pinned ? 'text-silver' : 'text-textMuted'}`} title={whyTitle} data-ladder-why>{why}</span>
         </span>
         {greeks.map(cell)}
       </div>
@@ -723,12 +723,12 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
   const head = (
     <div className="shrink-0 border-b border-borderSubtle/70 font-mono uppercase tracking-widest" data-ladder-head>
       {!one && (
-        <div role="row" className="grid items-stretch gap-x-2 px-3 h-7 border-b border-borderSubtle/40 text-[10px] font-semibold text-textPrimary" style={{ gridTemplateColumns: cols }} data-ladder-head-greeks>
+        <div role="row" className="grid items-stretch gap-x-2 px-3 h-7 border-b border-borderSubtle/40 text-[11px] font-semibold text-textPrimary" style={{ gridTemplateColumns: cols }} data-ladder-head-greeks>
           {/* THE DIRECTION, SAID ONCE (Noah, 2026-09-21, "do it all" on: the "puts lead · calls lead" caption repeated
               five times across the head is noise): over the strike columns, where the eye starts the row, in the lane
               inks; each pane's caption below says its own scale instead */}
           <span
-            className="col-span-2 flex items-center gap-1.5 min-w-0 whitespace-nowrap overflow-hidden text-[9px] font-normal text-textMuted"
+            className="col-span-2 flex items-center gap-1.5 min-w-0 whitespace-nowrap overflow-hidden text-[11px] font-normal text-textMuted"
             title="Every pane: a bar grows left from the centre line when puts lead at the strike, right when calls lead"
             data-ladder-head-direction
           >
@@ -753,7 +753,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         </div>
       )}
       {/* the captions — the chart ladder's whisper row */}
-      <div role="row" className="grid items-stretch gap-x-2 px-3 h-7 text-[9px] text-textSecondary" style={{ gridTemplateColumns: cols }} data-ladder-head-columns>
+      <div role="row" className="grid items-stretch gap-x-2 px-3 h-7 text-[11px] text-textSecondary" style={{ gridTemplateColumns: cols }} data-ladder-head-columns>
         <span className="flex items-center">Strike</span>
         <span className="flex items-center justify-end whitespace-nowrap">Δ spot</span>
         {greeks.map((g, gi) => {
@@ -806,7 +806,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
     <div role="row" className="shrink-0 grid items-stretch gap-x-2 px-3 py-1.5 border-t border-borderSubtle/60 font-mono select-none" style={{ gridTemplateColumns: cols }} data-ladder-foot>
       <span className="col-span-2 min-w-0 flex flex-col justify-center gap-0.5 whitespace-nowrap">
         <span className="text-[11px] font-bold text-textPrimary leading-none">Total</span>
-        <span className="text-[8px] uppercase tracking-wider text-textMuted truncate leading-none">
+        <span className="text-[11px] text-textMuted truncate leading-none">
           {rows.length} strikes · {shownIdx.length} {shownIdx.length === 1 ? 'expiry' : 'expiries'}
         </span>
       </span>
@@ -817,7 +817,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           <span key={g} className={`${one ? 'col-span-2' : groupSkin(gi)} flex flex-col justify-center gap-0.5 min-w-0`} data-foot-greek={g}>
             {figures(t, ink)}
             <span
-              className="text-[9px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis text-center"
+              className="text-[11px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis text-center"
               style={{ color: ink }}
               title={`Every strike shown, added up: ${fmtUsd(t.put)} on the put side, ${fmtUsd(t.call)} on the call side, ${fmtUsd(t.net)} net ${GREEK_LABEL[g]}`}
               data-foot-lean

@@ -271,17 +271,17 @@ const QuoteCell = ({ print }: { print: FlowPrint }) => (
   <span className="inline-flex flex-col items-end gap-[2px] leading-none align-middle">
     <span className="inline-flex items-baseline gap-1">
       <span className="font-mono text-[11px] font-bold tnum text-textPrimary">${print.fill.toFixed(2)}</span>
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-textPrimary">{SIDE_WORD[print.side]}</span>
+      <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-textPrimary">{SIDE_WORD[print.side]}</span>
     </span>
     <span className="inline-flex items-center gap-1">
-      <span className="font-mono text-[10px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
+      <span className="font-mono text-[11px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
       <span className="relative w-10 h-[3px] rounded-full bg-ink/[0.07]">
         <span
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full bg-textPrimary"
           style={{ left: `${print.fillPos * 100}%` }}
         />
       </span>
-      <span className="font-mono text-[10px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
+      <span className="font-mono text-[11px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
     </span>
   </span>
 );
@@ -294,7 +294,7 @@ const QuoteCell = ({ print }: { print: FlowPrint }) => (
 const SizeCell = ({ print }: { print: FlowPrint }) => (
   <span className="inline-flex flex-col items-end gap-[2px] leading-none align-middle">
     <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{num(print.size)}</span>
-    <span className="font-mono text-[10px] tnum text-textSecondary whitespace-nowrap" title="Open interest as of the last close">
+    <span className="font-mono text-[11px] tnum text-textSecondary whitespace-nowrap" title="Open interest as of the last close">
       vol {num(print.volume)} <span aria-hidden>·</span> oi {num(print.oi)}
     </span>
   </span>
@@ -621,7 +621,7 @@ const LiveTape = () => {
         render: r => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={printKey(r.p)} make={() => watchPrint(r.p, 'tape')} noun="print" />
-            {r.rank !== undefined && <span className="w-7 shrink-0 text-[10px] font-bold text-textPrimary">#{r.rank}</span>}
+            {r.rank !== undefined && <span className="w-7 shrink-0 text-[11px] font-bold text-textPrimary">#{r.rank}</span>}
             <span className="text-[11px] text-textPrimary">{r.p.time}</span>
           </span>
         ),
@@ -637,7 +637,7 @@ const LiveTape = () => {
             <CompanyLogo ticker={r.p.ticker} size={15} />
             <span className="font-bold text-textPrimary">{r.p.ticker}</span>
             {/* White, not lime (Noah, 2026-08-30): a leg count is a fact, not a status. */}
-            {r.p.legs > 1 && <span className="text-[10px] text-textPrimary">×{r.p.legs}</span>}
+            {r.p.legs > 1 && <span className="text-[11px] text-textPrimary">×{r.p.legs}</span>}
           </span>
         ),
       },
@@ -744,7 +744,7 @@ const LiveTape = () => {
         sortValue: r => sentimentOf(r.p),
         render: r => {
           const s = sentimentOf(r.p);
-          return <span className={`text-[10px] font-semibold ${SENT_TEXT[s]}`}>{s}</span>;
+          return <span className={`text-[11px] font-semibold ${SENT_TEXT[s]}`}>{s}</span>;
         },
       },
       /* Volume and open interest ride in the Size cell; the columns survive
@@ -816,7 +816,7 @@ const LiveTape = () => {
         render: r => {
           const k = printKind(r.p);
           return (
-            <span className="text-[10px] text-textSecondary">
+            <span className="text-[11px] text-textSecondary">
               {k === 'SWEEP' ? <span className="text-warn font-semibold">Sweep</span> : k === 'MULTI' && r.p.strat !== '—' ? `${KIND_WORD[k]} · ${r.p.strat}` : KIND_WORD[k]}
             </span>
           );
@@ -931,7 +931,7 @@ const LiveTape = () => {
           <>
             <SavedCutsList store={TAPE_CUTS} query="" onOpen={q => setParams(new URLSearchParams(q), { replace: true })} noun="cut" testId="tape" onSay={cuts.say} open={cuts.open} />
             {cuts.said && (
-              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary" data-tape-said>
+              <p role="status" className="mb-2 font-mono text-[11px] text-textSecondary" data-tape-said>
                 {cuts.said}
               </p>
             )}

@@ -104,7 +104,7 @@ const ResetViewControl = ({
       <button
         onClick={() => cb.current()}
         title="Reset chart view (Alt+R) — or right-click the chart"
-        className={`absolute z-20 inline-flex items-center gap-1 px-2 h-6 rounded-full border border-borderSubtle bg-panel/70 backdrop-blur-md font-mono text-[9px] uppercase tracking-wider text-textMuted hover:text-textPrimary opacity-35 hover:opacity-100 transition-opacity ${pillClass}`}
+        className={`absolute z-20 inline-flex items-center gap-1 px-2 h-6 rounded-full border border-borderSubtle bg-panel/70 backdrop-blur-md font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary opacity-35 hover:opacity-100 transition-opacity ${pillClass}`}
       >
         <RotateCcw className="w-3 h-3" />
         Reset
@@ -129,7 +129,7 @@ const ResetViewControl = ({
             >
               <RotateCcw className="w-3.5 h-3.5 text-textSecondary" />
               Reset chart view
-              <span className="ml-auto pl-6 font-mono text-[9px] text-textMuted">Alt + R</span>
+              <span className="ml-auto pl-6 font-mono text-[11px] text-textMuted">Alt + R</span>
             </button>
           </div>,
           document.body

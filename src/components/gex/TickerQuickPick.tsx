@@ -131,7 +131,7 @@ const TickerQuickPick = ({ ticker, onPick, open: openProp, onOpenChange, slim, l
         title={title}
         className={
           slim
-            ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] font-semibold text-textPrimary hover:bg-ink/[0.04] transition-colors'
+            ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[11px] font-semibold text-textPrimary hover:bg-ink/[0.04] transition-colors'
             : 'inline-flex items-center justify-between gap-2 h-7 min-w-[112px] px-3 rounded-full bg-ink/[0.06] hover:bg-ink/[0.10] font-mono text-[11px] font-bold text-textPrimary transition-colors'
         }
       >

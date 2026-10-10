@@ -58,7 +58,7 @@ export const CardRow = ({ k, v, sub, ink }: { k: string; v: ReactNode; sub?: Rea
     <span className="text-textMuted whitespace-nowrap">{k}</span>
     <span className="text-right font-mono text-[11px] tnum whitespace-nowrap" style={{ color: ink ?? 'rgb(var(--text-primary))' }}>
       {v}
-      {sub != null && <span className="text-[9px] text-textMuted"> {sub}</span>}
+      {sub != null && <span className="text-[11px] text-textMuted"> {sub}</span>}
     </span>
   </>
 );
@@ -85,9 +85,9 @@ const PointerCard = ({ x, y, width = 196, title, aside, children, testId = 'data
         <span className="font-mono text-[11px] font-semibold tnum inline-flex items-baseline gap-1.5" style={{ color: SILVER }}>
           {title}
         </span>
-        {aside != null && <span className="ml-auto text-[9px] text-textMuted whitespace-nowrap">{aside}</span>}
+        {aside != null && <span className="ml-auto text-[11px] text-textMuted whitespace-nowrap">{aside}</span>}
       </div>
-      <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px]">{children}</div>
+      <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">{children}</div>
     </div>,
     document.body
   );

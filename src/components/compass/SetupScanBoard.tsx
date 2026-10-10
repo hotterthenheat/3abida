@@ -80,7 +80,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
 
   const columns = useMemo<Column<Ranked>[]>(() => {
     const cols: Column<Ranked>[] = [
-      { key: 'rank', header: '#', sortValue: r => r.rank, render: r => <span className="font-mono text-[10px] text-textMuted tnum">{r.rank}</span> },
+      { key: 'rank', header: '#', sortValue: r => r.rank, render: r => <span className="font-mono text-[11px] text-textMuted tnum">{r.rank}</span> },
       {
         key: 'contract',
         header: 'Contract',
@@ -146,7 +146,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           onClick={() => openRef.current(r)}
           title="Open the setup's page"
           aria-label={`Open ${r.contract}'s page`}
-          className="hit inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+          className="hit inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
         >
           Open <ArrowUpRight className="w-3 h-3" />
         </button>
@@ -158,7 +158,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
   if (setups.length === 0) {
     return (
       <div className="flex items-center justify-center h-[200px] border-t border-borderSubtle" data-compass-board="empty">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing cleared the bar on this sweep</span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Nothing cleared the bar on this sweep</span>
       </div>
     );
   }

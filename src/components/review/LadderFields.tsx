@@ -74,7 +74,7 @@ export function bracketOf(d: LadderDraft, qty: number, stopFromTrail?: (by: numb
 }
 
 const inputCls = 'h-8 w-full px-2 rounded-md border border-borderSubtle bg-panel font-mono text-[12px] tnum text-textPrimary outline-none focus:border-silver/60 transition-colors';
-const countCls = 'h-[18px] w-7 px-1 rounded border border-borderSubtle bg-panel text-center font-mono text-[10px] tnum text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60 transition-colors';
+const countCls = 'h-[18px] w-7 px-1 rounded border border-borderSubtle bg-panel text-center font-mono text-[11px] tnum text-textPrimary placeholder:text-textMuted outline-none focus:border-silver/60 transition-colors';
 const COUNT = ['One', 'Two', 'Three'];
 const SPLIT = ['all at one', 'half and half', 'a third each'];
 
@@ -136,7 +136,7 @@ const LadderFields = ({ qty, value, onChange, target, stop, trail, costWords, le
         {head}
         {lead}
         <div className={head ? 'ml-auto' : 'flex flex-col gap-1'}>
-          {!head && <span className="text-[10px] text-textMuted whitespace-nowrap">Leave it in</span>}
+          {!head && <span className="text-[11px] text-textMuted whitespace-nowrap">Leave it in</span>}
           <span className={`inline-flex items-center gap-1.5 ${head ? '' : 'h-8'}`}>
             <DropdownSelect label="Targets" value={nT} options={counts(3)} onChange={v => set({ nTargets: v })} title={n < 2 ? 'One contract: there is nothing to split' : 'Leave in pieces — how many targets, and how the contracts are shared'} testId="ticket-targets" size="sm" />
             <DropdownSelect label="Stops" value={nS} options={counts(2)} onChange={v => set({ nStops: v })} title={n < 2 ? 'One contract: there is nothing to split' : 'How many stops, and how the contracts are shared'} testId="ticket-stops" size="sm" align="end" />
@@ -146,7 +146,7 @@ const LadderFields = ({ qty, value, onChange, target, stop, trail, costWords, le
       <div className="flex items-end gap-2">
         {Array.from({ length: nT }, (_, i) => (
           <label key={`t${i}`} className="flex flex-col gap-1 min-w-0 flex-1 max-w-[132px]">
-            <span className="inline-flex items-center gap-1 text-[10px] text-textMuted whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[11px] text-textMuted whitespace-nowrap">
               {nT === 1 ? (n === 1 && nS === 1 && !unit ? 'Target (optional)' : 'Target') : `Target ${i + 1}`}
               {unit && <span className="text-textMuted/80">· {unit}</span>}
               {n > 1 && (
@@ -160,7 +160,7 @@ const LadderFields = ({ qty, value, onChange, target, stop, trail, costWords, le
         ))}
         {Array.from({ length: nS }, (_, i) => (
           <label key={`s${i}`} className="flex flex-col gap-1 min-w-0 flex-1 max-w-[132px]">
-            <span className="inline-flex items-center gap-1 text-[10px] text-textMuted whitespace-nowrap" title={stop.note ? `The stop is ${stop.note}` : undefined}>
+            <span className="inline-flex items-center gap-1 text-[11px] text-textMuted whitespace-nowrap" title={stop.note ? `The stop is ${stop.note}` : undefined}>
               {nS === 1 ? (n === 1 && nT === 1 && !unit ? 'Stop (optional)' : 'Stop') : `Stop ${i + 1}`}
               {unit && <span className="text-textMuted/80">· {unit}</span>}
               {n > 1 && (
@@ -174,7 +174,7 @@ const LadderFields = ({ qty, value, onChange, target, stop, trail, costWords, le
         ))}
       </div>
       {(noStop > 0 || noTarget > 0) && (
-        <p className="text-[10px] leading-snug text-textMuted" data-ticket-uncovered>
+        <p className="text-[11px] leading-snug text-textMuted" data-ticket-uncovered>
           {noStop > 0 && <span className="text-warn">{noStop} of {n} {noStop === 1 ? 'contract has' : 'contracts have'} no stop</span>}
           {noStop > 0 && noTarget > 0 && ' · '}
           {noTarget > 0 && `${noTarget} of ${n} ${noTarget === 1 ? 'contract has' : 'contracts have'} no target — ${noTarget === 1 ? 'it runs' : 'they run'}`}
@@ -184,7 +184,7 @@ const LadderFields = ({ qty, value, onChange, target, stop, trail, costWords, le
         <CheckRow on={value.breakeven} off={!anyTarget || !anyStop} onChange={v => set({ breakeven: v })} label="Breakeven after the first target" hint={`When the first target fills, the stop moves to ${costWords} — once, and never further away`} testId="breakeven" />
         <CheckRow on={value.trail} off={false} onChange={v => set({ trail: v })} label="Trail the stop" hint="The stop keeps a distance from the best price since — it follows, and never moves back" testId="trail" />
         {value.trail && (
-          <label className="inline-flex items-center gap-1.5 text-[10px] text-textMuted whitespace-nowrap" title={anyStop ? `The distance it keeps — empty: the distance the stop is set at${trail.unit ? `, in ${trail.unit}` : ''}` : `The distance it keeps — with no stop typed, the stop starts that far from the way in${trail.unit ? `, in ${trail.unit}` : ''}`}>
+          <label className="inline-flex items-center gap-1.5 text-[11px] text-textMuted whitespace-nowrap" title={anyStop ? `The distance it keeps — empty: the distance the stop is set at${trail.unit ? `, in ${trail.unit}` : ''}` : `The distance it keeps — with no stop typed, the stop starts that far from the way in${trail.unit ? `, in ${trail.unit}` : ''}`}>
             by
             <input className={`${inputCls} h-6 w-[76px] text-[11px]`} inputMode="decimal" value={value.trailBy} placeholder={anyStop ? 'its distance' : trail.placeholder} onChange={e => set({ trailBy: e.target.value.replace(/[^0-9.]/g, '') })} data-ticket-field="trail-by" />
             {trail.unit}

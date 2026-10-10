@@ -76,7 +76,7 @@ const Box = ({ title, sub, children, testId, className = '' }: { title: string; 
 
 const Fact = ({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) => (
   <div>
-    <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+    <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-name-fact={testId}>
       {children}
     </dd>
@@ -85,7 +85,7 @@ const Fact = ({ label, children, testId }: { label: string; children: React.Reac
 
 /** A door out — small, labelled */
 const Door = ({ onClick, onWarm, children }: { onClick: () => void; onWarm?: () => void; children: React.ReactNode }) => (
-  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+  <button type="button" onClick={onClick} onMouseEnter={onWarm} className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
     <ArrowUpRight className="w-3 h-3" />
     {children}
   </button>
@@ -115,15 +115,15 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
   return (
     <div className="px-5 pb-4 flex flex-col gap-3" data-name-replay>
       <div className="flex items-baseline gap-2.5 flex-wrap font-mono tnum">
-        <span className="text-[10px] text-textMuted">Today's price for the move</span>
+        <span className="text-[11px] text-textMuted">Today's price for the move</span>
         <span className="text-[16px] font-bold text-textPrimary">${cost.toFixed(2)}</span>
         <span className="text-[11px] text-textSecondary">per share · ±{e.impliedMovePct.toFixed(1)}%</span>
       </div>
       <div className="mx-auto w-full max-w-[640px] select-none">
         <div className="relative" style={{ height: 2 * H }} onMouseLeave={() => setHover(null)}>
           <span className="absolute inset-x-0 top-1/2 h-px bg-ink/25" />
-          <span className="absolute left-0 -translate-y-full top-1/2 pb-0.5 font-mono text-[10px] uppercase tracking-widest text-textMuted">covered it</span>
-          <span className="absolute left-0 top-1/2 pt-0.5 font-mono text-[10px] uppercase tracking-widest text-textMuted">fell short</span>
+          <span className="absolute left-0 -translate-y-full top-1/2 pb-0.5 font-mono text-[11px] uppercase tracking-widest text-textMuted">covered it</span>
+          <span className="absolute left-0 top-1/2 pt-0.5 font-mono text-[11px] uppercase tracking-widest text-textMuted">fell short</span>
           <div className="absolute inset-y-0 left-24 right-0 flex items-stretch gap-1.5">
             {rows.map(r => (
               <button
@@ -142,7 +142,7 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
         </div>
         <div className="flex gap-1.5 mt-1 pl-24">
           {rows.map(r => (
-            <span key={r.label} className="flex-1 min-w-0 text-center font-mono text-[10px] text-textMuted truncate">
+            <span key={r.label} className="flex-1 min-w-0 text-center font-mono text-[11px] text-textMuted truncate">
               {r.label}
             </span>
           ))}
@@ -176,7 +176,7 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
             {hover.r.label} · moved {hover.r.movePct > 0 ? '+' : hover.r.movePct < 0 ? '−' : ''}
             {Math.abs(hover.r.movePct).toFixed(1)}%
           </div>
-          <div className="font-mono text-[10px] text-textSecondary tnum">
+          <div className="font-mono text-[11px] text-textSecondary tnum">
             that move was worth ${hover.r.moved.toFixed(2)} · today's price ${cost.toFixed(2)}
           </div>
           <div className={`font-mono text-[11px] font-bold tnum ${hover.r.pl >= 0 ? 'text-bull' : 'text-bear'}`}>
@@ -213,24 +213,24 @@ const ActiveRow = ({ c, maxVol, onOpen, onWarm }: { c: ActiveContract; maxVol: n
       <span className="ml-auto font-mono text-[12px] font-semibold text-textPrimary tnum">
         ~<AnimatedNumber value={c.mid} format={v => `$${v.toFixed(2)}`} />
       </span>
-      <span className="inline-flex items-center gap-1 pl-2 font-mono text-[10px] uppercase tracking-widest text-textMuted group-hover/door:text-silver group-focus-visible/door:text-silver transition-colors" data-contract-door>
+      <span className="inline-flex items-center gap-1 pl-2 font-mono text-[11px] uppercase tracking-widest text-textMuted group-hover/door:text-silver group-focus-visible/door:text-silver transition-colors" data-contract-door>
         <ArrowUpRight className="w-3 h-3" />
         Weigh it
       </span>
     </div>
     <div className="flex items-center gap-2">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted shrink-0">vol</span>
+      <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted shrink-0">vol</span>
       <span className="relative w-24 h-[4px] rounded-full bg-ink/[0.06] shrink-0">
         <span className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out ${c.right === 'CALL' ? 'bg-bull/80' : 'bg-bear/70'}`} style={{ width: `${Math.max(6, (c.volume / maxVol) * 100)}%` }} />
       </span>
       <span className="font-mono text-[11px] font-semibold text-textPrimary tnum">
         <AnimatedNumber value={c.volume} format={v => Math.round(v).toLocaleString()} />
       </span>
-      <span className="font-mono text-[10px] text-textSecondary tnum">
+      <span className="font-mono text-[11px] text-textSecondary tnum">
         open interest {c.oi.toLocaleString()} · <AnimatedNumber value={c.volOverOi} format={v => `${v.toFixed(2)}×`} /> · IV {c.ivPct}%
       </span>
     </div>
-    <span className="font-mono text-[10px] text-textMuted tnum">
+    <span className="font-mono text-[11px] text-textMuted tnum">
       {c.fromSpotPct === 0 ? 'at the money' : `${c.fromSpotPct > 0 ? '+' : '−'}${Math.abs(c.fromSpotPct)}% from spot`} · breaks even {c.right === 'CALL' ? '+' : '−'}
       {c.breakevenPct}% by expiry
     </span>
@@ -261,11 +261,11 @@ const EarningsName = () => {
 
   const back = (
     <div className="flex items-center gap-4" data-name-back>
-      <Link to="/dossier/earnings" className="hit group inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+      <Link to="/dossier/earnings" className="hit group inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
         <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> The calendar
       </Link>
       {fromDesk && (
-        <Link to="/pulse" className="hit inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+        <Link to="/pulse" className="hit inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
           <LayoutGrid className="w-3.5 h-3.5" /> The desk
         </Link>
       )}
@@ -278,7 +278,7 @@ const EarningsName = () => {
         {back}
         <div className="border border-borderSubtle rounded-md bg-panel h-40 flex flex-col items-center justify-center gap-2" data-name-missing>
           <span className="font-mono text-[13px] font-bold text-textPrimary">{T}</span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">no report on the next two weeks' calendar</span>
+          <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">no report on the next two weeks' calendar</span>
         </div>
       </>
     );
@@ -418,7 +418,7 @@ const EarningsName = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-textMuted">
+            <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-textMuted">
               grey the estimate · <span className="text-bull">green beat</span> · <span className="text-bear">red missed</span>
             </p>
           </div>
@@ -457,7 +457,7 @@ const EarningsName = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-textMuted">
+            <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-textMuted">
               the dashed lines are the ±{e.impliedMovePct.toFixed(1)}% priced for this print
             </p>
           </div>
@@ -504,11 +504,11 @@ const EarningsName = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch" data-name-record>
         <Box title="What its insiders did" sub={`Open-market trades in the last 90 days · ${insiders.trades.length ? insiders.signal : 'nothing filed'}`} testId="insiders">
           {marketInsiders.length === 0 ? (
-            <div className="px-5 pb-5 pt-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the record in 90 days</div>
+            <div className="px-5 pb-5 pt-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">Nothing on the record in 90 days</div>
           ) : (
             <>
               {/* Below lg: when, who, the trade and its value — the shares and the plan go (the phone pass, 2026-09-13) */}
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]">
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[11px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]">
                 <span>When</span>
                 <span>Who</span>
                 <span>Trade</span>
@@ -521,22 +521,22 @@ const EarningsName = () => {
                   <When days={t.daysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.person}</span>
-                    <span className="text-[10px] text-textMuted truncate">{t.role}</span>
+                    <span className="text-[11px] text-textMuted truncate">{t.role}</span>
                   </span>
-                  <span className={`font-mono text-[10px] ${t.kind === 'BUY' ? 'text-bull' : 'text-bear'}`}>{t.kind === 'BUY' ? 'Bought' : 'Sold'}</span>
-                  <span className="text-right font-mono text-[10px] tnum text-textPrimary max-lg:hidden">{Math.round(t.shares).toLocaleString('en-US')}</span>
-                  <span className="text-right font-mono text-[10px] tnum font-semibold text-textPrimary">{fmtDollars(t.value)}</span>
-                  <span className={`text-right font-mono text-[10px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
+                  <span className={`font-mono text-[11px] ${t.kind === 'BUY' ? 'text-bull' : 'text-bear'}`}>{t.kind === 'BUY' ? 'Bought' : 'Sold'}</span>
+                  <span className="text-right font-mono text-[11px] tnum text-textPrimary max-lg:hidden">{Math.round(t.shares).toLocaleString('en-US')}</span>
+                  <span className="text-right font-mono text-[11px] tnum font-semibold text-textPrimary">{fmtDollars(t.value)}</span>
+                  <span className={`text-right font-mono text-[11px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
                     {t.plan === 'discretionary' ? 'chosen' : t.plan === 'plan' ? 'planned' : 'unstated'}
                   </span>
                 </div>
               ))}
-              <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center gap-4 font-mono text-[10px] tnum" data-name-foot="insiders">
+              <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center gap-4 font-mono text-[11px] tnum" data-name-foot="insiders">
                 <span className="text-textSecondary">
                   bought <span className={insiders.bought > 0 ? 'text-bull' : 'text-textMuted'}>{insiders.bought > 0 ? fmtDollars(insiders.bought) : 'nothing'}</span> · sold{' '}
                   <span className={insiders.sold > 0 ? 'text-bear' : 'text-textMuted'}>{insiders.sold > 0 ? fmtDollars(insiders.sold) : 'nothing'}</span>
                 </span>
-                <Link to="/dossier/insiders" className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+                <Link to="/dossier/insiders" className="hit ml-auto inline-flex items-center gap-1 text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every insider
                 </Link>
               </div>
@@ -545,11 +545,11 @@ const EarningsName = () => {
         </Box>
         <Box title="What Congress reported" sub="STOCK Act reports naming this stock in the last 180 days" testId="congress">
           {congress.length === 0 ? (
-            <div className="px-5 pb-5 pt-1 font-mono text-[10px] uppercase tracking-widest text-textMuted">Nothing on the record in 180 days</div>
+            <div className="px-5 pb-5 pt-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">Nothing on the record in 180 days</div>
           ) : (
             <>
               {/* On a phone: filed, member, type — the amount and the lag go (the phone pass, 2026-09-13) */}
-              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[10px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]">
+              <div className="px-5 h-[22px] grid items-center gap-x-3 text-[11px] uppercase tracking-widest text-textMuted grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]">
                 <span>Filed</span>
                 <span>Member</span>
                 <span>Type</span>
@@ -561,19 +561,19 @@ const EarningsName = () => {
                   <When days={t.filedDaysAgo} size={10} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.member.name}</span>
-                    <span className="text-[10px] text-textMuted truncate">
+                    <span className="text-[11px] text-textMuted truncate">
                       {t.member.party}-{t.member.state} · {t.committeeOverlap ? `${t.committeeOverlap} · own committee` : t.member.chamber}
                     </span>
                   </span>
-                  <span className={`font-mono text-[10px] ${t.type === 'Purchase' ? 'text-bull' : t.type === 'Exchange' ? 'text-textMuted' : 'text-bear'}`}>{t.type === 'Purchase' ? 'Purchase' : t.type === 'Exchange' ? 'Exchange' : t.type === 'Sale (Partial)' ? 'Sale · partial' : 'Sale'}</span>
-                  <span className="font-mono text-[10px] tnum text-textPrimary truncate max-lg:hidden">{bracketLabel(t.bracket)}</span>
-                  <span className={`text-right font-mono text-[10px] tnum max-lg:hidden ${t.late ? 'text-bear' : 'text-textSecondary'}`}>
+                  <span className={`font-mono text-[11px] ${t.type === 'Purchase' ? 'text-bull' : t.type === 'Exchange' ? 'text-textMuted' : 'text-bear'}`}>{t.type === 'Purchase' ? 'Purchase' : t.type === 'Exchange' ? 'Exchange' : t.type === 'Sale (Partial)' ? 'Sale · partial' : 'Sale'}</span>
+                  <span className="font-mono text-[11px] tnum text-textPrimary truncate max-lg:hidden">{bracketLabel(t.bracket)}</span>
+                  <span className={`text-right font-mono text-[11px] tnum max-lg:hidden ${t.late ? 'text-bear' : 'text-textSecondary'}`}>
                     {t.lagDays}d{t.late ? ' late' : ''}
                   </span>
                 </div>
               ))}
-              <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center font-mono text-[10px]" data-name-foot="congress">
-                <Link to="/dossier/congress" className="hit ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
+              <div className="mt-auto px-5 py-2.5 border-t border-borderSubtle/40 flex items-center font-mono text-[11px]" data-name-foot="congress">
+                <Link to="/dossier/congress" className="hit ml-auto inline-flex items-center gap-1 text-[11px] uppercase tracking-widest text-textSecondary hover:text-textPrimary transition-colors">
                   <ArrowUpRight className="w-3 h-3" /> every report
                 </Link>
               </div>

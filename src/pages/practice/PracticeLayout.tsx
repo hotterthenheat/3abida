@@ -38,7 +38,7 @@ import MarkLoad from '../../brand/MarkLoad';
 
 const Fact = ({ label, children, testId, title }: { label: string; children: React.ReactNode; testId?: string; title?: string }) => (
   <div className="min-w-0">
-    <dt className="text-[10px] text-textMuted whitespace-nowrap">{label}</dt>
+    <dt className="text-[11px] text-textMuted whitespace-nowrap">{label}</dt>
     <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-practice-fact={testId} title={title}>
       {children}
     </dd>

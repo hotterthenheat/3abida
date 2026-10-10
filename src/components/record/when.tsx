@@ -50,7 +50,7 @@ export const whenParts = (daysAgo: number, from: Date = now()): WhenParts => {
 export const When = ({ days, size = 11 }: { days: number; size?: 10 | 11 }) => {
   const w = whenParts(days);
   return (
-    <span className={`font-mono tnum whitespace-nowrap ${size === 11 ? 'text-[11px]' : 'text-[10px]'}`} title={w.long} data-when={w.date} data-when-ago={days}>
+    <span className={`font-mono tnum whitespace-nowrap ${size === 11 ? 'text-[11px]' : 'text-[11px]'}`} title={w.long} data-when={w.date} data-when-ago={days}>
       <span className="text-textPrimary">{w.date}</span>
       <span className="text-textMuted"> · {w.ago}</span>
     </span>

@@ -147,7 +147,7 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
                   key={f.key}
                   aria-pressed={active}
                   onClick={() => setMetric(f.key)}
-                  className="relative pb-1 text-left font-mono text-[10px] uppercase tracking-wider transition-colors"
+                  className="relative pb-1 text-left font-mono text-[11px] uppercase tracking-wider transition-colors"
                 >
                   <span className={active ? 'text-textPrimary' : 'text-textMuted hover:text-textSecondary'}>{f.label}</span>
                   {active && (
@@ -192,13 +192,13 @@ const ImpactLeaderboard = ({ ticker, note, rows, onOpen }: ImpactLeaderboardProp
             >
               {/* Identity line — rank, contract, expiry, and the door */}
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-6 shrink-0 font-mono text-[10px] text-textMuted tnum">#{r.rank}</span>
+                <span className="w-6 shrink-0 font-mono text-[11px] text-textMuted tnum">#{r.rank}</span>
                 {/* The name is the one thing that can't roll — it soft-fades in on change (keyed), the way the campaign
                     title does. The board card's pill with the name's mark (2026-09-13: the rail wears the board's pattern). */}
                 <span key={r.contract} className="min-w-0 animate-soft-in">
                   <ContractLabel contract={r.contract} right={isCall ? 'C' : 'P'} logo={r.contract.split(' ')[0]} size="sm" />
                 </span>
-                <span className="font-mono text-[10px] text-textMuted">{r.expiry}</span>
+                <span className="font-mono text-[11px] text-textMuted">{r.expiry}</span>
                 <ArrowUpRight
                   aria-hidden="true"
                   className="ml-auto w-3 h-3 shrink-0 text-textSecondary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"

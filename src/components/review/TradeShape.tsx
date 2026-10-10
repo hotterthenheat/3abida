@@ -146,8 +146,8 @@ const TradeShapeFigure = ({ shape, usual, ink, rowKey }: Props) => {
         <PointerFollowCard start={at} width={236} title={SHAPE_LABEL[axis.key]} testId="data-shape-card" testValue={axis.key}>
           <CardRow k="this trade" v={pct(axis.value)} sub={axis.figure !== pct(axis.value) ? axis.figure : undefined} />
           {usual && hot != null && <CardRow k="your usual" v={pct(usual[hot])} ink="rgb(var(--silver))" />}
-          <span className="col-span-2 text-[10px] leading-snug text-textSecondary whitespace-normal">{axis.words}</span>
-          <span className="col-span-2 text-[10px] leading-snug text-textMuted whitespace-normal">{SHAPE_ASKS[axis.key]}</span>
+          <span className="col-span-2 text-[11px] leading-snug text-textSecondary whitespace-normal">{axis.words}</span>
+          <span className="col-span-2 text-[11px] leading-snug text-textMuted whitespace-normal">{SHAPE_ASKS[axis.key]}</span>
         </PointerFollowCard>
       )}
     </div>

@@ -299,7 +299,7 @@ const NotifyRow = () => {
 };
 
 const Key = ({ children }: { children: ReactNode }) => (
-  <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[10px] text-textSecondary">{children}</kbd>
+  <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[11px] text-textSecondary">{children}</kbd>
 );
 
 /* ---- the page ----------------------------------------------------------------- */
@@ -320,7 +320,7 @@ const Key = ({ children }: { children: ReactNode }) => (
 const Door = ({ children, onClick, to, href, title, tone = 'plain', testId, disabled }: { children: ReactNode; onClick?: () => void | Promise<unknown>; to?: string; href?: string; title?: string; tone?: 'plain' | 'bear'; testId: string; disabled?: boolean }) => {
   const [busy, run] = useBusy();
   const working = useWorking(busy);
-  const cls = `hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors whitespace-nowrap ${
+  const cls = `hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[11px] uppercase tracking-wider transition-colors whitespace-nowrap ${
     tone === 'bear' ? 'border-bear/40 text-bear hover:bg-bear/10' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
   }`;
   if (to)
@@ -345,7 +345,7 @@ const Door = ({ children, onClick, to, href, title, tone = 'plain', testId, disa
 
 /** A small mono word in a pill — a state, never a control */
 const Tag = ({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain' | 'silver' }) => (
-  <span className={`font-mono text-[9px] uppercase tracking-widest rounded px-2 py-0.5 whitespace-nowrap border ${tone === 'silver' ? 'bg-silverFill border-silverFill text-[#0a0a0a]' : 'border-borderSubtle text-textMuted'}`}>
+  <span className={`font-mono text-[11px] uppercase tracking-widest rounded px-2 py-0.5 whitespace-nowrap border ${tone === 'silver' ? 'bg-silverFill border-silverFill text-[#0a0a0a]' : 'border-borderSubtle text-textMuted'}`}>
     {children}
   </span>
 );
@@ -394,7 +394,7 @@ const Field = ({ value, onSave, prefix, width = 200, type = 'text', testId, chec
         />
       </span>
       {problem && (
-        <span id={errId} role="alert" className="font-mono text-[10px] text-warn" data-settings-problem={testId}>
+        <span id={errId} role="alert" className="font-mono text-[11px] text-warn" data-settings-problem={testId}>
           {problem}
         </span>
       )}
@@ -453,7 +453,7 @@ const AccountBox = () => {
               <MonitorSmartphone className="w-3.5 h-3.5 text-textMuted shrink-0" />
               <span className="font-mono text-[11px] text-textPrimary">{d.name}</span>
               {d.thisOne && <Tag tone="silver">this machine</Tag>}
-              <span className="ml-auto font-mono text-[10px] tnum text-textMuted">{d.lastSeen}</span>
+              <span className="ml-auto font-mono text-[11px] tnum text-textMuted">{d.lastSeen}</span>
             </li>
           ))}
         </ul>
@@ -517,7 +517,7 @@ const AccountBox = () => {
               <Door onClick={() => setDeleting(0)} testId="delete-cancel">
                 Keep it
               </Door>
-              <button type="submit" disabled={typed.trim().toUpperCase() !== 'DELETE'} className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-bear/40 text-bear hover:bg-bear/10 font-mono text-[10px] uppercase tracking-wider disabled:opacity-40" data-settings-door="delete-confirm">
+              <button type="submit" disabled={typed.trim().toUpperCase() !== 'DELETE'} className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-bear/40 text-bear hover:bg-bear/10 font-mono text-[11px] uppercase tracking-wider disabled:opacity-40" data-settings-door="delete-confirm">
                 <Trash2 className="w-3 h-3" /> Delete the account
               </button>
             </div>
@@ -564,7 +564,7 @@ const BillingNotice = ({ kind, until, held, onDismiss, onCard }: { kind: NoticeK
   }[kind];
   return (
     <div className={`mx-5 mb-4 rounded-lg border p-4 ${kind === 'failed' ? 'border-warn/60' : 'border-borderMuted'} bg-ink/[0.02]`} data-billing-notice={kind}>
-      <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${kind === 'failed' ? 'text-warn' : 'text-textMuted'}`}>{word}</div>
+      <div className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${kind === 'failed' ? 'text-warn' : 'text-textMuted'}`}>{word}</div>
       <div className="mt-1.5 text-[15px] font-medium text-textPrimary">{head}</div>
       <div className="mt-1 text-[12.5px] text-textSecondary">{line}</div>
       <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -668,14 +668,14 @@ const CardForm = ({ onDone }: { onDone: () => void }) => {
         Expires
         <input value={exp} onChange={e => { setExp(e.target.value); setProblem(null); }} inputMode="numeric" autoComplete="cc-exp" placeholder="MM/YY" className={`${field} w-[84px] border-borderSubtle`} />
       </label>
-      <button type="submit" className="hit inline-flex items-center h-8 px-3 rounded-md border border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05]" data-settings-door="card-save">
+      <button type="submit" className="hit inline-flex items-center h-8 px-3 rounded-md border border-borderMuted font-mono text-[11px] uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05]" data-settings-door="card-save">
         Save the card
       </button>
-      <button type="button" onClick={onDone} className="hit inline-flex items-center h-8 px-2 rounded-md font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary" data-settings-door="card-cancel">
+      <button type="button" onClick={onDone} className="hit inline-flex items-center h-8 px-2 rounded-md font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary" data-settings-door="card-cancel">
         Cancel
       </button>
       {problem && (
-        <span role="alert" className="basis-full font-mono text-[10px] text-warn">
+        <span role="alert" className="basis-full font-mono text-[11px] text-warn">
           {problem}
         </span>
       )}
@@ -741,7 +741,7 @@ const BillingBox = () => {
                 </div>
                 <div className="font-mono text-[14px] font-semibold tnum text-textPrimary">
                   {t.price}
-                  <span className="text-[10px] font-normal text-textMuted"> {t.period}</span>
+                  <span className="text-[11px] font-normal text-textMuted"> {t.period}</span>
                 </div>
                 <div className="text-[11px] text-textMuted">{t.kicker}</div>
                 <div className="mt-2 h-7 flex items-center">
@@ -803,7 +803,7 @@ const BillingBox = () => {
                   <button
                     type="button"
                     onClick={() => downloadReceipt(inv, { planName: planOf(inv.plan).name, date: fmtDate(inv.date), billing: b, name: p.name, email: p.email, descriptor: COMPANY.descriptor, company: COMPANY.product })}
-                    className="hit inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                    className="hit inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
                     title="Download the receipt as a PDF"
                     aria-label={`Download the receipt for ${fmtDate(inv.date)} as a PDF`}
                     data-settings-receipt={inv.id}
@@ -895,7 +895,7 @@ const DataBox = () => {
     <Section id="data" title="Data" line="What's yours on this machine — the board, the marks, the alerts, the desks, these settings — and where the feed stands">
       <Row name="The feed" line="Live options and quotes, the tape and the record — delayed while a payment is due" testId="feed">
         <span className="inline-flex items-center gap-2">
-          <span className="tone-live rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest font-semibold">live</span>
+          <span className="tone-live rounded-full border px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest font-semibold">live</span>
           <span className="font-mono text-[11px] text-textMuted">every tick · the book every 10 seconds</span>
         </span>
       </Row>
@@ -911,7 +911,7 @@ const DataBox = () => {
           }}
           data-settings-import-input
         />
-        {note && <span className="font-mono text-[10px] text-textMuted">{note}</span>}
+        {note && <span className="font-mono text-[11px] text-textMuted">{note}</span>}
         <Door onClick={exportLocal} title="Downloads a file of what is kept here" testId="export">
           <Download className="w-3 h-3" /> Export
         </Door>
@@ -1156,13 +1156,13 @@ const Settings = () => {
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           <div className="min-w-0">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Plan</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Plan</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-settings-plan-fact={plan.key}>
               {plan.name}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Theme</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Theme</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-settings-theme={theme}>
               {THEME_WORDS[choice][0]}
               {choice === 'system' && <span className="text-textMuted"> · {theme}</span>}
@@ -1170,11 +1170,11 @@ const Settings = () => {
           </div>
           {/* facts, not a statement (the audit's SE-12) — and a phone keeps the first two */}
           <div className="min-w-0 max-sm:hidden">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Clock</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Clock</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{desk.clock === 'ny' ? 'New York' : 'Your own'}</dd>
           </div>
           <div className="min-w-0 max-sm:hidden">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Kept on</dt>
+            <dt className="text-[11px] text-textMuted whitespace-nowrap">Kept on</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">this machine</dd>
           </div>
         </dl>
@@ -1293,7 +1293,7 @@ const Settings = () => {
                     <span className="inline-flex items-center gap-1 shrink-0">
                       {s.keys.map((k, i) => (
                         <span key={k} className="inline-flex items-center gap-1">
-                          {i > 0 && <span className="text-[10px] text-textMuted">{s.alt ? '/' : '+'}</span>}
+                          {i > 0 && <span className="text-[11px] text-textMuted">{s.alt ? '/' : '+'}</span>}
                           <Key>{k}</Key>
                         </span>
                       ))}

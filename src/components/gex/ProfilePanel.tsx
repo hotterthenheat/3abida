@@ -1571,12 +1571,12 @@ const ProfilePanel = ({
           {ticker ? `${ticker} ` : ''}
           {fmtStrike(cardRow.strike)}
         </span>
-        <span className={`font-mono text-[10px] tnum ${cardRow.strike > levels.spot ? 'text-bull' : cardRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
+        <span className={`font-mono text-[11px] tnum ${cardRow.strike > levels.spot ? 'text-bull' : cardRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
           {cardRow.strike > levels.spot ? '+' : ''}
           {(((cardRow.strike - levels.spot) / levels.spot) * 100).toFixed(2)}% from spot
         </span>
         {readRole && (
-          <span className="ml-auto text-[10px] font-medium" style={{ color: readRole.c }}>
+          <span className="ml-auto text-[11px] font-medium" style={{ color: readRole.c }}>
             {readRole.words}
           </span>
         )}
@@ -1590,39 +1590,39 @@ const ProfilePanel = ({
             ] as const
           ).map(([name, v, sign]) => (
             <div key={name} className="flex items-center gap-2">
-              <span className="w-8 shrink-0 font-mono text-[9px] uppercase tracking-wider text-textMuted">{name}</span>
+              <span className="w-8 shrink-0 font-mono text-[11px] uppercase tracking-wider text-textMuted">{name}</span>
               <span className="flex-1 h-[5px] rounded-full bg-ink/[0.06] overflow-hidden">
                 <span className="block h-full rounded-full transition-colors duration-300" style={{ width: `${Math.round((v / cardLegMax) * 100)}%`, background: rampInk(sign, v / cardLegMax) }} />
               </span>
-              <span className="w-14 shrink-0 text-right font-mono text-[10px] tnum text-textPrimary">{v > 0 ? fmtUsd(v) : '—'}</span>
+              <span className="w-14 shrink-0 text-right font-mono text-[11px] tnum text-textPrimary">{v > 0 ? fmtUsd(v) : '—'}</span>
             </div>
           ))}
         </div>
       )}
       <div className="mt-1.5 grid grid-cols-3 gap-2">
         <div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Net</div>
-          <div className="mt-0.5 flex items-center gap-1 font-mono text-[10px] tnum text-textPrimary">
+          <div className="font-mono text-[11px] uppercase tracking-wider text-textMuted">Net</div>
+          <div className="mt-0.5 flex items-center gap-1 font-mono text-[11px] tnum text-textPrimary">
             {cardRow.value !== 0 && <span className="w-2 h-2 rounded-full shrink-0 transition-colors duration-300" style={{ background: thermal(cardRow.value, hoverMax).fill }} aria-hidden />}
             {cardRow.value === 0 ? '—' : fmtUsd(Math.abs(cardRow.value))}
           </div>
-          {cardRow.value !== 0 && <div className="text-[9px] text-textMuted">{cardRow.value > 0 ? words.pos : words.neg}</div>}
+          {cardRow.value !== 0 && <div className="text-[11px] text-textMuted">{cardRow.value > 0 ? words.pos : words.neg}</div>}
         </div>
         <div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Open int</div>
-          <div className="mt-0.5 font-mono text-[10px] tnum text-textPrimary">{cardLevel && (cardLevel.callOI != null || cardLevel.putOI != null) ? ((cardLevel.callOI ?? 0) + (cardLevel.putOI ?? 0)).toLocaleString('en-US') : '—'}</div>
+          <div className="font-mono text-[11px] uppercase tracking-wider text-textMuted">Open int</div>
+          <div className="mt-0.5 font-mono text-[11px] tnum text-textPrimary">{cardLevel && (cardLevel.callOI != null || cardLevel.putOI != null) ? ((cardLevel.callOI ?? 0) + (cardLevel.putOI ?? 0)).toLocaleString('en-US') : '—'}</div>
         </div>
         <div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Since open</div>
+          <div className="font-mono text-[11px] uppercase tracking-wider text-textMuted">Since open</div>
           {/* the figure in the direction's ink; with no figure the short words take its line */}
-          <div className={`mt-0.5 font-mono text-[10px] tnum ${sinceOpen == null ? 'text-textMuted' : sinceOpen.dir < 0 ? 'text-bear' : sinceOpen.dir > 0 ? 'text-bull' : 'text-textPrimary'}`} data-card-since>
+          <div className={`mt-0.5 font-mono text-[11px] tnum ${sinceOpen == null ? 'text-textMuted' : sinceOpen.dir < 0 ? 'text-bear' : sinceOpen.dir > 0 ? 'text-bull' : 'text-textPrimary'}`} data-card-since>
             {sinceOpen == null ? '—' : sinceOpen.figure ?? sinceOpen.short}
           </div>
-          {sinceOpen?.figure && <div className="text-[9px] text-textMuted">{sinceOpen.short}</div>}
+          {sinceOpen?.figure && <div className="text-[11px] text-textMuted">{sinceOpen.short}</div>}
         </div>
       </div>
       {/* KEPT OR NOT — the read line's own words, so the card says what the silver ring means */}
-      <div className={`mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-1.5 text-[9px] ${cardKept ? 'text-silver' : 'text-textMuted'}`} data-card-kept={cardKept ? '' : undefined}>
+      <div className={`mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-1.5 text-[11px] ${cardKept ? 'text-silver' : 'text-textMuted'}`} data-card-kept={cardKept ? '' : undefined}>
         {cardKept && <span className="w-1.5 h-1.5 rounded-full bg-silver shrink-0" aria-hidden />}
         {cardKept ? 'Kept · click to let go' : 'Click to keep'}
       </div>
@@ -1632,14 +1632,14 @@ const ProfilePanel = ({
     <div
       data-profile-read
       data-read-strike={readRow ? readRow.strike : undefined}
-      className={`absolute inset-x-0 flex items-center ${tight ? 'gap-2 px-2' : 'gap-3 px-2.5'} border-t border-ink/[0.06] bg-panel whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary pointer-events-none`}
+      className={`absolute inset-x-0 flex items-center ${tight ? 'gap-2 px-2' : 'gap-3 px-2.5'} border-t border-ink/[0.06] bg-panel whitespace-nowrap overflow-hidden text-[11px] text-textSecondary pointer-events-none`}
       style={{ top: foot.top, height: foot.h }}
     >
       {readRow ? (
         <>
           <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtStrike(readRow.strike)}</span>
           {readRole && (
-            <span className="text-[10px] font-medium shrink-0" style={{ color: readRole.c }} data-read-role>
+            <span className="text-[11px] font-medium shrink-0" style={{ color: readRole.c }} data-read-role>
               {readRole.words}
             </span>
           )}
@@ -1722,7 +1722,7 @@ const ProfilePanel = ({
       aria-pressed={guideOpen}
       onClick={onGuide}
       aria-label="How to read"
-      className="pointer-events-auto shrink-0 inline-flex items-center gap-1 h-6 px-1.5 rounded-md text-[10px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-pressed:text-textPrimary transition-colors"
+      className="pointer-events-auto shrink-0 inline-flex items-center gap-1 h-6 px-1.5 rounded-md text-[11px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-pressed:text-textPrimary transition-colors"
       title="What the two lanes mean"
     >
       <Info className="w-3 h-3" />
@@ -1743,7 +1743,7 @@ const ProfilePanel = ({
           onClick={() => setShowVol(v => !v)}
           aria-pressed={showVol}
           title="Volume profile — the session's traded volume by price, VPOC and value area, under the size lane"
-          className={`shrink-0 h-6 rounded px-1.5 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors ${
+          className={`shrink-0 h-6 rounded px-1.5 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
             showVol ? 'bg-ink/[0.14] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'
           }`}
           data-profile-vol
@@ -1844,7 +1844,7 @@ const ProfilePanel = ({
             </span>
           )}
           {!twoRowHead && showSize && (
-            <span className="min-w-0 flex-1 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="size">
+            <span className="min-w-0 flex-1 flex items-center gap-2 text-[11px] text-textMuted pl-1" data-lane-head="size">
               <Term k={view === 'net' ? 'Net at a strike' : 'Size at a strike'} className="pointer-events-auto truncate">
                 {view === 'net' ? 'Net' : 'Size'} · {greek}
                 <span className="text-textMuted">{view === 'net' ? ' · puts − calls' : ' · puts ◂ ▸ calls'}</span>
@@ -1852,7 +1852,7 @@ const ProfilePanel = ({
             </span>
           )}
           {!twoRowHead && showFlow && (
-            <span className="min-w-0 flex-1 flex items-center gap-2 text-[10px] text-textMuted pl-1" data-lane-head="flow">
+            <span className="min-w-0 flex-1 flex items-center gap-2 text-[11px] text-textMuted pl-1" data-lane-head="flow">
               <Term k="What a move forces" className="pointer-events-auto truncate">
                 What a move forces <span className="text-textMuted">· from gamma</span>
               </Term>

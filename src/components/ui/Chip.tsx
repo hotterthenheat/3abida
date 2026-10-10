@@ -20,7 +20,7 @@ const Chip = ({
     onClick={onClick}
     title={title}
     aria-pressed={active}
-    className={`px-2 py-0.5 rounded font-mono text-[10px] whitespace-nowrap transition-colors ${
+    className={`px-2 py-0.5 rounded font-mono text-[11px] whitespace-nowrap transition-colors ${
       active ? 'bg-ink/[0.09] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.04]'
     }`}
   >

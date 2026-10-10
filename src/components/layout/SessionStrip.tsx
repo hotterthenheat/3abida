@@ -116,8 +116,10 @@ const SessionStrip = ({ read, time, className = '' }: { read: DayRead; time: str
       ))}
       {read.at != null && <span className="absolute inset-y-0 w-[2px] -ml-px bg-textPrimary" style={{ left: `${read.at * 100}%` }} aria-hidden data-session-now />}
     </div>
-    <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
-      <span className="min-w-0 truncate text-textSecondary" data-session-line>
+    {/* at the 11 px floor the phase and the clock share the rail's width on one line when they fit, two when not —
+        never a cut "pre-market …" */}
+    <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tnum">
+      <span className="min-w-0 text-textSecondary" data-session-line>
         {read.name}
         {read.next && <span className="text-textMuted"> · {read.next}</span>}
       </span>

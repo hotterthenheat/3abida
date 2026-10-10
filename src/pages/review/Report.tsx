@@ -63,7 +63,7 @@ const Report = () => {
       { key: 'held', header: 'Held', align: 'right', sortValue: t => t.heldMin, render: t => <span className="text-textSecondary">{heldWords(t.heldMin)}</span> },
       { key: 'decay', header: 'Decay a day', align: 'right', sortValue: t => decayPerDay(t), render: t => <span className="text-textSecondary">{usd(decayPerDay(t))}</span> },
       { key: 'how', header: 'Ended', sortValue: t => t.how, render: t => <span className="text-textSecondary">{ENDED[t.how]}</span> },
-      { key: 'pnl', header: 'Made or lost', align: 'right', sortValue: t => t.pnl, render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[10px] font-normal opacity-80">{rWords(t.r)}</span></span> },
+      { key: 'pnl', header: 'Made or lost', align: 'right', sortValue: t => t.pnl, render: t => <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)} <span className="text-[11px] font-normal opacity-80">{rWords(t.r)}</span></span> },
     ],
     []
   );
@@ -73,7 +73,7 @@ const Report = () => {
       <div className="border border-borderSubtle rounded-md bg-panel px-6 py-14 text-center" data-review-report="missing">
         <SayPage words="Session not found" />
         <p className="text-[13px] text-textPrimary">That session is not on this machine.</p>
-        <Link to="/practice/backtest" className="hit mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
+        <Link to="/practice/backtest" className="hit mt-3 inline-block font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors">
           Your sessions
         </Link>
       </div>
@@ -109,7 +109,7 @@ const Report = () => {
         </>
       }
       controls={
-        <Link to={`/practice/backtest/${session.id}`} className="hit inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-chip font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-review-desk-door>
+        <Link to={`/practice/backtest/${session.id}`} className="hit inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-chip font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-review-desk-door>
           <ArrowLeft className="w-3 h-3" /> Back to the desk
         </Link>
       }
@@ -117,7 +117,7 @@ const Report = () => {
     >
       {curve.length > 1 && (
         <div className="px-5 pb-4 border-t border-borderSubtle/70 pt-3" data-report-curve>
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">The running total</div>
+          <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">The running total</div>
           <p className="mt-0.5 mb-2 text-[11px] text-textMuted">What the closed trades had made or lost by the end of each day a trade closed on</p>
           <SessionsChart
             points={curve}
@@ -130,7 +130,7 @@ const Report = () => {
             testId="review-curve"
             card={h => (
               <div className="font-mono text-[11px] tnum">
-                <div className="text-textMuted text-[10px]">The running total</div>
+                <div className="text-textMuted text-[11px]">The running total</div>
                 <div className={`mt-0.5 text-[13px] font-semibold ${dirInk(h.point?.value ?? 0)}`}>{usdSigned(h.point?.value ?? 0)}</div>
                 {h.prev && <div className="mt-0.5 text-textSecondary">{usdSigned((h.point?.value ?? 0) - h.prev.value)} that day</div>}
               </div>
@@ -143,19 +143,19 @@ const Report = () => {
         <div className="px-5 pb-4 pt-3 border-t border-borderSubtle/70 grid gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3" data-report-cuts>
           {cuts.map(c => (
             <div key={c.title} className="min-w-0">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-textPrimary">{c.title}</div>
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">{c.title}</div>
               <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-x-4 font-mono text-[11px] tnum">
-                <span className="text-[10px] uppercase tracking-widest text-textMuted pb-1">&nbsp;</span>
-                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Trades</span>
-                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Won</span>
-                <span className="text-[10px] uppercase tracking-widest text-textMuted text-right pb-1">Made or lost</span>
+                <span className="text-[11px] uppercase tracking-widest text-textMuted pb-1">&nbsp;</span>
+                <span className="text-[11px] uppercase tracking-widest text-textMuted text-right pb-1">Trades</span>
+                <span className="text-[11px] uppercase tracking-widest text-textMuted text-right pb-1">Won</span>
+                <span className="text-[11px] uppercase tracking-widest text-textMuted text-right pb-1">Made or lost</span>
                 {c.rows.map(r => (
                   <div key={r.label} className="contents">
                     <span className="py-1 border-t border-borderSubtle/70 text-textPrimary truncate">{r.label}</span>
                     <span className="py-1 border-t border-borderSubtle/70 text-right text-textSecondary">{r.n}</span>
                     <span className="py-1 border-t border-borderSubtle/70 text-right text-textSecondary">{pct(r.winRate)}</span>
                     <span className={`py-1 border-t border-borderSubtle/70 text-right font-semibold ${dirInk(r.net)}`}>
-                      {usdSigned(r.net)} {r.avgR != null && <span className="text-[10px] font-normal opacity-80">{rWords(r.avgR)}</span>}
+                      {usdSigned(r.net)} {r.avgR != null && <span className="text-[11px] font-normal opacity-80">{rWords(r.avgR)}</span>}
                     </span>
                   </div>
                 ))}

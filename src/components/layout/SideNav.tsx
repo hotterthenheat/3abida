@@ -165,13 +165,13 @@ const RailSubject = ({
         {priceText}
       </span>
       {quote && (
-        <span className={`font-mono text-[10px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
+        <span className={`font-mono text-[11px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
           {changeText}
         </span>
       )}
       <span className="ml-auto inline-flex items-center gap-1 text-textMuted group-hover:text-textSecondary transition-colors">
         <Search className="w-3 h-3" />
-        <kbd className="font-mono text-[10px]">{PALETTE_KEY}</kbd>
+        <kbd className="font-mono text-[11px]">{PALETTE_KEY}</kbd>
       </span>
     </button>
   );
@@ -225,12 +225,12 @@ const RailSignature = ({
         <SignatureDot state={marketWord} className="w-2 h-2" label={`slayer:~ $ ${marketWord}`} />
       ) : (
         <>
-          <Signature state={marketWord} rule={false} className="text-[10.5px]" />
+          <Signature state={marketWord} rule={false} className="text-[11px]" />
           {/* WHERE THE DAY STANDS (SessionStrip.tsx; Settings › The desk turns it off) — else the session's own line */}
           {sessionStrip ? (
             <SessionStrip read={day} time={time} />
           ) : (
-            <span className="mt-1.5 flex items-center gap-2 text-[10px] tnum">
+            <span className="mt-1.5 flex items-center gap-2 text-[11px] tnum">
               <span className="min-w-0 truncate text-textSecondary" title={clock.label} data-session-line>
                 {open ? clock.label : clock.label.toLowerCase()}
               </span>
@@ -407,7 +407,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           row's end when open. */}
       {collapsed
         ? unseen > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-[4px] bg-bear text-white font-mono text-[9px] font-bold leading-[14px] text-center tnum" data-alerts-count aria-hidden>
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-[4px] bg-bear text-white font-mono text-[11px] font-bold leading-[14px] text-center tnum" data-alerts-count aria-hidden>
               {unseen > 9 ? '9+' : unseen}
             </span>
           )
@@ -437,7 +437,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
       <div key={group} className={`flex flex-col gap-[2px] ${gi === 0 || last ? '' : first ? 'mt-1' : 'mt-5'}`} data-nav-group={group}>
         {!collapsed ? (
           meta.caption && (
-            <span className="px-2.5 pb-1 text-[10px] uppercase tracking-[0.1em] text-textMuted" title={meta.hint}>
+            <span className="px-2.5 pb-1 text-[11px] uppercase tracking-[0.1em] text-textMuted" title={meta.hint}>
               {meta.caption}
             </span>
           )
@@ -658,7 +658,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           {!collapsed && (
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-[12px] font-semibold text-textPrimary">{profile.name}</span>
-              <span className="block truncate font-mono text-[10px] text-textMuted">@{profile.handle}</span>
+              <span className="block truncate font-mono text-[11px] text-textMuted">@{profile.handle}</span>
             </span>
           )}
         </Link>

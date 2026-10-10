@@ -483,7 +483,7 @@ const Footprints = () => {
           <>
             <SavedCutsList store={FOOT_CUTS} query="" onOpen={addr.open} noun="cut" testId="footprints" onSay={cuts.say} open={cuts.open} />
             {cuts.said && (
-              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+              <p role="status" className="mb-2 font-mono text-[11px] text-textSecondary">
                 {cuts.said}
               </p>
             )}

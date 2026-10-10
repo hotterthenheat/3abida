@@ -61,11 +61,11 @@ const untilWords = (ms: number): string => {
 /** One figure of the card: its name, the figure, and — where it has one — a line under it */
 const Cell = ({ label, children, sub, title, testId }: { label: string; children: ReactNode; sub?: ReactNode; title?: string; testId?: string }) => (
   <div className="min-w-0" title={title}>
-    <div className="text-[10px] text-textMuted whitespace-nowrap">{label}</div>
+    <div className="text-[11px] text-textMuted whitespace-nowrap">{label}</div>
     <div className="mt-0.5 font-mono text-[13px] leading-tight tnum text-textPrimary whitespace-nowrap" data-trace-fact={testId}>
       {children}
     </div>
-    {sub && <div className="mt-0.5 font-mono text-[10px] tnum text-textMuted whitespace-nowrap">{sub}</div>}
+    {sub && <div className="mt-0.5 font-mono text-[11px] tnum text-textMuted whitespace-nowrap">{sub}</div>}
   </div>
 );
 
@@ -90,7 +90,7 @@ const FloorBar = ({ ev, worth }: { ev: EvalRead; worth: number }) => {
         {dayFloorOn && <span className="absolute top-[5px] w-px h-[11px] bg-warn" style={{ left: at(ev.dayFloor) }} title="The day’s own floor" />}
         <span className="absolute top-[4px] w-[13px] h-[13px] -ml-[6.5px] rounded-full border-2 border-panel bg-textPrimary shadow-[0_0_0_1px_rgb(var(--silver)/0.5)]" style={{ left: at(worth) }} />
       </div>
-      <div className="flex justify-between font-mono text-[10px] tnum text-textMuted">
+      <div className="flex justify-between font-mono text-[11px] tnum text-textMuted">
         <span>
           floor <span className="text-textSecondary">{usd(ev.floor, 0)}</span>
           {ev.floorStopped && <span> · stays there</span>}
@@ -117,14 +117,14 @@ const TiedBar = ({ v }: { v: PaperView }) => {
       <div className="relative h-[5px] rounded-full bg-ink/[0.08] overflow-hidden flex" aria-hidden="true">
         <span className="h-full bg-silver/70" style={{ width: w(opt) }} />
       </div>
-      <div className="mt-1 font-mono text-[10px] tnum text-textMuted">
+      <div className="mt-1 font-mono text-[11px] tnum text-textMuted">
         tied up in options <span className="text-textSecondary">{usd(opt, 0)}</span> of {usd(v.equity, 0)}
       </div>
     </div>
   );
 };
 
-const door = 'hit inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[10px] uppercase tracking-wider text-textSecondary transition-colors';
+const door = 'hit inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary transition-colors';
 
 interface Props {
   account: PaperAccount;
@@ -160,11 +160,11 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
       <div className={`${head} px-3 gap-2 flex-wrap h-auto min-h-9 py-1`}>
         {/* bare: the head also holds Flatten and New — the word Account stays in the tooltip and the open card's heading */}
         <DropdownSelect label="Account" value={a.id} options={options} onChange={onPick} title="The account on the chart" testId="paper-account-pick" size="sm" bare />
-        <span className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[10px] font-bold uppercase tracking-widest ${status.ink}`} data-paper-status-chip>
+        <span className={`inline-flex items-center h-5 px-1.5 rounded border font-mono text-[11px] font-bold uppercase tracking-widest ${status.ink}`} data-paper-status-chip>
           {status.word}
         </span>
         {a.sandbox && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle font-mono text-[10px] uppercase tracking-widest text-textSecondary" title="Fees off — practice with nothing in the way">
+          <span className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle font-mono text-[11px] uppercase tracking-widest text-textSecondary" title="Fees off — practice with nothing in the way">
             Sandbox
           </span>
         )}
@@ -276,7 +276,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           {ev ? (
             <>
               <div className="min-w-0">
-                <div className="text-[10px] text-textMuted whitespace-nowrap">Room to the floor</div>
+                <div className="text-[11px] text-textMuted whitespace-nowrap">Room to the floor</div>
                 <div className={`mt-0.5 font-mono text-[18px] leading-none font-semibold tnum whitespace-nowrap ${a.status !== 'open' ? 'text-textMuted' : tight ? 'text-warn' : 'text-textPrimary'}`} data-paper-room>
                   {usd(Math.max(0, ev.room), 0)}
                 </div>
@@ -302,7 +302,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           ) : (
             <>
               <div className="min-w-0">
-                <div className="text-[10px] text-textMuted whitespace-nowrap">Worth</div>
+                <div className="text-[11px] text-textMuted whitespace-nowrap">Worth</div>
                 <div className="mt-0.5 font-mono text-[18px] leading-none font-semibold tnum text-textPrimary whitespace-nowrap" data-paper-worth>
                   {usd(v.equity)}
                 </div>
@@ -323,7 +323,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           )}
         </div>
         {ev ? <FloorBar ev={ev} worth={v.equity} /> : <TiedBar v={v} />}
-        <span className="font-mono text-[10px] tnum text-textMuted" data-paper-counts>
+        <span className="font-mono text-[11px] tnum text-textMuted" data-paper-counts>
           {open} open · {working} working · {v.optTrades.length} closed · <span className={dirInk(v.closed)}>{usdSigned(v.closed, 0)}</span> closed
         </span>
       </div>

@@ -76,7 +76,7 @@ const usd = (v: number | undefined | null): string => (Number.isFinite(v as numb
 /** One small labelled figure inside a hero zone. */
 const Mini = ({ label, value, tone = 'text-textPrimary', title }: { label: string; value: ReactNode; tone?: string; title?: string }) => (
   <span className="flex flex-col gap-0.5 min-w-0" title={title}>
-    <span className="font-mono text-[10px] text-textMuted truncate">{label}</span>
+    <span className="font-mono text-[11px] text-textMuted truncate">{label}</span>
     <span className={`font-mono text-[11.5px] font-semibold tnum ${tone} truncate`}>{value}</span>
   </span>
 );
@@ -211,8 +211,8 @@ const SequenceStrip = ({
   return (
     <div className="border border-borderSubtle bg-inset rounded-md overflow-hidden">
       <div className="px-3 py-2 border-b border-borderSubtle/60 flex items-baseline gap-2 flex-wrap">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The sequence</span>
-        <span className="font-mono text-[10px] text-textMuted">same contract on the live tape</span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">The sequence</span>
+        <span className="font-mono text-[11px] text-textMuted">same contract on the live tape</span>
       </div>
       <p className="px-3 pt-2 text-[11px] text-textSecondary leading-snug tnum">
         <RichRead text={read} />
@@ -225,15 +225,15 @@ const SequenceStrip = ({
             const ink = p.side === 'MID' ? 'text-textMuted' : 'text-textPrimary';
             const row = (
               <>
-                <span className="w-[86px] shrink-0 font-mono text-[10px] tnum text-textMuted">{p.time}</span>
-                <span className={`w-[74px] shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wider ${ink}`}>{word}</span>
-                <span className="font-mono text-[10px] tnum text-textSecondary">
+                <span className="w-[86px] shrink-0 font-mono text-[11px] tnum text-textMuted">{p.time}</span>
+                <span className={`w-[74px] shrink-0 font-mono text-[11px] font-semibold uppercase tracking-wider ${ink}`}>{word}</span>
+                <span className="font-mono text-[11px] tnum text-textSecondary">
                   {p.size.toLocaleString()} × ${p.fill.toFixed(2)}
                 </span>
-                <span className="font-mono text-[10px] font-bold tnum text-textPrimary">{fmtUsd(p.premium)}</span>
-                {p.sweep && <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-warn">Sweep</span>}
+                <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtUsd(p.premium)}</span>
+                {p.sweep && <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-warn">Sweep</span>}
                 {self && (
-                  <span className="ml-auto font-mono text-[10px] font-semibold uppercase tracking-wider text-silver">Viewing</span>
+                  <span className="ml-auto font-mono text-[11px] font-semibold uppercase tracking-wider text-silver">Viewing</span>
                 )}
               </>
             );
@@ -258,7 +258,7 @@ const SequenceStrip = ({
             );
           })}
           {n > SEQ_SHOWN && (
-            <span className="px-1.5 py-1 font-mono text-[10px] text-textMuted tnum">…and {n - SEQ_SHOWN} more on the tape</span>
+            <span className="px-1.5 py-1 font-mono text-[11px] text-textMuted tnum">…and {n - SEQ_SHOWN} more on the tape</span>
           )}
         </div>
       )}
@@ -436,7 +436,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   };
 
   const linkBtn =
-    'inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded border border-borderSubtle bg-ink/[0.02] font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
+    'inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded border border-borderSubtle bg-ink/[0.02] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
 
   const dateLabel = nyDay(sessionDate(dayOffset));
 
@@ -473,7 +473,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <button
               onClick={() => setCalendarOpen(o => !o)}
               title="Pick a session"
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold tnum transition-colors"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold tnum transition-colors"
             >
               <CalendarDays className="w-3 h-3" />
               {dayOffset === 0 ? 'Today' : dateLabel}
@@ -547,17 +547,17 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               {print.ticker} {print.strike}
               {print.right}
             </span>
-            <span className="font-mono text-[10px] text-textSecondary tnum">
+            <span className="font-mono text-[11px] text-textSecondary tnum">
               {print.expiry} · {print.dte}d
             </span>
             {/* White: a leg count is a fact, not a status — the tape's own rule (2026-08-30). */}
-            {print.legs > 1 && <span className="font-mono text-[10px] text-textPrimary">×{print.legs} legs</span>}
+            {print.legs > 1 && <span className="font-mono text-[11px] text-textPrimary">×{print.legs} legs</span>}
             <SignalBadge tone={SENT_TONE[sent]}>{sent}</SignalBadge>
-            <span className="font-mono text-[10px] text-textSecondary tnum">{print.time}</span>
-            <span className={`font-mono text-[10px] uppercase ${print.sweep ? 'text-warn font-semibold' : 'text-textMuted'}`}>
+            <span className="font-mono text-[11px] text-textSecondary tnum">{print.time}</span>
+            <span className={`font-mono text-[11px] uppercase ${print.sweep ? 'text-warn font-semibold' : 'text-textMuted'}`}>
               {{ SWEEP: 'Sweep', BLOCK: 'Block', MULTI: print.strat !== '—' ? print.strat : 'Multi-leg', SINGLE: 'Single print' }[printKind(print)]}
             </span>
-            <span className="font-mono text-[10px] text-textSecondary tnum">
+            <span className="font-mono text-[11px] text-textSecondary tnum">
               {print.ticker} ${fixed(print.spot)}
             </span>
           </div>
@@ -573,33 +573,33 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-borderSubtle border border-borderSubtle rounded-md overflow-hidden">
             {/* THE PRINT — the money, the aggressor, where in the spread it filled */}
             <div className="lg:col-span-4 bg-inset px-3.5 py-3 flex flex-col gap-2.5 min-w-0">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">The print</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">The print</span>
               <div className="flex items-baseline gap-2.5 flex-wrap">
                 <span className={`font-mono text-2xl font-bold tnum leading-none ${print.premium >= 1_000_000 ? 'text-supreme' : 'text-textPrimary'}`}>
                   {usd(print.premium)}
                 </span>
                 <span className={`font-mono text-sm font-bold ${sideTone}`}>{sideLabel}</span>
-                {print.sweep && <span className="font-mono text-[10px] uppercase font-semibold text-warn">Sweep</span>}
+                {print.sweep && <span className="font-mono text-[11px] uppercase font-semibold text-warn">Sweep</span>}
               </div>
               {/* the clearest tell of the side — where between bid and ask it printed */}
               <div className="flex items-center gap-2.5 mt-auto">
-                <span className="font-mono text-[10px] tnum text-textMuted">{fixed(print.bid)}</span>
+                <span className="font-mono text-[11px] tnum text-textMuted">{fixed(print.bid)}</span>
                 <span className="relative flex-1 h-[4px] rounded-full bg-ink/[0.07]">
                   <span
                     className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[9px] h-[9px] rounded-full bg-textPrimary"
                     style={{ left: `${print.fillPos * 100}%` }}
                   />
                 </span>
-                <span className="font-mono text-[10px] tnum text-textMuted">{fixed(print.ask)}</span>
+                <span className="font-mono text-[11px] tnum text-textMuted">{fixed(print.ask)}</span>
               </div>
-              <span className="font-mono text-[10px] text-textSecondary tnum">
+              <span className="font-mono text-[11px] text-textSecondary tnum">
                 <RichRead text={`filled $${fixed(print.fill)} × ${num(print.size)} · ${print.time}`} />
               </span>
             </div>
 
             {/* THE READ — the terminal talks first, the figures behind it after */}
             <div className="lg:col-span-5 bg-inset px-3.5 py-3 flex flex-col gap-2.5 min-w-0">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Summary</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">Summary</span>
               <p className="text-[12px] text-textSecondary leading-relaxed">
                 <RichRead text={printRead(print, sent)} />
               </p>
@@ -622,7 +622,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
 
             {/* THE SCALE — our moat: the contract graded, not just described */}
             <div className="lg:col-span-3 bg-inset px-3.5 py-3 flex flex-col gap-2 min-w-0">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">On the Compass scale</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">On the Compass scale</span>
               {graded && weighed ? (
                 <>
                   {/* The verdict is the BOARD's — VerdictBadge, makeSetup —
@@ -630,11 +630,11 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       number. Composite stays engine-internal. */}
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <VerdictBadge verdict={graded.verdict} dot />
-                    <span className="font-mono text-[10px] text-textMuted uppercase tracking-wider">
+                    <span className="font-mono text-[11px] text-textMuted uppercase tracking-wider">
                       {graded.sleeve === 'odte' ? 'same-day' : graded.sleeve}
                     </span>
                     {/* LABELLED (the audit's X8.7): a bare "67%" beside the verdict read like a rating */}
-                    <span className="ml-auto font-mono text-[10px] tnum text-textSecondary">confidence {graded.confidence}%</span>
+                    <span className="ml-auto font-mono text-[11px] tnum text-textSecondary">confidence {graded.confidence}%</span>
                   </div>
                   <span className="relative block h-[3px] rounded-full bg-ink/[0.06]">
                     <span
@@ -644,7 +644,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       style={{ width: `${Math.max(4, Math.min(100, graded.confidence))}%` }}
                     />
                   </span>
-                  <span className="font-mono text-[10px] tnum text-textSecondary mt-auto">
+                  <span className="font-mono text-[11px] tnum text-textSecondary mt-auto">
                     spread + a day of theta take{' '}
                     <span className={friction > 16 ? 'text-bear font-semibold' : friction > 8 ? 'text-warn font-semibold' : 'text-bull font-semibold'}>
                       {frictionWords}
@@ -666,7 +666,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
           {/* HOW SURE IS THIS — the method under the read (the ideas report, idea 3) */}
           <div className="border border-borderSubtle bg-inset rounded-md px-3 py-2.5 flex flex-col gap-2" data-print-doubt>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">Measured against</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">Measured against</span>
               <span className="text-[11px] text-textSecondary tnum">
                 {yard ? (
                   <RichRead
@@ -678,7 +678,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">Could also be</span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">Could also be</span>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                 {alternatives.map(a => (
                   <li key={a.name} className="text-[11px] leading-snug text-textSecondary">
@@ -686,7 +686,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   </li>
                 ))}
               </ul>
-              <span className="text-[10px] text-textMuted">The tape cannot tell these apart; none of them is the answer. Open interest is as of the last close.</span>
+              <span className="text-[11px] text-textMuted">The tape cannot tell these apart; none of them is the answer. Open interest is as of the last close.</span>
             </div>
           </div>
 
@@ -703,7 +703,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
           <ErrorBoundary label="The flow panels" resetKey={`${print.id}-${range}-${intervalMin}-${dayOffset}`}>
             <Suspense
               fallback={
-                <div className="h-[520px] rounded-md border border-borderSubtle bg-inset flex items-center justify-center font-mono text-[10px] text-textMuted uppercase tracking-widest">
+                <div className="h-[520px] rounded-md border border-borderSubtle bg-inset flex items-center justify-center font-mono text-[11px] text-textMuted uppercase tracking-widest">
                   Loading flow…
                 </div>
               }
@@ -712,8 +712,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                 <div className="border border-borderSubtle bg-inset rounded-md overflow-hidden">
                   {/* One toolbar drives both strips — the window is shared */}
                   <div className="px-3 py-2 border-b border-borderSubtle/60 flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The tape</span>
-                    <span className="font-mono text-[10px] text-textMuted">both instruments on one clock</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">The tape</span>
+                    <span className="font-mono text-[11px] text-textMuted">both instruments on one clock</span>
                     <span className="ml-auto flex items-center gap-0.5">
                       {RANGES.map(r => (
                         <Chip key={r} active={r === range} onClick={() => setRange(r)} title={`Show ${r}`}>
@@ -786,7 +786,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   while it did. */}
               <span key={tableTab} className="animate-soft-in min-w-0">
                 {tableTab === 'orders' ? (
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">
                     {cf?.orders.length ?? 0} orders in this window
                   </span>
                 ) : verdict ? (
@@ -795,7 +795,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       {verdict.state}
                     </SignalBadge>
                     {/* Numbers in sentences wear the house code — RichRead, not flat gray */}
-                    <span className="font-mono text-[10px] text-textSecondary tnum truncate">
+                    <span className="font-mono text-[11px] text-textSecondary tnum truncate">
                       <RichRead text={verdict.read} />
                     </span>
                   </span>
@@ -816,7 +816,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
 
           {/* Actions */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary mr-1">Open in</span>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary mr-1">Open in</span>
             <button onClick={() => jump(() => { changeTicker(print.ticker); navigate('/pinpoint'); })} className={linkBtn}>
               <Crosshair className="w-3.5 h-3.5" /> Dealer map
             </button>
@@ -836,7 +836,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <button
               onClick={() => onToggleMark(print.id)}
               aria-pressed={isMarked}
-              className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors ${
+              className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors ${
                 isMarked
                   ? 'border-select/40 bg-select/[0.08] text-select'
                   : 'border-borderSubtle bg-ink/[0.02] text-textSecondary hover:text-textPrimary hover:border-borderMuted'
@@ -852,8 +852,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   );
 };
 
-const th = 'px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-textMuted border-b border-borderSubtle';
-const td = 'px-2 py-1.5 font-mono text-[10px] tnum';
+const th = 'px-2 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-widest text-textMuted border-b border-borderSubtle';
+const td = 'px-2 py-1.5 font-mono text-[11px] tnum';
 
 /** The raw orders behind the window. */
 const OrdersTable = ({ cf }: { cf: ReturnType<typeof buildContractFlow> }) => (

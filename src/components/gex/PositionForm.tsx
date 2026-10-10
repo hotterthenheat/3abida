@@ -44,7 +44,7 @@ const draftOf = (p: Partial<Position> | undefined, defaults: { strike: number; e
 
 const Field = ({ label, children, width }: { label: string; children: ReactNode; width?: number }) => (
   <label className="flex flex-col gap-1 min-w-0" style={{ width }}>
-    <span className="text-[10px] text-textMuted">{label}</span>
+    <span className="text-[11px] text-textMuted">{label}</span>
     {children}
   </label>
 );
@@ -128,7 +128,7 @@ const PositionForm = ({ ticker, position, defaultStrike, defaultExpiry, defaultR
         <Popover.Content align={align} sideOffset={6} collisionPadding={12} className={`${CARD} p-0 outline-none`} style={{ width: 560 }} data-position-form>
           <div className="px-4 pt-3 pb-2 border-b border-borderSubtle/70 flex items-baseline gap-2">
             <span className="text-[13px] font-semibold text-textPrimary">{position ? 'Change this position' : `New position on ${ticker}`}</span>
-            <span className="ml-auto text-[10px] text-textMuted">premium in points per share, as your broker shows it</span>
+            <span className="ml-auto text-[11px] text-textMuted">premium in points per share, as your broker shows it</span>
           </div>
           <form
             className="px-4 py-3 flex flex-wrap items-end gap-3"

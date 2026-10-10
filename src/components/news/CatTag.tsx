@@ -21,7 +21,7 @@ export const CAT_COLOR: Record<NewsCategory, string> = {
 
 const CatTag = ({ category, size = 10 }: { category: NewsCategory; size?: 9 | 10 }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider whitespace-nowrap ${size === 9 ? 'text-[9px]' : 'text-[10px]'}`}
+    className={`inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider whitespace-nowrap ${size === 9 ? 'text-[11px]' : 'text-[11px]'}`}
     style={{ color: CAT_COLOR[category] }}
   >
     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: CAT_COLOR[category] }} />
