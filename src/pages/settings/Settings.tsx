@@ -236,11 +236,14 @@ const ThemeTile = ({ choice, current, onPick }: { choice: ThemeChoice; current: 
 const CVD_WORDS: Record<ColourVision, [string, string]> = {
   standard: ['Green and red', 'Up in green, down in red — the house’s pair'],
   'blue-orange': ['Blue and orange', 'For red–green colour blindness: up in blue, down in orange, with ▲ and ▼'],
+  'high-contrast': ['High contrast', 'The house’s pair stronger, the quieter words darker on paper and brighter on black, with ▲ and ▼'],
 };
+const CVD_CHOICES: ColourVision[] = ['standard', 'blue-orange', 'high-contrast'];
 /* each tile shows its own pair whatever is chosen — the channels tokens.css gives each (kept in step with it) */
 const CVD_PAIR: Record<ColourVision, Record<'dark' | 'light', [string, string]>> = {
   standard: { dark: ['48 209 88', '255 59 48'], light: ['0 140 56', '220 32 32'] },
   'blue-orange': { dark: ['80 164 255', '255 133 38'], light: ['0 104 200', '196 72 0'] },
+  'high-contrast': { dark: ['110 245 140', '255 120 110'], light: ['0 100 36', '170 0 0'] },
 };
 const CvdTile = ({ choice, current }: { choice: ColourVision; current: ColourVision }) => {
   const on = choice === current;
@@ -253,14 +256,14 @@ const CvdTile = ({ choice, current }: { choice: ColourVision; current: ColourVis
       role="radio"
       aria-checked={on}
       tabIndex={on ? 0 : -1}
-      onKeyDown={radioKeys(['standard', 'blue-orange'] as ColourVision[], current, setColourVision)}
+      onKeyDown={radioKeys(CVD_CHOICES, current, setColourVision)}
       className={`text-left rounded-md border p-3 flex flex-col gap-2 transition-colors ${on ? 'border-silver/60 bg-ink/[0.02]' : 'border-borderSubtle hover:border-borderMuted'}`}
       data-cvd-tile={choice}
     >
       {/* the pair as it will read, in the tile's own scope so it shows its own colours whatever is chosen */}
       <span className="flex items-center gap-3 font-mono text-[12px] tnum" data-cvd-sample={choice} style={{ '--bull': CVD_PAIR[choice][theme][0], '--bear': CVD_PAIR[choice][theme][1] } as React.CSSProperties}>
-        <span className="text-bull">{choice === 'blue-orange' ? '▲ ' : ''}+1.24%</span>
-        <span className="text-bear">{choice === 'blue-orange' ? '▼ ' : ''}−0.87%</span>
+        <span className="text-bull">{choice !== 'standard' ? '▲ ' : ''}+1.24%</span>
+        <span className="text-bear">{choice !== 'standard' ? '▼ ' : ''}−0.87%</span>
       </span>
       <span className="flex items-center justify-between gap-2">
         <span className={`text-[12px] ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>{name}</span>
@@ -1237,9 +1240,9 @@ const Settings = () => {
             </div>
             <div className="px-5 pb-4 border-t border-borderSubtle/60 pt-3" data-settings-row="colour-vision">
               <div className="text-[12px] text-textPrimary" id="cvd-head">Direction colours</div>
-              <div className="text-[11px] text-textMuted">What up and down are drawn in, on every page and chart</div>
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-labelledby="cvd-head">
-                {(['standard', 'blue-orange'] as ColourVision[]).map(c => (
+              <div className="text-[11px] text-textMuted">What up and down are drawn in — and, in high contrast, how strongly the quieter words stand — on every page and chart</div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-labelledby="cvd-head">
+                {CVD_CHOICES.map(c => (
                   <CvdTile key={c} choice={c} current={cvd} />
                 ))}
               </div>

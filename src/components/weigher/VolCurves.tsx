@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { contractIvFor, deskExpiries, type DeskChain } from '../../data/weigherDesk';
 import { FONT_SANS } from '../../theme/fonts';
+import { useColourVision } from '../../theme/theme';
 
 const CALL = 'rgb(var(--bull))';
 const PUT = 'rgb(var(--bear))';
@@ -90,6 +91,8 @@ const VolCurves = ({ ticker, chain, sel }: Props) => {
 /* ---- the smile ---------------------------------------------------------------------------------------------------- */
 
 const Smile = ({ W, pts, spot, sel, expiryWord }: { W: number; pts: { k: number; c: number; p: number }[]; spot: number; sel: number | null; expiryWord: string }) => {
+  /* under either colour-vision choice the puts' curve is dashed, so the two never differ by ink alone (the ideas' 13) */
+  const dashed = useColourVision() !== 'standard';
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   if (pts.length < 2) return <Empty words="Too few strikes near the market for a smile" />;
@@ -131,7 +134,7 @@ const Smile = ({ W, pts, spot, sel, expiryWord }: { W: number; pts: { k: number;
             <span className="w-3 h-[2px] rounded-full" style={{ background: CALL }} aria-hidden /> calls
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-3 h-[2px] rounded-full" style={{ background: PUT }} aria-hidden /> puts
+            <span className="w-3 h-[2px] rounded-full" style={dashed ? { backgroundImage: `linear-gradient(90deg, ${PUT} 60%, transparent 60%)`, backgroundSize: '4px 2px' } : { background: PUT }} aria-hidden /> puts
           </span>
         </span>
       </figcaption>
@@ -159,7 +162,7 @@ const Smile = ({ W, pts, spot, sel, expiryWord }: { W: number; pts: { k: number;
         )}
         {sel != null && sel >= lo && sel <= hi && <path d={`M${x(sel)},${H - M.b + 2} l-4,6 h8 z`} fill={INK} fillOpacity={0.7} data-vol-picked />}
         <path d={line('c')} fill="none" stroke={CALL} strokeWidth={1.5} />
-        <path d={line('p')} fill="none" stroke={PUT} strokeWidth={1.5} />
+        <path d={line('p')} fill="none" stroke={PUT} strokeWidth={1.5} strokeDasharray={dashed ? '4 3' : undefined} />
         {h && (
           <g>
             <line x1={x(h.k)} x2={x(h.k)} y1={M.t} y2={H - M.b} stroke="rgb(var(--ink))" strokeOpacity={0.3} />

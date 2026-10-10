@@ -33,6 +33,7 @@ import {
   createChart,
   HistogramSeries,
   LineSeries,
+  LineStyle,
   LineType,
   type IChartApi,
   type ISeriesApi,
@@ -45,7 +46,7 @@ import Simulator from '../../core/simulator';
 import { earnMarks, weightInk, type InkMarks } from './earnedInk';
 import { nyClock, nyTimeFormatter, nyTickMarks, SESSION_OPEN_MIN } from '../../core/nyTime';
 import ResetViewControl from '../gex/ResetViewControl';
-import { readToken, useResolvedTheme } from '../../theme/theme';
+import { readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import {
   bookSession,
@@ -322,6 +323,11 @@ const NetFlowPane = ({
   /** Re-applies the hover pick in the current inks (the theme turned under it) */
   const repickRef = useRef<() => void>(() => {});
   const theme = useResolvedTheme();
+  /* UNDER EITHER COLOUR-VISION CHOICE THE PUTS ARE DASHED (2026-10-10, the ideas' 13): the two lines never differ by ink
+     alone — the calls solid, the puts dashed, their key's dot a ring */
+  const vision = useColourVision();
+  const visionRef = useRef(vision);
+  visionRef.current = vision;
 
   /* The spot ribbon: the picked name's own tape, or SPY's under a cut of the book. */
   const ref = ticker ?? 'SPY';
@@ -420,6 +426,7 @@ const NetFlowPane = ({
     });
     const puts = chart.addSeries(LineSeries, {
       color: k.puts,
+      lineStyle: visionRef.current === 'standard' ? LineStyle.Solid : LineStyle.Dashed,
       lineWidth: 2,
       lineType: LineType.Simple,
       priceLineVisible: false,
@@ -676,6 +683,9 @@ const NetFlowPane = ({
     putRef.current?.applyOptions({ color: k.puts });
     repickRef.current();
   }, [theme]);
+  useEffect(() => {
+    putRef.current?.applyOptions({ lineStyle: vision === 'standard' ? LineStyle.Solid : LineStyle.Dashed });
+  }, [vision]);
 
   /* data-menu-clip: this box clips its overflow, so the menus in its head
      size themselves to the room it leaves (ui/menuRoom). */
@@ -770,7 +780,7 @@ const NetFlowPane = ({
             </span>
           </span>
           <span className="flex items-center gap-1.5 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bear" />
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-bear text-bear cvd-hollow" />
             <span className="font-mono text-[11px] text-textSecondary">Net puts</span>
             <span ref={tipPutRef} className="ml-auto font-mono text-[11px] tnum text-bear">
               —
