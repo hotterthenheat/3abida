@@ -434,7 +434,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
 - THE TYPE FLOOR (2026-10-10): no word under 11 px in the terminal; a chart's ticks may be 10. The house grid heads are
   11 px in sentence case, no tracking (houseGrid, index.css). A drawing on a fixed viewBox sets its words through
   ui/svgFloor.ts `useSvgFloor` (in pixels off its own width); past 1.25× it keeps a minimum width and scrolls sideways,
-  opened on the spot (`useCentredScroll`). The "How to read" guides' drawings are not on the floor yet (WHAT-REMAINS).
+  opened on the spot (`useCentredScroll`). The "How to read" guides' drawings set their words through `ui/GuideSvg.tsx` (useSvgFloor: words 11, ticks 10; on a phone they scroll sideways in the card).
 - ONE WAY TO SAY A FIGURE (core/format.ts): the true minus, a sign on a change, prices to the cent, big dollars to three
   figures, percent to one decimal (two under 1%), the greeks, IV, "Oct 9" and "14:03 ET" — every figure goes through it,
   and the rooms' formatters are built on it. Never a toFixed of your own on screen.
