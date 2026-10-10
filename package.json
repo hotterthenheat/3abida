@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
-    "test": "tsx scripts/terrain-setups-proof.ts",
+    "test": "tsx scripts/terrain-setups-proof.ts && tsx scripts/alerts-proof.ts",
     "theme:audit": "node scripts/theme-audit.mjs",
     "links:check": "node scripts/check-links.mjs",
     "words:check": "node scripts/check-words.mjs",

@@ -48,6 +48,16 @@ import { useCallback, useSyncExternalStore } from 'react';
     news      — a GRADED headline lands for this name (the room's wire
                 drips through the day; stories already landed do not count,
                 same clock rule as flow)
+    line      — a line the reader drew on a chart (2026-10-10, the ideas
+                report's item 7): price TOUCHES it, a bar CLOSES BEYOND it
+                (a break), or a bar reaches it and closes back on its own
+                side (a bounce). The line is read on the bars of the pane
+                it was drawn on; a sloped one runs on past its end as drawn.
+    all       — up to three conditions that must hold TOGETHER (an AND):
+                price above or below a price, a named level or an average,
+                RSI past a line, which way dealers hedge, which way the net
+                flow of the last minutes leans. It fires when they come
+                together, not while they stay together.
 
   SIDES AND BASELINES ARE ESTABLISHED LAZILY, ON THE FIRST EVALUATION.
   "Crossed" needs to know which side you started on, and "moved" needs to
@@ -188,8 +198,55 @@ export interface ScriptAlert extends AlertBase {
   lastBar: number;
 }
 
+/** HOW A DRAWN LINE IS WATCHED (2026-10-10): price reaches it, a bar closes beyond it, or a bar reaches it and closes back */
+export type LineMode = 'touch' | 'break' | 'bounce';
+export const LINE_MODES: readonly LineMode[] = ['touch', 'break', 'bounce'];
+export interface LinePoint {
+  /** bar time, seconds */
+  time: number;
+  price: number;
+}
+
+export interface LineAlert extends AlertBase {
+  kind: 'line';
+  /** The drawing it watches (drawingsPrimitive.ts Drawing.id) — its anchors are kept here too, so a moved line moves it */
+  drawingId: string;
+  /** flat: a horizontal line or ray (p1's price); sloped: through p1 and p2, running on past p2 */
+  shape: 'flat' | 'sloped';
+  p1: LinePoint;
+  p2?: LinePoint;
+  mode: LineMode;
+  /** The pane's timeframe it was drawn on — the bars the line is read on */
+  tf: string;
+  /** Which side of the line price stood when first read: 1 above, -1 below, 0 not yet */
+  side: -1 | 0 | 1;
+  /** The bar (seconds) live when it was set — a bar before it does not count */
+  armedBar: number;
+  /** The bar it last fired on — never twice on one bar */
+  lastBar: number;
+}
+
+/** ONE CONDITION OF AN AND (2026-10-10). Each is a state that holds or not right now, never an event */
+export type AllCond =
+  | { t: 'price'; op: 'above' | 'below'; value: number }
+  | { t: 'level'; op: 'above' | 'below'; level: LevelName }
+  | { t: 'average'; op: 'above' | 'below'; source: 'vwap' | 'ema9' | 'ema21' | 'ema50'; tf: string }
+  | { t: 'rsi'; op: 'above' | 'below'; value: number; tf: string }
+  | { t: 'dealers'; op: 'absorbing' | 'amplifying' }
+  | { t: 'flow'; op: 'bullish' | 'bearish'; mins: number };
+export const ALL_MAX = 3;
+
+export interface AllAlert extends AlertBase {
+  kind: 'all';
+  conds: AllCond[];
+  /** Whether every condition held at the last read: 1 yes, -1 no, 0 not yet read */
+  met: -1 | 0 | 1;
+}
+
 export type Alert =
   | PriceAlert
+  | LineAlert
+  | AllAlert
   | LevelAlert
   | IndicatorAlert
   | GexFlipAlert
@@ -207,6 +264,30 @@ const isSide = (v: unknown): v is -1 | 0 | 1 => v === -1 || v === 0 || v === 1;
 const isFin = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 const storageKey = (ticker: string) => `slayer_price_alerts_${ticker}`;
+
+const AVERAGES = ['vwap', 'ema9', 'ema21', 'ema50'] as const;
+const isOp = (v: unknown, a: string, b: string) => v === a || v === b;
+/** One condition of an AND, healed or dropped */
+function readCond(v: unknown): AllCond | null {
+  if (typeof v !== 'object' || v === null) return null;
+  const c = v as Record<string, unknown>;
+  switch (c.t) {
+    case 'price':
+      return isOp(c.op, 'above', 'below') && isFin(c.value) && (c.value as number) > 0 ? { t: 'price', op: c.op as 'above' | 'below', value: c.value as number } : null;
+    case 'level':
+      return isOp(c.op, 'above', 'below') && LEVEL_NAMES.includes(c.level as LevelName) ? { t: 'level', op: c.op as 'above' | 'below', level: c.level as LevelName } : null;
+    case 'average':
+      return isOp(c.op, 'above', 'below') && (AVERAGES as readonly unknown[]).includes(c.source) && typeof c.tf === 'string' ? { t: 'average', op: c.op as 'above' | 'below', source: c.source as (typeof AVERAGES)[number], tf: c.tf } : null;
+    case 'rsi':
+      return isOp(c.op, 'above', 'below') && isFin(c.value) && typeof c.tf === 'string' ? { t: 'rsi', op: c.op as 'above' | 'below', value: c.value as number, tf: c.tf } : null;
+    case 'dealers':
+      return isOp(c.op, 'absorbing', 'amplifying') ? { t: 'dealers', op: c.op as 'absorbing' | 'amplifying' } : null;
+    case 'flow':
+      return isOp(c.op, 'bullish', 'bearish') && isFin(c.mins) && (c.mins as number) > 0 ? { t: 'flow', op: c.op as 'bullish' | 'bearish', mins: c.mins as number } : null;
+    default:
+      return null;
+  }
+}
 
 /** Heals what it can, drops what it cannot. A pre-kinds entry (price/above
     and no `kind`) becomes a price alert rather than being thrown away. */
@@ -254,6 +335,23 @@ const readAlert = (a: unknown): Alert | null => {
     case 'news':
       if (!isFin(c.armedAt)) return null;
       return { ...base, kind: 'news', armedAt: c.armedAt as number };
+    case 'line': {
+      const pt = (v: unknown): LinePoint | null => {
+        const o = v as Record<string, unknown> | null;
+        return o && isFin(o.time) && isFin(o.price) ? { time: o.time as number, price: o.price as number } : null;
+      };
+      const p1 = pt(c.p1);
+      const p2 = c.p2 === undefined ? undefined : pt(c.p2);
+      if (typeof c.drawingId !== 'string' || (c.shape !== 'flat' && c.shape !== 'sloped') || !p1 || p2 === null || (c.shape === 'sloped' && !p2)) return null;
+      if (!LINE_MODES.includes(c.mode as LineMode) || typeof c.tf !== 'string' || !isSide(c.side)) return null;
+      return { ...base, kind: 'line', drawingId: c.drawingId, shape: c.shape, p1, ...(p2 ? { p2 } : {}), mode: c.mode as LineMode, tf: c.tf, side: c.side, armedBar: isFin(c.armedBar) ? (c.armedBar as number) : 0, lastBar: isFin(c.lastBar) ? (c.lastBar as number) : 0 };
+    }
+    case 'all': {
+      if (!Array.isArray(c.conds) || !isSide(c.met)) return null;
+      const conds = (c.conds as unknown[]).map(readCond).filter((x): x is AllCond => x !== null);
+      if (conds.length < 2 || conds.length > ALL_MAX || conds.length !== (c.conds as unknown[]).length) return null;
+      return { ...base, kind: 'all', conds, met: c.met };
+    }
     case 'script': {
       const str = (v: unknown): v is string => typeof v === 'string';
       if (!str(c.scriptId) || !str(c.scriptTitle) || !str(c.conditionId) || !str(c.title) || !str(c.message) || !str(c.paneId) || !str(c.tf) || !isFin(c.armedAt)) return null;
@@ -417,6 +515,58 @@ export function armScript(
   );
 }
 
+/** A DRAWN LINE (2026-10-10): set from the drawing's own bar on a chart — the same line in another mode is a second alert */
+export function armLine(
+  ticker: string,
+  spec: Pick<LineAlert, 'drawingId' | 'shape' | 'p1' | 'p2' | 'mode' | 'tf' | 'armedBar'>
+): Alert | null {
+  if (!isFin(spec.p1.price) || (spec.shape === 'sloped' && !spec.p2)) return null;
+  return arm(
+    ticker,
+    () => ({ id: freshId(), kind: 'line', ...spec, side: 0, lastBar: 0, firedAt: 0 }),
+    a => a.kind === 'line' && a.drawingId === spec.drawingId && a.mode === spec.mode
+  );
+}
+
+/** AN AND (2026-10-10): two or three conditions that must hold together */
+export function armAll(ticker: string, conds: AllCond[]): Alert | null {
+  if (conds.length < 2 || conds.length > ALL_MAX) return null;
+  const key = JSON.stringify(conds);
+  return arm(
+    ticker,
+    () => ({ id: freshId(), kind: 'all', conds, met: 0, firedAt: 0 }),
+    a => a.kind === 'all' && JSON.stringify(a.conds) === key
+  );
+}
+
+/** THE LINE MOVED (its drawing was dragged, reshaped or taken off): every alert on it follows, or goes with it. Called with
+    the chart's drawings each time they are saved (drawingsPrimitive.ts saveDrawings). */
+export function syncLineAlerts(ticker: string, lines: { id?: string; p1: LinePoint; p2?: LinePoint }[]): void {
+  const list = read(ticker);
+  if (!list.some(a => a.kind === 'line')) return;
+  let changed = false;
+  const next: Alert[] = [];
+  for (const a of list) {
+    if (a.kind !== 'line') {
+      next.push(a);
+      continue;
+    }
+    const d = lines.find(l => l.id === a.drawingId);
+    if (!d) {
+      changed = true;
+      continue;
+    }
+    const same = d.p1.time === a.p1.time && d.p1.price === a.p1.price && (a.shape === 'flat' || (d.p2 && a.p2 && d.p2.time === a.p2.time && d.p2.price === a.p2.price));
+    if (same) next.push(a);
+    else {
+      changed = true;
+      /* moved: the new line is read afresh — which side price is on, from the next tick */
+      next.push({ ...a, p1: d.p1, ...(a.shape === 'sloped' && d.p2 ? { p2: d.p2 } : {}), side: 0 });
+    }
+  }
+  if (changed) write(ticker, next);
+}
+
 export function removeAlert(ticker: string, id: string): void {
   const list = read(ticker);
   const next = list.filter(a => a.id !== id);
@@ -469,7 +619,7 @@ function restAfter(a: Alert, at: number): number {
   const repeat = a.repeat ?? 'once';
   if (repeat === 'minute') return at + 60_000;
   if (repeat === 'bar') {
-    const mins = a.kind === 'indicator' || a.kind === 'script' ? tfMinutesOf(a.tf) : 1;
+    const mins = a.kind === 'indicator' || a.kind === 'script' || a.kind === 'line' ? tfMinutesOf(a.tf) : 1;
     const bar = Math.max(1, mins) * 60_000;
     return Math.floor(at / bar) * bar + bar;
   }
@@ -809,9 +959,36 @@ const LEVEL_WORDS = { callWall: 'the call wall', putWall: 'the put wall', flip: 
 const AVERAGE_WORDS = { vwap: 'VWAP', ema9: '9-bar average', ema21: '21-bar average', ema50: '50-bar average' } as const;
 const money = (v: number) => `$${v >= 1e6 ? `${(v / 1e6).toFixed(v % 1e6 ? 1 : 0)}M` : `${Math.round(v / 1e3)}K`}`;
 
+/** A drawn line, named: a level line by its price, a sloped one as a trend line */
+const lineName = (a: LineAlert) => (a.shape === 'flat' ? `your line at ${fmtStrike(Math.round(a.p1.price * 100) / 100)}` : 'your trend line');
+const OP_WORD = { above: 'above', below: 'below' } as const;
+
+/** One condition of an AND, plain: "price above the gamma flip", "net flow bullish over 15 min" */
+export function condWords(c: AllCond): string {
+  switch (c.t) {
+    case 'price':
+      return `price ${OP_WORD[c.op]} ${fmtStrike(c.value)}`;
+    case 'level':
+      return `price ${OP_WORD[c.op]} ${LEVEL_WORDS[c.level]}`;
+    case 'average':
+      return `price ${OP_WORD[c.op]} the ${AVERAGE_WORDS[c.source]} on ${c.tf}`;
+    case 'rsi':
+      return `RSI ${OP_WORD[c.op]} ${c.value} on ${c.tf}`;
+    case 'dealers':
+      return `dealers ${c.op} moves`;
+    case 'flow':
+      return `net flow ${c.op} over ${c.mins} min`;
+  }
+}
+const allWords = (a: AllAlert) => a.conds.map(condWords).join(' and ');
+
 /** What the reader is waiting for — plain, present tense */
 export function waitingWords(a: Alert): string {
   switch (a.kind) {
+    case 'line':
+      return a.mode === 'touch' ? `price touches ${lineName(a)}` : a.mode === 'break' ? `a ${a.tf} bar closes beyond ${lineName(a)}` : `price bounces off ${lineName(a)} on ${a.tf}`;
+    case 'all':
+      return allWords(a);
     case 'price':
       return `price reaches ${fmtStrike(a.price)}`;
     case 'level':
@@ -840,6 +1017,10 @@ const scriptMessage = (a: ScriptAlert, ticker: string): string =>
 /** The words for something that fired — plain, past tense; a script says it in its own words */
 export function firedWords(a: Alert, ticker = ''): string {
   switch (a.kind) {
+    case 'line':
+      return a.mode === 'touch' ? `price touched ${lineName(a)}` : a.mode === 'break' ? `a ${a.tf} bar closed beyond ${lineName(a)}` : `price bounced off ${lineName(a)}`;
+    case 'all':
+      return `${allWords(a)} — all at once`;
     case 'script':
       return `${a.scriptTitle} · ${scriptMessage(a, ticker)}`;
     case 'price':
@@ -888,6 +1069,11 @@ export function commitArm(ticker: string, armed: Alert): void {
     re-arming in place and re-arming from the fired log. */
 function resetAlert(a: Alert, spot: number, now: number): Alert {
   switch (a.kind) {
+    case 'line':
+      /* the live bar is unknown here — any bar counts but the one it fired on */
+      return { ...a, firedAt: 0, side: 0, armedBar: 0 };
+    case 'all':
+      return { ...a, firedAt: 0, met: 0 };
     case 'price':
       return isFin(spot) ? { ...a, firedAt: 0, above: a.price > spot } : { ...a, firedAt: 0 };
     case 'level':
@@ -914,6 +1100,10 @@ function resetAlert(a: Alert, spot: number, now: number): Alert {
 function sameIdentity(a: Alert, b: Alert): boolean {
   if (a.kind !== b.kind) return false;
   switch (a.kind) {
+    case 'line':
+      return b.kind === 'line' && a.drawingId === b.drawingId && a.mode === b.mode;
+    case 'all':
+      return b.kind === 'all' && JSON.stringify(a.conds) === JSON.stringify(b.conds);
     case 'price':
       return b.kind === 'price' && Math.abs(a.price - b.price) < 1e-9;
     case 'level':
@@ -1052,11 +1242,140 @@ export function evaluateAlert(a: Alert, ctx: AlertContext): AlertVerdict {
       return { fire: ctx.news.some(n => n.atMs > a.armedAt && n.graded) };
 
     /* A script's condition is the script's to judge — the shell's watcher
-       runs it (components/alerts/AlertWatcher.tsx) and calls markFired */
+       runs it (components/alerts/AlertWatcher.tsx) and calls markFired. A
+       drawn line reads bars and an AND reads several contexts: the watcher
+       judges them through evaluateLine and evaluateAll, below. */
     case 'script':
+    case 'line':
+    case 'all':
       return NONE;
   }
 }
+
+/* ── A DRAWN LINE, READ ON ITS BARS (2026-10-10) ──────────────────────────────────────────────────────────────────── */
+
+export interface LineBar {
+  time: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+/** Where a time sits among the bars, as a fractional index — past the last bar it runs on at the bars' own spacing */
+export function barIndexOf(bars: readonly { time: number }[], t: number): number {
+  const n = bars.length;
+  if (n === 0) return 0;
+  const step = n > 1 ? Math.max(1, bars[n - 1].time - bars[n - 2].time) : 60;
+  if (t >= bars[n - 1].time) return n - 1 + (t - bars[n - 1].time) / step;
+  if (t <= bars[0].time) return (t - bars[0].time) / step;
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (bars[mid].time <= t) lo = mid;
+    else hi = mid;
+  }
+  return lo + (t - bars[lo].time) / Math.max(1, bars[hi].time - bars[lo].time);
+}
+
+/** The line's price at bar `i` — a flat line is its price; a sloped one is drawn on the bars, as the chart draws it */
+export function lineAt(a: Pick<LineAlert, 'shape' | 'p1' | 'p2'>, bars: readonly { time: number }[], i: number): number {
+  if (a.shape === 'flat' || !a.p2) return a.p1.price;
+  const i1 = barIndexOf(bars, a.p1.time);
+  const i2 = barIndexOf(bars, a.p2.time);
+  if (Math.abs(i2 - i1) < 1e-9) return a.p1.price;
+  return a.p1.price + ((a.p2.price - a.p1.price) * (i - i1)) / (i2 - i1);
+}
+
+export interface LineVerdict extends AlertVerdict {
+  /** The bar (seconds) it fired on — remembered so it never fires twice on one bar */
+  bar?: number;
+}
+
+/**
+ * A drawn line's rule, pure: the bars of the pane's timeframe (the last one still forming) and the live price.
+ *   touch   the live price reaches the line from the side it stood on
+ *   break   a CLOSED bar closes beyond the line
+ *   bounce  a closed bar reaches the line and closes back on its own side; a close beyond turns the side over, so a
+ *           line that was broken can be bounced off from the other side
+ */
+export function evaluateLine(a: LineAlert, bars: readonly LineBar[], close: number, now = Date.now()): LineVerdict {
+  if (a.firedAt !== 0 || a.reside || (a.quietUntil ?? 0) > now) return NONE;
+  const n = bars.length;
+  if (n < 2 || !isFin(close)) return NONE;
+  const live = n - 1;
+  if (a.side === 0) {
+    const side = sideOf(close, lineAt(a, bars, live));
+    return side === 0 ? NONE : { fire: false, armed: { ...a, side, armedBar: a.armedBar || bars[live].time } };
+  }
+  if (a.mode === 'touch') {
+    if (bars[live].time === a.lastBar) return NONE;
+    return crossed(a.side, close, lineAt(a, bars, live)) ? { fire: true, bar: bars[live].time } : NONE;
+  }
+  const k = n - 2;
+  const b = bars[k];
+  if (b.time < a.armedBar || b.time === a.lastBar) return NONE;
+  const L = lineAt(a, bars, k);
+  const beyond = a.side === 1 ? b.close < L : b.close > L;
+  if (a.mode === 'break') return beyond ? { fire: true, bar: b.time } : { fire: false, armed: { ...a, lastBar: b.time } };
+  /* bounce */
+  if (beyond) return { fire: false, armed: { ...a, side: a.side === 1 ? -1 : 1, lastBar: b.time } };
+  const reached = a.side === 1 ? b.low <= L : b.high >= L;
+  return reached ? { fire: true, bar: b.time } : { fire: false, armed: { ...a, lastBar: b.time } };
+}
+
+/* ── AN AND, READ ON THE MARKET AS IT STANDS (2026-10-10) ─────────────────────────────────────────────────────────── */
+
+export interface AllContext {
+  close: number;
+  levels: AlertContext['levels'];
+  netGex: number | null;
+  /** The averages and RSI, per timeframe asked */
+  values: Record<string, Partial<Record<IndicatorSource, number | null>>>;
+  /** Net premium of the name's prints over the last N minutes (bullish less bearish), per N asked */
+  flowNet: Record<number, number>;
+}
+
+/** Does one condition hold right now — null while it cannot be read (the level absent, too few bars) */
+export function condHolds(c: AllCond, ctx: AllContext): boolean | null {
+  const side = (x: number | null | undefined, ref: number | null | undefined, op: 'above' | 'below') =>
+    x == null || ref == null || !isFin(x) || !isFin(ref) ? null : op === 'above' ? x > ref : x < ref;
+  switch (c.t) {
+    case 'price':
+      return side(ctx.close, c.value, c.op);
+    case 'level':
+      return side(ctx.close, ctx.levels[c.level], c.op);
+    case 'average':
+      return side(ctx.close, ctx.values[c.tf]?.[c.source], c.op);
+    case 'rsi':
+      return side(ctx.values[c.tf]?.rsi, c.value, c.op);
+    case 'dealers':
+      /* the house sign (core/walls.ts): negative is call-heavy and absorbs moves, positive put-heavy and amplifies them */
+      return ctx.netGex == null || ctx.netGex === 0 ? null : c.op === 'absorbing' ? ctx.netGex < 0 : ctx.netGex > 0;
+    case 'flow': {
+      const net = ctx.flowNet[c.mins];
+      return net == null ? null : c.op === 'bullish' ? net > 0 : net < 0;
+    }
+  }
+}
+
+/** An AND fires when its conditions COME together — read once to know where it starts, then on each change */
+export function evaluateAll(a: AllAlert, ctx: AllContext, now = Date.now()): AlertVerdict {
+  if (a.firedAt !== 0 || a.reside || (a.quietUntil ?? 0) > now) return NONE;
+  const states = a.conds.map(c => condHolds(c, ctx));
+  if (states.some(s => s === null)) return NONE;
+  const all = states.every(Boolean);
+  if (a.met === 0) return { fire: false, armed: { ...a, met: all ? 1 : -1 } };
+  if (a.met === -1 && all) return { fire: true };
+  if (a.met === 1 && !all) return { fire: false, armed: { ...a, met: -1 } };
+  return NONE;
+}
+
+/** How many of an AND's conditions hold now — "2 of 3" on its row; null while one cannot be read */
+export const allHeld = (a: AllAlert, ctx: AllContext): number | null => {
+  const states = a.conds.map(c => condHolds(c, ctx));
+  return states.some(s => s === null) ? null : states.filter(Boolean).length;
+};
 
 /** Whether a script alert may fire on a bar: the bar that was live at arming
     or any later one, and never the bar it already fired on. Bar times only —

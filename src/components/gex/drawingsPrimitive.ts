@@ -1,3 +1,4 @@
+import { syncLineAlerts } from './alertStore';
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { fmtElapsed, measureSpan } from '../../data/measure';
 import { fmtDistance, type DistanceScales } from '../../data/atr';
@@ -189,7 +190,13 @@ export interface Drawing {
   locked?: boolean;
   /** The points of a run, in order (pts[0] === p1) — the path, the polyline, the brush, the highlighter (see usesPts). */
   pts?: DrawingPoint[];
+  /** A name for the mark, given the first time an alert is set on it (2026-10-10) — the alert finds its line by it */
+  id?: string;
 }
+
+/** THE KINDS A LINE ALERT CAN WATCH (2026-10-10): a level line or ray, and a trend line, ray or extended line */
+export const ALERTABLE_KINDS: readonly DrawingKind[] = ['hline', 'hray', 'trend', 'ray', 'extend'];
+export const isFlatLine = (k: DrawingKind): boolean => k === 'hline' || k === 'hray';
 
 /** '#rrggbb' → 'r,g,b' for the rgba templates; null on anything else. */
 function hexRgb(hex?: string): string | null {
@@ -773,6 +780,29 @@ class DrawingsPaneRenderer {
       if (src.draft) render(src.draft, 0.45, true);
       ctx.setLineDash([]);
 
+      /* A LINE WITH AN ALERT ON IT wears a small ring at its right end (2026-10-10) — a line being watched, in the mark's
+         own ink; the armed rail and the drawer say what it waits for */
+      if (src.alerted.size) {
+        for (const d of src.drawings) {
+          if (!d.id || !src.alerted.has(d.id)) continue;
+          const yc = series.priceToCoordinate(isFlatLine(d.kind) || !d.p2 ? d.p1.price : d.p2.price);
+          const xc = isFlatLine(d.kind) || !d.p2 ? w / hr - 12 : src.timeToX(d.p2.time);
+          if (yc === null || xc === null) continue;
+          const ink = hexRgb(d.color) ?? MARK;
+          ctx.beginPath();
+          ctx.arc(xc * hr, yc * vr, 5 * vr, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(10,10,10,0.85)';
+          ctx.fill();
+          ctx.lineWidth = 1.6 * vr;
+          ctx.strokeStyle = `rgba(${ink},1)`;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(xc * hr, yc * vr, 1.8 * vr, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${ink},1)`;
+          ctx.fill();
+        }
+      }
+
       /* The selected mark wears FULL-CIRCLE handles over its anchors (Noah,
          2026-08-28: "full circles and not sqaures") — filled in the mark's
          own white with a dark ring, so "selected" reads as "these points
@@ -845,6 +875,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** T-19's rulers for the measure's ATR/σ line — set by the host per
       ticker, null until measurable. */
   distanceScales: DistanceScales = { atr: null, sigma: null };
+  /** The marks an alert watches, by id — each wears a ring (2026-10-10) */
+  alerted: Set<string> = new Set();
   /** The bars themselves — the anchored VWAP is computed off them. `barsRev` moves whenever they do, and is what its cache is keyed on. */
   bars: KindBar[] = [];
   barsRev = 0;
@@ -1034,6 +1066,12 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   setDrawings(drawings: Drawing[]): void {
     this.drawings = drawings;
+    this.requestUpdate?.();
+  }
+
+  setAlerted(ids: Set<string>): void {
+    if (ids.size === this.alerted.size && [...ids].every(id => this.alerted.has(id))) return;
+    this.alerted = ids;
     this.requestUpdate?.();
   }
 
@@ -1311,4 +1349,6 @@ export function saveDrawings(ticker: string, drawings: Drawing[]): void {
   } catch {
     /* storage full/blocked — drawings just won't persist */
   }
+  /* an alert on a line follows the line when it moves, and goes when it is taken off (gex/alertStore.ts) */
+  syncLineAlerts(ticker, drawings.filter(d => d.id && ALERTABLE_KINDS.includes(d.kind)));
 }

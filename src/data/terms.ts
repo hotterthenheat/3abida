@@ -145,7 +145,7 @@ export const TERMS = {
   'Volume bars':
     'Bars that close on participation — each one holds the same traded volume. Time disappears from the axis: a bar is a unit of activity, wherever the clock was.',
   'Alert kinds':
-    'What a pane can watch besides a typed price: a named level being crossed (the alert follows the wall, flip or supreme as the book moves them), price crossing VWAP or an EMA, RSI crossing a threshold, net GEX flipping sign, a new supreme, a wall migrating N strikes, or an option print over a premium floor. All of it in-session only — nothing runs when the tab is closed.',
+    'What a pane can watch besides a typed price: a named level being crossed (the alert follows the wall, flip or supreme as the book moves them), price crossing VWAP or an EMA, RSI crossing a threshold, net GEX flipping sign, a new supreme, a wall migrating N strikes, an option print over a premium floor, a line you drew (price touching it, a bar closing beyond it, a bounce off it), or two or three of these conditions together. All of it in-session only — nothing runs when the tab is closed.',
   'Armed rail':
     'The list at a pane’s top-left of every alert armed on its symbol, so what’s watching is visible without opening a menu. A row lights orange when its alert fires.',
   'Value area': 'The band holding 70% of the session\u2019s volume, VAL to VAH. Inside it the market is trading acceptance; outside it, discovery.',
