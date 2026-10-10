@@ -78,20 +78,26 @@ function listen() {
 /** Is a house layer open? (For a page-level Escape handler that should stand still while one is.) */
 export const layerOpen = (): boolean => stack.length > 0;
 
-/** Esc closes this layer while it is open and on top of every other layer on the stack */
-export function useEscapeLayer(open: boolean, onClose: () => void): void {
+/** Esc closes this layer while it is open and on top of every other layer on the stack. It returns a reader of
+    "is this layer on top now?" — for a layer that also stops the key itself in the capture phase (GuideFocus), so it
+    acts only when nothing was opened over it. */
+export function useEscapeLayer(open: boolean, onClose: () => void): () => boolean {
   const close = useRef(onClose);
   close.current = onClose;
+  const mine = useRef<Layer | null>(null);
   useEffect(() => {
     if (!open) return undefined;
     listen();
     const layer: Layer = { id: nextId++, close };
     stack.push(layer);
+    mine.current = layer;
     return () => {
       const i = stack.indexOf(layer);
       if (i >= 0) stack.splice(i, 1);
+      if (mine.current === layer) mine.current = null;
     };
   }, [open]);
+  return () => mine.current != null && stack[stack.length - 1] === mine.current;
 }
 
 export interface OverlayOptions extends FocusTrapOptions {
@@ -104,7 +110,8 @@ export interface OverlayOptions extends FocusTrapOptions {
 /** The whole dialog contract for a drawer, a palette, a card or a guide: focus moves in on open (the first control,
     or `initialFocus`), Tab and Shift+Tab stay inside, Esc closes it when it is the top layer, and focus goes back to
     the opener (or `returnTo`) on close. The box still needs role="dialog", aria-modal and a label of its own. */
-export function useOverlay({ open, ref, onClose, ...trap }: OverlayOptions): void {
-  useEscapeLayer(open, onClose);
+export function useOverlay({ open, ref, onClose, ...trap }: OverlayOptions): () => boolean {
+  const onTop = useEscapeLayer(open, onClose);
   useFocusTrap(open, ref, trap);
+  return onTop;
 }

@@ -105,7 +105,7 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
           data-dropdown={testId ?? label}
           data-dropdown-search
           aria-label={`${label}: ${current?.label ?? ''}`}
-          className="group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
+          className="hit group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
           style={ink ? ({ '--ink': ink } as CSSProperties) : undefined}
         >
           {Icon && (
@@ -115,14 +115,14 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
               data-dropdown-icon
             />
           )}
-          <span className="text-[9px] uppercase tracking-widest text-textMuted">{label}</span>
+          <span className="text-[11px] text-textMuted">{label}</span>
           <span className="text-[11px] font-semibold text-textPrimary">{current?.label ?? '—'}</span>
           <ChevronDown className="w-3 h-3 text-textMuted" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content align={align} sideOffset={6} className={`${CARD} w-[272px] p-0 overflow-hidden`} data-dropdown-card={testId ?? label} onOpenAutoFocus={e => { e.preventDefault(); inputRef.current?.focus(); }}>
-          <div className="px-3.5 pt-2.5 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</div>
+          <div className="px-3.5 pt-2.5 pb-1 font-mono text-[11px] text-textMuted">{title ?? label}</div>
           <div className="mx-1.5 flex items-center gap-1.5 px-2 rounded-md border border-borderSubtle bg-panel" onKeyDown={onKeyDown}>
             <Search className="w-3 h-3 text-textMuted shrink-0" aria-hidden="true" />
             <input
@@ -156,7 +156,7 @@ const DropdownSearch = <T extends string>({ label, value, options, onChange, tit
                       <span className={`font-mono text-[11px] leading-snug ${on ? 'font-semibold' : ''}`} style={on ? { color: SILVER } : undefined}>
                         {o.label}
                       </span>
-                      {o.hint && <span className="font-mono text-[9px] leading-snug text-textMuted truncate">{o.hint}</span>}
+                      {o.hint && <span className="font-mono text-[10px] leading-snug text-textMuted truncate">{o.hint}</span>}
                     </span>
                   </button>
                 );

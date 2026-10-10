@@ -152,8 +152,8 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
         className="z-[120] w-72 border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 overflow-x-hidden overflow-y-auto overscroll-contain animate-slide-in"
       >
         {hasLink && (
-          <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[10px] text-textMuted">
-            {follows ? 'Follows the frame — a name picked here moves the whole terminal' : 'Its own name — a name picked here stays on this panel'}
+          <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[11px] text-textMuted">
+            {follows ? 'Follows the terminal — a name picked here moves the whole terminal' : 'Its own name — a name picked here stays on this panel'}
           </div>
         )}
         <TickerLookup active={ticker} onPick={pick} />
@@ -167,8 +167,10 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
     <span
       ref={rootRef}
       /* h-6, not the triggers' h-7: the chip lives on 24px title rows, and every
-         page's skeleton was measured with a 24px chip there */
-      className={`relative inline-flex items-stretch h-6 rounded-md border bg-chip overflow-hidden transition-colors font-mono select-none ${open ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
+         page's skeleton was measured with a 24px chip there. No overflow-hidden: the
+         two buttons round their own ends, so each keeps a finger's hit area (`hit`)
+         past the chip's 24px on a touch screen */
+      className={`relative inline-flex items-stretch h-6 rounded-md border bg-chip transition-colors font-mono select-none ${open ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
       data-scope={follows ? 'follows' : 'own'}
       data-scope-ticker={ticker}
     >
@@ -178,7 +180,7 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
         onClick={() => setOpen(!open)}
         aria-label={`${follows ? 'Follows' : 'Reads'} ${ticker} — pick another name`}
         title={title ?? (follows ? 'Follows the terminal · pick a name to move the whole terminal' : hasLink ? 'Its own name · pick a name for this panel alone' : 'Switch ticker')}
-        className="inline-flex items-center gap-1.5 pl-2 pr-1.5 hover:bg-ink/[0.05] transition-colors"
+        className={`hit inline-flex items-center gap-1.5 pl-2 pr-1.5 hover:bg-ink/[0.05] transition-colors ${hasLink ? 'rounded-l-[5px]' : 'rounded-[5px]'}`}
         data-scope-pick
       >
         <CompanyLogo ticker={ticker} size={14} />
@@ -188,7 +190,7 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
             <span className="text-[11px] tnum text-textPrimary leading-none" data-scope-price>
               ${price.toFixed(2)}
             </span>
-            <span className={`text-[10px] tnum leading-none ${change >= 0 ? 'text-bull' : 'text-bear'}`}>
+            <span className={`text-[11px] tnum leading-none ${change >= 0 ? 'text-bull' : 'text-bear'}`}>
               {change >= 0 ? '+' : ''}
               {change.toFixed(2)}%
             </span>
@@ -209,7 +211,7 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
           aria-pressed={follows}
           aria-label={follows ? `Follows the terminal's ${ticker} — click to give this panel its own name` : `Holds ${ticker} — click to follow the terminal again`}
           title={follows ? 'Follows the terminal · click to give this panel its own name' : 'Its own name · click to follow the terminal again'}
-          className={`inline-flex items-center justify-center px-1.5 border-l border-borderSubtle hover:bg-ink/[0.05] transition-colors ${follows ? '' : 'text-textMuted hover:text-textPrimary'}`}
+          className={`hit inline-flex items-center justify-center px-1.5 border-l border-borderSubtle rounded-r-[5px] hover:bg-ink/[0.05] transition-colors ${follows ? '' : 'text-textMuted hover:text-textPrimary'}`}
           style={follows ? { color: SILVER } : undefined}
           data-scope-link
         >

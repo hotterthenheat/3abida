@@ -133,17 +133,17 @@ const ExpiryRangeCard = ({ label = 'Expiries', days, from, through, onChange, ce
           aria-label={`${label}: ${words}`}
           title={note ?? (bare ? label : undefined)}
           data-expiry-note={note ? '' : undefined}
-          className="group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
+          className="hit group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
         >
           <CalendarDays className="w-3 h-3 shrink-0 text-textMuted" aria-hidden="true" data-dropdown-icon />
-          {!bare && <span className="text-[9px] uppercase tracking-widest text-textMuted">{label}</span>}
+          {!bare && <span className="text-[11px] text-textMuted">{label}</span>}
           <span className="text-[11px] font-semibold text-textPrimary whitespace-nowrap">{words}</span>
           <ChevronDown className="w-3 h-3 text-textMuted" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content align={align} sideOffset={6} collisionPadding={12} className={`${CARD} p-3 outline-none w-[300px]`} data-dropdown-card={testId ?? label} data-date-picker>
-          <div className="px-0.5 pb-1 font-mono text-[9px] uppercase tracking-widest text-textMuted">{title ?? label}</div>
+          <div className="px-0.5 pb-1 font-mono text-[11px] text-textMuted">{title ?? label}</div>
           {/* the shortcuts: a window in one press */}
           <div className="flex flex-wrap items-center gap-1.5 pb-2" data-range-shortcuts>
             {shortcuts.map(s => {

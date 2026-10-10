@@ -13,14 +13,21 @@
   Esc (captured, so a fullscreen host stays) or a
   click on the blur lets go. The host renders the
   layer inside its own `relative` box.
+
+  A DIALOG, NOT A PICTURE (2026-10-10, the audit's
+  X13): the card takes focus as it opens, Tab stays
+  in it, and focus goes back to the door on the way
+  out (ui/layers.ts useOverlay); the capture-phase
+  Esc acts only while the guide is the top layer.
 ==================================================
 */
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info, X } from 'lucide-react';
 import { CARD } from './DropdownSelect';
+import { useOverlay } from './layers';
 
 interface GuideDoorProps {
   /** The icon alone — for a toolbar that measured itself tight (the Map's band on a still, 2026-09-22); the words
@@ -44,7 +51,7 @@ export const GuideDoor = ({ open, onClick, title, testId, className = '', compac
     aria-label={compact ? 'How to read' : undefined}
     data-guide-door={testId}
     data-guide-door-compact={compact || undefined}
-    className={`shrink-0 inline-flex items-center gap-1 h-6 rounded-md text-[10px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-pressed:text-textPrimary transition-colors ${compact ? 'w-6 justify-center' : 'px-1.5'} ${className}`}
+    className={`hit shrink-0 inline-flex items-center gap-1 h-6 rounded-md text-[11px] text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] aria-pressed:text-textPrimary transition-colors ${compact ? 'w-6 justify-center' : 'px-1.5'} ${className}`}
   >
     <Info className="w-3 h-3" />
     {!compact && ' How to read'}
@@ -66,15 +73,19 @@ interface GuideFocusProps {
 }
 
 const GuideFocus = ({ open, onClose, title, children, testId, width = 460, viewport = false }: GuideFocusProps) => {
+  const card = useRef<HTMLDivElement | null>(null);
+  /* focus in (the card itself, so no ring lands on its close), Tab kept inside, focus back to the door */
+  const onTop = useOverlay({ open, ref: card, onClose, initialFocus: 'container' });
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || !onTop()) return;
       e.stopPropagation();
       onClose();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, onClose]);
 
   const layer = (
@@ -92,25 +103,28 @@ const GuideFocus = ({ open, onClose, title, children, testId, width = 460, viewp
           onClick={onClose}
         >
           <motion.div
+            ref={card}
+            tabIndex={-1}
             initial={{ opacity: 0, y: 8, scale: 0.985 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.985 }}
             transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            className={`${CARD} max-w-[calc(100%-48px)] ${viewport ? 'max-h-[calc(100vh-48px)]' : 'max-h-[calc(100%-32px)]'} overflow-y-auto overscroll-contain flex flex-col`}
+            className={`${CARD} max-w-[calc(100%-48px)] ${viewport ? 'max-h-[calc(100vh-48px)]' : 'max-h-[calc(100%-32px)]'} overflow-y-auto overscroll-contain flex flex-col outline-none`}
             style={{ width }}
             role="dialog"
+            aria-modal="true"
             aria-label={title}
             data-popover-card={testId}
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 flex items-center gap-2 px-3 pt-2.5 pb-2 border-b border-borderSubtle/70 bg-chip">
-              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-textSecondary">{title}</span>
+              <span className="font-mono text-[11px] font-semibold text-textSecondary">{title}</span>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
                 title="Close (Esc)"
-                className="ml-auto p-1 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+                className="hit ml-auto p-1 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
                 data-guide-close
               >
                 <X className="w-3.5 h-3.5" />
