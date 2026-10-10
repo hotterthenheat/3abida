@@ -10,6 +10,8 @@ import {
   MAX_NAMED_LAYOUTS, type NamedLayoutEntry,
 } from './layouts';
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
+import { pickFlip, pickWalls } from '../../core/walls';
+import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
 import ExpiryCard, { type ExpiryChoice } from '../../components/ui/ExpiryCard';
@@ -232,45 +234,28 @@ const railCutChoices = (): ExpiryChoice<RailCut>[] => {
   out.push({ value: 'book', label: 'All expiries', hint: 'Every expiry the name carries', date: null });
   return out;
 };
-type RailData = ReturnType<typeof buildLadderFor> & { levels: ReturnType<typeof buildLevelsFor>; legs: Map<number, { put: number; call: number }> };
-/** The walls off a set of rows, the book's own rule (`buildLevelsFor`): the heaviest strike each
-    side of spot, the heaviest anywhere, the sign change nearest spot */
+type RailData = ReturnType<typeof buildLadderFor> & { levels: ReturnType<typeof buildLevelsFor>; legs: Map<number, { put: number; call: number }>; sure: Sureness[] };
+/** The walls off a set of rows, the book's own rule (`buildLevelsFor`, core/walls.ts): the heaviest CALL-dominant strike
+    above spot and PUT-dominant strike below it (the copy here took the heaviest either way, so a day's put-heavy strike
+    overhead read as its call wall — 2026-10-10), the heaviest anywhere, the sign change nearest spot */
 const levelsOf = (rows: { strike: number; value: number }[], spot: number): ReturnType<typeof buildLevelsFor> => {
   let supreme = spot;
   let supremeAbs = 0;
-  let callWall = spot;
-  let cwAbs = 0;
-  let putWall = spot;
-  let pwAbs = 0;
   for (const l of rows) {
     const a = Math.abs(l.value);
     if (a > supremeAbs) {
       supremeAbs = a;
       supreme = l.strike;
     }
-    if (l.strike > spot && a > cwAbs) {
-      cwAbs = a;
-      callWall = l.strike;
-    }
-    if (l.strike < spot && a > pwAbs) {
-      pwAbs = a;
-      putWall = l.strike;
-    }
   }
-  let flip = spot;
-  let flipDist = Infinity;
-  const asc = [...rows].sort((a, b) => a.strike - b.strike);
-  for (let i = 1; i < asc.length; i++) {
-    if (Math.sign(asc[i - 1].value) !== Math.sign(asc[i].value)) {
-      const mid = (asc[i - 1].strike + asc[i].strike) / 2;
-      const d = Math.abs(mid - spot);
-      if (d < flipDist) {
-        flipDist = d;
-        flip = mid;
-      }
-    }
-  }
-  return { spot, callWall, putWall, flip, supreme };
+  const w = pickWalls(rows, spot, l => l.value);
+  const flip = pickFlip(rows, spot, l => l.value);
+  return { spot, callWall: w.callWall ?? spot, putWall: w.putWall ?? spot, flip: flip ?? spot, supreme };
+};
+/** HOW SURE THE RAIL'S WALLS AND FLIP ARE (data/levelSureness.ts — Pinpoint's read, the same book the rail drew) */
+const sureOf = (rows: readonly { strike: number; value: number }[], spot: number, ticker: string): Sureness[] => {
+  const all = bookSureness(rows.map(r => ({ strike: r.strike, netGex: r.value })), spot, ticker);
+  return [all['call wall'], all['put wall'], all.flip];
 };
 /** The rail's shape off rows in DESCENDING strike order: the near-spot core, its scale, the step */
 const railShape = (rows: { strike: number; value: number; callOI?: number }[], spot: number) => {
@@ -300,10 +285,13 @@ function railForCut(ticker: string, cut: RailCut): RailData {
     } catch {
       /* no chain for this name yet — the net alone draws */
     }
-    return { ...base, levels: buildLevelsFor(ticker), legs };
+    /* the whole book buildLevelsFor reduced, not the rail's window, so the read names the walls the rail marks */
+    const snaps = Simulator.getGexHistory(Simulator.ensureTicker(ticker));
+    const book = snaps?.[snaps.length - 1]?.levels ?? base.rows;
+    return { ...base, levels: buildLevelsFor(ticker), legs, sure: sureOf(book, base.spot, ticker) };
   }
   const spot = Simulator.TICKERS[Simulator.ensureTicker(ticker)].currentPrice;
-  const empty: RailData = { rows: [], core: [], maxAbs: 1, spot, step: 1, levels: { spot, callWall: spot, putWall: spot, flip: spot, supreme: spot }, legs: new Map() };
+  const empty: RailData = { rows: [], core: [], maxAbs: 1, spot, step: 1, levels: { spot, callWall: spot, putWall: spot, flip: spot, supreme: spot }, legs: new Map(), sure: [] };
   /* THE FRONT STANDS FIRST, ALWAYS (found 2026-09-16 when the days would not move — Noah: "why do
      the net puts and calls only seem to change when I change the week and not the day?"): the
      surface takes its FIRST expiry for the front book and prices every later one off it — the
@@ -329,7 +317,7 @@ function railForCut(ticker: string, cut: RailCut): RailData {
     return { strike, value: net[s] ?? 0, callOI: oiRow[s] ?? 0 };
   });
   const rows = [...asc].reverse();
-  return { ...railShape(rows, spot), levels: levelsOf(rows, spot), legs };
+  return { ...railShape(rows, spot), levels: levelsOf(rows, spot), legs, sure: sureOf(asc, spot, ticker) };
 }
 
 const TF_VALUES = new Set<string>(TIMEFRAMES.map(t => t.value));
@@ -1953,6 +1941,8 @@ const Pane = ({
               maxShare={belowLg ? 0.82 : !expanded && paneCount >= 3 ? 0.4 : 0.6}
               ticker={ticker}
               rows={rail.rows}
+              /* how sure the walls and the flip are — Pinpoint's read of the same book (components/levels/HowSure) */
+              sure={rail.sure}
               maxAbs={rail.maxAbs}
               legs={legs}
               openRatio={openRatio}
@@ -2969,6 +2959,8 @@ const Terrain = () => {
           key that rearranges the desk has to say so as well, or the whole
           layer is silent to a screen reader. */}
       <span className="sr-only" aria-live="polite">{announce}</span>
+      {/* THE PAGE'S NAME for the keys and a screen reader (the audit's X4.9): the charts are the page, so no head is drawn */}
+      <h1 className="sr-only">Terrain</h1>
 
       {/*
         THE CHARTS ARE THE PAGE, so the grid takes every pixel the root has

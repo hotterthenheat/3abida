@@ -63,6 +63,8 @@ import { sinceOpenRead } from '../../data/levelview';
 import { fmtFlow, type FlowLadder, type FlowRung } from '../../data/hedgeFlow';
 import { sessionVolumeProfile, type VolumeProfile } from '../../data/volumeProfile';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './palette';
+import { HowSureBook } from '../levels/HowSure';
+import type { Sureness } from '../../data/levelSureness';
 import * as TOKEN from './paletteInk';
 import { HEAT_MODE, heatCellStyle, heatRampColorFor, ladderRampT, type HeatMode } from './heatmap';
 import { splinePath } from './spline';
@@ -377,6 +379,9 @@ interface ProfilePanelProps {
   /** The ground of the chart beside it (candleTheme.ts chartGround — the pane's own theme): the panel is drawn on it.
       Omitted, dark. */
   ground?: 'light' | 'dark';
+  /** HOW SURE THE LEVELS ARE (data/levelSureness.ts, the ideas' rank 3 — Pinpoint's door, 2026-10-10): given, the head
+      carries one "How sure" door that reads the walls and the flip each way */
+  sure?: Sureness[];
   className?: string;
 }
 
@@ -395,7 +400,7 @@ interface Hover {
 
 const ProfilePanel = ({
   rows, maxAbs, legs, openRatio = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
-  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6,
+  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure,
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);
   /* ON A LIGHT GROUND the ramps are the paper ramps (heatmap.ts) and the canvas's inks the light set's tokens */
@@ -1746,6 +1751,7 @@ const ProfilePanel = ({
           Vol
         </button>
       )}
+      {sure && sure.length > 0 && <HowSureBook sures={sure} compact={narrow} align={twoRowHead ? 'start' : 'end'} className="pointer-events-auto" />}
       {guide}
     </>
   );
