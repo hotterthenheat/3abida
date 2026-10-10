@@ -59,8 +59,6 @@ const SCAN_INTERVAL_MS = 10_000;
 const MODULES = GRID_MODULES;
 /* the house grid at the terminal's reading floor: an 11px head (the house's is 9) */
 const THEME = GRID_THEME.withParams({ headerFontSize: 11 });
-/* The grid's own words in the house voice (PP-14, PP-35), not AG Grid's Title Case */
-const LOCALE = { noRowsToShow: 'No name on the board matches', noMatchingRows: 'No name on the board matches', loadingOoo: 'Reading the board…' };
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const fmtPct = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
 
@@ -486,12 +484,14 @@ const Board = () => {
             doesExternalFilterPass={doesExternalFilterPass}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
             {...openRowOnEnter<BoardRow>(row => openName(row.ticker))}
-            localeText={LOCALE}
+            suppressNoRowsOverlay
             animateRows
             tooltipShowDelay={350}
             tooltipHideDelay={8000}
           />
         </AgGridProvider>
+        {/* the grid's own "No Matching Rows" in the house voice (PP-14, PP-35) */}
+        {tokens.length > 0 && shownCount === 0 && rows.length > 0 && <p className="px-3 py-4 text-[12px] text-textMuted">No name on the board matches “{quick.trim()}”.</p>}
       </div>
     </div>
   );

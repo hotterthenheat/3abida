@@ -229,7 +229,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
       ...posts.map(p => ({ key: p.key, price: p.price, ink: p.ink, text: `${p.name} ${fmtStrike(p.price)}`, extra: p.reach != null ? `in reach ${hhmm(p.reach)}` : '', spot: false })),
       { key: 'spot', price: spot, ink: FIG.spot, text: fmtPrice(spot), extra: '', spot: true },
     ]
-      .map(i => ({ ...i, x: x(i.price), w: i.spot ? i.text.length * 6.4 : i.text.length * 5.1 + (i.extra ? (i.extra.length + 3) * 5.4 : 0) }))
+      .map(i => ({ ...i, x: x(i.price), w: i.spot ? i.text.length * 7 : i.text.length * 6 + (i.extra ? (i.extra.length + 3) * 6.4 : 0) }))
       .sort((a, b) => a.x - b.x);
     const ends = ROW.names.map(() => -Infinity);
     return items.map(i => {
@@ -427,7 +427,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
               <g key={v}>
                 <motion.line initial={false} animate={{ x1: x(v), x2: x(v) }} transition={GLIDE} y1={ROW.tick} y2={ROW.tick + 4} stroke={FIG.wash} strokeOpacity={0.25} />
                 {tickShown(v) && (
-                  <motion.text initial={false} animate={{ attrX: x(v) }} transition={GLIDE} y={ROW.figure} textAnchor="middle" fontSize={9} fill={FIG.tick} fontFamily={FIGS} data-axis-tick>
+                  <motion.text initial={false} animate={{ attrX: x(v) }} transition={GLIDE} y={ROW.figure} textAnchor="middle" fontSize={10} fill={FIG.tick} fontFamily={FIGS} data-axis-tick>
                     {fmtStrike(v)}
                   </motion.text>
                 )}
@@ -451,10 +451,10 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
             <motion.circle initial={false} animate={{ cx: x(spot) }} transition={GLIDE} cy={ROW.track} r={3} fill={FIG.hole} stroke={SILVER} strokeWidth={1.5} data-corridor-origin />
             {/* THE NAMES — sans in the level's ink with the price; a wall in reach carries its clock time in grey; spot's price bold and white */}
             {names.map(n => (
-              <motion.text key={n.key} initial={false} animate={{ attrX: n.cx, attrY: ROW.names[n.row] }} transition={GLIDE} textAnchor="middle" fontSize={n.spot ? 10 : 9.5} fontWeight={n.spot ? 700 : 500} fill={n.ink} fillOpacity={0.92} fontFamily={n.spot ? FIGS : SANS} data-level-label={n.key}>
+              <motion.text key={n.key} initial={false} animate={{ attrX: n.cx, attrY: ROW.names[n.row] }} transition={GLIDE} textAnchor="middle" fontSize={11} fontWeight={n.spot ? 700 : 500} fill={n.ink} fillOpacity={0.92} fontFamily={n.spot ? FIGS : SANS} data-level-label={n.key}>
                 {n.text}
                 {n.extra && (
-                  <tspan fill={FIG.faint} fontWeight={400} fontSize={9} fontFamily={FIGS}>
+                  <tspan fill={FIG.faint} fontWeight={400} fontSize={11} fontFamily={FIGS}>
                     {' '}
                     · {n.extra}
                   </tspan>
@@ -463,14 +463,14 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
             ))}
             {/* THE BRACKET — one expected move each side of spot, under the ticks */}
             <motion.path initial={false} animate={{ d: `M${x(spot - sigma).toFixed(1)},${ROW.bracket - 5} V${ROW.bracket} H${x(spot + sigma).toFixed(1)} V${ROW.bracket - 5}` }} transition={GLIDE} fill="none" stroke={SILVER} strokeOpacity={0.6} strokeWidth={1} data-corridor-bracket />
-            <motion.text initial={false} animate={{ attrX: x(spot) }} transition={GLIDE} y={ROW.words} textAnchor="middle" fontSize={8} fill={FIG.faint} fontFamily={FIGS} letterSpacing={1.2} data-corridor-bracket-words>
-              ONE EXPECTED MOVE EACH SIDE · ±{fmtPrice(sigma)}
+            <motion.text initial={false} animate={{ attrX: x(spot) }} transition={GLIDE} y={ROW.words} textAnchor="middle" fontSize={11} fill={FIG.faint} fontFamily={FIGS} data-corridor-bracket-words>
+              one expected move each side · ±{fmtPrice(sigma)}
             </motion.text>
             {/* THE POINTER — a hairline at its price, the price on the axis in silver */}
             {at != null && readout != null && (
               <g data-corridor-cursor>
                 <line x1={at} x2={at} y1={ROW.postTop} y2={ROW.postBot} stroke={SILVER} strokeOpacity={0.45} strokeWidth={1} />
-                <text x={at} y={ROW.figure} textAnchor="middle" fontSize={9.5} fontWeight={600} fill={SILVER} fontFamily={FIGS} data-traced-price>
+                <text x={at} y={ROW.figure} textAnchor="middle" fontSize={11} fontWeight={600} fill={SILVER} fontFamily={FIGS} data-traced-price>
                   {fmtPrice(readout)}
                 </text>
               </g>

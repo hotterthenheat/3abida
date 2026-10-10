@@ -115,7 +115,7 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {ticks.map(k => (
         <g key={k}>
           <line x1={x(k)} x2={x(k)} y1={14} y2={PH - 20} stroke="rgb(var(--ink))" strokeOpacity={0.05} />
-          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG}>
+          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={10} fill="rgb(var(--text-muted))" fontFamily={FIG}>
             {fmtStrike(k)}
           </text>
         </g>
@@ -124,32 +124,32 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {wall.breakPath.pocket && breakTo != null && (
         <g>
           <rect x={Math.min(x(K), x(breakTo))} y={14} width={Math.abs(x(breakTo) - x(K))} height={PH - 34} fill="rgb(var(--ink))" fillOpacity={0.035} />
-          <text x={(x(K) + x(breakTo)) / 2} y={PH - 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
+          <text x={(x(K) + x(breakTo)) / 2} y={PH - 24} textAnchor="middle" fontSize={11} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             almost nothing in between
           </text>
         </g>
       )}
       {/* spot */}
       <line x1={x(spot)} x2={x(spot)} y1={12} y2={PH - 18} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
+      <text x={x(spot)} y={9} textAnchor="middle" fontSize={11} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
         {fmtStrike(spot)}
       </text>
       {/* the wall */}
       <rect x={x(K) - 2} y={22} width={4} height={PH - 44} rx={2} fill={ink} fillOpacity={0.9} />
-      <text x={x(K) + (dir > 0 ? 8 : -8)} y={30} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={9} fontWeight={500} fill={ink} fontFamily={SANS}>
+      <text x={x(K) + (dir > 0 ? 8 : -8)} y={30} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={11} fontWeight={500} fill={ink} fontFamily={SANS}>
         {wall.role ?? (wall.weight > 0 ? 'shelf' : 'strike')} {fmtStrike(K)}
       </text>
       {/* if it breaks: onward */}
       {breakTo != null ? (
         <g data-wall-break>
           {arrow(K, breakTo, yBreak, WARM, true, 0.9)}
-          <text x={x(K) + dir * 10} y={yBreak - 8} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={9} fill={WARM} fontFamily={SANS}>
+          <text x={x(K) + dir * 10} y={yBreak - 8} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={11} fill={WARM} fontFamily={SANS}>
             if it breaks · runs to {fmtStrike(breakTo)}
             {flowWords(wall.breakPath.flow)}
           </text>
         </g>
       ) : (
-        <text x={x(K) + dir * 10} y={yBreak + 3} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={9} fill={WARM} fillOpacity={0.8} fontFamily={SANS}>
+        <text x={x(K) + dir * 10} y={yBreak + 3} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={11} fill={WARM} fillOpacity={0.8} fontFamily={SANS}>
           if it breaks · no shelf behind it on the strikes shown
         </text>
       )}
@@ -157,7 +157,7 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {holdTo != null && (
         <g data-wall-hold-path>
           {arrow(K, holdTo, yHold, SILVER, false, 0.9)}
-          <text x={x(K) - dir * 10} y={yHold + 14} textAnchor={dir > 0 ? 'end' : 'start'} fontSize={9} fill={SILVER} fontFamily={SANS}>
+          <text x={x(K) - dir * 10} y={yHold + 14} textAnchor={dir > 0 ? 'end' : 'start'} fontSize={11} fill={SILVER} fontFamily={SANS}>
             if it holds · back toward {fmtStrike(holdTo)}
             {flowWords(wall.holdPath.flow)}
           </text>
