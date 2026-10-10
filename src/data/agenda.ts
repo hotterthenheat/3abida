@@ -193,10 +193,12 @@ export function buildAgenda(
   bars: readonly Candle[],
   clock: AheadClock,
   iv: number,
-  order: AgendaOrder = 'matters'
+  order: AgendaOrder = 'matters',
+  /** The wall model's context already built for this book (data/pinpointBook.ts) — built here when absent */
+  ctxIn?: WallContext
 ): Agenda {
   const { ticker, spot } = snapshot;
-  const ctx: WallContext = buildWallContext(snapshot, profile, building, surface, bars, clock, iv);
+  const ctx: WallContext = ctxIn ?? buildWallContext(snapshot, profile, building, surface, bars, clock, iv);
   const { marketPer1Pct, sigmaLeft } = ctx;
   /* Where the close lands, on the same expected move the reach odds use — the
      two questions (touch vs close) never disagree on the ruler */

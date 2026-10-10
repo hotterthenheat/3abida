@@ -18,9 +18,9 @@ import { Skeleton } from '../ui/Skeleton';
 /* ---- geometry shared with TargetsBoard.tsx / TargetsAxis.tsx -------------------- */
 
 /** # · strike · from spot · reached · holds · if it breaks · today · at stake · why · actions */
-export const AGENDA_COLUMNS = '32px 150px 72px 72px 104px minmax(150px,1fr) 112px 130px minmax(150px,1.2fr) 120px';
+export const AGENDA_COLUMNS = '36px 150px 80px 80px 110px minmax(150px,1fr) 130px 130px 132px';
 /** The columns' floor plus nine 12px gaps */
-export const AGENDA_MIN_W = 1200;
+export const AGENDA_MIN_W = 1060;
 export const CARD_H = 158;
 export const ROW_H = 32;
 export const AXIS_W = 1200;
@@ -110,15 +110,15 @@ export const TargetsInner = ({ rows = 28 }: { rows?: number }) => (
     {/* THE LIST */}
     <div className="px-5 pb-2 overflow-x-auto">
       <div className="grid items-center gap-x-3 gap-y-0" style={{ gridTemplateColumns: AGENDA_COLUMNS, minWidth: AGENDA_MIN_W }}>
-        {[10, 34, 54, 48, 34, 62, 36, 50, 24, 44].map((w, i) => (
-          <div key={`h-${i}`} className={`h-[14px] flex items-center ${i >= 2 && i <= 4 ? 'justify-end' : i === 9 ? 'justify-end' : ''}`}>
+        {[10, 34, 54, 48, 34, 62, 36, 50, 44].map((w, i) => (
+          <div key={`h-${i}`} className={`h-[18px] flex items-center ${i >= 2 && i <= 4 ? 'justify-end' : i === 8 ? 'justify-end' : ''}`}>
             <Skeleton className="h-2" style={{ width: w }} line />
           </div>
         ))}
         {Array.from({ length: rows }, (_, r) => {
           const fade = 1 - Math.min(0.55, r * 0.02);
           return (
-            <div key={r} className="grid grid-cols-subgrid col-span-10 items-center border-t border-borderSubtle/40" style={{ height: ROW_H }}>
+            <div key={r} className="grid grid-cols-subgrid col-span-9 items-center border-t border-borderSubtle/40" style={{ height: ROW_H }}>
               <div className="flex items-center">
                 <Skeleton className="h-2.5 w-4" line style={{ opacity: fade }} />
               </div>
@@ -146,9 +146,6 @@ export const TargetsInner = ({ rows = 28 }: { rows?: number }) => (
                 <span className="absolute inset-y-[12px] left-0 right-14 rounded-full bg-ink/[0.04]" />
                 <Skeleton className="absolute inset-y-[12px] left-0 rounded-full" style={{ width: `${[70, 48, 60, 30, 22, 16, 12][r % 7]}%`, opacity: fade }} />
                 <Skeleton className="absolute right-0 h-2.5 w-10" line style={{ opacity: fade }} />
-              </div>
-              <div className="flex items-center">
-                <Skeleton className="h-2.5" line style={{ width: [170, 140, 180, 150][r % 4], opacity: fade }} />
               </div>
               <div className="flex items-center justify-end gap-1">
                 <Skeleton className="h-4 w-14" line style={{ opacity: fade }} />

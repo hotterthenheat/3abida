@@ -15,6 +15,8 @@
 */
 
 import Simulator from '../core/simulator';
+import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyClock, nyMinutes, nySession } from '../core/nyTime';
+import type { Candle } from '../types/market';
 
 export type GexTrend = 'BUILDING' | 'BLEEDING' | 'FLAT' | 'NEW';
 
@@ -36,20 +38,48 @@ const SESSION_GAP_S = 90;
 /** Under ±15% since the open the gamma at a level is neither building nor bleeding. */
 const TREND_THRESHOLD = 15;
 
-const fmtTime = (t: number) =>
-  new Date(t * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+/** A bar's time, New York's clock — the market's day, whatever zone the machine is in (X2) */
+const fmtTime = (t: number) => nyClock(t * 1000);
 
-/** Today's session: the trailing run of bars with no overnight gap. */
-/** The live session's bars — the last contiguous run on the tape. Exported for
+/*
+  TODAY STARTS AT THE OPEN, NEW YORK'S (the audit's X2.5, 2026-10-09): the cut
+  was "the last run of bars with no overnight gap", which on a tape that runs
+  before the bell put "today" at 07:55. The session is the cash session — 09:30
+  to 16:00 New York — so the run is cut to that day's session. A run with no bar
+  inside a session (a tape read before the bell) keeps the run, so a page still
+  has its bars and prints their own times.
+*/
+export function sessionCut(bars: readonly Candle[]): Candle[] {
+  if (bars.length === 0) return [];
+  let start = bars.length - 1;
+  while (start > 0 && bars[start].time - bars[start - 1].time <= SESSION_GAP_S) start--;
+  const run = bars.slice(start);
+  const { open, close } = nySession(run[run.length - 1].time * 1000);
+  const lo = open / 1000;
+  const hi = close / 1000;
+  let a = 0;
+  while (a < run.length && run[a].time < lo) a++;
+  let b = run.length;
+  while (b > a && run[b - 1].time >= hi) b--;
+  return b - a >= 1 ? run.slice(a, b) : run;
+}
+
+/** The live session's bars — today's cash session (sessionCut). Exported for
     the Wall Report Card (2026-09-05), which grades every level on the same
     session cut the focus chip's touches use. */
 export function sessionBars(ticker: string) {
   const bars = Simulator.peekCandles(ticker);
   if (!bars || bars.length === 0) return null;
-  let start = bars.length - 1;
-  while (start > 0 && bars[start].time - bars[start - 1].time <= SESSION_GAP_S) start--;
-  return bars.slice(start);
+  return sessionCut(bars);
 }
+
+/** True when the session cut starts at the open — false when the tape began later, or before the bell */
+export const startsAtOpen = (bars: readonly Candle[]): boolean => bars.length > 0 && nyMinutes(bars[0].time * 1000) === SESSION_OPEN_MIN;
+/** True when a bar's minute is inside the cash session */
+export const inCashSession = (t: number): boolean => {
+  const m = nyMinutes(t * 1000);
+  return m >= SESSION_OPEN_MIN && m < SESSION_CLOSE_MIN;
+};
 
 /**
  * Per strike, net gamma at the session OPEN as a ratio of net gamma NOW

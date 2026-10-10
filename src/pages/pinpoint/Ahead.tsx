@@ -40,120 +40,46 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Simulator from '../../core/simulator';
+import { useMemo, useState } from 'react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
-import ScopeChip from '../../components/ui/ScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import { AheadPageSkeleton, CloseInner, CorridorInner } from './pinpointSkeletons';
 import AheadCorridor from '../../components/gex/AheadCorridor';
 import CloseOdds from '../../components/gex/CloseOdds';
-import { buildExposureProfile } from '../../data/exposure';
-import { aheadClock, buildCloseOdds, buildCorridor, buildSchedule, type VolPoints } from '../../data/ahead';
-import { readSessionClock } from '../../data/sessionClock';
+import { type VolPoints } from '../../data/ahead';
+import { bookOf, closeOddsOf, corridorOf, scheduleOf } from '../../data/pinpointBook';
 import { usePositions } from '../../data/positions';
-import type { MarketSnapshot } from '../../types/market';
+import { useBookClock, useBoxes, useFrameScan } from './usePinpoint';
 
-/** The book sweeps on its own cadence — the odds must not vibrate with every tick */
-const SCAN_INTERVAL_MS = 10_000;
-/** Thirty strikes each side: the odds read what the close can reach from it, the corridor its walls */
-const WINDOW = 30;
-
-/* Each box can hold its own name (the Map's rule): it follows the frame
-   until its chip unlinks it. Held across route changes, reset on reload. */
 type BoxKey = 'corridor' | 'close';
-type Scopes = Partial<Record<BoxKey, string>>;
-let scopesMemory: Scopes = {};
 
 const Ahead = () => {
-  const { marketData, activeTicker, changeTicker } = useMarketData();
-  const { focus, toggleFocus } = useFocus();
-  const [scopes, setScopesState] = useState<Scopes>(scopesMemory);
-  const setScope = (key: BoxKey, t: string | undefined) =>
-    setScopesState(prev => {
-      const next = { ...prev };
-      if (t === undefined) delete next[key];
-      else next[key] = t;
-      scopesMemory = next;
-      return next;
-    });
-
+  const { activeTicker } = useMarketData();
+  const { toggleFocus } = useFocus();
   /* THE CLOCK — New York time, re-read every 15s; every band moves with it */
-  const [clockRaw, setClockRaw] = useState(() => readSessionClock());
-  useEffect(() => {
-    const id = window.setInterval(() => setClockRaw(readSessionClock()), 15_000);
-    return () => window.clearInterval(id);
-  }, []);
-  const clock = useMemo(() => aheadClock(clockRaw), [clockRaw]);
-
-  /* Scan-tier snapshot: the book sweeps every SCAN_INTERVAL_MS (a name change is immediate) */
-  const [scan, setScan] = useState<MarketSnapshot | null>(null);
-  const scanRef = useRef<MarketSnapshot | null>(null);
-  const scanAtRef = useRef(0);
-  useEffect(() => {
-    if (!marketData) return;
-    const now = Date.now();
-    const due = !scanRef.current || now - scanAtRef.current >= SCAN_INTERVAL_MS || scanRef.current.ticker !== marketData.ticker;
-    if (due) {
-      scanRef.current = marketData;
-      scanAtRef.current = now;
-      setScan(marketData);
-    }
-  }, [marketData]);
-
-  /* The own-name snapshots, one per name a box has stepped onto */
-  const pinnedKey = [scopes.corridor, scopes.close].filter(Boolean).join('|');
-  const ownSnaps = useMemo(() => {
-    const m = new Map<string, MarketSnapshot>();
-    if (!scan || !pinnedKey) return m;
-    for (const t of new Set(pinnedKey.split('|'))) {
-      if (t === scan.ticker) continue;
-      try {
-        m.set(t, Simulator.snapshotFor(t));
-      } catch {
-        /* a name the sim can't build — the box stays on the frame's */
-      }
-    }
-    return m;
-  }, [scan, pinnedKey]);
-  const snapFor = (key: BoxKey): MarketSnapshot | null => {
-    if (!scan) return null;
-    const t = scopes[key];
-    if (!t || t === scan.ticker) return scan;
-    return ownSnaps.get(t) ?? scan;
-  };
-  const tickerFor = (key: BoxKey) => scopes[key] ?? activeTicker;
-  const focusFor = (t: string) => (focus && focus.ticker === t ? focus.price : null);
-  const chipFor = (key: BoxKey, t: string) => (
-    <ScopeChip
-      ticker={t}
-      linked={scopes[key] === undefined}
-      quote
-      onToggleLink={() => setScope(key, scopes[key] === undefined ? t : undefined)}
-      onPick={next => (scopes[key] === undefined ? changeTicker(next) : setScope(key, next))}
-    />
-  );
+  const clock = useBookClock();
+  /* The room's scan (data/pinpointBook.ts): the book sweeps every ten seconds, the same snapshot every page reads */
+  const scan = useFrameScan();
+  /* Each box can hold its own name (the Map's rule): it follows the frame until its chip unlinks it */
+  const { snapFor, tickerFor, chipFor, focusFor } = useBoxes<BoxKey>('ahead', scan);
 
   /* THE VOL SCENARIO (2026-09-09) — vanna spoken: a drop of a point by default,
      the usual crush into the close; the card on the range box changes it */
   const [volPoints, setVolPoints] = useState<VolPoints>(-1);
 
-  /* THE TWO ANSWERS, each off its box's own book — today's contracts */
+  /* THE TWO ANSWERS, each off its box's own name — the one book every page reads (data/pinpointBook.ts) */
   const corridorSnap = snapFor('corridor');
   const closeSnap = snapFor('close');
   const corridor = useMemo(() => {
     if (!corridorSnap) return null;
-    const profile = buildExposureProfile(corridorSnap, '0DTE', WINDOW);
-    const iv = Simulator.TICKERS[corridorSnap.ticker]?.iv ?? 0.2;
-    return { profile, model: buildCorridor(corridorSnap, profile, iv, clock), schedule: buildSchedule(corridorSnap, profile, clock, volPoints) };
+    const book = bookOf(corridorSnap, clock);
+    return { profile: book.profile, model: corridorOf(book), schedule: scheduleOf(book, volPoints) };
   }, [corridorSnap, clock, volPoints]);
   const close = useMemo(() => {
     if (!closeSnap) return null;
-    const profile = buildExposureProfile(closeSnap, '0DTE', WINDOW);
-    const iv = Simulator.TICKERS[closeSnap.ticker]?.iv ?? 0.2;
-    const c = buildCorridor(closeSnap, profile, iv, clock);
-    return { odds: buildCloseOdds(profile, closeSnap.spot, c.sigma, clock), levels: profile.levels };
+    const book = bookOf(closeSnap, clock);
+    return { odds: closeOddsOf(book), levels: book.profile.levels };
   }, [closeSnap, clock]);
 
   /* Your strikes, for the odds rows — only when the box is on the frame's name */
@@ -166,6 +92,7 @@ const Ahead = () => {
 
   const corridorTicker = tickerFor('corridor');
   const closeTicker = tickerFor('close');
+  const pick = (t: string) => (price: number) => toggleFocus(price, t);
 
   return (
     <>
@@ -179,7 +106,7 @@ const Ahead = () => {
             ticker={corridorTicker}
             clock={clock}
             focus={focusFor(corridorTicker)}
-            onPick={price => toggleFocus(price, corridorTicker)}
+            onPick={pick(corridorTicker)}
             scope={chipFor('corridor', corridorTicker)}
             volPoints={volPoints}
             onVolPoints={setVolPoints}
@@ -198,7 +125,7 @@ const Ahead = () => {
             clock={clock}
             yours={closeTicker === activeTicker ? yours : undefined}
             focus={focusFor(closeTicker)}
-            onPick={price => toggleFocus(price, closeTicker)}
+            onPick={pick(closeTicker)}
             scope={chipFor('close', closeTicker)}
           />
         </Deferred>

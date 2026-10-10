@@ -11,6 +11,7 @@
 ==================================================
 */
 
+import Glossary from '../levels/Glossary';
 import type { Compare } from '../../data/compare';
 import { FONT_SANS } from '../../theme/fonts';
 
@@ -141,7 +142,8 @@ const CompareGuide = ({ cmp }: { cmp: Compare }) => {
           {a.ticker}'s price divided by {b.ticker}'s, one point a day. When the line rises, {a.ticker} is gaining on {b.ticker}; when it falls, {b.ticker} is gaining. The shaded band is the usual range, where it closed on about two days in three, with its average dashed through it; the names sit inside the plot at the left, the figures on the axis. A day that closed outside the range wears a warm mark on the line, and today a silver one. Inside the range, today's gap between the two is ordinary; outside it, one name has run further ahead of the other than it usually does. Hover any day for the two prices and where that day sat.
         </p>
       </div>
-      <p className="text-[10px] text-textMuted">The ruler at the top of the page changes the distances everywhere on this page.</p>
+      <p className="text-[11px] text-textMuted">The ruler at the top of the page changes the distances everywhere on this page.</p>
+      <Glossary words={['wall', 'flip', 'supreme', 'ruler', 'sign']} />
     </div>
   );
 };

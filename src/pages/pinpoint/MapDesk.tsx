@@ -42,15 +42,15 @@ import ExposureField from '../../components/gex/ExposureField';
 import TraderClock from '../../components/gex/TraderClock';
 import WallReportCard from '../../components/gex/WallReportCard';
 import ReplayStrip from '../../components/gex/ReplayStrip';
-import { barsAt, replayDay, replayMinute, replayRange, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
+import { barsAt, replayDay, replayMinute, replayRange, replayStart, snapPos, snapshotAt, type ReplayRange } from '../../data/replay';
 import { readPosition, usePositions } from '../../data/positions';
 import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import type { ExposureExpiry } from '../../types/gex';
 import type { Candle, MarketSnapshot } from '../../types/market';
 import { useOnScreen } from '../../components/ui/useOnScreen';
+import { scanOf } from '../../data/pinpointBook';
+import { useFrameScan, useRoomWindow } from './usePinpoint';
 
-/** The book sweeps on its own cadence — the boxes must not vibrate with every tick. */
-const SCAN_INTERVAL_MS = 10_000;
 /* THE WINDOW IS THE WHOLE BOOK (Noah, 2026-09-05): thirty strikes each side are
    built once; the boxes draw whatever of them they need. */
 const WINDOW: StrikeWindow = 30;
@@ -102,20 +102,10 @@ const MapDesk = () => {
   const replayOn = replay != null;
   const playing = replay;
 
-  /* Scan-tier snapshot: the book sweeps every SCAN_INTERVAL_MS (a name change is immediate) */
-  const [scan, setScan] = useState<MarketSnapshot | null>(null);
-  const scanRef = useRef<MarketSnapshot | null>(null);
-  const scanAtRef = useRef(0);
-  useEffect(() => {
-    if (!marketData) return;
-    const now = Date.now();
-    const due = !scanRef.current || now - scanAtRef.current >= SCAN_INTERVAL_MS || scanRef.current.ticker !== marketData.ticker;
-    if (due) {
-      scanRef.current = marketData;
-      scanAtRef.current = now;
-      setScan(marketData);
-    }
-  }, [marketData]);
+  /* The room's scan (data/pinpointBook.ts): the book sweeps every ten seconds, the same snapshot every page reads */
+  const scan = useFrameScan()?.snap ?? null;
+  /* THE STRIKES — the room's one window, the calendar's Strikes card (PP-20) */
+  const [half, setHalf] = useRoomWindow();
 
   /* THE OWN-NAME SNAPSHOTS — one per name a box has stepped onto, rebuilt on
      the scan cadence like the frame's own. A pure read of the simulator. */
@@ -125,11 +115,8 @@ const MapDesk = () => {
     if (!scan || !pinnedKey) return m;
     for (const t of new Set(pinnedKey.split('|'))) {
       if (t === scan.ticker) continue;
-      try {
-        m.set(t, Simulator.snapshotFor(t));
-      } catch {
-        /* a name the sim can't build — the box stays on the frame's */
-      }
+      const own = scanOf(t);
+      if (own) m.set(t, own.snap);
     }
     return m;
   }, [scan, pinnedKey]);
@@ -178,6 +165,7 @@ const MapDesk = () => {
       pos={playing?.pos ?? 0}
       length={playing?.range.length ?? 0}
       day={playing ? replayDay(playing.range) : undefined}
+      startMin={playing ? replayStart(playing.range) : undefined}
       playing={playing?.playing ?? false}
       onPlay={p => setReplay(r => (r ? { ...r, playing: p } : r))}
       pace={playing?.pace ?? 60}
@@ -190,7 +178,7 @@ const MapDesk = () => {
       type="button"
       onClick={startReplay}
       title="Replay today's session from the open — every box on the page reads the book as it stood"
-      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+      className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
       data-map-replay
     >
       <Play className="w-3 h-3" /> Replay
@@ -292,11 +280,14 @@ const MapDesk = () => {
           floor) with the toolbar and the read line, no scrolling — the lock
           walk's first fix (Noah, 2026-09-09: "the heatmap length is a bit
           short so make it taller"; at 600 only 25 of the 40 rows showed) */}
-      <div ref={calRef} className="border border-borderSubtle rounded-md overflow-hidden h-[870px] flex flex-col" data-calendar data-scope-ticker={calTicker} data-on-screen={calOn}>
+      {/* never taller than the screen under the head (PP-17): at 1280 × 720 the page and the ladder scrolled inside each other */}
+      <div ref={calRef} className="border border-borderSubtle rounded-md overflow-hidden h-[min(870px,calc(100svh-120px))] min-h-[520px] flex flex-col" data-calendar data-scope-ticker={calTicker} data-on-screen={calOn}>
         <Deferred index={0} frames={0} fallback={<CalendarInner />} className="h-full min-h-0 flex flex-col animate-fade-in">
           <ExposureField
             snapshot={calSnap ?? scan}
             toolbar="band"
+            half={half}
+            onHalf={setHalf}
             lead={chipFor('calendar', calTicker)}
             greeks={greekPick}
             onGreeks={setGreekPick}
@@ -323,7 +314,7 @@ const MapDesk = () => {
           long phase sentence would be cut at the box's top edge */}
       <div ref={dayRef} className="border border-borderSubtle rounded-md bg-panel" data-day data-scope-ticker={dayTicker} data-on-screen={dayOn}>
         <Deferred index={1} frames={22} fallback={<DayInner />} className="animate-fade-in">
-          <TraderClock snapshot={daySnap ?? scan} scope={chipFor('day', dayTicker)} at={playing && dayTicker === ticker ? replayMinute(framePos) : undefined} />
+          <TraderClock snapshot={daySnap ?? scan} scope={chipFor('day', dayTicker)} at={playing && dayTicker === ticker ? replayMinute(framePos, range) : undefined} />
         </Deferred>
       </div>
       {/* HOW THE LEVELS HELD TODAY — full width, in the approved grammar: the

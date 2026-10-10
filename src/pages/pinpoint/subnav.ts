@@ -29,7 +29,8 @@ export interface GexSubpage {
               wall a day early — and where the four levels are heading
               at today's pace (2026-09-07)     — pages/pinpoint/Building.tsx
     Targets   the day's agenda: every strike in the order it matters, with
-              the two actions (chart · alert)   — pages/pinpoint/RankedTargets.tsx
+              the two actions (chart · alert); the chart is Pulse's
+                                                — pages/pinpoint/RankedTargets.tsx
     Board     everything at a glance: every name the desk covers, one row
               each; a click opens it on the Map — pages/pinpoint/Board.tsx
     Compare   two names on the same reads, side by side; both books on
@@ -42,7 +43,7 @@ export const GEX_SUBPAGES: GexSubpage[] = [
   {
     path: '/pinpoint/map',
     label: 'Map',
-    subtitle: 'The book by strike and expiry — the ladder first, then the day’s clock, how the levels held, your positions',
+    subtitle: 'The book by strike and expiry — the matrix, the day’s clock, how the levels held',
     icon: Map,
   },
   {
@@ -54,7 +55,7 @@ export const GEX_SUBPAGES: GexSubpage[] = [
   {
     path: '/pinpoint/building',
     label: 'Building',
-    subtitle: 'What today added to every strike — walls forming before they are the wall, draining before they break, and where the levels are heading',
+    subtitle: 'What today added to every strike — walls forming before they are the wall, draining before they break, where the levels are heading, and the open interest added overnight',
     icon: Hammer,
   },
   {
@@ -72,13 +73,13 @@ export const GEX_SUBPAGES: GexSubpage[] = [
   {
     path: '/pinpoint/board',
     label: 'Board',
-    subtitle: 'Every name at a glance — which way dealers are hedging, the flip, the nearest wall, the supreme, what expires today',
+    subtitle: 'Every name at a glance — the first strike to watch, which way dealers are hedging, the flip, the nearest wall, the supreme, what expires today',
     icon: LayoutGrid,
   },
   {
     path: '/pinpoint/compare',
     label: 'Compare',
-    subtitle: 'Two names side by side — the same reads head to head, both books on one ruler, the two tapes on one percent axis',
+    subtitle: 'Two names side by side — the same reads head to head, both books on one ruler, the two tapes on one percent axis, and whether today’s gap is usual',
     icon: Scale,
   },
 ];

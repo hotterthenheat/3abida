@@ -23,10 +23,10 @@ import Simulator from '../core/simulator';
 import { buildAgenda } from './agenda';
 import { aheadClock, type AheadClock } from './ahead';
 import { buildBuilding } from './building';
-import { buildExposureProfile } from './exposure';
-import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
+import type { ExposureSurface } from './exposureSurface';
 import { buildFlipGauge } from './flipGauge';
-import { sessionBars } from './levelview';
+import { agendaOf, bookOf, scanOf } from './pinpointBook';
+import { bookSureness, type SureLevel, type Sureness } from './levelSureness';
 import { spotChangePct } from './gex';
 import { readSessionClock } from './sessionClock';
 import { getPositions } from './positions';
@@ -48,7 +48,7 @@ export interface BoardRow {
   /** The wall nearer to spot, and how far it is */
   nearest: { kind: 'call' | 'put'; strike: number; distPct: number };
   supreme: number;
-  /** The 0DTE book's net gamma in the window — positive amplifies, negative absorbs */
+  /** Today's book's net gamma, the whole chain — in the house sign positive amplifies, negative absorbs (exposure.ts) */
   netGex: number;
   /** Share of the window's gamma that expires today, percent */
   bellShare: number | null;
@@ -56,6 +56,8 @@ export interface BoardRow {
   spark: number[];
   /** Your positions on the name: contracts owned or sold (0 = none) */
   yours: { positions: number; contracts: number };
+  /** What the walls stand on (data/levelSureness.ts) — the "How sure" door on the nearest wall */
+  sure?: Record<SureLevel, Sureness> | null;
   /** The agenda's first strike for this name — what to watch first, and why (2026-09-08) */
   watch: { strike: number; role: WallRole; isShelf: boolean; isWall: boolean; reach: number; hold: number; stake: number } | null;
 }
@@ -98,20 +100,20 @@ const thin = (xs: number[], n: number): number[] => {
   return out;
 };
 
-export function buildBoardRow(ticker: string): BoardRow | null {
-  let snapshot;
-  try {
-    snapshot = Simulator.snapshotFor(ticker);
-  } catch {
-    return null;
-  }
+export function buildBoardRow(ticker: string, live?: MarketSnapshot | null): BoardRow | null {
+  /* ONE BOOK (data/pinpointBook.ts): the scan every Pinpoint page reads for this name, the same profile, calendar and
+     agenda — so a name's call wall and its first strike's odds read the same here as on its own pages */
+  const scan = scanOf(ticker, live);
+  const snapshot = scan?.snap;
   if (!snapshot || !snapshot.chain || snapshot.chain.length === 0) return null;
-  let today;
+  const clock = aheadClock(readSessionClock());
+  let book;
   try {
-    today = buildExposureProfile(snapshot, '0DTE', 20);
+    book = bookOf(snapshot, clock);
   } catch {
     return null;
   }
+  const today = book.profile;
   const gauge = buildFlipGauge(snapshot);
   const spot = snapshot.spot;
   const { callWall, putWall, supreme } = today.levels;
@@ -121,26 +123,19 @@ export function buildBoardRow(ticker: string): BoardRow | null {
 
   /* The bell's share: today's column against every column of the calendar
      surface — the SAME number the Calendar's read line and the Trader's Clock
-     print for this name (the 'ALL' lens scales the whole book by one factor
-     and printed one share for every name; the surface's per-expiry desks do
-     not). ~18ms a name, on the scan tier. */
-  let bellShare: number | null = null;
-  let surface: ExposureSurface | null = null;
-  try {
-    surface = buildExposureSurface(snapshot, 20, CALENDAR_DTES);
-    bellShare = bellShareOf(surface);
-  } catch {
-    /* no surface for this name yet */
-  }
+     print for this name. */
+  const surface = book.surface;
+  const bellShare = surface ? bellShareOf(surface) : null;
 
-  const bars = sessionBars(ticker) ?? [];
+  const bars = book.bars;
   const mine = getPositions(snapshot.ticker);
 
-  /* WHAT TO WATCH FIRST — the agenda's #1 for this name, so the board is the
-     morning list across every name (2026-09-08). ~2ms a name. */
-  const watch = watchOf(snapshot, today, surface, bars, aheadClock(readSessionClock()));
+  /* WHAT TO WATCH FIRST — the agenda's #1 for this name, off the one book (2026-09-08; the book since 2026-10-09) */
+  const lead = agendaOf(book).first[0];
+  const watch: BoardRow['watch'] = lead ? { strike: lead.strike, role: lead.role, isShelf: lead.isShelf, isWall: lead.isWall, reach: lead.reach, hold: lead.hold, stake: lead.stake } : null;
 
   return {
+    sure: bookSureness(snapshot.chain, spot, snapshot.ticker),
     watch,
     yours: { positions: mine.length, contracts: mine.reduce((s, p) => s + p.contracts, 0) },
     ticker: snapshot.ticker,

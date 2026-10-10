@@ -167,7 +167,7 @@ const ReportGuide = ({ rows, bars, from }: ReportGuideProps) => {
       </div>
       {told.length > 0 && (
         <div className="border-t border-borderSubtle/60 pt-2.5">
-          <p className="text-[10px] text-textMuted">Today's levels, in words</p>
+          <p className="text-[11px] text-textMuted">Today's levels, in words</p>
           <ul className="mt-1 flex flex-col gap-1.5">
             {told.map(r => (
               <li key={r.label} className="text-[11.5px] leading-relaxed text-textSecondary">
@@ -181,7 +181,7 @@ const ReportGuide = ({ rows, bars, from }: ReportGuideProps) => {
           </ul>
         </div>
       )}
-      <p className="text-[10px] text-textMuted">The report reads today's session only. It starts over at the open.</p>
+      <p className="text-[11px] text-textMuted">The report reads today's session only. It starts over at the open.</p>
     </div>
   );
 };

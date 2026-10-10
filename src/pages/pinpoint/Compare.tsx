@@ -5,7 +5,7 @@
 
   The seventh page of Pinpoint (2026-09-08, Noah:
   "a compare page of 2 different stocks/tickers in
-  multiple ways you see fit"). Two names, three
+  multiple ways you see fit"). Two names, four
   boxes, read top to bottom:
 
     HEAD TO HEAD    the same ten reads for both,
@@ -17,6 +17,8 @@
     SINCE THE OPEN  today's session, both names as
                     one line each of percent from
                     their own open, the gap beneath
+    THE PAIR        whether today's gap between the
+                    two is usual, session by session
 
   A COMPOSITION: the reads are the Board's, Ahead's
   and Targets'; the ruler is the desk's; the lines
@@ -30,7 +32,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import ScopeChip from '../../components/ui/ScopeChip';
@@ -43,10 +44,10 @@ import CompareTapes from '../../components/gex/CompareTapes';
 import ComparePair from '../../components/gex/ComparePair';
 import CompareGuide from '../../components/gex/CompareGuide';
 import { CompareAxisInner, ComparePageSkeleton, ComparePairInner, CompareTapesInner, HeadToHeadInner } from '../../components/gex/compareSkeletons';
-import { aheadClock } from '../../data/ahead';
 import { buildCompare, buildCompareSide, partnerFor, type Greek, type Reach } from '../../data/compare';
 import { useDistanceUnit } from '../../data/distanceUnits';
-import { readSessionClock } from '../../data/sessionClock';
+import { scanOf } from '../../data/pinpointBook';
+import { stampOf, useBookClock, useFrameScan } from './usePinpoint';
 import type { MarketSnapshot } from '../../types/market';
 import type { ExposureExpiry } from '../../types/gex';
 
@@ -56,7 +57,6 @@ const SCAN_INTERVAL_MS = 10_000;
 const A_INK = 'rgb(var(--text-primary))';
 const B_INK = 'rgb(var(--compare))';
 
-const hhmmss = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 
 /* The first name follows the frame until its chip holds one; the second is
    the page's own, remembered across route changes within a session */
@@ -82,28 +82,10 @@ const Compare = () => {
   const bTicker = bState && bState !== aTicker ? bState : partnerFor(aTicker);
 
   /* THE CLOCK — New York time, re-read every 15s; the expected move runs on it */
-  const [clockRaw, setClockRaw] = useState(() => readSessionClock());
-  useEffect(() => {
-    const id = globalThis.setInterval(() => setClockRaw(readSessionClock()), 15_000);
-    return () => globalThis.clearInterval(id);
-  }, []);
-  const clock = useMemo(() => aheadClock(clockRaw), [clockRaw]);
-
-  /* Scan-tier snapshot: the reads sweep every SCAN_INTERVAL_MS (a name change is immediate) */
-  const [scan, setScan] = useState<{ snap: MarketSnapshot; at: string; nonce: number } | null>(null);
-  const scanRef = useRef<MarketSnapshot | null>(null);
-  const scanAtRef = useRef(0);
-  useEffect(() => {
-    if (!marketData) return;
-    const now = Date.now();
-    const due = !scanRef.current || now - scanAtRef.current >= SCAN_INTERVAL_MS || scanRef.current.ticker !== marketData.ticker;
-    if (due) {
-      scanRef.current = marketData;
-      scanAtRef.current = now;
-      setScan({ snap: marketData, at: hhmmss(new Date(now)), nonce: now });
-    }
-  }, [marketData]);
-  const nonce = scan?.nonce ?? 0;
+  const clock = useBookClock();
+  /* The room's scan: the reads sweep every ten seconds, the same snapshot every page reads (data/pinpointBook.ts) */
+  const scan = useFrameScan();
+  const nonce = scan?.at ?? 0;
 
   /* The chart folds in the newest bar on every tick — the same counter Terrain keeps */
   const revRef = useRef(0);
@@ -112,11 +94,7 @@ const Compare = () => {
   /* The two snapshots: the frame's own when the first name follows it, else a pure read of the simulator */
   const snapOf = (t: string): MarketSnapshot | null => {
     if (scan && scan.snap.ticker === t) return scan.snap;
-    try {
-      return Simulator.snapshotFor(t);
-    } catch {
-      return null;
-    }
+    return scanOf(t)?.snap ?? null;
   };
   /* Which contracts both books weigh — the Map's Expiry card, on the ruler's
      head (Noah, 2026-09-10: "missing some top buttons") */
@@ -182,14 +160,17 @@ const Compare = () => {
       onPick={next => (aScope === undefined ? changeTicker(next) : setAScope(next))}
     />
   );
-  const chipB = <ScopeChip ticker={bTicker} quote onPick={next => setB(next)} title="The second name — pick another" />;
+  /* SWAP IS THE PAGE'S (the audit's PP-9): it moved the whole terminal to the second name when the first followed the
+     frame. Now the first name holds the second's as its own (its chip shows it unlinked; the link brings the
+     terminal's name back), and the terminal stays where it was. */
   const onSwap = () => {
     const a = aTicker;
     const b = bTicker;
-    if (aScope === undefined) changeTicker(b);
-    else setAScope(b);
+    setAScope(b);
     setB(a);
   };
+  /* THE FIRST NAME PICKED FOR THE SECOND (PP-10) changed nothing and said nothing; it swaps the two now */
+  const chipB = <ScopeChip ticker={bTicker} quote onPick={next => (next === aTicker ? onSwap() : setB(next))} title={`The second name — pick another; picking ${aTicker} swaps the two`} />;
 
   if (!scan || !cmp) return <ComparePageSkeleton />;
 
@@ -198,13 +179,15 @@ const Compare = () => {
       {/* BOX 1 — HEAD TO HEAD */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-compare-h2h data-a={aTicker} data-b={bTicker}>
         <Deferred fallback={<HeadToHeadInner />} className="animate-fade-in">
-          <HeadToHead cmp={cmp} unit={unit} greek={greek} chipA={chipA} chipB={chipB} onSwap={onSwap} updatedAt={scan.at} focusA={focusA} focusB={focusB} onPick={onPick} />
+          <HeadToHead cmp={cmp} unit={unit} greek={greek} chipA={chipA} chipB={chipB} onSwap={onSwap} updatedAt={stampOf(scan.at)} focusA={focusA} focusB={focusB} onPick={onPick} />
         </Deferred>
       </div>
 
       {/* BOX 2 — THE TWO BOOKS ON ONE RULER (the same box, moved to the viewport in fullscreen) */}
       <motion.div
         layout
+        /* measured on the fullscreen's change alone — a layout box measured on every tick was the page's forced reflow (PP-5) */
+        layoutDependency={rulerFull}
         transition={{ layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
         /* the page's own ground when full, not the box's panel grey (Noah, 2026-09-10: "ashy/gray") */
         className={rulerFull ? 'fixed inset-0 z-[80] bg-canvas flex flex-col' : 'relative border border-borderSubtle rounded-md bg-panel'}

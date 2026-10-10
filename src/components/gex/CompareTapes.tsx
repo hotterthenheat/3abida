@@ -25,7 +25,9 @@ import { sessionBars } from '../../data/levelview';
 import { DARK_FIGURE_SURFACE } from './candleTheme';
 import { readToken, useResolvedTheme } from '../../theme/theme';
 import { alpha, resolveInk } from './paletteInk';
-import { fmtClockLocal, localTickMarks } from './chartTime';
+import { nyClock, nyTickMarks, nyTimeFormatter } from '../../core/nyTime';
+/* The session's minutes are New York's (X2): the axis said 08:00 → 14:20 beside a clock reading 09:30 to 16:00 */
+const fmtClockNy = (t: UTCTimestamp) => nyClock(t * 1000);
 import { TAPES_H, TAPES_READ_H } from './compareSkeletons';
 import { FONT_SANS } from '../../theme/fonts';
 
@@ -111,13 +113,13 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       : DARK_FIGURE_SURFACE; /* the page, never the candle pick (candleTheme.ts: a figure is not a tape) */
     const chart = createChart(host, {
       autoSize: true,
-      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: FONT_SANS, fontSize: 10, attributionLogo: true },
-      localization: { timeFormatter: fmtClockLocal },
+      layout: { background: { color: surface.bg === 'transparent' ? readToken('--panel', undefined, host) : surface.bg }, textColor: surface.text, fontFamily: FONT_SANS, fontSize: 10, attributionLogo: false },
+      localization: { timeFormatter: nyTimeFormatter },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       /* Room above the lines: at 0.08 the leader's live chip sat over the top axis
          figure and hid half of it (the lock walk, 2026-09-09) */
       rightPriceScale: { borderColor: surface.line, scaleMargins: { top: 0.16, bottom: 0.28 } },
-      timeScale: { borderColor: surface.line, timeVisible: true, secondsVisible: false, rightOffset: 4, tickMarkFormatter: localTickMarks },
+      timeScale: { borderColor: surface.line, timeVisible: true, secondsVisible: false, rightOffset: 4, tickMarkFormatter: nyTickMarks },
       crosshair: {
         vertLine: { color: surface.crosshair, labelBackgroundColor: surface.label },
         horzLine: { color: surface.crosshair, labelBackgroundColor: surface.label },
@@ -227,15 +229,15 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Since the open</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Since the open</h2>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             Today, both as percent from their own open · <span style={{ color: aInk }}>{a}</span> and <span style={{ color: bInk }}>{b}</span>, the same line each · the band beneath is the gap, in the leader's ink
           </p>
         </div>
         <dl className="grid grid-cols-3 gap-x-6">
           <div>
-            <dt className="text-[10px] text-textMuted">Since the open</dt>
+            <dt className="text-[11px] text-textMuted">Since the open</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" data-tapes-since>
               <span style={{ color: aInk }}>
                 {a} {today.lastA == null ? '—' : signedPct(today.lastA)}
@@ -247,13 +249,13 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Ahead now</dt>
+            <dt className="text-[11px] text-textMuted">Ahead now</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-tapes-ahead>
               {today.lastA == null || today.lastB == null ? '—' : Math.abs(today.lastA - today.lastB) < 0.005 ? 'level' : `${today.lastA > today.lastB ? a : b} by ${Math.abs(today.lastA - today.lastB).toFixed(2)}%`}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">The gap today</dt>
+            <dt className="text-[11px] text-textMuted">The gap today</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-tapes-gap>
               {today.gap ? `${signedPct(today.gap.min)} to ${signedPct(today.gap.max)}` : '—'}
             </dd>
@@ -266,7 +268,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
         <div ref={hostRef} className="absolute inset-0" data-tapes-chart />
         {hp && hover && (
           <div
-            className="absolute z-10 pointer-events-none rounded-md border border-borderSubtle px-2.5 py-2 flex flex-col gap-1 text-[10.5px] text-textSecondary"
+            className="absolute z-10 pointer-events-none rounded-md border border-borderSubtle px-2.5 py-2 flex flex-col gap-1 text-[11px] text-textSecondary"
             style={{ left: hover.left, top: hover.top, width: CARD_W, background: 'rgba(8,8,10,0.88)', backdropFilter: 'blur(3px)' }}
             /* THE CARD IS ITS OWN DARK GLASS: its ground is typed dark, so its words must be the dark set — over a light
                ground (paper, or a Stone tape on either page) they were the box's dark ink on the dark card, unreadable */
@@ -274,7 +276,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
             data-chart-glass
             data-tapes-card
           >
-            <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtClockLocal(hp.time as UTCTimestamp)}</span>
+            <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{fmtClockNy(hp.time as UTCTimestamp)}</span>
             <span className="flex items-center gap-1.5 font-mono tnum">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: aInk }} aria-hidden />
               <span className="font-semibold text-textPrimary">{a}</span>
@@ -310,7 +312,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
       </div>
 
       {/* THE READ LINE — now */}
-      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[10.5px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
+      <div className="px-5 border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-[11px] text-textSecondary" style={{ height: TAPES_READ_H }} data-tapes-read>
         {at ? (
           <>
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">now</span>
@@ -329,12 +331,19 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
                 )}
               </span>
             )}
-            <span className="ml-auto text-textMuted">hover the chart for any minute</span>
+            <span className="ml-auto text-textMuted">hover the chart for any minute · times New York</span>
           </>
         ) : (
           <span className="text-textMuted">no session on the tape yet</span>
         )}
       </div>
+      {/* THE LIBRARY'S CREDIT, under the chart rather than on it (PP-33: its mark sat over the gap band) */}
+      <p className="px-5 pb-3 -mt-1 text-[11px] text-textMuted">
+        Chart by{' '}
+        <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-textPrimary">
+          TradingView Lightweight Charts
+        </a>
+      </p>
     </section>
   );
 };

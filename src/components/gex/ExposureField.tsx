@@ -62,6 +62,8 @@ import TickerSearch from '../ui/TickerSearch';
 import { useFadeClose } from '../ui/useFadeClose';
 import { fmtUsd } from '../../data/gex';
 import { type StrikeWindow } from '../../data/exposure';
+import { STRIKE_OPTIONS, STRIKES_TITLE, surfaceOf, type RoomWindow } from '../../data/pinpointBook';
+import { maxPainOf } from '../../data/maxPain';
 import { buildExposureSurface, CALENDAR_DTES, GREEKS, type ExposureSurface, type Greek } from '../../data/exposureSurface';
 import { HEAT_MODE } from './heatmap';
 import ColoursSwitch from './ColoursSwitch';
@@ -74,6 +76,9 @@ interface ExposureFieldProps {
   snapshot: MarketSnapshot | null | undefined;
   /** Strikes each side of spot. Given: the host's control seeds the window (its own presets stay hidden inline). */
   half?: StrikeWindow;
+  /** Given with `half`, the Strikes card is the host's room window (Pinpoint's one Strikes control, PP-20): its
+      choices, and a pick reported back */
+  onHalf?: (w: RoomWindow) => void;
   hoverStrike?: number | null;
   selectedStrike?: number | null;
   onHoverStrike?: (strike: number | null) => void;
@@ -226,11 +231,11 @@ const VIEW_OPTION: Record<LedgerView, DropdownOption<LedgerView>> = {
   ladder: { value: 'ladder', label: 'Ladder', hint: 'One row per strike — the put leg, the call leg, the net, and a bar' },
 };
 const SHOW_OPTIONS: DropdownOption<'now' | 'after'>[] = [
-  { value: 'now', label: 'Now', hint: 'The calendar as it stands' },
-  { value: 'after', label: 'After the close', hint: "The same calendar once today's contracts have expired" },
+  { value: 'now', label: 'Now', hint: 'The book as it stands' },
+  { value: 'after', label: 'After the close', hint: "The same book once today's contracts have expired" },
 ];
 
-const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, onHoverStrike, onSelectStrike, openRatio, onTicker, toolbar = 'desk', marks, lead, greeks: greeksProp, onGreeks, fresh = false, after, fullMode = 'portal', fullOpen, headFull = false, multi = false, selectedStrikeFor, onSelectStrikeFor, snapshotFor }: ExposureFieldProps) => {
+const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selectedStrike, onHoverStrike, onSelectStrike, openRatio, onTicker, toolbar = 'desk', marks, lead, greeks: greeksProp, onGreeks, fresh = false, after, fullMode = 'portal', fullOpen, headFull = false, multi = false, selectedStrikeFor, onSelectStrikeFor, snapshotFor }: ExposureFieldProps) => {
   const [ownPick, setOwnPick] = useState<string[]>(['gex']);
   const pick = greeksProp ?? ownPick;
   /* the page's theme: on paper the island and everything drawn in it wear the light set and the paper ramps */
@@ -457,7 +462,8 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
     const b = builtRef.current;
     const now = Date.now();
     if (!fresh && b && b.surface.ticker === snapshot.ticker && Math.abs(snapshot.spot - b.spot) / b.spot < 0.001 && now - b.at < 6000) return b.surface;
-    const next = buildExposureSurface(snapshot, WHOLE_BOOK, CALENDAR_DTES);
+    /* the room's book when this is a scan (data/pinpointBook.ts — the Map's clock, report and pages read the same one) */
+    const next = (!fresh && surfaceOf(snapshot)) || buildExposureSurface(snapshot, WHOLE_BOOK, CALENDAR_DTES);
     builtRef.current = { surface: next, spot: snapshot.spot, at: now };
     return next;
   }, [snapshot]);
@@ -642,7 +648,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
   const supremeGreek: Greek = greeks[0] ?? 'gex';
   if (!snapshot || !surface) {
     return (
-      <div className="h-full min-h-[300px] grid place-items-center font-mono text-[11px] text-textMuted uppercase tracking-widest">
+      <div className="h-full min-h-[300px] grid place-items-center font-mono text-[11px] text-textMuted">
         Waiting for the first tick
       </div>
     );
@@ -698,16 +704,22 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
     <>
       <DropdownSelect label="View" value={view} options={VIEWS_FOR[viewHost].map(v => VIEW_OPTION[v])} onChange={pickView} title="The matrix, the calendar, or the ladder" testId="ledger-view" bare={stripsBare} />
       {/* with names side by side the greek steps down to each column's head */}
-      <Fold open={!many} gap={8} testId="data-band-greek">
+      {/* THE PAGE'S GREEK STAYS ON THE BAND (PP-12): with names side by side it is one greek, and every column reads it */}
+      {many ? (
+        <DropdownSelect<string> label="Greek" value={greeks[0] ?? 'gex'} options={SINGLE_GREEK_OPTIONS} onChange={g => setPick([g])} title="What every column's cells measure — one greek while names stand side by side" testId="ledger-greek" bare={stripsBare} />
+      ) : (
         <DropdownMulti label="Greek" values={pick} groups={GREEK_GROUPS} onChange={setPick} emptyWord="All" title="One, some, or all five" testId="ledger-greek" align="start" bare={stripsBare} />
-      </Fold>
+      )}
       <ExpiryRangeCard label="Expiries" days={expiryDays} from={range.from} through={range.through} onChange={(from, through) => setRange({ from, through })} ceiling={ceiling} ceilingWhy={ceilingWhy} shortcuts={shortcuts} title="Which expiries the book reads" testId="ledger-expiries" note={fitNote} bare={stripsBare} />
       <DropdownSelect
         label="Strikes"
         value={rings}
-        options={LEDGER_WINDOWS.map(w => ({ value: w as number, label: `${w} each side`, hint: w === 30 ? `Every strike the chain has — ${w * 2 + 1} rows` : `${w * 2 + 1} rows — ${w} strikes above spot and ${w} below` }))}
-        onChange={setRings}
-        title="How many strikes around spot"
+        options={onHalf ? STRIKE_OPTIONS.map(o => ({ ...o, value: o.value as number })) : LEDGER_WINDOWS.map(w => ({ value: w as number, label: `${w} each side`, hint: w === 30 ? `Every strike the chain has — ${w * 2 + 1} rows` : `${w * 2 + 1} rows — ${w} strikes above spot and ${w} below` }))}
+        onChange={w => {
+          setRings(w);
+          onHalf?.(w as RoomWindow);
+        }}
+        title={onHalf ? STRIKES_TITLE : 'How many strikes around spot'}
         testId="ledger-strikes"
         bare={stripsBare}
       />
@@ -718,11 +730,12 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
   const supremeDoor = (
     <button
       onClick={() => onSelectStrike?.(supreme.strike)}
-      title={`The heaviest strike of the whole book by ${GREEK_LABEL[supremeGreek]} — the one the chart wears in magenta — most of it on ${supremeEx?.date ?? ''} · click to pin the strike`}
-      className="ml-auto inline-flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
+      title={`The heaviest strike of the whole book by ${GREEK_LABEL[supremeGreek]} — the one every Pinpoint page marks in magenta — most of it on ${supremeEx?.date ?? ''} · click to pin the strike`}
+      aria-label={`Supreme ${fmtStrike(supreme.strike)}, ${supremeEx?.date ?? ''}, ${fmtUsd(supreme.total)} — keep the strike`}
+      className="hit ml-auto inline-flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
       data-ledger-supreme={doorsTight ? 'compact' : 'full'}
     >
-      <span className="text-[9px] font-bold uppercase tracking-widest text-supreme">Supreme</span>
+      <span className="text-[11px] font-bold text-supreme">Supreme</span>
       <span className="text-[12px] font-semibold tnum text-textPrimary whitespace-nowrap">
         {fmtStrike(supreme.strike)}
         {/* tight: the strike alone — the date and the amount stay in the title */}
@@ -743,7 +756,8 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
       <button
         onClick={() => (full ? close() : setFull(true))}
         title={full ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
-        className="shrink-0 p-1.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+        aria-label={full ? 'Exit fullscreen' : 'Fullscreen'}
+        className="hit shrink-0 p-1.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
       >
         {full ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
       </button>
@@ -751,7 +765,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
   const backButton = full ? (
     <button
       onClick={close}
-      className="group inline-flex items-center gap-1.5 border border-borderSubtle hover:border-borderMuted rounded-md px-2.5 py-1 font-mono text-[10px] text-textSecondary hover:text-textPrimary transition-colors"
+      className="group inline-flex items-center gap-1.5 border border-borderSubtle hover:border-borderMuted rounded-md px-2.5 py-1 font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
     >
       <ArrowLeft className="w-3 h-3 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" /> Back
     </button>
@@ -779,11 +793,12 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
             aria-expanded={adding}
             disabled={names.length >= EXTRA_MAX}
             title={names.length >= EXTRA_MAX ? 'Four names at most — take one off to add another' : 'Show another name beside this one — up to four side by side'}
-            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none disabled:opacity-50 ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
+            aria-label={`Names side by side: ${1 + names.length} — add another`}
+            className={`hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border bg-chip transition-colors font-mono select-none disabled:opacity-50 ${adding ? 'border-silver/50' : 'border-borderSubtle hover:border-borderMuted'}`}
             data-ledger-add
           >
             <Plus className="w-3 h-3 text-textMuted" />
-            <span className="text-[9px] uppercase tracking-widest text-textMuted">Names</span>
+            <span className="text-[11px] text-textMuted">Names</span>
             <span className="text-[11px] font-semibold text-textPrimary tnum">{1 + names.length}</span>
           </button>
           {adding &&
@@ -797,7 +812,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                 className="z-[120] w-72 border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 overflow-x-hidden overflow-y-auto overscroll-contain animate-slide-in"
                 data-ledger-add-menu
               >
-                <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[10px] text-textMuted">Show another name beside this one — up to four side by side, on the same choices</div>
+                <div className="px-2.5 py-1.5 border-b border-borderSubtle text-[11px] text-textMuted">Show another name beside this one — up to four side by side, on the same choices</div>
                 <TickerLookup
                   onPick={sym => {
                     addName(sym);
@@ -909,11 +924,12 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
           const kept = c.host ? selectedStrike : selectedStrikeFor?.(c.ticker) ?? null;
           const keep = c.host ? onSelectStrike : (s: number) => onSelectStrikeFor?.(c.ticker, s);
           /* the column's own greeks — the host's are the page's */
-          const colPick = c.host ? pick : greeksOf(c.ticker);
+          /* every column reads the page's greek (PP-12) */
+          const colPick = pick;
           /* ONE GREEK PER NAME when names stand side by side (Noah, 2026-09-12) — the host's too:
              a multi pick made before a name arrived kept five greeks in a third of the band
              (2026-09-14), the widest way to empty the capsules */
-          const colGreeks = c.host ? (many ? d.greeks.slice(0, 1) : d.greeks) : pickGreeks(colPick);
+          const colGreeks = many ? pickGreeks(colPick).slice(0, 1) : c.host ? d.greeks : pickGreeks(colPick).slice(0, 1);
           const colGreek: Greek = c.host ? leadGreek : colGreeks[0] ?? 'gex';
           const read = readOf(c.ticker);
           /* the host's chip is the band's own, stepped down — in the own-name chip's
@@ -929,7 +945,8 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
               type="button"
               onClick={() => removeName(c.ticker)}
               title={`Take ${c.ticker} off`}
-              className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+              aria-label={`Take ${c.ticker} off`}
+              className="hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
               data-field-remove={c.ticker}
             >
               <X className="w-3 h-3" />
@@ -962,7 +979,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                 <Fold axis="y" open={many} className="shrink-0" testId="data-field-column-fold">
                   <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 bg-ink/[0.03] font-mono min-w-0" data-field-column-head={c.ticker}>
                     <span className="shrink-0 inline-flex items-center">{chip}</span>
-                    <span className="ml-auto text-[9px] uppercase tracking-widest text-textMuted truncate">Reading the book…</span>
+                    <span className="ml-auto text-[11px] text-textMuted truncate">Reading the book…</span>
                     {removeDoor}
                   </div>
                 </Fold>
@@ -981,6 +998,9 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                   away with the last one taken off: the name's chip (the host's
                   follows the terminal, the others change in place), its
                   supreme, its one greek, its read's door, and × on the added */}
+              {/* only with names side by side (PP-32): folded under one name it stood behind the sticky head, covered and
+                  out of reach, a second Supreme and a second read */}
+              {many && (
               <Fold axis="y" open={many} className="shrink-0" testId="data-field-column-fold">
                 <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle/60 bg-ink/[0.03] font-mono min-w-0" data-field-column-head={c.ticker}>
                   <span className="shrink-0 inline-flex items-center">{chip}</span>
@@ -991,7 +1011,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                     className="shrink-0 inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-supreme/40 bg-supreme/[0.06] hover:bg-supreme/[0.12] font-mono transition-colors"
                     data-column-supreme={sup.strike}
                   >
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-supreme">Supreme</span>
+                    <span className="text-[11px] font-bold text-supreme">Supreme</span>
                     <span className="text-[11px] font-semibold tnum text-textPrimary whitespace-nowrap">
                       {fmtStrike(sup.strike)}
                       {!tight && (
@@ -1002,24 +1022,15 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                       )}
                     </span>
                   </button>
-                  {/* ONE GREEK PER NAME when names stand side by side (Noah,
-                      2026-09-12: "only one should be allowed for the multiple
-                      ticker choice") — a single choice, never the multi pick */}
-                  <span className="ml-auto shrink-0 inline-flex items-center">
-                    <DropdownSelect<string>
-                      label="Greek"
-                      value={colGreeks[0] ?? 'gex'}
-                      options={SINGLE_GREEK_OPTIONS}
-                      onChange={g => (c.host ? setPick([g]) : setGreeksOf(c.ticker, [g]))}
-                      title={`What ${c.ticker}'s cells measure`}
-                      testId={`ledger-greek-${c.ticker}`}
-                      align="end"
-                    />
+                  {/* the greek is the band's now (PP-12) — the column says which, the band changes it */}
+                  <span className="ml-auto shrink-0 font-mono text-[11px] text-textMuted" data-column-greek>
+                    {GREEK_LABEL[colGreeks[0] ?? 'gex']}
                   </span>
                   <ReadDoor compact open={read === 'open'} onClick={() => toggleRead(c.ticker)} name={c.ticker} testId="data-column-read" />
                   {removeDoor}
                 </div>
               </Fold>
+              )}
               <div className="relative flex-1 min-h-0" data-ledger-body={c.ticker}>
                 {/* the arriving view fades in — opacity only, the way a box of figures is allowed to */}
                 {/* the shape on screen: out on the old, in on the new (the soft swap above) */}
@@ -1032,7 +1043,7 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
                   data-ledger-fading={fading || undefined}
                 >
                   {d.view === 'matrix' ? (
-                    <ExposureMatrix surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} expiries={shownFor(book.surface, d)} rings={d.rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} />
+                    <ExposureMatrix maxPain={maxPainOf(book.snapshot.chain)?.strike ?? null} surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} expiries={shownFor(book.surface, d)} rings={d.rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} />
                   ) : d.view === 'ladder' ? (
                     <ExposureLadder surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} expiries={shownFor(book.surface, d)} rings={d.rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} onLead={c.host ? setLeadPick : undefined} />
                   ) : (
@@ -1064,8 +1075,8 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
         })}
       </div>
       {/* THE GUIDE IN FOCUS — over the whole calendar, the grid blurred behind it */}
-      <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read the calendar" testId="ledger-guide">
-        <LedgerGuide surface={surface} greek={supremeGreek} />
+      <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title={toolbar === 'band' ? 'How to read the Map' : 'How to read the calendar'} testId="ledger-guide">
+        <LedgerGuide surface={surface} greek={supremeGreek} view={view} snapshot={snapshot} />
       </GuideFocus>
     </div>
   );
@@ -1077,6 +1088,9 @@ const ExposureField = ({ snapshot, half: halfProp, hoverStrike, selectedStrike, 
     return (
       <motion.div
         layout
+        /* measured when the fullscreen changes, never on a tick — a layout box measured on every render was the Map's
+           standing forced reflow while idle (PP-5, the production profile: framer's measureScroll on top) */
+        layoutDependency={full}
         transition={{ layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
         /* THE GROUND IS THE PAGE'S when full (Noah, 2026-09-10: "the background
            becomes more ashy/gray when we full screen the ladder") — the box's

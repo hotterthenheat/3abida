@@ -27,59 +27,37 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Simulator from '../../core/simulator';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
-import ScopeChip from '../../components/ui/ScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import BuildingLedger, { type BuildOrder, type BuildShow } from '../../components/gex/BuildingLedger';
 import WallHeading from '../../components/gex/WallHeading';
+import OiChange from '../../components/levels/OiChange';
 import { BuildingLedgerSkeleton, BuildingPageSkeleton, WallHeadingSkeleton } from '../../components/gex/buildingSkeletons';
-import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
-import { aheadClock } from '../../data/ahead';
 import { fmtDistance, impliedDaySigma, sessionAtr } from '../../data/atr';
-import { buildBuilding } from '../../data/building';
 import { useDistanceUnit } from '../../data/distanceUnits';
-import { readSessionClock } from '../../data/sessionClock';
 import { usePositions } from '../../data/positions';
-import type { MarketSnapshot } from '../../types/market';
+import { bookOf } from '../../data/pinpointBook';
+import { oiChangeByStrike } from '../../data/oiChange';
+import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
 
-/** The open interest sweeps on its own cadence — a wall must not vibrate with every tick */
-const SCAN_INTERVAL_MS = 10_000;
-
-type BoxKey = 'ledger' | 'heading';
-type Scopes = Partial<Record<BoxKey, string>>;
-let scopesMemory: Scopes = {};
+type BoxKey = 'ledger' | 'heading' | 'oi';
 /* The ledger's choices, held across route changes, reset on reload */
 let orderMemory: BuildOrder = 'strike';
-let windowMemory: StrikeWindow = 15;
 /* The movers alone by default — the steady strikes fold away (2026-09-13) */
 let showMemory: BuildShow = 'moved';
 
-const hhmmss = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-
 const Building = () => {
-  const { marketData, activeTicker, changeTicker } = useMarketData();
-  const { focus, toggleFocus, clearFocus } = useFocus();
-  const [scopes, setScopesState] = useState<Scopes>(scopesMemory);
-  const setScope = (key: BoxKey, t: string | undefined) =>
-    setScopesState(prev => {
-      const next = { ...prev };
-      if (t === undefined) delete next[key];
-      else next[key] = t;
-      scopesMemory = next;
-      return next;
-    });
+  const { activeTicker } = useMarketData();
+  const { toggleFocus, clearFocus } = useFocus();
   const [order, setOrderState] = useState<BuildOrder>(orderMemory);
-  const [window, setWindowState] = useState<StrikeWindow>(windowMemory);
+  /* THE STRIKES — the room's one window (usePinpoint.tsx): which rows are drawn, never what they say */
+  const [window, setWindow] = useRoomWindow();
   const setOrder = (o: BuildOrder) => {
     orderMemory = o;
     setOrderState(o);
-  };
-  const setWindow = (w: StrikeWindow) => {
-    windowMemory = w;
-    setWindowState(w);
   };
   const [show, setShowState] = useState<BuildShow>(showMemory);
   const setShow = (s: BuildShow) => {
@@ -90,80 +68,19 @@ const Building = () => {
   const unit = useDistanceUnit();
 
   /* THE CLOCK — New York time, re-read every 15s; the pace runs on it */
-  const [clockRaw, setClockRaw] = useState(() => readSessionClock());
-  useEffect(() => {
-    const id = globalThis.setInterval(() => setClockRaw(readSessionClock()), 15_000);
-    return () => globalThis.clearInterval(id);
-  }, []);
-  const clock = useMemo(() => aheadClock(clockRaw), [clockRaw]);
+  const clock = useBookClock();
+  /* The room's scan: the open interest sweeps every ten seconds, the same snapshot every page reads */
+  const scan = useFrameScan();
+  const { snapFor, tickerFor, chipFor, focusFor } = useBoxes<BoxKey>('building', scan);
 
-  /* Scan-tier snapshot: the open interest sweeps every SCAN_INTERVAL_MS (a name change is immediate) */
-  const [scan, setScan] = useState<{ snap: MarketSnapshot; at: string; nonce: number } | null>(null);
-  const scanRef = useRef<MarketSnapshot | null>(null);
-  const scanAtRef = useRef(0);
-  useEffect(() => {
-    if (!marketData) return;
-    const now = Date.now();
-    const due = !scanRef.current || now - scanAtRef.current >= SCAN_INTERVAL_MS || scanRef.current.ticker !== marketData.ticker;
-    if (due) {
-      scanRef.current = marketData;
-      scanAtRef.current = now;
-      setScan({ snap: marketData, at: hhmmss(new Date(now)), nonce: now });
-    }
-  }, [marketData]);
-
-  /* The own-name snapshots, one per name a box has stepped onto */
-  const pinnedKey = [scopes.ledger, scopes.heading].filter(Boolean).join('|');
-  const ownSnaps = useMemo(() => {
-    const m = new Map<string, MarketSnapshot>();
-    if (!scan || !pinnedKey) return m;
-    for (const t of new Set(pinnedKey.split('|'))) {
-      if (t === scan.snap.ticker) continue;
-      try {
-        m.set(t, Simulator.snapshotFor(t));
-      } catch {
-        /* a name the sim can't build — the box stays on the frame's */
-      }
-    }
-    return m;
-  }, [scan, pinnedKey]);
-  const snapFor = (key: BoxKey): MarketSnapshot | null => {
-    if (!scan) return null;
-    const t = scopes[key];
-    if (!t || t === scan.snap.ticker) return scan.snap;
-    return ownSnaps.get(t) ?? scan.snap;
-  };
-  const tickerFor = (key: BoxKey) => scopes[key] ?? activeTicker;
-  const focusFor = (t: string) => (focus && focus.ticker === t ? focus.price : null);
-  const chipFor = (key: BoxKey, t: string) => (
-    <ScopeChip
-      ticker={t}
-      linked={scopes[key] === undefined}
-      quote
-      onToggleLink={() => setScope(key, scopes[key] === undefined ? t : undefined)}
-      onPick={next => (scopes[key] === undefined ? changeTicker(next) : setScope(key, next))}
-    />
-  );
-
-  /* THE TWO ANSWERS, each off its box's own name — the whole day's snapshots against the live chain */
+  /* THE ANSWERS, each off its box's own name — the one book every page reads (data/pinpointBook.ts): the whole
+     chain, so the walls' heading and the rows are the same day's arithmetic whatever the window */
   const ledgerSnap = snapFor('ledger');
   const headingSnap = snapFor('heading');
-  const nonce = scan?.nonce ?? 0;
-  const ledger = useMemo(() => {
-    if (!ledgerSnap) return null;
-    const t = ledgerSnap.ticker;
-    const profile = buildExposureProfile(ledgerSnap, '0DTE', window);
-    return buildBuilding(ledgerSnap, Simulator.getGexHistory(t), Simulator.getCandles(t), profile, clock);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ledgerSnap, window, clock, nonce]);
-  const heading = useMemo(() => {
-    if (!headingSnap) return null;
-    if (ledger && headingSnap.ticker === ledger.ticker && window === 30) return ledger;
-    const t = headingSnap.ticker;
-    const profile = buildExposureProfile(headingSnap, '0DTE', 30);
-    return buildBuilding(headingSnap, Simulator.getGexHistory(t), Simulator.getCandles(t), profile, clock);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headingSnap, ledger, window, clock, nonce]);
+  const oiSnap = snapFor('oi');
+  const ledger = useMemo(() => (ledgerSnap ? bookOf(ledgerSnap, clock).building : null), [ledgerSnap, clock]);
+  const heading = useMemo(() => (headingSnap ? bookOf(headingSnap, clock).building : null), [headingSnap, clock]);
+  const oi = useMemo(() => (oiSnap ? oiChangeByStrike(oiSnap.ticker, oiSnap.spot) : null), [oiSnap]);
 
   /* Your strikes, for the rows — only when the box is on the frame's name */
   const positions = usePositions(activeTicker);
@@ -178,6 +95,7 @@ const Building = () => {
 
   const ledgerTicker = tickerFor('ledger');
   const headingTicker = tickerFor('heading');
+  const oiTicker = tickerFor('oi');
   const scales = { atr: sessionAtr(Simulator.getCandles(ledger.ticker) ?? []), sigma: impliedDaySigma(ledger.spot, Simulator.TICKERS[ledger.ticker]?.iv ?? 0) };
   const distanceOf = (strike: number) => fmtDistance(strike - ledger.spot, ledger.spot, unit, scales);
 
@@ -197,7 +115,7 @@ const Building = () => {
             show={show}
             onShow={setShow}
             distanceOf={distanceOf}
-            updatedAt={scan.at}
+            updatedAt={stampOf(scan.at)}
             yours={ledgerTicker === activeTicker ? yours : undefined}
             focus={focusFor(ledgerTicker)}
             onPick={price => toggleFocus(price, ledgerTicker)}
@@ -211,6 +129,13 @@ const Building = () => {
       <div className="border border-borderSubtle rounded-md bg-panel" data-heading data-scope-ticker={headingTicker}>
         <Deferred index={1} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
           <WallHeading data={heading} clock={clock} scope={chipFor('heading', headingTicker)} />
+        </Deferred>
+      </div>
+
+      {/* BOX 3 — OPEN INTEREST BY STRIKE, the last close against the close before (the ideas' 6, 2026-10-09) */}
+      <div className="border border-borderSubtle rounded-md bg-panel" data-oi-change data-scope-ticker={oiTicker}>
+        <Deferred index={2} fallback={<div className="h-[320px]" aria-busy="true" />} className="animate-fade-in">
+          <OiChange data={oi} ticker={oiTicker} window={window} focus={focusFor(oiTicker)} onPick={price => toggleFocus(price, oiTicker)} scope={chipFor('oi', oiTicker)} />
         </Deferred>
       </div>
     </>

@@ -881,11 +881,11 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
         /* EACH NAME AT ITS OWN END of every lane (Noah, 2026-09-10: "quite hard
            to distinguish the respected tickers here") — the left name and its
            scale, the greek, the right scale and its name */
-        <div className="px-2 flex items-center justify-between font-mono text-[9px] tnum whitespace-nowrap" style={{ height: 22 }} data-lane-caption>
+        <div className="px-2 flex items-center justify-between font-mono text-[11px] tnum whitespace-nowrap" style={{ height: 22 }} data-lane-caption>
           <span className="truncate">
             <span className="font-bold text-textPrimary">{cmp.a.ticker}</span> <span className="text-textMuted">{fmtDollars(scale.a)}</span>
           </span>
-          <span className="font-bold uppercase tracking-widest text-textSecondary">{GREEK_LABEL[greek]}</span>
+          <span className="font-bold text-textSecondary">{GREEK_LABEL[greek]}</span>
           <span className="truncate">
             <span className="text-textMuted">{fmtDollars(scale.b)}</span> <span className="font-bold text-textPrimary">{cmp.b.ticker}</span>
           </span>
@@ -933,7 +933,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                     <span className="font-mono text-[12px] font-bold tnum text-textPrimary whitespace-nowrap">
                       {L.side.ticker} {r ? fmtStrike(r.strike) : '—'}
                     </span>
-                    <span className="text-[9.5px] whitespace-nowrap">
+                    <span className="text-[11px] whitespace-nowrap">
                       {r ? (
                         <>
                           <span className={`font-mono tnum ${r.d > 0 ? 'text-bull' : r.d < 0 ? 'text-bear' : 'text-textMuted'}`}>{tickWords(r.d, lay.U)}</span>
@@ -949,7 +949,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
               })}
               {/* THE FIVE GREEKS, the lane's lit */}
               {GREEKS.map(g => (
-                <span key={g} className={`font-mono text-[9px] uppercase tracking-widest self-start pt-[1px] ${g === greek ? 'text-textPrimary font-bold' : 'text-textMuted'}`} style={{ gridRow: GREEKS.indexOf(g) + 2, gridColumn: 1 }}>
+                <span key={g} className={`font-mono text-[11px] self-start pt-[1px] ${g === greek ? 'text-textPrimary font-bold' : 'text-textMuted'}`} style={{ gridRow: GREEKS.indexOf(g) + 2, gridColumn: 1 }}>
                   {GREEK_LABEL[g]}
                 </span>
               ))}
@@ -973,7 +973,7 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                               <span className={`font-mono text-[11px] tnum ${lit ? 'font-bold' : ''}`} style={{ color: thermal(v, L.side.heaviest[g] || 1, heat).fill }}>
                                 {fmtDollars(Math.abs(v))}
                               </span>
-                              <span className={`text-[9.5px] whitespace-nowrap truncate max-w-full ${lit ? 'text-textSecondary' : 'text-textMuted'}`}>{v > 0 ? GREEK_WORDS[g].pos : GREEK_WORDS[g].neg}</span>
+                              <span className={`text-[11px] whitespace-nowrap truncate max-w-full ${lit ? 'text-textSecondary' : 'text-textMuted'}`}>{v > 0 ? GREEK_WORDS[g].pos : GREEK_WORDS[g].neg}</span>
                             </>
                           )}
                         </span>
@@ -983,11 +983,11 @@ const RulerLane = ({ cmp, unit, reach, greek, want, onWant, focusA, focusB, onPi
                 );
               })}
             </div>
-            <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[9px] text-textMuted whitespace-nowrap truncate">a click anywhere or Esc closes · the capsule again lets the strike go</div>
+            <div className="mt-2 pt-1.5 border-t border-ink/[0.06] text-[11px] text-textMuted whitespace-nowrap truncate">a click anywhere or Esc closes · the capsule again lets the strike go</div>
           </div>
         )}
       </div>
-      <div className={`${compact ? 'px-2 text-[10px]' : 'px-5 text-[10.5px]'} border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-textSecondary`} style={{ height: AXIS_READ_H }} data-axis-read data-read-strike={row ? row.strike : undefined}>
+      <div className={`${compact ? 'px-2 text-[11px]' : 'px-5 text-[11px]'} border-t border-ink/[0.06] flex items-center gap-3 whitespace-nowrap overflow-hidden text-textSecondary`} style={{ height: AXIS_READ_H }} data-axis-read data-read-strike={row ? row.strike : undefined}>
         {row && S && readSide ? (
           compact ? (
             <>

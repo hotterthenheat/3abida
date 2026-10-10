@@ -29,6 +29,8 @@
 ==================================================
 */
 
+import HowSure from '../levels/HowSure';
+import type { Sureness } from '../../data/levelSureness';
 import { useMemo, useState, type ReactNode } from 'react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
@@ -113,7 +115,7 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {ticks.map(k => (
         <g key={k}>
           <line x1={x(k)} x2={x(k)} y1={14} y2={PH - 20} stroke="rgb(var(--ink))" strokeOpacity={0.05} />
-          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={9} fill="rgb(var(--text-muted))" fontFamily={FIG}>
+          <text x={x(k)} y={PH - 6} textAnchor="middle" fontSize={10} fill="rgb(var(--text-muted))" fontFamily={FIG}>
             {fmtStrike(k)}
           </text>
         </g>
@@ -122,32 +124,32 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {wall.breakPath.pocket && breakTo != null && (
         <g>
           <rect x={Math.min(x(K), x(breakTo))} y={14} width={Math.abs(x(breakTo) - x(K))} height={PH - 34} fill="rgb(var(--ink))" fillOpacity={0.035} />
-          <text x={(x(K) + x(breakTo)) / 2} y={PH - 24} textAnchor="middle" fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={SANS}>
+          <text x={(x(K) + x(breakTo)) / 2} y={PH - 24} textAnchor="middle" fontSize={11} fill="rgb(var(--text-muted))" fontFamily={SANS}>
             almost nothing in between
           </text>
         </g>
       )}
       {/* spot */}
       <line x1={x(spot)} x2={x(spot)} y1={12} y2={PH - 18} stroke="rgb(var(--text-primary))" strokeOpacity={0.55} strokeDasharray="1 3" />
-      <text x={x(spot)} y={9} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
+      <text x={x(spot)} y={9} textAnchor="middle" fontSize={11} fontWeight={600} fill="rgb(var(--text-primary))" fontFamily={FIG}>
         {fmtStrike(spot)}
       </text>
       {/* the wall */}
       <rect x={x(K) - 2} y={22} width={4} height={PH - 44} rx={2} fill={ink} fillOpacity={0.9} />
-      <text x={x(K) + (dir > 0 ? 8 : -8)} y={30} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={9} fontWeight={500} fill={ink} fontFamily={SANS}>
+      <text x={x(K) + (dir > 0 ? 8 : -8)} y={30} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={11} fontWeight={500} fill={ink} fontFamily={SANS}>
         {wall.role ?? (wall.weight > 0 ? 'shelf' : 'strike')} {fmtStrike(K)}
       </text>
       {/* if it breaks: onward */}
       {breakTo != null ? (
         <g data-wall-break>
           {arrow(K, breakTo, yBreak, WARM, true, 0.9)}
-          <text x={x(K) + dir * 10} y={yBreak - 8} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={9} fill={WARM} fontFamily={SANS}>
+          <text x={x(K) + dir * 10} y={yBreak - 8} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={11} fill={WARM} fontFamily={SANS}>
             if it breaks · runs to {fmtStrike(breakTo)}
             {flowWords(wall.breakPath.flow)}
           </text>
         </g>
       ) : (
-        <text x={x(K) + dir * 10} y={yBreak + 3} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={9} fill={WARM} fillOpacity={0.8} fontFamily={SANS}>
+        <text x={x(K) + dir * 10} y={yBreak + 3} textAnchor={dir > 0 ? 'start' : 'end'} fontSize={11} fill={WARM} fillOpacity={0.8} fontFamily={SANS}>
           if it breaks · no shelf behind it on the strikes shown
         </text>
       )}
@@ -155,7 +157,7 @@ const Paths = ({ wall, spot }: { wall: WallOdds; spot: number }) => {
       {holdTo != null && (
         <g data-wall-hold-path>
           {arrow(K, holdTo, yHold, SILVER, false, 0.9)}
-          <text x={x(K) - dir * 10} y={yHold + 14} textAnchor={dir > 0 ? 'end' : 'start'} fontSize={9} fill={SILVER} fontFamily={SANS}>
+          <text x={x(K) - dir * 10} y={yHold + 14} textAnchor={dir > 0 ? 'end' : 'start'} fontSize={11} fill={SILVER} fontFamily={SANS}>
             if it holds · back toward {fmtStrike(holdTo)}
             {flowWords(wall.holdPath.flow)}
           </text>
@@ -176,9 +178,11 @@ interface Props {
   scope?: ReactNode;
   /** On a desk tile the tile head names the box — only the door and the facts stay (2026-09-08) */
   headless?: boolean;
+  /** What the focused wall stands on (data/levelSureness.ts) — "How sure" beside the wall picker, for a named level */
+  sure?: Sureness | null;
 }
 
-const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = false }: Props) => {
+const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = false, sure }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
   const wall = board.focus;
   const ink = wall.role ? ROLE_INK[wall.role] : wall.weight > 0 ? COOL : SILVER;
@@ -204,38 +208,38 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
         ) : (
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">At the wall</h3>
+              <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">At the wall</h2>
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the beam, the reasons and the two paths mean" testId="wall-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap">Whether it holds when price gets there, and what follows either way · model odds, not a forecast</p>
+            <p className="mt-0.5 text-[11px] text-textMuted">Whether it holds when price gets there, and what follows either way · model odds, not a forecast</p>
           </div>
         )}
         <dl className={`grid grid-cols-5 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
           <div>
-            <dt className="text-[10px] text-textMuted">The wall</dt>
+            <dt className="text-[11px] text-textMuted">The wall</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: ink }} data-wall-name>
-              {fmtStrike(wall.strike)} <span className="text-[9px] uppercase tracking-widest">{wall.role ?? (wall.weight > 0 ? `shelf ${wall.side === 'call' ? 'above' : 'below'}` : wall.side === 'call' ? 'above' : 'below')}</span>
+              {fmtStrike(wall.strike)} <span className="text-[11px]">{wall.role ?? (wall.weight > 0 ? `shelf ${wall.side === 'call' ? 'above' : 'below'}` : wall.side === 'call' ? 'above' : 'below')}</span>
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">{reachedWord}</dt>
+            <dt className="text-[11px] text-textMuted">{reachedWord}</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-wall-reach>
               {pct(wall.reach)}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Holds if reached</dt>
+            <dt className="text-[11px] text-textMuted">Holds if reached</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }} data-wall-hold-pct>
               {wall.weight > 0 ? pct(wall.hold) : 'not a wall'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">If it breaks</dt>
+            <dt className="text-[11px] text-textMuted">If it breaks</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{wall.breakPath.to != null ? `runs to ${fmtStrike(wall.breakPath.to)}` : 'no shelf behind'}</dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">If it holds</dt>
+            <dt className="text-[11px] text-textMuted">If it holds</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{wall.holdPath.to != null ? `back to ${fmtStrike(wall.holdPath.to)}` : '—'}</dd>
           </div>
         </dl>
@@ -244,17 +248,18 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-wall-controls>
         <DropdownSelect label="Wall" value={wall.strike} options={options} onChange={onPick} title="Which wall to read" testId="wall-pick" />
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-wall-updated>
+        {sure && <HowSure sure={sure} />}
+        <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap" data-wall-updated>
           {ticker} · updated {updatedAt} · every 10s
         </span>
       </div>
 
       {/* THE BEAM */}
       <div className="px-5 pt-1 pb-3" data-wall-beam>
-        <div className="h-[14px] flex items-center justify-between text-[9px] uppercase tracking-widest text-textMuted">
+        <div className="h-[14px] flex items-center justify-between text-[11px] text-textMuted">
           <span>If price gets there</span>
           <span>
-            {reachedWord} <span className="font-mono normal-case tracking-normal text-textPrimary tnum">{pct(wall.reach)}</span> · {wall.distanceSigma.toFixed(1)}× the expected move away
+            {reachedWord} <span className="font-mono text-textPrimary tnum">{pct(wall.reach)}</span> · {wall.distanceSigma.toFixed(1)}× the expected move away
           </span>
         </div>
         <div className="relative mt-1.5 h-[14px] rounded-full bg-ink/[0.06] overflow-hidden">
@@ -272,7 +277,7 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE REASONS */}
       {/* On a phone the reasons scroll sideways inside their box at a readable width (the phone pass, 2026-09-13) */}
       <div className="px-5 pb-2 max-lg:overflow-x-auto" data-wall-reasons>
-        <div className="grid items-center gap-x-4 h-[14px] text-[9px] uppercase tracking-widest text-textMuted max-lg:min-w-[560px]" style={{ gridTemplateColumns: REASON_COLUMNS }}>
+        <div className="grid items-center gap-x-4 h-[14px] text-[11px] text-textMuted max-lg:min-w-[560px]" style={{ gridTemplateColumns: REASON_COLUMNS }}>
           <span>Reason</span>
           <span>The fact</span>
           <span className="whitespace-nowrap">

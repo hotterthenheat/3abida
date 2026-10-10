@@ -43,7 +43,7 @@ import { distanceIn, fmtShared, sharedUnit, GREEK_LABEL, type Compare, type Comp
 import type { DistanceUnit } from '../../data/atr';
 import { LONG_GAMMA, SHORT_GAMMA } from './paletteInk';
 import { H2H_CAP_H, H2H_COLUMNS, H2H_COLUMNS_NARROW, H2H_GROUPS, H2H_HEAD_H, H2H_ROW_H, type H2HKey } from './compareSkeletons';
-import { useIsBelowLg } from '../ui/useMediaQuery';
+import { useIsBelowLg, useIsPhone } from '../ui/useMediaQuery';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
@@ -94,7 +94,7 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
       {children}
     </span>
   );
-  const Sub = ({ children }: { children: ReactNode }) => <span className="text-[10.5px] text-textSecondary whitespace-nowrap">{children}</span>;
+  const Sub = ({ children }: { children: ReactNode }) => <span className="text-[11px] text-textSecondary whitespace-nowrap">{children}</span>;
   /* A strike the reader can keep: the shared strike, lit silver when it is */
   const Strike = ({ s, k, bold }: { s: CompareSide; k: number; bold: boolean }) => {
     const kept = (s.ticker === a.ticker ? focusA : focusB) === k;
@@ -130,7 +130,7 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
       cell: (s, bold) => (
         <>
           <Lead bold={bold}>{s.spot.toFixed(2)}</Lead>
-          <span className={`font-mono text-[10.5px] tnum ${s.changePct >= 0 ? 'text-bull' : 'text-bear'}`}>{signedPct(s.changePct)}</span>
+          <span className={`font-mono text-[11px] tnum ${s.changePct >= 0 ? 'text-bull' : 'text-bear'}`}>{signedPct(s.changePct)}</span>
         </>
       ),
     },
@@ -285,6 +285,9 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
   /* THE TABLE ON A PHONE (the phone pass, 2026-09-13): the verdict column steps out and the read's column narrows, so the
      two names keep the room their figures need at 390 */
   const narrow = useIsBelowLg();
+  /* ON A PHONE A AND B STACK UNDER EACH READ (PP-7): two columns at 390 cut "0.21% ov", "17% of the tir" — each read now
+     takes the width, its two answers under it, a line each, never cut */
+  const phone = useIsPhone();
   const columns = narrow ? H2H_COLUMNS_NARROW : H2H_COLUMNS;
 
   return (
@@ -293,23 +296,23 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Head to head</h3>
+            <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Head to head</h2>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Ten reads side by side · the bold figure leads · the last column says what the two say against each other</p>
+          <p className="mt-0.5 text-[11px] text-textMuted">Ten reads side by side · the bold figure leads · the last column says what the two say against each other</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
-            <dt className="text-[10px] text-textMuted">Today</dt>
+            <dt className="text-[11px] text-textMuted">Today</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-h2h-today>
               {facts.today}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Dealers</dt>
+            <dt className="text-[11px] text-textMuted">Dealers</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{facts.dealers}</dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">Wider expected move</dt>
+            <dt className="text-[11px] text-textMuted">Wider expected move</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }}>
               {facts.wider}
             </dd>
@@ -324,14 +327,14 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
           <button
             type="button"
             onClick={onSwap}
-            title="Swap the two names"
-            aria-label="Swap the two names"
-            className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+            title="Swap the two names on this page — the terminal keeps its own name"
+            aria-label="Swap the two names on this page"
+            className="hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
             data-h2h-swap
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
           </button>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap">the read</span>
+          <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">the read</span>
         </span>
         <span className="min-w-0 flex items-center" data-h2h-chip="a">
           {chipA}
@@ -341,8 +344,8 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
         </span>
         {!narrow && (
           <span className="min-w-0 flex items-center justify-between gap-3">
-            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap">against each other</span>
-            <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted whitespace-nowrap" data-h2h-updated>
+            <span className="font-mono text-[11px] text-textMuted whitespace-nowrap">against each other</span>
+            <span className="font-mono text-[11px] text-textMuted whitespace-nowrap" data-h2h-updated>
               updated {updatedAt} · every 10s
             </span>
           </span>
@@ -353,10 +356,25 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
       {H2H_GROUPS.map((g, gi) => (
         <div key={g.caption} className="contents" data-h2h-group={g.caption}>
           <div className={`mx-5 flex items-end pb-1 ${gi > 0 ? 'border-t border-borderSubtle/40' : ''}`} style={{ height: H2H_CAP_H }}>
-            <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted">{g.caption}</span>
+            <span className="font-mono text-[11px] font-bold text-textMuted">{g.caption}</span>
           </div>
           {g.keys.map((k, i) => {
             const r = rows[k];
+            if (phone)
+              return (
+                <div key={r.key} className={`mx-5 py-1.5 ${i > 0 ? 'border-t border-borderSubtle/40' : ''}`} data-h2h-row={r.key} data-h2h-lead={r.lead ?? undefined} data-h2h-stacked>
+                  <span className="block text-[11px] text-textSecondary">{r.label}</span>
+                  <span className="mt-0.5 flex items-baseline gap-2 flex-wrap" data-h2h-a>
+                    <span className="w-10 shrink-0 font-mono text-[11px] text-textMuted">{a.ticker}</span>
+                    {r.cell(a, r.lead === 'a')}
+                  </span>
+                  <span className="flex items-baseline gap-2 flex-wrap" data-h2h-b>
+                    <span className="w-10 shrink-0 font-mono text-[11px] text-textMuted">{b.ticker}</span>
+                    {r.cell(b, r.lead === 'b')}
+                  </span>
+                  {r.note && <span className="block mt-0.5 text-[11px] text-textMuted">{r.note}</span>}
+                </div>
+              );
             return (
               <div
                 key={r.key}

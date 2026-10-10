@@ -44,7 +44,8 @@
 
 import { impliedDaySigma } from './atr';
 import { lastSessionSupreme, moveIntoClose, ofLast, rangeFrom, recentSessions, sessionSoFar } from './aheadHistory';
-import { sessionBars } from './levelview';
+import { inCashSession, sessionBars } from './levelview';
+import { nyMinutes } from '../core/nyTime';
 import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
 import { buildVannaCharm } from './vannacharm';
 import type { SessionClock } from './sessionClock';
@@ -198,7 +199,15 @@ export function buildCorridor(snapshot: MarketSnapshot, profile: ExposureProfile
   const all = sessionBars(snapshot.ticker) ?? [];
   const path: Corridor['path'] = [];
   if (all.length) {
-    if (clock.nowMin == null) {
+    /* EVERY BAR AT ITS OWN NEW YORK MINUTE when the session cut is inside the cash session (levelview.ts sessionCut) —
+       a tape that began after the open draws from where it began, never stretched back to 09:30 (X2) */
+    const inCash = all.every(b => inCashSession(b.time));
+    if (inCash) {
+      for (const b of all) {
+        const m = nyMinutes(b.time * 1000);
+        if (clock.nowMin == null || m <= clock.nowMin) path.push({ min: m, price: b.close });
+      }
+    } else if (clock.nowMin == null) {
       /* Shut: the whole last session laid over the day */
       const step = all.length > 1 ? (CLOSE_MIN - OPEN_MIN) / (all.length - 1) : 1;
       for (let i = 0; i < all.length; i++) path.push({ min: OPEN_MIN + i * step, price: all[i].close });
@@ -481,7 +490,7 @@ const BLOCK = 30;
 const phaseName = (min: number) =>
   min < 10 * 60 ? 'the open' : min < 11 * 60 + 30 ? 'the morning' : min < 14 * 60 ? 'lunch' : min < 15 * 60 + 30 ? 'the charm window' : min < 15 * 60 + 50 ? 'the turn' : 'the close';
 
-export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfileData, clock: AheadClock, volPoints: VolPoints = -1): Schedule {
+export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfileData, clock: AheadClock, volPoints: VolPoints = -1, surfaceIn?: ExposureSurface | null): Schedule {
   /* THE HEDGE THAT MUST COME OFF: today's options carry a delta the dealers
      hedge in stock; by 4:00 that delta is gone (out-of-the-money to nothing,
      in-the-money to a share), and the hedge against it is closed. The net
@@ -512,9 +521,10 @@ export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfile
   const biggest = remaining.length ? remaining.reduce((a, b) => (Math.abs(b.flow) > Math.abs(a.flow) ? b : a)) : null;
 
   let bellShare: number | null = null;
-  let surface: ExposureSurface | null = null;
+  let surface: ExposureSurface | null = surfaceIn ?? null;
   try {
-    surface = buildExposureSurface(snapshot, 20, CALENDAR_DTES);
+    /* the book's own calendar when the caller has it (data/pinpointBook.ts) — one width for every page */
+    surface ??= buildExposureSurface(snapshot, 30, CALENDAR_DTES);
     const today = surface.expiries.findIndex(e => e.dte === 0);
     if (today >= 0) {
       let dies = 0;

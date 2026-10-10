@@ -159,34 +159,34 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
         ) : (
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">Where it closes</h3>
+              <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">Where it closes</h2>
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the runs and the slices mean" testId="close-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
+            <p className="mt-0.5 text-[11px] text-textMuted">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
           </div>
         )}
         <dl className={`grid grid-cols-4 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
           <div>
-            <dt className="text-[10px] text-textMuted">Most likely</dt>
+            <dt className="text-[11px] text-textMuted">Most likely</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SILVER }} data-close-top>
               {lead ? `${fmtStrike(lead.strike)} · ${pct(lead.odds)}` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">50% chance</dt>
+            <dt className="text-[11px] text-textMuted">50% chance</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-close-half>
               {half.strikes ? `${fmtStrike(half.low)} – ${fmtStrike(half.high)}` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">80% chance</dt>
+            <dt className="text-[11px] text-textMuted">80% chance</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-close-most>
               {most.strikes ? `${fmtStrike(most.low)} – ${fmtStrike(most.high)}` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] text-textMuted">The strikes' pull</dt>
+            <dt className="text-[11px] text-textMuted">The strikes' pull</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-close-pull>
               {pullWords} <span className="text-textMuted">· {Math.round(gravity * 100)}% · {untilWords(clock)} left</span>
             </dd>
@@ -196,7 +196,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
 
       {/* THE ROWS */}
       <div className={`${headless ? 'px-4' : 'px-5'} pt-1 pb-2`} onPointerLeave={() => setHover(null)} data-close-rows={rows.length}>
-        <div className={`grid ${COLS} items-center gap-x-3 h-[16px] font-mono text-[9px] uppercase tracking-widest text-textSecondary`}>
+        <div className={`grid ${COLS} items-center gap-x-3 h-[16px] font-mono text-[11px] text-textSecondary`}>
           <span>Strike</span>
           <span>Chance the close lands here</span>
           <span className="text-right">Odds</span>
@@ -224,6 +224,9 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
                 className={`w-full grid ${COLS} items-center gap-x-3 h-[24px] rounded px-1 text-left transition-colors hover:bg-ink/[0.05] ${wash}`}
                 style={kept ? { boxShadow: `inset 2px 0 0 0 ${SILVER}` } : undefined}
                 title={`${fmtStrike(r.strike)} · ${pct(r.odds)} · the expected move alone says ${pct(r.plain)}${r.role ? ` · ${r.role}` : ''}`}
+                /* one name, said in words (PP-29: "4831.2%", "479#215%") */
+                aria-label={`${fmtStrike(r.strike)}${r.role ? `, the ${r.role}` : ''}${n ? `, number ${n}` : ''} — ${pct(r.odds)} chance the close lands here`}
+                aria-pressed={kept}
                 data-close-row={r.strike}
                 data-close-rank={n}
                 data-close-kept={kept || undefined}
@@ -232,12 +235,12 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
                 <span className="flex items-center gap-1.5 min-w-0 font-mono text-[11px] tnum whitespace-nowrap">
                   <span className={`font-semibold ${kept ? 'text-silver' : 'text-textPrimary'}`}>{fmtStrike(r.strike)}</span>
                   {r.role && (
-                    <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: ROLE_INK[r.role] }} data-close-role={r.role}>
+                    <span className="text-[11px] font-bold" style={{ color: ROLE_INK[r.role] }} data-close-role={r.role}>
                       {r.role}
                     </span>
                   )}
                   {yours?.has(r.strike) && (
-                    <span className="text-[8px] font-bold uppercase tracking-wider text-warn" data-yours>
+                    <span className="text-[11px] font-bold text-warn" data-yours>
                       yours
                     </span>
                   )}
@@ -252,7 +255,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
                       whose bar is the same silver, but on the half-strength bars of #2 and #3 the bar's end showed beside it and the box
                       stood proud of it (measured: left 4, top −0.5, 13px on a 12px bar). */}
                   {n && (
-                    <span className="absolute inset-y-0 left-0 pl-[7px] pr-1.5 inline-flex items-center rounded-full font-mono text-[9px] font-bold leading-none text-panel" style={{ background: SILVER }} data-close-rank-tag={n}>
+                    <span className="absolute inset-y-0 left-0 pl-[7px] pr-1.5 inline-flex items-center rounded-full font-mono text-[11px] font-bold leading-none text-panel" style={{ background: SILVER }} data-close-rank-tag={n}>
                       #{n}
                     </span>
                   )}
@@ -262,7 +265,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
             </Fragment>
           );
         })}
-        <div className="mt-2 flex items-center gap-4 font-mono text-[9px] text-textSecondary" data-close-key>
+        <div className="mt-2 flex items-center gap-4 font-mono text-[11px] text-textSecondary" data-close-key>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-4 h-[6px] rounded-full bg-silver/[0.25]" /> the 50% run
           </span>
@@ -275,7 +278,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
         </div>
       </div>
       {/* ONE FIXED READ LINE */}
-      <div className={`${headless ? 'px-4' : 'px-5'} h-[18px] font-mono text-[10px] text-textSecondary truncate`} data-close-read>
+      <div className={`${headless ? 'px-4' : 'px-5'} h-[18px] font-mono text-[11px] text-textSecondary truncate`} data-close-read>
         {readLine}
       </div>
       {/* THE READS — one line each, the figures lit */}
@@ -290,7 +293,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
             ] as const
           ).map(([label, words, key]) => (
             <Fragment key={key}>
-              <dt className="text-[10px] text-textMuted leading-[17px] whitespace-nowrap">{label}</dt>
+              <dt className="text-[11px] text-textMuted leading-[17px] whitespace-nowrap">{label}</dt>
               <dd className="min-w-0" data-close-read-line={key}>
                 {lit(words)}
               </dd>

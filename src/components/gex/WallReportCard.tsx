@@ -35,8 +35,12 @@
 */
 
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { buildExposureProfile } from '../../data/exposure';
 import { buildLevelRead, sessionBars } from '../../data/levelview';
+import { profileOf } from '../../data/pinpointBook';
+import { levelRecords, type LevelRecords, type RecordKey } from '../../data/levelRecord';
+import { bookSureness, type SureLevel } from '../../data/levelSureness';
+import HowSure from '../levels/HowSure';
+import { nyClock } from '../../core/nyTime';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import ReportGuide from './ReportGuide';
@@ -46,7 +50,8 @@ const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the l
 const GREEN = 'rgb(var(--bull))';
 const RED = 'rgb(var(--bear))';
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const hhmm = (unix: number) => new Date(unix * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+/** A bar's minute, New York's (X2) */
+const hhmm = (unix: number) => nyClock(unix * 1000);
 
 interface Tick {
   /** Index into the session's bars — the strip's x */
@@ -56,30 +61,43 @@ interface Tick {
   kind: 'held' | 'broke';
 }
 
-/** Every test of a level along the session, bar by bar — kept as events rather
-    than counts so the strip can draw each one. */
+/** Every test of a level along the session, as VISITS — At the wall's rule (data/wall.ts testEvents), so the Map and
+    At the wall count one level's tests the same way (X1.7: "Tests 40, held 30" here against "21× · held 2" there,
+    one counting bars and the other visits). A visit begins when a bar's range reaches the level; it is held when price
+    leaves it back on its own side, broken on the first close beyond it. Kept as events so the strip can draw each. */
 function levelTicks(bars: readonly Candle[], strike: number, side: 'call' | 'put'): Tick[] {
   const out: Tick[] = [];
-  let touches = 0;
-  let broken = false;
+  let at = -1;
+  let beyond = false;
   bars.forEach((b, i) => {
     const touched = b.low <= strike && b.high >= strike;
-    const beyond = side === 'call' ? b.close > strike : b.close < strike;
-    if (touched) touches++;
-    if (beyond && !broken) {
-      if (touches > 0) out.push({ i, time: b.time, close: b.close, kind: 'broke' });
-      broken = true;
+    const closedBeyond = side === 'call' ? b.close > strike : b.close < strike;
+    if (beyond) {
+      if (!closedBeyond) beyond = false;
       return;
     }
-    if (!beyond) broken = false;
-    if (touched) out.push({ i, time: b.time, close: b.close, kind: 'held' });
+    if (touched) {
+      if (at < 0) at = i;
+      if (closedBeyond) {
+        out.push({ i, time: b.time, close: b.close, kind: 'broke' });
+        at = -1;
+        beyond = true;
+      }
+    } else if (at >= 0) {
+      const t = bars[at];
+      out.push({ i: at, time: t.time, close: t.close, kind: 'held' });
+      at = -1;
+    }
   });
+  if (at >= 0) out.push({ i: at, time: bars[at].time, close: bars[at].close, kind: 'held' });
   return out;
 }
 
 interface Row {
   key: string;
   label: string;
+  /** Every name the strike carries — "Put wall · Supreme · Gamma pin" stand as one row (PP-24) */
+  names: { key: string; label: string; ink: string }[];
   ink: string;
   price: number;
   side: 'call' | 'put';
@@ -148,7 +166,7 @@ const SessionStrip = ({ row, bars }: { row: Row; bars: readonly Candle[] }) => {
         >
           <span className="font-mono text-[11px] font-semibold tnum text-textPrimary">{hhmm(hover.time)}</span>
           <span className={`ml-2 text-[11px] font-medium ${hover.kind === 'broke' ? 'text-bear' : 'text-bull'}`}>{hover.kind === 'broke' ? 'broke' : 'tested, held'}</span>
-          <span className="ml-2 font-mono text-[10px] tnum text-textMuted">close {hover.close.toFixed(2)}</span>
+          <span className="ml-2 font-mono text-[11px] tnum text-textMuted">close {hover.close.toFixed(2)}</span>
         </div>
       )}
     </div>
@@ -163,7 +181,8 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
   const rows = useMemo<Row[]>(() => {
     let levels: { callWall: number; putWall: number; flip: number; pin: number; supreme: number; spot: number } | null = null;
     try {
-      levels = buildExposureProfile(snapshot, '0DTE', 20).levels;
+      /* the room's one book (data/pinpointBook.ts) — the levels every Pinpoint page names */
+      levels = profileOf(snapshot).levels;
     } catch {
       return [];
     }
@@ -179,7 +198,8 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       const trend = !read || read.trend === 'FLAT' ? 'flat since the open' : read.trend === 'NEW' ? 'new since the open' : `${read.trend === 'BUILDING' ? 'growing' : 'shrinking'}${size}`;
       const grade: Row['grade'] =
         tests === 0 ? { words: 'untested', tone: 'quiet' } : broke === 0 ? { words: `held every test`, tone: 'good' } : held === 0 ? { words: 'broke every test', tone: 'bad' } : { words: `broke ${broke} of ${tests}`, tone: broke * 2 >= tests ? 'bad' : 'quiet' };
-      return { key, label, ink, price, side, ticks, tests, held, broke, last: read?.lastTouch ?? null, trend, grade };
+      const lastTick = ticks[ticks.length - 1];
+      return { key, label, names: [{ key, label, ink }], ink, price, side, ticks, tests, held, broke, last: lastTick ? hhmm(lastTick.time) : (read?.lastTouch ?? null), trend, grade };
     };
     const spot = levels.spot;
     const out: Row[] = [
@@ -189,9 +209,29 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       mk('pin', 'Gamma pin', 'rgb(var(--text-primary))', levels.pin, levels.pin >= spot ? 'call' : 'put'),
       mk('supreme', 'Supreme', SUPREME, levels.supreme, levels.supreme >= spot ? 'call' : 'put'),
     ];
+    /* ONE ROW A STRIKE (PP-24): three levels on 475 read as three identical rows; the names stack on one */
+    const merged: Row[] = [];
+    for (const r of out) {
+      const same = merged.find(m => Math.abs(m.price - r.price) < 1e-9);
+      if (same) same.names.push(...r.names);
+      else merged.push(r);
+    }
     // Highest price first — the section reads like the ladder above it
-    return out.sort((a, b) => b.price - a.price || a.key.localeCompare(b.key));
+    return merged.sort((a, b) => b.price - a.price || a.key.localeCompare(b.key));
   }, [snapshot, bars]);
+
+  /* THE MISSES COUNTED (the ideas' rank 4): every past session the tape holds, beside a strike as far away */
+  const records: LevelRecords | null = useMemo(() => {
+    try {
+      return levelRecords(snapshot.ticker);
+    } catch {
+      return null;
+    }
+  }, [snapshot.ticker]);
+  const recordKey: Record<string, RecordKey | undefined> = { call: 'call', put: 'put', flip: 'flip' };
+  /* HOW SURE (the ideas' rank 3): what each level stands on */
+  const sure = useMemo(() => bookSureness(snapshot.chain, snapshot.spot, snapshot.ticker), [snapshot]);
+  const sureKey: Record<string, SureLevel | undefined> = { call: 'call wall', put: 'put wall', flip: 'flip', supreme: 'supreme' };
 
   const first = bars[0]?.time;
   const last = bars[bars.length - 1]?.time;
@@ -205,12 +245,12 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       </GuideFocus>
       <div className="px-5 pt-4 pb-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">How the levels held today</h3>
+          <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">How the levels held today</h2>
           {scope}
           <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the strips and the ticks mean" testId="report-guide" />
         </div>
         <p className="mt-0.5 text-[11px] text-textMuted">
-          {rows.length} levels · {bars.length} one-minute bars{first != null && last != null ? ` from ${hhmm(first)} to ${hhmm(last)}` : ''} · a test is a bar whose range reaches the level, a break is a close beyond it after a test
+          {rows.length} strikes · {bars.length} one-minute bars{first != null && last != null ? ` from ${hhmm(first)} to ${hhmm(last)} New York` : ''} · a test is a visit — price reaching the level — held when it leaves back on its own side, broken by a close beyond it
         </p>
       </div>
       <ul className="flex flex-col" data-level-rows>
@@ -227,31 +267,61 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
             <li key={r.key} className={`border-t border-borderSubtle/50 ${isFocus ? 'bg-silver/[0.04]' : ''}`} data-level={r.key}>
               {/* One column on a phone (the phone pass, 2026-09-13): the level, its strip, its facts under each other */}
               <div className="grid grid-cols-[200px_minmax(0,1fr)_auto] items-center gap-6 px-5 py-3 max-lg:grid-cols-1 max-lg:gap-3">
-                <button onClick={() => onPick(r.price)} className="text-left min-w-0 group" title={`${r.label} ${fmtStrike(r.price)} — click to make this the strike`} data-level-pick>
-                  <span className="block text-[11px] font-semibold" style={{ color: r.ink }}>
-                    {r.label}
+                <div className="min-w-0">
+                <button onClick={() => onPick(r.price)} className="text-left min-w-0 group" aria-label={`${r.names.map(n => n.label).join(', ')} ${fmtStrike(r.price)}: ${r.grade.words} — keep this strike`} title={`${r.names.map(n => n.label).join(' · ')} ${fmtStrike(r.price)} — click to make this the strike`} data-level-pick>
+                  <span className="flex flex-wrap gap-x-2 text-[11px] font-semibold">
+                    {r.names.map(n => (
+                      <span key={n.key} style={{ color: n.ink }}>
+                        {n.label}
+                      </span>
+                    ))}
                   </span>
                   <span className={`block font-mono text-[15px] font-semibold tnum leading-tight ${isFocus ? 'text-silver' : 'text-textPrimary group-hover:text-silver'} transition-colors`}>{fmtStrike(r.price)}</span>
-                  <span className={`mt-1 inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-medium ${TONE[r.grade.tone]}`} data-grade>
+                  <span className={`mt-1 inline-flex items-center h-5 px-2 rounded-full border text-[11px] font-medium ${TONE[r.grade.tone]}`} data-grade>
                     {r.grade.words}
                   </span>
                 </button>
+                {(() => {
+                  const k = r.names.map(n => sureKey[n.key]).find(Boolean);
+                  return k ? <HowSure sure={sure[k]} className="mt-1 -ml-1" /> : null;
+                })()}
+                </div>
                 <div className="min-w-0">
                   <SessionStrip row={r} bars={bars} />
-                  <div className="flex justify-between font-mono text-[9px] tnum text-textMuted px-1 -mt-0.5">
+                  <div className="flex justify-between font-mono text-[11px] tnum text-textMuted px-1 -mt-0.5">
                     <span>{first != null ? hhmm(first) : ''}</span>
-                    <span>now</span>
+                    {/* "now" while the tape is live, else the minute it ends on (the close) */}
+                    <span>{last != null && Date.now() / 1000 - last > 180 ? hhmm(last) : 'now'}</span>
                   </div>
                 </div>
                 {/* Fixed tracks, so every row's strip ends on the same line whatever the words in the last fact */}
                 <dl className="grid grid-cols-[52px_52px_52px_88px_172px] gap-x-5 max-lg:flex max-lg:flex-wrap max-lg:gap-y-1.5">
                   {facts.map(f => (
                     <div key={f.k} className="min-w-0">
-                      <dt className="text-[10px] text-textMuted whitespace-nowrap">{f.k}</dt>
+                      <dt className="text-[11px] text-textMuted whitespace-nowrap">{f.k}</dt>
                       <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${f.cls ?? 'text-textPrimary'}`}>{f.v}</dd>
                     </div>
                   ))}
                 </dl>
+                {/* THE SESSIONS BEFORE, MISSES COUNTED — the level's record over the tape beside a strike as far away */}
+                {(() => {
+                  const k = r.names.map(n => recordKey[n.key]).find(Boolean);
+                  const rec = k && records ? records[k] : null;
+                  if (!rec || !records) return null;
+                  return (
+                    <p className="lg:col-start-2 lg:col-span-2 -mt-2 font-mono text-[11px] tnum text-textSecondary" data-level-record={k}>
+                      <span className="text-textMuted">The last {records.sessions} sessions, {records.from} – {records.to}: </span>
+                      {rec.level.tested === 0 ? (
+                        <>the {k === 'flip' ? 'flip' : `${k} wall`} at each open was not reached in any of them</>
+                      ) : (
+                        <>
+                          the {k === 'flip' ? 'flip' : `${k} wall`} at each open held through <span className="text-textPrimary">{rec.level.held} of the {rec.level.tested}</span> sessions it was reached
+                        </>
+                      )}
+                      <span className="text-textMuted"> · a strike as far from the open, in the other sessions, held through {rec.chance.held} of {rec.chance.tested}</span>
+                    </p>
+                  );
+                })()}
               </div>
             </li>
           );

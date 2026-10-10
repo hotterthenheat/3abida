@@ -42,7 +42,7 @@
 ==================================================
 */
 
-import { sessionStarts } from './indicators';
+import { sessionCut } from './levelview';
 import { pickFlip, pickWalls } from '../core/walls';
 import { CLOSE_MIN, OPEN_MIN, SESSION_MIN, fmtDollars, fmtStrike, hhmm, type AheadClock } from './ahead';
 import type { ExposureProfileData } from '../types/gex';
@@ -134,11 +134,13 @@ const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmtDollars(v)}`;
 
 export const sideWords = (v: number) => (v < 0 ? 'call-heavy, so dealers push back on moves here' : 'put-heavy, so dealers push moves along here');
 
-/** Today's snapshots by the bars' own session cut — the same cut every session feature uses */
+/** Today's snapshots by the bars' own session cut — the same cut every session feature uses: from New York's open
+    (levelview.ts sessionCut), so "built today" is built since 09:30 */
 export function todaySnapshots(snaps: readonly GexSnapshot[], bars: readonly Candle[]): GexSnapshot[] {
   if (!snaps.length || !bars.length) return [];
-  const starts = sessionStarts(bars, 1);
-  const dayStart = bars[starts[starts.length - 1]].time;
+  const cut = sessionCut(bars);
+  if (!cut.length) return [];
+  const dayStart = cut[0].time;
   return snaps.filter(s => s.time >= dayStart);
 }
 
