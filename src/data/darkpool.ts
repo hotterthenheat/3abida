@@ -12,6 +12,8 @@
 import type { Grade } from './stockOverview';
 import Simulator from '../core/simulator';
 import { dayKey, h01, hPick, hRange } from '../core/rng';
+import { now } from '../core/clock';
+import { minuteLabel, nyClock, nyMinutes, nySessionPhase, SESSION_CLOSE_MIN, SESSION_OPEN_MIN } from '../core/nyTime';
 import type { MarketSnapshot } from '../types/market';
 import type {
   DarkLeaderRow,
@@ -119,7 +121,7 @@ export function buildDarkPoolLeaders(): DarkLeadersView {
   return {
     totalNotional,
     totalPrints: sectors.reduce((a, s) => a + s.prints, 0),
-    updated: new Date().toLocaleTimeString('en-GB'),
+    updated: nyClock(now(), { seconds: true }),
     sectors,
   };
 }
@@ -143,26 +145,30 @@ function defendedCount(priceHistory: number[], level: number, tolPct: number): n
   return count;
 }
 
+/* A SHELF IS A READ, NEVER AN INSTRUCTION (2026-10-09 — the ideas research found trade calls here: "Trade the break",
+   "fade pushes into it", "longs lean on it"). Each line says what the dark dollars and the price did at the shelf, and
+   what would change the read — never what to do about it. */
 function levelUsage(role: LevelRole, price: number, defended: number, sharePct: number): string {
   const p = price.toFixed(2);
+  const turns = defended >= 5 ? '5 times or more' : `${defended} times`;
   if (role === 'SUPPORT') {
     return defended >= 2
-      ? `Buyer has defended $${p} ${defended}× today — longs lean on it; a close below flips the read to distribution.`
-      : `Fresh accumulation shelf at $${p} (${sharePct.toFixed(0)}% of DP volume) — expect dips into it to slow; invalid below.`;
+      ? `Price has turned up at $${p} ${turns} today. A close below it would turn the read toward distribution.`
+      : `Accumulation shelf at $${p} — ${sharePct.toFixed(0)}% of the dark dollars rested here. Dips that slow into it would back the read; a break below would end it.`;
   }
   if (role === 'RESISTANCE') {
     return defended >= 2
-      ? `Supply has capped price at $${p} ${defended}× — fade pushes into it until a sized print clears above.`
-      : `Distribution ceiling at $${p} — rallies into the shelf meet a seller; breakout needs volume through it.`;
+      ? `Price has turned down at $${p} ${turns} today. A sized print above it would change the read.`
+      : `Distribution shelf at $${p} — rallies into it have met offers so far; a move through it on volume would change the read.`;
   }
-  return `Two-way shelf at $${p} — institutions rotating, not committing. Trade the break: direction follows whichever side absorbs.`;
+  return `Two-way shelf at $${p} — prints on both sides, neither committing. Which side takes a break of it is what would set a direction.`;
 }
 
 /* HOW SURE A PRINT'S READ IS, SAID IN THE FOUR WORDS (Noah, 2026-09-19: "move conviction to the four words as well"). The grid
    printed "71%" over a bar as long as the figure, the head sentence "at 71% conviction", the stock page "72% sure". The
    figure stays here — it weighs the posture and sorts the column — and never reaches a digit. The cuts are `classify`'s own
    tiers below, not borrowed ones:
-     poor      under 55 — the ceiling of routine rotation, the tier whose read says "no signal by itself"
+     poor      under 55 — the ceiling of routine rotation, the tier whose read says "little to read by itself"
      good      from 68 — the floor of the full case: size, the side of the market and the tape all agreeing
      strong    from 85 — only the top of that tier. Rare on purpose ("when its really great")
      caution   between 55 and 68 — a sized print that only leans, or a likely hedge
@@ -187,25 +193,28 @@ function classify(
   const below = vsSpotPct < -0.08;
   const above = vsSpotPct > 0.08;
 
+  /* WHERE IT PRINTED, NOT WHO STARTED IT (2026-10-09): a dark cross carries no aggressor flag. Below or above the spot says
+     where it crossed; the reads say what that place and the session's direction are consistent with, and what would
+     back or undo the reading — never "bought", "sold" or what to do. */
   if (atLevel && h01(`${seedBase}-hedge`) > 0.55) {
     return {
       intent: 'HEDGE FLOW',
       conviction: Math.round(hRange(`${seedBase}-c1`, 48, 68)),
-      read: 'Printed on an options shelf — likely dealer/desk hedge, not a directional bet. Don’t chase it.',
+      read: 'Printed on an options shelf — the place fits a desk hedging an options book more than a position on direction.',
     };
   }
   if (sized && below && sessionUp) {
     return {
       intent: 'ACCUMULATION',
       conviction: Math.round(hRange(`${seedBase}-c2`, 70, 92)),
-      read: 'Size bought below market in an up-tape — institution building a position on weakness. Level becomes support.',
+      read: 'Sized cross below the market in a rising session — consistent with a holder adding on weakness. The print shows where it crossed, not which side started it; later tests holding this price would back the read.',
     };
   }
   if (sized && above && !sessionUp) {
     return {
       intent: 'DISTRIBUTION',
       conviction: Math.round(hRange(`${seedBase}-c3`, 68, 90)),
-      read: 'Size sold into strength while the tape weakens — supply overhead. Rallies into the print price should struggle.',
+      read: 'Sized cross above the market in a falling session — consistent with a holder selling into strength. The print shows where it crossed, not which side started it; rallies stalling at this price would back the read.',
     };
   }
   if (sized) {
@@ -214,14 +223,14 @@ function classify(
       intent: acc ? 'ACCUMULATION' : 'DISTRIBUTION',
       conviction: Math.round(hRange(`${seedBase}-c4`, 55, 75)),
       read: acc
-        ? 'Sized print near the lows of its window — leans accumulation; confirm if the level holds on the next test.'
-        : 'Sized print near the highs of its window — leans distribution; confirm if bounces into it stall.',
+        ? 'Sized cross near the lows of its window — leans accumulation; the next test of this price holding would back it.'
+        : 'Sized cross near the highs of its window — leans distribution; bounces stalling into it would back it.',
     };
   }
   return {
     intent: 'ROTATION',
     conviction: Math.round(hRange(`${seedBase}-c5`, 35, 55)),
-    read: 'Routine off-exchange rotation — nothing to read by itself; watch whether it clusters at a shelf.',
+    read: 'Routine off-exchange rotation — little to read on its own; it carries more weight if prints cluster at one shelf.',
   };
 }
 
@@ -288,7 +297,8 @@ export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
   });
 
   // ---- prints -----------------------------------------------------------------
-  const now = Date.now();
+  const nyNow = nyMinutes();
+  const sessionNow = nySessionPhase() === 'open' ? nyNow : SESSION_CLOSE_MIN;
   const prints: DarkPoolPrint[] = Array.from({ length: PRINT_COUNT }, (_, i) => {
     const pSeed = seed(`p-${i}`);
     // Prints gravitate to shelves ~55% of the time; the rest scatter in range.
@@ -305,10 +315,11 @@ export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
     const sized = sizePercentile > SIZED_PERCENTILE;
     const cls = classify(pSeed, vsSpotPct, sized, atLevel, sessionUp);
     const minutesAgo = Math.floor(Math.pow(h01(`${pSeed}-t`), 1.3) * 380);
-    const ts = new Date(now - minutesAgo * 60000);
+    /* New York's clock, inside the session (the audit's X2) */
+    const at = Math.max(SESSION_OPEN_MIN, Math.min(sessionNow, sessionNow - minutesAgo));
     return {
       id: i,
-      time: `${String(ts.getHours()).padStart(2, '0')}:${String(ts.getMinutes()).padStart(2, '0')}`,
+      time: minuteLabel(at),
       ticker,
       price: Number(price.toFixed(2)),
       size,
@@ -334,10 +345,10 @@ export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
   const strongest = [...levels].sort((a, b) => b.notional - a.notional)[0];
   const postureNote =
     posture === 'ACCUMULATING'
-      ? `Sized prints skew to the buy side — dips into the $${strongest.price.toFixed(2)} shelf are being absorbed.`
+      ? `Sized crosses read as accumulation outweigh those read as distribution — the heaviest shelf is $${strongest.price.toFixed(2)}.`
       : posture === 'DISTRIBUTING'
-        ? `Sized prints skew to the sell side — strength into $${strongest.price.toFixed(2)} keeps meeting supply.`
-        : 'Buy and sell blocks roughly offset — institutions rotating, not committing. Let a shelf break decide direction.';
+        ? `Sized crosses read as distribution outweigh those read as accumulation — the heaviest shelf is $${strongest.price.toFixed(2)}.`
+        : 'Crosses read as accumulation and as distribution roughly offset — no side committing. A break of a shelf is what would show a direction.';
 
   const totalNotional = prints.reduce((a, p) => a + p.notional, 0);
   const largest = prints.reduce<DarkPoolPrint | null>((a, p) => (a === null || p.notional > a.notional ? p : a), null);

@@ -85,7 +85,7 @@ export const ContractFigure = () => (
 
 /** The ink registers: quiet, heavy, direction, the one supreme */
 export const InkFigure = () => (
-  <Figure label="Five sample figures in their inks: a quiet grey 8,412; a heavy white 48,210; a green +2,940; a red −8,113; a magenta 274,641 — each with the rule beside it" h={98}>
+  <Figure label="Five figures in their inks: a quiet grey 8,412; a heavy white 48,210; a green +2,940; a red −8,113; a magenta 274,641 — each with the rule beside it" h={98}>
     {[
       { y: 18, sample: '8,412', ink: SECOND, bold: false, word: "the column's usual run" },
       { y: 36, sample: '48,210', ink: INK, bold: true, word: 'heavy — the top fifth of what is on screen' },
@@ -226,7 +226,7 @@ export const ScreenerGuide = () => (
       <FlowSharesFigure />
     </Section>
     <Section title="Lean">
-      <p>Whether the volume paid the ask or hit the bid — buyers pressing or sellers.</p>
+      <p>Whether the volume paid the ask or hit the bid — the side, in one ink: a put bought at the ask is not bullish, so the lean never wears a direction.</p>
       <LeanFigure />
     </Section>
   </div>
@@ -367,7 +367,10 @@ export const WatchersGuide = () => (
       <ContractFigure />
     </Section>
     <Section title="Under watch">
-      <p>The mark at a row's left keeps the contract on the Tracker with what it has done since.</p>
+      <p>The bookmark at a row's left tracks the contract on the Tracker with what it has done since.</p>
+    </Section>
+    <Section title="Moved its way">
+      <p>Every print the watchers flagged on the cut, counted whatever happened next: a call at the ask or a put on the bid leans up, a put at the ask or a call on the bid leans down, and the stock from the minute of the flag to now — or to the close — either moved that way, moved against it, or barely moved. It is said as a count of the whole, misses listed, never as a rate.</p>
       <WatchFigure />
     </Section>
   </div>
@@ -420,7 +423,7 @@ export const ShareFigure = () => (
 export const WindowsGuide = () => (
   <div data-trace-guide="windows">
     <Section title="A window">
-      <p>The day cut into quarter hours; pick one and the box shows what traded inside it, heaviest first.</p>
+      <p>The session cut into quarter hours, 09:30 to 16:00 New York; pick one and the box shows what traded inside it, heaviest first. ← and → walk the windows.</p>
       <DayStripFigure />
     </Section>
     <Section title="Share of the day">
@@ -572,11 +575,11 @@ export const PaneLinesFigure = () => (
 export const NetFlowGuide = () => (
   <div data-trace-guide="net-flow">
     <Section title="The board">
-      <p>Every name ranked by net premium — calls bought and puts sold against the reverse; a click puts the name on the pane.</p>
+      <p>Every name ranked by net premium — net calls (bought less sold) less net puts (bought less sold), so net = calls − puts; a click puts the name on the pane. Only a name on today's book goes on the pane.</p>
       <BoardRowFigure />
     </Section>
     <Section title="The pane">
-      <p>The picked name through the session: its spot, its net calls and puts, the volume on the floor — cut by money and by clock in the cards.</p>
+      <p>The picked name through the session, New York's 09:30 to now: its spot, its net calls and puts, the volume on the floor — cut by moneyness and by tenor in the cards. Net puts bought lean bearish and wear red; sold, they lean bullish and wear green.</p>
       <PaneLinesFigure />
     </Section>
     <Section title="The inks">
@@ -610,7 +613,7 @@ export const DeskFigure = () => (
 export const OdteGuide = () => (
   <div data-trace-guide="odte">
     <Section title="The desk">
-      <p>One to four panes of the same-day book, each with its own cut of the book or one name, its own money and clock; a pane's arrow opens it full screen.</p>
+      <p>One to four panes of the same-day book — the contracts expiring today — each with its own cut of the book or one name and its own moneyness; a pane's arrow opens it full screen, Esc closes it.</p>
       <DeskFigure />
     </Section>
     <Section title="A pane">
@@ -712,7 +715,7 @@ export const ConvictionFigure = () => (
 export const LiveTapeGuide = () => (
   <div data-trace-guide="live-tape">
     <Section title="A print">
-      <p>One contract traded once — when, the name, the contract, how many at what price, the dollars, and its tag.</p>
+      <p>One contract traded once — when (New York), the name, the contract, how many at what price, the dollars, and its kind: a sweep across exchanges, a block (one leg, 100 contracts or $250K and up), a multi-leg print, or a single print under block size. P/C is put premium over call premium.</p>
       <TapeRowFigure />
     </Section>
     <Section title="Fill &amp; market">
@@ -723,7 +726,7 @@ export const LiveTapeGuide = () => (
       <FillFigure />
     </Section>
     <Section title="Conviction">
-      <p>How hard the aggressor pressed — the bar's reach from the centre, right for offers lifted, left for bids hit.</p>
+      <p>How hard the aggressor pressed — the bar's reach from the centre, right for offers lifted, left for bids hit; one ink, because the side is not the direction.</p>
       <ConvictionFigure />
     </Section>
     <Section title="The inks">
@@ -766,15 +769,15 @@ export const SinceFigure = () => (
 export const TrackerGuide = () => (
   <div data-trace-guide="tracker">
     <Section title="A mark">
-      <p>The mark at the left of any Trace row keeps the contract, print or structure here.</p>
+      <p>The bookmark at the left of any Trace row tracks the contract, print or structure here.</p>
       <WatchFigure />
     </Section>
     <Section title="Since">
-      <p>What it has done since you marked it — the fill, the volume, the open interest and the lean, then against now.</p>
+      <p>What it has done since you tracked it — the fill, the volume, the open interest and the lean, then against now.</p>
       <SinceFigure />
     </Section>
     <Section title="A contract">
-      <p>The strike and side are the door to the contract's card, opened on the print you marked.</p>
+      <p>The strike and side are the door to the contract's card, opened on the print you tracked.</p>
       <ContractFigure />
     </Section>
   </div>
@@ -855,20 +858,20 @@ export const CrossFigure = () => (
 export const DarkPoolGuide = () => (
   <div data-trace-guide="dark-pool">
     <Section title="Off-exchange">
-      <p>A dark-pool cross is size that changed hands away from the lit exchanges — an institution moving a position without showing its hand. The tape shows the print; this page shows the read: who is most likely behind it and what it means for the level it printed at.</p>
+      <p>A dark-pool cross is size that changed hands away from the lit exchanges — an institution moving a position without showing its hand. The tape shows the print; this page shows the read: where it printed — against the spot and the shelves — and what that place is consistent with. A dark cross carries no flag for which side started it, so the read never says who bought or sold.</p>
       <CrossFigure />
     </Section>
     <Section title="The read">
       <p>
-        <span className="text-bull">Accumulation</span> is size bought below the market in an up-tape — someone building. <span className="text-bear">Distribution</span> is size sold into strength while the tape weakens — someone leaving. <span className="text-warn">Hedge flow</span> printed on an options shelf and is most likely a desk hedging, not a bet. Rotation is routine and no signal on its own. The bar is how sure the classifier is.
+        <span className="text-bull">Accumulation</span> is a sized cross below the market in a rising session — consistent with a holder adding on weakness. <span className="text-bear">Distribution</span> is a sized cross above the market in a falling session — consistent with a holder selling into strength. <span className="text-warn">Hedge flow</span> printed on an options shelf, where a desk hedging an options book prints. Rotation is routine and little to read on its own. Each read says what later price action would back it. The bar is how sure the classifier is.
       </p>
     </Section>
     <Section title="A shelf">
-      <p>Where the dark dollars rested through the session. Below the spot a shelf is support, above it resistance, at it a pivot; the bar is its share of the session's dark dollars and the count is how many times price has already bounced off it. A shelf cuts the grid to the crosses that landed on it, and its line says how to trade against it.</p>
+      <p>Where the dark dollars rested through the session. Below the spot a shelf is support, above it resistance, at it a pivot; the bar is its share of the session's dark dollars and the count is how many times price has turned within a hair of it today. A shelf cuts the grid to the crosses that landed on it, and its line says what price did there and what would change the read.</p>
       <ShelfFigure />
     </Section>
     <Section title="The posture">
-      <p>Net accumulation against distribution across the sized prints, in dollars weighted by conviction — accumulating past +18%, distributing past −18%, balanced between.</p>
+      <p>Crosses read as accumulation against those read as distribution across the sized prints, in dollars weighted by how sure each read is — said as the side that leads and how far it leans, or balanced when neither does.</p>
     </Section>
   </div>
 );
@@ -916,11 +919,11 @@ export const CompareGuide = () => (
       <p>A and B are any two names on today's book — the searches offer exactly those, and the swap turns them around. Everything on the page reads the same cut book the other Trace pages read, so a figure here is the figure there.</p>
     </Section>
     <Section title="The panes">
-      <p>Each name's session on the Net Flow pane: its own candles as the spot line, net call and net put premium as the lines. The money and clock cards are shared, so both panes always answer the same question. Under each pane, the same-day money — the 0DTE desk's figures for that name.</p>
+      <p>Each name's session on the Net Flow pane: its own candles as the spot line, net call and net put premium as the lines. The moneyness and tenor cards set both panes, so both always answer the same question. Under each pane, the same-day money — the 0DTE desk's figures for that name.</p>
       <PaneLinesFigure />
     </Section>
     <Section title="The ledger">
-      <p>One row per fact, A against B — net flow, the same-day money, the book, the footprints, the structures, the tape and the calendar. The diamond marks the side that carries the row: the larger figure, or for a lean, the more bullish one.</p>
+      <p>One row per fact, A against B — net flow, the same-day money, the book, the footprints, the structures, the tape and the calendar. The diamond marks the side that carries the row: the larger figure, or for a lean, the more bullish one — on the net puts row that is the SMALLER figure, since fewer puts bought is the more bullish side. Its title says which on every row.</p>
       <LedgerFigure />
     </Section>
     <Section title="The contracts">
