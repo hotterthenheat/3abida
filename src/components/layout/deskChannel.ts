@@ -22,6 +22,13 @@
   is told the state. Nothing leaves the machine: the
   channel is the browser's, between tabs of one origin.
 
+  ONE DESK, NOT EVERY TAB: a window speaks only to the
+  windows of its own desk — the tab and the pop-outs it
+  opened. The desk's name is kept in the tab's session,
+  which a window opened from it inherits; a tab opened
+  on its own is a desk of its own, and keeps its own
+  name as it always did.
+
   The prices are each window's own until a feed is
   connected — the simulator walks its live ticks in each
   window — and then every window reads the one feed.
@@ -35,6 +42,18 @@ import { EMBEDDED } from '../../embed';
 
 const CHANNEL = 'slayer-desk';
 const SELF = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const DESK_KEY = 'slayer_desk_id';
+/** This window's desk — the tab's own, or the one it was opened from (window.open hands a pop-out the tab's session) */
+const DESK: string = (() => {
+  try {
+    const kept = sessionStorage.getItem(DESK_KEY);
+    if (kept) return kept;
+    sessionStorage.setItem(DESK_KEY, SELF);
+  } catch {
+    /* no session storage — a desk of one */
+  }
+  return SELF;
+})();
 
 type Groups = Record<LinkGroup, string | null>;
 type Said =
@@ -42,7 +61,7 @@ type Said =
   | { kind: 'name'; ticker: string }
   | { kind: 'groups'; groups: Groups }
   | { kind: 'theme'; choice: ThemeChoice };
-type Msg = Said & { from: string; at: number };
+type Msg = Said & { from: string; desk: string; at: number };
 
 const THEMES: ThemeChoice[] = ['dark', 'light', 'system'];
 
@@ -55,7 +74,7 @@ export function useDeskChannel(): void {
     const mine = { name: 0, groups: 0, theme: 0 };
     /* what was last taken from elsewhere — taking it is not a change of this window's to say again */
     let heard = { name: '', groups: '', theme: '' };
-    const say = (s: Said) => ch.postMessage({ ...s, from: SELF, at: Date.now() } satisfies Msg);
+    const say = (s: Said) => ch.postMessage({ ...s, from: SELF, desk: DESK, at: Date.now() } satisfies Msg);
 
     let last = marketStore.get();
     let lastTheme = getThemeChoice();
@@ -100,7 +119,7 @@ export function useDeskChannel(): void {
 
     ch.onmessage = (e: MessageEvent<Msg>) => {
       const m = e.data;
-      if (!m || typeof m !== 'object' || m.from === SELF) return;
+      if (!m || typeof m !== 'object' || m.from === SELF || m.desk !== DESK) return;
       if (m.kind === 'hello') return tellAll();
       if (m.kind === 'name' && typeof m.ticker === 'string' && m.at >= mine.name) {
         if (m.ticker === marketStore.get().active) return;
