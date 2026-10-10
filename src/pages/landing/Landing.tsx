@@ -166,7 +166,7 @@ const ROOMS: Room[] = [
       { title: 'Screener', says: 'Every contract, filtered your way.', path: '/trace/screener' },
     ],
     /* the room's other pages, named (the audit's L-20: four rows read as the whole room) */
-    more: 'And six more pages: Footprints, 0DTE, Multi-leg, Compare, Watchers and Windows.',
+    more: 'And seven more pages: Footprints, 0DTE, Multi-leg, Compare, Watchers, Windows and Tracker.',
   },
   {
     id: 'weigher',

@@ -232,7 +232,14 @@ const setMeta = (selector: string, content: string) => {
 
 /** The page's own address on the site's domain — what og:url and the canonical link say (the audit's F3: og:url stayed
     the front page's on every page, and there was no canonical) */
-export const addressOf = (pathname: string): string => `https://${COMPANY.site}${(pathname.replace(/\/+$/, '') || '/').toLowerCase()}`;
+export const addressOf = (pathname: string): string => {
+  const exact = pathname.replace(/\/+$/, '') || '/';
+  const lower = exact.toLowerCase();
+  /* a page's own address in lower case (/About is /about); a name or a key in it keeps its own case (/dossier/stocks/NVDA,
+     /i/zak-7Q2M) — only the section is lowered */
+  const fixed = TOP[lower] || SECTIONS.some(sec => sec.base === lower || sec.pages.some(p => p.path === lower)) || lower.startsWith('/settings') ? lower : exact.replace(/^\/[^/]+/, m => m.toLowerCase());
+  return `https://${COMPANY.site}${fixed}`;
+};
 const setCanonical = (href: string) => {
   let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if (!link) {
