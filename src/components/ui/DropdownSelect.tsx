@@ -113,7 +113,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
           {!bare && <span className="shrink-0 text-[11px] text-textMuted">{label}</span>}
           {/* min-w-0 + truncate: a long value gives before the card does — on a desk; on a phone it wraps to a second line */}
           {/* the trigger wears the choice's tone — a Yes reads green, a No red, the way its row did (2026-09-22) */}
-          <span className={`min-w-0 truncate max-sm:whitespace-normal max-sm:leading-tight text-[11px] font-semibold ${current?.tone === 'bull' ? 'text-bull' : current?.tone === 'bear' ? 'text-bear' : current?.quiet ? 'text-textSecondary' : 'text-textPrimary'}`} data-tone={current?.tone ?? (current?.quiet ? 'quiet' : undefined)}>
+          <span className={`min-w-0 truncate max-sm:whitespace-normal max-sm:text-balance max-sm:leading-tight text-[11px] font-semibold ${current?.tone === 'bull' ? 'text-bull' : current?.tone === 'bear' ? 'text-bear' : current?.quiet ? 'text-textSecondary' : 'text-textPrimary'}`} data-tone={current?.tone ?? (current?.quiet ? 'quiet' : undefined)}>
             {current?.label ?? '—'}
           </span>
           <ChevronDown className="w-3 h-3 shrink-0 text-textMuted" />
