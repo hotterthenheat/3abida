@@ -39,6 +39,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeftRight, CalendarDays } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import Lean from '../../components/trace/Lean';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { buildFlowBook, buildNetFlowView, buildSpreadFlow, SPREAD_KINDS, type MoneynessKey, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
@@ -66,15 +68,15 @@ const num = (v: number) => v.toLocaleString('en-US');
 const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
 const dirInk = (v: number) => (v > 0 ? 'text-bull' : v < 0 ? 'text-bear' : 'text-textPrimary');
 
-/** The Multi-Leg page's categorical dots — a shape is a kind, never a verdict */
+/** The Multi-Leg page's categorical dots — a shape is a kind, never a verdict; the house's categorical tokens */
 const KIND_DOT: Record<SpreadKind, string> = {
-  vertical: '#7EA6F0',
-  condor: '#9B8FE8',
-  butterfly: '#E8C468',
-  straddle: '#6ECFC4',
-  strangle: '#E89AC0',
-  calendar: '#E0D080',
-  ratio: '#93B87A',
+  vertical: 'rgb(var(--cat-guidance))',
+  condor: 'rgb(var(--cat-analyst))',
+  butterfly: 'rgb(var(--cat-earnings))',
+  straddle: 'rgb(var(--cat-macro))',
+  strangle: 'rgb(var(--cat-ma))',
+  calendar: 'rgb(var(--cat-regulatory))',
+  ratio: 'rgb(var(--cat-product))',
 };
 const KIND_LABEL = Object.fromEntries(SPREAD_KINDS.map(k => [k.key, k.label])) as Record<SpreadKind, string>;
 
@@ -117,7 +119,7 @@ interface Side {
 function account(ticker: string, rows: BookContract[], trades: SpreadTrade[], tape: FlowPrint[], nowSec: number): Side {
   const own = rows.filter(r => r.ticker === ticker);
   const day = buildNetFlowView(own, 'all', 'all', [nowSec], Infinity, ticker);
-  const odte = buildNetFlowView(own, 'all', 'all', [nowSec], 1, ticker);
+  const odte = buildNetFlowView(own, 'all', 'all', [nowSec], 0, ticker);
   const volume = own.reduce((a, r) => a + r.volume, 0) || 0;
   const premium = own.reduce((a, r) => a + r.premium, 0);
   const callPrem = own.reduce((a, r) => a + (r.right === 'C' ? r.premium : 0), 0);
@@ -136,8 +138,8 @@ function account(ticker: string, rows: BookContract[], trades: SpreadTrade[], ta
     odteCall: odte.ncp,
     odtePut: odte.npp,
     /* the same-day contracts' own volume and count, straight off the rows */
-    odteVol: own.filter(r => r.dte <= 1).reduce((a, r) => a + r.volume, 0),
-    odteCount: own.filter(r => r.dte <= 1).length,
+    odteVol: own.filter(r => r.dte === 0).reduce((a, r) => a + r.volume, 0),
+    odteCount: own.filter(r => r.dte === 0).length,
     count: own.length,
     volume,
     premium,
@@ -169,37 +171,43 @@ interface Row {
   b: ReactNode;
   /** who carries the row: the larger side, or the more bullish for a lean */
   edge: 'a' | 'b' | null;
+  /** What the diamond means on this row (the audit's TR-66: on a row of negatives "carries the row" read either way) */
+  edgeWord?: string;
 }
 
 const larger = (a: number, b: number): 'a' | 'b' | null => (a === b ? null : a > b ? 'a' : 'b');
+const smaller = (a: number, b: number): 'a' | 'b' | null => (a === b ? null : a < b ? 'a' : 'b');
+const BULLISH = 'the more bullish side';
 
 function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
-  const money = (v: number) => <span className={dirInk(v)}>{signed(v)}</span>;
+  const money = (v: number) => <Lean v={v} className="font-normal" />;
+  const puts = (v: number) => <Lean v={v} put className="font-normal" />;
   const plain = (v: ReactNode) => <span className="text-textPrimary">{v}</span>;
   return [
     {
       group: 'Net flow',
       rows: [
-        { label: 'Net premium', hint: 'Calls bought and puts sold against the reverse, day to now', a: money(A.net), b: money(B.net), edge: larger(A.net, B.net) },
-        { label: 'Net calls', hint: 'Net call premium, day to now', a: money(A.netCall), b: money(B.netCall), edge: larger(A.netCall, B.netCall) },
-        { label: 'Net puts', hint: 'Net put premium, day to now', a: money(A.netPut), b: money(B.netPut), edge: larger(A.netPut, B.netPut) },
+        { label: 'Net premium', hint: 'Net calls less net puts, day to now', a: money(A.net), b: money(B.net), edge: larger(A.net, B.net), edgeWord: BULLISH },
+        { label: 'Net calls', hint: 'Net call premium, day to now — bought less sold', a: money(A.netCall), b: money(B.netCall), edge: larger(A.netCall, B.netCall), edgeWord: BULLISH },
+        /* fewer puts bought is the more bullish side, so the diamond goes to the SMALLER net puts */
+        { label: 'Net puts', hint: 'Net put premium, day to now — bought less sold; puts bought lean bearish', a: puts(A.netPut), b: puts(B.netPut), edge: smaller(A.netPut, B.netPut), edgeWord: BULLISH },
       ],
     },
     {
       group: 'Same-day money',
       rows: [
-        { label: '0DTE net', hint: 'The same-day contracts’ net premium', a: money(A.odteNet), b: money(B.odteNet), edge: larger(A.odteNet, B.odteNet) },
+        { label: '0DTE net', hint: 'The same-day contracts’ net premium', a: money(A.odteNet), b: money(B.odteNet), edge: larger(A.odteNet, B.odteNet), edgeWord: BULLISH },
         {
           label: '0DTE calls · puts',
           hint: 'Net call and net put premium on the same-day contracts',
           a: (
             <>
-              <span className="text-bull">{signed(A.odteCall)}</span> <span className="text-textSecondary">·</span> <span className="text-bear">{signed(A.odtePut)}</span>
+              {money(A.odteCall)} <span className="text-textSecondary">·</span> {puts(A.odtePut)}
             </>
           ),
           b: (
             <>
-              <span className="text-bull">{signed(B.odteCall)}</span> <span className="text-textSecondary">·</span> <span className="text-bear">{signed(B.odtePut)}</span>
+              {money(B.odteCall)} <span className="text-textSecondary">·</span> {puts(B.odtePut)}
             </>
           ),
           edge: null,
@@ -228,7 +236,7 @@ function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
           ),
           edge: null,
         },
-        { label: 'Lean', hint: 'Whether the volume paid the ask or hit the bid, volume-weighted', a: <LeanCell askPct={A.askPct} />, b: <LeanCell askPct={B.askPct} />, edge: larger(A.askPct, B.askPct) },
+        { label: 'Lean', hint: 'Whether the volume paid the ask or hit the bid, volume-weighted', a: <LeanCell askPct={A.askPct} />, b: <LeanCell askPct={B.askPct} />, edge: larger(A.askPct, B.askPct), edgeWord: 'more of it at the ask' },
         { label: 'Swept', hint: 'The share of the volume that swept across exchanges', a: plain(`${A.sweepPct}%`), b: plain(`${B.sweepPct}%`), edge: larger(A.sweepPct, B.sweepPct) },
         { label: 'Implied vol', hint: 'Volume-weighted implied volatility across the book', a: plain(`${A.iv.toFixed(0)}%`), b: plain(`${B.iv.toFixed(0)}%`), edge: larger(A.iv, B.iv) },
         { label: 'Built today', hint: 'Contracts trading past their open interest — positions built today', a: plain(num(A.builtToday)), b: plain(num(B.builtToday)), edge: larger(A.builtToday, B.builtToday) },
@@ -276,6 +284,7 @@ function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
 
 const Compare = () => {
   const { marketData, activeTicker, flowTape } = useMarketData();
+  const navigate = useNavigate();
   const [mny, setMny] = useState<MoneynessKey>('all');
   const [tenor, setTenor] = useState<SleeveKey | 'all'>('all');
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -310,6 +319,36 @@ const Compare = () => {
     setAQuery(B);
     setBQuery(A);
   };
+  /* NEVER ONE NAME AGAINST ITSELF (the audit's TR-60): a name typed into one slot that the other already holds swaps the
+     two, and says so */
+  const [said, setSaid] = useState<string | null>(null);
+  useEffect(() => {
+    if (!said) return;
+    const t = window.setTimeout(() => setSaid(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [said]);
+  const pickA = (v: string) => {
+    if (v === B && names.has(v)) {
+      setAQuery(v);
+      setBQuery(A);
+      setSaid(`${v} was B — the two swapped.`);
+      return;
+    }
+    setAQuery(v);
+  };
+  const pickB = (v: string) => {
+    if (v === A && names.has(v)) {
+      setBQuery(v);
+      setAQuery(B);
+      setSaid(`${v} was A — the two swapped.`);
+      return;
+    }
+    setBQuery(v);
+  };
+  /* A FRAGMENT SAYS WHAT IS ON THE PANE (the audit's TR-62) */
+  const fragment = (q: string, held: string) => (q !== '' && !names.has(q) ? `${q} is not on today's book — comparing ${held}` : null);
+  const noteA = fragment(aQuery, A);
+  const noteB = fragment(bQuery, B);
 
   /* THE EXPIRY CUT — the dates either name's book carries */
   const pairRows = useMemo(() => book.filter(r => r.ticker === A || r.ticker === B), [book, A, B]);
@@ -332,11 +371,14 @@ const Compare = () => {
 
   const read = useMemo<ReactNode>(() => {
     const lean = (s: Side) => `${s.net >= 0 ? 'bullish' : 'bearish'} at ${signed(s.net)}`;
+    // (the net is net calls less net puts, so its sign is its lean — RichRead's ink is right here)
     return (
       <>
         <RichRead text={`${chosen ? `On ${expiryWords(chosen)}, ` : ''}${A} leans ${lean(sideA)} while ${B} leans ${lean(sideB)}. `} />
-        <RichRead text={`${heavier.ticker} carries the heavier book — [[${fmtUsd(heavier.premium)}]] across ${heavier.count} contracts on ${num(heavier.volume)} volume — and ${busier.ticker} the busier tape, ${busier.prints.length} prints for ${fmtUsd(busier.tapePrem)}. `} />
-        <RichRead text={`Same-day money: ${A} ${signed(sideA.odteNet)}, ${B} ${signed(sideB.odteNet)}.`} />
+        <RichRead text={`${heavier.ticker} carries the heavier book — [[${fmtUsd(heavier.premium)}]] across ${heavier.count} contracts on ${num(heavier.volume)} volume — and ${busier.ticker} has the busier tape, ${busier.prints.length} prints for ${fmtUsd(busier.tapePrem)}. `} />
+        <RichRead text={`Same-day money: ${A} `} />
+        <Lean v={sideA.odteNet} />, <RichRead text={`${B} `} />
+        <Lean v={sideB.odteNet} />.
       </>
     );
   }, [A, B, sideA, sideB, heavier, busier, chosen]);
@@ -346,7 +388,7 @@ const Compare = () => {
 
   const head = (s: Side, which: 'A' | 'B') => (
     <div className="flex items-center gap-2 px-3 h-9 border-b border-borderSubtle" data-compare-head={which}>
-      <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">{which}</span>
+      <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">{which}</span>
       <CompanyLogo ticker={s.ticker} size={16} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{s.ticker}</span>
       <span className="font-mono text-[11px] tnum text-textPrimary">${s.spot.toFixed(2)}</span>
@@ -411,13 +453,15 @@ const Compare = () => {
             <Fact label="Same-day" testId="odte" title="The same-day contracts' net premium, A · B">
               <span className={dirInk(sideA.odteNet)}>{signed(sideA.odteNet)}</span> <span className="text-textSecondary">·</span> <span className={dirInk(sideB.odteNet)}>{signed(sideB.odteNet)}</span>
             </Fact>
-            <Champion label="Leans bullish" ink="bull" onOpen={() => (moreBullish.ticker === A ? setBQuery(A) : setAQuery(B))} testId="bullish">
+            {/* it opens that name's heaviest contract — it wrote the name into the other slot, A against A (the audit's TR-59) */}
+            <Champion label="Leans bullish" ink="bull" onOpen={() => moreBullish.heaviest[0] && openRow(moreBullish.heaviest[0])} testId="bullish">
               {moreBullish.ticker} · {signed(moreBullish.net)}
             </Champion>
             <Champion label="Heavier book" ink="supreme" onOpen={() => openRow(heavier.heaviest[0])} testId="heavier">
               {heavier.ticker} · {fmtUsd(heavier.premium)}
             </Champion>
-            <Champion label="Busier tape" ink="warn" onOpen={() => openRow(busier.heaviest[0] ?? heavier.heaviest[0])} testId="busier">
+            {/* its own door: the name's prints on the Live Tape (the audit's TR-63 — it opened the same card as Heavier book) */}
+            <Champion label="Busier tape" ink="plain" title={`${busier.ticker}'s prints on the Live Tape`} onOpen={() => navigate(`/trace/live-tape?q=${busier.ticker}`)} testId="busier">
               {busier.ticker} · {busier.prints.length} prints
             </Champion>
           </>
@@ -425,22 +469,38 @@ const Compare = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <span className="inline-flex items-center gap-1.5" data-compare-pick="a">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">A</span>
-              <FlowSearch value={aQuery} onChange={v => setAQuery(v)} rows={book} countNoun="contracts" tickersOnly />
-            </span>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">vs</span>
-            <span className="inline-flex items-center gap-1.5" data-compare-pick="b">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-textSecondary">B</span>
-              <FlowSearch value={bQuery} onChange={v => setBQuery(v)} rows={book} countNoun="contracts" tickersOnly />
-            </span>
-            <button type="button" onClick={swap} title="Swap the two names" aria-label="Swap the two names" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-compare-swap>
+            {/* A, vs, B and the swap stand together on one line, on a phone too (the audit's TR-65) */}
+            <span className="inline-flex max-sm:flex items-center gap-2" data-span data-compare-names>
+              <span className="inline-flex items-center gap-1.5 min-w-0 max-sm:flex-1" data-compare-pick="a">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary" aria-hidden>
+                  A
+                </span>
+                <FlowSearch value={aQuery} onChange={pickA} rows={book} countNoun="contracts" tickersOnly compact label="Name A" />
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">vs</span>
+              <span className="inline-flex items-center gap-1.5 min-w-0 max-sm:flex-1" data-compare-pick="b">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary" aria-hidden>
+                  B
+                </span>
+                <FlowSearch value={bQuery} onChange={pickB} rows={book} countNoun="contracts" tickersOnly compact label="Name B" />
+              </span>
+            <button type="button" onClick={swap} title="Swap the two names" aria-label="Swap the two names" className="hit inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-compare-swap>
               <ArrowLeftRight className="w-3.5 h-3.5" />
             </button>
+            </span>
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="compare-expiry" />
           </>
         }
-        sentence={read}
+        sentence={
+          <>
+            {(said || noteA || noteB) && (
+              <p role="status" className="mb-1.5 text-[11px] text-textSecondary" data-compare-said>
+                {[said, noteA, noteB].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {read}
+          </>
+        }
       >
         {/* THE PANES */}
         <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-borderSubtle" data-compare-panes>
@@ -448,14 +508,20 @@ const Compare = () => {
             <div key={s.ticker + i} className={`flex flex-col ${i === 0 ? 'lg:border-r border-borderSubtle' : ''}`}>
               {head(s, i === 0 ? 'A' : 'B')}
               <div className="h-[340px] p-2">
-                <NetFlowPane book={cutRows} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={s.ticker} tenor={tenor} onTenor={setTenor} dteMax={Infinity} />
+                <NetFlowPane book={cutRows} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={s.ticker} tenor={tenor} onTenor={setTenor} dteMax={Infinity} sharedNote="sets both panes" />
               </div>
               {/* the same-day money under the pane — the 0DTE desk's figures for the name */}
-              <div className="flex items-center gap-4 px-3 h-8 border-t border-b border-borderSubtle font-mono text-[10px] tnum" data-compare-odte={s.ticker}>
+              <div className="flex items-center gap-x-4 gap-y-0.5 flex-wrap px-3 min-h-8 py-1 border-t border-b border-borderSubtle font-mono text-[10px] tnum" data-compare-odte={s.ticker}>
                 <span className="uppercase tracking-widest text-textSecondary">Same-day</span>
-                <span className={dirInk(s.odteNet)}>{signed(s.odteNet)} net</span>
-                <span className="text-bull">{signed(s.odteCall)} calls</span>
-                <span className="text-bear">{signed(s.odtePut)} puts</span>
+                <span>
+                  <Lean v={s.odteNet} className="font-normal" /> net
+                </span>
+                <span>
+                  <Lean v={s.odteCall} className="font-normal" /> calls
+                </span>
+                <span>
+                  <Lean v={s.odtePut} put className="font-normal" /> puts
+                </span>
                 <span className="ml-auto text-textPrimary">
                   {num(s.odteVol)} vol · {s.odteCount} cons
                 </span>
@@ -466,7 +532,8 @@ const Compare = () => {
 
         {/* THE LEDGER */}
         <div data-compare-ledger>
-          <div className="grid grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] items-center px-5 h-8 border-b border-borderSubtle font-mono text-[9px] uppercase tracking-widest text-textSecondary">
+          {/* auto columns, rows that grow: on a phone B ran off the screen and two-line labels sat on the next row (TR-61) */}
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] sm:grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] gap-x-3 items-center px-5 max-sm:px-4 min-h-8 py-1 border-b border-borderSubtle font-mono text-[10px] uppercase tracking-widest text-textSecondary">
             <span>Fact</span>
             <span className="inline-flex items-center gap-1.5 justify-end">
               <CompanyLogo ticker={A} size={12} /> {A}
@@ -479,14 +546,22 @@ const Compare = () => {
             <div key={band.group}>
               <div className="px-5 pt-2.5 pb-1 text-[10px] font-semibold text-textPrimary">{band.group}</div>
               {band.rows.map(r => (
-                <div key={r.label} className="grid grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] items-center px-5 h-8 border-t border-borderSubtle/50 font-mono text-[11px] tnum" title={r.hint} data-compare-row={r.label}>
+                <div key={r.label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] sm:grid-cols-[1fr_180px_180px] lg:grid-cols-[1fr_240px_240px] gap-x-3 items-center px-5 max-sm:px-4 min-h-8 py-1 border-t border-borderSubtle/50 font-mono text-[11px] tnum" title={r.hint} data-compare-row={r.label}>
                   <span className="text-textPrimary">{r.label}</span>
-                  <span className={`flex items-center justify-end gap-1.5 ${r.edge === 'a' ? 'font-bold' : ''}`}>
-                    {r.edge === 'a' && <span className="text-supreme" aria-label="carries the row">◆</span>}
+                  <span className={`flex items-center justify-end gap-1.5 flex-wrap ${r.edge === 'a' ? 'font-bold' : ''}`}>
+                    {r.edge === 'a' && (
+                      <span className="text-supreme" title={r.edgeWord ?? 'the larger'} aria-label={r.edgeWord ?? 'the larger'}>
+                        ◆
+                      </span>
+                    )}
                     {r.a}
                   </span>
-                  <span className={`flex items-center justify-end gap-1.5 ${r.edge === 'b' ? 'font-bold' : ''}`}>
-                    {r.edge === 'b' && <span className="text-supreme" aria-label="carries the row">◆</span>}
+                  <span className={`flex items-center justify-end gap-1.5 flex-wrap ${r.edge === 'b' ? 'font-bold' : ''}`}>
+                    {r.edge === 'b' && (
+                      <span className="text-supreme" title={r.edgeWord ?? 'the larger'} aria-label={r.edgeWord ?? 'the larger'}>
+                        ◆
+                      </span>
+                    )}
                     {r.b}
                   </span>
                 </div>
