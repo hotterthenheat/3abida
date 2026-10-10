@@ -37,7 +37,10 @@ const CompassLayout = () => {
             <ProductGlyph name="compass" size={18} bare className="shrink-0" />
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Compass</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{line}</p>
+          {/* two lines before a cut on a narrow screen, and the whole line on hover (the audit's X10) */}
+          <p className="mt-0.5 text-[11px] text-textMuted line-clamp-2 md:line-clamp-1" title={line}>
+            {line}
+          </p>
         </div>
       </header>
       {/* A cross-fade, no travel (the Trace shell's verdict): opacity is the only thing that moves */}

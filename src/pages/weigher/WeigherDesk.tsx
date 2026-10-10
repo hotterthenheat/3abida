@@ -1321,7 +1321,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Weigher</h1>
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chain, the read and the chart mean" testId="weigher-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Chart, chain and watchlist on one desk — pick a name, pick a contract, watch it</p>
+          <p className="mt-0.5 text-[11px] text-textMuted line-clamp-2 md:line-clamp-1" title="Chart, chain and watchlist on one desk — a name, a contract on it, and what it would do">Chart, chain and watchlist on one desk — a name, a contract on it, and what it would do</p>
         </div>
         <dl
           className="flex flex-wrap gap-x-6 gap-y-2"

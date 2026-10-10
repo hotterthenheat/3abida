@@ -245,7 +245,7 @@ const FullRow = (p: ICellRendererParams<ChainGridRow>) => {
 /* THE DOOR TO THE WATCHLIST ON EVERY STRIKE (Noah, 2026-09-14: "there should be some sort
    of add to watchlist on the chain like a plus button or something") — a + at the row's end,
    shown on the row's hover; once watched it stays, a check in the where-you-are ink */
-const WatchCell = ({ strike, on, onWatch }: { strike: number; on: boolean; onWatch: (strike: number) => void }) => (
+const WatchCell = ({ strike, on, onWatch, always = false }: { strike: number; on: boolean; onWatch: (strike: number) => void; always?: boolean }) => (
   <button
     type="button"
     onClick={e => {
@@ -257,6 +257,8 @@ const WatchCell = ({ strike, on, onWatch }: { strike: number; on: boolean; onWat
     className={`hit inline-flex items-center justify-center w-6 h-6 rounded transition-colors ${on ? 'text-silver hover:bg-silver/[0.10]' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'}`}
     data-chain-watch={strike}
     data-on={on || undefined}
+    /* a touch screen has no hover to bring the + up — it stands on every row there */
+    style={always ? { opacity: 1 } : undefined}
   >
     {on ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
   </button>
@@ -344,6 +346,16 @@ export const ChainCard = memo(function ChainCard({
     return { rows: out, dividerIdx: divider };
   }, [chain, right, sel, inlineDrill, drillExtra]);
 
+  /* THE ROWS GO IN BY THE GRID'S API, on a frame after React's commit — handed as a prop, every strike pressed (the drill
+     row coming and going) made the grid re-render its React cells through flushSync inside the commit: the console's
+     "flushSync was called from inside a lifecycle method" (the audit's X14). The first set rides the prop. */
+  const [firstRows] = useState(rows);
+  useEffect(() => {
+    if (!ready) return;
+    const raf = requestAnimationFrame(() => gridRef.current?.api?.setGridOption('rowData', rows));
+    return () => cancelAnimationFrame(raf);
+  }, [rows, ready]);
+
   const columnDefs = useMemo<ColDef<ChainGridRow>[]>(
     () => [
       {
@@ -375,7 +387,7 @@ export const ChainCard = memo(function ChainCard({
                  overlay scrollbar (headless Chromium, some Macs) — the right 16px stay clear */
               width: 44,
               resizable: false,
-              cellRenderer: ({ data }: ICellRendererParams<ChainGridRow>) => (data?.kind === 'row' ? <WatchCell strike={data.c.strike} on={!!watched?.has(data.c.strike)} onWatch={onWatch} /> : null),
+              cellRenderer: ({ data }: ICellRendererParams<ChainGridRow>) => (data?.kind === 'row' ? <WatchCell strike={data.c.strike} on={!!watched?.has(data.c.strike)} onWatch={onWatch} always={phone} /> : null),
             } satisfies ColDef<ChainGridRow>,
           ]
         : []),
@@ -386,12 +398,17 @@ export const ChainCard = memo(function ChainCard({
   /* The picked strike is the grid's selection — synced, never clicked into
      (a click is the desk's: one weighs, two chart) */
   useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api || !ready) return;
-    api.forEachNode(n => {
-      const on = n.data?.kind === 'row' && sel != null && Math.abs(n.data.c.strike - sel) < 1e-9;
-      if (n.isSelected() !== on) n.setSelected(on);
+    if (!ready) return;
+    /* on the next frame, outside React's commit — selecting inside it made the grid re-render through flushSync (X14) */
+    const raf = requestAnimationFrame(() => {
+      const api = gridRef.current?.api;
+      if (!api) return;
+      api.forEachNode(n => {
+        const on = n.data?.kind === 'row' && sel != null && Math.abs(n.data.c.strike - sel) < 1e-9;
+        if (n.isSelected() !== on) n.setSelected(on);
+      });
     });
+    return () => cancelAnimationFrame(raf);
   }, [sel, rows, ready]);
 
   const viewport = () => wrapRef.current?.querySelector<HTMLElement>('.ag-grid-viewport, .ag-body-viewport') ?? null;
@@ -432,8 +449,12 @@ export const ChainCard = memo(function ChainCard({
   /* A new ladder (name, expiry, depth) opens centred on the market */
   useEffect(() => {
     if (!ready) return;
-    centerOnSpot(false);
-    locate();
+    /* a frame on, after the new ladder's rows are in (the rowData frame above runs first) */
+    const raf = requestAnimationFrame(() => {
+      centerOnSpot(false);
+      locate();
+    });
+    return () => cancelAnimationFrame(raf);
   }, [centerKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   /* …unless a contract was carried in: its row is brought to the top third
      (the market's centring above runs first, this lands after it). Waits for
@@ -466,7 +487,7 @@ export const ChainCard = memo(function ChainCard({
         <AgGridReact<ChainGridRow>
           ref={gridRef}
           theme={CHAIN_THEME}
-          rowData={rows}
+          rowData={firstRows}
           columnDefs={columnDefs}
           defaultColDef={CHAIN_COL}
           getRowId={p => p.data.key}
