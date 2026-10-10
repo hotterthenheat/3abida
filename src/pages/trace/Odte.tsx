@@ -31,7 +31,9 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useOverlay } from '../../components/ui/layers';
+import Lean from '../../components/trace/Lean';
 import { useNavigate } from 'react-router-dom';
 import { useMarketData } from '../../context/MarketDataContext';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
@@ -130,18 +132,14 @@ const Odte = () => {
     }
   }, [store]);
 
-  // Fullscreen: Esc exits, page scroll locks underneath.
+  /* FULL SCREEN IS A DIALOG (the audit's TR-17 and X13): it takes the keys, holds them, closes on Esc as the top layer
+     and gives them back to the pane's button; the page under it does not scroll */
+  const fsRef = useRef<HTMLDivElement | null>(null);
+  useOverlay({ open: fsIdx !== null, ref: fsRef, onClose: () => setFsIdx(null) });
   useEffect(() => {
     if (fsIdx === null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      setFsIdx(null);
-    };
-    window.addEventListener('keydown', onKey, true);
     document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', onKey, true);
       document.body.style.overflow = '';
     };
   }, [fsIdx]);
@@ -158,12 +156,19 @@ const Odte = () => {
   const [guideOpen, setGuideOpen] = useState(false);
 
   /* The whole same-day book, once, for the head's facts and the sentence */
-  const view = useMemo(() => buildNetFlowView(book, 'all', 'all', paneTimes('SPY')), [book]);
+  /* 0DTE IS TODAY'S EXPIRY ALONE (the audit's TR-54): it counted "today or tomorrow" under a name that says today */
+  const view = useMemo(() => buildNetFlowView(book, 'all', 'all', paneTimes('SPY'), 0), [book]);
   const awake = view.points.length > 0;
   const bullish = view.ncp - view.npp >= 0;
-  // Signed on purpose — RichRead inks +$/-$ by direction (2026-08-30).
-  const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
-  const read = awake ? `The same-day money leans ${bullish ? 'bullish' : 'bearish'} — net calls ${signed(view.ncp)} against net puts ${signed(view.npp)} across ${view.count} contracts expiring today or tomorrow.` : 'The same-day book is still waking up.';
+  /* each figure in its meaning's ink — net puts bought are bearish however their sign reads (the audit's TR-53) */
+  const read = awake ? (
+    <>
+      <RichRead text={`The same-day money leans ${bullish ? 'bullish' : 'bearish'} — `} />
+      <Lean v={view.ncp - view.npp} /> net: net calls <Lean v={view.ncp} /> less net puts <Lean v={view.npp} put />, across {view.count} contracts expiring today.
+    </>
+  ) : (
+    <RichRead text="The same-day book is still waking up." />
+  );
 
   const setPane = (i: number, patch: Partial<PaneCfg>) =>
     setStore(s => ({ ...s, panes: s.panes.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
@@ -236,13 +241,13 @@ const Odte = () => {
               <span className={!awake ? 'text-textMuted' : bullish ? 'text-bull' : 'text-bear'}>{awake ? (bullish ? 'bullish' : 'bearish') : '—'}</span>
             </Fact>
             <Fact label="Net calls" testId="calls">
-              <span className={view.ncp >= 0 ? 'text-bull' : 'text-bear'}>{awake ? signed(view.ncp) : '—'}</span>
+              {awake ? <Lean v={view.ncp} className="font-normal" /> : '—'}
             </Fact>
             <Fact label="Net puts" testId="puts">
-              <span className={view.npp >= 0 ? 'text-bear' : 'text-bull'}>{awake ? signed(view.npp) : '—'}</span>
+              {awake ? <Lean v={view.npp} put className="font-normal" /> : '—'}
             </Fact>
             <Fact label="Contracts" testId="contracts">
-              {awake ? view.count : '—'} <span className="text-textMuted">· expiring today or tomorrow</span>
+              {awake ? view.count : '—'} <span className="text-textMuted">· expiring today</span>
             </Fact>
           </>
         }
@@ -252,7 +257,7 @@ const Odte = () => {
             <DropdownSelect label="Panes" value={store.count} options={PANE_OPTIONS} onChange={n => setStore(s => ({ ...s, count: n }))} title="How many charts on the desk" testId="odte-panes" />
           </>
         }
-        sentence={<RichRead text={read} />}
+        sentence={read}
       >
         {/* on a phone the page scrolls (AppShell): each pane stands 420px tall instead of sharing a framed screen */}
         <div className={`${gridClass} gap-2 md:flex-1 md:min-h-0 max-md:grid-rows-none max-md:auto-rows-[420px] border-t border-borderSubtle p-2`} data-odte-desk>
@@ -263,7 +268,11 @@ const Odte = () => {
         </div>
       </TraceBox>
 
-      {fsIdx !== null && <div className="fixed inset-0 z-[80] bg-canvas p-3">{pane(fsIdx, true)}</div>}
+      {fsIdx !== null && (
+        <div ref={fsRef} role="dialog" aria-modal="true" aria-label="A 0DTE pane, full screen" tabIndex={-1} className="fixed inset-0 z-[80] bg-canvas p-3 outline-none">
+          {pane(fsIdx, true)}
+        </div>
+      )}
     </>
   );
 };

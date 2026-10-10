@@ -30,6 +30,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 const DOOR_W = 400;
 import { ChevronDown, ListPlus, Plus, Trash2, X } from 'lucide-react';
 import Chip from '../ui/Chip';
+import { undoable } from '../ui/undo';
 import {
   MAX_REASONS,
   MAX_TERMS,
@@ -198,6 +199,12 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const doorRef = useRef<HTMLButtonElement | null>(null);
+  /* THE PANEL TAKES THE KEYS AS IT OPENS and gives them back to its door as it closes (the audit's X13) */
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -211,7 +218,10 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       if (draft) setDraft(null);
-      else setOpen(false);
+      else {
+        setOpen(false);
+        doorRef.current?.focus();
+      }
     };
     window.addEventListener('mousedown', onDown);
     window.addEventListener('keydown', onKey, true);
@@ -253,9 +263,12 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
   return (
     <div ref={wrapRef} className="relative shrink-0">
       <button
+        ref={doorRef}
+        type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] font-mono text-[10px] uppercase tracking-wider transition-colors"
+        aria-haspopup="dialog"
+        className="hit inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04] font-mono text-[10px] uppercase tracking-wider transition-colors"
       >
         <ListPlus className="w-3 h-3" />
         Your reasons
@@ -265,18 +278,22 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
 
       {open && (
         <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Your reasons"
+          tabIndex={-1}
           style={{ width: DOOR_W }}
-          className={`absolute top-full mt-1.5 z-[60] max-h-[62vh] overflow-y-auto border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 p-3 animate-slide-in ${
+          className={`outline-none absolute top-full mt-1.5 z-[60] max-h-[62vh] overflow-y-auto border border-borderMuted bg-panel/80 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 p-3 animate-slide-in ${
             align === 'right' ? 'right-0' : 'left-0'
           }`}
         >
           {!draft && (
             <>
               <div className="flex items-baseline justify-between mb-2">
-                <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">
                   Reasons you wrote
                 </span>
-                <span className="font-mono text-[9px] text-textMuted tnum">
+                <span className="font-mono text-[10px] text-textMuted tnum">
                   {reasons.length} of {MAX_REASONS}
                 </span>
               </div>
@@ -299,13 +316,19 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                         {r.name}
                       </button>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-[9px] text-textMuted tnum">
+                        <span className="font-mono text-[10px] text-textMuted tnum">
                           {reasonMatchCount(r, book)} today
                         </span>
+                        {/* AT ONCE, WITH AN UNDO (the audit's X5) */}
                         <button
-                          onClick={() => removeReason(r.id)}
+                          type="button"
+                          onClick={() => {
+                            removeReason(r.id);
+                            undoable({ label: `Removed "${r.name}"`, undo: () => saveReason({ id: r.id, name: r.name, right: r.right, terms: r.terms }) });
+                          }}
                           title="Remove this reason"
-                          className="text-textMuted hover:text-bear transition-colors"
+                          aria-label={`Remove the reason "${r.name}"`}
+                          className="hit text-textMuted hover:text-bear transition-colors"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -335,7 +358,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
           {draft && (
             <>
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">
                   {draft.id ? 'Edit reason' : 'New reason'}
                 </span>
                 <button onClick={() => setDraft(null)} className="text-textMuted hover:text-textPrimary">
@@ -344,7 +367,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
               </div>
 
               <label className="block mb-2.5">
-                <span className="font-mono text-[9px] uppercase tracking-widest text-textMuted">Call it</span>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-textMuted">Call it</span>
                 <input
                   type="text"
                   value={draft.name}
@@ -356,7 +379,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
               </label>
 
               <div className="mb-2.5">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1">Side</div>
+                <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted mb-1">Side</div>
                 <div className="flex flex-wrap gap-1">
                   {(['ANY', 'C', 'P'] as const).map(s => (
                     <Chip
@@ -370,7 +393,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
                 </div>
               </div>
 
-              <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted mb-1">
                 All of these are true
               </div>
               <div className="flex flex-col gap-1.5 mb-2">
@@ -450,7 +473,7 @@ const ReasonDoor = ({ book }: { book: BookContract[] }) => {
 
               {/* What it will say in the feed, and what it catches — live. */}
               <div className="border-t border-borderSubtle pt-2 mb-2.5">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-textMuted mb-1">
+                <div className="font-mono text-[10px] uppercase tracking-widest text-textMuted mb-1">
                   Reads as
                 </div>
                 <div className={`text-[11px] leading-snug ${incomplete ? 'text-textMuted' : 'text-textPrimary'}`}>

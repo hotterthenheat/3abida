@@ -138,9 +138,15 @@ export interface TapeSummary {
   callPremium: number;
   putCount: number;
   putPremium: number;
+  /** Put premium over call premium */
   pcRatio: number;
   rvol: number;
   sweeps: number;
+  /** One-leg prints of real size (data/tape printKind) */
   blocks: number;
+  /** Prints with legs */
+  multi: number;
+  /** The rest: single prints under the block line */
+  other: number;
   largest: LargestPrint | null;
 }

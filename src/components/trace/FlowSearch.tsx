@@ -25,7 +25,7 @@
 ==================================================
 */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Search, X } from 'lucide-react';
 import { fmtUsd } from '../../data/gex';
 import { roomBelow } from '../ui/menuRoom';
@@ -65,6 +65,8 @@ const FlowSearch = ({
   tickersOnly = false,
   compact = false,
   door,
+  span = false,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -82,7 +84,16 @@ const FlowSearch = ({
   compact?: boolean;
   /** The menu's last row, a way out to the page that carries the rest. */
   door?: SearchDoor;
+  /** On a phone's two-column cards line, the field takes the whole line (its words were cut to "TICKER / CON…") */
+  span?: boolean;
+  /** The field's name for a screen reader, where one page carries two (Compare's A and B) */
+  label?: string;
 }) => {
+  const listId = useId();
+  /* THE DOOR OPENS ONLY WHEN IT IS CHOSEN (the audit's TR-55): a typed name the desk does not carry left for Net Flow on
+     Enter, unasked — the door was the menu's only row and so its highlighted one. It opens on a click, or on Enter once
+     the arrows have walked to it. */
+  const [walked, setWalked] = useState(false);
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   /** A picked ticker — the menu is showing that name's contracts. */
@@ -94,6 +105,7 @@ const FlowSearch = ({
   const close = () => {
     setOpen(false);
     setScope(null);
+    setWalked(false);
   };
 
   /* The menu's room (ui/menuRoom): inside a clipping pane it scrolls rather
@@ -216,20 +228,28 @@ const FlowSearch = ({
     }
   };
 
+  /* A COMBOBOX (the audit's TR-4): the field keeps the keys — the arrows walk the menu, Enter picks, Esc closes it, and
+     Tab leaves the field in one step (the menu's rows are not tab stops; it walked every suggestion before) */
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      setWalked(true);
       if (!open) setOpen(true);
       else setHi(h => Math.min(h + 1, flat.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      setWalked(true);
       setHi(h => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
-      if (open && flat[clampedHi]) {
-        e.preventDefault();
-        pick(flat[clampedHi]);
-      }
+      const s = open ? flat[clampedHi] : undefined;
+      if (!s) return;
+      e.preventDefault();
+      if (s.kind === 'door' && !walked) return;
+      pick(s);
     } else if (e.key === 'Escape') {
+      if (open) e.stopPropagation();
+      close();
+    } else if (e.key === 'Tab') {
       close();
     }
   };
@@ -239,9 +259,15 @@ const FlowSearch = ({
       idx === clampedHi ? 'bg-ink/[0.06]' : 'hover:bg-ink/[0.03]'
     }`;
 
+  const optionId = (idx: number) => `${listId}-o${idx}`;
   const renderRow = (s: Suggestion, idx: number) => (
     <button
       key={s.key}
+      type="button"
+      id={optionId(idx)}
+      role="option"
+      aria-selected={idx === clampedHi}
+      tabIndex={-1}
       onMouseEnter={() => setHi(idx)}
       onMouseDown={e => {
         e.preventDefault(); // keep focus; select before the field blurs
@@ -250,7 +276,7 @@ const FlowSearch = ({
       className={rowClass(idx)}
     >
       {s.kind === 'contract' ? (
-        <span className={`inline-flex w-3.5 justify-center font-mono text-[9px] font-bold ${s.right === 'C' ? 'text-bull' : 'text-bear'}`}>
+        <span className={`inline-flex w-3.5 justify-center font-mono text-[10px] font-bold ${s.right === 'C' ? 'text-bull' : 'text-bear'}`}>
           {s.right}
         </span>
       ) : s.kind === 'back' ? (
@@ -264,12 +290,20 @@ const FlowSearch = ({
       <span className={`font-mono text-[11px] ${s.kind === 'back' || s.kind === 'door' ? 'text-textSecondary' : 'font-semibold text-textPrimary'}`}>
         {s.primary}
       </span>
-      {s.kind !== 'back' && s.kind !== 'door' && <span className="ml-auto font-mono text-[9px] tnum text-textMuted">{s.sub}</span>}
+      {s.kind !== 'back' && s.kind !== 'door' && <span className="ml-auto font-mono text-[10px] tnum text-textMuted">{s.sub}</span>}
     </button>
   );
 
   return (
-    <div ref={rootRef} className="relative min-w-0">
+    <div
+      ref={rootRef}
+      className="relative min-w-0"
+      data-span={span || undefined}
+      /* the keys left the field and its menu: the menu goes with them */
+      onBlur={e => {
+        if (!rootRef.current?.contains(e.relatedTarget as Node | null)) close();
+      }}
+    >
       <div
         /* Active = the holographic silver, not lime (Noah, 2026-08-30: "remove
            anything neon in this search thing to holographic silver") — the
@@ -280,47 +314,60 @@ const FlowSearch = ({
           active ? 'holo-border' : 'border border-borderSubtle bg-ink/[0.02] focus-within:border-borderMuted'
         }`}
       >
-        <Search className={`w-3 h-3 shrink-0 ${active ? 'text-silver' : 'text-textMuted'}`} />
+        <Search className={`w-3 h-3 shrink-0 ${active ? 'text-silver' : 'text-textMuted'}`} aria-hidden />
         <input
           value={value}
+          role="combobox"
+          aria-expanded={open && (flat.length > 0 || !!doorRow)}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={open && flat.length > 0 ? optionId(clampedHi) : undefined}
           onChange={e => {
             onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9 .]/g, '').slice(0, 12));
             setScope(null); // typing is searching again
             setOpen(true);
             setHi(0);
+            setWalked(false);
           }}
           onFocus={() => setOpen(true)}
           // A click on a field that already has focus fires no focus event —
           // after a pick-then-clear the reader would be tapping a dead box.
           onClick={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder={tickersOnly ? 'TICKER' : 'TICKER / CONTRACT'}
-          aria-label={tickersOnly ? 'Search by ticker' : 'Search by ticker or contract'}
+          placeholder={tickersOnly ? 'Ticker' : 'Ticker or contract'}
+          aria-label={label ?? (tickersOnly ? 'Search by ticker' : 'Search by ticker or contract')}
           className={`${compact ? 'w-[68px]' : 'w-[132px]'} max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 bg-transparent font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary placeholder:text-textMuted placeholder:font-normal focus:outline-none`}
         />
+        {/* THE CLEAR × IS A BUTTON THE KEYS CAN PRESS (the audit's TR-5): it answered the mouse's press alone, so Enter
+            and Space did nothing; the press still keeps the field's focus, and a finger gets a hit box round it */}
         {active && (
           <button
-            onMouseDown={e => {
-              e.preventDefault();
+            type="button"
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => {
               onChange('');
               setScope(null);
+              setWalked(false);
             }}
-            aria-label="Clear search"
-            className="text-silver/70 hover:text-silver transition-colors"
+            aria-label="Clear the search"
+            className="hit -m-1 p-1 rounded text-silver/70 hover:text-silver transition-colors"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" aria-hidden />
           </button>
         )}
       </div>
       {open && (flat.length > 0 || doorRow) && (
         <div
+          id={listId}
+          role="listbox"
+          aria-label={tickersOnly ? 'Tickers' : 'Tickers and contracts'}
           style={{ maxHeight: menuMax }}
           className="absolute left-0 top-full mt-1 z-40 w-[236px] overflow-y-auto overscroll-contain border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 animate-slide-in"
         >
           {scope ? (
             <>
               {renderRow(flat[0], 0)}
-              <div className="px-2.5 pt-1.5 pb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
+              <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
                 {scope}
               </div>
               {flat.slice(1).map((s, i) => renderRow(s, i + 1))}
@@ -329,20 +376,20 @@ const FlowSearch = ({
             <>
               {tickers.length > 0 && (
                 <>
-                  <div className="px-2.5 pt-1.5 pb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted">Tickers</div>
+                  <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted">Tickers</div>
                   {tickers.map((s, i) => renderRow(s, i))}
                 </>
               )}
               {contracts.length > 0 && (
                 <>
-                  <div className="px-2.5 pt-1.5 pb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
+                  <div role="presentation" className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-textMuted border-t border-borderSubtle">
                     Contracts
                   </div>
                   {contracts.map((s, i) => renderRow(s, tickers.length + i))}
                 </>
               )}
               {doorRow && (
-                <div className={tickers.length + contracts.length > 0 ? 'border-t border-borderSubtle mt-1 pt-1' : ''}>
+                <div role="presentation" className={tickers.length + contracts.length > 0 ? 'border-t border-borderSubtle mt-1 pt-1' : ''}>
                   {renderRow(doorRow, tickers.length + contracts.length)}
                 </div>
               )}

@@ -37,7 +37,7 @@ import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { printKey, useWatch, watchPrint } from '../../context/WatchContext';
 import WatchStar from '../../components/trace/WatchStar';
-import { enrichPrint, rankNotable, sentimentOf, summarizeTape } from '../../data/tape';
+import { enrichPrint, printKind, rankNotable, sentimentOf, summarizeTape, BLOCK_MIN_PREMIUM, BLOCK_MIN_SIZE, type PrintKind } from '../../data/tape';
 import { fmtUsd } from '../../data/gex';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import type { Column } from '../../components/ui/DataTable';
@@ -51,7 +51,7 @@ import LeanCell from '../../components/trace/LeanCell';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
 import { createViewStore } from '../../data/savedViews';
-import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
@@ -64,7 +64,7 @@ const READ_INTERVAL_MS = 8_000;
    key held the visible one, so this is a new key rather than a misread. */
 const COLS_KEY = 'slayer_tape_hidden';
 
-type FlowFilter = 'ALL' | 'SWEEP' | 'BLOCK';
+type FlowFilter = 'ALL' | PrintKind;
 /** The tape's ordering lens (Noah, 2026-08-19: "quickly switch between newest
     prints, largest premium, largest size, bullish flow, and bearish flow").
     Ordering is this axis; bullish/bearish is the DIRECTION axis (the
@@ -99,6 +99,7 @@ interface TapeCut {
 const TAPE_CUT_DEFAULT: TapeCut = { view: 'STREAM', kind: 'ALL', lean: 'ALL', prem: '0', expiry: null, q: '' };
 const PREM_KEYS: PremKey[] = ['0', '100000', '500000', '1000000'];
 const LEAN_KEYS: SentFilter[] = ['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'];
+const KIND_KEYS: FlowFilter[] = ['ALL', 'SWEEP', 'BLOCK', 'MULTI', 'SINGLE'];
 
 function cutToQuery(c: TapeCut): string {
   const p = new URLSearchParams();
@@ -124,7 +125,7 @@ function queryToCut(p: URLSearchParams): { cut: TapeCut; any: boolean } {
   return {
     cut: {
       view: view in VIEW_META ? (view as TapeView) : TAPE_CUT_DEFAULT.view,
-      kind: kind === 'SWEEP' || kind === 'BLOCK' ? (kind as FlowFilter) : TAPE_CUT_DEFAULT.kind,
+      kind: (KIND_KEYS as string[]).includes(kind) ? (kind as FlowFilter) : TAPE_CUT_DEFAULT.kind,
       lean: (LEAN_KEYS as string[]).includes(lean) ? (lean as SentFilter) : TAPE_CUT_DEFAULT.lean,
       prem: (PREM_KEYS as string[]).includes(prem) ? (prem as PremKey) : TAPE_CUT_DEFAULT.prem,
       expiry: exp && /^\d{4}-\d{2}-\d{2}$/.test(exp) ? exp : null,
@@ -142,17 +143,23 @@ const PREM_CHIPS: { value: Exclude<PremKey, '0'>; label: string }[] = [
 
 /* The four cuts as cards on the controls line (the walk, 2026-09-09) */
 const ORDER_OPTIONS: DropdownOption<TapeView>[] = (Object.keys(VIEW_META) as TapeView[]).map(v => ({ value: v, label: VIEW_META[v].label, hint: VIEW_META[v].hint }));
+/* THE KINDS SAY WHAT THEY COUNT (the audit's TR-26): a block is size in one print, a print with legs is its own kind, and
+   the rest are single prints — every non-sweep was a "block" before */
 const KIND_OPTIONS: DropdownOption<FlowFilter>[] = [
-  { value: 'ALL', label: 'Sweeps and blocks', hint: 'Every print' },
-  { value: 'SWEEP', label: 'Sweeps', hint: 'Aggressive orders swept across exchanges' },
-  { value: 'BLOCK', label: 'Blocks', hint: 'Negotiated size, one print' },
+  { value: 'ALL', label: 'Every kind', hint: 'Every print' },
+  { value: 'SWEEP', label: 'Sweeps', hint: 'Orders swept across exchanges' },
+  { value: 'BLOCK', label: 'Blocks', hint: `One leg, ${BLOCK_MIN_SIZE} contracts or $${BLOCK_MIN_PREMIUM / 1000}K and up, in one print` },
+  { value: 'MULTI', label: 'Multi-leg', hint: 'A print with legs — part of a spread' },
+  { value: 'SINGLE', label: 'Single prints', hint: 'One leg, under the block line' },
 ];
+/* "Every print", not "Both ways" (the audit's TR-28): the mid prints are in it too, and they have a card of their own */
 const LEAN_OPTIONS: DropdownOption<SentFilter>[] = [
-  { value: 'ALL', label: 'Both ways', hint: 'Bullish and bearish prints' },
+  { value: 'ALL', label: 'Every print', hint: 'Bullish, bearish and mid prints' },
   { value: 'BULLISH', label: 'Bullish', hint: 'Calls bought, puts sold' },
   { value: 'BEARISH', label: 'Bearish', hint: 'Puts bought, calls sold' },
+  { value: 'NEUTRAL', label: 'Neutral (mid)', hint: 'Traded at the mid — neither side pressed' },
 ];
-const PREM_OPTIONS: DropdownOption<PremKey>[] = [{ value: '0', label: 'Any', hint: 'No floor' }, ...PREM_CHIPS.map(c => ({ value: c.value, label: c.label, hint: `Only prints ${c.label}` }))];
+const KIND_WORD: Record<PrintKind, string> = { SWEEP: 'Sweep', BLOCK: 'Block', MULTI: 'Multi-leg', SINGLE: 'Single' };
 
 /** Fixed widths where a header or a cell would otherwise clip; the tag takes the rest */
 /* A COLUMN NARROWER THAN ITS CELL PAINTS A CLIPPED ELLIPSIS — a single stray
@@ -165,30 +172,49 @@ const WIDTHS: Record<string, number> = { time: 124, ticker: 104, contract: 196, 
    twice by default would be the clutter the compounding was for. */
 const TAPE_CLOSED = ['dte', 'otm', 'vol', 'oi'];
 const FLEXES: Record<string, number> = { tag: 1 };
+/* The row's who and what stand still; the money stands at the right (the audit's TR-3) */
+const PIN_LEFT = ['time', 'ticker', 'contract'];
+const PIN_RIGHT = ['prem'];
+
+/** A print on a phone, two lines: the contract, then its money, its side and its size (the audit's TR-7) */
+const phoneRow = (r: TapeRow) => {
+  const s = sentimentOf(r.p);
+  return (
+    <PhoneRow
+      lead={<WatchStar k={printKey(r.p)} make={() => watchPrint(r.p, 'tape')} noun="print" />}
+      title={
+        <>
+          <span className="font-bold">{r.p.ticker}</span>
+          <span className="font-bold tnum">{r.p.strike}</span>
+          <span className={r.p.right === 'C' ? 'text-bull' : 'text-bear'}>{r.p.right === 'C' ? 'call' : 'put'}</span>
+          <span className="text-[11px] text-textSecondary tnum">{r.p.expiry.slice(0, 5)}</span>
+        </>
+      }
+      aside={r.p.time}
+      figures={[
+        <span key="p" className="font-semibold text-textPrimary">{fmtUsd(r.p.premium)}</span>,
+        <span key="s">{SIDE_WORD[r.p.side]} ${r.p.fill.toFixed(2)}</span>,
+        <span key="z">{num(r.p.size)} contracts</span>,
+        <span key="l" className={SENT_TEXT[s]}>{s.toLowerCase()}</span>,
+        printKind(r.p) === 'SWEEP' ? <span key="k" className="text-warn">sweep</span> : null,
+      ].filter(Boolean)}
+    />
+  );
+};
 /** What the short headers mean, on hover (the dotted explainers of the old table) */
 const TOOLTIPS: Record<string, string> = {
   otm: 'How far the strike sits from the spot, as a share of the spot',
   contract: 'The contract, the days it has left, and where the market was when the print crossed',
   quote: 'What was paid, which side of the market it crossed, and the bid and ask it crossed into',
-  size: 'Contracts on this print, over the day\'s volume and the standing open interest',
+  size: "Contracts on this print, over the day's volume and the open interest as of the last close",
   prem: 'Dollars paid — size × fill × 100',
   flow: 'How hard the aggressor pressed — right of centre lifted offers, left of centre hit bids',
-  dayRatio: "The day's prints on the ask against the bid, for this contract",
+  dayRatio: "The day's prints on the ask against the bid, for this contract — its day lean",
   sentiment: 'Bullish, bearish or neutral — by the side hit and the right',
-  deltaOi: 'Open interest change since yesterday',
+  deltaOi: 'Open interest change since yesterday — open interest is as of the last close',
   volOverOi: "Today's volume against open interest — above 1.5, positions were built today",
   iv: 'Implied volatility of the contract',
-  tag: 'A sweep, or the structure the print belongs to',
-};
-
-/** The tape's clock speaks the house's 24-hour time (the Screener's "18:16",
-    the hold's "as of HH:MM") — the simulator hands prints "6:17:50 PM". */
-const to24h = (t: string): string => {
-  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i.exec(t.trim());
-  if (!m) return t;
-  let h = Number(m[1]) % 12;
-  if (m[4].toUpperCase() === 'PM') h += 12;
-  return `${String(h).padStart(2, '0')}:${m[2]}${m[3] ? `:${m[3]}` : ''}`;
+  tag: 'The kind of print — a sweep, a block, a multi-leg print (with its structure), or a single print',
 };
 
 /* One formatter, reused: `toLocaleString` builds a new one per call, and a
@@ -201,14 +227,16 @@ type ReadSeg = string | { print: FlowPrint; label: string };
 
 /** The terminal's read of the tape — same voice as market notes. The largest
     print travels as a DOOR segment: the sentence names a contract, so it
-    opens that contract's card (Noah, 2026-08-30). */
+    opens that contract's card (Noah, 2026-08-30).
+    THE SENTENCE AGREES WITH ITS OWN NUMBERS (the audit's TR-27): it said "aggressive call buying leads" while the puts
+    carried three times the calls' money — the lead is bullish premium (calls bought and puts sold) against bearish
+    (puts bought and calls sold), and the sentence now says exactly that, with both sides' dollars. */
 function tapeRead(rows: FlowPrint[], summary: TapeSummary): ReadSeg[] {
   if (rows.length === 0) return ['Awaiting prints…'];
   const zdte = rows.filter(r => r.dte === 0).length;
+  const lead = summary.bullPremium >= summary.bearPremium ? 'Bullish' : 'Bearish';
   const segs: ReadSeg[] = [
-    `${summary.bullish ? 'Bullish' : 'Bearish'} tape — ${
-      summary.bullish ? 'aggressive call buying leads' : 'put premium leads'
-    } by ${fmtUsd(Math.abs(summary.netPremium))}`,
+    `${lead} premium leads by ${fmtUsd(Math.abs(summary.netPremium))} — ${fmtUsd(summary.bullPremium)} bullish (calls bought, puts sold) against ${fmtUsd(summary.bearPremium)} bearish (puts bought, calls sold)`,
   ];
   if (summary.largest) {
     const L = summary.largest;
@@ -219,7 +247,7 @@ function tapeRead(rows: FlowPrint[], summary: TapeSummary): ReadSeg[] {
     segs.push(` at [[${fmtUsd(L.premium)}]]`);
   }
   if (summary.sweeps > 2) segs.push(` · ${summary.sweeps} sweeps on the tape`);
-  if (rows.length >= 20 && zdte / rows.length > 0.25) segs.push(` · 0DTE is ${Math.round((zdte / rows.length) * 100)}% of flow`);
+  if (rows.length >= 20 && zdte / rows.length > 0.25) segs.push(` · 0DTE is ${Math.round((zdte / rows.length) * 100)}% of the prints`);
   segs.push('.');
   return segs;
 }
@@ -243,17 +271,17 @@ const QuoteCell = ({ print }: { print: FlowPrint }) => (
   <span className="inline-flex flex-col items-end gap-[2px] leading-none align-middle">
     <span className="inline-flex items-baseline gap-1">
       <span className="font-mono text-[11px] font-bold tnum text-textPrimary">${print.fill.toFixed(2)}</span>
-      <span className="font-mono text-[9px] font-semibold uppercase tracking-wide text-textPrimary">{SIDE_WORD[print.side]}</span>
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-textPrimary">{SIDE_WORD[print.side]}</span>
     </span>
     <span className="inline-flex items-center gap-1">
-      <span className="font-mono text-[9px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
+      <span className="font-mono text-[10px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
       <span className="relative w-10 h-[3px] rounded-full bg-ink/[0.07]">
         <span
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full bg-textPrimary"
           style={{ left: `${print.fillPos * 100}%` }}
         />
       </span>
-      <span className="font-mono text-[9px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
+      <span className="font-mono text-[10px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
     </span>
   </span>
 );
@@ -266,7 +294,7 @@ const QuoteCell = ({ print }: { print: FlowPrint }) => (
 const SizeCell = ({ print }: { print: FlowPrint }) => (
   <span className="inline-flex flex-col items-end gap-[2px] leading-none align-middle">
     <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{num(print.size)}</span>
-    <span className="font-mono text-[9px] tnum text-textSecondary whitespace-nowrap">
+    <span className="font-mono text-[10px] tnum text-textSecondary whitespace-nowrap" title="Open interest as of the last close">
       vol {num(print.volume)} <span aria-hidden>·</span> oi {num(print.oi)}
     </span>
   </span>
@@ -277,9 +305,11 @@ const SizeCell = ({ print }: { print: FlowPrint }) => (
     BUY/SELL chip that used to sit above it is gone: it restated the side the
     Quote cell now says in a word, beside the fill that proves it, and its
     green fought the green on "call" in the same row. */
+/* THE SIDE IN THE SIDE'S INK (the audit's X12): the bar was green to the right and red to the left — the reading the quote
+   cell beside it already refuses ("makes a bought put look bullish"). Its REACH and SIDE carry the press; one ink. */
 const FlowCell = ({ print }: { print: FlowPrint }) => {
   const score = print.flowScore;
-  const bar = score > 15 ? 'bg-bull/90' : score < -15 ? 'bg-bear/80' : 'bg-ink/25';
+  const bar = Math.abs(score) > 15 ? 'bg-textPrimary/80' : 'bg-ink/25';
   const half = Math.abs(score) / 2;
   return (
     <span className="inline-flex flex-col items-start gap-[3px] w-16">
@@ -432,12 +462,27 @@ const LiveTape = () => {
     setParams(new URLSearchParams(cutQuery), { replace: true });
   }, [cutQuery, setParams]);
 
+  /* THE FLOOR SAYS WHAT IT LEAVES (the audit's TR-29): ≥$500K and ≥$1M often left nothing, with no way to know before
+     picking — each floor carries the count of prints on the tape it keeps, under the other cards */
+  const premOptions = useMemo<DropdownOption<PremKey>[]>(() => {
+    const nq = norm(searchQuery);
+    const base = cutExpiry(rows).filter(r => (flowFilter === 'ALL' || printKind(r) === flowFilter) && (sentFilter === 'ALL' || sentimentOf(r) === sentFilter) && matchesTape(r, nq));
+    const count = (min: number) => base.reduce((n, r) => n + (r.premium >= min ? 1 : 0), 0);
+    return [
+      { value: '0', label: 'Any', hint: `No floor · ${base.length} prints` },
+      ...PREM_CHIPS.map(c => {
+        const n = count(Number(c.value));
+        return { value: c.value, label: c.label, hint: n === 0 ? 'No print this size on the tape now' : `${n} print${n === 1 ? '' : 's'} on the tape now` };
+      }),
+    ];
+  }, [rows, flowFilter, sentFilter, searchQuery, cutExpiry]);
+
   const filtered = useMemo(() => {
     const minPrem = Number(minPremKey);
     const nq = norm(searchQuery);
     return cutExpiry(rows).filter(
       r =>
-        (flowFilter === 'ALL' || (flowFilter === 'SWEEP' ? r.sweep : !r.sweep)) &&
+        (flowFilter === 'ALL' || printKind(r) === flowFilter) &&
         (sentFilter === 'ALL' || sentimentOf(r) === sentFilter) &&
         r.premium >= minPrem &&
         matchesTape(r, nq)
@@ -564,18 +609,8 @@ const LiveTape = () => {
     if (next >= 0 && next < displayRows.length) setOpenPrint(displayRows[next]);
   };
 
-  // ↑/↓ step through prints while the drilldown is open
-  useEffect(() => {
-    if (openPrint === null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-      e.preventDefault();
-      stepPrint(e.key === 'ArrowUp' ? -1 : 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openPrint, openIdx, displayRows]);
+  /* ↑/↓ step through the prints while the card is open — the card listens itself now (PrintDrilldown), so the keys work
+     on every page that opens it (the audit's TR-1) */
 
   /* THE COLUMNS, in the siblings' registers. Distance and interest are facts
      in neutral ink (the Screener's BPS rule — this also ends the tape
@@ -594,7 +629,7 @@ const LiveTape = () => {
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={printKey(r.p)} make={() => watchPrint(r.p, 'tape')} noun="print" />
             {r.rank !== undefined && <span className="w-7 shrink-0 text-[10px] font-bold text-textPrimary">#{r.rank}</span>}
-            <span className="text-[11px] text-textPrimary">{to24h(r.p.time)}</span>
+            <span className="text-[11px] text-textPrimary">{r.p.time}</span>
           </span>
         ),
       },
@@ -609,7 +644,7 @@ const LiveTape = () => {
             <CompanyLogo ticker={r.p.ticker} size={15} />
             <span className="font-bold text-textPrimary">{r.p.ticker}</span>
             {/* White, not lime (Noah, 2026-08-30): a leg count is a fact, not a status. */}
-            {r.p.legs > 1 && <span className="text-[9px] text-textPrimary">×{r.p.legs}</span>}
+            {r.p.legs > 1 && <span className="text-[10px] text-textPrimary">×{r.p.legs}</span>}
           </span>
         ),
       },
@@ -698,9 +733,10 @@ const LiveTape = () => {
       },
       {
         key: 'dayRatio',
-        label: 'Day ratio',
+        /* "Day lean" — the same cell is the Lean on every other page (the audit's TR-14) */
+        label: 'Day lean',
         group: 'Conviction',
-        header: 'Day ratio',
+        header: 'Day lean',
         align: 'right',
         sortValue: r => 100 - r.p.ratioBidPct,
         // The Screener's Lean cell IS the tape's old ratio cell, shared.
@@ -780,15 +816,18 @@ const LiveTape = () => {
       },
       {
         key: 'tag',
-        label: 'Tag',
+        label: 'Kind',
         group: 'Activity',
-        header: 'Tag',
-        sortValue: r => (r.p.sweep ? 'SWEEP' : r.p.strat),
-        render: r => (
-          <span className="text-[9px] text-textSecondary">
-            {r.p.sweep ? <span className="text-warn font-semibold">SWEEP</span> : r.p.strat}
-          </span>
-        ),
+        header: 'Kind',
+        sortValue: r => printKind(r.p),
+        render: r => {
+          const k = printKind(r.p);
+          return (
+            <span className="text-[10px] text-textSecondary">
+              {k === 'SWEEP' ? <span className="text-warn font-semibold">Sweep</span> : k === 'MULTI' && r.p.strat !== '—' ? `${KIND_WORD[k]} · ${r.p.strat}` : KIND_WORD[k]}
+            </span>
+          );
+        },
       },
     ],
     [champId]
@@ -823,23 +862,26 @@ const LiveTape = () => {
     <>
       <TraceBox
         title="The tape"
-        sub={`${VIEW_META[view].label} — ${VIEW_META[view].hint} · a row opens the print's card, the mark at its left keeps it under watch`}
+        sub={`${VIEW_META[view].label} — ${VIEW_META[view].hint} · a row opens the print's card, the bookmark at its left tracks it`}
         testId="live-tape"
         data={{ view, prints: filtered.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the tape', door: 'What a print, its fill and its conviction mean', body: <LiveTapeGuide />, testId: 'live-tape-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
             <Fact label="Prints" testId="prints">
-              {filtered.length} <span className="text-textMuted">of {rows.length} · {markedCount} marked</span>
+              {filtered.length} <span className="text-textMuted">of {rows.length} · {markedCount} tracked</span>
             </Fact>
             <Fact label="Premium" testId="premium" title="Call and put premium in this view">
               <span className="text-bull">{beamSummary.callCount}C</span> {fmtUsd(beamSummary.callPremium)} <span className="text-textMuted">/</span> <span className="text-bear">{beamSummary.putCount}P</span> {fmtUsd(beamSummary.putPremium)}
             </Fact>
-            <Fact label="Sweeps · blocks · P/C" testId="kinds" title="Sweeps, blocks, and put premium against call premium in this view">
-              {beamSummary.sweeps} <span className="text-textMuted">·</span> {beamSummary.blocks} <span className="text-textMuted">·</span> {beamSummary.pcRatio.toFixed(2)}
+            <Fact label="Sweeps · blocks · multi-leg" testId="kinds" title={`Sweeps, blocks (one leg, ${BLOCK_MIN_SIZE} contracts or $${BLOCK_MIN_PREMIUM / 1000}K and up) and multi-leg prints in this view; ${beamSummary.other} single prints besides`}>
+              {beamSummary.sweeps} <span className="text-textMuted">·</span> {beamSummary.blocks} <span className="text-textMuted">·</span> {beamSummary.multi}
+            </Fact>
+            <Fact label="P/C premium" testId="pc" title="Put premium divided by call premium in this view">
+              {beamSummary.callPremium > 0 ? beamSummary.pcRatio.toFixed(2) : '—'}
             </Fact>
             <Fact label="0DTE" testId="odte" title="Share of this view's prints expiring today">
-              <span className={zdteShare >= 0.25 ? 'text-warn' : undefined}>{Math.round(zdteShare * 100)}%</span> <span className="text-textMuted">of flow</span>
+              <span className="text-textPrimary">{Math.round(zdteShare * 100)}%</span> <span className="text-textMuted">of prints</span>
             </Fact>
             {whales.bull && whales.bull !== whales.all && (
               <Champion label="Top bull" ink="bull" onOpen={() => setOpenPrint(whales.bull)} testId="bull">
@@ -860,11 +902,11 @@ const LiveTape = () => {
         }
         controls={
           <>
-            <FlowSearch value={searchQuery} onChange={setSearchQuery} rows={rows} />
+            <FlowSearch value={searchQuery} onChange={setSearchQuery} rows={rows} span />
             <DropdownSelect label="Order" value={view} options={ORDER_OPTIONS} onChange={setView} title="How the prints are ordered" testId="tape-order" />
-            <DropdownSelect label="Kind" value={flowFilter} options={KIND_OPTIONS} onChange={setFlowFilter} title="Sweeps, blocks, or both" testId="tape-kind" />
-            <DropdownSelect label="Lean" value={sentFilter} options={LEAN_OPTIONS} onChange={setSentFilter} title="Bullish prints, bearish prints, or both" testId="tape-lean" />
-            <DropdownSelect label="Premium" value={minPremKey} options={PREM_OPTIONS} onChange={setMinPremKey} title="The smallest print shown" testId="tape-premium" />
+            <DropdownSelect label="Kind" value={flowFilter} options={KIND_OPTIONS} onChange={setFlowFilter} title="Sweeps, blocks, multi-leg or single prints" testId="tape-kind" />
+            <DropdownSelect label="Lean" value={sentFilter} options={LEAN_OPTIONS} onChange={setSentFilter} title="Bullish, bearish or mid prints — or every print" testId="tape-lean" />
+            <DropdownSelect label="Premium" value={minPremKey} options={premOptions} onChange={setMinPremKey} title="The smallest print shown" testId="tape-premium" />
             {/* The expiry cut — only the dates the prints on the tape carry (Noah, 2026-09-12) */}
             <ExpiryCalendar
               value={chosenExpiry ? isoDate(chosenExpiry.date) : ''}
@@ -916,6 +958,9 @@ const LiveTape = () => {
             rowKey={keyOf}
             onRowClick={openRow}
             selectedKey={openPrint ? String(openPrint.id) : null}
+            pinLeft={PIN_LEFT}
+            pinRight={PIN_RIGHT}
+            phoneRow={phoneRow}
             rowClass={FADE_ROW}
             animate={false}
             autoHeight

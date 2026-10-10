@@ -40,6 +40,7 @@
 ==================================================
 */
 
+import { nyClock, nyIsoDate, nyStamp } from '../../core/nyTime';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays } from 'lucide-react';
@@ -81,13 +82,9 @@ const SOURCE_LABEL: Record<WatchSource, string> = {
   card: 'the card',
 };
 
-/** "14:22" today, "09/02 14:22" for an older mark — the house's 24-hour clock. */
+/** "14:22" today, "Oct 2, 14:22" for an older one — New York's 24-hour clock and the house's one date style (X2, X2.9) */
 function markedAt(ms: number): string {
-  const d = new Date(ms);
-  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const today = new Date();
-  const sameDay = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
-  return sameDay ? hm : `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${hm}`;
+  return nyIsoDate(ms) === nyIsoDate() ? nyClock(ms) : nyStamp(ms);
 }
 
 /** The lean as the Lean cell would say it, in its ink — for a then → now pair. */
@@ -225,7 +222,8 @@ const FlowTracker = () => {
   const keyOf = useCallback((r: TrackRow) => r.w.key, []);
   /* A contract that has left the book dims; a print's contract being off
      the book is the usual case, and a structure never had one — they don't. */
-  const dimGone = useCallback((r: TrackRow) => (r.w.kind === 'contract' && !r.live ? 'opacity-50' : undefined), []);
+  /* …by a text tier, never by opacity (the house's rule; the audit's X12) */
+  const dimGone = useCallback((r: TrackRow) => (r.w.kind === 'contract' && !r.live ? '[&_.text-textPrimary]:!text-textSecondary' : undefined), []);
 
   const columns = useMemo<Column<TrackRow>[]>(
     () => [
@@ -375,7 +373,7 @@ const FlowTracker = () => {
           const then = r.leanThen != null ? leanWord(r.leanThen) : null;
           const now = r.leanNow != null ? leanWord(r.leanNow) : null;
           return (
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-wide tnum whitespace-nowrap">
               {then ? <span className={then.ink}>{then.text}</span> : <span className="text-textSecondary">—</span>}
               <span className="text-textSecondary"> → </span>
               {now ? <span className={now.ink}>{now.text}</span> : <span className="text-textSecondary">—</span>}
@@ -410,7 +408,7 @@ const FlowTracker = () => {
   }, [rows]);
 
   const read = useMemo<ReactNode>(() => {
-    if (total === 0) return <RichRead text="Nothing under watch yet." />;
+    if (total === 0) return null;
     const parts = [
       counts.contracts ? `${counts.contracts} contract${counts.contracts === 1 ? '' : 's'}` : '',
       counts.prints ? `${counts.prints} print${counts.prints === 1 ? '' : 's'}` : '',
@@ -421,15 +419,15 @@ const FlowTracker = () => {
     const m = champs.moved;
     return (
       <>
-        <RichRead text={`${what} under watch${gone ? `, ${gone} no longer on today’s book` : ''}. `} />
+        <RichRead text={`${what} tracked${gone ? `, ${gone} no longer on today’s book` : ''}. `} />
         {m ? (
           <>
-            <RichRead text="Moved most since its mark: " />
+            <RichRead text="Moved most since it was tracked: " />
             <ReadDoor onOpen={() => openRow(m)}>{champs.label(m)}</ReadDoor>
             <RichRead text={`, [[${signedPct(m.chg!)}]] on the ${m.w.kind === 'print' ? 'fill' : 'last'}.`} />
           </>
         ) : (
-          <RichRead text="Nothing has moved since its mark yet." />
+          <RichRead text="Nothing has moved since it was tracked." />
         )}
       </>
     );
@@ -451,14 +449,14 @@ const FlowTracker = () => {
   return (
     <>
       <TraceBox
-        title="Under watch"
-        sub="Everything you marked on Trace — and what it has done since · a row opens its card"
+        title="Tracked"
+        sub="Everything you tracked on Trace — and what it has done since · a row opens its card"
         testId="tracker"
         data={{ watched: total, rows: rows.length, expiry: expiry ?? 'all' }}
-        guide={{ title: 'How to read the watch', door: 'What a mark and the since columns mean', body: <TrackerGuide />, testId: 'tracker-guide', open: guideOpen, onOpen: setGuideOpen }}
+        guide={{ title: 'How to read the watch', door: 'What tracking and the since columns mean', body: <TrackerGuide />, testId: 'tracker-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
-            <Fact label="Under watch" testId="watched">
+            <Fact label="Tracked" testId="watched">
               {nq ? `${rows.length} of ${total}` : total}
             </Fact>
             <Fact label="Contracts · prints · structures" testId="kinds">
@@ -481,22 +479,25 @@ const FlowTracker = () => {
             )}
           </>
         }
+        /* NOTHING TRACKED, NO CONTROLS (the audit's TR-71): a hold, a search and an expiry over nothing were dead cards */
         controls={
+          total === 0 ? null : (
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="marks" tickersOnly />
-            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only marks on one expiry — or every expiry" testId="tracker-expiry" />
+            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="tracked" tickersOnly span />
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only tracked items on one expiry — or every expiry" testId="tracker-expiry" />
           </>
+          )
         }
         sentence={read}
       >
         {total === 0 ? (
           /* The empty state is a sentence with doors, not a grid */
           <div className="border-t border-borderSubtle px-5 pt-5 pb-6 text-[12px] text-textSecondary leading-relaxed" data-tracker-empty>
-            Nothing is under watch. The mark at the left of any row on the <ReadDoor onOpen={() => navigate('/trace/live-tape')}>Live Tape</ReadDoor>, the <ReadDoor onOpen={() => navigate('/trace/screener')}>Screener</ReadDoor> or any other Trace page keeps it here, with what it has done since.
+            Nothing is tracked yet. The bookmark at the left of any row on the <ReadDoor onOpen={() => navigate('/trace/live-tape')}>Live Tape</ReadDoor>, the <ReadDoor onOpen={() => navigate('/trace/screener')}>Screener</ReadDoor> or any other Trace page keeps it here, with what it has done since.
           </div>
         ) : (
-          <TraceGrid rows={rows} columns={columns} widths={WIDTHS} flexes={FLEXES} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} rowClass={dimGone} autoHeight noun="prints" emptyText="Nothing under watch" emptyBody="Mark a print anywhere on Trace and it follows you here." testId="tracker" />
+          <TraceGrid rows={rows} columns={columns} widths={WIDTHS} flexes={FLEXES} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} rowClass={dimGone} autoHeight noun="tracked items" emptyText={nq ? `None of your ${total} tracked match ${query}` : 'Nothing on this expiry'} emptyBody={nq ? 'Clear the search to see them all.' : 'Clear the expiry to see every tracked item.'} testId="tracker" />
         )}
       </TraceBox>
 

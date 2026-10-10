@@ -55,13 +55,15 @@ import { BULL, SUPREME } from '../gex/paletteInk';
 import { Name } from '../ui/Name';
 import { FONT_SANS } from '../../theme/fonts';
 
+/* EVERY INK A TOKEN (2026-10-09, the audit's X12): the card's charts were a dark island on paper, their inks literal;
+   they follow the page's ground now, as the Net Flow pane does */
 const ASK = BULL; // lifted the offer — the market's bull colour
-const BID = '#FF3B30';
-const FENCE = 'rgba(237,237,237,0.3)'; // mid fills — undecided, sits ON the zero line
-const PRICE_LINE = '#ededed'; // neutral "where the market is"
-const IV_LINE = '#B39DDB'; // muted violet — a different axis, a different family (left the sky lane when the supreme took it, 2026-08-29)
-const AXIS = '#7d7d7d'; // matches textMuted — axis labels were the squintiest gray on the page
-const GRID = 'rgba(255,255,255,0.05)';
+const BID = 'rgb(var(--bear))';
+const FENCE = 'rgb(var(--ink) / 0.3)'; // mid fills — undecided, sits ON the zero line
+const PRICE_LINE = 'rgb(var(--text-primary))'; // neutral "where the market is"
+const IV_LINE = 'rgb(var(--cat-analyst))'; // muted violet — a different axis, a different family (left the sky lane when the supreme took it, 2026-08-29)
+const AXIS = 'rgb(var(--text-muted))'; // axis labels
+const GRID = 'rgb(var(--ink) / 0.05)';
 
 /* Stacked strips only read as one instrument if their plot areas align to the
    pixel. Same left axis width, and the right gutter is reserved even when the
@@ -73,7 +75,9 @@ const RIGHT_PAD = 6;
 
 /** The moment-marker — the print the drilldown was opened from. White, not
     lime (Noah, 2026-08-18): white = "where", the same voice as the spot rule. */
-const printLine = (min: number, yAxisId: string, withLabel: boolean) => (
+/* The label sits on the line's open side: a print at the window's right edge put "THIS PRINT" past it, cut to "THIS
+   PRIN" (the audit's TR-69) */
+const printLine = (min: number, yAxisId: string, withLabel: boolean, nearRight = false) => (
   <ReferenceLine
     x={min}
     yAxisId={yAxisId}
@@ -82,13 +86,13 @@ const printLine = (min: number, yAxisId: string, withLabel: boolean) => (
     strokeDasharray="4 3"
     label={
       withLabel
-        ? { value: 'THIS PRINT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 9, fontFamily: FONT_SANS, offset: 8 }
+        ? { value: 'THIS PRINT', position: nearRight ? 'insideTopRight' : 'insideTopLeft', fill: PRICE_LINE, fontSize: 10, fontFamily: FONT_SANS, offset: 8 }
         : undefined
     }
   />
 );
 
-const axisTick = { fill: AXIS, fontSize: 9, fontFamily: FONT_SANS };
+const axisTick = { fill: AXIS, fontSize: 10, fontFamily: FONT_SANS };
 
 const Box = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded border border-borderMuted bg-panel px-2.5 py-1.5 shadow-2xl shadow-black/60 font-mono text-[10px]">
@@ -102,7 +106,7 @@ export { default as Chip } from '../ui/Chip';
 /** One figure in a panel's stat strip. */
 const Stat = ({ label, value, tone = 'text-textPrimary' }: { label: string; value: string; tone?: string }) => (
   <span className="flex flex-col gap-0.5 min-w-0">
-    <span className="font-mono text-[9px] uppercase tracking-wider text-textMuted truncate">{label}</span>
+    <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted truncate">{label}</span>
     <span className={`font-mono text-[12px] font-semibold tnum ${tone} truncate`}>{value}</span>
   </span>
 );
@@ -375,7 +379,7 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
   const s = cf.stats;
 
   return (
-    <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5" data-theme="dark">
+    <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5">
       {/* Strip header: what it is, the window's own figures, the overlays */}
       <div className="flex items-baseline gap-2.5 flex-wrap">
         <span className="font-mono text-[10px] uppercase tracking-widest text-textSecondary">The contract's prints</span>
@@ -448,8 +452,8 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
             {/* IV keeps its own scale but prints no axis — the tooltip and the
                 blue ink carry it; a third printed scale would be noise */}
             {showIv && <YAxis yAxisId="iv" hide domain={['auto', 'auto']} />}
-            <Tooltip content={<LedgerTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-            <ReferenceLine yAxisId="prem" y={0} stroke="rgba(255,255,255,0.18)" />
+            <Tooltip content={<LedgerTooltip />} isAnimationActive={false} cursor={{ fill: 'rgb(var(--ink) / 0.04)' }} />
+            <ReferenceLine yAxisId="prem" y={0} stroke="rgb(var(--ink) / 0.18)" />
             {/* Invisible — exists so the axis tooltip carries per-bin payloads */}
             <Bar yAxisId="prem" dataKey="hover" barSize={8} fillOpacity={0} isAnimationActive={false} />
             <Customized component={<LedgerLayer bins={bins} intervalMin={intervalMin} whale={whale} />} />
@@ -484,27 +488,27 @@ export const FlowPanel = ({ cf, showAvg, onShowAvg, showIv, onShowIv, dayOffset,
                 isAnimationActive={false}
               />
             )}
-            {printMin !== null && printLine(printMin, 'prem', true)}
+            {printMin !== null && printLine(printMin, 'prem', true, printMin > cf.windowMin * 0.7)}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
       {/* Legend */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: ASK }} /> Paid the offer · stacks up
         </span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: BID }} /> Hit the bid · stacks down
         </span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: FENCE }} /> Mid · on the fence
         </span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-textSecondary">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
           <span className="w-2 h-2" style={{ background: SUPREME }} /> Largest print
         </span>
         {printMin !== null && (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-textSecondary">
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-textSecondary">
             <span className="w-3 h-[2px]" style={{ background: PRICE_LINE }} /> This print
           </span>
         )}
@@ -589,7 +593,7 @@ const MetricPicker = ({ value, onChange }: { value: NetMetric; onChange: (v: Net
                 <span className={`font-mono text-[11px] ${m.value === value ? 'text-textPrimary font-semibold' : 'text-textSecondary'}`}>
                   {m.label}
                 </span>
-                <span className="font-mono text-[9px] text-textMuted">{m.hint}</span>
+                <span className="font-mono text-[10px] text-textMuted">{m.hint}</span>
               </span>
             </button>
           ))}
@@ -687,7 +691,7 @@ export const NetPanel = ({
   const isVolOrUsd = metric === 'underlyingVol' || isUsd;
 
   return (
-    <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5" data-theme="dark">
+    <div className="flex flex-col gap-2 min-w-0 rounded-md bg-panel px-2 py-1.5">
       {/* Strip header mirrors the prints strip: title, picker, the window's
           own figures inline — a full stat grid at 1600px was mostly gap */}
       <div className="flex items-center gap-2.5 flex-wrap">
@@ -748,8 +752,8 @@ export const NetPanel = ({
               <CartesianGrid stroke={GRID} vertical={false} />
               <XAxis dataKey="strike" tick={axisTick} stroke={AXIS} tickLine={false} />
               <YAxis tick={axisTick} stroke={AXIS} tickLine={false} width={Y_LEFT_W} tickFormatter={(v: number) => Math.abs(v).toLocaleString()} />
-              <Tooltip content={<StrikeTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-              <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+              <Tooltip content={<StrikeTooltip />} isAnimationActive={false} cursor={{ fill: 'rgb(var(--ink) / 0.04)' }} />
+              <ReferenceLine y={0} stroke="rgb(var(--ink) / 0.2)" />
               <Bar dataKey="callVol" stackId="k" fill={ASK} fillOpacity={0.75} isAnimationActive={false} />
               <Bar dataKey="putVol" stackId="k" fill={BID} fillOpacity={0.7} isAnimationActive={false} />
               {cf.strikes.some(sk => sk.isFocus) && (
@@ -758,7 +762,7 @@ export const NetPanel = ({
                   stroke={PRICE_LINE}
                   strokeOpacity={0.9}
                   strokeDasharray="4 3"
-                  label={{ value: 'THIS CONTRACT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 9, fontFamily: FONT_SANS, offset: 8 }}
+                  label={{ value: 'THIS CONTRACT', position: 'insideTopLeft', fill: PRICE_LINE, fontSize: 10, fontFamily: FONT_SANS, offset: 8 }}
                 />
               )}
             </ComposedChart>
@@ -780,8 +784,8 @@ export const NetPanel = ({
                 tickFormatter={(v: number) => (isUsd ? fmtUsd(Math.abs(v)) : Math.abs(v) >= 1000 ? `${Math.round(Math.abs(v) / 1000)}k` : String(Math.abs(v)))}
               />
               {showPrice && <YAxis yAxisId="px" orientation="right" tick={axisTick} stroke={AXIS} tickLine={false} width={Y_RIGHT_W} domain={['auto', 'auto']} />}
-              <Tooltip content={<BarTooltip isUsd={isUsd} />} isAnimationActive={false} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-              <ReferenceLine yAxisId="v" y={0} stroke="rgba(255,255,255,0.2)" />
+              <Tooltip content={<BarTooltip isUsd={isUsd} />} isAnimationActive={false} cursor={{ fill: 'rgb(var(--ink) / 0.04)' }} />
+              <ReferenceLine yAxisId="v" y={0} stroke="rgb(var(--ink) / 0.2)" />
               {showCalls && <Bar yAxisId="v" dataKey={isUsd ? 'callPrem' : 'callVol'} stackId="u" fill={ASK} fillOpacity={0.75} isAnimationActive={false} />}
               {showPuts && <Bar yAxisId="v" dataKey={isUsd ? 'putPrem' : 'putVol'} stackId="u" fill={BID} fillOpacity={0.7} isAnimationActive={false} />}
               {showPrice && <Line yAxisId="px" type="monotone" dataKey="price" stroke={PRICE_LINE} strokeWidth={1.25} dot={false} isAnimationActive={false} />}
@@ -806,7 +810,7 @@ export const NetPanel = ({
                 tickFormatter={(v: number) => fmtUsd(v)}
               />
               {showPrice && <YAxis yAxisId="px" orientation="right" tick={axisTick} stroke={AXIS} tickLine={false} width={Y_RIGHT_W} domain={['auto', 'auto']} />}
-              <Tooltip content={<NetTooltip />} isAnimationActive={false} cursor={{ stroke: 'rgba(255,255,255,0.15)' }} />
+              <Tooltip content={<NetTooltip />} isAnimationActive={false} cursor={{ stroke: 'rgb(var(--ink) / 0.15)' }} />
               {showCalls && (
                 <Area yAxisId="prem" type="monotone" dataKey="netCall" stroke={ASK} strokeWidth={1} fill={ASK} fillOpacity={0.14} isAnimationActive={false} />
               )}

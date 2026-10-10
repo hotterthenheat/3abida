@@ -41,33 +41,49 @@ import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnCh
 import LeanCell from '../../components/trace/LeanCell';
 import { SectorName } from '../../components/trace/SectorMark';
 import WatchStar from '../../components/trace/WatchStar';
-import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { ScreenerGuide } from '../../components/trace/TraceGuide';
 import { contractKey, watchContract } from '../../context/WatchContext';
 import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 
-const FILTERS_KEY = 'slayer_screener_filters';
+/* ALL OR NONE (the audit's TR-34): the filters were kept and the screen, the search and the expiry were not, so a
+   reopened page came back "Weekly, Swing +1" with no word why. The whole screen is kept now, as the address it is. */
+const SCREEN_KEY = 'slayer_screener_screen_v2';
 const num = (v: number) => v.toLocaleString('en-US');
 
-function loadFilters(): BookFilters {
+function loadScreen(): URLSearchParams {
   try {
-    const raw = localStorage.getItem(FILTERS_KEY);
-    if (!raw) return DEFAULT_FILTERS;
-    const p = JSON.parse(raw) as Partial<BookFilters>;
-    const sleeveKeys = SLEEVES.map(s => s.key);
-    return {
-      side: p.side === 'C' || p.side === 'P' ? p.side : 'ALL',
-      tenors: Array.isArray(p.tenors) ? (p.tenors.filter(t => sleeveKeys.includes(t as SleeveKey)) as SleeveKey[]) : [],
-      minVolume: Number.isFinite(p.minVolume) ? Math.max(0, Number(p.minVolume)) : 0,
-      minPremium: Number.isFinite(p.minPremium) ? Math.max(0, Number(p.minPremium)) : 0,
-      excludeItm: p.excludeItm === true,
-    };
+    return new URLSearchParams(localStorage.getItem(SCREEN_KEY) ?? '');
   } catch {
-    return DEFAULT_FILTERS;
+    return new URLSearchParams();
   }
 }
+
+const PIN_LEFT = ['time', 'ticker', 'contract'];
+const PIN_RIGHT = ['prem'];
+
+/** A contract's day on a phone (the audit's TR-7) */
+const phoneRow = (r: BookContract) => (
+  <PhoneRow
+    lead={<WatchStar k={contractKey(r)} make={() => watchContract(r, 'screener')} />}
+    title={
+      <>
+        <span className="font-bold">{r.ticker}</span>
+        <span className="font-bold tnum">{r.strike}</span>
+        <span className={r.right === 'C' ? 'text-bull' : 'text-bear'}>{r.right === 'C' ? 'call' : 'put'}</span>
+        <span className="text-[11px] text-textSecondary tnum">{r.expiry.slice(0, 5)}</span>
+      </>
+    }
+    aside={r.lastAt}
+    figures={[
+      <span key="p" className="font-semibold text-textPrimary">{fmtUsd(r.premium)}</span>,
+      <span key="v">{num(r.volume)} vol</span>,
+      <span key="l">{r.askPct >= 55 ? `ask ${r.askPct}%` : r.askPct <= 45 ? `bid ${100 - r.askPct}%` : 'mid'}</span>,
+    ]}
+  />
+);
 
 /* THE CARDS — the filters popover's chips and number boxes as labelled cards (the approved look) */
 const SIDE_OPTIONS: DropdownOption<BookFilters['side']>[] = [
@@ -91,7 +107,7 @@ const PREMIUM_OPTIONS: DropdownOption<number>[] = [
   { value: 10_000_000, label: '$10M and up', hint: 'Ten million and more' },
 ];
 const MONEY_OPTIONS: DropdownOption<'any' | 'otm'>[] = [
-  { value: 'any', label: 'Any strike', hint: 'In and out of the money' },
+  { value: 'any', label: 'Any', hint: 'In and out of the money' },
   { value: 'otm', label: 'Out of the money', hint: 'Strikes past the stock only' },
 ];
 const snap = (v: number, steps: number[]) => steps.reduce((best, s) => (s <= v ? s : best), 0);
@@ -99,7 +115,7 @@ const snap = (v: number, steps: number[]) => steps.reduce((best, s) => (s <= v ?
 /** The grid's own widths where flex would starve a cell */
 const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 , lean: 96 };
 const TOOLTIPS: Record<string, string> = {
-  time: 'When the contract last printed — the star marks it for the Tracker',
+  time: 'When the contract last printed, New York — the bookmark tracks it in the Tracker',
   contract: 'The strike, the side and the expiry — click the row for the card',
   otm: 'How far the strike sits from the stock, as a percent',
   voloi: 'Volume over open interest — above 1.5 the positions were built today',
@@ -117,31 +133,37 @@ const OptionsScreener = () => {
      specific instruction than whatever this reader happened to be looking at
      last, and opening a shared screen only to get your own old one back
      would make links pointless. With no query, the stored filter stands. */
-  const fromUrl = useMemo(() => paramsToFilters(params, SLEEVES.map(x => x.key)), [params]);
+  /* the address first; with none, the screen this reader kept */
+  const fromUrl = useMemo(() => {
+    const here = paramsToFilters(params, SLEEVES.map(x => x.key));
+    return here.any ? here : paramsToFilters(loadScreen(), SLEEVES.map(x => x.key));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [screen, setScreen] = useState<ScreenKey>(
     () => (fromUrl.screen && FLOW_SCREENS.some(x => x.key === fromUrl.screen) ? (fromUrl.screen as ScreenKey) : 'active')
   );
-  const [filters, setFilters] = useState<BookFilters>(() => (fromUrl.any ? fromUrl.filters : loadFilters()));
+  const [filters, setFilters] = useState<BookFilters>(() => (fromUrl.any ? fromUrl.filters : DEFAULT_FILTERS));
   const [query, setQuery] = useState(fromUrl.query);
+  const [expiryPick, setExpiryPick] = useState<string | null>(fromUrl.expiry);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const cuts = useSavedCuts();
 
+  const screenQuery = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined, expiryPick).toString();
   useEffect(() => {
     try {
-      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+      localStorage.setItem(SCREEN_KEY, screenQuery);
     } catch {
-      /* private mode — filters just don't persist */
+      /* private mode — the screen just doesn't persist */
     }
-  }, [filters]);
+  }, [screenQuery]);
 
   /* The address follows the screen. `replace` rather than push: tuning a
      filter is not a place a reader wants twenty Back presses to walk through. */
   useEffect(() => {
-    const next = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined);
-    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+    if (screenQuery !== params.toString()) setParams(new URLSearchParams(screenQuery), { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, screen, query]);
+  }, [screenQuery]);
 
   /* AND THE OTHER DIRECTION. Opening a saved view, pressing Back, or pasting
      a link changes the address without touching state — so state follows it.
@@ -149,11 +171,11 @@ const OptionsScreener = () => {
      keeps the two effects from chasing each other: neither fires unless the
      address and the screen actually disagree. */
   useEffect(() => {
-    const mine = filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined);
-    if (mine.toString() === params.toString()) return;
+    if (screenQuery === params.toString()) return;
     const next = paramsToFilters(params, SLEEVES.map(x => x.key));
     setFilters(next.filters);
     setQuery(next.query);
+    setExpiryPick(next.expiry);
     setScreen(next.screen && FLOW_SCREENS.some(x => x.key === next.screen) ? (next.screen as ScreenKey) : 'active');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
@@ -168,7 +190,10 @@ const OptionsScreener = () => {
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
   /* THE EXPIRY CUT (2026-09-12): the dates on the book, as a calendar */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  /* THE CALENDAR OFFERS WHAT THE OTHER CARDS LEAVE (the audit's TR-33): its dates come from the book under the screen and
+     the filters, so it never offers a day the other cards have already shut out */
+  const screened = useMemo(() => applyFilters(runScreen(heldBook, screen), filters), [heldBook, screen, filters]);
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(screened, r => r.expiry, { value: expiryPick, onChange: setExpiryPick });
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((r: { key: string }) => r.key, []);
   const openRow = useCallback((r: { key: string }) => setOpenKey(r.key), []);
@@ -200,17 +225,32 @@ const OptionsScreener = () => {
     return { call: by(r => r.right === 'C'), put: by(r => r.right === 'P'), all: by(() => true) };
   }, [rows]);
   const sentence = useMemo(() => {
-    if (rows.length === 0) return 'Nothing on this cut yet.';
-    return `${fmtUsd(facts.prem)} across ${rows.length} contracts on ${facts.names} names — calls ${facts.callPct}% of it, puts ${100 - facts.callPct}%. ${facts.fresh} contracts trading past their open interest.`;
+    if (rows.length === 0) return 'Nothing on this cut.';
+    const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+    return `${fmtUsd(facts.prem)} across ${plural(rows.length, 'contract', 'contracts')} on ${plural(facts.names, 'name', 'names')} — calls ${facts.callPct}% of it, puts ${100 - facts.callPct}%. ${plural(facts.fresh, 'contract', 'contracts')} trading past ${facts.fresh === 1 ? 'its' : 'their'} open interest.`;
   }, [rows.length, facts]);
+  /* AN EMPTY CUT NAMES THE CARDS THAT EMPTIED IT (the audit's TR-33) */
+  const emptyBody = useMemo(() => {
+    const on: string[] = [];
+    if (screen !== 'active') on.push(`the screen (${FLOW_SCREENS.find(x => x.key === screen)?.label})`);
+    if (filters.side !== 'ALL') on.push('the side');
+    if (filters.tenors.length) on.push('the tenor');
+    if (filters.minVolume > 0) on.push('the volume floor');
+    if (filters.minPremium > 0) on.push('the premium floor');
+    if (filters.excludeItm) on.push('the moneyness');
+    if (expiry) on.push('the expiry');
+    if (query) on.push('the search');
+    return on.length ? `No contract passes ${on.join(', ')} together — loosen one of them.` : 'Nothing has traded on the book.';
+  }, [screen, filters, expiry, query]);
   const activeScreen = FLOW_SCREENS.find(s => s.key === screen) ?? FLOW_SCREENS[0];
-  const pill = (r: BookContract) => `${r.ticker} ${r.strike}${r.right} · ${fmtUsd(r.premium)}`;
+  /* a DAY total, said so — the card it opens heads its own print (the audit's X1.12) */
+  const pill = (r: BookContract) => `${r.ticker} ${r.strike}${r.right} · ${fmtUsd(r.premium)} today`;
 
   const columns = useMemo<Column<BookContract>[]>(
     () => [
       {
         key: 'time',
-        header: 'Last',
+        header: 'Time',
         sortValue: r => r.lastAtMin,
         render: r => (
           <span className="inline-flex items-center gap-1.5">
@@ -274,7 +314,8 @@ const OptionsScreener = () => {
             <span className={tone}>
               {r.deltaOI > 0 ? '+' : ''}
               {num(r.deltaOI)}{' '}
-              <span className="text-[10px] opacity-80">
+              {/* a tier down, never opacity (the house's rule — opacity took this red under 3:1 on paper, the audit's X12) */}
+              <span className="text-[10px]">
                 {r.deltaOIPct > 0 ? '+' : ''}
                 {r.deltaOIPct.toFixed(0)}%
               </span>
@@ -352,20 +393,21 @@ const OptionsScreener = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
+            <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" span />
             <DropdownSelect label="Screen" value={screen} options={screenOptions} onChange={setScreen} title="The question asked of the book" testId="screener-screen" />
             <DropdownSelect label="Side" value={filters.side} options={SIDE_OPTIONS} onChange={v => setFilters(f => ({ ...f, side: v }))} title="Calls, puts or both" testId="screener-side" />
-            <DropdownMulti label="Tenor" values={filters.tenors} groups={tenorGroups} onChange={v => setFilters(f => ({ ...f, tenors: v as SleeveKey[] }))} title="How far out the contracts run" emptyWord="Any" align="start" testId="screener-tenor" />
+            {/* every tenor picked is no cut at all: it reads "Any" ("0DTE, Weekly +2" — the audit's TR-35) */}
+            <DropdownMulti label="Tenor" values={filters.tenors} groups={tenorGroups} onChange={v => setFilters(f => ({ ...f, tenors: v.length >= SLEEVES.length ? [] : (v as SleeveKey[]) }))} title="How far out the contracts run" emptyWord="Any" align="start" testId="screener-tenor" />
             <DropdownSelect label="Volume" value={snap(filters.minVolume, VOLUME_STEPS)} options={VOLUME_OPTIONS} onChange={v => setFilters(f => ({ ...f, minVolume: v }))} title="The least volume a contract must carry" testId="screener-volume" />
             <DropdownSelect label="Premium" value={snap(filters.minPremium, PREMIUM_STEPS)} options={PREMIUM_OPTIONS} onChange={v => setFilters(f => ({ ...f, minPremium: v }))} title="The least money a contract must carry" testId="screener-premium" />
-            <DropdownSelect label="Money" value={filters.excludeItm ? 'otm' : 'any'} options={MONEY_OPTIONS} onChange={v => setFilters(f => ({ ...f, excludeItm: v === 'otm' }))} title="Where the strikes sit against the stock" testId="screener-money" />
+            <DropdownSelect label="Moneyness" value={filters.excludeItm ? 'otm' : 'any'} options={MONEY_OPTIONS} onChange={v => setFilters(f => ({ ...f, excludeItm: v === 'otm' }))} title="Where the strikes sit against the stock" testId="screener-money" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="screener-expiry" />
             {/* THE FILTER IS THE ADDRESS (data/savedViews): a tuned screen
                 lives in the query string, so it can be sent, bookmarked,
                 opened twice side by side, and saved by name. */}
             <SavedCutsControl
               store={screenerCuts}
-              query={filtersToParams(filters, screen === 'active' ? undefined : screen, query || undefined).toString()}
+              query={screenQuery}
               onOpen={q => setParams(new URLSearchParams(q), { replace: true })}
               noun="screen"
               testId="screener"
@@ -398,7 +440,7 @@ const OptionsScreener = () => {
           </>
         }
       >
-        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} autoHeight noun="contracts" emptyText="Nothing matches this cut" emptyBody="Loosen a card — the screen, the side, the tenor, the volume or premium floor." testId="screener" />
+        <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="contracts" emptyText="Nothing matches this cut" emptyBody={emptyBody} testId="screener" />
       </TraceBox>
       <BookDrill list={rows} openKey={openKey} onOpen={setOpenKey} tick={tick} />
     </>

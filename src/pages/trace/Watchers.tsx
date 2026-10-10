@@ -31,7 +31,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, ChevronDown } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import {
@@ -61,8 +61,13 @@ import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnCh
 import ReasonDoor from '../../components/trace/ReasonDoor';
 import ReadDoor from '../../components/trace/ReadDoor';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
-import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { WatchersGuide } from '../../components/trace/TraceGuide';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
+import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/addressCut';
+import { createViewStore } from '../../data/savedViews';
+import { followThrough, FLAT_PCT, type Follow } from '../../data/followThrough';
+import { rowProps } from '../../components/ui/rowKeys';
 
 const num = (v: number) => v.toLocaleString('en-US');
 
@@ -72,8 +77,11 @@ const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'C', label: 'Calls', hint: 'Calls only' },
   { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, clip: 118, clipprem: 92, sideCol: 64, otm: 76, earn: 84 };
+const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, reason: 236, clip: 118, clipprem: 92, sideCol: 64, otm: 76, earn: 92 };
 const FLEXES: Record<string, number> = { reason: 3 };
+const PIN_LEFT = ['time', 'ticker', 'contract'];
+const PIN_RIGHT = ['clipprem'];
+const WATCHER_CUTS = createViewStore('slayer_watchers_cuts_v1');
 const TOOLTIPS: Record<string, string> = {
   reason: "Why the contract is in front of you — the desk's watchers, or one you wrote (the hollow ring)",
   clip: 'The print that tripped the reason — its size and fill',
@@ -82,14 +90,15 @@ const TOOLTIPS: Record<string, string> = {
   voloi: 'Volume over open interest — above 1.5 the positions were built today',
 };
 
-/** Categorical reason dots — same idea as sector dots: a hue names the kind. */
+/** Categorical reason dots — same idea as sector dots: a hue names the kind. The house's categorical tokens, cut deep on
+    paper (the audit's X12: literal pastels, #E0D080 all but gone on white). */
 const RULE_DOT: Record<WatcherKey, string> = {
-  'big-money': '#9B8FE8',
-  'into-earnings': '#E0D080',
-  climbing: '#6ECFC4',
-  falling: '#E89AC0',
-  'fresh-size': '#7EA6F0',
-  hammering: '#E8C468',
+  'big-money': 'rgb(var(--cat-analyst))',
+  'into-earnings': 'rgb(var(--cat-earnings))',
+  climbing: 'rgb(var(--cat-macro))',
+  falling: 'rgb(var(--cat-ma))',
+  'fresh-size': 'rgb(var(--cat-guidance))',
+  hammering: 'rgb(var(--cat-regulatory))',
 };
 
 const RULE_META = Object.fromEntries(WATCHERS.map(r => [r.key, r])) as Record<
@@ -97,14 +106,74 @@ const RULE_META = Object.fromEntries(WATCHERS.map(r => [r.key, r])) as Record<
   (typeof WATCHERS)[number]
 >;
 
+/** A flagged print the stock did not follow — a door to its card */
+const MissRow = ({ f, reason, onOpen }: { f: Follow; reason: string; onOpen: () => void }) => (
+  <li>
+    <div
+      {...rowProps(onOpen, `Open ${f.c.row.ticker} ${f.c.row.strike}${f.c.row.right}`)}
+      className="flex items-center gap-x-3 gap-y-0.5 flex-wrap px-3 py-1.5 text-[11px] tnum cursor-pointer hover:bg-ink/[0.03] focus-visible:outline-offset-[-2px]"
+    >
+      <span className="w-11 text-textSecondary">{f.c.time}</span>
+      <span className="font-semibold text-textPrimary">
+        {f.c.row.ticker} {f.c.row.strike}
+        {f.c.row.right}
+      </span>
+      <span className="text-textSecondary">
+        {f.c.side === 'ASK' ? 'at the ask' : 'on the bid'} · leans {f.dir > 0 ? 'up' : 'down'}
+      </span>
+      <span className="text-textMuted">{reason}</span>
+      <span className="ml-auto text-textSecondary">
+        ${f.from.toFixed(2)} → ${f.to.toFixed(2)}{' '}
+        <span className={f.way === 'flat' ? 'text-textMuted' : f.movePct >= 0 ? 'text-bull' : 'text-bear'}>
+          {f.movePct >= 0 ? '+' : ''}
+          {f.movePct.toFixed(2)}%
+        </span>
+      </span>
+    </div>
+  </li>
+);
+
+/** A catch on a phone (the audit's TR-7) */
+const phoneRow = (a: Catch) => (
+  <PhoneRow
+    lead={<WatchStar k={contractKey(a.row)} make={() => watchContract(a.row, 'watchers')} />}
+    title={
+      <>
+        <span className="font-bold">{a.row.ticker}</span>
+        <span className="font-bold tnum">{a.row.strike}</span>
+        <span className={a.row.right === 'C' ? 'text-bull' : 'text-bear'}>{a.row.right === 'C' ? 'call' : 'put'}</span>
+        <span className="text-[11px] text-textSecondary tnum">{a.row.expiry.slice(0, 5)}</span>
+      </>
+    }
+    aside={a.time}
+    figures={[
+      <span key="p" className="font-semibold text-textPrimary">{fmtUsd(a.clipPremium)}</span>,
+      <span key="s">{a.side === 'ASK' ? 'ask' : 'bid'} ${a.clipFill.toFixed(2)}</span>,
+      <span key="z">{num(a.clipSize)} contracts</span>,
+    ]}
+  />
+);
+
 const Watchers = () => {
   const { marketData, activeTicker } = useMarketData();
-  const [rule, setRule] = useState<string>('ALL');
-  const [side, setSide] = useState<'ALL' | 'C' | 'P'>('ALL');
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [guideOpen, setGuideOpen] = useState(false);
   const myReasons = useReasons();
+  /* THE CUT IS THE ADDRESS (the audit's TR-13): the reason, the side, the search and the expiry can be sent and saved */
+  const addr = useAddressCut({
+    reason: { def: 'ALL', valid: (v: string) => v.length > 0 && v.length < 64 },
+    side: { def: 'ALL', valid: oneOf(['ALL', 'C', 'P']) },
+    q: { def: '', valid: isQuery },
+    exp: { def: '', valid: isIsoDay },
+  });
+  const rule = addr.cut.reason;
+  const setRule = (v: string) => addr.set({ reason: v });
+  const side = addr.cut.side as 'ALL' | 'C' | 'P';
+  const setSide = (v: 'ALL' | 'C' | 'P') => addr.set({ side: v });
+  const query = addr.cut.q;
+  const setQuery = (v: string) => addr.set({ q: v });
+  const cuts = useSavedCuts();
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [missesOpen, setMissesOpen] = useState(false);
 
   const liveBook = useMemo(
     () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
@@ -115,7 +184,7 @@ const Watchers = () => {
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
   /* THE EXPIRY CUT (2026-09-12): the watchers run over the cut book */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((a: { id: string }) => a.id, []);
   const openRow = useCallback((a: { row: { key: string } }) => setOpenKey(a.row.key), []);
@@ -290,8 +359,9 @@ const Watchers = () => {
           const meta = reasonOf(a.rule);
           if (!meta) return <span className="text-textSecondary">—</span>;
           return (
+            /* TWO LINES, NEVER CUT MID-WORD (the audit's TR-47: "The same cor", "One print carr") */
             <span
-              className="inline-flex items-center gap-1.5 text-[11px] text-textPrimary"
+              className="inline-flex items-center gap-1.5 text-[11px] leading-tight text-textPrimary whitespace-normal"
               title={a.mine ? `${meta.label} — ${meta.phrase}` : meta.phrase}
             >
               {a.mine ? (
@@ -303,12 +373,11 @@ const Watchers = () => {
                 />
               )}
               {a.mine ? (
-                <>
-                  <span className="font-semibold">{meta.label}</span>
-                  <span className="text-textSecondary truncate">{meta.phrase}</span>
-                </>
+                <span className="line-clamp-2">
+                  <span className="font-semibold">{meta.label}</span> <span className="text-textSecondary">{meta.phrase}</span>
+                </span>
               ) : (
-                meta.phrase
+                <span className="line-clamp-2">{meta.phrase}</span>
               )}
             </span>
           );
@@ -337,10 +406,8 @@ const Watchers = () => {
         header: 'Side',
         align: 'right',
         sortValue: a => a.side,
-        // The tape's rule: at the ask = the contract being bought.
-        render: a => (
-          <span className={`text-[10px] ${a.side === 'ASK' ? 'text-bull' : 'text-bear'}`}>{a.side}</span>
-        ),
+        // The tape's rule: at the ask = the contract being bought — the side in one ink (the audit's X12)
+        render: a => <span className="text-[10px] text-textPrimary">{a.side === 'ASK' ? 'ask' : 'bid'}</span>,
       },
       {
         key: 'vol',
@@ -418,6 +485,12 @@ const Watchers = () => {
     return { total: catches.length, loudName: loud ? (reasonOf(loud[0])?.label ?? '') : '', loudCount: loud ? loud[1] : 0, mine };
   }, [catches, reasonOf]);
   const pill = (a: Catch) => `${a.row.ticker} ${a.row.strike}${a.row.right} · ${fmtUsd(a.clipPremium)}`;
+
+  /* THE RECORD THAT COUNTS THE MISSES (the ideas report, idea 4): every print flagged on this cut, misses included —
+     whether the stock moved the print's way since it was flagged. "N of M", never a rate. */
+  const record = useMemo(() => followThrough(rows), [rows]);
+  const misses = useMemo(() => record.rows.filter(f => f.way !== 'with').sort((a, b) => b.c.minute - a.c.minute), [record]);
+  const filtered = rule !== 'ALL' || side !== 'ALL' || query !== '' || expiry !== null;
   const { hidden, toggle, showAll, hideAll } = useHiddenColumns('slayer_flowalerts_cols');
   const chooserCols = useMemo(() => columns.map(c => ({ key: c.key, label: typeof c.header === 'string' ? c.header : c.key })), [columns]);
   const selectedId = openKey ? (shown.find(a => a.row.key === openKey)?.id ?? null) : null;
@@ -432,12 +505,13 @@ const Watchers = () => {
         guide={{ title: 'How to read the watchers', door: 'What a reason, the print and the side mean', body: <WatchersGuide />, testId: 'watchers-guide', open: guideOpen, onOpen: setGuideOpen }}
         facts={
           <>
+            {/* "· 50 hammering" read a reason as a noun (the audit's TR-48): the most frequent reason, named, its count after */}
             <Fact label="Caught today" testId="caught">
               {num(facts.total)}
               {facts.loudName && (
                 <span className="text-textSecondary">
                   {' '}
-                  · {facts.loudCount} {facts.loudName.toLowerCase()}
+                  · most often {facts.loudName} ({facts.loudCount})
                 </span>
               )}
             </Fact>
@@ -445,12 +519,12 @@ const Watchers = () => {
               <span className={facts.mine > 0 ? 'text-textPrimary' : 'text-textSecondary'}>{facts.mine}</span>
             </Fact>
             {champs.ask && champs.ask !== champs.all && (
-              <Champion label="Top ask" ink="bull" onOpen={() => setOpenKey(champs.ask!.row.key)} testId="top-ask">
+              <Champion label="Top at the ask" ink="plain" onOpen={() => setOpenKey(champs.ask!.row.key)} testId="top-ask">
                 {pill(champs.ask)}
               </Champion>
             )}
             {champs.bid && champs.bid !== champs.all && (
-              <Champion label="Top bid" ink="bear" onOpen={() => setOpenKey(champs.bid!.row.key)} testId="top-bid">
+              <Champion label="Top on the bid" ink="plain" onOpen={() => setOpenKey(champs.bid!.row.key)} testId="top-bid">
                 {pill(champs.bid)}
               </Champion>
             )}
@@ -464,19 +538,70 @@ const Watchers = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="contracts" />
+            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="contracts" span />
             <DropdownSelect label="Reason" value={rule} options={reasonOptions} onChange={setRule} title="Which watcher's catches" testId="watchers-reason" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="watchers-side" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="watchers-expiry" />
             <ReasonDoor book={book} />
+            <SavedCutsControl store={WATCHER_CUTS} query={addr.query} onOpen={addr.open} noun="cut" testId="watchers" onSay={cuts.say} open={cuts.open} onToggleOpen={cuts.toggle} />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
           </>
         }
-        sentence={read}
+        sentence={
+          <>
+            <SavedCutsList store={WATCHER_CUTS} query="" onOpen={addr.open} noun="cut" testId="watchers" onSay={cuts.say} open={cuts.open} />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+                {cuts.said}
+              </p>
+            )}
+            {read}
+          </>
+        }
       >
-        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedId} autoHeight noun="prints" emptyText="Nothing flagged yet" emptyBody="The desk is watching — a clip that clears the bar lands here the moment it prints." testId="watchers" />
+        {record.total > 0 && (
+          <div className="px-5 pb-3 max-sm:px-4" data-watchers-record>
+            <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px] text-textSecondary">
+              <span className="text-[11px] font-semibold text-textPrimary">{record.closed ? 'Moved its way by the close' : 'Moved its way since the flag'}</span>
+              <span className="tnum" data-record-with>
+                <span className="font-semibold text-textPrimary">{num(record.with)}</span> of {num(record.total)} flagged prints{filtered ? ' on this cut' : ' today'}
+              </span>
+              <span className="text-textMuted" aria-hidden>
+                ·
+              </span>
+              <span className="tnum">{num(record.against)} moved against</span>
+              <span className="text-textMuted" aria-hidden>
+                ·
+              </span>
+              <span className="tnum" title={`Under ${FLAT_PCT}% either way`}>
+                {num(record.flat)} barely moved
+              </span>
+              <button
+                type="button"
+                onClick={() => setMissesOpen(o => !o)}
+                aria-expanded={missesOpen}
+                aria-controls="watchers-misses"
+                className="hit inline-flex items-center gap-1 h-6 px-2 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors"
+                data-record-misses
+              >
+                {missesOpen ? 'Hide' : 'List'} the {num(misses.length)} that did not <ChevronDown className={`w-3 h-3 transition-transform ${missesOpen ? 'rotate-180' : ''}`} aria-hidden />
+              </button>
+            </div>
+            <p className="mt-0.5 text-[10px] text-textMuted">
+              A call at the ask or a put on the bid leans up; a put at the ask or a call on the bid leans down. The stock from the minute the print was flagged to {record.closed ? 'the close' : 'now'} — every flagged print counted, not only the tracked ones.
+            </p>
+            {missesOpen && (
+              <ul id="watchers-misses" className="mt-2 max-h-[260px] overflow-y-auto border border-borderSubtle rounded-md divide-y divide-borderSubtle/60" data-watchers-misses>
+                {misses.map(f => (
+                  <MissRow key={f.c.id} f={f} reason={reasonOf(f.c.rule)?.label ?? ''} onOpen={() => setOpenKey(f.c.row.key)} />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS}  rowKey={keyOf} onRowClick={openRow} selectedKey={selectedId} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="prints" emptyText="Nothing flagged yet" emptyBody="The desk is watching — a clip that clears the bar lands here the moment it prints." testId="watchers" />
       </TraceBox>
 
       <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} clipFor={clipFor} tick={tick} />

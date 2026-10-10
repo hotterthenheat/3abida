@@ -32,7 +32,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMarketData } from '../../context/MarketDataContext';
-import { buildDarkPoolLeaders, buildDarkPoolView } from '../../data/darkpool';
+import { buildDarkPoolLeaders, buildDarkPoolView, gradeOfPosture } from '../../data/darkpool';
 import { fmtUsd } from '../../data/gex';
 import type { DarkLeaderRow, DarkPoolIntent, DarkPoolLevel, DarkPoolPrint, DarkSector, LevelRole } from '../../types/darkpool';
 import type { Column } from '../../components/ui/DataTable';
@@ -56,10 +56,10 @@ const signedPct = (v: number, dp = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`
 type IntentCut = 'ALL' | DarkPoolIntent;
 const INTENT_OPTIONS: DropdownOption<IntentCut>[] = [
   { value: 'ALL', label: 'Every read', hint: 'Accumulation, distribution, hedge flow and rotation' },
-  { value: 'ACCUMULATION', label: 'Accumulation', hint: 'Size bought on weakness — someone building' },
-  { value: 'DISTRIBUTION', label: 'Distribution', hint: 'Size sold into strength — someone leaving' },
-  { value: 'HEDGE FLOW', label: 'Hedge flow', hint: 'Printed on an options shelf — a desk hedging' },
-  { value: 'ROTATION', label: 'Rotation', hint: 'Routine off-exchange rotation, nothing to read alone' },
+  { value: 'ACCUMULATION', label: 'Accumulation', hint: 'Sized crosses below the market in a rising session' },
+  { value: 'DISTRIBUTION', label: 'Distribution', hint: 'Sized crosses above the market in a falling session' },
+  { value: 'HEDGE FLOW', label: 'Hedge flow', hint: 'Printed on an options shelf — where a desk hedges' },
+  { value: 'ROTATION', label: 'Rotation', hint: 'Routine off-exchange rotation, little to read alone' },
 ];
 type SizeKey = '0' | '25000000' | '100000000' | '250000000';
 const SIZE_OPTIONS: DropdownOption<SizeKey>[] = [
@@ -100,7 +100,10 @@ const POSTURE_WORD = { ACCUMULATING: 'Accumulating', DISTRIBUTING: 'Distributing
 /** A print sits on a shelf when it printed within 0.15% of it */
 const onShelf = (p: DarkPoolPrint, l: DarkPoolLevel) => Math.abs(p.price - l.price) / l.price < 0.0015;
 
-const WIDTHS: Record<string, number> = { time: 64, price: 84, vs: 80, size: 88, notional: 92, venue: 100, shelf: 84, intent: 124, conviction: 120 };
+/* Time at 76: at 64 its head read "TI…" beside the sort arrow (the audit's TR-69) */
+const WIDTHS: Record<string, number> = { time: 76, price: 84, vs: 80, size: 88, notional: 92, venue: 100, shelf: 84, intent: 124, conviction: 120 };
+const PIN_LEFT = ['time', 'price'];
+const PIN_RIGHT = ['intent'];
 const FLEXES: Record<string, number> = { read: 1 };
 const TOOLTIPS: Record<string, string> = {
   vs: 'Where the cross printed against the spot, as a percent',
@@ -220,7 +223,8 @@ const DarkPool = () => {
         header: 'vs spot',
         align: 'right',
         sortValue: p => p.vsSpotPct,
-        render: p => <span className={Math.abs(p.vsSpotPct) < 0.05 ? 'text-textPrimary' : p.vsSpotPct > 0 ? 'text-bull' : 'text-bear'}>{signedPct(p.vsSpotPct)}</span>,
+        /* where it crossed against the spot is a PLACE, not a side — one ink (the audit's X12) */
+        render: p => <span className="text-textPrimary">{signedPct(p.vsSpotPct)}</span>,
       },
       { key: 'size', header: 'Shares', align: 'right', sortValue: p => p.size, render: p => <span className={weightInk(p.size, marks.size)}>{num(p.size)}</span> },
       { key: 'notional', header: 'Dollars', align: 'right', sortValue: p => p.notional, render: p => <span className={weightInk(p.notional, marks.notional)}>{fmtUsd(p.notional)}</span> },
@@ -355,7 +359,7 @@ const DarkPool = () => {
         title="The dark pool"
         sub={
           <>
-            <Name t={ticker} size={11} />'s off-exchange crosses with the read attached — who is most likely behind each print, and the liquidity shelves they left · a shelf cuts the grid to it, a row puts the print on the card
+            <Name t={ticker} size={11} />'s off-exchange crosses with the read attached — where each printed and what that is consistent with, and the liquidity shelves they left · a shelf cuts the grid to it, a row puts the print on the card
           </>
         }
         testId="dark-pool"
@@ -373,10 +377,13 @@ const DarkPool = () => {
             <Fact label="Off-exchange" testId="share" title="Share of the session's volume that printed off-exchange">
               {view ? `${view.dpSharePct.toFixed(0)}%` : '—'} <span className="text-textSecondary">of volume</span>
             </Fact>
-            <Fact label="Posture" testId="posture" title="Net accumulation against distribution across the sized prints">
+            {/* IN WORDS (the audit's TR-68): "Distributing −100%" read as a broken or capped figure — the lean is said as its
+                side and how far it leans, the data module's own words */}
+            <Fact label="Posture" testId="posture" title="Sized crosses read as accumulation against those read as distribution, weighed by how sure each read is">
               {view ? (
                 <>
-                  <span className={POSTURE_INK[view.posture]}>{POSTURE_WORD[view.posture]}</span> <span className="text-textSecondary">{signedPct(view.netPosturePct, 0)}</span>
+                  <span className={POSTURE_INK[view.posture]}>{POSTURE_WORD[view.posture]}</span>
+                  {view.posture !== 'BALANCED' && <span className="text-textSecondary"> · leans {gradeOfPosture(view.netPosturePct) === 'strong' ? 'far' : gradeOfPosture(view.netPosturePct) === 'good' ? 'clearly' : 'a little'}</span>}
                 </>
               ) : (
                 '—'
@@ -385,8 +392,9 @@ const DarkPool = () => {
             <Fact label="On this cut" testId="cut">
               {fmtUsd(facts.dollars)} <span className="text-textSecondary">· {rows.length} crosses</span>
             </Fact>
-            <Fact label="Building · leaving" testId="lean" title="Dollars read as accumulation against dollars read as distribution">
-              <span className="text-bull">{fmtUsd(facts.acc)}</span> <span className="text-textSecondary">·</span> <span className="text-bear">{fmtUsd(facts.dist)}</span>
+            <Fact label="Accumulation · distribution" testId="lean" title="Dollars read as accumulation against dollars read as distribution, on this cut">
+              {facts.acc > 0 ? <span className="text-bull">{fmtUsd(facts.acc)}</span> : <span className="text-textSecondary">none</span>} <span className="text-textSecondary">·</span>{' '}
+              {facts.dist > 0 ? <span className="text-bear">{fmtUsd(facts.dist)}</span> : <span className="text-textSecondary">none</span>}
             </Fact>
             {facts.strongest && (
               <Champion label="Strongest shelf" ink={facts.strongest.role === 'SUPPORT' ? 'bull' : facts.strongest.role === 'RESISTANCE' ? 'bear' : 'warn'} onOpen={() => setShelfSel(s => (s === facts.strongest!.price ? null : facts.strongest!.price))} testId="shelf">
@@ -448,9 +456,9 @@ const DarkPool = () => {
                     data-dark-pool-shelf={l.price}
                   >
                     <span className="flex items-center gap-2">
-                      <span className={`font-mono text-[9px] font-semibold uppercase tracking-wider w-[74px] ${ink.text}`}>{ROLE_WORD[l.role]}</span>
+                      <span className={`font-mono text-[10px] font-semibold uppercase tracking-wider w-[74px] ${ink.text}`}>{ROLE_WORD[l.role]}</span>
                       <span className="font-mono text-[12px] font-bold tnum text-textPrimary">${l.price.toFixed(2)}</span>
-                      <span className={`font-mono text-[10px] tnum ${l.distPct >= 0 ? 'text-bull' : 'text-bear'}`}>{signedPct(l.distPct)}</span>
+                      <span className="font-mono text-[10px] tnum text-textSecondary" title="From the spot">{signedPct(l.distPct)}</span>
                       <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(l.notional)}</span>
                     </span>
                     <span className="mt-1 flex items-center gap-2">
@@ -458,7 +466,7 @@ const DarkPool = () => {
                         <span className={`absolute inset-y-0 left-0 rounded-full ${ink.bar}`} style={{ width: `${Math.max(3, Math.round(l.sharePct))}%` }} />
                       </span>
                       <span className="font-mono text-[10px] tnum text-textPrimary whitespace-nowrap">
-                        {l.sharePct.toFixed(0)}% · {l.prints} prints · {l.defended > 0 ? <span className="text-textPrimary font-semibold">defended {l.defended}×</span> : 'untested'}
+                        {l.sharePct.toFixed(0)}% · {l.prints} prints · {l.defended > 0 ? <span className="text-textPrimary font-semibold" title="Times price turned within a hair of this shelf today">turned here {l.defended >= 5 ? '5×+' : `${l.defended}×`}</span> : 'untested'}
                       </span>
                     </span>
                   </button>
@@ -501,7 +509,7 @@ const DarkPool = () => {
           </aside>
           {/* THE GRID */}
           <div className="flex-1 min-w-0">
-            <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openId != null ? String(openId) : null} autoHeight noun="prints" initialSort={{ key: 'time', dir: 'desc' }} state={view ? 'empty' : 'loading'} emptyText={view ? 'No crosses on this cut' : 'Awaiting prints'} emptyBody={view ? 'No dark print cleared the floor under these cards.' : 'The feed fills as the session crosses.'} testId="dark-pool" />
+            <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openId != null ? String(openId) : null} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} autoHeight noun="prints" initialSort={{ key: 'time', dir: 'desc' }} state={view ? 'empty' : 'loading'} emptyText={view ? 'No crosses on this cut' : 'Awaiting prints'} emptyBody={view ? 'No dark print cleared the floor under these cards.' : 'The feed fills as the session crosses.'} testId="dark-pool" />
           </div>
         </div>
       </TraceBox>
@@ -520,7 +528,7 @@ const DarkPool = () => {
               {leaders.sectors.length} <span className="text-textSecondary">· {heaviest ? `${heaviest.sector} ${heaviest.sharePct.toFixed(0)}%` : '—'}</span>
             </Fact>
             {hottest && hottest !== loudest && (
-              <Champion label="Most unusual" ink="warn" onOpen={() => pickName(hottest.ticker)} testId="unusual">
+              <Champion label="Most unusual" ink="plain" onOpen={() => pickName(hottest.ticker)} testId="unusual">
                 {hottest.ticker} · {hottest.pctAvgVol.toFixed(0)}% of avg vol
               </Champion>
             )}

@@ -41,7 +41,10 @@ import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import DayStrip from '../../components/trace/DayStrip';
-import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
+import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
+import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
+import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/addressCut';
+import { createViewStore } from '../../data/savedViews';
 import { WindowsGuide } from '../../components/trace/TraceGuide';
 import WatchStar from '../../components/trace/WatchStar';
 import { contractKey, watchContract } from '../../context/WatchContext';
@@ -54,8 +57,8 @@ type CutKey = 'all' | 'bursts' | 'ask' | 'bid';
 const CUTS: { key: CutKey; label: string; hint: string }[] = [
   { key: 'all', label: 'Everything', hint: 'Every contract that traded in this window, heaviest first' },
   { key: 'bursts', label: 'Bursts', hint: 'Half the contract’s whole day or more landed right here' },
-  { key: 'ask', label: 'Lifted the ask', hint: 'Window flow that paid up — buyers' },
-  { key: 'bid', label: 'Hit the bid', hint: 'Window flow that sold down — writers' },
+  { key: 'ask', label: 'Lifted the ask', hint: 'Window flow that paid the offer' },
+  { key: 'bid', label: 'Hit the bid', hint: 'Window flow that sold into the bid' },
 ];
 
 /* THE CARDS (the walk, 2026-09-09) */
@@ -65,7 +68,33 @@ const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'C', label: 'Calls', hint: 'Calls only' },
   { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, wvol: 112, share: 120, lean: 96, daylean: 96, earn: 84 };
+const WIDTHS: Record<string, number> = { ticker: 124, contract: 150, dte: 64, otm: 76, wvol: 112, share: 120, wprem: 100, lean: 96, daylean: 96, earn: 92 };
+const PIN_LEFT = ['ticker', 'contract'];
+const PIN_RIGHT = ['wprem'];
+const WINDOW_CUTS = createViewStore('slayer_windows_cuts_v1');
+/* A burst under this share of its day is not one (the audit's TR-52: "PLTR 30C · 4% of its day" wore the crown) */
+const BURST_MIN_PCT = 25;
+
+/** A window's contract on a phone (the audit's TR-7) */
+const phoneRow = (sl: IntervalSlice) => (
+  <PhoneRow
+    lead={<WatchStar k={contractKey(sl.row)} make={() => watchContract(sl.row, 'windows')} />}
+    title={
+      <>
+        <span className="font-bold">{sl.row.ticker}</span>
+        <span className="font-bold tnum">{sl.row.strike}</span>
+        <span className={sl.row.right === 'C' ? 'text-bull' : 'text-bear'}>{sl.row.right === 'C' ? 'call' : 'put'}</span>
+        <span className="text-[11px] text-textSecondary tnum">{sl.row.expiry.slice(0, 5)}</span>
+      </>
+    }
+    aside={`${sl.shareOfDayPct.toFixed(0)}% of its day`}
+    figures={[
+      <span key="p" className="font-semibold text-textPrimary">{fmtUsd(sl.premium)}</span>,
+      <span key="v">{num(sl.vol)} contracts</span>,
+      <span key="l">{sl.askPct >= 58 ? `ask ${sl.askPct}%` : sl.askPct <= 42 ? `bid ${100 - sl.askPct}%` : 'mid'}</span>,
+    ]}
+  />
+);
 const TOOLTIPS: Record<string, string> = {
   wvol: "The contract's volume inside this quarter hour",
   share: 'How much of its whole day landed in this window — half or more is a burst',
@@ -76,10 +105,23 @@ const TOOLTIPS: Record<string, string> = {
 
 const Windows = () => {
   const { marketData, activeTicker } = useMarketData();
-  const [winSel, setWinSel] = useState<number | 'latest'>('latest');
-  const [cut, setCut] = useState<CutKey>('all');
-  const [side, setSide] = useState<'ALL' | 'C' | 'P'>('ALL');
-  const [query, setQuery] = useState('');
+  /* THE CUT IS THE ADDRESS (the audit's TR-13): the window, the screen, the side, the search and the expiry */
+  const addr = useAddressCut({
+    win: { def: 'latest', valid: (v: string) => v === 'latest' || /^\d{1,2}$/.test(v) },
+    screen: { def: 'all', valid: oneOf(CUTS.map(c => c.key)) },
+    side: { def: 'ALL', valid: oneOf(['ALL', 'C', 'P']) },
+    q: { def: '', valid: isQuery },
+    exp: { def: '', valid: isIsoDay },
+  });
+  const winSel: number | 'latest' = addr.cut.win === 'latest' ? 'latest' : Number(addr.cut.win);
+  const setWinSel = (v: number | 'latest') => addr.set({ win: String(v) });
+  const cut = addr.cut.screen as CutKey;
+  const setCut = (v: CutKey) => addr.set({ screen: v });
+  const side = addr.cut.side as 'ALL' | 'C' | 'P';
+  const setSide = (v: 'ALL' | 'C' | 'P') => addr.set({ side: v });
+  const query = addr.cut.q;
+  const setQuery = (v: string) => addr.set({ q: v });
+  const cuts = useSavedCuts();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -92,7 +134,7 @@ const Windows = () => {
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
   /* THE EXPIRY CUT (2026-09-12): the day's windows over the cut book */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((s: { key: string }) => s.key, []);
   const openRow = useCallback((s: { row: { key: string } }) => setOpenKey(s.row.key), []);
@@ -100,7 +142,7 @@ const Windows = () => {
 
   // "Latest" follows the newest COMPLETE window; the live one is a click away.
   const latestIdx = windows.length >= 2 ? windows[windows.length - 2].idx : windows[windows.length - 1]?.idx ?? 0;
-  const winIdx = winSel === 'latest' ? latestIdx : Math.min(winSel, windows.length - 1);
+  const winIdx = winSel === 'latest' ? latestIdx : Math.max(0, Math.min(winSel, windows.length - 1));
   const win = windows[winIdx];
 
   const slices = useMemo(() => {
@@ -132,14 +174,14 @@ const Windows = () => {
   /* ReactNode: the loudest slice's contract is a door into its card. */
   const read = useMemo<ReactNode>(() => {
     if (!win || slices.length === 0)
-      return <RichRead text={`Nothing traded between ${win ? win.label.replace('–', ' and ') : 'these minutes'} on this cut.`} />;
+      return <RichRead text={`Nothing traded between ${win ? win.label.replace('–', ' and ') : 'these minutes'} New York on this cut.`} />;
     const total = slices.reduce((a, s) => a + s.vol, 0);
     const names = new Set(slices.map(s => s.row.ticker)).size;
     const loud = slices[0];
     return (
       <>
         <RichRead
-          text={`Between ${win.label.replace('–', ' and ')} the book traded ${num(total)} contracts across ${names} names. The loudest: `}
+          text={`Between ${win.label.replace('–', ' and ')} New York the book traded ${num(total)} contracts across ${names} names. The loudest: `}
         />
         <ReadDoor onOpen={() => setOpenKey(loud.row.key)}>
           {loud.row.ticker} {loud.row.strike}
@@ -356,15 +398,18 @@ const Windows = () => {
     return {
       lifted: by(s => s.askPct >= 58, s => s.vol),
       hit: by(s => s.askPct <= 42, s => s.vol),
-      burst: by(() => true, s => s.shareOfDayPct),
+      burst: by(s => s.shareOfDayPct >= BURST_MIN_PCT, s => s.shareOfDayPct),
     };
   }, [slices]);
   const facts = useMemo(() => {
     const total = slices.reduce((a, s) => a + s.vol, 0);
     const prem = slices.reduce((a, s) => a + s.premium, 0);
     const names = new Set(slices.map(s => s.row.ticker)).size;
-    return { total, prem, names };
-  }, [slices]);
+    /* ONE COUNT FOR ONE WINDOW (the audit's X1.11): uncut, the facts say the strip's own figure, not the sum of the rows
+       the grid keeps (it leaves out a contract's last few lots) */
+    const whole = cut === 'all' && side === 'ALL' && query === '';
+    return { total: whole && win ? win.totalVol : total, prem, names };
+  }, [slices, cut, side, query, win]);
   const pill = (s: IntervalSlice, v: string) => (
     <>
       {s.row.ticker} {s.row.strike}
@@ -374,7 +419,7 @@ const Windows = () => {
   const { hidden, toggle, showAll, hideAll } = useHiddenColumns('slayer_windows_cols');
   const chooserCols = useMemo(() => columns.map(c => ({ key: c.key, label: typeof c.header === 'string' ? c.header : c.key })), [columns]);
   const selectedKey = openKey ? (slices.find(s => s.row.key === openKey)?.key ?? null) : null;
-  const stepBtn = 'inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
+  const stepBtn = 'hit inline-flex items-center justify-center w-7 h-7 rounded-md border border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors';
 
   return (
     <>
@@ -391,18 +436,18 @@ const Windows = () => {
           <>
             <Fact label="In the window" testId="window">
               {num(facts.total)} <span className="text-textSecondary">contracts ·</span> {fmtUsd(facts.prem)}
-              {win?.live && (hold.paused ? <span className="ml-2 text-[9px] uppercase tracking-widest text-warn">held</span> : <span className="ml-2 text-[9px] uppercase tracking-widest text-select animate-live-breathe">still filling</span>)}
+              {win?.live && (hold.paused ? <span className="ml-2 text-[10px] text-warn">held</span> : <span className="ml-2 text-[10px] text-select animate-live-breathe">still filling</span>)}
             </Fact>
             <Fact label="Names" testId="names">
               {facts.names}
             </Fact>
             {champs.lifted && champs.lifted !== champs.burst && (
-              <Champion label="Lifted most" ink="bull" onOpen={() => setOpenKey(champs.lifted!.row.key)} testId="lifted">
+              <Champion label="Lifted most" ink="plain" onOpen={() => setOpenKey(champs.lifted!.row.key)} testId="lifted">
                 {pill(champs.lifted, num(champs.lifted.vol))}
               </Champion>
             )}
             {champs.hit && champs.hit !== champs.burst && (
-              <Champion label="Hit most" ink="bear" onOpen={() => setOpenKey(champs.hit!.row.key)} testId="hit">
+              <Champion label="Hit most" ink="plain" onOpen={() => setOpenKey(champs.hit!.row.key)} testId="hit">
                 {pill(champs.hit, num(champs.hit.vol))}
               </Champion>
             )}
@@ -417,14 +462,15 @@ const Windows = () => {
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
             {/* THE WINDOW: back, the label, forward, and Latest to follow the newest complete one */}
-            <span className="inline-flex items-center gap-1.5" data-windows-nav>
+            {/* the four as one card that WRAPS on a phone ("LATEST" stood past a 390px screen's edge — the audit's TR-51) */}
+            <span className="inline-flex items-center gap-1.5 flex-wrap" data-windows-nav data-span>
               <button type="button" onClick={() => setWinSel(Math.max(0, winIdx - 1))} disabled={winIdx === 0} aria-label="Previous window" className={stepBtn}>
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <span className="inline-flex items-center gap-2 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono">
-                <span className="text-[9px] uppercase tracking-widest text-textMuted">Window</span>
-                <span className="text-[11px] font-semibold tnum text-textPrimary">{win?.label ?? '—'}</span>
-                {win?.live && (hold.paused ? <span className="text-[9px] uppercase tracking-widest text-warn">held</span> : <span className="text-[9px] uppercase tracking-widest text-select animate-live-breathe">live</span>)}
+                <span className="text-[10px] text-textMuted">Window</span>
+                <span className="text-[11px] font-semibold tnum text-textPrimary">{win ? `${win.label} ET` : '—'}</span>
+                {win?.live && (hold.paused ? <span className="text-[10px] text-warn">held</span> : <span className="text-[10px] text-select animate-live-breathe">live</span>)}
               </span>
               <button type="button" onClick={() => setWinSel(Math.min(windows.length - 1, winIdx + 1))} disabled={winIdx >= windows.length - 1} aria-label="Next window" className={stepBtn}>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -434,24 +480,36 @@ const Windows = () => {
                 onClick={() => setWinSel('latest')}
                 aria-pressed={winSel === 'latest'}
                 title="Follow the newest complete window"
-                className={`h-7 px-2.5 rounded-md border font-mono text-[9px] uppercase tracking-widest transition-colors ${winSel === 'latest' ? 'border-silver/50 bg-silver/[0.06] text-textPrimary' : 'border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`}
+                className={`hit h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-widest transition-colors ${winSel === 'latest' ? 'border-silver/50 bg-silver/[0.06] text-textPrimary' : 'border-borderSubtle bg-chip text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`}
                 data-windows-latest
               >
                 Latest
               </button>
             </span>
-            <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" />
-            <DropdownSelect label="Cut" value={cut} options={CUT_OPTIONS} onChange={setCut} title="Which of the window's flow" testId="windows-cut" />
+            <FlowSearch value={query} onChange={setQuery} rows={book} countNoun="contracts" span />
+            <DropdownSelect label="Screen" value={cut} options={CUT_OPTIONS} onChange={setCut} title="Which of the window's flow" testId="windows-cut" />
             <DropdownSelect label="Side" value={side} options={SIDE_OPTIONS} onChange={setSide} title="Calls, puts or both" testId="windows-side" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="windows-expiry" />
+            <SavedCutsControl store={WINDOW_CUTS} query={addr.query} onOpen={addr.open} noun="cut" testId="windows" onSay={cuts.say} open={cuts.open} onToggleOpen={cuts.toggle} />
             <div className="ml-auto">
               <ColumnChooser columns={chooserCols} hidden={hidden} onToggle={toggle} onAll={showAll} onNone={() => hideAll(columns.map(c => c.key))} />
             </div>
           </>
         }
-        sentence={read}
+        sentence={
+          <>
+            <SavedCutsList store={WINDOW_CUTS} query="" onOpen={addr.open} noun="cut" testId="windows" onSay={cuts.say} open={cuts.open} />
+            {cuts.said && (
+              <p role="status" className="mb-2 font-mono text-[10px] text-textSecondary">
+                {cuts.said}
+              </p>
+            )}
+            {read}
+          </>
+        }
       >
-        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} autoHeight noun="contracts" emptyText="Nothing in this window" emptyBody="No contract traded inside it on this cut — try a wider window or a looser card." testId="windows" />
+        {/* the width is fixed at a quarter hour, so the way out is another window or a looser card (the audit's TR-50) */}
+        <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="contracts" emptyText="Nothing in this window" emptyBody="No contract traded inside this quarter hour on this cut — step to another window, or loosen a card." testId="windows" />
       </TraceBox>
 
       <BookDrill list={slices.map(s => s.row)} openKey={openKey} onOpen={setOpenKey} tick={tick} />

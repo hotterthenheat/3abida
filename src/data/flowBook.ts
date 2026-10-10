@@ -24,8 +24,10 @@
 ==================================================
 */
 
-import { dayKey, h01, hRange } from '../core/rng';
+import { h01, hRange } from '../core/rng';
 import { now } from '../core/clock';
+import { isTradingDay } from '../core/calendar';
+import { minuteLabel, nyParts, nyWallTime, SESSION_CLOSE_MIN, SESSION_LENGTH_MIN, SESSION_OPEN_MIN } from '../core/nyTime';
 import { SECTOR_LIST, sectorOf } from './darkpool';
 import { buildEarningsCalendar } from './earnings';
 import { sleeveForDte } from './compass';
@@ -37,17 +39,75 @@ import type { BookContract } from '../types/trace';
 /** Expiry runway the book quotes on — short end dense, the tape's own skew. */
 const DTE_POOL = [0, 1, 2, 5, 9, 16, 30, 44, 72, 102, 183] as const;
 
-/** How much of the day's flow has landed by minute m — front-loaded like a
-    real session, monotonic so cumulative columns never shrink. */
+/* THE BOOK KEEPS NEW YORK'S SESSION (2026-10-09, the audit's X2): every minute in here is New York's minute of the day,
+   and the book's day is the cash session, 09:30 to 16:00. It used to be the machine's midnight-to-midnight: windows from
+   00:00 with volume in every quarter hour, catches at 00:30 and after the close, a "last print" at 18:03 — on a Los
+   Angeles or UTC machine the whole book sat hours off the session marks drawn beside it. Outside the session the book
+   is the LAST session, whole: after the close today's, before the open (or on a weekend or a holiday) the session
+   before. */
+export interface BookSession {
+  /** The session's New York date */
+  year: number;
+  month: number;
+  day: number;
+  /** Its 09:30 and 16:00 New York, as instants (ms) */
+  open: number;
+  close: number;
+  /** New York's minute of the day the book stands at — SESSION_OPEN_MIN up to SESSION_CLOSE_MIN */
+  minute: number;
+  /** The session is under way: the clock is inside it */
+  live: boolean;
+}
+
+export function bookSession(at: Date | number = now()): BookSession {
+  const p = nyParts(at);
+  const m = p.hour * 60 + p.minute;
+  /* the calendar's checks read a date's own fields, so New York's date goes in as a plain date */
+  const d = new Date(p.year, p.month - 1, p.day);
+  const today = isTradingDay(d) && m >= SESSION_OPEN_MIN;
+  if (!today) {
+    for (let i = 0; i < 10; i++) {
+      d.setDate(d.getDate() - 1);
+      if (isTradingDay(d)) break;
+    }
+  }
+  const y = d.getFullYear();
+  const mo = d.getMonth() + 1;
+  const dd = d.getDate();
+  return {
+    year: y,
+    month: mo,
+    day: dd,
+    open: nyWallTime(y, mo, dd, 9, 30),
+    close: nyWallTime(y, mo, dd, 16, 0),
+    minute: today ? Math.min(m, SESSION_CLOSE_MIN) : SESSION_CLOSE_MIN,
+    live: today && m < SESSION_CLOSE_MIN,
+  };
+}
+
+/** The session's seed — the book of one session is the same book whenever it is read */
+const sessionKey = (s: BookSession) => `${s.year}-${s.month}-${s.day}`;
+
+/** How much of the day's flow has landed by New York minute m — front-loaded like a real session, monotonic so
+    cumulative columns never shrink. */
 function accruedFrac(minute: number): number {
-  const fm = Math.min(1, Math.max(0, minute / 1440));
+  const fm = Math.min(1, Math.max(0, (minute - SESSION_OPEN_MIN) / SESSION_LENGTH_MIN));
   return Math.pow(fm, 0.85);
 }
 
-function expiryLabel(dte: number): string {
-  const d = new Date(now().getTime() + dte * 86400000);
+/** MM/DD/YYYY, counted from the session's own date */
+function expiryLabel(s: BookSession, dte: number): string {
+  const d = new Date(s.year, s.month - 1, s.day + dte);
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 }
+
+/** A New York minute of the day, spoken — "14:30" */
+const clockOf = (minute: number) => minuteLabel(minute);
+/** An epoch second's New York minute of the day */
+const nyMinuteOf = (sec: number) => {
+  const p = nyParts(sec * 1000);
+  return p.hour * 60 + p.minute;
+};
 
 let bookCache: { key: string; rows: BookContract[] } | null = null;
 
@@ -55,9 +115,9 @@ let bookCache: { key: string; rows: BookContract[] } | null = null;
     universe the Compass sweeps (Simulator.universeQuotes) — a replay harness
     hands historical quotes through the same parameter. */
 export function buildFlowBook(quotes: UniverseQuote[]): BookContract[] {
-  const day = dayKey();
-  const t0 = now();
-  const nowMin = t0.getHours() * 60 + t0.getMinutes();
+  const session = bookSession();
+  const day = sessionKey(session);
+  const nowMin = session.minute;
   /* THE UNIVERSE IS PART OF THE KEY (2026-09-30): the active name joins the list (Simulator.universeQuotes), so a
      name picked from outside the roster used to wait up to a minute for a book that had it */
   const cacheKey = `${day}-${nowMin}-${quotes.map(q => q.ticker).join(',')}`;
@@ -153,7 +213,7 @@ export function buildFlowBook(quotes: UniverseQuote[]): BookContract[] {
         // Most recent print: heavy contracts print constantly, quiet ones lag.
         const gapCap = volume > 20000 ? 3 : volume > 3000 ? 25 : 240;
         const gap = Math.round(Math.pow(1 - h01(`${seed}-la-${q}`), 2) * gapCap);
-        const lastAtMin = Math.max(10, nowMin - gap);
+        const lastAtMin = Math.max(SESSION_OPEN_MIN + 1, nowMin - gap);
 
         // Yesterday's texture — fill, side, and the 15-min shape of the day.
         const prevAvgFill = Number(Math.max(0.05, openFill * hRange(`${seed}-pf`, 0.75, 1.2)).toFixed(2));
@@ -175,13 +235,13 @@ export function buildFlowBook(quotes: UniverseQuote[]): BookContract[] {
           sectorColor: sec?.color ?? null,
           strike,
           right,
-          expiry: expiryLabel(dte),
+          expiry: expiryLabel(session, dte),
           dte,
           spot: Number(quote.price.toFixed(2)),
           otmPct: Number((money * 100).toFixed(1)),
           last,
           chgPct,
-          lastAt: `${String(Math.floor(lastAtMin / 60)).padStart(2, '0')}:${String(lastAtMin % 60).padStart(2, '0')}`,
+          lastAt: clockOf(lastAtMin),
           lastAtMin,
           volume,
           oi,
@@ -453,7 +513,7 @@ function myReasonsFor(r: BookContract, reasons: UserReason[]): string[] {
   return out;
 }
 
-let catchCache: { key: string; catches: Catch[] } | null = null;
+let catchCache: { key: string; rows: BookContract[]; catches: Catch[] } | null = null;
 
 /**
  * Every reason trip that has LANDED so far today, newest first — the desk's six
@@ -462,13 +522,16 @@ let catchCache: { key: string; catches: Catch[] } | null = null;
  * a number than a house rule can.
  */
 export function buildCatches(rows: BookContract[], reasons: UserReason[] = []): Catch[] {
-  const day = dayKey();
-  const t0 = now();
-  const nowMin = t0.getHours() * 60 + t0.getMinutes();
+  const session = bookSession();
+  const day = sessionKey(session);
+  const nowMin = session.minute;
   // The reader's shelf is part of the key: edit a reason and the feed must
   // re-derive now, not at the next minute boundary.
   const cacheKey = `${day}-${nowMin}-${reasonsSignature(reasons)}`;
-  if (catchCache?.key === cacheKey) return catchCache.catches;
+  /* THE ROWS ARE PART OF THE KEY (2026-10-09, the audit's TR-46): keyed on the minute alone, a page that cut its book to
+     one expiry got the whole book's catches back until the minute turned — Watchers' Expiry card did nothing. The rows
+     are the caller's own memoised list, so the list itself is the key. */
+  if (catchCache?.key === cacheKey && catchCache.rows === rows) return catchCache.catches;
 
   const catches: Catch[] = [];
   for (const r of rows) {
@@ -477,8 +540,8 @@ export function buildCatches(rows: BookContract[], reasons: UserReason[] = []): 
     for (const rule of [...house, ...mine]) {
       const isMine = !house.includes(rule as WatcherKey);
       const seed = `${day}-fa-${r.key}-${rule}`;
-      // The trip is scheduled through the session — the drip's contract.
-      const minute = 30 + Math.floor(h01(`${seed}-t`) * 1395);
+      // The trip is scheduled through the session — the drip's contract — inside New York's 09:30 to 16:00.
+      const minute = SESSION_OPEN_MIN + 1 + Math.floor(h01(`${seed}-t`) * (SESSION_LENGTH_MIN - 2));
       if (minute > nowMin) continue; // not tripped yet
       const clipSize = Math.max(10, Math.round(r.volume * hRange(`${seed}-cs`, 0.02, 0.18)));
       const clipFill = Number(Math.max(0.05, r.last * hRange(`${seed}-cf`, 0.9, 1.1)).toFixed(2));
@@ -489,7 +552,7 @@ export function buildCatches(rows: BookContract[], reasons: UserReason[] = []): 
         rule,
         mine: isMine,
         minute,
-        time: `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`,
+        time: clockOf(minute),
         clipSize,
         clipFill,
         clipPremium: Math.round(clipSize * clipFill * 100),
@@ -500,24 +563,30 @@ export function buildCatches(rows: BookContract[], reasons: UserReason[] = []): 
   }
 
   catches.sort((a, b) => b.minute - a.minute);
-  catchCache = { key: cacheKey, catches };
+  catchCache = { key: cacheKey, rows, catches };
   return catches;
 }
 
 // ---- the day in windows -----------------------------------------------------
 
 /* The tape cut into quarter-hours. Every contract's day volume distributes
-   across the session's 96 windows by day-stable weights — a few contracts
+   across the session's 26 windows (09:30 to 16:00 New York — 96 from midnight until 2026-10-09, the audit's X2.1) by
+   day-stable weights — a few contracts
    BURST (one window carries most of their whole day: somebody acted all at
    once), the rest dribble. Slices always sum back to the book's own day
    volume, so this page and the screener can never disagree about a day. */
 
 const WINDOW_MIN = 15;
-const WINDOWS_PER_DAY = 1440 / WINDOW_MIN;
+/** 26: the session's quarter hours. Window 0 is 09:30–09:45 New York. */
+export const WINDOWS_PER_DAY = SESSION_LENGTH_MIN / WINDOW_MIN;
+/** The New York minute window `idx` opens on */
+export const windowStart = (idx: number) => SESSION_OPEN_MIN + idx * WINDOW_MIN;
+/** The window New York minute m falls in — clamped to the session's first and last */
+const windowOf = (m: number) => Math.max(0, Math.min(WINDOWS_PER_DAY - 1, Math.floor((m - SESSION_OPEN_MIN) / WINDOW_MIN)));
 
 export interface IntervalSlice {
   key: string;
-  /** Window index, 0-95 */
+  /** Window index, 0-25 — 0 opens at 09:30 New York */
   window: number;
   /** Contracts traded inside this window */
   vol: number;
@@ -549,9 +618,9 @@ export interface IntervalWindow {
   live: boolean;
 }
 
+/** "14:30–14:45", New York */
 export function windowLabel(idx: number): string {
-  const f = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-  return `${f(idx * WINDOW_MIN)}–${f(idx * WINDOW_MIN + WINDOW_MIN)}`;
+  return `${clockOf(windowStart(idx))}–${clockOf(windowStart(idx) + WINDOW_MIN)}`;
 }
 
 /** Day-stable per-window weights for one contract — long-tailed, with a rare
@@ -586,16 +655,17 @@ function windowWeights(day: string, rowKey: string): number[] {
 const wobble30 = (base: number, seed: string) =>
   Math.max(0, Math.min(100, Math.round(base + (h01(seed) - 0.5) * 30)));
 
-let sliceCache: { key: string; slices: IntervalSlice[] } | null = null;
+let sliceCache: { key: string; rows: BookContract[]; slices: IntervalSlice[] } | null = null;
 
 /** Every contract that traded inside window `idx`, heaviest first. */
 export function buildIntervalSlices(rows: BookContract[], idx: number): IntervalSlice[] {
-  const day = dayKey();
-  const t0 = now();
-  const nowMin = t0.getHours() * 60 + t0.getMinutes();
-  const qNow = Math.floor(nowMin / WINDOW_MIN);
+  const session = bookSession();
+  const day = sessionKey(session);
+  const nowMin = session.minute;
+  const qNow = windowOf(nowMin);
   const cacheKey = `${day}-${nowMin}-${idx}`;
-  if (sliceCache?.key === cacheKey) return sliceCache.slices;
+  /* the rows are part of the key (the audit's TR-49): an expiry cut is other rows in the same minute */
+  if (sliceCache?.key === cacheKey && sliceCache.rows === rows) return sliceCache.slices;
 
   // A window's price level relative to the contract's last — the wobble that
   // makes fills vary window to window while premiums still conserve.
@@ -636,22 +706,22 @@ export function buildIntervalSlices(rows: BookContract[], idx: number): Interval
   }
 
   slices.sort((a, b) => b.vol - a.vol);
-  sliceCache = { key: cacheKey, slices };
+  sliceCache = { key: cacheKey, rows, slices };
   return slices;
 }
 
-let navCache: { key: string; windows: IntervalWindow[] } | null = null;
+let navCache: { key: string; rows: BookContract[]; windows: IntervalWindow[] } | null = null;
 
 /** The session so far as a navigator — total volume per landed window. */
 export function intervalWindows(rows: BookContract[], scope = ''): IntervalWindow[] {
-  const day = dayKey();
-  const t0 = now();
-  const nowMin = t0.getHours() * 60 + t0.getMinutes();
-  const qNow = Math.floor(nowMin / WINDOW_MIN);
-  /* `scope` names the cut the rows came through (an expiry), as buildNetLeaders' does: the same minute on another
-     cut is other windows — keyed by the minute alone, a new expiry showed the last one's until the minute turned */
-  const cacheKey = `${day}-${nowMin}-${scope}-${rows.length}`;
-  if (navCache?.key === cacheKey) return navCache.windows;
+  const session = bookSession();
+  const day = sessionKey(session);
+  const nowMin = session.minute;
+  const qNow = windowOf(nowMin);
+  /* `scope` names the cut the rows came through (an expiry), as buildNetLeaders' does; the rows themselves are the
+     rest of the key */
+  const cacheKey = `${day}-${nowMin}-${scope}`;
+  if (navCache?.key === cacheKey && navCache.rows === rows) return navCache.windows;
 
   const totals = new Array(qNow + 1).fill(0);
   for (const r of rows) {
@@ -664,9 +734,9 @@ export function intervalWindows(rows: BookContract[], scope = ''): IntervalWindo
     idx,
     label: windowLabel(idx),
     totalVol: Math.round(v),
-    live: idx === qNow,
+    live: session.live && idx === qNow,
   }));
-  navCache = { key: cacheKey, windows };
+  navCache = { key: cacheKey, rows, windows };
   return windows;
 }
 
@@ -879,7 +949,10 @@ function dayTables(day: string): DayTables {
      the PATH: the day still ends exactly where the book's own lean says it
      ends, so the leader board, the drilldown and this curve keep agreeing while
      the line in between is free to wander. */
-  const mean = sum / MINUTES_PER_DAY;
+  /* centred over the SESSION's minutes — the only ones a clip lands on */
+  sum = 0;
+  for (let m = SESSION_OPEN_MIN; m < SESSION_CLOSE_MIN; m++) sum += mood[m];
+  const mean = sum / SESSION_LENGTH_MIN;
   for (let m = 0; m < MINUTES_PER_DAY; m++) mood[m] -= mean;
   tabs = { mood };
   tabDay = day;
@@ -945,7 +1018,7 @@ function clipTable(day: string, r: BookContract, mood: number[]): ClipTable {
     const win: Clip[] = [];
     let sw = 0;
     for (let j = 0; j < n; j++) {
-      const m = i * WINDOW_MIN + Math.floor(h01(`${day}-npm-${r.key}-${i}-${j}`) * WINDOW_MIN);
+      const m = windowStart(i) + Math.floor(h01(`${day}-npm-${r.key}-${i}-${j}`) * WINDOW_MIN);
       /* The side is DRAWN, not averaged: the contract's own ask share, pushed
          by the mood at that minute — a bullish stretch lifts call buying and
          leans put flow to the bid. Clamped so no contract is ever one-way. */
@@ -971,7 +1044,13 @@ function clipTable(day: string, r: BookContract, mood: number[]): ClipTable {
 let landedW = 0;
 let landedS = 0;
 function landedAt(t: ClipTable, m: number): void {
-  const i = Math.min(Math.floor(m / WINDOW_MIN), WINDOWS_PER_DAY - 1);
+  /* before the open nothing has landed */
+  if (m < SESSION_OPEN_MIN) {
+    landedW = 0;
+    landedS = 0;
+    return;
+  }
+  const i = windowOf(m);
   let w = t.wPre[i];
   let s = t.sPre[i];
   const win = t.clips[i];
@@ -994,7 +1073,7 @@ export function buildNetFlowView(
   ticker: string | null = null,
   tenor: SleeveKey | 'all' = 'all'
 ): NetFlowView {
-  const day = dayKey();
+  const day = sessionKey(bookSession());
   /* THE TAPE IS THE CLOCK (Noah, 2026-08-30: the 0DTE panes "look horrid
      and unfinished" — every line went dead flat after ~18:00 while the
      candles ran on to 22:35). The simulator's bar time advances ~15× wall
@@ -1006,8 +1085,8 @@ export function buildNetFlowView(
      empty-timeline fallback, and the leaders board samples at this same
      instant, so the board and the chart still cannot disagree. */
   const lastT = times.length ? times[times.length - 1] : Math.floor(now().getTime() / 1000);
-  const dLast = new Date(lastT * 1000);
-  const nowMin = dLast.getHours() * 60 + dLast.getMinutes();
+  /* New York's minute of the day — the book's own clock (bookSession) */
+  const nowMin = nyMinuteOf(lastT);
 
   const cut = rows.filter(
     r =>
@@ -1032,8 +1111,7 @@ export function buildNetFlowView(
   let prevPut = 0;
   let prevVol = 0;
   for (const t of times) {
-    const d = new Date(t * 1000);
-    const m = Math.min(nowMin, d.getHours() * 60 + d.getMinutes());
+    const m = Math.min(nowMin, nyMinuteOf(t));
     let callPrem = 0;
     let putPrem = 0;
     let vol = 0;
@@ -1092,21 +1170,20 @@ export interface NetLeader {
   count: number;
 }
 
-let leadersCache: { key: string; leaders: NetLeader[] } | null = null;
+let leadersCache: { key: string; rows: BookContract[]; leaders: NetLeader[] } | null = null;
 
 /** `sampleTime` = the chart tape's LAST bar (epoch seconds) — pass the same
     timeline end the pane beside the board draws with, so both read the same
     instant of the same curve. Falls back to the wall clock only when no tape
     is on screen to borrow a clock from. */
 export function buildNetLeaders(rows: BookContract[], sampleTime?: number, scope = ''): NetLeader[] {
-  const day = dayKey();
+  const day = sessionKey(bookSession());
   const nowSec = sampleTime ?? Math.floor(now().getTime() / 1000);
-  const d0 = new Date(nowSec * 1000);
-  const nowMin = d0.getHours() * 60 + d0.getMinutes();
+  const nowMin = nyMinuteOf(nowSec);
   /* `scope` names the cut the rows came through (an expiry, 2026-09-12) — the
      same minute on a different cut is a different board */
-  const cacheKey = `${day}-${nowMin}-${scope}-${rows.length}`;
-  if (leadersCache?.key === cacheKey) return leadersCache.leaders;
+  const cacheKey = `${day}-${nowMin}-${scope}`;
+  if (leadersCache?.key === cacheKey && leadersCache.rows === rows) return leadersCache.leaders;
 
   const byTicker = new Map<string, BookContract[]>();
   for (const r of rows) {
@@ -1130,7 +1207,7 @@ export function buildNetLeaders(rows: BookContract[], sampleTime?: number, scope
   });
 
   leaders.sort((a, b) => b.net - a.net);
-  leadersCache = { key: cacheKey, leaders };
+  leadersCache = { key: cacheKey, rows, leaders };
   return leaders;
 }
 
@@ -1212,9 +1289,9 @@ let spreadCache: { key: string; trades: SpreadTrade[] } | null = null;
 
 /** Every multi-leg structure that has landed so far today, newest first. */
 export function buildSpreadFlow(quotes: UniverseQuote[]): SpreadTrade[] {
-  const day = dayKey();
-  const t0 = now();
-  const nowMin = t0.getHours() * 60 + t0.getMinutes();
+  const session = bookSession();
+  const day = sessionKey(session);
+  const nowMin = session.minute;
   /* the universe is part of the key, as the book's is (buildFlowBook) */
   const cacheKey = `${day}-${nowMin}-${quotes.map(q => q.ticker).join(',')}`;
   if (spreadCache?.key === cacheKey) return spreadCache.trades;
@@ -1223,7 +1300,7 @@ export function buildSpreadFlow(quotes: UniverseQuote[]): SpreadTrade[] {
   for (let i = 0; i < SPREADS_PER_DAY; i++) {
     const seed = `${day}-ml-${i}`;
     const h = (tag: string) => h01(`${seed}-${tag}`);
-    const minute = 15 + Math.floor(h('t') * 1395);
+    const minute = SESSION_OPEN_MIN + Math.floor(h('t') * SESSION_LENGTH_MIN);
     if (minute > nowMin) continue; // the drip
 
     // Index names lead multi-leg tape share — the universe's front is heavier.
@@ -1250,13 +1327,13 @@ export function buildSpreadFlow(quotes: UniverseQuote[]): SpreadTrade[] {
                   ? 'calendar'
                   : 'ratio';
 
-    const exp = expiryLabel(dte);
+    const exp = expiryLabel(session, dte);
     const mk = (side: 'BUY' | 'SELL', ratio: number, strike: number, right: 'C' | 'P', legDte: number = dte): SpreadLeg => ({
       side,
       ratio,
       strike: Number(strike.toFixed(2)),
       right,
-      expiry: expiryLabel(legDte),
+      expiry: expiryLabel(session, legDte),
       dte: legDte,
       fill: legFill(spot, strike, right, legDte, ivFrac),
     });
@@ -1341,7 +1418,7 @@ export function buildSpreadFlow(quotes: UniverseQuote[]): SpreadTrade[] {
     trades.push({
       id: seed,
       minute,
-      time: `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`,
+      time: clockOf(minute),
       ticker: q.ticker,
       kind,
       strikesLabel: strikes.join(' / '),

@@ -27,6 +27,7 @@ import { fmtUsd } from '../../data/gex';
 import type { SleeveKey } from '../../types/compass';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import RichRead from '../../components/ui/RichRead';
+import Lean from '../../components/trace/Lean';
 import NetFlowPane, { paneTimes } from '../../components/trace/NetFlowPane';
 import { directionInk, earnMarks } from '../../components/trace/earnedInk';
 import FlowSearch from '../../components/trace/FlowSearch';
@@ -39,7 +40,6 @@ import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 
 const num = (v: number) => v.toLocaleString('en-US');
-// Signed on purpose — RichRead inks +$/-$ by direction (2026-08-30).
 const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmtUsd(v)}`;
 
 /** What another page may hand this one (the 0DTE desk's door, 2026-09-03). */
@@ -54,6 +54,10 @@ const NetFlow = () => {
   /* Arriving through a door: the name goes on the pane and the clock is set before the first paint */
   const handoff = (useLocation().state ?? null) as NetFlowHandoff | null;
   const [picked, setPicked] = useState<string | null>(() => (typeof handoff?.ticker === 'string' && /^[A-Z0-9.]{1,6}$/.test(handoff.ticker) ? handoff.ticker : null));
+  /* THE FIELD IS NOT THE PICK (the audit's TR-37): anything typed went on the pane — "ZZZZ" drew letter logos and an
+     invented price line. The field holds what is typed; the pane takes a name only when the book carries it, and keeps
+     the last real one meanwhile. */
+  const [query, setQuery] = useState<string>(picked ?? '');
   const [mny, setMny] = useState<MoneynessKey>('all');
   const [tenor, setTenor] = useState<SleeveKey | 'all'>(() => (typeof handoff?.tenor === 'string' && TENORS.has(handoff.tenor) ? handoff.tenor : 'all'));
   const [guideOpen, setGuideOpen] = useState(false);
@@ -68,12 +72,25 @@ const NetFlow = () => {
   const { book: heldBook, tick } = hold.value;
   /* THE EXPIRY CUT (2026-09-12) — the dates on the book, as a calendar; the
      board and the pane both read the cut book, so they cannot disagree */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
+  const { expiry, setExpiry: setExpiryRaw, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
+  const known = useMemo(() => new Set(heldBook.map(r => r.ticker)), [heldBook]);
+  const onQuery = (v: string) => {
+    setQuery(v);
+    if (!v) setPicked(null);
+    else if (known.has(v)) setPicked(v);
+  };
+  const unknown = query !== '' && !known.has(query) && ![...known].some(t => t.startsWith(query));
   /* Sampled at the chart tape's last bar — the pane draws to the SIM tape's now */
   const leaders = useMemo(() => buildNetLeaders(book, paneTimes('SPY').slice(-1)[0], expiry ?? 'all'), [book, expiry]);
 
   const sel = picked ?? leaders[0]?.ticker ?? 'SPY';
+  /* AN EXPIRY KEEPS THE NAME ON THE PANE (the audit's TR-40): with no name picked the pane followed the board's leader,
+     so a new expiry swapped GOOGL for COIN unasked — the name on the pane is held as the cut changes */
+  const setExpiry = (iso: string | null) => {
+    setPicked(p => p ?? sel);
+    setExpiryRaw(iso);
+  };
   const maxAbs = useMemo(() => Math.max(...leaders.map(l => Math.abs(l.net)), 1), [leaders]);
   const netMarks = useMemo(() => earnMarks(leaders, l => l.net), [leaders]);
 
@@ -94,23 +111,28 @@ const NetFlow = () => {
   }, [leaders]);
 
   /* ReactNode: both named leaders are doors — clicking puts that name on the pane */
+  /* THE PARTS ADD UP (the audit's TR-38): "+$113.6M net … +$104.5M of it in calls and −$9.1M in puts" did not sum; the
+     net is net calls LESS net puts, and the sentence says it that way, each figure in its meaning's ink */
   const read = useMemo<ReactNode>(() => {
     if (!facts.top || !facts.bottom) return <RichRead text="The book is still waking up." />;
     const { top, bottom, total, topIsChamp } = facts;
-    const crown = (v: number, champ: boolean) => (champ ? `[[${signed(v)}]]` : signed(v));
+    const crown = (v: number, champ: boolean) => (champ ? <span className="font-semibold tnum text-supreme">{signed(v)}</span> : <Lean v={v} />);
     return (
       <>
-        <RichRead text={`${chosen ? `On ${expiryWords(chosen)}, the` : 'The'} board's money leans ${total >= 0 ? 'bullish' : 'bearish'} — ${signed(total)} net across ${leaders.length} names, ${signed(facts.calls)} of it in calls and ${signed(facts.puts)} in puts. `} />
-        <ReadDoor onOpen={() => setPicked(top.ticker)} title={`Put ${top.ticker} on the pane`}>
+        <RichRead text={`${chosen ? `On ${expiryWords(chosen)}, the` : 'The'} board's money leans ${total >= 0 ? 'bullish' : 'bearish'} — `} />
+        <Lean v={total} /> net across {leaders.length} names: net calls <Lean v={facts.calls} /> less net puts <Lean v={facts.puts} put />.{' '}
+        <ReadDoor onOpen={() => onQuery(top.ticker)} title={`Put ${top.ticker} on the pane`}>
           {top.ticker}
         </ReadDoor>
-        <RichRead text={` leads bullish at ${crown(top.net, topIsChamp)}; `} />
-        <ReadDoor onOpen={() => setPicked(bottom.ticker)} title={`Put ${bottom.ticker} on the pane`}>
+        <RichRead text=" leads bullish at " />
+        {crown(top.net, topIsChamp)}; <ReadDoor onOpen={() => onQuery(bottom.ticker)} title={`Put ${bottom.ticker} on the pane`}>
           {bottom.ticker}
         </ReadDoor>
-        <RichRead text={` leans hardest bearish at ${crown(bottom.net, !topIsChamp)}.`} />
+        <RichRead text=" leans hardest bearish at " />
+        {crown(bottom.net, !topIsChamp)}.
       </>
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facts, leaders.length, chosen]);
 
   /* The search PICKS a name (it is a board, not a filter); the board scrolls the picked row into view */
@@ -125,7 +147,7 @@ const NetFlow = () => {
   return (
     <TraceBox
       title="Which way the money leans"
-      sub="Every name ranked most bullish to most bearish by net premium — calls bought and puts sold against the reverse · click a name and its session goes on the pane"
+      sub="Every name ranked most bullish to most bearish by net premium — net calls less net puts · click a name and its session goes on the pane"
       testId="net-flow"
       className="md:flex-1 md:min-h-0"
       data={{ picked: sel, names: leaders.length, expiry: expiry ?? 'all' }}
@@ -135,8 +157,8 @@ const NetFlow = () => {
           <Fact label="Net across the board" testId="net">
             <span className={facts.total >= 0 ? 'text-bull' : 'text-bear'}>{signed(facts.total)}</span>
           </Fact>
-          <Fact label="Calls · puts" testId="sides" title="Net call premium and net put premium across the board">
-            <span className="text-bull">{signed(facts.calls)}</span> <span className="text-textSecondary">·</span> <span className="text-bear">{signed(facts.puts)}</span>
+          <Fact label="Net calls · net puts" testId="sides" title="Net call premium and net put premium across the board — the net is calls less puts">
+            <Lean v={facts.calls} className="font-normal" /> <span className="text-textSecondary">·</span> <Lean v={facts.puts} put className="font-normal" />
           </Fact>
           <Fact label="Names" testId="names">
             {leaders.length} <span className="text-textSecondary">·</span> <span className="text-bull">{facts.bullish} bullish</span> <span className="text-textSecondary">·</span> <span className="text-bear">{facts.bearish} bearish</span>
@@ -145,22 +167,22 @@ const NetFlow = () => {
             {num(facts.volume)} <span className="text-textSecondary">· {num(facts.contracts)} contracts</span>
           </Fact>
           {facts.busiest && (
-            <Champion label="Busiest name" ink="warn" onOpen={() => setPicked(facts.busiest!.ticker)} testId="busiest">
+            <Champion label="Busiest name" ink="plain" title="Put this name on the pane" onOpen={() => onQuery(facts.busiest!.ticker)} testId="busiest">
               {facts.busiest.ticker} · {num(facts.busiest.volume)} vol
             </Champion>
           )}
           {facts.top && facts.bottom && !facts.topIsChamp && (
-            <Champion label="Most bullish" ink="bull" onOpen={() => setPicked(facts.top!.ticker)} testId="bullish">
+            <Champion label="Most bullish" ink="bull" title="Put this name on the pane" onOpen={() => onQuery(facts.top!.ticker)} testId="bullish">
               {facts.top.ticker} · {signed(facts.top.net)}
             </Champion>
           )}
           {facts.top && facts.bottom && facts.topIsChamp && (
-            <Champion label="Most bearish" ink="bear" onOpen={() => setPicked(facts.bottom!.ticker)} testId="bearish">
+            <Champion label="Most bearish" ink="bear" title="Put this name on the pane" onOpen={() => onQuery(facts.bottom!.ticker)} testId="bearish">
               {facts.bottom.ticker} · {signed(facts.bottom.net)}
             </Champion>
           )}
           {champ && (
-            <Champion label="Largest lean" ink="supreme" onOpen={() => setPicked(champ.ticker)} testId="largest">
+            <Champion label="Largest lean" ink="supreme" title="Put this name on the pane" onOpen={() => onQuery(champ.ticker)} testId="largest">
               {champ.ticker} · {signed(champ.net)}
             </Champion>
           )}
@@ -169,7 +191,14 @@ const NetFlow = () => {
       controls={
         <>
           <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-          <FlowSearch value={picked ?? ''} onChange={v => setPicked(v ? v : null)} rows={book} countNoun="contracts" tickersOnly />
+          <span className="inline-flex items-center gap-2 flex-wrap" data-span>
+            <FlowSearch value={query} onChange={onQuery} rows={book} countNoun="contracts" tickersOnly />
+            {unknown && (
+              <span role="status" className="text-[11px] text-textSecondary" data-net-unknown>
+                No contracts for {query} today — the pane keeps {sel}
+              </span>
+            )}
+          </span>
           <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="net-flow-expiry" />
         </>
       }
@@ -187,15 +216,16 @@ const NetFlow = () => {
                 key={l.ticker}
                 type="button"
                 data-ticker={l.ticker}
-                onClick={() => setPicked(l.ticker)}
+                onClick={() => onQuery(l.ticker)}
+                aria-pressed={isSel}
                 className={`w-full flex flex-col gap-1 px-3 py-2 border-b border-borderSubtle/60 text-left transition-colors ${isSel ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="font-mono text-[9px] text-textPrimary tnum w-5">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="font-mono text-[10px] text-textPrimary tnum w-5">{String(i + 1).padStart(2, '0')}</span>
                   <CompanyLogo ticker={l.ticker} size={15} />
                   <span className="font-mono text-[11px] font-bold text-textPrimary">{l.ticker}</span>
                   {/* the name's share of the board's gross lean */}
-                  <span className="font-mono text-[9px] tnum text-textSecondary" title="This name's share of the board's whole lean">
+                  <span className="font-mono text-[10px] tnum text-textSecondary" title="This name's share of the board's whole lean">
                     {Math.round((Math.abs(l.net) / facts.gross) * 100)}%
                   </span>
                   <span className={`ml-auto font-mono text-[11px] tnum ${directionInk(l.net, netMarks)}`}>{fmtUsd(l.net)}</span>
@@ -204,8 +234,8 @@ const NetFlow = () => {
                   <span className="relative h-0.5 flex-1 rounded-full bg-ink/[0.06] overflow-hidden">
                     <span className={`absolute left-0 top-0 h-full ${l.net >= 0 ? 'bg-bull/60' : 'bg-bear/60'}`} style={{ width: `${Math.round((Math.abs(l.net) / maxAbs) * 100)}%` }} />
                   </span>
-                  <span className="font-mono text-[9px] text-textPrimary tnum whitespace-nowrap" title={`${l.count} contracts traded on ${l.ticker} today`}>
-                    <span className="text-bull">C</span> {fmtUsd(l.netCall)} · <span className="text-bear">P</span> {fmtUsd(l.netPut)} · {num(l.volume)} vol · {l.count} cons
+                  <span className="font-mono text-[10px] text-textPrimary tnum whitespace-nowrap" title={`Net calls, net puts, volume and the ${l.count} contracts traded on ${l.ticker} today`}>
+                    C {fmtUsd(l.netCall)} · P {fmtUsd(l.netPut)} · {num(l.volume)} vol · {l.count} cons
                   </span>
                 </span>
               </button>

@@ -58,7 +58,7 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
   {
     path: '/trace/multi-leg',
     label: 'Multi-Leg',
-    subtitle: 'The tape reconstructed into structures — spreads, their legs & their defined risk',
+    subtitle: 'The tape reconstructed into structures — spreads, their legs & their risk',
     icon: Layers,
   },
   // Its own page since 2026-09-12 (Noah: "make a dark pool page in trace") —
@@ -66,7 +66,7 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
   {
     path: '/trace/dark-pool',
     label: 'Dark Pool',
-    subtitle: 'Off-exchange crosses with the read attached — who is behind them, the shelves they left & where the dark money went',
+    subtitle: 'Off-exchange crosses with the read attached — where they printed, the shelves they left & where the dark money went',
     icon: Moon,
   },
   // Two names on everything Trace knows (Noah, 2026-09-12)
@@ -79,7 +79,7 @@ export const TRACE_SUBPAGES: TraceSubpage[] = [
   {
     path: '/trace/tracker',
     label: 'Tracker',
-    subtitle: 'Bookmarked prints & contracts under live watch',
+    subtitle: 'Tracked prints & contracts, live',
     icon: Bookmark,
   },
 ];

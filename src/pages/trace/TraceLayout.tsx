@@ -2,7 +2,7 @@
 ==================================================
   SLAYER TERMINAL - TRACE'S SHELL (pages/trace/TraceLayout.tsx)
 
-  One head over nine pages, the way Pinpoint's and
+  One head over eleven pages, the way Pinpoint's and
   the Record's read (2026-09-09; Noah: "should we
   have the different subtabs on the sub-bar or stay
   on the top section of the header" — the sidebar
@@ -59,7 +59,10 @@ const TraceLayout = () => {
             </span>
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{active.label}</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{active.subtitle}</p>
+          {/* two lines where one will not hold it, never cut mid-word (the audit's X10) */}
+          <p className="mt-0.5 text-[11px] text-textMuted line-clamp-2" title={active.subtitle}>
+            {active.subtitle}
+          </p>
         </div>
         {picker && (
           <div className="flex items-center gap-2 shrink-0" data-trace-picker>
