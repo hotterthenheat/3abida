@@ -325,7 +325,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
     const spot = el.querySelector<HTMLElement>('[data-ladder-spot]');
     if (spot) el.scrollTop = Math.max(0, spot.offsetTop - (el.clientHeight - spot.offsetHeight) / 2);
   }, [surface.ticker, rings, boxH, rowH]);
-  const fontSize = Math.max(9.5, Math.min(12, rowH * 0.46));
+  const fontSize = Math.max(11, Math.min(12, rowH * 0.46));
 
   const { levels } = surface;
   const pinStrike = surface.front.strikes.find(r => r.pin)?.strike;
@@ -504,8 +504,9 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
     const distPct = ((r.strike - surface.spot) / surface.spot) * 100;
     const isSupreme = r.strike === levels.supreme;
     const legH = Math.max(5, Math.min(9, rowH - 9));
-    /* the legs' figures: 11px on the Map's rows, smaller on a tight tile's (a 12px row holds 10px, an 11px row 9.5px) */
-    const legFig = rowH >= 16 ? 11 : rowH >= 12 ? 10 : 9.5;
+    /* the legs' figures at the terminal's floor, 11px, on every row (2026-10-10; a tight tile's 12px row drew 10 and an
+       11px row 9.5) — the row's line is the figure's, so a tight ladder's figures meet edge to edge, never shrink */
+    const legFig = 11;
     return (
       <div
         key={r.strike}
