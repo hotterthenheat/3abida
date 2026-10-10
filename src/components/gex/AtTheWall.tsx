@@ -34,6 +34,8 @@ import type { Sureness } from '../../data/levelSureness';
 import { useMemo, useState, type ReactNode } from 'react';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
+import ReadThis from '../read/ReadThis';
+import { wallReading } from '../../data/reads';
 import { WallGuide } from './WallGuide';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME, THERMAL_COOL, THERMAL_WARM, alpha } from './paletteInk';
 import { PATHS_H, PATHS_M, PATHS_W, REASON_COLUMNS } from './wallSkeletons';
@@ -202,8 +204,9 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
       {/* THE HEAD */}
       <div className={`${headless ? 'px-4 pt-3 pb-2' : 'px-5 pt-4 pb-3'} flex items-start gap-6 flex-wrap`}>
         {headless ? (
-          <div className="shrink-0 h-[35px] flex items-center">
+          <div className="shrink-0 h-[35px] flex items-center gap-1">
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the beam, the reasons and the two paths mean" testId="wall-guide" />
+            <ReadThis read={() => wallReading(board)} what={`the wall at ${fmtStrike(wall.strike)}`} testId="wall-tile" />
           </div>
         ) : (
           <div className="min-w-0 flex-1">
@@ -211,6 +214,8 @@ const AtTheWall = ({ board, ticker, clock, onPick, updatedAt, scope, headless = 
               <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">At the wall</h2>
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the beam, the reasons and the two paths mean" testId="wall-guide" />
+              {/* READ THIS (2026-10-10): the wall in focus, in three sentences */}
+              <ReadThis read={() => wallReading(board)} what={`the wall at ${fmtStrike(wall.strike)}`} testId="wall" />
             </div>
             <p className="mt-0.5 text-[11px] text-textMuted">Whether it holds when price gets there, and what follows either way · model odds, not a forecast</p>
           </div>

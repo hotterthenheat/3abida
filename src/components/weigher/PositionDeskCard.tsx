@@ -42,7 +42,9 @@ import SessionsChart from '../record/SessionsChart';
 import PositionForm from '../gex/PositionForm';
 import { PayoffSketch } from '../gex/PayoffSketch';
 import PriceRuler from './PriceRuler';
-import { buildPositionCurve, fmtPnl, valueOn } from '../../data/positionCurve';
+import { buildPositionCurve, fmtPnl, positionSensitivity, valueOn } from '../../data/positionCurve';
+import ReadThis from '../read/ReadThis';
+import { positionReading } from '../../data/reads';
 import { readPosition, subjectWords, type Position, type Verdict } from '../../data/positions';
 import { setWatchedSize, yearsToExpiry } from '../../data/watchlist';
 import { contractIvFor } from '../../data/weigherDesk';
@@ -223,6 +225,36 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
             <h4 className="text-[14px] font-semibold leading-tight text-textPrimary truncate">{title}</h4>
             <p className="mt-0.5 text-[11px] text-textMuted truncate">{line}</p>
           </div>
+          {/* READ THIS (2026-10-10): the position in three sentences — the card's own, its money, what moves it */}
+          {open && (
+            <ReadThis
+              align="end"
+              what={title}
+              testId="position"
+              className="mt-0.5"
+              read={() => {
+                const s = positionSensitivity(pos, spot);
+                const long = pos.side === 'long';
+                const value = curve.valueNow * per;
+                const cost = curve.ref * per;
+                const strikeCash = pos.strike * per;
+                return positionReading({
+                  said: `${subjectWords(pos)} sit${pos.contracts === 1 ? 's' : ''} ${read.sits}. ${read.hedging[0].toUpperCase()}${read.hedging.slice(1)}.`,
+                  spot,
+                  value,
+                  cost,
+                  pl: long ? value - cost : cost - value,
+                  breakeven: curve.breakeven,
+                  delta: s.delta,
+                  theta: s.theta,
+                  vega: s.vega,
+                  maxLoss: long ? cost : pos.right === 'P' ? strikeCash - cost : null,
+                  maxGain: long ? (pos.right === 'P' ? strikeCash - cost : null) : cost,
+                  daysLeft: sessions,
+                });
+              }}
+            />
+          )}
           <span className={`shrink-0 inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] font-medium ${VERDICT_CLS[read.verdict]}`} data-verdict={read.verdict}>
             {VERDICT_WORD[read.verdict]}
           </span>

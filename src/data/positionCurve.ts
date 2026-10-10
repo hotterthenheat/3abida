@@ -141,3 +141,23 @@ export function fmtPnl(v: number): string {
   const body = a >= 1e6 ? `$${(a / 1e6).toFixed(1)}M` : a >= 1e3 ? `$${(a / 1e3).toFixed(1)}K` : `$${a.toFixed(0)}`;
   return `${v < 0 ? '−' : '+'}${body}`;
 }
+
+/**
+ * What one unit of each moves the position by, in dollars (signed by side, × 100 × contracts) — the stock by $1, a
+ * session of time, a point of implied volatility — off the same estimator as the mark. "Read this" names them
+ * (data/reads.ts positionReading).
+ */
+export function positionSensitivity(p: Pick<Position, 'ticker' | 'strike' | 'right' | 'expiry' | 'side' | 'contracts'>, spot: number): { delta: number; theta: number; vega: number } {
+  const [y, m, d] = p.expiry.split('-').map(Number);
+  const sessions = Math.max(0, sessionsBetween(today(), new Date(y, m - 1, d)));
+  const t = Math.max(sessions, 0.5) / 252;
+  const iv = contractIvFor(p.ticker, p.strike, p.right);
+  const per = (p.side === 'long' ? 1 : -1) * 100 * p.contracts;
+  const at = (s: number, v: number, tt: number) => estimatePremium(s, p.strike, p.right, v, tt);
+  return {
+    delta: ((at(spot + 1, iv, t) - at(spot - 1, iv, t)) / 2) * per,
+    /* a session on, by the curve's own clock (the last session lands on the payoff) */
+    theta: (valueOn(p, spot, Math.min(1, Math.max(sessions, 0.5)), true) - valueOn(p, spot, 0, true)) * per,
+    vega: ((at(spot, iv + 0.01, t) - at(spot, Math.max(0.01, iv - 0.01), t)) / 2) * per,
+  };
+}

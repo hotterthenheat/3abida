@@ -40,6 +40,10 @@ import { TargetsWidgetSkeleton } from './pulseSkeletons';
 import type { PulseView, ExposureProfileData, GexMatrixData, GexView, VannaCharmView } from '../../types/gex';
 import type { MarketSnapshot } from '../../types/market';
 import type { CompassView } from '../../types/compass';
+import { agendaReading, bookReading, closeReading, rangeReading, type Reading } from '../../data/reads';
+import { aheadClock } from '../../data/ahead';
+import { readSessionClock } from '../../data/sessionClock';
+import { agendaOf, bookOf, closeOddsOf, corridorOf, profileOf, scanOf } from '../../data/pinpointBook';
 
 export interface WorkspaceCtx {
   ticker: string;
@@ -117,7 +121,35 @@ export interface WidgetDef {
   /** THE PICTURE'S SIZE in the Add widget menu — the panel is mounted at this size and scaled into the thumb (640 × 420
       by rest). A panel whose own toolbar wraps at 640 asks for its real tile's size (the strike ladder, 2026-09-22) */
   thumbSize?: { w: number; h: number };
+  /** READ THIS (2026-10-10, components/read/ReadThis.tsx): the panel's figures as three sentences, built when the tile
+      head's door opens — a panel without one has no door */
+  read?: (ctx: WorkspaceCtx) => Reading | null;
 }
+
+/* THE READS the tiles' doors open (data/reads.ts) — every one off the room's one book (data/pinpointBook.ts), so a tile
+   reads what the Pinpoint page of the same name reads */
+const bookOfCtx = (ctx: WorkspaceCtx) => {
+  const scan = scanOf(ctx.snapshot.ticker, ctx.snapshot);
+  return scan ? bookOf(scan.snap, aheadClock(readSessionClock())) : null;
+};
+const readBook = (ctx: WorkspaceCtx): Reading | null => {
+  const scan = scanOf(ctx.snapshot.ticker, ctx.snapshot);
+  if (!scan) return null;
+  const p = profileOf(scan.snap);
+  return bookReading({ ticker: scan.snap.ticker, spot: ctx.liveSpot ?? scan.snap.spot, callWall: p.levels.callWall, putWall: p.levels.putWall, flip: p.levels.flip, supreme: p.levels.supreme, netGex: p.netGex });
+};
+const readRange = (ctx: WorkspaceCtx): Reading | null => {
+  const b = bookOfCtx(ctx);
+  return b ? rangeReading(corridorOf(b), b.clock.minutesLeft) : null;
+};
+const readClose = (ctx: WorkspaceCtx): Reading | null => {
+  const b = bookOfCtx(ctx);
+  return b ? closeReading(closeOddsOf(b), b.ticker) : null;
+};
+const readAgenda = (ctx: WorkspaceCtx): Reading | null => {
+  const b = bookOfCtx(ctx);
+  return b ? agendaReading(agendaOf(b)) : null;
+};
 
 /* the Map keeps its own view (gex/ledgerView.ts) — a tile that opens it "on what the tile showed" writes the MAP's pick */
 const MAP_VIEW = (view: LedgerView) => () => writeLedgerView('map', view);
@@ -127,6 +159,7 @@ const chartSkeleton = () => <ChartSkeleton className="h-full" />;
 export const WIDGETS: WidgetDef[] = [
   {
     key: 'live-chart',
+    read: readBook,
     title: 'Live chart',
     sub: 'Price over the hedging at every strike — the key levels are one switch away',
     description: 'Candles with walls, flip, supreme & the exposure trails — own timeframe & overlays',
@@ -145,6 +178,7 @@ export const WIDGETS: WidgetDef[] = [
     // pills became the Exposure Ledger — the capsules, full, under a head
     // (2026-09-03 → 09-05).
     key: 'exposure-matrix',
+    read: readBook,
     title: 'Exposure ledger',
     sub: 'Every strike and expiry as a capsule — the book across the calendar',
     description: 'The book across the calendar as capsules — every strike and expiry a cell with its figure inside; blue where hedging pushes back, warm where it pushes along; one greek or all five; hover to read, click to pin',
@@ -163,6 +197,7 @@ export const WIDGETS: WidgetDef[] = [
     // Key kept from the heatmap so saved desks upgrade in place — the strike ×
     // expiry grid became the Strike Pressure Ladder (Mo, 2026-08-19).
     key: 'gex-heatmap',
+    read: readBook,
     title: 'Strike pressure ladder',
     sub: 'Put and call hedging at every strike, and the levels it names',
     description: 'Every strike a row — put & call hedging as bars, net, distance, open interest — with a Levels view: walls, pin, flip & supreme at a glance',
@@ -179,6 +214,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     key: 'the-range',
+    read: readRange,
     title: 'The range',
     sub: 'Where price is likely to hold to the close, bent by the walls',
     description: 'From now to the close — the expected move around the pulled centre, a wall inside reach becoming its edge, and what dealers must buy or sell each half hour',
@@ -193,6 +229,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     key: 'where-it-closes',
+    read: readClose,
     title: 'Where it closes',
     sub: 'Where on the price axis the 4:00 print lands',
     description: 'The odds of the close as one silhouette on the price axis, the bands it most often lands inside, the walls and the flip on the same ruler — tightening as the clock runs',
@@ -209,6 +246,7 @@ export const WIDGETS: WidgetDef[] = [
     // Key kept from the old Ranked Targets so saved desks upgrade in place —
     // the five-factor composite became the agenda (2026-09-08).
     key: 'ranked-targets',
+    read: readAgenda,
     title: 'Targets',
     sub: 'Every strike in the order it matters today',
     description: 'The agenda — how likely price gets there × how much happens if it does; named levels, shelves and trapdoors; click a strike to see it on the chart',

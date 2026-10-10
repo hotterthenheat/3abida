@@ -26,6 +26,7 @@ import Panel from '../../components/ui/Panel';
 import { WIDGETS, widgetByKey, type WidgetDef, type WorkspaceCtx } from './registry';
 import WidgetThumb from './WidgetThumb';
 import DeskChooser from './DeskChooser';
+import ReadThis from '../../components/read/ReadThis';
 import LiveScopeChip from '../../components/link/LiveScopeChip';
 import { Deferred } from '../../components/ui/Skeleton';
 import { afterGlide, beginGlide, glideTarget, onGlide } from '../../core/glide';
@@ -989,6 +990,19 @@ const Pulse = () => {
                         its own name. stopPropagation on mousedown so using
                         the picker never starts a panel drag. */}
                     <span className="ml-auto shrink-0 flex items-center gap-1.5" onMouseDown={e => e.stopPropagation()}>
+                      {/* READ THIS (2026-10-10): the panel's own figures as three sentences, built as the door opens */}
+                      {def.read && (
+                        <ReadThis
+                          compact
+                          align="end"
+                          what={`${def.title} · ${nameOf(inst)}`}
+                          testId={inst.id}
+                          read={() => {
+                            const base = baseFor(nameOf(inst));
+                            return base ? def.read!({ ...base, liveSpot: marketStore.get().quotes[base.ticker]?.spot }) : null;
+                          }}
+                        />
+                      )}
                       <LinkGroupChip
                         group={groupOf(inst)}
                         onChange={g => setGroup(inst, g)}

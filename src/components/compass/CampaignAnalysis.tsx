@@ -44,6 +44,8 @@ import AnimatedNumber from '../ui/AnimatedNumber';
 import RichRead from '../ui/RichRead';
 import CompanyLogo from '../ui/CompanyLogo';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
+import ReadThis from '../read/ReadThis';
+import { setupReading } from '../../data/reads';
 import { Fact } from '../trace/TraceBox';
 import GreeksRow from './GreeksRow';
 import ContractFacts from './ContractFacts';
@@ -823,6 +825,22 @@ const CampaignAnalysis = ({
                 <span className="px-1.5 py-0.5 rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[9px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">{SLEEVE_LABEL[sleeve] ?? sleeve}</span>
                 <span className="font-mono text-[9px] tracking-wider text-textMuted whitespace-nowrap">{kindLabel}</span>
                 <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chart, the targets and the case mean" testId="setup-guide" />
+                {/* READ THIS (2026-10-10): the setup in three sentences — its own why, what it stands on, what would end it */}
+                <ReadThis
+                  what={setup.contract}
+                  testId="setup"
+                  read={() =>
+                    setupReading({
+                      contract: setup.contract,
+                      why: setup.whyText,
+                      state: retired ? 'retired — its floor broke' : String(state).toLowerCase(),
+                      right: setup.right,
+                      invalidation: c.invalidationPrice,
+                      invalidationReason: c.invalidationReason,
+                      target: c.priceTargets[0] ?? null,
+                    })
+                  }
+                />
               </div>
               <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
                 {sideWord} · {tenorWord}
