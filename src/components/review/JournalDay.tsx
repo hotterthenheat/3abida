@@ -104,6 +104,7 @@ const NoteField = ({ ask, hint, value, onKeep, testId }: { ask: string; hint: st
         onChange={e => keepSoon(e.target.value)}
         onBlur={e => keepNow(e.target.value)}
         placeholder={hint}
+        aria-label={ask}
         data-day-note={testId}
       />
     </label>

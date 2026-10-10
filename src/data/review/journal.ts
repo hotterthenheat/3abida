@@ -116,7 +116,7 @@ export const nameOf = (r: JournalRow): string => r.t.contract.ticker;
 export const titleOf = (r: JournalRow): string => contractWords(r.t.contract);
 /** The way it needed the name to go: a call up, a put down */
 export const directionOf = (r: JournalRow): 'up' | 'down' => (r.t.contract.right === 'C' ? 'up' : 'down');
-export const ENDED: Record<Trade['how'] | PaperOptTrade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', scaled: 'Scaled out', rule: 'Closed by the rules', page: 'Closed with the page' };
+export const ENDED: Record<Trade['how'] | PaperOptTrade['how'], string> = { sold: 'Sold by you', target: 'Target hit', stopped: 'Stopped out', expired: 'Held to the bell', scaled: 'Scaled out', rule: 'Closed by the rules', page: 'Closed as the page shut' };
 /** A piece a trade left in, in a word */
 export const OUT_WORD: Record<'target' | 'stop' | 'hand' | 'bell' | 'rule' | 'page', string> = { target: 'target', stop: 'stop', hand: 'by hand', bell: 'the bell', rule: 'the rules', page: 'the page closing' };
 /** "Scaled out · target, target, stop" — how each piece left, in order */
@@ -246,11 +246,11 @@ const cell = (v: string | number | null | undefined): string => {
 };
 /** The rows as CSV — what a spreadsheet opens. `extra` carries what only the page has computed (the best and the worst). */
 export function csvOf(rows: JournalRow[], extra: (r: JournalRow) => { best: number | null; worst: number | null }): string {
-  const head = ['Closed (New York)', 'Opened (New York)', 'Session', 'Name', 'Contract', 'Way', 'Size', 'In', 'Out', 'Ended', 'Made or lost', 'R', 'Held (minutes)', 'Best while held', 'Worst while held', 'Setup', 'Mistakes', 'Followed the plan', 'Why I took it', 'What I saw', 'What I would do again'];
+  const head = ['Closed (New York)', 'Opened (New York)', 'Session', 'Name', 'Contract', 'Way', 'Size', 'In', 'Out', 'Ended', 'P&L', 'R', 'Held (minutes)', 'Best while held', 'Worst while held', 'Setup', 'Mistakes', 'Followed the plan', 'Why I took it', 'What I saw', 'What I would do again'];
   const lines = rows.map(r => {
     const e = entryOf(r);
     const x = extra(r);
-    return [whenWords(r, r.t.closed), whenWords(r, r.t.opened), r.s.name, nameOf(r), titleOf(r), directionOf(r) === 'up' ? 'Up' : 'Down', r.t.qty, r.t.avgIn, r.t.avgOut, ENDED[r.t.how], r.t.pnl.toFixed(2), r.t.r != null ? r.t.r.toFixed(2) : '', r.t.heldMin, x.best != null ? x.best.toFixed(2) : '', x.worst != null ? x.worst.toFixed(2) : '', e.setup ?? '', (e.mistakes ?? []).join('; '), e.plan ?? '', e.why ?? '', e.saw ?? '', e.again ?? '']
+    return [whenWords(r, r.t.closed), whenWords(r, r.t.opened), r.s.name, nameOf(r), titleOf(r), directionOf(r) === 'up' ? 'Up' : 'Down', r.t.qty, r.t.avgIn.toFixed(2), r.t.avgOut.toFixed(2), ENDED[r.t.how], r.t.pnl.toFixed(2), r.t.r != null ? r.t.r.toFixed(2) : '', r.t.heldMin, x.best != null ? x.best.toFixed(2) : '', x.worst != null ? x.worst.toFixed(2) : '', e.setup ?? '', (e.mistakes ?? []).join('; '), e.plan ?? '', e.why ?? '', e.saw ?? '', e.again ?? '']
       .map(cell)
       .join(',');
   });

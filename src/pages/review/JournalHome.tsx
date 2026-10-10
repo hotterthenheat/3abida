@@ -137,7 +137,15 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
 
   /* ---- what the address says, live: the controls show it at once ---- */
   const q = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const livePeriod: Period = isPeriod(q.get('period')) ? (q.get('period') as Period) : 'month';
+  /* THE JOURNAL OPENS WHERE THE TRADES ARE (the audit's PR-13: October opened empty, "Nothing closed this month", over 43
+     trades in September): with nothing closed this month the period at rest is all time, and the calendar opens on the
+     latest month that has a trade */
+  const liveSource = useJournalSource(liveKind);
+  const liveHome = monthOf(liveSource.today);
+  const latestMonth = liveSource.rows[0] ? monthOf(calendarDayOf(liveSource.rows[0])) : liveHome;
+  const homeEmpty = !liveSource.rows.some(r => calendarDayOf(r).startsWith(liveHome));
+  const restPeriod: Period = homeEmpty && liveSource.rows.length ? 'all' : 'month';
+  const livePeriod: Period = isPeriod(q.get('period')) ? (q.get('period') as Period) : restPeriod;
   const liveSession = q.get('session');
   const livePicked = ISO_DAY.test(q.get('day') ?? '') ? q.get('day') : null;
 
@@ -179,7 +187,8 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
 
   const home = monthOf(today);
   /* the calendar's page and its ring are the reader's hand — live, like the controls */
-  const month = ISO_MONTH.test(q.get('month') ?? '') ? q.get('month')! : livePicked ? monthOf(livePicked) : home;
+  const restMonth = homeEmpty && kind === liveKind ? latestMonth : home;
+  const month = ISO_MONTH.test(q.get('month') ?? '') ? q.get('month')! : livePicked ? monthOf(livePicked) : restMonth;
   const set = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(location.search);
     for (const [k, v] of Object.entries(patch)) {
@@ -289,7 +298,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
         },
       },
       { key: 'how', header: 'Ended', sortValue: r => r.t.how, render: r => <span className="text-textSecondary">{ENDED[r.t.how]}</span> },
-      { key: 'pnl', header: 'Made or lost', align: 'right', sortValue: r => r.t.pnl, render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[10px] font-normal opacity-80">{r.t.r != null ? rWords(r.t.r) : 'no R'}</span></span> },
+      { key: 'pnl', header: 'P&L', align: 'right', sortValue: r => r.t.pnl, render: r => <span className={`font-semibold ${dirInk(r.t.pnl)}`}>{usdSigned(r.t.pnl)} <span className="text-[10px] font-normal text-textSecondary">{r.t.r != null ? rWords(r.t.r) : 'no R'}</span></span> },
     ],
     [source.containerWord]
   );
@@ -322,7 +331,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
         data={{ trades: rows.length }}
         facts={
           <>
-            <Fact label="Made or lost" testId="journal-net">
+            <Fact label="P&L" testId="journal-net">
               <span className={`text-[14px] font-semibold ${dirInk(stats.net)}`}>{stats.n ? usdSigned(stats.net) : '—'}</span>
             </Fact>
             <Fact label="Trades" testId="journal-trades">{stats.n || '—'}</Fact>
@@ -337,15 +346,17 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
             {/* THE BOOK: the paper accounts' trades or the backtest sessions' — one page, never mixed (2026-09-26) */}
             {books && (
               <>
-                <FilterTabs options={BOOKS} value={liveKind} onChange={v => set({ book: v === 'paper' ? null : v, session: null, day: null, month: null })} ariaLabel="Which book" />
+                <FilterTabs options={BOOKS} value={liveKind} onChange={v => set({ book: v === 'paper' ? null : v, session: null, day: null, month: null, period: null })} ariaLabel="Which book" />
                 <span className="w-px h-5 bg-borderSubtle max-sm:hidden" aria-hidden="true" />
               </>
             )}
-            {/* on a phone the five periods take the row to themselves and scroll inside it, clear of the account card */}
-            <span className="min-w-0 max-sm:col-span-2 max-sm:overflow-x-auto max-sm:pb-0.5" data-journal-periods>
-              <FilterTabs options={PERIODS} value={livePeriod} onChange={v => set({ period: v === 'month' ? null : v })} ariaLabel="Which period" />
+            {/* on a phone the five periods take the row to themselves and fold onto a second line, every one in sight (the audit's
+                PR-6: "All time" ran off the edge) */}
+            <span className="min-w-0 max-sm:col-span-2 max-sm:[&_[role=group]]:flex-wrap" data-journal-periods>
+              <FilterTabs options={PERIODS} value={livePeriod} onChange={v => set({ period: v === restPeriod ? null : v })} ariaLabel="Which period" />
             </span>
-            {source.containers.length > 1 && <DropdownSelect label={source.containerWord === 'account' ? 'Account' : 'Session'} value={liveAccount ?? 'all'} options={accountOptions} onChange={v => set({ session: v === 'all' ? null : v, day: null })} title={`Which ${source.containerWord}’s trades`} testId="journal-account" />}
+            {/* the account takes the phone's row whole: its name is read, never "Every ac…" */}
+            {source.containers.length > 1 && <span className="contents max-sm:block max-sm:col-span-2 max-sm:[&>button]:w-full max-sm:[&>button]:justify-between"><DropdownSelect label={source.containerWord === 'account' ? 'Account' : 'Session'} value={liveAccount ?? 'all'} options={accountOptions} onChange={v => set({ session: v === 'all' ? null : v, day: null })} title={`Which ${source.containerWord}’s trades`} testId="journal-account" /></span>}
             {/* THE SAMPLE ACCOUNTS (data/paper/sample.ts) — a made-up September the journal shows for now; the door hides it here */}
             {source.sample && (
               <button type="button" onClick={() => source.sample!.set(!source.sample!.shown)} title={source.sample.shown ? 'Take the starter accounts out of the journal — your own trades stay' : 'Put the starter accounts back in'} className="ml-auto h-7 px-2 font-mono text-[10px] text-textMuted hover:text-textPrimary transition-colors" data-journal-sample={source.sample.shown ? 'shown' : 'hidden'}>
@@ -393,7 +404,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
           day — a four-figure day is 60px wide at 14px and spilled); from 1400 a day has 86px+, at 1440 the 92px he saw */}
       <div className="grid gap-3 items-stretch min-[1400px]:grid-cols-[minmax(0,1fr)_340px]">
         <Swap key={monthKey} out={monthOut} late={alive.current} className="min-w-0 min-h-0" data-journal-month-region>
-          <JournalMonth month={month} onMonth={m => set({ month: m === home ? null : m })} home={home} days={days} today={today} picked={livePicked} onPick={openDay} noted={noted} />
+          <JournalMonth month={month} onMonth={m => set({ month: m === restMonth ? null : m })} home={home} days={days} today={today} picked={livePicked} onPick={openDay} noted={noted} todayWord={kind === 'backtest' ? 'Clock’s day' : 'Today'} />
         </Swap>
         <Swap key={periodKey} out={periodOut} late={alive.current} className="min-w-0 min-h-0" data-journal-stats-region>
           <JournalStats rows={rows} periodDays={periodDays} periodLabel={periodLabel} />
