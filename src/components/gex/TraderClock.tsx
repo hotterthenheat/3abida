@@ -54,8 +54,8 @@
 */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
-import { buildExposureProfile } from '../../data/exposure';
+import { profileOf, surfaceOf } from '../../data/pinpointBook';
+import { bellShareOf } from '../../data/board';
 import { buildVannaCharm } from '../../data/vannacharm';
 import { readSessionClock } from '../../data/sessionClock';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
@@ -64,7 +64,6 @@ import type { MarketSnapshot } from '../../types/market';
 import { EMBER, GLACIER, alpha } from './paletteInk';
 
 const LIVE = 'rgb(var(--select))';
-const SUPREME = 'rgb(var(--supreme))';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const OPEN_MIN = 9 * 60 + 30;
 const CLOSE_MIN = 16 * 60;
@@ -181,6 +180,34 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
   const onBlockClick = (i: number) => setPin(p => (p?.kind === 'block' && p.i === i ? null : { kind: 'block', i }));
   const onNameClick = (key: string) => setPin(p => (p?.kind === 'phase' && p.key === key ? null : { kind: 'phase', key }));
 
+  /* THE STRIP BY THE KEYS — a block a step, a phase a page */
+  const onStripKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const from = pin?.kind === 'block' ? pin.i : pin?.kind === 'phase' ? Math.floor((PHASES.find(p => p.key === pin.key)!.from - OPEN_MIN) / BLOCK_MIN) : (nowBlockRef.current ?? 0);
+    const phaseStart = (dir: 1 | -1) => {
+      const m0 = OPEN_MIN + from * BLOCK_MIN;
+      const i = PHASES.findIndex(p => m0 >= p.from && m0 < p.to);
+      const target = PHASES[Math.max(0, Math.min(PHASES.length - 1, i + dir))];
+      return Math.floor((target.from - OPEN_MIN) / BLOCK_MIN);
+    };
+    let to: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') to = from + 1;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') to = from - 1;
+    else if (e.key === 'PageUp') to = phaseStart(1);
+    else if (e.key === 'PageDown') to = phaseStart(-1);
+    else if (e.key === 'Home') to = 0;
+    else if (e.key === 'End') to = BLOCKS - 1;
+    else if (e.key === 'Escape' && pin) {
+      e.preventDefault();
+      e.stopPropagation();
+      setPin(null);
+      return;
+    }
+    if (to == null) return;
+    e.preventDefault();
+    setPin({ kind: 'block', i: Math.max(0, Math.min(BLOCKS - 1, to)) });
+  };
+  const nowBlockRef = useRef<number | null>(null);
+
   /* A click anywhere outside the strip and its names lets go */
   useEffect(() => {
     if (!pin) return;
@@ -201,7 +228,8 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
     let charmMoves: string | null = null;
     let bellShare: number | null = null;
     try {
-      const p = buildExposureProfile(snapshot, '0DTE', 20);
+      /* the room's one book (data/pinpointBook.ts) */
+      const p = profileOf(snapshot);
       pinStrike = p.levels.pin;
       supreme = p.levels.supreme;
       flip = p.levels.flip;
@@ -217,23 +245,8 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
     } catch {
       /* no chain yet */
     }
-    try {
-      const surface = buildExposureSurface(snapshot, 20, CALENDAR_DTES);
-      const today = surface.expiries.findIndex(e => e.dte === 0);
-      if (today >= 0) {
-        let dies = 0;
-        let total = 0;
-        for (let e = 0; e < surface.expiries.length; e++)
-          for (let s = 0; s < surface.strikes.length; s++) {
-            const v = Math.abs(surface.net.gex[e][s] ?? 0);
-            total += v;
-            if (e === today) dies += v;
-          }
-        bellShare = total > 0 ? Math.round((100 * dies) / total) : null;
-      }
-    } catch {
-      /* no surface yet */
-    }
+    const surface = surfaceOf(snapshot);
+    if (surface) bellShare = bellShareOf(surface);
     return { pin: pinStrike, supreme, flip, charmStrike, charmMoves, bellShare };
   }, [snapshot]);
 
@@ -242,6 +255,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
   const nowMin = at != null ? Math.max(OPEN_MIN, Math.min(CLOSE_MIN - 1, at)) : h * 60 + m;
   const inSession = at != null ? true : clock.phase === 'OPEN' || clock.phase === 'AUCTION';
   const nowBlock = inSession ? Math.min(BLOCKS - 1, Math.floor((nowMin - OPEN_MIN) / BLOCK_MIN)) : null;
+  nowBlockRef.current = nowBlock;
   const current = inSession ? phaseAt(nowMin) : null;
   const next = inSession ? PHASES.find(p => p.from > nowMin) ?? null : null;
 
@@ -308,7 +322,8 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
           )}
           <div>
             <dt className="text-[11px] text-textMuted">Expires at 4:00</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap" style={{ color: SUPREME }} data-clock-bell>
+            {/* in the page's ink — magenta is the supreme's alone (PP-23) */}
+            <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap text-textPrimary" data-clock-bell>
               {facts.bellShare != null ? `${facts.bellShare}% of today's gamma` : '—'}
             </dd>
           </div>
@@ -335,7 +350,9 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
                 aria-pressed={keptPhase?.key === p.key}
                 onClick={() => onNameClick(p.key)}
                 /* The close's name, ten minutes wide at the far right, ran 8px past a phone's strip — it goes there (the phone pass, 2026-09-13) */
-                className={`absolute top-0 text-[11px] font-medium whitespace-nowrap transition-colors ${nameCls} ${last ? 'max-lg:hidden' : ''}`}
+                /* ON A PHONE ONLY NOW AND NEXT (PP-6): six names on a 358 px strip stood over each other — the rest read in
+                   the card and the line under the strip */
+                className={`hit absolute top-0 text-[11px] font-medium whitespace-nowrap transition-colors ${nameCls} ${last ? 'max-lg:hidden' : ''} ${active || next?.key === p.key || kept ? '' : 'max-sm:hidden'}`}
                 style={{
                   left: `${pct(turn ? p.to : p.from)}%`,
                   transform: turn ? 'translateX(calc(-100% - 6px))' : last ? 'translateX(2px)' : undefined,
@@ -351,7 +368,31 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
 
         {/* THE STRIP — 78 five-minute blocks; shade = the phase's weight, the ringed silver = now */}
         <div className="relative" onPointerLeave={() => setHover(null)}>
-          <div className="flex gap-[2px] h-[22px]" data-clock-strip role="img" aria-label="Today's session as five-minute blocks, shaded by how hard hedging pushes">
+          {/* ONE STOP FOR THE KEYS (PP-30): 78 buttons were 78 Tab stops. The strip is one slider — the arrows walk five
+              minutes, Page Up and Down a phase, Home and End the ends, Esc lets go; on a phone a finger on the strip
+              keeps the block under it (the blocks are 4 px wide there) */}
+          <div
+            className="flex gap-[2px] h-[22px] max-sm:h-[30px] rounded-[3px] outline-none focus-visible:shadow-[0_0_0_2px_rgb(var(--silver)/0.55)]"
+            data-clock-strip
+            role="slider"
+            tabIndex={0}
+            aria-label="Today's session, five minutes a step — the phase and what dominates it"
+            aria-valuemin={0}
+            aria-valuemax={BLOCKS - 1}
+            aria-valuenow={keptBlock ?? nowBlock ?? 0}
+            aria-valuetext={(() => {
+              const i = keptBlock ?? nowBlock ?? 0;
+              const m0 = OPEN_MIN + i * BLOCK_MIN;
+              return `${hhmm(m0)}, ${phaseAt(m0).name}`;
+            })()}
+            onKeyDown={onStripKey}
+            onPointerDown={e => {
+              if (e.pointerType !== 'touch') return;
+              const r = e.currentTarget.getBoundingClientRect();
+              const i = Math.max(0, Math.min(BLOCKS - 1, Math.floor(((e.clientX - r.left) / r.width) * BLOCKS)));
+              setPin({ kind: 'block', i });
+            }}
+          >
             {Array.from({ length: BLOCKS }, (_, i) => {
               const min = OPEN_MIN + i * BLOCK_MIN;
               const p = phaseAt(min);
@@ -378,8 +419,9 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
                   data-block={i}
                   data-phase={p.key}
                   data-focus={pin ? (inFocus ? 'in' : 'soft') : undefined}
+                  tabIndex={-1}
+                  aria-hidden
                   aria-label={`${hhmm(min)} · ${p.name}`}
-                  aria-pressed={keptBlock === i}
                   onPointerEnter={() => setHover(i)}
                   onClick={() => onBlockClick(i)}
                   className={`flex-1 min-w-0 rounded-[2px] transition-[opacity,background-color,filter] duration-200 ${boundary ? 'ml-[3px]' : ''}`}
@@ -399,7 +441,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
             {[OPEN_MIN, 10 * 60, 11 * 60, 12 * 60, 13 * 60, 14 * 60, 15 * 60, CLOSE_MIN].map(t => (
               <span
                 key={t}
-                className="absolute top-0 font-mono text-[11px] tnum text-textMuted"
+                className={`absolute top-0 font-mono text-[11px] tnum text-textMuted ${t === OPEN_MIN || t === 12 * 60 || t === CLOSE_MIN ? '' : 'max-sm:hidden'}`}
                 style={{ left: `${pct(t)}%`, transform: t === CLOSE_MIN ? 'translateX(-100%)' : t === OPEN_MIN ? undefined : 'translateX(-50%)' }}
               >
                 {hhmm(t)}
