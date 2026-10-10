@@ -32,7 +32,11 @@ import { builtinScripts } from '../../data/builtinScripts';
 import { scriptStore } from '../../data/scriptStore';
 import { compile, run as runScript, type Compiled } from '../../core/pine';
 import { SCRIPT_CAPS } from '../../types/scripts';
-import { commitArm, evaluateAlert, expireDue, markFired, resideAlert, scriptBarCounts, useAllAlerts, type Alert, type AlertContext, type IndicatorSource, type ScriptAlert } from '../gex/alertStore';
+import {
+  commitArm, evaluateAlert, evaluateAll, evaluateLine, expireDue, markFired, resideAlert, scriptBarCounts, useAllAlerts,
+  type Alert, type AlertContext, type AllContext, type IndicatorSource, type ScriptAlert,
+} from '../gex/alertStore';
+import { sentimentOf } from '../../data/tape';
 
 /* THE SCRIPTS' OWN CONDITIONS (2026-09-10, Noah: "wire the script alerts into
    the bell"). A script alert is judged by running the script the way its
@@ -117,7 +121,7 @@ const AlertWatcher = () => {
       for (const a of resting) if ((a.quietUntil ?? 0) <= now) resideAlert(sym, a.id, close, now);
       if (waiting.length === 0) continue;
 
-      const needsBook = waiting.some(a => a.kind === 'level' || a.kind === 'gexflip' || a.kind === 'newsupreme' || a.kind === 'wallmove' || a.kind === 'script');
+      const needsBook = waiting.some(a => a.kind === 'level' || a.kind === 'gexflip' || a.kind === 'newsupreme' || a.kind === 'wallmove' || a.kind === 'script' || a.kind === 'all');
       const exp = needsBook ? exposureNowFor(sym) : null;
 
       /* THE SCRIPTS: one run per script · timeframe · inputs, every condition
@@ -203,6 +207,58 @@ const AlertWatcher = () => {
         }
         const ctx: AlertContext = { ...base, tf, values };
         for (const a of group) judge(a, ctx);
+      }
+
+      /* A DRAWN LINE (2026-10-10) reads the bars of the pane it was drawn on — touch on the live price, a break or a bounce
+         on the bar that closed; the bar it fired on is remembered first, so it never rings twice on one bar */
+      for (const a of waiting) {
+        if (a.kind !== 'line') continue;
+        const bars = barsFor(sym, a.tf);
+        const v = evaluateLine(a, bars, close, now);
+        if (v.fire) {
+          if (v.bar != null) commitArm(sym, { ...a, lastBar: v.bar });
+          /* a level line names its price in its words; a trend line's firing says where price was */
+          markFired(sym, a.id, now, a.shape === 'sloped' ? close : undefined);
+        } else if (v.armed) commitArm(sym, v.armed);
+      }
+
+      /* CONDITIONS TOGETHER (2026-10-10): every average and RSI asked, on its own timeframe, and the name's net flow over
+         each window asked — bullish premium less bearish, off the tape */
+      const ands = waiting.filter(a => a.kind === 'all');
+      if (ands.length) {
+        const values: AllContext['values'] = {};
+        const flowNet: AllContext['flowNet'] = {};
+        for (const a of ands) {
+          if (a.kind !== 'all') continue;
+          for (const c of a.conds) {
+            if (c.t === 'average' || c.t === 'rsi') {
+              const src: IndicatorSource = c.t === 'rsi' ? 'rsi' : c.source;
+              const row = (values[c.tf] ??= {});
+              if (src in row) continue;
+              const bars = barsFor(sym, c.tf);
+              row[src] =
+                src === 'vwap' ? last(vwapSeries(bars, tfMinutes(c.tf as Timeframe)))
+                : src === 'rsi' ? last(rsiSeries(bars, 14))
+                : last(emaSeries(bars, src === 'ema9' ? 9 : src === 'ema21' ? 21 : 50));
+            } else if (c.t === 'flow' && !(c.mins in flowNet)) {
+              const since = now - c.mins * 60_000;
+              let net = 0;
+              for (const p of flowTape) {
+                if (p.ticker !== sym || p.at < since) continue;
+                const s = sentimentOf(p);
+                net += s === 'BULLISH' ? p.premium : s === 'BEARISH' ? -p.premium : 0;
+              }
+              flowNet[c.mins] = net;
+            }
+          }
+        }
+        const allCtx: AllContext = { close, levels: base.levels, netGex: base.netGex, values, flowNet };
+        for (const a of ands) {
+          if (a.kind !== 'all') continue;
+          const v = evaluateAll(a, allCtx, now);
+          if (v.fire) markFired(sym, a.id, now);
+          else if (v.armed) commitArm(sym, v.armed);
+        }
       }
     }
   }, [names, tick, poked]);

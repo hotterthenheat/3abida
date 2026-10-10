@@ -82,6 +82,7 @@ const TOP: Record<string, Meta> = {
   '/compass/tracker': page('Tracker', 'The setups you kept, followed to the close.', 'Compass'),
   '/weigher': page('Weigher', 'Weigh any contract before you take it: the chart, the chain and your watchlist on one desk, and what a position would return at every price.'),
   '/community': page('Community', 'The traders’ room. Coming soon.'),
+  '/glossary': page('Glossary', 'Every word the terminal uses — what it means, and whether it is observed, calculated or modeled.'),
   /* the pages outside the terminal (pages/outside, pages/auth — the Logo System's Web and App, 2026-10-01) */
   '/status': page('Status', 'What’s up and what’s new: each part of the terminal, the market’s last 30 days and the changelog.'),
   '/about': page('About', 'Slayer Terminal gathers what moves a price into one terminal: the prints, the positions, the levels, the filings.'),
@@ -254,6 +255,8 @@ const PageMeta = () => {
   const { pathname, search } = useLocation();
   const own = useSaid();
   useEffect(() => {
+    /* a pop-out names its own window (pages/popout/PopOutFrame.tsx) */
+    if (pathname.startsWith('/out/')) return;
     const m = metaFor(pathname, own, search);
     document.title = m.title;
     setMeta('meta[name="description"]', m.description);

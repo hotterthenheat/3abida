@@ -45,11 +45,11 @@ import {
 import { GexTrailsPrimitive, trailPaperFrom } from './gexNodesPrimitive';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
-import { commitArm, evaluateAlert, markFired, useAlerts, type AlertContext, type IndicatorSource } from './alertStore';
+import { armLine, commitArm, evaluateAlert, markFired, removeAlert, useAlerts, MAX_ALERTS, type AlertContext, type IndicatorSource, type LineMode } from './alertStore';
 import { newsPulse } from '../../data/news';
 import { exposureNowFor } from '../../data/gex';
-import { ChevronsLeft, ChevronsUp, GripVertical, Lock, PanelLeft, PanelTop, Pencil, Type, Unlock } from 'lucide-react';
-import { DrawingsPrimitive, gestureOf, isFreehand, isWordsKind, loadDrawings, needsThirdAnchor, saveDrawings, usesPts, type Drawing, type DrawingKind } from './drawingsPrimitive';
+import { Bell, Check, ChevronsLeft, ChevronsUp, GripVertical, Lock, PanelLeft, PanelTop, Pencil, Type, Unlock } from 'lucide-react';
+import { ALERTABLE_KINDS, DrawingsPrimitive, gestureOf, isFlatLine, isFreehand, isWordsKind, loadDrawings, needsThirdAnchor, saveDrawings, usesPts, type Drawing, type DrawingKind } from './drawingsPrimitive';
 import DrawRailTools, { DrawSheet } from './DrawRailTools';
 import { drawToolLabel, registerDrawChart, rememberDrawTool, touchDrawChart } from './drawTools';
 import {
@@ -4063,8 +4063,37 @@ const StrikeChart = ({
   const topDockStyle = rail.dock === 'top' && gap ? { left: gap.left + gap.width / 2, transform: 'translateX(-50%)', maxWidth: Math.max(160, gap.width - 16) } : undefined;
   const [, forceMark] = useReducer((x: number) => x + 1, 0);
   const [barPos, setBarPos] = useState<{ x: number; y: number } | null>(null);
-  const [barMenu, setBarMenu] = useState<'color' | 'tcolor' | 'width' | 'style' | null>(null);
+  const [barMenu, setBarMenu] = useState<'color' | 'tcolor' | 'width' | 'style' | 'alert' | null>(null);
   useEffect(() => setBarMenu(null), [selectedIdx]);
+
+  /* THE LINES BEING WATCHED wear a ring (2026-10-10, drawingsPrimitive.ts setAlerted) — only on the name's own time bars,
+     where the alert reads the same bars the line is drawn on */
+  const lineAlertIds = useMemo(() => new Set(tape ? [] : alerts.flatMap(a => (a.kind === 'line' && !a.firedAt ? [a.drawingId] : []))), [alerts, tape]);
+  useEffect(() => {
+    drawingsRef.current?.setAlerted(lineAlertIds);
+  }, [lineAlertIds]);
+  const [lineNote, setLineNote] = useState('');
+  useEffect(() => setLineNote(''), [selectedIdx]);
+  /** Set or take off one of the selected line's alerts — the line gets its name the first time */
+  const toggleLineAlert = (mode: LineMode) => {
+    const i = selectedIdx;
+    if (i === null) return;
+    let d = shapesRef.current[i];
+    if (!d || !ALERTABLE_KINDS.includes(d.kind)) return;
+    const on = alerts.find(a => a.kind === 'line' && a.drawingId === d.id && a.mode === mode && !a.firedAt);
+    if (on) {
+      removeAlert(ticker, on.id);
+      return;
+    }
+    if (!d.id) {
+      d = { ...d, id: `ln-${Date.now().toString(36)}-${i}` };
+      shapesRef.current = shapesRef.current.map((x, j) => (j === i ? d : x));
+      drawingsRef.current?.setDrawings(shapesRef.current);
+      saveDrawings(drawKey, shapesRef.current);
+    }
+    const armed = armLine(ticker, { drawingId: d.id!, shape: isFlatLine(d.kind) || !d.p2 ? 'flat' : 'sloped', p1: d.p1, ...(d.p2 && !isFlatLine(d.kind) ? { p2: d.p2 } : {}), mode, tf: timeframe, armedBar: 0 });
+    setLineNote(armed ? '' : `${ticker} has its ${MAX_ALERTS} alerts already`);
+  };
 
   const updateSelected = useCallback(
     (patch: Partial<Drawing>) => {
@@ -4994,6 +5023,54 @@ const StrikeChart = ({
                   </span>
                 )}
               </span>
+              )}
+
+              {/* AN ALERT ON THIS LINE (2026-10-10): touch, a close beyond it, or a bounce — set from the mark's own bar */}
+              {ALERTABLE_KINDS.includes(m.kind) && !tape && (
+                <span className="relative">
+                  <button
+                    onClick={() => setBarMenu(mn => (mn === 'alert' ? null : 'alert'))}
+                    title="An alert on this line — when price touches it, a bar closes beyond it, or it bounces off it"
+                    aria-label="An alert on this line"
+                    aria-expanded={barMenu === 'alert'}
+                    className={btn(barMenu === 'alert' || (!!m.id && lineAlertIds.has(m.id)))}
+                    data-line-alert-door
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                  </button>
+                  {barMenu === 'alert' && (
+                    /* opened leftward from the bell, and narrow: a pane of a four-up desk is ~350px of chart, and the pane clips */
+                    <span className={`${pop} !left-auto right-0 p-1 flex flex-col gap-0.5 w-[204px]`} data-line-alert-menu>
+                      {(
+                        [
+                          { mode: 'touch', label: 'Touch', hint: 'Price reaches the line' },
+                          { mode: 'break', label: 'Break', hint: `A ${timeframe} bar closes beyond it` },
+                          { mode: 'bounce', label: 'Bounce', hint: `A ${timeframe} bar reaches it and closes back` },
+                        ] as const
+                      ).map(o => {
+                        const on = !!m.id && alerts.some(a => a.kind === 'line' && a.drawingId === m.id && a.mode === o.mode && !a.firedAt);
+                        return (
+                          <button
+                            key={o.mode}
+                            onClick={() => toggleLineAlert(o.mode)}
+                            aria-pressed={on}
+                            className={`flex items-start gap-2 px-2 py-1.5 rounded text-left hover:bg-ink/[0.05] ${on ? 'bg-ink/[0.08]' : ''}`}
+                            data-line-alert={o.mode}
+                          >
+                            <span className="mt-[2px] w-3 h-3 shrink-0 inline-flex items-center justify-center">{on && <Check className="w-3 h-3 text-textPrimary" />}</span>
+                            <span className="flex flex-col">
+                              <span className="font-mono text-[11px] text-textPrimary">{o.label}</span>
+                              <span className="font-mono text-[10px] text-textMuted">{o.hint}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                      <span className="px-2 pt-1 pb-0.5 font-mono text-[10px] leading-snug text-textMuted">
+                        {lineNote || (m.kind === 'hline' || m.kind === 'hray' ? 'Moving the line moves the alert; deleting it takes the alert off.' : 'Read on these bars; past its end the line runs on as drawn. Moving it moves the alert.')}
+                      </span>
+                    </span>
+                  )}
+                </span>
               )}
 
               <span className="mx-0.5 w-px h-4 bg-borderMuted" aria-hidden />

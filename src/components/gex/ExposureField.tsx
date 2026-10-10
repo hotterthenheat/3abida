@@ -192,10 +192,11 @@ const SWAP_OUT_MS = 160;
     the read and the guide as their icons). ONE ROW, as long as it can be one row (Noah, on the landing still's second
     row: "top buttons are being kicked out and placed underneath"): named at 1,672 and up, the picks BARE from 1,390
     (a desk with the sidebar open), the doors COMPACT too from 1,140 (the landing's still, the rail folded); only
-    under that two tidy rows, the picks bare under 1,021 there too. Names in the tooltips throughout. */
-const BAND_ONE_ROW_PX = 1672;
-const BAND_BARE_ROW_PX = 1390;
-const BAND_TIGHT_ROW_PX = 1140;
+    under that two tidy rows, the picks bare under 1,021 there too. Names in the tooltips throughout. The one-row widths
+    each took 30px more on 2026-10-10 for the Map's "Read this" icon among the doors. */
+const BAND_ONE_ROW_PX = 1702;
+const BAND_BARE_ROW_PX = 1420;
+const BAND_TIGHT_ROW_PX = 1170;
 const BAND_NAMED_ROW_PX = 1021;
 const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const GREEK_LABEL: Record<Greek, string> = { gex: 'GEX', dex: 'DEX', vex: 'VEX', vanna: 'VANNA', charm: 'CHARM' };

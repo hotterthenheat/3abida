@@ -40,7 +40,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Activity, AlarmClock, ArrowUpRight, Bell, BellOff, Code2, Crosshair, Crown, Droplets, Layers, MoveHorizontal, Newspaper, Repeat, RotateCcw, SlidersHorizontal, X,
+  Activity, AlarmClock, ArrowUpRight, Bell, BellOff, Code2, Crosshair, Crown, Droplets, Layers, ListChecks, MoveHorizontal, Newspaper, PenLine, Repeat, RotateCcw, SlidersHorizontal, X,
   type LucideIcon,
 } from 'lucide-react';
 import Simulator from '../../core/simulator';
@@ -58,6 +58,7 @@ import { useOverlay } from '../ui/layers';
 import { undoable } from '../ui/undo';
 import { nyClock, nyDay, nyParts, nyWallTime } from '../../core/nyTime';
 import { SNOOZE_MS } from './AlertToasts';
+import AllComposer from './AllComposer';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -70,6 +71,8 @@ const KIND_ICON: Record<AlertKind, LucideIcon> = {
   flow: Droplets,
   news: Newspaper,
   script: Code2,
+  line: PenLine,
+  all: ListChecks,
 };
 
 /** Where an alert shows — the surface a row's door opens */
@@ -88,6 +91,10 @@ const doorOf = (a: Alert): { label: string; to: string } => {
       return { label: 'Tape', to: '/trace/live-tape' };
     case 'news':
       return { label: 'News', to: '/dossier/news' };
+    /* a drawn line is on a chart; an AND reads the book and the tape — the chart shows both */
+    case 'line':
+    case 'all':
+      return { label: 'Chart', to: '/terrain' };
     /* a script's alert opens the pane it was armed on */
     case 'script':
       return a.paneId.startsWith('terrain') ? { label: 'Terrain', to: '/terrain' }
@@ -153,6 +160,8 @@ const stateOf = (a: Alert): string => {
   const parts: string[] = [];
   if (isResting(a, now)) parts.push((a.quietUntil ?? 0) > now ? `resting until ${whenAt(a.quietUntil!)}` : 'back on watch on the next tick');
   else parts.push(a.setAt ? `waiting · set ${hhmm(a.setAt)}` : 'waiting');
+  /* an AND says whether its conditions hold together now — it alerts when they come together */
+  if (a.kind === 'all' && a.met !== 0 && !isResting(a, now)) parts.push(a.met === 1 ? 'all hold now' : 'not all hold yet');
   if (a.repeat && a.repeat !== 'once') parts.push(REPEAT_WORD[a.repeat]);
   if (a.expiresAt) parts.push(`ends ${whenAt(a.expiresAt)}`);
   return parts.join(' · ');
@@ -221,9 +230,12 @@ const Row = ({ kind, alerted, ticker, words, state, door, action, testId, below 
         <Icon className={`w-3.5 h-3.5 ${alerted ? '' : 'text-textMuted'}`} strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
-        <span className="flex items-center gap-1.5 min-w-0">
+        <span className="flex items-baseline gap-1.5 min-w-0">
           {ticker && <span className="shrink-0 font-mono text-[10px] font-bold text-textPrimary">{ticker}</span>}
-          <span className="truncate text-[12px] text-textPrimary">{words}</span>
+          {/* two lines before it is cut — an AND's conditions and a line's words run long (2026-10-10); the whole in its title */}
+          <span className="min-w-0 line-clamp-2 text-[12px] leading-snug text-textPrimary" title={words}>
+            {words}
+          </span>
         </span>
         <span className={`font-mono text-[10px] tnum ${alerted ? '' : 'text-textMuted'}`} style={alerted ? { color: ALERT } : undefined}>
           {state}
@@ -271,6 +283,9 @@ const AlertsDrawer = () => {
   const navigate = useNavigate();
   const [name, setName] = useState<string>(ALL);
   const [refused, setRefused] = useState('');
+  /* CONDITIONS TOGETHER (2026-10-10): the AND's composer, open over the Set shelf */
+  const [composing, setComposing] = useState(false);
+  const [composed, setComposed] = useState('');
 
   /* Opened, or something alerted while it was open — the reader is looking */
   useEffect(() => {
@@ -378,13 +393,42 @@ const AlertsDrawer = () => {
         {/* "This name" is a filter, never another list */}
         <div className="shrink-0 flex items-center gap-2 px-3.5 py-2 border-b border-borderSubtle/60">
           <DropdownSelect label="Name" value={pick} options={nameOptions} onChange={setName} />
+          <button
+            type="button"
+            onClick={() => {
+              setComposing(c => !c);
+              setComposed('');
+            }}
+            aria-expanded={composing}
+            title="An alert on two or three conditions that must hold together — a level, a price, an average, RSI, the dealers, the net flow"
+            className={`hit ml-auto inline-flex items-center gap-1 h-7 px-2.5 rounded-md border text-[11px] transition-colors ${composing ? 'border-borderMuted bg-ink/[0.06] text-textPrimary' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'}`}
+            data-alerts-compose
+          >
+            <ListChecks className="w-3 h-3" /> Conditions together
+          </button>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-4" data-alerts-body>
+          {composing && (
+            <section className="px-3.5 pt-4">
+              <AllComposer
+                ticker={pick !== ALL ? pick : activeTicker}
+                onDone={said => {
+                  setComposing(false);
+                  setComposed(said);
+                }}
+              />
+            </section>
+          )}
+          {composed && (
+            <p role="status" className="px-3.5 pt-3 font-mono text-[10px] text-textSecondary" data-alerts-composed>
+              {composed}
+            </p>
+          )}
           <Shelf label="Set" count={waitingCount} action="Clear" onAction={clearSet}>
             {waiting.length === 0 ? (
               <Empty icon={BellOff}>
-                Nothing waiting{pick !== ALL ? ` on ${pick}` : ''}. Set one where the thing is — a strike row on Targets, a chart's Alerts menu, the Targets bell, a script's gear.
+                Nothing waiting{pick !== ALL ? ` on ${pick}` : ''}. Set one where the thing is — a strike row on Targets, a chart's Alerts menu, a line you drew, the Targets bell, a script's gear — or conditions together, above.
               </Empty>
             ) : (
               <div className="flex flex-col gap-2">

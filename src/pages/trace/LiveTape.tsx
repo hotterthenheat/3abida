@@ -56,6 +56,7 @@ import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 import { LiveTapeGuide } from '../../components/trace/TraceGuide';
+import { tapeReading } from '../../data/reads';
 import type { FlowPrint, PrintSentiment, TapeSummary } from '../../types/trace';
 
 const MAX_ROWS = 120;
@@ -859,6 +860,23 @@ const LiveTape = () => {
         testId="live-tape"
         data={{ view, prints: filtered.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the tape', door: 'What a print, its fill and its conviction mean', body: <LiveTapeGuide />, testId: 'live-tape-guide', open: guideOpen, onOpen: setGuideOpen }}
+        read={{
+          what: scopeActive ? 'the tape in this cut' : 'the tape',
+          read: () =>
+            tapeReading({
+              prints: beamRows.length,
+              premium: beamSummary.callPremium + beamSummary.putPremium,
+              bullish: beamSummary.bullPremium,
+              bearish: beamSummary.bearPremium,
+              callPremium: beamSummary.callPremium,
+              putPremium: beamSummary.putPremium,
+              sweeps: beamSummary.sweeps,
+              largest: whales.all ? { ticker: whales.all.ticker, words: `${whales.all.strike}${whales.all.right}`, premium: whales.all.premium } : null,
+              cut: scopeActive ? 'this cut' : 'every name',
+              /* the page's own sentence, written again on these same rows so its figures and the count agree */
+              said: tapeRead(beamRows, beamSummary).map(seg => (typeof seg === 'string' ? seg : seg.label)).join(''),
+            }),
+        }}
         facts={
           <>
             <Fact label="Prints" testId="prints">

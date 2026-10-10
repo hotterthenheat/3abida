@@ -37,6 +37,7 @@ import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
 import { NetFlowGuide } from '../../components/trace/TraceGuide';
 import ExpiryCalendar, { expiryWords } from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
+import { netFlowReading } from '../../data/reads';
 import { isoDate } from '../../core/calendar';
 
 const num = (v: number) => v.toLocaleString('en-US');
@@ -152,6 +153,19 @@ const NetFlow = () => {
       className="md:flex-1 md:min-h-0"
       data={{ picked: sel, names: leaders.length, expiry: expiry ?? 'all' }}
       guide={{ title: 'How to read the board', door: 'What the board, the lines and the floor mean', body: <NetFlowGuide />, testId: 'net-flow-guide', open: guideOpen, onOpen: setGuideOpen }}
+      read={{
+        what: 'the board',
+        read: () =>
+          netFlowReading({
+            names: leaders.length,
+            total: facts.total,
+            calls: facts.calls,
+            puts: facts.puts,
+            top: facts.top ? { ticker: facts.top.ticker, net: facts.top.net } : null,
+            bottom: facts.bottom ? { ticker: facts.bottom.ticker, net: facts.bottom.net } : null,
+            expiry: chosen ? expiryWords(chosen) : null,
+          }),
+      }}
       facts={
         <>
           <Fact label="Net across the board" testId="net">

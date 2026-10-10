@@ -33,6 +33,8 @@ import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../ui/houseGrid';
 import { useIsPhone } from '../ui/useMediaQuery';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
+import ReadThis from '../read/ReadThis';
+import type { Reading } from '../../data/reads';
 import type { Column } from '../ui/DataTable';
 import DataState, { type DataStateKind } from '../ui/DataState';
 import { withLeadingMark } from '../ui/Name';
@@ -85,6 +87,8 @@ interface TraceBoxProps {
   /** The page's sentence (RichRead + doors) */
   sentence: ReactNode;
   guide?: { title: string; door: string; body: ReactNode; testId: string; open: boolean; onOpen: (v: boolean) => void };
+  /** READ THIS (2026-10-10): the box's figures as three sentences, built when its door opens (components/read/ReadThis.tsx) */
+  read?: { what: string; read: () => Reading | null };
   children: ReactNode;
   testId: string;
   className?: string;
@@ -92,7 +96,7 @@ interface TraceBoxProps {
   data?: Record<string, string | number | undefined>;
 }
 
-export const TraceBox = ({ title, sub, facts, controls, sentence, guide, children, testId, className = '', data }: TraceBoxProps) => {
+export const TraceBox = ({ title, sub, facts, controls, sentence, guide, read, children, testId, className = '', data }: TraceBoxProps) => {
   const attrs = Object.fromEntries(Object.entries(data ?? {}).map(([k, v]) => [`data-${k}`, v]));
   /* THE SUMMARY FOLDS ON A PHONE (the audit's TR-15): the facts, the champions and seven cards stood ~470px tall before
      the first row. On a phone the facts are one press away; on a desk they stand as they always did. */
@@ -117,6 +121,7 @@ export const TraceBox = ({ title, sub, facts, controls, sentence, guide, childre
             {/* AN h2 UNDER THE SHELL'S h1 (the audit's X4.10 and TR-10): it was an h3, a level skipped on every page */}
             <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h2>
             {guide && <GuideDoor open={guide.open} onClick={() => guide.onOpen(!guide.open)} title={guide.door} testId={guide.testId} />}
+            {read && <ReadThis read={read.read} what={read.what} testId={testId} />}
             <button
               type="button"
               onClick={() => setFactsOpen(o => !o)}

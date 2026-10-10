@@ -1148,6 +1148,7 @@ const Compare = ({ period }: { period: BillingPeriod }) => {
     on a phone and a tablet), reached from the session's note (#words). A disclosure, found by the page's find. */
 const Words = ({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void }) => {
   const body = useRef<HTMLDListElement | null>(null);
+  const { launch } = useLaunch();
   useLayoutEffect(() => {
     const el = body.current;
     if (!el) return;
@@ -1182,6 +1183,20 @@ const Words = ({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void
             <dt className="inline font-medium text-textPrimary">{w.term}</dt> <dd className="inline text-textSecondary">{w.says}</dd>
           </div>
         ))}
+        {/* the rest of the terminal's words, each with what it stands on (2026-10-10 — the glossary, a link, nothing restyled) */}
+        <div className="text-[0.84375rem] leading-snug">
+          <a
+            href="/glossary"
+            onClick={e => {
+              e.preventDefault();
+              launch('/glossary');
+            }}
+            className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary"
+            data-landing-glossary
+          >
+            Every word the terminal uses, in its glossary
+          </a>
+        </div>
       </dl>
     </div>
   );

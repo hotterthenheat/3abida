@@ -18,6 +18,10 @@ import { useFrameScan } from './usePinpoint';
 import { FLIP, LONG_GAMMA, SHORT_GAMMA } from '../../components/gex/paletteInk';
 import { GEX_SUBPAGES } from './subnav';
 import MarkLoad from '../../brand/MarkLoad';
+import CopyLevels from '../../components/levels/CopyLevels';
+import { profileOf } from '../../data/pinpointBook';
+import { maxPainOf } from '../../data/maxPain';
+import type { DayLevels } from '../../data/levelExport';
 
 /*
 ==================================================
@@ -145,6 +149,25 @@ const PinpointLayout = () => {
   }, []);
   const open = clock.phase === 'OPEN' || clock.phase === 'AUCTION';
 
+  /* COPY TODAY'S LEVELS (2026-10-10, the ideas report) — on the Map and on Targets, off the room's one book: read at the
+     press, never on the tick */
+  const copyable = /^\/pinpoint\/(map|targets)/.test(location.pathname);
+  const dayLevels = (): DayLevels | null => {
+    if (!scan) return null;
+    const lv = profileOf(scan.snap).levels;
+    return {
+      ticker: scan.snap.ticker,
+      spot: scan.snap.spot,
+      callWall: lv.callWall,
+      putWall: lv.putWall,
+      flip: lv.flip,
+      supreme: lv.supreme,
+      pin: lv.pin,
+      maxPain: maxPainOf(scan.snap.chain)?.strike ?? null,
+      at: scan.at,
+    };
+  };
+
   return (
     <>
       {/* THE HEAD. The page on the left, the facts and the ruler on the right;
@@ -204,6 +227,7 @@ const PinpointLayout = () => {
               {' · '}
               {open ? `${untilBell(clock.secondsToClose)} to the close` : clock.label.toLowerCase()}
             </p>
+            {copyable && <CopyLevels levels={dayLevels} bare testId="phone" />}
             <DropdownSelect label="Ruler" value={unit} options={RULER_OPTIONS} onChange={setDistanceUnit} title="The unit every distance on Pinpoint is read in" testId="ruler-phone" align="end" bare />
           </div>
         )}
@@ -251,7 +275,10 @@ const PinpointLayout = () => {
               </Fact>
             </dl>
           )}
-          <DropdownSelect label="Ruler" value={unit} options={RULER_OPTIONS} onChange={setDistanceUnit} title="The unit every distance on Pinpoint is read in" testId="ruler" align="end" />
+          <span className="inline-flex items-center gap-2">
+            {copyable && <CopyLevels levels={dayLevels} />}
+            <DropdownSelect label="Ruler" value={unit} options={RULER_OPTIONS} onChange={setDistanceUnit} title="The unit every distance on Pinpoint is read in" testId="ruler" align="end" />
+          </span>
         </div>
       </header>
 

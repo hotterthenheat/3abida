@@ -14,7 +14,7 @@
 import { Fragment } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Modal from '../ui/Modal';
-import { keyGroupsFor } from './keys';
+import { keyGroupsFor, keyJoin } from './keys';
 
 const Key = ({ children }: { children: string }) => (
   <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[11px] text-textSecondary">{children}</kbd>
@@ -36,7 +36,7 @@ const ShortcutSheet = ({ open, onClose }: { open: boolean; onClose: () => void }
                   <span className="inline-flex items-center gap-1 shrink-0">
                     {s.keys.map((k, i) => (
                       <span key={k} className="inline-flex items-center gap-1">
-                        {i > 0 && <span className="text-[11px] text-textMuted">{s.alt ? '/' : '+'}</span>}
+                        {i > 0 && <span className="text-[11px] text-textMuted">{keyJoin(s)}</span>}
                         <Key>{k}</Key>
                       </span>
                     ))}
@@ -47,10 +47,15 @@ const ShortcutSheet = ({ open, onClose }: { open: boolean; onClose: () => void }
           </Fragment>
         ))}
         <div className="px-1 pt-3 flex items-center justify-between gap-4 text-[11px] text-textMuted">
-          <span>Every page's keys are in Settings.</span>
-          <Link to="/settings/keyboard" onClick={onClose} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
-            Settings › Keyboard
-          </Link>
+          <span>Every page's keys are in Settings; every word the terminal uses, in the glossary.</span>
+          <span className="shrink-0 inline-flex items-center gap-3">
+            <Link to="/glossary" onClick={onClose} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary" data-key-sheet-glossary>
+              Glossary
+            </Link>
+            <Link to="/settings/keyboard" onClick={onClose} className="hit text-textSecondary underline decoration-borderMuted underline-offset-4 hover:text-textPrimary">
+              Settings › Keyboard
+            </Link>
+          </span>
         </div>
       </div>
     </Modal>

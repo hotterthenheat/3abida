@@ -48,7 +48,9 @@ import { buildExposureProfile, type StrikeWindow } from '../../data/exposure';
 import type { ExposureExpiry } from '../../types/gex';
 import type { Candle, MarketSnapshot } from '../../types/market';
 import { useOnScreen } from '../../components/ui/useOnScreen';
-import { scanOf } from '../../data/pinpointBook';
+import { profileOf, scanOf } from '../../data/pinpointBook';
+import ReadThis from '../../components/read/ReadThis';
+import { bookReading } from '../../data/reads';
 import { useFrameScan, useRoomWindow } from './usePinpoint';
 
 /* THE WINDOW IS THE WHOLE BOOK (Noah, 2026-09-05): thirty strikes each side are
@@ -293,7 +295,22 @@ const MapDesk = () => {
             onGreeks={setGreekPick}
             fullMode="move"
             fresh={replayOn && calTicker === ticker}
-            after={calTicker === ticker ? replayBar : undefined}
+            after={
+              <>
+                {calTicker === ticker && replayBar}
+                {/* READ THIS (2026-10-10): the book's levels in three sentences, built as it opens */}
+                <ReadThis
+                  compact
+                  what={`${calTicker}'s book`}
+                  testId="map"
+                  read={() => {
+                    const s = calSnap ?? scan;
+                    const p = profileOf(s);
+                    return bookReading({ ticker: s.ticker, spot: s.spot, callWall: p.levels.callWall, putWall: p.levels.putWall, flip: p.levels.flip, supreme: p.levels.supreme, netGex: p.netGex });
+                  }}
+                />
+              </>
+            }
             selectedStrike={focusFor(calTicker)}
             marks={calTicker === ticker ? marks : undefined}
             onSelectStrike={price => toggleFocus(price, calTicker)}

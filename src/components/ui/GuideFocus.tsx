@@ -24,6 +24,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info, X } from 'lucide-react';
 import { CARD } from './DropdownSelect';
@@ -119,12 +120,22 @@ const GuideFocus = ({ open, onClose, title, children, testId, width = 460, viewp
           >
             <div className="sticky top-0 z-10 flex items-center gap-2 px-3 pt-2.5 pb-2 border-b border-borderSubtle/70 bg-chip">
               <span className="font-mono text-[11px] font-semibold text-textSecondary">{title}</span>
+              {/* EVERY WORD, ON ONE PAGE (2026-10-10): the glossary is a step from every guide */}
+              <Link
+                to="/glossary"
+                onClick={onClose}
+                title="Every word the terminal uses — what it means and what it stands on"
+                className="hit ml-auto shrink-0 text-[11px] text-textMuted underline decoration-borderMuted underline-offset-4 hover:text-textPrimary"
+                data-guide-glossary
+              >
+                Glossary
+              </Link>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
                 title="Close (Esc)"
-                className="hit ml-auto p-1 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+                className="hit p-1 -mr-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
                 data-guide-close
               >
                 <X className="w-3.5 h-3.5" />

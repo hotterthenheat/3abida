@@ -309,14 +309,16 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'j' && e.key !== 'k') return;
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
       const t = e.target as HTMLElement | null;
       if (t?.closest?.('input, textarea, select, [contenteditable="true"], [role="listbox"], [role="menu"], [role="slider"], [data-radix-popper-content-wrapper]')) return;
       const st = stepRef.current;
       if (calendarRef.current) return;
       e.preventDefault();
-      if (e.key === 'ArrowUp' ? st.hasPrev : st.hasNext) st.onStep(e.key === 'ArrowUp' ? -1 : 1);
+      /* j and k are ↓ and ↑ (2026-10-10) */
+      const up = e.key === 'ArrowUp' || e.key === 'k';
+      if (up ? st.hasPrev : st.hasNext) st.onStep(up ? -1 : 1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

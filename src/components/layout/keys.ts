@@ -1,3 +1,5 @@
+import { ROOM_KEYS } from './rowStepKeys';
+
 /*
 ==================================================
   SLAYER TERMINAL - EVERY KEY, AND THE MACHINE'S OWN MODIFIER
@@ -36,7 +38,11 @@ export const modKey = (key: string): string => (IS_MAC ? `⌘${key}` : `Ctrl ${k
 /** The palette's own chord — the rail, the tips, the sheet and the 404 print this */
 export const PALETTE_KEY = modKey('K');
 
-export type Shortcut = { keys: string[]; does: string; alt?: boolean };
+/** `alt`: alternatives ("1 / 2"); `seq`: one after the other ("G then P"); neither: a chord ("Ctrl + K") */
+export type Shortcut = { keys: string[]; does: string; alt?: boolean; seq?: boolean };
+
+/** What a sheet prints between two keys of a shortcut */
+export const keyJoin = (s: Shortcut): string => (s.alt ? '/' : s.seq ? 'then' : '+');
 export interface KeyGroup {
   where: string;
   /** The pages it works on — an address that starts with any of these; none means everywhere */
@@ -60,7 +66,13 @@ export const KEY_GROUPS: KeyGroup[] = [
       { keys: ['?'], does: 'The keys for the page you are on' },
       { keys: [MOD, 'Z'], does: 'Undo what was just removed, while its chip is up' },
       { keys: ['Esc'], does: 'Close what is open — a menu, the alerts, the ladder (from inside it), fullscreen, a replay' },
+      { keys: ['J', 'K'], alt: true, does: 'The row below, the row above — wherever ↓ and ↑ step rows' },
     ],
+  },
+  /* g, then a room's letter (rowStepKeys.ts ROOM_KEYS) */
+  {
+    where: 'Everywhere · to a room',
+    keys: ROOM_KEYS.map(r => ({ keys: ['G', r.key], seq: true, does: r.room })),
   },
   {
     where: 'Terrain · the desk',
@@ -78,7 +90,7 @@ export const KEY_GROUPS: KeyGroup[] = [
       { keys: ['F'], does: 'Expand it to the full screen, and back' },
       { keys: ['S'], does: 'Pick its symbol' },
       { keys: ['C'], does: 'Compare — cross another name onto it' },
-      { keys: ['↑', '↓'], alt: true, does: 'Flip its name through the watchlist' },
+      { keys: ['↑', '↓'], alt: true, does: 'Flip its name through the watchlist (K and J too)' },
       { keys: ['−', '='], alt: true, does: 'Step its timeframe down, up' },
       { keys: ['P'], does: 'Replay — pick a bar, then play' },
       { keys: ['D'], does: 'Draw mode — the tools in hand' },

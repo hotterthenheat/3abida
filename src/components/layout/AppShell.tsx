@@ -1,5 +1,5 @@
 import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import SideNav from './SideNav';
 import CommandPalette from './CommandPalette';
@@ -20,6 +20,8 @@ import MarkLoad from '../../brand/MarkLoad';
 import MarketBell from './MarketBell';
 import InstallPrompt from './InstallPrompt';
 import SkipLink, { CONTENT_ID } from '../ui/SkipLink';
+import { G_WAIT_MS, aliasRowStep, roomFor } from './rowStepKeys';
+import { useDeskChannel } from './deskChannel';
 
 /** A page crash must never black-screen the terminal — it renders a readable
     fault panel instead. Recovers via the resetKey prop (NOT a React key: a key
@@ -89,6 +91,42 @@ const AppShell = () => {
   const [keysOpen, setKeysOpen] = useState(false);
   const openKeys = useCallback(() => setKeysOpen(true), []);
   const closeKeys = useCallback(() => setKeysOpen(false), []);
+  const navigate = useNavigate();
+  /* POP-OUT WINDOWS KEEP IN STEP (2026-10-10, deskChannel.ts): the name, the link groups and the theme, both ways */
+  useDeskChannel();
+
+  /* g, THEN A ROOM'S LETTER (2026-10-10, the ideas' keyboard leftovers — rowStepKeys.ts): heard in the capture phase, so
+     the letter after g goes to the room and not to the page's own key (Terrain's P is its replay) */
+  useEffect(() => {
+    let waitUntil = 0;
+    const typing = (el: Element | null) =>
+      !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable || !!el.closest('[role="textbox"], .cm-editor'));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || typing(document.activeElement)) {
+        waitUntil = 0;
+        return;
+      }
+      if (e.key === 'Shift') return;
+      /* j and k step rows wherever the arrows do */
+      if (aliasRowStep(e)) return;
+      if (layerOpen()) {
+        waitUntil = 0;
+        return;
+      }
+      if (waitUntil && Date.now() <= waitUntil) {
+        waitUntil = 0;
+        const to = roomFor(e.key);
+        if (!to) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        navigate(to);
+        return;
+      }
+      waitUntil = e.key === 'g' && !e.shiftKey && !e.defaultPrevented ? Date.now() + G_WAIT_MS : 0;
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [navigate]);
 
   useEffect(() => {
     /* a key typed into a field is the field's */

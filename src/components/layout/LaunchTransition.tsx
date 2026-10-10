@@ -64,7 +64,8 @@ const captionFor = (path: string) => (path === '/' ? 'Loading' : 'Entering termi
 /* THE TERMINAL'S ADDRESSES are core/terminalPath.ts (theme.ts reads them too): a full load of anything else opens WITHOUT
    the gate */
 export { isTerminalPath };
-const bootsBare = (): boolean => EMBEDDED || !isTerminalPath(window.location.pathname);
+/* …and a pop-out window (/out/…, 2026-10-10) is the terminal's ground without its gate: the panel opens at once */
+const bootsBare = (): boolean => EMBEDDED || !isTerminalPath(window.location.pathname) || window.location.pathname.startsWith('/out/');
 
 export const LaunchProvider = ({ children }: { children: ReactNode }) => {
   // Boot gate: every full page load (first visit, refresh) opens through it.

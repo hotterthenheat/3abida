@@ -14,7 +14,8 @@
 
 export type GlossaryWord = 'wall' | 'shelf' | 'trapdoor' | 'pocket' | 'flip' | 'supreme' | 'pin' | 'maxPain' | 'run' | 'pull' | 'ruler' | 'reach' | 'sign';
 
-const WORDS: Record<GlossaryWord, [string, string]> = {
+/** The room's words — read by the guides' foot and by the glossary page (data/glossary.ts) */
+export const ROOM_WORDS: Record<GlossaryWord, [string, string]> = {
   wall: ['Wall', 'A strike whose dealer hedging pushes back on price. The call wall is the heaviest such strike above spot, the put wall the heaviest below.'],
   shelf: ['Shelf', 'A strike that pushes back with at least a third of the heaviest strike’s hedging, but is not one of the named walls.'],
   trapdoor: ['Trapdoor', 'A strike whose hedging pushes a move along rather than back — price tends to travel through it, not stop at it.'],
@@ -37,8 +38,8 @@ const Glossary = ({ words }: { words: GlossaryWord[] }) => (
     <dl className="mt-1 grid gap-y-1.5" style={{ gridTemplateColumns: 'max-content minmax(0,1fr)', columnGap: 12 }}>
       {words.map(w => (
         <div key={w} className="contents">
-          <dt className="text-[12px] font-semibold text-textPrimary">{WORDS[w][0]}</dt>
-          <dd className="text-[12px] leading-relaxed text-textSecondary">{WORDS[w][1]}</dd>
+          <dt className="text-[12px] font-semibold text-textPrimary">{ROOM_WORDS[w][0]}</dt>
+          <dd className="text-[12px] leading-relaxed text-textSecondary">{ROOM_WORDS[w][1]}</dd>
         </div>
       ))}
     </dl>
