@@ -52,7 +52,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, Menu, Search } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Eye, Menu, Search } from 'lucide-react';
 import JingleBell from '../ui/JingleBell';
 import { AlertBadge, useAlertCounts } from '../alerts/AlertCount';
 import { PALETTE_KEY } from './keys';
@@ -74,6 +74,7 @@ import { useCompassView } from '../../data/compassView';
 import { lookup } from '../../data/universe';
 import { readSessionClock } from '../../data/sessionClock';
 import { toggleAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
+import { toggleWatchlist, useNameWatch, useWatchlistOpen } from '../../data/nameWatch';
 import { beginGlide, endGlide } from '../../core/glide';
 import { alpha } from '../gex/paletteInk';
 import { EMBEDDED } from '../../embed';
@@ -415,6 +416,31 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
     </button>
   );
 
+  /* THE WATCHLIST DOOR (2026-10-10): the one list of names (components/layout/WatchlistDrawer.tsx), opened at the right
+     like the alerts — a small row under the bell, the count of names at its end */
+  const watchOpen = useWatchlistOpen();
+  const watchList = useNameWatch();
+  const watchCount = watchList.sections.reduce((n, s) => n + s.names.length, 0);
+  const watchLabel = `Watchlist — ${watchCount} ${watchCount === 1 ? 'name' : 'names'}`;
+  const watchRow = (
+    <button
+      type="button"
+      onClick={toggleWatchlist}
+      data-nav-watchlist
+      aria-expanded={watchOpen}
+      aria-haspopup="dialog"
+      {...tipProps(watchLabel)}
+      aria-label={watchLabel}
+      className={`group relative flex items-center gap-2.5 h-[30px] rounded-lg text-[13px] text-left transition-colors ${
+        collapsed ? 'w-8 ml-[10px] justify-center' : 'w-full px-2.5'
+      } ${watchOpen ? 'bg-ink/[0.06] text-textPrimary font-medium' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]'}`}
+    >
+      <Eye className="w-[17px] h-[17px] shrink-0" strokeWidth={1.75} aria-hidden />
+      {!collapsed && <span>Watchlist</span>}
+      {!collapsed && watchCount > 0 && <span className="ml-auto font-mono text-[11px] tnum text-textMuted">{watchCount}</span>}
+    </button>
+  );
+
   /* THE TREE FOLDS (Noah, 2026-09-28: "clicking it once gives a dropdown but when you click it again it should bring it
      back up"): a section's pages drop down when you enter it; a click on the section's row while you are inside folds
      them, another unfolds them — no navigation on those clicks. A section you leave forgets the fold, so coming back
@@ -630,6 +656,7 @@ const SideNav = ({ onOpenPalette }: SideNavProps) => {
           <div className={collapsed ? '' : '-mx-1'}>
             {home}
             {alertsRow}
+            {watchRow}
           </div>
         </div>
         <div className="relative flex-1 min-h-0 flex flex-col">

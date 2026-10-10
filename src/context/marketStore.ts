@@ -522,11 +522,33 @@ export function useLinkedName(group: LinkGroup | null | undefined): [string, (ti
 
 /* ONE WALL CLOCK FOR THE TERMINAL: every surface that redraws on the second (the rail's clock, the desk's heat) used
    to run its own timer, a render each on its own beat. One timer per period, the readers told together. */
-const clocks = new Map<number, { now: number; id: ReturnType<typeof setInterval> | null; fns: Set<() => void> }>();
+const clocks = new Map<number, { now: number; id: ReturnType<typeof setInterval> | null; fns: Set<() => void>; subscribe: (fn: () => void) => () => void; read: () => number }>();
 function clockOf(ms: number) {
   let c = clocks.get(ms);
   if (!c) {
-    c = { now: Date.now(), id: null, fns: new Set() };
+    /* ONE subscribe a period, the same function every render (2026-10-10): an inline one was a new function each render,
+       so React unsubscribed and subscribed again on every render — and a period with one reader dropped to none in
+       between, stopped its timer, and restarted it with a new `now`, which rendered again: a loop the first time a
+       ten-second clock had a single reader (the watchlist drawer) */
+    const clock = { now: Date.now(), id: null as ReturnType<typeof setInterval> | null, fns: new Set<() => void>() };
+    const subscribe = (fn: () => void) => {
+      clock.fns.add(fn);
+      if (!clock.id) {
+        clock.now = Date.now();
+        clock.id = setInterval(() => {
+          clock.now = Date.now();
+          for (const f of Array.from(clock.fns)) f();
+        }, ms);
+      }
+      return () => {
+        clock.fns.delete(fn);
+        if (clock.fns.size === 0 && clock.id) {
+          clearInterval(clock.id);
+          clock.id = null;
+        }
+      };
+    };
+    c = Object.assign(clock, { subscribe, read: () => clock.now });
     clocks.set(ms, c);
   }
   return c;
@@ -535,25 +557,5 @@ function clockOf(ms: number) {
 /** The wall clock, moved every `ms` (one shared timer per period) */
 export function useNow(ms = 1000): number {
   const c = clockOf(ms);
-  return useSyncExternalStore(
-    fn => {
-      c.fns.add(fn);
-      if (!c.id) {
-        c.now = Date.now();
-        c.id = setInterval(() => {
-          c.now = Date.now();
-          for (const f of Array.from(c.fns)) f();
-        }, ms);
-      }
-      return () => {
-        c.fns.delete(fn);
-        if (c.fns.size === 0 && c.id) {
-          clearInterval(c.id);
-          c.id = null;
-        }
-      };
-    },
-    () => c.now,
-    () => c.now
-  );
+  return useSyncExternalStore(c.subscribe, c.read, c.read);
 }

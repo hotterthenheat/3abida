@@ -7,6 +7,7 @@ import SiteFooter from './SiteFooter';
 import RouteSkeleton from '../ui/RouteSkeleton';
 import EditorDockGate from '../scripts/EditorDockGate';
 import AlertsDrawer from '../alerts/AlertsDrawer';
+import WatchlistDrawer from './WatchlistDrawer';
 import AlertWatcher from '../alerts/AlertWatcher';
 import AlertToasts from '../alerts/AlertToasts';
 import PaperRunner from '../paper/PaperRunner';
@@ -266,6 +267,8 @@ const AppShell = () => {
       {/* EVERY ALERT IN ONE PLACE (2026-09-10): the sidebar's bell opens it
           at the right, over any page — see data/alertsDrawer.ts */}
       <AlertsDrawer />
+      {/* ONE WATCHLIST OF NAMES (2026-10-10): the rail's Watchlist door opens it at the right — see data/nameWatch.ts */}
+      <WatchlistDrawer />
       {/* HEAR IT EVERYWHERE (2026-09-10): every name's alerts watched on every
           page, and a firing shown wherever the reader is */}
       <AlertWatcher />
