@@ -353,7 +353,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the scale, the posts and the half hours mean" testId="corridor-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">{clock.inSession ? 'From now to the close' : 'The next session'} · where price stays, and what the clock and a vol move make dealers buy or sell</p>
+            <p className="mt-0.5 text-[11px] text-textMuted">{clock.inSession ? 'From now to the close' : 'The next session'} · where price stays, and what the clock and a vol move make dealers buy or sell</p>
           </div>
         )}
         <dl className={`flex flex-wrap gap-x-6 gap-y-2 ${headless ? 'ml-auto' : ''}`}>

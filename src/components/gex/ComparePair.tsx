@@ -136,7 +136,7 @@ const ComparePair = ({ a, b, aInk, bInk, nonce, guideOpen = false, onGuide }: Pr
             <span className="min-w-0 truncate text-[11px] text-textSecondary">which of the two has been stronger, and whether today's gap is normal</span>
             {onGuide && <GuideDoor open={guideOpen} onClick={onGuide} title="What the line, the range and the marks mean" testId="pair-guide" />}
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             {a}'s price divided by {b}'s, one point a day · up, <span style={{ color: aInk }}>{a}</span> is gaining · down, <span style={{ color: bInk }}>{b}</span> is gaining · the band is the usual range · hover any day
           </p>
         </div>

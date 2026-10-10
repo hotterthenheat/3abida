@@ -207,7 +207,7 @@ const CompareAxis = ({ cmp, unit, reach, onReach, greeks, greekPick, onGreekPick
             <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">The two books on one ruler</h2>
             <GuideDoor open={guideOpen} onClick={onGuide} title="What the two sides and the ruler mean" testId="compare-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
+          <p className="mt-0.5 text-[11px] text-textMuted">
             {all ? (
               <>Each strike at its distance from its own spot · {cmp.a.ticker} grows left, {cmp.b.ticker} right · one lane per greek, one window for all {greeks.length} · dashed is each flip</>
             ) : (

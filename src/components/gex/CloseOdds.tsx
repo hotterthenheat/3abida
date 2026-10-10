@@ -163,7 +163,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the runs and the slices mean" testId="close-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
+            <p className="mt-0.5 text-[11px] text-textMuted">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
           </div>
         )}
         <dl className={`grid grid-cols-4 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
