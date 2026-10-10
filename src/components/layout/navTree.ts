@@ -23,6 +23,11 @@ export interface NavLeaf {
 
 /** The pages nested under a product while you are inside it */
 const SUBPAGES: Record<string, NavLeaf[]> = {
+  /* Pulse's second page, on the rail as on the command line (the audit's PU-8: it was reachable from the chart's toolbar alone) */
+  '/pulse': [
+    { path: '/pulse', label: 'The desk' },
+    { path: '/pulse/board', label: 'Four charts' },
+  ],
   '/pinpoint': GEX_SUBPAGES.map(p => ({ path: p.path, label: p.label })),
   '/dossier': RECORD_SUBPAGES.map(p => ({ path: p.path, label: p.label })),
   /* Trace's nine moved here from its fused strip (Noah, 2026-09-09: "should we

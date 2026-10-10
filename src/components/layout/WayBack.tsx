@@ -28,8 +28,9 @@ const NAMES: Record<string, string> = {
    back, 2026-09-12); any other origin is plainly "back" */
 const nameFor = (to: string): string => {
   if (NAMES[to]) return NAMES[to];
-  /* a name's page under the Record — the earnings page or the stock overview (2026-09-13) */
-  const m = to.match(/^\/record\/(?:earnings|stocks)\/([^/?#]+)/);
+  /* a name's page under the Dossier — the earnings page or the stock overview (2026-09-13; the Record became the Dossier
+     and its pills read "Back to back" until 2026-10-09, the audit's SH-3) */
+  const m = to.match(/^\/(?:record|dossier)\/(?:earnings|stocks)\/([^/?#]+)/);
   if (m) return decodeURIComponent(m[1]).toUpperCase();
   return 'back';
 };
@@ -61,11 +62,35 @@ const useMainCentre = () => {
   return left;
 };
 
+/* CLEAR OF THE HEAD'S FACTS (the audit's SH-4): on a wide head (the Map's) the facts reach the top centre, and the pill
+   sat on them — then it stands at the foot of the screen instead, still centred on the column */
+const useClearOfFacts = (left: number | null, path: string): boolean => {
+  const [low, setLow] = useState(false);
+  useEffect(() => {
+    if (left == null) return;
+    const check = () => {
+      const facts = document.querySelector<HTMLElement>('main [data-shell-facts]');
+      if (!facts) return setLow(false);
+      const r = facts.getBoundingClientRect();
+      /* the pill: about 150px wide, 12–44px from the top */
+      setLow(r.top < 48 && r.bottom > 8 && r.left < left + 90 && r.right > left - 90);
+    };
+    const id = window.setTimeout(check, 120);
+    window.addEventListener('resize', check);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener('resize', check);
+    };
+  }, [left, path]);
+  return low;
+};
+
 const WayBack = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const to = (location.state as WayBackState | null)?.wayBack;
   const left = useMainCentre();
+  const low = useClearOfFacts(to ? left : null, location.pathname);
   if (!to || left == null) return null;
   const name = nameFor(to);
   return (
@@ -73,8 +98,9 @@ const WayBack = () => {
       onClick={() => navigate(to)}
       title={`Back to ${name}`}
       data-way-back={to}
+      data-way-back-low={low || undefined}
       style={{ left }}
-      className="group fixed top-[60px] md:top-3 -translate-x-1/2 z-[70] inline-flex items-center gap-1.5 h-8 pl-2.5 pr-3 rounded-full border border-borderMuted bg-panel/90 backdrop-blur-sm font-mono text-[11px] font-semibold text-textSecondary hover:text-textPrimary hover:bg-panelHover shadow-lg shadow-black/40 transition-colors animate-soft-in"
+      className={`group fixed ${low ? 'bottom-4' : 'top-[60px] md:top-3'} -translate-x-1/2 z-[70] inline-flex items-center gap-1.5 h-8 pl-2.5 pr-3 rounded-full border border-borderMuted bg-panel/90 backdrop-blur-sm font-mono text-[11px] font-semibold text-textSecondary hover:text-textPrimary hover:bg-panelHover shadow-lg shadow-black/40 transition-colors animate-soft-in`}
     >
       <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" />
       Back to {name}

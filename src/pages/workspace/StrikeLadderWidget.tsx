@@ -230,7 +230,7 @@ const StrikeLadderWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
         ) : surface ? (
           <ExposureLadder
             surface={surface}
-            liveSpot={ctx.snapshot.spot}
+            liveSpot={ctx.liveSpot ?? ctx.snapshot.spot}
             greeks={GEX_ONLY as unknown as ('gex')[]}
             expiries={expiries}
             rings={range}

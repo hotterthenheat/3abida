@@ -22,6 +22,13 @@
     subscribeTheme(fn)  the module-level hook the
                         candle theme uses to
                         re-stamp the chart ground
+    useColourVision()   the direction pair: the
+                        house's green and red, or
+                        blue and orange with ▲/▼
+                        (Settings › Appearance,
+                        2026-10-09) — `data-cvd` on
+                        <html>, tokens.css does the
+                        rest
 
   'system' follows prefers-color-scheme live — the
   machine's own toggle moves the terminal too.
@@ -77,11 +84,26 @@ const firstGround = (): Theme | null => {
 };
 let stamp: Theme | null = firstGround();
 
+/* ── COLOUR VISION (2026-10-09) ─────────────────────────────────────────────────────────────────────────────────── */
+export type ColourVision = 'standard' | 'blue-orange';
+export const CVD_KEY = 'slayer_cvd';
+function loadCvd(): ColourVision {
+  try {
+    return localStorage.getItem(CVD_KEY) === 'blue-orange' ? 'blue-orange' : 'standard';
+  } catch {
+    return 'standard';
+  }
+}
+let cvd: ColourVision = loadCvd();
+
 function apply(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   const on = stamp ?? resolved;
   root.dataset.theme = on;
+  /* the direction pair, on every page — the landing included, whose only colour is the market's */
+  if (cvd === 'blue-orange') root.dataset.cvd = cvd;
+  else delete root.dataset.cvd;
   tokenCache.clear();
   /* a phone's browser bar takes the ground (index.html sets it before the first paint) */
   const ground = getComputedStyle(root).getPropertyValue('--canvas').trim();
@@ -131,6 +153,36 @@ export function setThemeChoice(next: ThemeChoice): void {
   listeners.forEach(fn => fn());
   if (before !== resolved) tokenCache.clear();
 }
+
+export const getColourVision = (): ColourVision => cvd;
+
+/** Swap the direction pair — every token reader hears it as a theme change, so a chart re-reads its inks */
+export function setColourVision(next: ColourVision): void {
+  if (next === cvd) return;
+  cvd = next;
+  if (!EMBEDDED) {
+    try {
+      if (next === 'standard') localStorage.removeItem(CVD_KEY);
+      else localStorage.setItem(CVD_KEY, next);
+    } catch {
+      /* non-fatal — the choice lives for the visit */
+    }
+  }
+  apply();
+  cvdListeners.forEach(fn => fn());
+  listeners.forEach(fn => fn());
+}
+const cvdListeners = new Set<() => void>();
+const subscribeCvd = (fn: () => void) => {
+  cvdListeners.add(fn);
+  return () => {
+    cvdListeners.delete(fn);
+  };
+};
+export const useColourVision = (): ColourVision => useSyncExternalStore(subscribeCvd, getColourVision, getColourVision);
+
+/** The direction a signed figure carries, for its `data-dir` (tokens.css draws ▲/▼ from it under the blue–orange pair) */
+export const dirOf = (n: number): 'up' | 'down' | undefined => (n > 0 ? 'up' : n < 0 ? 'down' : undefined);
 
 export function subscribeTheme(fn: () => void): () => void {
   listeners.add(fn);

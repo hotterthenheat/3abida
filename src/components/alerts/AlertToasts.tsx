@@ -32,7 +32,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { firedWords, useAllAlerts, type FiredRecord } from '../gex/alertStore';
+import { firedSentence, firedWords, snoozeFromRecord, useAllAlerts, type FiredRecord } from '../gex/alertStore';
 import { usePaperToasts, type PaperToast } from '../../data/paper/store';
 import { dirInk, usdSigned } from '../review/words';
 import { chime } from '../../core/sound';
@@ -41,6 +41,10 @@ import { openAlertsDrawer } from '../../data/alertsDrawer';
 import { flashAlert } from '../../brand/markState';
 import { nyClock } from '../../core/nyTime';
 import { UndoToasts } from '../ui/undo';
+import { notifyIfHidden, speak } from '../layout/shellPrefs';
+
+/** How long a snooze from the chip rests the alert */
+export const SNOOZE_MS = 15 * 60_000;
 
 /** How long a chip stays — long enough to read on a page you were not looking at */
 export const TOAST_MS = 5000;
@@ -55,10 +59,12 @@ const AlertToasts = () => {
   const paper = usePaperToasts();
   const navigate = useNavigate();
   const [, wake] = useState(0);
+  /* the chips snoozed from here leave at once */
+  const snoozed = useRef<Set<string>>(new Set());
   const now = Date.now();
   const shown: { ticker: string; r: FiredRecord }[] = names
     .flatMap(n => n.fired.map(r => ({ ticker: n.ticker, r })))
-    .filter(x => now - x.r.at < TOAST_MS)
+    .filter(x => now - x.r.at < TOAST_MS && !snoozed.current.has(x.r.key))
     .sort((a, b) => b.r.at - a.r.at)
     .slice(0, AT_MOST);
   /* the paper account's, in the same column — a verdict stays twice as long as a fill */
@@ -78,6 +84,14 @@ const AlertToasts = () => {
     }
     if (fresh) {
       chime();
+      /* SAID ALOUD, AND ON THE MACHINE WHILE THE TAB IS AWAY (2026-10-09 — each its own switch in Settings › Sounds and
+         Settings › The desk, both off until turned on): the newest firing, in one sentence */
+      const newest = shown[0];
+      if (newest) {
+        const line = firedSentence(newest.r, newest.ticker);
+        speak(line);
+        notifyIfHidden(line, `at ${nyClock(newest.r.at, { seconds: true, zone: true })} · Slayer Terminal`, `slayer-alert-${newest.r.key}`);
+      }
       /* the mark's cursor flashes the warning ink twice (brand/markState.ts — "Alert: an alert fires") */
       flashAlert();
     }
@@ -109,24 +123,41 @@ const AlertToasts = () => {
           {t.account && <span className="text-textSecondary">{t.account} ·</span>}
           <span className="text-textPrimary">{t.words}</span>
           {t.pnl != null && <span className={`font-semibold ${dirInk(t.pnl)}`}>{usdSigned(t.pnl)}</span>}
-          <span className="text-[9px] uppercase tracking-wider text-textMuted">paper</span>
+          <span className="text-[10px] text-textMuted">paper</span>
         </button>
       ))}
       {shown.map(x => (
-        <button
+        <span
           key={`${x.ticker}:${x.r.key}`}
-          onClick={openAlertsDrawer}
-          title="Open the alerts"
-          className="shell-toast pointer-events-auto inline-flex items-center gap-2 h-7 pl-2.5 pr-3 rounded-md border bg-canvas/85 backdrop-blur-md backdrop-saturate-150 shadow-lg shadow-black/40 font-mono text-[11px] select-none"
+          className="shell-toast pointer-events-auto inline-flex items-center h-7 rounded-md border bg-canvas/85 backdrop-blur-md backdrop-saturate-150 shadow-lg shadow-black/40 font-mono text-[11px] select-none"
           style={{ color: ALERT, borderColor: alpha(ALERT, 0.5) }}
           data-alert-toast={x.r.key}
         >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: ALERT }} aria-hidden />
-          <span className="font-bold">{x.ticker}</span>
-          <span className="text-textPrimary">{firedWords(x.r.alert, x.ticker)}</span>
-          {/* when, on the market's clock — the brand's alert line ends "at 10:42:07 ET" */}
-          <span className="text-textMuted tnum">at {nyClock(x.r.at, { seconds: true, zone: true })}</span>
-        </button>
+          <button type="button" onClick={openAlertsDrawer} title="Open the alerts" className="h-full inline-flex items-center gap-2 pl-2.5 pr-2.5">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: ALERT }} aria-hidden />
+            <span className="font-bold">{x.ticker}</span>
+            <span className="text-textPrimary">{firedWords(x.r.alert, x.ticker)}</span>
+            {/* when, on the market's clock — the brand's alert line ends "at 10:42:07 ET" */}
+            <span className="text-textMuted tnum">at {nyClock(x.r.at, { seconds: true, zone: true })}</span>
+          </button>
+          {/* SNOOZE (2026-10-09): the alert rests a quarter of an hour — set again if it had gone, and nothing it sleeps
+              through counts when it wakes */}
+          <button
+            type="button"
+            onClick={() => {
+              snoozeFromRecord(x.ticker, x.r.key, SNOOZE_MS);
+              snoozed.current.add(x.r.key);
+              wake(t => t + 1);
+            }}
+            title="Rest this alert for 15 minutes"
+            aria-label={`Snooze ${x.ticker} ${firedWords(x.r.alert, x.ticker)} for 15 minutes`}
+            className="hit h-full px-2 border-l text-textSecondary hover:text-textPrimary transition-colors"
+            style={{ borderColor: alpha(ALERT, 0.35) }}
+            data-alert-snooze={x.r.key}
+          >
+            Snooze 15m
+          </button>
+        </span>
       ))}
     </div>
   );

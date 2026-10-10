@@ -20,6 +20,13 @@
 
   It closes on a pick, on the glass behind it, on
   Escape, and whenever the page changes under it.
+
+  Since 2026-10-09 it carries what the rail's foot
+  carries (the audit's SH-13): who is at the desk, a
+  door to the account, and where New York's day
+  stands with the clock; the bell counts the rail's
+  way (alerts/AlertCount.tsx), and the mark goes home
+  through the launch gate, as the rail's does (SH-15).
 ==================================================
 */
 
@@ -28,11 +35,17 @@ import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, X } from 'lucide-react';
 import JingleBell from '../ui/JingleBell';
-import useFocusTrap from '../ui/useFocusTrap';
+import { useOverlay } from '../ui/layers';
+import Avatar from '../ui/Avatar';
+import { useProfile } from '../../data/profile';
+import { useDeskPrefs } from '../../data/deskPrefs';
+import { useLaunch } from './LaunchTransition';
+import { AlertBadge, useAlertCounts } from '../alerts/AlertCount';
+import SessionStrip, { railClock, readDay } from './SessionStrip';
+import { useShellPrefs } from './shellPrefs';
 import { NAV_GROUPS, NAV_GROUP_META, itemsByGroup, type NavGroup } from './nav';
 import { subpagesFor } from './navTree';
 import { useCompassView } from '../../data/compassView';
-import { useAllAlerts, useUnseenAll } from '../gex/alertStore';
 import { toggleAlertsDrawer } from '../../data/alertsDrawer';
 import ProductGlyph from '../../brand/ProductGlyph';
 import SlayerMark from '../../brand/SlayerMark';
@@ -47,12 +60,24 @@ interface Props {
 const MobileMenu = ({ open, onClose }: Props) => {
   const { pathname } = useLocation();
   const { chosenId } = useCompassView();
-  const unseen = useUnseenAll();
-  const setTotal = useAllAlerts().reduce((n, a) => n + a.alerts.filter(x => !x.firedAt).length, 0);
+  const counts = useAlertCounts();
+  const profile = useProfile();
+  const desk = useDeskPrefs();
+  const shell = useShellPrefs();
+  const { launch } = useLaunch();
   const panel = useRef<HTMLDivElement | null>(null);
   /** the products whose pages the reader has opened by hand; the one they are inside is open without asking */
   const [opened, setOpened] = useState<Record<string, boolean>>({});
-  useFocusTrap(open, panel);
+  /* the dialog contract (ui/layers.ts): focus in, Tab kept inside, Esc as the top layer, focus back to the menu button */
+  useOverlay({ open, ref: panel, onClose });
+  /* the clock under the signature, a step a second while the menu is open */
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!open) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [open]);
 
   /* the page changed under it — a pick from the menu, or Back */
   const first = useRef(true);
@@ -67,18 +92,13 @@ const MobileMenu = ({ open, onClose }: Props) => {
 
   useEffect(() => {
     if (!open) return;
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', key);
     /* the page behind must not scroll under the sheet */
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', key);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   /* ONE GROUP OF THE MENU — Home (Pulse) stands above the Alerts row, the captioned groups under it, More last (the rail's order, nav.ts) */
@@ -155,11 +175,20 @@ const MobileMenu = ({ open, onClose }: Props) => {
         className="absolute inset-y-0 left-0 w-[min(86vw,320px)] flex flex-col bg-panel border-r border-borderSubtle shadow-2xl shadow-black/60 animate-slide-in outline-none"
       >
         <div className="shrink-0 h-12 flex items-center gap-2 pl-4 pr-2 border-b border-borderSubtle">
-          <Link to="/" onClick={onClose} className="inline-flex items-center gap-2.5" aria-label="Slayer Terminal, the front page">
+          <a
+            href="/"
+            onClick={e => {
+              e.preventDefault();
+              onClose();
+              launch('/');
+            }}
+            className="inline-flex items-center gap-2.5 h-11"
+            aria-label="Slayer Terminal, the front page"
+          >
             <SlayerMark size={20} bare label="" />
             <Wordmark height={12} label="" />
-          </Link>
-          <button type="button" onClick={onClose} aria-label="Close the menu" className="ml-auto inline-flex items-center justify-center w-9 h-9 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]">
+          </a>
+          <button type="button" onClick={onClose} aria-label="Close the menu" className="ml-auto inline-flex items-center justify-center w-11 h-11 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -172,19 +201,34 @@ const MobileMenu = ({ open, onClose }: Props) => {
               onClose();
               toggleAlertsDrawer();
             }}
+            aria-label={counts.label}
+            aria-haspopup="dialog"
             className="w-full flex items-center gap-3 h-11 px-3 rounded-lg text-[14px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.04]"
             data-mobile-alerts
           >
-            <JingleBell count={setTotal + unseen} lit={unseen > 0} glyph={20} />
+            <JingleBell count={counts.set} lit={counts.unseen > 0} glyph={20} />
             <span>Alerts</span>
-            {(unseen > 0 || setTotal > 0) && <span className={`ml-auto font-mono text-[11px] tnum ${unseen > 0 ? 'text-select' : 'text-textMuted'}`}>{unseen > 0 ? `${unseen} alerted` : `${setTotal} set`}</span>}
+            <AlertBadge counts={counts} className="ml-auto" />
           </button>
 
           {NAV_GROUPS.filter(g => g !== 'Home').map(groupBlock)}
         </nav>
-        {/* the menu's foot: the signature, in the market's own word */}
-        <div className="shrink-0 px-4 py-3 border-t border-borderSubtle">
+        {/* WHO IS AT THE DESK — a door to the account, as on the rail's foot */}
+        <Link to="/settings/account" onClick={onClose} className="shrink-0 flex items-center gap-3 min-h-[52px] px-4 py-2 border-t border-borderSubtle hover:bg-ink/[0.03]" data-mobile-me>
+          <Avatar profile={profile} size={28} />
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-[13px] font-semibold text-textPrimary">{profile.name}</span>
+            <span className="block truncate font-mono text-[11px] text-textMuted">@{profile.handle} · your account</span>
+          </span>
+        </Link>
+        {/* the menu's foot: the signature, in the market's own word, and where the day stands */}
+        <div className="shrink-0 px-4 py-3 border-t border-borderSubtle" data-mobile-foot>
           <Signature rule={false} className="text-[11px]" />
+          {shell.sessionStrip ? (
+            <SessionStrip read={readDay(now)} time={railClock(desk.clock, now)} />
+          ) : (
+            <span className="mt-1.5 block text-[11px] tnum text-textMuted">{railClock(desk.clock, now)}</span>
+          )}
         </div>
       </div>
     </div>,

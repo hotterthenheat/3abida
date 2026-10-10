@@ -68,12 +68,27 @@ import { useCallback, useSyncExternalStore } from 'react';
 export type LevelName = 'callWall' | 'putWall' | 'flip' | 'supreme';
 export type IndicatorSource = 'vwap' | 'ema9' | 'ema21' | 'ema50' | 'rsi';
 
+/** HOW OFTEN IT MAY FIRE (2026-10-09, the alert lifecycle): once and then it is gone (the rule until now), every time
+    the thing happens, or at most once per bar (a minute bar for the price kinds, the alert's own bars for an indicator or
+    a script) or once per minute */
+export type AlertRepeat = 'once' | 'every' | 'bar' | 'minute';
+export const ALERT_REPEATS: readonly AlertRepeat[] = ['once', 'every', 'bar', 'minute'];
+
 interface AlertBase {
   id: string;
   /** When it fired, in epoch ms. 0 while it is still waiting. */
   firedAt: number;
   /** When it was set (or set again), in epoch ms — the drawer's "set 21:20" (2026-09-10); absent on entries saved before it */
   setAt?: number;
+  /** How often it may fire — absent is 'once', the rule every alert saved before 2026-10-09 kept */
+  repeat?: AlertRepeat;
+  /** When it ends by itself, in epoch ms — absent or 0 is never */
+  expiresAt?: number;
+  /** It may not fire before this (epoch ms): a snooze, or the rest a repeating alert takes after it fires */
+  quietUntil?: number;
+  /** It fired (or was snoozed) and goes back on watch from where the market stands once its quiet ends — the side, the
+      baseline and the tape's clock are read again then, so a crossing it slept through is not a firing */
+  reside?: boolean;
 }
 
 export interface PriceAlert extends AlertBase {
@@ -199,7 +214,15 @@ const readAlert = (a: unknown): Alert | null => {
   if (typeof a !== 'object' || a === null) return null;
   const c = a as Record<string, unknown>;
   if (typeof c.id !== 'string' || !isFin(c.firedAt)) return null;
-  const base = { id: c.id, firedAt: c.firedAt as number, ...(isFin(c.setAt) ? { setAt: c.setAt as number } : {}) };
+  const base = {
+    id: c.id,
+    firedAt: c.firedAt as number,
+    ...(isFin(c.setAt) ? { setAt: c.setAt as number } : {}),
+    ...(ALERT_REPEATS.includes(c.repeat as AlertRepeat) && c.repeat !== 'once' ? { repeat: c.repeat as AlertRepeat } : {}),
+    ...(isFin(c.expiresAt) && (c.expiresAt as number) > 0 ? { expiresAt: c.expiresAt as number } : {}),
+    ...(isFin(c.quietUntil) && (c.quietUntil as number) > 0 ? { quietUntil: c.quietUntil as number } : {}),
+    ...(c.reside === true ? { reside: true } : {}),
+  };
   /* Legacy vocabulary (pre-2026-08-29): alerts saved before the supreme
      rename carry 'newking' kinds and 'king' level names — healed, not
      dropped, same contract as the pre-kinds entries below. */
@@ -407,10 +430,12 @@ export function clearAlerts(ticker: string): void {
 /** Idempotent: a chart calls this on every tick a crossed alert is seen, and
     only the first call changes anything. Without that guard the fired time
     would keep moving and every pane would repaint on every tick. */
-export function markFired(ticker: string, id: string, at: number): void {
+export function markFired(ticker: string, id: string, at: number, value?: number): void {
   const list = read(ticker);
   const hit = list.find(a => a.id === id);
   if (!hit || hit.firedAt !== 0) return;
+  /* resting (a snooze, a repeat's quiet) or waiting to be put back on watch: not a firing */
+  if (hit.reside || (hit.quietUntil ?? 0) > at) return;
   write(ticker, list.map(a => (a.id === id ? { ...a, firedAt: at } : a)));
 
   /* OURS, on top of the port (Noah, 2026-08-28: "alerts dont dissapear
@@ -420,34 +445,71 @@ export function markFired(ticker: string, id: string, at: number): void {
      takes itself off the armed set. The timeout re-checks firedAt so a
      reader who re-arms inside the window is not silently un-armed by the
      cleanup that outlived the firing it was cleaning. */
-  const prev = firedLogs.get(ticker) ?? [];
-  firedLogs.set(ticker, [{ key: `${id}-${at}`, alert: { ...hit, firedAt: at }, at }, ...prev].slice(0, FIRED_LOG_CAP));
+  const prev = getFiredLog(ticker);
+  const v = value ?? (hit.kind === 'price' ? hit.price : undefined);
+  logs().set(ticker, [{ key: `${id}-${at}`, alert: { ...hit, firedAt: at }, at, ...(isFin(v) ? { value: v } : {}) }, ...prev].slice(0, FIRED_LOG_CAP));
+  saveLog();
   unseenCounts.set(ticker, (unseenCounts.get(ticker) ?? 0) + 1);
   notifyTicker(ticker);
   setTimeout(() => {
     const cur = read(ticker).find(a => a.id === id);
-    if (cur && cur.firedAt !== 0) removeAlert(ticker, id);
+    if (!cur || cur.firedAt === 0) return;
+    /* once: it has said its piece and goes; a repeating alert goes back on watch after its rest */
+    const repeat = cur.repeat ?? 'once';
+    if (repeat === 'once') return removeAlert(ticker, id);
+    write(
+      ticker,
+      read(ticker).map(a => (a.id === id ? { ...a, firedAt: 0, reside: true, quietUntil: restAfter(cur, at) } : a))
+    );
   }, DISMISS_MS);
+}
+
+/** When a repeating alert that fired at `at` may fire again: at once, after the bar it fired in, or a minute on */
+function restAfter(a: Alert, at: number): number {
+  const repeat = a.repeat ?? 'once';
+  if (repeat === 'minute') return at + 60_000;
+  if (repeat === 'bar') {
+    const mins = a.kind === 'indicator' || a.kind === 'script' ? tfMinutesOf(a.tf) : 1;
+    const bar = Math.max(1, mins) * 60_000;
+    return Math.floor(at / bar) * bar + bar;
+  }
+  return at + DISMISS_MS;
+}
+
+/** A timeframe's minutes ("15s" → 0.25, "5m" → 5, "1h" → 60, "1D" → a session) — read here so the store needs no chart module */
+function tfMinutesOf(tf: string): number {
+  const m = /^(\d+)\s*([smhdwSMHDW])$/.exec(tf.trim());
+  if (!m) return 1;
+  const n = Number(m[1]);
+  const u = m[2].toLowerCase();
+  return u === 's' ? n / 60 : u === 'm' ? n : u === 'h' ? n * 60 : u === 'd' ? n * 390 : n * 390 * 5;
 }
 
 /*
   ── THE FIRED LOG, THE BELL COUNT, AND THE 3-SECOND RULE (ours) ────────────
 
-  Deliberately IN-MEMORY. This file's contract is "while this tab is open";
-  a persisted log would quietly become the notification service the menu
-  explicitly says this is not.
+  THE LOG IS KEPT ON THIS MACHINE (2026-10-09, the alert lifecycle — it was
+  in memory, and a reload wiped what had alerted while the reader was away):
+  one key, every name's firings, newest first, twenty a name and two hundred
+  in all. It is still not a notification service — nothing runs while the
+  tab is closed, and nothing is sent anywhere; the bell's unseen count stays
+  this visit's.
 */
 export const DISMISS_MS = 3000;
 const FIRED_LOG_CAP = 20;
+const LOG_TOTAL_CAP = 200;
+const LOG_KEY = 'slayer_alert_log';
 
 export interface FiredRecord {
   /** Stable per firing — an alert can fire, be re-armed, and fire again. */
   key: string;
   alert: Alert;
   at: number;
+  /** The figure it fired at, when there is one — the price, the level, the indicator's value */
+  value?: number;
 }
 
-const firedLogs = new Map<string, FiredRecord[]>();
+let firedLogs: Map<string, FiredRecord[]> | null = null;
 const unseenCounts = new Map<string, number>();
 const EMPTY_FIRED: FiredRecord[] = [];
 const notifyTicker = (ticker: string) => {
@@ -455,7 +517,50 @@ const notifyTicker = (ticker: string) => {
   bumpAll();
 };
 
-export const getFiredLog = (ticker: string): FiredRecord[] => firedLogs.get(ticker) ?? EMPTY_FIRED;
+/** The log, read once from this machine — a record that is not well formed is dropped, never thrown */
+function logs(): Map<string, FiredRecord[]> {
+  if (firedLogs) return firedLogs;
+  firedLogs = new Map();
+  try {
+    const raw = localStorage.getItem(LOG_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === 'object') {
+      for (const [ticker, list] of Object.entries(parsed as Record<string, unknown>)) {
+        if (!Array.isArray(list)) continue;
+        const out: FiredRecord[] = [];
+        for (const r of list) {
+          const rec = r as Record<string, unknown>;
+          const alert = readAlert(rec?.alert);
+          if (!alert || typeof rec.key !== 'string' || !isFin(rec.at)) continue;
+          out.push({ key: rec.key, alert, at: rec.at as number, ...(isFin(rec.value) ? { value: rec.value as number } : {}) });
+        }
+        if (out.length) firedLogs.set(ticker, out.slice(0, FIRED_LOG_CAP));
+      }
+    }
+  } catch {
+    /* no storage, or a log from another version — start empty */
+  }
+  return firedLogs;
+}
+
+/** Write the log back, the oldest firings across every name dropped past the cap */
+function saveLog(): void {
+  const all = [...logs().entries()].flatMap(([t, list]) => list.map(r => ({ t, r })));
+  if (all.length > LOG_TOTAL_CAP) {
+    const keep = new Set(all.sort((a, b) => b.r.at - a.r.at).slice(0, LOG_TOTAL_CAP).map(x => x.r.key));
+    for (const [t, list] of logs()) logs().set(t, list.filter(r => keep.has(r.key)));
+  }
+  try {
+    const out: Record<string, FiredRecord[]> = {};
+    for (const [t, list] of logs()) if (list.length) out[t] = list;
+    if (Object.keys(out).length) localStorage.setItem(LOG_KEY, JSON.stringify(out));
+    else localStorage.removeItem(LOG_KEY);
+  } catch {
+    /* storage full or off — the log lives for the visit */
+  }
+}
+
+export const getFiredLog = (ticker: string): FiredRecord[] => logs().get(ticker) ?? EMPTY_FIRED;
 export const getUnseen = (ticker: string): number => unseenCounts.get(ticker) ?? 0;
 
 /** Put a fired-and-gone alert back on watch, from its log row — through the
@@ -466,17 +571,106 @@ export function rearmFromRecord(ticker: string, key: string, spot: number, now: 
   const list = read(ticker);
   if (list.length >= MAX_ALERTS) return null;
   const fresh: Alert = { ...resetAlert({ ...rec.alert, id: freshId() }, spot, now), setAt: now };
+  delete fresh.reside;
+  delete fresh.quietUntil;
   if (list.some(a => sameIdentity(a, fresh))) return null;
   write(ticker, [...list, fresh]);
   return fresh;
 }
 
 export function clearFiredLog(ticker: string): void {
-  if ((firedLogs.get(ticker) ?? []).length === 0) return;
-  firedLogs.set(ticker, EMPTY_FIRED);
+  if (getFiredLog(ticker).length === 0) return;
+  logs().set(ticker, EMPTY_FIRED);
+  saveLog();
   noteName(ticker, read(ticker).length > 0);
   notifyTicker(ticker);
 }
+
+/** Put a name's log back as it was — the Undo of a Clear */
+export function restoreFiredLog(ticker: string, records: FiredRecord[]): void {
+  const now = getFiredLog(ticker);
+  const merged = [...records, ...now.filter(r => !records.some(x => x.key === r.key))].sort((a, b) => b.at - a.at).slice(0, FIRED_LOG_CAP);
+  logs().set(ticker, merged);
+  saveLog();
+  noteName(ticker, true);
+  notifyTicker(ticker);
+}
+
+/** Put a name's alerts back as they were — the Undo of a removal or a Clear; the cap still holds */
+export function restoreAlerts(ticker: string, alerts: Alert[]): void {
+  const list = read(ticker);
+  const back = alerts.filter(a => !list.some(x => x.id === a.id));
+  if (back.length === 0) return;
+  write(ticker, [...list, ...back].slice(0, MAX_ALERTS));
+}
+
+/* ── THE LIFECYCLE (2026-10-09): how often, until when, and a rest ───────────────────────────────────────────────── */
+
+/** How often it may fire, and when it ends by itself (0 = never) */
+export function setLifecycle(ticker: string, id: string, patch: { repeat?: AlertRepeat; expiresAt?: number }): void {
+  const list = read(ticker);
+  if (!list.some(a => a.id === id)) return;
+  write(
+    ticker,
+    list.map(a => {
+      if (a.id !== id) return a;
+      const next: Alert = { ...a };
+      if (patch.repeat !== undefined) {
+        if (patch.repeat === 'once') delete next.repeat;
+        else next.repeat = patch.repeat;
+      }
+      if (patch.expiresAt !== undefined) {
+        if (patch.expiresAt > 0) next.expiresAt = patch.expiresAt;
+        else delete next.expiresAt;
+      }
+      return next;
+    })
+  );
+}
+
+/** A rest of `ms` from now: the alert stays set, fires nothing until then, and reads the market afresh after it */
+export function snoozeAlert(ticker: string, id: string, ms: number, now = Date.now()): boolean {
+  const list = read(ticker);
+  if (!list.some(a => a.id === id)) return false;
+  write(ticker, list.map(a => (a.id === id ? { ...a, firedAt: 0, reside: true, quietUntil: now + ms } : a)));
+  return true;
+}
+
+/** Snooze from a firing (the toast, the log): the alert itself if it is still set, else it goes back on, resting —
+    through the same cap and duplicate gates as setting it fresh. Returns false when neither could be done. */
+export function snoozeFromRecord(ticker: string, key: string, ms: number, now = Date.now()): boolean {
+  const rec = getFiredLog(ticker).find(r => r.key === key);
+  if (!rec) return false;
+  if (snoozeAlert(ticker, rec.alert.id, ms, now)) return true;
+  const list = read(ticker);
+  if (list.length >= MAX_ALERTS) return false;
+  const fresh: Alert = { ...rec.alert, id: freshId(), firedAt: 0, reside: true, quietUntil: now + ms, setAt: now };
+  if (list.some(a => sameIdentity(a, fresh))) return false;
+  write(ticker, [...list, fresh]);
+  return true;
+}
+
+/** Back on watch from where the market stands — the watcher calls it once a resting alert's quiet is over */
+export function resideAlert(ticker: string, id: string, spot: number, now: number): void {
+  const list = read(ticker);
+  const hit = list.find(a => a.id === id);
+  if (!hit || !hit.reside || hit.firedAt !== 0) return;
+  const back: Alert = { ...resetAlert(hit, spot, now) };
+  delete back.reside;
+  delete back.quietUntil;
+  write(ticker, list.map(a => (a.id === id ? back : a)));
+}
+
+/** Take off every alert whose end has come; returns how many went */
+export function expireDue(ticker: string, now: number): number {
+  const list = read(ticker);
+  const next = list.filter(a => !(a.expiresAt && a.expiresAt <= now && a.firedAt === 0));
+  if (next.length !== list.length) write(ticker, next);
+  return list.length - next.length;
+}
+
+/** Resting now — snoozed, or a repeat's quiet */
+export const isResting = (a: Alert, now = Date.now()): boolean => !!a.reside || (a.quietUntil ?? 0) > now;
 
 /*
   ── EVERY NAME AT ONCE (2026-09-10, the alerts rule: "see in one place") ──
@@ -509,6 +703,11 @@ function loadNames(): Set<string> {
   } catch {
     /* no storage — this session's names only */
   }
+  /* a name whose alerts have gone but whose firings are kept is still a name with something to show */
+  for (const t of logs().keys()) if (!out.has(t)) {
+    out.add(t);
+    healed = true;
+  }
   names = out;
   /* an index that was missing or behind the store's own keys is written now */
   if (healed) saveNames();
@@ -531,7 +730,7 @@ function noteName(ticker: string, holds: boolean): void {
       set.add(ticker);
       saveNames();
     }
-  } else if (set.has(ticker) && (firedLogs.get(ticker) ?? []).length === 0) {
+  } else if (set.has(ticker) && getFiredLog(ticker).length === 0) {
     set.delete(ticker);
     saveNames();
   }
@@ -662,6 +861,17 @@ export function firedWords(a: Alert, ticker = ''): string {
   }
 }
 
+/** The figure a firing names, printed as a strike is */
+export const fmtAlertValue = (v: number): string => fmtStrike(Math.round(v * 100) / 100);
+
+/** A firing as one sentence that names the name and the figure — the spoken alert and the machine's notification:
+    "SPY crossed the gamma flip at 475" */
+export function firedSentence(r: FiredRecord, ticker: string): string {
+  const words = firedWords(r.alert, ticker).replace(/^price /, '');
+  const at = r.value != null && r.alert.kind !== 'price' ? ` at ${fmtAlertValue(r.value)}` : '';
+  return `${ticker} ${words}${at}`;
+}
+
 /** Store the side/baseline `evaluateAlert` established. Refused for an alert
     that fired or vanished between the evaluation and this call. */
 export function commitArm(ticker: string, armed: Alert): void {
@@ -771,6 +981,8 @@ const sideOf = (x: number, ref: number): -1 | 0 | 1 => (x > ref ? 1 : x < ref ? 
 
 export function evaluateAlert(a: Alert, ctx: AlertContext): AlertVerdict {
   if (a.firedAt !== 0) return NONE;
+  /* resting: the shell's watcher puts it back on watch once its quiet is over (resideAlert) */
+  if (a.reside || (a.quietUntil ?? 0) > Date.now()) return NONE;
   switch (a.kind) {
     case 'price':
       return { fire: a.above ? ctx.close >= a.price : ctx.close <= a.price };

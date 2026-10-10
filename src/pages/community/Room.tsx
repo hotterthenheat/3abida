@@ -353,7 +353,9 @@ const Room = () => {
       </header>
 
       <div className="relative" data-room data-walled={walled || undefined}>
-        <div className={`${ROOM_GRID} ${walled ? 'pointer-events-none select-none' : ''}`} aria-hidden={walled || undefined} data-room-grid>
+        {/* INERT UNDER THE GLASS (the audit's SH-16): aria-hidden kept a reader's ears off it, but its 40 buttons and the post
+            box stayed in the Tab order — a keyboard could type and post behind "Coming soon". `inert` takes it out whole. */}
+        <div className={`${ROOM_GRID} ${walled ? 'pointer-events-none select-none' : ''}`} aria-hidden={walled || undefined} {...(walled ? { inert: '' } : {})} data-room-grid>
           {/* ---- THE READER ---------------------------------------------------------- */}
           <div className="flex flex-col gap-2.5 min-w-0">
             <div className="border border-borderSubtle rounded-md bg-panel overflow-hidden" data-room-profile>
@@ -685,14 +687,15 @@ const Room = () => {
             blurb="One room for the people trading with the terminal — their reads, their setups and the record those setups build. What stands under the glass is the shape of it."
             foot={
               <>
+                {/* no member count — the landing's rule holds here too (the audit's X7.14); the marks a little larger, so two
+                    letters fit (SH-18) */}
                 <div className="flex items-center">
                   {PEOPLE.map((p, i) => (
                     <span key={p.handle} className={`rounded-full ring-2 ring-canvas ${i > 0 ? '-ml-2' : ''}`}>
-                      <Mark handle={p.handle} size={26} />
+                      <Mark handle={p.handle} size={30} />
                     </span>
                   ))}
                 </div>
-                <span className="font-mono text-[10px] text-textMuted whitespace-nowrap">{PEOPLE.length} traders already in</span>
                 <span className="w-px h-4 bg-borderSubtle" />
                 <div className="flex items-center gap-1.5">
                   {['SPY', 'NVDA', 'META', 'AAPL'].map(t => (

@@ -14,9 +14,13 @@
   lays its preferences. No cards for facts.
 
   ONE RULE: a control exists only when it does
-  something today. Account, billing and the data
-  provider are rows that say they arrive with the
-  launch, never a switch that does nothing.
+  something today (2026-10-09, the audit's SE-1: a
+  dozen doors here did nothing). Sign out ends this
+  visit's session and opens the sign-in; Delete
+  account asks twice and clears this machine; the
+  plan, the renewal and the card change here, on
+  this machine; a receipt downloads as a PDF built
+  here; each billing notice's doors act.
 
   THE THEME TILES draw the terminal itself in each
   theme — the tokens are scoped by `data-theme` on
@@ -31,9 +35,9 @@
 */
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, CreditCard, Download, ExternalLink, FileText, Info, Keyboard, LayoutDashboard, LogOut, Mail, MonitorSmartphone, Palette, Plug, Trash2, Upload, UserPlus, UserRound, Volume2, type LucideIcon } from 'lucide-react';
+import { ArrowDown, Check, ChevronDown, CreditCard, Download, FileText, Info, Keyboard, LayoutDashboard, LogOut, Mail, Megaphone, MonitorSmartphone, Palette, Plug, Settings as SettingsIcon, Trash2, Upload, UserPlus, UserRound, Volume2, type LucideIcon } from 'lucide-react';
 import * as Switch from '@radix-ui/react-switch';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import Modal from '../../components/ui/Modal';
@@ -42,14 +46,17 @@ import Simulator from '../../core/simulator';
 import { play, type SoundKind } from '../../core/sound';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
 import { setDeskPrefs, useDeskPrefs, type ClockZone } from '../../data/deskPrefs';
-import { setProfile, useProfile, type SignInWay } from '../../data/profile';
+import { setProfile, signOutHere, useProfile, type SignInWay } from '../../data/profile';
 import PictureDrop from './PictureDrop';
-import { PLANS, fmtDate, planOf, setPlan, useBilling, type SubscriptionStatus } from '../../data/billing';
+import { PLANS, cardBrand, fmtDate, luhnOk, planOf, setCard, setPlan, setRenewing, useBilling, type SubscriptionStatus } from '../../data/billing';
 import { CANDLE_THEME_OPTIONS, setCandleTheme, useCandleThemeKey, type CandleThemeKey } from '../../components/gex/candleTheme';
 import { setDistanceUnit, useDistanceUnit } from '../../data/distanceUnits';
 import type { DistanceUnit } from '../../data/atr';
-import { setThemeChoice, useResolvedTheme, useThemeChoice, type ThemeChoice } from '../../theme/theme';
+import { setColourVision, setThemeChoice, useColourVision, useResolvedTheme, useThemeChoice, type ColourVision, type ThemeChoice } from '../../theme/theme';
 import SlayerMark from '../../brand/SlayerMark';
+import { KEY_GROUPS } from '../../components/layout/keys';
+import { canSpeak, enableNotify, notifyPermission, setShellPrefs, speak, useShellPrefs } from '../../components/layout/shellPrefs';
+import { downloadReceipt } from './receipt';
 import Wordmark from '../../brand/Wordmark';
 import { COMPANY } from '../../data/company';
 import { VERSION as RELEASE } from '../../data/release';
@@ -85,7 +92,7 @@ const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; soon?: b
 
 const THEME_WORDS: Record<ThemeChoice, [string, string]> = {
   dark: ['Dark', 'The terminal as it is'],
-  light: ['Light', 'A first cut, walked page by page'],
+  light: ['Light', 'Paper: the terminal in ink on a light ground'],
   system: ['Match the system', "Follows the machine's own setting"],
 };
 
@@ -111,78 +118,8 @@ const CLOCK_OPTIONS: DropdownOption<ClockZone>[] = [
   { value: 'ny', label: 'New York', hint: "The market's clock — the open at 09:30, the close at 16:00" },
 ];
 
-/* EVERY KEY THE TERMINAL ANSWERS TO, grouped by where it works (Noah,
-   2026-09-13, on the page listing six: "do you think it's too short?" — it was
-   under-listed, not too short: Terrain's desk answers to twelve more). Each
-   group's keys are read off the handler that owns them — AppShell (the
-   palette), CommandPalette (its list), Terrain's pane keys, ResetViewControl
-   (Alt+R while the pointer is over a chart), the script editor's keymap
-   (Mod-s, Mod-Enter). `alt` marks keys that are alternatives ("1 / 2 / 3 / 4")
-   rather than a chord ("Ctrl + K"). */
-type Shortcut = { keys: string[]; does: string; alt?: boolean };
-const KEY_GROUPS: { where: string; keys: Shortcut[] }[] = [
-  {
-    where: 'Everywhere',
-    keys: [
-      { keys: ['Ctrl', 'K'], does: 'Search a name or a page from anywhere' },
-      { keys: ['↑', '↓'], alt: true, does: "Walk the search's results" },
-      { keys: ['Enter'], does: 'Open the result under the mark' },
-      { keys: ['Esc'], does: 'Close what is open — a menu, the alerts, the ladder (from inside it), fullscreen, a replay' },
-    ],
-  },
-  {
-    where: 'Terrain · the desk',
-    keys: [
-      { keys: ['1', '2', '3', '4'], alt: true, does: 'How many charts — one to four' },
-      { keys: ['[', ']'], alt: true, does: 'Walk the charts — the one before, the one after' },
-      { keys: ['Shift', 'R'], does: 'The strike rail beside every chart — on or off' },
-    ],
-  },
-  {
-    where: 'Terrain · the active chart',
-    keys: [
-      { keys: ['F'], does: 'Expand it to the full screen, and back' },
-      { keys: ['S'], does: 'Pick its symbol' },
-      { keys: ['C'], does: 'Compare — cross another name onto it' },
-      { keys: ['↑', '↓'], alt: true, does: 'Flip its name through the watchlist' },
-      { keys: ['−', '='], alt: true, does: 'Step its timeframe down, up' },
-      { keys: ['P'], does: 'Replay — pick a bar, then play' },
-      { keys: ['D'], does: 'Draw mode — the tools in hand' },
-      { keys: ['R'], does: 'Its strike rail — on or off' },
-      { keys: ['Alt', 'R'], does: 'Reset its view — with the pointer over the chart' },
-    ],
-  },
-  {
-    where: 'Practice · the backtest desk',
-    keys: [
-      { keys: ['Space'], does: 'Play the clock, and pause it' },
-      { keys: ['←', '→'], alt: true, does: 'Step a minute back, a minute on — never back past your last order' },
-      { keys: ['Shift', '→'], does: 'Five minutes on (Shift ← for five back)' },
-      { keys: ['End'], does: 'Run to the bell' },
-      { keys: ['N'], does: 'Ring the bell and open the next day' },
-      { keys: ['F'], does: 'The chart to the full screen, and back' },
-      { keys: ['D'], does: 'Draw mode on the chart in hand' },
-      { keys: ['T'], does: 'To the order — its size, ready to type' },
-      { keys: ['1', '2'], alt: true, does: 'Put the first name on the desk, or the second' },
-      { keys: ['\\'], does: 'In the full screen: fold the chain away, and back' },
-    ],
-  },
-  {
-    where: 'Practice · a trade in the journal',
-    keys: [
-      { keys: ['←', '→'], alt: true, does: 'The trade closed after this one, or the one before — the journal’s own order' },
-      { keys: ['Esc'], does: 'Back to the journal, as you left it' },
-    ],
-  },
-  {
-    where: 'The script editor',
-    keys: [
-      { keys: ['Ctrl', 'S'], does: 'Save the script' },
-      { keys: ['Ctrl', 'Enter'], does: 'Run it on its chart' },
-    ],
-  },
-];
-
+/* EVERY KEY THE TERMINAL ANSWERS TO is components/layout/keys.ts (2026-10-09): the sheet `?` opens over any page reads
+   the same list, so the two can never disagree */
 
 /* ---- the pieces --------------------------------------------------------------- */
 
@@ -234,6 +171,18 @@ const Mini = ({ theme }: { theme: 'dark' | 'light' }) => (
   </div>
 );
 
+/* A RADIO GROUP THAT ACTS LIKE ONE (the audit's SE-6): one tile in the Tab order, the arrows move the choice */
+const radioKeys = <T,>(choices: readonly T[], current: T, pick: (c: T) => void) => (e: React.KeyboardEvent<HTMLElement>) => {
+  const i = choices.indexOf(current);
+  const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+  if (!step) return;
+  e.preventDefault();
+  const next = choices[(i + step + choices.length) % choices.length];
+  pick(next);
+  const group = e.currentTarget.closest('[role="radiogroup"]');
+  requestAnimationFrame(() => group?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus());
+};
+
 const ThemeTile = ({ choice, current, onPick }: { choice: ThemeChoice; current: ThemeChoice; onPick: (c: ThemeChoice) => void }) => {
   const on = choice === current;
   const [name, line] = THEME_WORDS[choice];
@@ -241,7 +190,10 @@ const ThemeTile = ({ choice, current, onPick }: { choice: ThemeChoice; current: 
     <button
       type="button"
       onClick={() => onPick(choice)}
-      aria-pressed={on}
+      role="radio"
+      aria-checked={on}
+      tabIndex={on ? 0 : -1}
+      onKeyDown={radioKeys(['dark', 'light', 'system'] as ThemeChoice[], current, onPick)}
       title={line}
       className={`text-left rounded-md border p-2 transition-colors ${on ? 'border-silver/60 bg-ink/[0.02]' : 'border-borderSubtle hover:border-borderMuted'}`}
       data-theme-tile={choice}
@@ -279,6 +231,73 @@ const ThemeTile = ({ choice, current, onPick }: { choice: ThemeChoice; current: 
   );
 };
 
+/* COLOUR VISION (2026-10-09): the direction pair the terminal draws in — the house's green and red, or blue and orange
+   with ▲ and ▼ before every figure that carries a direction (tokens.css) */
+const CVD_WORDS: Record<ColourVision, [string, string]> = {
+  standard: ['Green and red', 'Up in green, down in red — the house’s pair'],
+  'blue-orange': ['Blue and orange', 'For red–green colour blindness: up in blue, down in orange, with ▲ and ▼'],
+};
+/* each tile shows its own pair whatever is chosen — the channels tokens.css gives each (kept in step with it) */
+const CVD_PAIR: Record<ColourVision, Record<'dark' | 'light', [string, string]>> = {
+  standard: { dark: ['48 209 88', '255 59 48'], light: ['0 140 56', '220 32 32'] },
+  'blue-orange': { dark: ['80 164 255', '255 133 38'], light: ['0 104 200', '196 72 0'] },
+};
+const CvdTile = ({ choice, current }: { choice: ColourVision; current: ColourVision }) => {
+  const on = choice === current;
+  const theme = useResolvedTheme();
+  const [name, line] = CVD_WORDS[choice];
+  return (
+    <button
+      type="button"
+      onClick={() => setColourVision(choice)}
+      role="radio"
+      aria-checked={on}
+      tabIndex={on ? 0 : -1}
+      onKeyDown={radioKeys(['standard', 'blue-orange'] as ColourVision[], current, setColourVision)}
+      className={`text-left rounded-md border p-3 flex flex-col gap-2 transition-colors ${on ? 'border-silver/60 bg-ink/[0.02]' : 'border-borderSubtle hover:border-borderMuted'}`}
+      data-cvd-tile={choice}
+    >
+      {/* the pair as it will read, in the tile's own scope so it shows its own colours whatever is chosen */}
+      <span className="flex items-center gap-3 font-mono text-[12px] tnum" data-cvd-sample={choice} style={{ '--bull': CVD_PAIR[choice][theme][0], '--bear': CVD_PAIR[choice][theme][1] } as React.CSSProperties}>
+        <span className="text-bull">{choice === 'blue-orange' ? '▲ ' : ''}+1.24%</span>
+        <span className="text-bear">{choice === 'blue-orange' ? '▼ ' : ''}−0.87%</span>
+      </span>
+      <span className="flex items-center justify-between gap-2">
+        <span className={`text-[12px] ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>{name}</span>
+        {on && (
+          <span className="inline-flex w-3.5 h-3.5 shrink-0 items-center justify-center rounded-[3px] border bg-silverFill border-silverFill">
+            <Check className="w-2.5 h-2.5 text-[#0a0a0a]" strokeWidth={3} />
+          </span>
+        )}
+      </span>
+      <span className="text-[11px] text-textMuted">{line}</span>
+    </button>
+  );
+};
+
+/* NOTIFICATIONS ON THIS MACHINE (2026-10-09): off until turned on, and the browser asks its own question then */
+const NotifyRow = () => {
+  const shell = useShellPrefs();
+  const [said, setSaid] = useState(notifyPermission);
+  const line =
+    said === 'unsupported' ? 'This browser shows no notifications'
+    : said === 'denied' ? 'The browser was told no — allow them in its site settings to turn this on'
+    : 'An alert that fires while this tab is in the background shows as the machine’s own notification. Nothing leaves this machine.';
+  return (
+    <Row name="Notifications" line={line} testId="notify">
+      <Toggle
+        on={shell.notify && said === 'granted'}
+        onChange={async v => {
+          if (!v) return setShellPrefs({ notify: false });
+          setSaid(await enableNotify());
+        }}
+        label="Notify me when an alert fires in the background"
+        testId="notify"
+      />
+    </Row>
+  );
+};
+
 const Key = ({ children }: { children: ReactNode }) => (
   <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-borderSubtle bg-chip font-mono text-[10px] text-textSecondary">{children}</kbd>
 );
@@ -298,10 +317,10 @@ const Key = ({ children }: { children: ReactNode }) => (
 /** A door: the house's small bordered button, a link when it has somewhere to go */
 /* A DOOR WHOSE ACTION IS IN FLIGHT (ui/Working.tsx): a handler that returns a promise holds the door busy until it settles — the mark
    appears if that lasts. The sample's handlers are instant and never show it; at launch the same doors return Stripe's and the server's requests. */
-const Door = ({ children, onClick, to, href, title, tone = 'plain', testId }: { children: ReactNode; onClick?: () => void | Promise<unknown>; to?: string; href?: string; title?: string; tone?: 'plain' | 'bear'; testId: string }) => {
+const Door = ({ children, onClick, to, href, title, tone = 'plain', testId, disabled }: { children: ReactNode; onClick?: () => void | Promise<unknown>; to?: string; href?: string; title?: string; tone?: 'plain' | 'bear'; testId: string; disabled?: boolean }) => {
   const [busy, run] = useBusy();
   const working = useWorking(busy);
-  const cls = `inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors whitespace-nowrap ${
+  const cls = `hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border font-mono text-[10px] uppercase tracking-wider transition-colors whitespace-nowrap ${
     tone === 'bear' ? 'border-bear/40 text-bear hover:bg-bear/10' : 'border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted'
   }`;
   if (to)
@@ -317,7 +336,7 @@ const Door = ({ children, onClick, to, href, title, tone = 'plain', testId }: { 
       </a>
     );
   return (
-    <button type="button" onClick={onClick ? () => run(onClick) : undefined} disabled={busy} aria-busy={busy || undefined} className={`${cls} disabled:cursor-progress`} title={title} data-settings-door={testId}>
+    <button type="button" onClick={onClick ? () => run(onClick) : undefined} disabled={busy || disabled} aria-busy={busy || undefined} className={`${cls} disabled:cursor-progress disabled:opacity-40`} title={title} data-settings-door={testId}>
       {children}
       {working && <MorphingInfinity viewBox="4 4 16 16" className="w-3 h-3" />}
     </button>
@@ -335,7 +354,7 @@ const Tag = ({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain'
 /* A FIELD SAYS WHY IT DID NOT SAVE (2026-09-19). It used to fail in silence: an empty name snapped back without a word, and
    "abc" was kept as an email address. `check` returns the reason a value cannot be kept, or null; the reason shows under the
    field in the alert ink, the field keeps what was typed so it can be fixed, and nothing is saved until it passes. */
-const Field = ({ value, onSave, prefix, width = 200, type = 'text', testId, check }: { value: string; onSave: (v: string) => void; prefix?: string; width?: number; type?: 'text' | 'email'; testId: string; check?: (v: string) => string | null }) => {
+const Field = ({ value, onSave, prefix, width = 200, type = 'text', testId, check, label, placeholder }: { value: string; onSave: (v: string) => void; prefix?: string; width?: number; type?: 'text' | 'email'; testId: string; check?: (v: string) => string | null; label: string; placeholder?: string }) => {
   const [v, setV] = useState(value);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => setV(value), [value]);
@@ -348,6 +367,8 @@ const Field = ({ value, onSave, prefix, width = 200, type = 'text', testId, chec
           value={v}
           type={type}
           spellCheck={false}
+          aria-label={label}
+          placeholder={placeholder}
           aria-invalid={problem ? true : undefined}
           aria-describedby={problem ? errId : undefined}
           onChange={e => {
@@ -368,7 +389,7 @@ const Field = ({ value, onSave, prefix, width = 200, type = 'text', testId, chec
               setProblem(null);
             }
           }}
-          className={`min-w-0 flex-1 h-full bg-transparent ${prefix ? 'pl-0.5 pr-2' : 'px-2'} font-mono text-[11px] text-textPrimary outline-none`}
+          className={`min-w-0 flex-1 h-full bg-transparent ${prefix ? 'pl-0.5 pr-2' : 'px-2'} font-mono text-[11px] text-textPrimary placeholder:text-textMuted outline-none`}
           data-settings-field={testId}
         />
       </span>
@@ -400,18 +421,24 @@ const SIGN_IN_OPTIONS: DropdownOption<SignInWay>[] = [
 /** ACCOUNT — who you are to the terminal */
 const AccountBox = () => {
   const p = useProfile();
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState<0 | 1 | 2>(0);
+  const [typed, setTyped] = useState('');
+  useEffect(() => {
+    if (deleting === 0) setTyped('');
+  }, [deleting]);
   return (
-    <Section id="account" title="Account" line="Who you are to the terminal — your picture and name sign your posts; your board, marks and settings follow you between machines">
+    <Section id="account" title="Account" line="Who you are to the terminal — your picture, your name, and how you sign in">
       {/* THE PICTURE — a place to drop one: staged, shown as it will be kept, applied only when you say so (PictureDrop.tsx) */}
       <PictureDrop />
-      <Row name="Name" line="How the terminal greets you and signs your posts" testId="name">
-        <Field value={p.name} onSave={v => setProfile({ name: v })} check={checkName} testId="name" />
+      <Row name="Name" line="How the terminal greets you" testId="name">
+        <Field label="Name" value={p.name} onSave={v => setProfile({ name: v })} check={checkName} testId="name" />
       </Row>
-      <Row name="Handle" line="Your name on Community — one word, yours alone" testId="handle">
-        <Field value={p.handle} prefix="@" onSave={v => setProfile({ handle: v.replace(/^@/, '').toLowerCase() })} check={checkHandle} testId="handle" />
+      <Row name="Handle" line="One word, yours alone — under your name on the rail" testId="handle">
+        <Field label="Handle" value={p.handle} prefix="@" onSave={v => setProfile({ handle: v.replace(/^@/, '').toLowerCase() })} check={checkHandle} testId="handle" />
       </Row>
       <Row name="Email" line="Where sign-in links and receipts go" testId="email">
-        <Field value={p.email} type="email" width={240} onSave={v => setProfile({ email: v })} check={checkEmail} testId="email" />
+        <Field label="Email" value={p.email} type="email" width={240} placeholder="you@domain.com" onSave={v => setProfile({ email: v })} check={checkEmail} testId="email" />
       </Row>
       <Row name="Sign in with" line="A link to your inbox, or the account you already have — no password to keep" testId="sign-in-way">
         <DropdownSelect<SignInWay> label="Sign in" value={p.signIn} options={SIGN_IN_OPTIONS} onChange={v => setProfile({ signIn: v })} title="How you sign in" testId="settings-sign-in" align="end" />
@@ -419,7 +446,7 @@ const AccountBox = () => {
       {/* WHERE YOU ARE SIGNED IN */}
       <div className="px-5 py-3 border-t border-borderSubtle/60" data-settings-row="devices">
         <div className="text-[12px] text-textPrimary">Where you're signed in</div>
-        <div className="text-[11px] text-textMuted">Every machine with this account open — sign one out from here</div>
+        <div className="text-[11px] text-textMuted">The machine you are on, as its browser names itself</div>
         <ul className="mt-2.5 flex flex-col gap-1">
           {p.devices.map(d => (
             <li key={d.id} className="flex items-center gap-3 h-8 px-3 rounded-md bg-ink/[0.03]" data-settings-device={d.id}>
@@ -427,27 +454,76 @@ const AccountBox = () => {
               <span className="font-mono text-[11px] text-textPrimary">{d.name}</span>
               {d.thisOne && <Tag tone="silver">this machine</Tag>}
               <span className="ml-auto font-mono text-[10px] tnum text-textMuted">{d.lastSeen}</span>
-              {!d.thisOne && (
-                <button type="button" onClick={() => setProfile({ devices: p.devices.filter(x => x.id !== d.id) })} className="font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" data-settings-device-out={d.id}>
-                  Sign out
-                </button>
-              )}
             </li>
           ))}
         </ul>
       </div>
       {/* THE FOOT — leaving, and the one dangerous thing, set apart in the bear's ink */}
-      <div className="px-5 py-3 border-t border-borderSubtle/60 flex items-center justify-between gap-6" data-settings-row="account-foot">
+      <div className="px-5 py-3 border-t border-borderSubtle/60 flex items-center justify-between gap-6 max-sm:flex-col max-sm:items-stretch" data-settings-row="account-foot">
         <div className="text-[11px] text-textMuted">Signing out keeps everything on the account · deleting it takes the board, the marks and the scripts with it</div>
         <div className="shrink-0 flex items-center gap-2">
-          <Door title="Signs this machine out of the account" testId="sign-out">
+          <Door
+            onClick={() => {
+              signOutHere();
+              navigate('/signin');
+            }}
+            title="Ends this visit's session here and opens the sign-in — the account stays as it is"
+            testId="sign-out"
+          >
             <LogOut className="w-3 h-3" /> Sign out
           </Door>
-          <Door tone="bear" title="Asks twice, then deletes the account and everything on it" testId="delete-account">
+          <Door tone="bear" onClick={() => setDeleting(1)} title="Asks twice, then deletes the account and everything on this machine" testId="delete-account">
             <Trash2 className="w-3 h-3" /> Delete account
           </Door>
         </div>
       </div>
+      {/* DELETE, ASKED TWICE (the door's own promise): what goes, then the word typed — irreversible, so a confirm and
+          not an undo */}
+      <Modal open={deleting > 0} onClose={() => setDeleting(0)} ariaLabel="Delete the account" header={<h2 className="text-[13px] font-semibold text-textPrimary">{deleting === 1 ? 'Delete the account?' : 'Delete it for good?'}</h2>} widthClass="max-w-[460px]">
+        {deleting === 1 ? (
+          <>
+            <p className="text-[12px] text-textPrimary">The account goes, and with it everything this machine keeps for it: the board, the marks, the alerts, the desks, the journal and these settings. The scripts in the library go too.</p>
+            <p className="text-[11px] text-textMuted">Export first (Settings › Data) if any of it should be kept.</p>
+            <div className="flex items-center justify-end gap-2">
+              <Door onClick={() => setDeleting(0)} testId="delete-keep">
+                Keep it
+              </Door>
+              <Door tone="bear" onClick={() => setDeleting(2)} testId="delete-next">
+                Continue
+              </Door>
+            </div>
+          </>
+        ) : (
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={e => {
+              e.preventDefault();
+              if (typed.trim().toUpperCase() !== 'DELETE') return;
+              clearLocal(true);
+              window.location.assign('/');
+            }}
+          >
+            <p className="text-[12px] text-textPrimary">This cannot be undone. Type DELETE to delete the account and clear this machine.</p>
+            <input
+              value={typed}
+              onChange={e => setTyped(e.target.value)}
+              aria-label="Type DELETE to confirm"
+              autoComplete="off"
+              spellCheck={false}
+              className="h-8 px-2 rounded-md border border-borderSubtle bg-chip font-mono text-[12px] text-textPrimary outline-none focus:border-borderMuted"
+              data-settings-delete-word
+            />
+            <div className="flex items-center justify-end gap-2">
+              <Door onClick={() => setDeleting(0)} testId="delete-cancel">
+                Keep it
+              </Door>
+              <button type="submit" disabled={typed.trim().toUpperCase() !== 'DELETE'} className="hit inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-bear/40 text-bear hover:bg-bear/10 font-mono text-[10px] uppercase tracking-wider disabled:opacity-40" data-settings-door="delete-confirm">
+                <Trash2 className="w-3 h-3" /> Delete the account
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </Section>
   );
 };
@@ -456,8 +532,9 @@ const STATUS_WORD: Record<SubscriptionStatus, string> = { active: 'active', past
 
 /* MONEY, SAID PLAINLY (Slayer Logo System, Web and App · Billing, 2026-10-01): the four notices a plan can need — the
    upgrade a page asks for, a plan ending, a payment that failed, a plan cancelled. Each is one card: the word over it, a
-   sentence, what happens next, one or two doors. The sample plan has none of these standing, so the box can show each one
-   ("See a notice") — when Stripe's state arrives, the plan's own standing picks it. */
+   sentence, what happens next, one or two doors — and every door acts (2026-10-09): Not now puts the notice away,
+   Renew and Restart set the plan renewing, Update card opens the card's form, Upgrade moves the plan. The plan's own
+   standing picks the notice; "Read a notice" shows any of the four. */
 type NoticeKind = 'upgrade' | 'ending' | 'failed' | 'cancelled';
 const NOTICE_OPTIONS: DropdownOption<NoticeKind | ''>[] = [
   { value: '', label: 'None', hint: 'What a plan in good standing shows' },
@@ -468,7 +545,7 @@ const NOTICE_OPTIONS: DropdownOption<NoticeKind | ''>[] = [
 ];
 const noticeFor = (status: SubscriptionStatus): NoticeKind | '' => (status === 'past_due' ? 'failed' : status === 'canceled' ? 'cancelled' : '');
 
-const BillingNotice = ({ kind, until }: { kind: NoticeKind; until: string }) => {
+const BillingNotice = ({ kind, until, held, onDismiss, onCard }: { kind: NoticeKind; until: string; held: boolean; onDismiss: () => void; onCard: () => void }) => {
   const compass = planOf('compass');
   /* "Plan ending", never "Trial ending": there is no trial — an account is free and a plan is paid for (the owner,
      2026-10-01), and the notice's own words were already about the plan */
@@ -493,27 +570,53 @@ const BillingNotice = ({ kind, until }: { kind: NoticeKind; until: string }) => 
       <div className="mt-3 flex items-center gap-2 flex-wrap">
         {kind === 'upgrade' && (
           <>
-            <Door onClick={() => setPlan('compass')} title="Stripe's Checkout — the difference, charged today" testId="notice-upgrade">
-              Upgrade to Compass
-            </Door>
-            <Door title="Keep the plan you have" testId="notice-not-now">
+            {/* the plan already held needs no door to itself (the audit's SE-7) */}
+            {held ? (
+              <span className="font-mono text-[11px] text-textMuted">Your plan holds Compass.</span>
+            ) : (
+              <Door
+                onClick={() => {
+                  setPlan('compass');
+                  onDismiss();
+                }}
+                title="Moves the plan to Compass — the difference is charged today"
+                testId="notice-upgrade"
+              >
+                Upgrade to Compass
+              </Door>
+            )}
+            <Door onClick={onDismiss} title="Keep the plan you have" testId="notice-not-now">
               Not now
             </Door>
           </>
         )}
         {kind === 'ending' && (
-          <Door title="Stripe's portal — renew the plan" testId="notice-renew">
+          <Door
+            onClick={() => {
+              setRenewing(true);
+              onDismiss();
+            }}
+            title="The plan renews at the end of this term"
+            testId="notice-renew"
+          >
             Renew
           </Door>
         )}
         {kind === 'failed' && (
-          <Door title="Stripe's portal — the card" testId="notice-card">
+          <Door onClick={onCard} title="The card's form, below" testId="notice-card">
             Update card
           </Door>
         )}
         {kind === 'cancelled' && (
           <>
-            <Door title="Stripe's portal — start the plan again" testId="notice-restart">
+            <Door
+              onClick={() => {
+                setRenewing(true);
+                onDismiss();
+              }}
+              title="The plan renews again at the end of this term"
+              testId="notice-restart"
+            >
               Restart plan
             </Door>
             <Door to="/settings/data" title="Your journal and everything else on this machine, as a file" testId="notice-export">
@@ -527,12 +630,74 @@ const BillingNotice = ({ kind, until }: { kind: NoticeKind; until: string }) => 
 };
 
 /** BILLING — the plan, the tiers, what Stripe holds, the invoices */
+/** THE CARD'S FORM (the audit's SE-1: "Update" opened nothing). The number is checked (Luhn) and never kept — only its
+    brand, its last four and the expiry are. */
+const CardForm = ({ onDone }: { onDone: () => void }) => {
+  const [number, setNumber] = useState('');
+  const [exp, setExp] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  const first = useRef<HTMLInputElement | null>(null);
+  useEffect(() => first.current?.focus(), []);
+  const save = () => {
+    const digits = number.replace(/\D/g, '');
+    if (!luhnOk(digits)) return setProblem('That card number does not check out');
+    const m = /^(\d{1,2})\s*\/\s*(\d{2}|\d{4})$/.exec(exp.trim());
+    if (!m) return setProblem('Expiry as MM/YY');
+    const month = Number(m[1]);
+    const year = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
+    const now = new Date();
+    if (month < 1 || month > 12 || year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)) return setProblem('That card has expired');
+    setCard({ brand: cardBrand(digits), last4: digits.slice(-4), expMonth: month, expYear: year });
+    onDone();
+  };
+  const field = 'h-8 px-2 rounded-md border bg-chip font-mono text-[12px] text-textPrimary placeholder:text-textMuted outline-none focus:border-borderMuted';
+  return (
+    <form
+      className="px-5 pb-4 flex items-end gap-3 flex-wrap"
+      onSubmit={e => {
+        e.preventDefault();
+        save();
+      }}
+      data-settings-card-form
+    >
+      <label className="flex flex-col gap-1 text-[11px] text-textMuted">
+        Card number
+        <input ref={first} value={number} onChange={e => { setNumber(e.target.value); setProblem(null); }} inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456" className={`${field} w-[210px] ${problem ? 'border-warn/70' : 'border-borderSubtle'}`} />
+      </label>
+      <label className="flex flex-col gap-1 text-[11px] text-textMuted">
+        Expires
+        <input value={exp} onChange={e => { setExp(e.target.value); setProblem(null); }} inputMode="numeric" autoComplete="cc-exp" placeholder="MM/YY" className={`${field} w-[84px] border-borderSubtle`} />
+      </label>
+      <button type="submit" className="hit inline-flex items-center h-8 px-3 rounded-md border border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textPrimary hover:bg-ink/[0.05]" data-settings-door="card-save">
+        Save the card
+      </button>
+      <button type="button" onClick={onDone} className="hit inline-flex items-center h-8 px-2 rounded-md font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary" data-settings-door="card-cancel">
+        Cancel
+      </button>
+      {problem && (
+        <span role="alert" className="basis-full font-mono text-[10px] text-warn">
+          {problem}
+        </span>
+      )}
+      <span className="basis-full text-[11px] text-textMuted">Only the card's brand, its last four and the expiry are kept.</span>
+    </form>
+  );
+};
+
 const BillingBox = () => {
   const b = useBilling();
+  const p = useProfile();
   const plan = planOf(b.plan);
   const [seen, setSeen] = useState<NoticeKind | ''>(() => noticeFor(b.status));
+  const [cardOpen, setCardOpen] = useState(false);
+  const plansRef = useRef<HTMLDivElement | null>(null);
+  /* MANAGE BILLING goes to the plans and the renewal, here (the audit's SE-1) */
+  const toPlans = () => {
+    plansRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    plansRef.current?.focus({ preventScroll: true });
+  };
   return (
-    <Section id="billing" title="Billing" line="Your plan and the card behind it — the card lives with Stripe, never here">
+    <Section id="billing" title="Billing" line="Your plan, the card behind it, and every receipt">
       {/* THE PLAN — what you are on, its standing, the next charge */}
       <div className="px-5 py-4 border-t border-borderSubtle/60 flex items-center gap-6 flex-wrap" data-settings-plan={b.plan}>
         <div className="min-w-0 flex-1">
@@ -543,24 +708,25 @@ const BillingBox = () => {
             </span>
             <Tag tone="silver">{STATUS_WORD[b.status]}</Tag>
           </div>
+          {/* "· $180 then" repeated the price as if it changed (the audit's SE-11) — said only when it does */}
           <div className="mt-1 text-[11px] text-textMuted">
             {plan.kicker.replace(/\.$/, '')} · {b.status === 'canceled' ? 'ends' : 'renews'} {fmtDate(b.renewsOn)}
-            {plan.monthly != null && ` · $${plan.monthly} then`}
           </div>
         </div>
-        <Door title="Stripe's billing portal — the card, the invoices, cancelling" testId="manage-billing">
-          <ExternalLink className="w-3 h-3" /> Manage billing
+        <Door onClick={toPlans} title="The plans and the renewal, below" testId="manage-billing">
+          <ArrowDown className="w-3 h-3" /> Manage billing
         </Door>
       </div>
-      {seen && <BillingNotice kind={seen} until={fmtDate(b.renewsOn)} />}
-      <Row name="See a notice" line="How billing speaks when a plan needs something — shown here on the sample plan" testId="billing-notice">
+      {seen && <BillingNotice kind={seen} until={fmtDate(b.renewsOn)} held={b.plan === 'compass'} onDismiss={() => setSeen('')} onCard={() => setCardOpen(true)} />}
+      <Row name="Read a notice" line="How billing speaks when a plan needs something — each of the four, to read ahead" testId="billing-notice">
         <DropdownSelect<NoticeKind | ''> label="Notice" value={seen} options={NOTICE_OPTIONS} onChange={setSeen} title="Show a billing notice" testId="settings-billing-notice" align="end" />
       </Row>
       {/* THE TIERS — the landing's three, yours lit; up is Stripe's Checkout, down is the portal */}
-      <div className="px-5 pb-4 border-t border-borderSubtle/60 pt-3" data-settings-row="plans">
+      <div ref={plansRef} tabIndex={-1} className="px-5 pb-4 border-t border-borderSubtle/60 pt-3 outline-none scroll-mt-5" data-settings-row="plans">
         <div className="text-[12px] text-textPrimary">Plans</div>
         <div className="text-[11px] text-textMuted">Month to month, stopping at the end of the cycle · Lifetime is one payment</div>
-        <div className="mt-3 grid grid-cols-3 gap-3">
+        {/* one card a row on a phone (the audit's SE-4: three 105px cards, a word or two a line) */}
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLANS.map(t => {
             const on = t.key === b.plan;
             return (
@@ -586,7 +752,7 @@ const BillingBox = () => {
                       Talk to us
                     </Door>
                   ) : (
-                    <Door onClick={() => setPlan(t.key)} title={t.monthly != null && plan.monthly != null && t.monthly > plan.monthly ? "Stripe's Checkout — the difference, charged today" : 'Stripe changes the plan at the end of this cycle'} testId={`tier-${t.key}`}>
+                    <Door onClick={() => setPlan(t.key)} title={t.monthly != null && plan.monthly != null && t.monthly > plan.monthly ? 'Moves the plan up now — the difference is charged today' : 'Moves the plan at the end of this cycle'} testId={`tier-${t.key}`}>
                       Switch
                     </Door>
                   )}
@@ -596,7 +762,10 @@ const BillingBox = () => {
           })}
         </div>
       </div>
-      <Row name="Payment method" line="What Stripe holds — changed on its portal, never typed here" testId="card">
+      <Row name="Renews" line={b.status === 'canceled' ? `Off — the plan ends on ${fmtDate(b.renewsOn)}` : `On — the next charge is ${fmtDate(b.renewsOn)}`} testId="renews">
+        <Toggle on={b.status !== 'canceled'} onChange={setRenewing} label="Renew the plan at the end of the term" testId="renews" />
+      </Row>
+      <Row name="Payment method" line="The card behind the plan — its brand, last four and expiry" testId="card">
         {b.card ? (
           <span className="inline-flex items-center gap-2 font-mono text-[11px] text-textPrimary">
             <CreditCard className="w-3.5 h-3.5 text-textMuted" />
@@ -608,10 +777,11 @@ const BillingBox = () => {
         ) : (
           <span className="font-mono text-[11px] text-textMuted">No card on file</span>
         )}
-        <Door title="Opens Stripe's portal on the card" testId="update-card">
-          Update
+        <Door onClick={() => setCardOpen(o => !o)} title="Change the card" testId="update-card">
+          {cardOpen ? 'Close' : 'Update'}
         </Door>
       </Row>
+      {cardOpen && <CardForm onDone={() => setCardOpen(false)} />}
       <Row name="Statement descriptor" line="What a card statement reads for the plan" testId="descriptor">
         <span className="font-code text-[11.5px] text-textPrimary">{COMPANY.descriptor}</span>
       </Row>
@@ -630,7 +800,14 @@ const BillingBox = () => {
                   <Tag>{inv.status}</Tag>
                 </td>
                 <td className="text-right w-16">
-                  <button type="button" className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors" title="The receipt, from Stripe">
+                  <button
+                    type="button"
+                    onClick={() => downloadReceipt(inv, { planName: planOf(inv.plan).name, date: fmtDate(inv.date), billing: b, name: p.name, email: p.email, descriptor: COMPANY.descriptor, company: COMPANY.product })}
+                    className="hit inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+                    title="Download the receipt as a PDF"
+                    aria-label={`Download the receipt for ${fmtDate(inv.date)} as a PDF`}
+                    data-settings-receipt={inv.id}
+                  >
                     <FileText className="w-3 h-3" /> PDF
                   </button>
                 </td>
@@ -685,8 +862,17 @@ async function importLocal(file: File): Promise<number> {
   }
   return n;
 }
-function clearLocal(): void {
-  for (const k of localKeys()) if (!KEEP_ON_CLEAR.has(k)) localStorage.removeItem(k);
+/** Clear what this machine keeps; `all` (deleting the account) takes the theme and the script library too */
+function clearLocal(all = false): void {
+  for (const k of localKeys()) if (all || !KEEP_ON_CLEAR.has(k)) localStorage.removeItem(k);
+  if (all) {
+    try {
+      sessionStorage.clear();
+      indexedDB.deleteDatabase('slayer_scripts');
+    } catch {
+      /* nothing kept there */
+    }
+  }
 }
 
 /** DATA — what's yours on this machine, and where the feed stands */
@@ -742,7 +928,7 @@ const DataBox = () => {
         </Door>
       </Row>
       <Modal open={confirm} onClose={() => setConfirm(false)} ariaLabel="Clear this machine's data" header={<span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">Clear this machine's data?</span>} widthClass="max-w-[460px]">
-        <p className="text-[12px] text-textPrimary">The board, the marks, the alerts, the desks, these settings and the sample account go. The theme stays; the scripts in the library stay.</p>
+        <p className="text-[12px] text-textPrimary">The board, the marks, the alerts, the desks, these settings and your account details go. The theme stays; the scripts in the library stay.</p>
         <p className="text-[11px] text-textMuted">Export first if any of it should come back.</p>
         <div className="flex items-center justify-end gap-2">
           <Door onClick={() => setConfirm(false)} testId="clear-cancel">
@@ -788,6 +974,7 @@ const SOUND_ROWS: { kind: SoundKind; name: string; line: string }[] = [
 
 const SoundsBox = () => {
   const desk = useDeskPrefs();
+  const shell = useShellPrefs();
   const isOn = (k: SoundKind) => (k === 'alert' ? desk.alertsSound : k === 'confirm' ? desk.sounds.confirm : k === 'signIn' ? desk.sounds.signIn : desk.sounds.openClose);
   const set = (k: SoundKind, v: boolean) => (k === 'alert' ? setDeskPrefs({ alertsSound: v }) : setDeskPrefs({ sounds: k === 'confirm' ? { confirm: v } : k === 'signIn' ? { signIn: v } : { openClose: v } }));
   return (
@@ -800,6 +987,13 @@ const SoundsBox = () => {
           <Toggle on={isOn(r.kind)} onChange={v => set(r.kind, v)} label={`${r.name} sound`} testId={`sound-${r.kind}`} />
         </Row>
       ))}
+      {/* SPOKEN ALERTS (2026-10-09): the browser's own voice reads the alert's sentence — no model, nothing sent */}
+      <Row name="Alerts out loud" line={canSpeak() ? 'Each alert said in the browser’s own voice as it fires — "SPY crossed the gamma flip at 475"' : 'This browser has no voice to say alerts with'} testId="speak">
+        <Door onClick={() => speak('SPY crossed the gamma flip at 475', true)} disabled={!canSpeak()} title="Hear how an alert is said" testId="play-speak">
+          <Megaphone className="w-3 h-3" /> Hear
+        </Door>
+        <Toggle on={shell.speak && canSpeak()} onChange={v => setShellPrefs({ speak: v })} label="Say alerts aloud" testId="speak" />
+      </Row>
     </Section>
   );
 };
@@ -899,14 +1093,8 @@ const AboutBox = () => {
         <SlayerMark size={32} bare label="" />
         <div className="min-w-0">
           <Wordmark height={13} label="Slayer Terminal" />
-          <div className="mt-1.5 font-mono text-[11px] tnum text-textMuted">
-            {RELEASE} · {import.meta.env.MODE}
-          </div>
-        </div>
-        <div className="ml-auto shrink-0 flex items-center gap-2">
-          <Door to="/community" testId="say-something">
-            The room
-          </Door>
+          {/* the version alone — the build's mode is the developer's word, not the reader's (the audit's X7.11) */}
+          <div className="mt-1.5 font-mono text-[11px] tnum text-textMuted">{RELEASE}</div>
         </div>
       </div>
       <button
@@ -939,6 +1127,8 @@ const Settings = () => {
   const candleKey = useCandleThemeKey();
   const unit = useDistanceUnit();
   const desk = useDeskPrefs();
+  const shell = useShellPrefs();
+  const cvd = useColourVision();
   const plan = planOf(useBilling().plan);
 
   /* THE SUBPAGE — from the route; a step to another lands at the head */
@@ -956,10 +1146,13 @@ const Settings = () => {
       <header className="flex items-start gap-6 flex-wrap pb-3 border-b border-borderSubtle" data-shell data-settings-shell>
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-2.5" data-shell-page>
-            <SlayerMark size={20} bare label="" />
+            {/* Settings is a door, not a product: its gear tile, as on the rail (the audit's SE-5) */}
+            <span className="inline-flex w-6 h-6 rounded-md border border-borderSubtle bg-inset items-center justify-center shrink-0" aria-hidden>
+              <SettingsIcon className="w-3.5 h-3.5 text-textSecondary" />
+            </span>
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">Settings</h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Your account and plan, how the terminal looks, what the desk opens on</p>
+          <p className="mt-0.5 text-[11px] text-textMuted">Your account and plan, how the terminal looks, what the desk opens on</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           <div className="min-w-0">
@@ -975,9 +1168,14 @@ const Settings = () => {
               {choice === 'system' && <span className="text-textMuted"> · {theme}</span>}
             </dd>
           </div>
-          <div className="min-w-0">
-            <dt className="text-[10px] text-textMuted whitespace-nowrap">Saved</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">as you go</dd>
+          {/* facts, not a statement (the audit's SE-12) — and a phone keeps the first two */}
+          <div className="min-w-0 max-sm:hidden">
+            <dt className="text-[10px] text-textMuted whitespace-nowrap">Clock</dt>
+            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{desk.clock === 'ny' ? 'New York' : 'Your own'}</dd>
+          </div>
+          <div className="min-w-0 max-sm:hidden">
+            <dt className="text-[10px] text-textMuted whitespace-nowrap">Kept on</dt>
+            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">this machine</dd>
           </div>
         </dl>
       </header>
@@ -1003,7 +1201,7 @@ const Settings = () => {
                 key={s.id}
                 to={`/settings/${s.id}`}
                 aria-current={on ? 'page' : undefined}
-                className={`flex items-center gap-2 px-2.5 h-8 rounded-md text-[12px] transition-colors text-left ${
+                className={`hit flex items-center gap-2 px-2.5 h-8 rounded-md text-[12px] transition-colors text-left ${
                   on ? 'bg-ink/[0.05] text-textPrimary' : s.soon ? 'text-textMuted hover:text-textSecondary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'
                 } ${i === 3 || i === 6 || i === 8 ? 'xl:mt-2' : ''}`}
                 data-settings-nav={s.id}
@@ -1031,9 +1229,18 @@ const Settings = () => {
           {current === 'appearance' && (
           <Section id="appearance" title="Appearance" line="The terminal drawn in each theme, not a swatch — the change lands in the same frame, on every page">
             <div className="px-5 pb-4 border-t border-borderSubtle/60 pt-3">
-              <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Theme">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Theme">
                 {(['dark', 'light', 'system'] as ThemeChoice[]).map(c => (
                   <ThemeTile key={c} choice={c} current={choice} onPick={setThemeChoice} />
+                ))}
+              </div>
+            </div>
+            <div className="px-5 pb-4 border-t border-borderSubtle/60 pt-3" data-settings-row="colour-vision">
+              <div className="text-[12px] text-textPrimary" id="cvd-head">Direction colours</div>
+              <div className="text-[11px] text-textMuted">What up and down are drawn in, on every page and chart</div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-labelledby="cvd-head">
+                {(['standard', 'blue-orange'] as ColourVision[]).map(c => (
+                  <CvdTile key={c} choice={c} current={cvd} />
                 ))}
               </div>
             </div>
@@ -1057,9 +1264,13 @@ const Settings = () => {
               <DropdownSelect<string> label="Name" value={desk.opensOn.ticker ?? ''} options={OPENS_ON_NAMES} onChange={v => setDeskPrefs({ opensOn: { ticker: v || null } })} title="The name the terminal opens on" testId="settings-opens-name" align="end" />
               <DropdownSelect<string> label="Timeframe" value={desk.opensOn.timeframe ?? ''} options={OPENS_ON_TIMEFRAMES} onChange={v => setDeskPrefs({ opensOn: { timeframe: (v || null) as Timeframe | null } })} title="The timeframe every chart opens on" testId="settings-opens-timeframe" align="end" />
             </Row>
-            <Row name="Clock" line="New York's time or your own on every chart's axis and crosshair" testId="clock">
+            <Row name="Clock" line="New York's time or your own on every chart's axis and crosshair, and on the rail" testId="clock">
               <DropdownSelect<ClockZone> label="Clock" value={desk.clock} options={CLOCK_OPTIONS} onChange={v => setDeskPrefs({ clock: v })} title="Whose clock the axes keep" testId="settings-clock" align="end" />
             </Row>
+            <Row name="Session strip" line="Under the rail's clock: where New York's day stands — pre-market, the open, lunch, power hour, the close, after hours — and how long to the next" testId="session-strip">
+              <Toggle on={shell.sessionStrip} onChange={v => setShellPrefs({ sessionStrip: v })} label="Show the session strip" testId="session-strip" />
+            </Row>
+            <NotifyRow />
           </Section>
           )}
 
@@ -1069,11 +1280,11 @@ const Settings = () => {
 
           {/* KEYBOARD */}
           {current === 'keyboard' && (
-          <Section id="keyboard" title="Keyboard" line="Every key the terminal answers to, by where it works">
+          <Section id="keyboard" title="Keyboard" line="Every key the terminal answers to, by where it works — press ? on any page for that page's own">
             {KEY_GROUPS.map(g => (
               <Fragment key={g.where}>
                 {/* THE GROUP'S NAME — a whisper head over its rows, the house's section label */}
-                <div className="px-5 pt-3 pb-1.5 border-t border-borderSubtle/60 font-mono text-[9px] leading-[13px] uppercase tracking-widest text-textMuted" data-settings-key-group={g.where}>
+                <div className="px-5 pt-3 pb-1.5 border-t border-borderSubtle/60 text-[11px] font-semibold leading-[14px] text-textMuted" data-settings-key-group={g.where}>
                   {g.where}
                 </div>
                 {g.keys.map(s => (

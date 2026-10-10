@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import RGL, { type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Check, GripHorizontal, Maximize2, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, Check, GripHorizontal, Maximize2, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import Simulator from '../../core/simulator';
@@ -17,7 +17,9 @@ import Chip from '../../components/ui/Chip';
 import { useIsPhone } from '../../components/ui/useMediaQuery';
 import LiveChartWidget from './LiveChartWidget';
 import HoverReadout from '../../components/ui/HoverReadout';
-import PageHeader from '../../components/ui/PageHeader';
+import ShellHead from '../../components/layout/ShellHead';
+import ProductGlyph from '../../brand/ProductGlyph';
+import { undoable } from '../../components/ui/undo';
 import Panel from '../../components/ui/Panel';
 import { WIDGETS, widgetByKey, type WidgetDef, type WorkspaceCtx } from './registry';
 import WidgetThumb from './WidgetThumb';
@@ -30,6 +32,7 @@ import {
   loadDesks,
   PRESET_BLURBS,
   PRESET_NAMES,
+  presetNamed,
   presetTemplate,
   saveDesks,
   type DeskStore,
@@ -161,6 +164,9 @@ const DeskPeek = ({ name, ws }: { name: string; ws: SavedWorkspace }) => {
   );
 };
 
+/** The product's glyph at the phone head's size */
+const ProductGlyphSmall = () => <ProductGlyph name="pulse" size={16} bare className="shrink-0" />;
+
 /* PULSE (2026-08-17): the widget desk IS the Pulse page — Noah: "i want the
    pulse page to basically be the workspace page... i love how our current
    workspace moves so lets just make pulse that." Named desks + the link
@@ -226,31 +232,69 @@ const Pulse = () => {
   };
   useEffect(() => () => window.clearTimeout(switchTimer.current), []);
 
+  /* PRESET NAMES ARE RESERVED IN ANY CASE, AND A NAME YOU ALREADY USE IS REPLACED WITH A WAY BACK (the audit's PU-4: "flow"
+     saved beside the preset Flow, and saving under one of your own names overwrote it in silence) */
+  const nameTaken = (raw: string): string | null => {
+    const n = raw.trim().toLowerCase();
+    return Object.keys(store.desks).find(k => !isPreset(k) && k.toLowerCase() === n) ?? null;
+  };
   const saveAs = () => {
     const name = newName.trim();
-    // Preset names are reserved — they're the templates you reset TO.
-    if (!name || isPreset(name)) return;
-    setStore(prev => ({ active: name, desks: { ...prev.desks, [name]: { instances, layout } } }));
+    if (!name || presetNamed(name)) return;
+    const same = nameTaken(name);
+    const before = same ? store.desks[same] : null;
+    const key = same ?? name;
+    setStore(prev => ({ active: key, desks: { ...prev.desks, [key]: { instances, layout } } }));
     setSavingAs(false);
     setNewName('');
+    if (before && same) {
+      undoable({ label: `Replaced the ${same} desk`, undo: () => setStore(prev => ({ ...prev, desks: { ...prev.desks, [same]: before } })) });
+    }
   };
 
+  /* DELETE, REMOVE AND RESET ACT AT ONCE, WITH UNDO (the audit's X5.7) */
   const deleteDesk = (name: string) => {
     if (isPreset(name)) return;
+    const gone = store.desks[name];
+    const wasActive = active === name;
     const fallback = PRESET_NAMES[0];
     setStore(prev => {
       const desks = { ...prev.desks };
       delete desks[name];
       return { active: prev.active === name ? fallback : prev.active, desks };
     });
-    if (active === name) loadWorkspace(store.desks[fallback]);
+    if (wasActive) loadWorkspace(store.desks[fallback]);
+    undoable({
+      label: `Deleted the ${name} desk`,
+      undo: () => {
+        setStore(prev => ({ active: wasActive ? name : prev.active, desks: { ...prev.desks, [name]: gone } }));
+        if (wasActive) loadWorkspace(gone);
+      },
+    });
   };
 
   /** Presets reset to their curated template; a custom desk has nothing to reset to. */
   const reset = () => {
     const tpl = presetTemplate(active);
-    if (tpl) loadWorkspace(tpl);
+    if (!tpl) return;
+    const before = { instances, layout };
+    const name = active;
+    loadWorkspace(tpl);
+    undoable({
+      label: `Reset ${name} to its preset`,
+      undo: () => {
+        if (store.active === name || active === name) loadWorkspace(before);
+      },
+    });
   };
+
+  /* THE COMMAND LINE'S "Save this desk as…" lands here with the name field open */
+  useEffect(() => {
+    if ((location.state as { saveDesk?: boolean } | null)?.saveDesk) {
+      setSavingAs(true);
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (savingAs) requestAnimationFrame(() => saveInputRef.current?.focus());
@@ -264,6 +308,12 @@ const Pulse = () => {
     onMouseEnter: (e: React.MouseEvent) => setPeek({ name, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setPeek({ name, x: e.clientX, y: e.clientY }),
     onMouseLeave: () => setPeek(null),
+    /* …and on focus (the audit's X6.5): the keys see what a desk holds before opening it */
+    onFocus: (e: React.FocusEvent<HTMLElement>) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      setPeek({ name, x: r.left + 8, y: r.bottom + 4 });
+    },
+    onBlur: () => setPeek(null),
   });
 
   // ---- add menu -------------------------------------------------------------
@@ -272,6 +322,20 @@ const Pulse = () => {
   const [previewKey, setPreviewKey] = useState<string>(WIDGETS[0].key);
   const previewDef = widgetByKey(previewKey) ?? WIDGETS[0];
   const addMenuRef = useRef<HTMLDivElement | null>(null);
+
+  /* THE MENU TAKES THE KEYS (the audit's PU-18): the first row is focused as it opens, ↑/↓ walk the rows */
+  useEffect(() => {
+    if (!addOpen) return;
+    requestAnimationFrame(() => addMenuRef.current?.querySelector<HTMLElement>('[data-add-row]')?.focus());
+  }, [addOpen]);
+  const addMenuKeys = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const rows = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-add-row]'));
+    const i = rows.indexOf(document.activeElement as HTMLElement);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? rows.length - 1 : e.key === 'ArrowDown' ? Math.min(rows.length - 1, i + 1) : Math.max(0, i - 1);
+    e.preventDefault();
+    rows[next]?.focus();
+  };
 
   // Clicking anywhere else, or Escape, closes the add menu — re-clicking the
   // button should not be the only way out.
@@ -421,8 +485,12 @@ const Pulse = () => {
     if (!base) return null;
     // The focus belongs to ONE name — a panel pinned elsewhere never draws it
     const focusPrice = focus && focus.ticker === base.ticker ? focus.price : null;
+    /* ONE PRICE ON ONE SCREEN (the audit's X1.5): the book is rebuilt on the 10 s scan, but the price every panel prints is
+       the live tick the rail and the chart print — never the scan's, which stood up to ten seconds behind */
+    const liveSpot = (base.ticker === marketData?.ticker ? marketData.spot : Simulator.TICKERS[base.ticker]?.currentPrice) ?? base.snapshot.spot;
     return {
       ...base,
+      liveSpot,
       pulseTick,
       matrix: pulseMatrix(base.gex.matrix, pulseTick),
       focusPrice,
@@ -507,8 +575,20 @@ const Pulse = () => {
     setWidgetTicker(inst.id, inst.ticker === undefined ? activeTicker : undefined);
 
   const removeWidget = (id: string) => {
+    const inst = instances.find(w => w.id === id);
+    const cell = layout.find(l => l.i === id);
+    const at = instances.findIndex(w => w.id === id);
     setInstances(prev => prev.filter(w => w.id !== id));
     setLayout(prev => prev.filter(l => l.i !== id));
+    if (!inst) return;
+    const title = widgetByKey(inst.key)?.title ?? 'the panel';
+    undoable({
+      label: `Removed ${title}`,
+      undo: () => {
+        setInstances(prev => (prev.some(w => w.id === id) ? prev : [...prev.slice(0, at), inst, ...prev.slice(at)]));
+        if (cell) setLayout(prev => (prev.some(l => l.i === id) ? prev : [...prev, cell]));
+      },
+    });
   };
 
   /*
@@ -531,6 +611,12 @@ const Pulse = () => {
          price axis under the browser chrome on arrival. 3.5rem is the top
          bar, the same constant Terrain uses. */
       <div className="-mx-4 -mt-5 -mb-16 flex h-[calc(100dvh-3rem)] flex-col">
+        {/* A LINE OF HEAD (the audit's PU-7): what this is, which desk, and that the desks open on a wider screen */}
+        <div className="shrink-0 flex items-center gap-2 px-4 h-11 border-b border-borderSubtle" data-pulse-phone-head>
+          <ProductGlyphSmall />
+          <h1 className="text-[13px] font-semibold text-textPrimary">Pulse</h1>
+          <span className="min-w-0 truncate text-[11px] text-textMuted">the live chart · your desks open on a wider screen</span>
+        </div>
         {pulsedCtx ? (
           <LiveChartWidget
             /* Remounts on a name change so the chart rebuilds cleanly rather
@@ -541,9 +627,7 @@ const Pulse = () => {
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">
-              Awaiting feed initialization…
-            </span>
+            <span className="text-[12px] text-textMuted">Loading the desk…</span>
           </div>
         )}
       </div>
@@ -552,10 +636,17 @@ const Pulse = () => {
 
   return (
     <>
-      <PageHeader
-        breadcrumb={['Terminal', 'Pulse']}
+      {/* THE SHELL HEAD (the audit's PU-2): the glyph, the name, one line, the facts */}
+      <ShellHead
+        glyph="pulse"
         title="Pulse"
-        subtitle="The live market desk — add panels, drag them around, link them to one name or let them hold their own; every desk saves as you go"
+        line="The live market desk — add panels, drag them around, link them to one name or let them hold their own; every desk saves as you go"
+        facts={[
+          { label: 'Desk', value: active, testId: 'desk' },
+          { label: 'Panels', value: instances.length, testId: 'panels' },
+          { label: 'Name', value: activeTicker, testId: 'name', wide: true },
+        ]}
+        testId="pulse-shell"
       />
 
       {/* Desk rail — two named groups so the house's desks and yours never
@@ -568,13 +659,11 @@ const Pulse = () => {
             flat holo silver (the fact-slot label ink), smaller, letterspaced,
             and locked to the chips' line so they sit dead center. */}
         <span className="flex items-center gap-1.5">
-          <span className="h-5 inline-flex items-center font-mono text-[8px] leading-none uppercase tracking-[0.2em] text-silver/70 select-none">
-            Presets
-          </span>
+          <span className="h-7 inline-flex items-center text-[10px] leading-none text-textMuted select-none">Presets</span>
           <span className="flex items-center gap-0.5">
             {PRESET_NAMES.map(name => (
               <span key={name} className="inline-flex" {...peekHandlers(name)}>
-                <Chip active={active === name} onClick={() => switchDesk(name)} title="">
+                <Chip active={active === name} onClick={() => switchDesk(name)}>
                   {/* Every desk wears a dot; the one you're ON is neon —
                       the selection voice saying "you are here". */}
                   <span className="inline-flex items-center gap-1.5">
@@ -601,7 +690,7 @@ const Pulse = () => {
                     <button
                       onClick={() => switchDesk(name)}
                       aria-pressed={active === name}
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded font-mono text-[10px] whitespace-nowrap transition-colors ${
+                      className={`inline-flex items-center gap-1.5 h-7 px-2 rounded font-mono text-[11px] whitespace-nowrap transition-colors ${
                         active === name
                           ? 'bg-ink/[0.09] text-textPrimary font-semibold'
                           : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.04]'
@@ -614,7 +703,7 @@ const Pulse = () => {
                       onClick={() => deleteDesk(name)}
                       aria-label={`Delete the ${name} desk`}
                       title="Delete this desk"
-                      className="w-4 h-4 inline-flex items-center justify-center rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:!text-bear transition-opacity"
+                      className="hit w-5 h-5 inline-flex items-center justify-center rounded text-textMuted opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:!text-bear transition-opacity"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -644,12 +733,14 @@ const Pulse = () => {
                 }
               }}
               placeholder="Name this desk…"
+              aria-label="Name this desk"
+              aria-describedby={presetNamed(newName) || nameTaken(newName) ? 'save-as-note' : undefined}
               className="w-40 bg-inset border border-borderSubtle rounded px-2 py-1 font-mono text-[11px] text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-borderMuted"
             />
             <button
               type="submit"
-              disabled={!newName.trim() || isPreset(newName.trim())}
-              title={isPreset(newName.trim()) ? 'Preset names are reserved' : 'Save'}
+              disabled={!newName.trim() || !!presetNamed(newName)}
+              title={presetNamed(newName) ? `${presetNamed(newName)} is a preset — pick another name` : nameTaken(newName) ? `Replaces your ${nameTaken(newName)} desk (Undo after)` : 'Save'}
               className="p-1 rounded text-textSecondary hover:text-textPrimary disabled:opacity-30 transition-colors"
             >
               <Check className="w-3.5 h-3.5" />
@@ -665,14 +756,19 @@ const Pulse = () => {
             >
               <X className="w-3.5 h-3.5" />
             </button>
+            {(presetNamed(newName) || nameTaken(newName)) && (
+              <span id="save-as-note" role="status" className="text-[11px] text-textMuted">
+                {presetNamed(newName) ? `${presetNamed(newName)} is a preset — pick another name` : `Replaces your ${nameTaken(newName)} desk`}
+              </span>
+            )}
           </form>
         ) : (
           <button
             onClick={() => setSavingAs(true)}
             title="Save this arrangement as a new desk"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-borderSubtle bg-ink/[0.02] hover:bg-ink/[0.05] hover:border-borderMuted font-mono text-[10px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-ink/[0.02] hover:bg-ink/[0.05] hover:border-borderMuted text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
           >
-            <Save className="w-3 h-3" /> Save as
+            <Save className="w-3 h-3" /> Save as…
           </button>
         )}
       </div>
@@ -690,12 +786,15 @@ const Pulse = () => {
               holo is the sanctioned CTA material). */}
           <button
             onClick={() => setAddOpen(o => !o)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md holo-bg text-[#0a0a0a] hover:brightness-105 font-mono text-[11px] font-semibold uppercase tracking-wider transition-all"
+            aria-expanded={addOpen}
+            aria-haspopup="true"
+            className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md holo-bg text-[#0a0a0a] hover:brightness-105 text-[11px] font-semibold transition-all"
+            data-pulse-add
           >
-            <Plus className="w-3.5 h-3.5" /> Add widget
+            <Plus className="w-3.5 h-3.5" /> Add a panel
           </button>
           {addOpen && (
-            <div className="absolute left-0 top-full mt-1 z-30 w-[620px] border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 overflow-hidden animate-slide-in flex">
+            <div className="absolute left-0 top-full mt-1 z-30 w-[620px] border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 overflow-hidden animate-slide-in flex" onKeyDown={addMenuKeys}>
               {/* Names on the left, the actual panel on the right. Only the
                   highlighted one is mounted — ten live panels took two seconds
                   to open, one is instant. */}
@@ -706,6 +805,7 @@ const Pulse = () => {
                     onClick={() => addWidget(def.key)}
                     onMouseEnter={() => setPreviewKey(def.key)}
                     onFocus={() => setPreviewKey(def.key)}
+                    data-add-row
                     className={`w-full text-left px-3 py-2 border-b border-borderSubtle/40 last:border-0 transition-colors ${
                       previewKey === def.key ? 'bg-ink/[0.06]' : 'hover:bg-ink/[0.03]'
                     }`}
@@ -734,13 +834,13 @@ const Pulse = () => {
           <button
             onClick={reset}
             title={`Restore the ${active} preset`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-borderSubtle bg-ink/[0.02] hover:bg-ink/[0.05] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+            className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle bg-ink/[0.02] hover:bg-ink/[0.05] text-[11px] text-textSecondary hover:text-textPrimary transition-colors"
           >
-            <RotateCcw className="w-3 h-3" /> Reset preset
+            <RotateCcw className="w-3 h-3" /> Reset to the preset
           </button>
         )}
-        <span className="ml-auto font-mono text-[10px] text-textMuted uppercase tracking-widest tnum">
-          {active} · {instances.length} panels · saves as you go
+        <span className="ml-auto text-[11px] text-textMuted tnum" data-pulse-status>
+          {active} · {instances.length} panel{instances.length === 1 ? '' : 's'} · saves as you go
         </span>
       </div>
 
@@ -748,14 +848,21 @@ const Pulse = () => {
           fresh key and breathes in slowly */}
       {!pulsedCtx ? (
         <Panel className="h-64" bodyClassName="flex items-center justify-center">
-          <span className="font-mono text-[11px] text-textMuted uppercase tracking-widest">
-            Awaiting feed initialization…
-          </span>
+          <span className="text-[12px] text-textMuted">Loading the desk…</span>
         </Panel>
       ) : instances.length === 0 ? (
-        <Panel className="h-64" bodyClassName="flex flex-col items-center justify-center gap-2">
-          <span className="font-mono text-[11px] text-textMuted uppercase tracking-widest">Empty desk</span>
-          <span className="text-[11px] text-textSecondary">Use “Add widget” to build your layout</span>
+        /* THE EMPTY DESK SAYS WHAT TO DO AND HOLDS THE DOORS (the audit's PU-12) */
+        <Panel className="h-64" bodyClassName="flex flex-col items-center justify-center gap-3" data-pulse-empty>
+          <span className="text-[13px] text-textPrimary">This desk has no panels.</span>
+          <span className="text-[11px] text-textSecondary">Add one, or put a preset's panels back.</span>
+          <span className="flex items-center gap-2">
+            <button type="button" onClick={() => setAddOpen(true)} className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderMuted text-[11px] text-textPrimary hover:bg-ink/[0.05]">
+              <Plus className="w-3.5 h-3.5" /> Add a panel
+            </button>
+            <button type="button" onClick={() => loadWorkspace(presetTemplate(isPreset(active) ? active : PRESET_NAMES[0])!)} className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-borderSubtle text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05]">
+              <RotateCcw className="w-3 h-3" /> {isPreset(active) ? `Restore ${active}` : `Use ${PRESET_NAMES[0]}'s panels`}
+            </button>
+          </span>
         </Panel>
       ) : (
         <div
@@ -830,7 +937,8 @@ const Pulse = () => {
                           className="p-1.5 -my-1.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
                           data-tile-full={def.page ? 'page' : 'own'}
                         >
-                          <Maximize2 className="w-4 h-4" />
+                          {/* leaving for a page and growing in place are two icons (the audit's PU-6) */}
+                          {def.page ? <ArrowUpRight className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </button>
                       )}
                       {/* Fat hit target (Noah, 2026-08-17: "very difficult to
@@ -838,7 +946,8 @@ const Pulse = () => {
                           marks its center. */}
                       <button
                         onClick={() => removeWidget(inst.id)}
-                        aria-label="Remove widget"
+                        aria-label={`Remove ${def.title}`}
+                        title="Remove — Undo stays up for a few seconds"
                         className="p-1.5 -my-1.5 -mr-1 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors"
                       >
                         <X className="w-4 h-4" />
@@ -865,9 +974,7 @@ const Pulse = () => {
                           })}
                         </Deferred>
                       ) : (
-                        <span className="flex h-full items-center justify-center font-mono text-[10px] text-textMuted uppercase tracking-widest">
-                          No data for {inst.ticker}
-                        </span>
+                        <span className="flex h-full items-center justify-center text-[11px] text-textMuted">Nothing to show for {inst.ticker} yet</span>
                       );
                     })()}
                   </div>
