@@ -32,7 +32,7 @@
 ==================================================
 */
 
-import { blackScholesPrice } from '../core/greeks';
+import { estimatePremium } from './compass';
 import { sessionsBetween, today } from '../core/calendar';
 import { contractIvFor } from './weigherDesk';
 import type { Position } from './positions';
@@ -91,8 +91,11 @@ export function valueOn(p: Pick<Position, 'ticker' | 'strike' | 'right' | 'expir
   const [y, m, d] = p.expiry.split('-').map(Number);
   const sessions = Math.max(0, sessionsBetween(today(), new Date(y, m - 1, d)));
   if (ahead >= sessions && sessions > 0) return intrinsic(price, p.strike, p.right);
-  const t = Math.max(sessions - ahead, exact ? 0.004 : 0.5) / 252;
-  return blackScholesPrice(price, p.strike, t, contractIvFor(p.ticker, p.strike, p.right), p.right);
+  /* ONE PRICER WITH THE MARK (the audit's WE-1: a contract watched "at the market, now" projected −$5 on a $0.05 mark
+     and −$25 on a 4.77 one — the projection priced by Black-Scholes from a zero clock, the mark by the chain's own
+     estimator from half a session): now is the mark's clock, and the curve runs down from it to the bell */
+  const t = Math.max(Math.max(sessions, 0.5) - ahead, exact ? 0.004 : 0.5) / 252;
+  return estimatePremium(price, p.strike, p.right, contractIvFor(p.ticker, p.strike, p.right), t);
 }
 
 /**
@@ -107,11 +110,11 @@ export function buildPositionCurve(p: Position, spot: number, lo: number, hi: nu
      day's hours in it; the "today" line is a curve, not a corner */
   const t = Math.max(sessions, 0.5) / 252;
   const iv = contractIvFor(p.ticker, p.strike, p.right);
-  const valueNow = blackScholesPrice(spot, p.strike, t, iv, p.right);
+  const valueNow = estimatePremium(spot, p.strike, p.right, iv, t);
   const cost = costOf(p);
   const ref = cost?.value ?? valueNow;
   const sign = (p.side === 'long' ? 1 : -1) * 100 * p.contracts;
-  const onDay = ahead >= sessions && sessions > 0 ? (price: number) => intrinsic(price, p.strike, p.right) : (price: number) => blackScholesPrice(price, p.strike, Math.max(sessions - ahead, 0.5) / 252, iv, p.right);
+  const onDay = ahead >= sessions && sessions > 0 ? (price: number) => intrinsic(price, p.strike, p.right) : (price: number) => estimatePremium(price, p.strike, p.right, iv, Math.max(sessions - ahead, 0.5) / 252);
 
   const points: CurvePoint[] = [];
   for (let i = 0; i <= SAMPLES; i++) {

@@ -103,7 +103,8 @@ export const ListGrid = memo(function ListGrid({
         headerName: 'Contract',
         flex: 1.4,
         /* 222 holds the widest line with the word on it ("× 10 · Sep 21 AGAINST"); a 1600 card has it to spare */
-        minWidth: hedgeOf && !hedgeColumn ? 222 : 210,
+        /* the floor gives way before the Total does (the audit's WE-5: "TO" at 1440, "HEDGI…" at 1920) — the line truncates */
+        minWidth: hedgeOf && !hedgeColumn ? 180 : 160,
         cellRenderer: ({ data }: ICellRendererParams<ListRow>) => {
           if (!data) return null;
           const c = contractOf(data);
@@ -130,7 +131,7 @@ export const ListGrid = memo(function ListGrid({
       {
         colId: 'added',
         headerName: 'Added',
-        width: 100,
+        width: 88,
         headerTooltip: 'When it was added — a watched contract is marked then; a position you own carries what you paid',
         cellRenderer: ({ data }: ICellRendererParams<ListRow>) =>
           data ? (
@@ -152,7 +153,7 @@ export const ListGrid = memo(function ListGrid({
             {
               colId: 'hedging',
               headerName: 'Hedging',
-              width: 72,
+              width: 84,
               headerTooltip: 'Whether dealer hedging works with the contract today (with), leans against it (against), or both (mixed) — the position card says why',
               cellRenderer: ({ data }: ICellRendererParams<ListRow>) => {
                 if (!data) return null;
@@ -178,7 +179,7 @@ export const ListGrid = memo(function ListGrid({
           data ? (
             data.kind === 'watch' && data.w.status === 'open' ? (
               <span className={`font-mono text-[11px] tnum ${dirInk(data.r.todayDollars)}`}>
-                {usdSigned(data.r.todayDollars)} <span className="text-[9px] opacity-80">{rSigned(data.r.todayR)}</span>
+                {usdSigned(data.r.todayDollars)} <span className="text-[10px]">{rSigned(data.r.todayR)}</span>
               </span>
             ) : (
               <span className="font-mono text-[10px] text-textMuted">—</span>
@@ -198,7 +199,7 @@ export const ListGrid = memo(function ListGrid({
           if (d == null || r == null) return <span className="font-mono text-[10px] text-textMuted">no cost given</span>;
           return (
             <span className={`font-mono text-[11px] font-semibold tnum ${dirInk(d)}`}>
-              {usdSigned(d)} <span className="text-[9px] font-normal opacity-80">{rSigned(r)}</span>
+              {usdSigned(d)} <span className="text-[10px] font-normal">{rSigned(r)}</span>
             </span>
           );
         },
@@ -217,7 +218,7 @@ export const ListGrid = memo(function ListGrid({
                     onClick={() => onRemove(data)}
                     title={data.kind === 'own' ? 'Remove this position' : 'Remove it from the watchlist'}
                     aria-label={data.kind === 'own' ? 'Remove this position' : 'Remove it from the watchlist'}
-                    className="inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors"
+                    className="hit inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-bear hover:bg-ink/[0.06] transition-colors"
                     data-list-remove={data.id}
                   >
                     <Trash2 className="w-3 h-3" />

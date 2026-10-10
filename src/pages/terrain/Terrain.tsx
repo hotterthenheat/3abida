@@ -1457,6 +1457,10 @@ const Pane = ({
               projectionRef={projectionRef}
               exportRef={exportPngRef}
               pageScroll={belowLg}
+              /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
+                 not a third of the chart (X11) */
+              nyClock
+              historyShare={0.88}
               frameless
             />
             </Deferred>

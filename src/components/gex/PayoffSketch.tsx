@@ -87,10 +87,27 @@ interface SketchProps {
   onPin?: (price: number | null) => void;
   /** What the soft line is — "today", or the scrubbed day's name */
   softLabel?: string;
+  /** THE MODEL'S OWN DISTRIBUTION at expiry (the ideas report's Weigher shading, 2026-10-09): the contract's implied vol
+      and its time to the bell in years. Given, a quiet bell under the curve shows where the model puts the price at
+      expiry, and the hover card says the chance it finishes above or below the price under the pointer. */
+  dist?: { iv: number; years: number };
 }
 
+/* The standard normal's CDF (Abramowitz–Stegun 7.1.26 through erf) — enough for a chance printed to a whole percent */
+const normCdf = (z: number): number => {
+  const t = 1 / (1 + 0.3275911 * Math.abs(z) / Math.SQRT2);
+  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-(z * z) / 2);
+  return z >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+};
+/** The chance the price finishes above `k` at expiry, under the lognormal the contract's IV implies (no drift) */
+export const chanceAbove = (spot: number, k: number, iv: number, years: number): number => {
+  const s = iv * Math.sqrt(Math.max(years, 1e-6));
+  if (!(s > 0) || !(k > 0)) return k < spot ? 1 : 0;
+  return normCdf((Math.log(spot / k) - (s * s) / 2) / s);
+};
+
 /** EXPORTED (2026-09-14): the Weigher's position card draws the same sketch for a watched contract */
-export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = true, levelMarks = true, pinned = null, onPin, softLabel }: SketchProps) => {
+export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = true, levelMarks = true, pinned = null, onPin, softLabel, dist }: SketchProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const iw = W - M.l - M.r;
@@ -173,6 +190,24 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
   };
 
   const words = pt ? priceWords(pt.price, levels, wantsUp) : null;
+  /* THE BELL: the lognormal's density across the window, its tallest point a third of the plot, drawn from the floor —
+     one path, rebuilt with the curve (the window or the vol moved), never animated */
+  const bell = (() => {
+    if (!dist) return null;
+    const s = dist.iv * Math.sqrt(Math.max(dist.years, 1e-6));
+    if (!(s > 0)) return null;
+    const pdf = (k: number) => (k > 0 ? Math.exp(-((Math.log(k / spot) + (s * s) / 2) ** 2) / (2 * s * s)) / k : 0);
+    const N = 96;
+    const xs = Array.from({ length: N + 1 }, (_, i) => lo + ((hi - lo) * i) / N);
+    const ds = xs.map(pdf);
+    const top = Math.max(...ds, 1e-12);
+    const floorY = H - M.b;
+    const yOf = (d: number) => floorY - (d / top) * ih * 0.34;
+    const line = xs.map((k, i) => `${i ? 'L' : 'M'}${x(k).toFixed(1)},${yOf(ds[i]).toFixed(1)}`).join(' ');
+    const fill = `${line} L${x(hi).toFixed(1)},${floorY} L${x(lo).toFixed(1)},${floorY} Z`;
+    return { line, fill, floorY };
+  })();
+  const chance = pt && dist ? chanceAbove(spot, pt.price, dist.iv, dist.years) : null;
   const cardLeftPct = pt ? (x(pt.price) / W) * 100 : 0;
   const cardOnRight = pt ? x(pt.price) < W * 0.6 : true;
   const hovering = pt != null;
@@ -198,6 +233,26 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
             <rect x={M.l} y={y0} width={iw} height={Math.max(0, H - M.b - y0 + 2)} />
           </clipPath>
         </defs>
+        {/* THE MODEL'S BELL — where it puts the price at expiry; under the pointer, the share above it a shade firmer */}
+        {bell && (
+          <g data-odds-bell>
+            <path d={bell.fill} fill={SILVER} fillOpacity={0.07} />
+            {pt && (
+              <>
+                <clipPath id={`${clipId}-above`}>
+                  <rect x={x(pt.price)} y={M.t} width={Math.max(0, W - M.r - x(pt.price))} height={ih} />
+                </clipPath>
+                <path d={bell.fill} fill={SILVER} fillOpacity={0.12} clipPath={`url(#${clipId}-above)`} />
+              </>
+            )}
+            <path d={bell.line} fill="none" stroke={SILVER} strokeOpacity={0.3} strokeWidth={1} />
+          </g>
+        )}
+        {bell && (
+          <text x={M.l} y={M.t - 6} fontSize={8.5} fill="rgb(var(--text-muted))" fontFamily={FIG} data-odds-key>
+            shaded: where the contract's own vol puts the price at expiry
+          </text>
+        )}
         {/* the faint grid and the zero line */}
         {yTicks.map(v => (
           <g key={v}>
@@ -292,6 +347,15 @@ export const PayoffSketch = ({ curve, spot, levels, strike, wantsUp, labels = tr
             <dt className="text-[10px] text-textMuted">Today</dt>
             <dd className={`font-mono text-[11px] tnum text-right ${pt.now > 0 ? 'text-bull' : pt.now < 0 ? 'text-bear' : 'text-textPrimary'}`}>{fmtPnl(pt.now)}</dd>
           </dl>
+          {chance != null && (
+            /* a chance, said as one — never a "win rate" */
+            <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[10px] leading-snug text-textSecondary" data-odds-read>
+              Chance it finishes above at expiry <span className="font-mono tnum text-textPrimary">{Math.round(chance * 100)}%</span>
+              <br />
+              below <span className="font-mono tnum text-textPrimary">{Math.round((1 - chance) * 100)}%</span>
+              <span className="text-textMuted"> · from the contract's own vol</span>
+            </p>
+          )}
           <p className="mt-1.5 pt-1.5 border-t border-ink/[0.06] text-[10px] leading-snug text-textSecondary whitespace-nowrap">
             {words.dealers}
             <br />

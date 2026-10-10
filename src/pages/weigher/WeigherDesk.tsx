@@ -84,6 +84,7 @@ import SpotPrice from '../../components/gex/SpotPrice';
 import ContractPremiumPane from '../../components/gex/ContractPremiumPane';
 import { useFadeClose } from '../../components/ui/useFadeClose';
 import { fmtStrike, CHAIN_COLUMNS, DEFAULT_COLS, COLUMN_GROUPS, ChainCard } from '../../components/weigher/ChainGrid';
+import VolCurves from '../../components/weigher/VolCurves';
 import type { Timeframe } from '../../data/timeframe';
 import type { OptionRight } from '../../types/compass';
 import ProductGlyph from '../../brand/ProductGlyph';
@@ -142,7 +143,8 @@ const fmtDay = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 interface DeskState {
   ticker: string;
   dte: number;
-  lens: 'stock' | 'contract';
+  /** stock · the picked contract's premium · the vol view (the smile and the term) */
+  lens: 'stock' | 'contract' | 'vol';
   right: OptionRight;
   preset: ListKind;
   depth: number;
@@ -170,7 +172,7 @@ function loadDesk(): DeskState {
       /* any horizon inside ninety days — a contract's own expiry, carried in
          by a deep link, is kept across a refresh (2026-09-12) */
       dte: typeof c.dte === 'number' && Number.isInteger(c.dte) && c.dte >= 0 && c.dte <= 90 ? c.dte : def.dte,
-      lens: c.lens === 'contract' ? 'contract' : 'stock',
+      lens: c.lens === 'contract' ? 'contract' : c.lens === 'vol' ? 'vol' : 'stock',
       right: c.right === 'P' ? 'P' : 'C',
       preset: c.preset === 'losers' || c.preset === 'voliv' || c.preset === 'gainers' || c.preset === 'watchlist' ? c.preset : def.preset,
       depth: typeof c.depth === 'number' && (DESK_DEPTHS as readonly number[]).includes(c.depth) ? c.depth : def.depth,
@@ -223,7 +225,7 @@ const DeskCard = ({
             onClick={fold.onToggle}
             aria-expanded={fold.open}
             title={fold.open ? 'Fold the card to its head' : 'Open the card'}
-            className="inline-flex items-center justify-center w-4 h-4 -ml-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
+            className="hit inline-flex items-center justify-center w-4 h-4 -ml-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors"
             data-fold={fold.testId}
           >
             <ChevronDown className={`w-3 h-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${fold.open ? '' : '-rotate-90'}`} />
@@ -299,8 +301,8 @@ export const ScanGrid = memo(function ScanGrid({ rows, ticker, preset, onPick }:
             </span>
           ) : null,
       },
-      { colId: 'optvol', headerName: 'Opt vol', width: 88, type: 'rightAligned', headerTooltip: "Contracts traded today across the name's chain", cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textSecondary">{fmtUsd(data.optVolume).replace('$', '')}</span> : null) },
-      { colId: 'iv', headerName: 'IV', width: 64, type: 'rightAligned', cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[10px] tnum text-textSecondary">{data.ivPct.toFixed(0)}%</span> : null) },
+      { colId: 'optvol', headerName: 'Opt vol', width: 88, type: 'rightAligned', headerTooltip: "Contracts traded today across the name's chain", cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">{fmtUsd(data.optVolume).replace('$', '')}</span> : null) },
+      { colId: 'iv', headerName: 'IV', width: 64, type: 'rightAligned', cellRenderer: ({ data }: ICellRendererParams<ScanRow>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">{data.ivPct.toFixed(1)}%</span> : null) },
     ],
     []
   );
@@ -620,7 +622,8 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
     <button
       onClick={() => setFull(card)}
       title={card === 'chart' ? 'Fullscreen chart' : 'Fullscreen chain'}
-      className="p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+      aria-label={card === 'chart' ? 'Fullscreen chart' : 'Fullscreen chain'}
+      className="hit p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
     >
       <Maximize2 className="w-3 h-3" />
     </button>
@@ -637,7 +640,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
     Simulator.ensureTicker(t);
     setSel(null);
     setListSel(null);
-    patch({ ticker: t, lens: 'stock' });
+    patch({ ticker: t, lens: lens === 'vol' ? 'vol' : 'stock' });
   };
 
   /* A deep link arrives with a name (Trace's "Weigh it") — or with a CONTRACT
@@ -711,7 +714,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
     setSel(cur => {
       const next = cur != null && Math.abs(cur - strike) < 1e-9 ? null : strike;
       lastToggle.current = { strike, off: next == null, at: Date.now() };
-      if (next == null) setDesk(d => ({ ...d, lens: 'stock' }));
+      if (next == null) setDesk(d => (d.lens === 'contract' ? { ...d, lens: 'stock' } : d));
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -765,7 +768,9 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
       />
       <SpotPrice value={shownMark} />
       <span className={`font-mono text-[11px] font-semibold tnum ${contractChg >= 0 ? 'text-bull' : 'text-bear'}`}>
-        {contractChg >= 0 ? '\u25b2' : '\u25bc'} ${Math.abs(contractChg).toFixed(2)} ({Math.abs(contractChgPct).toFixed(2)}%)
+        {/* signed, as everywhere (the audit's WE-7: "▼ $0.54 (91.53%)") */}
+        {contractChg >= 0 ? '\u25b2' : '\u25bc'} {contractChg >= 0 ? '+' : '−'}${Math.abs(contractChg).toFixed(2)} ({contractChgPct >= 0 ? '+' : '−'}
+        {Math.abs(contractChgPct).toFixed(2)}%)
       </span>
     </span>
   );
@@ -780,9 +785,11 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
       options={[
         { value: 'stock', label: 'Stock' },
         { value: 'contract', label: 'Premium' },
+        /* the smile and the term (the ideas report, 2026-10-09) */
+        { value: 'vol', label: 'Vol' },
       ]}
       value={lens}
-      onChange={v => (v === 'contract' ? selected && patch({ lens: 'contract' }) : patch({ lens: 'stock' }))}
+      onChange={v => (v === 'contract' ? selected && patch({ lens: 'contract' }) : patch({ lens: v === 'vol' ? 'vol' : 'stock' }))}
     />
   );
 
@@ -829,7 +836,21 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
           the half-width card the toolbar drops its words (compact icons); in
           fullscreen it wears Pulse's full words. Replay and the drawing rail
           stay off: review tools, not weighing tools. */}
-      {lens === 'contract' && selected != null && sel != null ? (
+      {lens === 'vol' ? (
+        <>
+          {identity}
+          {lensTabs}
+          <span className="ml-auto flex items-center gap-1.5">
+            {full === 'chart' ? (
+              <button onClick={close} title="Exit fullscreen (Esc)" aria-label="Exit fullscreen" className="hit p-1 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors">
+                <Minimize2 className="w-3 h-3" />
+              </button>
+            ) : (
+              fullBtn('chart')
+            )}
+          </span>
+        </>
+      ) : lens === 'contract' && selected != null && sel != null ? (
         <>
           {contractIdentity}
           {lensTabs}
@@ -905,7 +926,9 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
        and the strip the ground of the tape's theme (2026-09-13) */
     <div className="relative h-full bg-panel" data-theme="dark" data-chart-ground={chartGround(chartThemeKey)}>
       <div className="absolute inset-0">
-        {lens === 'contract' && selected ? (
+        {lens === 'vol' ? (
+          <VolCurves ticker={ticker} chain={chain} sel={sel} />
+        ) : lens === 'contract' && selected ? (
           /* Keyed remount: stepping strikes lands the new premium tape on a
              soft fade instead of a hard cut. */
           <div key={`${ticker}:${sel}:${right}:${dte}`} className="h-full animate-soft-in">
@@ -928,6 +951,9 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
               levels={levels}
               timeframe={timeframe}
               keepView
+              /* the session's own clock, and the tape near its right edge (the audit's X2 and X11) */
+              nyClock
+              historyShare={0.9}
               /* THE WHEEL BELONGS TO THE PAGE over the docked chart (2026-09-14, Noah: "the scroll
                  bar doesn't work at all" — the desk scrolls now, and the chart ate every wheel
                  over the top-left 40% of the screen); fullscreen keeps the wheel zoom, as Terrain
@@ -962,7 +988,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
      names (`bare` — the name stays in the tooltip and the open card's heading) rather than break again. */
   const chainName = <TickerQuickPick ticker={ticker} onPick={pickTicker} slim />;
   const chainMove = (
-    <span className="font-mono text-[9px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
+    <span className="font-mono text-[10px] tnum text-textMuted whitespace-nowrap" title="The move the options are charging for by this expiry">
       ±{chain.expectedMovePct.toFixed(1)}%
     </span>
   );
@@ -1404,6 +1430,8 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
                   ticker={ticker}
                   /* a strike THE CHAIN LISTS: the money rounded to a dollar (244 on a name that steps by 2.50) made positions
                      no chain row could answer to */
+                  defaultExpiry={isoDate(chain.expiry.date)}
+                  defaultRight={right}
                   defaultStrike={sel ?? (chain.rows.length ? chain.rows.reduce((best, r) => (Math.abs(r.strike - levels.spot) < Math.abs(best.strike - levels.spot) ? r : best), chain.rows[0]).strike : Math.round(levels.spot))}
                   align="end"
                   trigger={

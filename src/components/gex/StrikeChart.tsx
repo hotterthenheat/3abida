@@ -716,6 +716,13 @@ interface StrikeChartProps {
    * A reader who cannot reach the controls at all has lost more.
    */
   pageScroll?: boolean;
+  /** NEW YORK'S CLOCK on the axis and the crosshair whatever the reader chose in Settings — a chart of the market's own
+      session (Terrain, the Weigher; the audit's X2, 2026-10-09). Read once, when the chart is made. */
+  nyClock?: boolean;
+  /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
+      default). A host whose tape should run near its right edge passes more (the audit's X11: a third to half of the
+      chart stood empty past the last candle). */
+  historyShare?: number;
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -983,7 +990,11 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
+  nyClock = false,
+  historyShare,
 }: StrikeChartProps) => {
+  const historyShareRef = useRef(historyShare);
+  historyShareRef.current = historyShare;
   /* WHERE THE BARS COME FROM — the simulator, or the host's tape. Every read below goes through these four. */
   const tapeRef = useRef<ChartTape | undefined>(tape);
   tapeRef.current = tape;
@@ -1374,8 +1385,9 @@ const StrikeChart = ({
       keeping the same history/runway split — the bars stay readable and the
       runway stays a runway, not a prairie.
     */
-    total = Math.min(total, Math.max(Math.ceil(len / HISTORY_SHARE) + 8, 48));
-    const history = Math.round(total * HISTORY_SHARE);
+    const share = historyShareRef.current ?? HISTORY_SHARE;
+    total = Math.min(total, Math.max(Math.ceil(len / share) + 8, 48));
+    const history = Math.round(total * share);
     const ahead = total - history;
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - history), to: len + ahead });
   }, []);
@@ -1873,7 +1885,7 @@ const StrikeChart = ({
         attributionLogo: true,
       },
       // The reader's clock, not Greenwich's — see chartTime.ts.
-      localization: tapeRef.current?.clock === 'ny' ? NY_TIME : LOCAL_TIME,
+      localization: nyClock || tapeRef.current?.clock === 'ny' ? NY_TIME : LOCAL_TIME,
       // No grid (Noah, 2026-08-22): the nodes and the levels ARE the
       // structure; a grid behind them competes with the ribbons
       grid: {
@@ -1887,7 +1899,7 @@ const StrikeChart = ({
       // price-line titles, and ate the date off every dark-pool print near spot.
       // 68 + 4 + 2 clear. Charts without the capsule keep the default 0.
       rightPriceScale: { borderColor: s0.line, minimumWidth: priceTag ? PRICE_SCALE_MIN_WIDTH : 0 },
-      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
+      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: nyClock || tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
       crosshair: {
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
         horzLine: { color: s0.crosshair, labelBackgroundColor: s0.label },

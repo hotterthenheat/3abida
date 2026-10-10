@@ -336,9 +336,12 @@ const Dropdown = ({
   menuSide = 'bottom',
   title,
   bounds,
+  cased = false,
   children,
 }: {
   label: string;
+  /** The label as written, never upper-cased — a timeframe: "15m" upper-cased reads "15M", fifteen months (the audit's WE-9) */
+  cased?: boolean;
   icon?: ReactNode;
   open: boolean;
   onToggle: () => void;
@@ -369,7 +372,7 @@ const Dropdown = ({
       aria-haspopup="menu"
       aria-expanded={open}
       aria-label={label ? undefined : title}
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[10px] ${cased ? '' : 'uppercase'} tracking-wider transition-colors ${
         open
           ? 'bg-ink/[0.07] text-textPrimary'
           : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
@@ -588,6 +591,7 @@ const ChartToolbar = ({
           onToggle={() => setOpenMenu(m => (m === 'timeframe' ? null : 'timeframe'))}
           menuSide={menuSide} bounds={menuBounds}
           title="Timeframe"
+          cased
         >
           <div role="group" aria-label="Timeframe">
             {(timeframes ? TIMEFRAME_OPTIONS.filter(o => timeframes.includes(o.value)) : TIMEFRAME_OPTIONS).map(opt => {
@@ -1207,7 +1211,7 @@ const ChartToolbar = ({
             </span>
             <button
               onClick={() => pickTheme(shownTheme.value)}
-              className={`mt-auto w-full rounded holo-bg text-[#0a0a0a] hover:brightness-105 font-mono font-semibold uppercase tracking-wider transition-all ${
+              className={`mt-auto w-full rounded bg-textPrimary text-[rgb(var(--panel))] hover:bg-textPrimary/90 font-mono font-semibold uppercase tracking-wider transition-all ${
                 dense ? 'py-1 text-[9px]' : 'py-1.5 text-[10px]'
               }`}
               data-theme-use

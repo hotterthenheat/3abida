@@ -113,6 +113,8 @@ const PriceRuler = ({ value, onChange, spot, marks = [], testId }: Props) => {
     e.preventDefault();
     stopGlide();
     (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId);
+    /* the arrows follow a drag (the audit's WE-4: preventDefault kept the press from focusing the ruler) */
+    (e.currentTarget as SVGSVGElement).focus({ preventScroll: true });
     drag.current = { x: e.clientX, start: value };
   };
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
