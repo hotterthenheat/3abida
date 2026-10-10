@@ -165,6 +165,7 @@ import CompanyLogo from '../ui/CompanyLogo';
 import { useFadeClose } from '../ui/useFadeClose';
 import DayCard from './DayCard';
 import PositionLayer, { type PositionLayerProps } from './PositionLayer';
+import TerrainLayers from '../terrain/TerrainLayers';
 import RenameDoor from './RenameDoor';
 import { dirInk, usd, usdSigned } from './words';
 import { DOCK_ROOM, useEditorDock } from '../../data/editorDock';
@@ -781,6 +782,8 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                       return (
                         <>
                           <PositionLayer api={api} ticker={p.name.symbol} minutes={tfMinutes(p.timeframe)} {...p.name.layer} />
+                          {/* THE SESSION'S PHASES (the ideas' 11, 2026-10-10) — Terrain's quiet bands, off until the Overlays menu asks */}
+                          {prefs.overlays.phases && <TerrainLayers api={api} ticker={p.name.symbol} walls={false} lens="gex" phases ground={chartGround(themeKey)} />}
                           {/* EVERY PANE SAYS WHOSE IT IS AND AT WHAT INTERVAL, at its top left against the wall: "ES · 1m", no box
                               round it (Noah, 2026-09-22, with a picture of one: "the timeframe one should look like this at all times
                               minus the ticker price") — among several, the one on the desk in silver; then, on the page, its corner
@@ -849,6 +852,8 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                     return (
                       <>
                         <PositionLayer api={api} ticker={n.symbol} minutes={tfMinutes(prefs.timeframe)} {...n.layer} />
+                        {/* THE SESSION'S PHASES (the ideas' 11, 2026-10-10) — Terrain's quiet bands, off until the Overlays menu asks */}
+                        {prefs.overlays.phases && <TerrainLayers api={api} ticker={n.symbol} walls={false} lens="gex" phases ground={chartGround(themeKey)} />}
                         {/* every chart says whose it is and at what interval at its top left, "ES · 1m" with no box round it — side
                             by side, the one on the desk in silver — then, on the page, its corner (RP&L · UP&L; in the full screen those
                             ride the strip); the chrome stamp sends the scripts' legend under it */}

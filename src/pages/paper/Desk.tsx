@@ -108,8 +108,9 @@ import { paceOf, paceWords } from '../../data/paper/pace';
    minute a bar round the clock has no daily candle. */
 const NAME_TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '1D'];
 const INDEX_TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h'];
-const NAME_OVERLAYS: (keyof ChartOverlays)[] = ['volume', 'levels', 'trails', 'session', 'cone', 'volDrift'];
-const INDEX_OVERLAYS: (keyof ChartOverlays)[] = ['volume', 'session'];
+/* 'phases': the session's phases as quiet bands, Terrain's (the ideas' 11, 2026-10-10) — off until asked */
+const NAME_OVERLAYS: (keyof ChartOverlays)[] = ['volume', 'levels', 'trails', 'session', 'cone', 'volDrift', 'phases'];
+const INDEX_OVERLAYS: (keyof ChartOverlays)[] = ['volume', 'session', 'phases'];
 /** Strikes each side of the chain's centre, the least the chain keeps under the account card, and the column's width
     (2026-09-22: "build it with the wider column") */
 const CHAIN_EACH = 20;
