@@ -79,7 +79,7 @@ export const SETUP_KEYS = ['timeframe', 'overlays', 'indicators', 'chartStyle', 
    proof that has to be edited every time the thing it guards changes is a
    proof that stops being run. */
 export const OVERLAY_KEYS = Object.keys({
-  trails: 0, levels: 0, darkpool: 0, volume: 0, flow: 0, netDrift: 0, volDrift: 0, dexStrike: 0, session: 0, cone: 0, events: 0, alerts: 0,
+  trails: 0, levels: 0, darkpool: 0, volume: 0, flow: 0, netDrift: 0, volDrift: 0, dexStrike: 0, session: 0, cone: 0, events: 0, alerts: 0, walls: 0, phases: 0,
 } satisfies Record<keyof ChartOverlays, number>) as (keyof ChartOverlays)[];
 
 export const INDICATOR_KEYS = Object.keys({

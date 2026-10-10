@@ -142,9 +142,11 @@ const HEAD_TOP_2 = 56;
 const KEY_BAND = 16;
 /** The column heads over the rows (every tier — the partner's header: STRIKE · Δ SPOT · ◂ PUTS ·
     CALLS ▸, and NET on the net view), drawn on the canvas */
-const COL_HEAD = 13;
+const COL_HEAD = 15;
 /** The lane the ▼ count sits in */
 const FOOT_BAND = 14;
+/** …and the line the ▲ count sits on, under the column heads */
+const COUNT_BAND = 13;
 /** The strike column between the lanes — and the wider one that carries the Δ from spot beside
     the strike (the full and mid tiers) */
 const COL_W = 60;
@@ -365,6 +367,9 @@ interface ProfilePanelProps {
   /** A card the host stands in the head beside the view tabs (Terrain's Expiry, 2026-09-16:
       "the expiry should be at the top next to the ladder and net buttons") */
   headCard?: ReactNode;
+  /** The most of the surface the panel may take (0.6 by default) — a host with panes beside it passes less, so the
+      chart keeps its share (Terrain at three and four panes: 0.4) */
+  maxShare?: number;
   /** Given, the head carries an × — a panel you can turn on from a toolbar and
       not off from itself is a panel that feels stuck to the page. */
   onClose?: () => void;
@@ -390,7 +395,7 @@ interface Hover {
 
 const ProfilePanel = ({
   rows, maxAbs, legs, openRatio = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
-  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '',
+  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6,
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);
   /* ON A LIGHT GROUND the ramps are the paper ramps (heatmap.ts) and the canvas's inks the light set's tokens */
@@ -449,7 +454,7 @@ const ProfilePanel = ({
     ro.observe(host);
     return () => ro.disconnect();
   }, [sized]);
-  const maxW = hostW > 0 ? Math.max(PROFILE_MIN_W, Math.round(hostW * 0.6)) : Number.POSITIVE_INFINITY;
+  const maxW = hostW > 0 ? Math.max(PROFILE_MIN_W, Math.round(hostW * maxShare)) : Number.POSITIVE_INFINITY;
   const shownW = sized ? Math.min(dragW ?? width, maxW) : undefined;
   const onGripDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
     if (!onWidth) return;
@@ -460,7 +465,7 @@ const ProfilePanel = ({
     const startX = e.clientX;
     const startW = root.getBoundingClientRect().width;
     const host = root.parentElement?.getBoundingClientRect().width ?? startW * 3;
-    const max = Math.max(PROFILE_MIN_W, Math.round(host * 0.6));
+    const max = Math.max(PROFILE_MIN_W, Math.round(host * maxShare));
     let last = startW;
     const move = (ev: PointerEvent) => {
       last = Math.round(Math.min(max, Math.max(PROFILE_MIN_W, startW + (startX - ev.clientX))));
@@ -702,10 +707,13 @@ const ProfilePanel = ({
       const placed: Placed[] = [];
       let above = 0;
       let below = 0;
+      /* THE ▲ COUNT HAS A LINE OF ITS OWN (the audit's TE-4: "▲ 21" sat on the 486/487 labels): the first row starts
+         under it, as the last ends over the ▼ count's foot band */
+      const ROWS_TOP = HEAD_BAND + COUNT_BAND;
       for (const r of rows) {
         const y = p.yFor(r.strike);
         if (y == null || !Number.isFinite(y)) continue;
-        if (y - half < HEAD_BAND) {
+        if (y - half < ROWS_TOP) {
           above++;
           continue;
         }
@@ -757,7 +765,8 @@ const ProfilePanel = ({
           kx += w + 4;
         };
         const word = (t: string, c = ink.ink2) => {
-          ctx.font = `500 8.5px ${SANS}`;
+          /* 10 px: the key is words a reader acts on (the audit's X9.6) */
+          ctx.font = `500 10px ${SANS}`;
           ctx.fillStyle = c;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
@@ -798,7 +807,7 @@ const ProfilePanel = ({
          column with Δ SPOT at its right when the column is wide, the flow lane's name over it */
       {
         const hy = HEAD_BAND - COL_HEAD / 2 + 0.5;
-        ctx.font = `600 7.5px ${FIG}`;
+        ctx.font = `600 9px ${FIG}`;
         ctx.fillStyle = ink.ink3;
         ctx.textBaseline = 'middle';
         if (showSize) {
@@ -806,9 +815,9 @@ const ProfilePanel = ({
             ctx.textAlign = 'left';
             ctx.fillText('NET GAMMA', sizeL + 8, hy);
             ctx.fillStyle = ink.ink3;
-            ctx.font = `7.5px ${FIG}`;
+            ctx.font = `9px ${FIG}`;
             ctx.fillText('puts · calls', sizeL + 8 + ctx.measureText('NET GAMMA ').width + 8, hy);
-            ctx.font = `600 7.5px ${FIG}`;
+            ctx.font = `600 9px ${FIG}`;
           } else {
             ctx.textAlign = 'center';
             ctx.fillText('◂ PUTS · CALLS ▸', sizeL + (sizeR - netCol - sizeL) / 2, hy);
@@ -1352,7 +1361,7 @@ const ProfilePanel = ({
             const tag = near(k, levels.callWall) ? { t: 'CW', c: ink.callWall } : near(k, levels.putWall) ? { t: 'PW', c: ink.putWall } : near(k, levels.supreme) ? { t: 'SUP ★', c: ink.supreme } : null;
             if (tag) {
               const sw = ctx.measureText(fmtStrike(k)).width;
-              ctx.font = `700 7.5px ${FIG}`;
+              ctx.font = `700 9px ${FIG}`;
               ctx.fillStyle = tag.c;
               ctx.fillText(tag.t, colL + 6 + sw + 5, r.y + 0.5);
             }
@@ -1369,7 +1378,7 @@ const ProfilePanel = ({
       ctx.font = `9px ${FIG}`;
       ctx.fillStyle = ink.ink3;
       ctx.textAlign = 'center';
-      if (above) ctx.fillText(`▲ ${above}`, cx, HEAD_BAND + 6);
+      if (above) ctx.fillText(`▲ ${above}`, cx, HEAD_BAND + COUNT_BAND / 2 + 1);
       if (below) ctx.fillText(`▼ ${below}`, cx, H - FOOT_BAND / 2 + 1);
 
       /* THE LEVEL NAMES — the cards' chips at the flow lane's right edge when
@@ -1576,7 +1585,7 @@ const ProfilePanel = ({
             ] as const
           ).map(([name, v, sign]) => (
             <div key={name} className="flex items-center gap-2">
-              <span className="w-8 shrink-0 font-mono text-[8px] uppercase tracking-widest text-textMuted">{name}</span>
+              <span className="w-8 shrink-0 font-mono text-[9px] uppercase tracking-wider text-textMuted">{name}</span>
               <span className="flex-1 h-[5px] rounded-full bg-ink/[0.06] overflow-hidden">
                 <span className="block h-full rounded-full transition-colors duration-300" style={{ width: `${Math.round((v / cardLegMax) * 100)}%`, background: rampInk(sign, v / cardLegMax) }} />
               </span>
@@ -1587,7 +1596,7 @@ const ProfilePanel = ({
       )}
       <div className="mt-1.5 grid grid-cols-3 gap-2">
         <div>
-          <div className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Net</div>
+          <div className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Net</div>
           <div className="mt-0.5 flex items-center gap-1 font-mono text-[10px] tnum text-textPrimary">
             {cardRow.value !== 0 && <span className="w-2 h-2 rounded-full shrink-0 transition-colors duration-300" style={{ background: thermal(cardRow.value, hoverMax).fill }} aria-hidden />}
             {cardRow.value === 0 ? '—' : fmtUsd(Math.abs(cardRow.value))}
@@ -1595,11 +1604,11 @@ const ProfilePanel = ({
           {cardRow.value !== 0 && <div className="text-[9px] text-textMuted">{cardRow.value > 0 ? words.pos : words.neg}</div>}
         </div>
         <div>
-          <div className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Open int</div>
+          <div className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Open int</div>
           <div className="mt-0.5 font-mono text-[10px] tnum text-textPrimary">{cardLevel && (cardLevel.callOI != null || cardLevel.putOI != null) ? ((cardLevel.callOI ?? 0) + (cardLevel.putOI ?? 0)).toLocaleString('en-US') : '—'}</div>
         </div>
         <div>
-          <div className="font-mono text-[8px] uppercase tracking-widest text-textMuted">Since open</div>
+          <div className="font-mono text-[9px] uppercase tracking-wider text-textMuted">Since open</div>
           {/* the figure in the direction's ink; with no figure the short words take its line */}
           <div className={`mt-0.5 font-mono text-[10px] tnum ${sinceOpen == null ? 'text-textMuted' : sinceOpen.dir < 0 ? 'text-bear' : sinceOpen.dir > 0 ? 'text-bull' : 'text-textPrimary'}`} data-card-since>
             {sinceOpen == null ? '—' : sinceOpen.figure ?? sinceOpen.short}
@@ -1670,7 +1679,8 @@ const ProfilePanel = ({
             </span>
           )}
           {!tight && (
-            <span className="truncate">
+            /* it gives way first, so the kept word at the end is never cut (the audit's TE-9) */
+            <span className="truncate min-w-0">
               {readRow.rung
                 ? readRow.rung.flow === 0
                   ? 'no forced flow at this strike'
@@ -1678,7 +1688,7 @@ const ProfilePanel = ({
                 : 'the market is here'}
             </span>
           )}
-          {!tight && <span className="ml-auto text-textMuted">{hover ? (focusPrice != null && near(focusPrice, readRow.strike) ? 'kept · click to let go' : 'click to keep') : 'kept'}</span>}
+          {!tight && <span className="ml-auto shrink-0 text-textMuted">{hover ? (focusPrice != null && near(focusPrice, readRow.strike) ? 'kept · click to let go' : 'click to keep') : 'kept'}</span>}
         </>
       ) : (
         <span className="text-textMuted">{tiny ? 'hover a strike' : 'hover a strike · click to keep it'}</span>

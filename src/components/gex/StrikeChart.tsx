@@ -233,6 +233,13 @@ export interface ChartOverlays {
     An absent key on a saved set reads as off.
   */
   alerts?: boolean;
+  /* TERRAIN'S OWN LAYERS (2026-10-09, the ideas report): this chart never reads them — a Terrain pane draws them
+     through its `layer` (components/terrain). On this type so the reader toggles them from the same Overlays menu and
+     they are kept with the pane. Absent reads as off. */
+  /** Walls through the day — each strike's exposure through the session, behind the candles */
+  walls?: boolean;
+  /** The session's phases — the open, lunch, power hour (and the extended hours a tape carries) as quiet bands */
+  phases?: boolean;
 }
 
 /* Chart styles, TradingView's picker (Noah, 2026-08-23: "notice how candles
@@ -1061,6 +1068,9 @@ const StrikeChart = ({
   /* The app's theme moves the ground of a theme without a canvas of its own (2026-09-12) */
   const appTheme = useResolvedTheme();
   const themeKey = themeKeyProp ?? globalThemeKey;
+  /* THE RAIL STAYS BLACK ON A LIGHT TAPE (the brand rule; the audit's TE-11): at the dark tape's 55% rest-dim its black
+     read as a translucent grey slab on paper, so on a light ground it rests near whole */
+  const railRest = chartGround(themeKey) === 'light' ? 'opacity-95' : 'opacity-55';
   /* THE THEME THIS CHART PAINTS, wherever it is read (2026-09-13; Noah: "if I try to change
      the theme color of the charts on Pulse or Terrain it doesn't work but on the Weigher it
      works fine"): eight places below used to call the STORE's `themeRef.current`, so a pane
@@ -4653,7 +4663,7 @@ const StrikeChart = ({
             aria-label="Show the drawing tools"
             /* Black on any tape, like the rail it opens (index.css) */
             data-chart-rail
-            className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md text-textSecondary hover:text-textPrimary shadow-lg shadow-black/40 transition-[opacity,color] duration-300 opacity-55 hover:opacity-100 ${
+            className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md text-textSecondary hover:text-textPrimary shadow-lg shadow-black/40 transition-[opacity,color] duration-300 ${railRest} hover:opacity-100 ${
               rail.dock === 'left'
                 ? 'left-0 top-1/2 -translate-y-1/2 rounded-r-md border-l-0 px-1 py-2.5'
                 : /* the tab hangs from the pane's top edge, in the strip's middle, over the strip */
@@ -4701,7 +4711,7 @@ const StrikeChart = ({
                chart's ground (index.css [data-chart-rail]). */
             data-chart-rail
             className={`absolute ${rail.dock === 'top' ? 'z-40' : 'z-30'} border border-borderMuted bg-panel/60 backdrop-blur-md backdrop-saturate-150 rounded-md p-1 shadow-xl shadow-black/50 select-none flex items-stretch ${rail.dock === 'top' ? 'gap-px' : 'gap-0.5'} transition-opacity duration-300 ${
-              drawing ? 'opacity-100' : 'opacity-55 hover:opacity-100 focus-within:opacity-100'
+              drawing ? 'opacity-100' : `${railRest} hover:opacity-100 focus-within:opacity-100`
             } ${
               rail.dock === 'left'
                 ? /* 44 wide, not 34: a 24px ICON COLUMN and a 10px ARROW COLUMN beside it (Noah, 2026-09-19, TradingView's rail: "the arrow

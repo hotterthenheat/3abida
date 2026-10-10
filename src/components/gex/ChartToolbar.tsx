@@ -304,6 +304,8 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
   { key: 'cone', label: 'Expected move', hint: "The ±1σ/±2σ band the options priced for today, and what's left of it" },
   { key: 'events', label: 'Events', hint: 'Earnings, FOMC/CPI/NFP and the biggest option prints, marked on the tape' },
   { key: 'alerts', label: 'Alert lines', hint: 'A dotted line where each price alert waits — the bell tells you either way' },
+  { key: 'walls', label: 'Walls through the day', hint: "Each strike's exposure through the session, drawn behind the candles — the lens is the pane's" },
+  { key: 'phases', label: 'Session phases', hint: 'The open, lunch and power hour as quiet bands on the tape, on New York time' },
 ];
 
 /* T-15 — the overlays a rule clock holds: each assumes a fixed bar interval
@@ -312,7 +314,7 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
    MENU honest about it, and the two agree by construction because the chart
    gates on the same idea — no interval, no interval-based layer. */
 const CLOCK_HELD_OVERLAYS = new Set<keyof ChartOverlays>([
-  'trails', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events',
+  'trails', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'walls', 'phases',
 ]);
 
 /* Re-exported so every consumer keeps importing its menu vocabulary from the
