@@ -294,7 +294,7 @@ const ExposureMatrix = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         data-kept={on || undefined}
         title={you}
       >
-        <td className="px-2 py-1 bg-inset border-r border-borderSubtle/40 font-mono text-[11px] font-semibold tnum text-textSecondary whitespace-nowrap">
+        <td className="px-2 py-1 align-middle bg-inset border-r border-borderSubtle/40 font-mono text-[11px] font-semibold tnum text-textSecondary whitespace-nowrap">
           <span className={on || lit ? 'text-textPrimary' : ''}>{fmtStrike(r.strike)}</span>
           {tag && (
             <span className="ml-1.5 font-mono text-[11px] font-semibold" style={{ color: tag.ink }} data-matrix-role={tag.word}>

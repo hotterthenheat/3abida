@@ -289,7 +289,7 @@ interface CardProps {
     "Holds 72%" was filled to 72% and read as either) */
 const OddsBar = ({ label, value, words, ink }: { label: string; value: number | null; words: ReactNode; ink: string }) => (
   <div className="flex items-center gap-2 h-[16px]">
-    <span className="w-[62px] shrink-0 text-[11px] text-textMuted">{label}</span>
+    <span className="w-[84px] shrink-0 text-[11px] text-textMuted whitespace-nowrap">{label}</span>
     <span className="relative flex-1 h-[5px] rounded-full bg-ink/[0.06] overflow-hidden" aria-hidden>
       {value != null && <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700" style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: ink, opacity: 0.85, transitionTimingFunction: EASE }} />}
     </span>

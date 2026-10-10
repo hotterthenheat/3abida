@@ -55,10 +55,12 @@ interface HowSureProps {
   variant?: 'door' | 'line';
   align?: 'start' | 'end' | 'center';
   className?: string;
+  /** The door as its icon alone (a grid cell) — its name stays for the keys and the pointer */
+  compact?: boolean;
 }
 
 /** A quiet door beside a level that opens what it stands on */
-const HowSure = ({ sure, variant = 'door', align = 'start', className = '' }: HowSureProps) => {
+const HowSure = ({ sure, variant = 'door', align = 'start', className = '', compact = false }: HowSureProps) => {
   const door = (
     <button
       type="button"
@@ -70,7 +72,7 @@ const HowSure = ({ sure, variant = 'door', align = 'start', className = '' }: Ho
       data-how-sure={sure.level}
     >
       <Info className="w-3 h-3" />
-      How sure
+      {!compact && 'How sure'}
     </button>
   );
   const card = (

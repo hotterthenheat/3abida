@@ -110,7 +110,7 @@ const NameCell = ({ data, context }: ICellRendererParams<BoardRow, unknown, Boar
 /** The session's closes as one quiet line — the day's shape, not a chart — beside the price it ends on */
 const Spark = ({ spark }: { spark: number[] }) => {
   if (spark.length < 2) return null;
-  const W = 56;
+  const W = 40;
   const H = 20;
   const min = Math.min(...spark);
   const max = Math.max(...spark);
@@ -168,7 +168,7 @@ const WallCell = ({ data }: ICellRendererParams<BoardRow>) =>
       </span>
       <span className="text-[11px] font-semibold text-textPrimary">{fmtStrike(data.nearest.strike)}</span>
       <span className="text-[11px] text-textSecondary">{fmtPct(data.nearest.distPct)}</span>
-      {data.sure && <HowSure sure={data.sure[data.nearest.kind === 'call' ? 'call wall' : 'put wall']} />}
+      {data.sure && <HowSure compact sure={data.sure[data.nearest.kind === 'call' ? 'call wall' : 'put wall']} />}
     </span>
   ) : null;
 
@@ -188,7 +188,7 @@ const WatchCell = ({ data }: ICellRendererParams<BoardRow>) => {
         </span>
       )}
       <span className="text-[11px] text-textSecondary">
-        {Math.round(w.reach * 100)}% reached{w.isShelf ? ' · holds ' : ''}
+        {Math.round(w.reach * 100)}%{w.isShelf ? ' · holds ' : ''}
         {w.isShelf && <span style={{ color: SILVER }}>{Math.round(w.hold * 100)}%</span>}
       </span>
       <span className="text-[11px] text-textMuted">{fmtDollars(w.stake)}</span>
@@ -339,25 +339,25 @@ const Board = () => {
      name — on widths that fit a 1440 screen with the rail open and fill a wider one. */
   const columnDefs = useMemo<ColDef<BoardRow>[]>(
     () => [
-      { headerName: 'Name', field: 'ticker', pinned: 'left', width: 150, cellRenderer: NameCell, sortable: true, headerTooltip: 'A name and the contracts you hold on it — Enter or a click opens it on the Map' },
-      { headerName: 'Price · today', field: 'spot', flex: 1.2, minWidth: 176, cellRenderer: SpotCell, comparator: (a: number, b: number) => a - b, headerTooltip: "The last price, today's change, and the path since the open" },
+      { headerName: 'Name', field: 'ticker', pinned: 'left', width: 104, cellRenderer: NameCell, sortable: true, headerTooltip: 'A name and the contracts you hold on it — Enter or a click opens it on the Map' },
+      { headerName: 'Price · today', field: 'spot', flex: 1.2, minWidth: 160, cellRenderer: SpotCell, comparator: (a: number, b: number) => a - b, headerTooltip: "The last price, today's change, and the path since the open" },
       {
         headerName: 'Watch first',
         field: 'watch',
         flex: 2,
-        minWidth: 236,
+        minWidth: 214,
         cellRenderer: WatchCell,
         cellDataType: false,
-        headerTooltip: 'The strike to watch first on this name — the one most likely reached with the most at stake — with the odds it is reached, the odds it holds, and the dollars behind it',
+        headerTooltip: 'The strike to watch first on this name — the one most likely reached with the most at stake — with the odds it is reached by the close, the odds it holds when it is, and the dollars behind it',
         // The name whose first target matters most, first
         comparator: (a: BoardRow['watch'], b: BoardRow['watch']) => (a ? a.reach * a.stake : -1) - (b ? b.reach * b.stake : -1),
       },
-      { headerName: 'Hedging today', field: 'regime', flex: 1, minWidth: 124, cellRenderer: RegimeCell, headerTooltip: 'Which side of the flip price is on: above it dealer hedging absorbs moves, below it the hedging amplifies them' },
+      { headerName: 'Hedging today', field: 'regime', flex: 1, minWidth: 116, cellRenderer: RegimeCell, headerTooltip: 'Which side of the flip price is on: above it dealer hedging absorbs moves, below it the hedging amplifies them' },
       {
         headerName: 'Flip · crossed',
         field: 'flipDistPct',
         flex: 1.1,
-        minWidth: 148,
+        minWidth: 140,
         cellRenderer: FlipCell,
         sort: 'asc',
         headerTooltip: 'The price where dealer hedging switches sides, how far it is from spot, and how many times price has crossed it today — the names closest to flipping come first',
@@ -368,7 +368,7 @@ const Board = () => {
         headerName: 'Nearest wall',
         field: 'nearest',
         flex: 1.2,
-        minWidth: 220,
+        minWidth: 150,
         cellRenderer: WallCell,
         cellDataType: false,
         headerTooltip: 'The closest strike whose hedging pushes back on price, and how far it is',
@@ -379,7 +379,7 @@ const Board = () => {
         headerName: 'Net GEX',
         field: 'netGex',
         flex: 0.9,
-        minWidth: 100,
+        minWidth: 88,
         cellRenderer: NetCell,
         comparator: (a: number, b: number) => Math.abs(a) - Math.abs(b),
         /* THE SIGN, SAID ONCE (PP-3): the house sign is the street's turned over (data/exposure.ts) — positive is put-heavy
@@ -387,7 +387,7 @@ const Board = () => {
            against the flip, so a name can read "absorbing" there and positive here. */
         headerTooltip: "Today's hedging on the whole book added up, per 1% move. In this terminal positive means put-heavy, where dealer hedging makes moves bigger, and negative call-heavy, where it softens them. Hedging today reads which side of the flip price is on, so the two can differ",
       },
-      { headerName: 'Expires today', field: 'bellShare', flex: 1, minWidth: 112, cellRenderer: BellCell, headerTooltip: "The share of the name's hedging sitting in contracts that expire at 4:00 today — it is gone at the close, and the walls it made go with it" },
+      { headerName: 'Expires today', field: 'bellShare', flex: 1, minWidth: 116, cellRenderer: BellCell, headerTooltip: "The share of the name's hedging sitting in contracts that expire at 4:00 today — it is gone at the close, and the walls it made go with it" },
     ],
     []
   );

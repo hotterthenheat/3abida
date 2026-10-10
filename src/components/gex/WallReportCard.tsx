@@ -290,7 +290,8 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
                   <SessionStrip row={r} bars={bars} />
                   <div className="flex justify-between font-mono text-[11px] tnum text-textMuted px-1 -mt-0.5">
                     <span>{first != null ? hhmm(first) : ''}</span>
-                    <span>now</span>
+                    {/* "now" while the tape is live, else the minute it ends on (the close) */}
+                    <span>{last != null && Date.now() / 1000 - last > 180 ? hhmm(last) : 'now'}</span>
                   </div>
                 </div>
                 {/* Fixed tracks, so every row's strip ends on the same line whatever the words in the last fact */}
