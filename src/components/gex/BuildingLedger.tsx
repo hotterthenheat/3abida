@@ -513,14 +513,17 @@ const BuildingLedger = ({ data, ticker, clock, order, onOrder, window, onWindow,
                   </div>
                 </div>
                 {/* THE WALL NOW, and the lean under it */}
-                <div className="px-2 pr-[168px] min-w-0">
-                  <Wall row={r} max={maxAbs} />
+                {/* the bar keeps 168px past it for its figure; the lean under it takes the column's whole width */}
+                <div className="px-2 min-w-0">
+                  <div className="pr-[168px]">
+                    <Wall row={r} max={maxAbs} />
+                  </div>
                   {/* TWO LINES, NEVER CUT (PP-15): "call-heavy · dealers pus…" was cut on every row; the line wraps once and
                       the whole sentence is the row's title and its name for the keys */}
                   {(() => {
                     const lean = r.verdict === 'switched' ? `${r.now < 0 ? 'call-heavy' : 'put-heavy'} now · was ${r.open < 0 ? 'call-heavy' : 'put-heavy'} at the open` : sideWords(r.now).replace(', so ', ' · ');
                     return (
-                      <div className="mt-[4px] text-[11px] leading-[13px] text-textMuted line-clamp-2" title={lean} data-build-lean>
+                      <div className="mt-[4px] text-[11px] leading-[13px] text-textMuted line-clamp-1" title={lean} data-build-lean>
                         {lean}
                       </div>
                     );

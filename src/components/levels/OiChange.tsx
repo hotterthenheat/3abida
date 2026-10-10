@@ -40,18 +40,16 @@ interface Props {
 
 /** One leg's change as a bar from the strike outward — left for the puts, right for the calls */
 const Leg = ({ v, max, side }: { v: number; max: number; side: 'left' | 'right' }) => {
-  const w = Math.min(100, (Math.abs(v) / max) * 100);
+  const w = Math.min(1, Math.abs(v) / max);
   const ink = v >= 0 ? BULL : PUT_WALL;
-  return (
-    <div className={`relative h-full flex items-center gap-2 min-w-0 ${side === 'left' ? 'flex-row-reverse' : ''}`}>
-      <div className={`relative flex-1 h-[10px] min-w-0 flex ${side === 'left' ? 'justify-end' : 'justify-start'}`}>
-        {v !== 0 && <span className="h-full rounded-sm" style={{ width: `${w.toFixed(2)}%`, background: ink, opacity: 0.85 }} />}
-      </div>
-      <span className="shrink-0 w-[64px] font-mono text-[11px] tnum text-textSecondary whitespace-nowrap" style={{ textAlign: side === 'left' ? 'right' : 'left' }}>
-        {v === 0 ? '0' : fmtN(v)}
-      </span>
-    </div>
+  /* the figure hugs the bar's end, out from the strike */
+  const bar = v !== 0 && <span className="h-[10px] rounded-sm shrink-0" style={{ width: `calc((100% - 72px) * ${w.toFixed(4)})`, background: ink, opacity: 0.85 }} />;
+  const fig = (
+    <span className="shrink-0 font-mono text-[11px] tnum text-textSecondary whitespace-nowrap">
+      {v === 0 ? '0' : fmtN(v)}
+    </span>
   );
+  return <div className={`h-full flex items-center gap-1.5 min-w-0 ${side === 'left' ? 'justify-end' : 'justify-start'}`}>{side === 'left' ? [<span key="f" className="contents">{fig}</span>, <span key="b" className="contents">{bar}</span>] : [<span key="b" className="contents">{bar}</span>, <span key="f" className="contents">{fig}</span>]}</div>;
 };
 
 const OiChange = ({ data, ticker, window, focus, onPick, scope }: Props) => {
