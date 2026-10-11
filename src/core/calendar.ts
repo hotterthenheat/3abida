@@ -97,17 +97,26 @@ export function nextSession(from: Date = today()): Date {
   return walkToSession(atMidnight(from), 1);
 }
 
+/* REMEMBERED, NOT RE-WALKED (2026-10-11): the Compass board files every lens on every tenor each sweep, and a year-out
+   contract walked 365 days per setup. The count is a pure function of the two days, so it is kept by their keys. */
+const between = new Map<string, number>();
+
 /** Trading days between two dates (exclusive of `from`, inclusive of `to`). */
 export function sessionsBetween(from: Date, to: Date): number {
   const a = atMidnight(from);
   const b = atMidnight(to);
   if (b <= a) return 0;
+  const key = `${a.getTime()}|${b.getTime()}`;
+  const had = between.get(key);
+  if (had !== undefined) return had;
   let n = 0;
   const cur = new Date(a);
   while (cur < b) {
     cur.setDate(cur.getDate() + 1);
     if (isTradingDay(cur)) n++;
   }
+  if (between.size > 4000) between.clear();
+  between.set(key, n);
   return n;
 }
 

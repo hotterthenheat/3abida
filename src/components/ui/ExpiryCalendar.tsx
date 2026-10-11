@@ -30,7 +30,7 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { CARD } from './DropdownSelect';
@@ -73,9 +73,15 @@ interface ExpiryCalendarProps {
   onClear?: () => void;
   clearLabel?: string;
   anyLabel?: string;
+  /** Over the month: more ways to pick (Compass's expiration categories, 2026-10-11) — handed a close for the card */
+  head?: (close: () => void) => ReactNode;
+  /** Printed after the chosen date on the trigger (Compass: the date's category, " · Swing") */
+  valueNote?: string;
+  /** A word after a lit day's tooltip (Compass: its category) */
+  dayNote?: (e: Expiry) => string | undefined;
 }
 
-const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Icon = CalendarDays, ink, align = 'start', steppers = true, title, testId, onClear, clearLabel = 'Every expiry', anyLabel = 'Any' }: ExpiryCalendarProps) => {
+const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Icon = CalendarDays, ink, align = 'start', steppers = true, title, testId, onClear, clearLabel = 'Every expiry', anyLabel = 'Any', head, valueNote, dayNote }: ExpiryCalendarProps) => {
   const [open, setOpen] = useState(false);
   const t = useMemo(() => today(), []);
   const byIso = useMemo(() => new Map(expiries.map(e => [isoDate(e.date), e])), [expiries]);
@@ -125,8 +131,8 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Ico
             data-dropdown={testId ?? label}
             data-date-trigger
             title={title}
-            aria-label={`${label}: ${selected ? expiryWords(selected) : 'pick a date'}`}
-            className="hit group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
+            aria-label={`${label}: ${selected ? `${expiryWords(selected)}${valueNote ?? ''}` : onClear ? anyLabel : 'pick a date'}`}
+            className="hit group inline-flex items-center gap-1.5 h-7 max-sm:h-auto max-sm:min-h-7 max-sm:py-1 max-w-full px-2.5 rounded-md border border-borderSubtle bg-chip hover:border-borderMuted data-[state=open]:border-silver/50 transition-colors font-mono select-none"
             style={ink ? ({ '--ink': ink } as CSSProperties) : undefined}
           >
             <Icon
@@ -135,12 +141,21 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Ico
               data-dropdown-icon
             />
             <span className="text-[11px] text-textMuted">{label}</span>
-            <span className="text-[11px] font-semibold text-textPrimary tnum whitespace-nowrap">{selected ? expiryWords(selected) : onClear ? anyLabel : 'Pick a date'}</span>
+            <span className="text-[11px] font-semibold text-textPrimary tnum whitespace-nowrap max-sm:whitespace-normal max-sm:text-left max-sm:leading-tight">
+              {selected ? `${expiryWords(selected)}${valueNote ?? ''}` : onClear ? anyLabel : 'Pick a date'}
+            </span>
             <ChevronDown className="w-3 h-3 text-textMuted" />
           </button>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Content align={align} sideOffset={6} collisionPadding={12} className={`${CARD} w-[300px] p-3.5 outline-none`} data-date-picker={testId ?? label}>
+          <Popover.Content
+            align={align}
+            sideOffset={6}
+            collisionPadding={12}
+            className={`${CARD} w-[300px] max-w-[calc(100vw-24px)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-3.5 outline-none`}
+            data-date-picker={testId ?? label}
+          >
+            {head?.(() => setOpen(false))}
             {/* THE MONTH, with its chevrons — the drilldown's calendar, verbatim */}
             <div className="flex items-center justify-between mb-2.5">
               <button
@@ -186,7 +201,7 @@ const ExpiryCalendar = ({ value, expiries, onChange, label = 'Expiry', icon: Ico
                     type="button"
                     disabled={!listed}
                     onClick={() => listed && pick(listed)}
-                    title={listed ? `${expiryWords(listed)} · ${listed.dte === 0 ? 'expires at the bell' : `${listed.sessions} ${listed.sessions === 1 ? 'session' : 'sessions'}`}` : undefined}
+                    title={listed ? `${expiryWords(listed)} · ${listed.dte === 0 ? 'expires at the bell' : `${listed.sessions} ${listed.sessions === 1 ? 'session' : 'sessions'}`}${dayNote?.(listed) ? ` · ${dayNote(listed)}` : ''}` : undefined}
                     data-expiry-day={listed ? isoDate(d) : undefined}
                     className={`h-8 max-sm:h-10 rounded font-mono text-[12px] tnum transition-colors ${
                       !listed

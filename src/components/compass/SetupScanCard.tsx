@@ -17,6 +17,8 @@ import ContractLabel from '../ui/ContractLabel';
 import SessionSpark from './SessionSpark';
 import { recordOf, statusOf } from './campaignStore';
 import { processState, PROCESS_META } from './setupProcess';
+import type { FiledSetup } from '../../data/compassStandIn';
+import { FilingChips, whenTitle, whenWords } from './SetupFiling';
 
 /* `cased`: the label as written — "1σ move" upper-cased reads "1Σ MOVE", and Σ is a sum (the audit's CO-23) */
 const Stat = ({ label, value, ink = 'text-textPrimary', right = false, cased = false }: { label: string; value: string; ink?: string; right?: boolean; cased?: boolean }) => (
@@ -38,9 +40,12 @@ interface SetupScanCardProps {
   /** A card that OPENS its setup's page on the first click (Pulse's Compass widget, which has no rail for a selection to
       point): its tooltip says so, not "Select" (2026-10-01 — it promised a selection the widget never makes). */
   opens?: boolean;
+  /** Where the board filed it (2026-10-11): its expiration category on the chip, its structure and tags on a line of
+      their own. Absent (Pulse's tile), the chip is the tenor's. */
+  filing?: FiledSetup;
 }
 
-const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip, opens = false }: SetupScanCardProps) => {
+const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip, opens = false, filing }: SetupScanCardProps) => {
   const state = processState(setup);
   const meta = PROCESS_META[state];
   /* THE ONE DERIVATION (campaignStore): the targets the tape has crossed since the sweep found this setup, and whether a
@@ -87,8 +92,8 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
         >
           <ContractLabel contract={setup.contract} right={isCall ? 'C' : 'P'} logo={setup.ticker} />
         </button>
-        <span className="font-mono text-[11px] text-textSecondary border border-borderSubtle rounded px-1.5 py-0.5">
-          {setup.expiry} · {expiryChip}
+        <span className="font-mono text-[11px] text-textSecondary border border-borderSubtle rounded px-1.5 py-0.5" title={filing ? whenTitle(filing) : undefined} data-setup-when={filing?.exp.cat}>
+          {filing ? whenWords(filing) : `${setup.expiry} · ${expiryChip}`}
         </span>
         {rank === 1 && <SignalBadge tone="crown">Top pick</SignalBadge>}
         <span className="ml-auto flex items-center gap-1.5">
@@ -102,6 +107,9 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
           )}
         </span>
       </div>
+
+      {/* WHAT IT IS (2026-10-11): the structure with its legs, its notes and its tags */}
+      {filing && <FilingChips f={filing} />}
 
       {/* Stat row — edge-anchored like the rows above and below it (Noah,
           2026-08-17: a half-width cell read as "floating in the middle").

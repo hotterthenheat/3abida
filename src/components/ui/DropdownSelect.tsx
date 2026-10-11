@@ -21,7 +21,7 @@
 ==================================================
 */
 
-import { useRef, type CSSProperties } from 'react';
+import { Fragment, useRef, type CSSProperties } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
 import { focusBackForKeys } from './focusBack';
@@ -42,6 +42,16 @@ export interface DropdownOption<T extends string | number> {
   /** A choice that is the absence of one ("Not said") — the trigger prints it in the secondary ink, so a set choice
       reads as set (the journal's tags, 2026-09-22) */
   quiet?: boolean;
+  /** A SECTION'S NAME (2026-10-11, Compass's Kind card: Main and Advanced) — the rows that share it stand under one small
+      heading, in the order given; a row with none stands above the first section */
+  group?: string;
+  /** A row that belongs to the row above it (Compass's Steady and Big Payoff under Calls & Puts) — set in a step */
+  indent?: boolean;
+  /** Shown, never picked (Compass's structures that come after testing) — the keys pass over it */
+  disabled?: boolean;
+  /** The trigger's words when this row is chosen, where the row says more than the line of cards has room for
+      (Compass: the row's count stays in the card) — defaults to the label */
+  short?: string;
 }
 
 /* whole class strings, so Tailwind sees them */
@@ -93,7 +103,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
         <button
           type="button"
           data-dropdown={testId ?? label}
-          aria-label={`${label}: ${current?.label ?? ''}`}
+          aria-label={`${label}: ${current?.short ?? current?.label ?? ''}`}
           title={bare ? label : undefined}
           onPointerDown={() => (byKeys.current = false)}
           onKeyDown={() => (byKeys.current = true)}
@@ -114,7 +124,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
           {/* min-w-0 + truncate: a long value gives before the card does — on a desk; on a phone it wraps to a second line */}
           {/* the trigger wears the choice's tone — a Yes reads green, a No red, the way its row did (2026-09-22) */}
           <span className={`min-w-0 truncate max-sm:whitespace-normal max-sm:text-balance max-sm:leading-tight text-[11px] font-semibold ${current?.tone === 'bull' ? 'text-bull' : current?.tone === 'bear' ? 'text-bear' : current?.quiet ? 'text-textSecondary' : 'text-textPrimary'}`} data-tone={current?.tone ?? (current?.quiet ? 'quiet' : undefined)}>
-            {current?.label ?? '—'}
+            {current?.short ?? current?.label ?? '—'}
           </span>
           <ChevronDown className="w-3 h-3 shrink-0 text-textMuted" />
         </button>
@@ -123,7 +133,9 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
         <DropdownMenu.Content
           align={align}
           sideOffset={6}
-          className={`${CARD} min-w-[220px] p-1.5`}
+          collisionPadding={12}
+          /* a long list scrolls inside the card rather than running off a short screen */
+          className={`${CARD} min-w-[220px] ${options.some(o => o.group) ? 'max-w-[min(360px,calc(100vw-24px))]' : ''} max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto p-1.5`}
           data-dropdown-card={testId ?? label}
           onCloseAutoFocus={focusBackForKeys}
           /* the menu's entry focus (Radix's RovingFocusGroup, passed through though DropdownMenu's types leave it out): it
@@ -146,12 +158,18 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
               if (hit) onChange(hit.value);
             }}
           >
-            {options.map(o => (
+            {options.map((o, i) => (
+              <Fragment key={String(o.value)}>
+                {o.group && o.group !== options[i - 1]?.group && (
+                  <DropdownMenu.Label className={`px-2 pt-2 pb-1 text-[11px] font-semibold text-textSecondary ${i > 0 ? 'mt-1 border-t border-borderSubtle' : ''}`} data-dropdown-group={o.group}>
+                    {o.group}
+                  </DropdownMenu.Label>
+                )}
               <DropdownMenu.RadioItem
-                key={String(o.value)}
                 value={String(o.value)}
+                disabled={o.disabled}
                 data-tone={o.tone}
-                className={`group flex items-start gap-2 rounded-md px-2 py-1.5 outline-none cursor-pointer text-textSecondary ${ROW_WASH[o.tone ?? 'plain']} data-[state=checked]:text-textPrimary transition-colors`}
+                className={`group flex items-start gap-2 rounded-md px-2 py-1.5 outline-none text-textSecondary ${o.indent ? 'pl-5' : ''} ${o.disabled ? 'cursor-default text-textMuted' : `cursor-pointer ${ROW_WASH[o.tone ?? 'plain']}`} data-[state=checked]:text-textPrimary transition-colors`}
               >
                 <span className="mt-[2px] w-3 h-3 shrink-0 flex items-center justify-center">
                   <DropdownMenu.ItemIndicator>
@@ -163,6 +181,7 @@ const DropdownSelect = <T extends string | number>({ label, value, options, onCh
                   {o.hint && <span className="font-mono text-[11px] leading-snug text-textMuted">{o.hint}</span>}
                 </span>
               </DropdownMenu.RadioItem>
+              </Fragment>
             ))}
           </DropdownMenu.RadioGroup>
         </DropdownMenu.Content>

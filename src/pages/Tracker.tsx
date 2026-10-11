@@ -13,7 +13,7 @@ import { Bookmark, Trash2, ArrowUpRight } from 'lucide-react';
 import { useTracker } from '../context/TrackerContext';
 import { useMarketData } from '../context/MarketDataContext';
 import Simulator from '../core/simulator';
-import { gradeOfConfidence, makeSetup, setupIdOf } from '../data/compass';
+import { dteOfAddress, gradeOfConfidence, makeSetup, parseSetupId, setupIdOf } from '../data/compass';
 import { adoptRecord, recordOf, statusOf } from '../components/compass/campaignStore';
 import { SESSION_CLOSE_MIN, nyDay, nyIsoDate, nyMinutes } from '../core/nyTime';
 import { undoable } from '../components/ui/undo';
@@ -78,15 +78,11 @@ const expiryWords = (t: TrackedSetup) => (t.expiryDate ? calendarDay(t.expiryDat
 function rebuildLive(tracked: TrackedSetup): Setup {
   Simulator.ensureTicker(tracked.ticker);
   const cfg = Simulator.TICKERS[tracked.ticker];
-  return makeSetup(
-    tracked.ticker,
-    cfg.currentPrice,
-    tracked.strike,
-    tracked.right,
-    tracked.scanner,
-    cfg.iv,
-    sleeveOf(tracked)
-  );
+  /* a setup the board moved onto a listed date (2026-10-11) is priced on that date, under its own id */
+  const address = parseSetupId(tracked.id);
+  const dte = address ? dteOfAddress(address) : undefined;
+  const made = makeSetup(tracked.ticker, cfg.currentPrice, tracked.strike, tracked.right, tracked.scanner, cfg.iv, sleeveOf(tracked), dte !== undefined ? Math.max(dte, 0) : undefined);
+  return dte === undefined ? made : { ...made, id: tracked.id };
 }
 
 // ---- Tracked Setup Card (grid view) ----------------------------------------
@@ -337,7 +333,7 @@ const Tracker = ({ embedded = false }: { embedded?: boolean } = {}) => {
      board loaded first) */
   const handleReview = useCallback(
     (tracked: TrackedSetup) => {
-      navigate(`/compass/${setupIdOf({ ticker: tracked.ticker, strike: tracked.strike, right: tracked.right, scanner: tracked.scanner, sleeve: sleeveOf(tracked) })}`);
+      navigate(`/compass/${parseSetupId(tracked.id)?.on ? tracked.id : setupIdOf({ ticker: tracked.ticker, strike: tracked.strike, right: tracked.right, scanner: tracked.scanner, sleeve: sleeveOf(tracked) })}`);
     },
     [navigate]
   );

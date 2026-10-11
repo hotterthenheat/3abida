@@ -527,7 +527,20 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   are noted once per setup (kept for New York's day in the tab), and the card, table, page head, both charts and the
   Tracker all read `statusOf(recordOf(id))`; "found at" is the sweep's moment (a page no sweep listed says "opened
   at"). The board holds its order under the pointer or the keys. The why-texts are reads, never instructions; the
-  kind once called "Quick scalp" is "Fast movers" (its key stays `quick-scalp`).
+  kind once called "Quick scalp" is "Quick Scalps" again, the owner's name (2026-10-11; its key stays `quick-scalp`).
+- COMPASS'S BOARD FILES EVERY SETUP (2026-10-11 — the owner: "build this in compass UI NO MATH OR BACKEND THIS IS ALL
+  UI"; the reference is docs/compass-setups-2026-10-11.md). The line of cards is Expiry · Kind · Option type · Name ·
+  Layout, the first three in the board's address (`?exp=&kind=&type=`, remembered for the trip back). Expiry is the house
+  calendar with the categories over the month (0DTE, Weekly 1–7, Swing 8–45, Position 46–90, Long-Dated 91+, LEAPS a
+  tag past about nine months — calendar days to the LAST TRADING DAY); Kind is two sections, Main and Advanced, each
+  opening on its own option type; Option type is Calls & Puts (Steady, Big Payoff), Spreads, Premium Selling,
+  Volatility, and the structures that come later, disabled. Cards carry their structure and legs and the tags (Unusual
+  Activity, Penny Precision). THE 0DTE RULE is data/expiryClass.ts — read off each name's own listed dates, AM-settled
+  contracts last trade the session before, a half day ends 13:00, off hours show the next session's list as "Next
+  session", a 1DTE contract wears Overnight. THE STAND-IN MAPPING (listings per name, which lens's setup is which kind,
+  structure and tag) is data/compassStandIn.ts alone, to be replaced by the engine; a setup it moved onto a listed date
+  carries the date in its id (`…-YYYY-MM-DD[am]`). The order of Top Setups (expected profit after costs against expected
+  drawdown) and the tags await the engine. The landing's Compass films predate this and are stale until re-shot.
 - TERRAIN'S OVERLAYS (components/terrain/TerrainLayers.tsx, through StrikeChart's `layer`; both off by default, in the
   pane's Overlays menu): walls through the day — a strike × time heat behind the candles in the pane's lens (GEX,
   Charm or DEX), one cached bitmap an update — and the session's phases (the open, lunch, power hour) as quiet token

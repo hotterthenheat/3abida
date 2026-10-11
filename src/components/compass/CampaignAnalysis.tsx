@@ -65,6 +65,7 @@ import { useFadeClose } from '../ui/useFadeClose';
 import { undoable } from '../ui/undo';
 import { useTracker } from '../../context/TrackerContext';
 import {
+  EXPIRY_CAT_BY_KEY,
   SCANNERS,
   SLEEVES,
   isScannerEligible,
@@ -75,6 +76,8 @@ import {
   type SleeveKey,
 } from '../../types/compass';
 import { FONT_SANS } from '../../theme/fonts';
+import type { FiledSetup } from '../../data/compassStandIn';
+import { FilingChips, kindWords, whenTitle, whenWords } from './SetupFiling';
 
 let lastChartView: 'stock' | 'premium' = 'stock';
 
@@ -100,6 +103,9 @@ interface CampaignAnalysisProps {
       pick (which may carry a different tenor). The page's route does the rest
       (pages/compass/SetupPage.tsx, 2026-09-11); the way back lives there too. */
   onOpenContract?: (strike: number, right: OptionRight, sleeve?: SleeveKey) => void;
+  /** Where the board files it (2026-10-11): the head says its expiration category, kind, structure and tags as the
+      board's card does. Absent (Pulse's tile), the tenor and the lens. */
+  filing?: FiledSetup;
 }
 
 /** The driver list sweeps on the scan tier — structure must not vibrate with every tick. */
@@ -570,6 +576,7 @@ const CampaignAnalysis = ({
   scanner,
   sleeve,
   onOpenContract,
+  filing,
 }: CampaignAnalysisProps) => {
   const { trackSetup, untrackSetup, restoreTracked, trackedSetups, isTracked } = useTracker();
   const navigate = useNavigate();
@@ -789,8 +796,8 @@ const CampaignAnalysis = ({
   const caseWord = gradeOfConfidence(setup.confidence);
   const caseInk = GRADE_INK[caseWord];
   const sideWord = setup.right === 'C' ? 'a call, bullish' : 'a put, bearish';
-  const tenorWord = `${SLEEVE_LABEL[sleeve] ?? sleeve} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `${Math.round(setup.sessionsLeft)} ${Math.round(setup.sessionsLeft) === 1 ? 'session' : 'sessions'} left`}`;
-  const kindLabel = SCANNERS.find(s => s.key === scanner)?.label ?? scanner;
+  const tenorWord = `${filing ? EXPIRY_CAT_BY_KEY[filing.exp.cat].label : (SLEEVE_LABEL[sleeve] ?? sleeve)} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `${Math.round(setup.sessionsLeft)} ${Math.round(setup.sessionsLeft) === 1 ? 'session' : 'sessions'} left`}`;
+  const kindLabel = (filing && kindWords(filing)) || (SCANNERS.find(s => s.key === scanner)?.label ?? scanner);
   const targetsWord = retired
     ? `${hitCount} of ${c.takeProfits.length} hit before the break`
     : c.takeProfits.length === 0
@@ -822,7 +829,13 @@ const CampaignAnalysis = ({
                     {state}
                   </SignalBadge>
                 )}
-                <span className="px-1.5 py-0.5 rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">{SLEEVE_LABEL[sleeve] ?? sleeve}</span>
+                <span
+                  className="px-1.5 py-0.5 rounded border border-borderSubtle bg-ink/[0.05] font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap"
+                  title={filing ? whenTitle(filing) : undefined}
+                  data-setup-when={filing?.exp.cat}
+                >
+                  {filing ? whenWords(filing) : (SLEEVE_LABEL[sleeve] ?? sleeve)}
+                </span>
                 <span className="font-mono text-[11px] tracking-wider text-textMuted whitespace-nowrap">{kindLabel}</span>
                 <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chart, the targets and the case mean" testId="setup-guide" />
                 {/* READ THIS (2026-10-10): the setup in three sentences — its own why, what it stands on, what would end it */}
@@ -848,6 +861,12 @@ const CampaignAnalysis = ({
                 {' '}
                 · {foundWord} at <span className="text-textSecondary tnum">{foundAt}</span>, read live since then
               </p>
+              {/* WHAT IT IS (2026-10-11): the structure with its legs, its notes and its tags — the card's own line */}
+              {filing && (
+                <div className="mt-1.5">
+                  <FilingChips f={filing} />
+                </div>
+              )}
             </div>
           </div>
           <dl className="flex flex-wrap gap-x-6 gap-y-2" data-setup-facts>

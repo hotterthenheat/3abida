@@ -56,17 +56,148 @@ export interface ScannerDef {
 /* THE KINDS, in plain words (the Compass walk, 2026-09-11): the reader picks
    one on the board's Kind card. The keys are the engine's and the journal's —
    they never change; only the words did ("Whale Sweeps" echoed the
-   reference's brand word, banned on Trace the same way). */
+   reference's brand word, banned on Trace the same way). THE LENSES WEAR THE
+   OWNER'S KIND NAMES (2026-10-11, docs/compass-setups-2026-10-11.md): each
+   engine lens is the main source of one of the board's kinds (KINDS below),
+   so the Tracker, Pulse's tile and a setup's page say the same name. */
 export const SCANNERS: ScannerDef[] = [
-  { key: 'top-setups', label: 'Top ranked', blurb: 'The strongest by trend and hedging' },
-  /* "Fast movers", not "Quick scalp" (the audit's X8.2, 2026-10-09: a kind named for what to do is an instruction) —
-     what the kind finds: strikes where concentrated gamma makes small moves fast. The key stays the engine's. */
-  { key: 'quick-scalp', label: 'Fast movers', blurb: 'Where concentrated gamma makes small moves fast' },
-  { key: 'discounted', label: 'Discounted', blurb: 'Priced under the move expected' },
-  { key: 'rebounds', label: 'Rebounds', blurb: 'A turn off a level that held' },
-  { key: 'whale-sweeps', label: 'Big orders', blurb: 'Large orders swept across the exchanges' },
-  { key: 'all', label: 'All kinds', blurb: 'Every setup, whatever found it' },
+  { key: 'top-setups', label: 'Top Setups', blurb: 'The strongest by trend and hedging' },
+  /* "Quick Scalps", the owner's chosen name (2026-10-11 — it was "Fast movers" from the audit's X8.2): what the kind
+     finds — fast same-day index trades, where concentrated gamma makes small moves fast. The key stays the engine's. */
+  { key: 'quick-scalp', label: 'Quick Scalps', blurb: 'Where concentrated gamma makes small moves fast' },
+  { key: 'discounted', label: 'Cheap Options', blurb: 'Priced under the move expected' },
+  { key: 'rebounds', label: 'Bounces', blurb: 'A turn off a level that held' },
+  { key: 'whale-sweeps', label: 'Flow & Positioning', blurb: 'Large orders swept across the exchanges' },
+  { key: 'all', label: 'All Setups', blurb: 'Every setup, whatever found it' },
 ];
+
+/*
+  THE BOARD'S FILTERS (the owner, 2026-10-11: "build this in compass UI NO MATH
+  OR BACKEND THIS IS ALL UI" — docs/compass-setups-2026-10-11.md). Four cards on
+  the board's line: Expiry (a category, or a date on the calendar), Kind (two
+  sections, Main and Advanced), Option type (the structure a card is), Name.
+  These are the WORDS; which stand-in setup falls where is
+  data/compassStandIn.ts, and the 0DTE rule is data/expiryClass.ts.
+*/
+
+export type KindKey =
+  | 'top'
+  | 'quick-scalps'
+  | 'trend'
+  | 'breakouts'
+  | 'bounces'
+  | 'earnings'
+  | 'cheap'
+  | 'all'
+  | 'premium-selling'
+  | 'volatility'
+  | 'flow'
+  | 'events';
+
+export type KindTier = 'main' | 'advanced';
+
+/** The option type a kind opens on — Main's kinds are single legs by default */
+export type StrategyKey = 'single' | 'steady' | 'big' | 'spreads' | 'premium' | 'vol';
+
+export interface KindDef {
+  key: KindKey;
+  label: string;
+  /** One line: what the setup is, never what to do */
+  line: string;
+  tier: KindTier;
+  /** The option type the board turns to when this kind is picked */
+  opens: StrategyKey;
+}
+
+export const KINDS: KindDef[] = [
+  { key: 'top', label: 'Top Setups', line: 'The strongest few, across every kind', tier: 'main', opens: 'single' },
+  { key: 'quick-scalps', label: 'Quick Scalps', line: 'Fast same-day trades on indexes and index ETFs only — on single stocks they do not hold up', tier: 'main', opens: 'single' },
+  { key: 'trend', label: 'Trend Plays', line: 'A pullback inside a trend, then the trend carrying on', tier: 'main', opens: 'single' },
+  { key: 'breakouts', label: 'Breakouts', line: 'A break out of a range, or to a new high or low', tier: 'main', opens: 'single' },
+  { key: 'bounces', label: 'Bounces', line: 'A key level holding — support or resistance turned away, or a rebound after an unusually sharp move', tier: 'main', opens: 'single' },
+  {
+    key: 'earnings',
+    label: 'Earnings & Events',
+    line: 'Options pricing a smaller event move than the name has made before — the buying side; rich event premium is under Advanced, Events and Premium Selling',
+    tier: 'main',
+    opens: 'single',
+  },
+  { key: 'cheap', label: 'Cheap Options', line: 'Options priced low against the move expected', tier: 'main', opens: 'single' },
+  { key: 'all', label: 'All Setups', line: 'Every setup that qualifies', tier: 'main', opens: 'single' },
+  { key: 'premium-selling', label: 'Premium Selling', line: 'Options priced rich, and the structures that collect premium — put spreads among them', tier: 'advanced', opens: 'premium' },
+  { key: 'volatility', label: 'Volatility', line: 'Cheap against expensive options, volatility expanding, and IV crush', tier: 'advanced', opens: 'vol' },
+  { key: 'flow', label: 'Flow & Positioning', line: 'Unusual options activity, dealer gamma and dark-pool prints, as context', tier: 'advanced', opens: 'single' },
+  { key: 'events', label: 'Events', line: 'The implied move against the actual move — earnings, and Fed days broken down', tier: 'advanced', opens: 'vol' },
+];
+
+export const KIND_BY_KEY: Record<KindKey, KindDef> = Object.fromEntries(KINDS.map(k => [k.key, k])) as Record<KindKey, KindDef>;
+
+export interface StrategyDef {
+  key: StrategyKey;
+  label: string;
+  line: string;
+  /** Steady and Big Payoff are the two halves of Calls & Puts */
+  parent?: StrategyKey;
+}
+
+/** The option types the board lists; Calls & Puts is where it opens */
+export const STRATEGIES: StrategyDef[] = [
+  { key: 'single', label: 'Calls & Puts', line: 'Long calls and long puts' },
+  { key: 'steady', label: 'Steady', line: 'Deep in the money, a higher delta', parent: 'single' },
+  { key: 'big', label: 'Big Payoff', line: 'At the money, larger percentage moves possible', parent: 'single' },
+  { key: 'spreads', label: 'Spreads', line: 'Debit call spreads and debit put spreads' },
+  { key: 'premium', label: 'Premium Selling', line: 'Credit put spreads, SPX and XSP first, and cash-secured puts' },
+  { key: 'vol', label: 'Volatility', line: 'Long straddles and long strangles' },
+];
+
+export const STRATEGY_BY_KEY: Record<StrategyKey, StrategyDef> = Object.fromEntries(STRATEGIES.map(s => [s.key, s])) as Record<StrategyKey, StrategyDef>;
+
+/** Shown, never picked: the structures that come after testing */
+export const STRATEGIES_LATER = ['Calendars', 'Diagonals', 'Iron condors', 'Iron flies'] as const;
+
+/** The structure a card is — what its legs are */
+export type StructureKey = 'long-call' | 'long-put' | 'debit-call-spread' | 'debit-put-spread' | 'credit-put-spread' | 'cash-secured-put' | 'long-straddle' | 'long-strangle';
+
+/** Which option type each structure belongs to (Steady and Big Payoff are read off the single legs) */
+export const STRUCTURE_TYPE: Record<StructureKey, Exclude<StrategyKey, 'steady' | 'big'>> = {
+  'long-call': 'single',
+  'long-put': 'single',
+  'debit-call-spread': 'spreads',
+  'debit-put-spread': 'spreads',
+  'credit-put-spread': 'premium',
+  'cash-secured-put': 'premium',
+  'long-straddle': 'vol',
+  'long-strangle': 'vol',
+};
+
+export type TagKey = 'unusual' | 'penny';
+
+export const TAGS: Record<TagKey, { label: string; line: string }> = {
+  unusual: { label: 'Unusual Activity', line: 'Significant options flow agrees with the setup' },
+  penny: { label: 'Penny Precision', line: 'Helps identify potential short-strike levels' },
+};
+
+/** The expiration categories, by calendar days to the contract's last trading day */
+export type ExpiryCat = '0dte' | 'weekly' | 'swing' | 'position' | 'long';
+
+export interface ExpiryCatDef {
+  key: ExpiryCat;
+  label: string;
+  line: string;
+  /** Calendar days to the last trading day, inclusive — 0DTE is read off the day itself, not the count */
+  min: number;
+  max: number;
+}
+
+export const EXPIRY_CATS: ExpiryCatDef[] = [
+  { key: '0dte', label: '0DTE', line: 'Its last trading day is today', min: 0, max: 0 },
+  { key: 'weekly', label: 'Weekly', line: '1 to 7 days', min: 1, max: 7 },
+  { key: 'swing', label: 'Swing', line: '8 to 45 days', min: 8, max: 45 },
+  { key: 'position', label: 'Position', line: '46 to 90 days', min: 46, max: 90 },
+  { key: 'long', label: 'Long-Dated', line: '91 days or more — LEAPS past about nine months', min: 91, max: Number.POSITIVE_INFINITY },
+];
+
+export const EXPIRY_CAT_BY_KEY: Record<ExpiryCat, ExpiryCatDef> = Object.fromEntries(EXPIRY_CATS.map(c => [c.key, c])) as Record<ExpiryCat, ExpiryCatDef>;
 
 /*
   WHICH LENS RUNS ON WHICH TENOR (Noah, 2026-08-07). A fully-crossed grid

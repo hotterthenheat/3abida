@@ -8,7 +8,7 @@
 */
 
 import { blackScholesGreeks } from '../core/greeks';
-import { expiryFor, isoDate } from '../core/calendar';
+import { expiryFor, isoDate, today } from '../core/calendar';
 import type { MarketSnapshot, StrikeNode } from '../types/market';
 import { SLEEVE_BY_KEY, isScannerEligible } from '../types/compass';
 import type { Grade } from './stockOverview';
@@ -256,8 +256,11 @@ export function sleeveForDte(dte: number): SleeveKey {
 
 /* THE SETUP'S ID IS ITS ADDRESS (the Compass walk, 2026-09-11): a setup's
    page lives at /compass/<id>, so the id round-trips — built here, read back
-   here. Same shape `makeSetup` stamps: TICKER-strike-R-kind-tenor. */
-const ID_RE = /^([A-Z][A-Z0-9.]{0,6})-(\d+(?:\.\d+)?)-([CP])-(top-setups|quick-scalp|discounted|rebounds|whale-sweeps|all)-(odte|weekly|swing|leaps)$/;
+   here. Same shape `makeSetup` stamps: TICKER-strike-R-kind-tenor. A setup
+   the board moved onto one of its name's listed dates (2026-10-11,
+   data/compassStandIn.ts) carries that contract's last trading day after it,
+   and "am" when it is AM-settled: TICKER-strike-R-kind-tenor-YYYY-MM-DD[am]. */
+const ID_RE = /^([A-Z][A-Z0-9.]{0,6})-(\d+(?:\.\d+)?)-([CP])-(top-setups|quick-scalp|discounted|rebounds|whale-sweeps|all)-(odte|weekly|swing|leaps)(?:-(\d{4}-\d{2}-\d{2})(am)?)?$/;
 
 export interface SetupAddress {
   ticker: string;
@@ -265,17 +268,35 @@ export interface SetupAddress {
   right: OptionRight;
   scanner: ScannerKey;
   sleeve: SleeveKey;
+  /** The contract's last trading day, YYYY-MM-DD — absent, the tenor's own date */
+  on?: string;
+  /** AM-settled: its expiration is the session after `on` */
+  am?: boolean;
 }
 
 export function setupIdOf(a: SetupAddress): string {
   const strikeLabel = a.strike % 1 === 0 ? a.strike.toFixed(0) : a.strike.toFixed(2);
-  return `${a.ticker.toUpperCase()}-${strikeLabel}-${a.right}-${a.scanner}-${a.sleeve}`;
+  const dated = a.on ? `-${a.on}${a.am ? 'am' : ''}` : '';
+  return `${a.ticker.toUpperCase()}-${strikeLabel}-${a.right}-${a.scanner}-${a.sleeve}${dated}`;
 }
 
 export function parseSetupId(id: string): SetupAddress | null {
   const m = id.match(ID_RE);
   if (!m) return null;
-  return { ticker: m[1], strike: Number(m[2]), right: m[3] as OptionRight, scanner: m[4] as ScannerKey, sleeve: m[5] as SleeveKey };
+  const a: SetupAddress = { ticker: m[1], strike: Number(m[2]), right: m[3] as OptionRight, scanner: m[4] as ScannerKey, sleeve: m[5] as SleeveKey };
+  if (m[6]) {
+    a.on = m[6];
+    if (m[7]) a.am = true;
+  }
+  return a;
+}
+
+/** Calendar days from the engine's today to an address's dated contract — negative once it has passed */
+export function dteOfAddress(a: SetupAddress): number | undefined {
+  if (!a.on) return undefined;
+  const [y, mo, d] = a.on.split('-').map(Number);
+  const from = today();
+  return Math.round((new Date(y, mo - 1, d).getTime() - from.getTime()) / 86_400_000);
 }
 
 export function makeSetup(

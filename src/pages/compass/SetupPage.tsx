@@ -30,7 +30,8 @@ import { useMarketData } from '../../context/MarketDataContext';
 import { useSeeded } from '../../components/gex/useSeeded';
 import { suggest } from '../notFound/suggest';
 import { useNotFoundHead } from '../notFound/NotFound';
-import { makeSetup, parseSetupId, setupIdOf } from '../../data/compass';
+import { dteOfAddress, makeSetup, parseSetupId, setupIdOf } from '../../data/compass';
+import { boardDay, fileSetup, listingOfSetup } from '../../data/compassStandIn';
 import type { OptionRight, SleeveKey } from '../../types/compass';
 import CampaignAnalysis from '../../components/compass/CampaignAnalysis';
 import { CampaignSkeleton } from '../compassSkeleton';
@@ -67,9 +68,21 @@ const SetupPage = () => {
     Simulator.register(address.ticker);
     const cfg = Simulator.TICKERS[address.ticker];
     if (!cfg) return null;
-    return makeSetup(address.ticker, cfg.currentPrice, address.strike, address.right, address.scanner, cfg.iv, address.sleeve);
+    /* A DATED ADDRESS (2026-10-11): the board moved the setup onto one of its name's listed dates — the page prices that
+       contract, under the address it came by */
+    const dte = dteOfAddress(address);
+    if (dte !== undefined && dte < 0) return null;
+    const made = makeSetup(address.ticker, cfg.currentPrice, address.strike, address.right, address.scanner, cfg.iv, address.sleeve, dte);
+    return dte === undefined ? made : { ...made, id };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, marketData]);
+  /* Where the board files it — its category, structure and tags, the same pieces its card wears */
+  const filing = useMemo(() => {
+    if (!setup || !address) return null;
+    return fileSetup(setup, address.scanner, listingOfSetup(setup, address.am), boardDay(), Simulator.TICKERS[address.ticker]?.step ?? 1);
+  }, [setup, address]);
+  /* A dated contract whose last trading day has passed is no setup any more */
+  const passed = !!address && (dteOfAddress(address) ?? 0) < 0;
   const spot = address ? (Simulator.TICKERS[address.ticker]?.currentPrice ?? 0) : 0;
   /* AN ADDRESS NO CHAIN REACHES IS NO SETUP (the audit's CO-15: /compass/SPY-9999-P-rebounds-leaps drew "Premium $9337.14 ·
      FADING"): a strike more than half the price away from the market lists on no chain the terminal reads */
@@ -93,9 +106,9 @@ const SetupPage = () => {
   );
 
   /* an address that names no setup is a dead end: the tab says so and the page is kept out of search results */
-  useNotFoundHead(!address || beyondReach);
+  useNotFoundHead(!address || beyondReach || passed);
   const meant = !address && id ? suggest(`/compass/${id}`)[0] : undefined;
-  if (!address || beyondReach) {
+  if (!address || beyondReach || passed) {
     return (
       <>
         {back}
@@ -103,6 +116,7 @@ const SetupPage = () => {
           <span className="font-mono text-[13px] font-bold text-textPrimary">{id}</span>
           <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">no setup at this address</span>
           {beyondReach && <span className="text-[12px] text-textSecondary">No chain lists that strike — it is more than half the price away from the market.</span>}
+          {passed && <span className="text-[12px] text-textSecondary">That contract's last trading day has passed.</span>}
           {/* a slip of the hand lands here too — /compass/trakcer meant the Tracker (pages/notFound/suggest.ts, 2026-09-19) */}
           {meant && (
             <Link to={meant.path} className="mt-1 text-[12px] text-textSecondary hover:text-textPrimary transition-colors" data-not-found-link={meant.path}>
@@ -136,7 +150,7 @@ const SetupPage = () => {
     <>
       {back}
       <div key={id} className="animate-soft-in-slow" data-setup-page={id}>
-        <CampaignAnalysis setup={setup} revision={revision} spot={spot} scanner={address.scanner} sleeve={address.sleeve} onOpenContract={openContract} />
+        <CampaignAnalysis setup={setup} revision={revision} spot={spot} scanner={address.scanner} sleeve={address.sleeve} onOpenContract={openContract} filing={filing ?? undefined} />
       </div>
     </>
   );

@@ -12,5 +12,7 @@
   { "file": "src/components/paper/OptionsChain.tsx", "rule": "sell-the", "text": "Sell the {} {}", "reason": "The reader's own paper-money order button (Sell the 470 call), an action they take, not advice." },
   { "file": "src/**", "rule": "sell-into", "text": "No bid to sell into right now", "reason": "Paper and backtest order refusal: why the reader's own sell cannot fill." },
   { "file": "src/data/paper/sample.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." },
-  { "file": "src/data/review/journal.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." }
+  { "file": "src/data/review/journal.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." },
+  { "file": "src/types/compass.ts", "rule": "scalp", "text": "Quick Scalps", "reason": "the owner's kind name, 2026-10-11" },
+  { "file": "src/components/compass/CompassGuide.tsx", "rule": "scalp", "text": "Quick Scalps", "reason": "the owner's kind name, 2026-10-11" }
 ]

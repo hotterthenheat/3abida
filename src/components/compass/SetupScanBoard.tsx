@@ -20,7 +20,9 @@
 import { useMemo, useRef } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import type { Setup } from '../../types/compass';
-import { SCANNERS } from '../../types/compass';
+import { SCANNERS, TAGS } from '../../types/compass';
+import type { FiledSetup } from '../../data/compassStandIn';
+import { kindWords, whenTitle, whenWords } from './SetupFiling';
 import type { Column } from '../ui/DataTable';
 import SignalBadge from '../ui/SignalBadge';
 import ContractLabel from '../ui/ContractLabel';
@@ -33,9 +35,9 @@ export type ScanLayout = 'cards' | 'table';
 
 type Ranked = Setup & { rank: number };
 
-/** Which kind found a setup — the id carries it (`TICKER-strike-R-kind-sleeve`) */
-const kindOf = (s: Setup): string => {
-  const m = s.id.match(/-[CP]-(.+)-(odte|weekly|swing|leaps)(?:-\d+d)?$/);
+/** Which lens found a setup — the id carries it (`TICKER-strike-R-kind-sleeve`, a dated contract after it) */
+const lensOf = (s: Setup): string => {
+  const m = s.id.match(/-[CP]-(.+)-(odte|weekly|swing|leaps)(?:-\d+d|-\d{4}-\d{2}-\d{2}(?:am)?)?$/);
   const key = m?.[1];
   return SCANNERS.find(k => k.key === key)?.label ?? '';
 };
@@ -49,20 +51,27 @@ interface SetupScanBoardProps {
   onAnalysis: (setup: Setup) => void;
   /** Real-date chip for the active sleeve, e.g. "08/04/26". */
   expiryChip: string;
-  /** Under All kinds the grid says which kind found each row */
+  /** Under Top Setups and All Setups the grid says which kind each row is */
   showKind?: boolean;
+  /** Where the board filed each setup (2026-10-11) — its category, structure and tags */
+  filingOf?: (id: string) => FiledSetup | undefined;
 }
 
 /* THE TABLE FITS ITS BOX (the audit's CO-2: the contract was cut to "NVDA 120…", Open fell off the right edge and the
    expiry — the same on every row — took 150 px). The contract gets the room it needs, the expiry is said once by the
    Expiry card over the board, Open stands last at its own width, and the kind (under All kinds) takes what is left. */
-const WIDTHS: Record<string, number> = { rank: 44, contract: 176, state: 104, targets: 86, sigma: 80, premium: 84, breaks: 92, open: 72 };
+/* SINCE THE FILTERS (2026-10-11) the expiry differs row to row, so it has a column again, with the structure and the tags
+   beside it; the grid's sideways scroller carries what the box cannot hold, the contract pinned at the left */
+const WIDTHS: Record<string, number> = { rank: 44, contract: 176, when: 176, structure: 176, tags: 150, state: 104, targets: 86, sigma: 80, premium: 84, breaks: 92, open: 72 };
 const TOOLTIPS: Record<string, string> = {
   sigma: 'The one-sigma move of the stock to expiry — what the options price in',
   premium: 'The contract at the bid/ask midpoint, now',
   targets: 'The highest target a candle has crossed since the sweep found the setup',
   breaks: 'The stock price that retires the setup — a close through it and the thesis is gone',
   state: 'Watch · proving itself. Active · the structure is in place. Moving · the contract trades like its trade. Fading · retiring',
+  when: 'The expiration category and the date the contract is listed under',
+  structure: 'The structure this setup is shown as, with its legs',
+  tags: `${TAGS.unusual.label}: ${TAGS.unusual.line} · ${TAGS.penny.label}: ${TAGS.penny.line}`,
 };
 
 /* A chip inside a grid cell keeps its OWN line height — the cell's is the
@@ -70,13 +79,16 @@ const TOOLTIPS: Record<string, string> = {
    2026-09-11: "boxes bleeding into each other") */
 const Chip = ({ children }: { children: React.ReactNode }) => <span className="inline-flex leading-normal">{children}</span>;
 
-const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expiryChip, showKind = false }: SetupScanBoardProps) => {
+const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expiryChip, showKind = false, filingOf }: SetupScanBoardProps) => {
   const ranked = useMemo<Ranked[]>(() => setups.map((s, i) => ({ ...s, rank: i + 1 })), [setups]);
   /* THE COLUMNS HOLD STILL (the audit's CO-9: the page hands a fresh `onAnalysis` every render, the columns were rebuilt
      with it, and the grid re-applied the first sort on top of the reader's — "2 ·", "CO… 1 ↑", a sort that changed
      nothing). The door is read through a ref, so the columns are built once per shape. */
   const openRef = useRef(onAnalysis);
   openRef.current = onAnalysis;
+  const filingRef = useRef(filingOf);
+  filingRef.current = filingOf;
+  const filed = !!filingOf;
 
   const columns = useMemo<Column<Ranked>[]>(() => {
     const cols: Column<Ranked>[] = [
@@ -96,6 +108,44 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           </span>
         ),
       },
+      ...(filed
+        ? ([
+            {
+              key: 'when',
+              header: 'Expiry',
+              sortValue: r => filingRef.current?.(r.id)?.listing.last.getTime() ?? 0,
+              render: r => {
+                const f = filingRef.current?.(r.id);
+                return f ? (
+                  <span className="font-mono text-[11px] text-textSecondary" title={whenTitle(f)}>
+                    {whenWords(f)}
+                  </span>
+                ) : null;
+              },
+            },
+            {
+              key: 'structure',
+              header: 'Structure',
+              sortValue: r => filingRef.current?.(r.id)?.legs ?? '',
+              render: r => <span className="font-mono text-[11px] text-textSecondary">{filingRef.current?.(r.id)?.legs ?? ''}</span>,
+            },
+            {
+              key: 'tags',
+              header: 'Tags',
+              sortValue: r => filingRef.current?.(r.id)?.tags.length ?? 0,
+              render: r => {
+                const tags = filingRef.current?.(r.id)?.tags ?? [];
+                return tags.length ? (
+                  <span className="text-[11px] text-textPrimary" title={tags.map(t => `${TAGS[t].label}: ${TAGS[t].line}`).join(' · ')}>
+                    {tags.map(t => TAGS[t].label).join(' · ')}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-textMuted">—</span>
+                );
+              },
+            },
+          ] as Column<Ranked>[])
+        : []),
       {
         key: 'state',
         header: 'State',
@@ -135,6 +185,10 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
       { key: 'premium', header: 'Premium', align: 'right', sortValue: r => r.mid, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">${r.mid.toFixed(2)}</span> },
       { key: 'breaks', header: 'Breaks at', align: 'right', sortValue: r => r.invalidationPrice, render: r => <span className="font-mono text-[11px] tnum text-warn">${r.invalidationPrice.toFixed(2)}</span> },
     ];
+    const kindOf = (r: Ranked) => {
+      const f = filingRef.current?.(r.id);
+      return f ? kindWords(f) : lensOf(r);
+    };
     if (showKind) cols.push({ key: 'kind', header: 'Kind', sortValue: r => kindOf(r), render: r => <span className="text-[11px] text-textSecondary">{kindOf(r)}</span> });
     cols.push({
       key: 'open',
@@ -153,7 +207,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
       ),
     });
     return cols;
-  }, [showKind]);
+  }, [showKind, filed]);
 
   if (setups.length === 0) {
     return (
@@ -180,6 +234,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           initialSort={{ key: 'rank', dir: 'asc' }}
           emptyText="Nothing cleared the bar on this sweep"
           testId="compass-board"
+          pinLeft={filed ? ['rank', 'contract'] : undefined}
         />
       </div>
     );
@@ -190,7 +245,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
     <div key="cards" className="border-t border-borderSubtle px-5 pt-4 pb-5 animate-soft-in" data-compass-board="cards">
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {ranked.map(s => (
-          <SetupScanCard key={s.id} setup={s} rank={s.rank} selected={s.id === selectedId} onSelect={onSelect} onAnalysis={onAnalysis} expiryChip={expiryChip} />
+          <SetupScanCard key={s.id} setup={s} rank={s.rank} selected={s.id === selectedId} onSelect={onSelect} onAnalysis={onAnalysis} expiryChip={expiryChip} filing={filingOf?.(s.id)} />
         ))}
       </div>
     </div>

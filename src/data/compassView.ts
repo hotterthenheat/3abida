@@ -3,7 +3,7 @@
   SLAYER TERMINAL - THE BOARD'S VIEW (data/compassView.ts)
 
   What the reader had the Compass board set to —
-  the tenor, the kind, the layout, the name, the
+  the filters' address, the layout, the name, the
   selected card — kept across the trip to a
   setup's page and back (the page has its own
   route since 2026-09-11, so the board unmounts;
@@ -14,13 +14,14 @@
 */
 
 import { useSyncExternalStore } from 'react';
-import type { ScannerKey, SleeveKey } from '../types/compass';
 
 export type BoardLayout = 'cards' | 'table';
 
 export interface CompassView {
-  sleeve: SleeveKey;
-  scanner: ScannerKey;
+  /** THE FILTERS ARE THE BOARD'S ADDRESS (2026-10-11): Expiry, Kind and Option type live in /compass?exp=…&kind=…&type=…
+      so a link keeps them; this is the last address the board had, so coming back from a setup's page (its Back goes to
+      a bare /compass) lands on the same cut */
+  boardQuery: string;
   layout: BoardLayout;
   /** null = every name */
   tickerFilter: string | null;
@@ -31,7 +32,7 @@ export interface CompassView {
   chosenId: string | null;
 }
 
-let view: CompassView = { sleeve: 'odte', scanner: 'top-setups', layout: 'cards', tickerFilter: null, selectedId: null, chosenId: null };
+let view: CompassView = { boardQuery: '', layout: 'cards', tickerFilter: null, selectedId: null, chosenId: null };
 const subs = new Set<() => void>();
 
 export const setCompassView = (patch: Partial<CompassView>): void => {

@@ -55,7 +55,7 @@ const CardFigure = () => (
         </text>
         <rect x={118} y={12} width={82} height={18} rx={3} fill="none" stroke="#2a2a2a" />
         <text x={159} y={25} textAnchor="middle" fontSize={w} fill={SECOND} fontFamily={FIG}>
-          0DTE · today
+          0DTE · Today
         </text>
         <rect x={206} y={12} width={62} height={18} rx={3} fill={SUPREME} fillOpacity={0.1} stroke={SUPREME} strokeOpacity={0.5} />
         <text x={237} y={25} textAnchor="middle" fontSize={w} fontWeight={700} fill={SUPREME} fontFamily={FIG}>
@@ -175,15 +175,40 @@ const RailFigure = () => (
 export const CompassGuide = () => (
   <div data-compass-guide>
     <Section title="A card">
-      <p>One setup: its rank, the contract in its side's ink, the expiry, and its state. Under them the one-sigma move to expiry, the stock's line today, and the premium. The amber line is the stock price that retires it. Pressing a card selects it, and the heaviest contracts beside the board follow its name; Open, or a second press, opens its page. A target hit since the sweep found the setup shows as a green chip.</p>
+      <p>One setup: its rank, the contract in its side's ink, its expiration category and date, and its state; under them its structure with its legs, and its tags. Below, the one-sigma move to expiry, the stock's line today, and the premium. The amber line is the stock price that retires it. Pressing a card selects it, and the heaviest contracts beside the board follow its name; Open, or a second press, opens its page. A target hit since the sweep found the setup shows as a green chip.</p>
       <CardFigure />
     </Section>
     <Section title="The states">
       <p>Watch is on the board but not proven. Active means the level structure is in place. Moving means the contract now trades like its trade. Fading means it is retiring.</p>
       <StatesFigure />
     </Section>
-    <Section title="Expiry and kind">
-      <p>The Expiry card picks how long the trade lives, from today's contracts to a year out. The Kind card picks what found it: the strongest by trend and hedging, fast movers where gamma is concentrated, a discount, a rebound, or big orders. Not every kind is listed on every expiry: fast movers live on intraday moves, so none is listed a year out. While the pointer or the keys are on the board, the cards hold their places; a new order from the sweep waits until they leave.</p>
+    <Section title="Expiry">
+      <p>
+        A category or a date. 0DTE is a contract whose last trading day is today — read off each name&apos;s own listed dates, so a name with nothing ending today has no 0DTE and still has every other
+        category. The last trading day is not always the expiration date: an AM-settled contract, such as SPX&apos;s third-Friday monthly, stops trading the session before. A half day ends at 1:00 pm New
+        York. After the close, and on a weekend or a holiday, the 0DTE list is the next session&apos;s, and says so. The rest are counted in calendar days to the last trading day: Weekly 1 to 7, Swing 8 to
+        45, Position 46 to 90, Long-Dated 91 or more — and a long-dated contract with more than about nine months left wears LEAPS. A contract with one day left carries an Overnight note: a single night is
+        a big share of its life. On the calendar, the lit days are the dates the board&apos;s names list; picking one shows only that date, and All expiries clears it.
+      </p>
+    </Section>
+    <Section title="Kind">
+      <p>
+        Two sections. Main: Top Setups, Quick Scalps (same-day, on indexes and index ETFs only), Trend Plays, Breakouts, Bounces, Earnings &amp; Events (the buying side), Cheap Options and All Setups.
+        Advanced: Premium Selling, Volatility, Flow &amp; Positioning (context) and Events. Each kind opens on its own option type — Main&apos;s on Calls &amp; Puts — and its count is the board it opens
+        on.
+      </p>
+      <p className="mt-2">
+        Top Setups is the few strongest across every kind. The order is meant to weigh what a trade is expected to keep after its costs against the deepest drop it is expected to see on the way: the
+        most kept for the least drawn down comes first.
+      </p>
+    </Section>
+    <Section title="Option type and tags">
+      <p>
+        Calls &amp; Puts are long calls and long puts — Steady leans deep in the money, at a higher delta; Big Payoff sits at the money, where a move pays a larger share. Spreads are debit call and put
+        spreads; Premium Selling is credit put spreads, SPX and XSP first, and cash-secured puts; Volatility is long straddles and strangles. Calendars, diagonals, iron condors and iron flies come later.
+        Each card names its structure and legs. Unusual Activity marks significant options flow that agrees with the setup; Penny Precision marks a setup that helps identify potential short-strike levels.
+      </p>
+      <p className="mt-2">While the pointer or the keys are on the board, the cards hold their places; a new order from the sweep waits until they leave.</p>
     </Section>
     <Section title="The heaviest contracts">
       <p>Beside the board, the contracts that carry the most weight on the selected card's name. Click a column head to rank by it; the ranked column lights up with a bar. A row opens that contract's page.</p>
