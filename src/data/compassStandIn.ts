@@ -53,7 +53,7 @@ import { estimatePremium, makeSetup, setupIdOf } from './compass';
 import { isTradingDay, isoDate, today as engineToday } from '../core/calendar';
 import { boardDay as readBoardDay, daysBetween, readExpiry, sessionAfter, sessionBefore, type BoardDay, type ExpiryRead, type Listing } from './expiryClass';
 import type { KindKey, ScannerKey, Setup, SleeveKey, StructureKey, TagKey, UniverseQuote } from '../types/compass';
-import { STRUCTURE_TYPE } from '../types/compass';
+import { SLEEVE_BY_KEY, STRUCTURE_TYPE } from '../types/compass';
 
 // ---- a stable hash -----------------------------------------------------------------------------------------------------
 function hash(seed: string): number {
@@ -204,8 +204,12 @@ export interface FiledSetup {
 }
 
 const strikeWords = (k: number) => (k % 1 === 0 ? k.toFixed(0) : k.toFixed(2));
-/** A spread's width: about one percent of the strike, on the name's grid */
-const widthOf = (strike: number, step: number) => Math.max(step, Math.round((strike * 0.01) / step) * step);
+/** A spread's width: one rung of the engine's own strike ladder for the setup's tenor (SLEEVES rungPct — half a percent
+    on a same-day contract, six on a LEAPS), on the name's grid; a long-dated spread one strike wide nets nothing */
+const widthOf = (strike: number, step: number, sleeve: SleeveKey) => {
+  const pct = (SLEEVE_BY_KEY[sleeve] ?? SLEEVE_BY_KEY.weekly).rungPct;
+  return Math.max(step, Math.round((strike * pct) / step) * step);
+};
 const roundTo = (v: number, step: number) => Number((Math.round(v / step) * step).toFixed(2));
 const cents = (v: number) => Number(v.toFixed(2));
 
@@ -250,8 +254,8 @@ function structureOf(setup: Setup, lens: ScannerKey, vol: boolean): StructureKey
 }
 
 /** The legs, bought and sold, round the setup's strike on the name's grid */
-function legSet(structure: StructureKey, strike: number, step: number, right: 'C' | 'P'): StructureLeg[] {
-  const w = widthOf(strike, step);
+function legSet(structure: StructureKey, strike: number, step: number, right: 'C' | 'P', sleeve: SleeveKey): StructureLeg[] {
+  const w = widthOf(strike, step, sleeve);
   const k = roundTo(strike, step);
   const leg = (side: 'buy' | 'sell', r: 'C' | 'P', at: number): StructureLeg => ({ side, right: r, strike: roundTo(at, step), premium: null });
   switch (structure) {
@@ -384,7 +388,7 @@ export function fileSetup(setup: Setup, lens: ScannerKey, listing: Listing, day:
   /* PENNY PRECISION IS A PUT SALE'S (2026-10-11): its line is about short-strike levels, so only a structure with a short
      strike to place wears it */
   if (type === 'premium' && h % 3 !== 0) tags.push('penny');
-  const legList = priceLegs(legSet(structure, setup.strike, step, setup.right), setup, quote);
+  const legList = priceLegs(legSet(structure, setup.strike, step, setup.right, setup.sleeve), setup, quote);
   return {
     setup,
     lens,

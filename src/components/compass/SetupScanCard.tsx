@@ -168,7 +168,7 @@ const SetupScanCard = ({ setup, rank, selected, onSelect, onAnalysis, expiryChip
           </span>
         ) : (
           <span className="font-mono text-[11px] text-textMuted min-w-0 truncate" data-structure-breakeven="none">
-            No premium on the legs yet
+            No figures — the legs net no premium
           </span>
         )}
         {/* THE SELECTED CARD SAYS A SECOND PRESS OPENS (CO-10): its Open stands lit */}

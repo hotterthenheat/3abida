@@ -529,18 +529,34 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   at"). The board holds its order under the pointer or the keys. The why-texts are reads, never instructions; the
   kind once called "Quick scalp" is "Quick Scalps" again, the owner's name (2026-10-11; its key stays `quick-scalp`).
 - COMPASS'S BOARD FILES EVERY SETUP (2026-10-11 — the owner: "build this in compass UI NO MATH OR BACKEND THIS IS ALL
-  UI"; the reference is docs/compass-setups-2026-10-11.md). The line of cards is Expiry · Kind · Option type · Name ·
-  Layout, the first three in the board's address (`?exp=&kind=&type=`, remembered for the trip back). Expiry is the house
-  calendar with the categories over the month (0DTE, Weekly 1–7, Swing 8–45, Position 46–90, Long-Dated 91+, LEAPS a
-  tag past about nine months — calendar days to the LAST TRADING DAY); Kind is two sections, Main and Advanced, each
-  opening on its own option type; Option type is Calls & Puts (Steady, Big Payoff), Spreads, Premium Selling,
-  Volatility, and the structures that come later, disabled. Cards carry their structure and legs and the tags (Unusual
-  Activity, Penny Precision). THE 0DTE RULE is data/expiryClass.ts — read off each name's own listed dates, AM-settled
-  contracts last trade the session before, a half day ends 13:00, off hours show the next session's list as "Next
-  session", a 1DTE contract wears Overnight. THE STAND-IN MAPPING (listings per name, which lens's setup is which kind,
-  structure and tag) is data/compassStandIn.ts alone, to be replaced by the engine; a setup it moved onto a listed date
-  carries the date in its id (`…-YYYY-MM-DD[am]`). The order of Top Setups (expected profit after costs against expected
-  drawdown) and the tags await the engine. The landing's Compass films predate this and are stale until re-shot.
+  UI"; the reference is docs/compass-setups-2026-10-11.md, fixed the same day after the owner's review). The line of
+  cards is Expiry · Kind · Option type · Name · Layout, the first three in the board's address (`?exp=&kind=&type=`,
+  remembered for the trip back; `type=all` is the default and stays out). Expiry is the house calendar with the
+  categories over the month (0DTE, Weekly 1–7, Swing 8–45, Position 46–90, Long-Dated 91+, LEAPS a tag past about nine
+  months — calendar days to the LAST TRADING DAY). Kind is two sections, Main and Advanced, and LISTS its setups whatever
+  their structure; OPTION TYPE NARROWS WITHIN THE KIND: All types first and every kind's default, then Calls & Puts
+  (Steady — the higher-delta legs nearest the money, the engine lists no deep in-the-money strike; Big Payoff — further
+  out), Spreads, Premium Selling, Volatility, and the structures that come later, disabled; a kind keeps the type unless
+  the type has nothing in it (then All types); a type with 0 in the kind stays listed, greyed, the keys passing it. A
+  STRUCTURE FOLLOWS ITS SETUP'S DIRECTION: a call as a long call, a debit call spread, a credit put spread or a
+  cash-secured put; a put as a long put or a debit put spread; a long straddle or strangle only from the Volatility
+  kind's own setups, never a directional one. A CARD SPEAKS ITS STRUCTURE — the card, the table and the setup's head
+  alike: the chip names it on its name ("SPY 470/465 put spread", "AVGO 167.50 put", "SPY 475 straddle") in its lean's
+  ink (a put sale bull, a straddle the plain ink); its figures are its own (debit, max loss, max gain; credit, max
+  loss; credit, cash set aside; total cost) and its breakeven(s) stand where a single leg's session line and retire line
+  do — plain arithmetic of the legs, each leg priced by the engine's estimatePremium, never a model; legs that net no
+  premium show no figures. Penny Precision is a put sale's tag alone; Unusual Activity any card's. Top Setups is the
+  strongest few across every kind and option type (the best of each type, then the rest), in the sweep's own order;
+  expected profit after costs against expected drawdown is the order it will use once the engine gives those figures,
+  and the guide says so. NO NAME IS EVER SORTED AHEAD OF ANOTHER FOR BEING THAT NAME (the owner, 2026-10-11: "never put
+  any tickers first") — no ticker-first ordering, wording or added names. Quick Scalps lists index products' same-day
+  contracts alone, and says so when it holds few or none. Volatility and Events show no short-volatility structure (iron
+  condors and iron flies come later); the selling side of event premium is under Premium Selling. THE 0DTE RULE is
+  data/expiryClass.ts — read off each name's own listed dates, AM-settled contracts last trade the session before, a
+  half day ends 13:00, off hours show the next session's list as "Next session", a 1DTE contract wears Overnight. THE
+  STAND-IN MAPPING (listings per name, which lens's setup is which kind, structure and tag) is data/compassStandIn.ts
+  alone, to be replaced by the engine; a setup it moved onto a listed date carries the date in its id
+  (`…-YYYY-MM-DD[am]`). The landing's Compass films predate this and are stale until re-shot.
 - TERRAIN'S OVERLAYS (components/terrain/TerrainLayers.tsx, through StrikeChart's `layer`; both off by default, in the
   pane's Overlays menu): walls through the day — a strike × time heat behind the candles in the pane's lens (GEX,
   Charm or DEX), one cached bitmap an update — and the session's phases (the open, lunch, power hour) as quiet token

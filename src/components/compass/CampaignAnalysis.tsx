@@ -897,7 +897,7 @@ const CampaignAnalysis = ({
                 </Fact>
               ))
             ) : (
-              <Fact label="Legs" testId="structure-legs" title="The structure's legs — the data carries no premium for them yet">
+              <Fact label="Legs" testId="structure-legs" title="The structure's legs — without a premium for each, or netting nothing to the cent, it shows no figures">
                 <span className="text-textSecondary">{filing?.legs}</span>
               </Fact>
             )}

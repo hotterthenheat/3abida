@@ -14,5 +14,6 @@
   { "file": "src/data/paper/sample.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." },
   { "file": "src/data/review/journal.ts", "rule": "fade", "text": "Fade of a stretched move", "reason": "The setup name on a trade in the reader's journal (the owner keeps the sample journal), not the terminal's advice." },
   { "file": "src/types/compass.ts", "rule": "scalp", "text": "Quick Scalps", "reason": "the owner's kind name, 2026-10-11" },
-  { "file": "src/components/compass/CompassGuide.tsx", "rule": "scalp", "text": "Quick Scalps", "reason": "the owner's kind name, 2026-10-11" }
+  { "file": "src/components/compass/CompassGuide.tsx", "rule": "scalp", "text": "Quick Scalps", "reason": "the owner's kind name, 2026-10-11" },
+  { "file": "src/pages/compass/Board.tsx", "rule": "scalp", "text": "Quick Scalps lists same-day contracts on index products only.", "reason": "the owner's kind name, 2026-10-11 — its thin or empty board's line" }
 ]

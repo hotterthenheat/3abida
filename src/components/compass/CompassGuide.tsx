@@ -175,7 +175,14 @@ const RailFigure = () => (
 export const CompassGuide = () => (
   <div data-compass-guide>
     <Section title="A card">
-      <p>One setup: its rank, the contract in its side's ink, its expiration category and date, and its state; under them its structure with its legs, and its tags. Below, the one-sigma move to expiry, the stock's line today, and the premium. The amber line is the stock price that retires it. Pressing a card selects it, and the heaviest contracts beside the board follow its name; Open, or a second press, opens its page. A target hit since the sweep found the setup shows as a green chip.</p>
+      <p>One setup: its rank, its name in its lean&apos;s ink, its expiration category and date, and its state; under them its structure with its legs, and its tags. A single leg — a long call or a long put — shows the one-sigma move to expiry, the stock&apos;s line today and the premium, and the amber line is the stock price that retires it. Pressing a card selects it, and the heaviest contracts beside the board follow its name; Open, or a second press, opens its page. A target hit since the sweep found the setup shows as a green chip.</p>
+      <p className="mt-2">
+        A structure names itself on its chip — &ldquo;SPY 470/465 put spread&rdquo;, &ldquo;AVGO 167.50 put&rdquo;, &ldquo;SPY 475 straddle&rdquo; — in the ink of the way it leans: a credit put spread or a
+        cash-secured put leans up, so green; a straddle or a strangle leans neither way, so the plain ink. Its figures are its own, per share as a premium is quoted, each leg priced as the board prices
+        every contract: a debit spread&apos;s net debit, max loss (the debit) and max gain (the width less the debit); a credit put spread&apos;s credit and max loss (the width less the credit); a
+        cash-secured put&apos;s credit and the cash set aside (the strike × 100, per contract); a long straddle&apos;s or strangle&apos;s total cost. In place of the stock&apos;s line and the amber line it
+        shows where it breaks even at expiry — two prices for a straddle or a strangle.
+      </p>
       <CardFigure />
     </Section>
     <Section title="The states">
@@ -193,20 +200,30 @@ export const CompassGuide = () => (
     </Section>
     <Section title="Kind">
       <p>
-        Two sections. Main: Top Setups, Quick Scalps (same-day, on indexes and index ETFs only), Trend Plays, Breakouts, Bounces, Earnings &amp; Events (the buying side), Cheap Options and All Setups.
-        Advanced: Premium Selling, Volatility, Flow &amp; Positioning (context) and Events. Each kind opens on its own option type — Main&apos;s on Calls &amp; Puts — and its count is the board it opens
-        on.
+        Two sections. Main: Top Setups, Quick Scalps (same-day contracts on index products only), Trend Plays, Breakouts, Bounces, Earnings &amp; Events (the buying side), Cheap Options and All Setups.
+        Advanced: Premium Selling, Volatility (options cheap or rich against their own history, and long straddles and strangles for expansion), Flow &amp; Positioning (context) and Events (the implied
+        move against what followed, around earnings and Fed days). The selling side of event premium is under Premium Selling. A kind lists its setups whatever their structure; its count is the board it
+        would show.
       </p>
-      <p className="mt-2">
-        Top Setups is the few strongest across every kind. The order is meant to weigh what a trade is expected to keep after its costs against the deepest drop it is expected to see on the way: the
-        most kept for the least drawn down comes first.
+    </Section>
+    <Section title="Top Setups">
+      <p>
+        The few strongest across every kind and every option type: the strongest single leg, spread, put sale and straddle or strangle the sweep found, then the strongest of the rest — a contract once,
+        at most two a name, no name ahead of another for being that name. Once the engine gives each setup what it is expected to keep after its costs and the deepest drop it is expected to see on the
+        way, Top Setups will put the most kept for the least drawn down first. Until then it follows the sweep&apos;s own order.
       </p>
     </Section>
     <Section title="Option type and tags">
       <p>
-        Calls &amp; Puts are long calls and long puts — Steady leans deep in the money, at a higher delta; Big Payoff sits at the money, where a move pays a larger share. Spreads are debit call and put
-        spreads; Premium Selling is credit put spreads, SPX and XSP first, and cash-secured puts; Volatility is long straddles and strangles. Calendars, diagonals, iron condors and iron flies come later.
-        Each card names its structure and legs. Unusual Activity marks significant options flow that agrees with the setup; Penny Precision marks a setup that helps identify potential short-strike levels.
+        The option type narrows the kind by structure, and every kind opens on All types. Picking another kind keeps the type, unless the type has nothing in that kind — then it goes back to All types.
+        A type with nothing in the kind stays listed with its 0, greyed, and the keys pass over it.
+      </p>
+      <p className="mt-2">
+        Calls &amp; Puts are long calls and long puts — Steady is the higher-delta legs on the board, nearest the money (deep in-the-money legs when the chain lists them); Big Payoff is further out of
+        the money, at a lower delta, where a move pays a larger share. Spreads are debit call and put spreads; Premium Selling is credit put spreads and cash-secured puts; Volatility is long straddles
+        and strangles. A structure follows its setup&apos;s direction: one found as a call may show as a long call, a debit call spread, a credit put spread or a cash-secured put; one found as a put as a
+        long put or a debit put spread; a straddle or a strangle comes only from the Volatility kind&apos;s own setups. Calendars, diagonals, iron condors and iron flies come later, after testing.
+        Unusual Activity marks significant options flow that agrees with the setup; Penny Precision, on put sales alone, marks a setup that helps identify potential short-strike levels.
       </p>
       <p className="mt-2">While the pointer or the keys are on the board, the cards hold their places; a new order from the sweep waits until they leave.</p>
     </Section>
