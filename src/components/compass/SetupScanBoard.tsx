@@ -22,7 +22,7 @@ import { ArrowUpRight } from 'lucide-react';
 import type { Setup } from '../../types/compass';
 import { SCANNERS, TAGS } from '../../types/compass';
 import type { FiledSetup } from '../../data/compassStandIn';
-import { kindWords, whenTitle, whenWords } from './SetupFiling';
+import { breakevenWords, isSingleLeg, kindWords, netWords, structureName, structureStats, structureTone, whenTitle, whenWords } from './SetupFiling';
 import type { Column } from '../ui/DataTable';
 import SignalBadge from '../ui/SignalBadge';
 import ContractLabel from '../ui/ContractLabel';
@@ -62,12 +62,14 @@ interface SetupScanBoardProps {
    Expiry card over the board, Open stands last at its own width, and the kind (under All kinds) takes what is left. */
 /* SINCE THE FILTERS (2026-10-11) the expiry differs row to row, so it has a column again, with the structure and the tags
    beside it; the grid's sideways scroller carries what the box cannot hold, the contract pinned at the left */
-const WIDTHS: Record<string, number> = { rank: 44, contract: 176, when: 176, structure: 176, tags: 150, state: 104, targets: 86, sigma: 80, premium: 84, breaks: 92, open: 72 };
+const WIDTHS: Record<string, number> = { rank: 44, contract: 220, when: 176, structure: 176, tags: 150, state: 104, targets: 86, sigma: 80, premium: 110, figures: 220, breakeven: 150, breaks: 92, open: 72 };
 const TOOLTIPS: Record<string, string> = {
   sigma: 'The one-sigma move of the stock to expiry — what the options price in',
-  premium: 'The contract at the bid/ask midpoint, now',
+  premium: "A single leg: the contract at the bid/ask midpoint, now. A structure: what its legs net, per share — the debit or cost paid, or the credit taken",
+  figures: "A structure's own figures, per share: a debit spread's max loss and max gain, a credit spread's max loss, a cash-secured put's cash set aside (per contract)",
+  breakeven: "A structure's breakeven at expiry — two for a straddle or a strangle",
   targets: 'The highest target a candle has crossed since the sweep found the setup',
-  breaks: 'The stock price that retires the setup — a close through it and the thesis is gone',
+  breaks: "A single leg's retire line: the stock price that retires the setup — a close through it and the thesis is gone",
   state: 'Watch · proving itself. Active · the structure is in place. Moving · the contract trades like its trade. Fading · retiring',
   when: 'The expiration category and the date the contract is listed under',
   structure: 'The structure this setup is shown as, with its legs',
@@ -99,7 +101,8 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
         sortValue: r => r.ticker,
         render: r => (
           <span className="inline-flex items-center gap-2 min-w-0">
-            <ContractLabel contract={r.contract} right={r.right} logo={r.ticker} size="sm" />
+            {/* the structure on its name, in its lean's ink — the card's own chip */}
+            <ContractLabel contract={structureName(r, filingRef.current?.(r.id))} right={r.right} tone={structureTone(r, filingRef.current?.(r.id))} logo={r.ticker} size="sm" />
             {r.rank === 1 && (
               <Chip>
                 <SignalBadge tone="crown">Top pick</SignalBadge>
@@ -182,8 +185,65 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
         },
       },
       { key: 'sigma', header: '1σ move', align: 'right', sortValue: r => r.sigmaMovePct, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">±{r.sigmaMovePct.toFixed(1)}%</span> },
-      { key: 'premium', header: 'Premium', align: 'right', sortValue: r => r.mid, render: r => <span className="font-mono text-[11px] tnum text-textPrimary">${r.mid.toFixed(2)}</span> },
-      { key: 'breaks', header: 'Breaks at', align: 'right', sortValue: r => r.invalidationPrice, render: r => <span className="font-mono text-[11px] tnum text-warn">${r.invalidationPrice.toFixed(2)}</span> },
+      {
+        key: 'premium',
+        header: 'Premium',
+        align: 'right',
+        sortValue: r => {
+          const g = filingRef.current?.(r.id)?.figures;
+          return !g ? r.mid : g.kind === 'debit-spread' ? g.debit : g.kind === 'long-vol' ? g.cost : g.credit;
+        },
+        render: r => <span className="font-mono text-[11px] tnum text-textPrimary">{netWords(r, filingRef.current?.(r.id))}</span>,
+      },
+      ...(filed
+        ? ([
+            {
+              key: 'figures',
+              header: 'Structure figures',
+              sortValue: r => {
+                const g = filingRef.current?.(r.id)?.figures;
+                return !g ? -1 : g.kind === 'cash-secured' ? g.cash : g.kind === 'long-vol' ? g.cost : g.maxLoss;
+              },
+              render: r => {
+                const f = filingRef.current?.(r.id);
+                const stats = f && !isSingleLeg(f) ? structureStats(f)?.filter(st => st.key !== 'debit' && st.key !== 'credit' && st.key !== 'cost') : null;
+                return stats && stats.length ? (
+                  <span className="font-mono text-[11px] tnum text-textSecondary" title={stats.map(st => st.title).join(' · ')}>
+                    {stats.map(st => `${st.label} ${st.value}`).join(' · ')}
+                  </span>
+                ) : (
+                  <span className="font-mono text-[11px] text-textMuted">—</span>
+                );
+              },
+            },
+            {
+              key: 'breakeven',
+              header: 'Breakeven',
+              align: 'right',
+              sortValue: r => filingRef.current?.(r.id)?.figures?.breakevens[0] ?? 0,
+              render: r => {
+                const f = filingRef.current?.(r.id);
+                const be = f && !isSingleLeg(f) ? breakevenWords(f) : null;
+                return be ? (
+                  <span className="font-mono text-[11px] tnum text-textPrimary" title={be.title}>
+                    {be.value.replace(' and ', ' · ')}
+                  </span>
+                ) : (
+                  <span className="font-mono text-[11px] text-textMuted">—</span>
+                );
+              },
+            },
+          ] as Column<Ranked>[])
+        : []),
+      {
+        key: 'breaks',
+        header: 'Breaks at',
+        align: 'right',
+        sortValue: r => (isSingleLeg(filingRef.current?.(r.id)) ? r.invalidationPrice : 0),
+        /* the retire line is a single leg's; a structure stands on its breakeven(s) */
+        render: r =>
+          isSingleLeg(filingRef.current?.(r.id)) ? <span className="font-mono text-[11px] tnum text-warn">${r.invalidationPrice.toFixed(2)}</span> : <span className="font-mono text-[11px] text-textMuted">—</span>,
+      },
     ];
     const kindOf = (r: Ranked) => {
       const f = filingRef.current?.(r.id);
@@ -199,7 +259,7 @@ const SetupScanBoard = ({ setups, layout, selectedId, onSelect, onAnalysis, expi
           type="button"
           onClick={() => openRef.current(r)}
           title="Open the setup's page"
-          aria-label={`Open ${r.contract}'s page`}
+          aria-label={`Open ${structureName(r, filingRef.current?.(r.id))}'s page`}
           className="hit inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
         >
           Open <ArrowUpRight className="w-3 h-3" />

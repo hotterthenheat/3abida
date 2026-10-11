@@ -77,7 +77,7 @@ import {
 } from '../../types/compass';
 import { FONT_SANS } from '../../theme/fonts';
 import type { FiledSetup } from '../../data/compassStandIn';
-import { FilingChips, kindWords, whenTitle, whenWords } from './SetupFiling';
+import { FilingChips, breakevenWords, isSingleLeg, kindWords, leanWords, structureName, structureStats, structureTone, whenTitle, whenWords } from './SetupFiling';
 
 let lastChartView: 'stock' | 'premium' = 'stock';
 
@@ -795,7 +795,14 @@ const CampaignAnalysis = ({
      apart as caution or poor. The Tracker reads the same function, so the two cannot disagree. */
   const caseWord = gradeOfConfidence(setup.confidence);
   const caseInk = GRADE_INK[caseWord];
-  const sideWord = setup.right === 'C' ? 'a call, bullish' : 'a put, bearish';
+  /* THE HEAD SPEAKS THE STRUCTURE (2026-10-11): a spread, a put sale or a straddle names itself, in its lean's ink, and
+     its facts are its own figures and breakeven(s) — the premium and the retire line are a single leg's */
+  const sideWord = leanWords(setup, filing);
+  const single = isSingleLeg(filing);
+  const headName = structureName(setup, filing);
+  const headTone = structureTone(setup, filing);
+  const headStats = filing && !single ? structureStats(filing) : null;
+  const headBe = filing && !single ? breakevenWords(filing) : null;
   const tenorWord = `${filing ? EXPIRY_CAT_BY_KEY[filing.exp.cat].label : (SLEEVE_LABEL[sleeve] ?? sleeve)} · ${setup.expiry === '0DTE' ? 'expires at the bell' : `${Math.round(setup.sessionsLeft)} ${Math.round(setup.sessionsLeft) === 1 ? 'session' : 'sessions'} left`}`;
   const kindLabel = (filing && kindWords(filing)) || (SCANNERS.find(s => s.key === scanner)?.label ?? scanner);
   const targetsWord = retired
@@ -821,7 +828,9 @@ const CampaignAnalysis = ({
               {/* the contract's name is never the one squeezed: on a phone the badges wrap under it (2026-10-02 — at 390 px the
                   badges beside it took its whole width and the head read only "MOVING 0DTE Top ranked") */}
               <div className="min-h-6 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <h3 className={`shrink-0 max-w-full truncate text-[15px] font-semibold leading-tight ${setup.right === 'C' ? 'text-bull' : 'text-bear'}`}>{setup.contract}</h3>
+                <h3 className={`shrink-0 max-w-full truncate text-[15px] font-semibold leading-tight ${headTone === 'bull' ? 'text-bull' : headTone === 'bear' ? 'text-bear' : 'text-textPrimary'}`} data-tone={headTone}>
+                  {headName}
+                </h3>
                 {retired ? (
                   <SignalBadge tone="bear">Retired</SignalBadge>
                 ) : (
@@ -840,7 +849,7 @@ const CampaignAnalysis = ({
                 <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the chart, the targets and the case mean" testId="setup-guide" />
                 {/* READ THIS (2026-10-10): the setup in three sentences — its own why, what it stands on, what would end it */}
                 <ReadThis
-                  what={setup.contract}
+                  what={headName}
                   testId="setup"
                   read={() =>
                     setupReading({
@@ -872,6 +881,7 @@ const CampaignAnalysis = ({
           <dl className="flex flex-wrap gap-x-6 gap-y-2" data-setup-facts>
             {/* THE PREMIUMS, EACH NAMED (the audit's X1.4: one contract showed $0.76, $0.82, $0.73 and $0.70 at one moment, none
                 of them labelled) — the entry frozen where the sweep found it, now the bid/ask midpoint this tick */}
+            {single ? (
             <Fact label="Premium" testId="premium" title="Entry: the bid/ask midpoint when the sweep found it · now: the midpoint this tick">
               <span className="inline-flex items-baseline gap-1.5">
                 <span className="text-[11px] text-textMuted">entry</span>
@@ -880,6 +890,17 @@ const CampaignAnalysis = ({
                 <AnimatedNumber value={setup.mid} format={v => `$${v.toFixed(2)}`} flash />
               </span>
             </Fact>
+            ) : headStats ? (
+              headStats.map(st => (
+                <Fact key={st.key} label={st.label} testId={`structure-${st.key}`} title={st.title}>
+                  {st.value}
+                </Fact>
+              ))
+            ) : (
+              <Fact label="Legs" testId="structure-legs" title="The structure's legs — the data carries no premium for them yet">
+                <span className="text-textSecondary">{filing?.legs}</span>
+              </Fact>
+            )}
             <Fact label="The case" testId="case">
               <span className="inline-flex items-center gap-2" data-case={caseWord}>
                 <GradeMeter grade={caseWord} className="w-16" />
@@ -889,11 +910,17 @@ const CampaignAnalysis = ({
             <Fact label="Targets" testId="targets">
               {targetsWord}
             </Fact>
+            {single || !headBe ? (
             <Fact label="Breaks at" testId="breaks">
               <span className={retired ? 'text-bear' : 'text-warn'}>
                 {retired && floorBreak ? `broke $${floorBreak.floor.toFixed(2)}` : `${setup.right === 'C' ? 'below' : 'above'} $${c.invalidationPrice.toFixed(2)}`}
               </span>
             </Fact>
+            ) : (
+              <Fact label={headBe.label} testId="structure-breakeven" title={headBe.title}>
+                {headBe.value}
+              </Fact>
+            )}
             <Fact label="Liquidity" testId="liquidity">
               {setup.liquidityLabel} <span className="text-textMuted">· {setup.liquiditySpread}</span>
             </Fact>

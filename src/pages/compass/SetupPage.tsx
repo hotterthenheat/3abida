@@ -79,7 +79,9 @@ const SetupPage = () => {
   /* Where the board files it — its category, structure and tags, the same pieces its card wears */
   const filing = useMemo(() => {
     if (!setup || !address) return null;
-    return fileSetup(setup, address.scanner, listingOfSetup(setup, address.am), boardDay(), Simulator.TICKERS[address.ticker]?.step ?? 1);
+    const cfg = Simulator.TICKERS[address.ticker];
+    /* the structure's other legs priced as the page priced the setup's own: the name's price and IV now */
+    return fileSetup(setup, address.scanner, listingOfSetup(setup, address.am), boardDay(), cfg?.step ?? 1, cfg ? { spot: cfg.currentPrice, iv: cfg.iv } : null);
   }, [setup, address]);
   /* A dated contract whose last trading day has passed is no setup any more */
   const passed = !!address && (dteOfAddress(address) ?? 0) < 0;

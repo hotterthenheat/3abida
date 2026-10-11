@@ -87,7 +87,8 @@ import SetupScanBoard from '../../components/compass/SetupScanBoard';
 import { CompassGuide } from '../../components/compass/CompassGuide';
 import { processState } from '../../components/compass/setupProcess';
 import { noteFound } from '../../components/compass/campaignStore';
-import { boardDay, filePool, isSpxFamily, listingsFor, type FiledSetup } from '../../data/compassStandIn';
+import { boardDay, filePool, listingsFor, type FiledSetup } from '../../data/compassStandIn';
+import { structureName } from '../../components/compass/SetupFiling';
 import { readExpiry, type BoardDay } from '../../data/expiryClass';
 import { isIsoDay, oneOf, useAddressCut } from '../../components/trace/addressCut';
 import { nyClock } from '../../core/nyTime';
@@ -117,7 +118,8 @@ const isCat = (v: string): v is ExpiryCat => CAT_KEYS.includes(v);
 const CUT = {
   exp: { def: '', valid: (v: string) => isCat(v) || isIsoDay(v) },
   kind: { def: 'top', valid: oneOf(KINDS.map(k => k.key)) },
-  type: { def: 'single', valid: oneOf(STRATEGIES.map(t => t.key)) },
+  /* All types is where every kind opens (2026-10-11), so it stays out of the address */
+  type: { def: 'all', valid: oneOf(STRATEGIES.map(t => t.key)) },
 };
 
 interface BoardCut {
@@ -129,40 +131,61 @@ interface BoardCut {
 
 const inExpiry = (f: FiledSetup, exp: string) => (!exp ? true : isCat(exp) ? f.exp.cat === exp : isoDate(f.listing.expires) === exp);
 const ofType = (f: FiledSetup, type: StrategyKey) => {
+  if (type === 'all') return true;
   const t = STRUCTURE_TYPE[f.structure];
   if (type === 'steady') return t === 'single' && f.steady;
   if (type === 'big') return t === 'single' && !f.steady;
   return t === type;
 };
 const inKind = (f: FiledSetup, kind: KindKey) => kind === 'top' || kind === 'all' || f.kinds.includes(kind);
+/** The option types Top Setups holds one of, at least, when the sweep found any */
+const TOP_TYPES = ['single', 'spreads', 'premium', 'vol'] as const;
 
-/** The board for one cut: one card a contract (the strongest lens's), the strongest first — SPX and XSP first among the
-    premium sellers — and Top Setups the first few */
-function boardOf(pool: FiledSetup[], cut: BoardCut): FiledSetup[] {
+/**
+ * A KIND'S OWN LIST, before the option type: one card a contract (the strongest lens's), in the engine's order — the
+ * sweep's score, NO NAME AHEAD OF ANOTHER FOR BEING THAT NAME (the owner, 2026-10-11: "never put any tickers first").
+ * Top Setups is the first few across every kind and every option type: the strongest of each option type the sweep
+ * found, then the strongest of the rest, a contract once and at most two a name, shown in the engine's order.
+ */
+function kindList(pool: FiledSetup[], kind: KindKey, exp: string): FiledSetup[] {
   const best = new Map<string, FiledSetup>();
   for (const f of pool) {
-    if (!inExpiry(f, cut.exp) || !ofType(f, cut.type) || !inKind(f, cut.kind) || (cut.name && f.setup.ticker !== cut.name)) continue;
+    if (!inExpiry(f, exp) || !inKind(f, kind)) continue;
     const key = `${f.setup.ticker}|${f.legs}|${isoDate(f.listing.expires)}|${f.listing.am}`;
     const had = best.get(key);
     if (!had || f.setup.score > had.setup.score) best.set(key, f);
   }
-  let list = [...best.values()].sort((a, b) => b.setup.score - a.setup.score);
-  if (cut.type === 'premium') list = [...list.filter(f => isSpxFamily(f.setup.ticker)), ...list.filter(f => !isSpxFamily(f.setup.ticker))];
-  if (cut.kind !== 'top') return list;
+  const list = [...best.values()].sort((a, b) => b.setup.score - a.setup.score);
+  if (kind !== 'top') return list;
   /* THE FEW, NOT ONE CONTRACT FOUR TIMES: a contract once, on its strongest date, and at most two a name */
   const seen = new Set<string>();
   const perName = new Map<string, number>();
-  const few: FiledSetup[] = [];
-  for (const f of list) {
+  const taken = new Set<FiledSetup>();
+  const take = (f: FiledSetup): boolean => {
     const key = `${f.setup.ticker}|${f.legs}`;
     const n = perName.get(f.setup.ticker) ?? 0;
-    if (seen.has(key) || n >= 2) continue;
+    if (taken.has(f) || seen.has(key) || n >= 2) return false;
     seen.add(key);
     perName.set(f.setup.ticker, n + 1);
-    few.push(f);
-    if (few.length >= TOP_FEW) break;
+    taken.add(f);
+    return true;
+  };
+  /* EVERY OPTION TYPE STANDS IN IT (2026-10-11): the strongest single leg, spread, put sale and straddle or strangle */
+  for (const t of TOP_TYPES) {
+    const first = list.find(f => STRUCTURE_TYPE[f.structure] === t && !taken.has(f) && !seen.has(`${f.setup.ticker}|${f.legs}`) && (perName.get(f.setup.ticker) ?? 0) < 2);
+    if (first) take(first);
   }
-  return few;
+  for (const f of list) {
+    if (taken.size >= TOP_FEW) break;
+    take(f);
+  }
+  return list.filter(f => taken.has(f));
+}
+
+/** The board for one cut: the kind's list, narrowed by the option type */
+function boardOf(pool: FiledSetup[], cut: BoardCut): FiledSetup[] {
+  const list = kindList(pool, cut.kind, cut.exp).filter(f => ofType(f, cut.type));
+  return cut.name ? list.filter(f => f.setup.ticker === cut.name) : list;
 }
 
 /** "Next session · Mon Oct 12" or "Today" — the 0DTE row's own words */
@@ -281,9 +304,12 @@ const Board = () => {
   const filingById = useMemo(() => new Map(pool.map(f => [f.setup.id, f])), [pool]);
 
   /* THE COUNTS — each the board that pick would show (the audit's CO-3: a figure is the number its own board lists): a
-     kind's on its own option type, a type's and a category's on the cut around it; never the name filter */
-  const kindCounts = useMemo(() => Object.fromEntries(KINDS.map(k => [k.key, boardOf(pool, { kind: k.key, type: k.opens, exp })])) as Record<KindKey, FiledSetup[]>, [pool, exp]);
-  const typeCounts = useMemo(() => Object.fromEntries(STRATEGIES.map(t => [t.key, boardOf(pool, { kind, type: t.key, exp }).length])) as Record<StrategyKey, number>, [pool, kind, exp]);
+     kind's on the option type it would keep (the current one, or All types where the current one has nothing in it), a
+     type's within the kind, a category's on the cut around it; never the name filter */
+  const kindLists = useMemo(() => Object.fromEntries(KINDS.map(k => [k.key, kindList(pool, k.key, exp)])) as Record<KindKey, FiledSetup[]>, [pool, exp]);
+  const typeIn = useCallback((k: KindKey): StrategyKey => (type === 'all' || kindLists[k].some(f => ofType(f, type)) ? type : 'all'), [kindLists, type]);
+  const kindCounts = useMemo(() => Object.fromEntries(KINDS.map(k => [k.key, kindLists[k.key].filter(f => ofType(f, typeIn(k.key))).length])) as Record<KindKey, number>, [kindLists, typeIn]);
+  const typeCounts = useMemo(() => Object.fromEntries(STRATEGIES.map(t => [t.key, kindLists[kind].filter(f => ofType(f, t.key)).length])) as Record<StrategyKey, number>, [kindLists, kind]);
   const catCounts = useMemo(() => Object.fromEntries(EXPIRY_CATS.map(c => [c.key, boardOf(pool, { kind, type, exp: c.key }).length])) as Record<ExpiryCat, number>, [pool, kind, type]);
 
   /* The cut's board before the name, and with it */
@@ -373,15 +399,15 @@ const Board = () => {
     const rows = buildImpact(railSnapshot, railSleeve);
     return railWord ? rows.map(r => ({ ...r, expiry: railWord })) : rows;
   }, [railSnapshot, railSleeve, railWord]);
-  const railNote = selectedSetup ? `the #${rankedSetups.indexOf(selectedSetup) + 1} card, ${selectedSetup.contract}` : undefined;
+  const railNote = selectedSetup ? `the #${rankedSetups.indexOf(selectedSetup) + 1} card, ${structureName(selectedSetup, selectedFiling)}` : undefined;
 
   const activeKind = KIND_BY_KEY[kind];
   const activeType = STRATEGY_BY_KEY[type];
 
-  /* A KIND OPENS ON ITS OWN OPTION TYPE — Main's on Calls & Puts, Premium Selling on Premium Selling, Volatility and
-     Events on Volatility — and on every name, as the Kind card always did */
+  /* A KIND KEEPS THE OPTION TYPE (2026-10-11 — the type narrows within the kind): unless the type has nothing in the new
+     kind, then All types; and on every name, as the Kind card always did */
   const handleKind = (next: KindKey) => {
-    setCut({ kind: next, type: KIND_BY_KEY[next].opens });
+    setCut({ kind: next, type: typeIn(next) });
     setCompassView({ selectedId: null, tickerFilter: null });
   };
   const handleType = (next: StrategyKey) => {
@@ -473,15 +499,17 @@ const Board = () => {
 
   /* THE CARDS: Expiry (a category or a date), Kind in its two sections, Option type, the name, the layout */
   const kindOptions = useMemo<DropdownOption<KindKey>[]>(
-    () => KINDS.map(k => ({ value: k.key, label: `${k.label} · ${kindCounts[k.key]?.length ?? 0}`, short: k.label, hint: k.line, group: k.tier === 'main' ? 'Main' : 'Advanced' })),
+    () => KINDS.map(k => ({ value: k.key, label: `${k.label} · ${kindCounts[k.key] ?? 0}`, short: k.label, hint: k.line, group: k.tier === 'main' ? 'Main' : 'Advanced' })),
     [kindCounts]
   );
   const typeOptions = useMemo<DropdownOption<string>[]>(
     () => [
-      ...STRATEGIES.map(t => ({ value: t.key as string, label: `${t.label} · ${typeCounts[t.key] ?? 0}`, short: t.label, hint: t.line, indent: !!t.parent })),
+      /* A TYPE WITH NOTHING IN THE KIND stays listed with its 0, greyed, and the keys pass over it as they pass the
+         structures to come — unless it is the type on show */
+      ...STRATEGIES.map(t => ({ value: t.key as string, label: `${t.label} · ${typeCounts[t.key] ?? 0}`, short: t.label, hint: t.line, indent: !!t.parent, disabled: !typeCounts[t.key] && t.key !== type })),
       ...STRATEGIES_LATER.map(l => ({ value: `later-${l}`, label: l, group: 'Coming later, after testing', disabled: true })),
     ],
-    [typeCounts]
+    [typeCounts, type]
   );
   /* The Name card searches (Noah, 2026-09-11: "not a scroll down until you
      see the stock your looking for") — the ticker and the company both match */
@@ -505,7 +533,7 @@ const Board = () => {
     return `the ${expiryLabel(exp)} contracts`;
   }, [exp, pickedDate, day]);
   const horizonWords = topFiling ? (topFiling.exp.cat === '0dte' && !topFiling.exp.next ? 'by the bell' : `by ${expiryLabel(isoDate(topFiling.listing.expires))}`) : '';
-  const cutWords = `${activeKind.label}${activeType.key === 'single' ? '' : ` as ${activeType.label}`}`;
+  const cutWords = `${activeKind.label}${activeType.key === 'all' ? '' : ` as ${activeType.label}`}`;
 
   const sentence = useMemo<ReactNode>(() => {
     if (!rankedSetups.length || !top) {
@@ -526,13 +554,13 @@ const Board = () => {
       <>
         <RichRead text={lead} />
         <ReadDoor onOpen={() => openSetup(top)} title="Open the setup's page">
-          {top.contract}
+          {structureName(top, topFiling)}
         </ReadDoor>
         <RichRead text={`, ±${top.sigmaMovePct.toFixed(1)}% ${horizonWords}.`} />
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rankedSetups, top, byName, counts, expiryWords, horizonWords, lastScanAt, cutWords]);
+  }, [rankedSetups, top, topFiling, byName, counts, expiryWords, horizonWords, lastScanAt, cutWords]);
 
   /* THE RAIL'S TWO STANCES: a board shorter than the screen → the rail
      adopts the box's height and both end on one line; a board taller than the screen
@@ -588,7 +616,7 @@ const Board = () => {
                 </Fact>
                 {top && (
                   <Champion label="Top pick" ink="supreme" onOpen={() => openSetup(top)} testId="top-pick">
-                    {top.contract} · ±{top.sigmaMovePct.toFixed(1)}%
+                    {structureName(top, topFiling)} · ±{top.sigmaMovePct.toFixed(1)}%
                   </Champion>
                 )}
                 <Fact label="Found at" testId="found-at">
@@ -666,6 +694,12 @@ const Board = () => {
               }}
               data-board-held={holding || undefined}
             >
+              {/* QUICK SCALPS, THIN OR EMPTY, SAYS WHY (2026-10-11): its rule is index products' same-day contracts alone */}
+              {kind === 'quick-scalps' && rankedSetups.length < 4 && (
+                <p className="px-5 pt-3 -mb-1 text-[11px] leading-snug text-textMuted" data-compass-note="quick-scalps">
+                  Quick Scalps lists same-day contracts on index products only.
+                </p>
+              )}
               {/* the order waiting while the board holds — one quiet line, its door showing it now */}
               <div aria-live="polite" className={newOrder ? 'flex items-center justify-end gap-2 px-5 pt-2 -mb-1' : 'sr-only'}>
                 {newOrder && (

@@ -25,14 +25,23 @@ interface ContractLabelProps {
   /** e.g. "NVDA 112.50C" */
   contract: string;
   right: 'C' | 'P';
+  /** A STRUCTURE'S LEAN (Compass's board, 2026-10-11): the ink follows the structure's direction, not the leg's side — a
+      credit put spread is bullish, so the bull ink; a straddle leans neither way, so the plain ink. Absent, the side's. */
+  tone?: 'bull' | 'bear' | 'neutral';
   /** The name's mark before the pill (the global rule: a ticker travels with its logo) */
   logo?: string;
   size?: 'sm' | 'md';
   className?: string;
 }
 
-const ContractLabel = ({ contract, right, logo, size = 'md', className = '' }: ContractLabelProps) => {
-  const isCall = right === 'C';
+const INK = {
+  bull: 'text-bull border-bull/30 bg-bull/[0.06]',
+  bear: 'text-bear border-bear/30 bg-bear/[0.06]',
+  neutral: 'text-textPrimary border-borderMuted bg-ink/[0.04]',
+} as const;
+
+const ContractLabel = ({ contract, right, tone, logo, size = 'md', className = '' }: ContractLabelProps) => {
+  const ink = INK[tone ?? (right === 'C' ? 'bull' : 'bear')];
   return (
     <span className={`inline-flex items-center gap-1.5 min-w-0 ${className}`} data-contract-label={contract}>
       {logo && <CompanyLogo ticker={logo} size={size === 'sm' ? 14 : 16} />}
@@ -40,7 +49,7 @@ const ContractLabel = ({ contract, right, logo, size = 'md', className = '' }: C
           row's 36px) and stood 40px tall in a 39px row, its border past the row's rules (Noah,
           2026-09-14: "the con cards are bleeding out of their respected row"); the pill's own line
           keeps it 21px (sm) / 24px (md) wherever it stands */}
-      <span className={`font-mono font-bold leading-normal rounded border whitespace-nowrap ${size === 'sm' ? 'text-[11px] px-1 py-px' : 'text-[12px] px-1.5 py-0.5'} ${isCall ? 'text-bull border-bull/30 bg-bull/[0.06]' : 'text-bear border-bear/30 bg-bear/[0.06]'}`}>{contract}</span>
+      <span data-tone={tone ?? (right === 'C' ? 'bull' : 'bear')} className={`font-mono font-bold leading-normal rounded border whitespace-nowrap ${size === 'sm' ? 'text-[11px] px-1 py-px' : 'text-[12px] px-1.5 py-0.5'} ${ink}`}>{contract}</span>
     </span>
   );
 };

@@ -96,8 +96,8 @@ export type KindKey =
 
 export type KindTier = 'main' | 'advanced';
 
-/** The option type a kind opens on — Main's kinds are single legs by default */
-export type StrategyKey = 'single' | 'steady' | 'big' | 'spreads' | 'premium' | 'vol';
+/** The option types: All types (where every kind opens), Calls & Puts with its two halves, and the structures */
+export type StrategyKey = 'all' | 'single' | 'steady' | 'big' | 'spreads' | 'premium' | 'vol';
 
 export interface KindDef {
   key: KindKey;
@@ -105,29 +105,29 @@ export interface KindDef {
   /** One line: what the setup is, never what to do */
   line: string;
   tier: KindTier;
-  /** The option type the board turns to when this kind is picked */
-  opens: StrategyKey;
 }
 
+/* THE KIND LISTS, THE OPTION TYPE NARROWS (2026-10-11, the owner's review): a kind lists its setups whatever their
+   structure, and the Option type card narrows them — every kind opens on All types, and picking a kind keeps the type
+   unless the type has nothing in the new kind. A kind's line says only what its board can show. */
 export const KINDS: KindDef[] = [
-  { key: 'top', label: 'Top Setups', line: 'The strongest few, across every kind', tier: 'main', opens: 'single' },
-  { key: 'quick-scalps', label: 'Quick Scalps', line: 'Fast same-day trades on indexes and index ETFs only — on single stocks they do not hold up', tier: 'main', opens: 'single' },
-  { key: 'trend', label: 'Trend Plays', line: 'A pullback inside a trend, then the trend carrying on', tier: 'main', opens: 'single' },
-  { key: 'breakouts', label: 'Breakouts', line: 'A break out of a range, or to a new high or low', tier: 'main', opens: 'single' },
-  { key: 'bounces', label: 'Bounces', line: 'A key level holding — support or resistance turned away, or a rebound after an unusually sharp move', tier: 'main', opens: 'single' },
+  { key: 'top', label: 'Top Setups', line: 'The strongest few, across every kind and option type', tier: 'main' },
+  { key: 'quick-scalps', label: 'Quick Scalps', line: 'Fast same-day trades on indexes and index ETFs only — on single stocks they do not hold up', tier: 'main' },
+  { key: 'trend', label: 'Trend Plays', line: 'A pullback inside a trend, then the trend carrying on', tier: 'main' },
+  { key: 'breakouts', label: 'Breakouts', line: 'A break out of a range, or to a new high or low', tier: 'main' },
+  { key: 'bounces', label: 'Bounces', line: 'A key level holding — support or resistance turned away, or a rebound after an unusually sharp move', tier: 'main' },
   {
     key: 'earnings',
     label: 'Earnings & Events',
-    line: 'Options pricing a smaller event move than the name has made before — the buying side; rich event premium is under Advanced, Events and Premium Selling',
+    line: 'Options pricing a smaller event move than the name has made before — the buying side; the selling side is under Premium Selling',
     tier: 'main',
-    opens: 'single',
   },
-  { key: 'cheap', label: 'Cheap Options', line: 'Options priced low against the move expected', tier: 'main', opens: 'single' },
-  { key: 'all', label: 'All Setups', line: 'Every setup that qualifies', tier: 'main', opens: 'single' },
-  { key: 'premium-selling', label: 'Premium Selling', line: 'Options priced rich, and the structures that collect premium — put spreads among them', tier: 'advanced', opens: 'premium' },
-  { key: 'volatility', label: 'Volatility', line: 'Cheap against expensive options, volatility expanding, and IV crush', tier: 'advanced', opens: 'vol' },
-  { key: 'flow', label: 'Flow & Positioning', line: 'Unusual options activity, dealer gamma and dark-pool prints, as context', tier: 'advanced', opens: 'single' },
-  { key: 'events', label: 'Events', line: 'The implied move against the actual move — earnings, and Fed days broken down', tier: 'advanced', opens: 'vol' },
+  { key: 'cheap', label: 'Cheap Options', line: 'Options priced low against the move expected', tier: 'main' },
+  { key: 'all', label: 'All Setups', line: 'Every setup that qualifies', tier: 'main' },
+  { key: 'premium-selling', label: 'Premium Selling', line: 'Options priced rich, and the structures that collect premium: credit put spreads and cash-secured puts', tier: 'advanced' },
+  { key: 'volatility', label: 'Volatility', line: 'Options cheap or rich against their own history, and long straddles and strangles for expansion', tier: 'advanced' },
+  { key: 'flow', label: 'Flow & Positioning', line: 'Unusual options activity, dealer gamma and dark-pool prints, as context', tier: 'advanced' },
+  { key: 'events', label: 'Events', line: 'The implied move against what followed, around earnings and Fed days', tier: 'advanced' },
 ];
 
 export const KIND_BY_KEY: Record<KindKey, KindDef> = Object.fromEntries(KINDS.map(k => [k.key, k])) as Record<KindKey, KindDef>;
@@ -140,13 +140,16 @@ export interface StrategyDef {
   parent?: StrategyKey;
 }
 
-/** The option types the board lists; Calls & Puts is where it opens */
+/** The option types the board lists; All types is where every kind opens. STEADY SAYS WHAT IT IS (2026-10-11): the
+    engine lists strikes from the money outward, so no setup today is deep in the money — Steady is the higher-delta
+    legs, nearest the money, and takes deep in-the-money legs once the chain lists them; Big Payoff the legs further out */
 export const STRATEGIES: StrategyDef[] = [
+  { key: 'all', label: 'All types', line: 'Every structure in the kind' },
   { key: 'single', label: 'Calls & Puts', line: 'Long calls and long puts' },
-  { key: 'steady', label: 'Steady', line: 'Deep in the money, a higher delta', parent: 'single' },
-  { key: 'big', label: 'Big Payoff', line: 'At the money, larger percentage moves possible', parent: 'single' },
+  { key: 'steady', label: 'Steady', line: 'The higher-delta legs on the board, nearest the money; deep in-the-money legs when the chain lists them', parent: 'single' },
+  { key: 'big', label: 'Big Payoff', line: 'Out of the money, a lower delta — larger percentage moves possible', parent: 'single' },
   { key: 'spreads', label: 'Spreads', line: 'Debit call spreads and debit put spreads' },
-  { key: 'premium', label: 'Premium Selling', line: 'Credit put spreads, SPX and XSP first, and cash-secured puts' },
+  { key: 'premium', label: 'Premium Selling', line: 'Credit put spreads and cash-secured puts' },
   { key: 'vol', label: 'Volatility', line: 'Long straddles and long strangles' },
 ];
 
@@ -159,7 +162,7 @@ export const STRATEGIES_LATER = ['Calendars', 'Diagonals', 'Iron condors', 'Iron
 export type StructureKey = 'long-call' | 'long-put' | 'debit-call-spread' | 'debit-put-spread' | 'credit-put-spread' | 'cash-secured-put' | 'long-straddle' | 'long-strangle';
 
 /** Which option type each structure belongs to (Steady and Big Payoff are read off the single legs) */
-export const STRUCTURE_TYPE: Record<StructureKey, Exclude<StrategyKey, 'steady' | 'big'>> = {
+export const STRUCTURE_TYPE: Record<StructureKey, Exclude<StrategyKey, 'all' | 'steady' | 'big'>> = {
   'long-call': 'single',
   'long-put': 'single',
   'debit-call-spread': 'spreads',
