@@ -621,8 +621,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
 - THE RAIL'S PRICE FOLLOWS THE PAGE'S ROOM (2026-10-12; docs/data-feed.md): the shell's subject (the rail, the phone's
   strip) reads UW's stock-state on a page whose room reads the feed (data/feed/rooms.ts `pageSource` by the address —
   Trace, the Dossier, Pinpoint and Terrain now, a room wired later on its own), the house's on every other page, a page no room holds
-  included; the watchlist drawer's rows follow the same rule (UW's day state and book over a feed page) (Practice, Settings, the Glossary: Practice marks on the house's book, and the watchlist and alerts drawers
-  open anywhere with the house's figures). One poll a name (data/feed/price.ts `useFeedPrice`, `uw:state:<NAME>`, 10 s)
+  included (Practice, Settings, the Glossary: Practice marks on the house's book, and the alerts drawer opens anywhere
+  with the house's figures). The watchlist drawer's rows follow the same rule (UW's day state and book over a feed page). One poll a name (data/feed/price.ts `useFeedPrice`, `uw:state:<NAME>`, 10 s)
   shared with the rooms' pages; a 429 keeps the last good price five minutes. UW has no index price on Basic (422): on
   a feed page an index is "—", not in the feed (on Pinpoint and Terrain its book's price, the change left off) — never
   the house's figure there.
@@ -646,3 +646,17 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   good answer — never a flash back to the house's book. An index has no day state and no bars on this plan (422):
   never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane says its bars are not in the feed.
   Pulse is not wired: its Pinpoint panels read the house's book. A pop-out probes the feed itself (PopOutFrame).
+- THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
+  "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
+  offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE
+  MARKET A SESSION, START TO END: the engine asks `marketOf(session)` (data/review/market.ts) for every price — the house's
+  tape, or a session's record (`src: 'feed'`, realTape.ts) — never both; a real session whose record is not in moves and
+  fills nothing, and its desk says what is being asked or why it cannot come (RealDayDoor), never the tape under it. A
+  real session holds the day picked and up to nine sessions after it on the record, two before for the chart; a half
+  session is never offered. Few calls, kept for the visit (data/feed/backtest.ts): the picker's two years of day bars and
+  a session's minutes are one call a name, its listings one (`as_of` its first day), the strikes one an expiry, a
+  contract's own minute trades one a contract, asked when it is opened; a 429 is waited out and said. THE FILL RULE: a
+  contract fills only in a minute it traded, at that minute's volume-weighted average (bid = ask = mark, no spread made
+  up); between its trades the price is the house's estimate on the name's real price, shown with ≈, and dead; open
+  interest is "—". A closed real trade writes its walk and its candles into the session (realKeep.ts — a path a session
+  day), so the journal and the report never ask the record again; the journal and the session list say "Real days".

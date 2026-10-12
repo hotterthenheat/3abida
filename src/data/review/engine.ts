@@ -76,9 +76,11 @@
 */
 
 import { MAX_STOPS, MAX_TARGETS, giveUp, ladderShapeRefusal, nextRung, rungsOf, type LadderBracket } from './ladder';
-import { contractKey, dteAt, legsOf, quoteAt, quoteWith, spotForBid, type ContractId, type Quote } from './quotes';
-import { LAST_MIN, dayIndex, tapeDays } from './tape';
+import { contractKey, dteAt, legsOf, sessionsLeft, type ContractId, type Quote } from './quotes';
+import { LAST_MIN } from './tape';
+import { dayOrdinal, marketOf, type ReplayMarket } from './market';
 import type { DayNote, JournalEntry } from './journal';
+import type { HeldRecord, TradePath } from '../paper/engine';
 
 /** A cursor: the END of minute `minute` (0…389) of a day */
 export interface Moment {
@@ -183,12 +185,32 @@ export interface Session {
   createdAt: number;
   touchedAt: number;
   seq: number;
+  /** WHERE ITS MARKET COMES FROM (2026-10-12): absent, the house's tape; 'feed', the market's own record — a real day
+      (market.ts, realTape.ts). One or the other for the whole session, never both. */
+  src?: 'feed';
+  real?: RealBook;
+}
+/** What a session on real days keeps of its market (data/review/realKeep.ts writes it) */
+export interface RealBook {
+  /** The sessions it replays, oldest first: the day picked and the sessions on the record after it */
+  days: string[];
+  /** A few sessions before the first, for the chart */
+  before: string[];
+  /** Each name's vol over the sessions before the first day — what an estimate is priced on before a contract trades */
+  vol: Record<string, number>;
+  /** The mark each open contract last showed — what the session list shows while the record is not in */
+  marks?: Record<string, number>;
+  /** By trade id, written as it closes: what it was worth while it was held, and the name's candles — the journal draws
+      them without asking the record again (the paper account's shapes) */
+  held?: Record<string, HeldRecord>;
+  /** A path a session day: the record's minutes are New York's sessions, never one unbroken line across the nights */
+  paths?: Record<string, TradePath[]>;
 }
 
 export const DEFAULT_FEE = 0.65;
 export const MULT = 100;
 /** A moment as one number, for order. 2,000 a day: an option's day is 390 minutes */
-export const stampOf = (m: Moment): number => dayIndex(m.day) * 2000 + m.minute;
+export const stampOf = (m: Moment): number => dayOrdinal(m.day) * 2000 + m.minute;
 const cents = (v: number) => Math.round(v * 100) / 100;
 
 /** The names a session trades, first one first */
@@ -266,7 +288,7 @@ interface Book {
   positions: Position[];
   trades: Trade[];
 }
-const heldMinutes = (a: Moment, b: Moment) => Math.max(0, (dayIndex(b.day) - dayIndex(a.day)) * (LAST_MIN + 1) + (b.minute - a.minute));
+const heldMinutes = (a: Moment, b: Moment) => Math.max(0, (b.day > a.day ? sessionsLeft(a.day, b.day) : 0) * (LAST_MIN + 1) + (b.minute - a.minute));
 /** Every fill, in order, folded into the positions still open and the trades that closed */
 export function bookOf(s: Session): Book {
   interface Open {
@@ -369,8 +391,9 @@ export interface Account {
 export function accountOf(s: Session): Account {
   const { positions, trades } = bookOf(s);
   const cash = cashOf(s);
+  const mk = marketOf(s);
   const marked = positions.map(p => {
-    const quote = quoteAt(p.contract, s.cursor.day, s.cursor.minute);
+    const quote = mk.quoteAt(p.contract, s.cursor.day, s.cursor.minute);
     const value = quote.mark * MULT * p.qty;
     const cost = p.avg * MULT * p.qty + p.fees;
     return { ...p, quote, value: cents(value), pnl: cents(value - cost), r: cost > 0 ? (value - cost) / cost : 0 };
@@ -402,11 +425,11 @@ const nextId = (s: Session, p: string): [string, Session] => [`${p}${s.seq + 1}`
 
 /** The planned risk a buy carried: its stop as a price of the contract — for a stop on the name, what the contract would
     have bid with the name there, at the minute of the buy */
-function plannedStopOf(o: Order, at: Moment): number | undefined {
+function plannedStopOf(mk: ReplayMarket, o: Order, at: Moment): number | undefined {
   const { stops } = rungsOf(o.bracket, o.qty);
   if (!stops.length) return undefined;
   /* more than one: where they stand on average, by their contracts */
-  const asContract = (level: number) => (o.bracket?.on === 'name' ? quoteWith(o.contract, at.day, at.minute, level).bid : level);
+  const asContract = (level: number) => (o.bracket?.on === 'name' ? mk.quoteWith(o.contract, at.day, at.minute, level).bid : level);
   const n = stops.reduce((a, r) => a + r.qty, 0);
   return cents(stops.reduce((a, r) => a + asContract(r.price) * r.qty, 0) / Math.max(1, n));
 }
@@ -441,7 +464,7 @@ function afterSell(s: Session, sold: Order, q: Quote, at: Moment): Session {
         ...next,
         orders: next.orders.map(o => {
           if (o.status !== 'working' || o.oco !== sold.oco || o.kind !== 'stop' || !o.breakeven) return o;
-          const now = o.on === 'name' ? quoteWith(o.contract, at.day, at.minute, o.price ?? 0).bid : (o.price ?? 0);
+          const now = o.on === 'name' ? marketOf(s).quoteWith(o.contract, at.day, at.minute, o.price ?? 0).bid : (o.price ?? 0);
           /* only where it would still wait, and never DOWN */
           if (!(q.bid > pos.avg) || pos.avg <= now) return { ...o, breakeven: false };
           return { ...o, on: undefined, price: pos.avg, breakeven: false, moved: at, ...(o.trail != null ? { trail: cents(Math.max(0.01, q.bid - pos.avg)), peak: q.bid } : {}) };
@@ -466,7 +489,7 @@ function afterSell(s: Session, sold: Order, q: Quote, at: Moment): Session {
 
 function fillNow(s: Session, o: Order, price: number, how: FillHow, q: Quote, at: Moment): Session {
   let [id, next] = nextId(s, 'f');
-  const fill: Fill = { id, orderId: o.id || null, at, contract: o.contract, side: o.side, qty: o.qty, price: cents(price), fee: how === 'expired' ? 0 : cents(s.fee * o.qty * legsOf(o.contract)), how, spot: q.spot, delta: q.delta, iv: q.iv, theta: q.theta, tag: o.tag, plannedStop: plannedStopOf(o, at) };
+  const fill: Fill = { id, orderId: o.id || null, at, contract: o.contract, side: o.side, qty: o.qty, price: cents(price), fee: how === 'expired' ? 0 : cents(s.fee * o.qty * legsOf(o.contract)), how, spot: q.spot, delta: q.delta, iv: q.iv, theta: q.theta, tag: o.tag, plannedStop: plannedStopOf(marketOf(s), o, at) };
   next = { ...next, fills: [...next.fills, fill], orders: next.orders.map(x => (x.id === o.id ? { ...x, status: 'filled' as const, done: at, fillPrice: fill.price } : x)) };
   /* a sell: the ladder it belongs to — or stands beside — is made to fit what is still held */
   if (o.side === 'sell') next = afterSell(next, o, q, at);
@@ -579,13 +602,15 @@ export function refusal(s: Session, d: Draft): string | null {
   /* 16:00 HAS RUNG: contracts have no overnight session. Nothing fills at the market until the next open; an order that
      waits (a limit, a stop) is taken and waits for it. */
   if (d.kind === 'market' && s.cursor.minute >= LAST_MIN) return 'The market is shut — 16:00 has rung. Open the next day, or leave a limit that waits for it';
-  const q = quoteAt(d.contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(d.contract, s.cursor.day, s.cursor.minute);
   const name = d.contract.ticker;
+  /* A REAL DAY: a contract's own trades fill it, and only in a minute it traded (realTape.ts) */
+  if (q.src === 'coming') return 'Its trades are still coming in — a moment';
   if (d.side === 'buy') {
     const px = d.kind === 'limit' ? Math.min(d.price!, q.ask) : q.ask;
     const need = px * MULT * d.qty + s.fee * d.qty * legsOf(d.contract);
     if (need > cashOf(s) + 1e-9) return `Not enough cash — this needs $${need.toFixed(2)}`;
-    if (d.kind === 'market' && q.dead) return 'No market in that contract right now';
+    if (d.kind === 'market' && q.dead) return q.src === 'estimate' ? 'No trade in that contract this minute — a limit waits for the next one that trades' : 'No market in that contract right now';
     const ruled = ruleRefusal(s, d, need);
     if (ruled) return ruled;
     const shape = ladderShapeRefusal(d.bracket, d.qty);
@@ -607,7 +632,7 @@ export function refusal(s: Session, d: Draft): string | null {
   /* A MARKET SELL BY HAND IS NEVER "SPOKEN FOR": the ladder gives way (afterSell). A sell that WAITS has to find contracts
      nothing else speaks for. */
   if (d.kind === 'market' ? held < d.qty : held - reserved(s, contractKey(d.contract)) < d.qty) return held ? (d.kind === 'market' ? `You hold ${held}` : 'Those contracts are already spoken for by a working order') : 'You do not hold that contract';
-  if (d.kind === 'market' && q.dead) return 'No bid to sell into right now';
+  if (d.kind === 'market' && q.dead) return q.src === 'estimate' ? 'No trade in that contract this minute — leave a limit, or move the clock on' : 'No bid to sell into right now';
   if (d.on === 'name' && nameHit(d, q.spot)) return `${name} is already past that — it would sell on the next minute`;
   return null;
 }
@@ -619,7 +644,7 @@ export function place(s: Session, d: Draft, now: number): Session {
   const why = refusal(s, d);
   next = { ...next, touchedAt: now, orders: [...next.orders, why ? { ...base, status: 'refused', why, done: s.cursor } : base] };
   if (why || d.kind !== 'market') return next;
-  const q = quoteAt(d.contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(d.contract, s.cursor.day, s.cursor.minute);
   return fillNow(next, base, d.side === 'buy' ? q.ask : q.bid, 'market', q, s.cursor);
 }
 
@@ -632,7 +657,7 @@ export function cancel(s: Session, orderId: string, now: number): Session {
 export function amend(s: Session, orderId: string, price: number, now: number): Session {
   const o = s.orders.find(x => x.id === orderId);
   if (!o || o.status !== 'working' || !(price > 0)) return s;
-  const q = quoteAt(o.contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(o.contract, s.cursor.day, s.cursor.minute);
   /* a trailing stop dragged: it keeps its NEW distance from here on (the rules page) */
   const trail = o.kind === 'stop' && o.trail != null ? trailFrom(cents(price), o.on, q) : {};
   if (o.on === 'name') {
@@ -651,7 +676,7 @@ export function amend(s: Session, orderId: string, price: number, now: number): 
 export function ladderRoom(s: Session, contract: ContractId): Record<'target' | 'stop', 'first' | 'more' | null> {
   const key = contractKey(contract);
   const pos = bookOf(s).positions.find(p => p.key === key);
-  const q = quoteAt(contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(contract, s.cursor.day, s.cursor.minute);
   const mine = workingSells(s, key);
   const cover = (pos?.qty ?? 0) - mine.filter(o => !o.oco).reduce((a, o) => a + o.qty, 0);
   const room = (kind: 'limit' | 'stop') => {
@@ -666,7 +691,7 @@ export function ladderRoom(s: Session, contract: ContractId): Record<'target' | 
 export function ladderTake(s: Session, contract: ContractId): Record<'target' | 'stop', number> {
   const key = contractKey(contract);
   const pos = bookOf(s).positions.find(p => p.key === key);
-  const q = quoteAt(contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(contract, s.cursor.day, s.cursor.minute);
   const mine = workingSells(s, key);
   const cover = (pos?.qty ?? 0) - mine.filter(o => !o.oco).reduce((a, o) => a + o.qty, 0);
   const take = (kind: 'limit' | 'stop') => {
@@ -687,7 +712,7 @@ export function attach(s: Session, contract: ContractId, kind: 'target' | 'stop'
   const key = contractKey(contract);
   const pos = bookOf(s).positions.find(p => p.key === key);
   if (!pos || !(price > 0)) return s;
-  const q = quoteAt(contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(contract, s.cursor.day, s.cursor.minute);
   const orderKind: OrderKind = kind === 'target' ? 'limit' : 'stop';
   if (on === 'name' ? nameHit({ kind: orderKind, contract, price }, q.spot) : kind === 'target' ? price <= q.bid : price >= q.bid) return s;
   const mine = workingSells(s, key);
@@ -713,7 +738,7 @@ export function attach(s: Session, contract: ContractId, kind: 'target' | 'stop'
 export function setTrail(s: Session, orderId: string, on: boolean, now: number, by?: number): Session {
   const o = s.orders.find(x => x.id === orderId);
   if (!o || o.status !== 'working' || o.side !== 'sell' || o.kind !== 'stop' || o.price == null) return s;
-  const q = quoteAt(o.contract, s.cursor.day, s.cursor.minute);
+  const q = marketOf(s).quoteAt(o.contract, s.cursor.day, s.cursor.minute);
   if (on && by != null && !(by > 0)) return s;
   return { ...s, touchedAt: now, orders: s.orders.map(x => (x.id !== orderId ? x : on ? { ...x, ...(by != null ? trailAt(by, o.on, q) : trailFrom(o.price!, o.on, q)) } : { ...x, trail: undefined, peak: undefined })) };
 }
@@ -734,11 +759,12 @@ export function rebase(s: Session, orderId: string, to: 'name' | 'contract', now
   if (!o || o.status !== 'working' || o.side !== 'sell' || o.kind === 'market' || o.price == null) return s;
   if ((o.on === 'name') === (to === 'name')) return s;
   const { day, minute } = s.cursor;
-  const price = to === 'name' ? spotForBid(o.contract, day, minute, o.price) : cents(quoteWith(o.contract, day, minute, o.price).bid);
+  const mk = marketOf(s);
+  const price = to === 'name' ? mk.spotForBid(o.contract, day, minute, o.price) : cents(mk.quoteWith(o.contract, day, minute, o.price).bid);
   if (price == null || !(price > 0)) return s;
   const basis = to === 'name' ? ('name' as const) : undefined;
   /* a trailing stop keeps trailing — by the distance it stands at now, in what it now waits on */
-  const trail = o.trail != null ? trailFrom(price, basis, quoteAt(o.contract, day, minute)) : {};
+  const trail = o.trail != null ? trailFrom(price, basis, mk.quoteAt(o.contract, day, minute)) : {};
   return { ...s, touchedAt: now, orders: s.orders.map(x => (x.id === orderId ? { ...x, on: basis, price, ...trail } : x)) };
 }
 
@@ -756,12 +782,13 @@ export function floorOf(s: Session): Moment {
 }
 
 function minuteOrders(s: Session, at: Moment): Session {
+  const mk = marketOf(s);
   let next = s;
   for (const o of s.orders) {
     if (o.status !== 'working' || stampOf(o.placed) >= stampOf(at)) continue;
     const live = next.orders.find(x => x.id === o.id);
     if (!live || live.status !== 'working') continue;
-    const q = quoteAt(o.contract, at.day, at.minute);
+    const q = mk.quoteAt(o.contract, at.day, at.minute);
     if (q.dead) continue;
     if (o.on === 'name') {
       /* waits on the NAME: the minute it is there, the contracts are sold at that minute's bid — whatever it is */
@@ -783,7 +810,7 @@ function minuteOrders(s: Session, at: Moment): Session {
       ...next,
       orders: next.orders.map(o => {
         if (o.status !== 'working' || o.kind !== 'stop' || o.trail == null || o.price == null || stampOf(o.placed) >= stampOf(at)) return o;
-        const q = quoteAt(o.contract, at.day, at.minute);
+        const q = mk.quoteAt(o.contract, at.day, at.minute);
         if (q.dead) return o;
         if (o.on === 'name') {
           /* a call's stop sits under the name and follows its highs; a put's sits over it and follows its lows */
@@ -806,7 +833,7 @@ function bell(s: Session, day: string): Session {
   let next: Session = { ...s, orders: s.orders.map(o => (o.status === 'working' && (o.tif === 'day' || o.contract.expiry <= day) ? { ...o, status: 'cancelled' as const, done: at, why: o.contract.expiry <= day ? 'the contract expired' : 'the day ended' } : o)) };
   for (const p of bookOf(next).positions) {
     if (p.contract.expiry > day) continue;
-    const q = quoteAt(p.contract, day, LAST_MIN);
+    const q = marketOf(s).quoteAt(p.contract, day, LAST_MIN);
     next = fillNow(next, { id: '', placed: at, contract: p.contract, side: 'sell', qty: p.qty, kind: 'market', tif: 'day', status: 'working', tag: p.tag }, q.intrinsic, 'expired', q, at);
   }
   return next;
@@ -814,11 +841,16 @@ function bell(s: Session, day: string): Session {
 
 /** Move the clock forward to a moment, running every minute between. A move back is refused: the clock stays (floorOf). */
 export function advance(s: Session, to: Moment, now: number): Session {
-  const days = tapeDays();
+  const mk = marketOf(s);
+  /* a real session before its record is in moves nothing: nothing in it can be priced */
+  if (!mk.ready) return s;
+  const days = mk.days();
   const from = s.cursor;
   if (stampOf(to) <= stampOf(from)) return s;
+  /* a real session holds only the days its record holds: the clock stops at the last one's bell */
+  if (mk.dayIndex(to.day) < 0) return s;
   let next = s;
-  for (let di = dayIndex(from.day); di <= dayIndex(to.day) && di < days.length; di++) {
+  for (let di = mk.dayIndex(from.day); di >= 0 && di <= mk.dayIndex(to.day) && di < days.length; di++) {
     const day = days[di];
     const first = day === from.day ? from.minute + 1 : 0;
     const last = day === to.day ? to.minute : LAST_MIN;

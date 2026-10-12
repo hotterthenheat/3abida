@@ -28,10 +28,20 @@
   sentence under the cards says so before the press,
   because a rule that can be loosened in the middle of
   a losing day is not a rule.
+
+  REAL DAYS (2026-10-12, docs/data-feed.md "The Backtest
+  reads real days"). With Massive up, a Days card offers
+  the market's own record beside the house's tape — the
+  sessions of the last two years, each a dot on the
+  calendar — and a session holds that day and the ones
+  after it on the record (data/feed/backtest.ts). One or
+  the other for the whole session; a session on real days
+  says so in the list. With Massive down the card is not
+  there and the page is what it always was.
 ==================================================
 */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import RenameDoor from '../../components/review/RenameDoor';
@@ -46,6 +56,25 @@ import { createSession, deleteSession, renameSession, restoreSession, runAgain, 
 import undoable from '../../components/ui/undo';
 import { REVIEW_NAMES, dayWords, reviewName, tapeDays } from '../../data/review/tape';
 import { TRADES_WORDS, dirInk, momentWords, pct, usd, usdSigned } from '../../components/review/words';
+import { useRoomSource } from '../../data/feed/rooms';
+import { REAL_DAYS, failWords, realBookFor, useRealDays } from '../../data/feed/backtest';
+
+/* WHICH MARKET A NEW SESSION REPLAYS — offered only while Massive is up; the reader's pick is remembered on this machine */
+type DaysFrom = 'feed' | 'house';
+const DAYS_KEY = 'slayer_backtest_days';
+const readDaysFrom = (): DaysFrom => {
+  try {
+    return localStorage.getItem(DAYS_KEY) === 'house' ? 'house' : 'feed';
+  } catch {
+    return 'feed';
+  }
+};
+const DAYS_FROM: DropdownOption<DaysFrom>[] = [
+  { value: 'feed', label: 'Real sessions', hint: 'The market’s own record from Massive, the last two years — the name’s minutes and each contract’s own trades' },
+  { value: 'house', label: 'The house’s tape', hint: 'The terminal’s own year of sessions — the same past for every reader' },
+];
+/** "Sep 14, 2026" */
+const dayYear = (iso: string) => dayWords(iso, true).replace(/^\w+, /, '');
 
 const SILVER_FILL = 'rgb(var(--silver-fill))';
 const CASH: DropdownOption<number>[] = [5000, 10000, 25000, 50000, 100000].map(v => ({ value: v, label: usd(v, 0), hint: v === 25000 ? 'The size most day-trading rules start at' : undefined }));
@@ -93,6 +122,18 @@ const Sessions = () => {
   const [fee, setFee] = useState(DEFAULT_FEE);
   /* three months back: room to run forward, and not so far back that today's names look strange */
   const [startDay, setStartDay] = useState(days[Math.max(0, days.length - 63)]);
+  /* REAL DAYS: only while Massive is up (data/feed/rooms.ts `backtest`) */
+  const feedUp = useRoomSource('backtest') === 'feed';
+  const [daysFrom, setDaysFromRaw] = useState<DaysFrom>(readDaysFrom);
+  const setDaysFrom = (v: DaysFrom) => {
+    setDaysFromRaw(v);
+    try {
+      localStorage.setItem(DAYS_KEY, v);
+    } catch {
+      /* a private window: the pick lasts as long as the page */
+    }
+  };
+  const real = feedUp && daysFrom === 'feed';
 
   const rows = useMemo<Row[]>(
     () =>
@@ -106,9 +147,23 @@ const Sessions = () => {
   const totals = useMemo(() => ({ trades: rows.reduce((a, r) => a + r.trades, 0), net: rows.reduce((a, r) => a + r.net, 0) }), [rows]);
 
   const tickers = second && second !== ticker ? [ticker, second] : [ticker];
+  const record = useRealDays(tickers, real);
+  const [realDay, setRealDay] = useState('');
+  /* a day on every name's record — the one picked while it still is, else two weeks back, room for the run */
+  const realStart = record.days.includes(realDay) ? realDay : (record.days[Math.max(0, record.days.length - REAL_DAYS)] ?? '');
+  useEffect(() => {
+    if (realStart && realStart !== realDay) setRealDay(realStart);
+  }, [realStart]); // eslint-disable-line react-hooks/exhaustive-deps
+  const realBook = real && realStart ? realBookFor(tickers, realStart) : null;
   const rules: SessionRules = { maxOpen: maxOpen || undefined, maxRiskPct: maxRisk || undefined, dailyLossPct: dayStop || undefined };
   const ruleWords = [maxOpen ? `no more than ${maxOpen} ${maxOpen === 1 ? 'position' : 'positions'} open at once` : '', maxRisk ? `no trade over ${maxRisk * 100}% of the account` : '', dayStop ? `the day is over at −${dayStop * 100}%` : ''].filter(Boolean);
   const start = () => {
+    if (real) {
+      if (!realBook) return;
+      const s = createSession({ name: `${tickers.join(' + ')} from ${dayYear(realStart)}`, ticker, tickers, rules, startCash: cash, fee, startDay: realStart, real: realBook });
+      navigate(`/practice/backtest/${s.id}`);
+      return;
+    }
     const s = createSession({ name: `${tickers.join(' + ')} from ${dayWords(startDay)}`, ticker, tickers, rules, startCash: cash, fee, startDay });
     navigate(`/practice/backtest/${s.id}`);
   };
@@ -126,7 +181,13 @@ const Sessions = () => {
                 <CompanyLogo key={t} ticker={t} size={15} />
               ))}
             </span>
-            <span className="font-semibold text-textPrimary truncate">{r.s.name}</span>
+            {/* before the name, so a long name's cut never takes it */}
+            {r.s.src === 'feed' && (
+              <span className="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded border border-silver/60 font-mono text-[11px] text-silver" title="Replays the market’s own record from Massive — the name’s minutes and each contract’s own trades" data-session-real={r.s.id}>
+                Real days
+              </span>
+            )}
+            <span className="font-semibold text-textPrimary truncate" title={r.s.name}>{r.s.name}</span>
           </span>
         ),
       },
@@ -226,7 +287,34 @@ const Sessions = () => {
             </button>
           )}
           <DropdownSelect label="Start with" value={cash} options={CASH} onChange={setCash} title="The paper money the session starts with" testId="review-cash" />
-          <DayCard label="From" value={startDay} onChange={setStartDay} title="The day the clock starts on" testId="review-start" />
+          {feedUp && <DropdownSelect label="Days" value={daysFrom} options={DAYS_FROM} onChange={setDaysFrom} title="Which market the session replays — one or the other, start to end" testId="review-days" />}
+          {!real ? (
+            <DayCard label="From" value={startDay} onChange={setStartDay} title="The day the clock starts on" testId="review-start" />
+          ) : record.state === 'ready' && realStart ? (
+            <DayCard
+              label="From"
+              value={realStart}
+              onChange={setRealDay}
+              days={record.days}
+              title="The real session the clock starts on"
+              testId="review-start"
+              foot={<>Sessions on Massive’s record, the last two years — a half session is left out. The plan carries no index, so SPX, NDX and RUT have no real days; the funds that track them do.</>}
+            />
+          ) : (
+            <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono text-[11px]" data-review-record={record.state}>
+              <span className="text-textMuted">From</span>
+              {record.state === 'failed' ? (
+                <>
+                  <span className="text-warn">{failWords(record.reason)}</span>
+                  <button type="button" onClick={record.retry} className="hit text-textPrimary underline underline-offset-2 hover:text-silver">
+                    Ask again
+                  </button>
+                </>
+              ) : (
+                <span className="text-textSecondary">Reading {tickers.join(' and ')}’s sessions on the record…</span>
+              )}
+            </span>
+          )}
           <DropdownSelect label="Fee" value={fee} options={FEES} onChange={setFee} title="What each contract costs to trade, each way" testId="review-fee" />
           {/* YOUR RULES — hard blocks, chosen here and nowhere else. On a phone they take the row, one under another, each as
               wide as the card, so a rule's value reads whole (the audit's PR-5: "No …", "N", "N…") */}
@@ -235,7 +323,7 @@ const Sessions = () => {
             <DropdownSelect label="A trade may cost" value={maxRisk} options={RISK_RULES} onChange={setMaxRisk} title="Your rule: the most one trade may cost, as a share of what the account is worth" testId="review-rule-risk" />
             <DropdownSelect label="Stop the day at" value={dayStop} options={DAY_RULES} onChange={setDayStop} title="Your rule: down this much since the open, the day is over — no new positions until the next one" testId="review-rule-day" />
           </span>
-          <button type="button" onClick={start} className="hit inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }} data-review-start>
+          <button type="button" onClick={start} disabled={real && !realBook} className="disabled:opacity-40 disabled:cursor-not-allowed hit inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-90" style={{ background: SILVER_FILL, color: 'rgb(var(--night))' }} data-review-start>
             <Play className="w-3 h-3" /> Start the session
           </button>
         </>
@@ -243,8 +331,14 @@ const Sessions = () => {
       sentence={
         <>
           A new session opens <span className="text-textPrimary font-semibold">{tickers.map(nameWords).join(' and ')}</span>
-          {tickers.length > 1 ? ' on one clock and one account,' : ''} at the bell of <span className="text-textPrimary font-semibold">{dayWords(startDay, true)}</span> with <span className="text-textPrimary font-semibold">{usd(cash, 0)}</span>.{' '}
-          You play the day forward — the clock only moves forward, so what is ahead is never seen before it is traded — pick a contract off the chain as it stood, and trade it at its bid and ask: {TRADES_WORDS}.{' '}
+          {tickers.length > 1 ? ' on one clock and one account,' : ''} at the bell of <span className="text-textPrimary font-semibold">{dayWords(real ? realStart || startDay : startDay, true)}</span> with <span className="text-textPrimary font-semibold">{usd(cash, 0)}</span>.{' '}
+          {real ? (
+            <>
+              It replays the market’s own record: {tickers.length > 1 ? 'the names’' : 'the name’s'} minutes on that day{realBook && realBook.days.length > 1 ? ` and the ${realBook.days.length - 1} ${realBook.days.length === 2 ? 'session' : 'sessions'} after it` : ''}, the contracts listed that day, and — once you open one — its own trades. A contract fills only in a minute it traded, at that minute’s average price; between its trades its price is estimated and nothing fills. The clock only moves forward: {TRADES_WORDS}.{' '}
+            </>
+          ) : (
+            <>You play the day forward — the clock only moves forward, so what is ahead is never seen before it is traded — pick a contract off the chain as it stood, and trade it at its bid and ask: {TRADES_WORDS}.{' '}</>
+          )}
           {ruleWords.length > 0 ? (
             <>
               Your rules: <span className="text-textPrimary font-semibold">{ruleWords.join(' · ')}</span>. A buy that breaks one is refused, a way out never is — and they cannot be changed once the session starts.

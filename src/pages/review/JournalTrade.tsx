@@ -57,7 +57,7 @@ import TradeTape from '../../components/review/TradeTape';
 import { dirInk, heldWords, pct, rWords, usd, usdSigned } from '../../components/review/words';
 import { decayPerDay } from '../../data/review/engine';
 import { excursionOf, type WayOut } from '../../data/review/excursion';
-import { ENDED, OUT_WORD, cutFromQuery, dayMinOf, entryOf, inCut, nameOf, piecesWords, titleOf, whenWords, type JournalEntry, type JournalRow } from '../../data/review/journal';
+import { ENDED, OUT_WORD, RECORD_TITLE, RECORD_WORDS, cutFromQuery, dayMinOf, entryOf, inCut, nameOf, onRecord, piecesWords, titleOf, whenWords, type JournalEntry, type JournalRow } from '../../data/review/journal';
 import { useJournalSource, type JournalKind } from '../../data/review/journalSource';
 import { contractWords } from '../../data/review/quotes';
 import { dayWords } from '../../data/review/tape';
@@ -290,6 +290,11 @@ export const JournalTradePage = ({ kind }: { kind: JournalKind }) => {
               <Link to={source.containerPath(row.s.id)} className="hit ml-auto font-mono text-[11px] text-textMuted hover:text-silver transition-colors truncate" title={`Open its ${source.containerWord}`}>
                 {row.s.name}
               </Link>
+              {onRecord(row) && (
+                <span className="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded border border-silver/60 font-mono text-[11px] text-silver" title={RECORD_TITLE} data-journal-real>
+                  {RECORD_WORDS}
+                </span>
+              )}
             </div>
             <dl className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
               <Fact label="In">{whenWords(row, row.t.opened)} · {row.t.avgIn.toFixed(2)}</Fact>

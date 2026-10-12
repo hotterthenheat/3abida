@@ -2104,3 +2104,9 @@ html[data-landing-scale] {
     transform: scaleX(0);
   }
 }
+
+/* THE BACKTEST'S REAL DAYS (2026-10-12, components/review/DayCard): a session on the market's record wears a small silver
+   dot under its number — the picked day's dot takes the chip's dark word */
+.day-record > button { position: relative; }
+.day-record > button::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 9999px; background: rgb(var(--silver)); }
+.day-record[aria-selected='true'] > button::after, .rdp-selected.day-record > button::after { background: rgb(var(--night)); }

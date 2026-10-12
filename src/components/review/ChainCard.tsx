@@ -26,10 +26,16 @@
     HELD · SOLD            a strike held says so; the
                            strike sold against it in a
                            spread says that
+    A REAL DAY (2026-10-12)  one price, the contract's own
+                           trades that minute; "Traded"
+                           says whether it did, and a
+                           price it did not trade at wears
+                           ≈ (the house's estimate — no
+                           fill on it)
 ==================================================
 */
 
-import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import CompanyLogo from '../ui/CompanyLogo';
 import DropdownSelect, { type DropdownOption } from '../ui/DropdownSelect';
@@ -80,9 +86,13 @@ interface Props {
   full: boolean;
   /** When this changes the window opens on the money again (a new expiry, side, day, session) */
   centreKey: string;
+  /** A REAL DAY: one price a contract, and whether it traded that minute */
+  real?: boolean;
+  /** What the window says when it has no rows (a real day's strikes still coming in) */
+  empty?: ReactNode;
 }
 
-const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expiry, expiryOptions, onExpiry, expiryTitle, rows, picked, drillOpen, onPick, drill, held, sold, full, centreKey }: Props) => {
+const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expiry, expiryOptions, onExpiry, expiryTitle, rows, picked, drillOpen, onPick, drill, held, sold, full, centreKey, real = false, empty }: Props) => {
   const rowsRef = useRef<HTMLDivElement | null>(null);
   const pickedKey = picked ? contractKey(picked) : '';
   /* it opens with the money in its middle */
@@ -124,8 +134,21 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
       </div>
       <div className="grid grid-cols-[1.25fr_1fr_1fr_1fr_1fr_1fr] px-4 h-7 items-center border-b border-borderSubtle/70 font-mono text-[11px] font-semibold uppercase tracking-widest text-[rgb(var(--grid-head))]">
         <span className="pl-4">Strike</span>
-        <span className="text-right">Bid</span>
-        <span className="text-right">Ask</span>
+        {real ? (
+          <>
+            <span className="text-right" title="The contract's own trades this minute, their average price — ≈ where it did not trade (the house's estimate)">
+              Price
+            </span>
+            <span className="text-right pl-2" title="Whether it traded this minute — it fills only in a minute it traded">
+              Traded
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-right">Bid</span>
+            <span className="text-right">Ask</span>
+          </>
+        )}
         <span className="text-right">Delta</span>
         <span className="text-right">Decay/day</span>
         <span className="text-right" title="Implied volatility — what the price says about how far the name may move">
@@ -135,6 +158,7 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
       {/* on the page the card is exactly as tall as the tape beside it (--tape-h, measured off the tape) and the window
           takes what its heads leave; in the takeover, what the ticket leaves; stacked on a phone, a fixed window */}
       <div ref={rowsRef} className="relative flex-1 min-h-0 max-lg:h-[402px] max-lg:flex-none overflow-y-auto overscroll-contain" role="listbox" aria-label="The chain" data-chain-window>
+        {!rows.length && empty ? <div className="px-6 py-10 text-center text-[11px] text-textMuted" data-chain-empty>{empty}</div> : null}
         {rows.map((r, i) => {
           const q = right === 'C' ? r.call : r.put;
           const c: ContractId = { ticker, strike: r.strike, right, expiry: expiry! };
@@ -166,8 +190,28 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
                   {mine && <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-silver">held</span>}
                   {soldHere && <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-textSecondary" title="The strike sold against the one bought — the other leg of a spread">sold</span>}
                 </span>
-                <span className="text-right text-textPrimary">{q.bid.toFixed(2)}</span>
-                <span className="text-right text-textPrimary">{q.ask.toFixed(2)}</span>
+                {real ? (
+                  q.src === 'print' ? (
+                    <>
+                      <span className="text-right text-textPrimary">{q.mark.toFixed(2)}</span>
+                      <span className="text-right text-textSecondary">yes</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-right text-textMuted" title={q.src === 'coming' ? 'Estimated by the house’s pricer on the name’s real price — its own trades come in when you open it' : 'No trade in it this minute: estimated from its last trade — nothing fills on it'}>
+                        ≈{q.mark.toFixed(2)}
+                      </span>
+                      <span className="text-right text-textMuted" title={q.src === 'coming' ? 'Its own trades come in when you open it' : 'No trade this minute'}>
+                        —
+                      </span>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <span className="text-right text-textPrimary">{q.bid.toFixed(2)}</span>
+                    <span className="text-right text-textPrimary">{q.ask.toFixed(2)}</span>
+                  </>
+                )}
                 <span className="text-right text-textSecondary">{q.delta.toFixed(2)}</span>
                 <span className="text-right text-textSecondary">{q.theta.toFixed(2)}</span>
                 <span className="text-right text-textSecondary">{Math.round(q.iv * 100)}%</span>

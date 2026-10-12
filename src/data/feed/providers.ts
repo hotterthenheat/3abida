@@ -33,7 +33,7 @@ export const PROVIDER_INFO: Record<FeedProvider, ProviderInfo> = {
   massive: {
     name: 'Massive',
     plan: 'Basic — Stocks, Options, Indices, Currencies',
-    carries: ["Bars to the minute, as of the session before", 'The listed contracts and their expiries', 'Company records'],
+    carries: ["Bars to the minute, as of the session before", 'Two years back — a contract’s own minute trades too, expired ones among them', 'The listed contracts and their expiries, as of any day', 'Company records'],
     leavesOut: ['Anything from today', 'Index values (I:SPX, I:VIX) — refused for this key so far (403)', 'Streaming', 'More than about five calls a minute (the terminal queues them)'],
   },
 };

@@ -2,9 +2,11 @@
   REVIEW · THE DAY CARD — a labelled card like every other on a line (DropdownSelect's clothes), opening the house
   calendar (ExpiryPicker's) on the TAPE'S days: a day the tape does not hold cannot be picked, nor one before `min`
   (the desk's clock only moves forward).
+  REAL DAYS (2026-10-12): handed `days` (the sessions on Massive's record, data/feed/backtest.ts) it offers those
+  instead, each marked with a small silver dot — the market's own sessions — and says so under the month.
 */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { DayPicker } from 'react-day-picker';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -22,11 +24,17 @@ interface Props {
   title?: string;
   testId?: string;
   size?: 'md' | 'sm';
+  /** The days that may be picked — the market's own record; absent, the house's tape */
+  days?: string[];
+  /** What the line under the month says, for those days */
+  foot?: ReactNode;
 }
 
-const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Props) => {
+const DayCard = ({ label, value, onChange, min, title, testId, size = 'md', days: own, foot }: Props) => {
   const [open, setOpen] = useState(false);
-  const days = tapeDays();
+  const tape = tapeDays();
+  const days = own?.length ? own : tape;
+  const real = !!own;
   const held = new Set(days);
   const floor = min ?? days[0];
   const selected = dateOf(value);
@@ -63,6 +71,8 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
             }}
             showOutsideDays
             weekStartsOn={0}
+            modifiers={real ? { record: d => held.has(isoDate(d)) } : undefined}
+            modifiersClassNames={real ? { record: 'day-record' } : undefined}
             components={{ Chevron: ({ orientation }) => (orientation === 'left' ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />) }}
             classNames={{
               root: 'relative select-none',
@@ -89,7 +99,9 @@ const DayCard = ({ label, value, onChange, min, title, testId, size = 'md' }: Pr
               focused: '',
             }}
           />
-          <p className="mt-2 pt-2 border-t border-borderSubtle/70 text-[11px] text-textMuted">Trading days on the tape{min ? ', from where the clock stands' : ''}.</p>
+          <p className="mt-2 pt-2 border-t border-borderSubtle/70 text-[11px] text-textMuted" data-day-card-foot={real ? 'record' : 'tape'}>
+            {real ? (foot ?? <>Sessions on the market’s record{min ? ', from where the clock stands' : ''}.</>) : <>Trading days on the tape{min ? ', from where the clock stands' : ''}.</>}
+          </p>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

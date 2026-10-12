@@ -14,7 +14,9 @@
   does. TRACE AND THE DOSSIER ARE WIRED (2026-10-12):
   their pages read data/feed/trace.ts and dossier.ts
   when their vendors are up; PINPOINT AND TERRAIN read
-  data/feed/levels.ts. To move a
+  data/feed/levels.ts; THE BACKTEST, with Massive up,
+  can replay a real past day (data/feed/backtest.ts).
+  To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
   data/feed/uw.ts and massive.ts, 'stand-in' means read
@@ -33,7 +35,7 @@
 import type { FeedProvider } from './client';
 import { isUp, useFeedStatus, type FeedStatus } from './status';
 
-export type FeedRoom = 'pulse' | 'terrain' | 'trace' | 'dossier' | 'pinpoint' | 'compass' | 'weigher';
+export type FeedRoom = 'pulse' | 'terrain' | 'trace' | 'dossier' | 'pinpoint' | 'compass' | 'weigher' | 'backtest';
 export type RoomSource = 'feed' | 'stand-in';
 
 export interface RoomFeed {
@@ -55,6 +57,8 @@ export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   pinpoint: { name: 'Pinpoint', needs: ['uw'], reads: 'Exposure by strike and by expiry, open interest by strike, max pain, the implied move and the book through the day', wired: true },
   compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
   weigher: { name: 'Weigher', needs: ['uw', 'massive'], reads: "The name's price; the listed contracts and their bars", wired: false },
+  /* THE BACKTEST'S REAL DAYS (2026-10-12, data/feed/backtest.ts): Massive alone — the record of a past session */
+  backtest: { name: 'Backtest', needs: ['massive'], reads: "Real past sessions: a name's minute bars, the contracts listed that day and each opened contract's own trades", wired: true },
 };
 
 export const FEED_ROOMS = Object.keys(ROOM_FEEDS) as FeedRoom[];
@@ -73,6 +77,7 @@ export const dossierSource = (s: FeedStatus): RoomSource => roomSource('dossier'
 export const pinpointSource = (s: FeedStatus): RoomSource => roomSource('pinpoint', s);
 export const compassSource = (s: FeedStatus): RoomSource => roomSource('compass', s);
 export const weigherSource = (s: FeedStatus): RoomSource => roomSource('weigher', s);
+export const backtestSource = (s: FeedStatus): RoomSource => roomSource('backtest', s);
 
 /** What a room reads, rendering when the feed's standing changes */
 export function useRoomSource(room: FeedRoom): RoomSource {
@@ -84,7 +89,7 @@ export const roomsReading = (p: FeedProvider): FeedRoom[] => FEED_ROOMS.filter(r
 
 /* ---- WHICH ROOM A PAGE IS IN (2026-10-12) — the shell's pieces (the rail's price) read the room of the page they stand
    beside. A page no room holds (Practice, Settings, the Glossary, Community, Alerts) reads the house's book: Paper, the
-   Backtest and the Journal mark on it, and the watchlist and alerts drawers open over any page with its prices. ---- */
+   Backtest's tape days and the Journal mark on it (a real day marks on its own record), and the alerts drawer opens over any page with its prices. ---- */
 const ROOM_PATHS: [RegExp, FeedRoom][] = [
   [/^\/(out\/)?pulse(\/|$)/, 'pulse'],
   [/^\/(out\/)?terrain(\/|$)/, 'terrain'],

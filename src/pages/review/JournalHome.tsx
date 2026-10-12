@@ -83,7 +83,7 @@ import { fmtStampLocal } from '../../components/gex/chartTime';
 import { dirInk, heldWords, pct, rWords, usd, usdSigned } from '../../components/review/words';
 import { statsOf } from '../../data/review/engine';
 import { excursionOf } from '../../data/review/excursion';
-import { ENDED, csvOf, dayMinOf, instantOf, titleOf, whenWords, type DayNote, type JournalRow } from '../../data/review/journal';
+import { ENDED, RECORD_TITLE, RECORD_WORDS, csvOf, dayMinOf, instantOf, onRecord, titleOf, whenWords, type DayNote, type JournalRow } from '../../data/review/journal';
 import { PERIODS, byDelta, byDte, byFlip, byHour, byIv, byKept, byMistake, byMood, byName, byPlan, bySetup, bySide, bySize, byWalls, byWeekday, calendarDayOf, dayTotals, isPeriod, monthOf, monthWords, rulesKeptByWeek, runningOf, rowsIn, spanOf, type Period } from '../../data/review/journalFigures';
 import RulesKept from '../../components/review/RulesKept';
 import { useJournalSource, type JournalKind } from '../../data/review/journalSource';
@@ -284,7 +284,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
   const columns = useMemo<Column<JournalRow>[]>(
     () => [
       { key: 'closed', header: 'Closed', sortValue: r => instantOf(r, r.t.closed), render: r => <span className="text-textSecondary">{whenWords(r, r.t.closed)}</span> },
-      { key: 'account', header: source.containerWord === 'account' ? 'Account' : 'Session', sortValue: r => r.s.name, render: r => <span className="text-textSecondary truncate">{r.s.name}</span> },
+      { key: 'account', header: source.containerWord === 'account' ? 'Account' : 'Session', sortValue: r => r.s.name, render: r => <span className="text-textSecondary truncate">{r.s.name}{onRecord(r) && <span className="text-silver" title={RECORD_TITLE}> · {RECORD_WORDS.toLowerCase()}</span>}</span> },
       { key: 'contract', header: 'Contract', sortValue: r => titleOf(r), render: r => <Contract r={r} /> },
       { key: 'qty', header: 'Size', align: 'right', sortValue: r => r.t.qty, render: r => <span className="text-textPrimary">{r.t.qty}</span> },
       { key: 'inout', header: 'In → out', align: 'right', render: r => <span className="text-textSecondary">{r.t.avgIn.toFixed(2)} → {r.t.avgOut.toFixed(2)}</span> },

@@ -98,8 +98,8 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwVolumeAtPrice` | `GET /api/stock/{ticker}/stock-volume-price-levels` (lit and off-exchange volume by price) |
 | `uwFlowPerStrike`, `uwFlowPerExpiry` | `GET /api/stock/{ticker}/flow-per-strike`, `/flow-per-expiry` |
 | `massiveMarketStatus` | `GET /v1/marketstatus/now` (the probe) |
-| `massiveContracts`, `massiveExpirations` | `GET /v3/reference/options/contracts` (paged on `next_url`; one round `strike_price` lists every expiry in one call) |
-| `massiveBars` | `GET /v2/aggs/ticker/{ticker}/range/{n}/{span}/{from}/{to}` (stocks and `O:` contracts; the session before is the latest) |
+| `massiveContracts`, `massiveExpirations` | `GET /v3/reference/options/contracts` (paged on `next_url`; one round `strike_price` lists every expiry in one call; `as_of` lists what was listed on a past day, expired contracts among them) |
+| `massiveBars` | `GET /v2/aggs/ticker/{ticker}/range/{n}/{span}/{from}/{to}` (stocks and `O:` contracts — `occTicker` writes one — two years back, expired contracts too; the session before is the latest) |
 | `massiveTickers`, `massiveTickerDetails` | `GET /v3/reference/tickers`, `GET /v3/reference/tickers/{ticker}` |
 | `massiveIndices` | `GET /v3/snapshot/indices` — **403 on these plans** (as are `I:` bars) |
 
@@ -172,7 +172,7 @@ market the page under it reads (`rooms.ts` `pageSource` by the address; `SideNav
 |---|---|
 | a room that reads the feed (Trace, the Dossier, Pinpoint, Terrain — and any room the day its `wired` turns true) | UW's `stock-state`: `close`, and the change from `prev_close` — `useFeedPrice`, every 10 s, one poll with the room's own pages |
 | a room that reads its own book (Pulse, Compass, the Weigher), or a wired room with a vendor down | the house's, as before |
-| no room's: Practice (Paper, the Backtest, the Journal), Settings, the Glossary, Community, Alerts | the house's: Practice marks on the house's book, and the watchlist and alerts drawers open over any page with the house's prices and walls |
+| no room's: Practice (Paper, the Backtest, the Journal), Settings, the Glossary, Community, Alerts | the house's: Paper and the Journal mark on the house's book and a Backtest session on its own market (the house's tape or a real day's record); the alerts drawer opens over any page with the house's figures |
 | a wired room while the shell's first probe is out | nothing ("—"), as the room's pages show nothing |
 
 A 429 (UW Basic answers three calls at once, and other sessions share the key), a timeout, the network or a 5xx keeps
@@ -262,3 +262,34 @@ every Pinpoint page, Terrain and Pulse drew the same boxes as the commit before 
 
 Screenshots on the vendor's answers, 2026-10-12 around 14:15 New York: `docs/data-feed/levels-2026-10-12-*.png` (the Map,
 Building, Ahead and Terrain dark; At the wall and Terrain light; the Map on a phone).
+
+## The Backtest reads real days (2026-10-12)
+
+`ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —
+**Real sessions** or **The house's tape** — and a real session replays the market's own record, start to end. With
+Massive down the card is not there and the page is what it was; a real session saved earlier waits, saying why
+(`components/review/RealDayDoor.tsx`), and never falls back on the house's tape. One market a session is
+`src/data/review/market.ts` (`marketOf`); the record's market is `realTape.ts`; the calls are `src/data/feed/backtest.ts`.
+
+| What | Call | When |
+| --- | --- | --- |
+| The picker's days | `massiveBars(name, 1, 'day', two years back, yesterday)` — one a name | the Days card on Real sessions |
+| A session's minutes | `massiveBars(name, 1, 'minute', two sessions before, last day)` — one a name, every day it holds (about 1 MB for SPY's ten) | the desk opens |
+| What was listed | `massiveContracts(name, { type: 'call', strike: a round strike near the first open, as_of: first day })` — one a name | the desk opens |
+| The strikes on show | `massiveContracts(name, { expiry, type: 'call', as_of: first day })` | an expiry is shown |
+| A contract's own trades | `massiveBars('O:…', 1, 'minute', first day, last day)` — one a contract (each leg of a spread) | the reader opens it; as the desk opens, every contract the book holds or works |
+
+Every answer is kept for the visit (and by the proxy, 30 minutes for bars, 6 hours for listings), so a real day opens in
+two calls and a contract in one: SPY on 2026-09-14 opened its desk about a second after the press, and a contract's
+trades came in under a second when the bucket had a token (16 s when it was queued behind earlier calls). A 429 (the key
+is shared) is waited out 15 s at a time, up to four times, the step saying "waiting its turn"; any other failure is said
+in words with **Ask again**. The plan carries no index (403), so SPX, NDX and RUT have no real days — the picker says the
+funds that track them do.
+
+**How a real day is priced and filled** — the Basic plans carry trades, not quotes: a contract's price in a minute it
+traded is that minute's volume-weighted average, and it fills there; in a minute it did not trade the price is the
+house's estimate on the name's real price (≈) and nothing fills. In full: `docs/review-backtest-rules.md` "Real days" and
+`docs/paper-rules.md` "The Backtest on real days". A closed trade writes down its walk and candles into the session
+(`realKeep.ts`), so the journal and the report never ask the record again; the journal marks its trades "Real days".
+The Desk's half sessions are left out (`EARLY_CLOSES`, and a day whose record stops before 15:30).
+

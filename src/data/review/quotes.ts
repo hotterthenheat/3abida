@@ -67,6 +67,10 @@ export interface Quote {
   dead: boolean;
   /** Where the name stood */
   spot: number;
+  /** ON A REAL DAY (data/review/realTape.ts) — what the price is: 'print', the contract's own trades that minute;
+      'estimate', the house's pricer on the name's real price (no trade that minute — no fill either); 'coming', its trades
+      are still on their way. Absent on the house's tape. */
+  src?: 'print' | 'estimate' | 'coming';
 }
 
 const fmtK = (k: number) => (k % 1 === 0 ? k.toFixed(0) : k.toFixed(2).replace(/0$/, ''));
@@ -260,16 +264,17 @@ export function chainAt(ticker: string, iso: string, minute: number, expiry: str
     because a SPREAD's bid is not one-way: it rises with the name and then falls away deep in the money, where the legs'
     own spreads swallow it — end to end, the far end read "nothing" and a level in plain sight was called out of reach.
     Null when no price in reach gets there (a target past what the time left, or a spread's width, allows). */
-export const spotForBid = (c: ContractId, iso: string, minute: number, bid: number): number | null => spotForQuote(c, iso, minute, bid, 'bid');
+export const spotForBid = (c: ContractId, iso: string, minute: number, bid: number): number | null => spotForQuote(spotAt(c.ticker, iso, minute), s => quoteWith(c, iso, minute, s), c.right, bid, 'bid');
 /** …and for its ASK to be `ask` — where a resting buy limit is drawn on the chart: it fills when the ask comes down to it */
-export const spotForAsk = (c: ContractId, iso: string, minute: number, ask: number): number | null => spotForQuote(c, iso, minute, ask, 'ask');
-function spotForQuote(c: ContractId, iso: string, minute: number, bid: number, which: 'bid' | 'ask'): number | null {
-  const here = spotAt(c.ticker, iso, minute);
-  const at = (s: number) => quoteWith(c, iso, minute, s)[which];
+export const spotForAsk = (c: ContractId, iso: string, minute: number, ask: number): number | null => spotForQuote(spotAt(c.ticker, iso, minute), s => quoteWith(c, iso, minute, s), c.right, ask, 'ask');
+/** The walk itself, on any pricer: `here` is where the name stands, `quote` the contract with the name elsewhere (a real
+    day's market walks its own estimator — data/review/realTape.ts) */
+export function spotForQuote(here: number, quote: (spot: number) => Quote, right: Right, bid: number, which: 'bid' | 'ask'): number | null {
+  const at = (s: number) => quote(s)[which];
   const now = at(here);
   if (Math.abs(now - bid) < 0.005) return Math.round(here * 100) / 100;
   /* more than it bids now lies on the contract's good side of the name: a call's above, a put's below */
-  const up = (bid > now) === (c.right === 'C');
+  const up = (bid > now) === (right === 'C');
   const end = up ? here * 1.8 : here * 0.4;
   const STEPS = 90;
   let a = here;
