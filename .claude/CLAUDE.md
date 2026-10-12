@@ -621,7 +621,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
 - THE RAIL'S PRICE FOLLOWS THE PAGE'S ROOM (2026-10-12; docs/data-feed.md): the shell's subject (the rail, the phone's
   strip) reads UW's stock-state on a page whose room reads the feed (data/feed/rooms.ts `pageSource` by the address —
   Trace, the Dossier, Pinpoint and Terrain now, a room wired later on its own), the house's on every other page, a page no room holds
-  included (Practice, Settings, the Glossary: Practice marks on the house's book, and the watchlist and alerts drawers
+  included; the watchlist drawer's rows follow the same rule (UW's day state and book over a feed page) (Practice, Settings, the Glossary: Practice marks on the house's book, and the watchlist and alerts drawers
   open anywhere with the house's figures). One poll a name (data/feed/price.ts `useFeedPrice`, `uw:state:<NAME>`, 10 s)
   shared with the rooms' pages; a 429 keeps the last good price five minutes. UW has no index price on Basic (422): on
   a feed page an index is "—", not in the feed (on Pinpoint and Terrain its book's price, the change left off) — never

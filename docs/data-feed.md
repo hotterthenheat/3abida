@@ -181,8 +181,9 @@ NDX, RUT, VIX and XSP): on a page that reads the feed the rail shows "—", titl
 figure beside the vendor's prints; a name answered 422 is not asked again that visit. On every other page the house's
 figure stays.
 
-The watchlist drawer reads the feed over a Pinpoint or Terrain page (below); over a Trace or Dossier page it still shows
-the house's prices and nearest wall or flip — the next shell piece to follow the page's room.
+The watchlist drawer follows the same rule (`WatchlistDrawer` by `pageSource`): over a page whose room reads the feed each
+row is UW's day state and the nearest wall or flip of UW's book (`levels.ts`), an index its book's price; over any
+other page the house's.
 
 ## Compass's calendar on the real listed expiries (2026-10-12)
 

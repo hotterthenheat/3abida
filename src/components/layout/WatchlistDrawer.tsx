@@ -36,7 +36,9 @@ import { useWatch } from '../../context/WatchContext';
 import { useTracker } from '../../context/TrackerContext';
 import { useWatchlist } from '../../data/watchlist';
 import { profileOf, scanOf, type Scan } from '../../data/pinpointBook';
-import { useFeedBook, useFeedDayState, usePinpointSource, useTerrainSource } from '../../data/feed/levels';
+import { useFeedBook, useFeedDayState } from '../../data/feed/levels';
+import { pageSource } from '../../data/feed/rooms';
+import { useFeedStatus } from '../../data/feed/status';
 import {
   MAX_NAMES, addSection, closeWatchlist, moveName, nudgeName, removeSection, renameSection, restoreName, restoreSection, setNameFlag, unwatchName, useNameWatch, useWatchlistOpen,
   watchName, type WatchSection, type WatchedName,
@@ -102,14 +104,13 @@ const NameRow = ({
   scanAt: number;
 }) => {
   const q = useQuote(n.symbol);
-  /* ON A PINPOINT OR TERRAIN PAGE READING THE FEED (2026-10-12) the row is the vendor's — its day state and its book's
-     levels — so the drawer over the page is the page's market, never the house's beside it */
-  const path = useLocation().pathname;
-  const pinpointSrc = usePinpointSource();
-  const terrainSrc = useTerrainSource();
-  const onFeed = (path.startsWith('/pinpoint') && pinpointSrc === 'feed') || (path.startsWith('/terrain') && terrainSrc === 'feed');
-  const fBook = useFeedBook(onFeed, n.symbol).book;
-  const fDay = useFeedDayState(onFeed, n.symbol);
+  /* OVER A PAGE WHOSE ROOM READS THE FEED (2026-10-12 — rooms.ts pageSource, as the rail's price: Trace, the Dossier,
+     Pinpoint, Terrain, any room wired later) the row is the vendor's — its day state and its book's levels — so the
+     drawer over the page is the page's market, never the house's beside it; while the first probe is out, nothing */
+  const src = pageSource(useLocation().pathname, useFeedStatus());
+  const onFeed = src !== 'stand-in';
+  const fBook = useFeedBook(src === 'feed', n.symbol).book;
+  const fDay = useFeedDayState(src === 'feed', n.symbol);
   /* the room's scan of the name — the book's levels, and the price for a name the feed has not seeded */
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scan = useMemo(() => (onFeed ? null : scanOf(n.symbol)), [n.symbol, scanAt, onFeed]);
