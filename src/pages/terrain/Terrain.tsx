@@ -13,6 +13,7 @@ import {
 } from './layouts';
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
+import { nyClock as nyClockAt } from '../../core/nyTime';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
@@ -1660,6 +1661,14 @@ const Pane = ({
               cannot reach. Keyboard focus brings the strip up exactly as the
               cursor does.
             */}
+            {/* WHERE THE TRAIL STARTS (2026-10-12): on the feed the field is the books this terminal read today — UW gives
+                the book as it stands, never its past by strike — so the pane says when it begins, and an empty field
+                never reads as a broken one */}
+            {onFeed && overlays.trails && (
+              <div className="absolute left-14 bottom-8 z-20 pointer-events-none select-none rounded bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textMuted" data-trail-since>
+                {fField.length ? `Trail from ${nyClockAt(fField[0].time * 1000, { zone: true })} · it fills while the terminal is open` : 'Trail · it fills from the first read while the terminal is open'}
+              </div>
+            )}
             {!expanded && !toolbarInline && (
               /* ── THE EXPAND BUTTON, FAR RIGHT (Noah, 2026-08-28: "push the
                  fullscreen button ... to the far right on both small chart

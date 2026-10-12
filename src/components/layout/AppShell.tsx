@@ -24,6 +24,7 @@ import SkipLink, { CONTENT_ID } from '../ui/SkipLink';
 import { G_WAIT_MS, aliasRowStep, roomFor } from './rowStepKeys';
 import { useDeskChannel } from './deskChannel';
 import { startFeedProbe } from '../../data/feed/status';
+import FieldRecorder from './FieldRecorder';
 
 /** A page crash must never black-screen the terminal — it renders a readable
     fault panel instead. Recovers via the resetKey prop (NOT a React key: a key
@@ -317,6 +318,8 @@ const AppShell = () => {
       {/* A PAPER ACCOUNT'S ORDERS, WATCHED ON EVERY PAGE (2026-09-22) — a stop fills while the reader is elsewhere, and the
           chip above says so (data/paper/store.ts) */}
       <PaperRunner />
+      {/* Terrain's strike field fills from every page while the feed is up (FieldRecorder.tsx) */}
+      <FieldRecorder />
       <AlertToasts />
       {/* the open's tone up and the close's down, when switched on (Settings › Sounds) */}
       <MarketBell />

@@ -256,6 +256,15 @@ no bars on this plan (422, a CBOE grant): Pinpoint reads it at the price its boo
 a Terrain pane on it says its bars are not in the feed and draws no ladder. Pulse is not wired, so its Targets, At the
 wall, Range and Close panels read the house's book as before.
 
+**Terrain's trail (the strike field) on the feed.** UW gives the book as it stands; no route gives it strike by strike
+for earlier in the day (`/spot-exposures/strike` takes a `date`, never a time — UW's spec, checked 2026-10-12; the
+per-minute `/spot-exposures` carries the whole book, not strikes). So the field is the books this terminal read today:
+written to IndexedDB (`slayer_field`, one record a name a day, earlier days dropped) and read back as a name is first
+drawn, so a reload keeps it; and the shell reads the open name's book every half minute on every page while UW is up
+(`components/layout/FieldRecorder.tsx` — the same poll key Terrain and Pinpoint use, never a second call), so it fills
+while the terminal is open anywhere. A pane says where its trail starts. A hidden tab asks nothing, so a closed or
+hidden terminal leaves a gap.
+
 The fallback was checked with the keys blanked (`env UW_API_TOKEN= MASSIVE_API_KEY= node node_modules/vite/bin/vite.js`
 — an empty variable in the process wins over `.env` in `loadEnv`; `npx` drops empty variables, so call Vite directly):
 every Pinpoint page, Terrain and Pulse drew the same boxes as the commit before this wiring, and no console errors.

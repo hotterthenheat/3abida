@@ -646,6 +646,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   good answer — never a flash back to the house's book. An index has no day state and no bars on this plan (422):
   never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane says its bars are not in the feed.
   Pulse is not wired: its Pinpoint panels read the house's book. A pop-out probes the feed itself (PopOutFrame).
+  TERRAIN'S TRAIL ON THE FEED (2026-10-12 — the owner: "why does terrain exposure trails not work"): UW has no route for
+  the book by strike earlier in the day (/spot-exposures/strike takes a date, never a time), so the field is the books
+  this terminal read today — kept on this machine (IndexedDB slayer_field, a record a name a day, earlier days dropped,
+  levels.ts `useFeedField`) so a reload keeps it, and read on every page while the feed is up (layout/FieldRecorder.tsx,
+  the open name's book, the poll Terrain shares), so it fills while the terminal is open anywhere. The pane says where
+  it starts ("Trail from 15:06 ET · it fills while the terminal is open", `data-trail-since`). A hidden tab asks nothing.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

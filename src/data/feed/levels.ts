@@ -696,13 +696,110 @@ export function useFeedBars(on: boolean, ticker: string): { bars: Candle[] | nul
 
 /* ---- the strike field: the book kept through the session -------------------------------------------------------- */
 
-/* THE FIELD ON TERRAIN'S CHART (gexNodesPrimitive) is the book through time. UW answers the book as it stands now, so
-   the field is the books this terminal has read since it opened, one a poll, kept for New York's day — it fills from
-   the first read on, and draws nothing it did not read. */
+/* THE FIELD ON TERRAIN'S CHART (gexNodesPrimitive) is the book through time. UW answers the book as it stands now — no
+   route gives it strike by strike for earlier in the day (checked against UW's spec, 2026-10-12: /spot-exposures/strike
+   takes a date, never a time) — so the field is the books this terminal has read, one a UW minute, kept for New York's
+   day. It fills from the first read on and draws nothing it did not read.
+   KEPT ON THIS MACHINE (2026-10-12 — the owner: "why does terrain exposure trails not work"; it lived in the page's
+   memory, so a reload or another room emptied it): every book read is written to IndexedDB (slayer_field, one record a
+   name a day, the days before dropped) and read back as a name is first asked for, so the field survives a reload; and
+   the shell keeps reading the open name's book on every page while the feed is up (components/layout/FieldRecorder.tsx),
+   so the field fills while the terminal is open anywhere, not only while Terrain is. */
 const field = new Map<string, { day: string; snaps: GexSnapshot[] }>();
 const fieldSubs = new Set<() => void>();
+const fieldBell = () => fieldSubs.forEach(fn => fn());
+
+/* ---- the field on disk ---- */
+const FIELD_DB = 'slayer_field';
+let fieldDb: Promise<IDBDatabase | null> | null = null;
+function openFieldDb(): Promise<IDBDatabase | null> {
+  if (fieldDb) return fieldDb;
+  fieldDb = new Promise(resolve => {
+    try {
+      if (typeof indexedDB === 'undefined') return resolve(null);
+      const req = indexedDB.open(FIELD_DB, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains('days')) req.result.createObjectStore('days', { keyPath: 'id' });
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        /* the days before today are never drawn — drop them */
+        try {
+          const today = nyIsoDate();
+          const cur = db.transaction('days', 'readwrite').objectStore('days').openCursor();
+          cur.onsuccess = () => {
+            const c = cur.result;
+            if (!c) return;
+            if ((c.value as { day?: string }).day !== today) c.delete();
+            c.continue();
+          };
+        } catch {
+          /* a refused clean-up leaves old days on disk, never drawn */
+        }
+        resolve(db);
+      };
+      req.onerror = () => resolve(null);
+      req.onblocked = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+  return fieldDb;
+}
+
+const fieldLoaded = new Set<string>();
+/** Read a name's field for today off the disk once, merged under what this page has read already */
+function loadField(t: string) {
+  if (fieldLoaded.has(t)) return;
+  fieldLoaded.add(t);
+  const day = nyIsoDate();
+  void openFieldDb().then(db => {
+    if (!db) return;
+    try {
+      const req = db.transaction('days', 'readonly').objectStore('days').get(`${t}:${day}`);
+      req.onsuccess = () => {
+        const rec = req.result as { day: string; snaps: GexSnapshot[] } | undefined;
+        if (!rec || rec.day !== day || !Array.isArray(rec.snaps) || !rec.snaps.length) return;
+        const f = field.get(t);
+        const mine = f && f.day === day ? f.snaps : [];
+        const byTime = new Map<number, GexSnapshot>();
+        for (const s of rec.snaps) byTime.set(s.time, s);
+        for (const s of mine) byTime.set(s.time, s);
+        field.set(t, { day, snaps: [...byTime.values()].sort((a, b) => a.time - b.time) });
+        fieldBell();
+      };
+    } catch {
+      /* nothing on disk: the field fills from now */
+    }
+  });
+}
+
+const fieldSaves = new Map<string, number>();
+/** Write a name's field to the disk, a few seconds after its last read */
+function saveField(t: string) {
+  if (typeof window === 'undefined') return;
+  window.clearTimeout(fieldSaves.get(t));
+  fieldSaves.set(
+    t,
+    window.setTimeout(() => {
+      fieldSaves.delete(t);
+      const f = field.get(t);
+      if (!f) return;
+      void openFieldDb().then(db => {
+        if (!db) return;
+        try {
+          db.transaction('days', 'readwrite').objectStore('days').put({ id: `${t}:${f.day}`, day: f.day, snaps: f.snaps });
+        } catch {
+          /* a full or refused disk: the field lives for the page */
+        }
+      });
+    }, 4000)
+  );
+}
+
 function noteField(book: FeedBook) {
   const t = book.ticker;
+  loadField(t);
   const day = nyIsoDate(book.at);
   let f = field.get(t);
   if (!f || f.day !== day) {
@@ -714,12 +811,14 @@ function noteField(book: FeedBook) {
   if (last && last.time >= time) return;
   const levels: GexLevel[] = book.rows.map(r => ({ strike: r.strike, value: r.gex.net, dex: r.dex.net }));
   f.snaps = [...f.snaps, { time, levels }];
-  fieldSubs.forEach(fn => fn());
+  fieldBell();
+  saveField(t);
 }
 
-/** The books read so far today for a name, oldest first */
+/** The books read so far today for a name, oldest first — what this machine kept from earlier included */
 export function useFeedField(ticker: string): GexSnapshot[] {
   const t = ticker.toUpperCase();
+  if (t) loadField(t);
   return useSyncExternalStore(
     fn => {
       fieldSubs.add(fn);
