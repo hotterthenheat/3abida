@@ -328,31 +328,48 @@ export interface UwStrikeExposure {
   putGammaBid: number;
 }
 
+/** One row of a name's exposure by strike — the same row for the whole book and for one expiry */
+const strikeExposure = (r: Record<string, unknown>): UwStrikeExposure => ({
+  strike: num0(r.strike),
+  price: num(r.price),
+  time: ms(r.time),
+  callGammaOi: num0(r.call_gamma_oi),
+  putGammaOi: num0(r.put_gamma_oi),
+  callDeltaOi: num0(r.call_delta_oi),
+  putDeltaOi: num0(r.put_delta_oi),
+  callCharmOi: num0(r.call_charm_oi),
+  putCharmOi: num0(r.put_charm_oi),
+  callVannaOi: num0(r.call_vanna_oi),
+  putVannaOi: num0(r.put_vanna_oi),
+  callGammaVol: num0(r.call_gamma_vol),
+  putGammaVol: num0(r.put_gamma_vol),
+  callGammaAsk: num0(r.call_gamma_ask),
+  callGammaBid: num0(r.call_gamma_bid),
+  putGammaAsk: num0(r.put_gamma_ask),
+  putGammaBid: num0(r.put_gamma_bid),
+});
+
 /**
  * Spot GEX across every strike, the latest (491 rows for SPY, strikes from 50 up, seen). GET
- * /api/stock/{ticker}/spot-exposures/strike (min_strike, max_strike, limit, page, date). Ask for a window round spot.
+ * /api/stock/{ticker}/spot-exposures/strike (min_strike, max_strike, limit, page, date). Ask for a window round spot;
+ * `limit: 1` is the cheap way to read the price the book is figured at (every row carries it — an index too).
  */
-export const uwSpotGexByStrike = (ticker: string, opts: { minStrike?: number; maxStrike?: number; date?: string } = {}): Promise<FeedResult<UwStrikeExposure[]>> =>
-  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/spot-exposures/strike`, { min_strike: opts.minStrike, max_strike: opts.maxStrike, date: opts.date }, body =>
-    rowsOf(body).map(r => ({
-      strike: num0(r.strike),
-      price: num(r.price),
-      time: ms(r.time),
-      callGammaOi: num0(r.call_gamma_oi),
-      putGammaOi: num0(r.put_gamma_oi),
-      callDeltaOi: num0(r.call_delta_oi),
-      putDeltaOi: num0(r.put_delta_oi),
-      callCharmOi: num0(r.call_charm_oi),
-      putCharmOi: num0(r.put_charm_oi),
-      callVannaOi: num0(r.call_vanna_oi),
-      putVannaOi: num0(r.put_vanna_oi),
-      callGammaVol: num0(r.call_gamma_vol),
-      putGammaVol: num0(r.put_gamma_vol),
-      callGammaAsk: num0(r.call_gamma_ask),
-      callGammaBid: num0(r.call_gamma_bid),
-      putGammaAsk: num0(r.put_gamma_ask),
-      putGammaBid: num0(r.put_gamma_bid),
-    }))
+export const uwSpotGexByStrike = (ticker: string, opts: { minStrike?: number; maxStrike?: number; date?: string; limit?: number } = {}): Promise<FeedResult<UwStrikeExposure[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/spot-exposures/strike`, { min_strike: opts.minStrike, max_strike: opts.maxStrike, date: opts.date, limit: opts.limit }, body => rowsOf(body).map(strikeExposure));
+
+/** A UW exposure row for one expiry — the strike row and the date it belongs to */
+export interface UwExpiryStrikeExposure extends UwStrikeExposure {
+  expiry: string;
+}
+
+/**
+ * The same exposure by strike, cut by expiry: one call for several dates (`expirations[]`), each row a strike on one
+ * date (61 strikes × 7 dates = 419 rows, seen 2026-10-12). Its default page is 50 rows, so `limit` up to 500 is asked.
+ * GET /api/stock/{ticker}/spot-exposures/expiry-strike (expirations[], min_strike, max_strike, limit)
+ */
+export const uwSpotGexByExpiryStrike = (ticker: string, expiries: string[], opts: { minStrike?: number; maxStrike?: number } = {}): Promise<FeedResult<UwExpiryStrikeExposure[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/spot-exposures/expiry-strike`, { 'expirations[]': expiries, min_strike: opts.minStrike, max_strike: opts.maxStrike, limit: 500 }, body =>
+    rowsOf(body).map(r => ({ ...strikeExposure(r), expiry: str(r.expiry) }))
   );
 
 export interface UwSpotExposure {
@@ -377,6 +394,49 @@ export const uwSpotExposures = (ticker: string, date?: string): Promise<FeedResu
       charmOi: num0(r.charm_per_one_percent_move_oi),
       vannaOi: num0(r.vanna_per_one_percent_move_oi),
     }))
+  );
+
+/* ---- open interest, max pain and implied moves (Pinpoint and Terrain, 2026-10-12) -------------------------------- */
+
+export interface UwStrikeOi {
+  strike: number;
+  callOi: number;
+  putOi: number;
+  /** The count's date as UW stamps it — today's is the count published after the session before closed */
+  date: string;
+}
+
+/** Open interest by strike, every expiry together (491 rows for SPY, seen). GET /api/stock/{ticker}/oi-per-strike (date) */
+export const uwOiPerStrike = (ticker: string, date?: string): Promise<FeedResult<UwStrikeOi[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/oi-per-strike`, { date }, body =>
+    rowsOf(body).map(r => ({ strike: num0(r.strike), callOi: num0(r.call_oi), putOi: num0(r.put_oi), date: str(r.date) }))
+  );
+
+export interface UwMaxPain {
+  expiry: string;
+  /** The strike where the open interest pays least at expiry */
+  strike: number | null;
+}
+
+/** Max pain for each listed expiry, earliest first (32 for SPY, seen; an index's rows carry no close). GET /api/stock/{ticker}/max-pain */
+export const uwMaxPain = (ticker: string): Promise<FeedResult<UwMaxPain[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/max-pain`, undefined, body => rowsOf(body).map(r => ({ expiry: str(r.expiry), strike: num(r.max_pain) })));
+
+export interface UwImpliedMove {
+  /** Days out the volatility is read at — 1, 5, 7, 14, 30, 60 … */
+  days: number;
+  /** Implied volatility at that horizon, a fraction (0.125 = 12.5%) */
+  volatility: number | null;
+  /** The move the options price in over that horizon, a fraction of price */
+  movePct: number | null;
+  /** Where that volatility stands against its own year, a fraction */
+  percentile: number | null;
+}
+
+/** Implied volatility and the move it prices in, interpolated to fixed horizons. GET /api/stock/{ticker}/interpolated-iv */
+export const uwInterpolatedIv = (ticker: string): Promise<FeedResult<UwImpliedMove[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/interpolated-iv`, undefined, body =>
+    rowsOf(body).map(r => ({ days: num0(r.days), volatility: num(r.volatility), movePct: num(r.implied_move_perc), percentile: num(r.percentile) }))
   );
 
 /* ---- dark pool -------------------------------------------------------------------------------------------------- */

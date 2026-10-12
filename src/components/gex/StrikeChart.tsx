@@ -63,7 +63,7 @@ import {
 } from './candleTheme';
 import { readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
 import { barClockSpec, buildAltBars, type AltBarSpec } from '../../data/altBars';
-import type { Candle } from '../../types/market';
+import type { Candle, GexSnapshot } from '../../types/market';
 import type { DarkPoolPrint, KeyLevels } from '../../types/gex';
 import { bucketFlow, flowMaxLeg } from '../../data/flowBars';
 import { atrBarSeries, bollingerSeries, emaSeries, macdSeries, rsiSeries, sessionStarts, smaSeries, vwapSeries, vwapSigmaSeries } from '../../data/indicators';
@@ -541,6 +541,9 @@ export interface ChartTape {
   clock?: 'ny';
   /** What a price is printed to, where cents are not it (a future: gold in tenths, silver in thousandths) */
   precision?: { decimals: number; tick: number };
+  /** THE BOOK THROUGH TIME for the strike field, where the host has one (Terrain on the feed, 2026-10-12: the books read
+      today, oldest first) — absent, a tape has no field */
+  book?: GexSnapshot[];
 }
 /** What a host's layer is handed: the chart, and the series that carries price NOW (a style swap replaces it — ask each
     time, never keep it) */
@@ -1007,7 +1010,7 @@ const StrikeChart = ({
   tapeRef.current = tape;
   const barsFor = (mins: number, alt?: AltBarSpec | null): Candle[] => (tapeRef.current ? aggregateCandles(tapeRef.current.bars, Math.max(1, mins)) : displayBars(ticker, mins, alt));
   const baseBars = (): Candle[] => tapeRef.current?.bars ?? Simulator.getCandles(ticker) ?? [];
-  const bookHistory = () => (tapeRef.current ? [] : (Simulator.getGexHistory(ticker) ?? []));
+  const bookHistory = () => (tapeRef.current ? (tapeRef.current.book ?? []) : (Simulator.getGexHistory(ticker) ?? []));
   const nameIv = (): number | undefined => (tapeRef.current ? tapeRef.current.iv : Simulator.TICKERS[Simulator.ensureTicker(ticker)]?.iv);
   const drawKey = tape?.key ?? ticker;
   /* NO TICK UNDER THE HAND (Noah, 2026-08-30: "i was in the middle of a drag

@@ -52,6 +52,8 @@ import { profileOf, scanOf } from '../../data/pinpointBook';
 import ReadThis from '../../components/read/ReadThis';
 import { bookReading } from '../../data/reads';
 import { useFrameScan, useRoomWindow } from './usePinpoint';
+import { onFeed } from './feed/onFeed';
+import { FeedMap } from './feed/FeedPages';
 
 /* THE WINDOW IS THE WHOLE BOOK (Noah, 2026-09-05): thirty strikes each side are
    built once; the boxes draw whatever of them they need. */
@@ -348,4 +350,5 @@ const MapDesk = () => {
   );
 };
 
-export default MapDesk;
+/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
+export default onFeed(MapDesk, FeedMap, '/pinpoint/map');

@@ -23,7 +23,8 @@ const check = (name: string, ok: boolean) => {
   check('a Trace page reads the feed when UW is up', pageSource('/trace/live-tape', up) === 'feed');
   check('a Dossier page reads the feed when both are up', pageSource('/dossier/stocks/AAPL', up) === 'feed');
   check('the Dossier reads its own book when Massive is down', pageSource('/dossier/news', st('ok', 'no-key')) === 'stand-in');
-  check('an unwired room reads its own book', ['/pulse', '/terrain', '/pinpoint/map', '/compass', '/weigher', '/out/pulse/x'].every(p => pageSource(p, up) === 'stand-in'));
+  check('a Pinpoint or Terrain page reads the feed when UW is up', ['/pinpoint/map', '/terrain', '/out/terrain'].every(p => pageSource(p, st('ok', 'no-key')) === 'feed'));
+  check('an unwired room reads its own book', ['/pulse', '/compass', '/weigher', '/out/pulse/x'].every(p => pageSource(p, up) === 'stand-in'));
   check('a page no room holds reads the house', ['/practice/paper', '/settings/sources', '/glossary', '/community', '/alerts'].every(p => roomOfPath(p) === null && pageSource(p, up) === 'stand-in'));
   check("a wired room waits while the first probe is out", pageSource('/trace', st('unknown', 'unknown')) === 'pending' && pageSource('/pulse', st('unknown', 'unknown')) === 'stand-in');
   check('/tracer is not Trace', roomOfPath('/tracer') === null);

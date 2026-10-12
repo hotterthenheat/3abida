@@ -13,7 +13,8 @@
   (`wired: false`) returns 'stand-in' whatever the feed
   does. TRACE AND THE DOSSIER ARE WIRED (2026-10-12):
   their pages read data/feed/trace.ts and dossier.ts
-  when their vendors are up. To move a
+  when their vendors are up; PINPOINT AND TERRAIN read
+  data/feed/levels.ts. To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
   data/feed/uw.ts and massive.ts, 'stand-in' means read
@@ -42,16 +43,16 @@ export interface RoomFeed {
   needs: FeedProvider[];
   /** What it would read from each, in the house's words */
   reads: string;
-  /** True once the room's pages read the feed when it is up — Trace alone since 2026-10-12 */
+  /** True once the room's pages read the feed when it is up — the Dossier, Trace, Pinpoint and Terrain (2026-10-12) */
   wired: boolean;
 }
 
 export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   pulse: { name: 'Pulse', needs: ['uw'], reads: 'Market tide, net premium, flow alerts and prices', wired: false },
-  terrain: { name: 'Terrain', needs: ['uw', 'massive'], reads: "Exposure by strike and today's bars; earlier sessions' bars", wired: false },
+  terrain: { name: 'Terrain', needs: ['uw'], reads: 'Exposure by strike and by expiry; the minute bars of the last four sessions', wired: true },
   trace: { name: 'Trace', needs: ['uw'], reads: 'The option tape, the day per contract, flow alerts, multi-leg orders, dark pool prints, net premium and Market Tide', wired: true },
   dossier: { name: 'Dossier', needs: ['uw', 'massive'], reads: 'Congress and insider filings, earnings, the wire and prices; the company record', wired: true },
-  pinpoint: { name: 'Pinpoint', needs: ['uw', 'massive'], reads: 'Exposure by strike; the listed expiries', wired: false },
+  pinpoint: { name: 'Pinpoint', needs: ['uw'], reads: 'Exposure by strike and by expiry, open interest by strike, max pain, the implied move and the book through the day', wired: true },
   compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
   weigher: { name: 'Weigher', needs: ['uw', 'massive'], reads: "The name's price; the listed contracts and their bars", wired: false },
 };

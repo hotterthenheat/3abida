@@ -507,7 +507,9 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
           </span>
           <span className="text-[11px] text-textMuted tnum">
             {distPct >= 0 ? '+' : ''}
-            {distPct.toFixed(2)}% · OI {oi.toLocaleString('en-US')}
+            {distPct.toFixed(2)}% · OI{' '}
+            {/* a cell whose answer carries no open interest (the feed's dates, 2026-10-12) says so, never a zero */}
+            {Number.isFinite(oi) ? oi.toLocaleString('en-US') : <span title="not in the feed">—</span>}
           </span>
           {isSupreme && (
             <span className="text-[11px] font-bold" style={{ color: SUPREME }}>

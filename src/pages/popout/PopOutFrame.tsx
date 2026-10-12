@@ -18,9 +18,12 @@ import { useEffect, type ReactNode } from 'react';
 import ProductGlyph from '../../brand/ProductGlyph';
 import type { GlyphName } from '../../brand/paths';
 import { useDeskChannel } from '../../components/layout/deskChannel';
+import { startFeedProbe } from '../../data/feed/status';
 
 const PopOutFrame = ({ glyph, title, aside, children, testId }: { glyph: GlyphName; title: string; aside?: ReactNode; children: ReactNode; testId: string }) => {
   useDeskChannel();
+  /* a pop-out is a window of its own: it asks where the feed stands, as the shell does (Terrain's panes read the feed) */
+  useEffect(() => startFeedProbe(), []);
   useEffect(() => {
     document.title = `${title} · Slayer Terminal`;
   }, [title]);

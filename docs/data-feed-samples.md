@@ -604,6 +604,190 @@ data: array[3]
 ```
 100 headlines reached back 80 minutes of the morning; every `sentiment` read "neutral".
 
+### `GET /api/stock/SPY/spot-exposures/expiry-strike?expirations[]=2026-10-12&expirations[]=2026-10-13&min_strike=770&max_strike=785&limit=500` — 200
+```
+data: array[32]
+  call_vanna_oi: numeric string  "-98109.49"
+  call_vanna_vol: numeric string  "-257518.16"
+  call_gamma_bid: numeric string  "25794308.74"
+  call_charm_bid: numeric string  "15074274692.46"
+  put_delta_bid: numeric string  "88446736.34"
+  expiry: string  "2026-10-13"
+  date: string  "2026-10-12"
+  call_charm_vol: numeric string  "16559912802.76"
+  put_delta_oi: numeric string  "-110692322.43"
+  put_delta_vol: numeric string  "-271624676.37"
+  call_delta_bid: numeric string  "-839413909.65"
+  ticker: string  "SPY"
+  call_vanna_bid: numeric string  "-234415.45"
+  put_vanna_ask: numeric string  "769007.77"
+  put_gamma_bid: numeric string  "35788627.94"
+  put_gamma_vol: numeric string  "-109908798.04"
+  put_delta_ask: numeric string  "-182892282.42"
+  time: string  "2026-10-12T18:07:58.000000Z"
+  call_delta_oi: numeric string  "351318436.56"
+  put_charm_oi: numeric string  "-25939570407.81"
+  call_delta_vol: numeric string  "922141955.93"
+  call_charm_ask: numeric string  "-1416308331.81"
+  put_gamma_ask: numeric string  "-74004583.09"
+  call_gamma_vol: numeric string  "28336454.8"
+  put_vanna_bid: numeric string  "-371892.28"
+  price: numeric string  "777.51"
+  put_charm_ask: numeric string  "-42858864396.38"
+  strike: numeric string  "770"
+  put_gamma_oi: numeric string  "-44789966.34"
+  call_gamma_oi: numeric string  "10795646.95"
+  put_vanna_oi: numeric string  "465428.37"
+  call_gamma_ask: numeric string  "-2423512.58"
+  call_vanna_ask: numeric string  "22024.58"
+  put_charm_vol: numeric string  "-63652358739.42"
+  put_charm_bid: numeric string  "20726553516.17"
+  call_charm_oi: numeric string  "6309009841.72"
+  call_delta_ask: numeric string  "78867404.13"
+  put_vanna_vol: numeric string  "1142101.16"
+```
+
+### `GET /api/stock/SPY/oi-per-strike` — 200
+```
+data: array[491]
+  date: string  "2026-10-12"
+  strike: numeric string  "50"
+  call_oi: number  39
+  put_oi: number  72422
+```
+
+### `GET /api/stock/SPY/oi-per-strike?date=2026-10-09` — 200
+```
+data: array[491]
+  date: string  "2026-10-09"
+  strike: numeric string  "50"
+  call_oi: number  36
+  put_oi: number  72420
+```
+
+### `GET /api/stock/SPY/max-pain` — 200
+```
+data: array[32]
+  close: numeric string  "777.51"
+  open: numeric string  "778.78"
+  expiry: string  "2026-10-12"
+  max_pain: numeric string  "776"
+  next_upper_strike: numeric string  "777"
+  next_lower_strike: numeric string  "775"
+date: string  "2026-10-12"
+```
+
+### `GET /api/stock/SPY/interpolated-iv` — 200
+```
+data: array[9]
+  date: string  "2026-10-12"
+  days: number  1
+  percentile: numeric string  "0.073"
+  volatility: numeric string  "0.087"
+  implied_move_perc: numeric string  "0.003"
+```
+
+### `GET /api/stock/SPX/spot-exposures/strike?limit=1` — 200
+```
+data: array[1]
+  call_vanna_ask: numeric string  "0.04"
+  call_delta_ask: numeric string  "607050766.33"
+  date: string  "2026-10-12"
+  put_vanna_ask: numeric string  "0"
+  put_vanna_oi: numeric string  "34.33"
+  call_charm_oi: numeric string  "63865.95"
+  call_gamma_ask: numeric string  "-0.11"
+  ticker: string  "SPX"
+  call_delta_oi: numeric string  "835367737144.69"
+  call_gamma_bid: numeric string  "0"
+  put_delta_bid: numeric string  "0"
+  put_charm_oi: numeric string  "-84534.9"
+  call_gamma_vol: numeric string  "0.11"
+  time: string  "2026-10-12T18:06:20.695000Z"
+  price: numeric string  "7800"
+  put_vanna_vol: numeric string  "0"
+  call_vanna_oi: numeric string  "-26.92"
+  call_vanna_bid: numeric string  "0"
+  put_delta_oi: numeric string  "-152830.33"
+  call_vanna_vol: numeric string  "-0.04"
+  call_delta_bid: numeric string  "-60725469.3"
+  call_charm_bid: numeric string  "0"
+  put_charm_vol: numeric string  "0"
+  put_gamma_ask: numeric string  "0"
+  put_charm_ask: numeric string  "0"
+  put_gamma_bid: numeric string  "0"
+  put_delta_ask: numeric string  "0"
+  call_delta_vol: numeric string  "667776235.63"
+  put_delta_vol: numeric string  "0"
+  put_charm_bid: numeric string  "0"
+  put_gamma_vol: numeric string  "0"
+  put_gamma_oi: numeric string  "-96.74"
+  call_gamma_oi: numeric string  "71.78"
+  call_charm_ask: numeric string  "-92.35"
+  put_vanna_bid: numeric string  "0"
+  strike: numeric string  "200"
+  call_charm_vol: numeric string  "92.35"
+```
+
+### `GET /api/stock/SPY/flow-per-strike` — 200 (read by Pinpoint for the contracts traded today at each strike)
+```
+(a bare array): array[359]
+  timestamp: string  "2026-10-12T17:55:18.467000Z"
+  date: string  "2026-10-12"
+  ticker: string  "SPY"
+  call_volume: number  1
+  put_volume: number  0
+  call_volume_ask_side: number  0
+  call_volume_bid_side: number  1
+  put_volume_ask_side: number  0
+  put_volume_bid_side: number  0
+  strike: numeric string  "50"
+  put_premium: numeric string  "0"
+  call_premium: numeric string  "72802.0000"
+  call_premium_bid_side: numeric string  "72802.0000"
+  put_premium_bid_side: numeric string  "0"
+  call_premium_ask_side: numeric string  "0"
+  put_premium_ask_side: numeric string  "0"
+  call_trades: number  1
+  put_trades: number  0
+  call_otm_premium: numeric string  "0"
+  call_otm_trades: number  0
+  call_otm_volume: number  0
+  put_otm_premium: numeric string  "0"
+  put_otm_trades: number  0
+  put_otm_volume: number  0
+```
+
+### `GET /api/stock/SPX/stock-state` — 422, `GET /api/stock/SPX/ohlc/1m` — 422
+```
+{ "msg": "Stock state data is not available for index ticker SPX", … }
+{ "code": "cboe_index_access_missing", "msg": "Prices for the CBOE index SPX require provisioned access and CBOE approval. …", … }
+```
+
+### What Pinpoint's and Terrain's wiring learnt (2026-10-12, 13:20–14:10 ET)
+
+- **The signs, read against the strikes either side of SPY's spot**: gamma, vanna and charm come with the calls as
+  they are and the puts turned negative (`put_gamma_oi` −, `put_vanna_oi` + below spot and − above it, the reverse of a
+  put's own vanna); delta comes as the contracts' own (`call_delta_oi` +, `put_delta_oi` −). The house's sign is the
+  other way round (core/walls.ts: negative call-dominant), so data/feed/levels.ts negates gamma, delta and the calls'
+  vanna and charm, and keeps the puts' vanna and charm as they come.
+- **The walls match a hand computation**: SPY at 777.65 (13:44 ET), 30 strikes each side — call wall 785, put wall 772,
+  supreme 785, flip 777.50, net −$3.9B — from both the page and a Python pass over the same answer. UW's own
+  `/gex-levels` named 780 and 774 that minute, but it reads `source: "vol"` (today's volume), not open interest.
+- **Every exposure row carries `price` and `time`**: `limit=1` is the cheap way to learn the price a name's book is
+  figured at — an index too, which has no day state (`/stock-state` 422) and no bars (`/ohlc` 422, a CBOE grant).
+- **`/spot-exposures/expiry-strike` pages at 50 rows** unless `limit` is asked (500 is the most; `limit=1000` came back
+  as the 50-row page): seven dates × 61 strikes is 419 rows, 430 KB.
+- **`/oi-per-strike`'s `date` is the day the count is published**: the count dated Oct 12 is the positions at Oct 9's
+  close (`/oi-change` pairs `curr_date` 2026-10-12 with `last_date` 2026-10-09 and Oct 9's volumes). Two dates'
+  counts give the change by strike; contracts that expired between them drop out of the later count.
+- **`/oi-change` is ordered by the change** (`order=desc`, the default, the most added; `order=asc` the most closed);
+  not read — two `/oi-per-strike` counts give every strike.
+- **`/max-pain`** lists every listed date (32 for SPY, the same as `/expiry-breakdown`); an index's rows carry no
+  `close` / `open` and add `missing_periscope: true`.
+- **`/ohlc/1m?limit=2500`** reaches about four sessions back with the extended hours (`market_time` `pr`, `r`, `po`);
+  `/ohlc/5m?limit=2500` about fourteen.
+
 ### What the Dossier's wiring learnt (2026-10-12)
 - `/api/congress/recent-trades` caps `limit` at 200 (a 500 answers 422 "limit must be smaller than 200"). Rows come
   newest TRADE first; `date` keeps the trades made on or before it, so it pages back. 200 rows reach about three weeks

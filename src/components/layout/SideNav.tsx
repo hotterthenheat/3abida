@@ -68,17 +68,27 @@ import { useActiveTicker, useNow, useQuote } from '../../context/MarketDataConte
 import { NOT_IN_FEED, useFeedPrice } from '../../data/feed/price';
 import { pageSource } from '../../data/feed/rooms';
 import { useFeedStatus } from '../../data/feed/status';
+import { isCashIndex, useFeedBook } from '../../data/feed/levels';
 
-/* THE RAIL'S PRICE IS THE PAGE'S ROOM'S (2026-10-12): on a page whose room reads the feed (rooms.ts pageSource — Trace
-   and the Dossier today, any room wired later on its own), the name's price is UW's — the same market as every figure
-   under it; on a page whose room reads the house's book, or no room's (Practice, Settings, the Glossary), the house's.
-   Never the vendor's beside the house's on one screen. While a wired room's vendors are still being asked it shows
-   nothing; a name the vendor does not price (the indices) is "—", not in the feed. */
+/* THE RAIL'S PRICE IS THE PAGE'S ROOM'S (2026-10-12): on a page whose room reads the feed (rooms.ts pageSource — Trace,
+   the Dossier, Pinpoint and Terrain today, any room wired later on its own), the name's price is UW's — the same market
+   as every figure under it; on a page whose room reads the house's book, or no room's (Practice, Settings, the
+   Glossary), the house's. Never the vendor's beside the house's on one screen. While a wired room's vendors are still
+   being asked it shows nothing. An index has no day state on UW's plan and is never asked (levels.ts isCashIndex): on
+   Pinpoint and Terrain it is the price its book was figured at, its change left off; elsewhere "—", not in the feed. */
 function useRailQuote(ticker: string): { quote: { spot: number; changePct: number } | null; missing: boolean } {
-  const src = pageSource(useLocation().pathname, useFeedStatus());
+  const path = useLocation().pathname;
+  const src = pageSource(path, useFeedStatus());
   const house = useQuote();
-  const vendor = useFeedPrice(src === 'feed', ticker);
-  if (src === 'feed') return { quote: vendor.price, missing: vendor.answered && !vendor.price };
+  const index = isCashIndex(ticker);
+  const vendor = useFeedPrice(src === 'feed' && !index, ticker);
+  const levelsPage = /^\/(out\/)?(pinpoint|terrain)(\/|$)/.test(path);
+  const book = useFeedBook(src === 'feed' && levelsPage && (index || (vendor.answered && !vendor.price)), ticker).book;
+  if (src === 'feed') {
+    if (vendor.price) return { quote: vendor.price, missing: false };
+    if (book) return { quote: { spot: book.spot, changePct: NaN }, missing: false };
+    return { quote: null, missing: levelsPage ? false : index || vendor.answered };
+  }
   if (src === 'pending') return { quote: null, missing: false };
   return { quote: house, missing: false };
 }
@@ -152,7 +162,9 @@ const RailSubject = ({
   const name = lookup(activeTicker)?.name ?? null;
   const change = quote?.changePct ?? 0;
   const priceText = quote ? `$${quote.spot.toFixed(2)}` : '—';
-  const changeText = quote ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
+  /* a change no answer carries (an index on the feed) is left off, never a zero */
+  const hasChange = !!quote && Number.isFinite(change);
+  const changeText = hasChange ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
   /* THE SUBJECT, dressed as the search field under the mark: the name you
      are on, its price and change, and the key that changes it. */
   return collapsed ? (
@@ -182,7 +194,7 @@ const RailSubject = ({
       <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price title={missing ? NOT_IN_FEED : undefined}>
         {priceText}
       </span>
-      {quote && (
+      {hasChange && (
         <span className={`font-mono text-[11px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
           {changeText}
         </span>

@@ -50,9 +50,14 @@ interface Props {
   data: Timeline | null;
   ticker: string;
   scope?: ReactNode;
+  /** ON THE FEED (2026-10-12): the line is Unusual Whales' whole-book gamma a minute; the flip each minute is not in the
+      answer, so its half says so instead of drawing */
+  feed?: boolean;
 }
 
-const DealerTimeline = ({ data, ticker, scope }: Props) => {
+const NOT_IN_FEED = 'not in the feed';
+
+const DealerTimeline = ({ data, ticker, scope, feed = false }: Props) => {
   const [guideOpen, setGuideOpen] = useState(false);
   const [at, setAt] = useState<number | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
@@ -124,7 +129,11 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
   const change = data ? data.last.netGex - data.first.netGex : 0;
   const sentence = data
     ? `Net GEX read put-heavy for ${spanWords(data.putHeavyMin)} of the ${spanWords(data.points.length)} on the tape and stands at ${usdCompact(data.last.netGex)} at ${minuteLabel(data.last.minute)}, ${usdCompactSigned(change)} since ${minuteLabel(data.first.minute)}.${
-        data.flipMin ? ` Price stood above the flip for ${spanWords(data.aboveFlipMin)} of ${spanWords(data.flipMin)} and crossed it ${data.crossings} ${data.crossings === 1 ? 'time' : 'times'}.` : ' The book had no flip on this session.'
+        data.flipMin
+          ? ` Price stood above the flip for ${spanWords(data.aboveFlipMin)} of ${spanWords(data.flipMin)} and crossed it ${data.crossings} ${data.crossings === 1 ? 'time' : 'times'}.`
+          : feed
+            ? " Price's distance from the flip, minute by minute, is not in the feed: the answer carries the whole book a minute, not the strikes behind it."
+            : ' The book had no flip on this session.'
       }`
     : '';
 
@@ -137,10 +146,18 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
             the house's sign: above the middle line the book is <span style={{ color: SHORT_GAMMA }}>put-heavy</span>, where dealer hedging tends to amplify a move;
             below it <span style={{ color: LONG_GAMMA }}>call-heavy</span>, where the hedging tends to absorb one. The further from the line, the bigger the book.
           </p>
-          <p>
-            The <span className="text-textPrimary">lower line</span> is how far price stood from the flip, as the flip stood that minute — above the dashed line price
-            was over the flip, below it under. A line that hugs the dashed one is a session spent at the flip, where the hedging changes sides.
-          </p>
+          {feed ? (
+            <p>
+              On the feed the top line is Unusual Whales' gamma per 1% move for the whole book, a minute at a time. The{' '}
+              <span className="text-textPrimary">lower line</span> — how far price stood from the flip as the flip stood that minute — is not in the feed: the
+              answer carries the whole book each minute, not the strikes a flip is read from.
+            </p>
+          ) : (
+            <p>
+              The <span className="text-textPrimary">lower line</span> is how far price stood from the flip, as the flip stood that minute — above the dashed line price
+              was over the flip, below it under. A line that hugs the dashed one is a session spent at the flip, where the hedging changes sides.
+            </p>
+          )}
           <p>
             What it does not say: who holds the positions or which way they lean. The open interest under the book is counted once a day, after the close, so the
             book moves through the session with price and time, not with new positions.
@@ -156,8 +173,10 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the two lines mean" testId="timeline-guide" />
           </div>
           <p className="mt-0.5 text-[11px] leading-snug text-textMuted">
-            How to read: the top line is the book's net GEX minute by minute — above the middle put-heavy, below it call-heavy; the lower line is price's distance
-            from the flip, above the dashed line over it{data ? ` · ${data.day}` : ''}
+            {feed
+              ? "How to read: the line is the book's net GEX minute by minute, Unusual Whales' figure — above the middle put-heavy, below it call-heavy; price's distance from the flip each minute is not in the feed"
+              : "How to read: the top line is the book's net GEX minute by minute — above the middle put-heavy, below it call-heavy; the lower line is price's distance from the flip, above the dashed line over it"}
+            {data ? ` · ${data.day}` : ''}
           </p>
         </div>
         {data && (
@@ -174,7 +193,7 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
             </div>
             <div>
               <dt className="text-[11px] text-textMuted">Flip crossed</dt>
-              <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">
+              <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" title={feed && !data.flipMin ? NOT_IN_FEED : undefined}>
                 {data.flipMin ? `${data.crossings} ${data.crossings === 1 ? 'time' : 'times'}` : '—'}
               </dd>
             </div>
@@ -183,7 +202,9 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
       </div>
 
       {!data ? (
-        <p className="px-5 pb-5 text-[12px] text-textMuted">The tape does not hold a session's book for {ticker} yet, so there is no day to draw.</p>
+        <p className="px-5 pb-5 text-[12px] text-textMuted">
+          {feed ? `Asking Unusual Whales for ${ticker}'s book through the day…` : `The tape does not hold a session's book for ${ticker} yet, so there is no day to draw.`}
+        </p>
       ) : (
         <>
           <div className="mx-5 px-3 py-2 border-y border-borderSubtle/60 font-mono text-[11px] leading-snug min-h-[34px] flex items-center" data-timeline-read>
@@ -193,7 +214,11 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
                 <span className="text-textMuted"> · </span>
                 net GEX <span style={{ color: read.netGex > 0 ? SHORT_GAMMA : read.netGex < 0 ? LONG_GAMMA : INK }}>{usdCompact(read.netGex)}</span>, {leanOf(read.netGex)}
                 <span className="text-textMuted"> · </span>
-                {read.flipPct == null || read.flip == null ? 'no flip on the book' : `price ${pct(Math.abs(read.flipPct))} ${read.flipPct >= 0 ? 'above' : 'below'} the flip at ${read.flip.toFixed(2)}`}
+                {read.flipPct == null || read.flip == null
+                  ? feed
+                    ? `price ${read.spot.toFixed(2)} · from the flip — ${NOT_IN_FEED}`
+                    : 'no flip on the book'
+                  : `price ${pct(Math.abs(read.flipPct))} ${read.flipPct >= 0 ? 'above' : 'below'} the flip at ${read.flip.toFixed(2)}`}
               </span>
             ) : (
               <span className="text-textMuted">Point at a minute for the book as it stood</span>
@@ -247,7 +272,13 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
                 <text x={w - M.r + 8} y={gexMid + 4} fontSize={11} fill={INK} fontFamily={FONT_SANS} className="tnum">
                   {usdCompact(data.last.netGex)}
                 </text>
-                {/* FROM THE FLIP — the dashed line is the flip itself */}
+                {feed ? (
+                  <text x={M.l + 4} y={flipMid + 4} fontSize={11} fill={MUTED} fontFamily={FONT_SANS}>
+                    from the flip, each minute — {NOT_IN_FEED}
+                  </text>
+                ) : (
+                  <>
+                    {/* FROM THE FLIP — the dashed line is the flip itself */}
                 <line x1={M.l} x2={w - M.r} y1={flipMid} y2={flipMid} stroke={FLIP} strokeOpacity={0.7} strokeDasharray="3 3" />
                 <path d={flipPath} fill="none" stroke={LONG_GAMMA} strokeOpacity={0.9} strokeWidth={1.25} strokeLinejoin="round" clipPath={`url(#${clip}-fup)`} />
                 <path d={flipPath} fill="none" stroke={SHORT_GAMMA} strokeOpacity={0.9} strokeWidth={1.25} strokeLinejoin="round" clipPath={`url(#${clip}-fdn)`} />
@@ -257,6 +288,8 @@ const DealerTimeline = ({ data, ticker, scope }: Props) => {
                 <text x={w - M.r + 8} y={flipMid + 4} fontSize={11} fill={INK} fontFamily={FONT_SANS} className="tnum">
                   {data.last.flipPct == null ? '—' : pctSigned(data.last.flipPct)}
                 </text>
+                  </>
+                )}
                 {/* the minute in hand */}
                 {read && (
                   <g>

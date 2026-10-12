@@ -620,13 +620,29 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   mark keeps its market (`src: 'feed'`): measured only against the market it was made in.
 - THE RAIL'S PRICE FOLLOWS THE PAGE'S ROOM (2026-10-12; docs/data-feed.md): the shell's subject (the rail, the phone's
   strip) reads UW's stock-state on a page whose room reads the feed (data/feed/rooms.ts `pageSource` by the address —
-  Trace and the Dossier now, a room wired later on its own), the house's on every other page, a page no room holds
+  Trace, the Dossier, Pinpoint and Terrain now, a room wired later on its own), the house's on every other page, a page no room holds
   included (Practice, Settings, the Glossary: Practice marks on the house's book, and the watchlist and alerts drawers
   open anywhere with the house's figures). One poll a name (data/feed/price.ts `useFeedPrice`, `uw:state:<NAME>`, 10 s)
   shared with the rooms' pages; a 429 keeps the last good price five minutes. UW has no index price on Basic (422): on
-  a feed page an index is "—", not in the feed — never the house's figure there.
+  a feed page an index is "—", not in the feed (on Pinpoint and Terrain its book's price, the change left off) — never
+  the house's figure there.
 - COMPASS'S CALENDAR IS THE EXCHANGE'S (2026-10-12): with UW up the board files on each name's real listed dates
   (data/feed/listings.ts, UW's expiry-breakdown, its roots apart — SPX/SPXW, NDX/NDXP, RUT/RUTW, VIX/VIXW AM — the
   dates alone), compass staying `wired: false`: a listed date is a calendar fact, the same in any market, not a market
   figure, so it may stand under the house's setups. Asked two at a time, once a name a New York day
   (slayer_listed_dates); the board waits on its skeleton rather than move its setups. UW down: the schedule.
+- PINPOINT AND TERRAIN READ UW (2026-10-12, both `wired: true`, both needing UW ALONE — Massive's minute bars stop at the
+  session before and it refuses an index; docs/data-feed.md "Pinpoint and Terrain read Unusual Whales"): with UW up every
+  Pinpoint page (pages/pinpoint/feed: one switch a page, `onFeed`) and every Terrain pane read data/feed/levels.ts — the
+  book off /spot-exposures/strike, 30 strikes each side of the price UW figured it at, in THE HOUSE'S SIGN (gamma, delta
+  and the calls' vanna and charm negated, the puts' vanna and charm as they come — read live against the strikes round
+  spot), its walls, flip and supreme `pickWalls` / `pickFlip`'s; by date off /spot-exposures/expiry-strike (`limit` 500 —
+  it pages at 50); open interest off /oi-per-strike (a count dated D is the close of the session before D — "How sure"
+  says so, data/feed/levels.ts `feedFreshness`); max pain, the implied moves, the book through the day, UW's minute bars
+  (four sessions — 1m to 1h only). The rail's price, the head's facts and the watchlist drawer read the feed on those
+  pages. What the house MODELS on its own history (the odds, the range, the close, the schedule, the clock, how the
+  levels held, where they head) is not drawn on the feed: each page names it in one quiet line ("not in the feed"); a
+  field no answer carries is "—" (open interest by date, the flip minute by minute, vega). A failed poll keeps the last
+  good answer — never a flash back to the house's book. An index has no day state and no bars on this plan (422):
+  never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane says its bars are not in the feed.
+  Pulse is not wired: its Pinpoint panels read the house's book. A pop-out probes the feed itself (PopOutFrame).

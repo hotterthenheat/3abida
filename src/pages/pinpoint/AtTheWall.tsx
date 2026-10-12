@@ -32,6 +32,8 @@ import { AtTheWallInner, WallBoardInner, WallPageSkeleton } from '../../componen
 import { bookOf, wallBoardOf } from '../../data/pinpointBook';
 import { bookSureness } from '../../data/levelSureness';
 import { stampOf, useBookClock, useBoxes, useFrameScan } from './usePinpoint';
+import { onFeed } from './feed/onFeed';
+import { FeedAtTheWall } from './feed/FeedPages';
 
 type BoxKey = 'wall' | 'board';
 
@@ -82,4 +84,5 @@ const AtTheWall = () => {
   );
 };
 
-export default AtTheWall;
+/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
+export default onFeed(AtTheWall, FeedAtTheWall, '/pinpoint/wall');
