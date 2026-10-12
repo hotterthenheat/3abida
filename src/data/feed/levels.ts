@@ -385,12 +385,15 @@ export function useFeedMoves(on: boolean, ticker: string): UwImpliedMove[] | nul
 
 /* ---- how sure: the feed's own words ---------------------------------------------------------------------------- */
 
+/** The close a count stands for: UW dates a count by the day it is published, after the session before closed — the
+    count dated Oct 12 is the positions at Oct 9's close (its oi-change rows pair it with Oct 9's trading) */
+export const countClose = (oi: FeedOi | null): string => (oi?.date ? shortDay(sessionBefore(oi.date)) : '');
+
 /** What a feed level stands on: UW's open interest count (once a day) and the price UW figured the hedging at */
 export function feedFreshness(book: FeedBook, oi: FeedOi | null): string {
-  const count = oi?.date ? `the count Unusual Whales dated ${shortDay(oi.date)}, taken after the session before closed` : 'the last daily count';
-  const when = new Date(book.at);
-  const clock = when.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
-  return `Open interest as of ${count} — it is counted once a day · the hedging is figured by Unusual Whales at ${book.spot.toFixed(2)}, ${clock} ET`;
+  const count = oi?.date ? `${countClose(oi)}'s close — Unusual Whales' count dated ${shortDay(oi.date)}` : 'the last close';
+  const clock = new Date(book.at).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+  return `Open interest as of ${count}; it is counted once a day · the hedging is figured by Unusual Whales at ${book.spot.toFixed(2)}, ${clock} ET`;
 }
 
 /** Every named level of the feed's book, with the side turned over beside it (data/levelSureness.ts) */
@@ -485,22 +488,42 @@ export function useFeedByExpiry(on: boolean, ticker: string, dates: string[]): M
   }, [k?.data]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+/** One column of the feed's calendar: a listed date's rows (or the whole book's), and its open interest where an answer
+    carries it */
+export interface FeedColumn {
+  expiry: SurfaceExpiry;
+  rows: ReadonlyMap<number, FeedStrike>;
+  oi?: ReadonlyMap<number, { call: number; put: number }>;
+}
+
+/** The whole book as one column — every expiry together, with the open interest by strike */
+export function bookColumn(book: FeedBook, oi: FeedOi | null): FeedColumn {
+  return { expiry: { dte: 0, short: 'All', date: 'All dates', iv: NaN, sessions: 0 }, rows: new Map(book.rows.map(r => [r.strike, r])), oi: oi?.byStrike };
+}
+
+/** The listed dates' columns, earliest first — a date the answer did not carry is left out */
+export function dateColumns(byDate: Map<string, FeedStrike[]>, dates: string[], today = nyIsoDate()): FeedColumn[] {
+  return dates
+    .filter(d => byDate.has(d))
+    .map(d => {
+      const dte = calDays(today, d);
+      const dd = dayOf(d);
+      return {
+        expiry: { dte, short: dte === 0 ? '0DTE' : `${dte}d`, date: `${MONTHS[dd.getMonth()]} ${dd.getDate()}`, iv: NaN, sessions: sessionsTo(today, d) },
+        rows: new Map((byDate.get(d) ?? []).map(r => [r.strike, r])),
+      };
+    });
+}
+
 /**
  * The feed's book as an ExposureSurface — the house's calendar shape (data/exposureSurface.ts), so the Map's heatmap
- * and ladder draw it as they draw the house's: strikes ascending (the book's own rows), a column a listed date. The
- * levels are the WHOLE book's (every expiry), the cells each date's own. Vega is not in the feed: its arrays are zero
- * and its lens is never offered (FEED_GREEKS). Open interest by date is not in these answers: zero, which the cards
- * read as "none shown".
+ * and ladder draw it as they draw the house's: the book's strikes ascending, a column each. The levels are the WHOLE
+ * book's (every expiry), the cells each column's own. Vega is not in the feed: its arrays are zero and its lens is
+ * never offered (FEED_GREEKS). Open interest stands where an answer carries it (the whole book's column); elsewhere it
+ * is NaN — "—" in the ledger's read line, left off the cards.
  */
-export function feedSurface(book: FeedBook, profile: ExposureProfileData, byDate: Map<string, FeedStrike[]>, dates: string[], changePct: number): ExposureSurface {
+export function feedSurface(book: FeedBook, profile: ExposureProfileData, columns: FeedColumn[], changePct: number): ExposureSurface {
   const strikes = book.rows.map(r => r.strike);
-  const today = nyIsoDate();
-  const shown = dates.filter(d => byDate.has(d));
-  const expiries: SurfaceExpiry[] = shown.map(d => {
-    const dte = calDays(today, d);
-    const dd = dayOf(d);
-    return { dte, short: dte === 0 ? '0DTE' : `${dte}d`, date: `${MONTHS[dd.getMonth()]} ${dd.getDate()}`, iv: NaN, sessions: sessionsTo(today, d) };
-  });
   const greeks: Greek[] = ['gex', 'dex', 'vex', 'vanna', 'charm'];
   const mk = () => ({ gex: [], dex: [], vex: [], vanna: [], charm: [] }) as Record<Greek, number[][]>;
   const put = mk();
@@ -510,15 +533,20 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, byDate
   const king = {} as ExposureSurface['king'];
   for (const g of greeks) king[g] = { strike: strikes[0] ?? book.spot, e: 0, value: 0 };
   const oi: number[][] = [];
-  shown.forEach((d, e) => {
-    const at = new Map((byDate.get(d) ?? []).map(r => [r.strike, r]));
-    oi.push(strikes.map(() => 0));
+  columns.forEach((col, e) => {
+    oi.push(
+      strikes.map(s => {
+        if (!col.oi) return NaN;
+        const o = col.oi.get(s);
+        return o ? o.call + o.put : NaN;
+      })
+    );
     for (const g of greeks) {
       const p: number[] = [];
       const c: number[] = [];
       const n: number[] = [];
-      strikes.forEach(s => {
-        const r = at.get(s);
+      for (const s of strikes) {
+        const r = col.rows.get(s);
         const leg = g === 'vex' || !r ? null : r[g];
         const pv = leg ? leg.put : 0;
         const cv = leg ? leg.call : 0;
@@ -528,7 +556,7 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, byDate
         const a = Math.abs(pv + cv);
         if (a > maxAbs[g]) maxAbs[g] = a;
         if (a > Math.abs(king[g].value)) king[g] = { strike: s, e, value: pv + cv };
-      });
+      }
       put[g].push(p);
       call[g].push(c);
       net[g].push(n);
@@ -537,35 +565,32 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, byDate
   const supreme = {} as ExposureSurface['supreme'];
   for (const g of greeks) {
     let strike = book.levels.supreme;
-    let total = 0;
-    if (g !== 'vex') {
+    if (g !== 'gex' && g !== 'vex') {
       let best = -1;
       for (const r of book.rows) {
         const a = Math.abs(r[g].net);
         if (a > best) {
           best = a;
           strike = r.strike;
-          total = r[g].net;
         }
       }
-      if (g === 'gex') {
-        strike = book.levels.supreme;
-        total = book.rows.find(r => r.strike === strike)?.gex.net ?? 0;
-      }
     }
+    const row = book.rows.find(r => r.strike === strike);
+    const total = row && g !== 'vex' ? row[g].net : 0;
     const si = strikes.indexOf(strike);
     let e = 0;
     let value = 0;
-    if (si >= 0) for (let x = 0; x < shown.length; x++) {
-      const v = net[g][x][si] ?? 0;
-      if (Math.abs(v) > Math.abs(value)) {
-        value = v;
-        e = x;
+    if (si >= 0)
+      for (let x = 0; x < columns.length; x++) {
+        const v = net[g][x][si] ?? 0;
+        if (Math.abs(v) > Math.abs(value)) {
+          value = v;
+          e = x;
+        }
       }
-    }
     supreme[g] = { strike, e, value, total };
   }
-  return { ticker: book.ticker, spot: book.spot, changePct, strikes, expiries, put, call, net, oi, maxAbs, king, supreme, levels: profile.levels, front: profile };
+  return { ticker: book.ticker, spot: book.spot, changePct, strikes, expiries: columns.map(c => c.expiry), put, call, net, oi, maxAbs, king, supreme, levels: profile.levels, front: profile };
 }
 
 /* ---- the price and its change ------------------------------------------------------------------------------- */

@@ -49,6 +49,8 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import { CALL_WALL, FLIP, LONG_GAMMA, PUT_WALL, SHORT_GAMMA, SUPREME, THERMAL_WARM } from '../../components/gex/paletteInk';
 import { fmtDollars } from '../../data/ahead';
 import { pctSigned } from '../../core/format';
+import { onFeed } from './feed/onFeed';
+import { FeedBoard } from './feed/FeedPages';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
@@ -498,4 +500,5 @@ const Board = () => {
   );
 };
 
-export default Board;
+/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
+export default onFeed(Board, FeedBoard, '/pinpoint/board');

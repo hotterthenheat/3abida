@@ -12,7 +12,8 @@
   weigherSource). A room whose pages are not rewired yet
   (`wired: false`) returns 'stand-in' whatever the feed
   does. TRACE IS WIRED (2026-10-12): its pages read
-  data/feed/trace.ts when UW is up. To move a
+  data/feed/trace.ts when UW is up; PINPOINT AND
+  TERRAIN read data/feed/levels.ts. To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
   data/feed/uw.ts and massive.ts, 'stand-in' means read
@@ -36,7 +37,7 @@ export interface RoomFeed {
   needs: FeedProvider[];
   /** What it would read from each, in the house's words */
   reads: string;
-  /** True once the room's pages read the feed when it is up — Trace alone since 2026-10-12 */
+  /** True once the room's pages read the feed when it is up — the Dossier, Trace, Pinpoint and Terrain (2026-10-12) */
   wired: boolean;
 }
 
@@ -45,7 +46,7 @@ export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   terrain: { name: 'Terrain', needs: ['uw'], reads: 'Exposure by strike and by expiry; the minute bars of the last four sessions', wired: false },
   trace: { name: 'Trace', needs: ['uw'], reads: 'The option tape, the day per contract, flow alerts, multi-leg orders, dark pool prints, net premium and Market Tide', wired: true },
   dossier: { name: 'Dossier', needs: ['uw', 'massive'], reads: 'Congress and insider filings, earnings, the wire and prices; the company record', wired: true },
-  pinpoint: { name: 'Pinpoint', needs: ['uw'], reads: 'Exposure by strike and by expiry, open interest by strike, max pain, the implied move and the book through the day', wired: false },
+  pinpoint: { name: 'Pinpoint', needs: ['uw'], reads: 'Exposure by strike and by expiry, open interest by strike, max pain, the implied move and the book through the day', wired: true },
   compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
   weigher: { name: 'Weigher', needs: ['uw', 'massive'], reads: "The name's price; the listed contracts and their bars", wired: false },
 };

@@ -51,6 +51,8 @@ import { type VolPoints } from '../../data/ahead';
 import { bookOf, closeOddsOf, corridorOf, scheduleOf } from '../../data/pinpointBook';
 import { usePositions } from '../../data/positions';
 import { useBookClock, useBoxes, useFrameScan } from './usePinpoint';
+import { onFeed } from './feed/onFeed';
+import { FeedAhead } from './feed/FeedPages';
 
 type BoxKey = 'corridor' | 'close';
 
@@ -134,4 +136,5 @@ const Ahead = () => {
   );
 };
 
-export default Ahead;
+/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
+export default onFeed(Ahead, FeedAhead, '/pinpoint/ahead');

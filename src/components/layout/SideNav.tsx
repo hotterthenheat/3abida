@@ -66,15 +66,26 @@ import Avatar from '../ui/Avatar';
 import { useProfile } from '../../data/profile';
 import { useActiveTicker, useNow, useQuote } from '../../context/MarketDataContext';
 import { useFeedQuote, useTraceSource } from '../../data/feed/trace';
+import { useFeedBook, usePinpointSource, useTerrainSource } from '../../data/feed/levels';
 
 /* THE RAIL'S PRICE IS THE ROOM'S (2026-10-12): on a Trace page reading the feed, the name's price is the vendor's — the
    same market as every print under it — never the house's beside it */
 function useRailQuote(ticker: string) {
-  const onTrace = useLocation().pathname.startsWith('/trace');
-  const feed = useTraceSource() === 'feed' && onTrace;
+  const path = useLocation().pathname;
+  const onTrace = path.startsWith('/trace');
+  const traceFeed = useTraceSource() === 'feed' && onTrace;
+  /* Pinpoint and Terrain on the feed (2026-10-12): the day state's price where UW gives the name one; an index has none,
+     so the price its book was figured at, its change left off */
+  const pinpoint = usePinpointSource();
+  const terrain = useTerrainSource();
+  const levelsFeed = (path.startsWith('/pinpoint') && pinpoint === 'feed') || (path.startsWith('/terrain') && terrain === 'feed');
+  const feed = traceFeed || levelsFeed;
   const house = useQuote();
   const vendor = useFeedQuote(feed, ticker);
-  return feed ? vendor : house;
+  const book = useFeedBook(levelsFeed && !vendor, ticker).book;
+  if (!feed) return house;
+  if (vendor) return vendor;
+  return book ? { spot: book.spot, changePct: NaN } : null;
 }
 import { useLaunch } from './LaunchTransition';
 import CompanyLogo from '../ui/CompanyLogo';
@@ -146,7 +157,9 @@ const RailSubject = ({
   const name = lookup(activeTicker)?.name ?? null;
   const change = quote?.changePct ?? 0;
   const priceText = quote ? `$${quote.spot.toFixed(2)}` : '—';
-  const changeText = quote ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
+  /* a change no answer carries (an index on the feed) is left off, never a zero */
+  const hasChange = !!quote && Number.isFinite(change);
+  const changeText = hasChange ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
   /* THE SUBJECT, dressed as the search field under the mark: the name you
      are on, its price and change, and the key that changes it. */
   return collapsed ? (
@@ -176,7 +189,7 @@ const RailSubject = ({
       <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price>
         {priceText}
       </span>
-      {quote && (
+      {hasChange && (
         <span className={`font-mono text-[11px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
           {changeText}
         </span>

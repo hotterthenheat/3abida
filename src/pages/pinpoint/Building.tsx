@@ -47,6 +47,8 @@ import { usePositions } from '../../data/positions';
 import { bookOf } from '../../data/pinpointBook';
 import { oiChangeByStrike } from '../../data/oiChange';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
+import { onFeed } from './feed/onFeed';
+import { FeedBuilding } from './feed/FeedPages';
 
 type BoxKey = 'ledger' | 'heading' | 'oi' | 'timeline';
 /* The ledger's choices, held across route changes, reset on reload */
@@ -158,4 +160,5 @@ const Building = () => {
   );
 };
 
-export default Building;
+/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
+export default onFeed(Building, FeedBuilding, '/pinpoint/building');
