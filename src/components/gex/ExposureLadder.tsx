@@ -489,7 +489,7 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
         <CardRow k="Call" v={fmtUsd(l.call)} sub={pct(l.call, maxLeg[lead].call)} ink={CALL_INK} />
         <CardRow k={`Net · ${GREEK_LABEL[lead]}`} v={fmtUsd(l.net)} sub={l.net >= 0 ? 'put-heavy' : 'call-heavy'} ink={ink} />
         {oi > 0 && <CardRow k="Open interest" v={Math.round(oi).toLocaleString()} sub="contracts" />}
-        {heaviest && <CardRow k="Heaviest expiry" v={fmtUsd(heaviest.v)} sub={surface.expiries[heaviest.e]?.date} ink={ink} />}
+        {heaviest && surface.expiries[heaviest.e]?.short !== 'All' && <CardRow k="Heaviest expiry" v={fmtUsd(heaviest.v)} sub={surface.expiries[heaviest.e]?.date} ink={ink} />}
         <CardRow k="Of the book" v={`${share.toFixed(1)}%`} sub="shown" />
       </PointerFollowCard>
     );
@@ -806,7 +806,8 @@ const ExposureLadder = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
       <span className="col-span-2 min-w-0 flex flex-col justify-center gap-0.5 whitespace-nowrap">
         <span className="text-[11px] font-bold text-textPrimary leading-none">Total</span>
         <span className="text-[11px] text-textMuted truncate leading-none">
-          {rows.length} strikes · {shownIdx.length} {shownIdx.length === 1 ? 'expiry' : 'expiries'}
+          {/* a column that is the whole book (the feed's ladder, 2026-10-12) is every listed date, not one expiry */}
+          {rows.length} strikes · {shownIdx.length === 1 && surface.expiries[shownIdx[0]]?.short === 'All' ? 'every listed date' : `${shownIdx.length} ${shownIdx.length === 1 ? 'expiry' : 'expiries'}`}
         </span>
       </span>
       {greeks.map((g, gi) => {
