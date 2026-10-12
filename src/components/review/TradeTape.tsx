@@ -37,6 +37,11 @@
   own clock, the one the desk drew them on, and so are its
   arrows. A trade older than the journal keeps drawings
   for says so in place of a chart.
+
+  A TRADE ON A REAL DAY (2026-10-12) is drawn off the
+  candles its session wrote down as it closed (data/
+  review/realKeep.ts) — the record's own, never the
+  house's tape on the same date.
 ==================================================
 */
 
@@ -50,6 +55,7 @@ import type { Excursion } from '../../data/review/excursion';
 import { instantOf, nameOf, type JournalRow } from '../../data/review/journal';
 import { PATHS_KEPT, candlesOfPath } from '../../data/paper/engine';
 import { baseIvAt, dayBars, dayIndex, nextDay, prevDay } from '../../data/review/tape';
+import { stampOf } from '../../data/review/engine';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import type { KeyLevels } from '../../types/gex';
 
@@ -64,7 +70,9 @@ const OVERLAYS: ChartOverlays = { ...(Object.fromEntries(Object.keys(DEFAULT_OVE
 const frameFor = (heldMin: number): Timeframe => (heldMin <= 150 ? '1m' : heldMin <= 900 ? '5m' : heldMin <= 3000 ? '15m' : '1h');
 /** …a paper trade's: the candle its candles were written down at */
 const frameForStep = (sec: number): Timeframe => (sec <= 60 ? '1m' : sec <= 300 ? '5m' : sec <= 900 ? '15m' : '1h');
-const frameOf = (row: JournalRow): Timeframe => (row.paper ? frameForStep(row.s.paths[row.t.id]?.step ?? 60) : frameFor(row.t.heldMin));
+/** A real day's trade: its candles, written down as it closed */
+const realPathOf = (row: JournalRow) => (!row.paper && row.s.src === 'feed' ? (row.s.real?.paths?.[row.t.id] ?? null) : null);
+const frameOf = (row: JournalRow): Timeframe => (row.paper ? frameForStep(row.s.paths[row.t.id]?.step ?? 60) : row.s.src === 'feed' ? frameForStep(realPathOf(row)?.step ?? 60) : frameFor(row.t.heldMin));
 
 interface Level {
   price: number;
@@ -160,11 +168,14 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
 
   /* the days on the tape: the one before the way in, every day it was on, all of the last one */
   const path = row.paper ? (row.s.paths[row.t.id] ?? null) : null;
+  const real = !row.paper && row.s.src === 'feed';
+  const realPath = realPathOf(row);
   const tape = useMemo<ChartTape>(() => {
     if (row.paper) {
       const bars = path ? candlesOfPath(path) : [];
       return { bars, iv: 0.2, key: `journal:${row.key}` };
     }
+    if (real) return { bars: realPath ? candlesOfPath(realPath) : [], iv: row.s.real?.vol[symbol] ?? 0.2, key: `journal:${row.key}`, clock: 'ny' };
     const days: string[] = [];
     const before = prevDay(row.t.opened.day);
     if (before) days.push(before);
@@ -208,12 +219,17 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
       <div className="min-h-9 px-4 py-1 flex items-center gap-3 border-b border-borderSubtle/70">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary whitespace-nowrap">The name while it was on</span>
         {/* a phone's head has room for the title and the card, not for the line between them */}
-        <span className="min-w-0 font-mono text-[11px] uppercase tracking-widest text-textMuted truncate max-sm:hidden">{row.paper ? 'the hour before · the trade · as the desk drew it' : 'the day before · the trade · the rest of its last day'}</span>
+        <span className="min-w-0 font-mono text-[11px] uppercase tracking-widest text-textMuted truncate max-sm:hidden">{row.paper ? 'the hour before · the trade · as the desk drew it' : real ? 'its days on the record · the trade · to its last bell' : 'the day before · the trade · the rest of its last day'}</span>
         <span className="ml-auto">
           <DropdownSelect label="Candles" value={frame} options={FRAMES} onChange={setFrame} title="How long a candle is" align="end" size="sm" testId="journal-frame" />
         </span>
       </div>
-      {row.paper && !path ? (
+      {real && !realPath ? (
+        <div className="px-6 flex flex-col items-center justify-center text-center bg-panel" style={{ height }} data-journal-tape-gone>
+          <p className="text-[13px] text-textPrimary">This trade’s chart was not kept.</p>
+          <p className="mt-1 max-w-[420px] text-[11px] leading-snug text-textMuted">A trade on a real day keeps the record’s candles from the moment it closes, for its session’s last 200 trades. Its figures, its tags and your words are all still here.</p>
+        </div>
+      ) : row.paper && !path ? (
         <div className="px-6 flex flex-col items-center justify-center text-center bg-panel" style={{ height }} data-journal-tape-gone>
           <p className="text-[13px] text-textPrimary">This trade’s chart was not kept.</p>
           <p className="mt-1 max-w-[420px] text-[11px] leading-snug text-textMuted">A paper trade’s candles are written down when it closes, and the journal keeps them for the last {PATHS_KEPT} trades. Its figures, its tags and your words are all still here.</p>
@@ -223,7 +239,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
         <StrikeChart
           ticker={symbol}
           paneId="journal:trade"
-          revision={row.paper ? Math.floor(row.t.closed.at / 1000) : dayIndex((row.t as Extract<JournalRow, { paper?: undefined }>['t']).closed.day) * 2000 + (row.t as Extract<JournalRow, { paper?: undefined }>['t']).closed.minute}
+          revision={row.paper ? Math.floor(row.t.closed.at / 1000) : stampOf((row.t as Extract<JournalRow, { paper?: undefined }>['t']).closed)}
           levels={keyLevels}
           timeframe={frame}
           tape={tape}

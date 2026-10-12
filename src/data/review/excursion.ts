@@ -41,13 +41,20 @@
   ticks, its best and its worst on every tick — read here
   into the same shape. A trade older than the journal
   keeps drawings for has its figures and no path.
+
+  A TRADE ON A REAL DAY (2026-10-12) is walked once, as
+  it closes, on the record that priced it (realKeep.ts
+  writes it down in the paper account's shape), so the
+  journal never asks Massive again: read here like a
+  paper trade's, with the replayed moments' ways out.
 ==================================================
 */
 
 import { MULT, stampOf, type Session, type Trade } from './engine';
 import { instantOf, type JournalRow } from './journal';
-import { contractKey, quoteAt } from './quotes';
-import { LAST_MIN, barTime, nextDay, spotAt } from './tape';
+import { contractKey } from './quotes';
+import { LAST_MIN, barTime } from './tape';
+import { marketOf, type ReplayMarket } from './market';
 
 export interface PathPoint {
   /** A real New York instant, in seconds */
@@ -92,7 +99,7 @@ const WALK_MAX = 6000;
 const cache = new Map<string, Excursion>();
 
 /** Every (day, minute) the trade was on, first to last, stepped if it is long */
-function minutesOf(opened: Trade['opened'], closed: Trade['closed'], lastMin: number): { day: string; minute: number }[] {
+function minutesOf(mk: ReplayMarket, opened: Trade['opened'], closed: Trade['closed'], lastMin: number): { day: string; minute: number }[] {
   const out: { day: string; minute: number }[] = [];
   let day: string | null = opened.day;
   let guard = 0;
@@ -101,7 +108,7 @@ function minutesOf(opened: Trade['opened'], closed: Trade['closed'], lastMin: nu
     const to = day === closed.day ? closed.minute : lastMin;
     for (let m = from; m <= to; m++) out.push({ day, minute: m });
     if (day === closed.day) break;
-    day = nextDay(day);
+    day = mk.nextDay(day);
   }
   if (out.length <= WALK_MAX) return out;
   const step = Math.ceil(out.length / WALK_MAX);
@@ -113,14 +120,17 @@ const within = (placed: Trade['opened'], a: Trade['opened'], b: Trade['closed'])
 /** A leg's moment among the walk's minutes */
 const at = (m: { day: string; minute: number }) => stampOf(m);
 
-function ofOption(s: Session, t: Trade): Excursion {
+/** THE WALK ITSELF: every minute the trade was on, on the market that priced it — the house's tape, or a real day's record
+    while it is in (realKeep.ts writes it down as the trade closes) */
+export function walkOption(s: Session, t: Trade, mk: ReplayMarket = marketOf(s)): PathPoint[] {
   /* what selling a contract cost, off the trade's own legs — what is still on is charged it, so the walk is "fees in" */
   const sells = t.legs.filter(l => l.side === 'sell');
   const feeOut = sells.reduce((a, l) => a + l.fee, 0) / Math.max(1, sells.reduce((a, l) => a + l.qty, 0));
-  const walk = minutesOf(t.opened, t.closed, LAST_MIN);
+  const walk = minutesOf(mk, t.opened, t.closed, LAST_MIN);
   let cash = 0;
   let held = 0;
   let li = 0;
+  let traded = t.avgIn;
   const points: PathPoint[] = walk.map(({ day, minute }, i) => {
     const last = i === walk.length - 1;
     /* every fill up to the end of this minute: what it paid or took, and the size it left on */
@@ -129,10 +139,34 @@ function ofOption(s: Session, t: Trade): Excursion {
       cash += (l.side === 'sell' ? 1 : -1) * l.price * MULT * l.qty - l.fee;
       held += l.side === 'sell' ? -l.qty : l.qty;
     }
-    const bid = last ? t.avgOut : quoteAt(t.contract, day, minute).bid;
+    /* ON A REAL DAY ONLY WHAT TRADED COUNTS: a minute the contract did not trade keeps the price it last traded at, never
+       the estimate between (realTape.ts) */
+    const q = last ? null : mk.quoteAt(t.contract, day, minute);
+    const bid = last ? t.avgOut : q!.src && q!.src !== 'print' ? traded : q!.bid;
+    traded = bid;
     /* the END of the minute, as the desk's clock names it (journal.ts `instantOf`) */
-    return { time: barTime(day, minute) + 60, held, pnl: last ? t.pnl : cash + bid * MULT * held - feeOut * held, value: bid, name: last ? t.spotOut : spotAt(t.contract.ticker, day, minute) };
+    return { time: barTime(day, minute) + 60, held, pnl: last ? t.pnl : cash + bid * MULT * held - feeOut * held, value: bid, name: last ? t.spotOut : mk.spotAt(t.contract.ticker, day, minute) };
   });
+  return points;
+}
+
+function ofOption(s: Session, t: Trade): Excursion {
+  /* a real day's trade: what was written down as it closed; never the house's tape under it */
+  const kept = s.src === 'feed' ? s.real?.held?.[t.id] : undefined;
+  let points: PathPoint[];
+  let best: { pnl: number; time: number } | undefined;
+  let worst: { pnl: number; time: number } | undefined;
+  if (s.src !== 'feed') points = walkOption(s, t);
+  else if (kept) {
+    points = [];
+    for (const [ms, pnl, value, name] of kept.pts) {
+      const time = Math.floor(ms / 1000);
+      if (points.length && points[points.length - 1].time >= time) points.pop();
+      points.push({ time, held: t.qty, pnl, value, name });
+    }
+    best = { pnl: kept.best, time: Math.floor(kept.bestAt / 1000) };
+    worst = { pnl: kept.worst, time: Math.floor(kept.worstAt / 1000) };
+  } else points = marketOf(s).ready ? walkOption(s, t) : [];
   const key = contractKey(t.contract);
   const rode = s.orders.filter(o => o.side === 'sell' && o.kind !== 'market' && o.price != null && o.status !== 'refused' && contractKey(o.contract) === key && within(o.placed, t.opened, t.closed));
   const worth = (price: number, qty: number) => (price - t.avgIn) * MULT * qty - (s.fee * qty * 2);
@@ -141,7 +175,7 @@ function ofOption(s: Session, t: Trade): Excursion {
       .filter(o => o.kind === kind)
       .map<WayOut>(o => (o.on === 'name' ? { price: o.price!, qty: o.qty, of: 'name', pnl: null, trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined } : { price: o.price!, qty: o.qty, of: 'contract', pnl: worth(o.price!, o.qty), trailed: o.trail != null || undefined, movedToCost: !!o.moved || undefined }))
       .sort((a, b) => (kind === 'limit' ? a.price - b.price : b.price - a.price));
-  return finish(points, t.pnl, t.qty, waysOut('limit'), waysOut('stop'));
+  return finish(points, t.pnl, t.qty, waysOut('limit'), waysOut('stop'), best, worst);
 }
 
 function finish(points: PathPoint[], made: number, size: number, targets: WayOut[], stops: WayOut[], bestIn?: { pnl: number; time: number }, worstIn?: { pnl: number; time: number }): Excursion {

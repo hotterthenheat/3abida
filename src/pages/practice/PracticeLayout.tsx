@@ -32,6 +32,7 @@ import ScrollHome from '../../components/layout/ScrollHome';
 import { useGlideHold } from '../../components/ui/useGlideHold';
 import { SIM_FEED } from '../../data/paper/feed';
 import { TAPE_DAYS } from '../../data/review/tape';
+import { useRoomSource } from '../../data/feed/rooms';
 import { NAV_ITEMS } from '../../components/layout/nav';
 import ProductGlyph from '../../brand/ProductGlyph';
 import MarkLoad from '../../brand/MarkLoad';
@@ -53,6 +54,7 @@ const PracticeLayout = () => {
   /* Paper, Backtest and the Journal are products of their own: each wears its glyph, read from the rail's own list */
   const glyph = NAV_ITEMS.find(i => i.path === page.path)?.glyph;
   const holdRef = useGlideHold<HTMLDivElement>();
+  const backtestFeed = useRoomSource('backtest') === 'feed';
   /* a session's desk and its report are one page each: the body does not fade when only the clock's address would; a walk
      from one trade of the journal to the next is one page too (JournalTrade fades its own body) */
   const fadeKey = /^\/practice\/journal\/[^/]+\/[^/]+/.test(location.pathname) ? '/practice/journal/trade' : location.pathname.split('/').slice(0, 5).join('/');
@@ -86,8 +88,11 @@ const PracticeLayout = () => {
           )}
           {which === 'backtest' && (
             <>
-              <Fact label="Prices" testId="source">Replayed tape</Fact>
-              <Fact label="History">{TAPE_DAYS} sessions · a minute a bar</Fact>
+              {/* REAL DAYS (2026-10-12): with Massive up a session may replay the market's own record instead */}
+              <Fact label="Prices" testId="source" title={backtestFeed ? 'A session replays the house’s tape or a real past session from Massive — one or the other, start to end' : undefined}>
+                {backtestFeed ? 'Replayed tape · real days' : 'Replayed tape'}
+              </Fact>
+              <Fact label="History">{backtestFeed ? `${TAPE_DAYS} sessions · two years of real ones` : `${TAPE_DAYS} sessions`} · a minute a bar</Fact>
             </>
           )}
           {which === 'journal' && (

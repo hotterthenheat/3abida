@@ -96,7 +96,7 @@
 ==================================================
 */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { ChartOverlays, ChartTape } from '../../components/gex/StrikeChart';
@@ -112,9 +112,13 @@ import type { ChartBracket, ChartEntry, ChartPosition } from '../../components/r
 import { dirInk, momentWords, pct, rWords, usd, usdSigned } from '../../components/review/words';
 import { accountOf, bankedOf, dayStateOf, floorOf, ladderRoom, ladderTake, nameGoesUp, namesOf, refusal, statsOf, type Account, type Order, type Trade } from '../../data/review/engine';
 import PnlBadges from '../../components/review/PnlBadges';
-import { chainAt, contractDay, contractKey, contractWords, dteAt, expiriesAt, longLeg, quoteAt, quoteWith, spotForAsk, spotForBid, type ContractId, type Right } from '../../data/review/quotes';
+import { contractKey, contractWords, dteAt, longLeg, type ContractId, type Quote, type Right } from '../../data/review/quotes';
+import { HOUSE, marketOf } from '../../data/review/market';
+import { askPrints, askStrikes, failWords, forgetFailed, printsState, strikesState, useRealRecordVersion, useRealSession } from '../../data/feed/backtest';
+import type { RealBook } from '../../data/review/engine';
+import RealDayDoor, { EST, estWords, isEst } from '../../components/review/RealDayDoor';
 import { amendOrder, attachBracket, breakevenOrder, cancelOrder, closePosition, moveClock, placeOrder, readSessions, rebaseOrder, renameSession, trailOrder, useSession } from '../../data/review/store';
-import { DAY_MIN, LAST_MIN, baseIvAt, clockWords, dayBars, dayWords, nextDay, prevDay, reviewName } from '../../data/review/tape';
+import { DAY_MIN, LAST_MIN, clockWords, dayWords, reviewName } from '../../data/review/tape';
 import type { Timeframe } from '../../data/timeframe';
 import type { Candle } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
@@ -132,9 +136,71 @@ const CHAIN_EACH = 12;
 /** The last minutes of a session the desk counts down */
 const CLOSING_MIN = 15;
 
+/** A REAL DAY'S CONTRACT IN HAND: where its own trades stand — they are what fills it */
+const TradesLine = ({ contract, book }: { contract: ContractId; book: RealBook }) => {
+  useRealRecordVersion();
+  const st = printsState(contract, book);
+  const line = 'mt-2 font-mono text-[11px] leading-snug';
+  if (!st || st.state === 'asking') return <p className={`${line} text-textMuted`} data-real-trades="asking">Asking for its own trades…</p>;
+  if (st.state === 'waiting') return <p className={`${line} text-textMuted`} data-real-trades="waiting">Its trades are waiting their turn — Massive answers five calls a minute.</p>;
+  if (st.state === 'failed')
+    return (
+      <p className={`${line} text-warn`} data-real-trades="failed">
+        {failWords(st.reason)} — its trades did not come, so it cannot fill.{' '}
+        <button
+          type="button"
+          onClick={() => {
+            forgetFailed();
+            askPrints(contract, book);
+          }}
+          className="hit text-textPrimary underline underline-offset-2 hover:text-silver"
+        >
+          Ask again
+        </button>
+      </p>
+    );
+  return (
+    <p className={`${line} text-textMuted`} data-real-trades="in">
+      Its own trades are in: it fills only in a minute it traded, at that minute’s average price.
+    </p>
+  );
+};
+
+/** A REAL DAY'S CHAIN before its strikes are in: what is being asked, or why it cannot come */
+const ChainWaits = ({ ticker, expiry, firstDay }: { ticker: string; expiry: string | null; firstDay: string }) => {
+  useRealRecordVersion();
+  if (!expiry) return <>No expiry listed for {ticker} on the record’s first day.</>;
+  const st = strikesState(ticker, expiry, firstDay);
+  if (st?.state === 'failed')
+    return (
+      <>
+        {failWords(st.reason)} — the strikes for {dayWords(expiry)} did not come.{' '}
+        <button
+          type="button"
+          onClick={() => {
+            forgetFailed();
+            askStrikes(ticker, expiry, firstDay);
+          }}
+          className="hit text-textPrimary underline underline-offset-2 hover:text-silver"
+          data-real-strikes-retry
+        >
+          Ask again
+        </button>
+      </>
+    );
+  if (st?.state === 'waiting') return <>{ticker}’s strikes for {dayWords(expiry)} are waiting their turn — Massive answers five calls a minute.</>;
+  return <>Asking for {ticker}’s strikes listed for {dayWords(expiry)}…</>;
+};
+
 const Desk = () => {
   const { id } = useParams();
   const session = useSession(id);
+  /* THE MARKET IT REPLAYS (data/review/market.ts): the house's tape, or — a session on real days — Massive's record, asked
+     for here and registered once it is in (data/feed/backtest.ts) */
+  const realSession = useRealSession(session);
+  const recV = useRealRecordVersion();
+  const mk = session ? marketOf(session) : HOUSE;
+  const real = mk.kind === 'feed';
   /** The closing line and the bell's card, put away — for that day only */
   const [closingSeen, setClosingSeen] = useState('');
   const [bellSeen, setBellSeen] = useState('');
@@ -169,35 +235,45 @@ const Desk = () => {
       setDrillOpen(true);
     }
   };
-  const account = useMemo<Account | null>(() => (session ? accountOf(session) : null), [session]);
+  const account = useMemo<Account | null>(() => (session ? accountOf(session) : null), [session, mk, recV]);
 
   /* the expiries listed today; the one in hand gives way to the next once it has passed */
-  const expiries = useMemo(() => (cursor ? expiriesAt(ticker, cursor.day) : []), [ticker, cursor?.day]); // eslint-disable-line react-hooks/exhaustive-deps
+  const expiries = useMemo(() => (cursor ? mk.expiriesAt(ticker, cursor.day) : []), [ticker, cursor?.day, mk, recV]); // eslint-disable-line react-hooks/exhaustive-deps
   const exp = expiry && expiries.some(e => e.iso === expiry) ? expiry : (expiries.find(e => e.dte >= 5) ?? expiries[0])?.iso ?? null;
   const expiryOptions = useMemo<DropdownOption<string>[]>(() => expiries.map(e => ({ value: e.iso, label: `${e.label} · ${e.dte}d`, hint: e.dte === 0 ? 'Expires at today’s bell' : `${e.kind === 'monthly' ? 'The monthly' : e.kind === 'daily' ? 'A daily' : 'A weekly'} · ${dayWords(e.iso, true)}` })), [expiries]);
   /* laddered off the day's open (it stays put); only a name that has run most of the ladder away re-centres it */
   const chain = useMemo(() => {
     if (!cursor || !exp) return null;
-    const open = dayBars(ticker, cursor.day)[0]?.open;
-    const now = dayBars(ticker, cursor.day)[cursor.minute]?.close;
-    const step = reviewName(ticker).step;
+    const open = mk.dayBars(ticker, cursor.day)[0]?.open;
+    const now = mk.dayBars(ticker, cursor.day)[cursor.minute]?.close;
+    const step = mk.stepOf(ticker);
     const centre = open != null && now != null && Math.abs(now - open) <= step * (CHAIN_EACH - 4) ? open : undefined;
-    return chainAt(ticker, cursor.day, cursor.minute, exp, CHAIN_EACH, centre);
-  }, [ticker, cursor?.day, cursor?.minute, exp]); // eslint-disable-line react-hooks/exhaustive-deps
+    return mk.chainAt(ticker, cursor.day, cursor.minute, exp, CHAIN_EACH, centre);
+  }, [ticker, cursor?.day, cursor?.minute, exp, mk, recV]); // eslint-disable-line react-hooks/exhaustive-deps
   /* THE TAPE EACH CHART DRAWS: the sessions behind the clock's day, whole, then today up to the clock — never a bar past it.
      By name: one chart on the page, two side by side in the takeover. */
   const contextBy = useMemo<Record<string, Candle[]>>(() => {
     if (!cursor) return {};
     const days: string[] = [];
-    for (let d = prevDay(cursor.day); d && days.length < CONTEXT_DAYS; d = prevDay(d)) days.push(d);
+    for (let d = mk.prevDay(cursor.day); d && days.length < CONTEXT_DAYS; d = mk.prevDay(d)) days.push(d);
     days.reverse();
-    return Object.fromEntries(names.map(n => [n, days.flatMap(d => dayBars(n, d))]));
-  }, [names, cursor?.day]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tapeBy = useMemo<Record<string, ChartTape>>(() => (cursor ? Object.fromEntries(names.map(n => [n, { bars: [...(contextBy[n] ?? []), ...dayBars(n, cursor.day).slice(0, cursor.minute + 1)], iv: baseIvAt(n, cursor.day), key: `review:${n}`, clock: 'ny' as const }])) : {}), [contextBy, names, cursor?.day, cursor?.minute]); // eslint-disable-line react-hooks/exhaustive-deps
+    return Object.fromEntries(names.map(n => [n, days.flatMap(d => mk.dayBars(n, d))]));
+  }, [names, cursor?.day, mk]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tapeBy = useMemo<Record<string, ChartTape>>(() => (cursor ? Object.fromEntries(names.map(n => [n, { bars: [...(contextBy[n] ?? []), ...mk.dayBars(n, cursor.day).slice(0, cursor.minute + 1)], iv: mk.ivAt(n, cursor.day), key: `review:${n}`, clock: 'ny' as const }])) : {}), [contextBy, names, cursor?.day, cursor?.minute, mk]); // eslint-disable-line react-hooks/exhaustive-deps
   const fillsBy = useMemo(() => Object.fromEntries(names.map(n => [n, session ? session.fills.filter(f => f.contract.ticker === n) : []])), [session?.fills, names]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pickedQuote = useMemo(() => (cursor && picked ? quoteAt(picked, cursor.day, cursor.minute) : null), [picked, cursor?.day, cursor?.minute]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickedQuote = useMemo(() => (cursor && picked ? mk.quoteAt(picked, cursor.day, cursor.minute) : null), [picked, cursor?.day, cursor?.minute, mk, recV]); // eslint-disable-line react-hooks/exhaustive-deps
   /* a strike's drop-down is that strike's — the bought leg of a spread, not the pair */
-  const pickedDay = useMemo(() => (cursor && picked && drillOpen ? contractDay(longLeg(picked), cursor.day, cursor.minute) : null), [picked, drillOpen, cursor?.day, cursor?.minute]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickedDay = useMemo(() => (cursor && picked && drillOpen ? mk.contractDay(longLeg(picked), cursor.day, cursor.minute) : null), [picked, drillOpen, cursor?.day, cursor?.minute, mk, recV]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* A REAL DAY ASKS AS THE READER LOOKS: the strikes of the expiry on show, and the trades of the contract opened — one call
+     each, kept for the visit (data/feed/backtest.ts) */
+  const firstDay = session?.real?.days[0] ?? '';
+  useEffect(() => {
+    if (real && exp && firstDay) askStrikes(ticker, exp, firstDay);
+  }, [real, ticker, exp, firstDay]);
+  const pickedKey = picked ? contractKey(picked) : '';
+  useEffect(() => {
+    if (real && picked && session?.real) askPrints(picked, session.real);
+  }, [real, pickedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   /* THE POSITION ON THE CHART: where it was entered, and — for what rides it — where the name would have to stand, at this
      minute, for the contract to bid the order's price */
   const positionsBy = useMemo<Record<string, ChartPosition[]>>(() => Object.fromEntries(names.map(n => [n, account ? account.positions.filter(p => p.contract.ticker === n).map(p => ({ key: p.key, contract: p.contract, qty: p.qty, spotIn: p.spotIn, pnl: p.pnl, r: p.r, avg: p.avg, bid: p.quote.bid, dead: p.quote.dead, room: session ? ladderRoom(session, p.contract) : undefined, take: session ? ladderTake(session, p.contract) : undefined })) : []])), [account, names]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -213,11 +289,11 @@ const Desk = () => {
       /* WHAT IT WAITS ON. The contract's price: its dollars hold, and its line is wherever the name would have to stand
          THIS minute. The name's price: its line holds, and its dollars are what the contract would bid there THIS minute. */
       const onName = o.on === 'name';
-      const level = onName ? o.price : spotForBid(o.contract, day, minute, o.price);
-      const sellsAt = onName ? quoteWith(o.contract, day, minute, o.price).bid : o.price;
+      const level = onName ? o.price : mk.spotForBid(o.contract, day, minute, o.price);
+      const sellsAt = onName ? mk.quoteWith(o.contract, day, minute, o.price).bid : o.price;
       /* further off than the name's expected day (its vol that day, one sigma): no room on the scale for it */
       const here = pos.quote.spot;
-      const reach = here * (baseIvAt(o.contract.ticker, day) / Math.sqrt(252));
+      const reach = here * (mk.ivAt(o.contract.ticker, day) / Math.sqrt(252));
       list.push({ orderId: o.id, kind: o.kind === 'stop' ? 'stop' : 'target', on: onName ? 'name' : 'contract', contract: o.contract, qty: o.qty, price: o.price, level, money: (sellsAt - pos.avg) * 100 * o.qty, edge: nameGoesUp(o.kind, o.contract.right) ? 'up' : 'down', far: level == null || Math.abs(level - here) > reach, trail: o.kind === 'stop' ? (o.trail ?? null) : undefined, trailNow: o.kind === 'stop' ? Math.max(0.01, onName ? Math.abs(here - o.price) : pos.quote.bid - o.price) : undefined, breakeven: !!o.breakeven, canBreakeven: !!o.oco && session.orders.some(x => x.status === 'working' && x.oco === o.oco && x.kind === 'limit') });
     }
     const KEY = (b: ChartBracket) => contractKey(b.contract);
@@ -229,7 +305,7 @@ const Desk = () => {
       for (const g of groups.values()) if (g.length > 1) [...g].sort((x, y) => Math.abs(x.money) / x.qty - Math.abs(y.money) / y.qty).forEach((b, i) => (b.nth = i + 1));
     }
     return out;
-  }, [session, account, names]);
+  }, [session, account, names, mk]);
 
   /* THE RESTING ORDERS THAT ARE NOT WAYS OUT — a buy waiting at a price, said as such on the chart ("1 · Buy limit · 480C
      @ 1.20", PositionLayer): where the name would have to stand, this minute, for the contract's ask to come down to it */
@@ -242,13 +318,13 @@ const Desk = () => {
       const list = out[o.contract.ticker];
       if (!list) continue;
       const c = o.contract;
-      const here = dayBars(c.ticker, day)[minute]?.close ?? reviewName(c.ticker).px;
-      const level = spotForAsk(c, day, minute, o.price);
-      const reach = here * (baseIvAt(c.ticker, day) / Math.sqrt(252));
-      list.push({ orderId: o.id, side: 'buy', kind: o.kind === 'stop' ? 'stop' : 'limit', qty: o.qty, price: o.price, level, label: contractWords(c).replace(`${c.ticker} `, ''), edge: (o.kind === 'stop') === (c.right === 'C') ? 'up' : 'down', far: level == null || Math.abs(level - here) > reach, priceAt: at => Math.max(0.01, Math.round(quoteWith(c, day, minute, at).ask * 100) / 100) });
+      const here = mk.spotAt(c.ticker, day, minute) || reviewName(c.ticker).px;
+      const level = mk.spotForAsk(c, day, minute, o.price);
+      const reach = here * (mk.ivAt(c.ticker, day) / Math.sqrt(252));
+      list.push({ orderId: o.id, side: 'buy', kind: o.kind === 'stop' ? 'stop' : 'limit', qty: o.qty, price: o.price, level, label: contractWords(c).replace(`${c.ticker} `, ''), edge: (o.kind === 'stop') === (c.right === 'C') ? 'up' : 'down', far: level == null || Math.abs(level - here) > reach, priceAt: at => Math.max(0.01, Math.round(mk.quoteWith(c, day, minute, at).ask * 100) / 100) });
     }
     return out;
-  }, [session, names]);
+  }, [session, names, mk]);
 
   /* ---- the blotter's columns ---- */
   const openCols = useMemo<Column<Account['positions'][number]>[]>(
@@ -257,7 +333,7 @@ const Desk = () => {
       { key: 'qty', header: 'Held', align: 'right', render: p => <span className="text-textPrimary">{p.qty}</span> },
       { key: 'exp', header: 'Expires', render: p => <span className="text-textSecondary">{dayWords(p.contract.expiry)} · {session ? dteAt(session.cursor.day, p.contract.expiry) : 0}d</span> },
       { key: 'avg', header: 'Paid', align: 'right', render: p => <span className="text-textSecondary">{p.avg.toFixed(2)}</span> },
-      { key: 'mark', header: 'Bid · ask', align: 'right', render: p => <span className="text-textPrimary">{p.quote.bid.toFixed(2)} · {p.quote.ask.toFixed(2)}</span> },
+      { key: 'mark', header: real ? 'Price' : 'Bid · ask', align: 'right', render: p => (isEst(p.quote) ? <span className="text-textSecondary" title={estWords(p.quote)}>{EST}{p.quote.mark.toFixed(2)}</span> : real ? <span className="text-textPrimary" title="Its own trades this minute — their average price">{p.quote.mark.toFixed(2)}</span> : <span className="text-textPrimary">{p.quote.bid.toFixed(2)} · {p.quote.ask.toFixed(2)}</span>) },
       { key: 'theta', header: 'Decay a day', align: 'right', render: p => <span className="text-textSecondary">{usd(Math.abs(p.quote.theta) * 100 * p.qty)}</span> },
       { key: 'pnl', header: 'P&L', align: 'right', render: p => <span className={`font-semibold ${dirInk(p.pnl)}`}>{usdSigned(p.pnl)} <span className="text-[11px] font-normal text-textSecondary">{rWords(p.r)}</span></span> },
       {
@@ -265,13 +341,13 @@ const Desk = () => {
         header: '',
         align: 'right',
         render: p => (
-          <button type="button" onClick={() => id && closePosition(id, p.contract, p.qty)} disabled={p.quote.dead || (session?.cursor.minute ?? 0) >= LAST_MIN} title={(session?.cursor.minute ?? 0) >= LAST_MIN ? 'The market is shut — open the next day' : p.quote.dead ? 'No bid to sell into right now' : 'Sell all of it at the bid, now'} className={smallDoor} data-position-close={p.key}>
+          <button type="button" onClick={() => id && closePosition(id, p.contract, p.qty)} disabled={p.quote.dead || (session?.cursor.minute ?? 0) >= LAST_MIN} title={(session?.cursor.minute ?? 0) >= LAST_MIN ? 'The market is shut — open the next day' : p.quote.dead ? (isEst(p.quote) ? 'No trade in it this minute — leave a limit, or move the clock on' : 'No bid to sell into right now') : real ? 'Sell all of it now, at this minute’s traded price' : 'Sell all of it at the bid, now'} className={smallDoor} data-position-close={p.key}>
             Close
           </button>
         ),
       },
     ],
-    [id, session]
+    [id, session, real]
   );
   const orderCols = useMemo<Column<Order>[]>(
     () => [
@@ -311,12 +387,14 @@ const Desk = () => {
   );
 
   if (!session || !cursor || !account) return <DeskMissing />;
+  /* A SESSION ON REAL DAYS before its record is in: where each call stands, or why it cannot come (RealDayDoor) */
+  if (session.src === 'feed' && (realSession.phase !== 'ready' || !real)) return <RealDayDoor session={session} state={realSession} />;
 
-  const spotOf = (n: string) => dayBars(n, cursor.day)[cursor.minute]?.close ?? reviewName(n).px;
+  const spotOf = (n: string) => mk.spotAt(n, cursor.day, cursor.minute) || reviewName(n).px;
   const spot = spotOf(ticker);
   const stats = statsOf(account.trades);
   const floor = floorOf(session);
-  const tomorrow = nextDay(cursor.day);
+  const tomorrow = mk.nextDay(cursor.day);
   const working = session.orders.filter(o => o.status === 'working');
   const orders = [...working, ...session.orders.filter(o => o.status !== 'working').reverse()].slice(0, 40);
   /* THE READER'S OWN RULES, and where each stands */
@@ -356,7 +434,7 @@ const Desk = () => {
         working: working.length,
       }
     : null;
-  const bidAtSpot = (c: ContractId, at: number) => quoteWith(c, cursor.day, cursor.minute, at).bid;
+  const bidAtSpot = (c: ContractId, at: number) => mk.quoteWith(c, cursor.day, cursor.minute, at).bid;
   const pickRow = (c: ContractId) => {
     const same = picked != null && contractKey(longLeg(picked)) === contractKey(c);
     setDrillOpen(same ? !drillOpen : true);
@@ -368,7 +446,7 @@ const Desk = () => {
   /* THE NAMES, AS THE SHELL READS THEM: each with its tape, and what is drawn over it */
   const deskNames: DeskName[] = names.map(n => {
     const px = spotOf(n);
-    const open = dayBars(n, cursor.day)[0]?.open ?? px;
+    const open = mk.dayBars(n, cursor.day)[0]?.open ?? px;
     return {
       symbol: n,
       title: reviewName(n).name,
@@ -429,7 +507,9 @@ const Desk = () => {
       held={k => account.positions.some(p => legOf(p.contract) && p.contract.strike === k)}
       sold={k => account.positions.some(p => legOf(p.contract) && p.contract.short === k) || (picked != null && legOf(picked) && picked.short === k)}
       full={full}
-      centreKey={`${exp}|${right}|${cursor.day}|${session.id}`}
+      centreKey={`${exp}|${right}|${cursor.day}|${session.id}|${chain?.rows.length ?? 0}`}
+      real={real}
+      empty={real ? <ChainWaits ticker={ticker} expiry={exp} firstDay={firstDay} /> : undefined}
     />
   );
 
@@ -460,8 +540,8 @@ const Desk = () => {
             desk={{
               refuse: d => refusal(session, d),
               locked: null,
-              quoteWith: (c, at) => quoteWith(c, cursor.day, cursor.minute, at),
-              spotForBid: (c, bid) => spotForBid(c, cursor.day, cursor.minute, bid),
+              quoteWith: (c, at) => mk.quoteWith(c, cursor.day, cursor.minute, at),
+              spotForBid: (c, bid) => mk.spotForBid(c, cursor.day, cursor.minute, bid),
               fee: session.fee,
               free: account.cash,
               equity: account.equity,
@@ -470,7 +550,7 @@ const Desk = () => {
               onQ: setQ,
               heldAt: strike => {
                 const p = account.positions.find(x => x.contract.ticker === picked.ticker && x.contract.expiry === picked.expiry && x.contract.right === picked.right && x.contract.strike === strike);
-                return p ? { contract: p.contract, qty: p.qty, avg: p.avg, pnl: p.pnl, decayDay: Math.abs(quoteAt(p.contract, cursor.day, cursor.minute).theta) * 100 * p.qty } : null;
+                return p ? { contract: p.contract, qty: p.qty, avg: p.avg, pnl: p.pnl, decayDay: Math.abs(mk.quoteAt(p.contract, cursor.day, cursor.minute).theta) * 100 * p.qty } : null;
               },
               strikes: picked.ticker === ticker && picked.expiry === exp ? (chain?.rows.map(r => r.strike) ?? []) : [],
               onShort: k => setPicked(k ? { ...longLeg(picked), short: k } : longLeg(picked)),
@@ -488,6 +568,7 @@ const Desk = () => {
               },
             }}
           />
+          {real && session.real && <TradesLine contract={picked} book={session.real} />}
         </div>
       ) : (
         <div className="h-full min-h-[180px] flex items-center justify-center px-6 text-center font-mono text-[11px] uppercase tracking-widest text-textMuted" data-review-ticket="empty">
@@ -501,7 +582,7 @@ const Desk = () => {
     <DeskShell
       session={session}
       onRename={name => renameSession(session.id, name)}
-      subline={`${names.map(n => reviewName(n).name).join(' and ')} · long calls and puts, paid in cash · ${session.fee ? `${usd(session.fee)} a contract each way` : 'no fee'}`}
+      subline={`${names.map(n => reviewName(n).name).join(' and ')} · ${real ? 'the market’s own record, from Massive · ' : ''}long calls and puts, paid in cash · ${session.fee ? `${usd(session.fee)} a contract each way` : 'no fee'}`}
       facts={[
         { label: 'Worth now', testId: 'equity', node: usd(account.equity) },
         { label: 'Cash', testId: 'cash', node: usd(account.cash) },
@@ -535,11 +616,12 @@ const Desk = () => {
         floorDay: floor.day,
         tomorrow,
         words: `${dayWords(cursor.day)} · ${clockWords(cursor.minute)}`,
+        days: real ? mk.days() : undefined,
         wordsAt: clockWords,
         move: to => moveClock(session.id, to),
       }}
-      goToTitle="Jump the clock to the open of a later day — every day between is run"
-      nextDayTitle="Ring today’s bell and open the next session"
+      goToTitle={real ? 'Jump the clock to the open of a later real session this one holds — every day between is run' : 'Jump the clock to the open of a later day — every day between is run'}
+      nextDayTitle={real && !tomorrow ? 'The last real session this one holds — it holds the day it began on and the sessions after it on the record' : 'Ring today’s bell and open the next session'}
       /* THE BELL — the last fifteen minutes as a line, 16:00 as a card; both can be put away for the day */
       notice={({ seek }) =>
         bellFacts ? (

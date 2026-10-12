@@ -14,11 +14,17 @@
   OPTIONS SESSIONS ONLY (2026-09-30): the futures
   backtest was taken out, and a futures session saved
   before then is left out when the list loads.
+
+  A SESSION ON REAL DAYS (`src: 'feed'`, 2026-10-12)
+  goes through the same functions; after every change
+  realKeep.ts writes down what has to outlast the visit
+  (its marks, a closed trade's walk and candles).
 ==================================================
 */
 
 import { useSyncExternalStore } from 'react';
-import { advance, amend, attach, cancel, newSession, place, rebase, setBreakeven, setTrail, type Draft, type Moment, type Session, type SessionRules } from './engine';
+import { advance, amend, attach, cancel, newSession, place, rebase, setBreakeven, setTrail, type Draft, type Moment, type RealBook, type Session, type SessionRules } from './engine';
+import { keepReal } from './realKeep';
 import type { DayNote, JournalEntry } from './journal';
 import { contractKey, type ContractId } from './quotes';
 
@@ -59,14 +65,16 @@ const commit = (next: Session[], now = false) => {
 if (typeof window !== 'undefined') window.addEventListener('beforeunload', save);
 
 /** A change to a session */
-const swap = (id: string, fn: (s: Session) => Session, now = false) => commit(list.map(s => (s.id === id ? fn(s) : s)), now);
+const swap = (id: string, fn: (s: Session) => Session, now = false) => commit(list.map(s => (s.id === id ? keepReal(s, fn(s)) : s)), now);
 const newId = (now: number) => `s${now.toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
 
 /** `tickers`: one name or two. `rules`: the reader's own, set here and never after — a rule that can be loosened in the
     middle of a losing day is not a rule. */
-export function createSession(o: { name: string; ticker: string; tickers?: string[]; rules?: SessionRules; startCash: number; fee: number; startDay: string }): Session {
+export function createSession(o: { name: string; ticker: string; tickers?: string[]; rules?: SessionRules; startCash: number; fee: number; startDay: string; real?: RealBook }): Session {
   const now = Date.now();
-  const s = newSession({ ...o, id: newId(now), now });
+  const made = newSession({ ...o, id: newId(now), now });
+  /* a real day: the market's own record, start to end (market.ts) */
+  const s: Session = o.real ? { ...made, src: 'feed', real: { days: o.real.days, before: o.real.before, vol: o.real.vol } } : made;
   commit([s, ...list], true);
   return s;
 }
@@ -78,7 +86,7 @@ export function runAgain(id: string): Session | null {
   if (!from) return null;
   const stem = from.name.replace(/ · run \d+$/, '');
   const runs = list.filter(s => s.name === stem || s.name.startsWith(`${stem} · run `)).length;
-  return createSession({ name: `${stem} · run ${runs + 1}`, ticker: from.ticker, tickers: from.tickers, rules: from.rules, startCash: from.startCash, fee: from.fee, startDay: from.startDay });
+  return createSession({ name: `${stem} · run ${runs + 1}`, ticker: from.ticker, tickers: from.tickers, rules: from.rules, startCash: from.startCash, fee: from.fee, startDay: from.startDay, real: from.src === 'feed' ? from.real : undefined });
 }
 export const deleteSession = (id: string) => commit(list.filter(s => s.id !== id), true);
 /** Put a deleted session back where it stood in the list (the Undo of a delete) */

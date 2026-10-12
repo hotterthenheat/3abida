@@ -68,11 +68,13 @@ const contract = (r: Record<string, unknown>): MassiveContract => ({
 /**
  * A name's listed contracts, paged along `next_url` through the proxy. GET /v3/reference/options/contracts
  * (underlying_ticker, expiration_date.gte/.lte, contract_type, limit ≤ 1000, sort, order). Every page is a call of
- * the five a minute, so `maxPages` caps it.
+ * the five a minute, so `maxPages` caps it. `asOf` (`as_of`) lists what was listed ON A PAST DAY, the contracts that
+ * have since expired among them — seen live 2026-10-12: SPY's 760 call as of 2026-09-14 answered 34 expiries,
+ * 2026-09-14 to 2029-01-19, and the 2026-09-18 calls as of that day 321 strikes (the Backtest's real days).
  */
 export async function massiveContracts(
   underlying: string,
-  opts: { expiryFrom?: string; expiryTo?: string; type?: 'call' | 'put'; strike?: number; maxPages?: number } = {}
+  opts: { expiryFrom?: string; expiryTo?: string; type?: 'call' | 'put'; strike?: number; asOf?: string; maxPages?: number } = {}
 ): Promise<FeedResult<MassiveContract[]>> {
   const first = feedUrl('massive', '/v3/reference/options/contracts', {
     underlying_ticker: underlying.toUpperCase(),
@@ -80,6 +82,7 @@ export async function massiveContracts(
     'expiration_date.lte': opts.expiryTo,
     contract_type: opts.type,
     strike_price: opts.strike,
+    as_of: opts.asOf,
     sort: 'expiration_date',
     order: 'asc',
     limit: 1000,
@@ -108,8 +111,8 @@ export async function massiveContracts(
  * 2029-01-19, the same 32 UW's expiry-breakdown lists — seen 2026-10-12); without a strike the whole chain pages
  * through at five calls a minute. A strike some far expiry does not list leaves that expiry out.
  */
-export async function massiveExpirations(underlying: string, opts: { strike?: number; from?: string; to?: string; maxPages?: number } = {}): Promise<FeedResult<string[]>> {
-  const r = await massiveContracts(underlying, { expiryFrom: opts.from, expiryTo: opts.to, type: 'call', strike: opts.strike, maxPages: opts.maxPages ?? (opts.strike !== undefined ? 1 : 3) });
+export async function massiveExpirations(underlying: string, opts: { strike?: number; from?: string; to?: string; asOf?: string; maxPages?: number } = {}): Promise<FeedResult<string[]>> {
+  const r = await massiveContracts(underlying, { expiryFrom: opts.from, expiryTo: opts.to, type: 'call', strike: opts.strike, asOf: opts.asOf, maxPages: opts.maxPages ?? (opts.strike !== undefined ? 1 : 3) });
   if (!r.ok) return r;
   return { ok: true, data: Array.from(new Set(r.data.map(c => c.expiry))).sort(), at: r.at };
 }
@@ -131,10 +134,16 @@ export interface MassiveBar {
 
 export type MassiveTimespan = 'minute' | 'hour' | 'day' | 'week' | 'month';
 
+/** A contract's own ticker, the OCC way Massive writes it: O:SPY261012C00550000 (strike × 1000, eight figures) */
+export const occTicker = (c: { ticker: string; expiry: string; right: 'C' | 'P'; strike: number }): string =>
+  `O:${c.ticker.toUpperCase()}${c.expiry.slice(2, 4)}${c.expiry.slice(5, 7)}${c.expiry.slice(8, 10)}${c.right}${String(Math.round(c.strike * 1000)).padStart(8, '0')}`;
+
 /**
  * Bars for a stock or an option contract (O:…). GET /v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from}/{to}
  * (adjusted, sort, limit ≤ 50000). On the Basic plans the day before's minutes are there (2026-10-09's, seen on the
- * 12th); today's are not.
+ * 12th); today's are not. Two years back answer (SPY's days from 2024-10-14; AAPL's minutes that day; an expired
+ * contract's own minutes, O:AAPL241115C00225000 in November 2024 and O:SPY260918C00762000 — seen 2026-10-12), a
+ * contract's minutes running to 16:15 on the funds. A minute nothing traded has no bar.
  */
 export const massiveBars = (ticker: string, multiplier: number, timespan: MassiveTimespan, from: string, to: string, opts: { limit?: number } = {}): Promise<FeedResult<MassiveBar[]>> =>
   feedGet('massive', `/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/${multiplier}/${timespan}/${from}/${to}`, { adjusted: true, sort: 'asc', limit: opts.limit ?? 50000 }, body => {

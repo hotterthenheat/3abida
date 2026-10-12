@@ -12,7 +12,9 @@
   weigherSource). A room whose pages are not rewired yet
   (`wired: false`) returns 'stand-in' whatever the feed
   does. TRACE IS WIRED (2026-10-12): its pages read
-  data/feed/trace.ts when UW is up. To move a
+  data/feed/trace.ts when UW is up. THE BACKTEST is
+  wired the same day: with Massive up a session can
+  replay a real past day (data/feed/backtest.ts). To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
   data/feed/uw.ts and massive.ts, 'stand-in' means read
@@ -26,7 +28,7 @@
 import type { FeedProvider } from './client';
 import { isUp, useFeedStatus, type FeedStatus } from './status';
 
-export type FeedRoom = 'pulse' | 'terrain' | 'trace' | 'dossier' | 'pinpoint' | 'compass' | 'weigher';
+export type FeedRoom = 'pulse' | 'terrain' | 'trace' | 'dossier' | 'pinpoint' | 'compass' | 'weigher' | 'backtest';
 export type RoomSource = 'feed' | 'stand-in';
 
 export interface RoomFeed {
@@ -48,6 +50,8 @@ export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   pinpoint: { name: 'Pinpoint', needs: ['uw', 'massive'], reads: 'Exposure by strike; the listed expiries', wired: false },
   compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
   weigher: { name: 'Weigher', needs: ['uw', 'massive'], reads: "The name's price; the listed contracts and their bars", wired: false },
+  /* THE BACKTEST'S REAL DAYS (2026-10-12, data/feed/backtest.ts): Massive alone — the record of a past session */
+  backtest: { name: 'Backtest', needs: ['massive'], reads: "Real past sessions: a name's minute bars, the contracts listed that day and each opened contract's own trades", wired: true },
 };
 
 export const FEED_ROOMS = Object.keys(ROOM_FEEDS) as FeedRoom[];
@@ -66,6 +70,7 @@ export const dossierSource = (s: FeedStatus): RoomSource => roomSource('dossier'
 export const pinpointSource = (s: FeedStatus): RoomSource => roomSource('pinpoint', s);
 export const compassSource = (s: FeedStatus): RoomSource => roomSource('compass', s);
 export const weigherSource = (s: FeedStatus): RoomSource => roomSource('weigher', s);
+export const backtestSource = (s: FeedStatus): RoomSource => roomSource('backtest', s);
 
 /** What a room reads, rendering when the feed's standing changes */
 export function useRoomSource(room: FeedRoom): RoomSource {

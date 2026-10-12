@@ -170,6 +170,7 @@ import RenameDoor from './RenameDoor';
 import { dirInk, usd, usdSigned } from './words';
 import { DOCK_ROOM, useEditorDock } from '../../data/editorDock';
 import { dayIndex } from '../../data/review/tape';
+import { stampOf } from '../../data/review/engine';
 import type { OpeningRange } from '../../data/sessionLevels';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import type { KeyLevels } from '../../types/gex';
@@ -338,6 +339,8 @@ interface DeskShellProps {
     marks?: { u: number; label: string }[];
     /** The engine's: it refuses what the rules refuse */
     move: (to: { day: string; minute: number }) => void;
+    /** A REAL SESSION'S DAYS (2026-10-12): the sessions on the record it holds — the Go to calendar offers those alone */
+    days?: string[];
   };
   goToTitle?: string;
   nextDayTitle?: string;
@@ -597,7 +600,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
       marks={clock.marks}
       words={clock.words}
       wordsAt={p => clock.wordsAt(Math.max(0, Math.round(p / 60) - 1))}
-      counter={`day ${dayIndex(clock.day) - dayIndex(session.startDay ?? clock.day) + 1}`}
+      counter={`day ${clock.days ? clock.days.indexOf(clock.day) - Math.max(0, clock.days.indexOf(session.startDay ?? clock.day)) + 1 : dayIndex(clock.day) - dayIndex(session.startDay ?? clock.day) + 1}`}
       stateWord="New York"
       exitWords="Your sessions"
       playing={playing}
@@ -712,7 +715,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
         <span className="w-px h-4 bg-borderSubtle shrink-0" aria-hidden />
         {/* `ml-auto`: should the row ever wrap, the doors stay at the right edge, where they are looked for */}
         <span className="ml-auto flex items-center gap-1">
-          {clock && <DayCard label={compact || tight ? '' : 'Go to'} value={clock.day} onChange={d => seek(d === clock.day ? clock.minute : 0, d)} min={clock.floorDay} title={goToTitle} testId="review-goto" size="sm" />}
+          {clock && <DayCard label={compact || tight ? '' : 'Go to'} value={clock.day} onChange={d => seek(d === clock.day ? clock.minute : 0, d)} min={clock.floorDay} title={goToTitle} testId="review-goto" size="sm" days={clock.days} />}
           {doors?.(hands)}
           {clock && (
             <button type="button" onClick={() => clock.tomorrow && seek(0, clock.tomorrow)} disabled={!clock.tomorrow} title={nextDayTitle} className={barDoor} data-review-next-day>
@@ -751,7 +754,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                   <StrikeChart
                     ticker={p.name.symbol}
                     paneId={`${paneIds[0]}:${p.key}`}
-                    revision={clock ? dayIndex(clock.day) * 2000 + clock.minute : (revision ?? 0)}
+                    revision={clock ? stampOf(clock) : (revision ?? 0)}
                     levels={p.name.levels}
                     timeframe={p.timeframe}
                     tape={p.name.tape}
@@ -824,7 +827,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                 <StrikeChart
                   ticker={n.symbol}
                   paneId={paneIdOf(n)}
-                  revision={clock ? dayIndex(clock.day) * 2000 + clock.minute : (revision ?? 0)}
+                  revision={clock ? stampOf(clock) : (revision ?? 0)}
                   levels={n.levels}
                   timeframe={prefs.timeframe}
                   tape={n.tape}

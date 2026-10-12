@@ -1066,10 +1066,10 @@ function keepHeld(a: PaperAccount, m: PaperMarket): PaperAccount {
 
 /** THE CANDLES A TRADE WAS ON, written down as it closes: an hour before the way in to the way out, at a coarser candle
     when that is more than PATH_BARS of them — in whole units over a base, to keep a journal of hundreds small */
-export function pathOf(bars: Candle[], fromSec: number, toSec: number, unit: number): TradePath | null {
+export function pathOf(bars: Candle[], fromSec: number, toSec: number, unit: number, most = PATH_BARS): TradePath | null {
   const inside = bars.filter(b => b.time >= fromSec && b.time <= toSec);
   if (!inside.length) return null;
-  const minutes = Math.max(1, Math.ceil(inside.length / PATH_BARS));
+  const minutes = Math.max(1, Math.ceil(inside.length / most));
   const step = 60 * minutes;
   const out: Candle[] = [];
   for (const b of inside) {
