@@ -106,7 +106,7 @@ export const columnsThatFit = (paneW: number) => Math.max(1, Math.floor((paneW -
 const ROW_MIN = 18;
 const SPOT_H = 18;
 const HEAD_H = 44;
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 /** The figure for a narrow cell — "272M" where "-$272.1M" would not fit (All at
     forty columns): four glyphs at most, no sign — the capsule's colour IS the
     sign on every ramp, and the read line carries the signed figure */

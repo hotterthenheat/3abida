@@ -43,6 +43,8 @@
 */
 
 import { impliedDaySigma } from './atr';
+import { feedMarket, isFeedSnap } from './bookMarket';
+import { lensDate } from './exposure';
 import { lastSessionSupreme, moveIntoClose, ofLast, rangeFrom, recentSessions, sessionSoFar } from './aheadHistory';
 import { inCashSession, sessionBars } from './levelview';
 import { nyMinutes } from '../core/nyTime';
@@ -57,8 +59,8 @@ export const OPEN_MIN = 9 * 60 + 30;
 export const CLOSE_MIN = 16 * 60;
 export const SESSION_MIN = CLOSE_MIN - OPEN_MIN; // 390
 
-export const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-export const fmtPrice = (v: number) => v.toFixed(2);
+export const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+export const fmtPrice = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '—');
 export const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 /** "$48.3M" / "$1.2B" — the schedule's dollars, unsigned (the sentence says buying or selling); the house's compact
     dollars (core/format.ts) */
@@ -486,6 +488,16 @@ const BLOCK = 30;
 const phaseName = (min: number) =>
   min < 10 * 60 ? 'the open' : min < 11 * 60 + 30 ? 'the morning' : min < 14 * 60 ? 'lunch' : min < 15 * 60 + 30 ? 'the charm window' : min < 15 * 60 + 50 ? 'the turn' : 'the close';
 
+/** The net delta of the contracts that expire at the session's bell, off a feed snapshot's own dated rows */
+function todaysDex(snapshot: MarketSnapshot): number {
+  const day = lensDate('0DTE');
+  /* exact: a name with nothing listed on the day has nothing expiring at this bell (an index's dailies are listed under
+     its second root — data/feed/pinpointMarket.ts listedRows) */
+  const chain = day ? feedMarket()?.lensChain?.(snapshot, day, true) : null;
+  if (!chain) return Number.NaN;
+  return chain.reduce((a, n) => a + n.netDex, 0);
+}
+
 export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfileData, clock: AheadClock, volPoints: VolPoints = -1, surfaceIn?: ExposureSurface | null): Schedule {
   /* THE HEDGE THAT MUST COME OFF: today's options carry a delta the dealers
      hedge in stock; by 4:00 that delta is gone (out-of-the-money to nothing,
@@ -493,7 +505,9 @@ export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfile
      delta exposure of the day's book is the size of that trade; its sign is
      the direction — dealers long delta through options hold short stock, so
      they BUY it back as the delta bleeds. */
-  const toClose = profile.netDex;
+  /* ON THE FEED the room's book is every listed date together, so "today's options" are read off the vendor's own rows
+     for the session's date (data/exposure.ts lensDate — the same day the Expiry card names), NaN while they come */
+  const toClose = isFeedSnap(snapshot) ? todaysDex(snapshot) : profile.netDex;
   const start = clock.nowMin ?? OPEN_MIN;
   const blocks: ScheduleBlock[] = [];
   const weights: number[] = [];

@@ -70,7 +70,7 @@ const SILVER = 'rgb(var(--silver))';
 const PUT_INK = PUT_WALL;
 const CALL_INK = CALL_WALL;
 const ROW_H = 27;
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const head = 'font-mono text-[11px] font-semibold';
 
 interface Row {

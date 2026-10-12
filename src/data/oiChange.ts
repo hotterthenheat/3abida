@@ -20,10 +20,10 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { sessionStarts } from './indicators';
 import { nyDay } from '../core/nyTime';
-import type { GexSnapshot } from '../types/market';
+import type { GexLevel, GexSnapshot } from '../types/market';
 
 export interface OiChangeRow {
   strike: number;
@@ -58,7 +58,7 @@ const fmtK = (n: number) => {
   const s = a >= 10_000 ? `${(a / 1000).toFixed(0)}K` : a >= 1000 ? `${(a / 1000).toFixed(1)}K` : `${Math.round(a)}`;
   return `${n < 0 ? '−' : '+'}${s}`;
 };
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** The last snapshot at or before a bar time */
 function snapAt(snaps: readonly GexSnapshot[], t: number): GexSnapshot | null {
@@ -80,8 +80,13 @@ function snapAt(snaps: readonly GexSnapshot[], t: number): GexSnapshot | null {
  * sessions (today and two closes behind it) or the history carries no open interest.
  */
 export function oiChangeByStrike(ticker: string, spot: number): OiChange | null {
-  const bars = Simulator.peekCandles(ticker);
-  const snaps = Simulator.getGexHistory(ticker) ?? [];
+  /* THE VENDOR'S TWO COUNTS (2026-10-12): where the market keeps open interest as the counts themselves, the change is
+     read off them — the same arithmetic, the closes the counts stand for */
+  const counts = bookMarket().oiCounts?.(ticker);
+  if (counts !== undefined) return counts ? fromLevels(ticker, spot, counts.last, counts.before, counts.lastDay, counts.beforeDay) : null;
+  bookMarket().deep?.(ticker);
+  const bars = bookMarket().peekCandles(ticker);
+  const snaps = bookMarket().getGexHistory(ticker);
   if (!bars || bars.length < 3 || !snaps.length) return null;
   const starts = sessionStarts(bars, 1);
   /* the trailing run is today's; the two runs before it closed the last two counts */
@@ -92,13 +97,19 @@ export function oiChangeByStrike(ticker: string, spot: number): OiChange | null 
   const b = snapAt(snaps, beforeEnd);
   if (!a || !b || a === b) return null;
   if (!a.levels.some(l => l.callOI !== undefined)) return null;
-  const prev = new Map(b.levels.map(l => [l.strike, l]));
+  return fromLevels(ticker, spot, a.levels, b.levels, nyDay(lastEnd * 1000), nyDay(beforeEnd * 1000));
+}
+
+/** The change strike by strike between two closes' open interest */
+function fromLevels(ticker: string, spot: number, nowLevels: readonly GexLevel[], beforeLevels: readonly GexLevel[], last: string, before: string): OiChange | null {
+  if (!nowLevels.length) return null;
+  const prev = new Map(beforeLevels.map(l => [l.strike, l]));
   const rows: OiChangeRow[] = [];
   let maxAbs = 1;
   let addedCalls = 0;
   let addedPuts = 0;
   let most: OiChange['most'] = null;
-  for (const l of [...a.levels].sort((x, y) => x.strike - y.strike)) {
+  for (const l of [...nowLevels].sort((x, y) => x.strike - y.strike)) {
     const p = prev.get(l.strike);
     const calls = l.callOI ?? 0;
     const puts = l.putOI ?? 0;
@@ -111,8 +122,6 @@ export function oiChangeByStrike(ticker: string, spot: number): OiChange | null 
     if (dCalls > 0 && (!most || dCalls > most.contracts)) most = { strike: l.strike, side: 'calls', contracts: dCalls };
     if (dPuts > 0 && (!most || dPuts > most.contracts)) most = { strike: l.strike, side: 'puts', contracts: dPuts };
   }
-  const last = nyDay(lastEnd * 1000);
-  const before = nyDay(beforeEnd * 1000);
   const sentence = `Between ${before}'s close and ${last}'s, ${fmtK(addedCalls)} call contracts and ${fmtK(addedPuts)} put contracts were added across these strikes${
     most ? `; the most went into the ${fmtStrike(most.strike)} ${most.side === 'calls' ? 'calls' : 'puts'}, ${fmtK(most.contracts)}` : ''
   }. Open interest is counted once a day, after the close — a strike that gained it overnight is where a wall can stand before the day's hedging shows it.`;

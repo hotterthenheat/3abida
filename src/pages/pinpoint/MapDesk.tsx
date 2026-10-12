@@ -32,7 +32,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
-import Simulator from '../../core/simulator';
+import { bookMarket } from '../../data/bookMarket';
 import { changeTicker, useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import LiveScopeChip from '../../components/link/LiveScopeChip';
@@ -52,8 +52,6 @@ import { profileOf, scanOf } from '../../data/pinpointBook';
 import ReadThis from '../../components/read/ReadThis';
 import { bookReading } from '../../data/reads';
 import { useFrameScan, useRoomWindow } from './usePinpoint';
-import { onFeed } from './feed/onFeed';
-import { FeedMap } from './feed/FeedPages';
 
 /* THE WINDOW IS THE WHOLE BOOK (Noah, 2026-09-05): thirty strikes each side are
    built once; the boxes draw whatever of them they need. */
@@ -193,9 +191,10 @@ const MapDesk = () => {
      book is its name's own session at the replayed minute — a name with no
      session on hand stays live */
   const columnSnap = useCallback(
-    (t: string): MarketSnapshot => {
-      const live = Simulator.snapshotFor(t);
-      if (!range) return live;
+    (t: string): MarketSnapshot | null => {
+      /* the market the room reads (data/bookMarket.ts) — on the feed, the name's own book from the vendor */
+      const live = bookMarket().snapshotFor(t);
+      if (!live || !range) return live;
       const own = replayRange(t);
       return own ? snapshotAt(live, own, Math.min(minutePos, own.length)) : live;
     },
@@ -350,5 +349,4 @@ const MapDesk = () => {
   );
 };
 
-/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
-export default onFeed(MapDesk, FeedMap, '/pinpoint/map');
+export default MapDesk;

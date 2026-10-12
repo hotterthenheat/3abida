@@ -31,7 +31,7 @@
 */
 
 import { useMemo, useState } from 'react';
-import Simulator from '../../core/simulator';
+import { bookMarket } from '../../data/bookMarket';
 import { useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import { Deferred } from '../../components/ui/Skeleton';
@@ -44,11 +44,9 @@ import { BuildingLedgerSkeleton, BuildingPageSkeleton, WallHeadingSkeleton } fro
 import { fmtDistance, impliedDaySigma, sessionAtr } from '../../data/atr';
 import { useDistanceUnit } from '../../data/distanceUnits';
 import { usePositions } from '../../data/positions';
-import { bookOf } from '../../data/pinpointBook';
+import { bookOf, buildClockOf } from '../../data/pinpointBook';
 import { oiChangeByStrike } from '../../data/oiChange';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
-import { onFeed } from './feed/onFeed';
-import { FeedBuilding } from './feed/FeedPages';
 
 type BoxKey = 'ledger' | 'heading' | 'oi' | 'timeline';
 /* The ledger's choices, held across route changes, reset on reload */
@@ -107,7 +105,8 @@ const Building = () => {
   const headingTicker = tickerFor('heading');
   const oiTicker = tickerFor('oi');
   const timelineTicker = tickerFor('timeline');
-  const scales = { atr: sessionAtr(Simulator.getCandles(ledger.ticker) ?? []), sigma: impliedDaySigma(ledger.spot, Simulator.TICKERS[ledger.ticker]?.iv ?? 0) };
+  const market = bookMarket();
+  const scales = { atr: sessionAtr(market.atrBars(ledger.ticker)), sigma: impliedDaySigma(ledger.spot, market.cfg(ledger.ticker)?.iv ?? 0) };
   const distanceOf = (strike: number) => fmtDistance(strike - ledger.spot, ledger.spot, unit, scales);
 
   return (
@@ -118,7 +117,7 @@ const Building = () => {
           <BuildingLedger
             data={ledger}
             ticker={ledgerTicker}
-            clock={clock}
+            clock={buildClockOf(clock)}
             order={order}
             onOrder={setOrder}
             window={window}
@@ -139,7 +138,7 @@ const Building = () => {
       {/* BOX 2 — WHERE THE WALLS ARE HEADING */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-heading data-scope-ticker={headingTicker}>
         <Deferred index={1} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
-          <WallHeading data={heading} clock={clock} scope={chipFor('heading', headingTicker)} />
+          <WallHeading data={heading} clock={buildClockOf(clock)} scope={chipFor('heading', headingTicker)} />
         </Deferred>
       </div>
 
@@ -160,5 +159,4 @@ const Building = () => {
   );
 };
 
-/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
-export default onFeed(Building, FeedBuilding, '/pinpoint/building');
+export default Building;

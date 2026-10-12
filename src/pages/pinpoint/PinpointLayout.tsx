@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, X } from 'lucide-react';
 import { useActiveTicker, useSpot } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
-import Simulator from '../../core/simulator';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import SessionClock from '../../components/ui/SessionClock';
 import ScrollHome from '../../components/layout/ScrollHome';
@@ -20,9 +19,12 @@ import { GEX_SUBPAGES } from './subnav';
 import MarkLoad from '../../brand/MarkLoad';
 import CopyLevels from '../../components/levels/CopyLevels';
 import { profileOf } from '../../data/pinpointBook';
-import { maxPainOf } from '../../data/maxPain';
+import { bookMaxPain } from '../../data/maxPain';
 import type { DayLevels } from '../../data/levelExport';
-import { nearMaxPain, useFeedBook, useFeedMaxPain, useFeedMoves, usePinpointSource } from '../../data/feed/levels';
+import { usePinpointSource } from '../../data/feed/levels';
+import { bookMarket } from '../../data/bookMarket';
+/* registers the feed's market with the seam (data/bookMarket.ts) */
+import '../../data/feed/pinpointMarket';
 
 /*
 ==================================================
@@ -57,8 +59,8 @@ import { nearMaxPain, useFeedBook, useFeedMaxPain, useFeedMoves, usePinpointSour
 ==================================================
 */
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** "2h 14m" from seconds — the close is a promise in minutes, not seconds */
 const untilBell = (secondsToClose: number) => {
@@ -92,7 +94,7 @@ const Fact = ({ label, children, title, testId }: { label: string; children: Rea
 
 /** The focus's distance from spot — its own reader of the tick, so the head and the page under it do not render on it */
 const FocusDistance = ({ price, feedSpot }: { price: number; feedSpot?: number | null }) => {
-  const house = useSpot();
+  const house = useSpot(feedSpot !== undefined ? '' : undefined);
   /* on the feed the distance is from the price Unusual Whales figured the book at — never the house's price */
   const spot = feedSpot !== undefined ? feedSpot : house;
   const dist = spot ? ((price - spot) / spot) * 100 : null;
@@ -124,45 +126,27 @@ const PinpointLayout = () => {
      desk's own ruler. */
   /* ON THE ROOM'S SCAN since 2026-10-09 (data/pinpointBook.ts): the head reads the same snapshot as the page under it,
      so its flip and the page's never differ by a tick — and the crossings are not walked again every 1.5 s (PP-5) */
+  /* THE UI IS THE OWNER'S; THE FEED FILLS IT (2026-10-12 — the owner: "but i build the UI that the real data goes
+     into"). With the room on the feed every engine under this frame reads Unusual Whales' answers (data/bookMarket.ts,
+     data/feed/pinpointMarket.ts — read by the page's address and the room's standing) — the same pages, the same boxes,
+     the vendor's figures. While the shell's first probe is out the page stands as its own skeleton, so the house's book
+     never flashes before the vendor's. */
+  const roomSrc = usePinpointSource();
+  const onFeedRoom = roomSrc === 'feed';
   const scan = useFrameScan();
-  /* PINPOINT ON THE FEED (2026-10-12): the head reads Unusual Whales' book — the flip, which side of it price stands —
-     and the house's scan is not read into anything on screen */
-  const onFeedRoom = usePinpointSource() === 'feed';
-  const feedBook = useFeedBook(onFeedRoom, activeTicker).book;
-  const feedMoves = useFeedMoves(onFeedRoom, activeTicker);
-  const feedMaxPain = useFeedMaxPain(onFeedRoom, activeTicker);
-  const houseGauge = useMemo(() => (scan && !onFeedRoom ? buildFlipGauge(scan.snap) : null), [scan, onFeedRoom]);
-  const feedGauge = useMemo(() => {
-    if (!feedBook) return null;
-    const flip = Number.isFinite(feedBook.levels.flip) ? feedBook.levels.flip : null;
-    const spot = feedBook.spot;
-    return {
-      spot,
-      flip,
-      regime: flip === null ? null : spot >= flip ? ('LONG' as const) : ('SHORT' as const),
-      distAbs: flip === null ? null : flip - spot,
-      distPct: flip === null || spot === 0 ? null : ((flip - spot) / spot) * 100,
-      /* the flip's crossings today are not in the feed — the fact is left off */
-      crossings: null,
-      bars: 0,
-    };
-  }, [feedBook]);
-  const gauge = onFeedRoom ? feedGauge : houseGauge;
+  const gauge = useMemo(() => (scan ? buildFlipGauge(scan.snap) : null), [scan]);
   const unit = useDistanceUnit();
   /* THE ATR moves a bar at a time — it was walked over the whole tape on every 1.5 s tick (PP-5); it is read again when a
-     bar closes */
+     bar closes (on the feed, read off the vendor's daily bars) */
   const snap = scan?.snap ?? null;
-  const barsLen = snap ? (Simulator.peekCandles(snap.ticker)?.length ?? 0) : 0;
-  const atr = useMemo(() => (snap ? sessionAtr(Simulator.getCandles(snap.ticker) ?? []) : null), [snap?.ticker, barsLen]); // eslint-disable-line react-hooks/exhaustive-deps
+  const market = bookMarket();
+  const barsLen = snap ? (market.peekCandles(snap.ticker)?.length ?? 0) : 0;
+  const atrLen = snap ? market.atrBars(snap.ticker).length : 0;
+  const atr = useMemo(() => (snap ? sessionAtr(market.atrBars(snap.ticker)) : null), [snap?.ticker, barsLen, atrLen, market]); // eslint-disable-line react-hooks/exhaustive-deps
   const scales = useMemo<DistanceScales>(() => {
-    /* on the feed: σ is the one-day move Unusual Whales' implied vol prices in; the ATR is not in the feed */
-    if (onFeedRoom) {
-      const day = feedMoves?.find(m => m.days === 1)?.movePct ?? null;
-      return { atr: null, sigma: day != null && feedBook ? day * feedBook.spot : null };
-    }
     if (!snap) return { atr: null, sigma: null };
-    return { atr, sigma: impliedDaySigma(snap.spot, Simulator.TICKERS[snap.ticker]?.iv ?? 0) };
-  }, [snap, atr, onFeedRoom, feedMoves, feedBook]);
+    return { atr, sigma: impliedDaySigma(snap.spot, market.cfg(snap.ticker)?.iv ?? 0) };
+  }, [snap, atr, market]);
   const words = gauge?.regime ? REGIME_WORDS[gauge.regime] : null;
   const flipDist = gauge && gauge.distAbs !== null ? Math.abs(gauge.distAbs) : null;
   const flipLead =
@@ -183,13 +167,6 @@ const PinpointLayout = () => {
      press, never on the tick */
   const copyable = /^\/pinpoint\/(map|targets)/.test(location.pathname);
   const dayLevels = (): DayLevels | null => {
-    if (onFeedRoom) {
-      if (!feedBook) return null;
-      const lv = feedBook.levels;
-      const mp = nearMaxPain(feedMaxPain);
-      const n = (v: number) => (Number.isFinite(v) ? v : null);
-      return { ticker: feedBook.ticker, spot: feedBook.spot, callWall: n(lv.callWall), putWall: n(lv.putWall), flip: n(lv.flip), supreme: n(lv.supreme), pin: null, maxPain: mp?.strike ?? null, at: feedBook.at };
-    }
     if (!scan) return null;
     const lv = profileOf(scan.snap).levels;
     return {
@@ -200,7 +177,7 @@ const PinpointLayout = () => {
       flip: lv.flip,
       supreme: lv.supreme,
       pin: lv.pin,
-      maxPain: maxPainOf(scan.snap.chain)?.strike ?? null,
+      maxPain: bookMaxPain(scan.snap)?.strike ?? null,
       at: scan.at,
     };
   };
@@ -224,9 +201,7 @@ const PinpointLayout = () => {
               <span data-focus-chip className="inline-flex items-center gap-2 rounded-md border border-silver/40 bg-silver/[0.06] pl-2.5 pr-1 py-0.5 font-mono">
                 <span className="text-[11px] font-semibold text-silver">Focus</span>
                 <span className="text-[12px] font-semibold tnum text-textPrimary">{fmtStrike(focused)}</span>
-                <FocusDistance price={focused} feedSpot={onFeedRoom ? feedBook?.spot ?? null : undefined} />
-                {/* the chart door opens Pulse's chart, which reads the house's market — not offered while the room reads the feed */}
-                {!onFeedRoom && (
+                <FocusDistance price={focused} feedSpot={onFeedRoom ? snap?.spot ?? null : undefined} />
                 <button
                   /* `from`: leaving the chart's fullscreen brings the reader back here (Noah, 2026-09-09) */
                   onClick={() => navigate('/pulse', { state: { focusPrice: focused, ticker: activeTicker, from: location.pathname } })}
@@ -235,7 +210,6 @@ const PinpointLayout = () => {
                 >
                   Chart <ArrowUpRight className="w-3 h-3" />
                 </button>
-                )}
                 <button onClick={clearFocus} aria-label="Let go of the strike" className="hit p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.06] transition-colors">
                   <X className="w-3 h-3" />
                 </button>
@@ -295,11 +269,12 @@ const PinpointLayout = () => {
                       </span>
                     )}
                   </Fact>
-                  {gauge.crossings !== null && (
-                    <Fact label="Flip crossed today" testId="crossed">
-                      {gauge.crossings === 0 ? <span className="text-textSecondary">not yet</span> : `${gauge.crossings} ${gauge.crossings === 1 ? 'time' : 'times'}`}
-                    </Fact>
-                  )}
+                  {/* the fact stands whenever there is a flip; with too few minutes of the book beside the bars to count
+                      crossings (a session minutes old, a feed whose books this machine began reading late, an index
+                      with no bars on the plan) it says so with a dash */}
+                  <Fact label="Flip crossed today" testId="crossed" title={gauge.crossings === null ? 'Too few minutes of the book beside the bars to count it yet' : undefined}>
+                    {gauge.crossings === null ? <span className="text-textMuted">—</span> : gauge.crossings === 0 ? <span className="text-textSecondary">not yet</span> : `${gauge.crossings} ${gauge.crossings === 1 ? 'time' : 'times'}`}
+                  </Fact>
                 </>
               ) : (
                 <Fact label="Flip" testId="flip">
@@ -338,7 +313,7 @@ const PinpointLayout = () => {
           <ScrollHome />
           {/* A page's code travels on its first visit; it stands in as ITS OWN
               shape under a shell head that stays put (pinpointSkeletons.tsx) */}
-          <Suspense fallback={<><MarkLoad /><PinpointPageSkeleton pathname={location.pathname} /></>}>{outlet}</Suspense>
+          <Suspense fallback={<><MarkLoad /><PinpointPageSkeleton pathname={location.pathname} /></>}>{roomSrc === 'pending' ? <PinpointPageSkeleton pathname={location.pathname} /> : outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
     </>

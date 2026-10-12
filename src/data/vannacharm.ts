@@ -8,7 +8,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket, isFeedSnap } from './bookMarket';
 import type { MarketSnapshot, StrikeNode } from '../types/market';
 import type {
   IvShift,
@@ -78,7 +78,10 @@ function levelsFrom(rows: { strike: number; value: number }[], spot: number): Le
 }
 
 // ---- scenario projection -------------------------------------------------------
-function projectStrike(n: StrikeNode, mode: ShiftMode, ivShift: IvShift, maxCharm: number, spot: number, ticker: string): number {
+/* ON THE FEED'S BOOK (2026-10-12) the legs are the vendor's own, so the per-strike texture below is not laid on them:
+   every strike bleeds at the model's middle rate (`EVEN`), and tilts on the dealers' own vanna exposure. */
+const EVEN = 0.5;
+function projectStrike(n: StrikeNode, mode: ShiftMode, ivShift: IvShift, maxCharm: number, spot: number, ticker: string, even = false): number {
   if (mode === 'CHARM') {
     // Delta decay bleeds gamma hardest at the money, and the CALL and PUT legs
     // bleed at different per-strike rates — that differential is what lets the
@@ -86,8 +89,8 @@ function projectStrike(n: StrikeNode, mode: ShiftMode, ivShift: IvShift, maxChar
     // overtake a wall (walls migrate). Pure uniform scaling can do neither.
     const norm = Math.abs(n.charm) / (maxCharm || 1);
     const t = HOURS_TO_CLOSE / 6.5;
-    const jc = h01(`${ticker}-${n.strike}-charm-c`);
-    const jp = h01(`${ticker}-${n.strike}-charm-p`);
+    const jc = even ? EVEN : h01(`${ticker}-${n.strike}-charm-c`);
+    const jp = even ? EVEN : h01(`${ticker}-${n.strike}-charm-p`);
     const callDecay = 1 - (0.42 + 0.4 * jc) * norm * t;
     const putDecay = 1 - (0.42 + 0.4 * jp) * norm * t;
     return n.callGex * callDecay + n.putGex * putDecay;
@@ -95,6 +98,8 @@ function projectStrike(n: StrikeNode, mode: ShiftMode, ivShift: IvShift, maxChar
   // VANNA: an IV move re-prices dealer deltas; vanna is signed per strike so
   // the profile tilts rather than scales — jitter keeps the tilt uneven enough
   // to re-rank walls under a real vol shock.
+  /* the feed carries vanna as the dealers' exposure already (dollars of delta a vol point), never a unit greek */
+  if (even) return n.netGex + n.netVanna * ivShift;
   const oiNotional = (n.callOI + n.putOI) * spot;
   const j = 0.6 + h01(`${ticker}-${n.strike}-vanna`) * 0.7;
   return n.netGex + n.vanna * oiNotional * 0.8 * j * ivShift;
@@ -105,19 +110,24 @@ const DRIFT_BARS = 390; // one session of 1-min bars
 const DRIFT_STEP = 3; // sample every 3rd bar
 
 function buildDrift(ticker: string): WallDriftPoint[] {
-  const candles = Simulator.getCandles(ticker);
-  const snaps = Simulator.getGexHistory(ticker);
+  const market = bookMarket();
+  const candles = market.getCandles(ticker);
+  const snaps = market.getGexHistory(ticker);
   if (!candles?.length || !snaps?.length) return [];
 
-  const n = Math.min(DRIFT_BARS, snaps.length, candles.length);
-  const candleTail = candles.slice(candles.length - n);
-  const snapTail = snaps.slice(snaps.length - n);
+  /* each bar beside the book kept at its own minute — paired by time (the house keeps one a bar, in lockstep, so this
+     is the tails it always read; a market that kept the book from a later minute pairs only the minutes it has) */
+  const byTime = new Map(snaps.map(s => [s.time, s]));
+  const pairs = candles.slice(Math.max(0, candles.length - DRIFT_BARS)).flatMap(c => {
+    const s = byTime.get(c.time);
+    return s ? [{ c, s }] : [];
+  });
 
   const out: WallDriftPoint[] = [];
-  for (let i = 0; i < n; i += DRIFT_STEP) {
-    const spot = candleTail[i].close;
-    const { callWall, putWall, flip } = levelsFrom(snapTail[i].levels, spot);
-    out.push({ time: snapTail[i].time, spot, callWall, putWall, flip });
+  for (let i = 0; i < pairs.length; i += DRIFT_STEP) {
+    const spot = pairs[i].c.close;
+    const { callWall, putWall, flip } = levelsFrom(pairs[i].s.levels, spot);
+    out.push({ time: pairs[i].s.time, spot, callWall, putWall, flip });
   }
   return out;
 }
@@ -150,7 +160,7 @@ export function buildVannaCharm(
 
   let maxAbs = 1;
   const rows: ShiftBarRow[] = window.map(n => {
-    const projected = projectStrike(n, mode, ivShift, maxCharm, spot, ticker);
+    const projected = projectStrike(n, mode, ivShift, maxCharm, spot, ticker, isFeedSnap(snapshot));
     maxAbs = Math.max(maxAbs, Math.abs(n.netGex), Math.abs(projected));
     return { strike: n.strike, pin: n.strike === pinStrike, current: n.netGex, projected };
   });
@@ -169,7 +179,7 @@ export function buildVannaCharm(
   // expect the morning structure to govern the close" reads as a prediction).
   // Levels with distances, the charm concentration, the biggest move since
   // the last scan, and one line that states what this scenario computes.
-  const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+  const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
   const dist = (price: number) => Number((((price - spot) / spot) * 100).toFixed(2));
   const lvl = (price: number) => ({ price, distPct: dist(price) });
 
@@ -186,7 +196,7 @@ export function buildVannaCharm(
   // Largest per-strike net-gex change vs the previous scan (the 10s tier —
   // history snaps are ~1/sec, so ten back ≈ one scan ago)
   let delta: MigrationRead['delta'] = null;
-  const snaps = Simulator.getGexHistory(ticker);
+  const snaps = bookMarket().getGexHistory(ticker);
   if (snaps && snaps.length >= 2) {
     const nowSnap = snaps[snaps.length - 1];
     const prevSnap = snaps[Math.max(0, snaps.length - 1 - 10)];

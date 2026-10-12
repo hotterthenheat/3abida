@@ -18,7 +18,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import type { Candle } from '../types/market';
 
 /** Bars this far apart are one session; farther is the overnight (data/replay.ts) */
@@ -43,7 +43,8 @@ const statOf = (bars: Candle[]): SessionStat => ({
 
 /** Every session on hand, oldest first */
 export function sessionBlocks(ticker: string): Candle[][] {
-  const all = Simulator.peekCandles(ticker);
+  bookMarket().deep?.(ticker);
+  const all = bookMarket().peekCandles(ticker);
   if (!all || all.length < 2) return [];
   const out: Candle[][] = [];
   let start = 0;
@@ -96,7 +97,7 @@ export function lastSessionSupreme(ticker: string, inSession: boolean): { strike
   const last = done[done.length - 1];
   if (!last) return null;
   const endTime = last[last.length - 1].time;
-  const history = Simulator.getGexHistory(ticker) ?? [];
+  const history = bookMarket().getGexHistory(ticker);
   let snap = null as (typeof history)[number] | null;
   for (const s of history) if (s.time <= endTime) snap = s;
   if (!snap || snap.time < last[0].time || !snap.levels.length) return null;

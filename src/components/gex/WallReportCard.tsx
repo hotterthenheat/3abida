@@ -49,7 +49,7 @@ import type { Candle, MarketSnapshot } from '../../types/market';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = 'rgb(var(--bull))';
 const RED = 'rgb(var(--bear))';
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 /** A bar's minute, New York's (X2) */
 const hhmm = (unix: number) => nyClock(unix * 1000);
 
@@ -195,7 +195,7 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       const read = buildLevelRead(snapshot.ticker, price);
       const pct = read?.changePct ?? null;
       const size = pct == null ? '' : Math.abs(pct) >= 300 ? ` · ${(1 + pct / 100).toFixed(0)}× the open` : ` ${pct > 0 ? '+' : ''}${pct.toFixed(0)}%`;
-      const trend = !read || read.trend === 'FLAT' ? 'flat since the open' : read.trend === 'NEW' ? 'new since the open' : `${read.trend === 'BUILDING' ? 'growing' : 'shrinking'}${size}`;
+      const trend = read?.trend === 'NONE' ? '—' : !read || read.trend === 'FLAT' ? 'flat since the open' : read.trend === 'NEW' ? 'new since the open' : `${read.trend === 'BUILDING' ? 'growing' : 'shrinking'}${size}`;
       const grade: Row['grade'] =
         tests === 0 ? { words: 'untested', tone: 'quiet' } : broke === 0 ? { words: `held every test`, tone: 'good' } : held === 0 ? { words: 'broke every test', tone: 'bad' } : { words: `broke ${broke} of ${tests}`, tone: broke * 2 >= tests ? 'bad' : 'quiet' };
       const lastTick = ticks[ticks.length - 1];
@@ -256,12 +256,12 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
       <ul className="flex flex-col" data-level-rows>
         {rows.map(r => {
           const isFocus = focus != null && Math.abs(focus - r.price) < 1e-9;
-          const facts: { k: string; v: string; cls?: string }[] = [
+          const facts: { k: string; v: string; cls?: string; title?: string }[] = [
             { k: 'Tests', v: String(r.tests) },
             { k: 'Held', v: String(r.held), cls: r.held > 0 ? 'text-bull' : undefined },
             { k: 'Broke', v: String(r.broke), cls: r.broke > 0 ? 'text-bear' : undefined },
             { k: 'Last touched', v: r.last ?? '—' },
-            { k: 'Gamma since the open', v: r.trend },
+            { k: 'Gamma since the open', v: r.trend, ...(r.trend === '—' ? { cls: 'text-textMuted', title: 'The book at the open was not read on this machine — it is kept from the first read of the day' } : {}) },
           ];
           return (
             <li key={r.key} className={`border-t border-borderSubtle/50 ${isFocus ? 'bg-silver/[0.04]' : ''}`} data-level={r.key}>
@@ -299,7 +299,9 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
                   {facts.map(f => (
                     <div key={f.k} className="min-w-0">
                       <dt className="text-[11px] text-textMuted whitespace-nowrap">{f.k}</dt>
-                      <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${f.cls ?? 'text-textPrimary'}`}>{f.v}</dd>
+                      <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${f.cls ?? 'text-textPrimary'}`} title={f.title}>
+                        {f.v}
+                      </dd>
                     </div>
                   ))}
                 </dl>

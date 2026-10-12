@@ -58,7 +58,7 @@ export interface FlowLadder {
   maxAbs: number;
 }
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** "$1.4B" · "$180M" · "$40K" — the flow's own rounding, coarser than fmtUsd's */
 export function fmtFlow(mag: number): string {

@@ -127,7 +127,7 @@ const GREEK_LABEL: Record<Greek, string> = { gex: 'GEX', dex: 'DEX', vex: 'VEX',
 /* The Ledger's floor, so ±20 strikes stand in the calendar's box without a scroll (measured: 823px holds 40 rows at 19.4) */
 const ROW_MIN = 18;
 const SPOT_H = 18;
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const fmtDist = (pct: number) => pctSigned(Math.abs(pct) < 0.005 ? 0 : pct);
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 /* THE LEGS ARE THE CHART LADDER'S (Noah, 2026-09-12, the Strike Pressure

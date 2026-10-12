@@ -49,6 +49,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Maximize2, Minimize2, Plus, X } from 'lucide-react';
 import Simulator from '../../core/simulator';
+import { bookMarket, useBookVersion } from '../../data/bookMarket';
 import TickerLookup from '../ui/TickerLookup';
 import useFocusTrap from '../ui/useFocusTrap';
 import { useAnchoredMenu } from '../ui/useAnchoredMenu';
@@ -63,7 +64,7 @@ import { useFadeClose } from '../ui/useFadeClose';
 import { fmtUsd } from '../../data/gex';
 import { type StrikeWindow } from '../../data/exposure';
 import { STRIKE_OPTIONS, STRIKES_TITLE, surfaceOf, type RoomWindow } from '../../data/pinpointBook';
-import { maxPainOf } from '../../data/maxPain';
+import { bookMaxPain } from '../../data/maxPain';
 import { buildExposureSurface, CALENDAR_DTES, GREEKS, type ExposureSurface, type Greek } from '../../data/exposureSurface';
 import { HEAT_MODE } from './heatmap';
 import ColoursSwitch from './ColoursSwitch';
@@ -133,7 +134,7 @@ interface ExposureFieldProps {
   /** The book of a name beside the host's — the host's replay rewinds every
       column through this (the Map hands the minute's snapshot); absent, the
       simulator's live read */
-  snapshotFor?: (ticker: string) => MarketSnapshot;
+  snapshotFor?: (ticker: string) => MarketSnapshot | null;
 }
 
 /** The names beside the host's — three at most, so four side by side */
@@ -198,7 +199,7 @@ const BAND_ONE_ROW_PX = 1702;
 const BAND_BARE_ROW_PX = 1420;
 const BAND_TIGHT_ROW_PX = 1170;
 const BAND_NAMED_ROW_PX = 1021;
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const GREEK_LABEL: Record<Greek, string> = { gex: 'GEX', dex: 'DEX', vex: 'VEX', vanna: 'VANNA', charm: 'CHARM' };
 /*
   THE HEAD IN THE APPROVED GRAMMAR (Noah, 2026-09-06: "our heatmap header
@@ -561,11 +562,23 @@ const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selected
      timer once the columns have settled (one name at a time, the Board's
      rule); a name the terminal already carries builds on the spot. */
   const [warmed, setWarmed] = useState(0);
+  const bookVersion = useBookVersion();
   const warmedRef = useRef(new Set<string>());
   const extraBooks = useMemo(() => {
     if (!multi || !surface) return [];
     const out: { ticker: string; book: ColumnBook | null }[] = [];
+    const market = bookMarket();
     for (const t of names) {
+      /* A ROOM ON THE FEED: a column is its name's own book from the vendor — a skeleton until it has come */
+      if (market.src === 'feed') {
+        const snap = snapshotFor ? snapshotFor(t) : market.snapshotFor(t);
+        try {
+          out.push({ ticker: t, book: snap ? { ticker: t, snapshot: snap, surface: buildExposureSurface(snap, WHOLE_BOOK, CALENDAR_DTES) } : null });
+        } catch {
+          out.push({ ticker: t, book: null });
+        }
+        continue;
+      }
       if (!Simulator.TICKERS[t]) {
         /* cold: a skeleton until warmed; warmed and still not there, the column goes */
         if (!warmedRef.current.has(t)) out.push({ ticker: t, book: null });
@@ -574,15 +587,16 @@ const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selected
       try {
         /* the host says which moment — the Map's replay rewinds every column */
         const snap = (snapshotFor ?? Simulator.snapshotFor)(t);
-        out.push({ ticker: t, book: { ticker: t, snapshot: snap, surface: buildExposureSurface(snap, WHOLE_BOOK, CALENDAR_DTES) } });
+        if (snap) out.push({ ticker: t, book: { ticker: t, snapshot: snap, surface: buildExposureSurface(snap, WHOLE_BOOK, CALENDAR_DTES) } });
       } catch {
         /* a name the sim can't build — the column is skipped */
       }
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multi, names, surface, snapshotFor, warmed]);
+  }, [multi, names, surface, snapshotFor, warmed, bookVersion]);
   useEffect(() => {
+    if (bookMarket().src === 'feed') return;
     const cold = extraBooks.filter(c => !c.book && !warmedRef.current.has(c.ticker)).map(c => c.ticker);
     if (!cold.length) return;
     let cancelled = false;
@@ -1044,7 +1058,7 @@ const ExposureField = ({ snapshot, half: halfProp, onHalf, hoverStrike, selected
                   data-ledger-fading={fading || undefined}
                 >
                   {d.view === 'matrix' ? (
-                    <ExposureMatrix maxPain={maxPainOf(book.snapshot.chain)?.strike ?? null} surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} expiries={shownFor(book.surface, d)} rings={d.rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} />
+                    <ExposureMatrix maxPain={bookMaxPain(book.snapshot)?.strike ?? null} surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} expiries={shownFor(book.surface, d)} rings={d.rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} />
                   ) : d.view === 'ladder' ? (
                     <ExposureLadder surface={book.surface} liveSpot={book.snapshot.spot} greeks={colGreeks} expiries={shownFor(book.surface, d)} rings={d.rings} hoverStrike={c.host ? hoverStrike : undefined} palette={palette} selectedStrike={kept} marks={c.host ? marks : undefined} onPointer={c.host ? onPointer : cellAt => pointedFor.current.get(c.ticker)?.(cellAt?.strike ?? null)} onSelectStrike={keep} lead={c.host ? leadGreek : undefined} onLead={c.host ? setLeadPick : undefined} />
                   ) : (

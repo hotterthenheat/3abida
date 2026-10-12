@@ -67,7 +67,7 @@ const FIGS = FONT_SANS;
 const SANS = FONT_SANS;
 export const PAD = 14;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const near = (x: number, y: number) => Math.abs(x - y) < 1e-9;
 const rgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);

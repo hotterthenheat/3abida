@@ -50,8 +50,6 @@ import { scanOf } from '../../data/pinpointBook';
 import { stampOf, useBookClock, useFrameScan } from './usePinpoint';
 import type { MarketSnapshot } from '../../types/market';
 import type { ExposureExpiry } from '../../types/gex';
-import { onFeed } from './feed/onFeed';
-import { FeedCompare } from './feed/FeedPages';
 
 /** The reads sweep on their own cadence — a comparison must not vibrate with every tick */
 const SCAN_INTERVAL_MS = 10_000;
@@ -221,5 +219,4 @@ const Compare = () => {
   );
 };
 
-/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
-export default onFeed(Compare, FeedCompare, '/pinpoint/compare');
+export default Compare;

@@ -29,7 +29,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { pickFlip, pickWalls } from '../core/walls';
 import { sessionStarts } from './indicators';
 import { testEvents, type WallSide } from './wall';
@@ -99,17 +99,19 @@ const cache = new Map<string, LevelRecords | null>();
  */
 export function levelRecords(ticker: string): LevelRecords | null {
   const t = ticker.toUpperCase();
-  const bars = Simulator.peekCandles(t);
-  const snaps = Simulator.getGexHistory(t) ?? [];
+  const market = bookMarket();
+  market.deep?.(t);
+  const bars = market.peekCandles(t);
+  const snaps = market.getGexHistory(t);
   if (!bars || bars.length < 10 || !snaps.length) return null;
   const starts = sessionStarts(bars, 1);
   /* the trailing run is today's — the record is the sessions that closed */
   const closed = starts.length - 1;
   if (closed < 2) return null;
-  const key = `${t}|${closed}|${bars[starts[starts.length - 1] - 1].time}`;
+  const key = `${market.src}|${t}|${closed}|${bars[starts[starts.length - 1] - 1].time}`;
   if (cache.has(key)) return cache.get(key) ?? null;
 
-  const step = Simulator.TICKERS[t]?.step ?? 1;
+  const step = market.cfg(t)?.step ?? 1;
   const past: Past[] = [];
   for (let s = 0; s < closed; s++) {
     const a = starts[s];

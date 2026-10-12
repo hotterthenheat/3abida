@@ -20,6 +20,7 @@
 */
 
 import { bool, feedGet, ms, num, num0, objOf, rowsOf, str, type FeedResult } from './client';
+import { nyWallTime } from '../../core/nyTime';
 
 /* ---- a name's price --------------------------------------------------------------------------------------------- */
 
@@ -337,8 +338,10 @@ const strikeExposure = (r: Record<string, unknown>): UwStrikeExposure => ({
   putGammaOi: num0(r.put_gamma_oi),
   callDeltaOi: num0(r.call_delta_oi),
   putDeltaOi: num0(r.put_delta_oi),
-  callCharmOi: num0(r.call_charm_oi),
-  putCharmOi: num0(r.put_charm_oi),
+  /* CHARM A DAY (2026-10-12): UW's charm exposure is a year's (its spec: "charm * open interest * 365", the per-strike
+     rows in the same proportion to the book's as gamma — checked live), and the house prints charm over one day */
+  callCharmOi: num0(r.call_charm_oi) / 365,
+  putCharmOi: num0(r.put_charm_oi) / 365,
   callVannaOi: num0(r.call_vanna_oi),
   putVannaOi: num0(r.put_vanna_oi),
   callGammaVol: num0(r.call_gamma_vol),
@@ -391,9 +394,60 @@ export const uwSpotExposures = (ticker: string, date?: string): Promise<FeedResu
       gammaOi: num0(r.gamma_per_one_percent_move_oi),
       gammaVol: num0(r.gamma_per_one_percent_move_vol),
       gammaDir: num0(r.gamma_per_one_percent_move_dir),
-      charmOi: num0(r.charm_per_one_percent_move_oi),
+      charmOi: num0(r.charm_per_one_percent_move_oi) / 365, // a year's in UW's answer — a day's here
       vannaOi: num0(r.vanna_per_one_percent_move_oi),
     }))
+  );
+
+/** A name's book by strike as it stood at a session's open — UW figures it once a day, at the open, on that day's open
+    interest; every expiry together (491 rows for SPY, every listed strike; seen back to 2025-10-10 on Basic). Its units
+    are its own (not /spot-exposures/strike's): read within one day's rows, never against another route's. */
+export interface UwOpenExposure {
+  strike: number;
+  /** "2026-10-09" */
+  date: string;
+  callGamma: number;
+  putGamma: number;
+  callDelta: number;
+  putDelta: number;
+  callCharm: number;
+  putCharm: number;
+  callVanna: number;
+  putVanna: number;
+}
+
+/** GET /api/stock/{ticker}/greek-exposure/strike (date) — the calls' gamma positive, the puts' negative, as UW states it */
+export const uwGreekExposureByStrike = (ticker: string, date?: string): Promise<FeedResult<UwOpenExposure[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/greek-exposure/strike`, { date }, body =>
+    rowsOf(body).map(r => ({
+      strike: num0(r.strike),
+      date: str(r.date),
+      callGamma: num0(r.call_gex),
+      putGamma: num0(r.put_gex),
+      callDelta: num0(r.call_delta),
+      putDelta: num0(r.put_delta),
+      callCharm: num0(r.call_charm),
+      putCharm: num0(r.put_charm),
+      callVanna: num0(r.call_vanna),
+      putVanna: num0(r.put_vanna),
+    }))
+  );
+
+/** Implied vol by listed date — the at-the-money vol each expiry carries and the move it prices (34 dates for SPY, seen;
+    an index's rows carry no dollar move). GET /api/stock/{ticker}/volatility/term-structure */
+export interface UwTermPoint {
+  expiry: string;
+  /** Calendar days to it */
+  dte: number;
+  /** A fraction (0.088 = 8.8%) */
+  volatility: number | null;
+  /** The move it prices, a fraction of price */
+  movePct: number | null;
+}
+
+export const uwTermStructure = (ticker: string): Promise<FeedResult<UwTermPoint[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/volatility/term-structure`, undefined, body =>
+    rowsOf(body).map(r => ({ expiry: str(r.expiry), dte: num0(r.dte), volatility: num(r.volatility), movePct: num(r.implied_move_perc) }))
   );
 
 /* ---- open interest, max pain and implied moves (Pinpoint and Terrain, 2026-10-12) -------------------------------- */
@@ -941,6 +995,12 @@ export const uwMultiLegLegs = (id: string): Promise<FeedResult<UwMultiLegLeg[]>>
     })
   );
 
+/** A daily bar's day ("2026-10-12") as New York's 09:30 that day, epoch ms — the session it stands for */
+const dayAt = (iso: string): number => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? nyWallTime(+m[1], +m[2], +m[3], 9, 30) : NaN;
+};
+
 export interface UwBar {
   at: number;
   open: number | null;
@@ -952,10 +1012,12 @@ export interface UwBar {
   marketTime: string;
 }
 
-/** A name's bars, newest first (2,500 one-minute bars seen). GET /api/stock/{ticker}/ohlc/{candle_size} (limit, date) */
-export const uwOhlc = (ticker: string, opts: { size?: '1m' | '5m'; limit?: number; date?: string } = {}): Promise<FeedResult<UwBar[]>> =>
+/** A name's bars, newest first (2,500 one-minute bars seen; a past day's whole tape with `date`, 768 for SPY on 2026-09-15,
+    pre-market to after hours; `1d` a bar a session, 600 seen back to 2024, the day stamped in `date`, not `start_time`).
+    GET /api/stock/{ticker}/ohlc/{candle_size} (limit, date) — an index answers 422 on this plan (cboe_index_access_missing) */
+export const uwOhlc = (ticker: string, opts: { size?: '1m' | '5m' | '1d'; limit?: number; date?: string } = {}): Promise<FeedResult<UwBar[]>> =>
   feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/ohlc/${opts.size ?? '1m'}`, { limit: opts.limit, date: opts.date }, body =>
-    rowsOf(body).map(r => ({ at: ms(r.start_time), open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num0(r.volume), marketTime: str(r.market_time) }))
+    rowsOf(body).map(r => ({ at: r.start_time != null ? ms(r.start_time) : dayAt(str(r.date)), open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num0(r.volume), marketTime: str(r.market_time) }))
   );
 
 export interface UwDailyBar {

@@ -15,7 +15,8 @@
 ==================================================
 */
 
-import type { StrikeNode } from '../types/market';
+import { feedMarket, isFeedSnap } from './bookMarket';
+import type { MarketSnapshot, StrikeNode } from '../types/market';
 
 export interface MaxPain {
   strike: number;
@@ -37,6 +38,17 @@ export function maxPainOf(chain: readonly Pick<StrikeNode, 'strike' | 'callOI' |
     if (!best || pay < best.payout) best = { strike: at.strike, payout: pay };
   }
   return best;
+}
+
+/** A snapshot's max pain: on the feed, Unusual Whales' own for the nearest listed date (/max-pain — the arithmetic run on
+    that date's contracts alone, which the whole book's open interest by strike cannot do); the house's chain otherwise */
+export function bookMaxPain(snapshot: MarketSnapshot | null | undefined): MaxPain | null {
+  if (!snapshot) return null;
+  if (isFeedSnap(snapshot)) {
+    const strike = feedMarket()?.maxPain?.(snapshot.ticker) ?? null;
+    return strike != null ? { strike, payout: Number.NaN } : null;
+  }
+  return maxPainOf(snapshot.chain);
 }
 
 /** The one sentence every surface that marks it uses */

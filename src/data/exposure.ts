@@ -11,6 +11,8 @@
 import { fmtUsd } from './gex';
 import { pickFlip, pickWalls } from '../core/walls';
 import { airPocketZones, findAirPockets } from './airPockets';
+import { expiryFor, today as calendarToday } from '../core/calendar';
+import { feedMarket, isFeedSnap } from './bookMarket';
 import type { MarketSnapshot, StrikeNode } from '../types/market';
 import type {
   DealerBias,
@@ -94,14 +96,66 @@ export function strikeVolume(ticker: string, strike: number, oi: number): number
   return Math.round(oi * (0.2 + h01(`${ticker}-${strike}-tvol`) * 0.7));
 }
 
+/** The monthly expiration: the third Friday of this month, or next month's once it has passed */
+function monthlyExpiry(from: Date): Date {
+  const third = (y: number, m: number) => {
+    const d = new Date(y, m, 1);
+    return new Date(y, m, 1 + ((5 - d.getDay() + 7) % 7) + 14);
+  };
+  const now = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const thisMonth = third(now.getFullYear(), now.getMonth());
+  return thisMonth >= now ? thisMonth : third(now.getFullYear(), now.getMonth() + 1);
+}
+
+/** The day a lens resolves to on the market calendar — the Expiry card's own (components/gex/ladderControls.tsx) */
+export function lensDate(expiry: ExposureExpiry): Date | null {
+  const base = calendarToday();
+  switch (expiry) {
+    case '0DTE':
+      return expiryFor(0, base).date;
+    case '1D':
+      return expiryFor(1, base).date;
+    case '2D':
+      return expiryFor(2, base).date;
+    case '5D':
+      return expiryFor(5, base).date;
+    case '7D':
+      return expiryFor(7, base).date;
+    case 'OPEX':
+      return monthlyExpiry(base);
+    default:
+      return null;
+  }
+}
+
+const NAN_SPLIT: GreekSplit = { put: Number.NaN, call: Number.NaN, net: Number.NaN };
+
+/*
+  THE VENDOR'S BOOK (2026-10-12 — the owner: "i build the UI that the real data goes into"). A feed snapshot
+  (data/feed/pinpointMarket.ts) carries Unusual Whales' own legs, so the house's lens table and leg texture are not laid
+  on it: the room's book (the '0DTE' and 'ALL' lenses) is every listed date together, exactly as UW states it, and a
+  dated lens is that date's own rows. Vega is not in UW's exposure by strike — its legs are NaN and print "—". The
+  volume is the day's own count at the strike. The walls, the flip, the pin, the supreme, the zones and the words below
+  are this function's, on those figures.
+*/
+function feedChainFor(snapshot: MarketSnapshot, expiry: ExposureExpiry, dated: boolean): StrikeNode[] {
+  if (expiry === 'ALL' || (expiry === '0DTE' && !dated)) return snapshot.chain;
+  const day = lensDate(expiry);
+  return (day && feedMarket()?.lensChain?.(snapshot, day)) || [];
+}
+
 // ---- top-level build ----------------------------------------------------------
+/** `dated`: on a feed snapshot, the '0DTE' lens is today's listed date (an Expiry card's pick) rather than the room's book */
 export function buildExposureProfile(
   snapshot: MarketSnapshot,
   expiry: ExposureExpiry,
-  half: StrikeWindow
+  half: StrikeWindow,
+  opts: { dated?: boolean } = {}
 ): ExposureProfileData {
-  const { ticker, spot, chain } = snapshot;
-  const factor = EXPIRY_DECAY[expiry];
+  const feed = isFeedSnap(snapshot);
+  const { ticker, spot } = snapshot;
+  const chain = feed ? feedChainFor(snapshot, expiry, !!opts.dated) : snapshot.chain;
+  const factor = feed ? 1 : EXPIRY_DECAY[expiry];
 
   // Window around spot, descending strikes (highest first)
   const desc = [...chain].sort((a, b) => b.strike - a.strike);
@@ -120,28 +174,30 @@ export function buildExposureProfile(
   }
 
   const maxAbs = { gex: 1, dex: 1, vex: 1, vanna: 1, charm: 1 };
+  /* the vendor's legs as they come (no texture: jitter 0.5 shifts nothing) */
+  const even = 0.5;
   const strikes: StrikeExposure[] = window.map((n: StrikeNode) => {
-    const jitter = legJitter(ticker, n.strike, expiry);
+    const jitter = feed ? even : legJitter(ticker, n.strike, expiry);
     const gex = scaleSplit(n.putGex, n.callGex, factor, jitter);
     const dex = scaleSplit(n.putDex, n.callDex, factor, jitter);
-    const vex = scaleSplit(n.putVex * 40, n.callVex * 40, factor, jitter); // dollar-comparable
+    const vex = feed ? NAN_SPLIT : scaleSplit(n.putVex * 40, n.callVex * 40, factor, jitter); // dollar-comparable
     /* Vanna and charm ride the same expiry lens (2026-09-09) */
     const vanna = scaleSplit(n.putVanna ?? 0, n.callVanna ?? 0, factor, jitter);
     const charm = scaleSplit(n.putCharm ?? 0, n.callCharm ?? 0, factor, jitter);
     maxAbs.gex = Math.max(maxAbs.gex, Math.abs(gex.put), Math.abs(gex.call), Math.abs(gex.net));
     maxAbs.dex = Math.max(maxAbs.dex, Math.abs(dex.put), Math.abs(dex.call), Math.abs(dex.net));
-    maxAbs.vex = Math.max(maxAbs.vex, Math.abs(vex.put), Math.abs(vex.call), Math.abs(vex.net));
+    if (!feed) maxAbs.vex = Math.max(maxAbs.vex, Math.abs(vex.put), Math.abs(vex.call), Math.abs(vex.net));
     maxAbs.vanna = Math.max(maxAbs.vanna, Math.abs(vanna.put), Math.abs(vanna.call), Math.abs(vanna.net));
     maxAbs.charm = Math.max(maxAbs.charm, Math.abs(charm.put), Math.abs(charm.call), Math.abs(charm.net));
     const oi = n.callOI + n.putOI;
-    const volume = strikeVolume(ticker, n.strike, oi);
+    const volume = feed ? n.volume ?? Number.NaN : strikeVolume(ticker, n.strike, oi);
     return { strike: n.strike, pin: n.strike === pinStrike, gex, dex, vex, vanna, charm, oi, volume };
   });
 
   // Aggregates
   const netGex = strikes.reduce((a, s) => a + s.gex.net, 0);
   const netDex = strikes.reduce((a, s) => a + s.dex.net, 0);
-  const netVex = strikes.reduce((a, s) => a + s.vex.net, 0);
+  const netVex = feed ? Number.NaN : strikes.reduce((a, s) => a + s.vex.net, 0);
 
   /* Walls come from core/walls.ts, the ONE copy of this rule — the third
      place it was written. This picked by |net GEX| plus side of spot, which
@@ -191,17 +247,29 @@ export function buildExposureProfile(
     }
   }
 
-  const levels: ExposureLevels = { spot, callWall, putWall, pin: pinStrike, flip, supreme };
+  /* THE VENDOR'S BOOK NAMES WHAT IS THERE (2026-10-12): a wall, a flip or a supreme the book does not hold is NaN on
+     the feed — "—" on the page — never price itself standing in for it; a date whose contracts carry no gamma (today's
+     after the bell) names none */
+  const levels: ExposureLevels = feed
+    ? {
+        spot,
+        callWall: picked.callWall ?? Number.NaN,
+        putWall: picked.putWall ?? Number.NaN,
+        pin: pinOI > 0 ? pinStrike : Number.NaN,
+        flip: pickFlip(chain, spot, n => n.netGex) ?? Number.NaN,
+        supreme: supremeAbs > 0 ? supreme : Number.NaN,
+      }
+    : { spot, callWall, putWall, pin: pinStrike, flip, supreme };
 
   // Zone bands (strikes descending: from ≥ to). One row of breathing room per wall.
   const strikeList = strikes.map(s => s.strike);
   const step = strikeList.length > 1 ? Math.abs(strikeList[0] - strikeList[1]) : 1;
   const zones: ZoneBand[] = [
-    { from: callWall + step, to: callWall - step, kind: 'call-wall', label: 'CALL WALL' },
-    { from: putWall + step, to: putWall - step, kind: 'put-wall', label: 'PUT WALL' },
+    { from: levels.callWall + step, to: levels.callWall - step, kind: 'call-wall', label: 'CALL WALL' },
+    { from: levels.putWall + step, to: levels.putWall - step, kind: 'put-wall', label: 'PUT WALL' },
   ];
-  if (callWall - putWall > 3 * step) {
-    zones.push({ from: callWall - step * 2, to: putWall + step * 2, kind: 'friction', label: 'FRICTION' });
+  if (levels.callWall - levels.putWall > 3 * step) {
+    zones.push({ from: levels.callWall - step * 2, to: levels.putWall + step * 2, kind: 'friction', label: 'FRICTION' });
   }
   /* P-5. The empty runs between shelves, found over the SAME window these
      zones annotate — pushed after the walls so a pocket never displaces a
@@ -232,21 +300,21 @@ export function buildExposureProfile(
   }
 
   // Insight narrative — levels translated to English
-  const fmtK = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-  const inFriction = spot > putWall && spot < callWall;
+  const fmtK = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+  const inFriction = spot > levels.putWall && spot < levels.callWall;
   const insights = [
     // Above the flip the book is call-dominant and absorbs; below it, put
     // gamma dominates and dealer hedging amplifies. That spatial fact is what
     // the flip IS — the aggregate sign only says which side outweighs.
     `Net GEX is ${netGex > 0 ? 'positive' : 'negative'} (${fmtUsd(netGex)}) — ${
       netGex > 0 ? 'put gamma dominates and hedging amplifies moves' : 'call gamma dominates and hedging absorbs dips'
-    }. Above ${fmtK(flip)} dealers dampen the tape; below it they chase it.`,
+    }. Above ${fmtK(levels.flip)} dealers dampen the tape; below it they chase it.`,
     inFriction
-      ? `Price sits between key levels (${fmtK(putWall)} – ${fmtK(callWall)}) inside the friction zone.`
-      : `Price is ${spot >= callWall ? 'above the call wall' : 'below the put wall'} — outside the friction zone.`,
-    `Strongest dealer support sits at ${fmtK(pinStrike)} (pin level).`,
-    `A break below ${fmtK(putWall)} shifts pressure toward ${fmtK(putWall - step * 2)}.`,
-    `A break above ${fmtK(callWall)} opens quick supply up to ${fmtK(callWall + step * 2)}.`,
+      ? `Price sits between key levels (${fmtK(levels.putWall)} – ${fmtK(levels.callWall)}) inside the friction zone.`
+      : `Price is ${spot >= levels.callWall ? 'above the call wall' : 'below the put wall'} — outside the friction zone.`,
+    `Strongest dealer support sits at ${fmtK(levels.pin)} (pin level).`,
+    `A break below ${fmtK(levels.putWall)} shifts pressure toward ${fmtK(levels.putWall - step * 2)}.`,
+    `A break above ${fmtK(levels.callWall)} opens quick supply up to ${fmtK(levels.callWall + step * 2)}.`,
   ];
 
   // Spot marker slot (strikes descending)

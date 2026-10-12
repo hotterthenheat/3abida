@@ -40,7 +40,7 @@ const dteChoices = (): ExpiryChoice<number>[] =>
   });
 const fmtDay = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 const WeigherChainWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
   const [right, setRight] = useState<OptionRight>('C');

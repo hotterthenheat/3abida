@@ -23,8 +23,10 @@
 */
 
 import { pickFlip } from '../core/walls';
-import { nyMinutes } from '../core/nyTime';
+import { nyDay, nyMinutes } from '../core/nyTime';
 import { replayDay, replayRange } from './replay';
+import { bookMarket, type BookMinute } from './bookMarket';
+import type { GexSnapshot } from '../types/market';
 
 export interface TimelinePoint {
   /** New York's minute of the day at the session's first bar, counted on from there — 570 is 09:30, and a tape that runs
@@ -55,15 +57,24 @@ export interface DealerTimeline {
   flipMin: number;
   /** Times price crossed the flip as it stood each minute */
   crossings: number;
+  /** Minutes with the book by strike kept beside them — every minute on the house's tape; on the feed, the minutes
+      after a book this machine read (the flip is read off it) */
+  booksRead: number;
 }
 
 const memo = new Map<string, DealerTimeline | null>();
 
 /** The session's dealer book, minute by minute — null until the session has two bars and a book kept for them */
 export function dealerTimeline(ticker: string): DealerTimeline | null {
+  /* THE VENDOR'S MINUTES (2026-10-12): where the market keeps the whole book a minute (UW's /spot-exposures — net gamma
+     and the price it was figured at), the line is read off them; the flip each minute is the book by strike as it stood
+     then (the history), where it was read — else that minute has no flip */
+  const market = bookMarket();
+  const minutes = market.bookMinutes(ticker);
+  if (minutes) return fromMinutes(ticker, minutes, market.getGexHistory(ticker));
   const range = replayRange(ticker);
   if (!range) return null;
-  const key = `${ticker}|${range.bars.length}|${range.bars[range.bars.length - 1].time}`;
+  const key = `${market.src}|${ticker}|${range.bars.length}|${range.bars[range.bars.length - 1].time}`;
   if (memo.has(key)) return memo.get(key) ?? null;
 
   const points: TimelinePoint[] = [];
@@ -83,7 +94,37 @@ export function dealerTimeline(ticker: string): DealerTimeline | null {
       flipPct: flip == null || bar.close === 0 ? null : ((bar.close - flip) / bar.close) * 100,
     });
   }
+  const out = summarise(ticker, points, () => replayDay(range), points.length);
+  if (memo.size > 24) memo.clear();
+  memo.set(key, out);
+  return out;
+}
 
+/** The line off the market's own minutes — the flip from the book by strike kept at or before each minute */
+function fromMinutes(ticker: string, minutes: readonly BookMinute[], history: readonly GexSnapshot[]): DealerTimeline | null {
+  if (minutes.length < 2) return null;
+  const key = `feed|${ticker}|${minutes.length}|${minutes[minutes.length - 1].time}|${history.length}`;
+  if (memo.has(key)) return memo.get(key) ?? null;
+  const t0 = minutes[0].time;
+  const m0 = nyMinutes(t0 * 1000);
+  const points: TimelinePoint[] = [];
+  let k = -1;
+  let read = 0;
+  for (const m of minutes) {
+    while (k + 1 < history.length && history[k + 1].time <= m.time) k++;
+    /* a book older than the session's start is another day's — no flip from it */
+    const snap = k >= 0 && history[k].time >= t0 - 60 ? history[k] : null;
+    if (snap) read++;
+    const flip = snap && snap.levels.length ? pickFlip(snap.levels, m.spot, l => l.value) : null;
+    points.push({ minute: m0 + Math.round((m.time - t0) / 60), spot: m.spot, netGex: m.netGex, flip, flipPct: flip == null || m.spot === 0 ? null : ((m.spot - flip) / m.spot) * 100 });
+  }
+  const out = summarise(ticker, points, () => nyDay(t0 * 1000), read);
+  if (memo.size > 24) memo.clear();
+  memo.set(key, out);
+  return out;
+}
+
+function summarise(ticker: string, points: TimelinePoint[], dayOf: () => string, booksRead: number): DealerTimeline | null {
   let out: DealerTimeline | null = null;
   if (points.length >= 2) {
     let putHeavyMin = 0;
@@ -103,9 +144,7 @@ export function dealerTimeline(ticker: string): DealerTimeline | null {
       if (s !== 0 && side !== 0 && s !== side) crossings++;
       if (s !== 0) side = s;
     }
-    out = { ticker, day: replayDay(range), points, first: points[0], last: points[points.length - 1], putHeavyMin, aboveFlipMin, flipMin, crossings };
+    out = { ticker, day: dayOf(), points, first: points[0], last: points[points.length - 1], putHeavyMin, aboveFlipMin, flipMin, crossings, booksRead };
   }
-  if (memo.size > 24) memo.clear();
-  memo.set(key, out);
   return out;
 }

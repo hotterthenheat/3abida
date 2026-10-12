@@ -22,7 +22,7 @@ import { Gauge, Info } from 'lucide-react';
 import PopoverCard from '../ui/PopoverCard';
 import type { Sureness } from '../../data/levelSureness';
 
-const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const NAME: Record<Sureness['level'], string> = { 'call wall': 'The call wall', 'put wall': 'The put wall', flip: 'The flip', supreme: 'The supreme' };
 
 /** The card's body — also usable inline where a page has the room */

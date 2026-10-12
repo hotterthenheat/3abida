@@ -162,7 +162,24 @@ function stepNear(strikes: number[], price: number): number {
 }
 
 /** The exposure rows of a name round its price — the price read first (one row) when none is known */
-async function loadExposure(t: string): Promise<FeedResult<UwStrikeExposure[]>> {
+/* ONE READ OF A NAME'S BOOK AT A TIME (2026-10-12): the shell's field recorder, Terrain's pane and Pinpoint's market
+   (data/feed/pinpointMarket.ts) each ask for the open name's book on their own timers — a read already flying, or one
+   that landed in the last twenty seconds, is handed to the next asker rather than asked again */
+const bookReads = new Map<string, { at: number; p: Promise<FeedResult<UwStrikeExposure[]>> }>();
+const BOOK_REUSE_MS = 20_000;
+export function loadExposure(t: string): Promise<FeedResult<UwStrikeExposure[]>> {
+  const had = bookReads.get(t);
+  if (had && Date.now() - had.at < BOOK_REUSE_MS) return had.p;
+  const p = readExposure(t);
+  bookReads.set(t, { at: Date.now(), p });
+  void p.then(r => {
+    /* a failed read is not handed on */
+    if (!r.ok && bookReads.get(t)?.p === p) bookReads.delete(t);
+  });
+  return p;
+}
+
+async function readExposure(t: string): Promise<FeedResult<UwStrikeExposure[]>> {
   let price = known.get(t)?.price ?? null;
   if (price == null) {
     const first = await uwSpotGexByStrike(t, { limit: 1 });
@@ -251,7 +268,8 @@ export function levelsOfRows(rows: readonly { strike: number; net: number }[], s
 }
 
 const books = new WeakMap<UwStrikeExposure[], FeedBook | null>();
-function bookFrom(ticker: string, data: UwStrikeExposure[]): FeedBook | null {
+/** The book of an answer to /spot-exposures/strike — kept per answer */
+export function bookFrom(ticker: string, data: UwStrikeExposure[]): FeedBook | null {
   if (books.has(data)) return books.get(data) ?? null;
   const price = data.find(r => r.price != null)?.price ?? null;
   let out: FeedBook | null = null;
@@ -559,7 +577,14 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, column
       const n: number[] = [];
       for (const s of strikes) {
         const r = col.rows.get(s);
-        const leg = g === 'vex' || !r ? null : r[g];
+        /* vega is not in the feed: its cells are NaN — "—" on the page, never a nought */
+        if (g === 'vex') {
+          p.push(NaN);
+          c.push(NaN);
+          n.push(NaN);
+          continue;
+        }
+        const leg = !r ? null : r[g];
         const pv = leg ? leg.put : 0;
         const cv = leg ? leg.call : 0;
         p.push(pv);
@@ -860,6 +885,24 @@ function noteField(book: FeedBook) {
   f.snaps = [...f.snaps, { time, levels }];
   fieldBell();
   saveField(t);
+}
+
+/** The books read so far today for a name, oldest first, outside a render (data/feed/pinpointMarket.ts) */
+export function fieldSnaps(ticker: string): GexSnapshot[] {
+  const t = ticker.toUpperCase();
+  if (t) loadField(t);
+  return field.get(t)?.snaps ?? EMPTY_SNAPS;
+}
+/** Told when any name's field moves */
+export function subscribeField(fn: () => void): () => void {
+  fieldSubs.add(fn);
+  return () => fieldSubs.delete(fn);
+}
+/** The strikes asked round a name's price — null before its price is known */
+export function feedWindow(ticker: string): { lo: number; hi: number } | null {
+  const t = ticker.toUpperCase();
+  const price = knownPrice(t);
+  return price != null ? windowOf(t, price) : null;
 }
 
 /** The books read so far today for a name, oldest first — what this machine kept from earlier included */

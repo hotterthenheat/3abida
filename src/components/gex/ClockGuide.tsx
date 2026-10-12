@@ -27,7 +27,7 @@ const GLACIER = 'rgb(var(--glacier))';
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /* The schedule as the clock draws it: 78 five-minute blocks, 09:30 to 16:00 */
 const BLOCKS = 78;

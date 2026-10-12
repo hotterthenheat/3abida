@@ -17,7 +17,7 @@
 import Glossary from '../levels/Glossary';
 import { fmtUsd } from '../../data/gex';
 import type { ExposureSurface, Greek } from '../../data/exposureSurface';
-import { maxPainOf, MAX_PAIN_WORDS } from '../../data/maxPain';
+import { bookMaxPain, MAX_PAIN_WORDS } from '../../data/maxPain';
 import type { LedgerView } from './ledgerView';
 import type { MarketSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
@@ -40,7 +40,7 @@ const PALE = '#FFFFBF';
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 const Cell = ({ x, y, w, fill, text, ink = '#0a0a0a', ring, s }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; ring?: string; s: number }) => (
   <g>
@@ -238,7 +238,7 @@ const MatrixFigure = () => {
 const LedgerGuide = ({ surface, greek, view = 'calendar', snapshot }: LedgerGuideProps) => {
   const ex = surface.expiries;
   const COLS = colsOf([ex[0] ? `${ex[0].date}${ex[0].dte === 0 ? ' · today' : ''}` : '', ex[1]?.date ?? '', ex[2]?.date ?? '', ex[Math.min(ex.length - 1, 5)]?.date ?? '']);
-  const pain = snapshot ? maxPainOf(snapshot.chain) : null;
+  const pain = snapshot ? bookMaxPain(snapshot) : null;
   const label = greek.toUpperCase();
   const net = surface.net[greek];
   const king = surface.king[greek];

@@ -34,7 +34,7 @@ const MUTED = 'rgb(var(--text-muted))';
 const INK = 'rgb(var(--text-primary))';
 const GRID = 'rgb(var(--ink) / 0.07)';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /* drawn at the box's own pixels (one unit a pixel), so its words are the sizes written here at any card width */
 const H = 220;

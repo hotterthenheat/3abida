@@ -37,6 +37,7 @@ import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/ho
 import { stampOf } from './usePinpoint';
 import HowSure from '../../components/levels/HowSure';
 import { useMarketData } from '../../context/MarketDataContext';
+import { bookMarket, useBookVersion } from '../../data/bookMarket';
 import { buildBoardRow, type BoardRow } from '../../data/board';
 import { addBoardName, removeBoardName, useBoardNames } from '../../data/boardNames';
 import { tickerName } from '../../data/tickers';
@@ -49,8 +50,6 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import { CALL_WALL, FLIP, LONG_GAMMA, PUT_WALL, SHORT_GAMMA, SUPREME, THERMAL_WARM } from '../../components/gex/paletteInk';
 import { fmtDollars } from '../../data/ahead';
 import { pctSigned } from '../../core/format';
-import { onFeed } from './feed/onFeed';
-import { FeedBoard } from './feed/FeedPages';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const ROLE_INK: Record<string, string> = { 'call wall': CALL_WALL, 'put wall': PUT_WALL, supreme: SUPREME, flip: FLIP };
@@ -62,7 +61,7 @@ const SCAN_INTERVAL_MS = 10_000;
 const MODULES = GRID_MODULES;
 /* the house grid, its heads at the terminal's reading floor (11 px, the house's own since 2026-10-10) */
 const THEME = GRID_THEME;
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const fmtPct = (v: number) => pctSigned(v);
 
 // ---- cell renderers: the house grammar inside the grid -----------------------
@@ -225,6 +224,9 @@ const BellCell = ({ data }: ICellRendererParams<BoardRow>) =>
     <span className="font-mono text-[11px] text-textMuted">—</span>
   );
 
+/** On the feed, the board is built again at most this often as answers land */
+const FEED_REBUILD_MS = 2500;
+
 const Board = () => {
   const { marketData, changeTicker } = useMarketData();
   const navigate = useNavigate();
@@ -278,6 +280,17 @@ const Board = () => {
     rebuild(names, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketData]);
+  /* THE ROOM ON THE FEED (data/bookMarket.ts): a name's row is built again as its answers land — a few seconds apart at
+     most, so a board of twelve fills as the vendor answers rather than on the house's ten-second scan */
+  const bookVersion = useBookVersion();
+  useEffect(() => {
+    if (bookMarket().src !== 'feed') return;
+    const now = Date.now();
+    if (now - lastRef.current < FEED_REBUILD_MS) return;
+    lastRef.current = now;
+    rebuild(names, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookVersion]);
 
   /* THE FILTER takes as many names as you like (Noah, 2026-09-09: "the filter
      only allows you to see one name at a time") — "SPY QQQ nvda" or commas;
@@ -500,5 +513,4 @@ const Board = () => {
   );
 };
 
-/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
-export default onFeed(Board, FeedBoard, '/pinpoint/board');
+export default Board;
