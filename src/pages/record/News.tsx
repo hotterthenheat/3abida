@@ -27,9 +27,15 @@
   they used to fill is archived in
   docs/news-page-reference.md.
 
-  FROM THE FEED (2026-10-12): when the Dossier reads
-  the vendors, the page is NewsFeed.tsx — UW's
-  headlines route, checked live on the Basic plan.
+  FROM THE FEED (2026-10-12 — the owner: "but i build
+  the UI that the real data goes into"): when the
+  Dossier reads the vendors, this same page reads UW's
+  headlines as the house's stories (data/feed/news.ts:
+  each one's kind, its read by the house's model on the
+  vendor's inputs, its place on the map by the house's
+  rule), UW's economic calendar for the day ahead and
+  the Earnings board's own reports for the month — the
+  same boxes, cards and doors either way.
 ==================================================
 */
 
@@ -61,8 +67,9 @@ import { GRADE_INK as READ_INK } from '../../components/ui/GradeMeter';
 import { gradeOfNewsConfidence } from '../../data/news';
 import NewsCalendar from '../../components/record/NewsCalendar';
 import { NEWS_ROW_H } from './recordSkeletons';
-import { useDossierFeed } from '../../data/feed/dossier';
-import NewsFeed from './NewsFeed';
+import { boardCalendarDays, useDossierFeed, useFeedEarnings, useFeedNews } from '../../data/feed/dossier';
+import { earningsCalEvents, econCalEvents, econEvents, useFeedEcon, wireEvents } from '../../data/feed/news';
+import { RecordPageSkeleton } from './recordSkeletons';
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const GRADE_INK: Record<NewsGrade, string> = { THREAT: 'text-bear', ALLY: 'text-bull', WATCH: 'text-textSecondary' };
@@ -420,10 +427,8 @@ const StoryText = ({ storyId, body, source, url }: { storyId: string; body: stri
   );
 };
 
-/* ALL OR NOTHING (data/feed/rooms.ts): UW's headlines when the Dossier reads the feed (NewsFeed.tsx), else the house's wire */
-const News = () => (useDossierFeed() ? <NewsFeed /> : <NewsHouse />);
-
-const NewsHouse = () => {
+/* ALL OR NOTHING (data/feed/rooms.ts): UW's headlines when the Dossier reads the feed, else the house's wire — one page */
+const News = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const boardNames = useBoardNames();
@@ -434,9 +439,20 @@ const NewsHouse = () => {
     const t = window.setInterval(() => setWireRev(r => r + 1), 30_000);
     return () => window.clearInterval(t);
   }, []);
-  const events = useMemo(() => buildGeoNews(), [wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
-  const calendar = useMemo(() => buildEconCalendar(), [wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
-  const mood = useMemo(() => marketMood(), [wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* THE FEED FILLS THE SAME PAGE (2026-10-12): UW's wire as the house's stories, its economic calendar as the day ahead,
+     the Earnings board's reports in the month — nothing of the house's wire beside them */
+  const fromFeed = useDossierFeed();
+  const wire = useFeedNews(fromFeed);
+  const econ = useFeedEcon(fromFeed);
+  const boardDays = useMemo(() => boardCalendarDays(), []);
+  const reports = useFeedEarnings(fromFeed, boardDays);
+  const events = useMemo(() => (fromFeed ? (wire?.ok ? wireEvents(wire.data) : []) : buildGeoNews()), [fromFeed, wire, wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
+  const calendar = useMemo(() => (fromFeed ? econEvents(econ ?? []) : buildEconCalendar()), [fromFeed, econ, wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mood = useMemo(() => (fromFeed ? marketMood(events.map(e => e.item)) : marketMood()), [fromFeed, events, wireRev]); // eslint-disable-line react-hooks/exhaustive-deps
+  const month = useMemo(
+    () => (fromFeed ? [...econCalEvents(econ ?? []), ...earningsCalEvents(reports?.ok ? reports.data : [], boardDays)] : null),
+    [fromFeed, econ, reports, boardDays]
+  );
 
   /* THE MOMENT — the wire's clock, re-read with it. The page is live only:
      the day's drip bar under the map, which pulled the wire and the map back
@@ -566,6 +582,9 @@ const NewsHouse = () => {
     changeTicker(t);
     navigate('/pinpoint/map');
   };
+
+  /* on the feed, the page waits on its skeleton until the wire has answered (or while the first probe is out) */
+  if (fromFeed && wire === null) return <RecordPageSkeleton pathname="/dossier/news" />;
 
   return (
     <>
@@ -918,7 +937,7 @@ const NewsHouse = () => {
           <p className="mt-0.5 text-[11px] leading-snug text-textMuted">What is ahead on the calendar — walk the months, open a day — and the reads the wire adds up to</p>
         </div>
         <div className="border-t border-borderSubtle">
-          <NewsCalendar />
+          <NewsCalendar feed={month} />
         </div>
         {/* THE READS — across, under the month, however many the wire adds up to */}
         <div className="grid border-t border-borderSubtle" style={{ gridTemplateColumns: `repeat(${Math.max(1, insights.length)}, minmax(0, 1fr))` }} data-news-reads>

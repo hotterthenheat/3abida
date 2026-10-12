@@ -37,7 +37,7 @@
 import { nyIsoDate, nyParts } from '../../core/nyTime';
 import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketOf } from '../congress';
 import { TX_CODES, flowFrom, isChosenBuy } from '../insiders';
-import type { EarningsDossier, EarningsEvent, EarningsQuarter, ReportSlot } from '../earnings';
+import { weekDayDate, type EarningsDossier, type EarningsEvent, type EarningsQuarter, type ReportSlot } from '../earnings';
 import type { Sector } from '../universe';
 import type { AssetKind, Chamber, CongressTrade, InsiderFlow, InsiderRole, InsiderTrade, PlanState, ReportOwner, ReportType, TxCode } from '../../types/record';
 import type { FeedResult } from './client';
@@ -379,6 +379,14 @@ export interface CalendarDay {
   iso: string;
   weekIdx: 0 | 1;
   weekday: number;
+}
+
+/** The days the Earnings board shows, both weeks — the News page's month asks the same days, so one call serves both */
+export function boardCalendarDays(): CalendarDay[] {
+  const wdNow = new Date().getDay();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const WD = [1, 2, 3, 4, 5];
+  return ([0, 1] as const).flatMap(weekIdx => (weekIdx === 0 && wdNow >= 1 && wdNow <= 5 ? WD.filter(wd => wd >= wdNow) : WD).map(weekday => ({ iso: iso(weekDayDate(weekIdx, weekday)), weekIdx, weekday })));
 }
 
 /** The fortnight's reports: every day the board shows, before the open and after the close — one call each */

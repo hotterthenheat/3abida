@@ -199,7 +199,13 @@ const severityOf = (n: NewsItem): number =>
   Math.max(1, Math.min(10, Math.round(Math.abs(n.prediction.expMove1dPct) * 1.6 + n.magnitude * 5)));
 
 export function buildGeoNews(): GeoNewsEvent[] {
-  return buildNewsFeed().map(item => {
+  return buildNewsFeed().map(geoOf);
+}
+
+/** A wire item on the map: where it comes from (the name's HQ, a macro story's city, else the listing venue) and where
+    it lands (its cluster's zones) — the same rule for the house's wire and the vendor's (2026-10-12) */
+export function geoOf(item: NewsItem): GeoNewsEvent {
+  {
     const hq = item.ticker ? HQ[item.ticker] ?? LISTING_VENUE : null;
     const macro = !hq ? MACRO_ORIGINS.find(m => m.re.test(item.headline)) : null;
     const o = hq ?? macro ?? LISTING_VENUE;
@@ -219,7 +225,7 @@ export function buildGeoNews(): GeoNewsEvent[] {
       },
       impacts: IMPACT[cluster].map(z => ({ lat: z.lat, lng: z.lng, label: z.label, w: Math.max(1, Math.round(z.rel * severity)) })),
     };
-  });
+  }
 }
 
 /** Words for the internal severity — meters and words, never the number.

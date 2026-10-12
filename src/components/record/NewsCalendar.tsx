@@ -86,11 +86,13 @@ const Pill = ({ e, onOpen }: { e: CalEvent; onOpen: () => void }) => {
   );
 };
 
-const NewsCalendar = () => {
+/** `feed` (the Dossier on the feed, 2026-10-12): the vendor's dated releases and reports stand in for the calendar's
+    rules — the month's market dates stay the calendar's own */
+const NewsCalendar = ({ feed }: { feed?: CalEvent[] | null }) => {
   const today = useMemo(() => now(), []);
   const [ym, setYm] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [kind, setKind] = useState<KindPick>('all');
-  const cal = useMemo(() => buildMonthCalendar(ym.y, ym.m), [ym]);
+  const cal = useMemo(() => buildMonthCalendar(ym.y, ym.m, feed ?? undefined), [ym, feed]);
   const [pickedKey, setPickedKey] = useState(dayKeyOf(today));
   const days = useMemo(() => cal.weeks.flat(), [cal]);
   const picked: CalDay = days.find(d => d.key === pickedKey) ?? days.find(d => d.today) ?? days.find(d => d.inMonth)!;

@@ -46,7 +46,7 @@
 */
 
 import { useMemo, useState } from 'react';
-import { type CalendarDay, useDossierFeed, useFeedEarnings } from '../../data/feed/dossier';
+import { boardCalendarDays, type CalendarDay, useDossierFeed, useFeedEarnings } from '../../data/feed/dossier';
 import { Missing, NOT_IN_FEED, byFigure, missing } from '../../components/record/Missing';
 import { RecordPageSkeleton } from './recordSkeletons';
 import { useNavigate } from 'react-router-dom';
@@ -221,12 +221,7 @@ const Earnings = () => {
   /* ALL OR NOTHING (data/feed/rooms.ts): UW's calendar when the Dossier reads the feed, else the house's book */
   const fromFeed = useDossierFeed();
   /* the days the board can show, both weeks (a switch of the Week card asks nothing new) */
-  const calendarDays = useMemo<CalendarDay[]>(() => {
-    const wdNow = new Date().getDay();
-    return ([0, 1] as const).flatMap(weekIdx =>
-      (weekIdx === 0 && wdNow >= 1 && wdNow <= 5 ? WEEKDAYS.filter(wd => wd >= wdNow) : WEEKDAYS).map(weekday => ({ iso: isoOf(weekDayDate(weekIdx, weekday)), weekIdx, weekday }))
-    );
-  }, []);
+  const calendarDays = useMemo<CalendarDay[]>(() => boardCalendarDays(), []);
   const fed = useFeedEarnings(fromFeed, calendarDays);
   const events = useMemo(() => (fromFeed ? (fed?.ok ? fed.data : []) : buildEarningsCalendar()), [fromFeed, fed]);
   /* the macro dates beside the reports — the approximated CPI day stays off a calendar that is UW's */

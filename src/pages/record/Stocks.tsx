@@ -39,20 +39,21 @@
   States, not orders: STRONG / MIXED / WEAK are what
   the data says about a name, never an instruction.
 
-  FROM THE FEED (2026-10-12): when the Dossier reads
-  the vendors (data/feed/rooms.ts), every name's price
-  and day are UW's (one stock-state a name, a minute
-  apart; data/feed/dossier.ts). The four sleeves, the
-  screen, the thirty-day line and the rotation are the
-  house's screens, not in the feed — a dash; the
-  names and their sectors are the terminal's own list,
-  and a name's page reads its company record.
+  FROM THE FEED (2026-10-12 — the owner: "but i build
+  the UI that the real data goes into"): the same board
+  on UW's figures — every name's day off its stock
+  screener, the four sleeves read off those figures and
+  rolled up by the board's own rules, the thirty days
+  off its daily bars, the rotation off the sectors'
+  returns against SPY's (data/feed/stocks.ts).
 ==================================================
 */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useDossierFeed, useFeedPrices } from '../../data/feed/dossier';
-import { Missing, MissingLine, NOT_IN_FEED, byFigure, missing } from '../../components/record/Missing';
+import { useDossierFeed, useFeedNews } from '../../data/feed/dossier';
+import { useFeedStockDays } from '../../data/feed/stockDay';
+import { feedSectorBoard, feedStockBoard, useFeedTrends } from '../../data/feed/stocks';
+import { Missing, byFigure, missing } from '../../components/record/Missing';
 import { RecordPageSkeleton } from './recordSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
@@ -68,7 +69,7 @@ import { StocksGuide } from '../../components/record/StocksGuide';
 import { useBoardNames } from '../../data/boardNames';
 import { buildSectorBoard, buildStockBoard, type SectorRow, type StockPick, type StockSleeves, type StockVerdict } from '../../data/stocks';
 import { gradeOfComposite, type Grade } from '../../data/stockOverview';
-import { SECTORS, type Sector } from '../../data/universe';
+import { SECTORS, UNIVERSE, type Sector } from '../../data/universe';
 import { ROTATION_SECTORS } from './recordSkeletons';
 
 type ScreenPick = 'all' | Grade;
@@ -194,9 +195,9 @@ const SectorCard = ({ s, rank, leader, top, on, onToggle }: { s: SectorRow; rank
     <span className={`mt-1 block h-[12px] font-mono text-[11px] uppercase tracking-widest whitespace-nowrap ${leader ? 'text-supreme' : PHASE_INK[s.phase]}`}>{leader ? 'LEADING' : PHASE_WORD[s.phase]}</span>
     <span className="mt-0.5 block h-[12px] font-mono text-[11px] tnum whitespace-nowrap">
       <span className="text-textMuted">1w </span>
-      <span className={dirInk(s.rs1w)}>{signedPct(s.rs1w)}</span>
+      {Number.isFinite(s.rs1w) ? <span className={dirInk(s.rs1w)}>{signedPct(s.rs1w)}</span> : <Missing />}
       <span className="text-textMuted"> · 1m </span>
-      <span className={dirInk(s.rs1m)}>{signedPct(s.rs1m)}</span>
+      {Number.isFinite(s.rs1m) ? <span className={dirInk(s.rs1m)}>{signedPct(s.rs1m)}</span> : <Missing />}
     </span>
   </button>
 );
@@ -211,21 +212,17 @@ const Stocks = () => {
   const [names, setNames] = useState<NamesPick>('all');
   const [guideOpen, setGuideOpen] = useState(false);
 
-  /* ALL OR NOTHING (data/feed/rooms.ts): UW's prices when the Dossier reads the feed — and nothing of the house's screens beside them */
+  /* ALL OR NOTHING (data/feed/rooms.ts) — THE SAME BOARD EITHER WAY (2026-10-12): on the feed every name's day is UW's
+     (its stock screener, one call for the list), its sleeves read off those figures through the board's own composite,
+     verdict and read, its thirty sessions off UW's daily bars against SPY's, the rotation off the sectors' returns
+     against SPY's (data/feed/stocks.ts); else the house's board, deterministic per session day */
   const fromFeed = useDossierFeed();
-  /* The board is deterministic per session day; the rotation rolls it up */
-  const house = useMemo(() => buildStockBoard(), []);
-  const tickers = useMemo(() => house.map(p => p.ticker).sort(), [house]);
-  const fed = useFeedPrices(fromFeed, tickers);
-  const picks = useMemo<StockPick[]>(() => {
-    if (!fromFeed) return house;
-    const prices = fed?.ok ? fed.data : {};
-    const none = { momentum: NaN, quality: NaN, flow: NaN, news: NaN };
-    return house
-      .map(p => ({ ...p, price: prices[p.ticker]?.price ?? NaN, changePct: prices[p.ticker]?.changePct ?? NaN, sleeves: none, composite: NaN, thesis: '', trend: [] }))
-      .sort((a, b) => a.ticker.localeCompare(b.ticker));
-  }, [fromFeed, house, fed]);
-  const sectors = useMemo(() => buildSectorBoard(picks), [picks]);
+  const tickers = useMemo(() => [...UNIVERSE.map(u => u.ticker), 'SPY'], []);
+  const days = useFeedStockDays(fromFeed, tickers);
+  const trends = useFeedTrends(fromFeed, tickers);
+  const wire = useFeedNews(fromFeed);
+  const picks = useMemo<StockPick[]>(() => (fromFeed ? feedStockBoard(UNIVERSE, days, trends, wire?.ok ? wire.data : null) : buildStockBoard()), [fromFeed, days, trends, wire]);
+  const sectors = useMemo(() => (fromFeed ? feedSectorBoard(picks, days) : buildSectorBoard(picks)), [fromFeed, picks, days]);
   const top = sectors[0];
   const bottom = sectors[sectors.length - 1];
 
@@ -254,12 +251,13 @@ const Stocks = () => {
   }, [cut, filter]);
 
   const facts = useMemo(() => {
-    const count = (g: Grade) => rows.filter(p => gradeOfPick(p) === g).length;
+    const count = (g: Grade) => rows.filter(p => !missing(p.composite) && gradeOfPick(p) === g).length;
     const strong = count('strong');
     const good = count('good');
     const weak = count('poor');
     const breadth = rows.length ? Math.round((rows.filter(p => p.sleeves.momentum > 50).length / rows.length) * 100) : 0;
-    return { names: rows.length, strong, good, mixed: rows.length - strong - good - weak, weak, breadth };
+    const graded = rows.filter(p => !missing(p.composite)).length;
+    return { names: rows.length, strong, good, mixed: graded - strong - good - weak, weak, breadth };
   }, [rows]);
 
   /* The leader is never called a laggard in the same breath: rank and direction are different axes */
@@ -284,16 +282,6 @@ const Stocks = () => {
     ),
     [top, sectors, laggards, facts]
   );
-
-  /* the day across the names on the page, from the prices that came back */
-  const day = useMemo(() => {
-    const priced = rows.filter(p => !missing(p.changePct));
-    const up = priced.filter(p => p.changePct > 0).length;
-    const down = priced.filter(p => p.changePct < 0).length;
-    const biggest = priced.reduce<StockPick | null>((a, p) => (a === null || Math.abs(p.changePct) > Math.abs(a.changePct) ? p : a), null);
-    return { priced: priced.length, up, down, biggest };
-  }, [rows]);
-  const screenOptions = fromFeed ? SCREEN_OPTIONS.map(o => (o.value === 'all' ? o : { ...o, disabled: true, hint: `Our screens — ${NOT_IN_FEED}` })) : SCREEN_OPTIONS;
 
   const columnDefs = useMemo<ColDef<StockPick>[]>(
     () => [
@@ -334,7 +322,7 @@ const Stocks = () => {
     if (!e.data) return;
     navigate(`/dossier/stocks/${e.data.ticker}`);
   };
-  if (fromFeed && fed === null) return <RecordPageSkeleton pathname="/dossier/stocks" />;
+  if (fromFeed && days === null) return <RecordPageSkeleton pathname="/dossier/stocks" />;
 
   return (
     <div className="relative border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col" data-stocks data-screen={screen} data-sector={sector} data-rows={rows.length}>
@@ -345,55 +333,47 @@ const Stocks = () => {
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">{fromFeed ? 'Every name, priced' : 'How every name screens'}</h3>
+            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">How every name screens</h3>
             <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            {fromFeed ? 'The last trade and the day against the session before’s close, asked every minute · A to Z · a row opens the name’s page' : <>The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map</>}
+            The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
             <dt className="text-[11px] text-textMuted">Names</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-stocks-names>
-              {fromFeed ? (
-                <>
-                  {facts.names} <span className="text-textMuted">·</span> <span className="text-bull" data-dir="up">{day.up} up</span> <span className="text-textMuted">·</span> <span className="text-bear" data-dir="down">{day.down} down</span>
-                </>
-              ) : (
-                <>
-                  {facts.names} <span className="text-textMuted">·</span> <span className="text-bull font-semibold">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-bull">{facts.good} good</span> <span className="text-textMuted">·</span> <span className="text-warn">{facts.mixed} caution</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} poor</span>
-                </>
-              )}
+              {facts.names} <span className="text-textMuted">·</span> <span className="text-bull font-semibold">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-bull">{facts.good} good</span> <span className="text-textMuted">·</span> <span className="text-warn">{facts.mixed} caution</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} poor</span>
             </dd>
           </div>
           <div>
             <dt className="text-[11px] text-textMuted">Above their trend</dt>
             <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${facts.breadth >= 55 ? 'text-bull' : facts.breadth <= 40 ? 'text-bear' : 'text-textPrimary'}`} data-stocks-breadth>
-              {fromFeed ? <Missing className="text-[12px]" /> : `${facts.breadth}%`}
+              {facts.breadth}%
             </dd>
           </div>
           <div>
             <dt className="text-[11px] text-textMuted">Leading sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-leader>
-              {fromFeed ? <Missing className="text-[12px]" /> : <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
+              <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
                 {top.sector}
-              </button>}
+              </button>
             </dd>
           </div>
           <div>
             <dt className="text-[11px] text-textMuted">Trailing sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-trailer>
-              {fromFeed ? <Missing className="text-[12px]" /> : <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
+              <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
                 {bottom.sector}
-              </button>}
+              </button>
             </dd>
           </div>
         </dl>
       </div>
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-stocks-controls>
-        <DropdownSelect label="Screen" value={screen} options={screenOptions} onChange={setScreen} title="Which screens" testId="stocks-screen" />
+        <DropdownSelect label="Screen" value={screen} options={SCREEN_OPTIONS} onChange={setScreen} title="Which screens" testId="stocks-screen" />
         <DropdownSelect label="Sector" value={sector} options={SECTOR_OPTIONS} onChange={setSector} title="Which sector" testId="stocks-sector" />
         <DropdownSelect label="Names" value={names} options={NAMES_OPTIONS} onChange={setNames} title="Which companies" testId="stocks-names" />
         <div className="ml-auto" title="The names on the page right now — tick any number; only those stay">
@@ -401,24 +381,7 @@ const Stocks = () => {
         </div>
       </div>
       <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-stocks-sentence>
-        {!fromFeed ? (
-          sentence
-        ) : fed && !fed.ok ? (
-          'No prices came back this time — asked again in a minute.'
-        ) : (
-          <>
-            {day.priced} of the {facts.names} names priced: <span className="text-bull font-semibold" data-dir="up">{day.up}</span> up on the day, <span className="text-bear font-semibold" data-dir="down">{day.down}</span> down
-            {day.biggest && (
-              <>
-                {' '}· the biggest move is {day.biggest.ticker} at{' '}
-                <span className={`font-semibold ${dirInk(day.biggest.changePct)}`} data-dir={day.biggest.changePct >= 0 ? 'up' : 'down'}>
-                  {signedPct(day.biggest.changePct, 2)}
-                </span>
-              </>
-            )}
-            . The screens and the rotation are ours, {NOT_IN_FEED}.
-          </>
-        )}
+        {sentence}
       </p>
       {/* THE ROTATION */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-stocks-rotation>
@@ -426,15 +389,11 @@ const Stocks = () => {
           <span>The rotation</span>
           <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">every sector ranked by its names' screens, leader first · the two windows against the tape · click a sector to keep the grid to its names</span>
         </div>
-        {fromFeed ? (
-          <MissingLine what="Every sector ranked by its names' screens" />
-        ) : (
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${ROTATION_SECTORS}, minmax(0, 1fr))` }}>
           {sectors.map((s, i) => (
             <SectorCard key={s.sector} s={s} rank={i + 1} leader={s.score === top.score} top={top.score} on={sector === s.sector} onToggle={() => toggleSector(s.sector)} />
           ))}
         </div>
-        )}
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
       <div ref={gridRef} className="grid-keys slayer-board border-t border-borderSubtle" data-stocks-grid>

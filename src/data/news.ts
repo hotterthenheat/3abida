@@ -217,7 +217,7 @@ const CATEGORY_BASE: Record<NewsCategory, { median: string; hit: number; n: numb
   Macro: { median: '0.8%', hit: 58, n: 210 },
 };
 
-function predict(category: NewsCategory, sentiment: number, magnitude: number, beta: number, seed: string): NewsPrediction {
+export function predict(category: NewsCategory, sentiment: number, magnitude: number, beta: number, seed: string): NewsPrediction {
   const kick = CATEGORY_KICK[category];
   const signal = sentiment * magnitude;
   const expMove1dPct = signal * kick * beta * (0.85 + h01(`${seed}-em`) * 0.3);
@@ -504,8 +504,7 @@ export function tickerSentiment(ticker: string): number {
 }
 
 /** Overall tape mood from the feed — the gauge at the top of the News page. */
-export function marketMood(): { score: number; label: string; note: string } {
-  const feed = buildNewsFeed();
+export function marketMood(feed: NewsItem[] = buildNewsFeed()): { score: number; label: string; note: string } {
   const w = feed.reduce((a, n) => a + n.magnitude, 0) || 1;
   const score = feed.reduce((a, n) => a + n.sentiment * n.magnitude, 0) / w;
   const label = score > 0.15 ? 'LEANS BULLISH' : score < -0.15 ? 'LEANS BEARISH' : 'MIXED';

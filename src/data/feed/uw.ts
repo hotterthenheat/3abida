@@ -967,10 +967,20 @@ export interface UwBar {
   marketTime: string;
 }
 
-/** A name's bars, newest first (2,500 one-minute bars seen). GET /api/stock/{ticker}/ohlc/{candle_size} (limit, date) */
-export const uwOhlc = (ticker: string, opts: { size?: '1m' | '5m'; limit?: number; date?: string } = {}): Promise<FeedResult<UwBar[]>> =>
+/** A name's bars, newest first (2,500 one-minute bars seen). GET /api/stock/{ticker}/ohlc/{candle_size} (limit, date).
+    A daily bar ('1d', seen 2026-10-12) carries its `date` and no start time, and comes a row each for the pre-market, the
+    session ('r') and after hours — `at` is that date's 16:00 New York */
+export const uwOhlc = (ticker: string, opts: { size?: '1m' | '5m' | '1d'; limit?: number; date?: string } = {}): Promise<FeedResult<UwBar[]>> =>
   feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/ohlc/${opts.size ?? '1m'}`, { limit: opts.limit, date: opts.date }, body =>
-    rowsOf(body).map(r => ({ at: ms(r.start_time), open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num0(r.volume), marketTime: str(r.market_time) }))
+    rowsOf(body).map(r => ({
+      at: r.start_time != null ? ms(r.start_time) : r.date != null ? Date.parse(`${str(r.date)}T20:00:00Z`) : NaN,
+      open: num(r.open),
+      high: num(r.high),
+      low: num(r.low),
+      close: num(r.close),
+      volume: num0(r.volume),
+      marketTime: str(r.market_time),
+    }))
   );
 
 export interface UwNetFlowPoint {
@@ -1109,6 +1119,12 @@ export interface UwStockDay {
   lastEarnings: string;
   /** The day's net gamma, dollars per 1% move off open interest */
   gexPerPct: number | null;
+  /** The day's premium on bullish prints (calls at the ask, puts on the bid) and on bearish ones */
+  bullishPremium: number | null;
+  bearishPremium: number | null;
+  /** Earnings per share against the same quarter a year before, as a fraction (1.24 is +124%) */
+  epsGrowth4q: number | null;
+  beta: number | null;
 }
 
 /**
@@ -1167,5 +1183,9 @@ export const uwStockScreener = (tickers: string[]): Promise<FeedResult<UwStockDa
       nextEarnings: r.next_earnings_date == null ? '' : str(r.next_earnings_date),
       lastEarnings: r.last_earnings_date == null ? '' : str(r.last_earnings_date),
       gexPerPct: num(r.gex_gamma_per_one_percent_move_oi),
+      bullishPremium: num(r.bullish_premium),
+      bearishPremium: num(r.bearish_premium),
+      epsGrowth4q: num(r.eps_growth_4q),
+      beta: num(r.beta),
     }))
   );
