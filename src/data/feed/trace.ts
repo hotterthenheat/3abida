@@ -516,20 +516,39 @@ export function useFeedMultiLeg(on: boolean): UwMultiLeg[] | null {
 /* ---- dark pool: the market's sized crosses ---------------------------------------------------------------------- */
 
 export const DARK_LEADER_FLOOR = 1_000_000;
+/**
+ * The market's sized crosses of New York's day — every cross of $1M and up, extended hours included: the day's heaviest
+ * first (order_by premium), walked down by max_premium until the floor (at most twelve calls), every two minutes.
+ */
 export function useFeedDarkMarket(on: boolean): UwDarkPrint[] | null {
   const s = feedSession();
-  return useSessionRows<UwDarkPrint>(
-    on,
-    'dark-market',
-    30_000,
-    older => uwDarkpool({ limit: 200, minPremium: DARK_LEADER_FLOOR, date: dateParam(s), olderThan: older }),
-    p => `${p.trackingId}-${p.ticker}-${p.executedAt}`,
-    p => p.executedAt,
-    6000,
-    10,
-    (ss, p) => !p.canceled && within(ss, p.executedAt, 60 * 60_000)
+  const r = useFeedPoll(
+    on ? `trace:dark-market:${s.date}` : null,
+    async (): Promise<FeedResult<UwDarkPrint[]>> => {
+      const seen = new Map<string, UwDarkPrint>();
+      let cap: number | undefined;
+      let first: FeedResult<UwDarkPrint[]> | null = null;
+      for (let i = 0; i < 12; i++) {
+        const page = await uwDarkpool({ limit: 200, minPremium: DARK_LEADER_FLOOR, maxPremium: cap, date: s.date, byPremium: true });
+        if (!first) first = page;
+        if (!page.ok || page.data.length === 0) break;
+        for (const p of page.data) if (!p.canceled) seen.set(`${p.trackingId}-${p.ticker}-${p.executedAt}`, p);
+        const low = page.data.reduce((m, p) => Math.min(m, p.premium || p.size * p.price), Infinity);
+        if (page.data.length < 200 || !(low > DARK_LEADER_FLOOR) || (cap !== undefined && low >= cap)) break;
+        cap = Math.floor(low * 100) / 100 - 0.01;
+      }
+      if (first && !first.ok) return first;
+      return { ok: true, data: [...seen.values()].filter(p => nyIsoOf(p.executedAt) === s.date).sort((a, b) => b.executedAt - a.executedAt), at: Date.now() };
+    },
+    120_000
   );
+  return r ? (r.ok ? r.data : []) : null;
 }
+/** New York's date of an instant, YYYY-MM-DD */
+const nyIsoOf = (t: number): string => {
+  const p = nyParts(t);
+  return `${p.year}-${two(p.month)}-${two(p.day)}`;
+};
 
 /* ---- a name's price ---------------------------------------------------------------------------------------------- */
 

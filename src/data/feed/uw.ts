@@ -474,8 +474,23 @@ const darkPrint = (r: Record<string, unknown>): UwDarkPrint => ({
 });
 
 /** Off-exchange prints, newest first: the market's (GET /api/darkpool/recent) or one name's (GET /api/darkpool/{ticker}) */
-export const uwDarkpool = (opts: { ticker?: string; limit?: number; minPremium?: number; date?: string; olderThan?: string } = {}): Promise<FeedResult<UwDarkPrint[]>> =>
-  feedGet('uw', opts.ticker ? `/api/darkpool/${encodeURIComponent(opts.ticker)}` : '/api/darkpool/recent', { limit: opts.limit ?? 100, min_premium: opts.minPremium, date: opts.date, older_than: opts.olderThan }, body => rowsOf(body).map(darkPrint));
+export const uwDarkpool = (opts: { ticker?: string; limit?: number; minPremium?: number; maxPremium?: number; date?: string; olderThan?: string; byPremium?: boolean } = {}): Promise<FeedResult<UwDarkPrint[]>> =>
+  feedGet(
+    'uw',
+    opts.ticker ? `/api/darkpool/${encodeURIComponent(opts.ticker)}` : '/api/darkpool/recent',
+    {
+      limit: opts.limit ?? 100,
+      min_premium: opts.minPremium,
+      max_premium: opts.maxPremium,
+      date: opts.date,
+      older_than: opts.olderThan,
+      /* the day's heaviest first (order_by=premium, order=desc — seen live 2026-10-12; /recent takes no older_than, so the
+         day is walked down by max_premium instead) */
+      order_by: opts.byPremium ? 'premium' : undefined,
+      order: opts.byPremium ? 'desc' : undefined,
+    },
+    body => rowsOf(body).map(darkPrint)
+  );
 
 /* ---- filings: congress, insiders --------------------------------------------------------------------------- */
 
