@@ -78,8 +78,9 @@ export const Box = ({ children, testId, className = '' }: { children: ReactNode;
 );
 
 export const BoxHead = ({ title, sub, right, lead }: { title: string; sub?: ReactNode; right?: ReactNode; lead?: ReactNode }) => (
-  <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
-    <div className="min-w-0 flex-1">
+  <div className="px-5 pt-4 pb-3 flex items-start gap-x-6 gap-y-1 flex-wrap">
+    {/* the words take the line first; the stamp and the doors go under them where the line is short (a phone) */}
+    <div className="min-w-0 flex-[1_1_280px]">
       <div className="flex items-center gap-3 flex-wrap">
         <h2 className="text-[15px] font-semibold leading-tight text-textPrimary">{title}</h2>
         {lead}
@@ -92,7 +93,7 @@ export const BoxHead = ({ title, sub, right, lead }: { title: string; sub?: Reac
 
 /** When and at what price UW figured the book — said once a box, in New York's clock */
 export const Stamp = ({ book, failed }: { book: FeedBook; failed?: FeedFail | null }) => (
-  <span className="font-mono text-[11px] tnum text-textMuted whitespace-nowrap" data-feed-stamp title={failed ? 'The last ask did not answer — the book is the last one that did' : undefined}>
+  <span className="font-mono text-[11px] tnum text-textMuted sm:whitespace-nowrap" data-feed-stamp title={failed ? 'The last ask did not answer — the book is the last one that did' : undefined}>
     Unusual Whales · figured at {book.spot.toFixed(2)}, {nyClock(book.at, { seconds: true, zone: true })}
     {failed ? ' · waiting on the next answer' : ''}
   </span>

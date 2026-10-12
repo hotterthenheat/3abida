@@ -618,3 +618,18 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   answers cannot draw is not offered; a page reading a floor ($25K tape, $100K alerts, $250K windows, $50K structures,
   $1M dark leaders) says it. UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate` queues the rest. A Tracker
   mark keeps its market (`src: 'feed'`): measured only against the market it was made in.
+- PINPOINT AND TERRAIN READ UW (2026-10-12, both `wired: true`, both needing UW ALONE — Massive's minute bars stop at the
+  session before and it refuses an index; docs/data-feed.md "Pinpoint and Terrain read Unusual Whales"): with UW up every
+  Pinpoint page (pages/pinpoint/feed: one switch a page, `onFeed`) and every Terrain pane read data/feed/levels.ts — the
+  book off /spot-exposures/strike, 30 strikes each side of the price UW figured it at, in THE HOUSE'S SIGN (gamma, delta
+  and the calls' vanna and charm negated, the puts' vanna and charm as they come — read live against the strikes round
+  spot), its walls, flip and supreme `pickWalls` / `pickFlip`'s; by date off /spot-exposures/expiry-strike (`limit` 500 —
+  it pages at 50); open interest off /oi-per-strike (a count dated D is the close of the session before D — "How sure"
+  says so, data/feed/levels.ts `feedFreshness`); max pain, the implied moves, the book through the day, UW's minute bars
+  (four sessions — 1m to 1h only). The rail's price, the head's facts and the watchlist drawer read the feed on those
+  pages. What the house MODELS on its own history (the odds, the range, the close, the schedule, the clock, how the
+  levels held, where they head) is not drawn on the feed: each page names it in one quiet line ("not in the feed"); a
+  field no answer carries is "—" (open interest by date, the flip minute by minute, vega). A failed poll keeps the last
+  good answer — never a flash back to the house's book. An index has no day state and no bars on this plan (422):
+  never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane says its bars are not in the feed.
+  Pulse is not wired: its Pinpoint panels read the house's book. A pop-out probes the feed itself (PopOutFrame).

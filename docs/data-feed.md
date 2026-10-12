@@ -2,7 +2,8 @@
 
 Slayer reads two vendors: **Unusual Whales API Basic** and **Massive (Polygon) Basic** (Stocks, Options, Indices,
 Currencies). Neither plan has a socket, so the terminal asks on a timer. Until a room is moved onto them, a room
-reads exactly what it read before; Trace is the first moved (2026-10-12, at the foot of this page).
+reads exactly what it read before; the Dossier, Trace, Pinpoint and Terrain are moved (2026-10-12, at the foot of this
+page).
 
 ## Keys
 
@@ -53,6 +54,7 @@ browser ──GET /feed/massive/v2/…──────▶ dev server          
 | `status.ts` | the feed-status store (`useFeedStatus`, `probeFeeds`, `startFeedProbe` — run by the shell as the terminal opens, never on the landing) |
 | `poll.ts` | `useFeedPoll(key, load, periodMs)`: one timer per key at the shortest period asked, a hidden tab asks nothing, answers land once a frame |
 | `uw.ts`, `massive.ts` | the typed fetchers below |
+| `levels.ts` | Pinpoint's and Terrain's book on the feed: the exposure in the house's sign, the levels, open interest, max pain, the implied moves, the bars, the field (below) |
 | `rooms.ts` | the per-room switch: what each room needs, and one seam a room |
 | `providers.ts` | each plan's notes, for Settings |
 
@@ -71,8 +73,12 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwFlowRecent` | `GET /api/stock/{ticker}/flow-recent` (a bare array) |
 | `uwNetPremTicks` | `GET /api/stock/{ticker}/net-prem-ticks` |
 | `uwMarketTide` | `GET /api/market/market-tide` |
-| `uwSpotGexByStrike` | `GET /api/stock/{ticker}/spot-exposures/strike` (`min_strike`, `max_strike`) |
+| `uwSpotGexByStrike` | `GET /api/stock/{ticker}/spot-exposures/strike` (`min_strike`, `max_strike`, `limit` — `1` reads the price the book is figured at) |
+| `uwSpotGexByExpiryStrike` | `GET /api/stock/{ticker}/spot-exposures/expiry-strike` (`expirations[]`, `min_strike`, `max_strike`, `limit` ≤ 500 — it pages at 50 otherwise) |
 | `uwSpotExposures` | `GET /api/stock/{ticker}/spot-exposures` |
+| `uwOiPerStrike` | `GET /api/stock/{ticker}/oi-per-strike` (`date` — the day the count is published, after the session before closed) |
+| `uwMaxPain` | `GET /api/stock/{ticker}/max-pain` (every listed date) |
+| `uwInterpolatedIv` | `GET /api/stock/{ticker}/interpolated-iv` (implied vol and the move it prices in at 1, 5, 7, 14, 30, 60 … days) |
 | `uwDarkpool` | `GET /api/darkpool/recent`, `GET /api/darkpool/{ticker}` |
 | `uwCongressTrades` | `GET /api/congress/recent-trades` |
 | `uwInsiderTrades` | `GET /api/insider/transactions` (`ticker_symbol`) |
@@ -100,8 +106,8 @@ the live answers, kept in `docs/data-feed-samples.md`.
 `src/data/feed/rooms.ts` names what each room would read (`needs`) and gives each room one seam — `pulseSource`,
 `terrainSource`, `traceSource`, `dossierSource`, `pinpointSource`, `compassSource`, `weigherSource`, and
 `useRoomSource(room)`. A room reads the feed only when **every** vendor it needs is up, never one vendor beside the
-house's own figures on one screen. The Dossier is wired (below); every other room's `wired` is `false`, so its seam returns `'stand-in'`
-and its pages read what they read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
+house's own figures on one screen. The Dossier, Trace, Pinpoint and Terrain are wired (below); every other room's `wired`
+is `false`, so its seam returns `'stand-in'` and its pages read what they read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
 then set `wired: true`.
 
 ## The Dossier, the first room moved (2026-10-12)
@@ -127,10 +133,6 @@ page works the usual move, the pricing and the beat count from its own reported 
 thirty-day line and rotation on Stocks; the map, a story's read and the day ahead on News.
 
 Screenshots on the vendors' answers, 2026-10-12 around 11:45 New York: `docs/data-feed/dossier-2026-10-12-*.png`.
-
-house's own figures on one screen. Every room but Trace (below) has `wired: false`, so its seam returns `'stand-in'` and
-every page reads what it read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
-then set `wired: true`.
 
 ## Trace reads Unusual Whales (2026-10-12)
 
@@ -158,3 +160,56 @@ session before quarter hour by quarter hour (Footprints' sparkline), a print's o
 cross's average-day share, the floor share of a print that does not say. A view the answers cannot draw is not offered:
 the card's other sessions and its dollar bars, a sector or the index funds alone on 0DTE, a name's lines by moneyness,
 tenor or expiry. Words say what the feed holds: a floor is named where a page reads prints above it.
+
+## Pinpoint and Terrain read Unusual Whales (2026-10-12)
+
+`ROOM_FEEDS.pinpoint` and `ROOM_FEEDS.terrain` are `wired: true`, and both **need UW alone**: every figure either room
+draws — exposure by strike and by date, open interest, max pain, the implied move, the book through the day, a name's
+minute bars — is a UW route, and Massive adds nothing they draw (its minute bars stop at the session before, which UW's
+reach, and it refuses the indices). With UW up, every Pinpoint page and every Terrain pane reads
+`src/data/feed/levels.ts`; with UW down (no key, the network, a refused key) they read the house's book exactly as
+before; while the shell's first probe is out they stand as their skeletons. Nothing on one screen comes from both: the
+rail's price on a Pinpoint or Terrain page, the head's facts and the watchlist drawer read the feed too.
+
+**The book.** `/spot-exposures/strike` round the price (±10%, narrowed to about 34 strikes each side once the chain's
+step is known, rounded so the address holds still), 30 strikes kept each side — the house's `BOOK_WINDOW`. UW's signs
+are mapped onto the house's (core/walls.ts: negative call-dominant): gamma, delta and the calls' vanna and charm
+negated, the puts' vanna and charm as they come. The call wall, the put wall, the flip and the supreme are
+`pickWalls` / `pickFlip` on those rows; checked by hand against a curl of the same answer (SPY, 13:44 ET: 785, 772,
+777.50, 785). "How sure" says what a feed level stands on: the open interest as of the close the count stands for
+(UW's count dated Oct 12 is Oct 9's close) and the price and minute UW figured the hedging at.
+
+**Polling.** The book every 30 s (the proxy keeps exposure 30 s); by date every 60 s; the contracts traded by strike
+60 s; open interest, max pain and the implied moves every 10 min (the proxy keeps them 10 min); the book through the
+day 60 s; bars: 2,500 one-minute bars every 5 min and the newest 30 every 15 s, folded into one tape; a name's day
+state 10 s. A hidden tab asks nothing. A failed answer — a 429 while other sessions share the key — keeps the last good
+one: a page never falls back to the house's book mid-session, and its stamp says it is waiting on the next answer.
+
+| Page | Reads | What it draws |
+|---|---|---|
+| Map | the book; by date (the first seven listed dates); open interest; max pain | the levels with "How sure"; the heatmap a column a date and the ladder on the whole book (GEX, DEX, vanna, charm — vega is not in the feed and not offered); Read this |
+| Ahead | the implied moves; max pain | the move priced in at each horizon and which walls stand inside it; max pain on each listed date |
+| Building | the book (gamma from today's volume); contracts traded by strike; two counts of open interest; the book through the day | what today's trading built, strike by strike; open interest overnight (`OiChange`); dealers through the session (`DealerTimeline`, its flip half not in the feed) |
+| At the wall | the book; open interest; contracts traded; max pain | each named level, what stands at it, how sure |
+| Targets | the book | every strike in order of the hedging parked there |
+| Board | each board name's book (every 30 s) | the price, which side of the flip, the walls, the supreme, net GEX |
+| Compare | both names' books | the levels and the ladder side by side |
+| The head | the book; the implied moves | which side of the flip, the flip and how far (σ is the one-day implied move); Copy levels off the feed's book |
+| Terrain, a pane | the book or one listed date (the expiry card lists UW's dates); open interest; the implied move; the bars | the ladder (size and the flow lane), the walls and the flip on the chart, the strike field (the books this terminal read today — it fills from the first read), the candles (1m to 1h) |
+
+**What is not in the feed, and so not drawn** (each page names them in one quiet line, "not in the feed"): the house's
+modelled reads that stand on its own session history — the odds a level is reached or holds, the range to the close,
+where it closes, the half-hour schedule, the Trader's Clock, how the levels held, where they are heading, the
+agenda's order, the Board's sparkline and crossings, Compare's head-to-head, ruler, tapes and pair; the flip's
+crossings today; the flip minute by minute on the dealers' timeline (the answer carries the whole book a minute, not
+the strikes); open interest by date (the heatmap's read line says "—"); vega by strike. On Terrain: the seconds,
+daily and weekly timeframes (four sessions of minute bars), range and volume bars, dark pool, the option tape, the
+drifts, events, the alerts' lines, the walls through the day, comparisons, the open's ghost on the ladder, and its
+volume-by-price switch. An index (SPX, NDX, RUT …) has exposure, open interest and max pain on UW but no day state and
+no bars on this plan (422, a CBOE grant): Pinpoint reads it at the price its book was figured at, the change left off;
+a Terrain pane on it says its bars are not in the feed and draws no ladder. Pulse is not wired, so its Targets, At the
+wall, Range and Close panels read the house's book as before.
+
+The fallback was checked with the keys blanked (`env UW_API_TOKEN= MASSIVE_API_KEY= node node_modules/vite/bin/vite.js`
+— an empty variable in the process wins over `.env` in `loadEnv`; `npx` drops empty variables, so call Vite directly):
+every Pinpoint page, Terrain and Pulse drew the same boxes as the commit before this wiring, and no console errors.

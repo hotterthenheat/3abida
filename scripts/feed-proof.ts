@@ -49,6 +49,9 @@ const check = (name: string, ok: boolean) => {
 /* the TTLs by what a path is */
 check('a quote is kept seconds', ttlFor('uw', '/api/stock/SPY/stock-state') <= 5000);
 check('a contract list is kept hours', ttlFor('massive', '/v3/reference/options/contracts') >= 3600_000);
+/* Pinpoint and Terrain (2026-10-12): the book half a minute, the daily counts ten */
+check('the book by strike is kept half a minute', ttlFor('uw', '/api/stock/SPY/spot-exposures/strike') === 30_000 && ttlFor('uw', '/api/stock/SPY/spot-exposures/expiry-strike') === 30_000);
+check('open interest, max pain and the implied moves are kept ten minutes', ['oi-per-strike', 'max-pain', 'interpolated-iv'].every(r => ttlFor('uw', `/api/stock/SPY/${r}`) === 600_000));
 
 /* no key: 503 no-key, and nothing leaves */
 {
