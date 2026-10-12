@@ -29,7 +29,6 @@ import { walkOption } from './excursion';
 import { marketOf } from './market';
 import { barTime } from './tape';
 import { pathOf, type HeldRecord, type TradePath } from '../paper/engine';
-import type { Candle } from '../../types/market';
 
 /** A closed trade keeps this many of its points, and this many candles; a session keeps this many trades' candles */
 const HELD_KEEP = 120;
@@ -48,7 +47,7 @@ export function keepReal(before: Session, after: Session): Session {
   const fresh = trades.filter(t => !had.has(t.id) && !after.real?.held?.[t.id]);
   if (!fresh.length) return { ...after, real: { ...after.real, marks } };
   const held: Record<string, HeldRecord> = { ...after.real.held };
-  const paths: Record<string, TradePath> = { ...after.real.paths };
+  const paths: Record<string, TradePath[]> = { ...after.real.paths };
   for (const t of fresh) {
     const pts = walkOption(after, t, mk);
     if (pts.length) {
@@ -67,14 +66,15 @@ export function keepReal(before: Session, after: Session): Session {
         worstAt: worst.time * 1000,
       };
     }
-    /* the name's candles: the way in's whole day to the way out's bell */
-    const bars: Candle[] = [];
-    for (let d: string | null = t.opened.day, n = 0; d && n < 40; d = mk.nextDay(d), n++) {
-      bars.push(...mk.dayBars(t.contract.ticker, d));
+    /* the name's candles: the way in's whole day to the way out's bell — a path a session, so the nights stay nights */
+    const days: string[] = [];
+    for (let d: string | null = t.opened.day; d && days.length < 40; d = mk.nextDay(d)) {
+      days.push(d);
       if (d >= t.closed.day) break;
     }
-    const path = pathOf(bars, barTime(t.opened.day, 0), barTime(t.closed.day, 389), 0.01, PATH_KEEP);
-    if (path) paths[t.id] = path;
+    const each = Math.max(60, Math.floor(PATH_KEEP / days.length));
+    const kept = days.map(d => pathOf(mk.dayBars(t.contract.ticker, d), barTime(d, 0), barTime(d, 389), 0.01, each)).filter((x): x is TradePath => x != null);
+    if (kept.length) paths[t.id] = kept;
   }
   /* at most PATHS_MOST trades' candles: the oldest go first */
   const ids = Object.keys(paths);

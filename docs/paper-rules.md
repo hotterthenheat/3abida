@@ -253,6 +253,20 @@ way in is locked until it takes them.
   its next renewal, fresh from what was written — what is open stays open.
 - A tab that does not hold the accounts never writes them, so two tabs never trade one account against two markets.
 
+## The Backtest on real days (2026-10-12)
+
+The paper account above trades today's prices. **The Backtest** (Practice › Backtest) can now replay a real past session
+from Massive's record instead of the house's tape — one or the other for a whole session. Its fill rule on a real day,
+in full in `docs/review-backtest-rules.md` "Real days":
+
+| On a real day | Fills | At |
+| --- | --- | --- |
+| A minute the contract traded | a market buy or sell; a limit buy at or under its limit; a limit sell at or over; a stop at or under | that minute's volume-weighted average price (its close where none is given) — no spread made up round it |
+| A minute it did not trade | **nothing** — the price shown is the house's estimate on the name's real price, marked ≈ | — |
+| Its expiry's bell | settles | what it is worth in the money at the record's last minute |
+
+Its trades are told apart in the Journal ("Real days") and are measured only against the market they were made in.
+
 ## Fill alerts
 
 A fill, a stop, a target, an expiry, a day that ended, a failed or passed evaluation — each is said **where the reader is,

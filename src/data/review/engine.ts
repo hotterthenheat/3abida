@@ -203,7 +203,8 @@ export interface RealBook {
   /** By trade id, written as it closes: what it was worth while it was held, and the name's candles — the journal draws
       them without asking the record again (the paper account's shapes) */
   held?: Record<string, HeldRecord>;
-  paths?: Record<string, TradePath>;
+  /** A path a session day: the record's minutes are New York's sessions, never one unbroken line across the nights */
+  paths?: Record<string, TradePath[]>;
 }
 
 export const DEFAULT_FEE = 0.65;

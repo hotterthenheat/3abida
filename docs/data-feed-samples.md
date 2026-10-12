@@ -791,3 +791,16 @@ status: string  "OK"
 request_id: string
 ```
 
+### What the Backtest's real days learnt (2026-10-12)
+- `GET /v3/reference/options/contracts?underlying_ticker=SPY&contract_type=call&strike_price=760&as_of=2026-09-14&sort=expiration_date&order=asc&limit=1000`
+  — 200, 34 rows, 2026-09-14 to 2029-01-19: `as_of` lists what was listed that day, the since-expired among them. The
+  same with `expiration_date=2026-09-18` and no strike: 321 strikes, 300 to 1000, every dollar from 740 to 790.
+- `GET /v2/aggs/ticker/O:SPY260918C00762000/range/1/minute/2026-09-14/2026-09-18` — 200, 1,841 rows of the usual bar keys
+  (`v`, `vw`, `o`, `c`, `h`, `l`, `t`, `n`): an expired contract's own minutes; up to 402 a day (the funds' options trade
+  to 16:15), a minute nothing traded has no row. `O:AAPL241115C00225000` in November 2024: 1,925 rows.
+- `GET /v2/aggs/ticker/SPY/range/1/day/2024-10-01/2026-10-11` — 200, 499 rows, the first 2024-10-14: two years back. A
+  day bar's `t` is New York's midnight. `GET /v2/aggs/ticker/AAPL/range/1/minute/2024-10-14/2024-10-14` — 200, 706 rows.
+- `GET /v2/aggs/ticker/SPY/range/1/minute/2026-09-14/2026-09-18` — 200, 4,448 rows, 390 a day inside 09:30–16:00.
+- A burst from another holder of the key answered `{"status":"ERROR","error":"You've exceeded the maximum requests per
+  minute…"}` with 429.
+

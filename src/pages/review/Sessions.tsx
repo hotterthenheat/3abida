@@ -181,12 +181,13 @@ const Sessions = () => {
                 <CompanyLogo key={t} ticker={t} size={15} />
               ))}
             </span>
-            <span className="font-semibold text-textPrimary truncate">{r.s.name}</span>
+            {/* before the name, so a long name's cut never takes it */}
             {r.s.src === 'feed' && (
               <span className="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded border border-silver/60 font-mono text-[11px] text-silver" title="Replays the market’s own record from Massive — the name’s minutes and each contract’s own trades" data-session-real={r.s.id}>
                 Real days
               </span>
             )}
+            <span className="font-semibold text-textPrimary truncate" title={r.s.name}>{r.s.name}</span>
           </span>
         ),
       },

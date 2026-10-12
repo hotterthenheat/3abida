@@ -168,10 +168,49 @@ reader's figures about their own trades; none of them is a score of ours.
 
 ## Where the real prices will come from
 
+(Since 2026-10-12 a session can replay real days on the owner's Massive Basic plans — below, "Real days". Basic carries
+trades, not quotes, so a real day fills on the contract's own minute trades; what follows is the plan for quotes.)
+
 The vendor is Massive (Noah, 2026-09-20), for every market the terminal reads. What matters to THIS page: a fill is the
 bid or the ask as it stood, so the replay can reach back only as far as the vendor's historical QUOTES do — its business
 plan lists 2.5 years of them (10+ of trades). Historical greeks are not sold and are not needed: decay is inside the
 price. The figures and the licence lines to get in writing are `docs/launch-costs.md` chapter 13.
+
+## Real days (2026-10-12)
+
+With Massive connected (`MASSIVE_API_KEY`, the Basic plans: Stocks and Options, two years, end of day) a session can
+replay **a real past session** instead of the house's tape — picked on the Sessions page's Days card, the house calendar
+offering the sessions on the record with a dot each. **One market a session, start to end**
+(`src/data/review/market.ts`): a real session never reads the house's tape, and a house session never reads the record.
+The engine asks `marketOf(session)` for every price, so every rule on this page is the same code on either market.
+
+- **What it holds**: the day picked and the sessions on the record after it — ten in all, fewer where the record ends or
+  a half session (13:00 close) comes first; a half session is never offered (the desk's day runs to the 16:00 bell). Two
+  sessions before it stand on the chart, never on the clock.
+- **The name**: its own minute bars, 09:30 to 16:00 New York (the record's `t`, epoch ms). A minute with no bar stands
+  where the last one closed, volume nothing.
+- **What was listed**: the expiries listed on the first day and, for the expiry on show, its strikes — Massive's
+  contracts as of that day (`as_of`), expired ones among them.
+- **A contract's price** (`src/data/review/realTape.ts`): the Basic plans carry trades, not quotes, so a real day is priced
+  off **the contract's own minute bars**, asked for when the reader opens it.
+
+| On a real day | Price | Fills |
+| --- | --- | --- |
+| A minute the contract traded | that minute's volume-weighted average (its close where none is given) — bid, ask and mark are that one price | yes: a market buy and a market sell fill at it; a limit buy when it is at or under the limit, a limit sell at or over, a stop when it is at or under the stop — at that price |
+| A minute it did not trade | the house's pricer on the name's real price, at the vol the contract's last trade implied (before its first trade, the name's own vol over the twenty sessions before) — shown with **≈** | **no** — the quote is dead: a market order is refused in words, a resting order waits for a minute that traded |
+| Its trades not in yet | the same estimate, ≈ | no — "Its trades are still coming in" |
+| The bell of its expiry | what it is worth in the money at the record's last minute | settled, as on the tape |
+
+- No spread is made up round a traded price: a minute's average is what buyers and sellers paid together. The fee is the
+  same, both legs of a spread; a spread fills only in a minute both its legs traded.
+- **The clock only moves forward** here too (`floorOf`, ReplayStrip `minPos`), and stops at the last session the record
+  holds. A real session whose record has not come in moves nothing and fills nothing.
+- **What outlasts the visit** (`src/data/review/realKeep.ts`): after every change the session writes down the mark each
+  open contract last showed (the session list's "worth now" while the record is out) and, as a trade closes, its walk —
+  what it was worth minute by minute, counting only minutes it traded — and the name's candles, a set a session. The
+  journal and the report read those, never the record again and never the house's tape.
+- Open interest is not in the record: the strike's drop-down says "—". Its other figures are the contract's own trades so
+  far that day.
 
 ## What it is not
 

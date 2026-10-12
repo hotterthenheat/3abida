@@ -6,6 +6,11 @@ import { accountOf, advance, amend, attach, bankedOf, bookOf, cancel, cashOf, cu
 import { splitQty } from '../src/data/review/ladder';
 import { chainAt, contractKey, contractWords, expiriesAt, quoteAt, quoteWith, spotForBid, yearsLeft } from '../src/data/review/quotes';
 import { DAY_MIN, LAST_MIN, barTime, dayBars, nextDay, spotAt, tapeDays } from '../src/data/review/tape';
+import { marketOf, registerMarket } from '../src/data/review/market';
+import { buildRealMarket, type PrintBar, type RealRecord } from '../src/data/review/realTape';
+import { keepReal } from '../src/data/review/realKeep';
+import type { ContractId } from '../src/data/review/quotes';
+import type { Session } from '../src/data/review/engine';
 
 let misses = 0;
 const ok = (what: string, pass: boolean, detail = '') => {
@@ -365,6 +370,63 @@ ok('contracts are shared out with the nearer level taking the odd one', splitQty
   let one = advance(newSession({ id: 'one', name: 'one', ticker: 'SPY', startCash: 50000, startDay: day, now: 0 }), { day, minute: 20 }, 0);
   one = attach(place(one, { contract: spyCall, side: 'buy', qty: 1, kind: 'market' }, 0), spyCall, 'target', px(1.3), 0);
   ok('one contract: there is nothing to split', ladderRoom(one, spyCall).target === null && attach(one, spyCall, 'target', px(1.5), 0) === one);
+}
+
+/* ---- A REAL DAY (data/review/realTape.ts, 2026-10-12): the record's own minutes, fills only on a minute that traded ---- */
+{
+  const D1 = '2026-09-14';
+  const D2 = '2026-09-15';
+  const candles = (iso: string, from: number) => Array.from({ length: DAY_MIN }, (_, k) => ({ time: barTime(iso, k), open: from + k * 0.01, high: from + k * 0.01 + 0.05, low: from + k * 0.01 - 0.05, close: from + (k + 1) * 0.01, volume: 1000 }));
+  const nameBars = new Map([[D1, candles(D1, 500)], [D2, candles(D2, 503.9)]]);
+  /* the contract trades every tenth minute: up through the morning, down after minute 200 */
+  const pxAt = (m: number) => (m < 200 ? 5 + m * 0.01 : 7 - (m - 200) * 0.02);
+  const tradesOf = () => new Map([D1, D2].map(iso => [iso, Array.from({ length: DAY_MIN }, (_, k): PrintBar | null => (k % 10 === 0 ? { o: pxAt(k), h: pxAt(k), l: pxAt(k), c: pxAt(k), v: 12, vw: pxAt(k) } : null))]));
+  const C: ContractId = { ticker: 'SPY', strike: 500, right: 'C', expiry: D2 };
+  const record: RealRecord = {
+    days: [D1, D2],
+    before: [],
+    bars: (t, iso) => (t === 'SPY' ? nameBars.get(iso) : undefined),
+    vol: () => 0.2,
+    expiries: () => [D2, '2026-09-18'],
+    strikes: () => [495, 500, 505],
+    prints: c => (contractKey(c) === contractKey(C) ? tradesOf() : undefined),
+  };
+  registerMarket('R', buildRealMarket(record));
+  const fresh = (): Session => ({ ...newSession({ id: 'R', name: 'real', ticker: 'SPY', startCash: 25000, startDay: D1, now: 0 }), src: 'feed', real: { days: [D1, D2], before: [], vol: { SPY: 0.2 } } });
+  const mk = marketOf(fresh());
+  ok('a real session reads its own record, a house session the house’s tape', mk.kind === 'feed' && marketOf(newSession({ id: 'H', name: 'h', ticker: 'SPY', startCash: 1, startDay: day, now: 0 })).kind === 'house');
+  ok('the name is where the record has it', near(mk.spotAt('SPY', D1, 10), 500.11));
+  const traded = mk.quoteAt(C, D1, 10);
+  ok('a minute it traded: one price, its own — bid, ask and mark', traded.src === 'print' && !traded.dead && traded.bid === 5.1 && traded.ask === 5.1 && traded.mark === 5.1);
+  const between = mk.quoteAt(C, D1, 11);
+  ok('a minute it did not: estimated, and dead — nothing fills', between.src === 'estimate' && between.dead && between.mark > 0, `≈${between.mark}`);
+  ok('a contract whose trades are not in: coming, and dead', mk.quoteAt({ ...C, strike: 505 }, D1, 10).src === 'coming');
+  let R = advance(fresh(), { day: D1, minute: 11 }, 0);
+  ok('a market buy in a minute it did not trade is refused, in words', /No trade in that contract this minute/.test(refusal(R, { contract: C, side: 'buy', qty: 1, kind: 'market' }) ?? ''));
+  ok('…and one on a contract whose trades are still coming in', /still coming in/.test(refusal(R, { contract: { ...C, strike: 505 }, side: 'buy', qty: 1, kind: 'market' }) ?? ''));
+  R = advance(R, { day: D1, minute: 20 }, 0);
+  R = place(R, { contract: C, side: 'buy', qty: 1, kind: 'market' }, 0);
+  ok('a market buy in a minute it traded fills at that minute’s price', R.fills.length === 1 && R.fills[0].price === 5.2 && R.fills[0].how === 'market');
+  /* a limit under the price: fills on the first minute that TRADED at or through it, at that price */
+  R = advance(R, { day: D1, minute: 210 }, 0);
+  R = place(R, { contract: C, side: 'buy', qty: 1, kind: 'limit', price: 6.05 }, 0);
+  R = advance(R, { day: D1, minute: 300 }, 0);
+  const lim = R.fills[1];
+  ok('a limit fills on the first minute that traded through it, at that minute’s price', !!lim && lim.at.minute === 250 && lim.price === 6, lim ? `${lim.price} at minute ${lim.at.minute}` : 'no fill');
+  ok('the clock never stands behind itself on a real day either', advance(R, { day: D1, minute: 100 }, 0) === R && floorOf(R).minute === 300);
+  ok('past the record’s last day the clock does not go', advance(R, { day: '2026-09-16', minute: 0 }, 0) === R);
+  /* held to its own expiry's bell: settled at what it is worth in the money, at the record's last price */
+  const before = R;
+  R = advance(R, { day: D2, minute: LAST_MIN }, 0);
+  const bellFill = R.fills.find(f => f.how === 'expired');
+  const last = nameBars.get(D2)![LAST_MIN].close;
+  ok('the bell settles it on the record’s price', !!bellFill && near(bellFill.price, last - 500), bellFill ? `${bellFill.price} vs ${(last - 500).toFixed(2)}` : 'no settlement');
+  const kept = keepReal(before, R);
+  const tr = bookOf(R).trades[0];
+  ok('a closed real trade is written down: its walk and its candles, a set a session', !!tr && !!kept.real?.held?.[tr.id]?.pts.length && kept.real?.paths?.[tr.id]?.length === 2);
+  /* before the record is in, nothing moves and nothing fills */
+  const still: Session = { ...fresh(), id: 'not-in' };
+  ok('a real session whose record is not in moves nothing and fills nothing', advance(still, { day: D1, minute: 30 }, 0) === still && /still coming in/.test(refusal(still, { contract: C, side: 'buy', qty: 1, kind: 'market' }) ?? ''));
 }
 
 const st = statsOf([...trades, bt]);

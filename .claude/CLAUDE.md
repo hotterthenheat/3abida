@@ -618,3 +618,17 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   answers cannot draw is not offered; a page reading a floor ($25K tape, $100K alerts, $250K windows, $50K structures,
   $1M dark leaders) says it. UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate` queues the rest. A Tracker
   mark keeps its market (`src: 'feed'`): measured only against the market it was made in.
+- THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
+  "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
+  offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE
+  MARKET A SESSION, START TO END: the engine asks `marketOf(session)` (data/review/market.ts) for every price — the house's
+  tape, or a session's record (`src: 'feed'`, realTape.ts) — never both; a real session whose record is not in moves and
+  fills nothing, and its desk says what is being asked or why it cannot come (RealDayDoor), never the tape under it. A
+  real session holds the day picked and up to nine sessions after it on the record, two before for the chart; a half
+  session is never offered. Few calls, kept for the visit (data/feed/backtest.ts): the picker's two years of day bars and
+  a session's minutes are one call a name, its listings one (`as_of` its first day), the strikes one an expiry, a
+  contract's own minute trades one a contract, asked when it is opened; a 429 is waited out and said. THE FILL RULE: a
+  contract fills only in a minute it traded, at that minute's volume-weighted average (bid = ask = mark, no spread made
+  up); between its trades the price is the house's estimate on the name's real price, shown with ≈, and dead; open
+  interest is "—". A closed real trade writes its walk and its candles into the session (realKeep.ts — a path a session
+  day), so the journal and the report never ask the record again; the journal and the session list say "Real days".

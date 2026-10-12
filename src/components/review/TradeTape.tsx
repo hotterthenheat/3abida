@@ -72,7 +72,7 @@ const frameFor = (heldMin: number): Timeframe => (heldMin <= 150 ? '1m' : heldMi
 const frameForStep = (sec: number): Timeframe => (sec <= 60 ? '1m' : sec <= 300 ? '5m' : sec <= 900 ? '15m' : '1h');
 /** A real day's trade: its candles, written down as it closed */
 const realPathOf = (row: JournalRow) => (!row.paper && row.s.src === 'feed' ? (row.s.real?.paths?.[row.t.id] ?? null) : null);
-const frameOf = (row: JournalRow): Timeframe => (row.paper ? frameForStep(row.s.paths[row.t.id]?.step ?? 60) : row.s.src === 'feed' ? frameForStep(realPathOf(row)?.step ?? 60) : frameFor(row.t.heldMin));
+const frameOf = (row: JournalRow): Timeframe => (row.paper ? frameForStep(row.s.paths[row.t.id]?.step ?? 60) : row.s.src === 'feed' ? frameForStep(Math.max(...(realPathOf(row) ?? []).map(p => p.step), 60)) : frameFor(row.t.heldMin));
 
 interface Level {
   price: number;
@@ -175,7 +175,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
       const bars = path ? candlesOfPath(path) : [];
       return { bars, iv: 0.2, key: `journal:${row.key}` };
     }
-    if (real) return { bars: realPath ? candlesOfPath(realPath) : [], iv: row.s.real?.vol[symbol] ?? 0.2, key: `journal:${row.key}`, clock: 'ny' };
+    if (real) return { bars: realPath ? realPath.flatMap(candlesOfPath) : [], iv: row.s.real?.vol[symbol] ?? 0.2, key: `journal:${row.key}`, clock: 'ny' };
     const days: string[] = [];
     const before = prevDay(row.t.opened.day);
     if (before) days.push(before);
@@ -224,7 +224,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
           <DropdownSelect label="Candles" value={frame} options={FRAMES} onChange={setFrame} title="How long a candle is" align="end" size="sm" testId="journal-frame" />
         </span>
       </div>
-      {real && !realPath ? (
+      {real && !realPath?.length ? (
         <div className="px-6 flex flex-col items-center justify-center text-center bg-panel" style={{ height }} data-journal-tape-gone>
           <p className="text-[13px] text-textPrimary">This trade’s chart was not kept.</p>
           <p className="mt-1 max-w-[420px] text-[11px] leading-snug text-textMuted">A trade on a real day keeps the record’s candles from the moment it closes, for its session’s last 200 trades. Its figures, its tags and your words are all still here.</p>
