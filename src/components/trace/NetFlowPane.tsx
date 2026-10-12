@@ -680,12 +680,15 @@ const NetFlowPane = ({
     spot.setData(spotData);
     calls.setData(callData);
     puts.setData(putData);
-    if (loaded.id !== id) {
+    /* framed once a cut has something on it — on the feed the answer lands after the first pass, and a pane framed on
+       nothing kept the chart's default window (its last hour) */
+    const drawn = Math.max(spotData.length, view.points.length);
+    if (loaded.id !== id || (loaded.length === 0 && drawn > 0)) {
       chart.priceScale('right').applyOptions({ autoScale: true });
       chart.priceScale('left').applyOptions({ autoScale: true });
       frame(chart);
     }
-    loadedRef.current = { id, length: view.points.length };
+    loadedRef.current = { id, length: drawn };
   }, [view, times, seg, mny, ref, tenor, dteMax, theme, onFeed, feedLine]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* THE THEME TURNED: every ink read again off the pane's box, the chart and its lines repainted in them (the volume floor

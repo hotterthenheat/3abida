@@ -32,8 +32,10 @@ import { directionInk, earnMarks } from '../../components/trace/earnedInk';
 import FlowSearch from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import ReadDoor from '../../components/trace/ReadDoor';
-import { bookNetLeaders } from '../../data/feed/trace';
+import { bookNetLeaders, screenerLeaders, useFeedLeaders } from '../../data/feed/trace';
+import { useFeedStockDays } from '../../data/feed/stockDay';
 import { useTraceBook } from '../../components/trace/useTraceBook';
+import { Missing } from '../../components/trace/Missing';
 import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
 import { NetFlowGuide } from '../../components/trace/TraceGuide';
 import ExpiryCalendar, { expiryWords } from '../../components/ui/ExpiryCalendar';
@@ -76,15 +78,25 @@ const NetFlow = () => {
      board and the pane both read the cut book, so they cannot disagree */
   const { expiry, setExpiry: setExpiryRaw, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
-  const known = useMemo(() => new Set(heldBook.map(r => r.ticker)), [heldBook]);
+  /* Sampled at the chart tape's last bar — the pane draws to the SIM tape's now */
+  /* ON THE FEED, every expiry: the names with the most net premium today, each one's whole day off UW's stock screener
+     (data/feed/trace.ts screenerLeaders) — a row and its pane read the same day; one expiry: the house's board on the
+     vendor's contracts on that date */
+  const impact = useFeedLeaders(onFeed && !expiry, heldBook);
+  const impactNames = useMemo(() => (impact ?? []).map(l => l.ticker), [impact]);
+  const impactDays = useFeedStockDays(onFeed && !expiry, impactNames);
+  const leaders = useMemo(
+    () => (onFeed ? (expiry ? bookNetLeaders(book) : screenerLeaders(impact ?? [], impactDays)) : buildNetLeaders(book, paneTimes('SPY').slice(-1)[0], expiry ?? 'all')),
+    [book, expiry, onFeed, impact, impactDays]
+  );
+  /* the names a search may put on the pane: the book's, and on the feed the board's own */
+  const known = useMemo(() => new Set([...heldBook.map(r => r.ticker), ...(onFeed ? leaders.map(l => l.ticker) : [])]), [heldBook, onFeed, leaders]);
   const onQuery = (v: string) => {
     setQuery(v);
     if (!v) setPicked(null);
     else if (known.has(v)) setPicked(v);
   };
   const unknown = query !== '' && !known.has(query) && ![...known].some(t => t.startsWith(query));
-  /* Sampled at the chart tape's last bar — the pane draws to the SIM tape's now */
-  const leaders = useMemo(() => (onFeed ? bookNetLeaders(book) : buildNetLeaders(book, paneTimes('SPY').slice(-1)[0], expiry ?? 'all')), [book, expiry, onFeed]);
 
   const sel = picked ?? leaders[0]?.ticker ?? 'SPY';
   /* AN EXPIRY KEEPS THE NAME ON THE PANE (the audit's TR-40): with no name picked the pane followed the board's leader,
@@ -179,7 +191,7 @@ const NetFlow = () => {
             {leaders.length} <span className="text-textSecondary">·</span> <span className="text-bull">{facts.bullish} bullish</span> <span className="text-textSecondary">·</span> <span className="text-bear">{facts.bearish} bearish</span>
           </Fact>
           <Fact label="Contracts traded" testId="volume" title="Volume across the board, and how many contracts carried it">
-            {num(facts.volume)} <span className="text-textSecondary">· {num(facts.contracts)} contracts</span>
+            {Number.isFinite(facts.volume) ? num(facts.volume) : <Missing />} <span className="text-textSecondary">· {Number.isFinite(facts.contracts) ? num(facts.contracts) : <Missing />} contracts</span>
           </Fact>
           {facts.busiest && (
             <Champion label="Busiest name" ink="plain" title="Put this name on the pane" onOpen={() => onQuery(facts.busiest!.ticker)} testId="busiest">
@@ -250,7 +262,7 @@ const NetFlow = () => {
                     <span className={`absolute left-0 top-0 h-full ${l.net >= 0 ? 'bg-bull/60' : 'bg-bear/60'}`} style={{ width: `${Math.round((Math.abs(l.net) / maxAbs) * 100)}%` }} />
                   </span>
                   <span className="font-mono text-[11px] text-textPrimary tnum whitespace-nowrap" title={`Net calls, net puts, volume and the ${l.count} contracts traded on ${l.ticker} today`}>
-                    C {fmtUsd(l.netCall)} · P {fmtUsd(l.netPut)} · {num(l.volume)} vol · {l.count} cons
+                    C {Number.isFinite(l.netCall) ? fmtUsd(l.netCall) : '—'} · P {Number.isFinite(l.netPut) ? fmtUsd(l.netPut) : '—'} · {Number.isFinite(l.volume) ? num(l.volume) : '—'} vol · {Number.isFinite(l.count) ? l.count : '—'} cons
                   </span>
                 </span>
               </button>

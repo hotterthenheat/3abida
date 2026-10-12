@@ -1271,3 +1271,28 @@ export function feedBookCatches(book: BookContract[], reasons: UserReason[], alr
   }
   return out;
 }
+
+/**
+ * THE BOARD ON THE FEED, EVERY EXPIRY: the names with the most net premium either way today (top-net-impact), each one's
+ * whole day off UW's stock screener — its net calls and net puts (the premium bought at the ask less the premium sold on
+ * the bid), its calls and puts traded — so a name's row and its pane (its net premium ticks) read the same day. The
+ * contracts that carried it are not in that answer.
+ */
+export function screenerLeaders(impact: NetLeader[], days: Map<string, import('./uw').UwStockDay> | null): NetLeader[] {
+  return impact
+    .map(l => {
+      const d = days?.get(l.ticker.toUpperCase());
+      const c = d?.netCallPremium ?? null;
+      const p = d?.netPutPremium ?? null;
+      const both = c !== null && p !== null;
+      return {
+        ...l,
+        net: both ? c - p : l.net,
+        netCall: c ?? NaN,
+        netPut: p ?? NaN,
+        volume: d ? d.callVolume + d.putVolume : l.volume,
+        count: NaN,
+      };
+    })
+    .sort((a, b) => b.net - a.net);
+}

@@ -60,12 +60,20 @@ export function kindOf(headline: string, hasName: boolean): NewsCategory {
 
 const SENTIMENT: Record<string, number> = { positive: 0.5, bullish: 0.5, negative: -0.5, bearish: -0.5 };
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const sentenceCase = (s: string) => (s === s.toUpperCase() && /[A-Z]{4}/.test(s) ? s.charAt(0) + s.slice(1).toLowerCase() : s);
+/** The wire's text as written, its HTML entities read ("Walker &amp; Dunlop" is "Walker & Dunlop") */
+const plain = (s: string) =>
+  s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 
 /** One UW headline as the house's wire item, its read the house's model on the vendor's inputs */
 export function wireItem(h: UwHeadline, nowMs = Date.now()): NewsItem {
   const ticker = h.tickers[0]?.toUpperCase() ?? null;
-  const category = kindOf(h.headline, !!ticker);
+  const category = kindOf(plain(h.headline), !!ticker);
   const sentiment = SENTIMENT[h.sentiment.toLowerCase()] ?? 0;
   const px = ticker ? h.prices[ticker] ?? h.prices[h.tickers[0]] : undefined;
   const movePct = px && px.close !== null && px.prevClose ? ((px.close - px.prevClose) / px.prevClose) * 100 : NaN;
@@ -80,7 +88,8 @@ export function wireItem(h: UwHeadline, nowMs = Date.now()): NewsItem {
       return `${t} ${p.close.toFixed(2)}${Number.isFinite(chg) ? `, ${chg >= 0 ? '+' : '−'}${Math.abs(chg).toFixed(2)}% on the session before's close` : ''}`;
     })
     .filter(Boolean);
-  const body = [sentenceCase(h.headline), named.length ? `On the wire with it: ${named.join(' · ')}.` : `${h.source}, ${nyClock(h.createdAt)} New York.`];
+  /* what the wire carries beside the headline — where and when it ran, and the named names' prices; never written copy */
+  const body = [`${h.source || 'The wire'}, ${nyClock(h.createdAt)} New York${h.isMajor ? ' · marked major' : ''}.`, named.length ? `On the wire with it: ${named.join(' · ')}.` : 'No listed name rides with it.'];
   return {
     id,
     time: nyClock(h.createdAt),
@@ -88,7 +97,7 @@ export function wireItem(h: UwHeadline, nowMs = Date.now()): NewsItem {
     atMs: h.createdAt,
     source: h.source || 'The wire',
     ticker,
-    headline: sentenceCase(h.headline),
+    headline: plain(h.headline),
     body,
     category,
     sentiment,
