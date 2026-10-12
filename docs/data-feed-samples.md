@@ -764,6 +764,32 @@ data: array[1]
 { "code": "cboe_index_access_missing", "msg": "Prices for the CBOE index SPX require provisioned access and CBOE approval. …", … }
 ```
 
+### `GET /api/stock/SPY/ohlc/1d?limit=3` — 200 (read by Terrain's 1D and 1W, 2026-10-12, 17:42 ET)
+```
+data: array[3]   (limit 2500: 753 rows, 251 of them "r", 2025-10-13 to 2026-10-12)
+  close: numeric string  "778.1"
+  high: numeric string  "779.397"
+  low: numeric string  "777.05"
+  open: numeric string  "778.78"
+  date: string  "2026-10-12"
+  volume: number  18392279
+  total_volume: number  16434558
+  market_time: string  "r"      ("pr" and "po" rows for the same date beside it)
+```
+`/ohlc/1D` answers 422 ("Valid inputs are 1m, 5m, 10m, 15m, 30m, 1h, 4h, 1d, 1w"); `/ohlc/1w` answered the day rows;
+`/api/stock/SPX/ohlc/1d` 422 `cboe_index_access_missing`.
+
+### `GET /api/option-trades?ticker_symbol=SPY&limit=500&min_premium=25000` — 200 (Terrain's flow on the feed)
+500 rows, the same shape as the tape above, `underlying_symbol` "SPY"; at 17:42 ET they reached from 16:13 back to 15:05 —
+about seven pages walk SPY's session back to the open.
+
+### `GET /api/darkpool/SPY?limit=200&min_premium=1000000` — 200 (Terrain's dark pool levels)
+200 rows, the shape above, from 17:10 back to 11:44 ET; NVDA's from 17:12 back to 10:38. The largest SPY cross that
+day: 400,000 shares at 778.0194, `premium` "311207760.0000".
+
+### `GET /v2/aggs/ticker/SPY/range/1/minute/2026-09-08/2026-10-11?limit=50000` (Massive) — 200
+`resultsCount` 21025, 08:00Z on Sep 8 to 23:59Z on Oct 9 (the extended hours, the session before today the latest).
+
 ### What Pinpoint's and Terrain's wiring learnt (2026-10-12, 13:20–14:10 ET)
 
 - **The signs, read against the strikes either side of SPY's spot**: gamma, vanna and charm come with the calls as

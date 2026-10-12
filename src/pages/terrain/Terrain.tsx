@@ -1644,7 +1644,7 @@ const Pane = ({
             {noBars && (
               /* AN INDEX ON THE FEED: its book, no bars on these plans — said in the chart's own place (the chart and its
                  tools stand under it, empty), the ladder beside it standing on the book's rows */
-              <div ref={noBarsBoxRef} className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center px-6 text-center" data-no-bars>
+              <div ref={noBarsBoxRef} className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center pl-14 pr-6 text-center" data-no-bars>
                 <p className="max-w-[360px] rounded bg-canvas/70 px-2 py-1 text-[12px] text-textMuted">
                   {ticker}'s price bars are not available on these plans — Unusual Whales and Massive ask an index grant for them. The ladder reads its book.
                 </p>
