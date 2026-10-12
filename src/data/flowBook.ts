@@ -318,11 +318,13 @@ export const FLOW_SCREENS: FlowScreen[] = [
 
 /** Aggressive call flow reads bullish; put flow bought at the ask reads
     bearish — sentimentOf's rule, applied to the day's dominant side. */
+/* the bid share is its own where the feed gives it (mid and unsided volume are neither side) */
+const bidOf = (r: BookContract) => r.bidPct ?? 100 - r.askPct;
 function leansBull(r: BookContract): boolean {
-  return r.right === 'C' ? r.askPct >= 58 : r.askPct <= 42;
+  return r.right === 'C' ? r.askPct >= 58 : bidOf(r) >= 58;
 }
 function leansBear(r: BookContract): boolean {
-  return r.right === 'P' ? r.askPct >= 58 : r.askPct <= 42;
+  return r.right === 'P' ? r.askPct >= 58 : bidOf(r) >= 58;
 }
 
 export function runScreen(rows: BookContract[], key: ScreenKey): BookContract[] {
@@ -390,7 +392,7 @@ export function runFootprintScreen(rows: BookContract[], key: FootprintScreenKey
     case 'bought':
       return builds.filter(r => r.prevAskPct >= 58).sort((a, b) => b.deltaOI - a.deltaOI);
     case 'sold':
-      return builds.filter(r => r.prevAskPct <= 42).sort((a, b) => b.deltaOI - a.deltaOI);
+      return builds.filter(r => (r.prevBidPct ?? 100 - r.prevAskPct) >= 58).sort((a, b) => b.deltaOI - a.deltaOI);
     case 'carryover':
       return builds
         .filter(r => r.prevVolume >= 20000 && r.deltaOI >= r.prevVolume * 0.5)
@@ -487,6 +489,8 @@ export interface Catch {
   clipPremium: number;
   side: 'ASK' | 'BID';
   row: BookContract;
+  /** The stock when the print was flagged — the vendor's alert carries it (the feed, 2026-10-12) */
+  spotAt?: number;
 }
 
 function rulesFor(r: BookContract): WatcherKey[] {
@@ -604,6 +608,8 @@ export interface IntervalSlice {
   multiPct: number;
   floorPct: number;
   askPct: number;
+  /** The bid's own share where it is not the remainder (the feed) */
+  bidPct?: number;
   volOverOI: number;
   row: BookContract;
 }
@@ -1219,7 +1225,9 @@ export function buildNetLeaders(rows: BookContract[], sampleTime?: number, scope
    (max loss / max profit) and a plain-English line saying what the shape
    DOES. Dripped through the session like the wire and the alerts. */
 
-export type SpreadKind = 'vertical' | 'condor' | 'butterfly' | 'straddle' | 'strangle' | 'calendar' | 'ratio';
+/* 'diagonal', 'reversal' and 'other' are shapes the feed names (2026-10-12): a diagonal, a risk reversal, and legs the
+   vendor files under no shape — the house's own book never prints them */
+export type SpreadKind = 'vertical' | 'condor' | 'butterfly' | 'straddle' | 'strangle' | 'calendar' | 'ratio' | 'diagonal' | 'reversal' | 'other';
 
 export interface SpreadKindDef {
   key: SpreadKind;
@@ -1236,7 +1244,12 @@ export const SPREAD_KINDS: SpreadKindDef[] = [
   { key: 'strangle', label: 'Strangle', read: 'Call above, put below — movement either way, cheaper than the straddle.' },
   { key: 'calendar', label: 'Calendar', read: 'Same strike on two clocks — the near expiry sold, the far one bought.' },
   { key: 'ratio', label: 'Ratio', read: 'Unbalanced legs — extra contracts written on one side, risk open past the far strike.' },
+  { key: 'diagonal', label: 'Diagonal', read: 'Two strikes on two clocks — a calendar with the strike moved, the near one sold.' },
+  { key: 'reversal', label: 'Risk reversal', read: 'A call against a put on the other side of the stock — direction, paid for by the other side.' },
+  { key: 'other', label: 'Other legs', read: 'Legs that print together under none of these shapes.' },
 ];
+/** The shapes only the feed's multi-leg orders carry */
+export const FEED_ONLY_KINDS = new Set<SpreadKind>(['diagonal', 'reversal', 'other']);
 
 export interface SpreadLeg {
   side: 'BUY' | 'SELL';
@@ -1272,6 +1285,9 @@ export interface SpreadTrade {
   theta: number;
   spot: number;
   legs: SpreadLeg[];
+  /** On the feed: the strikes and the leg count the order carried, before its legs are asked for */
+  strikeList?: number[];
+  legCount?: number;
 }
 
 const SPREAD_DTE_POOL = [0, 1, 2, 5, 9, 16, 30, 44, 72, 102] as const;

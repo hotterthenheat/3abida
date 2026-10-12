@@ -43,7 +43,7 @@ import { useNavigate } from 'react-router-dom';
 import Lean from '../../components/trace/Lean';
 import { useMarketData } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
-import { buildFlowBook, buildNetFlowView, buildSpreadFlow, SPREAD_KINDS, type MoneynessKey, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
+import { buildNetFlowView, buildSpreadFlow, SPREAD_KINDS, type MoneynessKey, type SpreadKind, type SpreadTrade } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
 import type { SleeveKey } from '../../types/compass';
 import type { BookContract, FlowPrint } from '../../types/trace';
@@ -58,12 +58,16 @@ import LeanCell from '../../components/trace/LeanCell';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import NetFlowPane, { paneTimes } from '../../components/trace/NetFlowPane';
 import ReadDoor from '../../components/trace/ReadDoor';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
 import { CompareGuide } from '../../components/trace/TraceGuide';
 import { isoDate } from '../../core/calendar';
 import { Name } from '../../components/ui/Name';
 import DataState from '../../components/ui/DataState';
 import { expiryLabel, num as fmtNum, usdCompactSigned } from '../../core/format';
+import { feedSession, spreadOf, useFeedMultiLeg, useFeedNameBook, useFeedNameExpiries, useFeedNameFlow, useFeedQuote, useFeedTape, type FeedFlowLine } from '../../data/feed/trace';
+import type { UwExpiryFlow } from '../../data/feed/uw';
+import { Missing } from '../../components/trace/Missing';
 
 const num = (v: number) => fmtNum(v);
 const signed = usdCompactSigned;
@@ -78,6 +82,9 @@ const KIND_DOT: Record<SpreadKind, string> = {
   strangle: 'rgb(var(--cat-ma))',
   calendar: 'rgb(var(--cat-regulatory))',
   ratio: 'rgb(var(--cat-product))',
+  diagonal: 'rgb(var(--cat-regulatory) / 0.55)',
+  reversal: 'rgb(var(--cat-macro) / 0.55)',
+  other: 'rgb(var(--text-secondary))',
 };
 const KIND_LABEL = Object.fromEntries(SPREAD_KINDS.map(k => [k.key, k.label])) as Record<SpreadKind, string>;
 
@@ -163,6 +170,69 @@ function account(ticker: string, rows: BookContract[], trades: SpreadTrade[], ta
   };
 }
 
+/* ON THE FEED (2026-10-12) a side is the vendor's: its net premium off its ticks, its day off its flow by expiry (the
+   volume, the premium, the sides, the same-day contracts), its structures and prints off the session's, its book off
+   its own contracts — a sum over the contracts said only when the answer held the name's whole book */
+function accountFeed(
+  ticker: string,
+  book: { rows: BookContract[]; complete: boolean } | null,
+  line: FeedFlowLine | null,
+  exps: UwExpiryFlow[] | null,
+  spot: number | null,
+  trades: SpreadTrade[],
+  tape: FlowPrint[],
+  today: string
+): Side {
+  const own = book?.rows ?? [];
+  const whole = !!book?.complete;
+  const e = exps ?? [];
+  const z = e.filter(x => x.expiry === today);
+  const add = (xs: UwExpiryFlow[], f: (x: UwExpiryFlow) => number) => (exps ? xs.reduce((a, x) => a + f(x), 0) : NaN);
+  const volume = add(e, x => x.callVolume + x.putVolume);
+  const premium = add(e, x => x.callPremium + x.putPremium);
+  const callPrem = add(e, x => x.callPremium);
+  const askVol = add(e, x => x.callVolumeAsk + x.putVolumeAsk);
+  const bookVol = own.reduce((a, r) => a + r.volume, 0);
+  const w = (pick: (r: BookContract) => number) => (whole && bookVol > 0 ? own.reduce((a, r) => a + (Number.isFinite(pick(r)) ? pick(r) * r.volume : 0), 0) / bookVol : NaN);
+  const odteCall = add(z, x => x.callPremiumAsk - x.callPremiumBid);
+  const odtePut = add(z, x => x.putPremiumAsk - x.putPremiumBid);
+  const structures = trades.filter(t => t.ticker === ticker);
+  const prints = tape.filter(p => p.ticker === ticker);
+  const earn = own.map(r => r.earnDays).filter((d): d is number => d != null);
+  return {
+    ticker,
+    spot: spot ?? own[0]?.spot ?? NaN,
+    rows: own,
+    net: line ? line.view.ncp - line.view.npp : NaN,
+    netCall: line ? line.view.ncp : NaN,
+    netPut: line ? line.view.npp : NaN,
+    odteNet: odteCall - odtePut,
+    odteCall,
+    odtePut,
+    odteVol: add(z, x => x.callVolume + x.putVolume),
+    odteCount: whole ? own.filter(r => r.dte === 0).length : NaN,
+    count: whole ? own.length : NaN,
+    volume,
+    premium,
+    callSharePct: premium > 0 ? Math.round((callPrem / premium) * 100) : NaN,
+    askPct: volume > 0 ? Math.round((askVol / volume) * 100) : NaN,
+    sweepPct: Math.round(w(r => r.sweepPct)),
+    iv: w(r => r.iv),
+    builtToday: whole ? own.filter(r => r.volOverOI >= 1.5).length : NaN,
+    oiAdded: whole ? own.reduce((a, r) => a + Math.max(0, r.deltaOI), 0) : NaN,
+    oiShed: whole ? own.reduce((a, r) => a + Math.max(0, -r.deltaOI), 0) : NaN,
+    structures,
+    debit: structures.filter(t => t.net >= 0).length,
+    credit: structures.filter(t => t.net < 0).length,
+    structurePrem: structures.reduce((a, t) => a + (Number.isFinite(t.premium) ? t.premium : 0), 0),
+    prints,
+    tapePrem: prints.reduce((a, p) => a + p.premium, 0),
+    tapeSweeps: prints.filter(p => p.sweep).length,
+    earnDays: earn.length ? Math.min(...earn) : null,
+    heaviest: [...own].sort((a, b) => b.premium - a.premium).slice(0, 6),
+  };
+}
+
 /* ---- the ledger ------------------------------------------------------------------- */
 
 interface Row {
@@ -183,7 +253,7 @@ const BULLISH = 'the more bullish side';
 function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
   const money = (v: number) => <Lean v={v} className="font-normal" />;
   const puts = (v: number) => <Lean v={v} put className="font-normal" />;
-  const plain = (v: ReactNode) => <span className="text-textPrimary">{v}</span>;
+  const plain = (v: ReactNode) => (typeof v === 'string' && /NaN/.test(v) ? <Missing /> : <span className="text-textPrimary">{v}</span>);
   return [
     {
       group: 'Net flow',
@@ -213,7 +283,7 @@ function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
           ),
           edge: null,
         },
-        { label: '0DTE volume', hint: 'Contracts traded on the same-day expiry', a: plain(`${num(A.odteVol)} · ${A.odteCount} cons`), b: plain(`${num(B.odteVol)} · ${B.odteCount} cons`), edge: larger(A.odteVol, B.odteVol) },
+        { label: '0DTE volume', hint: 'Contracts traded on the same-day expiry', a: plain(Number.isFinite(A.odteCount) ? `${num(A.odteVol)} · ${A.odteCount} cons` : num(A.odteVol)), b: plain(Number.isFinite(B.odteCount) ? `${num(B.odteVol)} · ${B.odteCount} cons` : num(B.odteVol)), edge: larger(A.odteVol, B.odteVol) },
       ],
     },
     {
@@ -225,29 +295,33 @@ function ledger(A: Side, B: Side): { group: string; rows: Row[] }[] {
         {
           label: 'Calls · puts',
           hint: 'The premium’s split between calls and puts',
-          a: (
+          a: Number.isFinite(A.callSharePct) ? (
             <>
               <span className="text-bull">{A.callSharePct}%</span> <span className="text-textSecondary">·</span> <span className="text-bear">{100 - A.callSharePct}%</span>
             </>
+          ) : (
+            <Missing />
           ),
-          b: (
+          b: Number.isFinite(B.callSharePct) ? (
             <>
               <span className="text-bull">{B.callSharePct}%</span> <span className="text-textSecondary">·</span> <span className="text-bear">{100 - B.callSharePct}%</span>
             </>
+          ) : (
+            <Missing />
           ),
           edge: null,
         },
         { label: 'Lean', hint: 'Whether the volume paid the ask or hit the bid, volume-weighted', a: <LeanCell askPct={A.askPct} />, b: <LeanCell askPct={B.askPct} />, edge: larger(A.askPct, B.askPct), edgeWord: 'more of it at the ask' },
         { label: 'Swept', hint: 'The share of the volume that swept across exchanges', a: plain(`${A.sweepPct}%`), b: plain(`${B.sweepPct}%`), edge: larger(A.sweepPct, B.sweepPct) },
-        { label: 'Implied vol', hint: 'Volume-weighted implied volatility across the book', a: plain(`${A.iv.toFixed(0)}%`), b: plain(`${B.iv.toFixed(0)}%`), edge: larger(A.iv, B.iv) },
+        { label: 'Implied vol', hint: 'Volume-weighted implied volatility across the book', a: plain(Number.isFinite(A.iv) ? `${A.iv.toFixed(0)}%` : 'NaN'), b: plain(Number.isFinite(B.iv) ? `${B.iv.toFixed(0)}%` : 'NaN'), edge: larger(A.iv, B.iv) },
         { label: 'Built today', hint: 'Contracts trading past their open interest — positions built today', a: plain(num(A.builtToday)), b: plain(num(B.builtToday)), edge: larger(A.builtToday, B.builtToday) },
       ],
     },
     {
       group: 'Footprints',
       rows: [
-        { label: 'Interest added', hint: 'Open interest built overnight', a: <span className="text-bull">+{num(A.oiAdded)}</span>, b: <span className="text-bull">+{num(B.oiAdded)}</span>, edge: larger(A.oiAdded, B.oiAdded) },
-        { label: 'Interest shed', hint: 'Open interest unwound overnight', a: <span className="text-bear">−{num(A.oiShed)}</span>, b: <span className="text-bear">−{num(B.oiShed)}</span>, edge: larger(A.oiShed, B.oiShed) },
+        { label: 'Interest added', hint: 'Open interest built overnight', a: Number.isFinite(A.oiAdded) ? <span className="text-bull">+{num(A.oiAdded)}</span> : <Missing />, b: Number.isFinite(B.oiAdded) ? <span className="text-bull">+{num(B.oiAdded)}</span> : <Missing />, edge: larger(A.oiAdded, B.oiAdded) },
+        { label: 'Interest shed', hint: 'Open interest unwound overnight', a: Number.isFinite(A.oiShed) ? <span className="text-bear">−{num(A.oiShed)}</span> : <Missing />, b: Number.isFinite(B.oiShed) ? <span className="text-bear">−{num(B.oiShed)}</span> : <Missing />, edge: larger(A.oiShed, B.oiShed) },
       ],
     },
     {
@@ -291,18 +365,19 @@ const Compare = () => {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
+  const session = feedSession();
+  const feedMulti = useFeedMultiLeg(onFeed);
+  const feedTape = useFeedTape(onFeed);
   const liveTrades = useMemo(
-    () => buildSpreadFlow(Simulator.universeQuotes(activeTicker)),
+    () => (onFeed ? (feedMulti ?? []).map(m => spreadOf(m, session)) : bookSource === 'pending' ? [] : buildSpreadFlow(Simulator.universeQuotes(activeTicker))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
+    [activeTicker, marketData, onFeed, feedMulti, bookSource]
   );
+  const liveTape = onFeed ? feedTape ?? [] : bookSource === 'pending' ? [] : (flowTape as FlowPrint[]);
   /* ONE hold for the whole page: the book, the structures, the tape and the tick freeze together */
-  const hold = useHold(useMemo(() => ({ book: liveBook, trades: liveTrades, tape: flowTape as FlowPrint[], tick: marketData }), [liveBook, liveTrades, flowTape, marketData]), activeTicker);
+  const hold = useHold(useMemo(() => ({ book: liveBook, trades: liveTrades, tape: liveTape, tick: marketData }), [liveBook, liveTrades, liveTape, marketData]), activeTicker);
   const { book, trades, tape, tick } = hold.value;
 
   /* THE NAMES — only names the book carries can be compared; the searches
@@ -360,8 +435,22 @@ const Compare = () => {
 
   /* The pane's clock — sampled where the pane samples, so the ledger and the lines agree */
   const nowSec = useMemo(() => paneTimes(A).slice(-1)[0], [A]);
-  const sideA = useMemo(() => account(A, cutRows, cutTrades, cutTape, nowSec), [A, cutRows, cutTrades, cutTape, nowSec]);
-  const sideB = useMemo(() => account(B, cutRows, cutTrades, cutTape, nowSec), [B, cutRows, cutTrades, cutTape, nowSec]);
+  const bookA = useFeedNameBook(onFeed, A);
+  const bookB = useFeedNameBook(onFeed, B);
+  const lineA = useFeedNameFlow(onFeed, A);
+  const lineB = useFeedNameFlow(onFeed, B);
+  const expA = useFeedNameExpiries(onFeed, A);
+  const expB = useFeedNameExpiries(onFeed, B);
+  const quoteA = useFeedQuote(onFeed, A);
+  const quoteB = useFeedQuote(onFeed, B);
+  const sideA = useMemo(
+    () => (onFeed ? accountFeed(A, bookA, lineA, expA, quoteA?.spot ?? null, trades, tape, session.date) : account(A, cutRows, cutTrades, cutTape, nowSec)),
+    [A, cutRows, cutTrades, cutTape, nowSec, onFeed, bookA, lineA, expA, quoteA, trades, tape, session.date]
+  );
+  const sideB = useMemo(
+    () => (onFeed ? accountFeed(B, bookB, lineB, expB, quoteB?.spot ?? null, trades, tape, session.date) : account(B, cutRows, cutTrades, cutTape, nowSec)),
+    [B, cutRows, cutTrades, cutTape, nowSec, onFeed, bookB, lineB, expB, quoteB, trades, tape, session.date]
+  );
   const bands = useMemo(() => ledger(sideA, sideB), [sideA, sideB]);
 
   const heavier = sideA.premium >= sideB.premium ? sideA : sideB;
@@ -376,7 +465,7 @@ const Compare = () => {
     return (
       <>
         <RichRead text={`${chosen ? `On ${expiryWords(chosen)}, ` : ''}${A} leans ${lean(sideA)} while ${B} leans ${lean(sideB)}. `} />
-        <RichRead text={`${heavier.ticker} carries the heavier book — [[${fmtUsd(heavier.premium)}]] across ${heavier.count} contracts on ${num(heavier.volume)} volume — and ${busier.ticker} has the busier tape, ${busier.prints.length} prints for ${fmtUsd(busier.tapePrem)}. `} />
+        <RichRead text={`${heavier.ticker} carries the heavier book — [[${Number.isFinite(heavier.premium) ? fmtUsd(heavier.premium) : '—'}]] across ${Number.isFinite(heavier.count) ? `${heavier.count} contracts` : 'its contracts'} on ${Number.isFinite(heavier.volume) ? num(heavier.volume) : '—'} volume — and ${busier.ticker} has the busier tape, ${busier.prints.length} prints for ${fmtUsd(busier.tapePrem)}. `} />
         <RichRead text={`Same-day money: ${A} `} />
         <Lean v={sideA.odteNet} />, <RichRead text={`${B} `} />
         <Lean v={sideB.odteNet} />.
@@ -392,7 +481,7 @@ const Compare = () => {
       <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">{which}</span>
       <CompanyLogo ticker={s.ticker} size={16} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{s.ticker}</span>
-      <span className="font-mono text-[11px] tnum text-textPrimary">${s.spot.toFixed(2)}</span>
+      {Number.isFinite(s.spot) && <span className="font-mono text-[11px] tnum text-textPrimary">${s.spot.toFixed(2)}</span>}
       <span className={`ml-auto font-mono text-[11px] tnum font-semibold ${dirInk(s.net)}`}>{signed(s.net)} net</span>
     </div>
   );
@@ -408,7 +497,7 @@ const Compare = () => {
           <span className="font-mono text-[11px] tnum text-textPrimary">{expiryLabel(r.expiry)} · {r.dte}d</span>
           <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(r.premium)}</span>
           <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{num(r.volume)} vol</span>
-          <LeanCell askPct={r.askPct} />
+          <LeanCell askPct={r.askPct} bidPct={r.bidPct} />
         </button>
       ))}
     </div>
@@ -427,9 +516,15 @@ const Compare = () => {
             <span className="font-mono text-[11px] font-bold tnum text-textPrimary">{t.strikesLabel}</span>
             <span className="font-mono text-[11px] tnum text-textPrimary">{expiryLabel(t.expiry)} · {t.dte}d</span>
             <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">
-              ${Math.abs(t.net).toFixed(2)} <span className="text-[11px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
+              {Number.isFinite(t.net) ? (
+                <>
+                  ${Math.abs(t.net).toFixed(2)} <span className="text-[11px] text-textSecondary">{t.net >= 0 ? 'debit' : 'credit'}</span>
+                </>
+              ) : (
+                <Missing />
+              )}
             </span>
-            <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{fmtUsd(t.premium)}</span>
+            <span className="font-mono text-[11px] tnum text-textPrimary w-16 text-right">{Number.isFinite(t.premium) ? fmtUsd(t.premium) : <Missing />}</span>
           </div>
         ))}
     </div>
@@ -458,7 +553,7 @@ const Compare = () => {
             <Champion label="Leans bullish" ink="bull" onOpen={() => moreBullish.heaviest[0] && openRow(moreBullish.heaviest[0])} testId="bullish">
               {moreBullish.ticker} · {signed(moreBullish.net)}
             </Champion>
-            <Champion label="Heavier book" ink="supreme" onOpen={() => openRow(heavier.heaviest[0])} testId="heavier">
+            <Champion label="Heavier book" ink="supreme" onOpen={() => heavier.heaviest[0] && openRow(heavier.heaviest[0])} testId="heavier">
               {heavier.ticker} · {fmtUsd(heavier.premium)}
             </Champion>
             {/* its own door: the name's prints on the Live Tape (the audit's TR-63 — it opened the same card as Heavier book) */}
@@ -489,7 +584,7 @@ const Compare = () => {
               <ArrowLeftRight className="w-3.5 h-3.5" />
             </button>
             </span>
-            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="compare-expiry" />
+            {!onFeed && <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="compare-expiry" />}
           </>
         }
         sentence={
@@ -509,7 +604,20 @@ const Compare = () => {
             <div key={s.ticker + i} className={`flex flex-col ${i === 0 ? 'lg:border-r border-borderSubtle' : ''}`}>
               {head(s, i === 0 ? 'A' : 'B')}
               <div className="h-[340px] p-2">
-                <NetFlowPane book={cutRows} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={s.ticker} tenor={tenor} onTenor={setTenor} dteMax={Infinity} sharedNote="sets both panes" />
+                <NetFlowPane
+                  book={cutRows}
+                  seg="all"
+                  mny={mny}
+                  onSeg={() => {}}
+                  onMny={setMny}
+                  tick={tick}
+                  ticker={s.ticker}
+                  tenor={tenor}
+                  onTenor={setTenor}
+                  dteMax={Infinity}
+                  sharedNote="sets both panes"
+                  feed={onFeed ? { line: i === 0 ? lineA : lineB, refName: s.ticker, note: 'every expiry', money: false, tenor: false } : undefined}
+                />
               </div>
               {/* the same-day money under the pane — the 0DTE desk's figures for the name */}
               <div className="flex items-center gap-x-4 gap-y-0.5 flex-wrap px-3 min-h-8 py-1 border-t border-b border-borderSubtle font-mono text-[11px] tnum" data-compare-odte={s.ticker}>
@@ -524,7 +632,8 @@ const Compare = () => {
                   <Lean v={s.odtePut} put className="font-normal" /> puts
                 </span>
                 <span className="ml-auto text-textPrimary">
-                  {num(s.odteVol)} vol · {s.odteCount} cons
+                  {Number.isFinite(s.odteVol) ? `${num(s.odteVol)} vol` : '—'}
+                  {Number.isFinite(s.odteCount) ? ` · ${s.odteCount} cons` : ''}
                 </span>
               </div>
             </div>
@@ -595,7 +704,7 @@ const Compare = () => {
         </div>
       </TraceBox>
 
-      <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} tick={tick} />
+      <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} tick={tick} feed={onFeed} />
     </>
   );
 };

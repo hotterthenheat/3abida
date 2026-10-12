@@ -1,5 +1,5 @@
-import { fmtUsd } from '../../data/gex';
 import { usdCompactSigned } from '../../core/format';
+import { Missing } from './Missing';
 
 /*
   A NET FIGURE IN ITS MEANING'S INK (2026-10-09, the audit's TR-53 and TR-38): net puts bought (+) lean bearish and sold
@@ -9,6 +9,8 @@ import { usdCompactSigned } from '../../core/format';
 const signed = usdCompactSigned;
 
 const Lean = ({ v, put = false, className = '' }: { v: number; put?: boolean; className?: string }) => {
+  /* a figure the feed left out says so (2026-10-12) */
+  if (!Number.isFinite(v)) return <Missing className={`text-textSecondary ${className}`} />;
   const up = put ? v < 0 : v > 0;
   const down = put ? v > 0 : v < 0;
   return <span className={`font-semibold tnum ${up ? 'text-bull' : down ? 'text-bear' : 'text-textPrimary'} ${className}`}>{signed(v)}</span>;

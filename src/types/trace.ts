@@ -5,10 +5,13 @@
 ==================================================
 */
 
-export type StratTag = '—' | 'Vertical' | 'Butterfly' | 'Ratio' | 'Custom';
+/** 'Multi-leg': a print the exchange marked as one leg of a multi-leg order, its shape not named (the feed, 2026-10-12) */
+export type StratTag = '—' | 'Vertical' | 'Butterfly' | 'Ratio' | 'Custom' | 'Multi-leg';
 
 export interface FlowPrint {
   id: number;
+  /** The contract's OCC symbol (NVDA270115P00150000) when the print came from the feed — its card asks for its day by it */
+  occ?: string;
   time: string;
   ticker: string;
   /** 1 = single leg; >1 renders the ×N multi-leg marker */
@@ -32,6 +35,8 @@ export interface FlowPrint {
   ratioLabel: string;
   /** Bid-side share of the contract's day, 0–100 */
   ratioBidPct: number;
+  /** Ask-side share, when it is not the remainder of the bid's (the feed counts mid and unsided volume too) */
+  ratioAskPct?: number;
   size: number;
   /** Total premium of the print, dollars */
   premium: number;
@@ -54,6 +59,8 @@ export interface FlowPrint {
 export interface BookContract {
   /** TICKER-STRIKE-RIGHT-DTE — stable across the day */
   key: string;
+  /** The contract's OCC symbol when the row came from the feed */
+  occ?: string;
   ticker: string;
   sector: string | null;
   sectorColor: string | null;
@@ -94,6 +101,8 @@ export interface BookContract {
   floorPct: number;
   /** Ask-side share of the day's volume, 0-100 — bid side is the remainder */
   askPct: number;
+  /** Bid-side share, when it is not the remainder (the feed counts mid and unsided volume too) */
+  bidPct?: number;
 
   // -- the overnight ledger (Footprints reads these; day-stable) --
   /** Prior session's OI — deltaOI's base */
@@ -106,6 +115,10 @@ export interface BookContract {
   prevPremium: number;
   /** Ask-side share of the PRIOR session's volume — which side built it */
   prevAskPct: number;
+  /** Bid-side share of it, when it is not the remainder (the feed) */
+  prevBidPct?: number;
+  /** The name's whole option volume today, when the feed carries it */
+  nameVolume?: number;
   /** Consecutive sessions OI has climbed; 0 = fell or flat yesterday */
   oiStreak: number;
   /** Consecutive sessions volume ran past standing OI */

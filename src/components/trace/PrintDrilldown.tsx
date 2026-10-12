@@ -52,6 +52,9 @@ import type { MarketSnapshot } from '../../types/market';
 import { toneBar, type Tone } from '../ui/tones';
 import { Name } from '../ui/Name';
 import { expiryLabel, pctSigned } from '../../core/format';
+import { feedSession, NOT_IN_FEED } from '../../data/feed/trace';
+import { useFeedCard } from '../../data/feed/traceCard';
+import { Missing } from './Missing';
 
 // recharts is heavy — it only loads when a print is actually opened
 const FlowPanels = lazy(() => import('./ContractFlowChart').then(m => ({ default: m.FlowPanel })));
@@ -83,6 +86,8 @@ const Mini = ({ label, value, tone = 'text-textPrimary', title }: { label: strin
 );
 
 const RANGES: FlowRange[] = ['1D', '2D', '3D', '5D', '10D', '1M'];
+/* the feed carries the name's volume a minute, not its premium a minute */
+const FEED_METRICS: NetMetric[] = ['underlyingVol', 'netPremium', 'strikes'];
 const INTERVALS = [1, 5, 15, 30];
 
 /* The engine answers its own question. STATES, not adjectives left to the
@@ -99,12 +104,17 @@ function tapeVerdict(rows: VolOiDay[]): { state: TapeState; read: string; volX: 
     return s[Math.floor(s.length / 2)] ?? 0;
   };
   const volX = today.vol / Math.max(1, med(past.map(p => p.vol)));
-  const sweptTypical = med(past.map(p => p.sweepPct));
-  const sweptDelta = today.sweepPct - sweptTypical;
+  /* a session the feed has no share or change for is left out of the norm, and out of the sentence */
+  const sweptTypical = med(past.map(p => p.sweepPct).filter(Number.isFinite));
+  const sweptDelta = Number.isFinite(today.sweepPct) ? today.sweepPct - sweptTypical : 0;
   const state: TapeState = volX >= 2.5 || sweptDelta >= 25 ? 'UNUSUAL' : volX >= 1.4 ? 'BUSY' : 'ORDINARY';
-  const bits = `${volX.toFixed(1)}× its usual volume · swept ${today.sweepPct}% vs ${Math.round(sweptTypical)}% typical · open interest ${
-    today.oiChangePct >= 0 ? '+' : ''
-  }${today.oiChangePct.toFixed(1)}%`;
+  const bits = [
+    `${volX.toFixed(1)}× its usual volume`,
+    Number.isFinite(today.sweepPct) ? `swept ${today.sweepPct}% vs ${Math.round(sweptTypical)}% typical` : null,
+    Number.isFinite(today.oiChangePct) ? `open interest ${today.oiChangePct >= 0 ? '+' : ''}${today.oiChangePct.toFixed(1)}%` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const read =
     state === 'UNUSUAL'
       ? `${bits} — this is not how it normally trades.`
@@ -116,6 +126,7 @@ function tapeVerdict(rows: VolOiDay[]): { state: TapeState; read: string; volX: 
 
 /** Tiny inline volume shape for a history row. */
 const Spark = ({ values }: { values: number[] }) => {
+  if (!values.length) return <Missing />;
   const max = Math.max(...values, 0.01);
   return (
     <span className="inline-flex items-end gap-[1px] h-4">
@@ -129,6 +140,8 @@ const Spark = ({ values }: { values: number[] }) => {
 /** Plain-English summary of what this print actually was. THE SUMMARY READS THE LEGS (the audit's TR-8): it said
     "printed as a single block" beside "×2 legs CUSTOM" — the kind comes from the print's own legs and size now. */
 function printRead(p: FlowPrint, sent: PrintSentiment): string {
+  /* a print from the feed carries no overnight change — the sentence says what it can */
+  const doiKnown = Number.isFinite(p.deltaOI);
   const who = p.side === 'ASK' ? 'paid the offer' : p.side === 'BID' ? 'hit the bid' : 'traded at the mid';
   const size = p.premium >= 1_000_000 ? 'a whale-sized' : p.premium >= 250_000 ? 'a sizeable' : 'a modest';
   const kind = printKind(p);
@@ -143,9 +156,11 @@ function printRead(p: FlowPrint, sent: PrintSentiment): string {
   const oiNote =
     p.volOverOI >= 5
       ? `Volume is ${fixed(p.volOverOI, 1)}x the open interest at the last close, so much of today's trading is new positioning.`
-      : p.deltaOI > 0
-        ? 'Open interest grew at the last close, so size was being added rather than unwound.'
-        : 'Open interest did not grow at the last close, so some of this may be closing existing risk.';
+      : !doiKnown
+        ? 'Open interest is counted once a day; this print does not say how it moved at the last close.'
+        : p.deltaOI > 0
+          ? 'Open interest grew at the last close, so size was being added rather than unwound.'
+          : 'Open interest did not grow at the last close, so some of this may be closing existing risk.';
   return `${size} ${p.right === 'C' ? 'call' : 'put'} print that ${who} and ${how}. The tape reads ${sent.toLowerCase()} on it. ${oiNote}`;
 }
 
@@ -163,6 +178,8 @@ interface PrintDrilldownProps {
   tapeRows?: FlowPrint[];
   /** Swap the drilldown to a sibling print from the sequence */
   onOpenPrint?: (p: FlowPrint) => void;
+  /** Trace is on the feed (2026-10-12): the contract's own day from the vendor, one session, and no Compass scale */
+  feed?: boolean;
 }
 
 /** Same-contract identity on the tape: one name, one strike, one right, one expiry. */
@@ -267,7 +284,7 @@ const SequenceStrip = ({
   );
 };
 
-const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onStep, hasPrev, hasNext, tapeRows, onOpenPrint }: PrintDrilldownProps) => {
+const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onStep, hasPrev, hasNext, tapeRows, onOpenPrint, feed = false }: PrintDrilldownProps) => {
   const navigate = useNavigate();
   const calendarRef = useRef(false);
 
@@ -335,8 +352,10 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
     ? Math.min(389, Math.max(0, (Number(print.time.slice(0, 2)) - 9) * 60 + Number(print.time.slice(3, 5)) - 30))
     : 0;
 
-  const cf = useMemo(() => {
-    if (!print) return null;
+  /* ON THE FEED the card reads the contract's own session (data/feed/traceCard.ts) — one day, the book's */
+  const feedCard = useFeedCard(feed, print, intervalMin);
+  const standCf = useMemo(() => {
+    if (!print || feed) return null;
     try {
       return buildContractFlow(
         {
@@ -357,7 +376,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
     } catch {
       return null;
     }
-  }, [print, opts, atMinute]);
+  }, [print, opts, atMinute, feed]);
+  const cf = feed ? feedCard?.cf ?? null : standCf;
 
   // The white moment-marker through both chart strips. Multi-session windows
   // end on the live session, so the print sits in the LAST session; browsing
@@ -422,6 +442,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
   const alternatives = useMemo(() => (print ? couldAlsoBe(print, tapeRows) : []), [print, tapeRows]);
   const yard = useMemo(() => {
     if (!print) return null;
+    /* on the feed: the contract's own prints today, as the vendor answered them */
+    if (feed) return feedCard ? measuredAgainst(print, feedCard.cf.orders) : null;
     try {
       const today = buildContractFlow(
         { ticker: print.ticker, strike: print.strike, right: print.right, fill: print.fill, spot: print.spot, size: print.size, side: print.side, volume: print.volume, oi: print.oi, iv: print.iv, atMinute },
@@ -431,7 +453,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
     } catch {
       return null;
     }
-  }, [print, atMinute]);
+  }, [print, atMinute, feed, feedCard]);
 
   const jump = (fn: () => void) => {
     onClose();
@@ -454,6 +476,13 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
       // The session drives every series in the modal, so it sits dead centre
       // rather than tucked in with the window controls.
       headerCenter={
+        feed ? (
+          /* ON THE FEED the card reads the book's one session — the other days are not in its answers */
+          <span className="inline-flex items-center gap-1 rounded border border-borderMuted bg-chip text-textPrimary px-2 py-0.5 font-mono text-[11px] font-semibold tnum" title={`Other sessions: ${NOT_IN_FEED}`}>
+            <CalendarDays className="w-3 h-3" />
+            {feedSession().live ? 'Today' : nyDay(feedSession().open)}
+          </span>
+        ) : (
         /* One box for the session (Noah: "the entire box"); the label carries today-vs-past.
            THE PLAIN INK PILL (the house's doors; the foil is "Launch terminal"'s alone — and its words were a literal
            #0a0a0a, the audit's X12) */
@@ -495,6 +524,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             <DatePicker selected={sessionDate(dayOffset)} onPick={setDayOffset} onClose={() => setCalendarOpen(false)} />
           )}
         </div>
+        )
       }
       headerActions={
         <div className="flex items-center gap-0.5 shrink-0">
@@ -616,17 +646,21 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                   tone={Math.abs(print.flowScore) > 15 ? 'text-textPrimary' : 'text-textMuted'}
                 />
                 <Mini label="Day lean" value={print.ratioLabel} tone={print.ratioLabel === 'MID' ? 'text-textMuted' : 'text-textPrimary'} />
-                <Mini label="Strike vs spot" value={pctSigned(print.otmPct, 1)} />
+                <Mini label="Strike vs spot" value={Number.isFinite(print.otmPct) ? pctSigned(print.otmPct, 1) : '—'} />
                 <Mini label="Volume" value={num(print.volume)} />
                 <Mini label="OI · last close" value={num(print.oi)} title="Open interest is counted once a day — this is as of the last close" />
-                <Mini label="Vol ÷ OI" value={`${fixed(print.volOverOI)}x`} tone={print.volOverOI >= 5 ? 'text-warn' : 'text-textPrimary'} />
+                <Mini label="Vol ÷ OI" value={Number.isFinite(print.volOverOI) ? `${fixed(print.volOverOI)}x` : '—'} tone={print.volOverOI >= 5 ? 'text-warn' : 'text-textPrimary'} />
               </div>
             </div>
 
             {/* THE SCALE — our moat: the contract graded, not just described */}
             <div className="lg:col-span-3 bg-inset px-3.5 py-3 flex flex-col gap-2 min-w-0">
               <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">On the Compass scale</span>
-              {graded && weighed ? (
+              {feed ? (
+                <span className="font-mono text-[11px] text-textSecondary" title={NOT_IN_FEED}>
+                  —
+                </span>
+              ) : graded && weighed ? (
                 <>
                   {/* The verdict is the BOARD's — VerdictBadge, makeSetup —
                       and the meter runs on Confidence, the one sanctioned
@@ -673,7 +707,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
               <span className="text-[11px] text-textSecondary tnum">
                 {yard ? (
                   <RichRead
-                    text={`this contract's own ${yard.count} prints today — size ${num(print.size)} is ${fixed(yard.sizeX, 1)}× their median of ${num(Math.round(yard.medianSize))}, premium ${usd(print.premium)} is ${fixed(yard.premiumX, 1)}× their median of ${usd(yard.medianPremium)}; ${yard.atLeast} of ${yard.count} were this size or larger.`}
+                    text={`this contract's ${feed && feedCard?.capped ? 'latest' : 'own'} ${yard.count} prints today — size ${num(print.size)} is ${fixed(yard.sizeX, 1)}× their median of ${num(Math.round(yard.medianSize))}, premium ${usd(print.premium)} is ${fixed(yard.premiumX, 1)}× their median of ${usd(yard.medianPremium)}; ${yard.atLeast} of ${yard.count} were this size or larger.`}
                   />
                 ) : (
                   'too few prints on this contract today to set a norm.'
@@ -719,7 +753,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     <span className="font-mono text-[11px] text-textMuted">both instruments on one clock</span>
                     <span className="ml-auto flex items-center gap-0.5">
                       {RANGES.map(r => (
-                        <Chip key={r} active={r === range} onClick={() => setRange(r)} title={`Show ${r}`}>
+                        <Chip key={r} active={feed ? r === '1D' : r === range} onClick={() => setRange(r)} disabled={feed && r !== '1D'} title={feed && r !== '1D' ? `${r}: ${NOT_IN_FEED}` : `Show ${r}`}>
                           {r}
                         </Chip>
                       ))}
@@ -734,9 +768,10 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     </span>
                     <span className="w-px h-3.5 bg-borderSubtle" />
                     <Chip
-                      active={singleLegOnly}
+                      active={singleLegOnly && !feed}
                       onClick={() => setSingleLegOnly(!singleLegOnly)}
-                      title="Hide prints that are one leg of a spread"
+                      disabled={feed}
+                      title={feed ? `Single-leg only: ${NOT_IN_FEED}` : 'Hide prints that are one leg of a spread'}
                     >
                       Single-leg only
                     </Chip>
@@ -748,7 +783,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       onShowAvg={setShowAvg}
                       showIv={showIv}
                       onShowIv={setShowIv}
-                      dayOffset={dayOffset}
+                      dayOffset={feed ? 0 : dayOffset}
                       printMin={printMin}
                       syncId="print-tape"
                     />
@@ -758,7 +793,8 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     <NetPanels
                       cf={cf}
                       ticker={print.ticker}
-                      metric={metric}
+                      metric={feed && metric === 'underlyingUsd' ? 'netPremium' : metric}
+                      metrics={feed ? FEED_METRICS : undefined}
                       onMetric={setMetric}
                       showCalls={showCalls}
                       onShowCalls={setShowCalls}
@@ -766,7 +802,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       onShowPuts={setShowPuts}
                       showPrice={showPrice}
                       onShowPrice={setShowPrice}
-                      dayOffset={dayOffset}
+                      dayOffset={feed ? 0 : dayOffset}
                       printMin={printMin}
                       syncId="print-tape"
                     />
@@ -885,7 +921,7 @@ const OrdersTable = ({ cf }: { cf: ReturnType<typeof buildContractFlow> }) => (
             <td className={`${td} text-right ${o.premium >= 250_000 ? 'text-textPrimary font-semibold' : 'text-textSecondary'}`}>
               {fmtUsd(o.premium)}
             </td>
-            <td className={`${td} text-right text-textSecondary`}>{o.iv.toFixed(1)}%</td>
+            <td className={`${td} text-right text-textSecondary`}>{Number.isFinite(o.iv) ? `${o.iv.toFixed(1)}%` : <Missing />}</td>
             <td className={`${td} text-textMuted`}>
               {o.sweep && <span className="text-warn font-semibold mr-1.5">Sweep</span>}
               {o.multiLeg ? 'Spread leg' : 'Single leg'}
@@ -946,8 +982,14 @@ const HistoryTable = ({ rows, unusual }: { rows: VolOiDay[]; unusual: boolean })
             <td className={`${td} text-right ${i === 0 && unusual ? 'text-warn font-semibold' : 'text-textPrimary'}`}>{num(d.vol)}</td>
             <td className={`${td} text-right text-textSecondary`}>{num(d.oi)}</td>
             <td className={`${td} text-right ${d.oiChangePct >= 0 ? 'text-bull' : 'text-bear'}`}>
-              {d.oiChangePct >= 0 ? '+' : ''}
-              {fixed(d.oiChangePct, 1)}%
+              {Number.isFinite(d.oiChangePct) ? (
+                <>
+                  {d.oiChangePct >= 0 ? '+' : ''}
+                  {fixed(d.oiChangePct, 1)}%
+                </>
+              ) : (
+                <Missing />
+              )}
             </td>
             <td className={`${td} text-right text-textSecondary`}>${fixed(d.close)}</td>
             <td className={`${td} text-right text-textSecondary`}>${fixed(d.avg)}</td>
@@ -961,8 +1003,8 @@ const HistoryTable = ({ rows, unusual }: { rows: VolOiDay[]; unusual: boolean })
               </span>
             </td>
             <td className={`${td} text-right text-textSecondary`}>{fixed(d.iv, 1)}%</td>
-            <td className={`${td} text-right ${d.sweepPct >= 50 ? 'text-warn' : 'text-textSecondary'}`}>{d.sweepPct}%</td>
-            <td className={`${td} text-right text-textSecondary`}>{d.multiPct}%</td>
+            <td className={`${td} text-right ${d.sweepPct >= 50 ? 'text-warn' : 'text-textSecondary'}`}>{Number.isFinite(d.sweepPct) ? `${d.sweepPct}%` : <Missing />}</td>
+            <td className={`${td} text-right text-textSecondary`}>{Number.isFinite(d.multiPct) ? `${d.multiPct}%` : <Missing />}</td>
             <td className={`${td} text-right text-textPrimary`}>{usd(d.totalPrem)}</td>
             <td className={`${td} text-right text-textSecondary`}>{fixed(d.shareOfTotalPct, 1)}%</td>
           </tr>

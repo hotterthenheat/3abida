@@ -18,9 +18,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
-import Simulator from '../../core/simulator';
 import {
-  buildFlowBook,
   buildIntervalSlices,
   intervalWindows,
   type IntervalSlice,
@@ -41,6 +39,9 @@ import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import DayStrip from '../../components/trace/DayStrip';
+import { fig } from '../../components/trace/Missing';
+import { feedSession, feedWindows, useFeedBigPrints, WINDOW_FLOOR } from '../../data/feed/trace';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
 import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/addressCut';
@@ -88,11 +89,11 @@ const phoneRow = (sl: IntervalSlice) => (
         <span className="text-[11px] text-textSecondary tnum">{sl.row.expiry.slice(0, 5)}</span>
       </>
     }
-    aside={`${sl.shareOfDayPct.toFixed(0)}% of its day`}
+    aside={Number.isFinite(sl.shareOfDayPct) ? `${sl.shareOfDayPct.toFixed(0)}% of its day` : '—'}
     figures={[
       <span key="p" className="font-semibold text-textPrimary">{fmtUsd(sl.premium)}</span>,
       <span key="v">{num(sl.vol)} contracts</span>,
-      <span key="l">{sl.askPct >= 58 ? `ask ${sl.askPct}%` : sl.askPct <= 42 ? `bid ${100 - sl.askPct}%` : 'mid'}</span>,
+      <span key="l">{sl.askPct >= 58 ? `ask ${sl.askPct}%` : (sl.bidPct ?? 100 - sl.askPct) >= 58 ? `bid ${sl.bidPct ?? 100 - sl.askPct}%` : 'mid'}</span>,
     ]}
   />
 );
@@ -126,20 +127,33 @@ const Windows = () => {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
+  /* ON THE FEED (2026-10-12) a window is the session's big prints ($250K and up) inside it, from the vendor's tape —
+     against each contract's whole day (data/feed/trace.ts feedWindows) */
+  const bigPrints = useFeedBigPrints(onFeed);
   // The shared hold (see LiveHold): book and tick freeze together while paused.
-  const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book: heldBook, tick } = hold.value;
+  const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData, prints: bigPrints }), [liveBook, marketData, bigPrints]), activeTicker);
+  const { book: heldBook, tick, prints: heldPrints } = hold.value;
+  const session = feedSession();
+  const fw = useMemo(() => (onFeed ? feedWindows(heldPrints ?? [], heldBook, session) : null), [onFeed, heldPrints, heldBook, session.date, session.minute]); // eslint-disable-line react-hooks/exhaustive-deps
+  const expiryRows = useMemo(() => {
+    if (!fw) return heldBook;
+    const seen = new Map<string, (typeof heldBook)[number]>();
+    for (const w of fw.windows) for (const sl of fw.slices(w.idx)) seen.set(sl.row.key, sl.row);
+    return [...seen.values()];
+  }, [fw, heldBook]);
   /* THE EXPIRY CUT (2026-09-12): the day's windows over the cut book */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
-  const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(expiryRows, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
+  const book = useMemo(() => cutExpiry(expiryRows), [expiryRows, cutExpiry]);
   const keyOf = useCallback((s: { key: string }) => s.key, []);
   const openRow = useCallback((s: { row: { key: string } }) => setOpenKey(s.row.key), []);
-  const windows = useMemo(() => intervalWindows(book, expiry ?? ''), [book, expiry]);
+  const windows = useMemo(() => {
+    if (!fw) return intervalWindows(book, expiry ?? '');
+    if (!expiry) return fw.windows;
+    const keep = new Set(book.map(r => r.key));
+    return fw.windows.map(w => ({ ...w, totalVol: fw.slices(w.idx).reduce((a, sl) => a + (keep.has(sl.row.key) ? sl.vol : 0), 0) }));
+  }, [fw, book, expiry]);
 
   // "Latest" follows the newest COMPLETE window; the live one is a click away.
   const latestIdx = windows.length >= 2 ? windows[windows.length - 2].idx : windows[windows.length - 1]?.idx ?? 0;
@@ -147,17 +161,18 @@ const Windows = () => {
   const win = windows[winIdx];
 
   const slices = useMemo(() => {
-    const all = buildIntervalSlices(book, winIdx);
+    const keep = fw && expiry ? new Set(book.map(r => r.key)) : null;
+    const all = fw ? fw.slices(winIdx).filter(sl => !keep || keep.has(sl.row.key)) : buildIntervalSlices(book, winIdx);
     const nq = normSymbol(query);
     return all.filter(s => {
       if (side !== 'ALL' && s.row.right !== side) return false;
       if (nq !== '' && !normSymbol(`${s.row.ticker}${s.row.strike}${s.row.right}`).includes(nq)) return false;
       if (cut === 'bursts') return s.shareOfDayPct >= 50;
       if (cut === 'ask') return s.askPct >= 58;
-      if (cut === 'bid') return s.askPct <= 42;
+      if (cut === 'bid') return (s.bidPct ?? 100 - s.askPct) >= 58;
       return true;
     });
-  }, [book, winIdx, cut, side, query]);
+  }, [book, winIdx, cut, side, query, fw, expiry]);
 
   /* Three registers per column — components/trace/earnedInk.ts. Window facts
      and whole-day facts each measure their own crowd. */
@@ -182,20 +197,20 @@ const Windows = () => {
     return (
       <>
         <RichRead
-          text={`Between ${win.label.replace('–', ' and ')} New York the book traded ${num(total)} contracts across ${names} names. The loudest: `}
+          text={`Between ${win.label.replace('–', ' and ')} New York ${onFeed ? `prints of $${WINDOW_FLOOR / 1000}K and up carried` : 'the book traded'} ${num(total)} contracts across ${names} names. The loudest: `}
         />
         <ReadDoor onOpen={() => setOpenKey(loud.row.key)}>
           {loud.row.ticker} {loud.row.strike}
           {loud.row.right}
         </ReadDoor>
         <RichRead
-          text={`, [[${num(loud.vol)}]] contracts — ${loud.shareOfDayPct.toFixed(0)}% of its whole day${
+          text={`, [[${num(loud.vol)}]] contracts${Number.isFinite(loud.shareOfDayPct) ? ` — ${loud.shareOfDayPct.toFixed(0)}% of its whole day` : ''}${
             win.live ? '. This window is still filling' : ''
           }.`}
         />
       </>
     );
-  }, [slices, win]);
+  }, [slices, win, onFeed]);
 
   const activeCut = CUTS.find(c => c.key === cut) ?? CUTS[0];
 
@@ -233,11 +248,7 @@ const Windows = () => {
         header: 'OTM %',
         align: 'right',
         sortValue: s => s.row.otmPct,
-        render: s => (
-          <span className="text-textPrimary">
-            {pctSigned(s.row.otmPct, 1)}
-          </span>
-        ),
+        render: s => fig(s.row.otmPct, v => <span className="text-textPrimary">{pctSigned(v, 1)}</span>),
       },
       {
         key: 'wvol',
@@ -254,6 +265,7 @@ const Windows = () => {
         // The burst tell — half a day in one window earns WEIGHT, not hue
         // (the lime retreat: data intensity is bold white, an accent is not a fact).
         render: s => {
+          if (!Number.isFinite(s.shareOfDayPct)) return fig(NaN, v => v);
           const hot = s.shareOfDayPct >= 50;
           return (
             <span className="inline-flex items-center gap-1.5 justify-end">
@@ -275,7 +287,7 @@ const Windows = () => {
         header: 'Fill',
         align: 'right',
         sortValue: s => s.avgFill,
-        render: s => <span className="text-textPrimary">${s.avgFill.toFixed(2)}</span>,
+        render: s => fig(s.avgFill, v => <span className="text-textPrimary">${v.toFixed(2)}</span>),
       },
       {
         key: 'wprem',
@@ -289,7 +301,7 @@ const Windows = () => {
         header: 'Lean',
         align: 'right',
         sortValue: s => s.askPct,
-        render: s => <LeanCell askPct={s.askPct} />,
+        render: s => <LeanCell askPct={s.askPct} bidPct={s.bidPct} />,
       },
       {
         key: 'ivchg',
@@ -297,12 +309,13 @@ const Windows = () => {
         align: 'right',
         sortValue: s => s.ivChg,
         // Signed change = direction ink, same as the screener's IV · Δ.
-        render: s => (
-          <span className={s.ivChg >= 0 ? 'text-bull' : 'text-bear'}>
-            {s.ivChg >= 0 ? '+' : ''}
-            {s.ivChg.toFixed(1)}
-          </span>
-        ),
+        render: s =>
+          fig(s.ivChg, v => (
+            <span className={v >= 0 ? 'text-bull' : 'text-bear'}>
+              {v >= 0 ? '+' : ''}
+              {v.toFixed(1)}
+            </span>
+          )),
       },
       {
         key: 'sweep',
@@ -319,7 +332,9 @@ const Windows = () => {
         // A floor cross is an institution's fingerprint — bright when it owns
         // the window.
         render: s =>
-          s.floorPct === 0 ? (
+          !Number.isFinite(s.floorPct) ? (
+            fig(NaN, v => v)
+          ) : s.floorPct === 0 ? (
             <span className="text-textSecondary">—</span>
           ) : (
             <span className={s.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{s.floorPct}%</span>
@@ -337,11 +352,7 @@ const Windows = () => {
         header: 'Vol/OI',
         align: 'right',
         sortValue: s => s.volOverOI,
-        render: s => (
-          <span className={s.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
-            {s.volOverOI.toFixed(2)}
-          </span>
-        ),
+        render: s => fig(s.volOverOI, v => <span className={v >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{v.toFixed(2)}</span>),
       },
       {
         key: 'dayvol',
@@ -362,14 +373,14 @@ const Windows = () => {
         header: 'Day lean',
         align: 'right',
         sortValue: s => s.row.askPct,
-        render: s => <LeanCell askPct={s.row.askPct} />,
+        render: s => <LeanCell askPct={s.row.askPct} bidPct={s.row.bidPct} />,
       },
       {
         key: 'prem',
         header: 'Day $',
         align: 'right',
         sortValue: s => s.row.premium,
-        render: s => <span className={weightInk(s.row.premium, marks.dayPrem)}>{fmtUsd(s.row.premium)}</span>,
+        render: s => fig(s.row.premium, v => <span className={weightInk(v, marks.dayPrem)}>{fmtUsd(v)}</span>),
       },
       {
         key: 'earn',
@@ -397,7 +408,7 @@ const Windows = () => {
       slices.filter(pick).reduce<IntervalSlice | null>((a, x) => (a === null || key(x) > key(a) ? x : a), null);
     return {
       lifted: by(s => s.askPct >= 58, s => s.vol),
-      hit: by(s => s.askPct <= 42, s => s.vol),
+      hit: by(s => (s.bidPct ?? 100 - s.askPct) >= 58, s => s.vol),
       burst: by(s => s.shareOfDayPct >= BURST_MIN_PCT, s => s.shareOfDayPct),
     };
   }, [slices]);
@@ -428,7 +439,7 @@ const Windows = () => {
 
       <TraceBox
         title="A quarter hour of the day"
-        sub={`${activeCut.label} — ${activeCut.hint} · a row opens the contract's card`}
+        sub={`${activeCut.label} — ${activeCut.hint}${onFeed ? ` · prints of $${WINDOW_FLOOR / 1000}K and up` : ''} · a row opens the contract's card`}
         testId="windows"
         data={{ cut, window: win?.label, rows: slices.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the windows', door: 'What a window, a burst and the share of the day mean', body: <WindowsGuide />, testId: 'windows-guide', open: guideOpen, onOpen: setGuideOpen }}
@@ -512,7 +523,7 @@ const Windows = () => {
         <TraceGrid rows={slices} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={selectedKey} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="contracts" emptyText="Nothing in this window" emptyBody="No contract traded inside this quarter hour on this cut — step to another window, or loosen a card." testId="windows" />
       </TraceBox>
 
-      <BookDrill list={slices.map(s => s.row)} openKey={openKey} onOpen={setOpenKey} tick={tick} />
+      <BookDrill list={slices.map(s => s.row)} openKey={openKey} onOpen={setOpenKey} tick={tick} feed={onFeed} />
     </>
   );
 };

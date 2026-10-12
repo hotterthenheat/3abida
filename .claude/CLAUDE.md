@@ -600,3 +600,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   useRoomSource) and every room's `wired` is false, so every page reads what it read before — a room is moved when its
   pages are rewired against real answers. Settings › Data sources says where each vendor stands, what the plan carries
   and leaves out, and which rooms read it; it never shows a key or a piece of one.
+- TRACE READS UW (2026-10-12, `wired: true`; docs/data-feed.md "Trace reads Unusual Whales"): every Trace page reads
+  data/feed/trace.ts (the book off /screener/option-contracts, the tape, alerts, multi-leg, net flow, Market Tide, dark
+  pool), traceCard.ts (the print card: the contract's own prints, minutes, sessions) and traceDark.ts, through
+  components/trace/useTraceBook.ts and the pages' `feed` props; the rail's price on /trace is UW's stock-state. A field
+  the answer lacks is NaN in the row and "—" titled "not in the feed" (components/trace/Missing.tsx `fig`); a view the
+  answers cannot draw is not offered; a page reading a floor ($25K tape, $100K alerts, $250K windows, $50K structures,
+  $1M dark leaders) says it. UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate` queues the rest. A Tracker
+  mark keeps its market (`src: 'feed'`): measured only against the market it was made in.

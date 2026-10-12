@@ -48,6 +48,10 @@ import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/Trac
 import { DarkPoolGuide } from '../../components/trace/TraceGuide';
 import { Name } from '../../components/ui/Name';
 import { num as fmtNum, pctSigned } from '../../core/format';
+import { DARK_LEADER_FLOOR, useFeedDarkMarket, useFeedQuote, useTraceSource } from '../../data/feed/trace';
+import { feedDarkLeaders, useFeedDarkView } from '../../data/feed/traceDark';
+import { useTraceBook } from '../../components/trace/useTraceBook';
+import { fig } from '../../components/trace/Missing';
 
 const num = (v: number) => fmtNum(v);
 const signedPct = (v: number) => pctSigned(v);
@@ -152,7 +156,13 @@ const DarkPool = () => {
 
   /* THE NAME'S VIEW — rebuilt on the tick (the shelves' defence count reads the
      session's own price path); the shared hold freezes it with the tick. */
-  const liveView = useMemo(() => (marketData ? buildDarkPoolView(marketData) : null), [marketData]);
+  /* ON THE FEED (2026-10-12) the name's crosses, the day's off-exchange volume by price and the leaders are the vendor's
+     (data/feed/traceDark.ts); the spot is UW's quote */
+  const source = useTraceSource();
+  const onFeed = source === 'feed';
+  const quote = useFeedQuote(onFeed, activeTicker);
+  const feedView = useFeedDarkView(onFeed, activeTicker, quote?.spot ?? null, quote?.changePct ?? null);
+  const liveView = useMemo(() => (onFeed ? feedView : source === 'pending' ? null : marketData ? buildDarkPoolView(marketData) : null), [marketData, onFeed, feedView, source]);
   const hold = useHold(useMemo(() => ({ view: liveView, tick: marketData }), [liveView, marketData]), activeTicker);
   const { view } = hold.value;
 
@@ -208,12 +218,12 @@ const DarkPool = () => {
             <ReadDoor onOpen={() => setOpenId(L.id)} title="Put the print on the card">
               {num(L.size)} at ${L.price.toFixed(2)}
             </ReadDoor>
-            <RichRead text={` for [[${fmtUsd(L.notional)}]] on ${L.venue} — ${INTENT_WORD[L.intent].toLowerCase()} at ${L.conviction}% conviction.`} />
+            <RichRead text={` for [[${fmtUsd(L.notional)}]] ${onFeed ? `reported on ${L.venue}` : `on ${L.venue}`} — ${INTENT_WORD[L.intent].toLowerCase()} at ${L.conviction}% conviction.`} />
           </>
         )}
       </>
     );
-  }, [view]);
+  }, [view, onFeed]);
 
   const columns = useMemo<Column<DarkPoolPrint>[]>(
     () => [
@@ -225,7 +235,7 @@ const DarkPool = () => {
         align: 'right',
         sortValue: p => p.vsSpotPct,
         /* where it crossed against the spot is a PLACE, not a side — one ink (the audit's X12) */
-        render: p => <span className="text-textPrimary">{signedPct(p.vsSpotPct)}</span>,
+        render: p => fig(p.vsSpotPct, v => <span className="text-textPrimary">{signedPct(v)}</span>),
       },
       { key: 'size', header: 'Shares', align: 'right', sortValue: p => p.size, render: p => <span className={weightInk(p.size, marks.size)}>{num(p.size)}</span> },
       { key: 'notional', header: 'Dollars', align: 'right', sortValue: p => p.notional, render: p => <span className={weightInk(p.notional, marks.notional)}>{fmtUsd(p.notional)}</span> },
@@ -246,11 +256,13 @@ const DarkPool = () => {
   const chooserCols = useMemo(() => columns.map(c => ({ key: c.key, label: typeof c.header === 'string' ? c.header : c.key })), [columns]);
 
   /* ---- THE LEADERS — the market's dark tape by sector and name --------------------- */
+  const darkMarket = useFeedDarkMarket(onFeed);
+  const { book: feedBook } = useTraceBook(activeTicker, marketData);
   const leaders = useMemo(
-    () => buildDarkPoolLeaders(),
+    () => (onFeed ? feedDarkLeaders(darkMarket ?? [], feedBook) : source === 'pending' ? { totalNotional: 0, totalPrints: 0, updated: '—', sectors: [] } : buildDarkPoolLeaders()),
     // prices on the sim-tracked names move with the tick
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [marketData]
+    [marketData, onFeed, darkMarket, feedBook, source]
   );
   const sectorOptions = useMemo<DropdownOption<string>[]>(
     () => [{ value: 'ALL', label: 'Every sector', hint: 'The whole dark tape' }, ...leaders.sectors.map(s => ({ value: s.sector, label: s.sector, hint: `${s.sharePct.toFixed(0)}% of the dark tape · ${fmtUsd(s.notional)}` }))],
@@ -268,7 +280,7 @@ const DarkPool = () => {
   const sectorMax = useMemo(() => new Map(leaders.sectors.map(s => [s.sector, s.rows[0]?.notional ?? 1])), [leaders]);
   const heaviest: DarkSector | null = leaders.sectors[0] ?? null;
   const loudest = leaderRows[0] ?? null;
-  const hottest = useMemo(() => leaderRows.reduce<LeaderRow | null>((a, r) => (a === null || r.pctAvgVol > a.pctAvgVol ? r : a), null), [leaderRows]);
+  const hottest = useMemo(() => leaderRows.filter(r => Number.isFinite(r.pctAvgVol)).reduce<LeaderRow | null>((a, r) => (a === null || r.pctAvgVol > a.pctAvgVol ? r : a), null), [leaderRows]);
   const leadersRead = useMemo<ReactNode>(() => {
     if (!heaviest) return <RichRead text="The dark tape is still filling." />;
     const names = heaviest.rows.slice(0, 3).map(r => r.ticker);
@@ -317,8 +329,8 @@ const DarkPool = () => {
         align: 'right',
         sortValue: r => r.price,
         render: r => (
-          <span className="text-textPrimary">
-            ${r.price.toFixed(2)} <span className={`text-[11px] ${r.dirUp ? 'text-bull' : 'text-bear'}`}>{r.dirUp ? '▲' : '▼'}</span>
+          <span className="text-textPrimary" title={onFeed ? 'The price of its latest cross' : undefined}>
+            ${r.price.toFixed(2)} {!onFeed && <span className={`text-[11px] ${r.dirUp ? 'text-bull' : 'text-bear'}`}>{r.dirUp ? '▲' : '▼'}</span>}
           </span>
         ),
       },
@@ -344,11 +356,11 @@ const DarkPool = () => {
         header: '% avg vol',
         align: 'right',
         sortValue: r => r.pctAvgVol,
-        render: r => <span className={r.pctAvgVol >= 100 ? 'font-bold text-warn' : weightInk(r.pctAvgVol, leaderMarks.pctAvg)}>{r.pctAvgVol.toFixed(0)}%</span>,
+        render: r => fig(r.pctAvgVol, v => <span className={v >= 100 ? 'font-bold text-warn' : weightInk(v, leaderMarks.pctAvg)}>{v.toFixed(0)}%</span>),
       },
       { key: 'size', header: 'Shares', align: 'right', sortValue: r => r.size, render: r => <span className={weightInk(r.size, leaderMarks.size)}>{num(r.size)}</span> },
     ],
-    [leaderMarks, sectorMax, activeTicker]
+    [leaderMarks, sectorMax, activeTicker, onFeed]
   );
 
   const ticker = view?.ticker ?? activeTicker;
@@ -360,7 +372,7 @@ const DarkPool = () => {
         title="The dark pool"
         sub={
           <>
-            <Name t={ticker} size={11} />'s off-exchange crosses with the read attached — where each printed and what that is consistent with, and the liquidity shelves they left · a shelf cuts the grid to it, a row puts the print on the card
+            <Name t={ticker} size={11} />'s {onFeed ? 'newest ' : ''}off-exchange crosses with the read attached — where each printed and what that is consistent with, and the liquidity shelves {onFeed ? "the day's off-exchange volume left" : 'they left'} · a shelf cuts the grid to it, a row puts the print on the card
           </>
         }
         testId="dark-pool"
@@ -372,11 +384,11 @@ const DarkPool = () => {
               <span className="inline-flex items-center gap-1.5">
                 <CompanyLogo ticker={ticker} size={15} />
                 <span className="font-bold">{ticker}</span>
-                {view && <span className="text-textPrimary">${view.spot.toFixed(2)}</span>}
+                {view && Number.isFinite(view.spot) && <span className="text-textPrimary">${view.spot.toFixed(2)}</span>}
               </span>
             </Fact>
             <Fact label="Off-exchange" testId="share" title="Share of the session's volume that printed off-exchange">
-              {view ? `${view.dpSharePct.toFixed(0)}%` : '—'} <span className="text-textSecondary">of volume</span>
+              {view && Number.isFinite(view.dpSharePct) ? `${view.dpSharePct.toFixed(0)}%` : '—'} <span className="text-textSecondary">of volume</span>
             </Fact>
             {/* IN WORDS (the audit's TR-68): "Distributing −100%" read as a broken or capped figure — the lean is said as its
                 side and how far it leans, the data module's own words */}
@@ -412,7 +424,7 @@ const DarkPool = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <DropdownSelect label="Read" value={intent} options={INTENT_OPTIONS} onChange={setIntent} title="Which reads to show" testId="dark-pool-read" />
+            <DropdownSelect label="Read" value={intent} options={onFeed ? INTENT_OPTIONS.filter(o => o.value !== 'HEDGE FLOW') : INTENT_OPTIONS} onChange={setIntent} title="Which reads to show" testId="dark-pool-read" />
             <DropdownSelect label="Size" value={sizeKey} options={SIZE_OPTIONS} onChange={setSizeKey} title="The smallest cross shown" testId="dark-pool-size" />
             <DropdownSelect label="Where" value={where} options={WHERE_OPTIONS} onChange={setWhere} title="On a shelf, between them, or anywhere" testId="dark-pool-where" />
             {shelf && (
@@ -459,7 +471,7 @@ const DarkPool = () => {
                     <span className="flex items-center gap-2">
                       <span className={`font-mono text-[11px] font-semibold uppercase tracking-wider w-[74px] ${ink.text}`}>{ROLE_WORD[l.role]}</span>
                       <span className="font-mono text-[12px] font-bold tnum text-textPrimary">${l.price.toFixed(2)}</span>
-                      <span className="font-mono text-[11px] tnum text-textSecondary" title="From the spot">{signedPct(l.distPct)}</span>
+                      <span className="font-mono text-[11px] tnum text-textSecondary" title="From the spot">{Number.isFinite(l.distPct) ? signedPct(l.distPct) : '—'}</span>
                       <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{fmtUsd(l.notional)}</span>
                     </span>
                     <span className="mt-1 flex items-center gap-2">
@@ -500,7 +512,7 @@ const DarkPool = () => {
                   </div>
                   <p className="mt-2 text-[11px] leading-relaxed text-textPrimary">{open.read}</p>
                   <p className="mt-1 text-[11px] text-textSecondary">
-                    Printed {signedPct(open.vsSpotPct)} from the spot{open.atLevel ? ' · on a tracked shelf' : ' · between the shelves'}
+                    Printed {Number.isFinite(open.vsSpotPct) ? signedPct(open.vsSpotPct) : '—'} from the spot{open.atLevel ? ' · on a tracked shelf' : ' · between the shelves'}
                   </p>
                 </>
               ) : (
@@ -517,7 +529,7 @@ const DarkPool = () => {
 
       <TraceBox
         title="Where the dark money went"
-        sub="Off-exchange dollars across the market, by sector and by name, the heaviest first · a name goes on the box above"
+        sub={`Off-exchange dollars across the market, by sector and by name, the heaviest first${onFeed ? ` · crosses of $${DARK_LEADER_FLOOR / 1_000_000}M and up` : ''} · a name goes on the box above`}
         testId="dark-pool-leaders"
         data={{ sector: sectorCut, names: leaderRows.length }}
         facts={

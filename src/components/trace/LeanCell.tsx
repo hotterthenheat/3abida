@@ -6,13 +6,17 @@
   tape's own rule.
 */
 
+import { Missing } from './Missing';
+
 /* THE SIDE IN ONE INK (2026-10-09, the audit's X12): the ask share was green and the bid share red — direction inks on
    a fact about SIDE, the reading the tape's own quote cell refuses: a put bought at the ask is not bullish. The label
    and the bar's reach carry the side; the bar's ask share in the primary ink over the bid's quiet track. */
-const LeanCell = ({ askPct }: { askPct: number }) => {
-  const bidPct = 100 - askPct;
-  const mid = Math.abs(askPct - 50) < 6;
-  const label = mid ? 'MID' : bidPct >= 50 ? `BID ${bidPct}%` : `ASK ${askPct}%`;
+/* THE BID SHARE MAY BE ITS OWN (the feed, 2026-10-12): the vendor counts mid and unsided volume too, so the bid share is
+   not always the remainder of the ask's — given, it is read as given; a share the feed left out is "—". */
+const LeanCell = ({ askPct, bidPct = 100 - askPct }: { askPct: number; bidPct?: number }) => {
+  if (!Number.isFinite(askPct) || !Number.isFinite(bidPct)) return <Missing />;
+  const mid = Math.abs(askPct - bidPct) < 12;
+  const label = mid ? 'MID' : bidPct >= askPct ? `BID ${bidPct}%` : `ASK ${askPct}%`;
   const tone = mid ? 'text-textMuted' : 'text-textPrimary';
   return (
     <span className="inline-flex flex-col items-end gap-[3px] w-16" title={`${askPct}% of the volume at the ask, ${bidPct}% on the bid`}>

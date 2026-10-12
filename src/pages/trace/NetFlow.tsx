@@ -21,8 +21,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
-import Simulator from '../../core/simulator';
-import { buildFlowBook, buildNetLeaders, type MoneynessKey } from '../../data/flowBook';
+import { buildNetLeaders, type MoneynessKey } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
 import type { SleeveKey } from '../../types/compass';
 import CompanyLogo from '../../components/ui/CompanyLogo';
@@ -33,6 +32,8 @@ import { directionInk, earnMarks } from '../../components/trace/earnedInk';
 import FlowSearch from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import ReadDoor from '../../components/trace/ReadDoor';
+import { useFeedLeaders, useFeedNameFlow, useFeedTide } from '../../data/feed/trace';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact } from '../../components/trace/TraceBox';
 import { NetFlowGuide } from '../../components/trace/TraceGuide';
 import ExpiryCalendar, { expiryWords } from '../../components/ui/ExpiryCalendar';
@@ -50,6 +51,8 @@ interface NetFlowHandoff {
   tenor?: SleeveKey | 'all';
 }
 const TENORS = new Set<string>(['all', 'odte', 'weekly', 'swing', 'leaps']);
+/** The board's pinned first row on the feed: the whole market's tide, not a name */
+const MARKET = '__market__';
 
 const NetFlow = () => {
   const { marketData, activeTicker } = useMarketData();
@@ -64,11 +67,8 @@ const NetFlow = () => {
   const [tenor, setTenor] = useState<SleeveKey | 'all'>(() => (typeof handoff?.tenor === 'string' && TENORS.has(handoff.tenor) ? handoff.tenor : 'all'));
   const [guideOpen, setGuideOpen] = useState(false);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
   // The shared hold (see LiveHold): the board's book and the pane's tick freeze together while paused
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
@@ -76,17 +76,26 @@ const NetFlow = () => {
      board and the pane both read the cut book, so they cannot disagree */
   const { expiry, setExpiry: setExpiryRaw, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry);
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
-  const known = useMemo(() => new Set(heldBook.map(r => r.ticker)), [heldBook]);
+  /* ON THE FEED (2026-10-12) the board is the vendor's names with the most net premium either way today, the pane a
+     name's net premium a minute (every expiry), and Market Tide stands over the board as the market's own line */
+  const feedLeaders = useFeedLeaders(onFeed, heldBook);
+  const leaders = useMemo(() => (onFeed ? feedLeaders ?? [] : buildNetLeaders(book, paneTimes('SPY').slice(-1)[0], expiry ?? 'all')), [onFeed, feedLeaders, book, expiry]);
+  const tide = useFeedTide(onFeed);
+  const known = useMemo(() => new Set([...heldBook.map(r => r.ticker), ...(onFeed ? leaders.map(l => l.ticker) : [])]), [heldBook, onFeed, leaders]);
   const onQuery = (v: string) => {
     setQuery(v);
     if (!v) setPicked(null);
     else if (known.has(v)) setPicked(v);
   };
+  const pickMarket = () => {
+    setQuery('');
+    setPicked(MARKET);
+  };
   const unknown = query !== '' && !known.has(query) && ![...known].some(t => t.startsWith(query));
   /* Sampled at the chart tape's last bar — the pane draws to the SIM tape's now */
-  const leaders = useMemo(() => buildNetLeaders(book, paneTimes('SPY').slice(-1)[0], expiry ?? 'all'), [book, expiry]);
 
-  const sel = picked ?? leaders[0]?.ticker ?? 'SPY';
+  const sel = picked ?? (onFeed ? MARKET : leaders[0]?.ticker ?? 'SPY');
+  const nameLine = useFeedNameFlow(onFeed && sel !== MARKET, sel === MARKET ? null : sel);
   /* AN EXPIRY KEEPS THE NAME ON THE PANE (the audit's TR-40): with no name picked the pane followed the board's leader,
      so a new expiry swapped GOOGL for COIN unasked — the name on the pane is held as the cut changes */
   const setExpiry = (iso: string | null) => {
@@ -98,6 +107,7 @@ const NetFlow = () => {
 
   const facts = useMemo(() => {
     const total = leaders.reduce((a, l) => a + l.net, 0);
+    /* a sum with a figure the feed left out is no sum — it stays NaN and says "—" */
     const volume = leaders.reduce((a, l) => a + l.volume, 0);
     const calls = leaders.reduce((a, l) => a + l.netCall, 0);
     const puts = leaders.reduce((a, l) => a + l.netPut, 0);
@@ -108,7 +118,7 @@ const NetFlow = () => {
     const top = leaders[0] ?? null;
     const bottom = leaders.length ? leaders[leaders.length - 1] : null;
     const topIsChamp = !!top && !!bottom && Math.abs(top.net) >= Math.abs(bottom.net);
-    const busiest = leaders.reduce<(typeof leaders)[number] | null>((a, l) => (a === null || l.volume > a.volume ? l : a), null);
+    const busiest = leaders.filter(l => Number.isFinite(l.volume)).reduce<(typeof leaders)[number] | null>((a, l) => (a === null || l.volume > a.volume ? l : a), null);
     return { total, volume, calls, puts, contracts, gross, bullish, bearish: leaders.length - bullish, top, bottom, topIsChamp, busiest };
   }, [leaders]);
 
@@ -122,7 +132,13 @@ const NetFlow = () => {
     return (
       <>
         <RichRead text={`${chosen ? `On ${expiryWords(chosen)}, the` : 'The'} board's money leans ${total >= 0 ? 'bullish' : 'bearish'} — `} />
-        <Lean v={total} /> net across {leaders.length} names: net calls <Lean v={facts.calls} /> less net puts <Lean v={facts.puts} put />.{' '}
+        <Lean v={total} /> net across {leaders.length} names
+        {Number.isFinite(facts.calls) && Number.isFinite(facts.puts) ? (
+          <>
+            : net calls <Lean v={facts.calls} /> less net puts <Lean v={facts.puts} put />
+          </>
+        ) : null}
+        .{' '}
         <ReadDoor onOpen={() => onQuery(top.ticker)} title={`Put ${top.ticker} on the pane`}>
           {top.ticker}
         </ReadDoor>
@@ -172,14 +188,27 @@ const NetFlow = () => {
           <Fact label="Net across the board" testId="net">
             <span className={facts.total >= 0 ? 'text-bull' : 'text-bear'}>{signed(facts.total)}</span>
           </Fact>
-          <Fact label="Net calls · net puts" testId="sides" title="Net call premium and net put premium across the board — the net is calls less puts">
-            <Lean v={facts.calls} className="font-normal" /> <span className="text-textSecondary">·</span> <Lean v={facts.puts} put className="font-normal" />
-          </Fact>
+          {onFeed ? (
+            <Fact label="Market tide" testId="tide" title="The whole market's net call and net put premium today">
+              {tide && tide.view.points.length ? (
+                <>
+                  <Lean v={tide.view.ncp} className="font-normal" /> <span className="text-textSecondary">·</span> <Lean v={tide.view.npp} put className="font-normal" />
+                </>
+              ) : (
+                '—'
+              )}
+            </Fact>
+          ) : (
+            <Fact label="Net calls · net puts" testId="sides" title="Net call premium and net put premium across the board — the net is calls less puts">
+              <Lean v={facts.calls} className="font-normal" /> <span className="text-textSecondary">·</span> <Lean v={facts.puts} put className="font-normal" />
+            </Fact>
+          )}
           <Fact label="Names" testId="names">
             {leaders.length} <span className="text-textSecondary">·</span> <span className="text-bull">{facts.bullish} bullish</span> <span className="text-textSecondary">·</span> <span className="text-bear">{facts.bearish} bearish</span>
           </Fact>
           <Fact label="Contracts traded" testId="volume" title="Volume across the board, and how many contracts carried it">
-            {num(facts.volume)} <span className="text-textSecondary">· {num(facts.contracts)} contracts</span>
+            {Number.isFinite(facts.volume) ? num(facts.volume) : <span title="not in the feed">—</span>}{' '}
+            {Number.isFinite(facts.contracts) && <span className="text-textSecondary">· {num(facts.contracts)} contracts</span>}
           </Fact>
           {facts.busiest && (
             <Champion label="Busiest name" ink="plain" title="Put this name on the pane" onOpen={() => onQuery(facts.busiest!.ticker)} testId="busiest">
@@ -214,7 +243,7 @@ const NetFlow = () => {
               </span>
             )}
           </span>
-          <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="net-flow-expiry" />
+          {!onFeed && <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="net-flow-expiry" />}
         </>
       }
       sentence={read}
@@ -224,6 +253,24 @@ const NetFlow = () => {
       <div className="flex max-md:flex-col md:flex-1 md:min-h-0 border-t border-borderSubtle">
         {/* THE BOARD — most bullish at the top, most bearish at the floor */}
         <div ref={boardRef} className="md:w-[290px] shrink-0 md:border-r max-md:border-b max-md:max-h-[306px] border-borderSubtle overflow-y-auto" data-net-board>
+          {onFeed && (
+            <button
+              type="button"
+              data-ticker={MARKET}
+              onClick={pickMarket}
+              aria-pressed={sel === MARKET}
+              className={`w-full flex flex-col gap-1 px-3 py-2 border-b border-borderSubtle text-left transition-colors ${sel === MARKET ? 'bg-silver/[0.06] shadow-[inset_2px_0_0_0_rgb(var(--silver)/0.7)]' : 'hover:bg-silver/[0.04]'}`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="font-mono text-[11px] font-bold text-textPrimary">Market tide</span>
+                <span className="text-[11px] text-textSecondary">every name</span>
+                <span className={`ml-auto font-mono text-[11px] tnum ${tide && tide.view.ncp - tide.view.npp >= 0 ? 'text-bull' : 'text-bear'}`}>{tide && tide.view.points.length ? fmtUsd(tide.view.ncp - tide.view.npp) : '—'}</span>
+              </span>
+              <span className="pl-0 font-mono text-[11px] text-textSecondary tnum">
+                {tide && tide.view.points.length ? `C ${fmtUsd(tide.view.ncp)} · P ${fmtUsd(tide.view.npp)}` : '—'}
+              </span>
+            </button>
+          )}
           {leaders.map((l, i) => {
             const isSel = l.ticker === sel;
             return (
@@ -249,9 +296,15 @@ const NetFlow = () => {
                   <span className="relative h-0.5 flex-1 rounded-full bg-ink/[0.06] overflow-hidden">
                     <span className={`absolute left-0 top-0 h-full ${l.net >= 0 ? 'bg-bull/60' : 'bg-bear/60'}`} style={{ width: `${Math.round((Math.abs(l.net) / maxAbs) * 100)}%` }} />
                   </span>
-                  <span className="font-mono text-[11px] text-textPrimary tnum whitespace-nowrap" title={`Net calls, net puts, volume and the ${l.count} contracts traded on ${l.ticker} today`}>
-                    C {fmtUsd(l.netCall)} · P {fmtUsd(l.netPut)} · {num(l.volume)} vol · {l.count} cons
-                  </span>
+                  {Number.isFinite(l.netCall) ? (
+                    <span className="font-mono text-[11px] text-textPrimary tnum whitespace-nowrap" title={`Net calls, net puts, volume and the ${l.count} contracts traded on ${l.ticker} today`}>
+                      C {fmtUsd(l.netCall)} · P {fmtUsd(l.netPut)} · {num(l.volume)} vol · {l.count} cons
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[11px] text-textPrimary tnum whitespace-nowrap" title={`Net premium on ${l.ticker} today; its calls and puts apart are on the pane`}>
+                      net today{Number.isFinite(l.volume) ? ` · ${num(l.volume)} vol` : ''}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -259,7 +312,25 @@ const NetFlow = () => {
         </div>
         {/* THE PANE — the picked name's session */}
         <div className="flex-1 min-w-0 p-2 max-md:h-[460px] max-md:flex-none">
-          <NetFlowPane book={book} seg="all" mny={mny} onSeg={() => {}} onMny={setMny} tick={tick} ticker={sel} tenor={tenor} onTenor={setTenor} dteMax={Infinity} />
+          <NetFlowPane
+            book={book}
+            seg="all"
+            mny={mny}
+            onSeg={() => {}}
+            onMny={setMny}
+            tick={tick}
+            ticker={sel === MARKET ? undefined : sel}
+            tenor={tenor}
+            onTenor={setTenor}
+            dteMax={Infinity}
+            feed={
+              onFeed
+                ? sel === MARKET
+                  ? { line: tide, refName: 'SPY', label: 'Market tide', note: 'every name · SPY behind it', money: false, tenor: false }
+                  : { line: nameLine, refName: sel, note: 'every expiry', money: false, tenor: false }
+                : undefined
+            }
+          />
         </div>
       </div>
     </TraceBox>

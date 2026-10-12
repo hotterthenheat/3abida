@@ -22,8 +22,7 @@ import { filtersToParams, paramsToFilters } from '../../data/screenerViews';
 import { screenerCuts } from '../../data/screenerViews';
 import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
 import { useMarketData } from '../../context/MarketDataContext';
-import Simulator from '../../core/simulator';
-import { applyFilters, buildFlowBook, DEFAULT_FILTERS, FLOW_SCREENS, runScreen, type BookFilters, type ScreenKey } from '../../data/flowBook';
+import { applyFilters, DEFAULT_FILTERS, FLOW_SCREENS, runScreen, type BookFilters, type ScreenKey } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
 import { SLEEVES, type SleeveKey } from '../../types/compass';
 import type { BookContract } from '../../types/trace';
@@ -41,6 +40,8 @@ import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnCh
 import LeanCell from '../../components/trace/LeanCell';
 import { SectorName } from '../../components/trace/SectorMark';
 import WatchStar from '../../components/trace/WatchStar';
+import { fig } from '../../components/trace/Missing';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { ScreenerGuide } from '../../components/trace/TraceGuide';
 import { contractKey, watchContract } from '../../context/WatchContext';
@@ -63,6 +64,13 @@ function loadScreen(): URLSearchParams {
 }
 
 const PIN_LEFT = ['time', 'ticker', 'contract'];
+
+/** The day's side in words — the bid share its own where the feed gives it */
+const leanWords = (r: BookContract) => {
+  const bid = r.bidPct ?? 100 - r.askPct;
+  if (!Number.isFinite(r.askPct) || !Number.isFinite(bid)) return '—';
+  return Math.abs(r.askPct - bid) < 10 ? 'mid' : r.askPct > bid ? `ask ${r.askPct}%` : `bid ${bid}%`;
+};
 const PIN_RIGHT = ['prem'];
 
 /** A contract's day on a phone (the audit's TR-7) */
@@ -81,7 +89,7 @@ const phoneRow = (r: BookContract) => (
     figures={[
       <span key="p" className="font-semibold text-textPrimary">{fmtUsd(r.premium)}</span>,
       <span key="v">{num(r.volume)} vol</span>,
-      <span key="l">{r.askPct >= 55 ? `ask ${r.askPct}%` : r.askPct <= 45 ? `bid ${100 - r.askPct}%` : 'mid'}</span>,
+      <span key="l">{leanWords(r)}</span>,
     ]}
   />
 );
@@ -182,11 +190,8 @@ const OptionsScreener = () => {
   }, [params]);
 
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
   /* ONE hold for the whole page: paused, the book AND the tick freeze together */
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
@@ -278,11 +283,7 @@ const OptionsScreener = () => {
         header: 'OTM %',
         align: 'right',
         sortValue: r => r.otmPct,
-        render: r => (
-          <span className="text-textPrimary">
-            {pctSigned(r.otmPct, 1)}
-          </span>
-        ),
+        render: r => fig(r.otmPct, v => <span className="text-textPrimary">{pctSigned(v, 1)}</span>),
       },
       {
         key: 'last',
@@ -291,10 +292,8 @@ const OptionsScreener = () => {
         sortValue: r => r.chgPct,
         render: r => (
           <span className="text-textPrimary">
-            ${r.last.toFixed(2)}{' '}
-            <span className={`text-[11px] ${r.chgPct >= 0 ? 'text-bull' : 'text-bear'}`}>
-              {pctSigned(r.chgPct, 1)}
-            </span>
+            {fig(r.last, v => `$${v.toFixed(2)}`)}{' '}
+            {fig(r.chgPct, v => <span className={`text-[11px] ${v >= 0 ? 'text-bull' : 'text-bear'}`}>{pctSigned(v, 1)}</span>, 'text-[11px] text-textSecondary')}
           </span>
         ),
       },
@@ -314,10 +313,16 @@ const OptionsScreener = () => {
               {r.deltaOI > 0 ? '+' : ''}
               {num(r.deltaOI)}{' '}
               {/* a tier down, never opacity (the house's rule — opacity took this red under 3:1 on paper, the audit's X12) */}
-              <span className="text-[11px]">
-                {r.deltaOIPct > 0 ? '+' : ''}
-                {r.deltaOIPct.toFixed(0)}%
-              </span>
+              {fig(
+                r.deltaOIPct,
+                v => (
+                  <span className="text-[11px]">
+                    {v > 0 ? '+' : ''}
+                    {v.toFixed(0)}%
+                  </span>
+                ),
+                'text-[11px] text-textSecondary'
+              )}
             </span>
           );
         },
@@ -330,19 +335,25 @@ const OptionsScreener = () => {
         sortValue: r => r.iv,
         render: r => (
           <span className="text-textPrimary">
-            {r.iv.toFixed(0)}%{' '}
-            <span className={`text-[11px] ${r.ivChg >= 0 ? 'text-bull' : 'text-bear'}`}>
-              {r.ivChg >= 0 ? '+' : ''}
-              {r.ivChg.toFixed(1)}
-            </span>
+            {fig(r.iv, v => `${v.toFixed(0)}%`)}{' '}
+            {fig(
+              r.ivChg,
+              v => (
+                <span className={`text-[11px] ${v >= 0 ? 'text-bull' : 'text-bear'}`}>
+                  {v >= 0 ? '+' : ''}
+                  {v.toFixed(1)}
+                </span>
+              ),
+              'text-[11px] text-textSecondary'
+            )}
           </span>
         ),
       },
-      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOverOI, render: r => <span className={r.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{r.volOverOI.toFixed(2)}</span> },
-      { key: 'sweep', header: 'Sweep', align: 'right', sortValue: r => r.sweepPct, render: r => <span className={r.sweepPct >= 40 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{r.sweepPct}%</span> },
-      { key: 'floor', header: 'Floor', align: 'right', sortValue: r => r.floorPct, render: r => (r.floorPct === 0 ? <span className="text-textSecondary">—</span> : <span className={r.floorPct >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{r.floorPct}%</span>) },
-      { key: 'multi', header: 'Multi', align: 'right', sortValue: r => r.multiPct, render: r => <span className={r.multiPct >= 30 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{r.multiPct}%</span> },
-      { key: 'lean', header: 'Lean', align: 'right', sortValue: r => r.askPct, render: r => <LeanCell askPct={r.askPct} /> },
+      { key: 'voloi', header: 'Vol/OI', align: 'right', sortValue: r => r.volOverOI, render: r => fig(r.volOverOI, v => <span className={v >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{v.toFixed(2)}</span>) },
+      { key: 'sweep', header: 'Sweep', align: 'right', sortValue: r => r.sweepPct, render: r => fig(r.sweepPct, v => <span className={v >= 40 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{v}%</span>) },
+      { key: 'floor', header: 'Floor', align: 'right', sortValue: r => r.floorPct, render: r => fig(r.floorPct, v => (v === 0 ? <span className="text-textSecondary">—</span> : <span className={v >= 50 ? 'text-textPrimary font-bold' : 'text-textPrimary'}>{v}%</span>)) },
+      { key: 'multi', header: 'Multi', align: 'right', sortValue: r => r.multiPct, render: r => fig(r.multiPct, v => <span className={v >= 30 ? 'font-semibold text-textPrimary' : 'text-textPrimary'}>{v}%</span>) },
+      { key: 'lean', header: 'Lean', align: 'right', sortValue: r => r.askPct, render: r => <LeanCell askPct={r.askPct} bidPct={r.bidPct} /> },
       { key: 'sector', header: 'Sector', sortValue: r => r.sector ?? '', render: r => <SectorName sector={r.sector} /> },
     ],
     [marks]
@@ -357,7 +368,7 @@ const OptionsScreener = () => {
     <>
       <TraceBox
         title="The book"
-        sub={`${activeScreen.label} — ${activeScreen.hint} · every contract that traded today · a row opens the contract's card`}
+        sub={`${activeScreen.label} — ${activeScreen.hint} · ${onFeed ? `the day's heaviest contracts across the market, and ${activeTicker}'s own` : 'every contract that traded today'} · a row opens the contract's card`}
         testId="screener"
         data={{ screen, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the book', door: 'What a row, the inks and the shares mean', body: <ScreenerGuide />, testId: 'screener-guide', open: guideOpen, onOpen: setGuideOpen }}
@@ -441,7 +452,7 @@ const OptionsScreener = () => {
       >
         <TraceGrid rows={rows} columns={columns} hidden={hidden} widths={WIDTHS} tooltips={TOOLTIPS} rowKey={keyOf} onRowClick={openRow} selectedKey={openKey} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="contracts" emptyText="Nothing matches this cut" emptyBody={emptyBody} testId="screener" />
       </TraceBox>
-      <BookDrill list={rows} openKey={openKey} onOpen={setOpenKey} tick={tick} />
+      <BookDrill list={rows} openKey={openKey} onOpen={setOpenKey} tick={tick} feed={onFeed} />
     </>
   );
 };

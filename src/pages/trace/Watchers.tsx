@@ -33,10 +33,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CalendarDays, ChevronDown } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
-import Simulator from '../../core/simulator';
 import {
   buildCatches,
-  buildFlowBook,
   WATCHERS,
   type WatcherKey,
   type Catch,
@@ -61,6 +59,9 @@ import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnCh
 import ReasonDoor from '../../components/trace/ReasonDoor';
 import ReadDoor from '../../components/trace/ReadDoor';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
+import { fig } from '../../components/trace/Missing';
+import { ALERT_FLOOR, FEED_REASONS, feedCatches, feedFollowThrough, feedSession, latestPrices, useFeedAlerts } from '../../data/feed/trace';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { WatchersGuide } from '../../components/trace/TraceGuide';
 import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
@@ -176,20 +177,27 @@ const Watchers = () => {
   const [guideOpen, setGuideOpen] = useState(false);
   const [missesOpen, setMissesOpen] = useState(false);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
+  /* ON THE FEED (2026-10-12) the catches are the vendor's flow alerts of $100K and up, the session's, in the desk's words
+     (data/feed/trace.ts feedCatches) — the book only lends a caught contract its day where it carries it */
+  const feedAlerts = useFeedAlerts(onFeed);
   // The shared hold (see LiveHold): book and tick freeze together while paused.
-  const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
-  const { book: heldBook, tick } = hold.value;
+  const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData, alerts: feedAlerts }), [liveBook, marketData, feedAlerts]), activeTicker);
+  const { book: heldBook, tick, alerts: heldAlerts } = hold.value;
+  const session = feedSession();
+  const feedAll = useMemo(() => (onFeed ? feedCatches(heldAlerts ?? [], heldBook, myReasons, session) : null), [onFeed, heldAlerts, heldBook, myReasons, session.date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const expiryRows = useMemo(() => (feedAll ? feedAll.map(c => c.row) : heldBook), [feedAll, heldBook]);
   /* THE EXPIRY CUT (2026-09-12): the watchers run over the cut book */
-  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(heldBook, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
+  const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(expiryRows, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
   const book = useMemo(() => cutExpiry(heldBook), [heldBook, cutExpiry]);
   const keyOf = useCallback((a: { id: string }) => a.id, []);
   const openRow = useCallback((a: { row: { key: string } }) => setOpenKey(a.row.key), []);
-  const catches = useMemo(() => buildCatches(book, myReasons), [book, myReasons]);
+  const catches = useMemo(() => {
+    if (!feedAll) return buildCatches(book, myReasons);
+    const keep = new Set(cutExpiry(feedAll.map(c => c.row)).map(r => r.key));
+    return feedAll.filter(c => keep.has(c.row.key));
+  }, [feedAll, book, myReasons, cutExpiry]);
 
   /* One lookup for both shelves — the column, the chips and the header hint
      all resolve a reason's words through this, so a row and its filter chip
@@ -244,12 +252,12 @@ const Watchers = () => {
 
   // The drilldown anchors on the EXACT print the rule fired on.
   const clipMap = useMemo(() => {
-    const m = new Map<string, { size: number; fill: number; side: 'ASK' | 'BID'; time: string }>();
+    const m = new Map<string, { size: number; fill: number; side: 'ASK' | 'BID'; time: string; premium?: number }>();
     for (const a of shown) {
-      if (!m.has(a.row.key)) m.set(a.row.key, { size: a.clipSize, fill: a.clipFill, side: a.side, time: a.time });
+      if (!m.has(a.row.key)) m.set(a.row.key, { size: a.clipSize, fill: a.clipFill, side: a.side, time: a.time, premium: onFeed ? a.clipPremium : undefined });
     }
     return m;
-  }, [shown]);
+  }, [shown, onFeed]);
   const clipFor = useMemo(() => (row: BookContract) => clipMap.get(row.key), [clipMap]);
   /* The read's "Latest:" door must open even when a filter has hidden that
      row — the drill list quietly carries it up front then. */
@@ -304,10 +312,10 @@ const Watchers = () => {
   const reasonOptions = useMemo<DropdownOption<string>[]>(
     () => [
       { value: 'ALL', label: 'Every reason', hint: "The desk's watchers and yours" },
-      ...WATCHERS.map(r => ({ value: r.key, label: r.label, hint: r.hint })),
+      ...WATCHERS.filter(r => !onFeed || FEED_REASONS.includes(r.key)).map(r => ({ value: r.key, label: r.label, hint: r.hint })),
       ...myReasons.map(r => ({ value: r.id, label: r.name, hint: reasonSentence(r) })),
     ],
-    [myReasons]
+    [myReasons, onFeed]
   );
 
   const columns = useMemo<Column<Catch>[]>(
@@ -391,7 +399,7 @@ const Watchers = () => {
         sortValue: a => a.clipSize,
         render: a => (
           <span className="text-textPrimary">
-            {num(a.clipSize)} <span className="text-[11px] text-textSecondary">@ ${a.clipFill.toFixed(2)}</span>
+            {num(a.clipSize)} <span className="text-[11px] text-textSecondary">@ {fig(a.clipFill, v => `$${v.toFixed(2)}`)}</span>
           </span>
         ),
       },
@@ -429,22 +437,14 @@ const Watchers = () => {
         header: 'Vol/OI',
         align: 'right',
         sortValue: a => a.row.volOverOI,
-        render: a => (
-          <span className={a.row.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
-            {a.row.volOverOI.toFixed(2)}
-          </span>
-        ),
+        render: a => fig(a.row.volOverOI, v => <span className={v >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{v.toFixed(2)}</span>),
       },
       {
         key: 'otm',
         header: 'OTM %',
         align: 'right',
         sortValue: a => a.row.otmPct,
-        render: a => (
-          <span className="text-textPrimary">
-            {pctSigned(a.row.otmPct, 1)}
-          </span>
-        ),
+        render: a => fig(a.row.otmPct, v => <span className="text-textPrimary">{pctSigned(v, 1)}</span>),
       },
       {
         key: 'earn',
@@ -488,7 +488,10 @@ const Watchers = () => {
 
   /* THE RECORD THAT COUNTS THE MISSES (the ideas report, idea 4): every print flagged on this cut, misses included —
      whether the stock moved the print's way since it was flagged. "N of M", never a rate. */
-  const record = useMemo(() => followThrough(rows), [rows]);
+  const record = useMemo(
+    () => (onFeed ? feedFollowThrough(rows, latestPrices(heldAlerts ?? [], heldBook, Date.now() - 60_000), session) : { ...followThrough(rows), unmeasured: 0 }),
+    [rows, onFeed, heldAlerts, heldBook, session.date] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const misses = useMemo(() => record.rows.filter(f => f.way !== 'with').sort((a, b) => b.c.minute - a.c.minute), [record]);
   const filtered = rule !== 'ALL' || side !== 'ALL' || query !== '' || expiry !== null;
   const { hidden, toggle, showAll, hideAll } = useHiddenColumns('slayer_flowalerts_cols');
@@ -499,7 +502,7 @@ const Watchers = () => {
     <>
       <TraceBox
         title="The desk watching the tape"
-        sub={activeRule ? `${activeRule.label} — ${activeRule.phrase} · newest first · a row opens the contract's card` : "Every reason a contract is flagged — the desk's and yours, newest first · a row opens the contract's card"}
+        sub={`${activeRule ? `${activeRule.label} — ${activeRule.phrase} · newest first` : "Every reason a contract is flagged — the desk's and yours, newest first"}${onFeed ? ` · flags of $${ALERT_FLOOR / 1000}K and up` : ''} · a row opens the contract's card`}
         testId="watchers"
         data={{ rule, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the watchers', door: 'What a reason, the print and the side mean', body: <WatchersGuide />, testId: 'watchers-guide', open: guideOpen, onOpen: setGuideOpen }}
@@ -578,6 +581,16 @@ const Watchers = () => {
               <span className="tnum" title={`Under ${FLAT_PCT}% either way`}>
                 {num(record.flat)} barely moved
               </span>
+              {record.unmeasured > 0 && (
+                <>
+                  <span className="text-textMuted" aria-hidden>
+                    ·
+                  </span>
+                  <span className="tnum" title="No price for the name has come in since it was flagged">
+                    {num(record.unmeasured)} not measured yet
+                  </span>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setMissesOpen(o => !o)}
@@ -604,7 +617,7 @@ const Watchers = () => {
         <TraceGrid rows={shown} columns={columns} hidden={hidden} widths={WIDTHS} flexes={FLEXES} tooltips={TOOLTIPS}  rowKey={keyOf} onRowClick={openRow} selectedKey={selectedId} pinLeft={PIN_LEFT} pinRight={PIN_RIGHT} phoneRow={phoneRow} autoHeight noun="prints" emptyText="Nothing flagged yet" emptyBody="The desk is watching — a clip that clears the bar lands here the moment it prints." testId="watchers" />
       </TraceBox>
 
-      <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} clipFor={clipFor} tick={tick} />
+      <BookDrill list={drillList} openKey={openKey} onOpen={setOpenKey} clipFor={clipFor} tick={tick} feed={onFeed} />
     </>
   );
 };

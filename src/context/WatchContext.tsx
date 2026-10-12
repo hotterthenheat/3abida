@@ -32,6 +32,11 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { BookContract, FlowPrint } from '../types/trace';
 import type { SpreadTrade } from '../data/flowBook';
+import { getFeedStatus } from '../data/feed/status';
+import { roomSource } from '../data/feed/rooms';
+
+/** Which market a mark is made in: the feed's, when Trace reads it */
+const srcNow = (): { src?: 'feed' } => (roomSource('trace', getFeedStatus()) === 'feed' ? { src: 'feed' } : {});
 
 const STORAGE_KEY = 'slayer_trace_watch';
 
@@ -45,6 +50,8 @@ interface WatchBase {
   /** Epoch ms */
   watchedAt: number;
   from: WatchSource;
+  /** Marked while Trace read the feed (2026-10-12) — its THEN is the vendor's market, measured only against the vendor's */
+  src?: 'feed';
 }
 
 export interface WatchedContract extends WatchBase {
@@ -109,6 +116,7 @@ export const watchContract = (r: BookContract, from: WatchSource): WatchedContra
   expiry: r.expiry,
   watchedAt: Date.now(),
   from,
+  ...srcNow(),
   at: { dte: r.dte, spot: r.spot, last: r.last, chgPct: r.chgPct, volume: r.volume, oi: r.oi, premium: r.premium, askPct: r.askPct },
 });
 
@@ -128,6 +136,7 @@ export const watchPrint = (p: FlowPrint, from: WatchSource): WatchedPrint => ({
   sweep: p.sweep,
   watchedAt: Date.now(),
   from,
+  ...srcNow(),
   at: { spot: p.spot, volume: p.volume, oi: p.oi },
 });
 
@@ -145,6 +154,7 @@ export const watchStructure = (t: SpreadTrade, from: WatchSource): WatchedStruct
   premium: t.premium,
   watchedAt: Date.now(),
   from,
+  ...srcNow(),
   at: { spot: t.spot },
 });
 
