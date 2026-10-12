@@ -31,7 +31,7 @@
 */
 
 import { useMemo, useState } from 'react';
-import Simulator from '../../core/simulator';
+import { bookMarket } from '../../data/bookMarket';
 import { useActiveTicker } from '../../context/MarketDataContext';
 import { useFocus } from '../../context/FocusContext';
 import { Deferred } from '../../components/ui/Skeleton';
@@ -47,8 +47,6 @@ import { usePositions } from '../../data/positions';
 import { bookOf } from '../../data/pinpointBook';
 import { oiChangeByStrike } from '../../data/oiChange';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
-import { onFeed } from './feed/onFeed';
-import { FeedBuilding } from './feed/FeedPages';
 
 type BoxKey = 'ledger' | 'heading' | 'oi' | 'timeline';
 /* The ledger's choices, held across route changes, reset on reload */
@@ -107,7 +105,8 @@ const Building = () => {
   const headingTicker = tickerFor('heading');
   const oiTicker = tickerFor('oi');
   const timelineTicker = tickerFor('timeline');
-  const scales = { atr: sessionAtr(Simulator.getCandles(ledger.ticker) ?? []), sigma: impliedDaySigma(ledger.spot, Simulator.TICKERS[ledger.ticker]?.iv ?? 0) };
+  const market = bookMarket();
+  const scales = { atr: sessionAtr(market.atrBars(ledger.ticker)), sigma: impliedDaySigma(ledger.spot, market.cfg(ledger.ticker)?.iv ?? 0) };
   const distanceOf = (strike: number) => fmtDistance(strike - ledger.spot, ledger.spot, unit, scales);
 
   return (
@@ -160,5 +159,4 @@ const Building = () => {
   );
 };
 
-/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
-export default onFeed(Building, FeedBuilding, '/pinpoint/building');
+export default Building;

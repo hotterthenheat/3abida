@@ -43,6 +43,7 @@
 */
 
 import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { impliedDaySigma } from './atr';
 import { findAirPockets, SHELF_SHARE, type AirPocket } from './airPockets';
 import { buildHedgeFlowLadder, type FlowLadder } from './hedgeFlow';
@@ -462,7 +463,7 @@ export function buildWallContext(
   const todayBars = bars as Candle[];
   /* Minutes after the open there are too few of today's bars to say what moves the name; the last session's worth of
      bars says it until today has its own (it was a dollar, which priced every wall as unbreakable at 09:31) */
-  const marketPer1Pct = dollarsPer1Pct(todayBars) ?? dollarsPer1Pct((Simulator.peekCandles(snapshot.ticker) ?? []).slice(-SESSION_MIN)) ?? 1;
+  const marketPer1Pct = dollarsPer1Pct(todayBars) ?? dollarsPer1Pct((bookMarket().peekCandles(snapshot.ticker) ?? []).slice(-SESSION_MIN)) ?? 1;
   const sigmaDay = impliedDaySigma(spot, iv) ?? spot * 0.01;
   const sigmaLeft = sigmaDay * Math.sqrt(clock.minutesLeft / SESSION_MIN);
   return {

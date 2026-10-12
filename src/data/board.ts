@@ -19,7 +19,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { buildAgenda } from './agenda';
 import { aheadClock, type AheadClock } from './ahead';
 import { buildBuilding } from './building';
@@ -83,8 +83,9 @@ export function bellShareOf(surface: ExposureSurface): number | null {
 export function watchOf(snapshot: MarketSnapshot, today: ExposureProfileData, surface: ExposureSurface | null, bars: readonly Candle[], clock: AheadClock): BoardRow['watch'] {
   try {
     const t = snapshot.ticker;
-    const building = buildBuilding(snapshot, Simulator.getGexHistory(t), Simulator.getCandles(t), today, clock);
-    const iv = Simulator.TICKERS[t]?.iv ?? 0.2;
+    const market = bookMarket();
+    const building = buildBuilding(snapshot, market.oiHistory(t), market.getCandles(t), today, clock);
+    const iv = market.cfg(t)?.iv ?? 0.2;
     const lead = buildAgenda(snapshot, today, building, surface, bars, clock, iv).first[0];
     return lead ? { strike: lead.strike, role: lead.role, isShelf: lead.isShelf, isWall: lead.isWall, reach: lead.reach, hold: lead.hold, stake: lead.stake } : null;
   } catch {

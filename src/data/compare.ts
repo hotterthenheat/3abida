@@ -22,6 +22,7 @@
 */
 
 import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { SESSION_MIN, type AheadClock } from './ahead';
 import { sessionStarts } from './indicators';
 import { impliedDaySigma, sessionAtr, type DistanceScales, type DistanceUnit } from './atr';
@@ -147,15 +148,17 @@ export function buildCompareSide(snapshot: MarketSnapshot, clock: AheadClock, ex
   const { ticker, spot } = snapshot;
   let profile;
   try {
-    profile = buildExposureProfile(snapshot, expiry, WINDOW);
+    /* the card's lens: on the feed, "Today" is today's listed date (data/exposure.ts `dated`) */
+    profile = buildExposureProfile(snapshot, expiry, WINDOW, { dated: true });
   } catch {
     return null;
   }
   const gauge = buildFlipGauge(snapshot);
-  const iv = Simulator.TICKERS[ticker]?.iv ?? 0.2;
+  const market = bookMarket();
+  const iv = market.cfg(ticker)?.iv ?? 0.2;
   const sigmaDay = impliedDaySigma(spot, iv) ?? spot * 0.01;
   const sigmaLeft = sigmaDay * Math.sqrt(clock.minutesLeft / SESSION_MIN);
-  const scales: DistanceScales = { atr: sessionAtr(Simulator.getCandles(ticker) ?? []), sigma: sigmaDay };
+  const scales: DistanceScales = { atr: sessionAtr(market.atrBars(ticker)), sigma: sigmaDay };
 
   const rows: Record<Greek, GexLevel[]> = { gex: [], dex: [], vex: [], vanna: [], charm: [] };
   const heaviest: Record<Greek, number> = { gex: 1, dex: 1, vex: 1, vanna: 1, charm: 1 };
@@ -272,8 +275,8 @@ export interface Pair {
 
 /** The ratio of the two names' closes, session by session and today minute by minute */
 export function buildPair(a: string, b: string): Pair {
-  const ba = Simulator.peekCandles(a) ?? [];
-  const bb = Simulator.peekCandles(b) ?? [];
+  const ba = bookMarket().peekCandles(a) ?? [];
+  const bb = bookMarket().peekCandles(b) ?? [];
   const sessionsOf = (bars: readonly Candle[]) => {
     const starts = sessionStarts(bars, 1);
     return starts.map((s, i) => bars.slice(s, i + 1 < starts.length ? starts[i + 1] : bars.length));

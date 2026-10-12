@@ -38,7 +38,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { buildExposureProfile, type StrikeWindow } from './exposure';
 import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
 import { buildBuilding, type Building } from './building';
@@ -70,25 +70,31 @@ const scans = new Map<string, Scan>();
  * carries the tick's prints); any other name is the simulator's pure read.
  */
 export function scanOf(ticker: string, live?: MarketSnapshot | null, nowMs = Date.now()): Scan | null {
+  const market = bookMarket();
   const t = ticker.toUpperCase();
-  const prev = scans.get(t);
+  /* THE MARKET THE ROOM READS (data/bookMarket.ts): the house's scans and the feed's are kept apart */
+  const key = `${market.src}:${t}`;
+  const prev = scans.get(key);
+  if (market.src === 'feed') {
+    /* the feed's snapshot turns when an answer lands, not on the clock: the scan is the vendor's latest book */
+    const snap = market.snapshotFor(t);
+    if (!snap || !snap.chain?.length) return prev ?? null;
+    if (prev && prev.snap === snap) return prev;
+    const next = { snap, at: nowMs };
+    scans.set(key, next);
+    return next;
+  }
   if (prev && nowMs - prev.at < SCAN_MS) return prev;
   let snap: MarketSnapshot | null = live && live.ticker === t ? live : null;
-  if (!snap) {
-    try {
-      snap = Simulator.snapshotFor(t);
-    } catch {
-      return prev ?? null;
-    }
-  }
+  if (!snap) snap = market.snapshotFor(t);
   if (!snap || !snap.chain?.length) return prev ?? null;
   const next = { snap, at: nowMs };
-  scans.set(t, next);
+  scans.set(key, next);
   return next;
 }
 
 /** The scan already on hand for a name, without taking a new one */
-export const peekScan = (ticker: string): Scan | null => scans.get(ticker.toUpperCase()) ?? null;
+export const peekScan = (ticker: string): Scan | null => scans.get(`${bookMarket().src}:${ticker.toUpperCase()}`) ?? null;
 
 /* ---- the book ------------------------------------------------------------------- */
 
@@ -144,11 +150,13 @@ export function bookOf(snap: MarketSnapshot, clock: AheadClock): Book {
   const kept = books.get(snap);
   if (kept && kept.key === key) return kept.book;
   const t = snap.ticker;
-  const iv = Simulator.TICKERS[t]?.iv ?? 0.2;
+  const market = bookMarket();
+  /* the name's implied vol — the feed's own (a feed snapshot is not made until it has come) */
+  const iv = market.cfg(t)?.iv ?? 0.2;
   const profile = profileOf(snap);
   const surface = surfaceOf(snap);
   const bars = sessionBars(t) ?? [];
-  const building = buildBuilding(snap, Simulator.getGexHistory(t) ?? [], Simulator.getCandles(t) ?? [], profile, clock);
+  const building = buildBuilding(snap, market.oiHistory(t), market.getCandles(t) ?? [], profile, clock);
   const ctx = buildWallContext(snap, profile, building, surface, bars, clock, iv);
   const book: Book = { ticker: t, spot: snap.spot, snap, clock, iv, bars, profile, surface, building, ctx, memo: new Map() };
   books.set(snap, { key, book });

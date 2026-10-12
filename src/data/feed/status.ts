@@ -58,6 +58,8 @@ const read = () => state;
 
 /** Where every vendor stands now */
 export const getFeedStatus = (): FeedStatus => state;
+/** Told when a vendor's standing changes, outside a render */
+export const subscribeFeedStatus = (fn: () => void): (() => void) => subscribe(fn);
 /** Is a vendor reachable */
 export const isUp = (s: FeedStatus, p: FeedProvider): boolean => s[p].state === 'ok';
 

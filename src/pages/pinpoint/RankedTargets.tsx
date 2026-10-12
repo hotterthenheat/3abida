@@ -42,8 +42,6 @@ import { agendaOf, bookOf, inWindow } from '../../data/pinpointBook';
 import { bookSureness } from '../../data/levelSureness';
 import { contractWords, usePositions } from '../../data/positions';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
-import { onFeed } from './feed/onFeed';
-import { FeedTargets } from './feed/FeedPages';
 
 type BoxKey = 'list' | 'axis';
 let orderMemory: AgendaOrder = 'matters';
@@ -148,5 +146,4 @@ const RankedTargets = () => {
   );
 };
 
-/* THE FEED'S PAGE when the room reads Unusual Whales (pages/pinpoint/feed) — the house's page otherwise, whole */
-export default onFeed(RankedTargets, FeedTargets, '/pinpoint/targets');
+export default RankedTargets;

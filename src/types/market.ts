@@ -98,6 +98,8 @@ export interface StrikeNode {
   callCharm: number;
   putCharm: number;
   netCharm: number;
+  /** Contracts traded today at the strike, calls and puts — on a feed snapshot, the vendor's count (NaN until it lands) */
+  volume?: number;
 }
 
 export type TradeDirection = 'BULLISH' | 'BEARISH';
@@ -135,6 +137,9 @@ export interface MarketSnapshot {
   indicators: Indicators;
   plan: TradePlan;
   tape: TapeOrder[];
+  /** 'feed' when built from the vendor's answers (data/feed/pinpointMarket.ts) — the engines read its figures as they
+      come: no leg texture, the day's own volume */
+  src?: 'feed';
 }
 
 export type TradeStatus = 'OPEN' | 'WIN' | 'LOSS';

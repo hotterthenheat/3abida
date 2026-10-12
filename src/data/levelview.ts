@@ -14,7 +14,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyClock, nyMinutes, nySession } from '../core/nyTime';
 import type { Candle } from '../types/market';
 
@@ -68,7 +68,7 @@ export function sessionCut(bars: readonly Candle[]): Candle[] {
     the Wall Report Card (2026-09-05), which grades every level on the same
     session cut the focus chip's touches use. */
 export function sessionBars(ticker: string) {
-  const bars = Simulator.peekCandles(ticker);
+  const bars = bookMarket().peekCandles(ticker);
   if (!bars || bars.length === 0) return null;
   return sessionCut(bars);
 }
@@ -92,7 +92,7 @@ export const inCashSession = (t: number): boolean => {
 export function netSinceOpenRatio(ticker: string): Map<number, number> | null {
   const session = sessionBars(ticker);
   if (!session) return null;
-  const snaps = Simulator.getGexHistory(ticker) ?? [];
+  const snaps = bookMarket().getGexHistory(ticker);
   const first = snaps.find(s => s.time >= session[0].time);
   const last = snaps[snaps.length - 1];
   if (!first || !last || first === last) return null;
@@ -165,10 +165,10 @@ export function buildLevelRead(ticker: string, strike: number): LevelRead | null
     inTouch = hit;
   }
 
-  const spot = Simulator.TICKERS[ticker]?.currentPrice ?? session[session.length - 1].close;
+  const spot = bookMarket().cfg(ticker)?.currentPrice ?? session[session.length - 1].close;
   const distPct = ((strike - spot) / spot) * 100;
 
-  const snaps = Simulator.getGexHistory(ticker) ?? [];
+  const snaps = bookMarket().getGexHistory(ticker);
   const at = (s: { levels: { strike: number; value: number }[] }) => s.levels.find(l => l.strike === strike)?.value ?? null;
   const first = snaps.find(s => s.time >= session[0].time);
   const last = snaps[snaps.length - 1];

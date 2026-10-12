@@ -49,6 +49,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Link2, Unlink2 } from 'lucide-react';
 import Simulator from '../../core/simulator';
+import { bookMarket, useBookVersion } from '../../data/bookMarket';
 import CompanyLogo from './CompanyLogo';
 import TickerLookup from './TickerLookup';
 import useFocusTrap from './useFocusTrap';
@@ -141,10 +142,16 @@ const ScopeChip = ({ ticker, linked, onToggleLink, onPick, quote, open: openProp
      to the frame. A name the feed has not seeded yet is read once off the simulator, as before. The change is from the
      last close (Simulator.dayChangePct), never from the name's config price. */
   const wantQuote = !!quote && (!follows || full);
-  const live = useQuote(wantQuote ? ticker : null);
-  const cfg = wantQuote && !live ? Simulator.TICKERS[ticker] : undefined;
+  /* A ROOM ON THE FEED (data/bookMarket.ts): the name's price is the one its book was figured at and its change the
+     vendor's day — never the simulator's beside the vendor's book */
+  useBookVersion();
+  const market = bookMarket();
+  const onFeed = market.src === 'feed';
+  const live = useQuote(wantQuote && !onFeed ? ticker : null);
+  const cfg = wantQuote && !live ? market.cfg(ticker) : undefined;
   const price = live?.spot ?? cfg?.currentPrice;
-  const change = live?.changePct ?? (cfg ? Simulator.dayChangePct(ticker) : undefined);
+  const feedChange = onFeed && wantQuote ? market.dayChangePct(ticker) : NaN;
+  const change = live?.changePct ?? (onFeed ? (Number.isFinite(feedChange) ? feedChange : undefined) : cfg ? Simulator.dayChangePct(ticker) : undefined);
 
   const menu =
     open &&

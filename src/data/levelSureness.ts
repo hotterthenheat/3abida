@@ -35,7 +35,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { pickFlip, pickWalls } from '../core/walls';
 import { sessionStarts } from './indicators';
 import { nyDay } from '../core/nyTime';
@@ -64,9 +64,12 @@ const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** "Open interest as of Oct 8's close · priced at the live spot" — the date when the tape holds a closed session */
 export function freshnessOf(ticker?: string): string {
+  /* the vendor's count says its own date and the price it was figured at (data/feed/levels.ts feedFreshness) */
+  const own = ticker ? bookMarket().freshness?.(ticker) : null;
+  if (own) return own;
   let when = 'the last close';
   if (ticker) {
-    const bars = Simulator.peekCandles(ticker);
+    const bars = bookMarket().peekCandles(ticker);
     if (bars && bars.length > 2) {
       const starts = sessionStarts(bars, 1);
       if (starts.length >= 2) when = `${nyDay(bars[starts[starts.length - 1] - 1].time * 1000)}'s close`;

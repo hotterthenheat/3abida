@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import Simulator from '../../core/simulator';
+import { bookMarket, useBookVersion } from '../../data/bookMarket';
 
 /* A short timer, not an idle callback: a chart's frame loop leaves the
    browser no quiet moment, so idle callbacks only fire on their timeout. */
@@ -25,22 +26,26 @@ const idle = (fn: () => void, _timeout: number) => ({ id: window.setTimeout(fn, 
     the simulator's own idle loop; at launch, the request) — it only watches, so a chip on every head costs a timer.
     It gives up after eight seconds: a name nobody is fetching must not say "working" forever. */
 export function useNameArriving(ticker: string | null | undefined): boolean {
-  const [arriving, setArriving] = useState(() => !!ticker && !Simulator.isSeeded(ticker));
+  /* the market the room reads (data/bookMarket.ts): on the feed, a name is in once its book has come */
+  const seeded = (t: string) => bookMarket().isSeeded(t);
+  const src = useBookVersion().split(':')[0];
+  const [arriving, setArriving] = useState(() => !!ticker && !seeded(ticker));
   useEffect(() => {
-    if (!ticker || Simulator.isSeeded(ticker)) {
+    if (!ticker || seeded(ticker)) {
       setArriving(false);
       return;
     }
     setArriving(true);
     const started = performance.now();
     const id = window.setInterval(() => {
-      if (Simulator.isSeeded(ticker) || performance.now() - started > 8000) {
+      if (seeded(ticker) || performance.now() - started > 8000) {
         setArriving(false);
         window.clearInterval(id);
       }
     }, 120);
     return () => window.clearInterval(id);
-  }, [ticker]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, src]);
   return arriving;
 }
 

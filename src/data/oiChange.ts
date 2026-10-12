@@ -20,7 +20,7 @@
 ==================================================
 */
 
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { sessionStarts } from './indicators';
 import { nyDay } from '../core/nyTime';
 import type { GexSnapshot } from '../types/market';
@@ -80,8 +80,8 @@ function snapAt(snaps: readonly GexSnapshot[], t: number): GexSnapshot | null {
  * sessions (today and two closes behind it) or the history carries no open interest.
  */
 export function oiChangeByStrike(ticker: string, spot: number): OiChange | null {
-  const bars = Simulator.peekCandles(ticker);
-  const snaps = Simulator.getGexHistory(ticker) ?? [];
+  const bars = bookMarket().peekCandles(ticker);
+  const snaps = bookMarket().getGexHistory(ticker);
   if (!bars || bars.length < 3 || !snaps.length) return null;
   const starts = sessionStarts(bars, 1);
   /* the trailing run is today's; the two runs before it closed the last two counts */

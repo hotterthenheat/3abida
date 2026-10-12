@@ -1,4 +1,4 @@
-import Simulator from '../core/simulator';
+import { bookMarket } from './bookMarket';
 import { pickFlip } from '../core/walls';
 import type { Candle, GexSnapshot, MarketSnapshot } from '../types/market';
 
@@ -115,18 +115,30 @@ export function buildFlipGauge(snapshot: MarketSnapshot): FlipGauge {
     bars: 0,
   };
 
-  const candles = Simulator.getCandles(ticker);
-  const snaps = Simulator.getGexHistory(ticker);
+  const market = bookMarket();
+  const candles = market.getCandles(ticker);
+  const snaps = market.getGexHistory(ticker);
   if (!candles?.length || !snaps?.length) return base;
 
-  /* The tail both series cover, capped at one session — the same alignment
-     buildDrift (data/vannacharm.ts) reads its timeline through. */
-  const n = Math.min(SESSION_BARS, candles.length, snaps.length);
+  /* The last session's worth of bars, each beside the book kept at its own minute — paired BY TIME (2026-10-12): the
+     house keeps a book a bar, in lockstep, so this is the tails it always read; a market that kept the book from a
+     later minute pairs only the minutes it has, never a bar against another minute's book. */
+  const tail = candles.slice(Math.max(0, candles.length - SESSION_BARS));
+  const byTime = new Map(snaps.map(s => [s.time, s]));
+  const bars: Candle[] = [];
+  const books: GexSnapshot[] = [];
+  for (const b of tail) {
+    const s = byTime.get(b.time);
+    if (!s) continue;
+    bars.push(b);
+    books.push(s);
+  }
+  const n = bars.length;
   if (n < GAUGE_MIN_BARS) return { ...base, bars: n };
 
   return {
     ...base,
-    crossings: countFlipCrossings(candles.slice(candles.length - n), snaps.slice(snaps.length - n)),
+    crossings: countFlipCrossings(bars, books),
     bars: n,
   };
 }

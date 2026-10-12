@@ -31,6 +31,7 @@
 */
 
 import { buildExposureProfile, type StrikeWindow } from './exposure';
+import { feedMarket, isFeedSnap } from './bookMarket';
 import { buildDeskChain, DESK_DTES } from './weigherDesk';
 import { blackScholesGreeks } from '../core/greeks';
 import { spotChangePct } from './gex';
@@ -118,6 +119,14 @@ const DEALER_PUT = -0.53;
 const DIRECT: ReadonlySet<Greek> = new Set<Greek>(['vanna', 'charm']);
 
 export function buildExposureSurface(snapshot: MarketSnapshot, half: StrikeWindow, dtes: readonly number[] = DESK_DTES): ExposureSurface {
+  /* THE VENDOR'S CALENDAR (2026-10-12): a feed snapshot's dates are the ones UW lists, each column UW's own rows by
+     strike for that date (data/feed/pinpointMarket.ts) — no desk chain, no estimator */
+  if (isFeedSnap(snapshot)) {
+    const book = buildExposureProfile(snapshot, 'ALL', half);
+    const own = feedMarket()?.surfaceOf?.(snapshot, book);
+    if (own) return own;
+    throw new Error('the calendar has not come');
+  }
   const front = buildExposureProfile(snapshot, '0DTE', half);
   const rows = [...front.strikes].sort((a, b) => a.strike - b.strike);
   const strikes = rows.map(r => r.strike);

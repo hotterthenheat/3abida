@@ -18,7 +18,7 @@
 */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Simulator from '../../core/simulator';
+import { bookMarket, useBookVersion } from '../../data/bookMarket';
 import { changeTicker, useActiveTicker } from '../../context/MarketDataContext';
 import { useMarketBackground } from '../../context/marketStore';
 import { useFocus } from '../../context/FocusContext';
@@ -42,7 +42,12 @@ export function useBookClock(): AheadClock {
 /** The frame's name on the room's scan — the same snapshot every page reads within the ten seconds */
 export function useFrameScan(): Scan | null {
   /* read off the store (context/marketStore.ts): a page renders when the scan turns, not on every tick inside it */
-  return useMarketBackground(s => (s.snapshot ? scanOf(s.snapshot.ticker, s.snapshot) : null));
+  const house = useMarketBackground(s => (s.snapshot && bookMarket().src === 'house' ? scanOf(s.snapshot.ticker, s.snapshot) : null));
+  /* THE ROOM ON THE FEED (data/bookMarket.ts): the scan is the vendor's latest book of the name, turning when an answer
+     lands */
+  useBookVersion();
+  const active = useActiveTicker();
+  return bookMarket().src === 'feed' ? scanOf(active) : house;
 }
 
 /** "updated 14:03:42 ET" — the scan's stamp, New York's clock */
@@ -81,8 +86,9 @@ export function useBoxes<K extends string>(page: string, scan: Scan | null): Box
       }),
     [page]
   );
-  /* An own name's scan is taken on the frame's cadence, from the room's shared scans */
+  /* An own name's scan is taken on the frame's cadence, from the room's shared scans (on the feed, as its answers land) */
   const ownKey = Object.values(scopes).sort().join('|');
+  const bookVersion = useBookVersion();
   const ownSnaps = useMemo(() => {
     const m = new Map<string, MarketSnapshot>();
     if (!scan || !ownKey) return m;
@@ -92,7 +98,7 @@ export function useBoxes<K extends string>(page: string, scan: Scan | null): Box
       if (s) m.set(t, s.snap);
     }
     return m;
-  }, [scan, ownKey]);
+  }, [scan, ownKey, bookVersion]);
   const tickerFor = (key: K) => scopes[key] ?? activeTicker;
   const snapFor = (key: K): MarketSnapshot | null => {
     if (!scan) return null;
@@ -149,5 +155,5 @@ export function useRoomWindow(): [RoomWindow, (w: RoomWindow) => void] {
 }
 
 /** A name's scan is warm once the simulator has its history — the Board waits a name at a time for the rest */
-export const isWarm = (t: string) => Simulator.isSeeded(t);
+export const isWarm = (t: string) => bookMarket().isSeeded(t);
 export { SCAN_MS };
