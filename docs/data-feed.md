@@ -285,6 +285,12 @@ minute, never the strikes, so it cannot fill the strike × time cells before the
 Calls stay few: day bars, history and the report are asked only while a pane draws them (1D/1W; the Events, Dark pool,
 Flow and Net drift switches).
 
+Checked 2026-10-12 after the close (17:40–18:20 ET): the keys-in server against the keys-blanked one, 1 to 4 panes on
+SPY, SPX, NVDA and QQQ, both themes, every pane's menus opened (timeframes, Overlays, the candle menu, indicators,
+alerts, the expiry card, the ladder's switches) — the same items in the same order, but for 15 s held, the trail's
+line ("Trail from …") and the index's bars line; the expiry calendar's enabled days are UW's listed dates; no console
+errors. Screenshots: `docs/data-feed/terrain-filled-2026-10-12-*.png`.
+
 **Terrain's trail (the strike field) on the feed.** UW gives the book as it stands; no route gives it strike by strike
 for earlier in the day (`/spot-exposures/strike` takes a `date`, never a time — UW's spec, checked 2026-10-12; the
 per-minute `/spot-exposures` carries the whole book, not strikes). So the field is the books this terminal read today:
