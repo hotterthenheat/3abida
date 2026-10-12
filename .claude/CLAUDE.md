@@ -578,3 +578,25 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   before the open and how it went, `week`: the week reviewed); its cuts by days to expiry and delta are the Report's
   own (review/engine.ts DTE_CUTS, DELTA_CUTS). The two accounts a first visit gets are named "Starter · practice" and
   "Starter · 50K evaluation" (data/paper/sample.ts) — never "sample".
+
+# The data feed (2026-10-12 — the owner bought Unusual Whales API Basic and Massive Basic; docs/data-feed.md)
+- THE KEYS STAY ON THE SERVER. UW_API_TOKEN and MASSIVE_API_KEY live in .env (git-ignored; .env.example names them,
+  and the Massive S3 ones for the flat files, a later step) and are read by vite.config.ts alone (loadEnv(mode, cwd,
+  '')), handed to server/feed.ts — the proxy the dev server and `vite preview` mount at /feed/uw/* and /feed/massive/*,
+  which adds the key itself (UW a Bearer header, Massive the apiKey parameter). Never a VITE_ key, never a key in src,
+  never the old provider layer's "direct" mode; the repo is public. The proxy answers this machine alone
+  (FEED_ALLOW_LAN=1 for a phone), GET only, a vendor path only; no key → 503 { error: 'no-key' }; the network refusing
+  the host → 502 'network', never confused with a 401; any key scrubbed from what it hands back; a cache per URL by
+  what the path is; Massive's five calls a minute through a token bucket that queues. `npm run feed:check` calls one
+  route per vendor and prints OK or the failure with its status (behind HTTPS_PROXY, NODE_USE_ENV_PROXY=1);
+  scripts/feed-proof.ts runs in `npm test`.
+- THE CLIENT is src/data/feed/: fetchers that never throw (client.ts; UW's figures are numeric strings, read with
+  num()), the standing of each vendor (status.ts — probed by the shell as the terminal opens, never on the landing),
+  polling on the market store's terms (poll.ts `useFeedPoll`: one timer per key, a hidden tab asks nothing), the typed
+  routes (uw.ts, massive.ts — every field one a live answer carried on 2026-10-12, docs/data-feed-samples.md). On these
+  plans Massive refuses the indices (403); its minute bars stop at the session before.
+- ALL OR NOTHING, A ROOM AT A TIME (data/feed/rooms.ts): a room reads the vendors only when every one it needs is up,
+  never a vendor's figure beside the house's on one screen. Each room has one seam (pulseSource … weigherSource,
+  useRoomSource) and every room's `wired` is false, so every page reads what it read before — a room is moved when its
+  pages are rewired against real answers. Settings › Data sources says where each vendor stands, what the plan carries
+  and leaves out, and which rooms read it; it never shows a key or a piece of one.

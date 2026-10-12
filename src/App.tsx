@@ -103,7 +103,7 @@ const oldTrace = (page: string) => `/trace/${TRACE_ALIASES[page] ?? (page || 'li
 
 /* A SECTION OR A DOCUMENT THAT DOES NOT EXIST says so (the audit's LG-5): /settings/nope opened Account and /legal/nope
    the Terms, silently — every other wrong address shows "Nothing at this address" */
-const SETTINGS_SECTIONS = ['account', 'billing', 'data', 'appearance', 'desk', 'sounds', 'invite', 'mail', 'keyboard', 'about'];
+const SETTINGS_SECTIONS = ['account', 'billing', 'data', 'sources', 'appearance', 'desk', 'sounds', 'invite', 'mail', 'keyboard', 'about'];
 const SettingsAt = () => {
   const { section } = useParams();
   return !section || SETTINGS_SECTIONS.includes(section.toLowerCase()) ? <Settings /> : <NotFoundInside />;

@@ -1,0 +1,324 @@
+/*
+==================================================
+  SLAYER TERMINAL - THE FEED PROXY (server/feed.ts)
+
+  THE KEYS STAY ON THIS MACHINE'S SERVER (2026-10-12).
+  The repo is public and the browser bundle is
+  anybody's to read, so no key is ever in src, in a
+  VITE_ variable or in a request the browser makes.
+  The dev server (and `vite preview`) answers
+  /feed/uw/* and /feed/massive/* itself: it reads
+  UW_API_TOKEN and MASSIVE_API_KEY from .env (or the
+  process environment), adds the key on the way out,
+  and hands back the vendor's answer. The old provider
+  layer's "direct" mode, which sent the key from the
+  browser, is not coming back.
+
+  WHAT IT DOES ON THE WAY:
+    · no key → 503 { error: 'no-key' }; the rooms keep
+      their own book;
+    · a cache per URL, its life set by what the path
+      is (a tape for seconds, a reference list for
+      hours), and one request in flight per URL;
+    · Massive's free plans allow about five calls a
+      minute: a token bucket holds the calls in a
+      queue and lets them out as tokens come, rather
+      than failing them;
+    · the network refusing the host (DNS, a refused
+      connection, a proxy's 403 on the tunnel) is
+      502 { error: 'network' } — never confused with
+      the vendor's own 401 on a bad key;
+    · the key is never logged, and is scrubbed out of
+      any text that goes back (an error, a body).
+
+  The same module is the node side of
+  `npm run feed:check` (scripts/feed-check.ts), so the
+  check and the proxy call the vendors the same way.
+  docs/data-feed.md is the owner's page for it.
+==================================================
+*/
+
+import type { IncomingMessage, ServerResponse } from 'node:http';
+
+export type ProviderId = 'uw' | 'massive';
+
+export interface FeedKeys {
+  uw?: string;
+  massive?: string;
+}
+
+/** The two vendors: where they live and how a key is put on a request */
+export const PROVIDERS: Record<ProviderId, { name: string; base: string; envVar: string; probe: string; pathOk: RegExp }> = {
+  /* base and auth: uw-mcp docs/endpoints.json ("base_url", "auth": Bearer token via Authorization header) */
+  uw: { name: 'Unusual Whales', base: 'https://api.unusualwhales.com', envVar: 'UW_API_TOKEN', probe: '/api/stock/SPY/stock-state', pathOk: /^\/api\// },
+  /* base and auth: Massive's OpenAPI (client-js src/openapi.json): servers[0] https://api.massive.com, securitySchemes
+     apiKey "in: query, name: apiKey" */
+  massive: { name: 'Massive', base: 'https://api.massive.com', envVar: 'MASSIVE_API_KEY', probe: '/v1/marketstatus/now', pathOk: /^\/(v\d|vX)\// },
+};
+
+/* ---- how long an answer is kept, by what it is ----------------------------------------------------------------- */
+
+const S = 1000;
+const MIN = 60 * S;
+const HOUR = 60 * MIN;
+const TTL: Record<ProviderId, [RegExp, number][]> = {
+  uw: [
+    [/\/stock-state$|\/quote$/, 2 * S],
+    [/flow-alerts|option-trades/, 5 * S],
+    [/\/darkpool\//, 10 * S],
+    [/net-prem-ticks|market-tide|net-flow/, 15 * S],
+    [/spot-exposures|greek-exposure|gex-levels/, 30 * S],
+    [/\/congress\/|\/insider\/|\/earnings\//, 10 * MIN],
+  ],
+  massive: [
+    [/^\/v1\/marketstatus\//, MIN],
+    [/^\/v3\/snapshot\//, 5 * MIN],
+    [/^\/v2\/aggs\//, 30 * MIN],
+    [/^\/v3\/reference\/options\/contracts/, 6 * HOUR],
+    [/^\/v3\/reference\/tickers/, 24 * HOUR],
+  ],
+};
+const TTL_DEFAULT: Record<ProviderId, number> = { uw: 15 * S, massive: 5 * MIN };
+export const ttlFor = (p: ProviderId, path: string): number => TTL[p].find(([re]) => re.test(path))?.[1] ?? TTL_DEFAULT[p];
+
+/* ---- the answer ------------------------------------------------------------------------------------------------ */
+
+export interface FeedAnswer {
+  status: number;
+  contentType: string;
+  body: string;
+  /** Where the answer came from: the vendor, the cache, or the proxy itself (no key, the network) */
+  from: 'upstream' | 'cache' | 'proxy';
+}
+
+/** What a failure was, in the owner's words — the check prints it, the Settings page shows its kind */
+export type FailKind = 'no-key' | 'network' | 'timeout' | 'key-refused' | 'plan' | 'rate' | 'upstream';
+export function failKind(a: FeedAnswer): FailKind | null {
+  if (a.status >= 200 && a.status < 300) return null;
+  if (a.from === 'proxy') {
+    try {
+      const e = (JSON.parse(a.body) as { error?: string }).error;
+      if (e === 'no-key' || e === 'network' || e === 'timeout') return e;
+    } catch {
+      /* not ours */
+    }
+  }
+  if (a.status === 401) return 'key-refused';
+  if (a.status === 403) return 'plan';
+  if (a.status === 429) return 'rate';
+  return 'upstream';
+}
+export const FAIL_WORDS: Record<FailKind, string> = {
+  'no-key': 'no key set',
+  network: 'the network refused the host',
+  timeout: 'the host did not answer in time',
+  'key-refused': 'the key was refused',
+  plan: "the plan does not reach this (or the key is not allowed here)",
+  rate: 'too many calls — the vendor asked to wait',
+  upstream: 'the vendor answered with an error',
+};
+
+const json = (status: number, body: unknown): FeedAnswer => ({ status, contentType: 'application/json', body: JSON.stringify(body), from: 'proxy' });
+
+/** Every place a key could show, scrubbed */
+function scrub(text: string, keys: FeedKeys): string {
+  let out = text;
+  for (const k of [keys.uw, keys.massive]) if (k && k.length >= 4) out = out.split(k).join('[key]');
+  return out.replace(/([?&]apiKey=)[^&\s"']+/gi, '$1[key]').replace(/(Bearer\s+)[A-Za-z0-9._-]{8,}/g, '$1[key]');
+}
+
+/* ---- Massive's limit: a token bucket that queues ---------------------------------------------------------------- */
+
+export class TokenBucket {
+  private tokens: number;
+  private last = Date.now();
+  private queue: (() => void)[] = [];
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  constructor(
+    private readonly capacity: number,
+    private readonly perMs: number
+  ) {
+    this.tokens = capacity;
+  }
+  private refill() {
+    const now = Date.now();
+    this.tokens = Math.min(this.capacity, this.tokens + ((now - this.last) * this.capacity) / this.perMs);
+    this.last = now;
+  }
+  /** Resolves when a call may go out — at once while tokens remain, in turn after that */
+  take(): Promise<void> {
+    return new Promise(resolve => {
+      this.queue.push(resolve);
+      this.pump();
+    });
+  }
+  /** The vendor said 429: spend what is left, so the queue waits for a full token */
+  drain() {
+    this.refill();
+    this.tokens = 0;
+  }
+  get waiting(): number {
+    return this.queue.length;
+  }
+  private pump() {
+    this.refill();
+    while (this.queue.length && this.tokens >= 1) {
+      this.tokens -= 1;
+      this.queue.shift()!();
+    }
+    if (this.queue.length && !this.timer) {
+      const wait = Math.ceil(((1 - this.tokens) * this.perMs) / this.capacity);
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        this.pump();
+      }, Math.max(50, wait));
+    }
+  }
+}
+
+/* ---- the client the proxy and the check share ------------------------------------------------------------------ */
+
+export interface FeedClientOptions {
+  keys: FeedKeys;
+  /** Massive's calls a minute (the free plans: 5) */
+  massivePerMinute?: number;
+  timeoutMs?: number;
+  /** Bypass the cache (the check wants the vendor's answer now) */
+  noCache?: boolean;
+}
+
+export function createFeedClient(opts: FeedClientOptions) {
+  const keys = opts.keys;
+  const timeoutMs = opts.timeoutMs ?? 20 * S;
+  const bucket = new TokenBucket(opts.massivePerMinute ?? 5, MIN);
+  const cache = new Map<string, { until: number; answer: FeedAnswer }>();
+  const inFlight = new Map<string, Promise<FeedAnswer>>();
+  const CACHE_MAX = 400;
+
+  const keep = (url: string, answer: FeedAnswer, ttl: number) => {
+    if (cache.size >= CACHE_MAX) {
+      const now = Date.now();
+      for (const [k, v] of cache) if (v.until <= now) cache.delete(k);
+      while (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
+    }
+    cache.set(url, { until: Date.now() + ttl, answer });
+  };
+
+  async function upstream(p: ProviderId, pathAndQuery: string): Promise<FeedAnswer> {
+    const key = keys[p];
+    if (!key) return json(503, { error: 'no-key' });
+    const url = new URL(PROVIDERS[p].base + pathAndQuery);
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (p === 'uw') headers.Authorization = `Bearer ${key}`;
+    else url.searchParams.set('apiKey', key);
+    if (p === 'massive') await bucket.take();
+    let res: Response;
+    try {
+      res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (e) {
+      const err = e as { name?: string; cause?: { code?: string; message?: string }; message?: string };
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') return json(504, { error: 'timeout' });
+      /* a refused tunnel, DNS, a reset: the network said no before the vendor could */
+      const detail = scrub(String(err.cause?.code ?? err.cause?.message ?? err.message ?? 'fetch failed'), keys);
+      return json(502, { error: 'network', detail });
+    }
+    if (res.status === 429 && p === 'massive') bucket.drain();
+    const body = scrub(await res.text(), keys);
+    return { status: res.status, contentType: res.headers.get('content-type') ?? 'application/json', body, from: 'upstream' };
+  }
+
+  /** GET a vendor path (with its query) — cached, one in flight per URL, Massive's calls in turn */
+  async function get(p: ProviderId, pathAndQuery: string): Promise<FeedAnswer> {
+    const path = pathAndQuery.split('?')[0];
+    if (!PROVIDERS[p].pathOk.test(path) || path.includes('..')) return json(400, { error: 'bad-path' });
+    if (!keys[p]) return json(503, { error: 'no-key' });
+    const id = `${p}:${pathAndQuery}`;
+    if (!opts.noCache) {
+      const hit = cache.get(id);
+      if (hit && hit.until > Date.now()) return { ...hit.answer, from: 'cache' };
+    }
+    const flying = inFlight.get(id);
+    if (flying) return flying;
+    const run = upstream(p, pathAndQuery).then(a => {
+      if (a.status === 200 && !opts.noCache) keep(id, a, ttlFor(p, path));
+      return a;
+    });
+    inFlight.set(id, run);
+    try {
+      return await run;
+    } finally {
+      inFlight.delete(id);
+    }
+  }
+
+  return { get, bucket, hasKey: (p: ProviderId) => !!keys[p] };
+}
+export type FeedClient = ReturnType<typeof createFeedClient>;
+
+/* ---- the probe: one cheap call per vendor ----------------------------------------------------------------------- */
+
+export type ProbeState = 'ok' | FailKind;
+export interface ProbeResult {
+  state: ProbeState;
+  /** The HTTP status the call came back with (0 when it never left) */
+  status: number;
+  at: number;
+}
+
+export async function probe(client: FeedClient, p: ProviderId): Promise<ProbeResult> {
+  if (!client.hasKey(p)) return { state: 'no-key', status: 0, at: Date.now() };
+  const a = await client.get(p, PROVIDERS[p].probe);
+  return { state: failKind(a) ?? 'ok', status: a.from === 'proxy' ? 0 : a.status, at: Date.now() };
+}
+
+/* ---- the middleware Vite mounts --------------------------------------------------------------------------------- */
+
+/** A request from this machine — the proxy holds the keys, so it never answers another one unless told to */
+const isLoopback = (addr: string | undefined) => !!addr && (addr === '::1' || addr.startsWith('127.') || addr === '::ffff:127.0.0.1' || addr.startsWith('::ffff:127.'));
+
+/** What the client may not pass on: a key of its own */
+const STRIP = new Set(['apikey', 'apiKey', 'token', 'api_key']);
+
+export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean }) {
+  const client = createFeedClient(opts);
+  let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
+  const PROBE_TTL = MIN;
+
+  const status = () => {
+    if (!probed || Date.now() - probed.at > PROBE_TTL) {
+      const result = Promise.all([probe(client, 'uw'), probe(client, 'massive')]).then(([uw, massive]) => ({ uw, massive }));
+      probed = { at: Date.now(), result };
+    }
+    return probed.result;
+  };
+
+  const send = (res: ServerResponse, a: FeedAnswer) => {
+    res.statusCode = a.status;
+    res.setHeader('Content-Type', a.contentType);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Feed-From', a.from);
+    res.end(a.body);
+  };
+
+  return async (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
+    const raw = req.url ?? '';
+    if (!raw.startsWith('/feed/')) return next();
+    if (!opts.allowLan && !isLoopback(req.socket.remoteAddress)) return send(res, json(403, { error: 'loopback-only' }));
+    if (req.method !== 'GET') return send(res, json(405, { error: 'get-only' }));
+    try {
+      const url = new URL(raw, 'http://localhost');
+      if (url.pathname === '/feed/status') {
+        const s = await status();
+        return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive } }));
+      }
+      const m = /^\/feed\/(uw|massive)(\/.*)$/.exec(url.pathname);
+      if (!m) return send(res, json(404, { error: 'no-route' }));
+      const p = m[1] as ProviderId;
+      for (const k of Array.from(url.searchParams.keys())) if (STRIP.has(k)) url.searchParams.delete(k);
+      const q = url.searchParams.toString();
+      return send(res, await client.get(p, m[2] + (q ? `?${q}` : '')));
+    } catch {
+      return send(res, json(500, { error: 'proxy' }));
+    }
+  };
+}

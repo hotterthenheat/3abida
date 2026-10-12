@@ -1,0 +1,764 @@
+# Data feed: the shapes the vendors answered with (2026-10-12)
+
+Each endpoint the feed layer reads (src/data/feed/uw.ts, massive.ts) was called once through the proxy's own client
+(server/feed.ts) on Monday 2026-10-12, around 10:50 ET with the market open, with the owner's keys: Unusual Whales
+API Basic and Massive Basic. What follows is each answer's **shape**: its keys, their types and, where harmless, one
+example value from the first row. Ids, cursors, names and URLs are left blank. No key appears here, and no bulk data.
+
+What the answers taught, beyond the catalogs:
+
+- **UW sends figures as numeric strings** (`"777.9405"`, `"127725"`), and some as numbers in the same row (`iv`,
+  `delta` on a flow alert; `volume`, `size`). The adapters read every figure with `num()`.
+- **UW wraps rows in `data`**, except `/api/stock/{ticker}/flow-recent`, which is a **bare array** of 50 prints.
+  `/api/option-trades/flow-alerts` adds `newer_than` / `older_than`; `/api/insider/transactions` adds `has_more`;
+  `/api/market/market-tide` adds `date`.
+- **The per-name flow-alert route** (`/api/stock/{ticker}/flow-alerts`) answers without `id`, `start_time` or
+  `end_time`, so the adapter reads the market route with `ticker_symbol` instead.
+- **UW times** are ISO strings (`executed_at`, `tape_time`, `created_at`), except `start_time` / `end_time` on a flow
+  alert and the quote's `time`, which are epoch ms.
+- **UW's earnings day routes** (`/premarket`, `/afterhours`) are empty without a `date` on a day with no reports.
+- **Massive's Basic plans refuse the indices**: both `/v3/snapshot/indices` and `I:SPX` bars answered **403
+  `NOT_AUTHORIZED`** ("You are not entitled to this data. Please upgrade your plan"). Everything else read answered 200.
+- **Massive's minute bars** for the session before (2026-10-09) were there on the 12th; `t` is epoch ms.
+- **Massive's `next_url`** is an absolute `https://api.massive.com/…` address with a cursor; the client follows it
+  through the proxy (`viaProxy`).
+- **Listed expiries in one Massive call**: the contracts route with `strike_price` set to one round strike near spot and
+  `contract_type=call` answered every expiry on one page (SPY at 700: 32 dates, 2026-10-12 to 2029-01-19), the same 32
+  UW's `/api/stock/{ticker}/expiry-breakdown` lists.
+- **Rate**: the eight Massive calls took 40 s through the bucket (five at once, then one every 12 s), no 429.
+
+## Unusual Whales (API Basic) — base `https://api.unusualwhales.com`, `Authorization: Bearer`
+
+### `GET /api/stock/SPY/stock-state` — 200
+```
+data: object
+  close: numeric string  "777.9405"
+  high: numeric string  "779.397"
+  low: numeric string  "777.602"
+  open: numeric string  "778.78"
+  volume: number  3889814
+  total_volume: number  4277612
+  market_time: string  "regular"
+  tape_time: string  "2026-10-12T14:50:02Z"
+  prev_close: numeric string  "778.57"
+```
+
+### `GET /api/stock/SPY/quote` — 200
+```
+data: object
+  last_trade: object
+    price: numeric string  "777.97"
+    time: number  1791816603913
+    vol: number  4277931
+  market_time: string  "regular"
+  quote: object
+    ask: object
+      price: numeric string  "777.980"
+      size: number  1217
+    bid: object
+      price: numeric string  "777.950"
+      size: number  105
+    time: number  1791816604027
+  quote_statistics: object
+    postmarket: object
+      midpoint_changes: number  0
+      quote_changes: number  0
+      size_only_changes: number  0
+      spread_tightened: number  0
+      spread_unchanged: number  0
+      spread_widened: number  0
+    premarket: object
+      midpoint_changes: number  71218
+      quote_changes: number  161913
+      size_only_changes: number  90695
+      spread_tightened: number  36286
+      spread_unchanged: number  90695
+      spread_widened: number  34932
+    regular: object
+      midpoint_changes: number  74466
+      quote_changes: number  497547
+      size_only_changes: number  423081
+      spread_tightened: number  38165
+      spread_unchanged: number  423081
+      spread_widened: number  36301
+  quote_values: object
+    midpoint: numeric string  "777.965"
+    quote_age_ms: number  153
+    size_imbalance: number  -0.8411497730711044
+    size_weighted_midpoint: number  777.952382753404
+    spread: numeric string  "0.030"
+    spread_bps: number  0.3856214611193654
+```
+
+### `GET /api/option-trades/flow-alerts?limit=3` — 200
+```
+data: array[3]
+  total_bid_side_prem: numeric string  "2126"
+  total_ask_side_prem: numeric string  "21726"
+  strike: numeric string  "746"
+  theta: number  -2.523472516046993
+  gamma: number  0.1435235379331107
+  has_floor: boolean  false
+  total_premium: numeric string  "23852"
+  expiry: string  "2026-10-12"
+  ticker: string  "QQQ"
+  volume_oi_ratio: numeric string  "39.1323035594359"
+  start_time: number  1791816594814
+  delta: number  -0.4735764133443388
+  all_opening_trades: boolean  false
+  price: numeric string  "1.02"
+  iv: number  0.15303542788690574
+  total_size: number  234
+  issue_type: string  "ETF"
+  created_at: string  "2026-10-12T14:50:03.041370Z"
+  end_time: number  1791816596560
+  trade_count: number  22
+  open_interest: number  2978
+  sector: null
+  volume: number  116536
+  bid: numeric string  "1.01"
+  iv_end: numeric string  "0.151716132044137"
+  expiry_count: number  1
+  rho: number  -0.00209072416892832
+  er_time: null
+  ask: numeric string  "1.03"
+  marketcap: numeric string  "506066972519"
+  alert_rule: string  "RepeatedHits"
+  has_singleleg: boolean  true
+  vega: number  0.0721439262800155
+  has_multileg: boolean  false
+  id: string
+  rule_id: string
+  next_earnings_date: null
+  type: string  "put"
+  has_sweep: boolean  true
+  iv_start: numeric string  "0.154593191506113"
+  underlying_price: numeric string  "746.16"
+  option_chain: string
+  theo: number  1.0193162393161732
+newer_than: string  "2026-08-12T14:50:04.262444Z"
+older_than: string  "2026-10-12T14:50:04.262444Z"
+```
+
+### `GET /api/stock/SPY/flow-alerts?limit=3` — 200
+```
+data: array[3]
+  type: string  "call"
+  ticker: string  "SPY"
+  iv: number  0.1085270148263625
+  created_at: string  "2026-10-12T14:49:59.235371Z"
+  delta: number  0.32287138000340876
+  theta: number  -0.5890691603623601
+  gamma: number  0.05743589258970459
+  price: numeric string  "1.31"
+  open_interest: number  961
+  volume: number  3465
+  expiry: string  "2026-10-14"
+  strike: numeric string  "781"
+  option_chain: string
+  rho: number  0.013690855009986404
+  theo: number  1.310000000000031
+  underlying_price: numeric string  "777.92"
+  vega: number  0.20669417496242196
+  total_premium: numeric string  "127725"
+  trade_count: number  33
+  iv_end: numeric string  "0.108527014826362"
+  iv_start: numeric string  "0.108527014826362"
+  has_floor: boolean  false
+  has_multileg: boolean  false
+  has_sweep: boolean  false
+  all_opening_trades: boolean  false
+  total_size: number  975
+  alert_rule: string  "RepeatedHits"
+  total_bid_side_prem: numeric string  "127725"
+  total_ask_side_prem: numeric string  "0"
+  volume_oi_ratio: numeric string  "3.60561914672216"
+  has_singleleg: boolean  true
+  expiry_count: number  1
+```
+
+### `GET /api/stock/SPY/flow-recent` — 200
+```
+(bare array)[50]
+  rule_id: null
+  gamma: numeric string  "0.02841660680367145"
+  canceled: boolean  false
+  report_flags: array[0]
+  rho: numeric string  "0.0818609216841155"
+  nbbo_bid: numeric string  "3.08"
+  size: number  1
+  delta: numeric string  "0.3531234134373278"
+  ewma_nbbo_bid: numeric string  "3.08"
+  option_chain_id: string
+  theo: numeric string  "3.090000000000032"
+  full_name: string
+  no_side_vol: number  0
+  upstream_condition_detail: string  "mlet"
+  next_earnings_date: null
+  theta: numeric string  "-0.2516024718558045"
+  volume: number  400
+  implied_volatility: numeric string  "0.0968229469203647"
+  tags: array[3] of string  "bid_side"
+  nbbo_ask: numeric string  "3.11"
+  premium: numeric string  "309.00"
+  industry_type: null
+  vega: numeric string  "0.501852435013512"
+  open_interest: number  1457
+  er_time: null
+  price: numeric string  "3.09"
+  trading_hours: string  "rth"
+  nbbo_bid_size: number  349
+  flow_alert_id: null
+  expiry: string  "2026-10-23"
+  nbbo_bid_time: string  "2026-10-12T14:50:03.925680Z"
+  ewma_nbbo_ask: numeric string  "3.11"
+  underlying_symbol: string  "SPY"
+  multi_vol: number  212
+  stock_multi_vol: number  0
+  ask_vol: number  15
+  marketcap: numeric string  "821678532946"
+  id: string
+  mid_vol: number  109
+  sector: null
+  nbbo_ask_size: number  349
+  bid_vol: number  276
+  executed_at: string  "2026-10-12T14:50:04.332422Z"
+  strike: numeric string  "784"
+  nbbo_ask_time: string  "2026-10-12T14:50:03.925680Z"
+  option_type: string  "call"
+  exchange: string  "C2OX"
+  underlying_price: numeric string  "777.97"
+```
+
+### `GET /api/option-trades?limit=3` — 200
+```
+data: array[3]
+  rule_id: null
+  gamma: numeric string  "0.04326034668615044"
+  canceled: boolean  false
+  report_flags: array[0]
+  rho: numeric string  "0.0667162679696235"
+  nbbo_bid: numeric string  "3.65"
+  size: number  1
+  delta: numeric string  "0.538395486879769"
+  ewma_nbbo_bid: numeric string  "3.650"
+  option_chain_id: string
+  theo: numeric string  "3.710000000000001"
+  full_name: string
+  no_side_vol: number  0
+  upstream_condition_detail: string  "mlet"
+  next_earnings_date: null
+  theta: numeric string  "-0.02219686050901733"
+  volume: number  842
+  implied_volatility: numeric string  "0.3301281906887746"
+  tags: array[3] of string  "ask_side"
+  nbbo_ask: numeric string  "3.70"
+  premium: numeric string  "371.00"
+  matched_noti_configs: array[0]
+  industry_type: null
+  vega: numeric string  "0.1104109864089187"
+  open_interest: number  30885
+  er_time: null
+  price: numeric string  "3.71"
+  issue_type: string  "ETF"
+  nbbo_bid_size: number  832
+  flow_alert_id: null
+  expiry: string  "2027-01-15"
+  nbbo_bid_time: string  "2026-10-12T14:50:03.781000Z"
+  ewma_nbbo_ask: numeric string  "3.700"
+  underlying_symbol: string  "SLV"
+  multi_vol: number  802
+  stock_multi_vol: number  0
+  ask_vol: number  697
+  marketcap: numeric string  "29732025327"
+  id: string
+  mid_vol: number  35
+  sector: null
+  nbbo_ask_size: number  61
+  bid_vol: number  110
+  executed_at: string  "2026-10-12T14:50:04.437000Z"
+  strike: numeric string  "55"
+  nbbo_ask_time: string  "2026-10-12T14:50:03.742000Z"
+  option_type: string  "call"
+  exchange: string  "XISX"
+  underlying_price: numeric string  "54.501"
+```
+
+### `GET /api/darkpool/recent?limit=3` — 200
+```
+data: array[3]
+  size: number  4600
+  ticker: string  "CCI"
+  price: numeric string  "80.015"
+  volume: number  1589665
+  executed_at: string  "2026-10-12T14:50:04Z"
+  canceled: boolean  false
+  premium: numeric string  "368069.000"
+  sale_cond_codes: null
+  nbbo_ask: numeric string  "80.09"
+  nbbo_bid: numeric string  "79.95"
+  ext_hour_sold_codes: null
+  market_center: string  "L"
+  nbbo_ask_quantity: number  119
+  nbbo_bid_quantity: number  20
+  tracking_id: number
+  trade_code: null
+  trade_settlement: string  "regular"
+  trf_executed_at: string  "2026-10-12T14:50:04Z"
+```
+
+### `GET /api/darkpool/SPY?limit=3` — 200
+```
+data: array[3]
+  size: number  200
+  ticker: string  "SPY"
+  price: numeric string  "777.97"
+  volume: number  4275347
+  executed_at: string  "2026-10-12T14:49:52Z"
+  canceled: boolean  false
+  premium: numeric string  "155594.00"
+  sale_cond_codes: null
+  nbbo_ask: numeric string  "777.98"
+  nbbo_bid: numeric string  "777.96"
+  ext_hour_sold_codes: null
+  market_center: string  "L"
+  nbbo_ask_quantity: number  20
+  nbbo_bid_quantity: number  65
+  tracking_id: number
+  trade_code: null
+  trade_settlement: string  "regular"
+  trf_executed_at: string  "2026-10-12T14:49:52Z"
+```
+
+### `GET /api/stock/SPY/net-prem-ticks` — 200
+```
+data: array[81]
+  date: string  "2026-10-12"
+  call_volume: number  27958
+  put_volume: number  28098
+  call_volume_ask_side: number  15917
+  call_volume_bid_side: number  10937
+  put_volume_ask_side: number  12331
+  put_volume_bid_side: number  14793
+  net_call_premium: numeric string  "-104772.00"
+  net_call_volume: number  4980
+  net_put_premium: numeric string  "-192997.00"
+  net_put_volume: number  -2462
+  tape_time: string  "2026-10-12T13:30:00.000000Z"
+  net_delta: numeric string  "21342.4429938733172443600"
+```
+
+### `GET /api/market/market-tide` — 200
+```
+data: array[17]
+  timestamp: string  "2026-10-12T09:30:00-04:00"
+  date: string  "2026-10-12"
+  net_call_premium: numeric string  "-17790938.0000"
+  net_put_premium: numeric string  "9489911.0000"
+  net_volume: number  -42218
+date: string  "2026-10-12"
+```
+
+### `GET /api/stock/SPY/spot-exposures/strike` — 200
+```
+data: array[491]
+  put_charm_vol: numeric string  "0"
+  call_charm_ask: numeric string  "0"
+  put_vanna_oi: numeric string  "3761.24"
+  call_vanna_vol: numeric string  "0"
+  call_gamma_vol: numeric string  "0"
+  call_gamma_oi: numeric string  "1.33"
+  put_delta_vol: numeric string  "0"
+  date: string  "2026-10-12"
+  call_vanna_bid: numeric string  "0"
+  put_delta_oi: numeric string  "-1943891.21"
+  call_gamma_bid: numeric string  "0"
+  put_vanna_ask: numeric string  "0"
+  call_charm_bid: numeric string  "0"
+  call_delta_bid: numeric string  "0"
+  time: string  "2026-10-12T14:49:22.000000Z"
+  call_delta_ask: numeric string  "0"
+  put_gamma_ask: numeric string  "0"
+  put_delta_ask: numeric string  "0"
+  put_gamma_oi: numeric string  "-10727.2"
+  call_vanna_oi: numeric string  "-0.29"
+  call_delta_vol: numeric string  "0"
+  put_charm_oi: numeric string  "-2307753.25"
+  price: numeric string  "778.05"
+  call_delta_oi: numeric string  "23608943.38"
+  put_gamma_vol: numeric string  "0"
+  put_gamma_bid: numeric string  "0"
+  call_vanna_ask: numeric string  "0"
+  put_charm_bid: numeric string  "0"
+  ticker: string  "SPY"
+  strike: numeric string  "50"
+  put_vanna_bid: numeric string  "0"
+  call_charm_vol: numeric string  "0"
+  put_vanna_vol: numeric string  "0"
+  put_delta_bid: numeric string  "0"
+  call_gamma_ask: numeric string  "0"
+  call_charm_oi: numeric string  "2166.8"
+  put_charm_ask: numeric string  "0"
+```
+
+### `GET /api/stock/SPY/spot-exposures` — 200
+```
+data: array[206]
+  time: string  "2026-10-12T10:34:15.941000Z"
+  ticker: string  "SPY"
+  start_time: string  "2026-10-12T10:34:00.000000Z"
+  price: numeric string  "778.935"
+  ticker_id: number  2447
+  charm_per_one_percent_move_dir: numeric string  "0"
+  charm_per_one_percent_move_oi: numeric string  "-8077240482205.39"
+  charm_per_one_percent_move_vol: numeric string  "0"
+  gamma_per_one_percent_move_dir: numeric string  "0"
+  gamma_per_one_percent_move_oi: numeric string  "2318869729.74"
+  gamma_per_one_percent_move_vol: numeric string  "0"
+  vanna_per_one_percent_move_dir: numeric string  "0"
+  vanna_per_one_percent_move_oi: numeric string  "939966164.5"
+  vanna_per_one_percent_move_vol: numeric string  "0"
+```
+
+### `GET /api/congress/recent-trades?limit=3` — 200
+```
+data: array[3]
+  name: string
+  ticker: string  "MSFT"
+  issuer: string  "undisclosed"
+  is_active: boolean  true
+  transaction_date: string  "2026-09-28"
+  notes: string
+  txn_type: string  "Sell"
+  politician_id: string
+  amounts: string  "$1,001 - $15,000"
+  filed_at_date: string  "2026-10-05"
+  member_type: string  "house"
+  reporter: string
+```
+
+### `GET /api/insider/transactions?limit=3` — 200
+```
+data: array[3]
+  id: string
+  ticker: string  "VWAV"
+  amount: number  -165138
+  transactions: number  1
+  price: numeric string  "5.1400"
+  sector: string  "Industrials"
+  transaction_date: string  "2026-10-16"
+  is_officer: boolean  false
+  is_ten_percent_owner: boolean  true
+  is_s_p_500: boolean  false
+  is_director: boolean  false
+  owner_name: string
+  reporter_is_public_company: boolean  false
+  ids: array[1] of string  
+  marketcap: numeric string  "8277671"
+  next_earnings_date: null
+  filing_date: string  "2026-10-09"
+  stock_price: numeric string  "4.725"
+  formtype: numeric string  "144"
+  transaction_code: string  "S"
+  security_title: null
+  is_10b5_1: boolean  false
+  reporter_cik: numeric string
+  security_ad_code: null
+  shares_owned_after: null
+  officer_title: string  ""
+  shares_owned_before: null
+  director_indirect: null
+  natureofownership: null
+  date_excercisable: null
+  price_excercisable: null
+  expiration_date: null
+has_more: boolean  true
+```
+
+### `GET /api/earnings/premarket?limit=3` — 200
+```
+data: array[0]
+```
+
+### `GET /api/earnings/afterhours?limit=3` — 200
+```
+data: array[0]
+```
+
+### `GET /api/earnings/AAPL` — 200
+```
+data: array[125]
+  source: string  "company"
+  report_date: string  "2026-11-02"
+  report_time: string  "postmarket"
+  expected_move_perc: numeric string  "0.04923047619047619048"
+  ending_fiscal_quarter: string  "2026-09-30"
+  expected_move: numeric string  "16.80"
+  street_mean_est: numeric string  "1.99"
+  actual_eps: null
+  post_earnings_move_1d: null
+  post_earnings_move_1w: null
+  post_earnings_move_2w: null
+  post_earnings_move_3d: null
+  pre_earnings_move_1d: null
+  pre_earnings_move_1w: null
+  pre_earnings_move_2w: null
+  pre_earnings_move_3d: null
+  short_straddle_1w: null
+  short_straddle_1d: null
+  long_straddle_1w: null
+  long_straddle_1d: null
+```
+
+### `GET /api/stock/SPY/ohlc/1m?limit=3` — 200
+```
+data: array[3]
+  close: numeric string  "777.97"
+  high: numeric string  "777.97"
+  low: numeric string  "777.9405"
+  open: numeric string  "777.95"
+  start_time: string  "2026-10-12T14:50:00Z"
+  volume: number  1286
+  end_time: string  "2026-10-12T14:51:00Z"
+  total_volume: number  4277931
+  market_time: string  "r"
+```
+
+### `GET /api/earnings/premarket?date=2026-10-14&limit=2` — 200
+```
+data: array[2]
+  source: string  "company"
+  symbol: string  "ASML"
+  country_code: string  "NL"
+  full_name: string
+  sector: string  "Technology"
+  is_s_p_500: boolean  false
+  reaction: null
+  has_options: boolean  true
+  marketcap: numeric string  "686174485706"
+  report_date: string  "2026-10-14"
+  report_time: string  "premarket"
+  expected_move_perc: numeric string  "0.04883860587382160986"
+  ending_fiscal_quarter: string  "2026-09-30"
+  country_name: string  "NETHERLANDS"
+  continent: string  "Europe"
+  expected_move: numeric string  "86.21"
+  street_mean_est: numeric string  "12.47"
+  actual_eps: null
+  pre_earnings_date: string  "2026-10-12"
+  pre_earnings_close: numeric string  "1765.12"
+  post_earnings_date: null
+  post_earnings_close: null
+```
+
+### `GET /api/earnings/afterhours?date=2026-10-14&limit=2` — 200
+```
+data: array[2]
+  source: string  "company"
+  symbol: string  "HOMB"
+  country_code: string  "US"
+  full_name: string
+  sector: string  "Financial Services"
+  is_s_p_500: boolean  false
+  reaction: null
+  has_options: boolean  true
+  marketcap: numeric string  "5651402048"
+  report_date: string  "2026-10-14"
+  report_time: string  "postmarket"
+  expected_move_perc: numeric string  "0.06622409553916403231"
+  country_name: string  "UNITED STATES"
+  continent: string  "North America"
+  ending_fiscal_quarter: string  "2026-09-30"
+  expected_move: numeric string  "1.89"
+  street_mean_est: numeric string  "0.64"
+  actual_eps: null
+  pre_earnings_date: string  "2026-10-12"
+  pre_earnings_close: numeric string  "28.47"
+  post_earnings_date: null
+  post_earnings_close: null
+```
+
+### `GET /api/stock/SPY/expiry-breakdown` — 200
+```
+data: array[32]
+  expires: string  "2026-10-12"
+  open_interest: number  565863
+  volume: number  1689029
+  chains: number  302
+```
+
+## Massive (Basic) — base `https://api.massive.com`, `apiKey` query parameter
+
+### `GET /v1/marketstatus/now` — 200
+```
+afterHours: boolean  false
+currencies: object
+  crypto: string  "open"
+  fx: string  "open"
+earlyHours: boolean  false
+exchanges: object
+  nasdaq: string  "open"
+  nyse: string  "open"
+  otc: string  "open"
+indicesGroups: object
+  s_and_p: string  "open"
+  societe_generale: string  "open"
+  msci: string  "open"
+  ftse_russell: string  "open"
+  mstar: string  "open"
+  mstarc: string  "open"
+  cccy: string  "open"
+  cgi: string  "open"
+  nasdaq: string  "open"
+  dow_jones: string  "open"
+market: string  "open"
+serverTime: string  "2026-10-12T10:50:15-04:00"
+```
+
+### `GET /v3/reference/options/contracts?underlying_ticker=SPY&expiration_date.gte=2026-10-12&limit=5` — 200
+```
+results: array[5]
+  cfi: string  "OCASPS"
+  contract_type: string  "call"
+  exercise_style: string  "american"
+  expiration_date: string  "2026-10-12"
+  primary_exchange: string  "BATO"
+  shares_per_contract: number  100
+  strike_price: number  550
+  ticker: string  "O:SPY261012C00550000"
+  underlying_ticker: string  "SPY"
+status: string  "OK"
+request_id: string
+next_url: string
+```
+
+### `GET /v2/aggs/ticker/SPY/range/1/day/2026-10-01/2026-10-09?adjusted=true&sort=asc&limit=3` — 200
+```
+ticker: string  "SPY"
+queryCount: number  3
+resultsCount: number  3
+adjusted: boolean  true
+results: array[3]
+  v: number  47708058.813089
+  vw: number  762.7837
+  o: number  764.36
+  c: number  763.99
+  h: number  765.65
+  l: number  758.7901
+  t: number  1790827200000
+  n: number  1434649
+status: string  "OK"
+request_id: string
+count: number  3
+next_url: string
+```
+
+### `GET /v2/aggs/ticker/SPY/range/1/minute/2026-10-09/2026-10-09?adjusted=true&sort=asc&limit=3` — 200
+```
+ticker: string  "SPY"
+queryCount: number  3
+resultsCount: number  3
+adjusted: boolean  true
+results: array[3]
+  v: number  5967.495636
+  vw: number  776.8871
+  o: number  776.62
+  c: number  777.1
+  h: number  777.19
+  l: number  775.79
+  t: number  1791532800000
+  n: number  1728
+status: string  "OK"
+request_id: string
+count: number  3
+next_url: string
+```
+
+### `GET /v3/snapshot/indices?ticker.any_of=I:SPX,I:VIX` — 403 (plan)
+```
+status: string  "NOT_AUTHORIZED"
+request_id: string
+message: string  "You are not entitled to this…"
+```
+
+### `GET /v2/aggs/ticker/I:SPX/range/1/day/2026-10-01/2026-10-09?sort=asc&limit=3` — 403 (plan)
+```
+status: string  "NOT_AUTHORIZED"
+request_id: string
+message: string  "You are not entitled to this…"
+```
+
+### `GET /v3/reference/tickers?ticker=AAPL&limit=1` — 200
+```
+results: array[1]
+  ticker: string  "AAPL"
+  name: string
+  market: string  "stocks"
+  locale: string  "us"
+  primary_exchange: string  "XNAS"
+  type: string  "CS"
+  active: boolean  true
+  currency_name: string  "usd"
+  cik: numeric string
+  composite_figi: string
+  share_class_figi: string
+  last_updated_utc: string  "2026-10-12T06:11:02.955498061Z"
+status: string  "OK"
+request_id: string
+count: number  1
+```
+
+### `GET /v3/reference/tickers/AAPL` — 200
+```
+request_id: string
+results: object
+  ticker: string  "AAPL"
+  name: string
+  market: string  "stocks"
+  locale: string  "us"
+  primary_exchange: string  "XNAS"
+  type: string  "CS"
+  active: boolean  true
+  currency_name: string  "usd"
+  cik: numeric string
+  composite_figi: string
+  share_class_figi: string
+  market_cap: number  4912984755200
+  phone_number: string
+  address: object
+    address1: string
+    city: string  "CUPERTINO"
+    state: string  "CA"
+    postal_code: numeric string
+  description: string
+  sic_code: numeric string  "3571"
+  sic_description: string  "ELECTRONIC COMPUTERS"
+  ticker_root: string  "AAPL"
+  homepage_url: string
+  total_employees: number  166000
+  list_date: string  "1980-12-12"
+  branding: object
+    logo_url: string
+    icon_url: string
+  share_class_shares_outstanding: number  14594180000
+  weighted_shares_outstanding: number  14594180000
+  round_lot: number  40
+status: string  "OK"
+```
+
+### `GET /v3/reference/options/contracts?underlying_ticker=SPY&contract_type=call&strike_price=700&sort=expiration_date&order=asc&limit=1000` — 200
+```
+results: array[32]
+  cfi: string  "OCASPS"
+  contract_type: string  "call"
+  exercise_style: string  "american"
+  expiration_date: string  "2026-10-12"
+  primary_exchange: string  "BATO"
+  shares_per_contract: number  100
+  strike_price: number  700
+  ticker: string  "O:SPY261012C00700000"
+  underlying_ticker: string  "SPY"
+status: string  "OK"
+request_id: string
+```
+

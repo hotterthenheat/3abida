@@ -37,7 +37,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown, Check, ChevronDown, CreditCard, Download, FileText, Info, Keyboard, LayoutDashboard, LogOut, Mail, Megaphone, MonitorSmartphone, Palette, Plug, Settings as SettingsIcon, Trash2, Upload, UserPlus, UserRound, Volume2, type LucideIcon } from 'lucide-react';
+import { ArrowDown, Cable, Check, ChevronDown, CreditCard, Download, FileText, Info, Keyboard, LayoutDashboard, LogOut, Mail, Megaphone, MonitorSmartphone, Palette, Plug, Settings as SettingsIcon, Trash2, Upload, UserPlus, UserRound, Volume2, type LucideIcon } from 'lucide-react';
 import * as Switch from '@radix-ui/react-switch';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import Modal from '../../components/ui/Modal';
@@ -60,6 +60,10 @@ import { downloadReceipt } from './receipt';
 import Wordmark from '../../brand/Wordmark';
 import { COMPANY } from '../../data/company';
 import { VERSION as RELEASE } from '../../data/release';
+import { PROVIDER_INFO } from '../../data/feed/providers';
+import { ROOM_FEEDS, roomsReading } from '../../data/feed/rooms';
+import { probeFeeds, useFeedStatus, type ProviderState, type ProviderStatus } from '../../data/feed/status';
+import type { FeedProvider } from '../../data/feed/client';
 
 /* ---- the sections ------------------------------------------------------------- */
 
@@ -71,9 +75,9 @@ import { VERSION as RELEASE } from '../../data/release';
    is the most important, so those should be first"): the reader's own things
    — the account, the plan, the data — then how the terminal looks and works,
    then About. */
-export type SettingsSection = 'account' | 'billing' | 'data' | 'appearance' | 'desk' | 'sounds' | 'invite' | 'mail' | 'keyboard' | 'about';
+export type SettingsSection = 'account' | 'billing' | 'data' | 'sources' | 'appearance' | 'desk' | 'sounds' | 'invite' | 'mail' | 'keyboard' | 'about';
 /* "Sounds, invites, mail." (Slayer Logo System, Web and App · Settings, 2026-10-01): three subpages after the desk */
-export const SETTINGS_SECTIONS: SettingsSection[] = ['account', 'billing', 'data', 'appearance', 'desk', 'sounds', 'invite', 'mail', 'keyboard', 'about'];
+export const SETTINGS_SECTIONS: SettingsSection[] = ['account', 'billing', 'data', 'sources', 'appearance', 'desk', 'sounds', 'invite', 'mail', 'keyboard', 'about'];
 const isSection = (v: string | undefined): v is SettingsSection => (SETTINGS_SECTIONS as string[]).includes(v ?? '');
 const HOME_SECTION: SettingsSection = 'account';
 
@@ -81,6 +85,7 @@ const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; soon?: b
   { id: 'account', label: 'Account', icon: UserRound },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'data', label: 'Data', icon: Plug },
+  { id: 'sources', label: 'Data sources', icon: Cable },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'desk', label: 'The desk', icon: LayoutDashboard },
   { id: 'sounds', label: 'Sounds', icon: Volume2 },
@@ -953,6 +958,105 @@ const DataBox = () => {
   );
 };
 
+/* ---- DATA SOURCES (2026-10-12) ------------------------------------------------
+   The two vendors behind the terminal, as the proxy finds them (data/feed/status.ts,
+   server/feed.ts): whether each answers, what the plan carries and leaves out, and the
+   rooms that read it once connected. NEVER A KEY, nor a piece of one — the page knows
+   only whether the server holds one. */
+
+const SOURCE_WORDS: Record<ProviderState, (s: ProviderStatus) => [string, string]> = {
+  unknown: () => ['Checking', 'Asking the terminal’s server'],
+  ok: () => ['Connected', 'The key works — the server answered through it just now'],
+  'no-key': () => ['No key', 'The server holds no key for it yet'],
+  'key-refused': s => ['Key refused', `The vendor refused the key (${s.status || 401}) — check it was copied whole`],
+  plan: s => ['Not on the plan', `The vendor answered ${s.status || 403}: the plan or the key does not reach this`],
+  network: () => ['Unreachable', 'The network refused the host — the key was never tried'],
+  timeout: () => ['No answer', 'The host did not answer in time'],
+  rate: s => ['Asked to wait', `Too many calls (${s.status || 429}) — the server queues them; check again in a minute`],
+  upstream: s => ['Vendor error', `The vendor answered ${s.status || 'with an error'}`],
+  absent: () => ['No server', 'This page was opened without the terminal’s own server, which holds the keys — open it with npm run dev'],
+};
+
+const SourceBlock = ({ p }: { p: FeedProvider }) => {
+  const status = useFeedStatus()[p];
+  const info = PROVIDER_INFO[p];
+  const [word, line] = SOURCE_WORDS[status.state](status);
+  const rooms = roomsReading(p);
+  return (
+    <>
+      <Row name={info.name} line={`${info.plan} · ${line}`} testId={`source-${p}`}>
+        <span data-source-state={status.state}>
+          <Tag tone={status.state === 'ok' ? 'silver' : 'plain'}>{word}</Tag>
+        </span>
+      </Row>
+      <div className="px-5 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2" data-settings-row={`source-${p}-plan`}>
+        <div className="min-w-0">
+          <div className="text-[11px] text-textMuted">Carries</div>
+          <ul className="mt-1 space-y-0.5">
+            {info.carries.map(c => (
+              <li key={c} className="text-[12px] text-textSecondary">{c}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-textMuted">Leaves out</div>
+          <ul className="mt-1 space-y-0.5">
+            {info.leavesOut.map(c => (
+              <li key={c} className="text-[12px] text-textSecondary">{c}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="min-w-0 sm:col-span-2">
+          <div className="text-[11px] text-textMuted">Read by, once connected</div>
+          <div className="mt-1 text-[12px] text-textSecondary">
+            {rooms.map((r, i) => {
+              const other = ROOM_FEEDS[r].needs.filter(n => n !== p).map(n => PROVIDER_INFO[n].name);
+              return (
+                <span key={r}>
+                  {i > 0 && ', '}
+                  <span className="text-textPrimary">{ROOM_FEEDS[r].name}</span>
+                  {other.length > 0 && <span className="text-textMuted"> (with {other.join(' and ')})</span>}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const Code = ({ children }: { children: ReactNode }) => <code className="font-code text-[11px] text-textPrimary">{children}</code>;
+
+const SourcesBox = () => {
+  /* ask again whenever the section opens */
+  useEffect(() => {
+    void probeFeeds();
+  }, []);
+  return (
+    <Section
+      id="sources"
+      title="Data sources"
+      line="The two vendors behind the market data — whether each answers, what its plan carries, and the rooms that read it"
+      aside={
+        <Door onClick={() => probeFeeds()} title="Ask each vendor again through the terminal's server" testId="sources-check">
+          Check again
+        </Door>
+      }
+    >
+      <SourceBlock p="uw" />
+      <SourceBlock p="massive" />
+      <Row name="All or nothing, a room at a time" line="A room reads the vendors only when every one it needs is connected — never one vendor's figures beside the terminal's own on one screen" testId="sources-rooms" />
+      <div className="px-5 py-3 border-t border-borderSubtle/60" data-settings-row="sources-connect">
+        <div className="text-[12px] text-textPrimary">To connect</div>
+        <p className="mt-0.5 text-[11px] text-textMuted">
+          Add <Code>UW_API_TOKEN</Code> and <Code>MASSIVE_API_KEY</Code> to the <Code>.env</Code> at the repo root, then restart <Code>npm run dev</Code>. <Code>npm run feed:check</Code> says whether they work. The keys stay on this machine’s server: the page never sees them.
+        </p>
+      </div>
+    </Section>
+  );
+};
+
 /** The house switch — the one every on/off row wears */
 const Toggle = ({ on, onChange, label, testId }: { on: boolean; onChange: (v: boolean) => void; label: string; testId: string }) => (
   <Switch.Root
@@ -1206,7 +1310,7 @@ const Settings = () => {
                 aria-current={on ? 'page' : undefined}
                 className={`hit flex items-center gap-2 px-2.5 h-8 rounded-md text-[12px] transition-colors text-left ${
                   on ? 'bg-ink/[0.05] text-textPrimary' : s.soon ? 'text-textMuted hover:text-textSecondary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.03]'
-                } ${i === 3 || i === 6 || i === 8 ? 'xl:mt-2' : ''}`}
+                } ${i === 4 || i === 7 || i === 9 ? 'xl:mt-2' : ''}`}
                 data-settings-nav={s.id}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
@@ -1312,6 +1416,7 @@ const Settings = () => {
           {current === 'account' && <AccountBox />}
           {current === 'billing' && <BillingBox />}
           {current === 'data' && <DataBox />}
+          {current === 'sources' && <SourcesBox />}
           {current === 'about' && <AboutBox />}
           </motion.div>
         </AnimatePresence>

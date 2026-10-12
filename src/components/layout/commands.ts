@@ -106,6 +106,7 @@ export const SETTINGS_COMMANDS: { id: string; label: string; code: string; path:
   { id: 'account', label: 'Account', code: 'ACCT', words: ['account', 'profile', 'name', 'email', 'sign out'], hint: 'Your picture, name, handle and where you sign in' },
   { id: 'billing', label: 'Billing', code: 'BILL', words: ['billing', 'plan', 'invoices', 'card', 'payment', 'receipt'], hint: 'Your plan, the card, the receipts' },
   { id: 'data', label: 'Data', code: 'DATA', words: ['data', 'export', 'import', 'clear', 'storage'], hint: 'What is kept on this machine — export, import, clear' },
+  { id: 'sources', label: 'Data sources', code: 'FEED', words: ['data sources', 'sources', 'feed', 'api', 'keys', 'unusual whales', 'massive', 'polygon', 'connect'], hint: 'The two vendors, whether each answers, and the rooms that read them' },
   { id: 'appearance', label: 'Appearance', code: 'LOOK', words: ['appearance', 'theme', 'dark', 'light', 'candles', 'colour', 'color', 'colour vision', 'colorblind'], hint: 'Theme, candles, the direction colours' },
   { id: 'desk', label: 'The desk', code: 'DESK', words: ['desk', 'ruler', 'clock', 'opens on', 'timeframe', 'session strip', 'notifications'], hint: 'The ruler, what a desk opens on, the clock, the session strip' },
   { id: 'sounds', label: 'Sounds', code: 'SND', words: ['sounds', 'sound', 'chime', 'speak', 'spoken', 'voice'], hint: 'The four tones, and alerts said aloud' },
