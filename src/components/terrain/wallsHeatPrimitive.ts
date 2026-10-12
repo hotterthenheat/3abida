@@ -41,6 +41,11 @@ import { HEAT_MODE, heatRampColorFor } from '../gex/heatmap';
 import type { GexSnapshot } from '../../types/market';
 
 export type WallsLens = 'gex' | 'dex' | 'charm';
+/** A host's own book through the day: the snapshots in time order, and today's charm and gamma at each strike */
+export interface WallsSource {
+  hist: readonly GexSnapshot[];
+  charm: ReadonlyMap<number, { charm: number; gamma: number }>;
+}
 export const WALLS_LENSES: { value: WallsLens; label: string; hint: string }[] = [
   { value: 'gex', label: 'GEX', hint: "Dealer gamma at each strike through the day — where hedging amplifies or absorbs a move" },
   { value: 'charm', label: 'Charm', hint: "How each strike's dealer delta drifts with time alone — the hedging the clock forces" },
@@ -98,6 +103,9 @@ export class WallsHeatPrimitive implements IPanePrimitive<Time> {
   lens: WallsLens = 'gex';
   paper = false;
   enabled = false;
+  /** THE HOST'S BOOK THROUGH THE DAY (Terrain on the feed, 2026-10-12): the books this terminal read today, and charm's
+      template off the newest book — null reads the simulator's history, as before */
+  source: WallsSource | null = null;
   /** How long the last full paint took, ms — for measuring */
   lastPaintMs = 0;
   onPaint?: (ms: number) => void;
@@ -118,7 +126,7 @@ export class WallsHeatPrimitive implements IPanePrimitive<Time> {
   paneViews(): readonly IPanePrimitivePaneView[] {
     return this.views;
   }
-  set(patch: Partial<Pick<WallsHeatPrimitive, 'ticker' | 'lens' | 'paper' | 'enabled'>>): void {
+  set(patch: Partial<Pick<WallsHeatPrimitive, 'ticker' | 'lens' | 'paper' | 'enabled' | 'source'>>): void {
     let changed = false;
     for (const [k, v] of Object.entries(patch) as [keyof typeof patch, never][]) {
       if (this[k] !== v) {
@@ -142,7 +150,7 @@ export class WallsHeatPrimitive implements IPanePrimitive<Time> {
     const t1 = Number(data[1].time);
     /* intraday tapes only — a daily bar has no minutes to show */
     if (!(t1 - t0 > 0 && t1 - t0 < 86_400)) return;
-    const hist = Simulator.getGexHistory(this.ticker);
+    const hist = this.source ? this.source.hist : Simulator.getGexHistory(this.ticker);
     if (!hist || !hist.length) return;
     const ts = this.chart.timeScale();
     const range = ts.getVisibleLogicalRange();
@@ -159,7 +167,7 @@ export class WallsHeatPrimitive implements IPanePrimitive<Time> {
     target.useBitmapCoordinateSpace(scope => {
       const { context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr } = scope;
       const last = hist[hist.length - 1];
-      const key = [bitmapSize.width, bitmapSize.height, from, to, spacing.toFixed(3), ts.logicalToCoordinate(from as Logical)?.toFixed(1), y0.toFixed(2), (y1 - y0).toFixed(3), last.time, last.levels.length, this.lens, this.paper, this.ticker].join('|');
+      const key = [bitmapSize.width, bitmapSize.height, from, to, spacing.toFixed(3), ts.logicalToCoordinate(from as Logical)?.toFixed(1), y0.toFixed(2), (y1 - y0).toFixed(3), last.time, last.levels.length, this.lens, this.paper, this.ticker, this.source ? 'host' : 'house'].join('|');
       if (this.cache?.key !== key) {
         const started = performance.now();
         const canvas = this.cache?.canvas ?? document.createElement('canvas');
@@ -170,14 +178,17 @@ export class WallsHeatPrimitive implements IPanePrimitive<Time> {
         c.clearRect(0, 0, canvas.width, canvas.height);
 
         /* charm's template: today's charm and gamma at every strike */
-        let charmBy: Map<number, { charm: number; gamma: number }> | null = null;
+        let charmBy: ReadonlyMap<number, { charm: number; gamma: number }> | null = null;
         if (this.lens === 'charm') {
-          charmBy = new Map();
-          try {
-            for (const n of Simulator.snapshotFor(this.ticker).chain) charmBy.set(n.strike, { charm: n.netCharm, gamma: n.netGex });
-          } catch {
-            charmBy = null;
-          }
+          if (this.source) charmBy = this.source.charm;
+          else
+            try {
+              const m = new Map<number, { charm: number; gamma: number }>();
+              for (const n of Simulator.snapshotFor(this.ticker).chain) m.set(n.strike, { charm: n.netCharm, gamma: n.netGex });
+              charmBy = m;
+            } catch {
+              charmBy = null;
+            }
         }
         const valueOf = (l: GexSnapshot['levels'][number]): number => {
           if (this.lens === 'gex') return l.value;

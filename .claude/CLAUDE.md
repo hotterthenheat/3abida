@@ -654,8 +654,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   levels held, where they head) is not drawn on the feed: each page names it in one quiet line ("not in the feed"); a
   field no answer carries is "—" (open interest by date, the flip minute by minute, vega). A failed poll keeps the last
   good answer — never a flash back to the house's book. An index has no day state and no bars on this plan (422):
-  never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane says its bars are not in the feed.
+  never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane keeps its chart and every control
+  and says in the chart's place that its bars are not on these plans, the ladder on the book's own scale.
   Pulse is not wired: its Pinpoint panels read the house's book. A pop-out probes the feed itself (PopOutFrame).
+  TERRAIN IS THE HOUSE'S PANE, FILLED (2026-10-12; docs/data-feed.md "Terrain: the house's pane, filled"): with the keys
+  in a pane draws every timeframe, overlay, compare, lane and switch it draws with them out. UW's minutes over Massive's
+  five weeks before them; 1D and 1W off UW's day bars over Massive's two years; range and volume bars folded from the
+  minutes; the flow band, net drift and the events lane's prints off the name's prints of $25K and up; dark pool its
+  three largest crosses of the session; events its next report off UW's record; the walls through the day and the
+  open's ghost off the books read today; the Vol switch and compares off the minutes. Massive is asked only while it is
+  up and only for what a pane draws. 15 s stays, held, its title saying no plan carries seconds.
   TERRAIN'S TRAIL ON THE FEED (2026-10-12 — the owner: "why does terrain exposure trails not work"): UW has no route for
   the book by strike earlier in the day (/spot-exposures/strike takes a date, never a time), so the field is the books
   this terminal read today — kept on this machine (IndexedDB slayer_field, a record a name a day, earlier days dropped,

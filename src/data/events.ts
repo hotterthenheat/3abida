@@ -128,13 +128,17 @@ export function tradingDaysSigned(fromIso: string, toIso: string): number {
   return fromIso <= toIso ? n : -n;
 }
 
+/** What the lane reads of a report — the house's calendar row, or the feed's (data/feed/levels.ts useFeedEarnings: a
+    figure the record lacks is NaN, printed "—") */
+export type TapeEarnings = Pick<EarningsEvent, 'ticker' | 'slot' | 'confirmed' | 'impliedMovePct' | 'histAvgMovePct' | 'daysOut'>;
+
 export interface TapeEventsInput {
   /** 1-minute base bars, oldest first. */
   bars: readonly Candle[];
   /** The session's option prints, stamped with their bar time. */
   prints: readonly (FlowPrint & { at: number })[];
   /** This name's next report, or null. */
-  earnings: EarningsEvent | null;
+  earnings: TapeEarnings | null;
   macro: readonly MacroDate[];
   /** Real calendar "today", ISO — injected, so the engine reads no clock. */
   todayIso: string;
@@ -144,6 +148,8 @@ export interface TapeEventsInput {
  * Every marker the tape carries, past ones first (by time), future ones after
  * (by minutes ahead).
  */
+const pctOrDash = (v: number): string => (Number.isFinite(v) ? `±${v.toFixed(1)}%` : '—');
+
 export function buildTapeEvents(input: TapeEventsInput): MarketEvent[] {
   const { bars, prints, earnings, macro, todayIso } = input;
   if (bars.length === 0) return [];
@@ -179,7 +185,7 @@ export function buildTapeEvents(input: TapeEventsInput): MarketEvent[] {
       {
         kind: 'earnings',
         label: `${earnings.ticker} earnings · ${earnings.slot}`,
-        detail: `${earnings.confirmed ? 'confirmed' : 'estimated'} · options price ±${earnings.impliedMovePct.toFixed(1)}% vs ±${earnings.histAvgMovePct.toFixed(1)}% typical`,
+        detail: `${earnings.confirmed ? 'confirmed' : 'estimated'} · options price ${pctOrDash(earnings.impliedMovePct)} vs ${pctOrDash(earnings.histAvgMovePct)} typical`,
       },
       earnings.daysOut,
       m
@@ -191,15 +197,18 @@ export function buildTapeEvents(input: TapeEventsInput): MarketEvent[] {
     place({ kind: 'macro', label: ev.label, detail: ev.detail }, k, 0);
   }
 
+  /* A print's instant is epoch MILLISECONDS (the tape stamps Date.now(), the feed its execution time); the bars are
+     epoch seconds. Compared in ms the window never held a print — the lane drew none. */
+  const secOf = (at: number) => (at > 1e11 ? Math.floor(at / 1000) : at);
   const big = prints
-    .filter(p => p.premium >= PRINT_PREMIUM_FLOOR && p.at >= bars[0].time && p.at <= last.time)
+    .filter(p => p.premium >= PRINT_PREMIUM_FLOOR && secOf(p.at) >= bars[0].time && secOf(p.at) <= last.time)
     .sort((a, b) => b.premium - a.premium)
     .slice(0, PRINT_CAP);
   for (const p of big) {
     past.push({
       kind: 'print',
       side: p.right,
-      time: p.at,
+      time: secOf(p.at),
       label: `$${(p.premium / 1e6).toFixed(1)}M ${p.right === 'C' ? 'call' : 'put'} print`,
       detail: `${p.size.toLocaleString()}× ${p.strike} ${p.right} · ${p.dte}dte · ${p.side} side`,
     });

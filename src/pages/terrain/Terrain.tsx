@@ -62,11 +62,16 @@ import { openPopOut } from '../../components/layout/deskChannel';
 import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
 import {
   feedFreshness,
+  feedOpenRatio,
+  isCashIndex,
   listedDates,
   useFeedBars,
   useFeedBook,
   useFeedByExpiry,
+  useFeedDaily,
+  useFeedDarkLevels,
   useFeedDayState,
+  useFeedEarnings,
   useFeedField,
   useFeedMaxPain,
   useFeedMoves,
@@ -76,6 +81,9 @@ import {
   type FeedOi,
   type FeedStrike,
 } from '../../data/feed/levels';
+import { useFeedNamePrints } from '../../data/feed/trace';
+import type { WallsSource } from '../../components/terrain/wallsHeatPrimitive';
+import type { Candle } from '../../types/market';
 
 /*
 ==================================================
@@ -342,19 +350,34 @@ function railForCut(ticker: string, cut: RailCut): RailData {
 
 /* ---- TERRAIN ON THE FEED (2026-10-12) ---------------------------------------------------------------------------
    With the room reading Unusual Whales (rooms.ts terrainSource) a pane reads the vendor's book for its name — the
-   whole book or one listed date — and UW's minute bars, and nothing of the house's: the ladder, the walls on the
-   chart, the field and the candles are one market. Massive is not asked: its minute bars stop at the session before,
-   which UW's reach, and it refuses an index. An index has no price bars on UW's plan either (a CBOE grant), so its
-   pane says so in place of the chart. */
+   whole book or one listed date — and the real bars, and nothing of the house's: the ladder, the walls on the chart,
+   the field and the candles are one market.
+   THE SAME PANE, FILLED (the owner, 2026-10-12: "but i build the UI that the real data goes into"): every timeframe,
+   overlay, compare, lane and switch the house's pane carries is here, read off the real inputs — UW's minutes (four
+   sessions) over Massive's five weeks before them; UW's day bars over Massive's two years (1D, 1W); range and volume
+   bars folded from the minutes; the name's prints of $25K and up (the flow band, the net drift, the events lane's
+   prints); its three largest dark crosses of the session; its next report off UW's record; the walls through the day
+   and the open's ghost off the books this terminal read today; the Vol switch on the minutes; the alerts as the
+   house's pane arms them. No plan carries seconds: 15 s stays, held, its title saying so. An index has no price bars
+   on UW's plan (a CBOE grant) nor on Massive's: its chart says so in its own place and the ladder stands on the book. */
 
-/** The timeframes a pane on the feed can draw — UW's one-minute bars reach about four sessions back: no seconds, and
-    too few days for a daily or a weekly */
-const FEED_TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h'];
-const feedTimeframe = (tf: Timeframe): Timeframe => (FEED_TIMEFRAMES.includes(tf) ? tf : tf === '15s' ? '1m' : '1h');
-/** The overlays a pane on the feed can draw: what reads the bars and the book. Dark pool, the option tape, the drifts,
-    the events, the alerts' lines and the walls through the day read the house's own market — not offered here. */
-const FEED_OVERLAYS: (keyof ChartOverlays)[] = ['trails', 'levels', 'volume', 'session', 'cone', 'phases'];
-const feedOverlaysOf = (o: ChartOverlays): ChartOverlays => ({ ...o, darkpool: false, flow: false, netDrift: false, volDrift: false, events: false, alerts: false, walls: false });
+/** The timeframes a pane on the feed holds, and why — the one control the rule lets stand disabled */
+const FEED_HELD: Partial<Record<Timeframe, string>> = {
+  '15s': 'No seconds on these plans — Unusual Whales and Massive answer bars of a minute and up',
+};
+const EMPTY_BARS: Candle[] = [];
+const lastClose = (bars: readonly Candle[] | undefined): number => (bars && bars.length ? bars[bars.length - 1].close : NaN);
+/** A price scale for a pane with no bars (an index on the feed): the book's strikes round the price, top to bottom of
+    the box, so the ladder still stands on rows */
+const bookProjection = (box: HTMLElement | null, lo: number, hi: number): PriceProjection => ({
+  yFor: price => {
+    const h = box?.clientHeight ?? 0;
+    if (!(h > 0) || !(hi > lo)) return null;
+    return ((hi - price) / (hi - lo)) * (h - 28);
+  },
+  plotHeight: () => Math.max(0, (box?.clientHeight ?? 0) - 28),
+  axisHeight: () => 28,
+});
 const MS_DAY = 86_400_000;
 const calDaysTo = (iso: string): number => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -1113,8 +1136,35 @@ const Pane = ({
   const offHouse = terrainSrc !== 'stand-in';
   const fBook = useFeedBook(onFeed, ticker).book;
   const fOi = useFeedOi(onFeed, ticker).today;
-  const fBars = useFeedBars(onFeed, ticker);
+  const fBars = useFeedBars(onFeed, ticker, { history: true });
   const fField = useFeedField(ticker);
+  /* 1D and 1W read the day bars — asked only while the pane draws them */
+  const wantsDaily = timeframe === '1D' || timeframe === '1W';
+  const fDaily = useFeedDaily(onFeed && wantsDaily, ticker);
+  const fDark = useFeedDarkLevels(onFeed && !!overlays.darkpool, ticker);
+  const fEarnings = useFeedEarnings(onFeed && !!overlays.events, ticker);
+  /* the name's prints: the flow band, the net drift and the events lane's prints */
+  const fPrints = useFeedNamePrints(onFeed && !!(overlays.flow || overlays.netDrift || overlays.events), isCashIndex(ticker) ? null : ticker);
+  /* COMPARES ON THE FEED: each crossed name's minutes (and days for 1D and 1W) — four slots, the inks' count */
+  const c0 = compares[0]?.ticker ?? '';
+  const c1 = compares[1]?.ticker ?? '';
+  const c2 = compares[2]?.ticker ?? '';
+  const c3 = compares[3]?.ticker ?? '';
+  const cb0 = useFeedBars(onFeed && !!c0, c0).bars;
+  const cb1 = useFeedBars(onFeed && !!c1, c1).bars;
+  const cb2 = useFeedBars(onFeed && !!c2, c2).bars;
+  const cb3 = useFeedBars(onFeed && !!c3, c3).bars;
+  const cd0 = useFeedDaily(onFeed && wantsDaily && !!c0, c0, { massive: false });
+  const cd1 = useFeedDaily(onFeed && wantsDaily && !!c1, c1, { massive: false });
+  const cd2 = useFeedDaily(onFeed && wantsDaily && !!c2, c2, { massive: false });
+  const cd3 = useFeedDaily(onFeed && wantsDaily && !!c3, c3, { massive: false });
+  const compareBars = useMemo(() => {
+    if (!onFeed) return undefined;
+    const out: Record<string, { bars: Candle[]; daily?: Candle[] | null }> = {};
+    const slots: [string, Candle[] | null, Candle[] | null][] = [[c0, cb0, cd0], [c1, cb1, cd1], [c2, cb2, cd2], [c3, cb3, cd3]];
+    for (const [t, b, d] of slots) if (t) out[t] = { bars: b ?? EMPTY_BARS, daily: d };
+    return out;
+  }, [onFeed, c0, c1, c2, c3, cb0, cb1, cb2, cb3, cd0, cd1, cd2, cd3]);
   const fDay = useFeedDayState(onFeed, ticker);
   const fMoves = useFeedMoves(onFeed, ticker);
   const fDates = useFeedMaxPain(onFeed, ticker);
@@ -1141,23 +1191,45 @@ const Pane = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ticker, revision, offHouse, fDay]
   );
-  // Deterministic per ticker, so the dark-pool lines do not wander on a tick
-  const prints = useMemo(
+  // Deterministic per ticker, so the dark-pool lines do not wander on a tick — on the feed, the session's three largest crosses
+  const housePrints = useMemo(
     () => (offHouse ? [] : buildPrints(ticker, levels.spot)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ticker, offHouse]
   );
+  const prints = offHouse ? fDark : housePrints;
   /* ON THE FEED the chart draws UW's minute bars as its tape, the books this terminal read today as its field, and the
      30-day implied vol as the name's vol (data/feed/levels.ts) */
   const feedIv = fMoves?.find(m => m.days === 30)?.volatility ?? null;
   const feedTape = useMemo(
-    () => (onFeed && fBars.bars ? { bars: fBars.bars, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField } : undefined),
-    [onFeed, fBars.bars, feedIv, ticker, fField]
+    () =>
+      onFeed && fBars.bars
+        ? { bars: fBars.bars, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, daily: fDaily ?? undefined, compareBars, earnings: fEarnings }
+        : undefined,
+    [onFeed, fBars.bars, feedIv, ticker, fField, fDaily, compareBars, fEarnings]
   );
   const feedRevision = useMemo(() => (feedRev += 1), [feedTape]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tf = offHouse ? feedTimeframe(timeframe) : timeframe;
-  const paneOverlays = offHouse ? feedOverlaysOf(overlays) : overlays;
-  const paneCompares = offHouse ? [] : compares;
+  /* no plan carries seconds: a pane kept on 15 s draws the minute until the reader picks again */
+  const tf = offHouse && timeframe === '15s' ? '1m' : timeframe;
+  const paneOverlays = overlays;
+  const paneCompares = compares;
+  /* the name's prints on the feed, as the chart's flow tape */
+  const paneFlow = offHouse ? fPrints ?? EMPTY_FLOW : flowTape;
+  /* AN INDEX ON THE FEED has its book but no bars on these plans — the chart says so in its place, and the ladder stands
+     on the book's own rows (bookProjection) */
+  const noBars = onFeed && isCashIndex(ticker);
+  const indexTape = useMemo(
+    () => (noBars ? { bars: EMPTY_BARS, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, earnings: null } : undefined),
+    [noBars, feedIv, ticker, fField]
+  );
+  const chartTape = noBars ? indexTape : feedTape;
+  /* the walls through the day on the feed: the books this terminal read today, charm's template off the newest book */
+  const wallsSource = useMemo<WallsSource | null>(() => {
+    if (!onFeed) return null;
+    const charm = new Map<number, { charm: number; gamma: number }>();
+    for (const r of fBook?.rows ?? []) charm.set(r.strike, { charm: r.charm.net, gamma: r.gex.net });
+    return { hist: fField, charm };
+  }, [onFeed, fField, fBook]);
   /* The rail's rows come off the SAME snapshot `levels` was reduced from. The
      header's three-strike read uses them too, so the line and the column can
      never name different strikes. Read even when the rail is hidden, because
@@ -1177,7 +1249,7 @@ const Pane = ({
     pane at 1024 with three neighbours never renders the result.
   */
   const confluence = useMemo(
-    () => (mtfForm === 'none' ? [] : offHouse ? buildConfluence(fBars.bars ?? []).filter(r => FEED_TIMEFRAMES.includes(r.tf)) : buildConfluence(Simulator.getCandles(ticker) ?? [])),
+    () => (mtfForm === 'none' ? [] : offHouse ? buildConfluence(fBars.bars ?? []) : buildConfluence(Simulator.getCandles(ticker) ?? [])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ticker, revision, mtfForm === 'none', offHouse, fBars.bars]
   );
@@ -1195,6 +1267,18 @@ const Pane = ({
      disagree. A ref, so it never re-renders anything: the rail reads it inside
      its own frame loop. */
   const projectionRef = useRef<PriceProjection | null>(null);
+  /* an index on the feed: no chart to place prices, so the ladder's rows stand on the book's own scale round the price */
+  const noBarsBoxRef = useRef<HTMLDivElement | null>(null);
+  const noBarsChartProjection = useRef<PriceProjection | null>(null);
+  const coreLo = rail.core.length ? Math.min(...rail.core.map(r => r.strike)) - rail.step : NaN;
+  const coreHi = rail.core.length ? Math.max(...rail.core.map(r => r.strike)) + rail.step : NaN;
+  useEffect(() => {
+    if (!noBars) return;
+    projectionRef.current = bookProjection(noBarsBoxRef.current, coreLo, coreHi);
+    return () => {
+      projectionRef.current = null;
+    };
+  }, [noBars, coreLo, coreHi]);
   /** T-23 — the pane's PNG exporter, filled by the chart. */
   const exportPngRef = useRef<(() => void) | null>(null);
 
@@ -1221,9 +1305,9 @@ const Pane = ({
      now for the spine's ghost — the size lane draws the strike ladder's rows */
   const legs = railData.legs;
   const openRatio = useMemo(
-    () => (offHouse ? null : netSinceOpenRatio(ticker)),
+    () => (offHouse ? feedOpenRatio(fField) : netSinceOpenRatio(ticker)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ticker, revision, offHouse]
+    [ticker, revision, offHouse, fField]
   );
   /* The panel's "How to read", as a focus over this pane — the Map's own card */
   const [guideOpen, setGuideOpen] = useState(false);
@@ -1377,7 +1461,7 @@ const Pane = ({
         )}
         {/* TradingView's "+" beside the symbol capsule — cross another
             symbol onto this tape. Fullscreen always has room for it. */}
-        {(showCompareAdd || expanded) && !offHouse && (
+        {(showCompareAdd || expanded) && (
           <CompareControl
             current={ticker}
             compares={compares}
@@ -1400,11 +1484,11 @@ const Pane = ({
       dense={!expanded}
       menuBounds={paneBoxRef}
       spread={spread}
-      /* the alerts watch the house's price — not offered on a pane that reads the feed */
-      alertTicker={offHouse ? undefined : ticker}
+      alertTicker={ticker}
       alertSpot={levels.spot}
       timeframe={tf}
-      timeframes={offHouse ? FEED_TIMEFRAMES : undefined}
+      /* on the feed 15 s stands held — no plan carries seconds */
+      heldTimeframes={offHouse ? FEED_HELD : undefined}
       onTimeframe={next => onCfg({ timeframe: next })}
       overlays={overlays}
       onOverlays={o => onCfg({ overlays: o })}
@@ -1412,7 +1496,7 @@ const Pane = ({
          chart only (no Terrain surface mounts it — his tree included), and a
          switch that cannot turn anything on is a lie in a menu. Inherited
          dead toggle, caught 2026-08-28. */
-      overlayKeys={offHouse ? FEED_OVERLAYS.filter(k => k !== 'cone' || feedIv != null) : ['trails', 'levels', 'darkpool', 'volume', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'alerts', 'walls', 'phases']}
+      overlayKeys={['trails', 'levels', 'darkpool', 'volume', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'alerts', 'walls', 'phases']}
       indicators={indicators}
       onIndicators={i => onCfg({ indicators: i })}
       paneId={`terrain:${index + 1}`}
@@ -1421,9 +1505,9 @@ const Pane = ({
       onChartStyle={st => onCfg({ chartStyle: st })}
       themeKey={theme}
       onThemeKey={t => onCfg({ theme: t })}
-      /* range and volume bars fold the house's live seconds — the feed's pane keeps the clock */
-      barClock={offHouse ? undefined : clock}
-      onBarClock={offHouse ? undefined : k => onCfg({ clock: k })}
+      /* range and volume bars: the house's live seconds, or on the feed the minutes, folded by rule */
+      barClock={clock}
+      onBarClock={k => onCfg({ clock: k })}
       priceScale={priceScale}
       onPriceScale={ps => onCfg({ priceScale: ps })}
       priceScaleLock={scaleLock}
@@ -1557,12 +1641,21 @@ const Pane = ({
                 a frame after the last behind its skeleton, so a four-pane desk
                 opens on its next frame instead of building four charts in the
                 click. */}
-            {offHouse && !feedTape ? (
-              /* THE FEED'S PANE BEFORE ITS BARS — or a name whose bars UW does not give (an index needs a CBOE grant) */
+            {noBars && (
+              /* AN INDEX ON THE FEED: its book, no bars on these plans — said in the chart's own place (the chart and its
+                 tools stand under it, empty), the ladder beside it standing on the book's rows */
+              <div ref={noBarsBoxRef} className="absolute inset-0 z-10 pointer-events-none flex items-start justify-center pt-24 pl-14 pr-6 text-center" data-no-bars>
+                <p className="max-w-[360px] rounded bg-canvas/70 px-2 py-1 text-[12px] text-textMuted">
+                  {ticker}'s price bars are not available on these plans — Unusual Whales and Massive ask an index grant for them. The ladder reads its book.
+                </p>
+              </div>
+            )}
+            {offHouse && !chartTape ? (
+              /* THE FEED'S PANE BEFORE ITS BARS */
               <div className="h-full flex items-center justify-center px-6 text-center" data-feed-chart-wait>
                 {onFeed && fBars.failed && fBars.failed !== 'rate' ? (
-                  <p className="max-w-[360px] text-[12px] text-textMuted" title="not in the feed">
-                    {ticker}'s price bars · not in the feed{fBars.failed === 'upstream' || fBars.failed === 'plan' ? ' — Unusual Whales gives no bars for this name on this plan' : ''}. Its levels are on Pinpoint.
+                  <p className="max-w-[360px] text-[12px] text-textMuted" title="Waiting on the next answer">
+                    {ticker}'s price bars did not come back{fBars.failed === 'upstream' || fBars.failed === 'plan' ? ' — Unusual Whales gives no bars for this name on this plan' : ' — asked again shortly'}.
                   </p>
                 ) : (
                   <ChartSkeleton className="h-full w-full" />
@@ -1576,17 +1669,17 @@ const Pane = ({
               revision={offHouse ? feedRevision : revision}
               levels={levels}
               timeframe={tf}
-              flowPrints={offHouse ? EMPTY_FLOW : flowTape}
+              flowPrints={paneFlow}
               height={tall ? 260 : 200}
               overlays={paneOverlays}
               indicators={indicators}
               chartStyle={chartStyle}
               themeKey={theme}
-              barClock={offHouse ? 'time' : clock}
+              barClock={clock}
               prints={prints}
               compares={paneCompares}
-              /* ON THE FEED: UW's minute bars and the books read today (data/feed/levels.ts) */
-              tape={feedTape}
+              /* ON THE FEED: the real bars and the books read today (data/feed/levels.ts); an index's tape has no bars */
+              tape={chartTape}
               priceScale={priceScale}
               sessionOr={sessionOr}
               drawing={drawing}
@@ -1604,7 +1697,8 @@ const Pane = ({
               onCrosshair={onCrosshair}
               syncRegister={registerSync}
               onReadout={setReadout}
-              projectionRef={projectionRef}
+              /* an index on the feed: the ladder stands on the book's scale, not this empty chart's */
+              projectionRef={noBars ? noBarsChartProjection : projectionRef}
               exportRef={exportPngRef}
               pageScroll={belowLg}
               /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
@@ -1614,7 +1708,7 @@ const Pane = ({
               frameless
               /* WALLS THROUGH THE DAY and THE SESSION'S PHASES (the ideas report, 2026-10-09) — drawn behind the candles
                  through the chart's own layer, off until the Overlays menu turns them on */
-              layer={api => <TerrainLayers api={api} ticker={ticker} walls={!!paneOverlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} />}
+              layer={api => <TerrainLayers api={api} ticker={ticker} walls={!!paneOverlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} wallsSource={wallsSource} />}
             />
             </Deferred>
             )}
@@ -2035,11 +2129,20 @@ const Pane = ({
                     <span className="font-mono text-[11px] font-semibold" style={{ color: c.ink }}>
                       {c.ticker}
                     </span>
-                    {Simulator.TICKERS[c.ticker] && (
-                      <SpotPrice
-                        value={Simulator.TICKERS[c.ticker].currentPrice}
-                        className="font-mono text-[11px] tnum text-textSecondary"
-                      />
+                    {/* on the feed the crossed name's own last bar ("—" where its bars are not on the plans: an index) */}
+                    {offHouse ? (
+                      Number.isFinite(lastClose(compareBars?.[c.ticker]?.bars)) ? (
+                        <SpotPrice value={lastClose(compareBars?.[c.ticker]?.bars)} className="font-mono text-[11px] tnum text-textSecondary" />
+                      ) : (
+                        <span className="font-mono text-[11px] tnum text-textMuted" title="Not available on these plans">—</span>
+                      )
+                    ) : (
+                      Simulator.TICKERS[c.ticker] && (
+                        <SpotPrice
+                          value={Simulator.TICKERS[c.ticker].currentPrice}
+                          className="font-mono text-[11px] tnum text-textSecondary"
+                        />
+                      )
                     )}
                     <button
                       onClick={() => removeCompare(c.ticker, c.mode)}
@@ -2067,8 +2170,8 @@ const Pane = ({
             window is wide enough. Turning it off in storage would silently
             rewrite a preference because they picked up their phone.
           */}
-          {/* the ladder stands on the chart's price rows — a feed pane with no bars (an index) has none to stand on */}
-          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && !(offHouse && !feedTape) && (
+          {/* the ladder stands on the chart's price rows — an index on the feed has none, so it stands on the book's own */}
+          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && !(offHouse && !chartTape) && (
             <ProfilePanel
               /* THE REST WIDTH follows the pane count (2026-09-16): 520 alone or expanded, 340 on
                  two or four, 240 three across — the reader's own width once dragged */
@@ -2083,8 +2186,9 @@ const Pane = ({
               /* THE CHART KEEPS ITS SHARE (the audit's TE-5: in three and four panes the ladder took ~60% and the chart
                  shrank to ~175 px): beside other panes the rail stops at 40% of the pane */
               maxShare={belowLg ? 0.82 : !expanded && paneCount >= 3 ? 0.4 : 0.6}
-              /* the Vol switch reads the house's traded volume by price — not on a pane that reads the feed */
-              ticker={offHouse ? undefined : ticker}
+              /* the Vol switch: the session's traded volume by price — the house's tape, or on the feed the minutes */
+              ticker={ticker}
+              volBars={offHouse ? fBars.bars : undefined}
               rows={rail.rows}
               /* how sure the walls and the flip are — Pinpoint's read of the same book (components/levels/HowSure) */
               sure={rail.sure}

@@ -458,6 +458,25 @@ export function useFeedTape(on: boolean): FeedPrint[] | null {
   );
 }
 
+/** One name's prints of the session, $25K and up (the tape's floor), back to the open once, then the newest every 20 s —
+    what a Terrain pane's flow band, net drift and events lane read on the feed (2026-10-12). Null until the first
+    answer; a null or empty ticker asks nothing. */
+export function useFeedNamePrints(on: boolean, ticker: string | null): FeedPrint[] | null {
+  const s = feedSession();
+  const t = (ticker ?? '').toUpperCase();
+  return useSessionRows<FeedPrint>(
+    on && !!t,
+    `name-prints:${t}`,
+    20_000,
+    older => uwOptionTrades({ ticker: t, limit: 500, minPremium: TAPE_FLOOR, olderThan: older }).then(r => (r.ok ? { ...r, data: r.data.filter(x => !x.canceled && x.ticker.toUpperCase() === t).map(x => printRow(x, s)) } : r)),
+    p => String(p.id),
+    p => p.at,
+    8000,
+    16,
+    (ss, p) => within(ss, p.at)
+  );
+}
+
 /** The session's big prints for Windows: $250K and up, back to the open once, then the newest */
 export const WINDOW_FLOOR = 250_000;
 export function useFeedBigPrints(on: boolean): FeedPrint[] | null {

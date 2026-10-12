@@ -73,6 +73,10 @@ import {
   uwSpotGexByStrike,
   uwFlowPerStrike,
   uwStockState,
+  uwDailyBars,
+  uwDarkpool,
+  uwEarningsFor,
+  type UwEarning,
   type UwImpliedMove,
   type UwMaxPain,
   type UwStrikeExposure,
@@ -81,6 +85,9 @@ import type { ExposureLevels, ExposureProfileData, GreekSplit, StrikeExposure } 
 import type { Candle, GexLevel, GexSnapshot } from '../../types/market';
 import type { ExposureSurface, Greek, SurfaceExpiry } from '../exposureSurface';
 import type { Sureness } from '../levelSureness';
+import { massiveBars } from './massive';
+import type { DarkPoolPrint } from '../../types/gex';
+import type { TapeEarnings } from '../events';
 import { bookSureness } from '../levelSureness';
 
 /* ---- the switch ------------------------------------------------------------------------------------------------ */
@@ -666,6 +673,38 @@ function foldBars(t: string, rows: { at: number; open: number | null; high: numb
   emitBars(t);
 }
 
+/** Fold bars into a name's tape UNDER what is there — a minute already held keeps its bar (Massive's sessions before, under
+    UW's own minutes) */
+function foldUnder(t: string, rows: { t: number; o: number; h: number; l: number; c: number; v: number }[]) {
+  const have = bars.get(t) ?? [];
+  const byTime = new Map<number, Candle>(have.map(b => [b.time, b]));
+  let changed = false;
+  for (const r of rows) {
+    if (!Number.isFinite(r.t) || !(r.o > 0) || !(r.h > 0) || !(r.l > 0) || !(r.c > 0)) continue;
+    const time = Math.floor(r.t / 1000);
+    if (byTime.has(time)) continue;
+    byTime.set(time, { time, open: r.o, high: r.h, low: r.l, close: r.c, volume: r.v });
+    changed = true;
+  }
+  if (!changed) return;
+  bars.set(t, [...byTime.values()].sort((a, b) => a.time - b.time));
+  emitBars(t);
+}
+async function foldedUnder<T extends { t: number; o: number; h: number; l: number; c: number; v: number }[]>(t: string, call: Promise<FeedResult<T>>): Promise<FeedResult<T>> {
+  const r = await call;
+  if (r.ok) foldUnder(t, r.data);
+  return r;
+}
+/** The span Massive's minutes are asked for: five weeks back to the session before today (rounded to the day, so the
+    address — the proxy's cache key — holds for the day) */
+function historySpan(): { from: string; to: string } {
+  const today = nyIsoDate();
+  const [y, m, d] = today.split('-').map(Number);
+  const f = new Date(y, m - 1, d - 35);
+  const from = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+  return { from, to: sessionBefore(today) };
+}
+
 /** A loader's answer, its bars folded into the name's tape as it lands (outside a render) */
 async function folded<T extends { at: number; open: number | null; high: number | null; low: number | null; close: number | null; volume: number }[]>(t: string, call: Promise<FeedResult<T>>): Promise<FeedResult<T>> {
   const r = await call;
@@ -675,13 +714,21 @@ async function folded<T extends { at: number; open: number | null; high: number 
 
 /** A name's one-minute bars from UW — about four sessions, extended hours too (2,500 a call), the newest asked again
     every 15 s. Null until the first answer; an index answers nothing (UW needs a CBOE grant for index prices). */
-export function useFeedBars(on: boolean, ticker: string): { bars: Candle[] | null; failed: FeedFail | null } {
+export function useFeedBars(on: boolean, ticker: string, opts: { history?: boolean } = {}): { bars: Candle[] | null; failed: FeedFail | null } {
   const t = ticker.toUpperCase();
   const index = isCashIndex(t);
   const kAll = on && t && !index ? `levels:bars:${t}` : null;
   const rAll = useFeedPoll(kAll, () => folded(t, uwOhlc(t, { size: '1m', limit: 2500 })), 5 * 60_000);
   const kNew = on && t && rAll?.ok ? `levels:bars-new:${t}` : null;
   useFeedPoll(kNew, () => folded(t, uwOhlc(t, { size: '1m', limit: 30 })), 15_000);
+  /* THE SESSIONS BEFORE (Terrain, 2026-10-12): Massive's minute bars for the five weeks before the session — one call a
+     name, kept half an hour by the proxy — folded UNDER UW's (a minute UW answered keeps UW's bar), so a 30m or an hour
+     pane has a month behind it as the house's tape does. Massive is asked only while it is up; its minutes stop at the
+     session before, which UW's four sessions reach past. */
+  const massiveUp = useFeedStatus().massive.state === 'ok';
+  const span = historySpan();
+  const kOld = on && t && !index && opts.history && massiveUp ? `levels:bars-old:${t}:${span.from}:${span.to}` : null;
+  useFeedPoll(kOld, () => foldedUnder(t, massiveBars(t, 1, 'minute', span.from, span.to)), 30 * 60_000);
   const list = useSyncExternalStore(
     fn => {
       const s = barSubs.get(t) ?? new Set();
@@ -828,3 +875,136 @@ export function useFeedField(ticker: string): GexSnapshot[] {
   );
 }
 const EMPTY_SNAPS: GexSnapshot[] = [];
+
+/* ---- TERRAIN ON THE FEED, EVERY CONTROL FILLED (2026-10-12) -------------------------------------------------------
+   The owner: "but i build the UI that the real data goes into". A Terrain pane on the feed draws every control the
+   house's pane draws; these are what fill the ones the book and the minute bars do not: the day bars (1D, 1W), the
+   name's dark pool levels, its next report for the events lane, the open's ghost on the ladder off the field. */
+
+/** A New York date as the chart's day bar time — the date's noon UTC, so it reads as the same date on New York's clock */
+const dayTime = (iso: string): number => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return Date.UTC(y, m - 1, d, 12) / 1000;
+};
+const isoOfDayStart = (ms: number): string => nyIsoDate(ms);
+
+/**
+ * A name's day bars, oldest first: UW's regular-session rows (about a year, today's among them, every 5 min) over
+ * Massive's two years of day bars (asked once a day while Massive is up — it refuses an index, as UW does). A date
+ * both carry is UW's. Null until either answers; an index asks nothing.
+ */
+export function useFeedDaily(on: boolean, ticker: string, opts: { massive?: boolean } = {}): Candle[] | null {
+  const t = ticker.toUpperCase();
+  const index = isCashIndex(t);
+  const kUw = on && t && !index ? `levels:daily:${t}` : null;
+  const rUw = useFeedPoll(kUw, () => uwDailyBars(t, { limit: 2500 }), 5 * 60_000);
+  const uw = keep(kUw, rUw);
+  const massiveUp = useFeedStatus().massive.state === 'ok';
+  const today = nyIsoDate();
+  const [y, m, d] = today.split('-').map(Number);
+  const from = `${y - 2}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const kM = on && t && !index && opts.massive !== false && massiveUp ? `levels:daily-old:${t}:${from}` : null;
+  const rM = useFeedPoll(kM, () => massiveBars(t, 1, 'day', from, today), 30 * 60_000);
+  const old = keep(kM, rM);
+  return useMemo(() => {
+    if (!uw && !old) return null;
+    const byDay = new Map<number, Candle>();
+    for (const b of old?.data ?? []) {
+      if (!(b.o > 0 && b.h > 0 && b.l > 0 && b.c > 0)) continue;
+      const time = dayTime(isoOfDayStart(b.t));
+      byDay.set(time, { time, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v });
+    }
+    for (const r of uw?.data ?? []) {
+      if (r.marketTime !== 'r' || !r.date || r.open == null || r.high == null || r.low == null || r.close == null) continue;
+      const time = dayTime(r.date);
+      byDay.set(time, { time, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume });
+    }
+    const out = [...byDay.values()].sort((a, b) => a.time - b.time);
+    return out.length ? out : null;
+  }, [uw?.data, old?.data]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/** The dark pool's floor for a name's levels — the crosses of $1M and up, as Trace's dark leaders read */
+export const DARK_LEVEL_FLOOR = 1_000_000;
+
+/**
+ * A name's dark pool levels on the feed: the three largest off-exchange crosses of the session (UW, $1M and up, every
+ * minute), in the shape the chart's dark pool lines read — the price, the notional in billions, the date and time
+ * they printed (New York's). An index has no dark pool: none.
+ */
+export function useFeedDarkLevels(on: boolean, ticker: string): DarkPoolPrint[] {
+  const t = ticker.toUpperCase();
+  const key = on && t && !isCashIndex(t) ? `levels:dark:${t}` : null;
+  const r = useFeedPoll(key, () => uwDarkpool({ ticker: t, limit: 200, minPremium: DARK_LEVEL_FLOOR }), 60_000);
+  const k = keep(key, r);
+  return useMemo(() => {
+    if (!k) return EMPTY_DARK;
+    return k.data
+      .filter(p => !p.canceled && p.price > 0 && Number.isFinite(p.executedAt))
+      .sort((a, b) => b.premium - a.premium)
+      .slice(0, 3)
+      .map(p => {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(new Date(p.executedAt));
+        const part = (n: string) => parts.find(x => x.type === n)?.value ?? '';
+        return { price: p.price, notional: p.premium / 1e9, size: p.size, date: `${part('month')}/${part('day')}`, time: `${part('hour')}:${part('minute')}:${part('second')}` };
+      });
+  }, [k?.data]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+const EMPTY_DARK: DarkPoolPrint[] = [];
+
+/** The next report among a name's UW rows — on or after today, not yet reported */
+const nextReport = (rows: readonly UwEarning[], today: string): UwEarning | null =>
+  rows.filter(x => x.reportDate >= today && x.actualEps == null).sort((a, b) => (a.reportDate < b.reportDate ? -1 : 1))[0] ?? null;
+
+/**
+ * A name's next report for the chart's events lane, off UW's own record (every 30 min): the slot (before the open or
+ * after the close), whether the company set the date, the move the options price in, and the typical move — the mean
+ * of the last eight reports' next-session moves. A figure the record lacks is NaN ("—" on the card). Null with no
+ * report ahead, or for an index.
+ */
+export function useFeedEarnings(on: boolean, ticker: string): TapeEarnings | null {
+  const t = ticker.toUpperCase();
+  const key = on && t && !isCashIndex(t) ? `levels:earnings:${t}` : null;
+  const r = useFeedPoll(key, () => uwEarningsFor(t), 30 * 60_000);
+  const k = keep(key, r);
+  return useMemo(() => {
+    if (!k) return null;
+    const today = nyIsoDate();
+    const next = nextReport(k.data, today);
+    if (!next) return null;
+    const past = k.data
+      .filter(x => x.reportDate < today && x.postMove1d != null)
+      .sort((a, b) => (a.reportDate < b.reportDate ? 1 : -1))
+      .slice(0, 8);
+    const hist = past.length ? (past.reduce((s, x) => s + Math.abs(x.postMove1d as number), 0) / past.length) * 100 : NaN;
+    return {
+      ticker: t,
+      slot: next.reportTime === 'postmarket' ? 'AMC' : 'BMO',
+      confirmed: next.dateSource === 'company',
+      impliedMovePct: next.expectedMovePct != null ? next.expectedMovePct * 100 : NaN,
+      histAvgMovePct: hist,
+      daysOut: sessionsTo(today, next.reportDate),
+    };
+  }, [k?.data]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/**
+ * The open's ghost on the feed: each strike's net at the first book this terminal read after New York's 09:30 today,
+ * as a ratio of the newest book's — the house's rule (data/levelview.ts netSinceOpenRatio) on the field. Null when no
+ * book was read after the open today, or only one ("—" on the card, no ghost drawn).
+ */
+export function feedOpenRatio(snaps: readonly GexSnapshot[], now = Date.now()): Map<number, number> | null {
+  if (snaps.length < 2) return null;
+  const today = nyIsoDate(now);
+  const first = snaps.find(s => nyIsoDate(s.time * 1000) === today && nyMinutes(s.time * 1000) >= 9 * 60 + 30);
+  const last = snaps[snaps.length - 1];
+  if (!first || first === last || nyIsoDate(last.time * 1000) !== today) return null;
+  const open = new Map(first.levels.map(l => [l.strike, l.value]));
+  const out = new Map<number, number>();
+  for (const l of last.levels) {
+    const o = open.get(l.strike);
+    if (o == null || Math.abs(l.value) < 1e-9) continue;
+    out.set(l.strike, o / l.value);
+  }
+  return out;
+}

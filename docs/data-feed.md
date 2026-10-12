@@ -93,6 +93,7 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwContractFlow`, `uwContractIntraday`, `uwContractHistoric` | `GET /api/option-contract/{id}/flow`, `/intraday`, `/historic` |
 | `uwMultiLeg`, `uwMultiLegLegs` | `GET /api/option-trades/multi-leg` (`limit` ≤ 200, `min_premium`, `older_than`), `…/multi-leg/{id}/legs` |
 | `uwOhlc` | `GET /api/stock/{ticker}/ohlc/{1m,5m}` |
+| `uwDailyBars` | `GET /api/stock/{ticker}/ohlc/1d` (three rows a date — `pr`, `r`, `po` — about a year; an index 422) |
 | `uwNetFlowExpiry` | `GET /api/net-flow/expiry` (`expiration`: `zero_dte` or `weekly`; `moneyness`; `tide_type`) |
 | `uwTopNetImpact` | `GET /api/market/top-net-impact` |
 | `uwVolumeAtPrice` | `GET /api/stock/{ticker}/stock-volume-price-levels` (lit and off-exchange volume by price) |
@@ -241,20 +242,54 @@ one: a page never falls back to the house's book mid-session, and its stamp says
 | Board | each board name's book (every 30 s) | the price, which side of the flip, the walls, the supreme, net GEX |
 | Compare | both names' books | the levels and the ladder side by side |
 | The head | the book; the implied moves | which side of the flip, the flip and how far (σ is the one-day implied move); Copy levels off the feed's book |
-| Terrain, a pane | the book or one listed date (the expiry card lists UW's dates); open interest; the implied move; the bars | the ladder (size and the flow lane), the walls and the flip on the chart, the strike field (the books this terminal read today — it fills from the first read), the candles (1m to 1h) |
+| Terrain, a pane | the book or one listed date (the expiry card lists UW's dates); open interest; the implied move; the bars; the name's prints, dark pool and report | every control the house's pane carries — see "Terrain: the house's pane, filled" below |
 
 **What is not in the feed, and so not drawn** (each page names them in one quiet line, "not in the feed"): the house's
 modelled reads that stand on its own session history — the odds a level is reached or holds, the range to the close,
 where it closes, the half-hour schedule, the Trader's Clock, how the levels held, where they are heading, the
 agenda's order, the Board's sparkline and crossings, Compare's head-to-head, ruler, tapes and pair; the flip's
 crossings today; the flip minute by minute on the dealers' timeline (the answer carries the whole book a minute, not
-the strikes); open interest by date (the heatmap's read line says "—"); vega by strike. On Terrain: the seconds,
-daily and weekly timeframes (four sessions of minute bars), range and volume bars, dark pool, the option tape, the
-drifts, events, the alerts' lines, the walls through the day, comparisons, the open's ghost on the ladder, and its
-volume-by-price switch. An index (SPX, NDX, RUT …) has exposure, open interest and max pain on UW but no day state and
-no bars on this plan (422, a CBOE grant): Pinpoint reads it at the price its book was figured at, the change left off;
-a Terrain pane on it says its bars are not in the feed and draws no ladder. Pulse is not wired, so its Targets, At the
-wall, Range and Close panels read the house's book as before.
+the strikes); open interest by date (the heatmap's read line says "—"); vega by strike. On Terrain only the seconds
+(below). An index (SPX, NDX, RUT …) has exposure, open interest and max pain on UW but no day state and no bars on this
+plan (422, a CBOE grant): Pinpoint reads it at the price its book was figured at, the change left off; a Terrain pane on
+it keeps its chart and every control and says in the chart's place that its bars are not on these plans, the ladder
+standing on the book. Pulse is not wired, so its Targets, At the wall, Range and Close panels read the house's book as
+before.
+
+**Terrain: the house's pane, filled (2026-10-12 — the owner: "but i build the UI that the real data goes into").** With
+the keys in, a pane draws the same toolbar, timeframes, Overlays menu, candle menu, bar clock, compares, alerts menu,
+ladder (its lanes, Vol switch, How sure, the open's ghost) and expiry card as with them out; only the figures change.
+What each reads on the feed (`pages/terrain/Terrain.tsx`, `data/feed/levels.ts`):
+
+| Control | Reads |
+|---|---|
+| 1m–1h | UW's one-minute bars (`/ohlc/1m`, 2,500 — four sessions with the extended hours, the newest 30 every 15 s) over Massive's minutes for the five weeks before (`/v2/aggs/…/1/minute`, one call a name, kept 30 min) — a minute UW answered keeps UW's bar |
+| 1D, 1W | UW's day bars (`/ohlc/1d`, the regular-session row of each date, about a year, every 5 min) over Massive's two years of day bars (asked once while Massive is up); a bar a New York date at noon UTC; 1W folds them Monday to Friday |
+| 15 s | **held** — no plan carries seconds; the button stays, disabled, its title saying so (a pane kept on 15 s draws 1m) |
+| Range and volume bars | the same rule as the house (`data/altBars.ts`) folding the one-minute bars — a minute is the cut's grain, as a quarter is on the house's seconds |
+| Exposure trails, walls through the day | the books this terminal read today (`useFeedField`); the walls' charm lens scales today's charm by each minute's share of the strike's gamma, the house's rule, off the newest book |
+| Key levels | the book's walls, flip and supreme |
+| Dark pool | the name's three largest off-exchange crosses of the session, $1M and up (`/darkpool/{t}`) |
+| Flow, Net drift, the events lane's prints | the name's prints of $25K and up (`/option-trades?ticker_symbol=`, walked back to the open once, then the newest every 20 s — data/feed/trace.ts `useFeedNamePrints`), through the house's `bucketFlow` and `cumulativeDrift` |
+| Vol drift, Expected move | realised off the bars; implied off UW's 30-day implied vol (`/interpolated-iv`) |
+| Events | the name's next report off UW's record (`/earnings/{t}`: the slot, whether the company set the date, the move the options price in, the mean of the last eight next-session moves — "—" where the record has none), the house's macro calendar (calendar facts), the session's largest prints |
+| Session levels, Session phases, Volume | off the bars |
+| Alert lines, the Alerts menu | the house's alert store, as the house's pane passes it (the alert engine is the shell's) |
+| Compares | each crossed name's UW minutes (and day bars on 1D/1W); its legend prints its own last bar, "—" for an index |
+| The ladder's Vol switch | the session's volume by price folded off the minute bars (`sessionVolumeProfile`) |
+| The open's ghost and the card's "Since open" | the first book this terminal read after 09:30 New York against the newest (`feedOpenRatio`, the house's rule) — "—" in place when none was read after the open |
+| The trend strip | the house's `buildConfluence` on the minutes |
+
+The walls through the day stand where the terminal read a book: UW's `/spot-exposures` carries the whole book's gamma a
+minute, never the strikes, so it cannot fill the strike × time cells before the first read, and nothing is drawn there.
+Calls stay few: day bars, history and the report are asked only while a pane draws them (1D/1W; the Events, Dark pool,
+Flow and Net drift switches).
+
+Checked 2026-10-12 after the close (17:40–18:20 ET): the keys-in server against the keys-blanked one, 1 to 4 panes on
+SPY, SPX, NVDA and QQQ, both themes, every pane's menus opened (timeframes, Overlays, the candle menu, indicators,
+alerts, the expiry card, the ladder's switches) — the same items in the same order, but for 15 s held, the trail's
+line ("Trail from …") and the index's bars line; the expiry calendar's enabled days are UW's listed dates; no console
+errors. Screenshots: `docs/data-feed/terrain-filled-2026-10-12-*.png`.
 
 **Terrain's trail (the strike field) on the feed.** UW gives the book as it stands; no route gives it strike by strike
 for earlier in the day (`/spot-exposures/strike` takes a `date`, never a time — UW's spec, checked 2026-10-12; the
