@@ -136,7 +136,7 @@ export interface DayRecord {
 const daysKey = (t: string) => `days|${t}`;
 export function askDays(ticker: string): void {
   const t = ticker.toUpperCase();
-  ask<DayRecord>(daysKey(t), `${t}'s sessions, the last two years`, async () => {
+  ask<DayRecord>(daysKey(t), `${t}’s sessions, the last two years`, async () => {
     const r = await massiveBars(t, 1, 'day', isoBack(BACK_DAYS), isoBack(1));
     if (!r.ok) return r;
     const now = isoDate(today());
@@ -231,7 +231,7 @@ function askMinutes(ticker: string, book: RealBook): void {
   const days = [...book.before, ...book.days];
   const from = days[0];
   const to = days[days.length - 1];
-  ask<Minutes>(minutesKey(ticker, from, to), `${ticker}'s minutes, ${dayWords(book.days[0])} to ${dayWords(book.days[book.days.length - 1])}`, async () => {
+  ask<Minutes>(minutesKey(ticker, from, to), `${ticker}’s minutes, ${dayWords(book.days[0])} to ${dayWords(book.days[book.days.length - 1])}`, async () => {
     const r = await massiveBars(ticker, 1, 'minute', from, to);
     return r.ok ? { ok: true, at: r.at, data: toMinutes(r.data, days) } : r;
   });
@@ -245,7 +245,7 @@ const minutesOf = (ticker: string, book: RealBook): Minutes | undefined => {
 const expiriesKey = (t: string, asOf: string) => `exp|${t}|${asOf}`;
 const roundStrike = (px: number): number => (px >= 50 ? Math.round(px / 5) * 5 : Math.round(px));
 function askExpiries(ticker: string, asOf: string, near: number): void {
-  ask<string[]>(expiriesKey(ticker, asOf), `${ticker}'s expiries, as listed on ${dayWords(asOf)}`, async () => {
+  ask<string[]>(expiriesKey(ticker, asOf), `${ticker}’s expiries, as listed on ${dayWords(asOf)}`, async () => {
     const r = await massiveContracts(ticker, { type: 'call', strike: roundStrike(near), asOf, maxPages: 1 });
     return r.ok ? { ok: true, at: r.at, data: Array.from(new Set(r.data.map(c => c.expiry))).filter(e => e >= asOf).sort() } : r;
   });
@@ -254,7 +254,7 @@ function askExpiries(ticker: string, asOf: string, near: number): void {
 /* ---- 4. THE STRIKES LISTED FOR AN EXPIRY: one call, when the chain shows it ---- */
 const strikesKey = (t: string, expiry: string, asOf: string) => `k|${t}|${expiry}|${asOf}`;
 export function askStrikes(ticker: string, expiry: string, asOf: string): void {
-  ask<number[]>(strikesKey(ticker, expiry, asOf), `${ticker}'s strikes for ${dayWords(expiry)}`, async () => {
+  ask<number[]>(strikesKey(ticker, expiry, asOf), `${ticker}’s strikes for ${dayWords(expiry)}`, async () => {
     const r = await massiveContracts(ticker, { expiryFrom: expiry, expiryTo: expiry, type: 'call', asOf, maxPages: 1 });
     return r.ok ? { ok: true, at: r.at, data: Array.from(new Set(r.data.map(c => c.strike))).sort((a, b) => a - b) } : r;
   });
@@ -281,7 +281,7 @@ export function askPrints(c: ContractId, book: RealBook): void {
   const legs = c.short != null ? [longLeg(c), { ...longLeg(c), strike: c.short }] : [c];
   for (const leg of legs) {
     const occ = occTicker(leg);
-    ask<Map<string, (PrintBar | null)[]>>(printsKey(leg, book), `${leg.ticker} ${leg.strike}${leg.right} ${dayWords(leg.expiry)}'s trades`, async () => {
+    ask<Map<string, (PrintBar | null)[]>>(printsKey(leg, book), `${leg.ticker} ${leg.strike}${leg.right} ${dayWords(leg.expiry)} — its own trades`, async () => {
       const r = await massiveBars(occ, 1, 'minute', book.days[0], book.days[book.days.length - 1]);
       return r.ok ? { ok: true, at: r.at, data: toPrints(r.data, book.days) } : r;
     });
@@ -391,7 +391,7 @@ export function useRealSession(s: Session | null): RealSession {
     for (const c of bookContracts(s)) keys.push(...legKeys(c, book));
     const steps: RealStep[] = keys.map(k => {
       const sl = slots.get(k);
-      return { key: k, words: sl?.words ?? (k.startsWith('exp|') ? `${k.split('|')[1]}'s expiries, as listed on ${dayWords(book.days[0])}` : 'Waiting its turn'), state: sl?.state ?? 'queued', reason: sl?.reason };
+      return { key: k, words: sl?.words ?? (k.startsWith('exp|') ? `${k.split('|')[1]}’s expiries, as listed on ${dayWords(book.days[0])}` : 'Waiting its turn'), state: sl?.state ?? 'queued', reason: sl?.reason };
     });
     if (steps.some(x => x.state === 'failed')) return { phase: 'failed', steps, days: book.days, market: null, retry };
     if (steps.some(x => x.state !== 'done')) return { phase: 'loading', steps, days: book.days, market: null, retry };

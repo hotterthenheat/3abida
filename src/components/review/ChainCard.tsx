@@ -139,7 +139,7 @@ const ChainCard = ({ ticker, title, spot, showName, stamp, right, onRight, expir
             <span className="text-right" title="The contract's own trades this minute, their average price — ≈ where it did not trade (the house's estimate)">
               Price
             </span>
-            <span className="text-right" title="Whether it traded this minute — it fills only in a minute it traded">
+            <span className="text-right pl-2" title="Whether it traded this minute — it fills only in a minute it traded">
               Traded
             </span>
           </>

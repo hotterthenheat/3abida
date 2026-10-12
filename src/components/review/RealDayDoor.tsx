@@ -48,7 +48,7 @@ const RealDayDoor = ({ session, state }: { session: Session; state: RealSession 
       </div>
       <div className="px-5 py-5 flex flex-col gap-4">
         <p className="text-[13px] leading-snug text-textPrimary">
-          This session replays the market’s own record from Massive — {span}: the name’s minutes, the contracts listed that day, and each contract’s own trades.
+          This session replays the market’s own record from Massive — {span}: {(session.tickers?.length ?? 1) > 1 ? 'each name’s' : 'the name’s'} minutes, the contracts listed that day, and each contract’s own trades.
         </p>
         {state.phase === 'waiting' && (
           <p className="inline-flex items-center gap-2 text-[12px] text-textSecondary" data-real-phase="waiting">
