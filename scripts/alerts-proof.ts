@@ -12,8 +12,12 @@
   7. An AND reads where it starts, fires only when its conditions COME together, and re-arms when they part
   8. A condition that cannot be read holds the AND back; it never guesses
   9. Each condition kind reads the house's way (dealers' sign, net flow, levels, averages, RSI)
+  10. ALERTS WATCH THE REAL PRICE (2026-10-12): while the alerts watch the feed, an alert is armed from the market's own
+      price (not the page's house figure), judged on it, and its firing is logged with the price and the market it was
+      read off; with the feed down the house's price arms and judges as before; a stale real price is no price
 */
-import { condHolds, evaluateAll, evaluateLine, lineAt, type AllAlert, type AllContext, type LineAlert, type LineBar } from '../src/components/gex/alertStore';
+import { armPrice, condHolds, evaluateAlert, evaluateAll, evaluateLine, getAlerts, getFiredLog, lineAt, markFired, removeAlert, type AlertContext, type AllAlert, type AllContext, type LineAlert, type LineBar } from '../src/components/gex/alertStore';
+import { noteRealPrice, realPrice, REAL_PRICE_STALE_MS, resetAlertMarket, setAlertMarket } from '../src/components/gex/alertMarket';
 
 let pass = 0, fail = 0;
 const check = (name: string, ok: boolean, extra = '') => {
@@ -142,5 +146,36 @@ const line = (over: Partial<LineAlert> = {}): LineAlert => ({
   check('net flow bearish over 15 min', condHolds({ t: 'flow', op: 'bearish', mins: 15 }, c) === true && condHolds({ t: 'flow', op: 'bullish', mins: 15 }, c) === false);
 }
 
+// 10. the real price
+{
+  const ctxAt = (close: number): AlertContext => ({ close, tf: '', levels: { callWall: null, putWall: null, flip: null, supreme: null }, netGex: null, step: 0, values: {}, prints: [], news: [] });
+  resetAlertMarket();
+  /* the house's market: the page's spot sets the side, as before */
+  const house = armPrice('PRF', 480, 470);
+  check('feed down: the page’s price arms the side (below 480 → watch for above)', house?.kind === 'price' && house.above === true);
+  if (house) removeAlert('PRF', house.id);
+  /* the feed's market: the real price (here 490) sets the side, whatever the page held (470) */
+  setAlertMarket('feed');
+  noteRealPrice('PRF', 490);
+  check('the real price is the one the alerts read', realPrice('PRF') === 490);
+  const real = armPrice('PRF', 480, 470);
+  check('feed up: the real price arms the side (490 over 480 → watch for below)', real?.kind === 'price' && real.above === false);
+  if (real?.kind === 'price') {
+    check('…a house close under 480 is not the market — the real one at 485 does not fire', !evaluateAlert(real, ctxAt(485)).fire);
+    const v = evaluateAlert(real, ctxAt(479.5));
+    check('…the real price reaching 480 fires it', v.fire);
+    markFired('PRF', real.id, NOW, undefined, 479.5);
+    const log = getFiredLog('PRF')[0];
+    check('…the log keeps the price it fired at, and the market it was read off', log?.mark === 479.5 && log?.market === 'feed' && log?.value === 480);
+  }
+  check('a real price older than five minutes is no price', realPrice('PRF', Date.now() + REAL_PRICE_STALE_MS + 1) === null);
+  setAlertMarket('house');
+  check('the feed down: no real price is read', realPrice('PRF') === null);
+  const back = armPrice('PRG', 480, 470);
+  check('…and the page’s price arms again', back?.kind === 'price' && back.above === true);
+  for (const a of getAlerts('PRF')) removeAlert('PRF', a.id);
+  for (const a of getAlerts('PRG')) removeAlert('PRG', a.id);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
-if (fail) process.exit(1);
+process.exit(fail ? 1 : 0);

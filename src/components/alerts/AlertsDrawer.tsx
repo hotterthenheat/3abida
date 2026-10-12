@@ -59,6 +59,7 @@ import { undoable } from '../ui/undo';
 import { nyClock, nyDay, nyParts, nyWallTime } from '../../core/nyTime';
 import { SNOOZE_MS } from './AlertToasts';
 import AllComposer from './AllComposer';
+import { usd } from '../../core/format';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -481,7 +482,7 @@ const AlertsDrawer = () => {
                       alerted
                       ticker={ticker}
                       words={firedWords(r.alert, ticker)}
-                      state={`alerted ${nyDay(r.at) === nyDay(Date.now()) ? hhmmss(r.at) : `${nyDay(r.at)}, ${hhmmss(r.at)}`}${r.value != null && r.alert.kind !== 'price' ? ` · at ${fmtAlertValue(r.value)}` : ''}`}
+                      state={`alerted ${nyDay(r.at) === nyDay(Date.now()) ? hhmmss(r.at) : `${nyDay(r.at)}, ${hhmmss(r.at)}`}${r.value != null && r.alert.kind !== 'price' ? ` · at ${fmtAlertValue(r.value)}` : ''}${r.mark != null ? ` · ${ticker} ${usd(r.mark)}` : ''}`}
                       door={{ label: door.label, onClick: () => go(ticker, door.to) }}
                       testId={{ 'data-fired-row': r.key }}
                       action={

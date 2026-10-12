@@ -828,3 +828,13 @@ export function useFeedField(ticker: string): GexSnapshot[] {
   );
 }
 const EMPTY_SNAPS: GexSnapshot[] = [];
+
+/* ---- THE ALERTS' WATCHER (2026-10-12): a name's book once, outside a render ---------------------------------------- */
+
+/** A name's book read once — the shell's alert watcher reads the walls, the flip and an index's price off it; the
+    proxy keeps exposure 30 s, so a page polling the same book costs the vendor nothing more */
+export async function feedBookOnce(ticker: string): Promise<FeedBook | null> {
+  const t = ticker.toUpperCase();
+  const r = await loadExposure(t);
+  return r.ok ? bookFrom(t, r.data) : null;
+}

@@ -45,6 +45,7 @@ import {
 import { GexTrailsPrimitive, trailPaperFrom } from './gexNodesPrimitive';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
+import { alertMarket } from './alertMarket';
 import { armLine, commitArm, evaluateAlert, markFired, removeAlert, useAlerts, MAX_ALERTS, type AlertContext, type IndicatorSource, type LineMode } from './alertStore';
 import { newsPulse } from '../../data/news';
 import { exposureNowFor } from '../../data/gex';
@@ -3690,7 +3691,9 @@ const StrikeChart = ({
     idempotent across evaluators the way `markFired` always was.
   */
   useEffect(() => {
-    if (replay) return;
+    /* ALERTS WATCH THE REAL PRICE (2026-10-12): while the shell's watcher reads the feed it alone judges — a chart on the
+       house's tape never rings an alert beside the market's own price (components/gex/alertMarket.ts) */
+    if (replay || alertMarket() === 'feed') return;
     const close = lastCloseRef.current;
     if (close == null) return;
     const waiting = alerts.filter(a => !a.firedAt);
