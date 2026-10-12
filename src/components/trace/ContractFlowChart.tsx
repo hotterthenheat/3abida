@@ -556,7 +556,7 @@ export const NET_METRICS: { value: NetMetric; label: string; hint: string }[] = 
 ];
 
 /** Small anchored dropdown — the house pattern from the chart toolbar. */
-const MetricPicker = ({ value, onChange, only }: { value: NetMetric; onChange: (v: NetMetric) => void; only?: NetMetric[] }) => {
+const MetricPicker = ({ value, onChange }: { value: NetMetric; onChange: (v: NetMetric) => void }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -582,7 +582,7 @@ const MetricPicker = ({ value, onChange, only }: { value: NetMetric; onChange: (
       </button>
       {open && (
         <div className="absolute left-0 top-full mt-1 z-40 min-w-[220px] border border-borderMuted bg-panel rounded-md shadow-2xl shadow-black/60 overflow-hidden animate-slide-in">
-          {NET_METRICS.filter(m => !only || only.includes(m.value)).map(m => (
+          {NET_METRICS.map(m => (
             <button
               key={m.value}
               onClick={() => {
@@ -667,8 +667,6 @@ export interface NetPanelProps {
   /** Minute of the clicked print within this window — null hides the marker */
   printMin: number | null;
   syncId?: string;
-  /** The views the data can draw (the feed carries the name's volume a minute, not its premium a minute) */
-  metrics?: NetMetric[];
 }
 
 export const NetPanel = ({
@@ -685,7 +683,6 @@ export const NetPanel = ({
   dayOffset,
   printMin,
   syncId,
-  metrics,
 }: NetPanelProps) => {
   const n = cf.net;
   const u = cf.underlying;
@@ -696,6 +693,8 @@ export const NetPanel = ({
   }, [cf.windowMin]);
   const xFmt = (v: number) => flowAxisLabel(v, cf.sessions, endDate);
   const isUsd = metric === 'underlyingUsd';
+  /* a bar whose premium no answer carries (the feed's minutes carry volume alone) is no bar, never a zero */
+  const usdBars = useMemo(() => u.bars.map(b => (Number.isFinite(b.callPrem) && Number.isFinite(b.putPrem) ? b : { ...b, callPrem: null, putPrem: null })), [u.bars]);
   const isVolOrUsd = metric === 'underlyingVol' || isUsd;
 
   return (
@@ -709,7 +708,7 @@ export const NetPanel = ({
           <CompanyLogo ticker={ticker} size={12} />
           {ticker} net premium
         </span>
-        <MetricPicker value={metric} onChange={onMetric} only={metrics} />
+        <MetricPicker value={metric} onChange={onMetric} />
         {isVolOrUsd ? (
           <span className="font-mono text-[11px] text-textMuted tnum">
             {(u.callVol + u.putVol).toLocaleString()} contracts · {fmtUsd(u.callPrem + u.putPrem)} traded · calls minus puts{' '}
@@ -776,7 +775,7 @@ export const NetPanel = ({
             </ComposedChart>
           ) : isVolOrUsd ? (
             <ComposedChart
-              data={u.bars}
+              data={isUsd ? usdBars : u.bars}
               syncId={syncId}
               syncMethod="value"
               margin={{ top: 6, right: showPrice ? RIGHT_PAD : RIGHT_PAD + Y_RIGHT_W, bottom: 0, left: 0 }}

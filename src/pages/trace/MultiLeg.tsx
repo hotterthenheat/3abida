@@ -51,7 +51,6 @@ const num = (v: number) => fmtNum(v);
 
 /* THE CARDS (the walk, 2026-09-09) */
 const SHAPE_OPTIONS: DropdownOption<SpreadKind | 'ALL'>[] = [{ value: 'ALL', label: 'Every shape', hint: 'Every structure on the tape' }, ...SPREAD_KINDS.filter(k => !FEED_ONLY_KINDS.has(k.key)).map(k => ({ value: k.key, label: k.label, hint: k.read }))];
-const FEED_SHAPE_OPTIONS: DropdownOption<SpreadKind | 'ALL'>[] = [{ value: 'ALL', label: 'Every shape', hint: 'Every structure on the tape' }, ...SPREAD_KINDS.map(k => ({ value: k.key, label: k.label, hint: k.read }))];
 const MONEY_OPTIONS: DropdownOption<'ALL' | 'DEBIT' | 'CREDIT'>[] = [
   { value: 'ALL', label: 'Paid and collected', hint: 'Debit and credit structures' },
   { value: 'DEBIT', label: 'Paid', hint: 'Structures that cost money to put on' },
@@ -328,7 +327,9 @@ const MultiLeg = () => {
         // A structure matches on its ticker or ANY of its legs' contracts.
         (nq === '' ||
           normSymbol(t.ticker).includes(nq) ||
-          t.legs.some(l => normSymbol(`${t.ticker}${l.strike}${l.right}`).includes(nq)))
+          t.legs.some(l => normSymbol(`${t.ticker}${l.strike}${l.right}`).includes(nq)) ||
+          /* on the feed, before its legs are asked for: the order's strikes on the side its name gives */
+          (t.legs.length === 0 && (t.strikeList ?? []).some(k => normSymbol(`${t.ticker}${k}${t.rightHint ?? 'C'}`).includes(nq))))
     );
   }, [trades, kind, money, query]);
   /* every row — the grid draws only what is on screen */
@@ -348,7 +349,7 @@ const MultiLeg = () => {
      leg — every leg still matches when typed, but tallies count structures. */
   const searchRows = useMemo(
     /* on the feed a structure's legs are not in until it opens — the search offers its names (tickersOnly) */
-    () => trades.map(t => ({ ticker: t.ticker, strike: t.legs[0]?.strike ?? t.strikeList?.[0] ?? 0, right: t.legs[0]?.right ?? ('C' as const), premium: Number.isFinite(t.premium) ? t.premium : 0 })),
+    () => trades.map(t => ({ ticker: t.ticker, strike: t.legs[0]?.strike ?? t.strikeList?.[0] ?? 0, right: t.legs[0]?.right ?? t.rightHint ?? ('C' as const), premium: Number.isFinite(t.premium) ? t.premium : 0 })),
     [trades]
   );
 
@@ -641,8 +642,8 @@ const MultiLeg = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="structures" span tickersOnly={onFeed} />
-            <DropdownSelect label="Screen" value={kind} options={onFeed ? FEED_SHAPE_OPTIONS : SHAPE_OPTIONS} onChange={setKind} title="Which structures" testId="multi-leg-shape" />
+            <FlowSearch value={query} onChange={setQuery} rows={searchRows} countNoun="structures" span />
+            <DropdownSelect label="Screen" value={kind} options={SHAPE_OPTIONS} onChange={setKind} title="Which structures" testId="multi-leg-shape" />
             {/* "Debit · credit", not "Money" — Money meant moneyness on every other page (the audit's TR-11) */}
             <DropdownSelect label="Debit · credit" value={money} options={MONEY_OPTIONS} onChange={setMoney} title="Paid to put on, or collected" testId="multi-leg-money" />
             <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only structures whose near leg sits on one expiry — or every expiry" testId="multi-leg-expiry" />

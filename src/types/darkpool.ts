@@ -57,8 +57,8 @@ export type Posture = 'ACCUMULATING' | 'DISTRIBUTING' | 'BALANCED';
 export interface DarkLeaderRow {
   ticker: string;
   price: number;
-  /** Day direction — drives the tiny price arrow */
-  dirUp: boolean;
+  /** Day direction — drives the tiny price arrow (undefined on the feed while the name's day has not answered) */
+  dirUp: boolean | undefined;
   /** Dark notional today, dollars */
   notional: number;
   /** Dark volume as % of the name's average daily volume */

@@ -52,7 +52,7 @@
 */
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { bookSession, moneynessFilter, segmentFilter, windowLabel, WINDOWS_PER_DAY, type Catch, type IntervalSlice, type IntervalWindow, type MoneynessKey, type NetFlowPoint, type NetFlowSegment, type NetFlowView, type NetLeader, type SpreadKind, type SpreadLeg, type SpreadTrade, type WatcherKey } from '../flowBook';
+import { bookSession, moneynessFilter, rulesFor, segmentFilter, windowLabel, WINDOWS_PER_DAY, type Catch, type IntervalSlice, type IntervalWindow, type MoneynessKey, type NetFlowPoint, type NetFlowSegment, type NetFlowView, type NetLeader, type SpreadKind, type SpreadLeg, type SpreadTrade, type WatcherKey } from '../flowBook';
 import { reasonMatches, type UserReason } from '../flowReasons';
 import type { FollowRecord, Follow } from '../followThrough';
 import { SECTOR_LIST } from '../darkpool';
@@ -993,6 +993,8 @@ export function spreadOf(m: UwMultiLeg, s: FeedSession): SpreadTrade {
     legs: [],
     strikeList: strikes,
     legCount: m.legCount,
+    /* the order's name says its side ("put_butterfly_spread", "call_vertical_spread"); a mixed one reads as a call */
+    rightHint: /^put/.test(m.strategy.toLowerCase()) ? 'P' : 'C',
   };
 }
 
@@ -1209,4 +1211,44 @@ export function useFeedPaneLine(on: boolean, cut: FeedPaneCut, rows: BookContrac
     return { view: { points: [], ncp: t.ncp, npp: t.npp, vol: cutRows.length ? t.vol : NaN, count: t.count }, spot: ribbon, totalsOnly: true };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [on, name, whole, zeroDte, ticks, market, own, rows, ribbon, cut.dteMax, cut.seg, cut.mny, cut.tenor, cut.expiry]);
+}
+
+/* ---- THE DESK'S SIX WATCHERS ON THE VENDOR'S BOOK (2026-10-12) ------------------------------------------------------- */
+
+/**
+ * The desk's own rules (flowBook rulesFor — big money, into earnings, climbing, falling, fresh size, hammering) and the
+ * reader's reasons, read on the vendor's day per contract, beside the vendor's alerts (feedCatches): a contract the
+ * alerts already flagged for a rule is not flagged twice. A catch off the book stands at the minute of the contract's
+ * latest print, at its latest fill; which print tripped it is not in the answer, so its size and money are "—", and
+ * the stock's price at that minute is not either (follow-through counts it as not measured).
+ */
+export function feedBookCatches(book: BookContract[], reasons: UserReason[], already: Catch[]): Catch[] {
+  const had = new Set(already.map(c => `${c.row.key}|${c.rule}`));
+  const out: Catch[] = [];
+  for (const r of book) {
+    const house = rulesFor(r);
+    const mine: string[] = [];
+    for (const reason of reasons) {
+      if (reasonMatches(reason, r)) mine.push(reason.id);
+      if (mine.length === 2) break;
+    }
+    for (const rule of [...house, ...mine]) {
+      if (had.has(`${r.key}|${rule}`)) continue;
+      const minute = Number.isFinite(r.lastAtMin) ? r.lastAtMin : SESSION_OPEN_MIN;
+      const side: Catch['side'] = rule === 'climbing' ? 'ASK' : rule === 'falling' ? 'BID' : (r.askPct ?? 0) >= (r.bidPct ?? 100 - r.askPct) ? 'ASK' : 'BID';
+      out.push({
+        id: `book-${r.key}-${rule}`,
+        rule,
+        mine: !house.includes(rule as WatcherKey),
+        minute,
+        time: r.lastAt,
+        clipSize: NaN,
+        clipFill: r.last,
+        clipPremium: NaN,
+        side,
+        row: r,
+      });
+    }
+  }
+  return out;
 }

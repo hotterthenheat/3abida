@@ -6,7 +6,10 @@
   The card a Trace row opens (components/trace/
   PrintDrilldown.tsx) reads the contract's own day from
   Unusual Whales when the room is on the feed
-  (2026-10-12) — one session, the book's:
+  (2026-10-12) — over the card's own window (its range
+  of sessions, the session it ends on, the single-leg
+  cut: every answer below takes a `date`, so a past
+  session is the vendor's too, asked once and kept):
     · its prints: GET /api/option-contract/{id}/flow
       (the newest 500 — a busy contract prints more in
       a day, and the card says "its latest" then);
@@ -18,14 +21,15 @@
       flow-per-expiry (the premium at the ask and on
       the bid), flow-per-strike, and its minute bars.
   Nothing here is drawn: what the answers leave out is
-  left out (the intraday shape of a past session; the
-  name's premium minute by minute).
+  left out (the name's premium minute by minute — the
+  dollar view's bars are "—").
 ==================================================
 */
 
 import { useMemo } from 'react';
-import { nyClock, nyParts } from '../../core/nyTime';
-import { SESSION_MIN, type ContractFlow, type FlowOrder, type FlowSide, type VolOiDay } from '../contractflow';
+import { nyClock, nyParts, nyWallTime } from '../../core/nyTime';
+import { sessionsBefore, SESSION_MIN, type ContractFlow, type FlowOptions, type FlowOrder, type FlowRange, type FlowSide, type VolOiDay } from '../contractflow';
+import type { FeedResult } from './client';
 import type { FlowPrint } from '../../types/trace';
 import { useFeedPoll } from './poll';
 import { feedSession, nyMinuteAt, printRow, type FeedPrint, type FeedSession } from './trace';
@@ -93,94 +97,118 @@ export function sessionBars(bars: UwBar[] | null, s: FeedSession): UwBar[] {
 
 export interface FeedCard {
   cf: ContractFlow;
-  /** The contract printed more today than its flow answered with — the card says "its latest" */
+  /** The contract printed more in a session than its flow answered with — the card says "its latest" */
   capped: boolean;
 }
 
 const sideOf = (t: UwOptionTrade): FlowSide => (t.tags.includes('ask_side') ? 'ASK' : t.tags.includes('bid_side') ? 'BID' : 'MID');
+const isMulti = (t: UwOptionTrade) => /^(ml|tl|mf|me)/.test(t.condition);
 
-function build(
+/** One session of the card's window, as the vendor answered it */
+export interface CardDay {
+  /** YYYY-MM-DD, New York's */
+  date: string;
+  open: number;
+  close: number;
+  prints: UwOptionTrade[];
+  minutes: UwContractMinute[] | null;
+  ticks: UwNetPremTick[] | null;
+  bars: UwBar[] | null;
+}
+
+/**
+ * The card's window off the vendor's answers, session by session (0 the earliest), as the house's card lays it out
+ * (contractflow.ts buildContractFlow): the contract's prints and its minutes, the name's net premium and volume a
+ * minute on its own minute closes; where the day's activity sat on the chain and the flow by expiry are the last
+ * session's. `singleLegOnly` drops the prints the exchange marked as a leg of a multi-leg order.
+ */
+export function buildCard(
   print: FlowPrint,
-  s: FeedSession,
+  days: CardDay[],
   intervalMin: number,
-  prints: UwOptionTrade[],
-  minutes: UwContractMinute[] | null,
+  singleLegOnly: boolean,
   history: UwContractSession[] | null,
-  ticks: UwNetPremTick[] | null,
-  bars: UwBar[] | null,
   expiries: UwExpiryFlow[] | null,
   strikeFlow: UwStrikeFlow[] | null
 ): FeedCard {
   const snap = (m: number) => Math.max(0, Math.min(SESSION_MIN, Math.floor(m / intervalMin) * intervalMin));
-  const today = prints.filter(t => t.executedAt >= s.open && t.executedAt <= s.close).sort((a, b) => a.executedAt - b.executedAt);
-  const meanSize = today.length ? today.reduce((a, t) => a + t.size, 0) / today.length : 1;
-  const points = today.map(t => ({
-    min: snap(sinceOpen(t.executedAt)),
-    price: t.price,
-    size: t.size,
-    side: sideOf(t),
-    premium: t.premium,
-    iv: t.iv !== null ? Math.round(t.iv * 1000) / 10 : NaN,
-    relVol: Math.round((t.size / meanSize) * 100) / 100,
-    multiLeg: /^(ml|tl|mf|me)/.test(t.condition),
-    session: 0,
-  }));
-  const orders: FlowOrder[] = today
-    .map(t => ({
+  const at = (i: number, t: number) => i * SESSION_MIN + snap(sinceOpen(t));
+  const points: ContractFlow['points'] = [];
+  const orders: FlowOrder[] = [];
+  let capped = false;
+  const all: { i: number; t: UwOptionTrade }[] = [];
+  days.forEach((d, i) => {
+    if (d.prints.length >= CARD_PRINTS) capped = true;
+    for (const t of d.prints) if (t.executedAt >= d.open && t.executedAt <= d.close && !(singleLegOnly && isMulti(t))) all.push({ i, t });
+  });
+  all.sort((a, b) => a.t.executedAt - b.t.executedAt);
+  const meanSize = all.length ? all.reduce((a, x) => a + x.t.size, 0) / all.length : 1;
+  for (const { i, t } of all) {
+    points.push({
+      min: at(i, t.executedAt),
+      price: t.price,
+      size: t.size,
+      side: sideOf(t),
+      premium: t.premium,
+      iv: t.iv !== null ? Math.round(t.iv * 1000) / 10 : NaN,
+      relVol: Math.round((t.size / meanSize) * 100) / 100,
+      multiLeg: isMulti(t),
+      session: i,
+    });
+    orders.push({
       id: t.id,
       time: nyClock(t.executedAt, { seconds: true }),
-      session: 0,
+      session: i,
       price: t.price,
       size: t.size,
       side: sideOf(t),
       premium: t.premium,
       sweep: t.flags.includes('intermarket_sweep') || t.condition === 'isoi',
-      multiLeg: /^(ml|tl|mf|me)/.test(t.condition),
+      multiLeg: isMulti(t),
       iv: t.iv !== null ? Math.round(t.iv * 1000) / 10 : NaN,
-    }))
-    .reverse();
-
-  /* the average paid and the IV through the session, a bar per interval, off the contract's minutes */
-  const mins = (minutes ?? []).filter(m => m.at >= s.open && m.at < s.close);
-  const byBar = new Map<number, { cost: number; vol: number; ivSum: number; ivN: number }>();
-  for (const m of mins) {
-    const vol = m.volumeAsk + m.volumeBid + m.volumeMid + m.volumeNoSide;
-    if (vol <= 0 || m.avgPrice === null) continue;
-    const k = snap(sinceOpen(m.at));
-    const b = byBar.get(k) ?? { cost: 0, vol: 0, ivSum: 0, ivN: 0 };
-    b.cost += m.avgPrice * vol;
-    b.vol += vol;
-    if (m.ivLow !== null && m.ivHigh !== null) {
-      b.ivSum += ((m.ivLow + m.ivHigh) / 2) * 100;
-      b.ivN++;
-    }
-    byBar.set(k, b);
+    });
   }
+  orders.reverse();
+
+  /* the average paid and the IV through the window, a bar per interval, off the contract's minutes */
+  const byBar = new Map<number, { cost: number; vol: number; ivSum: number; ivN: number }>();
+  let askV = 0;
+  let bidV = 0;
+  let midV = 0;
+  let multiV = 0;
+  let dayPrem = 0;
+  let minutesIn = false;
+  days.forEach((d, i) => {
+    for (const m of d.minutes ?? []) {
+      if (m.at < d.open || m.at >= d.close) continue;
+      minutesIn = true;
+      askV += m.volumeAsk;
+      bidV += m.volumeBid;
+      midV += m.volumeMid + m.volumeNoSide;
+      multiV += m.volumeMulti;
+      dayPrem += m.premiumAsk + m.premiumBid + m.premiumMid + m.premiumNoSide;
+      const vol = m.volumeAsk + m.volumeBid + m.volumeMid + m.volumeNoSide;
+      if (vol <= 0 || m.avgPrice === null) continue;
+      const k = at(i, m.at);
+      const b = byBar.get(k) ?? { cost: 0, vol: 0, ivSum: 0, ivN: 0 };
+      b.cost += m.avgPrice * vol;
+      b.vol += vol;
+      if (m.ivLow !== null && m.ivHigh !== null) {
+        b.ivSum += ((m.ivLow + m.ivHigh) / 2) * 100;
+        b.ivN++;
+      }
+      byBar.set(k, b);
+    }
+  });
   const keys = Array.from(byBar.keys()).sort((a, b) => a - b);
   const meanBar = keys.length ? keys.reduce((a, k) => a + byBar.get(k)!.vol, 0) / keys.length : 1;
   const avg = keys.map(k => {
     const b = byBar.get(k)!;
     return { min: k, price: Math.round((b.cost / b.vol) * 100) / 100, iv: b.ivN ? Math.round((b.ivSum / b.ivN) * 10) / 10 : NaN, relVol: Math.round((b.vol / meanBar) * 100) / 100 };
   });
-
-  /* the contract's day, off its minutes when they are in (the whole session), else off its prints */
-  let dayVol = 0;
-  let dayPrem = 0;
-  let askV = 0;
-  let bidV = 0;
-  let midV = 0;
-  let multiV = 0;
-  for (const m of mins) {
-    askV += m.volumeAsk;
-    bidV += m.volumeBid;
-    midV += m.volumeMid + m.volumeNoSide;
-    multiV += m.volumeMulti;
-    dayPrem += m.premiumAsk + m.premiumBid + m.premiumMid + m.premiumNoSide;
-  }
-  dayVol = askV + bidV + midV;
-  if (dayVol === 0) {
+  /* the window's tape, off its minutes when they are in, else off its prints */
+  if (!minutesIn) {
     for (const p of points) {
-      dayVol += p.size;
       dayPrem += p.premium;
       if (p.side === 'ASK') askV += p.size;
       else if (p.side === 'BID') bidV += p.size;
@@ -188,6 +216,7 @@ function build(
       if (p.multiLeg) multiV += p.size;
     }
   }
+  const dayVol = askV + bidV + midV;
   const stats = {
     vol: dayVol,
     oi: print.oi,
@@ -202,31 +231,34 @@ function build(
     askSharePct: dayVol > 0 ? Math.round((askV / dayVol) * 100) : 0,
   };
 
-  /* the name: its net premium a minute, cumulated, on its own minute closes */
+  /* the name: its net premium a minute, cumulated through the window, on its own minute closes */
   const step = Math.max(1, intervalMin);
-  const sessionTicks = (ticks ?? []).filter(t => t.at >= s.open && t.at < s.close).sort((a, b) => a.at - b.at);
-  const priceAt = new Map<number, number>();
-  for (const b of bars ?? []) if (b.at >= s.open && b.at < s.close && b.close !== null) priceAt.set(snap(sinceOpen(b.at)), b.close);
   const series: ContractFlow['net']['series'] = [];
-  const ubars = new Map<number, { callVol: number; putVol: number }>();
+  const ubars = new Map<number, { callVol: number; putVol: number; price: number }>();
   let netCall = 0;
   let netPut = 0;
   let lastPrice = NaN;
-  for (const t of sessionTicks) {
-    netCall += t.netCallPremium;
-    netPut += t.netPutPremium;
-    const k = Math.floor(sinceOpen(t.at) / step) * step;
-    const px = priceAt.get(snap(sinceOpen(t.at)));
-    if (px !== undefined) lastPrice = px;
-    const prev = series[series.length - 1];
-    const pt = { min: k, netCall, netPut: -netPut, price: lastPrice };
-    if (prev && prev.min === k) series[series.length - 1] = pt;
-    else series.push(pt);
-    const ub = ubars.get(k) ?? { callVol: 0, putVol: 0 };
-    ub.callVol += t.callVolume;
-    ub.putVol += t.putVolume;
-    ubars.set(k, ub);
-  }
+  days.forEach((d, i) => {
+    const priceAt = new Map<number, number>();
+    for (const b of d.bars ?? []) if (b.at >= d.open && b.at < d.close && b.close !== null) priceAt.set(snap(sinceOpen(b.at)), b.close);
+    const ticks = (d.ticks ?? []).filter(t => t.at >= d.open && t.at < d.close).sort((a, b) => a.at - b.at);
+    for (const t of ticks) {
+      netCall += t.netCallPremium;
+      netPut += t.netPutPremium;
+      const k = i * SESSION_MIN + Math.floor(sinceOpen(t.at) / step) * step;
+      const px = priceAt.get(snap(sinceOpen(t.at)));
+      if (px !== undefined) lastPrice = px;
+      const prev = series[series.length - 1];
+      const pt = { min: k, netCall, netPut: -netPut, price: lastPrice };
+      if (prev && prev.min === k) series[series.length - 1] = pt;
+      else series.push(pt);
+      const ub = ubars.get(k) ?? { callVol: 0, putVol: 0, price: NaN };
+      ub.callVol += t.callVolume;
+      ub.putVol += t.putVolume;
+      ub.price = px ?? ub.price;
+      ubars.set(k, ub);
+    }
+  });
   const exp = expiries ?? [];
   const callBought = exp.reduce((a, e) => a + e.callPremiumAsk, 0);
   const callSold = exp.reduce((a, e) => a + e.callPremiumBid, 0);
@@ -239,10 +271,10 @@ function build(
   const premAbs = Math.max(1, ...series.map(p => Math.max(Math.abs(p.netCall), Math.abs(p.netPut))));
   const bullTotal = Math.abs(netCall);
   const bearTotal = Math.abs(netPut);
-  /* the minute's premium by side is not in the ticks — the bars carry volume alone, and the card offers no dollar view */
+  /* the minute's premium by side is not in the ticks — the bars carry volume alone; the dollar view's bars are "—" */
   const underBars = Array.from(ubars.entries())
     .sort((a, b) => a[0] - b[0])
-    .map(([min, v]) => ({ min, callVol: v.callVol, putVol: -v.putVol, callPrem: 0, putPrem: 0, price: priceAt.get(min) ?? NaN }));
+    .map(([min, v]) => ({ min, callVol: v.callVol, putVol: -v.putVol, callPrem: NaN, putPrem: NaN, price: v.price }));
 
   /* where the day's activity sat: the 21 strikes nearest the spot, the contract's own among them */
   const spot = print.spot;
@@ -256,7 +288,22 @@ function build(
     .sort((a, b) => a.strike - b.strike)
     .map(k => ({ strike: k.strike, callVol: k.callVolume, putVol: -k.putVolume, callPrem: k.callPremium, putPrem: -k.putPremium, isFocus: k.strike === print.strike }));
 
-  /* the contract's sessions, newest first */
+  /* the contract's sessions, newest first — a session's shape through the day off its minutes where the window holds it */
+  const shapeOf = new Map<string, number[]>();
+  for (const d of days) {
+    const buckets = new Array<number>(26).fill(0);
+    let any = false;
+    for (const m of d.minutes ?? []) {
+      if (m.at < d.open || m.at >= d.close) continue;
+      const k = Math.max(0, Math.min(25, Math.floor(sinceOpen(m.at) / 15)));
+      buckets[k] += m.volumeAsk + m.volumeBid + m.volumeMid + m.volumeNoSide;
+      any = true;
+    }
+    if (any) {
+      const top = Math.max(1, ...buckets);
+      shapeOf.set(d.date, buckets.map(v => v / top));
+    }
+  }
   const hist = (history ?? []).slice().sort((a, b) => (a.date < b.date ? 1 : -1));
   const premSum = hist.reduce((a, h) => a + h.premium, 0) || 1;
   const historyRows: VolOiDay[] = hist.map((h, i) => {
@@ -275,8 +322,7 @@ function build(
       multiPct: h.volume > 0 ? Math.round((h.multilegVolume / h.volume) * 100) : NaN,
       totalPrem: h.premium,
       shareOfTotalPct: Math.round((h.premium / premSum) * 1000) / 10,
-      /* a session's shape through the day is not in these answers */
-      intraday: [],
+      intraday: shapeOf.get(h.date) ?? [],
     };
   });
 
@@ -285,8 +331,8 @@ function build(
     avg,
     orders,
     volMax: Math.max(1, ...points.map(p => p.size)),
-    windowMin: SESSION_MIN,
-    sessions: 1,
+    windowMin: SESSION_MIN * Math.max(1, days.length),
+    sessions: Math.max(1, days.length),
     stats,
     net: {
       series,
@@ -314,27 +360,94 @@ function build(
     strikes,
     history: historyRows,
   };
-  return { cf, capped: prints.length >= CARD_PRINTS };
+  return { cf, capped };
 }
 
-/** The card's contract on the feed: null until its prints are in, or when the card is not on the feed */
-export function useFeedCard(on: boolean, print: FlowPrint | null, intervalMin: number): FeedCard | null {
+const SESSIONS_FOR: Record<FlowRange, number> = { '1D': 1, '2D': 2, '3D': 3, '5D': 5, '10D': 10, '1M': 21 };
+const two = (n: number) => String(n).padStart(2, '0');
+const isoOf = (d: Date) => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+
+/** The window's sessions, oldest first: `n` sessions ending `back` sessions before the book's own */
+export function cardDates(s: FeedSession, back: number, n: number): string[] {
+  const [y, m, d] = s.date.split('-').map(Number);
+  const end = sessionsBefore(new Date(y, m - 1, d), back);
+  const out: string[] = [];
+  for (let k = n - 1; k >= 0; k--) out.push(isoOf(sessionsBefore(end, k)));
+  return out;
+}
+const openOf = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return { open: nyWallTime(y, m, d, 9, 30), close: nyWallTime(y, m, d, 16, 0) };
+};
+
+/** Past sessions of the window, asked once in turn and kept (the proxy keeps a past day's answers half an hour) */
+async function loadPast(occ: string, ticker: string, dates: string[]): Promise<FeedResult<CardDay[]>> {
+  const out: CardDay[] = [];
+  for (const date of dates) {
+    const [prints, minutes, ticks, bars] = [
+      await uwContractFlow(occ, { limit: CARD_PRINTS, date }),
+      await uwContractIntraday(occ, date),
+      await uwNetPremTicks(ticker, date),
+      await uwOhlc(ticker, { size: '1m', limit: 1000, date }),
+    ];
+    if (!prints.ok && prints.reason === 'rate') return prints;
+    out.push({
+      date,
+      ...openOf(date),
+      prints: prints.ok ? prints.data.filter(t => !t.canceled) : [],
+      minutes: minutes.ok ? minutes.data : null,
+      ticks: ticks.ok ? ticks.data : null,
+      bars: bars.ok ? bars.data : null,
+    });
+  }
+  return { ok: true, data: out, at: Date.now() };
+}
+
+/**
+ * The card's contract on the feed, over the card's own window — its range of sessions ending `dayOffset` sessions back,
+ * the single-leg cut and the interval: null until the newest session's prints are in, or when the card is not on the
+ * feed. The book's own session is polled as it moves; the sessions before it are asked once.
+ */
+export function useFeedCard(on: boolean, print: FlowPrint | null, opts: FlowOptions): FeedCard | null {
   const s = feedSession();
   const occ = print?.occ;
+  const ticker = print?.ticker?.toUpperCase() ?? '';
+  const dates = useMemo(() => cardDates(s, opts.dayOffset, SESSIONS_FOR[opts.range] ?? 1), [s.date, opts.dayOffset, opts.range]); // eslint-disable-line react-hooks/exhaustive-deps
+  const endDate = dates[dates.length - 1];
+  /* the book's own session, when the window ends on it, moves — polled; any other session is asked once */
+  const liveEnd = endDate === s.date;
   const date = dateParam(s);
-  const prints = useFeedContractPrints(on, occ);
-  const minutes = useFeedPoll(on && occ ? `trace:cmin:${occ}:${s.date}` : null, () => uwContractIntraday(occ!, date), 30_000);
+  const prints = useFeedContractPrints(on && liveEnd, occ);
+  const minutes = useFeedPoll(on && liveEnd && occ ? `trace:cmin:${occ}:${s.date}` : null, () => uwContractIntraday(occ!, date), 30_000);
   const history = useFeedPoll(on && occ ? `trace:chist:${occ}` : null, () => uwContractHistoric(occ!), 10 * 60_000);
-  const name = useFeedNameDay(on && !!print, print?.ticker);
+  const name = useFeedNameDay(on && !!print && liveEnd, print?.ticker);
+  const pastDates = liveEnd ? dates.slice(0, -1) : dates;
+  const past = useFeedPoll(on && occ && ticker && pastDates.length ? `trace:cpast:${occ}:${pastDates.join(',')}` : null, () => loadPast(occ!, ticker, pastDates), 10 * 60_000);
+  /* the chain and the flow by expiry are the last session's — the book's own, or a past one asked once */
+  const endChain = useFeedPoll(
+    on && ticker && !liveEnd ? `trace:cchain:${ticker}:${endDate}` : null,
+    async () => {
+      const e = await uwFlowPerExpiry(ticker, endDate);
+      const k = await uwFlowPerStrike(ticker, endDate);
+      return { ok: true as const, data: { expiries: e.ok ? e.data : null, strikes: k.ok ? k.data : null }, at: Date.now() };
+    },
+    10 * 60_000
+  );
   return useMemo(() => {
-    if (!on || !print || !prints) return null;
+    if (!on || !print) return null;
+    if (liveEnd && !prints) return null;
+    if (pastDates.length && !past) return null;
+    const days: CardDay[] = [...(past?.ok ? past.data : [])];
+    if (liveEnd)
+      days.push({ date: s.date, open: s.open, close: s.close, prints: prints ?? [], minutes: minutes?.ok ? minutes.data : null, ticks: name.ticks, bars: name.bars });
     try {
-      return build(print, s, intervalMin, prints, minutes?.ok ? minutes.data : null, history?.ok ? history.data : null, name.ticks, name.bars, name.expiries, name.strikes);
+      const chain = liveEnd ? { expiries: name.expiries, strikes: name.strikes } : endChain?.ok ? endChain.data : { expiries: null, strikes: null };
+      return buildCard(print, days, opts.intervalMin, opts.singleLegOnly, history?.ok ? history.data : null, chain.expiries, chain.strikes);
     } catch {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [on, print, prints, minutes, history, name.ticks, name.bars, name.expiries, name.strikes, intervalMin, s.date]);
+  }, [on, print, prints, minutes, history, past, endChain, name.ticks, name.bars, name.expiries, name.strikes, opts.intervalMin, opts.singleLegOnly, liveEnd, s.date]);
 }
 
 /** "MM/DD" of the session — the card's one day on the feed */

@@ -1038,3 +1038,119 @@ export const uwFlowPerExpiry = (ticker: string, date?: string): Promise<FeedResu
       putVolumeBid: num0(r.put_volume_bid_side),
     }))
   );
+
+/* ---- A NAME'S DAY, MANY AT ONCE (2026-10-12): the stock screener — one call for a list of names ------------------- */
+
+export interface UwStockDay {
+  ticker: string;
+  fullName: string;
+  sector: string;
+  industry: string;
+  close: number | null;
+  prevClose: number | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  /** Shares traded today, and the 30-day average */
+  stockVolume: number | null;
+  avg30Volume: number | null;
+  relativeVolume: number | null;
+  marketcap: number | null;
+  week52High: number | null;
+  week52Low: number | null;
+  /** Fractions: 0.035 is 3.5% */
+  oneWeekPerc: number | null;
+  oneMonthPerc: number | null;
+  threeMonthPerc: number | null;
+  sixMonthPerc: number | null;
+  oneYearPerc: number | null;
+  ytdPerc: number | null;
+  rsi14: number | null;
+  adx14: number | null;
+  sma20: number | null;
+  sma50: number | null;
+  sma200: number | null;
+  ema9: number | null;
+  ema21: number | null;
+  ema50: number | null;
+  atr14: number | null;
+  /** Implied vol (fraction), its rank 0–100, the move priced in over 1 and 30 days (fractions) */
+  iv30d: number | null;
+  ivRank: number | null;
+  impliedMove1: number | null;
+  impliedMove30: number | null;
+  realizedVol: number | null;
+  callVolume: number;
+  putVolume: number;
+  callPremium: number | null;
+  putPremium: number | null;
+  netPremium: number | null;
+  netCallPremium: number | null;
+  netPutPremium: number | null;
+  putCallRatio: number | null;
+  callOi: number | null;
+  putOi: number | null;
+  nextEarnings: string;
+  lastEarnings: string;
+  /** The day's net gamma, dollars per 1% move off open interest */
+  gexPerPct: number | null;
+}
+
+/**
+ * Many names' day in one call: price, ranges, returns, averages, RSI and ADX, implied vol and its rank, the option
+ * volume and premium, the next report. GET /api/screener/stocks (ticker: a comma list — 43 names answered in one call,
+ * seen live 2026-10-12; the Basic plan answers it).
+ */
+export const uwStockScreener = (tickers: string[]): Promise<FeedResult<UwStockDay[]>> =>
+  feedGet('uw', '/api/screener/stocks', { ticker: tickers.join(',') }, body =>
+    rowsOf(body).map(r => ({
+      ticker: str(r.ticker),
+      fullName: r.full_name == null ? '' : str(r.full_name),
+      sector: r.sector == null ? '' : str(r.sector),
+      industry: r.industry_type == null ? '' : str(r.industry_type),
+      close: num(r.close),
+      prevClose: num(r.prev_close),
+      open: num(r.open),
+      high: num(r.high),
+      low: num(r.low),
+      stockVolume: num(r.stock_volume),
+      avg30Volume: num(r.avg30_volume),
+      relativeVolume: num(r.relative_volume),
+      marketcap: num(r.marketcap),
+      week52High: num(r.week_52_high),
+      week52Low: num(r.week_52_low),
+      oneWeekPerc: num(r.one_week_perc),
+      oneMonthPerc: num(r.one_month_perc),
+      threeMonthPerc: num(r.three_month_perc),
+      sixMonthPerc: num(r.six_month_perc),
+      oneYearPerc: num(r.one_year_perc),
+      ytdPerc: num(r.ytd_perc),
+      rsi14: num(r.rsi_14),
+      adx14: num(r.adx_14),
+      sma20: num(r.sma_20),
+      sma50: num(r.sma_50),
+      sma200: num(r.sma_200),
+      ema9: num(r.ema_9),
+      ema21: num(r.ema_21),
+      ema50: num(r.ema_50),
+      atr14: num(r.atr_14),
+      iv30d: num(r.iv30d),
+      ivRank: num(r.iv_rank),
+      impliedMove1: num(r.implied_move_perc_1),
+      impliedMove30: num(r.implied_move_perc_30),
+      realizedVol: num(r.realized_volatility),
+      callVolume: num0(r.call_volume),
+      putVolume: num0(r.put_volume),
+      callPremium: num(r.call_premium),
+      putPremium: num(r.put_premium),
+      netPremium: num(r.net_premium),
+      netCallPremium: num(r.net_call_premium),
+      netPutPremium: num(r.net_put_premium),
+      putCallRatio: num(r.put_call_ratio),
+      callOi: num(r.call_open_interest),
+      putOi: num(r.put_open_interest),
+      nextEarnings: r.next_earnings_date == null ? '' : str(r.next_earnings_date),
+      lastEarnings: r.last_earnings_date == null ? '' : str(r.last_earnings_date),
+      gexPerPct: num(r.gex_gamma_per_one_percent_move_oi),
+    }))
+  );

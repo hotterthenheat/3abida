@@ -493,7 +493,8 @@ export interface Catch {
   spotAt?: number;
 }
 
-function rulesFor(r: BookContract): WatcherKey[] {
+/** The desk's six rules on one contract's day — exported so the feed's book is read by the same rules (2026-10-12) */
+export function rulesFor(r: BookContract): WatcherKey[] {
   const out: WatcherKey[] = [];
   // "Big enough to move the day" has to stay RARE or the words mean nothing.
   if (r.premium >= 25_000_000) out.push('big-money');
@@ -1288,6 +1289,8 @@ export interface SpreadTrade {
   /** On the feed: the strikes and the leg count the order carried, before its legs are asked for */
   strikeList?: number[];
   legCount?: number;
+  /** On the feed: the side the order's name gives it (a put spread, a call butterfly), before its legs are asked for */
+  rightHint?: 'C' | 'P';
 }
 
 const SPREAD_DTE_POOL = [0, 1, 2, 5, 9, 16, 30, 44, 72, 102] as const;

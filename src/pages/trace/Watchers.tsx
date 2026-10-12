@@ -60,7 +60,7 @@ import ReasonDoor from '../../components/trace/ReasonDoor';
 import ReadDoor from '../../components/trace/ReadDoor';
 import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { fig } from '../../components/trace/Missing';
-import { ALERT_FLOOR, FEED_REASONS, feedCatches, feedFollowThrough, feedSession, latestPrices, useFeedAlerts } from '../../data/feed/trace';
+import { ALERT_FLOOR, feedBookCatches, feedCatches, feedFollowThrough, feedSession, latestPrices, useFeedAlerts } from '../../data/feed/trace';
 import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { WatchersGuide } from '../../components/trace/TraceGuide';
@@ -149,9 +149,9 @@ const phoneRow = (a: Catch) => (
     }
     aside={a.time}
     figures={[
-      <span key="p" className="font-semibold text-textPrimary">{fmtUsd(a.clipPremium)}</span>,
-      <span key="s">{a.side === 'ASK' ? 'ask' : 'bid'} ${a.clipFill.toFixed(2)}</span>,
-      <span key="z">{num(a.clipSize)} contracts</span>,
+      <span key="p" className="font-semibold text-textPrimary">{fig(a.clipPremium, v => fmtUsd(v))}</span>,
+      <span key="s">{a.side === 'ASK' ? 'ask' : 'bid'} {fig(a.clipFill, v => `$${v.toFixed(2)}`)}</span>,
+      <span key="z">{fig(a.clipSize, v => num(v))} contracts</span>,
     ]}
   />
 );
@@ -186,7 +186,12 @@ const Watchers = () => {
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData, alerts: feedAlerts }), [liveBook, marketData, feedAlerts]), activeTicker);
   const { book: heldBook, tick, alerts: heldAlerts } = hold.value;
   const session = feedSession();
-  const feedAll = useMemo(() => (onFeed ? feedCatches(heldAlerts ?? [], heldBook, myReasons, session) : null), [onFeed, heldAlerts, heldBook, myReasons, session.date]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* the vendor's alerts in the desk's words, and the desk's own six rules (and the reader's) on the vendor's book */
+  const feedAll = useMemo(() => {
+    if (!onFeed) return null;
+    const alerted = feedCatches(heldAlerts ?? [], heldBook, myReasons, session);
+    return [...alerted, ...feedBookCatches(heldBook, myReasons, alerted)].sort((a, b) => b.minute - a.minute);
+  }, [onFeed, heldAlerts, heldBook, myReasons, session.date]); // eslint-disable-line react-hooks/exhaustive-deps
   const expiryRows = useMemo(() => (feedAll ? feedAll.map(c => c.row) : heldBook), [feedAll, heldBook]);
   /* THE EXPIRY CUT (2026-09-12): the watchers run over the cut book */
   const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(expiryRows, r => r.expiry, { value: addr.cut.exp || null, onChange: iso => addr.set({ exp: iso ?? '' }) });
@@ -299,7 +304,7 @@ const Watchers = () => {
           {latest.row.right}
         </ReadDoor>
         <RichRead
-          text={`, ${num(latest.clipSize)} on the ${latest.side === 'ASK' ? 'ask' : 'bid'} at $${latest.clipFill.toFixed(2)} (${
+          text={`, ${Number.isFinite(latest.clipSize) ? `${num(latest.clipSize)} ` : ''}on the ${latest.side === 'ASK' ? 'ask' : 'bid'}${Number.isFinite(latest.clipFill) ? ` at $${latest.clipFill.toFixed(2)}` : ''} (${
             latest.time
           }).`}
         />
@@ -312,10 +317,10 @@ const Watchers = () => {
   const reasonOptions = useMemo<DropdownOption<string>[]>(
     () => [
       { value: 'ALL', label: 'Every reason', hint: "The desk's watchers and yours" },
-      ...WATCHERS.filter(r => !onFeed || FEED_REASONS.includes(r.key)).map(r => ({ value: r.key, label: r.label, hint: r.hint })),
+      ...WATCHERS.map(r => ({ value: r.key, label: r.label, hint: r.hint })),
       ...myReasons.map(r => ({ value: r.id, label: r.name, hint: reasonSentence(r) })),
     ],
-    [myReasons, onFeed]
+    [myReasons]
   );
 
   const columns = useMemo<Column<Catch>[]>(
@@ -399,7 +404,7 @@ const Watchers = () => {
         sortValue: a => a.clipSize,
         render: a => (
           <span className="text-textPrimary">
-            {num(a.clipSize)} <span className="text-[11px] text-textSecondary">@ {fig(a.clipFill, v => `$${v.toFixed(2)}`)}</span>
+            {fig(a.clipSize, v => num(v))} <span className="text-[11px] text-textSecondary">@ {fig(a.clipFill, v => `$${v.toFixed(2)}`)}</span>
           </span>
         ),
       },
@@ -408,7 +413,7 @@ const Watchers = () => {
         header: 'Print $',
         align: 'right',
         sortValue: a => a.clipPremium,
-        render: a => <span className={weightInk(a.clipPremium, marks.prem)}>{fmtUsd(a.clipPremium)}</span>,
+        render: a => fig(a.clipPremium, v => <span className={weightInk(v, marks.prem)}>{fmtUsd(v)}</span>),
       },
       {
         key: 'sideCol',
@@ -471,7 +476,7 @@ const Watchers = () => {
      The bull/bear pills only show when they are not the magenta one. */
   const champs = useMemo(() => {
     const by = (pick: (a: Catch) => boolean) =>
-      shown.filter(pick).reduce<Catch | null>((a, x) => (a === null || x.clipPremium > a.clipPremium ? x : a), null);
+      shown.filter(a => pick(a) && Number.isFinite(a.clipPremium)).reduce<Catch | null>((a, x) => (a === null || x.clipPremium > a.clipPremium ? x : a), null);
     return { ask: by(a => a.side === 'ASK'), bid: by(a => a.side === 'BID'), all: by(() => true) };
   }, [shown]);
   const facts = useMemo(() => {

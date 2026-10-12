@@ -31,17 +31,26 @@ import type { DarkLeaderRow, DarkLeadersView, DarkPoolIntent, DarkPoolLevel, Dar
 import type { BookContract } from '../../types/trace';
 import { useFeedPoll } from './poll';
 import { feedSession, idNum, type FeedSession } from './trace';
-import { uwDarkpool, uwOhlc, uwVolumeAtPrice, type UwDarkPrint } from './uw';
+import { uwDarkpool, uwOhlc, uwOiPerStrike, uwVolumeAtPrice, type UwDarkPrint, type UwStockDay } from './uw';
+import { dayChangePct } from './stockDay';
 import { SECTOR_LIST } from '../darkpool';
 
 const dateParam = (s: FeedSession) => (s.live ? undefined : s.date);
 const LEVEL_COUNT = 6;
 const SIZED_PERCENTILE = 0.72;
 
-/* The read, by where the cross printed and the session's way — no draw, no hash */
-function classify(vsSpotPct: number, sized: boolean, sessionUp: boolean): { intent: DarkPoolIntent; conviction: number; read: string } {
+/* The read, by where the cross printed and the session's way — no draw, no hash. A cross that is not sized and printed on
+   an options shelf (within 0.1% of one of the name's heaviest open-interest strikes, the vendor's count) is read as the
+   house reads it there: hedge flow before direction (data/darkpool.ts classify) */
+function classify(vsSpotPct: number, sized: boolean, sessionUp: boolean, onOptionShelf = false): { intent: DarkPoolIntent; conviction: number; read: string } {
   const below = vsSpotPct < -0.08;
   const above = vsSpotPct > 0.08;
+  if (onOptionShelf && !sized)
+    return {
+      intent: 'HEDGE FLOW',
+      conviction: 55,
+      read: 'Printed on an options shelf — the place fits a desk hedging an options book more than a position on direction.',
+    };
   if (sized && below && sessionUp)
     return {
       intent: 'ACCUMULATION',
@@ -69,6 +78,8 @@ export function useFeedDarkView(on: boolean, ticker: string, spot: number | null
   const prints = useFeedPoll(on ? `trace:dark:${t}:${s.date}` : null, () => uwDarkpool({ ticker: t, limit: 200, date }), 15_000);
   const levels = useFeedPoll(on ? `trace:vap:${t}:${s.date}` : null, () => uwVolumeAtPrice(t, date), 60_000);
   const bars = useFeedPoll(on ? `trace:bars:${t}:${s.date}` : null, () => uwOhlc(t, { size: '1m', limit: 1000, date }), 30_000);
+  /* the options shelves: the name's heaviest open-interest strikes (an index's too) */
+  const oi = useFeedPoll(on ? `trace:oi:${t}:${s.date}` : null, () => uwOiPerStrike(t), 10 * 60_000);
   return useMemo(() => {
     if (!on || !prints) return null;
     const rows = prints.ok ? prints.data.filter(p => !p.canceled && p.executedAt >= s.open - 4 * 3600_000) : [];
@@ -112,6 +123,12 @@ export function useFeedDarkView(on: boolean, ticker: string, spot: number | null
       .sort((a, b) => b.price - a.price);
 
     /* the crosses */
+    const shelves = (oi?.ok ? oi.data : [])
+      .map(r => ({ strike: r.strike, oi: r.callOi + r.putOi }))
+      .sort((a, b) => b.oi - a.oi)
+      .slice(0, 8)
+      .map(r => r.strike);
+    const onOptionShelf = (price: number) => shelves.some(k => k > 0 && Math.abs(price - k) / k < 0.001);
     const sizes = rows.map(p => p.size).sort((a, b) => a - b);
     const sizedLine = sizes.length ? sizes[Math.floor(sizes.length * SIZED_PERCENTILE)] : Infinity;
     /* two crosses alike to the cent and the second keep their order — the second is told apart by its count */
@@ -134,7 +151,7 @@ export function useFeedDarkView(on: boolean, ticker: string, spot: number | null
         vsSpotPct,
         atLevel,
         sized,
-        ...classify(vsSpotPct, sized, sessionUp),
+        ...classify(vsSpotPct, sized, sessionUp, onOptionShelf(p.price)),
       };
     });
 
@@ -167,14 +184,14 @@ export function useFeedDarkView(on: boolean, ticker: string, spot: number | null
       largest: out.reduce<DarkPoolPrint | null>((a, p) => (a === null || p.notional > a.notional ? p : a), null),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [on, prints, levels, bars, spot, changePct, t, s.date]);
+  }, [on, prints, levels, bars, oi, spot, changePct, t, s.date]);
 }
 
 const sectorInk = new Map(SECTOR_LIST.map(x => [x.sector, x.color]));
 const OTHER = 'Funds and others';
 
 /** The market's sized crosses by sector and name: the session's crosses of $1M and up, the heaviest first */
-export function feedDarkLeaders(prints: UwDarkPrint[], book: BookContract[]): DarkLeadersView {
+export function feedDarkLeaders(prints: UwDarkPrint[], book: BookContract[], days: Map<string, UwStockDay> | null = null): DarkLeadersView {
   const bookSector = new Map<string, string>();
   for (const b of book) if (b.sector && !bookSector.has(b.ticker)) bookSector.set(b.ticker, b.sector);
   const byName = new Map<string, { notional: number; size: number; prints: number; price: number; at: number; sector: string }>();
@@ -192,8 +209,12 @@ export function feedDarkLeaders(prints: UwDarkPrint[], book: BookContract[]): Da
   const bySector = new Map<string, DarkSector>();
   for (const [ticker, n] of byName) {
     const sec = bySector.get(n.sector) ?? { sector: n.sector, color: sectorInk.get(n.sector) ?? 'rgb(var(--text-secondary))', notional: 0, sharePct: 0, prints: 0, rows: [] };
-    /* the day's direction and the average day's volume are not in these answers — the page leaves them out */
-    const row: DarkLeaderRow = { ticker, price: n.price, dirUp: true, notional: n.notional, pctAvgVol: NaN, size: n.size };
+    /* the day's direction and the name's average day are the stock screener's (stockDay.ts): its change today, and the
+       shares crossed dark against its 30-day average volume */
+    const day = days?.get(ticker.toUpperCase());
+    const chg = dayChangePct(day);
+    const avg = day?.avg30Volume ?? null;
+    const row: DarkLeaderRow = { ticker, price: n.price, dirUp: Number.isFinite(chg) ? chg >= 0 : undefined, notional: n.notional, pctAvgVol: avg && avg > 0 ? (n.size / avg) * 100 : NaN, size: n.size };
     sec.rows.push(row);
     sec.notional += n.notional;
     sec.prints += n.prints;
