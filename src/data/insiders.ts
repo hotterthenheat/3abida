@@ -49,6 +49,12 @@ export const TX_CODES: Record<TxCode, TxCodeMeta> = {
   F: { code: 'F', label: 'Shares withheld for tax', discretionary: false, openMarket: false, acquires: false, note: 'Shares withheld at vesting to cover withholding. They never reached the market; the price shown is the valuation used to compute it.' },
   G: { code: 'G', label: 'Gift', discretionary: true, openMarket: false, acquires: false, note: 'Chosen, but not a market transaction and no proceeds.' },
   D: { code: 'D', label: 'Returned to the company', discretionary: false, openMarket: false, acquires: false, note: 'Shares returned to the issuer under a plan — a buyback or a settlement, not a market sale.' },
+  /* the codes the feed carries beyond the seven above (2026-10-12) */
+  J: { code: 'J', label: 'Other acquisition or disposition', discretionary: false, openMarket: false, acquires: true, note: 'Code J: a transfer the form does not otherwise name — a footnote on the filing says what it was.' },
+  W: { code: 'W', label: 'Will or inheritance', discretionary: false, openMarket: false, acquires: true, note: 'Shares that moved by will or the laws of descent — no decision on the day.' },
+  C: { code: 'C', label: 'Conversion of a derivative', discretionary: false, openMarket: false, acquires: true, note: 'A derivative converted into shares — mechanical, not a purchase.' },
+  X: { code: 'X', label: 'Option exercised', discretionary: false, openMarket: false, acquires: true, note: 'An option exercised for shares — paid at the strike, not bought in the market.' },
+  N: { code: 'N', label: 'Notice of a proposed sale', discretionary: false, openMarket: false, acquires: false, note: 'A Form 144: notice that a sale may follow, filed before it. Not a trade — the sale, if it comes, is filed on its own.' },
 };
 export const OPEN_MARKET_CODES: TxCode[] = ['P', 'S'];
 export const ALL_CODES: TxCode[] = ['P', 'S', 'A', 'M', 'F', 'G', 'D'];
@@ -115,11 +121,6 @@ export function insiderFlow(ticker: string, windowDays = 90, day = dayKey()): In
   const count = Math.floor(h01(`${seed}|n`) * 7);
   const px = recordPrice(sym);
   const trades: InsiderTrade[] = [];
-  let bought = 0;
-  let sold = 0;
-  let plannedValue = 0;
-  let openMarketBuys = 0;
-  let compValue = 0;
   const roster = rosterOf(sym);
   for (let i = 0; i < count; i++) {
     const s = `${seed}|${i}`;
@@ -140,13 +141,30 @@ export function insiderFlow(ticker: string, windowDays = 90, day = dayKey()): In
     const value = Math.round(shares * price);
     const heldAfter = Math.round(shares * (2 + h01(`${s}|h`) * 40));
     trades.push({ id: s, ticker: sym, role, person, code, kind, shares, price, value, daysAgo, plan, clusterCount: 0, heldAfter, stakePct: Number(((shares / (shares + heldAfter)) * 100).toFixed(1)), sincePct });
+  }
+  return flowFrom(sym, trades, windowDays);
+}
+
+/**
+ * One name's filings added up — the house's book or the feed's rows alike (2026-10-12). A figure the filing did not
+ * carry (NaN) adds nothing. The clusters are set on the rows here.
+ */
+export function flowFrom(ticker: string, trades: InsiderTrade[], windowDays: number): InsiderFlow {
+  let bought = 0;
+  let sold = 0;
+  let plannedValue = 0;
+  let openMarketBuys = 0;
+  let compValue = 0;
+  for (const t of trades) {
+    const meta = TX_CODES[t.code];
+    const value = Number.isFinite(t.value) ? t.value : 0;
     /* Bought and sold are MARKET activity only; the plumbing is counted apart */
     if (meta.openMarket) {
-      if (kind === 'BUY') {
+      if (t.kind === 'BUY') {
         bought += value;
-        if (isChosenBuy({ code, plan })) openMarketBuys += value;
+        if (isChosenBuy(t)) openMarketBuys += value;
       } else sold += value;
-      if (plan === 'plan' && kind === 'SELL') plannedValue += value;
+      if (t.plan === 'plan' && t.kind === 'SELL') plannedValue += value;
     } else compValue += value;
   }
   /* Clusters: distinct filers acting the same way inside 30 days */
@@ -166,7 +184,7 @@ export function insiderFlow(ticker: string, windowDays = 90, day = dayKey()): In
   else if (openMarketBuys > 0 && openMarketBuys >= discretionarySold) signal = 'accumulating';
   else if (discretionarySold > 0 && discretionarySold >= sold * 0.4) signal = 'distributing';
   else if (sold > 0) signal = 'scheduled selling';
-  return { ticker: sym, trades, bought, sold, net, plannedValue, compValue, buyerCluster: recentBuyers.size, openMarketBuys, signal, windowDays };
+  return { ticker, trades, bought, sold, net, plannedValue, compValue, buyerCluster: recentBuyers.size, openMarketBuys, signal, windowDays };
 }
 
 /** Every filing across the universe, newest first — the page's feed */
@@ -193,8 +211,8 @@ export function insidersSentence(rows: InsiderTrade[], windowDays: number): stri
   const chosenBuys = market.filter(t => isChosenBuy(t));
   const sales = market.filter(t => t.kind === 'SELL');
   const planned = sales.filter(t => t.plan === 'plan');
-  const buyValue = chosenBuys.reduce((s, t) => s + t.value, 0);
-  const saleValue = sales.reduce((s, t) => s + t.value, 0);
+  const buyValue = chosenBuys.reduce((s, t) => s + (Number.isFinite(t.value) ? t.value : 0), 0);
+  const saleValue = sales.reduce((s, t) => s + (Number.isFinite(t.value) ? t.value : 0), 0);
   const names = [...new Set(chosenBuys.map(t => t.ticker))].slice(0, 4);
   const parts: string[] = [];
   if (chosenBuys.length) parts.push(`${chosenBuys.length} ${chosenBuys.length === 1 ? 'purchase' : 'purchases'} someone chose to make, ${fmtM(buyValue)} in ${names.join(', ')}${chosenBuys.length > names.length ? ' and more' : ''} — the rows on this page with one obvious motive.`);

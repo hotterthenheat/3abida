@@ -38,10 +38,22 @@
 
   States, not orders: STRONG / MIXED / WEAK are what
   the data says about a name, never an instruction.
+
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors (data/feed/rooms.ts), every name's price
+  and day are UW's (one stock-state a name, a minute
+  apart; data/feed/dossier.ts). The four sleeves, the
+  screen, the thirty-day line and the rotation are the
+  house's screens, not in the feed — a dash; the
+  names and their sectors are the terminal's own list,
+  and a name's page reads its company record.
 ==================================================
 */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useDossierFeed, useFeedPrices } from '../../data/feed/dossier';
+import { Missing, MissingLine, NOT_IN_FEED, byFigure, missing } from '../../components/record/Missing';
+import { RecordPageSkeleton } from './recordSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
@@ -119,9 +131,9 @@ const SectorCell = ({ data }: ICellRendererParams<StockPick>) =>
     </span>
   ) : null;
 
-const LastCell = ({ data }: ICellRendererParams<StockPick>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">${data.price.toFixed(2)}</span> : null);
-const TodayCell = ({ data }: ICellRendererParams<StockPick>) => (data ? <span className={`font-mono text-[11px] tnum ${dirInk(data.changePct)}`}>{signedPct(data.changePct, 2)}</span> : null);
-const TrendCell = ({ data }: ICellRendererParams<StockPick>) => (data ? <Sparkline data={data.trend} up={data.trend[data.trend.length - 1] >= data.trend[0]} width={72} height={20} /> : null);
+const LastCell = ({ data }: ICellRendererParams<StockPick>) => (data ? missing(data.price) ? <Missing /> : <span className="font-mono text-[11px] tnum text-textPrimary">${data.price.toFixed(2)}</span> : null);
+const TodayCell = ({ data }: ICellRendererParams<StockPick>) => (data ? missing(data.changePct) ? <Missing /> : <span className={`font-mono text-[11px] tnum ${dirInk(data.changePct)}`} data-dir={data.changePct >= 0 ? 'up' : 'down'}>{signedPct(data.changePct, 2)}</span> : null);
+const TrendCell = ({ data }: ICellRendererParams<StockPick>) => (data ? data.trend.length === 0 ? <Missing /> : <Sparkline data={data.trend} up={data.trend[data.trend.length - 1] >= data.trend[0]} width={72} height={20} /> : null);
 
 /** A sleeve as a bar against the 50 line — the bar is the whole read; its figure stays inside the engine */
 const sleeveCell =
@@ -129,6 +141,7 @@ const sleeveCell =
   ({ data }: ICellRendererParams<StockPick>) => {
     if (!data) return null;
     const v = data.sleeves[key];
+    if (missing(v)) return <Missing />;
     return (
       <span className="flex items-center h-full w-full pr-2" title={v > 50 ? 'Above the 50 line — for the name' : 'Below the 50 line — against it'}>
         <span className="relative flex-1 h-[4px] rounded-full bg-ink/[0.06] overflow-hidden">
@@ -139,7 +152,9 @@ const sleeveCell =
   };
 
 const ScreenCell = ({ data }: ICellRendererParams<StockPick>) =>
-  data ? (
+  data && missing(data.composite) ? (
+    <Missing />
+  ) : data ? (
     <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${SCREEN_DOT[gradeOfPick(data)]}`} />
       {gradeOfPick(data).toUpperCase()}
@@ -147,7 +162,9 @@ const ScreenCell = ({ data }: ICellRendererParams<StockPick>) =>
   ) : null;
 
 const WhyCell = ({ data }: ICellRendererParams<StockPick>) =>
-  data ? (
+  data && !data.thesis ? (
+    <Missing />
+  ) : data ? (
     <span className="block text-[11px] text-textSecondary truncate" title={data.thesis}>
       {data.thesis}
     </span>
@@ -194,8 +211,20 @@ const Stocks = () => {
   const [names, setNames] = useState<NamesPick>('all');
   const [guideOpen, setGuideOpen] = useState(false);
 
+  /* ALL OR NOTHING (data/feed/rooms.ts): UW's prices when the Dossier reads the feed — and nothing of the house's screens beside them */
+  const fromFeed = useDossierFeed();
   /* The board is deterministic per session day; the rotation rolls it up */
-  const picks = useMemo(() => buildStockBoard(), []);
+  const house = useMemo(() => buildStockBoard(), []);
+  const tickers = useMemo(() => house.map(p => p.ticker).sort(), [house]);
+  const fed = useFeedPrices(fromFeed, tickers);
+  const picks = useMemo<StockPick[]>(() => {
+    if (!fromFeed) return house;
+    const prices = fed?.ok ? fed.data : {};
+    const none = { momentum: NaN, quality: NaN, flow: NaN, news: NaN };
+    return house
+      .map(p => ({ ...p, price: prices[p.ticker]?.price ?? NaN, changePct: prices[p.ticker]?.changePct ?? NaN, sleeves: none, composite: NaN, thesis: '', trend: [] }))
+      .sort((a, b) => a.ticker.localeCompare(b.ticker));
+  }, [fromFeed, house, fed]);
   const sectors = useMemo(() => buildSectorBoard(picks), [picks]);
   const top = sectors[0];
   const bottom = sectors[sectors.length - 1];
@@ -203,7 +232,7 @@ const Stocks = () => {
   /* The cards cut the board; the Filter keeps from the cut */
   const cut = useMemo(() => {
     const board = new Set(boardNames);
-    return picks.filter(p => (screen === 'all' || gradeOfPick(p) === screen) && (sector === 'all' || p.sector === sector) && (names === 'all' || board.has(p.ticker)));
+    return picks.filter(p => (screen === 'all' || (!missing(p.composite) && gradeOfPick(p) === screen)) && (sector === 'all' || p.sector === sector) && (names === 'all' || board.has(p.ticker)));
   }, [picks, screen, sector, names, boardNames]);
 
   /* THE FILTER reads the names on the cut; any pick matching keeps the row. Names
@@ -256,12 +285,22 @@ const Stocks = () => {
     [top, sectors, laggards, facts]
   );
 
+  /* the day across the names on the page, from the prices that came back */
+  const day = useMemo(() => {
+    const priced = rows.filter(p => !missing(p.changePct));
+    const up = priced.filter(p => p.changePct > 0).length;
+    const down = priced.filter(p => p.changePct < 0).length;
+    const biggest = priced.reduce<StockPick | null>((a, p) => (a === null || Math.abs(p.changePct) > Math.abs(a.changePct) ? p : a), null);
+    return { priced: priced.length, up, down, biggest };
+  }, [rows]);
+  const screenOptions = fromFeed ? SCREEN_OPTIONS.map(o => (o.value === 'all' ? o : { ...o, disabled: true, hint: `Our screens — ${NOT_IN_FEED}` })) : SCREEN_OPTIONS;
+
   const columnDefs = useMemo<ColDef<StockPick>[]>(
     () => [
       { headerName: 'Name', field: 'ticker', flex: 1.2, minWidth: 180, cellRenderer: NameCell, headerTooltip: 'The company — click the row to open it on the Map' },
       { headerName: 'Sector', field: 'sector', width: 190, cellRenderer: SectorCell, headerTooltip: 'The sector the name files under' },
-      { headerName: 'Last', field: 'price', width: 96, cellRenderer: LastCell, type: 'rightAligned', headerTooltip: 'The last price' },
-      { headerName: 'Today', field: 'changePct', width: 88, cellRenderer: TodayCell, type: 'rightAligned', headerTooltip: "Today's change" },
+      { headerName: 'Last', field: 'price', width: 96, cellRenderer: LastCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'The last price' },
+      { headerName: 'Today', field: 'changePct', width: 88, cellRenderer: TodayCell, comparator: byFigure, type: 'rightAligned', headerTooltip: "Today's change, from the session before's close" },
       { headerName: '30 days', field: 'trend', width: 100, cellRenderer: TrendCell, cellDataType: false, sortable: false, headerTooltip: 'Strength against the tape over the last thirty sessions' },
       { headerName: 'Trend', colId: 'momentum', valueGetter: p => p.data?.sleeves.momentum ?? 0, width: 104, cellRenderer: sleeveCell('momentum'), headerTooltip: 'Momentum — is the price trend up and holding; above the 50 line green, below red' },
       { headerName: 'Numbers', colId: 'quality', valueGetter: p => p.data?.sleeves.quality ?? 0, width: 104, cellRenderer: sleeveCell('quality'), headerTooltip: 'Quality — margins, growth and the balance sheet; above the 50 line green, below red' },
@@ -295,6 +334,7 @@ const Stocks = () => {
     if (!e.data) return;
     navigate(`/dossier/stocks/${e.data.ticker}`);
   };
+  if (fromFeed && fed === null) return <RecordPageSkeleton pathname="/dossier/stocks" />;
 
   return (
     <div className="relative border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col" data-stocks data-screen={screen} data-sector={sector} data-rows={rows.length}>
@@ -305,47 +345,55 @@ const Stocks = () => {
       <div className="px-5 pt-4 pb-3 flex items-start gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="h-6 flex items-center gap-3">
-            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">How every name screens</h3>
+            <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">{fromFeed ? 'Every name, priced' : 'How every name screens'}</h3>
             <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the sleeves, the screen and the rotation mean" testId="stocks-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map
+            {fromFeed ? 'The last trade and the day against the session before’s close, asked every minute · A to Z · a row opens the name’s page' : <>The trend, the numbers, the money and the news, each read strong, good, caution or poor and rolled into one screen · the best first · the rotation ranks the sectors the same way · a row opens the name on the Map</>}
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
             <dt className="text-[11px] text-textMuted">Names</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-stocks-names>
-              {facts.names} <span className="text-textMuted">·</span> <span className="text-bull font-semibold">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-bull">{facts.good} good</span> <span className="text-textMuted">·</span> <span className="text-warn">{facts.mixed} caution</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} poor</span>
+              {fromFeed ? (
+                <>
+                  {facts.names} <span className="text-textMuted">·</span> <span className="text-bull" data-dir="up">{day.up} up</span> <span className="text-textMuted">·</span> <span className="text-bear" data-dir="down">{day.down} down</span>
+                </>
+              ) : (
+                <>
+                  {facts.names} <span className="text-textMuted">·</span> <span className="text-bull font-semibold">{facts.strong} strong</span> <span className="text-textMuted">·</span> <span className="text-bull">{facts.good} good</span> <span className="text-textMuted">·</span> <span className="text-warn">{facts.mixed} caution</span> <span className="text-textMuted">·</span> <span className="text-bear">{facts.weak} poor</span>
+                </>
+              )}
             </dd>
           </div>
           <div>
             <dt className="text-[11px] text-textMuted">Above their trend</dt>
             <dd className={`mt-0.5 font-mono text-[12px] tnum whitespace-nowrap ${facts.breadth >= 55 ? 'text-bull' : facts.breadth <= 40 ? 'text-bear' : 'text-textPrimary'}`} data-stocks-breadth>
-              {facts.breadth}%
+              {fromFeed ? <Missing className="text-[12px]" /> : `${facts.breadth}%`}
             </dd>
           </div>
           <div>
             <dt className="text-[11px] text-textMuted">Leading sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-leader>
-              <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
+              {fromFeed ? <Missing className="text-[12px]" /> : <button type="button" onClick={() => toggleSector(top.sector)} title={`Keep the grid to ${top.sector}`} className="hit font-mono text-[12px] tnum text-supreme font-semibold hover:underline underline-offset-2">
                 {top.sector}
-              </button>
+              </button>}
             </dd>
           </div>
           <div>
             <dt className="text-[11px] text-textMuted">Trailing sector</dt>
             <dd className="mt-0.5 whitespace-nowrap" data-stocks-trailer>
-              <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
+              {fromFeed ? <Missing className="text-[12px]" /> : <button type="button" onClick={() => toggleSector(bottom.sector)} title={`Keep the grid to ${bottom.sector}`} className="hit font-mono text-[12px] tnum text-bear hover:underline underline-offset-2">
                 {bottom.sector}
-              </button>
+              </button>}
             </dd>
           </div>
         </dl>
       </div>
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-stocks-controls>
-        <DropdownSelect label="Screen" value={screen} options={SCREEN_OPTIONS} onChange={setScreen} title="Which screens" testId="stocks-screen" />
+        <DropdownSelect label="Screen" value={screen} options={screenOptions} onChange={setScreen} title="Which screens" testId="stocks-screen" />
         <DropdownSelect label="Sector" value={sector} options={SECTOR_OPTIONS} onChange={setSector} title="Which sector" testId="stocks-sector" />
         <DropdownSelect label="Names" value={names} options={NAMES_OPTIONS} onChange={setNames} title="Which companies" testId="stocks-names" />
         <div className="ml-auto" title="The names on the page right now — tick any number; only those stay">
@@ -353,7 +401,24 @@ const Stocks = () => {
         </div>
       </div>
       <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-stocks-sentence>
-        {sentence}
+        {!fromFeed ? (
+          sentence
+        ) : fed && !fed.ok ? (
+          'No prices came back this time — asked again in a minute.'
+        ) : (
+          <>
+            {day.priced} of the {facts.names} names priced: <span className="text-bull font-semibold" data-dir="up">{day.up}</span> up on the day, <span className="text-bear font-semibold" data-dir="down">{day.down}</span> down
+            {day.biggest && (
+              <>
+                {' '}· the biggest move is {day.biggest.ticker} at{' '}
+                <span className={`font-semibold ${dirInk(day.biggest.changePct)}`} data-dir={day.biggest.changePct >= 0 ? 'up' : 'down'}>
+                  {signedPct(day.biggest.changePct, 2)}
+                </span>
+              </>
+            )}
+            . The screens and the rotation are ours, {NOT_IN_FEED}.
+          </>
+        )}
       </p>
       {/* THE ROTATION */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-stocks-rotation>
@@ -361,11 +426,15 @@ const Stocks = () => {
           <span>The rotation</span>
           <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">every sector ranked by its names' screens, leader first · the two windows against the tape · click a sector to keep the grid to its names</span>
         </div>
+        {fromFeed ? (
+          <MissingLine what="Every sector ranked by its names' screens" />
+        ) : (
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${ROTATION_SECTORS}, minmax(0, 1fr))` }}>
           {sectors.map((s, i) => (
             <SectorCard key={s.sector} s={s} rank={i + 1} leader={s.score === top.score} top={top.score} on={sector === s.sector} onToggle={() => toggleSector(s.sector)} />
           ))}
         </div>
+        )}
       </div>
       {/* THE GRID — grown to its rows, the page scrolls (2026-09-11, the Compass board's rule) */}
       <div ref={gridRef} className="grid-keys slayer-board border-t border-borderSubtle" data-stocks-grid>

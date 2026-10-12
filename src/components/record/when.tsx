@@ -38,7 +38,8 @@ export const dayBefore = (daysAgo: number, from: Date = now()): Date => {
   return d;
 };
 
-export const agoWords = (daysAgo: number): string => (daysAgo <= 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`);
+/* a day ahead reads forward: a Form 144 names the day a sale may come (the feed, 2026-10-12) */
+export const agoWords = (daysAgo: number): string => (daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : daysAgo === -1 ? 'tomorrow' : daysAgo < 0 ? `in ${-daysAgo}d` : `${daysAgo}d ago`);
 
 export const whenParts = (daysAgo: number, from: Date = now()): WhenParts => {
   const d = dayBefore(daysAgo, from);
@@ -46,9 +47,18 @@ export const whenParts = (daysAgo: number, from: Date = now()): WhenParts => {
   return { date, ago: agoWords(daysAgo), long: `${WEEKDAY[d.getDay()]} ${date}` };
 };
 
-/** The date and its distance, as one cell: "09/11 · 2d ago" */
-export const When = ({ days, size = 11 }: { days: number; size?: 10 | 11 }) => {
-  const w = whenParts(days);
+/** A calendar day as filed ("2026-10-05") read as the cell reads it — the date written, never counted back */
+export const isoParts = (iso: string, daysAgo: number): WhenParts => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return whenParts(daysAgo);
+  const date = `${m[2]}/${m[3]}`;
+  const wd = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).getUTCDay();
+  return { date, ago: agoWords(daysAgo), long: `${WEEKDAY[wd]} ${date}` };
+};
+
+/** The date and its distance, as one cell: "09/11 · 2d ago" — `iso` (the feed's own day) wins over counting back */
+export const When = ({ days, size = 11, iso }: { days: number; size?: 10 | 11; iso?: string }) => {
+  const w = iso ? isoParts(iso, days) : whenParts(days);
   return (
     <span className={`font-mono tnum whitespace-nowrap ${size === 11 ? 'text-[11px]' : 'text-[11px]'}`} title={w.long} data-when={w.date} data-when-ago={days}>
       <span className="text-textPrimary">{w.date}</span>

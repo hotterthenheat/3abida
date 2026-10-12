@@ -23,10 +23,23 @@
                   pinned
 
   A row opens the name's own page in the Dossier.
+
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors (data/feed/rooms.ts), the rows are UW's
+  filed reports (data/feed/dossier.ts), paged back by
+  trade date; the member's party, seat and committees
+  are not in the feed, so the seat is left off, the
+  own-committee reading is a dash, and the Executive
+  branch's reports (they ride the same route) get a
+  chamber of their own. A report names what was filed,
+  never what to do with it.
 ==================================================
 */
 
 import { useMemo, useState } from 'react';
+import { useDossierFeed, useFeedCongress } from '../../data/feed/dossier';
+import { Missing, MissingLine, NOT_IN_FEED } from '../../components/record/Missing';
+import { isoDayLabel } from '../../core/format';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
@@ -38,10 +51,13 @@ import CompanyLogo from '../../components/ui/CompanyLogo';
 import { CongressGuide } from '../../components/record/CongressGuide';
 import { When } from '../../components/record/when';
 import { changeTicker } from '../../context/MarketDataContext';
-import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketLabel, buildCongress, congressSentence, summariseCongress } from '../../data/congress';
+import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketLabel, buildCongress, congressSentence, seatOf, summariseCongress } from '../../data/congress';
 import { tickerName } from '../../data/tickers';
 import type { Chamber, CongressTrade, ReportOwner } from '../../types/record';
-import { REPORTS_TO_KNOW } from './recordSkeletons';
+import { REPORTS_TO_KNOW, RecordPageSkeleton } from './recordSkeletons';
+
+/** Rows the grid shows before "show the rest" (the feed's reports run to hundreds) */
+const REST_ROWS = 80;
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 type Window = 30 | 90 | 180;
@@ -59,6 +75,13 @@ const CHAMBER_OPTIONS: DropdownOption<ChamberPick>[] = [
   { value: 'House', label: 'House', hint: 'Representatives only' },
   { value: 'Senate', label: 'Senate', hint: 'Senators only' },
 ];
+/* the feed's reports carry the executive branch's too (2026-10-12) */
+const CHAMBER_OPTIONS_FEED: DropdownOption<ChamberPick>[] = [
+  { value: 'both', label: 'Every filer', hint: 'House, Senate and the executive branch' },
+  { value: 'House', label: 'House', hint: 'Representatives only' },
+  { value: 'Senate', label: 'Senate', hint: 'Senators only' },
+  { value: 'Executive', label: 'Executive', hint: 'The executive branch’s reports' },
+];
 const OWNER_OPTIONS: DropdownOption<OwnerPick>[] = [
   { value: 'any', label: 'Any', hint: 'The member, their spouse, a joint account or a dependent' },
   { value: 'Self', label: 'Self', hint: "The member's own holding" },
@@ -66,6 +89,7 @@ const OWNER_OPTIONS: DropdownOption<OwnerPick>[] = [
   { value: 'Joint', label: 'Joint', hint: 'A joint account' },
   { value: 'Dependent', label: 'Dependent', hint: "A dependent child's holding" },
 ];
+const OWNER_OPTIONS_FEED: DropdownOption<OwnerPick>[] = [...OWNER_OPTIONS, { value: 'Undisclosed', label: 'Undisclosed', hint: 'The report named no owner' }];
 const SHOW_OPTIONS: DropdownOption<Show>[] = [
   { value: 'all', label: 'All reports', hint: 'Every report in the window' },
   { value: 'committee', label: 'Own committee', hint: "Trades in a sector the member's own committee oversees — the reading this data is for" },
@@ -74,14 +98,14 @@ const SHOW_OPTIONS: DropdownOption<Show>[] = [
   { value: 'sales', label: 'Sales', hint: 'Sales only, full or partial', tone: 'bear' },
 ];
 
-const seat = (t: CongressTrade) => `${t.member.party}-${t.member.district ?? t.member.state}`;
+const seat = (t: CongressTrade) => seatOf(t.member);
 const typeWord = (t: CongressTrade) => (t.type === 'Purchase' ? 'Purchase' : t.type === 'Exchange' ? 'Exchange' : 'Sale');
 const typeInk = (t: CongressTrade) => (t.type === 'Purchase' ? 'text-bull' : t.type === 'Exchange' ? 'text-textMuted' : 'text-bear');
 
 /* ---- cells: the house grammar inside the grid ------------------------------------ */
 
 /* the dates, then how far back (the partner's review: never "9d ago" alone) */
-const FiledCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <When days={data.filedDaysAgo} /> : null);
+const FiledCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <When days={data.filedDaysAgo} iso={data.filedOn} /> : null);
 
 const MemberCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   data ? (
@@ -100,12 +124,18 @@ const MemberCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   ) : null;
 
 const AssetCell = ({ data }: ICellRendererParams<CongressTrade>) =>
-  data ? (
+  data && !data.ticker ? (
+    /* a report naming no listed stock (a bond, a fund, a private holding) — the asset as filed */
+    <span className="flex flex-col leading-tight min-w-0" title={data.assetDescription}>
+      <span className="text-[12px] text-textPrimary truncate">{data.assetDescription}</span>
+      <span className="text-[11px] text-textMuted truncate">{data.assetKind}</span>
+    </span>
+  ) : data ? (
     <span className="inline-flex items-center gap-2 min-w-0">
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
-        <span className="text-[11px] text-textMuted truncate">{data.assetKind === 'Stock' ? tickerName(data.ticker) : data.assetKind}</span>
+        <span className="text-[11px] text-textMuted truncate" title={data.filedOn ? data.assetDescription : undefined}>{data.filedOn ? data.assetDescription : data.assetKind === 'Stock' ? tickerName(data.ticker) : data.assetKind}</span>
       </span>
     </span>
   ) : null;
@@ -119,7 +149,11 @@ const TypeCell = ({ data }: ICellRendererParams<CongressTrade>) =>
   ) : null;
 
 const OwnerCell = ({ data }: ICellRendererParams<CongressTrade>) =>
-  data ? <span className={`font-mono text-[11px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
+  data?.owner === 'Undisclosed' ? (
+    <span className="font-mono text-[11px] text-textMuted" title="The report named no owner">
+      undisclosed
+    </span>
+  ) : data ? <span className={`font-mono text-[11px] uppercase tracking-widest ${data.owner === 'Self' ? 'text-textPrimary' : 'text-textMuted'}`}>{data.owner}</span> : null;
 
 /** The ten rungs as a ladder, the disclosed one lit — never a midpoint */
 const Ladder = ({ bracket }: { bracket: number }) => (
@@ -140,7 +174,7 @@ const AmountCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   );
 };
 
-const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <When days={data.tradedDaysAgo} /> : null);
+const TradedCell = ({ data }: ICellRendererParams<CongressTrade>) => (data ? <When days={data.tradedDaysAgo} iso={data.tradedOn} /> : null);
 
 const LagCell = ({ data }: ICellRendererParams<CongressTrade>) => {
   if (!data) return null;
@@ -189,6 +223,8 @@ const ReportCard = ({ t, on, onToggle }: { t: CongressTrade; on: boolean; onTogg
 
 const Congress = () => {
   const navigate = useNavigate();
+  /* ALL OR NOTHING (data/feed/rooms.ts): the filed reports when the Dossier reads the feed, else the house's book */
+  const fromFeed = useDossierFeed();
   const [window, setWindow] = useState<Window>(90);
   const [chamber, setChamber] = useState<ChamberPick>('both');
   const [owner, setOwner] = useState<OwnerPick>('any');
@@ -196,7 +232,8 @@ const Congress = () => {
   const [guideOpen, setGuideOpen] = useState(false);
 
   /* The feed is deterministic per session day; the cards cut it, the Filter keeps from the cut */
-  const feed = useMemo(() => buildCongress(window), [window]);
+  const fed = useFeedCongress(fromFeed, window);
+  const feed = useMemo(() => (fromFeed ? summariseCongress(fed?.ok ? fed.data.trades : [], window) : buildCongress(window)), [fromFeed, fed, window]);
   const cut = useMemo(
     () =>
       feed.trades.filter(t => {
@@ -235,7 +272,7 @@ const Congress = () => {
     const order = (a: [string, number], b: [string, number]) => b[1] - a[1] || a[0].localeCompare(b[0]);
     const seatOf = (name: string) => {
       const t = cut.find(x => x.member.name === name);
-      return t ? `${seat(t)} · ${t.member.chamber}` : undefined;
+      return t ? [seat(t), t.member.chamber].filter(Boolean).join(' · ') : undefined;
     };
     return [
       { title: 'Names', options: [...byNames.entries()].sort(order).map(([n, c]) => ({ value: `name:${n}`, label: n, hint: tickerName(n), count: c })) },
@@ -289,8 +326,14 @@ const Congress = () => {
     navigate(`/dossier/stocks/${t.ticker}`);
   };
   const open = (e: RowClickedEvent<CongressTrade>) => {
-    if (e.data) openName(e.data);
+    if (e.data?.ticker) openName(e.data);
   };
+  /* THE FEED'S GRID RESTS AT 80 ROWS (the house's long-grid rule) */
+  const [all, setAll] = useState(false);
+  const drawn = fromFeed && !all ? rows.slice(0, REST_ROWS) : rows;
+  const chamberOptions = fromFeed ? CHAMBER_OPTIONS_FEED : CHAMBER_OPTIONS;
+  const showOptions = fromFeed ? SHOW_OPTIONS.map(o => (o.value === 'committee' ? { ...o, disabled: true, hint: `Committee seats — ${NOT_IN_FEED}` } : o)) : SHOW_OPTIONS;
+  if (fromFeed && fed === null) return <RecordPageSkeleton pathname="/dossier/congress" />;
 
   return (
     <div className="relative border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col" data-congress data-window={window}>
@@ -304,7 +347,11 @@ const Congress = () => {
             <h3 className="text-[15px] font-semibold leading-tight text-textPrimary">What Congress reported</h3>
             <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a bracket, an owner and the lag mean" testId="congress-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">Every report in the window, newest filing first · a row opens the name’s page</p>
+          <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate" data-congress-reach>
+            {fromFeed && fed?.ok
+              ? `Every report filed in the window, newest first · the trades read reach back to ${isoDayLabel(fed.data.reach)} · a row opens the name’s page`
+              : 'Every report in the window, newest filing first · a row opens the name’s page'}
+          </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           <div>
@@ -328,7 +375,7 @@ const Congress = () => {
           <div>
             <dt className="text-[11px] text-textMuted">In own committee</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-congress-overlap>
-              {stats.overlaps}
+              {fromFeed ? <Missing className="text-[12px]" /> : stats.overlaps}
             </dd>
           </div>
         </dl>
@@ -336,15 +383,15 @@ const Congress = () => {
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-congress-controls>
         <DropdownSelect label="Window" value={window} options={WINDOW_OPTIONS} onChange={setWindow} title="How far back the reports run" testId="congress-window" />
-        <DropdownSelect label="Chamber" value={chamber} options={CHAMBER_OPTIONS} onChange={setChamber} title="Which chamber" testId="congress-chamber" />
-        <DropdownSelect label="Owner" value={owner} options={OWNER_OPTIONS} onChange={setOwner} title="Whose holding" testId="congress-owner" />
-        <DropdownSelect label="Show" value={show} options={SHOW_OPTIONS} onChange={setShow} title="Which reports" testId="congress-show" />
+        <DropdownSelect label="Chamber" value={chamber} options={chamberOptions} onChange={setChamber} title="Which chamber" testId="congress-chamber" />
+        <DropdownSelect label="Owner" value={owner} options={fromFeed ? OWNER_OPTIONS_FEED : OWNER_OPTIONS} onChange={setOwner} title="Whose holding" testId="congress-owner" />
+        <DropdownSelect label="Show" value={show} options={showOptions} onChange={setShow} title="Which reports" testId="congress-show" />
         <div className="ml-auto" title="The names, members and committees on the page right now — tick any number; only those stay">
           <DropdownMulti label="Filter" values={picks} groups={filterGroups} onChange={setPicks} title="Keep only these" testId="congress-filter" />
         </div>
       </div>
       <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-congress-sentence>
-        {congressSentence(stats)}
+        {fromFeed && fed && !fed.ok ? 'No reports came back this time — asked again in ten minutes.' : congressSentence(stats)}
       </p>
       {/* THE REPORTS TO KNOW */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-congress-to-know>
@@ -352,7 +399,9 @@ const Congress = () => {
           <span>The reports to know</span>
           <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">trades in a sector the member's own committee oversees, the biggest bracket first · click one to keep the grid to that member</span>
         </div>
-        {toKnow.length === 0 ? (
+        {fromFeed ? (
+          <MissingLine what="The member's own committees" />
+        ) : toKnow.length === 0 ? (
           <div className="h-[70px] flex items-center font-mono text-[11px] uppercase tracking-widest text-textMuted">No trade in a member's own committee on this cut</div>
         ) : (
           <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${REPORTS_TO_KNOW}, minmax(0, 1fr))` }}>
@@ -368,18 +417,26 @@ const Congress = () => {
           <AgGridReact<CongressTrade>
             theme={GRID_THEME}
             domLayout="autoHeight"
-            rowData={rows}
+            rowData={drawn}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             getRowId={p => p.data.id}
             onRowClicked={open}
-            {...openRowOnEnter<CongressTrade>(openName)}
+            {...openRowOnEnter<CongressTrade>(t => t.ticker && openName(t))}
             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
             animateRows
             tooltipShowDelay={350}
             tooltipHideDelay={8000}
           />
         </AgGridProvider>
+        {fromFeed && rows.length > REST_ROWS && (
+          <div className="px-5 py-2.5 border-t border-borderSubtle/60 flex items-center gap-3 font-mono text-[11px] text-textMuted" data-congress-rest>
+            <span>{all ? `All ${rows.length} rows` : `The newest ${REST_ROWS} of ${rows.length}`}</span>
+            <button type="button" onClick={() => setAll(a => !a)} className="hit h-7 px-2.5 rounded-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-congress-rest-door>
+              {all ? `Back to the newest ${REST_ROWS}` : `Show the other ${rows.length - REST_ROWS}`}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

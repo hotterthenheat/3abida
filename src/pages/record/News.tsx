@@ -26,6 +26,10 @@
   before (data/news.ts, data/newsroom.ts); the room
   they used to fill is archived in
   docs/news-page-reference.md.
+
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors, the page is NewsFeed.tsx — UW's
+  headlines route, checked live on the Basic plan.
 ==================================================
 */
 
@@ -57,6 +61,8 @@ import { GRADE_INK as READ_INK } from '../../components/ui/GradeMeter';
 import { gradeOfNewsConfidence } from '../../data/news';
 import NewsCalendar from '../../components/record/NewsCalendar';
 import { NEWS_ROW_H } from './recordSkeletons';
+import { useDossierFeed } from '../../data/feed/dossier';
+import NewsFeed from './NewsFeed';
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const GRADE_INK: Record<NewsGrade, string> = { THREAT: 'text-bear', ALLY: 'text-bull', WATCH: 'text-textSecondary' };
@@ -414,7 +420,10 @@ const StoryText = ({ storyId, body, source, url }: { storyId: string; body: stri
   );
 };
 
-const News = () => {
+/* ALL OR NOTHING (data/feed/rooms.ts): UW's headlines when the Dossier reads the feed (NewsFeed.tsx), else the house's wire */
+const News = () => (useDossierFeed() ? <NewsFeed /> : <NewsHouse />);
+
+const NewsHouse = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const boardNames = useBoardNames();

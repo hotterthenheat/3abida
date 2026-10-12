@@ -76,6 +76,7 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwEarningsDay` | `GET /api/earnings/premarket`, `/afterhours` (`date`) |
 | `uwEarningsFor` | `GET /api/earnings/{ticker}` |
 | `uwExpiryBreakdown` | `GET /api/stock/{ticker}/expiry-breakdown` |
+| `uwNewsHeadlines` | `GET /api/news/headlines` (`ticker`, `limit`) — in UW's catalog; answered 200 on the Basic plan, 2026-10-12 |
 | `massiveMarketStatus` | `GET /v1/marketstatus/now` (the probe) |
 | `massiveContracts`, `massiveExpirations` | `GET /v3/reference/options/contracts` (paged on `next_url`; one round `strike_price` lists every expiry in one call) |
 | `massiveBars` | `GET /v2/aggs/ticker/{ticker}/range/{n}/{span}/{from}/{to}` (stocks and `O:` contracts; the session before is the latest) |
@@ -87,6 +88,30 @@ the live answers, kept in `docs/data-feed-samples.md`.
 `src/data/feed/rooms.ts` names what each room would read (`needs`) and gives each room one seam — `pulseSource`,
 `terrainSource`, `traceSource`, `dossierSource`, `pinpointSource`, `compassSource`, `weigherSource`, and
 `useRoomSource(room)`. A room reads the feed only when **every** vendor it needs is up, never one vendor beside the
-house's own figures on one screen. Today every room's `wired` is `false`, so every seam returns `'stand-in'` and
-every page reads what it read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
+house's own figures on one screen. The Dossier is wired (below); every other room's `wired` is `false`, so its seam returns `'stand-in'`
+and its pages read what they read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
 then set `wired: true`.
+
+## The Dossier, the first room moved (2026-10-12)
+
+`dossier` is `wired: true`. Its pages read `src/data/feed/dossier.ts` when both vendors are up (and wait on their
+skeleton while the shell's first probe is out); otherwise every page reads the house's book exactly as before.
+
+| Page | Reads | Asked |
+|---|---|---|
+| Congress | `uwCongressTrades`, 200 rows a page, paged back by trade date (`date` = the day before the oldest) — 2, 4 or 6 pages for the 30, 90 or 180-day window | every 10 min |
+| Insiders | `uwInsiderTrades`, `transaction_codes[]=P,S` (open market) or every code, 3 pages of 200 (one day's filings fill about one); the names to know from one page of `P` | every 10 min |
+| Earnings | `uwEarningsDay` premarket and afterhours for each weekday the board shows (up to 20 calls) | every 10 min |
+| Earnings › a name | `uwEarningsFor` and `uwStockState`; the company's name from `massiveTickerDetails` | every 10 min |
+| Stocks | `uwStockState` for each of the list's 36 names | every minute |
+| Stocks › a name | `uwStockState` first (a ticker UW has no state for is not a name), then `massiveTickerDetails`; `uwQuote` + `uwStockState`; `massiveBars` daily, sixty days; `uwEarningsFor`; the name's insider and Congress rows | quote 15 s, bars 30 min, record 6 h (the proxy keeps it a day) |
+| News | `uwNewsHeadlines`, the latest 100 | every minute |
+
+Massive is asked for the OPEN name only — two calls a name (the record, the bars), both cached by the proxy — never for
+a list. A field a page shows that no answer carries is drawn "—" with the title "not in the feed": the member's party,
+seat and committees; a filing's missing price or holding; revenue, the odds, the overnight deflation and the busiest
+contracts on a report; the usual move, pricing, beat count, estimates' drift and IV rank on the calendar (a name's own
+page works the usual move, the pricing and the beat count from its own reported rows); the house's screens, sleeves,
+thirty-day line and rotation on Stocks; the map, a story's read and the day ahead on News.
+
+Screenshots on the vendors' answers, 2026-10-12 around 11:45 New York: `docs/data-feed/dossier-2026-10-12-*.png`.

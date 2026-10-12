@@ -587,6 +587,35 @@ data: array[32]
   chains: number  302
 ```
 
+### `GET /api/news/headlines?limit=3` — 200 (checked for the Dossier, 2026-10-12, 11:16 ET)
+```
+data: array[3]
+  headline: string
+  source: string  "Tradex"
+  created_at: string  "2026-10-12T15:16:14Z"
+  tickers: array of string  ["PM"]
+  tags: array  []
+  is_major: boolean  true
+  sentiment: string  "neutral"
+  meta: object, keyed by ticker
+    PM: object
+      curr: object  { c: numeric string, date: string, mt: string, v: number }
+      prev: object  { c: numeric string, date: string, mt: string, v: number }
+```
+100 headlines reached back 80 minutes of the morning; every `sentiment` read "neutral".
+
+### What the Dossier's wiring learnt (2026-10-12)
+- `/api/congress/recent-trades` caps `limit` at 200 (a 500 answers 422 "limit must be smaller than 200"). Rows come
+  newest TRADE first; `date` keeps the trades made on or before it, so it pages back. 200 rows reach about three weeks
+  of filings; `member_type` is also `"executive"`; `issuer` is whose holding (`self`, `spouse`, `joint`, `child`,
+  `undisclosed`); `ticker` is null for bonds and private holdings (the asset is in `notes`, "[ST]", "[GS]" …).
+- `/api/insider/transactions`: `page` counts from 0; `transaction_codes[]` filters (repeat the key); one day's filings
+  fill 200 rows. Form 144 rows (`formtype` "144") are notices of a proposed sale, their `transaction_date` ahead.
+- `/api/earnings/{ticker}`: past rows carry `post_earnings_move_1d` (a fraction) and `actual_eps`; `source` read
+  "company" on every row, day routes too.
+- `/api/stock/{ticker}/stock-state` for a ticker UW does not know answers 200 `{ "data": null }`; `/quote` answers 404
+  `stock_quote_not_found`; Massive's `/v3/reference/tickers/{ticker}` answers 404 `NOT_FOUND`.
+
 ## Massive (Basic) — base `https://api.massive.com`, `apiKey` query parameter
 
 ### `GET /v1/marketstatus/now` — 200

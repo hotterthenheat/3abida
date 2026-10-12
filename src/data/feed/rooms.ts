@@ -43,7 +43,7 @@ export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   pulse: { name: 'Pulse', needs: ['uw'], reads: 'Market tide, net premium, flow alerts and prices', wired: false },
   terrain: { name: 'Terrain', needs: ['uw', 'massive'], reads: "Exposure by strike and today's bars; earlier sessions' bars", wired: false },
   trace: { name: 'Trace', needs: ['uw'], reads: 'The option tape, flow alerts, dark pool prints and net premium', wired: false },
-  dossier: { name: 'Dossier', needs: ['uw', 'massive'], reads: 'Congress and insider filings, earnings; the company record', wired: false },
+  dossier: { name: 'Dossier', needs: ['uw', 'massive'], reads: 'Congress and insider filings, earnings, the wire and prices; the company record', wired: true },
   pinpoint: { name: 'Pinpoint', needs: ['uw', 'massive'], reads: 'Exposure by strike; the listed expiries', wired: false },
   compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
   weigher: { name: 'Weigher', needs: ['uw', 'massive'], reads: "The name's price; the listed contracts and their bars", wired: false },

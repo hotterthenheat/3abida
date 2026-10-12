@@ -119,6 +119,18 @@ export function overlapFor(member: Member, ticker: string): string | null {
 /** A bracket's label, with the unparsed case named rather than blanked */
 export const bracketLabel = (i: number | null): string => (i === null ? 'not disclosed' : AMOUNT_BRACKETS[i].label);
 
+/** The rung a filed range names, read off its floor ("$1,001 - $15,000" → 0); null when it names none */
+export function bracketOf(range: string): number | null {
+  const m = /\$\s*([\d,]+)/.exec(range);
+  if (!m) return null;
+  const low = Number(m[1].replace(/,/g, ''));
+  const i = AMOUNT_BRACKETS.findIndex(b => b.low === low || (b.low - 1 === low));
+  return i >= 0 ? i : null;
+}
+
+/** "D-CA-14", "R-TX" — or nothing where the source carries no party or seat */
+export const seatOf = (m: { party: string | null; state: string; district?: string }): string => (m.party && (m.district || m.state) ? `${m.party}-${m.district ?? m.state}` : '');
+
 export const EMPTY_CONGRESS: CongressFeed = { trades: [], totalLow: 0, totalHigh: 0, unknownAmounts: 0, purchases: 0, sales: 0, lateFilings: 0, overlaps: 0, medianLag: 0, windowDays: 0 };
 
 /** The disclosure feed for a window of days — deterministic per session day */

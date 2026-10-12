@@ -32,27 +32,40 @@
   Everything speaks the engines that were here
   (data/earnings.ts, data/insiders.ts,
   data/congress.ts).
+
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors (data/feed/rooms.ts), the next report and
+  the last eight are UW's record of the name — the
+  estimate, the actual, the session's move after each
+  — the price is UW's, the company's name Massive's,
+  and the insiders and Congress rows are filed rows
+  (data/feed/dossier.ts). The usual move, the pricing
+  and the beat count are worked from those rows; the
+  odds, the overnight deflation, revenue and the
+  busiest contracts are not in the feed — a dash.
 ==================================================
 */
 
 import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyMinutes } from '../../core/nyTime';
 import { useEffect, useMemo, useState } from 'react';
+import { useDossierFeed, useFeedCongressFor, useFeedEarningsFor, useFeedInsidersFor, useFeedNameRecord } from '../../data/feed/dossier';
+import { Missing, MissingLine, missing } from '../../components/record/Missing';
+import { EarningsNameSkeleton } from './recordSkeletons';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, LayoutGrid } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import AnimatedNumber from '../../components/ui/AnimatedNumber';
 import CompanyLogo from '../../components/ui/CompanyLogo';
 import HoverReadout from '../../components/ui/HoverReadout';
-import { stateOf } from '../../components/earnings/volState';
 import { BULL } from '../../components/gex/paletteInk';
 import { changeTicker } from '../../context/MarketDataContext';
 import Simulator from '../../core/simulator';
 import { fmtDollars } from '../../data/ahead';
-import { bracketLabel, buildCongress } from '../../data/congress';
+import { bracketLabel, buildCongress, seatOf } from '../../data/congress';
 import { When } from '../../components/record/when';
 import { buildEarningsDossier, type ActiveContract, type EarningsDossier } from '../../data/earnings';
-import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
-import { PRICED_INK, PRICED_WORD, SlotMark, slotWord } from './Earnings';
+import { TX_CODES, flowFrom, insiderFlow, isChosenBuy } from '../../data/insiders';
+import { PRICED_WORD, SlotMark, pricedInk, pricedOf, slotWord } from './Earnings';
 
 const AXIS = { stroke: 'transparent', tick: { fill: 'rgb(var(--text-secondary))', fontSize: 10, fontFamily: 'inherit' } };
 const GRID = { stroke: 'rgb(var(--ink) / 0.05)', vertical: false };
@@ -101,7 +114,7 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
   const cost = (e.price * e.impliedMovePct) / 100;
   const rows = useMemo(
     () =>
-      d.quarters.map(q => {
+      d.quarters.filter(q => !missing(q.movePct)).map(q => {
         const moved = (e.price * Math.abs(q.movePct)) / 100;
         return { label: q.label, movePct: q.movePct, moved, pl: moved - cost };
       }),
@@ -112,6 +125,7 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
   const avg = rows.reduce((a, r) => a + r.pl, 0) / (rows.length || 1);
   const [hover, setHover] = useState<{ r: (typeof rows)[number]; x: number; y: number } | null>(null);
   const H = 56;
+  if (missing(cost) || rows.length === 0) return <MissingLine what="Today's price, or the moves after the last reports" />;
   return (
     <div className="px-5 pb-4 flex flex-col gap-3" data-name-replay>
       <div className="flex items-baseline gap-2.5 flex-wrap font-mono tnum">
@@ -156,18 +170,34 @@ const PriceReplay = ({ d }: { d: EarningsDossier }) => {
       </div>
       {/* THE ODDS the pricing implies, and the smaller facts */}
       <dl className="grid grid-cols-5 gap-x-6 pt-3 border-t border-borderSubtle/60">
-        <Fact label={`Closes inside ±${e.impliedMovePct.toFixed(1)}%`}>{d.probInsidePct}%</Fact>
+        <Fact label={`Closes inside ±${e.impliedMovePct.toFixed(1)}%`}>{missing(d.probInsidePct) ? <Missing className="text-[12px]" /> : `${d.probInsidePct}%`}</Fact>
         <Fact label="Moves beyond it">
-          <span className="text-textSecondary">{d.probBeyondPct}%</span>
+          {missing(d.probBeyondPct) ? <Missing className="text-[12px]" /> : <span className="text-textSecondary">{d.probBeyondPct}%</span>}
         </Fact>
         <Fact label="Up against down" testId="updown">
-          <span className={d.probUpPct >= 56 ? 'text-bull' : d.probUpPct <= 44 ? 'text-bear' : 'text-textPrimary'}>{d.probUpPct}% up</span> <span className="text-textMuted">· {100 - d.probUpPct}% down</span>
+          {missing(d.probUpPct) ? (
+            <Missing className="text-[12px]" />
+          ) : (
+            <>
+              <span className={d.probUpPct >= 56 ? 'text-bull' : d.probUpPct <= 44 ? 'text-bear' : 'text-textPrimary'}>{d.probUpPct}% up</span> <span className="text-textMuted">· {100 - d.probUpPct}% down</span>
+            </>
+          )}
         </Fact>
         <Fact label="Estimates">
-          <span className={e.revisionTrend > 0.15 ? 'text-bull' : e.revisionTrend < -0.15 ? 'text-bear' : 'text-textSecondary'}>{e.revisionTrend > 0.15 ? 'rising' : e.revisionTrend < -0.15 ? 'falling' : 'flat'}</span>
+          {missing(e.revisionTrend) ? (
+            <Missing className="text-[12px]" />
+          ) : (
+            <span className={e.revisionTrend > 0.15 ? 'text-bull' : e.revisionTrend < -0.15 ? 'text-bear' : 'text-textSecondary'}>{e.revisionTrend > 0.15 ? 'rising' : e.revisionTrend < -0.15 ? 'falling' : 'flat'}</span>
+          )}
         </Fact>
         <Fact label="IV rank">
-          <span className={e.ivRank >= 80 ? 'text-warn' : 'text-textPrimary'}>{e.ivRank}</span> <span className="text-textMuted">of 100</span>
+          {missing(e.ivRank) ? (
+            <Missing className="text-[12px]" />
+          ) : (
+            <>
+              <span className={e.ivRank >= 80 ? 'text-warn' : 'text-textPrimary'}>{e.ivRank}</span> <span className="text-textMuted">of 100</span>
+            </>
+          )}
         </Fact>
       </dl>
       {hover && (
@@ -250,14 +280,29 @@ const EarningsName = () => {
     const id = window.setInterval(() => setScanTick(t => t + 1), 10_000);
     return () => window.clearInterval(id);
   }, []);
-  const dossier = useMemo(() => buildEarningsDossier(ticker, scanTick), [ticker, scanTick]);
   const T = ticker.toUpperCase();
+  /* ALL OR NOTHING (data/feed/rooms.ts): UW's record of the name when the Dossier reads the feed, else the house's */
+  const fromFeed = useDossierFeed();
+  const fedName = useFeedEarningsFor(fromFeed, T);
+  /* the company's name, asked of Massive only for a name the record knows */
+  const fedRecord = useFeedNameRecord(fromFeed && !!fedName?.ok && fedName.data.rows > 0, T);
+  const fedInsiders = useFeedInsidersFor(fromFeed, T);
+  const fedCongress = useFeedCongressFor(fromFeed, T);
+  const houseDossier = useMemo(() => (fromFeed ? null : buildEarningsDossier(ticker, scanTick)), [fromFeed, ticker, scanTick]);
+  const dossier = useMemo(() => {
+    if (!fromFeed) return houseDossier;
+    const d = fedName?.ok ? fedName.data.dossier : null;
+    if (!d) return null;
+    /* the company's name as Massive files it (the earnings rows carry none for one name) */
+    const name = fedRecord?.ok && fedRecord.data.details?.name ? fedRecord.data.details.name : d.event.name;
+    return { ...d, event: { ...d.event, name } };
+  }, [fromFeed, houseDossier, fedName, fedRecord]);
   /* A busiest row → the Weigher with THE contract picked, this page as the way back */
   const weigh = (c: ActiveContract) =>
     navigate('/weigher', { state: { weigh: { ticker: T, strike: c.strike, right: c.right === 'CALL' ? 'C' : 'P', expiry: c.expiry }, wayBack: location.pathname } });
   /* ON THE RECORD — the other two pages read for this one name */
-  const insiders = useMemo(() => insiderFlow(T, 90), [T]);
-  const congress = useMemo(() => buildCongress(180).trades.filter(t => t.ticker === T).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo), [T]);
+  const insiders = useMemo(() => (fromFeed ? (fedInsiders?.ok ? fedInsiders.data : flowFrom(T, [], 90)) : insiderFlow(T, 90)), [fromFeed, fedInsiders, T]);
+  const congress = useMemo(() => (fromFeed ? (fedCongress?.ok ? fedCongress.data : []) : buildCongress(180).trades.filter(t => t.ticker === T).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo)), [fromFeed, fedCongress, T]);
 
   const back = (
     <div className="flex items-center gap-4" data-name-back>
@@ -272,22 +317,34 @@ const EarningsName = () => {
     </div>
   );
 
+  if (fromFeed && fedName === null)
+    return (
+      <>
+        {back}
+        <EarningsNameSkeleton />
+      </>
+    );
   if (!dossier) {
+    /* the feed can say more: a name it has no reports for at all, or one with no date ahead */
+    const why = !fromFeed ? "no report on the next two weeks' calendar" : fedName?.ok && fedName.data.rows === 0 ? 'not found — no report on the record for this name' : fedName?.ok ? 'no report date ahead on the record' : 'no answer came back — asked again in ten minutes';
     return (
       <>
         {back}
         <div className="border border-borderSubtle rounded-md bg-panel h-40 flex flex-col items-center justify-center gap-2" data-name-missing>
           <span className="font-mono text-[13px] font-bold text-textPrimary">{T}</span>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">no report on the next two weeks' calendar</span>
+          <span className="font-mono text-[11px] uppercase tracking-widest text-textMuted">{why}</span>
         </div>
       </>
     );
   }
 
   const { event: e, quarters } = dossier;
-  const priced = stateOf(e);
+  const priced = pricedOf(e);
   const epsBeats = quarters.filter(q => q.epsBeat).length;
   const revBeats = quarters.filter(q => q.revBeat).length;
+  /* the feed's record carries what it carries — the count is of the quarters on hand */
+  const of = quarters.length;
+  const cost = (e.price * e.impliedMovePct) / 100;
   const moveData = quarters.map(q => ({ label: q.label, move: q.movePct }));
   const epsData = quarters.map(q => ({ label: q.label, est: q.epsEst, actual: q.epsActual, beat: q.epsBeat }));
   const maxActiveVol = Math.max(...dossier.activeCalls.map(c => c.volume), ...dossier.activePuts.map(c => c.volume), 1);
@@ -345,18 +402,31 @@ const EarningsName = () => {
           </div>
           <dl className="grid grid-cols-5 gap-x-6">
             <Fact label="Options price" testId="price">
-              ±{e.impliedMovePct.toFixed(1)}% <span className="text-textMuted">· ${((e.price * e.impliedMovePct) / 100).toFixed(2)}</span>
+              {missing(e.impliedMovePct) ? (
+                <Missing className="text-[12px]" />
+              ) : (
+                <>
+                  ±{e.impliedMovePct.toFixed(1)}% {!missing(cost) && <span className="text-textMuted">· ${cost.toFixed(2)}</span>}
+                </>
+              )}
             </Fact>
             <Fact label="Usually moves" testId="usual">
-              ±{e.histAvgMovePct.toFixed(1)}%
+              {missing(e.histAvgMovePct) ? <Missing className="text-[12px]" /> : `±${e.histAvgMovePct.toFixed(1)}%`}
             </Fact>
             <Fact label="Priced" testId="priced">
-              <span className={PRICED_INK[priced]}>
-                {e.richness.toFixed(2)}× {PRICED_WORD[priced]}
-              </span>
+              {priced ? (
+                <span className={pricedInk(e)}>
+                  {e.richness.toFixed(2)}× {PRICED_WORD[priced]}
+                </span>
+              ) : (
+                <Missing className="text-[12px]" />
+              )}
             </Fact>
             <Fact label="Beat the estimate" testId="beat">
-              {epsBeats} of 8 <span className="text-textMuted">· revenue {revBeats} of 8</span>
+              {epsBeats} of {of}{' '}
+              <span className="text-textMuted">
+                · revenue {fromFeed ? <Missing /> : `${revBeats} of ${of}`}
+              </span>
             </Fact>
             <Fact label="Last eight" testId="last8">
               <span className="inline-flex gap-[3px] align-middle" title="each square one quarter, oldest first — green beat, red missed">
@@ -388,7 +458,7 @@ const EarningsName = () => {
 
       {/* THE RECEIPTS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-        <Box title="Beats and misses" sub={`Earnings per share, the estimate against the actual · beat ${epsBeats} of 8 on earnings, ${revBeats} of 8 on revenue`} testId="beats">
+        <Box title="Beats and misses" sub={`Earnings per share, the estimate against the actual · beat ${epsBeats} of ${of} on earnings${fromFeed ? '' : `, ${revBeats} of ${of} on revenue`}`} testId="beats">
           <div className="px-5 pb-4">
             <div className="h-[132px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -423,7 +493,7 @@ const EarningsName = () => {
             </p>
           </div>
         </Box>
-        <Box title="Past moves" sub="The stock's move the session after each of its last eight reports" testId="moves">
+        <Box title="Past moves" sub={`The stock's move the session after each of its last ${of === 8 ? 'eight' : of} reports`} testId="moves">
           <div className="px-5 pb-4">
             <div className="h-[132px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -468,11 +538,11 @@ const EarningsName = () => {
       <Box title="After the print" sub="What the options lose overnight once the number is out — a long option has to beat the move and this" testId="after">
         <dl className="px-5 pb-4 grid grid-cols-4 gap-x-6">
           <Fact label="Implied vol deflates" testId="crush">
-            <span className="text-warn">−{dossier.ivCrushPct}%</span>
+            {missing(dossier.ivCrushPct) ? <Missing className="text-[12px]" /> : <span className="text-warn">−{dossier.ivCrushPct}%</span>}
           </Fact>
-          <Fact label="Extrinsic kept by next open">~{100 - dossier.premiumLostPct}%</Fact>
-          <Fact label="Straddle today">${((e.price * e.impliedMovePct) / 100).toFixed(2)}</Fact>
-          <Fact label="The stock">${e.price.toFixed(2)}</Fact>
+          <Fact label="Extrinsic kept by next open">{missing(dossier.premiumLostPct) ? <Missing className="text-[12px]" /> : `~${100 - dossier.premiumLostPct}%`}</Fact>
+          <Fact label="Straddle today">{missing(cost) ? <Missing className="text-[12px]" /> : `$${cost.toFixed(2)}`}</Fact>
+          <Fact label="The stock">{missing(e.price) ? <Missing className="text-[12px]" /> : `$${e.price.toFixed(2)}`}</Fact>
         </dl>
       </Box>
 
@@ -482,6 +552,7 @@ const EarningsName = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         <Box title="Busiest calls" sub="The three busiest by volume into the print · refreshes every ten seconds · click one to weigh it" testId="calls">
           <div className="pb-2">
+            {fromFeed && <MissingLine what="The busiest calls" />}
             {dossier.activeCalls.map(c => (
               <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} onWarm={() => Simulator.ensureTicker(T)} onOpen={() => weigh(c)} />
             ))}
@@ -489,6 +560,7 @@ const EarningsName = () => {
         </Box>
         <Box title="Busiest puts" sub="The three busiest by volume into the print · refreshes every ten seconds · click one to weigh it" testId="puts">
           <div className="pb-2">
+            {fromFeed && <MissingLine what="The busiest puts" />}
             {dossier.activePuts.map(c => (
               <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} onWarm={() => Simulator.ensureTicker(T)} onOpen={() => weigh(c)} />
             ))}
@@ -518,14 +590,14 @@ const EarningsName = () => {
               </div>
               {marketInsiders.map(t => (
                 <div key={t.id} className="px-5 h-[38px] grid items-center gap-x-3 border-t border-borderSubtle/40 grid-cols-[64px_minmax(0,1fr)_64px_80px_80px_72px] max-lg:grid-cols-[64px_minmax(0,1fr)_64px_80px]" data-name-insider={t.id}>
-                  <When days={t.daysAgo} size={10} />
+                  <When days={t.daysAgo} size={10} iso={t.tradedOn} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.person}</span>
-                    <span className="text-[11px] text-textMuted truncate">{t.role}</span>
+                    <span className="text-[11px] text-textMuted truncate">{t.title || t.role}</span>
                   </span>
                   <span className={`font-mono text-[11px] ${t.kind === 'BUY' ? 'text-bull' : 'text-bear'}`}>{t.kind === 'BUY' ? 'Bought' : 'Sold'}</span>
                   <span className="text-right font-mono text-[11px] tnum text-textPrimary max-lg:hidden">{Math.round(t.shares).toLocaleString('en-US')}</span>
-                  <span className="text-right font-mono text-[11px] tnum font-semibold text-textPrimary">{fmtDollars(t.value)}</span>
+                  <span className="text-right font-mono text-[11px] tnum font-semibold text-textPrimary">{missing(t.value) ? <Missing /> : fmtDollars(t.value)}</span>
                   <span className={`text-right font-mono text-[11px] uppercase tracking-widest max-lg:hidden ${t.plan === 'discretionary' ? (isChosenBuy(t) ? 'text-textPrimary font-bold' : 'text-textSecondary') : 'text-textMuted'}`}>
                     {t.plan === 'discretionary' ? 'chosen' : t.plan === 'plan' ? 'planned' : 'unstated'}
                   </span>
@@ -558,11 +630,11 @@ const EarningsName = () => {
               </div>
               {congress.slice(0, 6).map(t => (
                 <div key={t.id} className="px-5 h-[38px] grid items-center gap-x-3 border-t border-borderSubtle/40 grid-cols-[64px_minmax(0,1fr)_88px_132px_64px] max-lg:grid-cols-[64px_minmax(0,1fr)_88px]" data-name-congress={t.id}>
-                  <When days={t.filedDaysAgo} size={10} />
+                  <When days={t.filedDaysAgo} size={10} iso={t.filedOn} />
                   <span className="min-w-0 flex flex-col leading-tight">
                     <span className="text-[11px] font-semibold text-textPrimary truncate">{t.member.name}</span>
                     <span className="text-[11px] text-textMuted truncate">
-                      {t.member.party}-{t.member.state} · {t.committeeOverlap ? `${t.committeeOverlap} · own committee` : t.member.chamber}
+                      {[seatOf(t.member), t.committeeOverlap ? `${t.committeeOverlap} · own committee` : t.member.chamber].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                   <span className={`font-mono text-[11px] ${t.type === 'Purchase' ? 'text-bull' : t.type === 'Exchange' ? 'text-textMuted' : 'text-bear'}`}>{t.type === 'Purchase' ? 'Purchase' : t.type === 'Exchange' ? 'Exchange' : t.type === 'Sale (Partial)' ? 'Sale · partial' : 'Sale'}</span>
