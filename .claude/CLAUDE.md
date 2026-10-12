@@ -580,6 +580,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   "Starter · 50K evaluation" (data/paper/sample.ts) — never "sample".
 
 # The data feed (2026-10-12 — the owner bought Unusual Whales API Basic and Massive Basic; docs/data-feed.md)
+- THE UI IS THE OWNER'S; THE FEED FILLS IT (2026-10-12 — the owner, of the feed pages that hid panels and swapped
+  layouts: "but i build the UI that the real data goes into"). This rule wins over every feed entry below. With the keys
+  in, a page draws THE SAME BOXES, controls, tabs, menus and layout as with them out — the feed changes the figures,
+  never the page. No feed variant of a page, no panel hidden, no option dropped, no "not in the feed" line standing in
+  place of a panel. Every figure is fed from the real data: what the vendors answer directly, and what the house's
+  engine computes (the odds, the range, the close, how a level held, the walls through the day …) is computed by the
+  SAME engine on the real inputs (UW's book and history, Massive's two years of bars). Only where no input exists on
+  the plans does a figure show "—" — in its own place, its panel standing. A control whose data no plan carries (a 15 s
+  bar) stays, disabled, its title saying why. The check: a page with the keys and with them blanked draws the same
+  boxes (a structural diff of the DOM's panels and controls).
 - THE KEYS STAY ON THE SERVER. UW_API_TOKEN and MASSIVE_API_KEY live in .env (git-ignored; .env.example names them,
   and the Massive S3 ones for the flat files, a later step) and are read by vite.config.ts alone (loadEnv(mode, cwd,
   '')), handed to server/feed.ts — the proxy the dev server and `vite preview` mount at /feed/uw/* and /feed/massive/*,
