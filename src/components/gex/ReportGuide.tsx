@@ -188,7 +188,7 @@ const ReportGuide = ({ rows, bars, from }: ReportGuideProps) => {
             {told.map(r => (
               <li key={r.label} className="text-[11.5px] leading-relaxed text-textSecondary">
                 The {r.label.toLowerCase()} at <span className="font-mono tnum text-textPrimary">{fmtStrike(r.price)}</span>{' '}
-                {r.tests === 0 ? 'has not been tested yet' : `was tested ${r.tests} time${r.tests === 1 ? '' : 's'} and ${r.grade}`}. Its hedging is {r.trend}.
+                {r.tests === 0 ? 'has not been tested yet' : `was tested ${r.tests} time${r.tests === 1 ? '' : 's'} and ${r.grade}`}. {r.trend === '—' ? 'Its hedging at the open was not read, so how it changed is not said.' : `Its hedging is ${r.trend}.`}
               </li>
             ))}
             <li className="text-[11.5px] leading-relaxed text-textSecondary">

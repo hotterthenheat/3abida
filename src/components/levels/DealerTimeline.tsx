@@ -133,7 +133,9 @@ const DealerTimeline = ({ data, ticker, scope, feed = false }: Props) => {
           ? ` Price stood above the flip for ${spanWords(data.aboveFlipMin)} of ${spanWords(data.flipMin)} and crossed it ${data.crossings} ${data.crossings === 1 ? 'time' : 'times'}.`
           : feed
             ? " Price's distance from the flip, minute by minute, is not in the feed: the answer carries the whole book a minute, not the strikes behind it."
-            : ' The book had no flip on this session.'
+            : data.booksRead === 0
+              ? " The flip each minute is read off the book by strike as this terminal read it — none was read during this session, so price's distance from it is not drawn."
+              : ' The book had no flip on this session.'
       }`
     : '';
 
@@ -193,7 +195,7 @@ const DealerTimeline = ({ data, ticker, scope, feed = false }: Props) => {
             </div>
             <div>
               <dt className="text-[11px] text-textMuted">Flip crossed</dt>
-              <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" title={feed && !data.flipMin ? NOT_IN_FEED : undefined}>
+              <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" title={!data.flipMin ? (feed ? NOT_IN_FEED : data.booksRead === 0 ? 'No book by strike was read during this session' : undefined) : undefined}>
                 {data.flipMin ? `${data.crossings} ${data.crossings === 1 ? 'time' : 'times'}` : '—'}
               </dd>
             </div>

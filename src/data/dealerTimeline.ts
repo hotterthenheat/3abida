@@ -57,6 +57,9 @@ export interface DealerTimeline {
   flipMin: number;
   /** Times price crossed the flip as it stood each minute */
   crossings: number;
+  /** Minutes with the book by strike kept beside them — every minute on the house's tape; on the feed, the minutes
+      after a book this machine read (the flip is read off it) */
+  booksRead: number;
 }
 
 const memo = new Map<string, DealerTimeline | null>();
@@ -91,7 +94,7 @@ export function dealerTimeline(ticker: string): DealerTimeline | null {
       flipPct: flip == null || bar.close === 0 ? null : ((bar.close - flip) / bar.close) * 100,
     });
   }
-  const out = summarise(ticker, points, () => replayDay(range));
+  const out = summarise(ticker, points, () => replayDay(range), points.length);
   if (memo.size > 24) memo.clear();
   memo.set(key, out);
   return out;
@@ -106,20 +109,22 @@ function fromMinutes(ticker: string, minutes: readonly BookMinute[], history: re
   const m0 = nyMinutes(t0 * 1000);
   const points: TimelinePoint[] = [];
   let k = -1;
+  let read = 0;
   for (const m of minutes) {
     while (k + 1 < history.length && history[k + 1].time <= m.time) k++;
     /* a book older than the session's start is another day's — no flip from it */
     const snap = k >= 0 && history[k].time >= t0 - 60 ? history[k] : null;
+    if (snap) read++;
     const flip = snap && snap.levels.length ? pickFlip(snap.levels, m.spot, l => l.value) : null;
     points.push({ minute: m0 + Math.round((m.time - t0) / 60), spot: m.spot, netGex: m.netGex, flip, flipPct: flip == null || m.spot === 0 ? null : ((m.spot - flip) / m.spot) * 100 });
   }
-  const out = summarise(ticker, points, () => nyDay(t0 * 1000));
+  const out = summarise(ticker, points, () => nyDay(t0 * 1000), read);
   if (memo.size > 24) memo.clear();
   memo.set(key, out);
   return out;
 }
 
-function summarise(ticker: string, points: TimelinePoint[], dayOf: () => string): DealerTimeline | null {
+function summarise(ticker: string, points: TimelinePoint[], dayOf: () => string, booksRead: number): DealerTimeline | null {
   let out: DealerTimeline | null = null;
   if (points.length >= 2) {
     let putHeavyMin = 0;
@@ -139,7 +144,7 @@ function summarise(ticker: string, points: TimelinePoint[], dayOf: () => string)
       if (s !== 0 && side !== 0 && s !== side) crossings++;
       if (s !== 0) side = s;
     }
-    out = { ticker, day: dayOf(), points, first: points[0], last: points[points.length - 1], putHeavyMin, aboveFlipMin, flipMin, crossings };
+    out = { ticker, day: dayOf(), points, first: points[0], last: points[points.length - 1], putHeavyMin, aboveFlipMin, flipMin, crossings, booksRead };
   }
   return out;
 }

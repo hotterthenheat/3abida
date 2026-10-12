@@ -18,7 +18,8 @@ import { bookMarket } from './bookMarket';
 import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyClock, nyMinutes, nySession } from '../core/nyTime';
 import type { Candle } from '../types/market';
 
-export type GexTrend = 'BUILDING' | 'BLEEDING' | 'FLAT' | 'NEW';
+/** NONE: no book was kept at the open or now (the feed's book read only from a later minute) — nothing to compare */
+export type GexTrend = 'BUILDING' | 'BLEEDING' | 'FLAT' | 'NEW' | 'NONE';
 
 export interface LevelRead {
   /** Signed distance from live spot, percent (+ above) */
@@ -176,7 +177,7 @@ export function buildLevelRead(ticker: string, strike: number): LevelRead | null
   const gexNow = last ? at(last) : null;
 
   let changePct: number | null = null;
-  let trend: GexTrend = 'NEW';
+  let trend: GexTrend = !first || !last ? 'NONE' : 'NEW';
   if (gexOpen != null && gexNow != null && Math.abs(gexOpen) > 0) {
     changePct = ((Math.abs(gexNow) - Math.abs(gexOpen)) / Math.abs(gexOpen)) * 100;
     trend = changePct >= TREND_THRESHOLD ? 'BUILDING' : changePct <= -TREND_THRESHOLD ? 'BLEEDING' : 'FLAT';
