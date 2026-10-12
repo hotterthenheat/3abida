@@ -179,7 +179,7 @@ export function buildVannaCharm(
   // expect the morning structure to govern the close" reads as a prediction).
   // Levels with distances, the charm concentration, the biggest move since
   // the last scan, and one line that states what this scenario computes.
-  const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+  const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
   const dist = (price: number) => Number((((price - spot) / spot) * 100).toFixed(2));
   const lvl = (price: number) => ({ price, distPct: dist(price) });
 

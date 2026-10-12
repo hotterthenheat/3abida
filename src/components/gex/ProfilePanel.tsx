@@ -197,7 +197,7 @@ const useSplitPref = () => useSyncExternalStore(splitSubscribe, splitSnapshot, s
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 const rgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);

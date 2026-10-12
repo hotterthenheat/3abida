@@ -60,7 +60,7 @@ export interface Sureness {
 /** The line every surface prints first */
 export const ASSUMPTION_WORDS = 'Assumes customers sold the calls and bought the puts, so dealers hold the other side — open interest does not say who did.';
 
-const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** "Open interest as of Oct 8's close · priced at the live spot" — the date when the tape holds a closed session */
 export function freshnessOf(ticker?: string): string {

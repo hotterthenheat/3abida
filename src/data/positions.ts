@@ -187,7 +187,7 @@ export interface PositionRead {
   sentence: string;
 }
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const eq = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** "5 calls" / "1 put" */

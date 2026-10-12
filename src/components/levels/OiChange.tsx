@@ -24,7 +24,7 @@ import { BULL, PUT_WALL } from '../gex/paletteInk';
 import { inWindow } from '../../data/pinpointBook';
 import type { OiChange as OiChangeData, OiChangeRow } from '../../data/oiChange';
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const fmtN = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
 const ROW_H = 22;
 

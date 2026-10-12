@@ -59,8 +59,8 @@ import '../../data/feed/pinpointMarket';
 ==================================================
 */
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** "2h 14m" from seconds — the close is a promise in minutes, not seconds */
 const untilBell = (secondsToClose: number) => {
@@ -269,11 +269,12 @@ const PinpointLayout = () => {
                       </span>
                     )}
                   </Fact>
-                  {gauge.crossings !== null && (
-                    <Fact label="Flip crossed today" testId="crossed">
-                      {gauge.crossings === 0 ? <span className="text-textSecondary">not yet</span> : `${gauge.crossings} ${gauge.crossings === 1 ? 'time' : 'times'}`}
-                    </Fact>
-                  )}
+                  {/* the fact stands whenever there is a flip; with too few minutes of the book beside the bars to count
+                      crossings (a session minutes old, a feed whose books this machine began reading late, an index
+                      with no bars on the plan) it says so with a dash */}
+                  <Fact label="Flip crossed today" testId="crossed" title={gauge.crossings === null ? 'Too few minutes of the book beside the bars to count it yet' : undefined}>
+                    {gauge.crossings === null ? <span className="text-textMuted">—</span> : gauge.crossings === 0 ? <span className="text-textSecondary">not yet</span> : `${gauge.crossings} ${gauge.crossings === 1 ? 'time' : 'times'}`}
+                  </Fact>
                 </>
               ) : (
                 <Fact label="Flip" testId="flip">

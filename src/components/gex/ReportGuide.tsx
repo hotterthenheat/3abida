@@ -24,7 +24,7 @@ const RED = 'rgb(var(--bear))';
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size, mono = false, weight = 400 }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size: number; mono?: boolean; weight?: number }) => (
   <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? FIG : SANS} fontSize={size} fontWeight={weight} fill={fill}>

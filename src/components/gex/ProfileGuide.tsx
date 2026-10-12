@@ -48,7 +48,7 @@ const WARM_3 = '#D73027';
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** A capsule with its figure inside, the panel's own drawing */

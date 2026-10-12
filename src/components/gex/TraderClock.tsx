@@ -70,7 +70,7 @@ const CLOSE_MIN = 16 * 60;
 const SPAN = CLOSE_MIN - OPEN_MIN; // 390 trading minutes
 const BLOCK_MIN = 5;
 const BLOCKS = SPAN / BLOCK_MIN; // 78
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const pct = (min: number) => ((min - OPEN_MIN) / SPAN) * 100;
 

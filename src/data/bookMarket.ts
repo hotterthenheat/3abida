@@ -79,12 +79,16 @@ export interface BookMarket {
   bookMinutes(t: string): BookMinute[] | null;
   /** What a level stands on, in the vendor's words — null for the house's own line (data/levelSureness.ts) */
   freshness?(t: string): string | null;
+  /** A read that needs the sessions before today (the range's record, the levels' record, the overnight change) asks
+      for them — the feed fetches them only then */
+  deep?(t: string): void;
   /** Max pain for the nearest listed date, the vendor's own — null where none is listed */
   maxPain?(t: string): number | null;
   /** A feed snapshot's calendar — the vendor's own dates (the house builds its calendar in data/exposureSurface.ts) */
   surfaceOf?(snap: MarketSnapshot, profile: ExposureProfileData): ExposureSurface | null;
-  /** A feed snapshot's chain on one listed date — null while it comes */
-  lensChain?(snap: MarketSnapshot, date: Date): StrikeNode[] | null;
+  /** A feed snapshot's chain on one listed date — the first listed on or after it, or (`exact`) that day's alone; empty
+      when none is listed, null while it comes */
+  lensChain?(snap: MarketSnapshot, date: Date, exact?: boolean): StrikeNode[] | null;
   /** Told when an answer lands (the feed) — the house's reads move with the market store instead */
   subscribe?(fn: () => void): () => void;
   version?(): number;

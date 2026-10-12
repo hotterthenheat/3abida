@@ -43,6 +43,7 @@ const statOf = (bars: Candle[]): SessionStat => ({
 
 /** Every session on hand, oldest first */
 export function sessionBlocks(ticker: string): Candle[][] {
+  bookMarket().deep?.(ticker);
   const all = bookMarket().peekCandles(ticker);
   if (!all || all.length < 2) return [];
   const out: Candle[][] = [];

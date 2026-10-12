@@ -44,7 +44,7 @@ import { BuildingLedgerSkeleton, BuildingPageSkeleton, WallHeadingSkeleton } fro
 import { fmtDistance, impliedDaySigma, sessionAtr } from '../../data/atr';
 import { useDistanceUnit } from '../../data/distanceUnits';
 import { usePositions } from '../../data/positions';
-import { bookOf } from '../../data/pinpointBook';
+import { bookOf, buildClockOf } from '../../data/pinpointBook';
 import { oiChangeByStrike } from '../../data/oiChange';
 import { stampOf, useBookClock, useBoxes, useFrameScan, useRoomWindow } from './usePinpoint';
 
@@ -117,7 +117,7 @@ const Building = () => {
           <BuildingLedger
             data={ledger}
             ticker={ledgerTicker}
-            clock={clock}
+            clock={buildClockOf(clock)}
             order={order}
             onOrder={setOrder}
             window={window}
@@ -138,7 +138,7 @@ const Building = () => {
       {/* BOX 2 — WHERE THE WALLS ARE HEADING */}
       <div className="border border-borderSubtle rounded-md bg-panel" data-heading data-scope-ticker={headingTicker}>
         <Deferred index={1} fallback={<WallHeadingSkeleton />} className="animate-fade-in">
-          <WallHeading data={heading} clock={clock} scope={chipFor('heading', headingTicker)} />
+          <WallHeading data={heading} clock={buildClockOf(clock)} scope={chipFor('heading', headingTicker)} />
         </Deferred>
       </div>
 

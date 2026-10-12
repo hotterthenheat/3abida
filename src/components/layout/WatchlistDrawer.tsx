@@ -52,7 +52,7 @@ import { useOverlay } from '../ui/layers';
 import { undoable } from '../ui/undo';
 
 type Target = 'name' | LinkGroup;
-const fmtLevel = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtLevel = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** Where a name stands against Pinpoint's book: the nearest of the walls and the flip, and how far, in percent of price */
 function nearestLevel(scan: Scan | null, spot: number | null): { word: string; at: number; pct: number } | null {

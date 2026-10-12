@@ -40,7 +40,7 @@ const PALE = '#FFFFBF';
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 const Cell = ({ x, y, w, fill, text, ink = '#0a0a0a', ring, s }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; ring?: string; s: number }) => (
   <g>

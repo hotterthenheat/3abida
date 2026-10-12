@@ -44,7 +44,7 @@ interface Named {
   price: number;
 }
 
-const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const real = (v: number | null): v is number => v != null && Number.isFinite(v) && v > 0;
 
 /** The levels that are there, top of the book down */

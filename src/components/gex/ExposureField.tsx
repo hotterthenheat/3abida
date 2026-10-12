@@ -199,7 +199,7 @@ const BAND_ONE_ROW_PX = 1702;
 const BAND_BARE_ROW_PX = 1420;
 const BAND_TIGHT_ROW_PX = 1170;
 const BAND_NAMED_ROW_PX = 1021;
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 const GREEK_LABEL: Record<Greek, string> = { gex: 'GEX', dex: 'DEX', vex: 'VEX', vanna: 'VANNA', charm: 'CHARM' };
 /*
   THE HEAD IN THE APPROVED GRAMMAR (Noah, 2026-09-06: "our heatmap header

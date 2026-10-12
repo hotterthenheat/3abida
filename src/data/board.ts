@@ -25,9 +25,8 @@ import { aheadClock, type AheadClock } from './ahead';
 import { buildBuilding } from './building';
 import type { ExposureSurface } from './exposureSurface';
 import { buildFlipGauge } from './flipGauge';
-import { agendaOf, bookOf, scanOf } from './pinpointBook';
+import { agendaOf, bookOf, buildClockOf, scanOf } from './pinpointBook';
 import { bookSureness, type SureLevel, type Sureness } from './levelSureness';
-import { spotChangePct } from './gex';
 import { readSessionClock } from './sessionClock';
 import { getPositions } from './positions';
 import type { WallRole } from './wall';
@@ -84,7 +83,7 @@ export function watchOf(snapshot: MarketSnapshot, today: ExposureProfileData, su
   try {
     const t = snapshot.ticker;
     const market = bookMarket();
-    const building = buildBuilding(snapshot, market.oiHistory(t), market.getCandles(t), today, clock);
+    const building = buildBuilding(snapshot, market.oiHistory(t), market.getCandles(t), today, buildClockOf(clock));
     const iv = market.cfg(t)?.iv ?? 0.2;
     const lead = buildAgenda(snapshot, today, building, surface, bars, clock, iv).first[0];
     return lead ? { strike: lead.strike, role: lead.role, isShelf: lead.isShelf, isWall: lead.isWall, reach: lead.reach, hold: lead.hold, stake: lead.stake } : null;
@@ -141,7 +140,7 @@ export function buildBoardRow(ticker: string, live?: MarketSnapshot | null): Boa
     yours: { positions: mine.length, contracts: mine.reduce((s, p) => s + p.contracts, 0) },
     ticker: snapshot.ticker,
     spot,
-    changePct: spotChangePct(snapshot.ticker),
+    changePct: bookMarket().dayChangePct(snapshot.ticker),
     regime: gauge.regime,
     flip: gauge.flip,
     flipDistPct: gauge.distPct,

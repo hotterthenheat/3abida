@@ -44,7 +44,7 @@ import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exp
 import { buildBuilding, type Building } from './building';
 import { buildWallBoard, buildWallContext, type WallBoard, type WallContext } from './wall';
 import { buildAgenda, type Agenda, type AgendaOrder } from './agenda';
-import { buildCloseOdds, buildCorridor, buildSchedule, type AheadClock, type CloseOdds, type Corridor, type Schedule, type VolPoints } from './ahead';
+import { SESSION_MIN, buildCloseOdds, buildCorridor, buildSchedule, type AheadClock, type CloseOdds, type Corridor, type Schedule, type VolPoints } from './ahead';
 import { sessionBars } from './levelview';
 import type { ExposureProfileData } from '../types/gex';
 import type { Candle, MarketSnapshot } from '../types/market';
@@ -140,6 +140,13 @@ export interface Book {
   memo: Map<string, unknown>;
 }
 
+/** The clock Building reads: on the feed, open interest is counted once a day, so what was built is the last counted
+    session's, read whole and never paced into today's close (data/feed/pinpointMarket.ts oiHistory) */
+export function buildClockOf(clock: AheadClock): AheadClock {
+  if (bookMarket().src !== 'feed' || !clock.inSession) return clock;
+  return { ...clock, inSession: false, nowMin: null, minutesLeft: SESSION_MIN };
+}
+
 /** A clock minute — the book's reads move with the clock, not with each render */
 const clockKey = (c: AheadClock) => `${c.inSession ? 1 : 0}|${c.minutesLeft}|${c.nowMin ?? ''}`;
 const books = new WeakMap<MarketSnapshot, { key: string; book: Book }>();
@@ -156,7 +163,7 @@ export function bookOf(snap: MarketSnapshot, clock: AheadClock): Book {
   const profile = profileOf(snap);
   const surface = surfaceOf(snap);
   const bars = sessionBars(t) ?? [];
-  const building = buildBuilding(snap, market.oiHistory(t), market.getCandles(t) ?? [], profile, clock);
+  const building = buildBuilding(snap, market.oiHistory(t), market.getCandles(t) ?? [], profile, buildClockOf(clock));
   const ctx = buildWallContext(snap, profile, building, surface, bars, clock, iv);
   const book: Book = { ticker: t, spot: snap.spot, snap, clock, iv, bars, profile, surface, building, ctx, memo: new Map() };
   books.set(snap, { key, book });

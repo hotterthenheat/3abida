@@ -100,6 +100,7 @@ const cache = new Map<string, LevelRecords | null>();
 export function levelRecords(ticker: string): LevelRecords | null {
   const t = ticker.toUpperCase();
   const market = bookMarket();
+  market.deep?.(t);
   const bars = market.peekCandles(t);
   const snaps = market.getGexHistory(t);
   if (!bars || bars.length < 10 || !snaps.length) return null;

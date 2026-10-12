@@ -58,7 +58,7 @@ const fmtK = (n: number) => {
   const s = a >= 10_000 ? `${(a / 1000).toFixed(0)}K` : a >= 1000 ? `${(a / 1000).toFixed(1)}K` : `${Math.round(a)}`;
   return `${n < 0 ? '−' : '+'}${s}`;
 };
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** The last snapshot at or before a bar time */
 function snapAt(snaps: readonly GexSnapshot[], t: number): GexSnapshot | null {
@@ -80,6 +80,7 @@ function snapAt(snaps: readonly GexSnapshot[], t: number): GexSnapshot | null {
  * sessions (today and two closes behind it) or the history carries no open interest.
  */
 export function oiChangeByStrike(ticker: string, spot: number): OiChange | null {
+  bookMarket().deep?.(ticker);
   const bars = bookMarket().peekCandles(ticker);
   const snaps = bookMarket().getGexHistory(ticker);
   if (!bars || bars.length < 3 || !snaps.length) return null;

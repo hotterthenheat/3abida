@@ -247,17 +247,29 @@ export function buildExposureProfile(
     }
   }
 
-  const levels: ExposureLevels = { spot, callWall, putWall, pin: pinStrike, flip, supreme };
+  /* THE VENDOR'S BOOK NAMES WHAT IS THERE (2026-10-12): a wall, a flip or a supreme the book does not hold is NaN on
+     the feed — "—" on the page — never price itself standing in for it; a date whose contracts carry no gamma (today's
+     after the bell) names none */
+  const levels: ExposureLevels = feed
+    ? {
+        spot,
+        callWall: picked.callWall ?? Number.NaN,
+        putWall: picked.putWall ?? Number.NaN,
+        pin: pinOI > 0 ? pinStrike : Number.NaN,
+        flip: pickFlip(chain, spot, n => n.netGex) ?? Number.NaN,
+        supreme: supremeAbs > 0 ? supreme : Number.NaN,
+      }
+    : { spot, callWall, putWall, pin: pinStrike, flip, supreme };
 
   // Zone bands (strikes descending: from ≥ to). One row of breathing room per wall.
   const strikeList = strikes.map(s => s.strike);
   const step = strikeList.length > 1 ? Math.abs(strikeList[0] - strikeList[1]) : 1;
   const zones: ZoneBand[] = [
-    { from: callWall + step, to: callWall - step, kind: 'call-wall', label: 'CALL WALL' },
-    { from: putWall + step, to: putWall - step, kind: 'put-wall', label: 'PUT WALL' },
+    { from: levels.callWall + step, to: levels.callWall - step, kind: 'call-wall', label: 'CALL WALL' },
+    { from: levels.putWall + step, to: levels.putWall - step, kind: 'put-wall', label: 'PUT WALL' },
   ];
-  if (callWall - putWall > 3 * step) {
-    zones.push({ from: callWall - step * 2, to: putWall + step * 2, kind: 'friction', label: 'FRICTION' });
+  if (levels.callWall - levels.putWall > 3 * step) {
+    zones.push({ from: levels.callWall - step * 2, to: levels.putWall + step * 2, kind: 'friction', label: 'FRICTION' });
   }
   /* P-5. The empty runs between shelves, found over the SAME window these
      zones annotate — pushed after the walls so a pocket never displaces a
@@ -288,21 +300,21 @@ export function buildExposureProfile(
   }
 
   // Insight narrative — levels translated to English
-  const fmtK = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-  const inFriction = spot > putWall && spot < callWall;
+  const fmtK = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+  const inFriction = spot > levels.putWall && spot < levels.callWall;
   const insights = [
     // Above the flip the book is call-dominant and absorbs; below it, put
     // gamma dominates and dealer hedging amplifies. That spatial fact is what
     // the flip IS — the aggregate sign only says which side outweighs.
     `Net GEX is ${netGex > 0 ? 'positive' : 'negative'} (${fmtUsd(netGex)}) — ${
       netGex > 0 ? 'put gamma dominates and hedging amplifies moves' : 'call gamma dominates and hedging absorbs dips'
-    }. Above ${fmtK(flip)} dealers dampen the tape; below it they chase it.`,
+    }. Above ${fmtK(levels.flip)} dealers dampen the tape; below it they chase it.`,
     inFriction
-      ? `Price sits between key levels (${fmtK(putWall)} – ${fmtK(callWall)}) inside the friction zone.`
-      : `Price is ${spot >= callWall ? 'above the call wall' : 'below the put wall'} — outside the friction zone.`,
-    `Strongest dealer support sits at ${fmtK(pinStrike)} (pin level).`,
-    `A break below ${fmtK(putWall)} shifts pressure toward ${fmtK(putWall - step * 2)}.`,
-    `A break above ${fmtK(callWall)} opens quick supply up to ${fmtK(callWall + step * 2)}.`,
+      ? `Price sits between key levels (${fmtK(levels.putWall)} – ${fmtK(levels.callWall)}) inside the friction zone.`
+      : `Price is ${spot >= levels.callWall ? 'above the call wall' : 'below the put wall'} — outside the friction zone.`,
+    `Strongest dealer support sits at ${fmtK(levels.pin)} (pin level).`,
+    `A break below ${fmtK(levels.putWall)} shifts pressure toward ${fmtK(levels.putWall - step * 2)}.`,
+    `A break above ${fmtK(levels.callWall)} opens quick supply up to ${fmtK(levels.callWall + step * 2)}.`,
   ];
 
   // Spot marker slot (strikes descending)

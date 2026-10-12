@@ -229,6 +229,19 @@ function need<T>(t: string, kind: Kind, arg = ''): T | null {
   return p.data as T | null;
 }
 
+/** A part's last good answer without asking for it */
+function peek<T>(t: string, kind: Kind, arg = ''): T | null {
+  return (parts.get(keyOf(t, kind, arg))?.data as T | undefined) ?? null;
+}
+
+/* THE SESSIONS BEFORE, ASKED ONLY WHERE THEY ARE READ: the range's record, how the levels held, the overnight change and
+   the pair's sessions ask for them (deep); the Board's rows and every other read take what is on hand, so a name on the
+   Board costs its own book and today's bars, not six days of history */
+const deepAsked = new Map<string, number>();
+const deepNow = (t: string) => Date.now() - (deepAsked.get(t) ?? 0) < ASK_KEEP;
+/** Ask for or peek at a part of the sessions before, as the name's reads want them */
+const pastPart = <T,>(t: string, kind: Kind, arg: string): T | null => (deepNow(t) ? need<T>(t, kind, arg) : peek<T>(t, kind, arg));
+
 /** The last failure of a part — for the "why" a page prints */
 export function failOfPart(t: string, kind: Kind, arg = ''): FeedFail | null {
   return parts.get(keyOf(t.toUpperCase(), kind, arg))?.fail ?? null;
@@ -366,7 +379,7 @@ function candlesOf(t: string): Candle[] | null {
   if (isCashIndex(t)) return null;
   const latest = need<UwBar[]>(t, 'bars');
   const days = pastDates(PAST_SESSIONS);
-  const olds = days.map(d => need<UwBar[]>(t, 'pastBars', d));
+  const olds = days.map(d => pastPart<UwBar[]>(t, 'pastBars', d));
   return made(`candles:${t}`, [latest, ...olds], () => {
     const byTime = new Map<number, Candle>();
     for (const rows of [...olds].reverse()) for (const c of regular(rows)) byTime.set(c.time, c);
@@ -479,7 +492,6 @@ function nodeOf(r: FeedStrike, oi: { call: number; put: number } | undefined, vo
 }
 
 const oiMap = (rows: UwStrikeOi[] | null) => made(`oimap`, [rows], () => new Map((rows ?? []).map(r => [r.strike, { call: r.callOi, put: r.putOi }])));
-const volMap = (rows: UwStrikeFlow[] | null) => made(`volmap`, [rows], () => new Map((rows ?? []).map(r => [r.strike, { call: r.callVolume, put: r.putVolume }])));
 
 function snapshotOf(t: string): MarketSnapshot | null {
   const book = bookOfName(t);
@@ -489,7 +501,9 @@ function snapshotOf(t: string): MarketSnapshot | null {
   const tapeRows = need<UwOptionTrade[]>(t, 'tape');
   if (!isCashIndex(t)) need<UwStockState>(t, 'day');
   const bars = candlesOf(t);
-  if (!book || !oiRows || iv == null) return null;
+  /* the calendar too: every page draws the book by listed date, and a calendar with no date is not a calendar */
+  const cal = book ? byDateOf(t, calendarDates(t)) : null;
+  if (!book || !oiRows || iv == null || !cal || !cal.size) return null;
   /* made again whenever any answer for the name lands (`landed`), so the calendar and the history read with it */
   return made(`snap:${t}`, [book, oiRows, iv, landed.get(t) ?? 0, fieldSnaps(t)], () => {
     const oi = new Map(oiRows.map(r => [r.strike, { call: r.callOi, put: r.putOi }]));
@@ -568,13 +582,15 @@ export function feedSurfaceOf(snap: MarketSnapshot, profile: ExposureProfileData
 }
 
 /** The chain of one listed date — the lens a reader picked ('0DTE', a week out, the monthly) — null while it comes */
-export function feedLensChain(snap: MarketSnapshot, date: Date): StrikeNode[] | null {
+export function feedLensChain(snap: MarketSnapshot, date: Date, exact = false): StrikeNode[] | null {
   const t = snap.ticker;
   const rows = need<UwMaxPain[]>(t, 'maxpain');
   const listed = listedDates(rows);
   const want = isoOf(date);
   const iso = listed.find(d => d >= want);
-  if (!iso) return null;
+  if (!iso) return rows ? [] : null;
+  /* nothing listed on the day itself: no contract of that day (an empty chain, not a wait) */
+  if (exact && iso !== want) return [];
   const inCal = calendarDates(t).includes(iso);
   const byDate = inCal ? byDateOf(t, calendarDates(t)) : byDateOf(t, [iso]);
   const list = byDate?.get(iso);
@@ -603,11 +619,11 @@ function historyOf(t: string): GexSnapshot[] {
   const day0 = today();
   const field = fieldSnaps(t);
   const pastSessions = sessions.filter(s => s.day < day0);
-  const opens = pastSessions.map(s => need<UwOpenExposure[]>(t, 'open', s.day));
+  const opens = pastSessions.map(s => pastPart<UwOpenExposure[]>(t, 'open', s.day));
   /* the last three closes — the overnight change reads the two before the trailing session, whichever it is */
   const closers = pastSessions.slice(-3);
-  const closes = closers.map(s => need<UwStrikeExposure[]>(t, 'close', closeArg(s.day, s.last.close)));
-  const closeOi = closers.map(s => need<UwStrikeOi[]>(t, 'oi', sessionAfter(s.day) === day0 ? '' : sessionAfter(s.day)));
+  const closes = closers.map(s => pastPart<UwStrikeExposure[]>(t, 'close', closeArg(s.day, s.last.close)));
+  const closeOi = closers.map(s => (sessionAfter(s.day) === day0 ? need<UwStrikeOi[]>(t, 'oi') : pastPart<UwStrikeOi[]>(t, 'oi', sessionAfter(s.day))));
   return made(`history:${t}`, [bars, field, ...opens, ...closes, ...closeOi], () => {
     const out: GexSnapshot[] = [];
     pastSessions.forEach((s, i) => {
@@ -641,30 +657,43 @@ function historyOf(t: string): GexSnapshot[] {
   });
 }
 
-/** Building's history: the last session's open interest at its open, and with the day's traded contracts on it now */
+/** Building's history. Open interest is counted once a day, after the close — what a session added is known when the
+    next count lands, never during it, and the day's traded contracts are not open interest (most of a day's 0DTE
+    volume is closed by the bell). So the build on the feed is the last COUNTED session: the count before it (at its
+    open) against the count after it (at its close), stamped on the last session's bars so the engine reads it whole.
+    data/pinpointBook.ts tells Building it is a session that has closed (`buildClockOf`). */
 function oiHistoryOf(t: string): GexSnapshot[] {
   const bars = candlesOf(t) ?? [];
   const sessions = sessionsOf(bars);
   const s = sessions[sessions.length - 1];
-  if (!s) return [];
-  const isToday = s.day === today();
-  const oiRows = need<UwStrikeOi[]>(t, 'oi', isToday ? '' : s.day);
-  const volRows = need<UwStrikeFlow[]>(t, 'vol', isToday ? '' : s.day);
+  const after = need<UwStrikeOi[]>(t, 'oi');
+  const date = after?.[0]?.date ?? '';
+  const before = date ? need<UwStrikeOi[]>(t, 'oi', sessionBefore(date)) : null;
   const book = bookOfName(t);
-  if (!oiRows || !volRows || !book) return [];
-  return made(`oihistory:${t}`, [oiRows, volRows, book, s.first, s.last], () => {
-    const oi = oiMap(oiRows);
-    const vol = volMap(volRows);
+  if (!s || !after || !before || !book || s.last.time <= s.first.time) return [];
+  return made(`oihistory:${t}`, [after, before, book, s.first, s.last], () => {
+    const a = oiMap(after);
+    const b = new Map(before.map(r => [r.strike, { call: r.callOi, put: r.putOi }]));
     const open: GexLevel[] = [];
     const now: GexLevel[] = [];
     for (const r of book.rows) {
-      const o = oi.get(r.strike) ?? { call: 0, put: 0 };
-      const v = vol.get(r.strike) ?? { call: 0, put: 0 };
+      const o = b.get(r.strike) ?? { call: 0, put: 0 };
+      const n = a.get(r.strike) ?? { call: 0, put: 0 };
       open.push({ strike: r.strike, value: r.gex.net, callOI: o.call, putOI: o.put });
-      now.push({ strike: r.strike, value: r.gex.net, callOI: o.call + v.call, putOI: o.put + v.put });
+      now.push({ strike: r.strike, value: r.gex.net, callOI: n.call, putOI: n.put });
     }
-    return s.last.time > s.first.time ? [{ time: s.first.time, levels: open }, { time: s.last.time, levels: now }] : [];
+    return [
+      { time: s.first.time, levels: open },
+      { time: s.last.time, levels: now },
+    ];
   });
+}
+
+/** The session the counts measure — the day before the latest count's date ("Oct 9") — null before the count lands */
+export function countedSession(t: string): string | null {
+  const after = peek<UwStrikeOi[]>(up(t), 'oi');
+  const date = after?.[0]?.date;
+  return date ? sessionBefore(date) : null;
 }
 
 /** The whole book a minute, the last session's regular minutes */
@@ -720,9 +749,12 @@ export const FEED_MARKET: BookMarket = {
     const rows = need<UwStrikeOi[]>(up(t), 'oi');
     return book ? feedFreshness(book, rows ? { date: rows[0]?.date ?? '', byStrike: new Map() } : null) : null;
   },
+  deep: t => {
+    deepAsked.set(up(t), Date.now());
+  },
   maxPain: t => nearMaxPain(need<UwMaxPain[]>(up(t), 'maxpain'))?.strike ?? null,
   surfaceOf: (snap, profile) => feedSurfaceOf(snap, profile),
-  lensChain: (snap, date) => feedLensChain(snap, date),
+  lensChain: (snap, date, exact) => feedLensChain(snap, date, exact),
   subscribe: fn => {
     subs.add(fn);
     return () => subs.delete(fn);

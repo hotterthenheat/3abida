@@ -553,7 +553,14 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, column
       const n: number[] = [];
       for (const s of strikes) {
         const r = col.rows.get(s);
-        const leg = g === 'vex' || !r ? null : r[g];
+        /* vega is not in the feed: its cells are NaN — "—" on the page, never a nought */
+        if (g === 'vex') {
+          p.push(NaN);
+          c.push(NaN);
+          n.push(NaN);
+          continue;
+        }
+        const leg = !r ? null : r[g];
         const pv = leg ? leg.put : 0;
         const cv = leg ? leg.call : 0;
         p.push(pv);

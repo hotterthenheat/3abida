@@ -34,7 +34,7 @@ import StrikeChart, {
 import { FOCUS, SUPREME, alpha } from '../../components/gex/paletteInk';
 import { buildLevelRead } from '../../data/levelview';
 
-const fmtFocus = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtFocus = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 import TickerQuickPick from '../../components/gex/TickerQuickPick';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { buildPrints } from '../../data/gex';

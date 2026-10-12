@@ -31,7 +31,6 @@ import { agendaOf, bookOf, closeOddsOf } from './pinpointBook';
 import { buildExposureProfile } from './exposure';
 import { GREEKS, type ExposureSurface, type Greek } from './exposureSurface';
 import { buildFlipGauge, type GammaRegime } from './flipGauge';
-import { spotChangePct } from './gex';
 import type { ExposureExpiry, ExposureLevels } from '../types/gex';
 import type { Candle, GexLevel, MarketSnapshot } from '../types/market';
 
@@ -106,7 +105,7 @@ export interface Compare {
   sentence: string;
 }
 
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 /** The name a comparison opens against: the index twin when there is one, else the next name on the list */
 export function partnerFor(ticker: string): string {
@@ -193,7 +192,7 @@ export function buildCompareSide(snapshot: MarketSnapshot, clock: AheadClock, ex
   return {
     ticker,
     spot,
-    changePct: spotChangePct(ticker),
+    changePct: market.dayChangePct(ticker),
     regime: gauge.regime,
     flip: gauge.flip,
     flipDistPct: gauge.distPct,
@@ -275,6 +274,8 @@ export interface Pair {
 
 /** The ratio of the two names' closes, session by session and today minute by minute */
 export function buildPair(a: string, b: string): Pair {
+  bookMarket().deep?.(a);
+  bookMarket().deep?.(b);
   const ba = bookMarket().peekCandles(a) ?? [];
   const bb = bookMarket().peekCandles(b) ?? [];
   const sessionsOf = (bars: readonly Candle[]) => {

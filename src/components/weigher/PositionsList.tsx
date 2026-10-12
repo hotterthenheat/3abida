@@ -48,7 +48,7 @@ export const rSigned = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFix
 export const dirInk = (v: number) => (v > 0 ? 'text-bull dir-up' : v < 0 ? 'text-bear dir-down' : 'text-textPrimary');
 export const monthDay = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 export const daysSince = (at: number) => Math.max(0, Math.floor((Date.now() - at) / 86_400_000));
-export const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+export const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 
 const LIST_THEME = GRID_THEME.withParams({ rowHeight: 34, headerHeight: 28, fontSize: 11 });
 /** Every column with the Hedging one beside them: 210 + 100 + 72 + 72 + 100 + 108 + 36 = 698 — the column from 700 */

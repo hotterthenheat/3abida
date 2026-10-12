@@ -49,7 +49,7 @@ import type { Candle, MarketSnapshot } from '../../types/market';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GREEN = 'rgb(var(--bull))';
 const RED = 'rgb(var(--bear))';
-const fmtStrike = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 /** A bar's minute, New York's (X2) */
 const hhmm = (unix: number) => nyClock(unix * 1000);
 

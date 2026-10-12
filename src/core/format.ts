@@ -38,22 +38,29 @@ const signFor = (v: number, shown: string): string => (/[1-9]/.test(shown) ? (v 
 /** The minus only — a level, not a change */
 const minusFor = (v: number, shown: string): string => (v < 0 && /[1-9]/.test(shown) ? MINUS : '');
 
+/** A figure no answer carried (NaN, ±Infinity) — the dash, never "$NaN" (2026-10-12: the feed's missing fields) */
+export const DASH = '—';
+const none = (v: number): boolean => !Number.isFinite(v);
+
 const grouped = (a: number, digits: number): string => a.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 // ---- plain numbers ---------------------------------------------------------------------------------------------------
 
 /** "1,240" · "−0.54" with `digits` — a count or a level, grouped, with the true minus */
 export const num = (v: number, digits = 0): string => {
+  if (none(v)) return DASH;
   const body = grouped(Math.abs(v), digits);
   return `${minusFor(v, body)}${body}`;
 };
 /** "+1,240" · "−0.50" — a change */
 export const numSigned = (v: number, digits = 0): string => {
+  if (none(v)) return DASH;
   const body = grouped(Math.abs(v), digits);
   return `${signFor(v, body)}${body}`;
 };
 /** "1.2K" · "48.3M" · "845" — a count too big to print whole, three figures at most */
 export const numCompact = (v: number): string => {
+  if (none(v)) return DASH;
   const a = Math.abs(v);
   const body = a >= 1e9 ? three(a / 1e9, 'B') : a >= 1e6 ? three(a / 1e6, 'M') : a >= 1e3 ? three(a / 1e3, 'K') : a.toFixed(0);
   return `${minusFor(v, body)}${body}`;
@@ -65,22 +72,26 @@ const three = (scaled: number, unit: string): string => `${scaled.toFixed(scaled
 
 /** "$525.20" · "$0.05" · "−$1,310.00" — a price, a premium, an account, to the cent (`digits` for whole dollars) */
 export const usd = (v: number, digits = 2): string => {
+  if (none(v)) return DASH;
   const body = `$${grouped(Math.abs(v), digits)}`;
   return `${minusFor(v, body)}${body}`;
 };
 /** "+$1,240.50" · "−$310.00" · "$0.00" — money made or lost */
 export const usdSigned = (v: number, digits = 2): string => {
+  if (none(v)) return DASH;
   const body = `$${grouped(Math.abs(v), digits)}`;
   return `${signFor(v, body)}${body}`;
 };
 /** "$1.2M" · "$48.3M" · "$990M" · "$4.1B" · "$845" · "−$2.0M" — a big figure, compact to three figures */
 export const usdCompact = (v: number): string => {
+  if (none(v)) return DASH;
   const a = Math.abs(v);
   const body = a >= 1e9 ? `$${three(a / 1e9, 'B')}` : a >= 1e6 ? `$${three(a / 1e6, 'M')}` : a >= 1e3 ? `$${three(a / 1e3, 'K')}` : `$${a.toFixed(0)}`;
   return `${minusFor(v, body)}${body}`;
 };
 /** "+$1.2M" · "−$310K" · "$0" — a big change */
 export const usdCompactSigned = (v: number): string => {
+  if (none(v)) return DASH;
   const body = usdCompact(Math.abs(v));
   return `${signFor(v, body)}${body}`;
 };
@@ -91,11 +102,13 @@ export const usdCompactSigned = (v: number): string => {
 const pctDigits = (v: number): number => (Math.abs(v) < 0.995 ? 2 : 1);
 /** "12.3%" · "0.46%" — `v` in percent (12.3 is 12.3%) */
 export const pct = (v: number, digits = pctDigits(v)): string => {
+  if (none(v)) return DASH;
   const body = Math.abs(v).toFixed(digits);
   return `${minusFor(v, body)}${body}%`;
 };
 /** "+1.2%" · "−0.46%" · "0.00%" — a change in percent */
 export const pctSigned = (v: number, digits = pctDigits(v)): string => {
+  if (none(v)) return DASH;
   const body = Math.abs(v).toFixed(digits);
   return `${signFor(v, body)}${body}%`;
 };
@@ -111,7 +124,7 @@ export const fmtTheta = (dollarsPerDay: number, opts: { unit?: boolean } = {}): 
 /** "0.18" */
 export const fmtVega = (v: number): string => num(v, 2);
 /** "15.4%" — implied vol from its fraction (0.154) */
-export const fmtIv = (fraction: number): string => `${(fraction * 100).toFixed(1)}%`;
+export const fmtIv = (fraction: number): string => (none(fraction) ? DASH : `${(fraction * 100).toFixed(1)}%`);
 
 // ---- dates and times — New York's ------------------------------------------------------------------------------------
 
