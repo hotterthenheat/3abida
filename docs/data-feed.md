@@ -49,11 +49,13 @@ browser ──GET /feed/massive/v2/…──────▶ dev server          
 
 | File | What it holds |
 |---|---|
+| `price.ts` | `useFeedPrice`: a name's price off `stock-state`, one poll a name (`uw:state:<NAME>`, 10 s) for the rail and the rooms' pages, the last good answer standing through a 429 |
+| `listings.ts` | `useListedDates`: each name's listed expiries for Compass's calendar, asked two at a time, kept for New York's day |
 | `client.ts` | `feedGet` / `feedFetch` (never throw; `{ ok, data }` or `{ ok: false, reason }`), `viaProxy` for Massive's `next_url`, `num()` for UW's numeric strings |
 | `status.ts` | the feed-status store (`useFeedStatus`, `probeFeeds`, `startFeedProbe` — run by the shell as the terminal opens, never on the landing) |
 | `poll.ts` | `useFeedPoll(key, load, periodMs)`: one timer per key at the shortest period asked, a hidden tab asks nothing, answers land once a frame |
 | `uw.ts`, `massive.ts` | the typed fetchers below |
-| `rooms.ts` | the per-room switch: what each room needs, and one seam a room |
+| `rooms.ts` | the per-room switch: what each room needs, one seam a room, and which room an address is in (`roomOfPath`, `pageSource`) |
 | `providers.ts` | each plan's notes, for Settings |
 
 ## Endpoints (all answered 200 on 2026-10-12 unless marked)
@@ -100,8 +102,8 @@ the live answers, kept in `docs/data-feed-samples.md`.
 `src/data/feed/rooms.ts` names what each room would read (`needs`) and gives each room one seam — `pulseSource`,
 `terrainSource`, `traceSource`, `dossierSource`, `pinpointSource`, `compassSource`, `weigherSource`, and
 `useRoomSource(room)`. A room reads the feed only when **every** vendor it needs is up, never one vendor beside the
-house's own figures on one screen. The Dossier is wired (below); every other room's `wired` is `false`, so its seam returns `'stand-in'`
-and its pages read what they read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
+house's own figures on one screen. The Dossier and Trace are wired (below); every other room's `wired` is `false`, so its seam returns
+`'stand-in'` and its pages read what they read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
 then set `wired: true`.
 
 ## The Dossier, the first room moved (2026-10-12)
@@ -127,10 +129,6 @@ page works the usual move, the pricing and the beat count from its own reported 
 thirty-day line and rotation on Stocks; the map, a story's read and the day ahead on News.
 
 Screenshots on the vendors' answers, 2026-10-12 around 11:45 New York: `docs/data-feed/dossier-2026-10-12-*.png`.
-
-house's own figures on one screen. Every room but Trace (below) has `wired: false`, so its seam returns `'stand-in'` and
-every page reads what it read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
-then set `wired: true`.
 
 ## Trace reads Unusual Whales (2026-10-12)
 
@@ -158,3 +156,46 @@ session before quarter hour by quarter hour (Footprints' sparkline), a print's o
 cross's average-day share, the floor share of a print that does not say. A view the answers cannot draw is not offered:
 the card's other sessions and its dollar bars, a sector or the index funds alone on 0DTE, a name's lines by moneyness,
 tenor or expiry. Words say what the feed holds: a floor is named where a page reads prints above it.
+
+## The rail's price follows the page's room (2026-10-12)
+
+The shell's subject — the name, its price and change on the rail and on the phone's strip — reads the price of the
+market the page under it reads (`rooms.ts` `pageSource` by the address; `SideNav` `useRailQuote`):
+
+| The page | The rail's price |
+|---|---|
+| a room that reads the feed (Trace, the Dossier — and any room the day its `wired` turns true) | UW's `stock-state`: `close`, and the change from `prev_close` — `useFeedPrice`, every 10 s, one poll with the room's own pages |
+| a room that reads its own book (Pulse, Terrain, Pinpoint, Compass, the Weigher), or a wired room with a vendor down | the house's, as before |
+| no room's: Practice (Paper, the Backtest, the Journal), Settings, the Glossary, Community, Alerts | the house's: Practice marks on the house's book, and the watchlist and alerts drawers open over any page with the house's prices and walls |
+| a wired room while the shell's first probe is out | nothing ("—"), as the room's pages show nothing |
+
+A 429 (UW Basic answers three calls at once, and other sessions share the key), a timeout, the network or a 5xx keeps
+the last good price for five minutes. **The indices have no price on the Basic plan** (`stock-state` answers 422 for SPX,
+NDX, RUT, VIX and XSP): on a page that reads the feed the rail shows "—", titled "not in the feed" — never the house's
+figure beside the vendor's prints; a name answered 422 is not asked again that visit. On every other page the house's
+figure stays.
+
+Left as it was: the watchlist drawer (the house's prices and its nearest wall or flip) opens over a Trace or Dossier page
+with the house's figures; it is the next shell piece to follow the page's room.
+
+## Compass's calendar on the real listed expiries (2026-10-12)
+
+Compass stays `wired: false` — its setups, prices and figures are the house's. **Its calendar is the exchange's**: with
+UW up, the board's expiry calendar and categories read each name's listed dates off
+`GET /api/stock/{ticker}/expiry-breakdown` (`listings.ts`), the dates alone — never its open interest, volume or chain
+count. A listed date is a calendar fact, the same in any market (as the holidays in `core/calendar.ts` are), so it stands
+under the house's setups without making two markets on one screen; the stand-in mapping (`compassStandIn.ts`) moves a
+setup onto one of those dates instead of the schedule's.
+
+- **Roots**: an index lists its AM-settled monthlies under a root of its own — SPX and SPXW, NDX and NDXP, RUT and
+  RUTW; VIX and VIXW are both AM (the Wednesday settlement); XSP is one PM root. An AM date's last trading day is the
+  session before (`expiryClass.ts`); half days and holidays are the house's calendar as before.
+- **Asked lazily**: the board's names only (23 or so), two calls at a time, once a name a New York day, kept on this
+  machine for the day (`slayer_listed_dates`); the proxy keeps an answer 30 minutes. The board shows its skeleton until
+  every name has answered (a few seconds, once a day), so no setup is filed on the schedule and moved a moment later. A
+  name refused twice keeps the schedule (asked again every half minute); a name UW lists nothing for (`{ "data": [] }`)
+  keeps it too.
+- **Why not Massive**: it refuses the indices (403) and answers five calls a minute, five minutes for the board's names.
+  UW's breakdown is read off open interest, so a date first listed today joins the calendar the session after (Massive
+  carried 2026-10-26 for SPY, AAPL and NVDA on the 12th; UW did not). Every other date agreed.
+- UW down: the schedule, exactly as before.

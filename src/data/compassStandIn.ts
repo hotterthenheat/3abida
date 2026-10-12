@@ -19,8 +19,11 @@
       schedule by kind of name (index products list
       every session for three weeks; most stocks list
       Fridays; a few list monthlies only; SPX's
-      third-Friday monthlies are AM-settled). The feed's
-      own expiry list replaces this.
+      third-Friday monthlies are AM-settled). WITH UW UP
+      THE REAL LIST REPLACES IT (2026-10-12, data/feed/
+      listings.ts): each name's listed dates, its AM roots
+      apart; the schedule stays for a name the vendor
+      lists nothing for, and whenever UW is down.
     · RE-HOMING — a lens's setup is moved onto one of
       its name's listed dates inside its tenor (0DTE,
       Weekly, Swing or Position, Long-Dated) and made
@@ -51,7 +54,8 @@
 
 import { estimatePremium, makeSetup, setupIdOf } from './compass';
 import { isTradingDay, isoDate, today as engineToday } from '../core/calendar';
-import { boardDay as readBoardDay, daysBetween, readExpiry, sessionAfter, sessionBefore, type BoardDay, type ExpiryRead, type Listing } from './expiryClass';
+import { boardDay as readBoardDay, daysBetween, LEAPS_DAYS, readExpiry, sessionAfter, sessionBefore, type BoardDay, type ExpiryRead, type Listing } from './expiryClass';
+import type { ListedDate } from './feed/listings';
 import type { KindKey, ScannerKey, Setup, SleeveKey, StructureKey, TagKey, UniverseQuote } from '../types/compass';
 import { SLEEVE_BY_KEY, STRUCTURE_TYPE } from '../types/compass';
 
@@ -93,8 +97,46 @@ function scheduleOf(ticker: string): Schedule {
 
 const cache = new Map<string, Listing[]>();
 
-/** The name's listed expirations from the board's session on, ascending — the calendar's lit days come from here */
-export function listingsFor(ticker: string, day: BoardDay): Listing[] {
+// ---- the feed's own list (data/feed/listings.ts) -------------------------------------------------------------------------
+/** Which series a real listed date belongs to — words for the calendar's day, and the standard series the re-homing
+    prefers: the third Friday (or the session before it on a holiday) a monthly, past about nine months a long-dated one;
+    an index's quarter-end a quarterly; another Friday (or the Thursday before a holiday Friday) a weekly; else a daily */
+function seriesOf(d: Date, from: Date): Listing['series'] {
+  const tf = thirdFriday(d.getFullYear(), d.getMonth());
+  if (isoDate(onSession(tf)) === isoDate(d)) return daysBetween(from, d) > LEAPS_DAYS ? 'long' : 'monthly';
+  if (d.getMonth() % 3 === 2 && isoDate(lastSessionOfMonth(d.getFullYear(), d.getMonth())) === isoDate(d)) return 'quarterly';
+  const fri = addDays(d, (5 - d.getDay() + 7) % 7);
+  if (d.getDay() === 5 || (d.getDay() === 4 && !isTradingDay(fri))) return 'weekly';
+  return 'daily';
+}
+
+const fromFeed = new WeakMap<ListedDate[], Map<string, Listing[]>>();
+
+/** The name's real listed dates as the board's listings, from the board's session on — an AM date's last trading day the
+    session before it (data/expiryClass.ts) */
+function listingsFromFeed(dates: ListedDate[], day: BoardDay): Listing[] {
+  const at = isoDate(day.session);
+  let byDay = fromFeed.get(dates);
+  if (!byDay) fromFeed.set(dates, (byDay = new Map()));
+  const had = byDay.get(at);
+  if (had) return had;
+  const out: Listing[] = [];
+  for (const { iso, am } of dates) {
+    const [y, m, dd] = iso.split('-').map(Number);
+    const expires = new Date(y, m - 1, dd);
+    const last = am ? sessionBefore(expires) : expires;
+    if (last < day.session) continue;
+    out.push({ expires, last, am, series: seriesOf(expires, day.today) });
+  }
+  out.sort((a, b) => a.last.getTime() - b.last.getTime() || Number(a.am) - Number(b.am));
+  byDay.set(at, out);
+  return out;
+}
+
+/** The name's listed expirations from the board's session on, ascending — the calendar's lit days come from here. With
+    `listed` (the feed's own dates for the name, data/feed/listings.ts) they are the real list; without, the schedule. */
+export function listingsFor(ticker: string, day: BoardDay, listed: ListedDate[] | null = null): Listing[] {
+  if (listed && listed.length) return listingsFromFeed(listed, day);
   const key = `${ticker}|${isoDate(day.session)}`;
   const had = cache.get(key);
   if (had) return had;
@@ -427,7 +469,7 @@ const HOMES: Record<SleeveKey, ExpiryRead['cat'][]> = {
  * Every setup the five lenses found on every tenor, each moved onto one of its name's listed dates and filed. `byLens`
  * is the engine's own output, per lens and tenor — the board builds it; this module never runs a sweep.
  */
-export function filePool(byLens: { lens: ScannerKey; sleeve: SleeveKey; setups: Setup[] }[], universe: UniverseQuote[], at?: number): FiledSetup[] {
+export function filePool(byLens: { lens: ScannerKey; sleeve: SleeveKey; setups: Setup[] }[], universe: UniverseQuote[], at?: number, listedOf: (ticker: string) => ListedDate[] | null = () => null): FiledSetup[] {
   const day = readBoardDay(at);
   const quotes = new Map(universe.map(q => [q.ticker, q]));
   const engineDay = engineToday();
@@ -437,7 +479,7 @@ export function filePool(byLens: { lens: ScannerKey; sleeve: SleeveKey; setups: 
       const q = quotes.get(s.ticker);
       if (!q) continue;
       const homes = HOMES[sleeve];
-      const choices = listingsFor(s.ticker, day).filter(l => {
+      const choices = listingsFor(s.ticker, day, listedOf(s.ticker)).filter(l => {
         const r = readExpiry(l, day);
         return !!r && homes.includes(r.cat);
       });

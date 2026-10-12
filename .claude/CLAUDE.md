@@ -618,3 +618,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   answers cannot draw is not offered; a page reading a floor ($25K tape, $100K alerts, $250K windows, $50K structures,
   $1M dark leaders) says it. UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate` queues the rest. A Tracker
   mark keeps its market (`src: 'feed'`): measured only against the market it was made in.
+- THE RAIL'S PRICE FOLLOWS THE PAGE'S ROOM (2026-10-12; docs/data-feed.md): the shell's subject (the rail, the phone's
+  strip) reads UW's stock-state on a page whose room reads the feed (data/feed/rooms.ts `pageSource` by the address —
+  Trace and the Dossier now, a room wired later on its own), the house's on every other page, a page no room holds
+  included (Practice, Settings, the Glossary: Practice marks on the house's book, and the watchlist and alerts drawers
+  open anywhere with the house's figures). One poll a name (data/feed/price.ts `useFeedPrice`, `uw:state:<NAME>`, 10 s)
+  shared with the rooms' pages; a 429 keeps the last good price five minutes. UW has no index price on Basic (422): on
+  a feed page an index is "—", not in the feed — never the house's figure there.
+- COMPASS'S CALENDAR IS THE EXCHANGE'S (2026-10-12): with UW up the board files on each name's real listed dates
+  (data/feed/listings.ts, UW's expiry-breakdown, its roots apart — SPX/SPXW, NDX/NDXP, RUT/RUTW, VIX/VIXW AM — the
+  dates alone), compass staying `wired: false`: a listed date is a calendar fact, the same in any market, not a market
+  figure, so it may stand under the house's setups. Asked two at a time, once a name a New York day
+  (slayer_listed_dates); the board waits on its skeleton rather than move its setups. UW down: the schedule.

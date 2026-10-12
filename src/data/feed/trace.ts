@@ -60,6 +60,7 @@ import { isTradingDay, sessionsBetween } from '../../core/calendar';
 import { nyClock, nyParts, SESSION_CLOSE_MIN, SESSION_OPEN_MIN } from '../../core/nyTime';
 import type { BookContract, FlowPrint } from '../../types/trace';
 import { useFeedPoll } from './poll';
+import { NOT_IN_FEED, useFeedPrice } from './price';
 import { useRoomSource } from './rooms';
 import { useFeedStatus } from './status';
 import type { FeedResult } from './client';
@@ -101,7 +102,7 @@ export function useTraceSource(): TraceSource {
 }
 
 /** The words a "—" carries when the feed's answer has no such figure */
-export const NOT_IN_FEED = 'not in the feed';
+export { NOT_IN_FEED };
 /** A figure the feed left out (NaN), or one with nothing to measure against */
 export const isMissing = (v: number | null | undefined): boolean => v === null || v === undefined || !Number.isFinite(v);
 
@@ -534,13 +535,8 @@ export function useFeedDarkMarket(on: boolean): UwDarkPrint[] | null {
  * the rail print beside the vendor's prints while the room reads the feed. Null until it answers.
  */
 export function useFeedQuote(on: boolean, ticker: string): { spot: number; changePct: number } | null {
-  const t = ticker.toUpperCase();
-  const r = useFeedPoll(on && t ? `trace:state:${t}` : null, () => uwStockState(t), 10_000);
-  return useMemo(() => {
-    if (!r?.ok || r.data.close === null) return null;
-    const prev = r.data.prevClose;
-    return { spot: r.data.close, changePct: prev ? ((r.data.close - prev) / prev) * 100 : 0 };
-  }, [r]);
+  /* one poll a name with the rail (data/feed/price.ts) — the last good answer standing through a 429 */
+  return useFeedPrice(on, ticker).price;
 }
 export const useFeedSpot = (on: boolean, ticker: string): number | null => useFeedQuote(on, ticker)?.spot ?? null;
 

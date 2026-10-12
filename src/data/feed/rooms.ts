@@ -11,8 +11,9 @@
   THE SEAM: one function per room (pulseSource …
   weigherSource). A room whose pages are not rewired yet
   (`wired: false`) returns 'stand-in' whatever the feed
-  does. TRACE IS WIRED (2026-10-12): its pages read
-  data/feed/trace.ts when UW is up. To move a
+  does. TRACE AND THE DOSSIER ARE WIRED (2026-10-12):
+  their pages read data/feed/trace.ts and dossier.ts
+  when their vendors are up. To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
   data/feed/uw.ts and massive.ts, 'stand-in' means read
@@ -20,6 +21,11 @@
 
   `needs` is what the room would read; Settings › Data
   sources lists it.
+
+  WHICH ROOM A PAGE IS IN (`roomOfPath`, `pageSource`):
+  the shell's pieces that stand beside every page (the
+  rail's price) read the room of the page under them, so
+  they follow a room the day it is wired.
 ==================================================
 */
 
@@ -74,3 +80,31 @@ export function useRoomSource(room: FeedRoom): RoomSource {
 
 /** The rooms that read a vendor when it is connected */
 export const roomsReading = (p: FeedProvider): FeedRoom[] => FEED_ROOMS.filter(r => ROOM_FEEDS[r].needs.includes(p));
+
+/* ---- WHICH ROOM A PAGE IS IN (2026-10-12) — the shell's pieces (the rail's price) read the room of the page they stand
+   beside. A page no room holds (Practice, Settings, the Glossary, Community, Alerts) reads the house's book: Paper, the
+   Backtest and the Journal mark on it, and the watchlist and alerts drawers open over any page with its prices. ---- */
+const ROOM_PATHS: [RegExp, FeedRoom][] = [
+  [/^\/(out\/)?pulse(\/|$)/, 'pulse'],
+  [/^\/(out\/)?terrain(\/|$)/, 'terrain'],
+  [/^\/trace(\/|$)/, 'trace'],
+  [/^\/dossier(\/|$)/, 'dossier'],
+  [/^\/pinpoint(\/|$)/, 'pinpoint'],
+  [/^\/compass(\/|$)/, 'compass'],
+  [/^\/weigher(\/|$)/, 'weigher'],
+];
+
+/** The room an address belongs to — null for a page no room holds */
+export const roomOfPath = (pathname: string): FeedRoom | null => ROOM_PATHS.find(([re]) => re.test(pathname))?.[1] ?? null;
+
+/** A wired room whose vendors have not been asked yet — its pages wait, showing nothing of either book */
+export const roomPending = (room: FeedRoom, s: FeedStatus): boolean => ROOM_FEEDS[room].wired && ROOM_FEEDS[room].needs.some(p => s[p].state === 'unknown');
+
+/** What a page reads, by its address: its room's source, or the house's book where no room holds it; 'pending' while
+    a wired room's vendors are still being asked */
+export function pageSource(pathname: string, s: FeedStatus): RoomSource | 'pending' {
+  const room = roomOfPath(pathname);
+  if (!room) return 'stand-in';
+  if (roomPending(room, s)) return 'pending';
+  return roomSource(room, s);
+}
