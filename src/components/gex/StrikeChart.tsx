@@ -446,6 +446,28 @@ const timeWords = (t: number) => {
   return `${dayWords(t)} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+/** A host's day bars as weeks — Monday to Friday, each week's bar on its Monday (the day bars sit at noon UTC, so the
+    date reads the same on New York's clock) */
+const weekFolds = new WeakMap<Candle[], Candle[]>();
+function foldWeeks(daily: Candle[]): Candle[] {
+  const had = weekFolds.get(daily);
+  if (had) return had;
+  const out: Candle[] = [];
+  for (const b of daily) {
+    const wd = new Date(b.time * 1000).getUTCDay();
+    const monday = b.time - ((wd + 6) % 7) * 86_400;
+    const cur = out[out.length - 1];
+    if (cur && cur.time === monday) {
+      cur.high = Math.max(cur.high, b.high);
+      cur.low = Math.min(cur.low, b.low);
+      cur.close = b.close;
+      cur.volume += b.volume;
+    } else out.push({ time: monday, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume });
+  }
+  weekFolds.set(daily, out);
+  return out;
+}
+
 export function displayBars(ticker: string, mins: number, alt?: AltBarSpec | null): Candle[] {
   if (alt) return buildAltBars(Simulator.getSecondsBars(ticker), alt);
   return mins < 1 ? Simulator.getSecondsBars(ticker) : aggregateCandles(Simulator.getCandles(ticker) ?? [], mins);
@@ -545,7 +567,8 @@ export interface ChartTape {
       today, oldest first) — absent, a tape has no field */
   book?: GexSnapshot[];
   /** DAY BARS, oldest first, for the 1D and 1W timeframes (Terrain on the feed: UW's and Massive's day bars, a bar a New
-      York date at its midnight UTC — the house's day bucket) — absent, the minutes are folded into days */
+      York date at noon UTC, so the axis reads the date on New York's clock; 1W folds them Monday to Friday) — absent, the
+      minutes are folded into days */
   daily?: Candle[];
   /** The bars a comparison line reads, by name (minutes, and days for 1D and 1W) — absent, a compare reads the house */
   compareBars?: Record<string, { bars: Candle[]; daily?: Candle[] | null }>;
@@ -1021,7 +1044,7 @@ const StrikeChart = ({
     const tp = tapeRef.current;
     if (!tp) return displayBars(ticker, mins, alt);
     if (alt) return buildAltBars(tp.bars, alt);
-    if (mins >= 1440 && tp.daily) return aggregateCandles(tp.daily, mins);
+    if (mins >= 1440 && tp.daily) return mins > 1440 ? foldWeeks(tp.daily) : tp.daily;
     return aggregateCandles(tp.bars, Math.max(1, mins));
   };
   const baseBars = (): Candle[] => tapeRef.current?.bars ?? Simulator.getCandles(ticker) ?? [];
@@ -2902,7 +2925,7 @@ const StrikeChart = ({
       if (!s) continue;
       const host = hostBars ? hostBars[c.ticker] : undefined;
       const bars = windowOf(
-        hostBars ? (host ? (mins >= 1440 && host.daily ? aggregateCandles(host.daily, mins) : aggregateCandles(host.bars, Math.max(1, mins))) : []) : displayBars(c.ticker, mins),
+        hostBars ? (host ? (mins >= 1440 && host.daily ? (mins > 1440 ? foldWeeks(host.daily) : host.daily) : aggregateCandles(host.bars, Math.max(1, mins))) : []) : displayBars(c.ticker, mins),
         full
       );
       if (bars.length === 0) continue;

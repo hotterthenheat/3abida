@@ -366,6 +366,7 @@ const FEED_HELD: Partial<Record<Timeframe, string>> = {
   '15s': 'No seconds on these plans — Unusual Whales and Massive answer bars of a minute and up',
 };
 const EMPTY_BARS: Candle[] = [];
+const lastClose = (bars: readonly Candle[] | undefined): number => (bars && bars.length ? bars[bars.length - 1].close : NaN);
 /** A price scale for a pane with no bars (an index on the feed): the book's strikes round the price, top to bottom of
     the box, so the ladder still stands on rows */
 const bookProjection = (box: HTMLElement | null, lo: number, hi: number): PriceProjection => ({
@@ -1217,6 +1218,11 @@ const Pane = ({
   /* AN INDEX ON THE FEED has its book but no bars on these plans — the chart says so in its place, and the ladder stands
      on the book's own rows (bookProjection) */
   const noBars = onFeed && isCashIndex(ticker);
+  const indexTape = useMemo(
+    () => (noBars ? { bars: EMPTY_BARS, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, earnings: null } : undefined),
+    [noBars, feedIv, ticker, fField]
+  );
+  const chartTape = noBars ? indexTape : feedTape;
   /* the walls through the day on the feed: the books this terminal read today, charm's template off the newest book */
   const wallsSource = useMemo<WallsSource | null>(() => {
     if (!onFeed) return null;
@@ -1263,6 +1269,7 @@ const Pane = ({
   const projectionRef = useRef<PriceProjection | null>(null);
   /* an index on the feed: no chart to place prices, so the ladder's rows stand on the book's own scale round the price */
   const noBarsBoxRef = useRef<HTMLDivElement | null>(null);
+  const noBarsChartProjection = useRef<PriceProjection | null>(null);
   const coreLo = rail.core.length ? Math.min(...rail.core.map(r => r.strike)) - rail.step : NaN;
   const coreHi = rail.core.length ? Math.max(...rail.core.map(r => r.strike)) + rail.step : NaN;
   useEffect(() => {
@@ -1634,15 +1641,16 @@ const Pane = ({
                 a frame after the last behind its skeleton, so a four-pane desk
                 opens on its next frame instead of building four charts in the
                 click. */}
-            {noBars ? (
-              /* AN INDEX ON THE FEED: its book, no bars on these plans — said in the chart's own place, the ladder beside it
-                 standing on the book's rows */
-              <div ref={noBarsBoxRef} className="h-full flex items-center justify-center px-6 text-center" data-feed-chart-wait data-no-bars>
-                <p className="max-w-[360px] text-[12px] text-textMuted" title="Not available on these plans">
-                  {ticker}'s price bars are not available on these plans — Unusual Whales and Massive need an index licence for them. The ladder reads its book.
+            {noBars && (
+              /* AN INDEX ON THE FEED: its book, no bars on these plans — said in the chart's own place (the chart and its
+                 tools stand under it, empty), the ladder beside it standing on the book's rows */
+              <div ref={noBarsBoxRef} className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center px-6 text-center" data-no-bars>
+                <p className="max-w-[360px] rounded bg-canvas/70 px-2 py-1 text-[12px] text-textMuted">
+                  {ticker}'s price bars are not available on these plans — Unusual Whales and Massive ask an index grant for them. The ladder reads its book.
                 </p>
               </div>
-            ) : offHouse && !feedTape ? (
+            )}
+            {offHouse && !chartTape ? (
               /* THE FEED'S PANE BEFORE ITS BARS */
               <div className="h-full flex items-center justify-center px-6 text-center" data-feed-chart-wait>
                 {onFeed && fBars.failed && fBars.failed !== 'rate' ? (
@@ -1670,8 +1678,8 @@ const Pane = ({
               barClock={clock}
               prints={prints}
               compares={paneCompares}
-              /* ON THE FEED: UW's minute bars and the books read today (data/feed/levels.ts) */
-              tape={feedTape}
+              /* ON THE FEED: the real bars and the books read today (data/feed/levels.ts); an index's tape has no bars */
+              tape={chartTape}
               priceScale={priceScale}
               sessionOr={sessionOr}
               drawing={drawing}
@@ -1689,7 +1697,8 @@ const Pane = ({
               onCrosshair={onCrosshair}
               syncRegister={registerSync}
               onReadout={setReadout}
-              projectionRef={projectionRef}
+              /* an index on the feed: the ladder stands on the book's scale, not this empty chart's */
+              projectionRef={noBars ? noBarsChartProjection : projectionRef}
               exportRef={exportPngRef}
               pageScroll={belowLg}
               /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
@@ -2120,11 +2129,20 @@ const Pane = ({
                     <span className="font-mono text-[11px] font-semibold" style={{ color: c.ink }}>
                       {c.ticker}
                     </span>
-                    {Simulator.TICKERS[c.ticker] && (
-                      <SpotPrice
-                        value={Simulator.TICKERS[c.ticker].currentPrice}
-                        className="font-mono text-[11px] tnum text-textSecondary"
-                      />
+                    {/* on the feed the crossed name's own last bar ("—" where its bars are not on the plans: an index) */}
+                    {offHouse ? (
+                      Number.isFinite(lastClose(compareBars?.[c.ticker]?.bars)) ? (
+                        <SpotPrice value={lastClose(compareBars?.[c.ticker]?.bars)} className="font-mono text-[11px] tnum text-textSecondary" />
+                      ) : (
+                        <span className="font-mono text-[11px] tnum text-textMuted" title="Not available on these plans">—</span>
+                      )
+                    ) : (
+                      Simulator.TICKERS[c.ticker] && (
+                        <SpotPrice
+                          value={Simulator.TICKERS[c.ticker].currentPrice}
+                          className="font-mono text-[11px] tnum text-textSecondary"
+                        />
+                      )
                     )}
                     <button
                       onClick={() => removeCompare(c.ticker, c.mode)}
@@ -2153,7 +2171,7 @@ const Pane = ({
             rewrite a preference because they picked up their phone.
           */}
           {/* the ladder stands on the chart's price rows — an index on the feed has none, so it stands on the book's own */}
-          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && !(offHouse && !feedTape && !noBars) && (
+          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && !(offHouse && !chartTape) && (
             <ProfilePanel
               /* THE REST WIDTH follows the pane count (2026-09-16): 520 alone or expanded, 340 on
                  two or four, 240 three across — the reader's own width once dragged */

@@ -881,10 +881,10 @@ const EMPTY_SNAPS: GexSnapshot[] = [];
    house's pane draws; these are what fill the ones the book and the minute bars do not: the day bars (1D, 1W), the
    name's dark pool levels, its next report for the events lane, the open's ghost on the ladder off the field. */
 
-/** A New York date as the chart's day bar time — the date's midnight UTC, as the house folds its minutes into days */
+/** A New York date as the chart's day bar time — the date's noon UTC, so it reads as the same date on New York's clock */
 const dayTime = (iso: string): number => {
   const [y, m, d] = iso.split('-').map(Number);
-  return Date.UTC(y, m - 1, d) / 1000;
+  return Date.UTC(y, m - 1, d, 12) / 1000;
 };
 const isoOfDayStart = (ms: number): string => nyIsoDate(ms);
 
