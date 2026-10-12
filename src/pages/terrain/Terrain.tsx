@@ -2058,7 +2058,8 @@ const Pane = ({
             window is wide enough. Turning it off in storage would silently
             rewrite a preference because they picked up their phone.
           */}
-          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && (
+          {/* the ladder stands on the chart's price rows — a feed pane with no bars (an index) has none to stand on */}
+          {(belowLg ? narrowLadder : ladder) && rail.rows.length > 0 && !(offHouse && !feedTape) && (
             <ProfilePanel
               /* THE REST WIDTH follows the pane count (2026-09-16): 520 alone or expanded, 340 on
                  two or four, 240 three across — the reader's own width once dragged */

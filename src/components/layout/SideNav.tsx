@@ -66,7 +66,7 @@ import Avatar from '../ui/Avatar';
 import { useProfile } from '../../data/profile';
 import { useActiveTicker, useNow, useQuote } from '../../context/MarketDataContext';
 import { useFeedQuote, useTraceSource } from '../../data/feed/trace';
-import { useFeedBook, usePinpointSource, useTerrainSource } from '../../data/feed/levels';
+import { isCashIndex, useFeedBook, usePinpointSource, useTerrainSource } from '../../data/feed/levels';
 
 /* THE RAIL'S PRICE IS THE ROOM'S (2026-10-12): on a Trace page reading the feed, the name's price is the vendor's — the
    same market as every print under it — never the house's beside it */
@@ -81,7 +81,8 @@ function useRailQuote(ticker: string) {
   const levelsFeed = (path.startsWith('/pinpoint') && pinpoint === 'feed') || (path.startsWith('/terrain') && terrain === 'feed');
   const feed = traceFeed || levelsFeed;
   const house = useQuote();
-  const vendor = useFeedQuote(feed, ticker);
+  /* an index has no day state on UW's plan — never asked (data/feed/levels.ts isCashIndex) */
+  const vendor = useFeedQuote(feed && !isCashIndex(ticker), ticker);
   const book = useFeedBook(levelsFeed && !vendor, ticker).book;
   if (!feed) return house;
   if (vendor) return vendor;

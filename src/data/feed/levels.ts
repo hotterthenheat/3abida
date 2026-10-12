@@ -98,6 +98,11 @@ function useLevelsSource(room: FeedRoom): LevelsSource {
 export const usePinpointSource = (): LevelsSource => useLevelsSource('pinpoint');
 export const useTerrainSource = (): LevelsSource => useLevelsSource('terrain');
 
+/** Cash indices — UW gives them exposure, open interest and max pain, but no day state and no price bars on this plan
+    (a CBOE grant; "Stock state data is not available for index ticker SPX", 422, seen 2026-10-12), so neither is asked */
+const CASH_INDICES = new Set(['SPX', 'SPXW', 'NDX', 'NDXP', 'RUT', 'RUTW', 'VIX', 'VIXW', 'XSP', 'DJX', 'OEX', 'XND', 'XEO', 'MRUT']);
+export const isCashIndex = (ticker: string): boolean => CASH_INDICES.has(ticker.toUpperCase());
+
 /** The words a "—" carries */
 export const NOT_IN_FEED = 'not in the feed';
 const NAN_SPLIT: GreekSplit = { put: NaN, call: NaN, net: NaN };
@@ -599,7 +604,7 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, column
     index no state) or before it answers */
 export function useFeedDayState(on: boolean, ticker: string): { price: number; changePct: number } | null {
   const t = ticker.toUpperCase();
-  const key = on && t ? `trace:state:${t}` : null;
+  const key = on && t && !isCashIndex(t) ? `trace:state:${t}` : null;
   const r = useFeedPoll(key, () => uwStockState(t), 10_000);
   const k = keep(key, r);
   return useMemo(() => {
@@ -672,7 +677,8 @@ async function folded<T extends { at: number; open: number | null; high: number 
     every 15 s. Null until the first answer; an index answers nothing (UW needs a CBOE grant for index prices). */
 export function useFeedBars(on: boolean, ticker: string): { bars: Candle[] | null; failed: FeedFail | null } {
   const t = ticker.toUpperCase();
-  const kAll = on && t ? `levels:bars:${t}` : null;
+  const index = isCashIndex(t);
+  const kAll = on && t && !index ? `levels:bars:${t}` : null;
   const rAll = useFeedPoll(kAll, () => folded(t, uwOhlc(t, { size: '1m', limit: 2500 })), 5 * 60_000);
   const kNew = on && t && rAll?.ok ? `levels:bars-new:${t}` : null;
   useFeedPoll(kNew, () => folded(t, uwOhlc(t, { size: '1m', limit: 30 })), 15_000);
@@ -685,7 +691,7 @@ export function useFeedBars(on: boolean, ticker: string): { bars: Candle[] | nul
     },
     () => bars.get(t) ?? null
   );
-  return { bars: list && list.length ? list : null, failed: failOf(rAll) };
+  return { bars: list && list.length ? list : null, failed: on && index ? 'plan' : failOf(rAll) };
 }
 
 /* ---- the strike field: the book kept through the session -------------------------------------------------------- */
