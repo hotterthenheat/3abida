@@ -85,6 +85,7 @@ import {
   loadExposure,
   nearMaxPain,
   sessionBefore,
+  shortDay,
   subscribeField,
   type FeedBook,
   type FeedStrike,
@@ -527,9 +528,27 @@ function snapshotOf(t: string): MarketSnapshot | null {
 
 /* ---- the calendar ------------------------------------------------------------------------------------------------ */
 
+/* AN INDEX LISTS ITS DAILIES UNDER A SECOND ROOT (data-feed-samples.md: SPX's own dates are the AM monthlies, SPXW's
+   every session) — UW's book under the index's name carries both, so the dates are both roots' */
+const DAILY_ROOT: Record<string, string> = { SPX: 'SPXW', NDX: 'NDXP', RUT: 'RUTW', VIX: 'VIXW' };
+
+/** Every listed date from today on, earliest first, with each date's max pain — both roots of an index */
+function listedRows(t: string): UwMaxPain[] | null {
+  const own = need<UwMaxPain[]>(t, 'maxpain');
+  const root = DAILY_ROOT[t];
+  const daily = root ? need<UwMaxPain[]>(root, 'maxpain') : null;
+  if (!own) return null;
+  if (!root) return own;
+  return made(`listed:${t}`, [own, daily], () => {
+    const byDate = new Map<string, UwMaxPain>();
+    for (const r of [...(daily ?? []), ...own]) byDate.set(r.expiry, r);
+    return [...byDate.values()].sort((x, y) => (x.expiry < y.expiry ? -1 : x.expiry > y.expiry ? 1 : 0));
+  });
+}
+
 /** The listed dates the calendar reads: the first listed date at or past each of the ledger's horizons, nearest first */
 function calendarDates(t: string): string[] {
-  const rows = need<UwMaxPain[]>(t, 'maxpain');
+  const rows = listedRows(t);
   const listed = listedDates(rows);
   return made(`caldates:${t}`, [rows, today()], () => {
     const out: string[] = [];
@@ -584,7 +603,7 @@ export function feedSurfaceOf(snap: MarketSnapshot, profile: ExposureProfileData
 /** The chain of one listed date — the lens a reader picked ('0DTE', a week out, the monthly) — null while it comes */
 export function feedLensChain(snap: MarketSnapshot, date: Date, exact = false): StrikeNode[] | null {
   const t = snap.ticker;
-  const rows = need<UwMaxPain[]>(t, 'maxpain');
+  const rows = listedRows(t);
   const listed = listedDates(rows);
   const want = isoOf(date);
   const iso = listed.find(d => d >= want);
@@ -752,7 +771,25 @@ export const FEED_MARKET: BookMarket = {
   deep: t => {
     deepAsked.set(up(t), Date.now());
   },
-  maxPain: t => nearMaxPain(need<UwMaxPain[]>(up(t), 'maxpain'))?.strike ?? null,
+  oiCounts: t => {
+    const name = up(t);
+    const after = need<UwStrikeOi[]>(name, 'oi');
+    const date = after?.[0]?.date ?? '';
+    const before = date ? need<UwStrikeOi[]>(name, 'oi', sessionBefore(date)) : null;
+    const book = bookOfName(name);
+    if (!after || !before || !before.length || !book) return null;
+    /* the strikes round the book's price; a count dated D is the positions at the close of the session before D */
+    const lo = book.rows[0]?.strike ?? -Infinity;
+    const hi = book.rows[book.rows.length - 1]?.strike ?? Infinity;
+    const cut = (rows: UwStrikeOi[]): GexLevel[] => rows.filter(r => r.strike >= lo && r.strike <= hi).map(r => ({ strike: r.strike, value: 0, callOI: r.callOi, putOI: r.putOi }));
+    return made(`oicounts:${name}`, [after, before, book], () => ({
+      last: cut(after),
+      before: cut(before),
+      lastDay: shortDay(sessionBefore(date)),
+      beforeDay: shortDay(sessionBefore(before[0].date)),
+    }));
+  },
+  maxPain: t => nearMaxPain(listedRows(up(t)))?.strike ?? null,
   surfaceOf: (snap, profile) => feedSurfaceOf(snap, profile),
   lensChain: (snap, date, exact) => feedLensChain(snap, date, exact),
   subscribe: fn => {
@@ -783,7 +820,7 @@ registerFeedMarket(
 /* ---- what the frame reads beside the engines ------------------------------------------------------------------- */
 
 /** Max pain per listed date (the frame's head, the calendar's line) */
-export const feedMaxPainRows = (t: string): UwMaxPain[] | null => need<UwMaxPain[]>(up(t), 'maxpain');
+export const feedMaxPainRows = (t: string): UwMaxPain[] | null => listedRows(up(t));
 /** The name's implied move by horizon (the frame's head) */
 export const feedMoveRows = (t: string): UwImpliedMove[] | null => need<UwImpliedMove[]>(up(t), 'iv');
 /** Why a name's snapshot has not come — the book's or the open interest's last failure */

@@ -155,7 +155,24 @@ function stepNear(strikes: number[], price: number): number {
 }
 
 /** The exposure rows of a name round its price — the price read first (one row) when none is known */
-export async function loadExposure(t: string): Promise<FeedResult<UwStrikeExposure[]>> {
+/* ONE READ OF A NAME'S BOOK AT A TIME (2026-10-12): the shell's field recorder, Terrain's pane and Pinpoint's market
+   (data/feed/pinpointMarket.ts) each ask for the open name's book on their own timers — a read already flying, or one
+   that landed in the last twenty seconds, is handed to the next asker rather than asked again */
+const bookReads = new Map<string, { at: number; p: Promise<FeedResult<UwStrikeExposure[]>> }>();
+const BOOK_REUSE_MS = 20_000;
+export function loadExposure(t: string): Promise<FeedResult<UwStrikeExposure[]>> {
+  const had = bookReads.get(t);
+  if (had && Date.now() - had.at < BOOK_REUSE_MS) return had.p;
+  const p = readExposure(t);
+  bookReads.set(t, { at: Date.now(), p });
+  void p.then(r => {
+    /* a failed read is not handed on */
+    if (!r.ok && bookReads.get(t)?.p === p) bookReads.delete(t);
+  });
+  return p;
+}
+
+async function readExposure(t: string): Promise<FeedResult<UwStrikeExposure[]>> {
   let price = known.get(t)?.price ?? null;
   if (price == null) {
     const first = await uwSpotGexByStrike(t, { limit: 1 });

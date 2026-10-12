@@ -491,7 +491,8 @@ const phaseName = (min: number) =>
 /** The net delta of the contracts that expire at the session's bell, off a feed snapshot's own dated rows */
 function todaysDex(snapshot: MarketSnapshot): number {
   const day = lensDate('0DTE');
-  /* exact: a name with nothing listed on the day has nothing expiring at this bell */
+  /* exact: a name with nothing listed on the day has nothing expiring at this bell (an index's dailies are listed under
+     its second root — data/feed/pinpointMarket.ts listedRows) */
   const chain = day ? feedMarket()?.lensChain?.(snapshot, day, true) : null;
   if (!chain) return Number.NaN;
   return chain.reduce((a, n) => a + n.netDex, 0);

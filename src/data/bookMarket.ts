@@ -31,7 +31,7 @@
 
 import { useSyncExternalStore } from 'react';
 import Simulator from '../core/simulator';
-import type { Candle, GexSnapshot, MarketSnapshot, StrikeNode } from '../types/market';
+import type { Candle, GexLevel, GexSnapshot, MarketSnapshot, StrikeNode } from '../types/market';
 import type { ExposureProfileData } from '../types/gex';
 import type { ExposureSurface } from './exposureSurface';
 
@@ -82,6 +82,9 @@ export interface BookMarket {
   /** A read that needs the sessions before today (the range's record, the levels' record, the overnight change) asks
       for them — the feed fetches them only then */
   deep?(t: string): void;
+  /** Open interest by strike at the last two closes, as the vendor counts it ("Oct 9", "Oct 8") — null while it
+      comes; undefined where the market keeps it in the history instead (the house) */
+  oiCounts?(t: string): { last: GexLevel[]; before: GexLevel[]; lastDay: string; beforeDay: string } | null;
   /** Max pain for the nearest listed date, the vendor's own — null where none is listed */
   maxPain?(t: string): number | null;
   /** A feed snapshot's calendar — the vendor's own dates (the house builds its calendar in data/exposureSurface.ts) */

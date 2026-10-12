@@ -98,6 +98,13 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
   const Sub = ({ children }: { children: ReactNode }) => <span className="text-[11px] text-textSecondary whitespace-nowrap">{children}</span>;
   /* A strike the reader can keep: the shared strike, lit silver when it is */
   const Strike = ({ s, k, bold }: { s: CompareSide; k: number; bold: boolean }) => {
+    /* a level this book does not hold (the feed's book names none) — the dash, never a strike to keep */
+    if (!Number.isFinite(k))
+      return (
+        <span className="font-mono text-[12px] text-textMuted" title="This book holds none">
+          —
+        </span>
+      );
     const kept = (s.ticker === a.ticker ? focusA : focusB) === k;
     return (
       <button
@@ -175,28 +182,32 @@ const HeadToHead = ({ cmp, unit, greek, chipA, chipB, onSwap, updatedAt, focusA,
     callWall: {
       key: 'callWall',
       label: 'Call wall',
-      note: `${nearer(s => s.callWall.distPct).ticker}'s is the nearer`,
-      lead: sideOf(nearer(s => s.callWall.distPct)),
+      note: Number.isFinite(a.callWall.strike) && Number.isFinite(b.callWall.strike) ? `${nearer(s => s.callWall.distPct).ticker}'s is the nearer` : 'none on one of them',
+      lead: Number.isFinite(a.callWall.strike) && Number.isFinite(b.callWall.strike) ? sideOf(nearer(s => s.callWall.distPct)) : null,
       cell: (s, bold) => (
         <>
           <Strike s={s} k={s.callWall.strike} bold={bold} />
-          <Sub>
-            {dist(s, s.callWall.strike)} · {fmtDollars(s.callWall.weight)}
-          </Sub>
+          {Number.isFinite(s.callWall.strike) && (
+            <Sub>
+              {dist(s, s.callWall.strike)} · {fmtDollars(s.callWall.weight)}
+            </Sub>
+          )}
         </>
       ),
     },
     putWall: {
       key: 'putWall',
       label: 'Put wall',
-      note: `${nearer(s => s.putWall.distPct).ticker}'s is the nearer`,
-      lead: sideOf(nearer(s => s.putWall.distPct)),
+      note: Number.isFinite(a.putWall.strike) && Number.isFinite(b.putWall.strike) ? `${nearer(s => s.putWall.distPct).ticker}'s is the nearer` : 'none on one of them',
+      lead: Number.isFinite(a.putWall.strike) && Number.isFinite(b.putWall.strike) ? sideOf(nearer(s => s.putWall.distPct)) : null,
       cell: (s, bold) => (
         <>
           <Strike s={s} k={s.putWall.strike} bold={bold} />
-          <Sub>
-            {dist(s, s.putWall.strike)} · {fmtDollars(s.putWall.weight)}
-          </Sub>
+          {Number.isFinite(s.putWall.strike) && (
+            <Sub>
+              {dist(s, s.putWall.strike)} · {fmtDollars(s.putWall.weight)}
+            </Sub>
+          )}
         </>
       ),
     },

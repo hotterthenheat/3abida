@@ -337,8 +337,13 @@ export function buildCompare(a: CompareSide, b: CompareSide, clock: AheadClock):
   const ratioRaw = b.sigmaLeftPct / Math.max(1e-9, a.sigmaLeftPct);
   const wider = ratioRaw >= 1 ? { ticker: b.ticker, ratio: ratioRaw } : { ticker: a.ticker, ratio: 1 / ratioRaw };
   const narrower = wider.ticker === a.ticker ? b.ticker : a.ticker;
-  const nearerCall = Math.abs(a.callWall.distPct) <= Math.abs(b.callWall.distPct) ? a : b;
-  const nearerPut = Math.abs(a.putWall.distPct) <= Math.abs(b.putWall.distPct) ? a : b;
+  /* a wall the book does not hold (NaN on the feed's book) is never the nearer */
+  const nearerOf = (k: 'callWall' | 'putWall'): CompareSide | null => {
+    const has = [a, b].filter(s => Number.isFinite(s[k].strike));
+    return has.length ? has.reduce((x, y) => (Math.abs(y[k].distPct) < Math.abs(x[k].distPct) ? y : x)) : null;
+  };
+  const nearerCall = nearerOf('callWall');
+  const nearerPut = nearerOf('putWall');
   const regimes =
     a.regime && b.regime && a.regime === b.regime
       ? `dealers ${regimeWord(a)} moves on both`
@@ -346,6 +351,9 @@ export function buildCompare(a: CompareSide, b: CompareSide, clock: AheadClock):
   const when = clock.inSession ? 'to the close' : 'next session';
   const sentence =
     `${wider.ticker} has the wider expected move ${when}, ${wider.ratio.toFixed(1)}× ${narrower}'s; ${regimes}. ` +
-    `${nearerCall.ticker}'s call wall is the nearer overhead at ${fmtStrike(nearerCall.callWall.strike)}, ${nearerPut.ticker}'s put wall the nearer below at ${fmtStrike(nearerPut.putWall.strike)}.`;
+    [
+      nearerCall ? `${nearerCall.ticker}'s call wall is the nearer overhead at ${fmtStrike(nearerCall.callWall.strike)}` : 'neither book holds a call wall',
+      nearerPut ? `${nearerPut.ticker}'s put wall the nearer below at ${fmtStrike(nearerPut.putWall.strike)}` : 'neither a put wall',
+    ].join(', ') + '.';
   return { a, b, inSession: clock.inSession, wider, sentence };
 }
