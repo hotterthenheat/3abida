@@ -52,6 +52,9 @@ interface ChartToolbarProps {
   /** Only these intervals — a chart whose tape cannot make one must not offer it (Review's backtest replays one-minute
       bars: no 15s; and a year of them is too few weeks for a weekly) */
   timeframes?: Timeframe[];
+  /** Timeframes drawn but HELD — disabled, each with the reason as its title (Terrain on the feed: no plan carries
+      seconds, so 15 s stays in its place and says so) */
+  heldTimeframes?: Partial<Record<Timeframe, string>>;
   overlays: ChartOverlays;
   onOverlays: (next: ChartOverlays) => void;
   /** Minimal mode: timeframes + overlays only (expanded flow-board charts). */
@@ -191,11 +194,14 @@ export const TimeframeStrip = ({
   onChange,
   vertical = false,
   only,
+  held,
 }: {
   value: Timeframe;
   onChange: (tf: Timeframe) => void;
   vertical?: boolean;
   only?: Timeframe[];
+  /** Drawn but disabled, the reason as the title */
+  held?: Partial<Record<Timeframe, string>>;
 }) => {
   const uid = useId();
   const options = only ? TIMEFRAME_OPTIONS.filter(o => only.includes(o.value)) : TIMEFRAME_OPTIONS;
@@ -212,15 +218,20 @@ export const TimeframeStrip = ({
     >
       {options.map(opt => {
         const active = opt.value === value;
+        const why = held?.[opt.value];
         return (
           <button
             key={opt.value}
             aria-pressed={active}
+            disabled={!!why}
+            title={why}
             onClick={() => onChange(opt.value)}
             className={`relative px-2 py-1 rounded-full font-mono text-[11px] transition-colors ${
               active
                 ? 'text-textPrimary font-semibold'
-                : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
+                : why
+                  ? 'text-textMuted opacity-60 cursor-not-allowed'
+                  : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
             }`}
           >
             {active && (
@@ -438,6 +449,7 @@ const ChartToolbar = ({
   candles = false,
   overlayKeys,
   timeframes,
+  heldTimeframes,
   spread = false,
   compact = false,
   keepIntervals = false,
@@ -598,16 +610,19 @@ const ChartToolbar = ({
           <div role="group" aria-label="Timeframe">
             {(timeframes ? TIMEFRAME_OPTIONS.filter(o => timeframes.includes(o.value)) : TIMEFRAME_OPTIONS).map(opt => {
               const active = opt.value === timeframe;
+              const held = heldTimeframes?.[opt.value];
               return (
                 <button
                   key={opt.value}
                   aria-pressed={active}
+                  disabled={!!held}
+                  title={held}
                   onClick={() => {
                     onTimeframe(opt.value);
                     setOpenMenu(null);
                   }}
                   className={`flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-[11px] transition-colors ${
-                    active ? 'bg-ink/[0.06] text-textPrimary' : 'text-textSecondary hover:bg-ink/[0.03]'
+                    active ? 'bg-ink/[0.06] text-textPrimary' : held ? 'text-textMuted cursor-not-allowed' : 'text-textSecondary hover:bg-ink/[0.03]'
                   }`}
                 >
                   <Check className={`w-3 h-3 shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} aria-hidden />
@@ -618,7 +633,7 @@ const ChartToolbar = ({
           </div>
         </Dropdown>
       ) : (
-        <TimeframeStrip value={timeframe} onChange={onTimeframe} vertical={vertical} only={timeframes} />
+        <TimeframeStrip value={timeframe} onChange={onTimeframe} vertical={vertical} only={timeframes} held={heldTimeframes} />
       )}
       {afterIntervals && !vertical && (
         <>

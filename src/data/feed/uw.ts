@@ -958,6 +958,28 @@ export const uwOhlc = (ticker: string, opts: { size?: '1m' | '5m'; limit?: numbe
     rowsOf(body).map(r => ({ at: ms(r.start_time), open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num0(r.volume), marketTime: str(r.market_time) }))
   );
 
+export interface UwDailyBar {
+  /** The session's date, New York's: "2026-10-12" */
+  date: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number;
+  /** "r" the regular session, "pr" / "po" outside it — a date answers a row for each */
+  marketTime: string;
+}
+
+/**
+ * A name's day bars, newest first: three rows a date (pre-market, the regular session, after hours), about a year of
+ * dates (753 rows, 251 regular, seen 2026-10-12 for SPY with limit 2500). GET /api/stock/{ticker}/ohlc/1d. An index
+ * answers 422 (cboe_index_access_missing), as its minute bars do.
+ */
+export const uwDailyBars = (ticker: string, opts: { limit?: number } = {}): Promise<FeedResult<UwDailyBar[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/ohlc/1d`, { limit: opts.limit }, body =>
+    rowsOf(body).map(r => ({ date: str(r.date), open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num0(r.volume), marketTime: str(r.market_time) }))
+  );
+
 export interface UwNetFlowPoint {
   at: number;
   /** Cumulative through the session */

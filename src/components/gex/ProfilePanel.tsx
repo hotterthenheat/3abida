@@ -69,7 +69,7 @@ import * as TOKEN from './paletteInk';
 import { HEAT_MODE, heatCellStyle, heatRampColorFor, ladderRampT, type HeatMode } from './heatmap';
 import { splinePath } from './spline';
 import type { PriceProjection } from './StrikeChart';
-import type { GexLevel } from '../../types/market';
+import type { Candle, GexLevel } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
 import { FONT_SANS } from '../../theme/fonts';
 import { readToken, useResolvedTheme } from '../../theme/theme';
@@ -359,6 +359,9 @@ interface ProfilePanelProps {
       session's traded volume by price, VPOC and value area, under the size
       lane — the old rail's overlay, kept (2026-09-08). */
   ticker?: string;
+  /** The minute bars the Vol switch folds, where the host reads its own tape (Terrain on the feed: UW's minutes) —
+      absent, the house's tape for `ticker` */
+  volBars?: readonly Candle[] | null;
   /** Drawn at this width, with a drag grip on the left edge reporting the new
       width on release. Omitted, the panel fills its flex share (the Map). */
   width?: number;
@@ -400,7 +403,7 @@ interface Hover {
 
 const ProfilePanel = ({
   rows, maxAbs, legs, openRatio = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
-  ticker, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure,
+  ticker, volBars, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure,
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);
   /* ON A LIGHT GROUND the ramps are the paper ramps (heatmap.ts) and the canvas's inks the light set's tokens */
@@ -517,9 +520,9 @@ const ProfilePanel = ({
   */
   const [showVol, setShowVol] = useState(false);
   const vp = useMemo<VolumeProfile | null>(
-    () => (showVol && ticker ? sessionVolumeProfile(Simulator.getCandles(ticker) ?? []) : null),
+    () => (showVol && ticker ? sessionVolumeProfile(volBars !== undefined ? volBars ?? [] : Simulator.getCandles(ticker) ?? []) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showVol, ticker, rows]
+    [showVol, ticker, rows, volBars]
   );
   const vpRef = useRef<VolumeProfile | null>(null);
   vpRef.current = vp;

@@ -70,9 +70,9 @@ import { atrBarSeries, bollingerSeries, emaSeries, macdSeries, rsiSeries, sessio
 import { buildSessionLevels, type OpeningRange } from '../../data/sessionLevels';
 import { SessionLevelsPrimitive, sessionLines } from './sessionLevelsPrimitive';
 import { buildExpectedMoveCone } from '../../data/expectedMove';
-import { buildTapeEvents, macroWindow, type MarketEvent, type MacroDate } from '../../data/events';
+import { buildTapeEvents, macroWindow, type MarketEvent, type MacroDate, type TapeEarnings } from '../../data/events';
 import { impliedDaySigma, sessionAtr } from '../../data/atr';
-import { buildEarningsCalendar, type EarningsEvent } from '../../data/earnings';
+import { buildEarningsCalendar } from '../../data/earnings';
 import { EventsPrimitive } from './eventsPrimitive';
 import { ExpectedMovePrimitive } from './expectedMovePrimitive';
 import { RTH_MINUTES } from '../../core/calendar';
@@ -544,6 +544,13 @@ export interface ChartTape {
   /** THE BOOK THROUGH TIME for the strike field, where the host has one (Terrain on the feed, 2026-10-12: the books read
       today, oldest first) — absent, a tape has no field */
   book?: GexSnapshot[];
+  /** DAY BARS, oldest first, for the 1D and 1W timeframes (Terrain on the feed: UW's and Massive's day bars, a bar a New
+      York date at its midnight UTC — the house's day bucket) — absent, the minutes are folded into days */
+  daily?: Candle[];
+  /** The bars a comparison line reads, by name (minutes, and days for 1D and 1W) — absent, a compare reads the house */
+  compareBars?: Record<string, { bars: Candle[]; daily?: Candle[] | null }>;
+  /** The name's next report for the events lane — undefined reads the house's calendar, null says there is none */
+  earnings?: TapeEarnings | null;
 }
 /** What a host's layer is handed: the chart, and the series that carries price NOW (a style swap replaces it — ask each
     time, never keep it) */
@@ -1008,7 +1015,15 @@ const StrikeChart = ({
   /* WHERE THE BARS COME FROM — the simulator, or the host's tape. Every read below goes through these four. */
   const tapeRef = useRef<ChartTape | undefined>(tape);
   tapeRef.current = tape;
-  const barsFor = (mins: number, alt?: AltBarSpec | null): Candle[] => (tapeRef.current ? aggregateCandles(tapeRef.current.bars, Math.max(1, mins)) : displayBars(ticker, mins, alt));
+  /* A host's tape: range and volume bars fold its one-minute bars by rule (a minute is the cut's grain, as a quarter is on
+     the house's seconds); 1D and 1W read its day bars where it has them */
+  const barsFor = (mins: number, alt?: AltBarSpec | null): Candle[] => {
+    const tp = tapeRef.current;
+    if (!tp) return displayBars(ticker, mins, alt);
+    if (alt) return buildAltBars(tp.bars, alt);
+    if (mins >= 1440 && tp.daily) return aggregateCandles(tp.daily, mins);
+    return aggregateCandles(tp.bars, Math.max(1, mins));
+  };
   const baseBars = (): Candle[] => tapeRef.current?.bars ?? Simulator.getCandles(ticker) ?? [];
   const bookHistory = () => (tapeRef.current ? (tapeRef.current.book ?? []) : (Simulator.getGexHistory(ticker) ?? []));
   const nameIv = (): number | undefined => (tapeRef.current ? tapeRef.current.iv : Simulator.TICKERS[Simulator.ensureTicker(ticker)]?.iv);
@@ -1190,7 +1205,7 @@ const StrikeChart = ({
       and macro dates move daily while the prints move every tick, and
       rebuilding the whole earnings universe 40× a minute would be spend
       without information. */
-  const eventsCalRef = useRef<{ key: string; earnings: EarningsEvent | null; macro: MacroDate[]; todayIso: string } | null>(null);
+  const eventsCalRef = useRef<{ key: string; earnings: TapeEarnings | null; macro: MacroDate[]; todayIso: string } | null>(null);
   /** The hovered marker's card. */
   const [eventCard, setEventCard] = useState<{ e: MarketEvent; x: number } | null>(null);
   const levelRafRef = useRef(0);
@@ -2831,7 +2846,9 @@ const StrikeChart = ({
     if (replayRef.current) return; // replay owns the tape; compares freeze
     const mins = tfMinutes(timeframe);
     const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
-    const sig = `${ticker}|${timeframe}|${compares.map(c => `${c.ticker}:${c.mode}:${c.ink}`).join(',')}|${full ? 'full' : 'recent'}`;
+    /* a host's compare bars may land after the line was made — whether each has them is part of the signature */
+    const hostBars = tapeRef.current?.compareBars;
+    const sig = `${ticker}|${timeframe}|${compares.map(c => `${c.ticker}:${c.mode}:${c.ink}:${hostBars ? (hostBars[c.ticker]?.bars.length ? 'm' : '') + (hostBars[c.ticker]?.daily?.length ? 'd' : '') : ''}`).join(',')}|${full ? 'full' : 'recent'}`;
     const rebuild = compareLoadedRef.current !== sig;
     if (rebuild) {
       for (const s of compareSeriesRef.current.values()) {
@@ -2843,7 +2860,7 @@ const StrikeChart = ({
       }
       compareSeriesRef.current.clear();
       for (const c of compares) {
-        Simulator.ensureTicker(c.ticker);
+        if (!hostBars) Simulator.ensureTicker(c.ticker);
         const series = chart.addSeries(
           LineSeries,
           {
@@ -2883,7 +2900,11 @@ const StrikeChart = ({
     for (const c of compares) {
       const s = compareSeriesRef.current.get(`${c.ticker}:${c.mode}`);
       if (!s) continue;
-      const bars = windowOf(displayBars(c.ticker, mins), full);
+      const host = hostBars ? hostBars[c.ticker] : undefined;
+      const bars = windowOf(
+        hostBars ? (host ? (mins >= 1440 && host.daily ? aggregateCandles(host.daily, mins) : aggregateCandles(host.bars, Math.max(1, mins))) : []) : displayBars(c.ticker, mins),
+        full
+      );
       if (bars.length === 0) continue;
       if (rebuild) {
         s.setData(bars.map(b => ({ time: b.time as UTCTimestamp, value: b.close })));
@@ -2997,8 +3018,9 @@ const StrikeChart = ({
     const bars = windowOf(all, full);
     const held = bars.length < all.length;
     barCountRef.current = bars.length;
-    /* A rule clock reads the seconds tape, so it wears T-14's chip too. */
-    setLiveFrom(altSpec || mins < 1 ? bars[0]?.time ?? 0 : null);
+    /* A rule clock reads the seconds tape, so it wears T-14's chip too — a host's tape is minutes with their history,
+       never live-only */
+    setLiveFrom(!tapeRef.current && (altSpec || mins < 1) ? bars[0]?.time ?? 0 : null);
     drawingsRef.current?.setBars(bars);
     /* The measure counts BARS and annualizes off them, so the layer has to
        know what a bar is worth here — set beside the times it belongs with,
@@ -3310,19 +3332,20 @@ const StrikeChart = ({
     const now = new Date();
     const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const key = `${ticker}|${todayIso}`;
-    if (eventsCalRef.current?.key !== key) {
+    /* a host's tape brings the name's report itself (the feed's record); the house's calendar otherwise */
+    const hostEarnings = tapeRef.current?.earnings;
+    const calKey = `${key}|${hostEarnings !== undefined ? 'host' : 'house'}`;
+    if (eventsCalRef.current?.key !== calKey) {
       eventsCalRef.current = {
-        key,
-        earnings: buildEarningsCalendar().find(e => e.ticker === ticker.toUpperCase()) ?? null,
+        key: calKey,
+        earnings: hostEarnings !== undefined ? null : buildEarningsCalendar().find(e => e.ticker === ticker.toUpperCase()) ?? null,
         macro: macroWindow(now),
         todayIso,
       };
     }
-    const cal = eventsCalRef.current;
+    const cal = hostEarnings !== undefined ? { ...eventsCalRef.current, earnings: hostEarnings } : eventsCalRef.current;
     const mins = tfMinutes(timeframe);
     const bars = barsFor(mins);
-    // eslint-disable-next-line no-console
-    console.log('[events-debug]', JSON.stringify(buildTapeEvents({ bars: baseBars(), prints: flowPrints ?? [], earnings: cal.earnings, macro: cal.macro, todayIso: cal.todayIso }).map(e => ({ k: e.kind, t: e.time, m: e.minutesAhead, l: e.label }))), 'cal', JSON.stringify({ e: cal.earnings?.ticker, macro: cal.macro.length }));
     prim.setData({
       events: buildTapeEvents({
         bars: baseBars(),

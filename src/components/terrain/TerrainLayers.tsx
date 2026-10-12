@@ -27,7 +27,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChartLayerApi } from '../gex/StrikeChart';
 import { resolveInk } from '../gex/paletteInk';
-import { WallsHeatPrimitive, type WallsLens } from './wallsHeatPrimitive';
+import { WallsHeatPrimitive, type WallsLens, type WallsSource } from './wallsHeatPrimitive';
 import { SessionPhasesPrimitive, type PhaseInks } from './sessionPhasesPrimitive';
 
 interface Props {
@@ -38,9 +38,11 @@ interface Props {
   phases: boolean;
   /** The tape's own ground — the paper ramp and the paper washes on a light one */
   ground: 'light' | 'dark';
+  /** The walls' book on the feed (the books this terminal read today) — absent, the house's */
+  wallsSource?: WallsSource | null;
 }
 
-const TerrainLayers = ({ api, ticker, walls, lens, phases, ground }: Props) => {
+const TerrainLayers = ({ api, ticker, walls, lens, phases, ground, wallsSource = null }: Props) => {
   const wallsRef = useRef<WallsHeatPrimitive | null>(null);
   const phasesRef = useRef<SessionPhasesPrimitive | null>(null);
   const apiRef = useRef(api);
@@ -91,7 +93,7 @@ const TerrainLayers = ({ api, ticker, walls, lens, phases, ground }: Props) => {
     };
   }, []);
   useEffect(() => {
-    wallsRef.current?.set({ ticker, lens, enabled: walls, paper: ground === 'light' });
+    wallsRef.current?.set({ ticker, lens, enabled: walls, paper: ground === 'light', source: wallsSource });
   });
   useEffect(() => {
     const host = apiRef.current.host();
