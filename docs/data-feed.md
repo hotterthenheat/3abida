@@ -172,7 +172,8 @@ market the page under it reads (`rooms.ts` `pageSource` by the address; `SideNav
 A 429 (UW Basic answers three calls at once, and other sessions share the key), a timeout, the network or a 5xx keeps
 the last good price for five minutes. **The indices have no price on the Basic plan** (`stock-state` answers 422 for SPX,
 NDX, RUT, VIX and XSP): on a page that reads the feed the rail shows "—", titled "not in the feed" — never the house's
-figure beside the vendor's prints. On every other page the house's figure stays.
+figure beside the vendor's prints; a name answered 422 is not asked again that visit. On every other page the house's
+figure stays.
 
 Left as it was: the watchlist drawer (the house's prices and its nearest wall or flip) opens over a Trace or Dossier page
 with the house's figures; it is the next shell piece to follow the page's room.
