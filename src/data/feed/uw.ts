@@ -1189,3 +1189,68 @@ export const uwStockScreener = (tickers: string[]): Promise<FeedResult<UwStockDa
       beta: num(r.beta),
     }))
   );
+
+/* ---- A COMPANY'S FILED NUMBERS (2026-10-12): earnings, income statements, cash flows, balance sheets ---------------- */
+
+export interface UwReportedEps {
+  /** "quarterly" or "annual" */
+  type: string;
+  fiscalEnd: string;
+  reportDate: string;
+  reported: number | null;
+  estimated: number | null;
+  surprisePct: number | null;
+}
+export interface UwIncome {
+  type: string;
+  fiscalEnd: string;
+  revenue: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+}
+export interface UwCashFlow {
+  type: string;
+  fiscalEnd: string;
+  operatingCashflow: number | null;
+  capex: number | null;
+}
+export interface UwBalance {
+  type: string;
+  fiscalEnd: string;
+  currentAssets: number | null;
+  currentLiabilities: number | null;
+  totalDebt: number | null;
+  cash: number | null;
+  equity: number | null;
+  shares: number | null;
+}
+export interface UwFinancials {
+  earnings: UwReportedEps[];
+  income: UwIncome[];
+  cash: UwCashFlow[];
+  balance: UwBalance[];
+}
+
+/** A company's filed numbers, newest first, quarterly and annual. GET /api/stock/{ticker}/financials — the four lists in
+    one answer (seen live 2026-10-12: earnings 140 rows, statements 103 each for NVDA); its estimates are the earnings'
+    EPS alone (the Advanced plan carries the rest) */
+export const uwFinancials = (ticker: string): Promise<FeedResult<UwFinancials>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/financials`, undefined, body => {
+    const d = ((body as { data?: unknown } | null)?.data ?? {}) as Record<string, unknown>;
+    const list = (k: string) => (Array.isArray(d[k]) ? (d[k] as Record<string, unknown>[]) : []);
+    return {
+      earnings: list('earnings').map(r => ({ type: str(r.report_type), fiscalEnd: str(r.fiscal_date_ending), reportDate: r.report_date == null ? '' : str(r.report_date), reported: num(r.reported_eps), estimated: num(r.estimated_eps), surprisePct: num(r.surprise_percentage) })),
+      income: list('income_statements').map(r => ({ type: str(r.report_type), fiscalEnd: str(r.fiscal_date_ending), revenue: num(r.total_revenue), operatingIncome: num(r.operating_income), netIncome: num(r.net_income) })),
+      cash: list('cash_flows').map(r => ({ type: str(r.report_type), fiscalEnd: str(r.fiscal_date_ending), operatingCashflow: num(r.operating_cashflow), capex: num(r.capital_expenditures) })),
+      balance: list('balance_sheets').map(r => ({
+        type: str(r.report_type),
+        fiscalEnd: str(r.fiscal_date_ending),
+        currentAssets: num(r.total_current_assets),
+        currentLiabilities: num(r.total_current_liabilities),
+        totalDebt: num(r.short_long_term_debt_total),
+        cash: num(r.cash_and_short_term_investments),
+        equity: num(r.total_shareholder_equity),
+        shares: num(r.common_stock_shares_outstanding),
+      })),
+    };
+  });

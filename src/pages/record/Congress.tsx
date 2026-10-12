@@ -56,8 +56,6 @@ import { tickerName } from '../../data/tickers';
 import type { Chamber, CongressTrade, ReportOwner } from '../../types/record';
 import { REPORTS_TO_KNOW, RecordPageSkeleton } from './recordSkeletons';
 
-/** Rows the grid shows before "show the rest" (the feed's reports run to hundreds) */
-const REST_ROWS = 80;
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 type Window = 30 | 90 | 180;
@@ -75,13 +73,6 @@ const CHAMBER_OPTIONS: DropdownOption<ChamberPick>[] = [
   { value: 'House', label: 'House', hint: 'Representatives only' },
   { value: 'Senate', label: 'Senate', hint: 'Senators only' },
 ];
-/* the feed's reports carry the executive branch's too (2026-10-12) */
-const CHAMBER_OPTIONS_FEED: DropdownOption<ChamberPick>[] = [
-  { value: 'both', label: 'Every filer', hint: 'House, Senate and the executive branch' },
-  { value: 'House', label: 'House', hint: 'Representatives only' },
-  { value: 'Senate', label: 'Senate', hint: 'Senators only' },
-  { value: 'Executive', label: 'Executive', hint: 'The executive branch’s reports' },
-];
 const OWNER_OPTIONS: DropdownOption<OwnerPick>[] = [
   { value: 'any', label: 'Any', hint: 'The member, their spouse, a joint account or a dependent' },
   { value: 'Self', label: 'Self', hint: "The member's own holding" },
@@ -89,7 +80,6 @@ const OWNER_OPTIONS: DropdownOption<OwnerPick>[] = [
   { value: 'Joint', label: 'Joint', hint: 'A joint account' },
   { value: 'Dependent', label: 'Dependent', hint: "A dependent child's holding" },
 ];
-const OWNER_OPTIONS_FEED: DropdownOption<OwnerPick>[] = [...OWNER_OPTIONS, { value: 'Undisclosed', label: 'Undisclosed', hint: 'The report named no owner' }];
 const SHOW_OPTIONS: DropdownOption<Show>[] = [
   { value: 'all', label: 'All reports', hint: 'Every report in the window' },
   { value: 'committee', label: 'Own committee', hint: "Trades in a sector the member's own committee oversees — the reading this data is for" },
@@ -329,9 +319,6 @@ const Congress = () => {
     if (e.data?.ticker) openName(e.data);
   };
   /* THE FEED'S GRID RESTS AT 80 ROWS (the house's long-grid rule) */
-  const [all, setAll] = useState(false);
-  const drawn = fromFeed && !all ? rows.slice(0, REST_ROWS) : rows;
-  const chamberOptions = fromFeed ? CHAMBER_OPTIONS_FEED : CHAMBER_OPTIONS;
   const showOptions = fromFeed ? SHOW_OPTIONS.map(o => (o.value === 'committee' ? { ...o, disabled: true, hint: `Committee seats — ${NOT_IN_FEED}` } : o)) : SHOW_OPTIONS;
   if (fromFeed && fed === null) return <RecordPageSkeleton pathname="/dossier/congress" />;
 
@@ -383,8 +370,8 @@ const Congress = () => {
       {/* THE ONE LINE OF CONTROLS */}
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-congress-controls>
         <DropdownSelect label="Window" value={window} options={WINDOW_OPTIONS} onChange={setWindow} title="How far back the reports run" testId="congress-window" />
-        <DropdownSelect label="Chamber" value={chamber} options={chamberOptions} onChange={setChamber} title="Which chamber" testId="congress-chamber" />
-        <DropdownSelect label="Owner" value={owner} options={fromFeed ? OWNER_OPTIONS_FEED : OWNER_OPTIONS} onChange={setOwner} title="Whose holding" testId="congress-owner" />
+        <DropdownSelect label="Chamber" value={chamber} options={CHAMBER_OPTIONS} onChange={setChamber} title="Which chamber" testId="congress-chamber" />
+        <DropdownSelect label="Owner" value={owner} options={OWNER_OPTIONS} onChange={setOwner} title="Whose holding" testId="congress-owner" />
         <DropdownSelect label="Show" value={show} options={showOptions} onChange={setShow} title="Which reports" testId="congress-show" />
         <div className="ml-auto" title="The names, members and committees on the page right now — tick any number; only those stay">
           <DropdownMulti label="Filter" values={picks} groups={filterGroups} onChange={setPicks} title="Keep only these" testId="congress-filter" />
@@ -417,7 +404,7 @@ const Congress = () => {
           <AgGridReact<CongressTrade>
             theme={GRID_THEME}
             domLayout="autoHeight"
-            rowData={drawn}
+            rowData={rows}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             getRowId={p => p.data.id}
@@ -429,14 +416,6 @@ const Congress = () => {
             tooltipHideDelay={8000}
           />
         </AgGridProvider>
-        {fromFeed && rows.length > REST_ROWS && (
-          <div className="px-5 py-2.5 border-t border-borderSubtle/60 flex items-center gap-3 font-mono text-[11px] text-textMuted" data-congress-rest>
-            <span>{all ? `All ${rows.length} rows` : `The newest ${REST_ROWS} of ${rows.length}`}</span>
-            <button type="button" onClick={() => setAll(a => !a)} className="hit h-7 px-2.5 rounded-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:border-borderMuted transition-colors" data-congress-rest-door>
-              {all ? `Back to the newest ${REST_ROWS}` : `Show the other ${rows.length - REST_ROWS}`}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
