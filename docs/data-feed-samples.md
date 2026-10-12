@@ -1014,3 +1014,31 @@ request_id: string
 - A burst from another holder of the key answered `{"status":"ERROR","error":"You've exceeded the maximum requests per
   minute…"}` with 429.
 
+### What filling the owner's pages learnt (2026-10-12, the evening)
+- `GET /api/screener/stocks?ticker=AAPL,NVDA,SPY` — 200, one row a name (43 names answered one call): `close`,
+  `prev_close`, `open`, `high`, `low`, `stock_volume`, `avg30_volume`, `marketcap`, `week_52_high`, `week_52_low`,
+  `one_week_perc` … `ytd_perc` (fractions), `rsi_14`, `adx_14`, `sma_20/50/200`, `ema_9/21/50`, `atr_14`, `iv30d`,
+  `iv_rank`, `implied_move_perc_{1,5,7,14,30,60,90,180,365}`, `realized_volatility`, `call_volume`, `put_volume`,
+  `call_premium`, `put_premium`, `net_premium`, `net_call_premium`, `net_put_premium`, `bullish_premium`,
+  `bearish_premium`, `put_call_ratio`, `call_open_interest`, `put_open_interest`, `next_earnings_date`,
+  `last_earnings_date`, `eps_growth_4q`, `beta`, `sector`, `industry_type`, `full_name` (null for NVDA) — numeric strings.
+- `GET /api/stock/AAPL/ohlc/1d?limit=40` — 200: `open`, `high`, `low`, `close`, `volume`, `total_volume`, `date`,
+  `market_time` (`pr`, `r`, `po` — a row each a day); no `start_time`.
+- `GET /api/stock/NVDA/financials` — 200, `data: { earnings[140], income_statements[103], cash_flows[103],
+  balance_sheets[103] }`: earnings `report_type`, `fiscal_date_ending`, `report_date`, `reported_eps`, `estimated_eps`,
+  `surprise_percentage`; income `total_revenue`, `operating_income`, `net_income`; cash `operating_cashflow`,
+  `capital_expenditures`; balance `total_current_assets`, `total_current_liabilities`, `short_long_term_debt_total`,
+  `cash_and_short_term_investments`, `total_shareholder_equity`, `common_stock_shares_outstanding`.
+  `/api/companies/NVDA/earnings-estimates` and `/profile` — 403 `advanced_tier_required`.
+- `GET /api/congress/politicians` — 200: `name`, `party` ("democrat", "republican"), `chamber`, `district` ("TN-9"),
+  `politician_id`, `trade_count`; no committees.
+- `GET /api/market/economic-calendar` — 200: `type` ("report", "fed-speaker"), `time`, `event`, `prev`, `forecast`
+  (null on most), `reported_period`.
+- `GET /api/darkpool/recent?order_by=premium&order=desc&date=…` — 200, the day's heaviest crosses first; `/darkpool/recent`
+  ignores `older_than` (after the close its newest 200 were all extended-hours crosses), so the day is walked down by
+  `max_premium`.
+- `GET /api/stock/NVDA/flow-per-strike-intraday` — 200, 1,851 rows, a strike a minute — the day's top eight strikes by
+  net premium (`filter`), not the whole name.
+- `GET /api/net-flow/expiry?expiration=zero_dte&date=2026-10-12` — 200, 390 points 13:30Z–19:59Z, the whole session.
+- `GET /api/option-contract/SPY261012P00777000/flow?date=2026-10-09` — 200, `{ data: [] }` (the contract did not trade).
+

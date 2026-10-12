@@ -51,6 +51,9 @@ browser ──GET /feed/massive/v2/…──────▶ dev server          
 | File | What it holds |
 |---|---|
 | `price.ts` | `useFeedPrice`: a name's price off `stock-state`, one poll a name (`uw:state:<NAME>`, 10 s) for the rail and the rooms' pages, the last good answer standing through a 429 |
+| `stockDay.ts` | `useFeedStockDays`: many names' day off the stock screener, fifty a call |
+| `news.ts`, `stocks.ts`, `stockName.ts` | the Dossier's News, Stocks and a name's page on the house's engines |
+| `alertFeed.ts` | the alerts' market while UW answers (below) |
 | `listings.ts` | `useListedDates`: each name's listed expiries for Compass's calendar, asked two at a time, kept for New York's day |
 | `client.ts` | `feedGet` / `feedFetch` (never throw; `{ ok, data }` or `{ ok: false, reason }`), `viaProxy` for Massive's `next_url`, `num()` for UW's numeric strings |
 | `status.ts` | the feed-status store (`useFeedStatus`, `probeFeeds`, `startFeedProbe` — run by the shell as the terminal opens, never on the landing) |
@@ -88,11 +91,15 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwEarningsFor` | `GET /api/earnings/{ticker}` |
 | `uwExpiryBreakdown` | `GET /api/stock/{ticker}/expiry-breakdown` |
 | `uwNewsHeadlines` | `GET /api/news/headlines` (`ticker`, `limit`) — in UW's catalog; answered 200 on the Basic plan, 2026-10-12 |
+| `uwStockScreener` | `GET /api/screener/stocks` (`ticker`: a comma list — 43 names in one answer) |
+| `uwFinancials` | `GET /api/stock/{ticker}/financials` (earnings, income statements, cash flows, balance sheets) |
+| `uwPoliticians` | `GET /api/congress/politicians` (party, chamber, district) |
+| `uwEconomicCalendar` | `GET /api/market/economic-calendar` (event, time, previous, forecast) |
 
 | `uwContractScreener` | `GET /api/screener/option-contracts` (`limit` ≤ 500, `ticker_symbol`, `date`) — the day per contract |
 | `uwContractFlow`, `uwContractIntraday`, `uwContractHistoric` | `GET /api/option-contract/{id}/flow`, `/intraday`, `/historic` |
 | `uwMultiLeg`, `uwMultiLegLegs` | `GET /api/option-trades/multi-leg` (`limit` ≤ 200, `min_premium`, `older_than`), `…/multi-leg/{id}/legs` |
-| `uwOhlc` | `GET /api/stock/{ticker}/ohlc/{1m,5m}` |
+| `uwOhlc` | `GET /api/stock/{ticker}/ohlc/{1m,5m,1d}` (a daily bar carries its `date`, a row each for pre-market, the session `r` and after hours) |
 | `uwNetFlowExpiry` | `GET /api/net-flow/expiry` (`expiration`: `zero_dte` or `weekly`; `moneyness`; `tide_type`) |
 | `uwTopNetImpact` | `GET /api/market/top-net-impact` |
 | `uwVolumeAtPrice` | `GET /api/stock/{ticker}/stock-volume-price-levels` (lit and off-exchange volume by price) |
@@ -114,54 +121,57 @@ then set `wired: true`.
 
 ## The Dossier, the first room moved (2026-10-12)
 
-`dossier` is `wired: true`. Its pages read `src/data/feed/dossier.ts` when both vendors are up (and wait on their
-skeleton while the shell's first probe is out); otherwise every page reads the house's book exactly as before.
+`dossier` is `wired: true`. With both vendors up **every Dossier page is the house's page on the vendors' answers** — the
+same boxes, cards, menus, tabs and doors as with the keys out (the owner: "but i build the UI that the real data goes
+into"); the feed variants `NewsFeed.tsx` and `StockNameFeed.tsx` are gone. While the shell's first probe is out a page
+waits on its skeleton; with a vendor down every page reads the house's book exactly as before.
 
 | Page | Reads | Asked |
 |---|---|---|
-| Congress | `uwCongressTrades`, 200 rows a page, paged back by trade date (`date` = the day before the oldest) — 2, 4 or 6 pages for the 30, 90 or 180-day window | every 10 min |
-| Insiders | `uwInsiderTrades`, `transaction_codes[]=P,S` (open market) or every code, 3 pages of 200 (one day's filings fill about one); the names to know from one page of `P` | every 10 min |
-| Earnings | `uwEarningsDay` premarket and afterhours for each weekday the board shows (up to 20 calls) | every 10 min |
-| Earnings › a name | `uwEarningsFor` and `uwStockState`; the company's name from `massiveTickerDetails` | every 10 min |
-| Stocks | `uwStockState` for each of the list's 36 names | every minute |
-| Stocks › a name | `uwStockState` first (a ticker UW has no state for is not a name), then `massiveTickerDetails`; `uwQuote` + `uwStockState`; `massiveBars` daily, sixty days; `uwEarningsFor`; the name's insider and Congress rows | quote 15 s, bars 30 min, record 6 h (the proxy keeps it a day) |
-| News | `uwNewsHeadlines`, the latest 100 | every minute |
+| News | `uwNewsHeadlines` (the latest 100) as the house's stories (`data/feed/news.ts`: the kind of story in the house's seven words read off the headline, UW's sentiment, the house's read — `news.ts` `predict` — run on those inputs, the map's place by `newsroom.ts` `geoOf`); `uwEconomicCalendar` (`GET /api/market/economic-calendar`) for the day ahead and the month; the Earnings board's own reports in the month | wire 1 min, calendar 10 min |
+| Earnings | `uwEarningsDay` for each weekday the board shows; each of its 80 largest names' own record (`uwEarningsFor`: the usual move after its reports, its beats); the IV rank and the move priced in to each report off the stock screener (`movePricedTo`, the square root of time between UW's horizons) | 10 / 30 min |
+| Earnings › a name | `uwEarningsFor`, `uwStockState`; the record filled (`fillDossier`): the priced move, the IV rank, the odds the record gives (how many of the last reports closed inside today's priced move, how many moved up), the busiest calls and puts still open after the report off the name's contracts today | 10 min |
+| Insiders | `uwInsiderTrades`, 3 pages of 200 | 10 min |
+| Congress | `uwCongressTrades` paged back by trade date; each member's party and seat off `uwPoliticians` (`GET /api/congress/politicians`, once a visit) | 10 min |
+| Stocks | `uwStockScreener` (`GET /api/screener/stocks?ticker=…`, one call for the list — `stockDay.ts`); the four sleeves read off its figures (`data/feed/stocks.ts`: the trend off the price against its 50- and 200-day averages, RSI and the month; the numbers off earnings growth a year on; the money off bullish against bearish premium; the news off the wire) and rolled up by the board's own composite, verdict and read (`stocks.ts` `pickOf`); the thirty days off `uwOhlc` `1d` against SPY's; the rotation off the sectors' returns against SPY's | 1 / 30 min |
+| Stocks › a name | the house's overview (`stockOverview.ts` `overviewFrom`) on `data/feed/stockName.ts`: UW's daily bars (up to 250 sessions) and today's minutes, its book (`levels.ts`), open interest, the name's contracts, its dark crosses, the wire, its reports, its filed numbers (`uwFinancials`, `GET /api/stock/{ticker}/financials`), its recent prints; insiders and Congress as filed | 15 s – 6 h |
 
-Massive is asked for the OPEN name only — two calls a name (the record, the bars), both cached by the proxy — never for
-a list. A field a page shows that no answer carries is drawn "—" with the title "not in the feed": the member's party,
-seat and committees; a filing's missing price or holding; revenue, the odds, the overnight deflation and the busiest
-contracts on a report; the usual move, pricing, beat count, estimates' drift and IV rank on the calendar (a name's own
-page works the usual move, the pricing and the beat count from its own reported rows); the house's screens, sleeves,
-thirty-day line and rotation on Stocks; the map, a story's read and the day ahead on News.
+Massive is asked for the open name's company record only. What no answer on the plans carries is "—" in its own place,
+or a control disabled saying why: a member's committee seats (Congress's Own committee), fair value and guidance (a
+name's numbers), the house's overnight IV deflation and the estimates' drift (a report), the busiest contracts' moves
+before the report. A filing says what was filed (a Form 144 is a notice, not a sale).
 
-Screenshots on the vendors' answers, 2026-10-12 around 11:45 New York: `docs/data-feed/dossier-2026-10-12-*.png`.
+Screenshots on the vendors' answers, 2026-10-12 around 11:45 New York: `docs/data-feed/dossier-2026-10-12-*.png`; the
+same pages filled, the evening of 2026-10-12: `docs/data-feed/fill-2026-10-12-*.png`.
 
 ## Trace reads Unusual Whales (2026-10-12)
 
-`ROOM_FEEDS.trace.wired` is `true`: with UW up, every Trace page reads the vendor (`src/data/feed/trace.ts`,
-`traceCard.ts`, `traceDark.ts`), and with UW down (no key, the network, a refused key) every page reads its own book
-exactly as before. Nothing on one screen comes from both. While the shell's first probe is out, a page shows nothing
-rather than a flash of its own book.
+`ROOM_FEEDS.trace.wired` is `true`: with UW up, **every Trace page is the house's page on the vendor's answers** — every
+view, card, menu option, column, chart and the print card whole (`src/data/feed/trace.ts`, `traceCard.ts`,
+`traceDark.ts`); with UW down every page reads its own book exactly as before. Nothing on one screen comes from both.
 
 | Page | Reads | Poll |
 |---|---|---|
 | Live Tape | `option-trades`, prints of $25K and up, the newest 500, kept for the session | 5 s |
 | Screener, Footprints, Tracker | `screener/option-contracts`: the market's 500 heaviest contracts and the name's own 500; the session before for the overnight ledger | 60 s / 30 s / 15 min |
-| Watchers | `flow-alerts` of $100K and up, back to the open once (≤ 12 pages), then the newest | 15 s |
-| Windows | `option-trades` of $250K and up, back to the open once (≤ 24 pages), cut into quarter hours | 20 s |
-| Multi-Leg | `option-trades/multi-leg` of $50K and up, back to the open once; a structure's legs when it opens | 15 s |
-| Net Flow | `top-net-impact` (the board), `net-prem-ticks` and `ohlc/1m` (the pane), Market Tide (the market's own line) | 60 s / 30 s |
-| 0DTE | `net-flow/expiry` `zero_dte` by cut and moneyness; a name's pane its `net-prem-ticks` (every expiry, said so) | 30 s |
-| Compare | each name's book, ticks, flow by expiry and quote; the session's structures and tape | 30–60 s |
-| Dark Pool | `darkpool/{ticker}` (the newest 200), `stock-volume-price-levels` (the shelves and the off-exchange share), `ohlc/1m`; `darkpool/recent` of $1M and up for the leaders | 15 s / 60 s / 30 s |
-| The print card | the contract's `flow` (newest 500), `intraday`, `historic`; the name's ticks, flow by strike and by expiry | 15 s – 10 min |
-| The rail's price, on a Trace page | `stock-state` | 10 s |
+| Watchers | `flow-alerts` of $100K and up (the vendor's three rules in the desk's words) and the desk's own six rules (`flowBook` `rulesFor`) and the reader's reasons read on the vendor's book | 15 s |
+| Windows | `option-trades` of $250K and up, back to the open once, cut into quarter hours | 20 s |
+| Multi-Leg | `option-trades/multi-leg` of $50K and up; a structure's legs when it opens; the search by contract off the order's strikes and its side | 15 s |
+| Net Flow | the board: every expiry, `top-net-impact`'s names each read whole off the stock screener (net calls, net puts, volume); one expiry, the house's board on the vendor's contracts on it. The pane (`useFeedPaneLine`) | 60 s |
+| 0DTE | the head: `net-flow/expiry` `zero_dte`; each pane its own cut (below) | 30 s |
+| Compare | each name's contracts, flow by expiry (net, the sides — cut by the calendar), quote; the session's structures and tape | 30–60 s |
+| Dark Pool | `darkpool/{ticker}` (the newest 200), `stock-volume-price-levels`, `ohlc/1m`, `oi-per-strike` (the options shelves: a cross not sized on one reads Hedge flow); the leaders: the day's crosses of $1M and up, heaviest first (`order_by=premium`, walked down by `max_premium` — `/darkpool/recent` takes no `older_than`), each leader's direction and average volume off the stock screener | 15 s / 2 min |
+| The print card | over its own window — the range ladder (1D to 1M), the session it ends on, Single-leg only — every session's `flow`, `intraday`, the name's ticks and bars by `date` (a past session asked once), `historic`; flow by strike and by expiry of the window's last session | 15 s – 10 min |
 
-A figure the vendor's answer does not carry is `NaN` in the row and "—" on the page, titled "not in the feed" — the
-session before quarter hour by quarter hour (Footprints' sparkline), a print's overnight change in open interest, a dark
-cross's average-day share, the floor share of a print that does not say. A view the answers cannot draw is not offered:
-the card's other sessions and its dollar bars, a sector or the index funds alone on 0DTE, a name's lines by moneyness,
-tenor or expiry. Words say what the feed holds: a floor is named where a page reads prints above it.
+**A pane's money by its cut** (`useFeedPaneLine`, Net Flow, 0DTE, Compare): a minute line where UW answers one for
+exactly that cut — a name across every expiry and strike (`net-prem-ticks`), the market's same-day money by moneyness,
+whole or its stocks alone (`net-flow/expiry`); every other cut (a name's moneyness or tenor or one expiry, the index
+funds, a sector) the day's net calls, net puts and volume off the book's own contracts (each contract's premium times its
+side, the house's rule), the line itself not on the plan (`flow-per-strike-intraday` answers the top strikes only).
+
+A figure the answers do not carry is `NaN` in the row and "—" on the page, titled "not in the feed" — the session before
+quarter hour by quarter hour (Footprints' sparkline), a print's overnight change in open interest, the name's premium a
+minute (the card's dollar bars), a catch off the book's clip size. A floor a call needs is named on the page's line.
 
 ## The rail's price follows the page's room (2026-10-12)
 
@@ -177,13 +187,30 @@ market the page under it reads (`rooms.ts` `pageSource` by the address; `SideNav
 
 A 429 (UW Basic answers three calls at once, and other sessions share the key), a timeout, the network or a 5xx keeps
 the last good price for five minutes. **The indices have no price on the Basic plan** (`stock-state` answers 422 for SPX,
-NDX, RUT, VIX and XSP): on a page that reads the feed the rail shows "—", titled "not in the feed" — never the house's
-figure beside the vendor's prints; a name answered 422 is not asked again that visit. On every other page the house's
-figure stays.
+NDX, RUT, VIX and XSP): on every page that reads the feed the rail shows the price the index's book was figured at
+(`levels.ts`), its change left off — never the house's figure beside the vendor's prints; "—" only when the book too has
+answered with nothing. A name answered 422 is not asked again that visit. On every other page the house's figure stays.
 
 The watchlist drawer follows the same rule (`WatchlistDrawer` by `pageSource`): over a page whose room reads the feed each
 row is UW's day state and the nearest wall or flip of UW's book (`levels.ts`), an index its book's price; over any
 other page the house's.
+
+## Alerts watch the real price (2026-10-12)
+
+While UW answers, the shell's watcher (`components/alerts/AlertWatcher.tsx`) judges every alert on the market's own
+figures and never on the house's simulator (`data/feed/alertFeed.ts`): the price off UW's day state every 10 s (the
+rail's own loader, `price.ts` `loadState`; an index the price its book was figured at), the book (walls, flip, supreme,
+net GEX, the strike step) every 30 s for a level alert, UW's minute bars every minute for an average, an RSI, a script or
+a drawn line (a seconds timeframe has none and waits), the name's recent prints for a flow alert, its headlines for a
+news alert. One call at a time; a hidden tab keeps asking (an alert rings with the tab hidden). A chart that judges
+alerts on its own tape (`StrikeChart`) stands aside meanwhile. An alert armed while the alerts watch the feed — Pinpoint's
+Targets, Terrain's menu, the command line, a drawn line — takes its side from the real price (`gex/alertMarket.ts`
+`spotForArm`). The fired log keeps the price it fired at and the market it was read off (`mark`, `market`), and the
+drawer says it. With UW down, the house's price, as before.
+
+Checked on 2026-10-12 after the close: an alert on SPY "above 700", left from earlier, fired on the keys-in server at
+UW's 777.71 (`stock-state` read 777.71) and stayed quiet on the keys-blank server (the house's SPY at 509.98); "SPY alert
+600" from the command line armed "at or below" off the real price, and "at or above" off the house's.
 
 ## Compass's calendar on the real listed expiries (2026-10-12)
 

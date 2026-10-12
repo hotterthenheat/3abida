@@ -610,32 +610,39 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   useRoomSource) and every room's `wired` is false, so every page reads what it read before — a room is moved when its
   pages are rewired against real answers. Settings › Data sources says where each vendor stands, what the plan carries
   and leaves out, and which rooms read it; it never shows a key or a piece of one.
-- THE DOSSIER READS THE FEED (2026-10-12, the first room moved; docs/data-feed.md "The Dossier"): `dossier` is
-  `wired: true`, and its pages read data/feed/dossier.ts when both vendors are up (a page waits on its skeleton while
-  the shell's first probe is out, asking nothing), else the house's book as before. Congress and Insiders read UW's
-  filed rows (paged; the head says how far back they reach), Earnings UW's calendar a call a board day and a name's own
-  record, Stocks UW's stock-state for the list and quote for a name, News UW's headlines (in UW's catalog, checked live
-  on Basic) — NewsFeed.tsx and StockNameFeed.tsx are those pages' feed variants. Massive only for the OPEN name (its
-  record after UW says the ticker exists, its daily bars). Rows map onto the pages' own types; a field no answer
-  carries is NaN or empty and drawn "—" titled "not in the feed" (components/record/Missing.tsx) — never a house figure
-  beside a vendor's. A filing says what was filed (a Form 144 is a notice, not a sale); dates are as filed, New York's.
+- THE DOSSIER READS THE FEED (2026-10-12; docs/data-feed.md "The Dossier"): `dossier` is `wired: true`; with both
+  vendors up every page is THE HOUSE'S PAGE ON THE VENDORS' ANSWERS — NewsFeed.tsx and StockNameFeed.tsx are gone. News:
+  UW's headlines as the house's stories (data/feed/news.ts: the kind in the house's words, the house's read run on UW's
+  inputs, the map by newsroom.ts `geoOf`), UW's economic calendar, the Earnings board's reports in the month. Stocks: the
+  house's board on UW's stock screener (stockDay.ts — one call for the list; the sleeves read off its figures, rolled
+  up by stocks.ts `pickOf`), the thirty days off UW's daily bars. A name's page: stockOverview.ts `overviewFrom` run on
+  UW's sessions, book, contracts, dark crosses, wire and filed numbers (data/feed/stockName.ts). Earnings: each name's
+  record, IV rank and priced move filled (dossier.ts `fillDossier`, `useFeedReportRecords`). Congress, Insiders: filed
+  rows, the members' party and seat off /congress/politicians. Committee seats, fair value and guidance are not on the
+  plan — "—", or the control disabled saying why. A filing says what was filed; dates as filed, New York's.
 
-- TRACE READS UW (2026-10-12, `wired: true`; docs/data-feed.md "Trace reads Unusual Whales"): every Trace page reads
-  data/feed/trace.ts (the book off /screener/option-contracts, the tape, alerts, multi-leg, net flow, Market Tide, dark
-  pool), traceCard.ts (the print card: the contract's own prints, minutes, sessions) and traceDark.ts, through
-  components/trace/useTraceBook.ts and the pages' `feed` props; the rail's price on /trace is UW's stock-state. A field
-  the answer lacks is NaN in the row and "—" titled "not in the feed" (components/trace/Missing.tsx `fig`); a view the
-  answers cannot draw is not offered; a page reading a floor ($25K tape, $100K alerts, $250K windows, $50K structures,
-  $1M dark leaders) says it. UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate` queues the rest. A Tracker
-  mark keeps its market (`src: 'feed'`): measured only against the market it was made in.
+- TRACE READS UW (2026-10-12, `wired: true`; docs/data-feed.md "Trace reads Unusual Whales"): every Trace page is the
+  house's page on UW's answers — every view, card, column, menu and the print card's session picker, range ladder and
+  Single-leg only. The book off /screener/option-contracts; the tape, alerts, multi-leg, Market Tide, dark pool. The
+  house's reads run on the vendor's rows: Watchers' six rules (flowBook `rulesFor`) on the vendor's book beside its
+  alerts, Net Flow's board (whole names off the stock screener; one expiry, trace.ts `bookNetLeaders` on the contracts),
+  Dark Pool's Hedge flow (a cross on an options shelf). A pane draws the vendor's money for its cut (trace.ts
+  `useFeedPaneLine`): a minute line where UW answers one, the day's totals off the book where it does not. A floor a call
+  needs ($25K tape, $100K alerts, $250K windows, $50K structures, $1M dark leaders) is said, never a missing control. A
+  field no answer carries is "—" (Missing.tsx `fig`). UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate`. A
+  Tracker mark keeps its market (`src: 'feed'`).
+- ALERTS WATCH THE REAL PRICE (2026-10-12): while UW answers, the shell's watcher (alerts/AlertWatcher.tsx) judges every
+  alert on the market's own figures (data/feed/alertFeed.ts — UW's day state, an index's book price, its book, minute
+  bars, prints, wire; a hidden tab keeps asking) and never the simulator; StrikeChart stands aside. An alert armed then
+  takes its side from the real price, whatever page set it (gex/alertMarket.ts `spotForArm`); the log keeps the price it
+  fired at and its market (`mark`, `market`). UW down: the house's price, as before. alerts-proof covers it.
 - THE RAIL'S PRICE FOLLOWS THE PAGE'S ROOM (2026-10-12; docs/data-feed.md): the shell's subject (the rail, the phone's
   strip) reads UW's stock-state on a page whose room reads the feed (data/feed/rooms.ts `pageSource` by the address —
   Trace, the Dossier, Pinpoint and Terrain now, a room wired later on its own), the house's on every other page, a page no room holds
   included (Practice, Settings, the Glossary: Practice marks on the house's book, and the alerts drawer opens anywhere
   with the house's figures). The watchlist drawer's rows follow the same rule (UW's day state and book over a feed page). One poll a name (data/feed/price.ts `useFeedPrice`, `uw:state:<NAME>`, 10 s)
   shared with the rooms' pages; a 429 keeps the last good price five minutes. UW has no index price on Basic (422): on
-  a feed page an index is "—", not in the feed (on Pinpoint and Terrain its book's price, the change left off) — never
-  the house's figure there.
+  every feed page an index is its book's price, the change left off — never the house's figure there.
 - COMPASS'S CALENDAR IS THE EXCHANGE'S (2026-10-12): with UW up the board files on each name's real listed dates
   (data/feed/listings.ts, UW's expiry-breakdown, its roots apart — SPX/SPXW, NDX/NDXP, RUT/RUTW, VIX/VIXW AM — the
   dates alone), compass staying `wired: false`: a listed date is a calendar fact, the same in any market, not a market
