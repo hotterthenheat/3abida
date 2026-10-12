@@ -333,7 +333,7 @@ const LevelsScale = ({ spot, putWall, flip, callWall, supreme }: { spot: number;
       <svg width="100%" height={64} className="block overflow-visible" role="img" aria-label={`The book on a price scale: put wall ${putWall}, flip ${flip}, spot ${spot.toFixed(2)}, call wall ${callWall}, supreme ${supreme}`} data-stock-scale={hot ?? 'rest'}>
         <line x1="0%" x2="100%" y1={32} y2={32} stroke="rgb(var(--ink))" strokeOpacity={0.14} />
         {/* the likely range between the walls, faint */}
-        <rect x={`${x(putWall)}%`} y={29} width={`${Math.max(0, x(callWall) - x(putWall))}%`} height={6} fill={SILVER} fillOpacity={0.1} />
+        {Number.isFinite(putWall) && Number.isFinite(callWall) && <rect x={`${x(putWall)}%`} y={29} width={`${Math.max(0, x(callWall) - x(putWall))}%`} height={6} fill={SILVER} fillOpacity={0.1} />}
         {marks.map((m, i) => {
           const up = rows[i] === 1;
           const isSpot = m.key === 'spot';

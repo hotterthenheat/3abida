@@ -1104,6 +1104,8 @@ export interface UwStockDay {
   ivRank: number | null;
   impliedMove1: number | null;
   impliedMove30: number | null;
+  /** The move priced in over each horizon, calendar days → fraction (1, 5, 7, 14, 30, 60, 90, 180, 365) */
+  impliedMoves: [number, number][];
   realizedVol: number | null;
   callVolume: number;
   putVolume: number;
@@ -1169,6 +1171,10 @@ export const uwStockScreener = (tickers: string[]): Promise<FeedResult<UwStockDa
       ivRank: num(r.iv_rank),
       impliedMove1: num(r.implied_move_perc_1),
       impliedMove30: num(r.implied_move_perc_30),
+      impliedMoves: [1, 5, 7, 14, 30, 60, 90, 180, 365].flatMap(d => {
+        const v = num(r[`implied_move_perc_${d}`]);
+        return v === null ? [] : [[d, v] as [number, number]];
+      }),
       realizedVol: num(r.realized_volatility),
       callVolume: num0(r.call_volume),
       putVolume: num0(r.put_volume),

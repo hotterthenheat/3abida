@@ -46,7 +46,8 @@
 */
 
 import { useMemo, useState } from 'react';
-import { boardCalendarDays, type CalendarDay, useDossierFeed, useFeedEarnings } from '../../data/feed/dossier';
+import { boardCalendarDays, movePricedTo, type CalendarDay, useDossierFeed, useFeedEarnings } from '../../data/feed/dossier';
+import { useFeedStockDays } from '../../data/feed/stockDay';
 import { Missing, NOT_IN_FEED, byFigure, missing } from '../../components/record/Missing';
 import { RecordPageSkeleton } from './recordSkeletons';
 import { useNavigate } from 'react-router-dom';
@@ -223,7 +224,21 @@ const Earnings = () => {
   /* the days the board can show, both weeks (a switch of the Week card asks nothing new) */
   const calendarDays = useMemo<CalendarDay[]>(() => boardCalendarDays(), []);
   const fed = useFeedEarnings(fromFeed, calendarDays);
-  const events = useMemo(() => (fromFeed ? (fed?.ok ? fed.data : []) : buildEarningsCalendar()), [fromFeed, fed]);
+  /* the board's names' IV rank and the move priced in to each report, off UW's stock screener (one call for the list) */
+  const fedNames = useMemo(() => (fromFeed && fed?.ok ? fed.data.map(e => e.ticker) : []), [fromFeed, fed]);
+  const fedDays = useFeedStockDays(fromFeed, fedNames);
+  const events = useMemo(
+    () =>
+      fromFeed
+        ? (fed?.ok ? fed.data : []).map(e => {
+            const d = fedDays?.get(e.ticker);
+            if (!d) return e;
+            const implied = Number.isFinite(e.impliedMovePct) ? e.impliedMovePct : movePricedTo(Math.max(1, Math.round((e.daysOut * 7) / 5)), d.impliedMoves) * 100;
+            return { ...e, impliedMovePct: implied, ivRank: d.ivRank != null ? Math.round(d.ivRank) : e.ivRank, price: Number.isFinite(e.price) ? e.price : d.close ?? NaN };
+          })
+        : buildEarningsCalendar(),
+    [fromFeed, fed, fedDays]
+  );
   /* the macro dates beside the reports — the approximated CPI day stays off a calendar that is UW's */
   const macro = useMemo(() => macroWindow(new Date(), 10, 20).filter(m => !fromFeed || m.label !== 'CPI release'), [fromFeed]);
   const [week, setWeek] = useState<WeekPick>('0');

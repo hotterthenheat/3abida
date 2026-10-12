@@ -48,7 +48,9 @@
 
 import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyMinutes } from '../../core/nyTime';
 import { useEffect, useMemo, useState } from 'react';
-import { useDossierFeed, useFeedCongressFor, useFeedEarningsFor, useFeedInsidersFor, useFeedNameRecord } from '../../data/feed/dossier';
+import { fillDossier, useDossierFeed, useFeedCongressFor, useFeedEarningsFor, useFeedInsidersFor, useFeedNameRecord } from '../../data/feed/dossier';
+import { useFeedStockDays } from '../../data/feed/stockDay';
+import { useFeedNameBook } from '../../data/feed/trace';
 import { Missing, MissingLine, missing } from '../../components/record/Missing';
 import { EarningsNameSkeleton } from './recordSkeletons';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -287,16 +289,20 @@ const EarningsName = () => {
   /* the company's name, asked of Massive only for a name the record knows */
   const fedRecord = useFeedNameRecord(fromFeed && !!fedName?.ok && fedName.data.rows > 0, T);
   const fedInsiders = useFeedInsidersFor(fromFeed, T);
+  const fedDay = useFeedStockDays(fromFeed, [T]);
+  const fedRows = useFeedNameBook(fromFeed, T);
   const fedCongress = useFeedCongressFor(fromFeed, T);
   const houseDossier = useMemo(() => (fromFeed ? null : buildEarningsDossier(ticker, scanTick)), [fromFeed, ticker, scanTick]);
   const dossier = useMemo(() => {
     if (!fromFeed) return houseDossier;
-    const d = fedName?.ok ? fedName.data.dossier : null;
-    if (!d) return null;
+    const raw = fedName?.ok ? fedName.data.dossier : null;
+    if (!raw) return null;
+    /* the page's every figure the answers carry: the priced move, the IV rank, the record's odds, the busiest contracts */
+    const d = fillDossier(raw, fedDay?.get(T), fedRows?.rows ?? []);
     /* the company's name as Massive files it (the earnings rows carry none for one name) */
     const name = fedRecord?.ok && fedRecord.data.details?.name ? fedRecord.data.details.name : d.event.name;
     return { ...d, event: { ...d.event, name } };
-  }, [fromFeed, houseDossier, fedName, fedRecord]);
+  }, [fromFeed, houseDossier, fedName, fedRecord, fedDay, fedRows, T]);
   /* A busiest row → the Weigher with THE contract picked, this page as the way back */
   const weigh = (c: ActiveContract) =>
     navigate('/weigher', { state: { weigh: { ticker: T, strike: c.strike, right: c.right === 'CALL' ? 'C' : 'P', expiry: c.expiry }, wayBack: location.pathname } });
@@ -552,7 +558,6 @@ const EarningsName = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         <Box title="Busiest calls" sub="The three busiest by volume into the print · refreshes every ten seconds · click one to weigh it" testId="calls">
           <div className="pb-2">
-            {fromFeed && <MissingLine what="The busiest calls" />}
             {dossier.activeCalls.map(c => (
               <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} onWarm={() => Simulator.ensureTicker(T)} onOpen={() => weigh(c)} />
             ))}
@@ -560,7 +565,6 @@ const EarningsName = () => {
         </Box>
         <Box title="Busiest puts" sub="The three busiest by volume into the print · refreshes every ten seconds · click one to weigh it" testId="puts">
           <div className="pb-2">
-            {fromFeed && <MissingLine what="The busiest puts" />}
             {dossier.activePuts.map(c => (
               <ActiveRow key={c.id} c={c} maxVol={maxActiveVol} onWarm={() => Simulator.ensureTicker(T)} onOpen={() => weigh(c)} />
             ))}

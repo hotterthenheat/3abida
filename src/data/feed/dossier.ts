@@ -37,6 +37,8 @@
 import { nyIsoDate, nyParts } from '../../core/nyTime';
 import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketOf } from '../congress';
 import { TX_CODES, flowFrom, isChosenBuy } from '../insiders';
+import type { BookContract } from '../../types/trace';
+import type { UwStockDay } from './uw';
 import { weekDayDate, type EarningsDossier, type EarningsEvent, type EarningsQuarter, type ReportSlot } from '../earnings';
 import type { Sector } from '../universe';
 import type { AssetKind, Chamber, CongressTrade, InsiderFlow, InsiderRole, InsiderTrade, PlanState, ReportOwner, ReportType, TxCode } from '../../types/record';
@@ -539,3 +541,79 @@ export const headlineClock = (at: number): string => {
 };
 
 export { AMOUNT_BRACKETS };
+
+/* ---- A NAME'S REPORT, FILLED (2026-10-12 — the owner: "but i build the UI that the real data goes into") ------------ */
+
+/** The move the options price in to a day `days` out — UW's priced moves at its horizons, read between two by the
+    square root of time (a move grows with it) */
+export function movePricedTo(days: number, moves: [number, number][]): number {
+  if (!moves.length || !(days >= 0)) return NaN;
+  const d = Math.max(1, days);
+  const asc = [...moves].sort((a, b) => a[0] - b[0]);
+  const hi = asc.find(m => m[0] >= d) ?? asc[asc.length - 1];
+  const lo = [...asc].reverse().find(m => m[0] <= d) ?? asc[0];
+  if (hi[0] === lo[0]) return hi[1] * Math.sqrt(d / hi[0]);
+  const t = (Math.sqrt(d) - Math.sqrt(lo[0])) / (Math.sqrt(hi[0]) - Math.sqrt(lo[0]));
+  return lo[1] + t * (hi[1] - lo[1]);
+}
+
+/**
+ * A name's report page filled from the vendor's answers: the move priced in to the report (UW's own figure, else its
+ * priced moves read to the report's day), the IV rank, the odds the record gives — how many of the last reports closed
+ * inside today's priced move, and how many moved up — and the busiest calls and puts expiring at or after the report off
+ * the name's contracts today. What no answer carries (the overnight deflation, the estimates' drift) stays NaN.
+ */
+export function fillDossier(d: EarningsDossier, day: UwStockDay | undefined, rows: BookContract[]): EarningsDossier {
+  const e = { ...d.event };
+  const days = sessionsTo(isoOfLabel(e) ?? nyToday());
+  if (!Number.isFinite(e.impliedMovePct) && day) e.impliedMovePct = movePricedTo(Math.max(1, Math.round(days * 7 / 5)), day.impliedMoves) * 100;
+  if (!Number.isFinite(e.ivRank) && day?.ivRank != null) e.ivRank = Math.round(day.ivRank);
+  if (!Number.isFinite(e.price) && day?.close != null) e.price = day.close;
+  e.richness = Number.isFinite(e.histAvgMovePct) && e.histAvgMovePct > 0 ? e.impliedMovePct / e.histAvgMovePct : NaN;
+  const moved = d.quarters.filter(q => Number.isFinite(q.movePct));
+  const inside = Number.isFinite(e.impliedMovePct) && moved.length ? Math.round((100 * moved.filter(q => Math.abs(q.movePct) <= e.impliedMovePct).length) / moved.length) : NaN;
+  const up = moved.length ? Math.round((100 * moved.filter(q => q.movePct > 0).length) / moved.length) : NaN;
+  /* the busiest contracts on the name today that are still open after the report */
+  const reportIso = isoOfLabel(e);
+  const spanning = rows.filter(r => {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(r.expiry);
+    return m && (!reportIso || `${m[3]}-${m[1]}-${m[2]}` >= reportIso);
+  });
+  const px = e.price;
+  const active = (right: 'C' | 'P') =>
+    spanning
+      .filter(r => r.right === right && r.volume > 0)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 3)
+      .map(r => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(r.expiry);
+        const mid = Number.isFinite(r.last) ? r.last : NaN;
+        const away = Number.isFinite(px) && px > 0 ? ((r.strike - px) / px) * 100 : NaN;
+        const be = Number.isFinite(px) && px > 0 && Number.isFinite(mid) ? (right === 'C' ? ((r.strike + mid - px) / px) * 100 : ((px - (r.strike - mid)) / px) * 100) : NaN;
+        return {
+          id: `${right}-${r.strike}-${r.expiry}`,
+          right: right === 'C' ? ('CALL' as const) : ('PUT' as const),
+          strike: r.strike,
+          label: `${e.ticker} $${r.strike} ${right === 'C' ? 'call' : 'put'} · exp ${r.expiry.slice(0, 5)}`,
+          mid,
+          volume: r.volume,
+          oi: r.oi,
+          volOverOi: r.oi > 0 ? Math.round((r.volume / r.oi) * 100) / 100 : NaN,
+          ivPct: r.iv,
+          fromSpotPct: Math.round(away * 10) / 10,
+          breakevenPct: Math.round(be * 10) / 10,
+          expiry: m ? `${m[3]}-${m[1]}-${m[2]}` : '',
+        };
+      });
+  return { ...d, event: e, probInsidePct: inside, probBeyondPct: Number.isFinite(inside) ? 100 - inside : NaN, probUpPct: up, activeCalls: active('C'), activePuts: active('P') };
+}
+
+/** The report's date as YYYY-MM-DD off the event's label ("Wed 11/18") — the year the nearer one ahead */
+function isoOfLabel(e: EarningsEvent): string | null {
+  const m = /(\d{2})\/(\d{2})$/.exec(e.dateLabel);
+  if (!m) return null;
+  const today = nyToday();
+  const y = Number(today.slice(0, 4));
+  const iso = `${y}-${m[1]}-${m[2]}`;
+  return iso >= today ? iso : `${y + 1}-${m[1]}-${m[2]}`;
+}
