@@ -642,20 +642,26 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   figure, so it may stand under the house's setups. Asked two at a time, once a name a New York day
   (slayer_listed_dates); the board waits on its skeleton rather than move its setups. UW down: the schedule.
 - PINPOINT AND TERRAIN READ UW (2026-10-12, both `wired: true`, both needing UW ALONE — Massive's minute bars stop at the
-  session before and it refuses an index; docs/data-feed.md "Pinpoint and Terrain read Unusual Whales"): with UW up every
-  Pinpoint page (pages/pinpoint/feed: one switch a page, `onFeed`) and every Terrain pane read data/feed/levels.ts — the
-  book off /spot-exposures/strike, 30 strikes each side of the price UW figured it at, in THE HOUSE'S SIGN (gamma, delta
-  and the calls' vanna and charm negated, the puts' vanna and charm as they come — read live against the strikes round
-  spot), its walls, flip and supreme `pickWalls` / `pickFlip`'s; by date off /spot-exposures/expiry-strike (`limit` 500 —
-  it pages at 50); open interest off /oi-per-strike (a count dated D is the close of the session before D — "How sure"
-  says so, data/feed/levels.ts `feedFreshness`); max pain, the implied moves, the book through the day, UW's minute bars
-  (four sessions — 1m to 1h only). The rail's price, the head's facts and the watchlist drawer read the feed on those
-  pages. What the house MODELS on its own history (the odds, the range, the close, the schedule, the clock, how the
-  levels held, where they head) is not drawn on the feed: each page names it in one quiet line ("not in the feed"); a
-  field no answer carries is "—" (open interest by date, the flip minute by minute, vega). A failed poll keeps the last
-  good answer — never a flash back to the house's book. An index has no day state and no bars on this plan (422):
-  never asked (`isCashIndex`); Pinpoint reads it at its book's price, a Terrain pane says its bars are not in the feed.
-  Pulse is not wired: its Pinpoint panels read the house's book. A pop-out probes the feed itself (PopOutFrame).
+  session before and it refuses an index; docs/data-feed.md "Pinpoint and Terrain read Unusual Whales"). The book is
+  /spot-exposures/strike, 30 strikes each side of UW's price, in THE HOUSE'S SIGN (gamma, delta and the calls' vanna and
+  charm negated, the puts' vanna and charm as they come), its walls, flip and supreme `pickWalls` / `pickFlip`'s; a
+  count of open interest dated D is the close of the session before D. A failed poll keeps the last good answer.
+  PINPOINT IS ITS OWN PAGES ON THE VENDOR'S FIGURES (2026-10-12, the evening — the owner: "but i build the UI that the
+  real data goes into"): no feed variant (pages/pinpoint/feed is gone). Every engine under Pinpoint reads the market
+  through one seam, data/bookMarket.ts (the bars, the book through time, the build's open interest, the name, its
+  snapshot) — the simulator, or data/feed/pinpointMarket.ts on a Pinpoint address while the room reads the feed, read at
+  the call so no other room's page reads it. The SAME engines run on UW's answers: the odds, the range, the close, the
+  agenda, the schedule (today's hedge off the session's own listed date), the clock, the records (six sessions of bars by
+  date, each session's book at its open off /greek-exposure/strike?date=), the timeline (UW's whole book a minute, the
+  flip off the books this terminal read), the crossings and the drift (bars and books paired by time). Building is the
+  last COUNTED session, read whole (`buildClockOf`) — open interest is counted once a day, and traded contracts are not
+  open interest. The feed's book has no leg texture and no invented volume; a level it does not hold is NaN, printed
+  "—" (core/format.ts and every strike formatter print a dash for a figure no answer carried), never spot. "—" in its own
+  place: vega, open interest by date, "since the open" before the first read of the day, and for an index (no day state,
+  no bars on this plan) everything that stands on bars. Parts are asked on demand (the sessions before only by the reads
+  that need them), three in flight at most, a 429 waited out. Keys in and blanked draw the same boxes (a structural diff,
+  every page). Pulse is not wired: its Pinpoint panels read the house's book. Terrain's panes read data/feed/levels.ts
+  directly (an index pane says its bars are not in the feed). A pop-out probes the feed itself (PopOutFrame).
   TERRAIN'S TRAIL ON THE FEED (2026-10-12 — the owner: "why does terrain exposure trails not work"): UW has no route for
   the book by strike earlier in the day (/spot-exposures/strike takes a date, never a time), so the field is the books
   this terminal read today — kept on this machine (IndexedDB slayer_field, a record a name a day, earlier days dropped,

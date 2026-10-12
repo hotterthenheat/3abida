@@ -92,7 +92,9 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwContractScreener` | `GET /api/screener/option-contracts` (`limit` ≤ 500, `ticker_symbol`, `date`) — the day per contract |
 | `uwContractFlow`, `uwContractIntraday`, `uwContractHistoric` | `GET /api/option-contract/{id}/flow`, `/intraday`, `/historic` |
 | `uwMultiLeg`, `uwMultiLegLegs` | `GET /api/option-trades/multi-leg` (`limit` ≤ 200, `min_premium`, `older_than`), `…/multi-leg/{id}/legs` |
-| `uwOhlc` | `GET /api/stock/{ticker}/ohlc/{1m,5m}` |
+| `uwOhlc` | `GET /api/stock/{ticker}/ohlc/{1m,5m,1d}` (`date` — a past day's whole tape; `1d` stamps the day in `date`) |
+| `uwGreekExposureByStrike` | `GET /api/stock/{ticker}/greek-exposure/strike` (`date` — the book at that session's open, every listed strike; its own units) |
+| `uwTermStructure` | `GET /api/stock/{ticker}/volatility/term-structure` (each listed date's vol and move) |
 | `uwNetFlowExpiry` | `GET /api/net-flow/expiry` (`expiration`: `zero_dte` or `weekly`; `moneyness`; `tide_type`) |
 | `uwTopNetImpact` | `GET /api/market/top-net-impact` |
 | `uwVolumeAtPrice` | `GET /api/stock/{ticker}/stock-volume-price-levels` (lit and off-exchange volume by price) |
@@ -210,51 +212,74 @@ setup onto one of those dates instead of the schedule's.
 ## Pinpoint and Terrain read Unusual Whales (2026-10-12)
 
 `ROOM_FEEDS.pinpoint` and `ROOM_FEEDS.terrain` are `wired: true`, and both **need UW alone**: every figure either room
-draws — exposure by strike and by date, open interest, max pain, the implied move, the book through the day, a name's
-minute bars — is a UW route, and Massive adds nothing they draw (its minute bars stop at the session before, which UW's
-reach, and it refuses the indices). With UW up, every Pinpoint page and every Terrain pane reads
-`src/data/feed/levels.ts`; with UW down (no key, the network, a refused key) they read the house's book exactly as
-before; while the shell's first probe is out they stand as their skeletons. Nothing on one screen comes from both: the
-rail's price on a Pinpoint or Terrain page, the head's facts and the watchlist drawer read the feed too.
+draws is a UW route (Massive's minute bars stop at the session before, which UW's reach, and it refuses the indices;
+UW's own daily bars, 600 sessions, serve the ATR). With UW down (no key, the network, a refused key) both read the
+house's book exactly as before; while the shell's first probe is out they stand as their skeletons. Nothing on one
+screen comes from both: the rail's price, the head's facts and the watchlist drawer read the feed on those pages.
 
 **The book.** `/spot-exposures/strike` round the price (±10%, narrowed to about 34 strikes each side once the chain's
 step is known, rounded so the address holds still), 30 strikes kept each side — the house's `BOOK_WINDOW`. UW's signs
 are mapped onto the house's (core/walls.ts: negative call-dominant): gamma, delta and the calls' vanna and charm
-negated, the puts' vanna and charm as they come. The call wall, the put wall, the flip and the supreme are
-`pickWalls` / `pickFlip` on those rows; checked by hand against a curl of the same answer (SPY, 13:44 ET: 785, 772,
-777.50, 785). "How sure" says what a feed level stands on: the open interest as of the close the count stands for
-(UW's count dated Oct 12 is Oct 9's close) and the price and minute UW figured the hedging at.
+negated, the puts' vanna and charm as they come. The walls, the flip and the supreme are `pickWalls` / `pickFlip` on
+those rows; checked against a curl of the same answers on 2026-10-12 after the close (SPY 785 / 755 / 777.50 / 778,
+QQQ 760 / 745 / 749.50 / 745, NVDA 240 / 205 / 226.50 / 240, SPX 7900 / 7700 / 7807.50 / 7900 — the pages printed the
+same). "How sure" says what a feed level stands on: the close the count stands for (UW's count dated Oct 12 is Oct 9's
+close) and the price and minute UW figured the hedging at.
 
-**Polling.** The book every 30 s (the proxy keeps exposure 30 s); by date every 60 s; the contracts traded by strike
-60 s; open interest, max pain and the implied moves every 10 min (the proxy keeps them 10 min); the book through the
-day 60 s; bars: 2,500 one-minute bars every 5 min and the newest 30 every 15 s, folded into one tape; a name's day
-state 10 s. A hidden tab asks nothing. A failed answer — a 429 while other sessions share the key — keeps the last good
-one: a page never falls back to the house's book mid-session, and its stamp says it is waiting on the next answer.
+### Pinpoint: the owner's pages, the vendor's figures (2026-10-12, rewired the same evening)
+
+THE UI IS THE OWNER'S; THE FEED FILLS IT. Pinpoint has one set of pages. The feed variants of the afternoon
+(`pages/pinpoint/feed`, a list of strikes in place of each page) are gone: with the room on the feed every page, panel,
+tab, menu, guide and row action (the alert, the Chart door) is the house's, and every engine under it reads the market
+through one seam, `src/data/bookMarket.ts` — the bars, the book through time, the build's open interest, the name (its
+price, implied vol and strike step), its day's change, its snapshot. The seam answers with the house's simulator, or
+with `src/data/feed/pinpointMarket.ts` on a Pinpoint address while the room reads the feed (read at the call: another
+room's page never reads the vendor's book). The same engines then run on UW's answers:
+
+| Read | Engine (unchanged unless said) | Its inputs on the feed |
+|---|---|---|
+| The book, its walls, flip, pin, supreme, zones | `buildExposureProfile` — no leg texture, the day's own volume, a level the book does not hold is NaN ("—"), never spot | `/spot-exposures/strike` (every listed date together), `/oi-per-strike`, `/flow-per-strike` |
+| A dated lens (Compare's Expiry card, today's contracts) | the same, on one listed date's rows | `/spot-exposures/expiry-strike` |
+| The calendar (the Map's ledger, the bell's share) | the vendor's own columns (`levels.ts feedSurface`); an index's dailies under its second root (SPXW, NDXP, RUTW, VIXW) | `/spot-exposures/expiry-strike` 7 dates a call, `/max-pain` for the listed dates, `/volatility/term-structure` for each date's vol |
+| The range, where it closes, the odds a level is reached or holds, the agenda's order, the wall board | `buildCorridor`, `buildCloseOdds`, `buildWallContext` / `oddsAt`, `buildAgenda`, `buildWallBoard` | the book; the 1-day implied vol (`/interpolated-iv`); today's minute bars (`/ohlc/1m`, the regular session); the name's prints (`/flow-recent`, at the ask or the bid) |
+| The range's record, how the levels held over past sessions | `recentSessions`, `levelRecords` | six sessions of minute bars by date (`/ohlc/1m?date=`); each session's book at its open (`/greek-exposure/strike?date=` — UW figures it once a day, back past a year on Basic) |
+| The half-hour schedule | `buildSchedule`; the hedge that comes off at the bell is the session's own listed date's delta | the dated rows; the whole book's vanna |
+| The Trader's Clock, the levels' projections | `buildVannaCharm` — every strike at the model's middle rate (no per-strike texture), the vanna tilt on UW's own vanna exposure | the book |
+| What was built, where the walls are heading | `buildBuilding` on the last COUNTED session, read whole (`buildClockOf`): open interest is counted once a day, so the count before it against the count after it — the day's traded contracts are not open interest | two `/oi-per-strike` counts |
+| Open interest overnight | `oiChangeByStrike` on the two counts (the market's `oiCounts`) | the same |
+| Dealers through the session | `dealerTimeline` — net GEX a minute from UW's whole book a minute; the flip each minute off the book by strike as this terminal read it (the field), where it was read | `/spot-exposures` (today's, or the session's by `date`), the field |
+| The head's flip and crossings, the Board's crossings, the drift | `buildFlipGauge`, `buildDrift` — bars and books paired by time (the house keeps one a bar, in lockstep, so the same reads) | the bars; the field carried to every minute bar after each read |
+| Max pain | UW's own for the nearest listed date (`bookMaxPain`) | `/max-pain` |
+| The ATR (the ruler, Building's distances, Compare) | `sessionAtr`, on daily bars | `/ohlc/1d` |
+| "Since the open", Replay | `buildLevelRead`, `netSinceOpenRatio`, `replayRange` | today's books as this terminal read them (the field) — before the first read of the day there is none, and the report card prints "—" with why |
+| Compare's pair | `buildPair` | both names' six sessions of bars |
+
+**Still "—", in its own place:** vega by strike (UW's exposure carries no vega: the VEX pane, the matrix's VEX column
+and Compare's VEX figures); open interest by listed date (the ledger's read line); "since the open" and the flip each
+minute before this terminal's first read of the day's book (UW gives the book by strike as it stands, never for an
+earlier minute); for an index (SPX, NDX, RUT …) everything that stands on bars — UW has no day state and no bars for an
+index on this plan (422): its price is the price its book was figured at, its change "—", its range record, crossings,
+replay and pair "—". A part that has not come yet leaves its page on its skeleton.
+
+**Calls.** Asked on demand: an engine reading a name asks for the parts it reads; a part nobody asked for in a minute
+is not asked again; a hidden tab asks nothing; at most three calls in flight from here; a 429 waited out 15 s and every
+part keeps its last good answer. The sessions before today (bars by date, the books at the open and at the last three
+closes) are asked only by the reads that need them (the range's record, the levels' record, the overnight change, the
+pair). Periods: the book 30 s (one read shared with the shell's field recorder and Terrain), the day state 15 s, today's
+bars 30 s, volume, prints, by date and the book a minute 60 s, open interest, implied vol, term structure and max pain
+10 min, a past day once. A board of twelve names fills in about a minute.
+
+**Terrain** reads `src/data/feed/levels.ts` directly, a pane at a time:
 
 | Page | Reads | What it draws |
 |---|---|---|
-| Map | the book; by date (the first seven listed dates); open interest; max pain | the levels with "How sure"; the heatmap a column a date and the ladder on the whole book (GEX, DEX, vanna, charm — vega is not in the feed and not offered); Read this |
-| Ahead | the implied moves; max pain | the move priced in at each horizon and which walls stand inside it; max pain on each listed date |
-| Building | the book (gamma from today's volume); contracts traded by strike; two counts of open interest; the book through the day | what today's trading built, strike by strike; open interest overnight (`OiChange`); dealers through the session (`DealerTimeline`, its flip half not in the feed) |
-| At the wall | the book; open interest; contracts traded; max pain | each named level, what stands at it, how sure |
-| Targets | the book | every strike in order of the hedging parked there |
-| Board | each board name's book (every 30 s) | the price, which side of the flip, the walls, the supreme, net GEX |
-| Compare | both names' books | the levels and the ladder side by side |
-| The head | the book; the implied moves | which side of the flip, the flip and how far (σ is the one-day implied move); Copy levels off the feed's book |
 | Terrain, a pane | the book or one listed date (the expiry card lists UW's dates); open interest; the implied move; the bars | the ladder (size and the flow lane), the walls and the flip on the chart, the strike field (the books this terminal read today — it fills from the first read), the candles (1m to 1h) |
 
-**What is not in the feed, and so not drawn** (each page names them in one quiet line, "not in the feed"): the house's
-modelled reads that stand on its own session history — the odds a level is reached or holds, the range to the close,
-where it closes, the half-hour schedule, the Trader's Clock, how the levels held, where they are heading, the
-agenda's order, the Board's sparkline and crossings, Compare's head-to-head, ruler, tapes and pair; the flip's
-crossings today; the flip minute by minute on the dealers' timeline (the answer carries the whole book a minute, not
-the strikes); open interest by date (the heatmap's read line says "—"); vega by strike. On Terrain: the seconds,
-daily and weekly timeframes (four sessions of minute bars), range and volume bars, dark pool, the option tape, the
-drifts, events, the alerts' lines, the walls through the day, comparisons, the open's ghost on the ladder, and its
-volume-by-price switch. An index (SPX, NDX, RUT …) has exposure, open interest and max pain on UW but no day state and
-no bars on this plan (422, a CBOE grant): Pinpoint reads it at the price its book was figured at, the change left off;
-a Terrain pane on it says its bars are not in the feed and draws no ladder. Pulse is not wired, so its Targets, At the
-wall, Range and Close panels read the house's book as before.
+On Terrain these are not in the feed and not drawn: the seconds, daily and weekly timeframes (four sessions of minute
+bars), range and volume bars, dark pool, the option tape, the drifts, events, the alerts' lines, the walls through the
+day, comparisons, the open's ghost on the ladder, and its volume-by-price switch; a pane on an index says its bars are
+not in the feed and draws no ladder. Pulse is not wired, so its Targets, At the wall, Range and Close panels read the
+house's book as before.
 
 **Terrain's trail (the strike field) on the feed.** UW gives the book as it stands; no route gives it strike by strike
 for earlier in the day (`/spot-exposures/strike` takes a `date`, never a time — UW's spec, checked 2026-10-12; the
@@ -268,6 +293,9 @@ hidden terminal leaves a gap.
 The fallback was checked with the keys blanked (`env UW_API_TOKEN= MASSIVE_API_KEY= node node_modules/vite/bin/vite.js`
 — an empty variable in the process wins over `.env` in `loadEnv`; `npx` drops empty variables, so call Vite directly):
 every Pinpoint page, Terrain and Pulse drew the same boxes as the commit before this wiring, and no console errors.
+Pinpoint's rewiring was checked the same way, keys in against keys blanked: a structural diff of every page's heads,
+tabs, buttons, menus, facts, charts and boxes (a control labelled by a figure counts as a row of the data) — the same
+on all seven pages, SPY and SPX, dark and light.
 
 Screenshots on the vendor's answers, 2026-10-12 around 14:15 New York: `docs/data-feed/levels-2026-10-12-*.png` (the Map,
 Building, Ahead and Terrain dark; At the wall and Terrain light; the Map on a phone).

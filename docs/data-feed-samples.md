@@ -788,6 +788,62 @@ data: array[1]
 - **`/ohlc/1m?limit=2500`** reaches about four sessions back with the extended hours (`market_time` `pr`, `r`, `po`);
   `/ohlc/5m?limit=2500` about fourteen.
 
+### `GET /api/stock/SPY/greek-exposure/strike?date=2026-10-09` — 200
+```
+data: array[491]
+  date: string  "2026-10-09"
+  strike: numeric string  "50"
+  call_gex: numeric string  "0.0001"
+  put_gex: numeric string  "-1.9541"
+  call_delta: numeric string  "3599.9889"
+  put_delta: numeric string  "-349.7235"
+  call_charm: numeric string  "11.7905"
+  put_charm: numeric string  "6397.5801"
+  call_vanna: numeric string  "-19.5270"
+  put_vanna: numeric string  "-54723.3563"
+```
+
+### `GET /api/stock/SPY/volatility/term-structure` — 200
+```
+data: array[33]
+  date: string  "2026-10-12"
+  ticker: string  "SPY"
+  volatility: numeric string  "0.1104826156936956"
+  expiry: string  "2026-10-12"
+  implied_move: numeric string  "0.3230655408285557"
+  dte: number  0
+  implied_move_perc: numeric string  "0.0004152833648206233"
+```
+
+### `GET /api/stock/SPY/ohlc/1d?limit=40` — 200
+```
+data: array[40]
+  close: numeric string  "778.77"
+  high: numeric string  "781"
+  low: numeric string  "778.28"
+  open: numeric string  "780.49"
+  date: string  "2026-10-12"
+  volume: number  387798
+  total_volume: number  387798
+  market_time: string  "pr"
+```
+
+### What Pinpoint's rewiring learnt (2026-10-12, after the close)
+- **`/greek-exposure/strike?date=`** answered every date asked on Basic, back to 2025-10-10: the book as UW figured it
+  at that session's open (it "updates once per day at market open"), 491 strikes for SPY, `call_gex` + / `put_gex` −
+  as `/spot-exposures/strike` states them. Its units are not `/spot-exposures/strike`'s (770: 126,136 against
+  812,802,219 the same evening), so it is read within one day's rows only — each past session's walls at its open.
+- **`/spot-exposures/strike?date=D`** is D's book as it closed (`time` 20:00Z, `price` the close) — the last closes'
+  books. **`/spot-exposures?date=D`** is D's whole book a minute (527 rows for Oct 9, from 06:35 ET).
+- **`/ohlc/1m?date=D&limit=1000`**: D's whole tape, pre-market to after hours (746 bars for Oct 9; `market_time` `r` for
+  the regular session). **`/ohlc/1d`**: a bar a session, 600 back; the day under way is `market_time` `pr`.
+- **`/volatility/term-structure`**: each listed date's at-the-money vol (SPY's Oct 12 0.110, Oct 13 0.088); an index's
+  rows carry `missing_periscope: true` and no dollar move, and list only the index's own root (SPX: the monthlies).
+- **An index's dailies are another root**: `/max-pain` for SPX lists Oct 16 first (the AM monthly); SPXW's dailies are
+  under `SPXW`, while `/spot-exposures/expiry-strike` for SPX answers a SPXW date (2026-10-13) with rows.
+  `/max-pain` for `SPXW` and `NDXP` answers 200 from 2026-10-12 on (`max_pain` "7790", `missing_periscope: true`).
+- **`/flow-per-strike-intraday`** answered 2,484 rows for SPY covering eight strikes — not read.
+
 ### What the Dossier's wiring learnt (2026-10-12)
 - `/api/congress/recent-trades` caps `limit` at 200 (a 500 answers 422 "limit must be smaller than 200"). Rows come
   newest TRADE first; `date` keeps the trades made on or before it, so it pages back. 200 rows reach about three weeks
