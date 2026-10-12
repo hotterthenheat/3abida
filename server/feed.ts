@@ -73,6 +73,9 @@ const TTL: Record<ProviderId, [RegExp, number][]> = {
     [/\/screener\/option-contracts|\/ohlc\//, 20 * S],
     [/stock-volume-price-levels/, 60 * S],
     [/spot-exposures|greek-exposure|gex-levels/, 30 * S],
+    /* open interest is counted once a day; max pain and the implied moves move slowly (Pinpoint and Terrain, 2026-10-12) */
+    [/oi-per-strike|max-pain|interpolated-iv/, 10 * MIN],
+    [/flow-per-strike/, 30 * S],
     [/\/congress\/|\/insider\/|\/earnings\//, 10 * MIN],
   ],
   massive: [
