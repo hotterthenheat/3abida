@@ -609,3 +609,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   record after UW says the ticker exists, its daily bars). Rows map onto the pages' own types; a field no answer
   carries is NaN or empty and drawn "—" titled "not in the feed" (components/record/Missing.tsx) — never a house figure
   beside a vendor's. A filing says what was filed (a Form 144 is a notice, not a sale); dates are as filed, New York's.
+
+- TRACE READS UW (2026-10-12, `wired: true`; docs/data-feed.md "Trace reads Unusual Whales"): every Trace page reads
+  data/feed/trace.ts (the book off /screener/option-contracts, the tape, alerts, multi-leg, net flow, Market Tide, dark
+  pool), traceCard.ts (the print card: the contract's own prints, minutes, sessions) and traceDark.ts, through
+  components/trace/useTraceBook.ts and the pages' `feed` props; the rail's price on /trace is UW's stock-state. A field
+  the answer lacks is NaN in the row and "—" titled "not in the feed" (components/trace/Missing.tsx `fig`); a view the
+  answers cannot draw is not offered; a page reading a floor ($25K tape, $100K alerts, $250K windows, $50K structures,
+  $1M dark leaders) says it. UW Basic answers THREE CALLS AT ONCE — server/feed.ts `Gate` queues the rest. A Tracker
+  mark keeps its market (`src: 'feed'`): measured only against the market it was made in.

@@ -5,7 +5,7 @@
 */
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { TokenBucket, createFeedClient, failKind, feedMiddleware, ttlFor } from '../server/feed';
+import { Gate, TokenBucket, createFeedClient, failKind, feedMiddleware, ttlFor } from '../server/feed';
 
 let pass = 0;
 let fail = 0;
@@ -24,6 +24,26 @@ const check = (name: string, ok: boolean) => {
   times.sort((a, z) => a - z);
   check('the bucket lets five out at once', times[4] < 50);
   check('the sixth and seventh wait their turn, none refused', times[5] >= 150 && times[6] >= 350 && times.length === 7);
+}
+
+/* Unusual Whales' three at once: the gate lets three out and queues the rest, none refused */
+{
+  const g = new Gate(3);
+  let peak = 0;
+  let live = 0;
+  const done = await Promise.all(
+    Array.from({ length: 8 }, (_, i) =>
+      g.run(async () => {
+        live++;
+        peak = Math.max(peak, live);
+        await new Promise(r => setTimeout(r, 30));
+        live--;
+        return i;
+      })
+    )
+  );
+  check('the vendor gate never has more than three out', peak === 3);
+  check('every queued call is answered, in turn', done.length === 8 && g.active === 0 && g.waiting === 0);
 }
 
 /* the TTLs by what a path is */

@@ -1,8 +1,8 @@
 # The data feed (2026-10-12)
 
 Slayer reads two vendors: **Unusual Whales API Basic** and **Massive (Polygon) Basic** (Stocks, Options, Indices,
-Currencies). Neither plan has a socket, so the terminal asks on a timer. Until a room is moved onto them, every room
-reads exactly what it read before.
+Currencies). Neither plan has a socket, so the terminal asks on a timer. Until a room is moved onto them, a room
+reads exactly what it read before; Trace is the first moved (2026-10-12, at the foot of this page).
 
 ## Keys
 
@@ -39,6 +39,9 @@ browser ──GET /feed/massive/v2/…──────▶ dev server          
   bars, hours for reference lists. One request in flight per URL.
 - **Massive's five calls a minute**: a token bucket queues the calls and lets them out as tokens come back (five at
   once, then one every 12 s); a 429 empties the bucket. A cached answer costs no token.
+- **Unusual Whales' three calls at once** (seen 2026-10-12: the fourth of a burst came back 429 "You have exceeded 3
+  concurrent requests, the maximum allowed for your current plan"; the per-minute header read 1,000,000): the proxy lets
+  three out and queues the rest (`Gate`), and asks a 429 once more after a breath. A cached answer never waits.
 - **`/feed/status`** reports, per vendor, whether a key is set (yes or no, never the key) and how a cheap probe went;
   it runs the probe at most once a minute.
 
@@ -77,6 +80,15 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `uwEarningsFor` | `GET /api/earnings/{ticker}` |
 | `uwExpiryBreakdown` | `GET /api/stock/{ticker}/expiry-breakdown` |
 | `uwNewsHeadlines` | `GET /api/news/headlines` (`ticker`, `limit`) — in UW's catalog; answered 200 on the Basic plan, 2026-10-12 |
+
+| `uwContractScreener` | `GET /api/screener/option-contracts` (`limit` ≤ 500, `ticker_symbol`, `date`) — the day per contract |
+| `uwContractFlow`, `uwContractIntraday`, `uwContractHistoric` | `GET /api/option-contract/{id}/flow`, `/intraday`, `/historic` |
+| `uwMultiLeg`, `uwMultiLegLegs` | `GET /api/option-trades/multi-leg` (`limit` ≤ 200, `min_premium`, `older_than`), `…/multi-leg/{id}/legs` |
+| `uwOhlc` | `GET /api/stock/{ticker}/ohlc/{1m,5m}` |
+| `uwNetFlowExpiry` | `GET /api/net-flow/expiry` (`expiration`: `zero_dte` or `weekly`; `moneyness`; `tide_type`) |
+| `uwTopNetImpact` | `GET /api/market/top-net-impact` |
+| `uwVolumeAtPrice` | `GET /api/stock/{ticker}/stock-volume-price-levels` (lit and off-exchange volume by price) |
+| `uwFlowPerStrike`, `uwFlowPerExpiry` | `GET /api/stock/{ticker}/flow-per-strike`, `/flow-per-expiry` |
 | `massiveMarketStatus` | `GET /v1/marketstatus/now` (the probe) |
 | `massiveContracts`, `massiveExpirations` | `GET /v3/reference/options/contracts` (paged on `next_url`; one round `strike_price` lists every expiry in one call) |
 | `massiveBars` | `GET /v2/aggs/ticker/{ticker}/range/{n}/{span}/{from}/{to}` (stocks and `O:` contracts; the session before is the latest) |
@@ -115,3 +127,34 @@ page works the usual move, the pricing and the beat count from its own reported 
 thirty-day line and rotation on Stocks; the map, a story's read and the day ahead on News.
 
 Screenshots on the vendors' answers, 2026-10-12 around 11:45 New York: `docs/data-feed/dossier-2026-10-12-*.png`.
+
+house's own figures on one screen. Every room but Trace (below) has `wired: false`, so its seam returns `'stand-in'` and
+every page reads what it read before. Moving a room: rewire its pages to read the fetchers when its seam says `'feed'`,
+then set `wired: true`.
+
+## Trace reads Unusual Whales (2026-10-12)
+
+`ROOM_FEEDS.trace.wired` is `true`: with UW up, every Trace page reads the vendor (`src/data/feed/trace.ts`,
+`traceCard.ts`, `traceDark.ts`), and with UW down (no key, the network, a refused key) every page reads its own book
+exactly as before. Nothing on one screen comes from both. While the shell's first probe is out, a page shows nothing
+rather than a flash of its own book.
+
+| Page | Reads | Poll |
+|---|---|---|
+| Live Tape | `option-trades`, prints of $25K and up, the newest 500, kept for the session | 5 s |
+| Screener, Footprints, Tracker | `screener/option-contracts`: the market's 500 heaviest contracts and the name's own 500; the session before for the overnight ledger | 60 s / 30 s / 15 min |
+| Watchers | `flow-alerts` of $100K and up, back to the open once (≤ 12 pages), then the newest | 15 s |
+| Windows | `option-trades` of $250K and up, back to the open once (≤ 24 pages), cut into quarter hours | 20 s |
+| Multi-Leg | `option-trades/multi-leg` of $50K and up, back to the open once; a structure's legs when it opens | 15 s |
+| Net Flow | `top-net-impact` (the board), `net-prem-ticks` and `ohlc/1m` (the pane), Market Tide (the market's own line) | 60 s / 30 s |
+| 0DTE | `net-flow/expiry` `zero_dte` by cut and moneyness; a name's pane its `net-prem-ticks` (every expiry, said so) | 30 s |
+| Compare | each name's book, ticks, flow by expiry and quote; the session's structures and tape | 30–60 s |
+| Dark Pool | `darkpool/{ticker}` (the newest 200), `stock-volume-price-levels` (the shelves and the off-exchange share), `ohlc/1m`; `darkpool/recent` of $1M and up for the leaders | 15 s / 60 s / 30 s |
+| The print card | the contract's `flow` (newest 500), `intraday`, `historic`; the name's ticks, flow by strike and by expiry | 15 s – 10 min |
+| The rail's price, on a Trace page | `stock-state` | 10 s |
+
+A figure the vendor's answer does not carry is `NaN` in the row and "—" on the page, titled "not in the feed" — the
+session before quarter hour by quarter hour (Footprints' sparkline), a print's overnight change in open interest, a dark
+cross's average-day share, the floor share of a print that does not say. A view the answers cannot draw is not offered:
+the card's other sessions and its dollar bars, a sector or the index funds alone on 0DTE, a name's lines by moneyness,
+tenor or expiry. Words say what the feed holds: a floor is named where a page reads prints above it.

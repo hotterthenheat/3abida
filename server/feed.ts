@@ -64,9 +64,14 @@ const HOUR = 60 * MIN;
 const TTL: Record<ProviderId, [RegExp, number][]> = {
   uw: [
     [/\/stock-state$|\/quote$/, 2 * S],
-    [/flow-alerts|option-trades/, 5 * S],
+    /* a contract's past sessions change once a day (Trace's print card, 2026-10-12) */
+    [/\/option-contract\/[^/]+\/historic$/, 10 * MIN],
+    [/flow-alerts|option-trades|\/option-contract\//, 5 * S],
     [/\/darkpool\//, 10 * S],
-    [/net-prem-ticks|market-tide|net-flow/, 15 * S],
+    [/net-prem-ticks|market-tide|net-flow|top-net-impact/, 15 * S],
+    /* the day per contract and a name's bars: Trace polls them every half minute or slower */
+    [/\/screener\/option-contracts|\/ohlc\//, 20 * S],
+    [/stock-volume-price-levels/, 60 * S],
     [/spot-exposures|greek-exposure|gex-levels/, 30 * S],
     [/\/congress\/|\/insider\/|\/earnings\//, 10 * MIN],
   ],
@@ -176,6 +181,34 @@ export class TokenBucket {
   }
 }
 
+/* ---- Unusual Whales' limit: three calls at once ----------------------------------------------------------------- */
+
+/* THE BASIC PLAN ANSWERS THREE AT A TIME (seen 2026-10-12, a burst of eight: the fourth came back 429 "You have exceeded
+   3 concurrent requests, the maximum allowed for your current plan"; the per-minute header read 1,000,000). A Trace page
+   opens with a handful of calls at once, so the proxy lets three out and queues the rest — a queued call waits for one
+   in flight to come back, it is never refused. */
+export class Gate {
+  private inFlight = 0;
+  private queue: (() => void)[] = [];
+  constructor(private readonly max: number) {}
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.inFlight >= this.max) await new Promise<void>(resolve => this.queue.push(resolve));
+    this.inFlight++;
+    try {
+      return await fn();
+    } finally {
+      this.inFlight--;
+      this.queue.shift()?.();
+    }
+  }
+  get active(): number {
+    return this.inFlight;
+  }
+  get waiting(): number {
+    return this.queue.length;
+  }
+}
+
 /* ---- the client the proxy and the check share ------------------------------------------------------------------ */
 
 export interface FeedClientOptions {
@@ -185,12 +218,15 @@ export interface FeedClientOptions {
   timeoutMs?: number;
   /** Bypass the cache (the check wants the vendor's answer now) */
   noCache?: boolean;
+  /** Unusual Whales' calls at once (the Basic plan: 3) */
+  uwConcurrent?: number;
 }
 
 export function createFeedClient(opts: FeedClientOptions) {
   const keys = opts.keys;
   const timeoutMs = opts.timeoutMs ?? 20 * S;
   const bucket = new TokenBucket(opts.massivePerMinute ?? 5, MIN);
+  const uwGate = new Gate(opts.uwConcurrent ?? 3);
   const cache = new Map<string, { until: number; answer: FeedAnswer }>();
   const inFlight = new Map<string, Promise<FeedAnswer>>();
   const CACHE_MAX = 400;
@@ -214,7 +250,13 @@ export function createFeedClient(opts: FeedClientOptions) {
     if (p === 'massive') await bucket.take();
     let res: Response;
     try {
-      res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+      const go = () => fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+      res = p === 'uw' ? await uwGate.run(go) : await go();
+      /* a 429 for calls at once (another tab, the check) is asked once more, after a breath, through the gate */
+      if (p === 'uw' && res.status === 429) {
+        await new Promise(r => setTimeout(r, 400));
+        res = await uwGate.run(go);
+      }
     } catch (e) {
       const err = e as { name?: string; cause?: { code?: string; message?: string }; message?: string };
       if (err.name === 'TimeoutError' || err.name === 'AbortError') return json(504, { error: 'timeout' });
@@ -251,7 +293,7 @@ export function createFeedClient(opts: FeedClientOptions) {
     }
   }
 
-  return { get, bucket, hasKey: (p: ProviderId) => !!keys[p] };
+  return { get, bucket, uwGate, hasKey: (p: ProviderId) => !!keys[p] };
 }
 export type FeedClient = ReturnType<typeof createFeedClient>;
 

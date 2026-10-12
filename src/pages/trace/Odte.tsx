@@ -37,13 +37,15 @@ import Lean from '../../components/trace/Lean';
 import { useNavigate } from 'react-router-dom';
 import { useMarketData } from '../../context/MarketDataContext';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
-import Simulator from '../../core/simulator';
-import { buildFlowBook, buildNetFlowView, isNetSegment, type MoneynessKey, type NetFlowSegment } from '../../data/flowBook';
-import { fmtUsd } from '../../data/gex';
+import { buildNetFlowView, isNetSegment, type MoneynessKey, type NetFlowSegment } from '../../data/flowBook';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
 import RichRead from '../../components/ui/RichRead';
 import NetFlowPane, { paneTimes } from '../../components/trace/NetFlowPane';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Fact } from '../../components/trace/TraceBox';
+import { feedZeroDteSeg, useFeedNameFlow, useFeedZeroDte } from '../../data/feed/trace';
+import type { BookContract } from '../../types/trace';
+import type { ComponentProps } from 'react';
 import { OdteGuide } from '../../components/trace/TraceGuide';
 
 const PANE_OPTIONS: DropdownOption<1 | 2 | 3 | 4>[] = [
@@ -118,6 +120,26 @@ function loadStore(): OdteStore {
   }
 }
 
+/* A PANE ON THE FEED (2026-10-12): a cut of the market is the vendor's same-day net flow (the whole market or its stocks,
+   by moneyness), with SPY's price behind it; a name is the name's net premium a minute — across every expiry, since the
+   name's ticks are not cut by expiry, and the pane says so */
+const FeedPane = ({ cfg, ...rest }: { cfg: PaneCfg } & Omit<ComponentProps<typeof NetFlowPane>, 'feed' | 'seg' | 'mny' | 'ticker'>) => {
+  /* a cut the same-day flow is not split by (a sector, the index funds alone) is drawn — and named — as the whole market */
+  const seg = !cfg.ticker && !feedZeroDteSeg(cfg.seg) ? 'all' : cfg.seg;
+  const cut = useFeedZeroDte(!cfg.ticker, seg, cfg.mny);
+  const name = useFeedNameFlow(!!cfg.ticker, cfg.ticker);
+  return (
+    <NetFlowPane
+      {...rest}
+      seg={seg}
+      mny={cfg.mny}
+      ticker={cfg.ticker ?? undefined}
+      feed={cfg.ticker ? { line: name, refName: cfg.ticker, note: 'every expiry', money: false, tenor: false } : { line: cut, refName: 'SPY', segOk: s => feedZeroDteSeg(s) !== null, money: true, tenor: false }}
+    />
+  );
+};
+const NO_ROWS: BookContract[] = [];
+
 const Odte = () => {
   const { marketData, activeTicker } = useMarketData();
   const navigate = useNavigate();
@@ -144,11 +166,8 @@ const Odte = () => {
     };
   }, [fsIdx]);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
   // The shared hold (see LiveHold): book and tick freeze together while
   // paused, so every pane stops on the same bar.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
@@ -157,14 +176,15 @@ const Odte = () => {
 
   /* The whole same-day book, once, for the head's facts and the sentence */
   /* 0DTE IS TODAY'S EXPIRY ALONE (the audit's TR-54): it counted "today or tomorrow" under a name that says today */
-  const view = useMemo(() => buildNetFlowView(book, 'all', 'all', paneTimes('SPY'), 0), [book]);
+  const feedView = useFeedZeroDte(onFeed, 'all', 'all');
+  const view = useMemo(() => (onFeed ? feedView?.view ?? { points: [], ncp: 0, npp: 0, vol: NaN, count: NaN } : buildNetFlowView(book, 'all', 'all', paneTimes('SPY'), 0)), [book, onFeed, feedView]);
   const awake = view.points.length > 0;
   const bullish = view.ncp - view.npp >= 0;
   /* each figure in its meaning's ink — net puts bought are bearish however their sign reads (the audit's TR-53) */
   const read = awake ? (
     <>
       <RichRead text={`The same-day money leans ${bullish ? 'bullish' : 'bearish'} — `} />
-      <Lean v={view.ncp - view.npp} /> net: net calls <Lean v={view.ncp} /> less net puts <Lean v={view.npp} put />, across {view.count} contracts expiring today.
+      <Lean v={view.ncp - view.npp} /> net: net calls <Lean v={view.ncp} /> less net puts <Lean v={view.npp} put />, {Number.isFinite(view.count) ? `across ${view.count} contracts expiring today` : 'on contracts expiring today'}.
     </>
   ) : (
     <RichRead text="The same-day book is still waking up." />
@@ -199,6 +219,21 @@ const Odte = () => {
 
   const pane = (i: number, expanded = false) => {
     const cfg = store.panes[i];
+    if (onFeed)
+      return (
+        <FeedPane
+          cfg={cfg}
+          book={book.length ? book : NO_ROWS}
+          onSeg={seg => setPane(i, { seg, ticker: null })}
+          onMny={mny => setPane(i, { mny })}
+          onTicker={ticker => setPane(i, { ticker })}
+          searchNames={onTheComplex}
+          searchDoor={door}
+          tick={tick}
+          onExpand={() => setFsIdx(expanded ? null : i)}
+          expanded={expanded}
+        />
+      );
     return (
       <NetFlowPane
         book={book}
@@ -247,7 +282,7 @@ const Odte = () => {
               {awake ? <Lean v={view.npp} put className="font-normal" /> : '—'}
             </Fact>
             <Fact label="Contracts" testId="contracts">
-              {awake ? view.count : '—'} <span className="text-textMuted">· expiring today</span>
+              {awake && Number.isFinite(view.count) ? view.count : <span title={onFeed ? 'not in the feed' : undefined}>—</span>} <span className="text-textMuted">· expiring today</span>
             </Fact>
           </>
         }

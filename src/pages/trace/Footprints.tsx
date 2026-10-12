@@ -20,9 +20,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
-import Simulator from '../../core/simulator';
 import {
-  buildFlowBook,
   FOOTPRINT_SCREENS,
   runFootprintScreen,
   type FootprintScreenKey,
@@ -43,6 +41,8 @@ import FlowSearch, { normSymbol } from '../../components/trace/FlowSearch';
 import { LiveHold, useHold } from '../../components/trace/LiveHold';
 import ColumnChooser, { useHiddenColumns } from '../../components/trace/ColumnChooser';
 import LeanCell from '../../components/trace/LeanCell';
+import { fig, Missing } from '../../components/trace/Missing';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact, PhoneRow, TraceGrid } from '../../components/trace/TraceBox';
 import { SavedCutsControl, SavedCutsList, useSavedCuts } from '../../components/trace/SavedCuts';
 import { isIsoDay, isQuery, oneOf, useAddressCut } from '../../components/trace/addressCut';
@@ -89,10 +89,16 @@ const phoneRow = (r: BookContract) => (
         {r.deltaOI.toLocaleString('en-US')} OI
       </span>,
       <span key="o">{r.oi.toLocaleString('en-US')} standing</span>,
-      <span key="b">built {r.prevAskPct >= 58 ? 'at the ask' : r.prevAskPct <= 42 ? 'on the bid' : 'at the mid'}</span>,
+      <span key="b">{builtWords(r)}</span>,
     ]}
   />
 );
+/** Which side built it, in words — the bid share its own where the feed gives it, nothing where the ledger is not in */
+const builtWords = (r: BookContract) => {
+  const bid = r.prevBidPct ?? 100 - r.prevAskPct;
+  if (!Number.isFinite(r.prevAskPct) || !Number.isFinite(bid)) return 'built —';
+  return r.prevAskPct - bid >= 16 ? 'built at the ask' : bid - r.prevAskPct >= 16 ? 'built on the bid' : 'built at the mid';
+};
 const TOOLTIPS: Record<string, string> = {
   oi: 'Open interest as of the last close',
   prevoi: 'Open interest as of the close before',
@@ -111,7 +117,10 @@ const dirInk = (v: number, m: InkMarks): string =>
   Math.abs(v) >= m.top ? 'text-supreme font-bold' : Math.abs(v) >= m.bar ? (v > 0 ? 'text-bull' : 'text-bear') : 'text-textPrimary';
 
 /** The prior session's 15-min volume shape — a whisper, not a second fact. */
-const PrevSpark = ({ values }: { values: number[] }) => (
+const PrevSpark = ({ values }: { values: number[] }) =>
+  values.length === 0 ? (
+    <Missing />
+  ) : (
   <svg width={52} height={14} aria-hidden className="block">
     {values.map((v, i) => {
       const h = Math.max(1, v * 13);
@@ -140,11 +149,8 @@ const Footprints = () => {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
   // The shared hold (see LiveHold): book and tick freeze together while paused.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book: heldBook, tick } = hold.value;
@@ -190,7 +196,7 @@ const Footprints = () => {
           {loudestBuild.right}
         </ReadDoor>
         <RichRead
-          text={` [[+${num(loudestBuild.deltaOI)}]], built ${loudestBuild.prevAskPct >= 50 ? 'at the ask' : 'on the bid'}.`}
+          text={` [[+${num(loudestBuild.deltaOI)}]]${Number.isFinite(loudestBuild.prevAskPct) ? `, built ${loudestBuild.prevAskPct >= (loudestBuild.prevBidPct ?? 100 - loudestBuild.prevAskPct) ? 'at the ask' : 'on the bid'}` : ''}.`}
         />
       </>
     );
@@ -270,11 +276,7 @@ const Footprints = () => {
         header: 'OTM %',
         align: 'right',
         sortValue: r => r.otmPct,
-        render: r => (
-          <span className="text-textPrimary">
-            {pctSigned(r.otmPct, 1)}
-          </span>
-        ),
+        render: r => fig(r.otmPct, v => <span className="text-textPrimary">{pctSigned(v, 1)}</span>),
       },
       {
         key: 'oi',
@@ -325,6 +327,7 @@ const Footprints = () => {
         // only, so the absolute column stays the louder of the pair.
         render: r => {
           if (r.deltaOI === 0) return <span className="text-textSecondary">—</span>;
+          if (!Number.isFinite(r.deltaOIPct)) return <Missing />;
           return (
             <span className={dirInk(r.deltaOI > 0 ? Math.abs(r.deltaOIPct) : -Math.abs(r.deltaOIPct), marks.doiPct)}>
               {r.deltaOIPct > 0 ? '+' : ''}
@@ -339,14 +342,14 @@ const Footprints = () => {
         align: 'right',
         sortValue: r => r.prevAskPct,
         // Which side did the building — the tape's own bid/ask cell.
-        render: r => <LeanCell askPct={r.prevAskPct} />,
+        render: r => <LeanCell askPct={r.prevAskPct} bidPct={r.prevBidPct} />,
       },
       {
         key: 'prevvol',
         header: 'Prev vol',
         align: 'right',
         sortValue: r => r.prevVolume,
-        render: r => <span className={weightInk(r.prevVolume, marks.prevVol)}>{num(r.prevVolume)}</span>,
+        render: r => fig(r.prevVolume, v => <span className={weightInk(v, marks.prevVol)}>{num(v)}</span>),
       },
       {
         key: 'vol',
@@ -360,14 +363,14 @@ const Footprints = () => {
         header: 'Prev avg',
         align: 'right',
         sortValue: r => r.prevAvgFill,
-        render: r => <span className={weightInk(r.prevAvgFill, marks.prevAvg)}>${r.prevAvgFill.toFixed(2)}</span>,
+        render: r => fig(r.prevAvgFill, v => <span className={weightInk(v, marks.prevAvg)}>${v.toFixed(2)}</span>),
       },
       {
         key: 'prevprem',
         header: 'Prev $',
         align: 'right',
         sortValue: r => r.prevPremium,
-        render: r => <span className={weightInk(r.prevPremium, marks.prevPrem)}>{fmtUsd(r.prevPremium)}</span>,
+        render: r => fig(r.prevPremium, v => <span className={weightInk(v, marks.prevPrem)}>{fmtUsd(v)}</span>),
       },
       {
         key: 'streak',
@@ -437,7 +440,7 @@ const Footprints = () => {
     <>
       <TraceBox
         title="What the flow left standing"
-        sub={`${activeScreen.label} — ${activeScreen.hint} · open interest is what stayed overnight · a row opens the contract's card`}
+        sub={`${activeScreen.label} — ${activeScreen.hint} · open interest is what stayed overnight${onFeed ? ` · the day's heaviest contracts across the market, and ${activeTicker}'s own` : ''} · a row opens the contract's card`}
         testId="footprints"
         data={{ screen, rows: rows.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the footprints', door: 'What open interest, a build and a streak mean', body: <FootprintsGuide />, testId: 'footprints-guide', open: guideOpen, onOpen: setGuideOpen }}
@@ -499,6 +502,7 @@ const Footprints = () => {
         openKey={openKey}
         onOpen={setOpenKey}
         tick={tick}
+        feed={onFeed}
       />
     </>
   );

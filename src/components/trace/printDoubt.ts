@@ -61,7 +61,9 @@ export function couldAlsoBe(p: FlowPrint, tape: FlowPrint[] = []): Alternative[]
     name: 'One leg of a spread',
     for:
       kind === 'MULTI'
-        ? `it printed with ${p.legs > 1 ? `${p.legs} legs` : 'a structure tag'}${p.strat !== '—' ? ` (${p.strat.toLowerCase()})` : ''}`
+        ? p.strat === 'Multi-leg'
+          ? 'the exchange marked it as one leg of a multi-leg order'
+          : `it printed with ${p.legs > 1 ? `${p.legs} legs` : 'a structure tag'}${p.strat !== '—' ? ` (${p.strat.toLowerCase()})` : ''}`
         : legsBeside.length
           ? `${legsBeside.length} other ${p.ticker} contract${legsBeside.length === 1 ? '' : 's'} printed the same size within two seconds`
           : 'any single print can be a leg worked on its own',
@@ -91,7 +93,7 @@ export function couldAlsoBe(p: FlowPrint, tape: FlowPrint[] = []): Alternative[]
 
   /* A CLOSE */
   const closeFor =
-    p.deltaOI < 0
+    Number.isFinite(p.deltaOI) && p.deltaOI < 0
       ? `open interest is ${Math.abs(p.deltaOI).toLocaleString('en-US')} lower than the close before`
       : p.volOverOI < 1
         ? 'the day\'s volume still fits inside the open interest that stood this morning'

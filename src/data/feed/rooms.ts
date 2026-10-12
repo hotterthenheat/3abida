@@ -9,9 +9,10 @@
   price from the house's book would be two markets.
 
   THE SEAM: one function per room (pulseSource …
-  weigherSource). Each returns 'stand-in' today, because
-  no room's pages are rewired yet (`wired: false`): that
-  comes once real answers can be seen on screen. To move a
+  weigherSource). A room whose pages are not rewired yet
+  (`wired: false`) returns 'stand-in' whatever the feed
+  does. TRACE IS WIRED (2026-10-12): its pages read
+  data/feed/trace.ts when UW is up. To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
   data/feed/uw.ts and massive.ts, 'stand-in' means read
@@ -35,14 +36,14 @@ export interface RoomFeed {
   needs: FeedProvider[];
   /** What it would read from each, in the house's words */
   reads: string;
-  /** True once the room's pages read the feed when it is up — false for every room today */
+  /** True once the room's pages read the feed when it is up — Trace alone since 2026-10-12 */
   wired: boolean;
 }
 
 export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   pulse: { name: 'Pulse', needs: ['uw'], reads: 'Market tide, net premium, flow alerts and prices', wired: false },
   terrain: { name: 'Terrain', needs: ['uw', 'massive'], reads: "Exposure by strike and today's bars; earlier sessions' bars", wired: false },
-  trace: { name: 'Trace', needs: ['uw'], reads: 'The option tape, flow alerts, dark pool prints and net premium', wired: false },
+  trace: { name: 'Trace', needs: ['uw'], reads: 'The option tape, the day per contract, flow alerts, multi-leg orders, dark pool prints, net premium and Market Tide', wired: true },
   dossier: { name: 'Dossier', needs: ['uw', 'massive'], reads: 'Congress and insider filings, earnings, the wire and prices; the company record', wired: true },
   pinpoint: { name: 'Pinpoint', needs: ['uw', 'massive'], reads: 'Exposure by strike; the listed expiries', wired: false },
   compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
@@ -57,7 +58,7 @@ export const roomCanRead = (room: FeedRoom, s: FeedStatus): boolean => ROOM_FEED
 /** What a room reads now: the feed when it is wired and every source is up, else its own book */
 export const roomSource = (room: FeedRoom, s: FeedStatus): RoomSource => (ROOM_FEEDS[room].wired && roomCanRead(room, s) ? 'feed' : 'stand-in');
 
-/* ---- THE SEAMS: one a room — 'stand-in' for every room today ---- */
+/* ---- THE SEAMS: one a room — 'feed' only for a wired room with every vendor it needs up ---- */
 export const pulseSource = (s: FeedStatus): RoomSource => roomSource('pulse', s);
 export const terrainSource = (s: FeedStatus): RoomSource => roomSource('terrain', s);
 export const traceSource = (s: FeedStatus): RoomSource => roomSource('trace', s);

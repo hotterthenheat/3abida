@@ -59,8 +59,11 @@ import { LiveTapeGuide } from '../../components/trace/TraceGuide';
 import { tapeReading } from '../../data/reads';
 import type { FlowPrint, PrintSentiment, TapeSummary } from '../../types/trace';
 import { pctSigned } from '../../core/format';
+import { fig } from '../../components/trace/Missing';
+import { TAPE_FLOOR, useFeedTape, useTraceSource } from '../../data/feed/trace';
 
 const MAX_ROWS = 120;
+const EMPTY_TAPE: FlowPrint[] = [];
 const READ_INTERVAL_MS = 8_000;
 /* The shared chooser stores the HIDDEN set (see ColumnChooser); the old
    key held the visible one, so this is a new key rather than a misread. */
@@ -276,14 +279,14 @@ const QuoteCell = ({ print }: { print: FlowPrint }) => (
       <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-textPrimary">{SIDE_WORD[print.side]}</span>
     </span>
     <span className="inline-flex items-center gap-1">
-      <span className="font-mono text-[11px] tnum text-textSecondary">{print.bid.toFixed(2)}</span>
+      <span className="font-mono text-[11px] tnum text-textSecondary">{fig(print.bid, v => v.toFixed(2))}</span>
       <span className="relative w-10 h-[3px] rounded-full bg-ink/[0.07]">
         <span
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full bg-textPrimary"
           style={{ left: `${print.fillPos * 100}%` }}
         />
       </span>
-      <span className="font-mono text-[11px] tnum text-textSecondary">{print.ask.toFixed(2)}</span>
+      <span className="font-mono text-[11px] tnum text-textSecondary">{fig(print.ask, v => v.toFixed(2))}</span>
     </span>
   </span>
 );
@@ -366,8 +369,14 @@ export const matchesTape = (r: FlowPrint, nq: string) =>
 
 // ---- the page ---------------------------------------------------------------------
 const LiveTape = () => {
-  const flowTape = useFlowTape();
+  const standTape = useFlowTape();
   const marketData = useSnapshot();
+  /* ON THE FEED (2026-10-12) the tape is the vendor's: the market's prints of $25K and up, the newest first, every
+     figure the print's own — never the house's prints beside them (data/feed/trace.ts) */
+  const source = useTraceSource();
+  const onFeed = source === 'feed';
+  const feedTape = useFeedTape(onFeed);
+  const flowTape = onFeed ? feedTape ?? EMPTY_TAPE : source === 'pending' ? EMPTY_TAPE : standTape;
   /* SEEDED, not empty (Noah, 2026-08-30, the open-time hop). The tape used to
      mount with no rows — one frame of "Awaiting first prints…", then fill
      34ms later and keep growing tick by tick for forty seconds. The provider
@@ -464,13 +473,13 @@ const LiveTape = () => {
     const base = cutExpiry(rows).filter(r => (flowFilter === 'ALL' || printKind(r) === flowFilter) && (sentFilter === 'ALL' || sentimentOf(r) === sentFilter) && matchesTape(r, nq));
     const count = (min: number) => base.reduce((n, r) => n + (r.premium >= min ? 1 : 0), 0);
     return [
-      { value: '0', label: 'Any', hint: `No floor · ${base.length} prints` },
+      { value: '0', label: 'Any', hint: onFeed ? `From $${TAPE_FLOOR / 1000}K, the tape's own floor · ${base.length} prints` : `No floor · ${base.length} prints` },
       ...PREM_CHIPS.map(c => {
         const n = count(Number(c.value));
         return { value: c.value, label: c.label, hint: n === 0 ? 'No print this size on the tape now' : `${n} print${n === 1 ? '' : 's'} on the tape now` };
       }),
     ];
-  }, [rows, flowFilter, sentFilter, searchQuery, cutExpiry]);
+  }, [rows, flowFilter, sentFilter, searchQuery, cutExpiry, onFeed]);
 
   const filtered = useMemo(() => {
     const minPrem = Number(minPremKey);
@@ -651,7 +660,7 @@ const LiveTape = () => {
         align: 'right',
         sortValue: r => r.p.strike,
         render: r => (
-          <ContractCell strike={r.p.strike} right={r.p.right} expiry={r.p.expiry} dte={r.p.dte} spot={r.p.spot} otmPct={r.p.otmPct} />
+          <ContractCell strike={r.p.strike} right={r.p.right} expiry={r.p.expiry} dte={r.p.dte} spot={Number.isFinite(r.p.spot) ? r.p.spot : undefined} otmPct={Number.isFinite(r.p.otmPct) ? r.p.otmPct : undefined} />
         ),
       },
       /* DTE, OTM % and Spot are IN the contract cell now; they keep their own
@@ -672,11 +681,7 @@ const LiveTape = () => {
         header: 'OTM %',
         align: 'right',
         sortValue: r => r.p.otmPct,
-        render: r => (
-          <span className="text-textPrimary">
-            {pctSigned(r.p.otmPct, 1)}
-          </span>
-        ),
+        render: r => fig(r.p.otmPct, v => <span className="text-textPrimary">{pctSigned(v, 1)}</span>),
       },
       {
         key: 'quote',
@@ -732,9 +737,9 @@ const LiveTape = () => {
         group: 'Conviction',
         header: 'Day lean',
         align: 'right',
-        sortValue: r => 100 - r.p.ratioBidPct,
+        sortValue: r => r.p.ratioAskPct ?? 100 - r.p.ratioBidPct,
         // The Screener's Lean cell IS the tape's old ratio cell, shared.
-        render: r => <LeanCell askPct={100 - r.p.ratioBidPct} />,
+        render: r => <LeanCell askPct={r.p.ratioAskPct ?? 100 - r.p.ratioBidPct} bidPct={r.p.ratioBidPct} />,
       },
       {
         key: 'sentiment',
@@ -776,7 +781,9 @@ const LiveTape = () => {
         align: 'right',
         sortValue: r => r.p.deltaOI,
         render: r =>
-          r.p.deltaOI === 0 ? (
+          !Number.isFinite(r.p.deltaOI) ? (
+            fig(NaN, v => v)
+          ) : r.p.deltaOI === 0 ? (
             <span className="text-textMuted">—</span>
           ) : (
             <span className={r.p.deltaOI > 0 ? 'text-bull' : 'text-bear'}>
@@ -793,11 +800,7 @@ const LiveTape = () => {
         align: 'right',
         sortValue: r => r.p.volOverOI,
         // ≥1.5 = positions built TODAY — weight carries it, not neon.
-        render: r => (
-          <span className={r.p.volOverOI >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>
-            {r.p.volOverOI.toFixed(2)}
-          </span>
-        ),
+        render: r => fig(r.p.volOverOI, v => <span className={v >= 1.5 ? 'font-bold text-textPrimary' : 'text-textPrimary'}>{v.toFixed(2)}</span>),
       },
       {
         key: 'iv',
@@ -806,7 +809,7 @@ const LiveTape = () => {
         header: 'IV',
         align: 'right',
         sortValue: r => r.p.iv,
-        render: r => <span className="text-textPrimary">{r.p.iv.toFixed(0)}%</span>,
+        render: r => fig(r.p.iv, v => <span className="text-textPrimary">{v.toFixed(0)}%</span>),
       },
       {
         key: 'tag',
@@ -856,7 +859,7 @@ const LiveTape = () => {
     <>
       <TraceBox
         title="The tape"
-        sub={`${VIEW_META[view].label} — ${VIEW_META[view].hint} · a row opens the print's card, the bookmark at its left tracks it`}
+        sub={`${VIEW_META[view].label} — ${VIEW_META[view].hint}${onFeed ? ` · the market's prints of $${TAPE_FLOOR / 1000}K and up` : ''} · a row opens the print's card, the bookmark at its left tracks it`}
         testId="live-tape"
         data={{ view, prints: filtered.length, expiry: expiry ?? 'all' }}
         guide={{ title: 'How to read the tape', door: 'What a print, its fill and its conviction mean', body: <LiveTapeGuide />, testId: 'live-tape-guide', open: guideOpen, onOpen: setGuideOpen }}
@@ -988,7 +991,8 @@ const LiveTape = () => {
           comparing against stay visible behind it */}
       <PrintDrilldown
         print={openPrint}
-        snapshot={marketData}
+        snapshot={onFeed ? null : marketData}
+        feed={onFeed}
         onClose={() => setOpenPrint(null)}
         isMarked={openPrint ? isWatched(printKey(openPrint)) : false}
         onToggleMark={toggleMark}

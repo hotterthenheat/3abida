@@ -1006,21 +1006,29 @@ const SourceBlock = ({ p }: { p: FeedProvider }) => {
             ))}
           </ul>
         </div>
-        <div className="min-w-0 sm:col-span-2">
-          <div className="text-[11px] text-textMuted">Read by, once connected</div>
-          <div className="mt-1 text-[12px] text-textSecondary">
-            {rooms.map((r, i) => {
-              const other = ROOM_FEEDS[r].needs.filter(n => n !== p).map(n => PROVIDER_INFO[n].name);
-              return (
-                <span key={r}>
-                  {i > 0 && ', '}
-                  <span className="text-textPrimary">{ROOM_FEEDS[r].name}</span>
-                  {other.length > 0 && <span className="text-textMuted"> (with {other.join(' and ')})</span>}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+        {/* THE ROOMS THAT READ IT (2026-10-12): a room whose pages read the vendor, and the ones still to be moved onto it */}
+        {(['wired', 'next'] as const).map(which => {
+          const list = rooms.filter(r => ROOM_FEEDS[r].wired === (which === 'wired'));
+          if (list.length === 0) return null;
+          return (
+            <div key={which} className="min-w-0 sm:col-span-2" data-source-rooms={which}>
+              <div className="text-[11px] text-textMuted">{which === 'wired' ? 'Read by' : 'Next to read it'}</div>
+              <div className="mt-1 text-[12px] text-textSecondary">
+                {list.map((r, i) => {
+                  const other = ROOM_FEEDS[r].needs.filter(n => n !== p).map(n => PROVIDER_INFO[n].name);
+                  return (
+                    <span key={r}>
+                      {i > 0 && ', '}
+                      <span className="text-textPrimary">{ROOM_FEEDS[r].name}</span>
+                      {which === 'wired' && <span className="text-textMuted"> — {ROOM_FEEDS[r].reads.charAt(0).toLowerCase() + ROOM_FEEDS[r].reads.slice(1)}</span>}
+                      {other.length > 0 && <span className="text-textMuted"> (with {other.join(' and ')})</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </>
   );

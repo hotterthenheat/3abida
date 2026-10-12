@@ -65,6 +65,9 @@ import { SectorMark } from './SectorMark';
 import type { BookContract } from '../../types/trace';
 import { Name } from '../ui/Name';
 import { FONT_SANS } from '../../theme/fonts';
+import { NOT_IN_FEED, type FeedFlowLine } from '../../data/feed/trace';
+
+const EMPTY_VIEW = { points: [], ncp: 0, npp: 0, vol: NaN, count: NaN };
 
 /* The pane's two cuts as cards (the walk, 2026-09-09): which strikes, and how far out — named Moneyness and Tenor, the
    words the Screener uses for the same two questions (the audit's TR-11 and TR-41: "Money" and "Clock: All clocks") */
@@ -132,7 +135,7 @@ export function paneTimes(_ref?: string): number[] {
 
 /* THE CUT'S MENU (the audit's TR-17): a button that says it opens a menu, a menu the arrows walk, Esc and a click
    away close it, and the keys go back to the button */
-const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegment) => void }) => {
+const SegPick = ({ seg, onSeg, segOk }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegment) => void; segOk?: (s: NetFlowSegment) => boolean }) => {
   const [open, setOpen] = useState(false);
   /* The room the pane leaves below the pill — the menu scrolls inside it
      rather than being sliced at the pane's floor (see ui/menuRoom). */
@@ -224,11 +227,13 @@ const SegPick = ({ seg, onSeg }: { seg: NetFlowSegment; onSeg: (s: NetFlowSegmen
                   role="menuitemradio"
                   aria-checked={s.key === seg}
                   tabIndex={-1}
+                  disabled={segOk ? !segOk(s.key) : undefined}
+                  title={segOk && !segOk(s.key) ? NOT_IN_FEED : undefined}
                   onClick={() => {
                     close(true);
                     onSeg(s.key);
                   }}
-                  className={`w-full flex items-center gap-2 text-left px-2 py-1 rounded font-mono text-[11px] transition-colors focus-visible:bg-ink/[0.06] ${
+                  className={`w-full flex items-center gap-2 text-left px-2 py-1 rounded font-mono text-[11px] transition-colors focus-visible:bg-ink/[0.06] disabled:cursor-not-allowed disabled:opacity-100 disabled:text-textMuted ${
                     s.key === seg ? 'bg-ink/[0.06] text-textPrimary font-bold' : 'text-textSecondary hover:bg-ink/[0.04]'
                   }`}
                 >
@@ -273,6 +278,9 @@ interface NetFlowPaneProps {
   dteMax?: number;
   /** Said on the Moneyness and Tenor cards when one state drives more than this pane (Compare: "both panes") */
   sharedNote?: string;
+  /** TRACE ON THE FEED (2026-10-12): the pane draws this line — the vendor's money and its price ribbon — and never the
+      house's; a cut the line cannot be cut by is not offered (`money`, `tenor` false; `segOk` says which cuts) */
+  feed?: { line: FeedFlowLine | null; refName: string; note?: string; segOk?: (s: NetFlowSegment) => boolean; money: boolean; tenor: boolean; label?: string };
 }
 
 const NetFlowPane = ({
@@ -292,6 +300,7 @@ const NetFlowPane = ({
   onTenor,
   dteMax = 0,
   sharedNote,
+  feed,
 }: NetFlowPaneProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -330,11 +339,13 @@ const NetFlowPane = ({
   visionRef.current = vision;
 
   /* The spot ribbon: the picked name's own tape, or SPY's under a cut of the book. */
-  const ref = ticker ?? 'SPY';
-  const times = useMemo(() => paneTimes(ref), [ref, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ref = feed?.refName ?? ticker ?? 'SPY';
+  const feedLine = feed?.line ?? null;
+  const onFeed = !!feed;
+  const times = useMemo(() => (onFeed ? (feedLine?.view.points ?? []).map(p => p.time) : paneTimes(ref)), [ref, tick, onFeed, feedLine]); // eslint-disable-line react-hooks/exhaustive-deps
   const view = useMemo(
-    () => buildNetFlowView(book, seg, mny, times, dteMax, ticker ?? null, tenor),
-    [book, seg, mny, times, dteMax, ticker, tenor]
+    () => (onFeed ? feedLine?.view ?? EMPTY_VIEW : buildNetFlowView(book, seg, mny, times, dteMax, ticker ?? null, tenor)),
+    [book, seg, mny, times, dteMax, ticker, tenor, onFeed, feedLine]
   );
   /* The names the search can offer: only those with contracts inside the
      pane's own DTE ceiling — a 0DTE pane lists same-day names alone. */
@@ -617,12 +628,17 @@ const NetFlowPane = ({
     if (!chart || !spot || !calls || !puts || !vol || times.length === 0) return;
 
     /* The spot line: the name's newest one-minute closes laid on the session's minutes, end to end (see paneTimes) */
-    const bars = Simulator.getCandles(ref);
-    const tail = bars.slice(-times.length);
-    const lead = times.length - tail.length;
-    const id = `${seg}-${mny}-${ref}-${tenor}-${dteMax}`;
+    const id = `${seg}-${mny}-${ref}-${tenor}-${dteMax}${onFeed ? '-feed' : ''}`;
     const loaded = loadedRef.current;
-    const spotData = tail.map((b, i) => ({ time: times[lead + i] as UTCTimestamp, value: b.close })).filter(p => p.value > 0);
+    let spotData: { time: UTCTimestamp; value: number }[];
+    if (onFeed) {
+      spotData = (feedLine?.spot ?? []).map(p => ({ time: p.time as UTCTimestamp, value: p.value }));
+    } else {
+      const bars = Simulator.getCandles(ref);
+      const tail = bars.slice(-times.length);
+      const lead = times.length - tail.length;
+      spotData = tail.map((b, i) => ({ time: times[lead + i] as UTCTimestamp, value: b.close })).filter(p => p.value > 0);
+    }
     const callData = view.points.map(p => ({ time: p.time as UTCTimestamp, value: p.callPrem }));
     const putData = view.points.map(p => ({ time: p.time as UTCTimestamp, value: p.putPrem }));
     /* A LINE WITH NOTHING ON IT IS NOT DRAWN (TR-56): a cut with no put flow drew a flat red "$0" line that read as broken */
@@ -642,11 +658,12 @@ const NetFlowPane = ({
        towers; the INK carries the exact ranking (marks are measured on the
        true counts) and the glide card says the true number. The height is a
        drawing, the colour and the figure are the facts. */
-    vol.setData(view.points.map(p => ({ time: p.time as UTCTimestamp, value: Math.sqrt(p.vol), color: volInk(p.vol, marks, k) })));
+    /* a line the feed gives no volume for keeps its floor empty */
+    vol.setData(view.points.filter(p => Number.isFinite(p.vol)).map(p => ({ time: p.time as UTCTimestamp, value: Math.sqrt(p.vol), color: volInk(p.vol, marks, k) })));
     /* Every bar carries its own value, so the glide card's old containing-
        chunk search has nothing left to search for — it keeps the same shape
        purely as the lookup's fallback path. */
-    volChunksRef.current = view.points.map(p => ({ time: p.time, value: p.vol }));
+    volChunksRef.current = view.points.filter(p => Number.isFinite(p.vol)).map(p => ({ time: p.time, value: p.vol }));
 
     /* WHOLE SERIES, EVERY PASS (Noah, 2026-08-30: "do they even match their
        cards"). The old fast path updated only the LAST point between full
@@ -664,7 +681,7 @@ const NetFlowPane = ({
       frame(chart);
     }
     loadedRef.current = { id, length: view.points.length };
-  }, [view, times, seg, mny, ref, tenor, dteMax, theme]);
+  }, [view, times, seg, mny, ref, tenor, dteMax, theme, onFeed, feedLine]);
 
   /* THE THEME TURNED: every ink read again off the pane's box, the chart and its lines repainted in them (the volume floor
      repaints with the data pass above, which also reads the theme) */
@@ -698,14 +715,16 @@ const NetFlowPane = ({
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2.5 py-1 min-h-8 shrink-0 select-none">
         {/* THE NAME ONCE (TR-39): the name travels with its own mark (Name), so a second logo before it read "G G GOOGL";
             with a search in the head the field already holds the name and nothing stands beside it */}
-        {ticker ? (
+        {feed?.label ? (
+          <span className="font-mono text-[11px] font-bold text-textPrimary shrink-0">{feed.label}</span>
+        ) : ticker ? (
           !onTicker && (
             <span className="flex items-center shrink-0">
               <Name t={ticker} size={14} className="font-mono text-[11px] font-bold text-textPrimary" />
             </span>
           )
         ) : (
-          <SegPick seg={seg} onSeg={onSeg} />
+          <SegPick seg={seg} onSeg={onSeg} segOk={feed?.segOk} />
         )}
         {/* The two controls are two questions: the cut asks WHICH PART of the
             book, the search asks WHICH NAME. A picked name replaces the cut
@@ -722,12 +741,13 @@ const NetFlowPane = ({
           />
         )}
         {/* The two cuts as labelled cards (the walk, 2026-09-09 — never chip rows) */}
-        <DropdownSelect label="Moneyness" value={mny} options={MONEY_OPTIONS} onChange={onMny} title={sharedNote ? `Which strikes against the stock — ${sharedNote}` : 'Which strikes against the stock'} testId="pane-money" />
-        {ticker && onTenor && <DropdownSelect label="Tenor" value={tenor} options={TENOR_OPTIONS} onChange={onTenor} title={sharedNote ? `How far out the contracts run — ${sharedNote}` : 'How far out the contracts run'} testId="pane-clock" />}
+        {(!feed || feed.money) && <DropdownSelect label="Moneyness" value={mny} options={MONEY_OPTIONS} onChange={onMny} title={sharedNote ? `Which strikes against the stock — ${sharedNote}` : 'Which strikes against the stock'} testId="pane-money" />}
+        {feed?.note && <span className="text-[11px] text-textSecondary whitespace-nowrap">{feed.note}</span>}
+        {ticker && onTenor && (!feed || feed.tenor) && <DropdownSelect label="Tenor" value={tenor} options={TENOR_OPTIONS} onChange={onTenor} title={sharedNote ? `How far out the contracts run — ${sharedNote}` : 'How far out the contracts run'} testId="pane-clock" />}
         {/* The figures wear their MEANING's ink (TR-53): net puts bought lean bearish (red), sold lean bullish (green); a
             zero is no lean at all */}
         <span className="ml-auto flex items-center gap-2.5 font-mono text-[11px] tnum whitespace-nowrap">
-          <span className="text-textPrimary">{ref}</span>
+          {!feed?.label && <span className="text-textPrimary">{ref}</span>}
           <span>
             <span className="text-textSecondary mr-1">net calls</span>
             <span className={view.ncp > 0 ? 'text-bull' : view.ncp < 0 ? 'text-bear' : 'text-textPrimary'}>{fmtUsd(view.ncp)}</span>
@@ -736,7 +756,7 @@ const NetFlowPane = ({
             <span className="text-textSecondary mr-1">net puts</span>
             <span className={view.npp > 0 ? 'text-bear' : view.npp < 0 ? 'text-bull' : 'text-textPrimary'}>{fmtUsd(view.npp)}</span>
           </span>
-          <span className="text-textSecondary">{view.vol.toLocaleString('en-US')} vol</span>
+          {Number.isFinite(view.vol) && <span className="text-textSecondary">{view.vol.toLocaleString('en-US')} vol</span>}
         </span>
         {onExpand && (
           <button

@@ -64,7 +64,18 @@ import { dirOf } from '../../theme/theme';
 import Fold from '../ui/Fold';
 import Avatar from '../ui/Avatar';
 import { useProfile } from '../../data/profile';
-import { useActiveTicker, useNow, useQuote, useSpot } from '../../context/MarketDataContext';
+import { useActiveTicker, useNow, useQuote } from '../../context/MarketDataContext';
+import { useFeedQuote, useTraceSource } from '../../data/feed/trace';
+
+/* THE RAIL'S PRICE IS THE ROOM'S (2026-10-12): on a Trace page reading the feed, the name's price is the vendor's — the
+   same market as every print under it — never the house's beside it */
+function useRailQuote(ticker: string) {
+  const onTrace = useLocation().pathname.startsWith('/trace');
+  const feed = useTraceSource() === 'feed' && onTrace;
+  const house = useQuote();
+  const vendor = useFeedQuote(feed, ticker);
+  return feed ? vendor : house;
+}
 import { useLaunch } from './LaunchTransition';
 import CompanyLogo from '../ui/CompanyLogo';
 import { NAV_GROUPS, NAV_GROUP_META, NAV_INK, itemsByGroup } from './nav';
@@ -131,7 +142,7 @@ const RailSubject = ({
   tipProps: (label: string) => Record<string, unknown>;
 }) => {
   const activeTicker = useActiveTicker();
-  const quote = useQuote();
+  const quote = useRailQuote(activeTicker);
   const name = lookup(activeTicker)?.name ?? null;
   const change = quote?.changePct ?? 0;
   const priceText = quote ? `$${quote.spot.toFixed(2)}` : '—';
@@ -181,7 +192,7 @@ const RailSubject = ({
 /** The phone strip's subject: the name and its price */
 const PhoneSubject = ({ onOpenPalette }: { onOpenPalette: () => void }) => {
   const activeTicker = useActiveTicker();
-  const spot = useSpot();
+  const spot = useRailQuote(activeTicker)?.spot ?? null;
   const priceText = spot != null ? `$${spot.toFixed(2)}` : '—';
   return (
     <button type="button" onClick={onOpenPalette} aria-label={`Watching ${activeTicker} ${priceText} — switch`} className="inline-flex items-center gap-2 h-11 rounded-md border border-borderMuted bg-chip px-3" data-mobile-subject>

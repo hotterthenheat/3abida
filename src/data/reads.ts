@@ -197,7 +197,7 @@ export function netFlowReading(f: NetFlowFigures): Reading {
   }
   const on = f.expiry ? `On ${f.expiry}, the` : 'The';
   return {
-    observed: `${on} board’s money leans ${f.total >= 0 ? 'bullish' : 'bearish'}: ${money(f.total)} net across ${f.names} names, net calls ${money(f.calls)} less net puts ${money(f.puts)}. ${f.top.ticker} leads bullish at ${money(f.top.net)}; ${f.bottom.ticker} leans hardest bearish at ${money(f.bottom.net)}.`,
+    observed: `${on} board’s money leans ${f.total >= 0 ? 'bullish' : 'bearish'}: ${money(f.total)} net across ${f.names} names${Number.isFinite(f.calls) && Number.isFinite(f.puts) ? `, net calls ${money(f.calls)} less net puts ${money(f.puts)}` : ''}. ${f.top.ticker} leads bullish at ${money(f.top.net)}; ${f.bottom.ticker} leans hardest bearish at ${money(f.bottom.net)}.`,
     assumes: `${AGGRESSOR_ASSUMES} Net premium counts dollars, not contracts, so one large print can outweigh many small ones.`,
     changes: cap(
       `${[

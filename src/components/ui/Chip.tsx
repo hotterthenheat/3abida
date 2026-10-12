@@ -10,17 +10,21 @@ const Chip = ({
   onClick,
   children,
   title,
+  disabled,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   title?: string;
+  /** A view the data under it cannot draw — said in the title */
+  disabled?: boolean;
 }) => (
   <button
     onClick={onClick}
     title={title}
     aria-pressed={active}
-    className={`px-2 py-0.5 rounded font-mono text-[11px] whitespace-nowrap transition-colors ${
+    disabled={disabled}
+    className={`px-2 py-0.5 rounded font-mono text-[11px] whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:text-textMuted disabled:hover:bg-transparent ${
       active ? 'bg-ink/[0.09] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.04]'
     }`}
   >

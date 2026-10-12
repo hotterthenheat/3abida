@@ -130,7 +130,7 @@ const PRINT_COUNT = 26;
 const LEVEL_COUNT = 6;
 
 /** Cheap intraday "did price bounce here" count from the price history. */
-function defendedCount(priceHistory: number[], level: number, tolPct: number): number {
+export function defendedCount(priceHistory: number[], level: number, tolPct: number): number {
   let count = 0;
   for (let i = 2; i < priceHistory.length; i++) {
     const prev = priceHistory[i - 1];
@@ -148,7 +148,7 @@ function defendedCount(priceHistory: number[], level: number, tolPct: number): n
 /* A SHELF IS A READ, NEVER AN INSTRUCTION (2026-10-09 — the ideas research found trade calls here: "Trade the break",
    "fade pushes into it", "longs lean on it"). Each line says what the dark dollars and the price did at the shelf, and
    what would change the read — never what to do about it. */
-function levelUsage(role: LevelRole, price: number, defended: number, sharePct: number): string {
+export function levelUsage(role: LevelRole, price: number, defended: number, sharePct: number): string {
   const p = price.toFixed(2);
   const turns = defended >= 5 ? '5 times or more' : `${defended} times`;
   if (role === 'SUPPORT') {

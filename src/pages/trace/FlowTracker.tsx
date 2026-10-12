@@ -47,7 +47,6 @@ import { CalendarDays } from 'lucide-react';
 import { useMarketData } from '../../context/MarketDataContext';
 import { contractKey, useWatch, type WatchSource, type WatchedItem } from '../../context/WatchContext';
 import Simulator from '../../core/simulator';
-import { buildFlowBook } from '../../data/flowBook';
 import { fmtUsd } from '../../data/gex';
 import type { BookContract } from '../../types/trace';
 import type { Column } from '../../components/ui/DataTable';
@@ -64,6 +63,8 @@ import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 import ReadDoor from '../../components/trace/ReadDoor';
 import WatchStar from '../../components/trace/WatchStar';
+import { useFeedPrices } from '../../data/feed/trace';
+import { useTraceBook } from '../../components/trace/useTraceBook';
 import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/TraceBox';
 import { TrackerGuide } from '../../components/trace/TraceGuide';
 import { expiryLabel, num as fmtNum, numSigned, pctSigned } from '../../core/format';
@@ -72,6 +73,8 @@ const num = (v: number) => fmtNum(v);
 const signedPct = (v: number) => pctSigned(v);
 const signedNum = (v: number) => numSigned(v);
 const pct = (now: number, then: number) => (then > 0 ? ((now - then) / then) * 100 : 0);
+/** "$12.34", or "—" where the figure was not there to mark */
+const usd2 = (v: number) => (Number.isFinite(v) ? `$${v.toFixed(2)}` : '—');
 
 const SOURCE_LABEL: Record<WatchSource, string> = {
   tape: 'Live Tape',
@@ -131,11 +134,8 @@ const FlowTracker = () => {
   /** The open card: a contract's key, and the print clip when opened from a print row. */
   const [open, setOpen] = useState<{ key: string; clip?: { size: number; fill: number; side: 'ASK' | 'BID'; time: string } } | null>(null);
 
-  const liveBook = useMemo(
-    () => buildFlowBook(Simulator.universeQuotes(activeTicker)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTicker, marketData]
-  );
+  const { book: liveBook, source: bookSource } = useTraceBook(activeTicker, marketData);
+  const onFeed = bookSource === 'feed';
   // The shared hold (see LiveHold): the SINCE columns freeze with the tick.
   const hold = useHold(useMemo(() => ({ book: liveBook, tick: marketData }), [liveBook, marketData]), activeTicker);
   const { book, tick } = hold.value;
@@ -148,6 +148,9 @@ const FlowTracker = () => {
     return m;
   }, [book]);
 
+  /* ON THE FEED (2026-10-12) the names' prices are the vendor's, and a mark is measured only in the market it was made in:
+     one marked on the house's book has no SINCE here, and the other way round */
+  const feedPrices = useFeedPrices(onFeed, watched.map(w => w.ticker));
   const nq = normSymbol(query);
   /* THE EXPIRY CUT (2026-09-12): every mark carries its expiry — a contract's,
      a print's, a structure's near leg */
@@ -158,16 +161,17 @@ const FlowTracker = () => {
       cutExpiry(watched)
         .filter(w => nq === '' || normSymbol(w.ticker).includes(nq))
         .map(w => {
-          Simulator.ensureTicker(w.ticker);
-          const spotNow = Simulator.TICKERS[w.ticker]?.currentPrice ?? null;
+          const sameMarket = onFeed === (w.src === 'feed');
+          if (!onFeed) Simulator.ensureTicker(w.ticker);
+          const spotNow = !sameMarket ? null : onFeed ? feedPrices?.get(w.ticker.toUpperCase()) ?? null : Simulator.TICKERS[w.ticker]?.currentPrice ?? null;
           const spotThen = w.at.spot;
-          const spotChg = spotNow != null ? pct(spotNow, spotThen) : null;
+          const spotChg = spotNow != null && Number.isFinite(spotThen) ? pct(spotNow, spotThen) : null;
           if (w.kind === 'structure') {
             return { w, live: null, chg: null, spotThen, spotNow, spotChg, volAdded: null, oiDelta: null, leanThen: null, leanNow: null, moved: spotChg ?? 0 };
           }
-          const live = byKey.get(contractKey(w)) ?? null;
+          const live = sameMarket ? byKey.get(contractKey(w)) ?? null : null;
           const then = w.kind === 'contract' ? w.at.last : w.fill;
-          const chg = live ? pct(live.last, then) : null;
+          const chg = live && Number.isFinite(live.last) && Number.isFinite(then) ? pct(live.last, then) : null;
           return {
             w,
             live,
@@ -184,7 +188,7 @@ const FlowTracker = () => {
         })
         .sort((a, b) => Math.abs(b.moved) - Math.abs(a.moved)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [watched, byKey, nq, tick, cutExpiry]
+    [watched, byKey, nq, tick, cutExpiry, onFeed, feedPrices]
   );
 
   /* Three registers per column, measured over what is on screen. */
@@ -280,13 +284,13 @@ const FlowTracker = () => {
           if (w.kind === 'contract')
             return (
               <span className="text-textSecondary">
-                last <span className="text-textPrimary">${w.at.last.toFixed(2)}</span>
+                last <span className="text-textPrimary">{usd2(w.at.last)}</span>
               </span>
             );
           if (w.kind === 'print')
             return (
               <span className="text-textSecondary">
-                <span className="text-textPrimary">{num(w.size)}</span> @ <span className="text-textPrimary">${w.fill.toFixed(2)}</span>{' '}
+                <span className="text-textPrimary">{num(w.size)}</span> @ <span className="text-textPrimary">{usd2(w.fill)}</span>{' '}
                 <span className={`text-[11px] ${w.side === 'ASK' ? 'text-bull' : w.side === 'BID' ? 'text-bear' : 'text-textSecondary'}`}>
                   {w.side === 'ASK' ? 'BUY' : w.side === 'BID' ? 'SELL' : 'MID'}
                   {w.sweep ? ' · SWEEP' : ''}
@@ -295,7 +299,7 @@ const FlowTracker = () => {
             );
           return (
             <span className="text-textSecondary">
-              <span className="text-textPrimary">{num(w.size)}×</span> @ <span className="text-textPrimary">${Math.abs(w.net).toFixed(2)}</span>{' '}
+              <span className="text-textPrimary">{num(w.size)}×</span> @ <span className="text-textPrimary">{usd2(Math.abs(w.net))}</span>{' '}
               <span className="text-[11px]">{w.net >= 0 ? 'debit' : 'credit'}</span>
             </span>
           );
@@ -318,7 +322,7 @@ const FlowTracker = () => {
         render: r =>
           r.live ? (
             <span className="text-textPrimary">
-              ${r.live.last.toFixed(2)} <span className={`text-[11px] ${directionInk(r.chg ?? 0, marks.chg)}`}>{signedPct(r.chg ?? 0)}</span>
+              {usd2(r.live.last)} <span className={`text-[11px] ${directionInk(r.chg ?? 0, marks.chg)}`}>{signedPct(r.chg ?? 0)}</span>
             </span>
           ) : r.w.kind === 'structure' ? (
             <Dash />
@@ -342,10 +346,10 @@ const FlowTracker = () => {
         sortValue: r => r.spotChg ?? -Infinity,
         render: r =>
           r.spotNow == null ? (
-            <span className="text-textPrimary">${r.spotThen.toFixed(2)}</span>
+            <span className="text-textPrimary">{usd2(r.spotThen)}</span>
           ) : (
             <span className="text-textPrimary">
-              ${r.spotThen.toFixed(2)} <span className="text-textSecondary">→</span> <span className="text-textPrimary">${r.spotNow.toFixed(2)}</span>{' '}
+              {usd2(r.spotThen)} <span className="text-textSecondary">→</span> <span className="text-textPrimary">{usd2(r.spotNow)}</span>{' '}
               <span className={`text-[11px] ${directionInk(r.spotChg ?? 0, marks.spot)}`}>{signedPct(r.spotChg ?? 0)}</span>
             </span>
           ),
@@ -502,7 +506,7 @@ const FlowTracker = () => {
         )}
       </TraceBox>
 
-      <BookDrill list={drillList} openKey={open?.key ?? null} onOpen={k => setOpen(k ? { key: k } : null)} clipFor={clipFor} tick={tick} />
+      <BookDrill list={drillList} openKey={open?.key ?? null} onOpen={k => setOpen(k ? { key: k } : null)} clipFor={clipFor} tick={tick} feed={onFeed} />
     </>
   );
 };

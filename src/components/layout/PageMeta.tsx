@@ -113,6 +113,7 @@ const SETTINGS: Record<string, string> = {
   account: 'Who you are to the terminal: your picture, your name and how you sign in.',
   billing: 'Your plan and the card behind it. The card lives with Stripe, never here.',
   data: 'What is yours on this machine (the board, the marks, the alerts, the desks, these settings) and where the feed stands.',
+  sources: 'Where the terminal reads the market from, and which rooms read each feed.',
   appearance: 'The terminal drawn in each theme: dark, light, or whatever your machine is set to.',
   desk: 'What every desk reads by: the ruler, the name and timeframe it opens on, and the clock.',
   sounds: 'The four sounds: an alert, a confirmation, signing in, the open and the close. Each on its own switch.',
@@ -121,7 +122,7 @@ const SETTINGS: Record<string, string> = {
   keyboard: 'Every key the terminal answers to, by where it works.',
   about: 'The terminal and its version.',
 };
-const SETTINGS_NAME: Record<string, string> = { account: 'Account', billing: 'Billing', data: 'Data', appearance: 'Appearance', desk: 'The desk', sounds: 'Sounds', invite: 'Invite a trader', mail: 'Email preferences', keyboard: 'Keyboard', about: 'About' };
+const SETTINGS_NAME: Record<string, string> = { account: 'Account', billing: 'Billing', data: 'Data', sources: 'Data sources', appearance: 'Appearance', desk: 'The desk', sounds: 'Sounds', invite: 'Invite a trader', mail: 'Email preferences', keyboard: 'Keyboard', about: 'About' };
 
 const SECTIONS: { base: string; name: string; pages: { path: string; label: string; subtitle: string }[] }[] = [
   { base: '/pinpoint', name: 'Pinpoint', pages: GEX_SUBPAGES },
