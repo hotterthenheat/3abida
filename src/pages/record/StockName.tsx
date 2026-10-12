@@ -46,6 +46,11 @@
                    the Weigher
     ON THE RECORD  insiders and Congress
 
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors the page is StockNameFeed.tsx — the
+  company record, the quote, the sessions, the next
+  report and the filings; none of the overview below.
+
   States, not orders (the Compass doctrine): the page
   says what it sees — the screen and the lean — never
   buy, hold or sell.
@@ -53,6 +58,8 @@
 */
 
 import { SayPage } from '../../components/layout/PageMeta';
+import { useDossierFeed } from '../../data/feed/dossier';
+import StockNameFeed from './StockNameFeed';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, ChevronDown } from 'lucide-react';
@@ -472,6 +479,10 @@ const NoSuchName = ({ T }: { T: string }) => (
 const StockName = () => {
   const { ticker = '' } = useParams();
   const T = ticker.toUpperCase();
+  /* ALL OR NOTHING (data/feed/rooms.ts): the vendors' page for the name when the Dossier reads the feed — Massive's
+     record says whether the name exists at all — else the house's overview */
+  const fromFeed = useDossierFeed();
+  if (fromFeed) return <StockNameFeed key={T} T={T} />;
   return knownName(T) ? <StockNameBody key={T} /> : <NoSuchName T={T} />;
 };
 

@@ -18,13 +18,15 @@
 
 /* ---- Congress ------------------------------------------------------------------ */
 
-export type Chamber = 'House' | 'Senate';
+/** 'Executive' rides the same filings route on the feed (2026-10-12: the executive branch's periodic reports) */
+export type Chamber = 'House' | 'Senate' | 'Executive';
 export type Party = 'D' | 'R' | 'I';
 /** The Senate keeps the partial/full split; the House feed collapses it */
 export type ReportType = 'Purchase' | 'Sale (Full)' | 'Sale (Partial)' | 'Exchange';
 /** Whose holding the report covers — the member, their spouse, a joint account, a dependent */
-export type ReportOwner = 'Self' | 'Spouse' | 'Joint' | 'Dependent';
-export type AssetKind = 'Stock' | 'Stock Option' | 'Corporate Bond' | 'Municipal Security' | 'Fund' | 'Crypto' | 'Other';
+/** 'Undisclosed' when the filing named no owner (the feed's "undisclosed") */
+export type ReportOwner = 'Self' | 'Spouse' | 'Joint' | 'Dependent' | 'Undisclosed';
+export type AssetKind = 'Stock' | 'Stock Option' | 'Corporate Bond' | 'Municipal Security' | 'Government Security' | 'Fund' | 'Crypto' | 'Other';
 
 /** One of the ten statutory amount rungs, in the form's checkbox order A–J */
 export interface AmountBracket {
@@ -40,7 +42,9 @@ export interface Member {
   id: string;
   name: string;
   chamber: Chamber;
-  party: Party;
+  /** Null where the source carries no party (the feed's filings name the member alone) */
+  party: Party | null;
+  /** Empty where the source carries no state */
   state: string;
   /** House members only */
   district?: string;
@@ -67,6 +71,9 @@ export interface CongressTrade {
   late: boolean;
   /** The committee of the member's with jurisdiction over this sector, if any */
   committeeOverlap: string | null;
+  /** The calendar days as filed, "2026-10-05" — set by the feed, so a date reads as written rather than counted back */
+  filedOn?: string;
+  tradedOn?: string;
 }
 
 export interface CongressFeed {
@@ -86,10 +93,14 @@ export interface CongressFeed {
 
 /* ---- Insiders ------------------------------------------------------------------ */
 
-export type InsiderRole = 'CEO' | 'CFO' | 'COO' | 'Director' | 'EVP' | 'Chief Legal Officer' | '10% owner';
+/** 'Officer' is any other officer a filing names (the feed's titles are free text; the title rides on the row) */
+export type InsiderRole = 'CEO' | 'CFO' | 'COO' | 'Director' | 'EVP' | 'Chief Legal Officer' | '10% owner' | 'Officer';
 export type InsiderKind = 'BUY' | 'SELL';
 /** The Form 4 transaction codes this desk models — the row's identity, not metadata */
-export type TxCode = 'P' | 'S' | 'A' | 'M' | 'F' | 'G' | 'D';
+/** The Form 4 transaction codes this desk models — the row's identity, not metadata. The feed adds J (other), W (will
+    or inheritance), C (conversion), X (exercise) and N — the house's key for a Form 144, a NOTICE of a proposed sale,
+    which is not a Form 4 code and not a trade */
+export type TxCode = 'P' | 'S' | 'A' | 'M' | 'F' | 'G' | 'D' | 'J' | 'W' | 'C' | 'X' | 'N';
 /** Under a 10b5-1 plan, chosen, or from a filing that never carried the box */
 export type PlanState = 'plan' | 'discretionary' | 'unknown';
 export type InsiderSignal = 'accumulating' | 'distributing' | 'scheduled selling' | 'quiet';
@@ -127,6 +138,14 @@ export interface InsiderTrade {
   stakePct: number;
   /** Percent the name has moved since, signed */
   sincePct: number;
+  /* FROM THE FEED (2026-10-12): a figure the filing did not carry is NaN, drawn "—" with "not in the feed" */
+  /** The title as filed ("EVP, Head of R&D") */
+  title?: string;
+  /** The trade's and the filing's calendar days as filed */
+  tradedOn?: string;
+  filedOn?: string;
+  /** The form: "4", or "144" for a notice */
+  form?: string;
 }
 
 export interface InsiderFlow {

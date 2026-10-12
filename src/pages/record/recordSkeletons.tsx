@@ -1088,7 +1088,7 @@ export const StockNameSkeleton = () => (
 export const RecordPageSkeleton = ({ pathname }: { pathname: string }) => {
   if (pathname.startsWith('/dossier/insiders')) return <InsidersPageSkeleton />;
   if (pathname.startsWith('/dossier/congress')) return <CongressPageSkeleton />;
-  if (/^\/record\/stocks\/[^/]+/.test(pathname))
+  if (/^\/(record|dossier)\/stocks\/[^/]+/.test(pathname))
     return (
       <>
         <div className="h-[15px] flex items-center">
@@ -1099,7 +1099,7 @@ export const RecordPageSkeleton = ({ pathname }: { pathname: string }) => {
     );
   if (pathname.startsWith('/dossier/stocks')) return <StocksPageSkeleton />;
   if (pathname.startsWith('/dossier/news')) return <NewsPageSkeleton />;
-  if (/^\/record\/earnings\/[^/]+/.test(pathname)) return <EarningsNameSkeleton />;
+  if (/^\/(record|dossier)\/earnings\/[^/]+/.test(pathname)) return <EarningsNameSkeleton />;
   if (pathname.startsWith('/dossier/earnings')) return <EarningsPageSkeleton />;
   return <PageSkeleton />;
 };

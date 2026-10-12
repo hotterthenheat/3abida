@@ -31,12 +31,16 @@ export type FeedFail =
 
 export type FeedResult<T> = { ok: true; data: T; at: number } | { ok: false; reason: FeedFail; status: number };
 
-export type Params = Record<string, string | number | boolean | null | undefined>;
+export type Params = Record<string, string | number | boolean | null | undefined | string[]>;
 
 /** The proxy's address for a vendor path */
 export function feedUrl(provider: FeedProvider, path: string, params?: Params): string {
   const q = new URLSearchParams();
-  for (const [k, v] of Object.entries(params ?? {})) if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
+  for (const [k, v] of Object.entries(params ?? {})) {
+    /* a list is the key once a value (UW's `transaction_codes[]=P&transaction_codes[]=S`) */
+    if (Array.isArray(v)) for (const one of v) q.append(k, one);
+    else if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
+  }
   const qs = q.toString();
   return `/feed/${provider}${path}${qs ? `?${qs}` : ''}`;
 }

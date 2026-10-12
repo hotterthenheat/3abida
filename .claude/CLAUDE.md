@@ -600,3 +600,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   useRoomSource) and every room's `wired` is false, so every page reads what it read before — a room is moved when its
   pages are rewired against real answers. Settings › Data sources says where each vendor stands, what the plan carries
   and leaves out, and which rooms read it; it never shows a key or a piece of one.
+- THE DOSSIER READS THE FEED (2026-10-12, the first room moved; docs/data-feed.md "The Dossier"): `dossier` is
+  `wired: true`, and its pages read data/feed/dossier.ts when both vendors are up (a page waits on its skeleton while
+  the shell's first probe is out, asking nothing), else the house's book as before. Congress and Insiders read UW's
+  filed rows (paged; the head says how far back they reach), Earnings UW's calendar a call a board day and a name's own
+  record, Stocks UW's stock-state for the list and quote for a name, News UW's headlines (in UW's catalog, checked live
+  on Basic) — NewsFeed.tsx and StockNameFeed.tsx are those pages' feed variants. Massive only for the OPEN name (its
+  record after UW says the ticker exists, its daily bars). Rows map onto the pages' own types; a field no answer
+  carries is NaN or empty and drawn "—" titled "not in the feed" (components/record/Missing.tsx) — never a house figure
+  beside a vendor's. A filing says what was filed (a Form 144 is a notice, not a sale); dates are as filed, New York's.

@@ -18,6 +18,7 @@ import { Suspense } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RECORD_SUBPAGES } from './subnav';
+import { useDossierFeed } from '../../data/feed/dossier';
 import { RecordPageSkeleton } from './recordSkeletons';
 import BackToTop from '../../components/ui/BackToTop';
 import ScrollHome from '../../components/layout/ScrollHome';
@@ -29,6 +30,10 @@ const RecordLayout = () => {
   const outlet = useOutlet();
   const page = RECORD_SUBPAGES.find(p => location.pathname.startsWith(p.path)) ?? RECORD_SUBPAGES[0];
   const PageIcon = page.icon;
+  /* the head says what the page reads: the feed's line where it differs (2026-10-12) */
+  const fromFeed = useDossierFeed();
+  const subtitle = (fromFeed && page.feedSubtitle) || page.subtitle;
+  const source = (fromFeed && page.feedSource) || page.source;
   /* The pages' grids grow with their rows now (2026-09-11), so the column
      holds its width for the sidebar's glide — one layout at the end, not one
      per frame over every rendered row (the Weigher's rule) */
@@ -45,13 +50,13 @@ const RecordLayout = () => {
             <h1 className="text-[15px] font-semibold leading-tight text-textPrimary">{page.label}</h1>
           </div>
           {/* two lines on a phone, never cut (the audit's X10); the whole of it in the title */}
-          <p className="mt-0.5 text-[11px] text-textMuted md:whitespace-nowrap md:truncate" title={page.subtitle}>{page.subtitle}</p>
+          <p className="mt-0.5 text-[11px] text-textMuted md:whitespace-nowrap md:truncate" title={subtitle}>{subtitle}</p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2" data-shell-facts>
           <div className="min-w-0">
             <dt className="text-[11px] text-textMuted whitespace-nowrap">Source</dt>
             <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" data-record-source>
-              {page.source}
+              {source}
             </dd>
           </div>
         </dl>

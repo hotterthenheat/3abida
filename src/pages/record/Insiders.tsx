@@ -24,10 +24,23 @@
   Open-market trades by default; the plumbing one
   card away, marked for what it is. A row's name
   opens it on the Map.
+
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors (data/feed/rooms.ts), the rows are UW's
+  latest filings (data/feed/dossier.ts) — three pages
+  of two hundred, which reach a day or two back, so the
+  head says how far. The title as filed rides under the
+  person; a Form 144 is a notice of a proposed sale,
+  named for what it is and kept with the plumbing. A
+  figure the filing left out (the price, the holding
+  after) is a dash.
 ==================================================
 */
 
 import { useMemo, useState } from 'react';
+import { useDossierFeed, useFeedInsiderBuyers, useFeedInsiders } from '../../data/feed/dossier';
+import { Missing, byFigure, missing } from '../../components/record/Missing';
+import { isoDayLabel } from '../../core/format';
 import { useNavigate } from 'react-router-dom';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
@@ -44,7 +57,7 @@ import { useBoardNames } from '../../data/boardNames';
 import { ALL_CODES, OPEN_MARKET_CODES, TX_CODES, insiderBuyers, insiderFeed, insidersSentence, isChosenBuy } from '../../data/insiders';
 import { tickerName } from '../../data/tickers';
 import type { InsiderFlow, InsiderRole, InsiderTrade } from '../../types/record';
-import { NAMES_TO_KNOW } from './recordSkeletons';
+import { NAMES_TO_KNOW, RecordPageSkeleton } from './recordSkeletons';
 
 /** Rows the grid shows before "show the rest" */
 const REST_ROWS = 80;
@@ -73,6 +86,8 @@ const ROLE_OPTIONS: DropdownOption<RolePick>[] = [
   { value: 'Chief Legal Officer', label: 'Chief Legal Officer', hint: 'The general counsel' },
   { value: '10% owner', label: '10% owner', hint: 'Holders of a tenth of the company' },
 ];
+/* the feed's titles are free text: any other officer it names (2026-10-12) */
+const ROLE_OPTIONS_FEED: DropdownOption<RolePick>[] = [...ROLE_OPTIONS, { value: 'Officer', label: 'Other officer', hint: 'Any other officer a filing names — the title as filed under the person' }];
 const NAMES_OPTIONS: DropdownOption<NamesPick>[] = [
   { value: 'all', label: 'Every name', hint: 'Every company the terminal files' },
   { value: 'board', label: 'Your board', hint: 'The names on your Board' },
@@ -91,7 +106,7 @@ const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 /* ---- cells --------------------------------------------------------------------- */
 
 /* the date, then how far back (the partner's review: never "9d ago" alone) */
-const WhenCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <When days={data.daysAgo} /> : null);
+const WhenCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <When days={data.daysAgo} iso={data.tradedOn} /> : null);
 
 const NameCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
   data ? (
@@ -99,7 +114,7 @@ const NameCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
       <CompanyLogo ticker={data.ticker} size={16} />
       <span className="flex flex-col leading-tight min-w-0">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{data.ticker}</span>
-        <span className="text-[11px] text-textMuted truncate">{tickerName(data.ticker)}</span>
+        <span className="text-[11px] text-textMuted truncate">{tickerName(data.ticker) !== data.ticker ? tickerName(data.ticker) : ''}</span>
       </span>
     </span>
   ) : null;
@@ -108,7 +123,7 @@ const WhoCell = ({ data }: ICellRendererParams<InsiderTrade>) =>
   data ? (
     <span className="flex flex-col leading-tight min-w-0">
       <span className="text-[12px] font-semibold text-textPrimary truncate">{data.person}</span>
-      <span className="text-[11px] text-textMuted truncate">{data.role}</span>
+      <span className="text-[11px] text-textMuted truncate" title={data.title}>{data.title || data.role}</span>
     </span>
   ) : null;
 
@@ -130,9 +145,9 @@ const TradeCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
 };
 
 const SharesCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">{fmtInt(data.shares)}</span> : null);
-const PriceCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">${data.price.toFixed(2)}</span> : null);
-const ValueCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum font-semibold text-textPrimary">{fmtDollars(data.value)}</span> : null);
-const StakeCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">{data.stakePct.toFixed(1)}%</span> : null);
+const PriceCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? missing(data.price) ? <Missing /> : <span className="font-mono text-[11px] tnum text-textSecondary">${data.price.toFixed(2)}</span> : null);
+const ValueCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? missing(data.value) ? <Missing /> : <span className="font-mono text-[11px] tnum font-semibold text-textPrimary">{fmtDollars(data.value)}</span> : null);
+const StakeCell = ({ data }: ICellRendererParams<InsiderTrade>) => (data ? missing(data.stakePct) ? <Missing /> : <span className="font-mono text-[11px] tnum text-textSecondary">{data.stakePct.toFixed(1)}%</span> : null);
 
 /** Chosen, planned or unstated — the flag the whole page turns on */
 const PlanCell = ({ data }: ICellRendererParams<InsiderTrade>) => {
@@ -180,7 +195,7 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
       <span className="flex items-center gap-2 min-w-0">
         <CompanyLogo ticker={f.ticker} size={18} />
         <span className="font-mono text-[12px] font-bold text-textPrimary">{f.ticker}</span>
-        <span className="text-[11px] text-textSecondary truncate">{tickerName(f.ticker)}</span>
+        {tickerName(f.ticker) !== f.ticker && <span className="text-[11px] text-textSecondary truncate">{tickerName(f.ticker)}</span>}
       </span>
       <span className="mt-1.5 flex items-baseline gap-2 font-mono tnum">
         <span className="text-[13px] font-bold text-bull">{fmtDollars(f.openMarketBuys)}</span>
@@ -198,6 +213,8 @@ const NameCard = ({ f, on, onToggle }: { f: InsiderFlow; on: boolean; onToggle: 
 
 const Insiders = () => {
   const navigate = useNavigate();
+  /* ALL OR NOTHING (data/feed/rooms.ts): the filings as filed when the Dossier reads the feed, else the house's book */
+  const fromFeed = useDossierFeed();
   const boardNames = useBoardNames();
   const [window, setWindow] = useState<Window>(90);
   const [show, setShow] = useState<Show>('market');
@@ -206,7 +223,13 @@ const Insiders = () => {
   const [guideOpen, setGuideOpen] = useState(false);
 
   /* The feed is deterministic per session day; the cards cut it, the Filter keeps from the cut */
-  const feed = useMemo(() => insiderFeed(window, show === 'market' ? OPEN_MARKET_CODES : ALL_CODES), [window, show]);
+  const fed = useFeedInsiders(fromFeed, show === 'market');
+  const fedBuyers = useFeedInsiderBuyers(fromFeed);
+  const feed = useMemo(() => {
+    if (!fromFeed) return insiderFeed(window, show === 'market' ? OPEN_MARKET_CODES : ALL_CODES);
+    const keep = new Set(show === 'market' ? OPEN_MARKET_CODES : Object.keys(TX_CODES));
+    return (fed?.ok ? fed.data.trades : []).filter(t => keep.has(t.code) && t.daysAgo <= window);
+  }, [fromFeed, fed, window, show]);
   const cut = useMemo(() => {
     const board = new Set(boardNames);
     return feed.filter(t => (role === 'any' || t.role === role) && (names === 'all' || board.has(t.ticker)));
@@ -248,9 +271,10 @@ const Insiders = () => {
 
   const facts = useMemo(() => {
     const market = rows.filter(t => TX_CODES[t.code].openMarket);
-    const chosen = market.filter(t => isChosenBuy(t)).reduce((s, t) => s + t.value, 0);
+    const worth = (t: InsiderTrade) => (missing(t.value) ? 0 : t.value);
+    const chosen = market.filter(t => isChosenBuy(t)).reduce((s, t) => s + worth(t), 0);
     const sales = market.filter(t => t.kind === 'SELL');
-    const sold = sales.reduce((s, t) => s + t.value, 0);
+    const sold = sales.reduce((s, t) => s + worth(t), 0);
     const planned = sales.filter(t => t.plan === 'plan').length;
     return { filings: rows.length, chosen, sold, plannedPct: sales.length ? Math.round((planned / sales.length) * 100) : null };
   }, [rows]);
@@ -258,10 +282,10 @@ const Insiders = () => {
   /* THE NAMES TO KNOW: chosen buying in the window, heaviest first, on the Names card's cut */
   const toKnow = useMemo(() => {
     const board = new Set(boardNames);
-    return insiderBuyers(window)
+    return (fromFeed ? (fedBuyers?.ok ? fedBuyers.data : []) : insiderBuyers(window))
       .filter(f => names === 'all' || board.has(f.ticker))
       .slice(0, NAMES_TO_KNOW);
-  }, [window, names, boardNames]);
+  }, [fromFeed, fedBuyers, window, names, boardNames]);
 
   const columnDefs = useMemo<ColDef<InsiderTrade>[]>(
     () => [
@@ -270,9 +294,9 @@ const Insiders = () => {
       { headerName: 'Who', field: 'person', flex: 1.4, minWidth: 180, cellRenderer: WhoCell, headerTooltip: 'The insider and their role' },
       { headerName: 'Trade', field: 'code', flex: 0.9, minWidth: 120, cellRenderer: TradeCell, headerTooltip: 'Bought or sold in the market; with Every filing on, the grants, conversions and withholdings are named for what they are' },
       { headerName: 'Shares', field: 'shares', width: 100, cellRenderer: SharesCell, type: 'rightAligned', headerTooltip: 'Shares in the transaction' },
-      { headerName: 'Price', field: 'price', width: 96, cellRenderer: PriceCell, type: 'rightAligned', headerTooltip: 'The filed price per share' },
-      { headerName: 'Value', field: 'value', width: 104, cellRenderer: ValueCell, type: 'rightAligned', headerTooltip: 'Shares times the filed price' },
-      { headerName: 'Of stake', field: 'stakePct', width: 96, cellRenderer: StakeCell, type: 'rightAligned', headerTooltip: "The share of the insider's own holding this trade was" },
+      { headerName: 'Price', field: 'price', width: 96, cellRenderer: PriceCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'The filed price per share' },
+      { headerName: 'Value', field: 'value', width: 104, cellRenderer: ValueCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'Shares times the filed price' },
+      { headerName: 'Of stake', field: 'stakePct', width: 96, cellRenderer: StakeCell, comparator: byFigure, type: 'rightAligned', headerTooltip: "The share of the insider's own holding this trade was" },
       {
         headerName: 'Chose to?',
         field: 'plan',
@@ -297,6 +321,7 @@ const Insiders = () => {
   /* THE GRID RESTS AT 80 ROWS (the house's long-grid rule; the audit's DO-9: every row drawn, 5,400 px) */
   const [all, setAll] = useState(false);
   const drawn = all ? rows : rows.slice(0, REST_ROWS);
+  if (fromFeed && fed === null) return <RecordPageSkeleton pathname="/dossier/insiders" />;
 
   return (
     <div className="relative border border-borderSubtle rounded-md overflow-hidden bg-panel flex flex-col" data-insiders data-window={window} data-show={show}>
@@ -311,7 +336,8 @@ const Insiders = () => {
             <GuideDoor className="hit" open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What a row, a chosen trade and a plan mean" testId="insiders-guide" />
           </div>
           <p className="mt-0.5 text-[11px] text-textMuted whitespace-nowrap truncate">
-            {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first · a row opens the name’s page
+            {show === 'market' ? 'Open-market purchases and sales only — the rows that are trades; the grants and withholdings are one card away' : 'Every filing, the plumbing named for what it is'} · newest first
+            {fromFeed && fed?.ok ? ` · the latest ${fed.data.read} filings, back to ${isoDayLabel(fed.data.reach)}` : ''} · a row opens the name’s page
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
@@ -345,20 +371,22 @@ const Insiders = () => {
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-insiders-controls>
         <DropdownSelect label="Window" value={window} options={WINDOW_OPTIONS} onChange={setWindow} title="How far back the filings run" testId="insiders-window" />
         <DropdownSelect label="Show" value={show} options={SHOW_OPTIONS} onChange={setShow} title="Trades only, or every filing" testId="insiders-show" />
-        <DropdownSelect label="Role" value={role} options={ROLE_OPTIONS} onChange={setRole} title="Whose filings" testId="insiders-role" />
+        <DropdownSelect label="Role" value={role} options={fromFeed ? ROLE_OPTIONS_FEED : ROLE_OPTIONS} onChange={setRole} title="Whose filings" testId="insiders-role" />
         <DropdownSelect label="Names" value={names} options={NAMES_OPTIONS} onChange={setNames} title="Which companies" testId="insiders-names" />
         <div className="ml-auto" title="The names, people and roles on the page right now — tick any number; only those stay">
           <DropdownMulti label="Filter" values={picks} groups={filterGroups} onChange={setPicks} title="Keep only these" testId="insiders-filter" />
         </div>
       </div>
       <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-insiders-sentence>
-        {insidersSentence(rows, window)}
+        {fromFeed && fed && !fed.ok ? 'No filings came back this time — asked again in ten minutes.' : insidersSentence(rows, window)}
       </p>
       {/* THE NAMES TO KNOW */}
       <div className="px-5 pb-3 border-t border-borderSubtle/60" data-insiders-to-know>
         <div className="h-[26px] flex items-center gap-3 text-[11px] font-semibold uppercase tracking-widest text-textPrimary">
           <span>The names to know</span>
-          <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">where someone chose to buy with their own money in the last {window} days, heaviest first · click a name to keep the grid to it</span>
+          <span className="normal-case tracking-normal font-normal text-[11px] text-textSecondary">
+            {fromFeed ? 'where someone chose to buy with their own money in the latest purchases filed' : `where someone chose to buy with their own money in the last ${window} days`}, heaviest first · click a name to keep the grid to it
+          </span>
         </div>
         {toKnow.length === 0 ? (
           <div className="h-[70px] flex items-center font-mono text-[11px] uppercase tracking-widest text-textMuted">No insider chose to buy in this window</div>

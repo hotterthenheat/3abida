@@ -402,14 +402,18 @@ export const uwDarkpool = (opts: { ticker?: string; limit?: number; minPremium?:
 /* ---- filings: congress, insiders --------------------------------------------------------------------------- */
 
 export interface UwCongressTrade {
+  /** UW's id for the member (seen live 2026-10-12) */
+  politicianId: string;
   name: string;
   reporter: string;
-  /** "house" or "senate" */
+  /** "house", "senate" or "executive" (seen live 2026-10-12: the executive branch's filings ride the same route) */
   memberType: string;
   ticker: string;
   issuer: string;
   /** "Buy", "Sell" … as filed */
   txnType: string;
+  /** Whose holding, as filed: "self", "spouse", "joint", "child" or "undisclosed" (seen live 2026-10-12) — `issuer` on the wire */
+  owner: string;
   /** The filed range, as words: "$1,001 - $15,000" */
   amounts: string;
   transactionDate: string;
@@ -417,15 +421,20 @@ export interface UwCongressTrade {
   notes: string;
 }
 
-/** Congress's filed trades, newest first. GET /api/congress/recent-trades (ticker, date, limit) */
+/**
+ * Congress's filed trades, the latest trade date first. GET /api/congress/recent-trades (ticker, date, limit ≤ 200).
+ * `date` keeps the trades made on or before that day (seen live 2026-10-12) — how the next page back is asked for.
+ */
 export const uwCongressTrades = (opts: { ticker?: string; limit?: number; date?: string } = {}): Promise<FeedResult<UwCongressTrade[]>> =>
   feedGet('uw', '/api/congress/recent-trades', { ticker: opts.ticker, limit: opts.limit ?? 50, date: opts.date }, body =>
     rowsOf(body).map(r => ({
+      politicianId: str(r.politician_id),
       name: str(r.name),
       reporter: str(r.reporter),
       memberType: str(r.member_type),
       ticker: str(r.ticker),
       issuer: str(r.issuer),
+      owner: str(r.issuer),
       txnType: str(r.txn_type),
       amounts: str(r.amounts),
       transactionDate: str(r.transaction_date),
@@ -454,11 +463,17 @@ export interface UwInsiderTrade {
   form: string;
   is10b51: boolean;
   sharesOwnedAfter: number | null;
+  sharesOwnedBefore: number | null;
+  /** The sector as UW files it ("Technology") */
+  sector: string;
 }
 
-/** Insider filings, newest first. GET /api/insider/transactions (ticker_symbol, limit, page …) */
-export const uwInsiderTrades = (opts: { ticker?: string; limit?: number } = {}): Promise<FeedResult<UwInsiderTrade[]>> =>
-  feedGet('uw', '/api/insider/transactions', { ticker_symbol: opts.ticker, limit: opts.limit ?? 50 }, body =>
+/**
+ * Insider filings, newest first. GET /api/insider/transactions (ticker_symbol, limit ≤ 200, page from 0,
+ * transaction_codes[] — seen live 2026-10-12: one day's filings fill 200 rows, so a page is a day or less)
+ */
+export const uwInsiderTrades = (opts: { ticker?: string; limit?: number; page?: number; codes?: string[] } = {}): Promise<FeedResult<UwInsiderTrade[]>> =>
+  feedGet('uw', '/api/insider/transactions', { ticker_symbol: opts.ticker, limit: opts.limit ?? 50, page: opts.page, 'transaction_codes[]': opts.codes }, body =>
     rowsOf(body).map(r => ({
       id: str(r.id),
       ticker: str(r.ticker),
@@ -476,6 +491,8 @@ export const uwInsiderTrades = (opts: { ticker?: string; limit?: number } = {}):
       form: str(r.formtype),
       is10b51: bool(r.is_10b5_1),
       sharesOwnedAfter: num(r.shares_owned_after),
+      sharesOwnedBefore: num(r.shares_owned_before),
+      sector: str(r.sector),
     }))
   );
 
@@ -494,6 +511,14 @@ export interface UwEarning {
   actualEps: number | null;
   sector: string;
   hasOptions: boolean;
+  /** Where the date came from (seen: "company", on every row 2026-10-12) */
+  dateSource: string;
+  /** The quarter the report covers, its last day: "2026-09-30" */
+  endingFiscalQuarter: string;
+  /** The close before the report (the day routes; null on a name's own list) */
+  preEarningsClose: number | null;
+  /** The stock's move the session after the report, a fraction: -0.0735 is −7.35% (null until it is out) */
+  postMove1d: number | null;
 }
 
 const earning = (symbol: string) => (r: Record<string, unknown>): UwEarning => ({
@@ -507,6 +532,10 @@ const earning = (symbol: string) => (r: Record<string, unknown>): UwEarning => (
   actualEps: num(r.actual_eps),
   sector: str(r.sector),
   hasOptions: bool(r.has_options),
+  dateSource: str(r.source),
+  endingFiscalQuarter: str(r.ending_fiscal_quarter),
+  preEarningsClose: num(r.pre_earnings_close),
+  postMove1d: num(r.post_earnings_move_1d),
 });
 
 /** A day's reports before the open or after the close. GET /api/earnings/premarket | /api/earnings/afterhours (date, limit, page) — empty for a day with none */
@@ -531,4 +560,51 @@ export interface UwExpiry {
 export const uwExpiryBreakdown = (ticker: string, date?: string): Promise<FeedResult<UwExpiry[]>> =>
   feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/expiry-breakdown`, { date }, body =>
     rowsOf(body).map(r => ({ expiry: str(r.expires), openInterest: num0(r.open_interest), volume: num0(r.volume), chains: num0(r.chains) }))
+  );
+
+/* ---- the wire --------------------------------------------------------------------------------------------------- */
+
+export interface UwHeadline {
+  headline: string;
+  /** The wire it came over (seen: "Tradex", "PR NewsWire", "Business Wire") */
+  source: string;
+  createdAt: number;
+  /** The names it carries — empty for most macro lines */
+  tickers: string[];
+  tags: string[];
+  /** UW's flag for a headline it counts as major */
+  isMajor: boolean;
+  /** UW's own tag: "positive", "negative", "neutral" (every one neutral, 2026-10-12) */
+  sentiment: string;
+  /** Each named ticker's close today and the session before, as UW attaches them */
+  prices: Record<string, { close: number | null; prevClose: number | null }>;
+}
+
+/**
+ * The news wire, newest first. GET /api/news/headlines (ticker, limit, page) — UW's catalog lists it (uw-mcp
+ * docs/endpoints.json, as cited in docs/ideas-2026-10-09/notes/api_powered_features.md), and it answered 200 on the
+ * Basic plan, checked live 2026-10-12 (100 headlines across 80 minutes of the morning).
+ */
+export const uwNewsHeadlines = (opts: { ticker?: string; limit?: number } = {}): Promise<FeedResult<UwHeadline[]>> =>
+  feedGet('uw', '/api/news/headlines', { ticker: opts.ticker, limit: opts.limit ?? 100 }, body =>
+    rowsOf(body).map(r => {
+      const meta = (r.meta ?? {}) as Record<string, unknown>;
+      const prices: UwHeadline['prices'] = {};
+      for (const [t, v] of Object.entries(meta)) {
+        const o = (v ?? {}) as Record<string, unknown>;
+        const curr = (o.curr ?? {}) as Record<string, unknown>;
+        const prev = (o.prev ?? {}) as Record<string, unknown>;
+        prices[t] = { close: num(curr.c), prevClose: num(prev.c) };
+      }
+      return {
+        headline: str(r.headline),
+        source: str(r.source),
+        createdAt: ms(r.created_at),
+        tickers: Array.isArray(r.tickers) ? r.tickers.map(str).filter(Boolean) : [],
+        tags: Array.isArray(r.tags) ? r.tags.map(str) : [],
+        isMajor: bool(r.is_major),
+        sentiment: str(r.sentiment),
+        prices,
+      };
+    })
   );

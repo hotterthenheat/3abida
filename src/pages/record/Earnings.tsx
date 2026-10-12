@@ -31,10 +31,24 @@
                   opens the name's page
 
   The engine (data/earnings.ts) is untouched.
+
+  FROM THE FEED (2026-10-12): when the Dossier reads
+  the vendors (data/feed/rooms.ts), the calendar is
+  UW's, a call for each day the board shows, before
+  the open and after the close (data/feed/dossier.ts);
+  the figure on a name is the move UW's calendar says
+  its options price. What the name usually moves, and
+  so how it is priced, the beat count, the estimates'
+  drift and IV rank are on a name's own page or not
+  in the feed — a dash here, the Show card's pricing
+  picks shut.
 ==================================================
 */
 
 import { useMemo, useState } from 'react';
+import { type CalendarDay, useDossierFeed, useFeedEarnings } from '../../data/feed/dossier';
+import { Missing, NOT_IN_FEED, byFigure, missing } from '../../components/record/Missing';
+import { RecordPageSkeleton } from './recordSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { Moon, Sunrise } from 'lucide-react';
 import { type ColDef, type ICellRendererParams, type RowClickedEvent } from 'ag-grid-community';
@@ -79,6 +93,15 @@ const MACRO_WORD: Record<string, string> = { 'FOMC decision': 'FOMC', 'NFP relea
 export const PRICED_WORD: Record<VolState, string> = { RICH: 'rich', INLINE: 'fair', CHEAP: 'cheap' };
 export const PRICED_INK: Record<VolState, string> = { RICH: 'text-warn', INLINE: 'text-textPrimary', CHEAP: 'text-bull' };
 export const slotWord = (e: EarningsEvent) => (e.slot === 'BMO' ? 'before the open' : 'after the close');
+/** How the print is priced, or null when the usual move is not on hand (the feed's calendar) */
+export const pricedOf = (e: EarningsEvent): VolState | null => (missing(e.richness) ? null : stateOf(e));
+/** The pricing's ink, the plain ink when it is not on hand */
+export const pricedInk = (e: EarningsEvent): string => {
+  const p = pricedOf(e);
+  return p ? PRICED_INK[p] : 'text-textPrimary';
+};
+/** "±4.9%" — or the dash when no figure came */
+export const moveWords = (v: number): string => (missing(v) ? '—' : `±${v.toFixed(1)}%`);
 
 /** The slot as a mark: dawn amber before the open, the moon after the close */
 export const SlotMark = ({ slot, className = 'w-3 h-3' }: { slot: EarningsEvent['slot']; className?: string }) =>
@@ -102,7 +125,7 @@ const NameDoor = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void
   <button
     type="button"
     onClick={() => onOpen(e.ticker)}
-    title={`${e.name} — options price ±${e.impliedMovePct.toFixed(1)}%, ${slotWord(e)} · open its page`}
+    title={`${e.name} — options price ${moveWords(e.impliedMovePct)}, ${slotWord(e)} · open its page`}
     className="hit group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-borderSubtle hover:bg-silver/[0.05] transition-colors text-left"
     data-earnings-door={e.ticker}
   >
@@ -110,7 +133,7 @@ const NameDoor = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void
     <span className="flex flex-col leading-tight">
       <span className="flex items-center gap-1.5">
         <span className="font-mono text-[12px] font-bold text-textPrimary">{e.ticker}</span>
-        <span className={`font-mono text-[11px] tnum ${PRICED_INK[stateOf(e)]}`}>±{e.impliedMovePct.toFixed(1)}%</span>
+        <span className={`font-mono text-[11px] tnum ${pricedInk(e)}`} title={missing(e.impliedMovePct) ? NOT_IN_FEED : undefined}>{moveWords(e.impliedMovePct)}</span>
         <SlotMark slot={e.slot} />
       </span>
       <span className="text-[11px] text-textMuted truncate max-w-[180px]">{e.name}</span>
@@ -130,13 +153,13 @@ const Card = ({ e, onOpen }: { e: EarningsEvent; onOpen: (t: string) => void }) 
   <button
     type="button"
     onClick={() => onOpen(e.ticker)}
-    title={`${e.name} — options price ±${e.impliedMovePct.toFixed(1)}%, ${slotWord(e)} · open its page`}
+    title={`${e.name} — options price ${moveWords(e.impliedMovePct)}, ${slotWord(e)} · open its page`}
     className="hit group relative flex flex-col items-center gap-1.5 rounded-md border border-borderSubtle bg-chip px-2 pt-3 pb-2.5 transition-colors hover:border-borderMuted hover:bg-silver/[0.05]"
     data-earnings-card={e.ticker}
   >
     <CompanyLogo ticker={e.ticker} size={28} />
     <span className="font-mono text-[12px] font-bold text-textPrimary leading-none mt-0.5">{e.ticker}</span>
-    <span className={`font-mono text-[11px] tnum leading-none ${PRICED_INK[stateOf(e)]}`}>±{e.impliedMovePct.toFixed(1)}%</span>
+    <span className={`font-mono text-[11px] tnum leading-none ${pricedInk(e)}`} title={missing(e.impliedMovePct) ? NOT_IN_FEED : undefined}>{moveWords(e.impliedMovePct)}</span>
     <span className={`font-mono text-[11px] uppercase tracking-widest ${e.confirmed ? 'text-textMuted' : 'text-warn'}`}>{e.confirmed ? 'confirmed' : 'estimated'}</span>
   </button>
 );
@@ -168,10 +191,11 @@ const WhenCell = ({ data }: ICellRendererParams<EarningsEvent>) =>
     </span>
   ) : null;
 
-const MoveCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? <span className="font-mono text-[11px] tnum font-semibold text-textPrimary">±{data.impliedMovePct.toFixed(1)}%</span> : null);
-const UsualCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? <span className="font-mono text-[11px] tnum text-textSecondary">±{data.histAvgMovePct.toFixed(1)}%</span> : null);
+const MoveCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? missing(data.impliedMovePct) ? <Missing /> : <span className="font-mono text-[11px] tnum font-semibold text-textPrimary">±{data.impliedMovePct.toFixed(1)}%</span> : null);
+const UsualCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? missing(data.histAvgMovePct) ? <Missing /> : <span className="font-mono text-[11px] tnum text-textSecondary">±{data.histAvgMovePct.toFixed(1)}%</span> : null);
 const PricedCell = ({ data }: ICellRendererParams<EarningsEvent>) => {
   if (!data) return null;
+  if (missing(data.richness)) return <Missing />;
   const s = stateOf(data);
   return (
     <span className={`font-mono text-[11px] tnum ${PRICED_INK[s]}`}>
@@ -179,21 +203,34 @@ const PricedCell = ({ data }: ICellRendererParams<EarningsEvent>) => {
     </span>
   );
 };
-const BeatCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? <span className="font-mono text-[11px] tnum text-textPrimary">{Math.round((data.beatRate8q / 100) * 8)} of 8</span> : null);
+const BeatCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? missing(data.beatRate8q) ? <Missing /> : <span className="font-mono text-[11px] tnum text-textPrimary">{Math.round((data.beatRate8q / 100) * 8)} of 8</span> : null);
 const EstCell = ({ data }: ICellRendererParams<EarningsEvent>) =>
-  data ? (
+  data && missing(data.revisionTrend) ? (
+    <Missing />
+  ) : data ? (
     <span className={`font-mono text-[11px] ${data.revisionTrend > 0.15 ? 'text-bull' : data.revisionTrend < -0.15 ? 'text-bear' : 'text-textMuted'}`}>
       {data.revisionTrend > 0.15 ? 'rising' : data.revisionTrend < -0.15 ? 'falling' : 'flat'}
     </span>
   ) : null;
-const IvCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? <span className={`font-mono text-[11px] tnum ${data.ivRank >= 80 ? 'text-warn' : 'text-textPrimary'}`}>{data.ivRank}</span> : null);
+const IvCell = ({ data }: ICellRendererParams<EarningsEvent>) => (data ? missing(data.ivRank) ? <Missing /> : <span className={`font-mono text-[11px] tnum ${data.ivRank >= 80 ? 'text-warn' : 'text-textPrimary'}`}>{data.ivRank}</span> : null);
 
 /* ---- the page ----------------------------------------------------------------------- */
 
 const Earnings = () => {
   const navigate = useNavigate();
-  const events = useMemo(() => buildEarningsCalendar(), []);
-  const macro = useMemo(() => macroWindow(new Date(), 10, 20), []);
+  /* ALL OR NOTHING (data/feed/rooms.ts): UW's calendar when the Dossier reads the feed, else the house's book */
+  const fromFeed = useDossierFeed();
+  /* the days the board can show, both weeks (a switch of the Week card asks nothing new) */
+  const calendarDays = useMemo<CalendarDay[]>(() => {
+    const wdNow = new Date().getDay();
+    return ([0, 1] as const).flatMap(weekIdx =>
+      (weekIdx === 0 && wdNow >= 1 && wdNow <= 5 ? WEEKDAYS.filter(wd => wd >= wdNow) : WEEKDAYS).map(weekday => ({ iso: isoOf(weekDayDate(weekIdx, weekday)), weekIdx, weekday }))
+    );
+  }, []);
+  const fed = useFeedEarnings(fromFeed, calendarDays);
+  const events = useMemo(() => (fromFeed ? (fed?.ok ? fed.data : []) : buildEarningsCalendar()), [fromFeed, fed]);
+  /* the macro dates beside the reports — the approximated CPI day stays off a calendar that is UW's */
+  const macro = useMemo(() => macroWindow(new Date(), 10, 20).filter(m => !fromFeed || m.label !== 'CPI release'), [fromFeed]);
   const [week, setWeek] = useState<WeekPick>('0');
   const [show, setShow] = useState<ShowPick>('all');
   const [layout, setLayout] = useState<Layout>('board');
@@ -202,11 +239,11 @@ const Earnings = () => {
   const weeks: (0 | 1)[] = week === 'both' ? [0, 1] : [Number(week) as 0 | 1];
   /* THE WEEK SCOPES EVERYTHING (the audit's DO-6: the board changed, the grid and the facts still said "two weeks") */
   const inWeeks = useMemo(() => events.filter(e => weeks.includes(e.weekIdx)), [events, week]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shown = useMemo(() => (show === 'all' ? inWeeks : inWeeks.filter(e => stateOf(e) === show)), [inWeeks, show]);
-  const rich = inWeeks.filter(e => stateOf(e) === 'RICH').length;
-  const cheap = inWeeks.filter(e => stateOf(e) === 'CHEAP').length;
-  const fair = inWeeks.length - rich - cheap;
-  const biggest = inWeeks.reduce<EarningsEvent | null>((a, e) => (a === null || e.impliedMovePct > a.impliedMovePct ? e : a), null);
+  const shown = useMemo(() => (show === 'all' ? inWeeks : inWeeks.filter(e => pricedOf(e) === show)), [inWeeks, show]);
+  const rich = inWeeks.filter(e => pricedOf(e) === 'RICH').length;
+  const cheap = inWeeks.filter(e => pricedOf(e) === 'CHEAP').length;
+  const fair = inWeeks.filter(e => pricedOf(e) === 'INLINE').length;
+  const biggest = inWeeks.filter(e => !missing(e.impliedMovePct)).reduce<EarningsEvent | null>((a, e) => (a === null || e.impliedMovePct > a.impliedMovePct ? e : a), null);
   const today = events.filter(e => e.daysOut === 0);
   const span = week === 'both' ? 'two weeks' : week === '0' ? 'this week' : 'next week';
   /* THE BOARD STARTS ON TODAY (the audit's DO-7: on a Friday three of five columns read "no reports" and a phone's only
@@ -216,22 +253,24 @@ const Earnings = () => {
   const open = (t: string) => navigate(`/dossier/earnings/${t}`);
 
   const sentence = useMemo(() => {
-    const parts = [`${inWeeks.length} ${inWeeks.length === 1 ? 'report' : 'reports'} ${week === 'both' ? 'over two weeks' : span}`, `${rich} priced rich, ${fair} fair, ${cheap} cheap`];
+    const parts = [`${inWeeks.length} ${inWeeks.length === 1 ? 'report' : 'reports'} ${week === 'both' ? 'over two weeks' : span}`];
+    if (!fromFeed) parts.push(`${rich} priced rich, ${fair} fair, ${cheap} cheap`);
     if (biggest) parts.push(`the biggest move priced is ${biggest.ticker} at ±${biggest.impliedMovePct.toFixed(1)}% on ${biggest.dateLabel}`);
     parts.push(today.length ? `today: ${today.map(e => `${e.ticker} ${slotWord(e)}`).join(', ')}` : 'nothing reports today');
     return parts.join(' · ') + '.';
-  }, [inWeeks.length, week, span, rich, fair, cheap, biggest, today]);
+  }, [inWeeks.length, week, span, rich, fair, cheap, biggest, today, fromFeed]);
+  const showOptions = fromFeed ? SHOW_OPTIONS.map(o => (o.value === 'all' ? o : { ...o, disabled: true, hint: `How the price sits against the usual move — on a name's own page; ${NOT_IN_FEED} for the calendar` })) : SHOW_OPTIONS;
 
   const columnDefs = useMemo<ColDef<EarningsEvent>[]>(
     () => [
       { headerName: 'Name', field: 'ticker', flex: 1.3, minWidth: 180, cellRenderer: NameCell, headerTooltip: 'The company — click the row to open its page' },
       { headerName: 'Reports', field: 'daysOut', width: 210, cellRenderer: WhenCell, sort: 'asc', headerTooltip: 'The date, before the open or after the close, and whether the company has confirmed it or it is still an estimate' },
-      { headerName: 'Options price', field: 'impliedMovePct', width: 124, cellRenderer: MoveCell, type: 'rightAligned', headerTooltip: 'The move the options charge for the print — the at-the-money straddle as a percent of the stock' },
-      { headerName: 'Usually moves', field: 'histAvgMovePct', width: 124, cellRenderer: UsualCell, type: 'rightAligned', headerTooltip: 'The average move on the last eight prints' },
-      { headerName: 'Priced', field: 'richness', width: 124, cellRenderer: PricedCell, type: 'rightAligned', headerTooltip: 'The options price over the usual move — rich above 1.3×, cheap below 0.85×, fair between' },
-      { headerName: 'Beat', field: 'beatRate8q', width: 96, cellRenderer: BeatCell, type: 'rightAligned', headerTooltip: 'How many of the last eight quarters beat the estimate' },
-      { headerName: 'Estimates', field: 'revisionTrend', width: 104, cellRenderer: EstCell, headerTooltip: 'Which way analyst estimates have drifted into the print' },
-      { headerName: 'IV rank', field: 'ivRank', width: 92, cellRenderer: IvCell, type: 'rightAligned', headerTooltip: 'Where implied volatility sits against its own past year, 0 to 100 — 80 and up is dear' },
+      { headerName: 'Options price', field: 'impliedMovePct', width: 124, cellRenderer: MoveCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'The move the options charge for the print — the at-the-money straddle as a percent of the stock' },
+      { headerName: 'Usually moves', field: 'histAvgMovePct', width: 124, cellRenderer: UsualCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'The average move on the last eight prints' },
+      { headerName: 'Priced', field: 'richness', width: 124, cellRenderer: PricedCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'The options price over the usual move — rich above 1.3×, cheap below 0.85×, fair between' },
+      { headerName: 'Beat', field: 'beatRate8q', width: 96, cellRenderer: BeatCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'How many of the last eight quarters beat the estimate' },
+      { headerName: 'Estimates', field: 'revisionTrend', width: 104, cellRenderer: EstCell, comparator: byFigure, headerTooltip: 'Which way analyst estimates have drifted into the print' },
+      { headerName: 'IV rank', field: 'ivRank', width: 92, cellRenderer: IvCell, comparator: byFigure, type: 'rightAligned', headerTooltip: 'Where implied volatility sits against its own past year, 0 to 100 — 80 and up is dear' },
     ],
     []
   );
@@ -239,6 +278,7 @@ const Earnings = () => {
   const onRow = (e: RowClickedEvent<EarningsEvent>) => {
     if (e.data) open(e.data.ticker);
   };
+  if (fromFeed && fed === null) return <RecordPageSkeleton pathname="/dossier/earnings" />;
 
   return (
     <>
@@ -261,7 +301,13 @@ const Earnings = () => {
               {inWeeks.length} <span className="text-textMuted">· {span}</span>
             </Fact>
             <Fact label="Priced" testId="priced">
-              <span className="text-warn">{rich} rich</span> <span className="text-textMuted">·</span> {fair} fair <span className="text-textMuted">·</span> <span className="text-bull">{cheap} cheap</span>
+              {fromFeed ? (
+                <Missing className="text-[12px]" />
+              ) : (
+                <>
+                  <span className="text-warn">{rich} rich</span> <span className="text-textMuted">·</span> {fair} fair <span className="text-textMuted">·</span> <span className="text-bull">{cheap} cheap</span>
+                </>
+              )}
             </Fact>
             <Fact label="Biggest move" testId="biggest">
               {biggest ? (
@@ -289,11 +335,11 @@ const Earnings = () => {
         {/* THE ONE LINE OF CONTROLS */}
         <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-earnings-controls>
           <DropdownSelect label="Week" value={week} options={WEEK_OPTIONS} onChange={setWeek} title="Which week" testId="earnings-week" />
-          <DropdownSelect label="Show" value={show} options={SHOW_OPTIONS} onChange={setShow} title="How the options price sits" testId="earnings-show" />
+          <DropdownSelect label="Show" value={show} options={showOptions} onChange={setShow} title="How the options price sits" testId="earnings-show" />
           <DropdownSelect label="Layout" value={layout} options={LAYOUT_OPTIONS} onChange={setLayout} title="The week as a board or a list" testId="earnings-layout" />
         </div>
         <p className="px-5 pb-3 text-[12px] leading-relaxed text-textSecondary" data-earnings-sentence>
-          {sentence}
+          {fromFeed && fed && !fed.ok ? 'No calendar came back this time — asked again in ten minutes.' : sentence}
         </p>
 
         {/* THE WEEK — the board, or a list of days */}
@@ -409,7 +455,7 @@ const Earnings = () => {
               rowData={shown}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
-              getRowId={p => p.data.ticker}
+              getRowId={p => `${p.data.ticker}|${p.data.dateLabel}`}
               onRowClicked={onRow}
               {...openRowOnEnter<EarningsEvent>(row => open(row.ticker))}
               rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
