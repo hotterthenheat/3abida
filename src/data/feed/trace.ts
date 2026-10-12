@@ -52,10 +52,13 @@
 */
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { bookSession, windowLabel, WINDOWS_PER_DAY, type Catch, type IntervalSlice, type IntervalWindow, type MoneynessKey, type NetFlowPoint, type NetFlowSegment, type NetFlowView, type NetLeader, type SpreadKind, type SpreadLeg, type SpreadTrade, type WatcherKey } from '../flowBook';
+import { bookSession, moneynessFilter, segmentFilter, windowLabel, WINDOWS_PER_DAY, type Catch, type IntervalSlice, type IntervalWindow, type MoneynessKey, type NetFlowPoint, type NetFlowSegment, type NetFlowView, type NetLeader, type SpreadKind, type SpreadLeg, type SpreadTrade, type WatcherKey } from '../flowBook';
 import { reasonMatches, type UserReason } from '../flowReasons';
 import type { FollowRecord, Follow } from '../followThrough';
 import { SECTOR_LIST } from '../darkpool';
+import { sleeveForDte } from '../compass';
+import type { SleeveKey } from '../../types/compass';
+import { bookExpiryIso } from '../../components/trace/bookExpiry';
 import { isTradingDay, sessionsBetween } from '../../core/calendar';
 import { nyClock, nyParts, SESSION_CLOSE_MIN, SESSION_OPEN_MIN } from '../../core/nyTime';
 import type { BookContract, FlowPrint } from '../../types/trace';
@@ -814,6 +817,8 @@ export interface FeedFlowLine {
   view: NetFlowView;
   /** The price ribbon, a point a minute (epoch seconds) */
   spot: { time: number; value: number }[];
+  /** The money a minute is not on the plan for this cut: the figures are the day's totals off the book, no line */
+  totalsOnly?: boolean;
 }
 
 const toSec = (t: number) => Math.floor(t / 1000);
@@ -1097,4 +1102,111 @@ export function useFeedNameExpiries(on: boolean, ticker: string) {
   const t = ticker.toUpperCase();
   const r = useFeedPoll(on && t ? `trace:expflow:${t}:${s.date}` : null, () => uwFlowPerExpiry(t, dateParam(s)), 60_000);
   return r?.ok ? r.data : null;
+}
+
+/* ---- THE PANE'S EVERY CUT ON THE FEED (2026-10-12 — the owner: "but i build the UI that the real data goes into") ---- */
+
+/**
+ * A contract's net premium on the day, the house's own rule (flowBook: premium times the side it printed on) on the
+ * vendor's figures: its premium times the share bought at the ask less the share sold on the bid. NaN where the answer
+ * carries no side.
+ */
+export const rowNet = (r: BookContract): number => {
+  const bid = r.bidPct ?? 100 - r.askPct;
+  return Number.isFinite(r.askPct) && Number.isFinite(bid) && Number.isFinite(r.premium) ? (r.premium * (r.askPct - bid)) / 100 : NaN;
+};
+
+/** The day's net calls, net puts, volume and contracts of a cut of the book — the sums of what the rows carry */
+export function bookTotals(rows: BookContract[]): { ncp: number; npp: number; vol: number; count: number } {
+  let ncp = 0;
+  let npp = 0;
+  let vol = 0;
+  let sided = 0;
+  for (const r of rows) {
+    const n = rowNet(r);
+    if (Number.isFinite(n)) {
+      sided++;
+      if (r.right === 'C') ncp += n;
+      else npp += n;
+    }
+    if (Number.isFinite(r.volume)) vol += r.volume;
+  }
+  return sided || !rows.length ? { ncp: Math.round(ncp), npp: Math.round(npp), vol, count: rows.length } : { ncp: NaN, npp: NaN, vol, count: rows.length };
+}
+
+/**
+ * THE BOARD ON THE FEED: every name the book carries, ranked by which way its money leans today — the house's board
+ * (buildNetLeaders) on the vendor's contracts: net calls less net puts off each contract's own premium and side, the
+ * name's volume and contracts summed off its rows. The book is the market's heaviest contracts and the open name's own.
+ */
+export function bookNetLeaders(rows: BookContract[]): NetLeader[] {
+  const by = new Map<string, BookContract[]>();
+  for (const r of rows) {
+    const a = by.get(r.ticker);
+    if (a) a.push(r);
+    else by.set(r.ticker, [r]);
+  }
+  const out: NetLeader[] = [];
+  for (const [ticker, own] of by) {
+    const t = bookTotals(own);
+    if (!Number.isFinite(t.ncp)) continue;
+    out.push({ ticker, sector: own[0].sector, sectorColor: own[0].sectorColor, net: t.ncp - t.npp, netCall: t.ncp, netPut: t.npp, volume: t.vol, count: t.count });
+  }
+  out.sort((a, b) => b.net - a.net);
+  return out;
+}
+
+/** What a pane cuts the money by — the house's own axes */
+export interface FeedPaneCut {
+  ticker: string | null;
+  seg: NetFlowSegment;
+  mny: MoneynessKey;
+  tenor: SleeveKey | 'all';
+  dteMax: number;
+  /** The page's expiry cut, YYYY-MM-DD — null for every expiry */
+  expiry: string | null;
+}
+
+/** A name's minute closes inside the session — the pane's price ribbon (one poll a name with the other Trace panes) */
+function useFeedRibbon(on: boolean, ticker: string): { time: number; value: number }[] {
+  const s = feedSession();
+  const t = ticker.toUpperCase();
+  const bars = useFeedPoll(on && t ? `trace:bars:${t}:${s.date}` : null, () => uwOhlc(t, { size: '1m', limit: 1000, date: dateParam(s) }), 30_000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => spotOf(bars?.ok ? bars.data : null, s), [bars, s.date]);
+}
+
+/**
+ * The pane's money on the feed, whatever its cut. A minute line where the vendor answers one for exactly that cut — a
+ * name across every expiry and strike (its net premium ticks), the market's same-day money by moneyness, whole or its
+ * stocks alone (net-flow/expiry) — and for every other cut (a name's moneyness or tenor or one expiry, the index funds,
+ * a sector) the day's totals off the book's own contracts (`totalsOnly`), the line itself not on the plan.
+ * `rows` is the book the page reads; a name's own contracts are asked when the name is not the page's.
+ */
+export function useFeedPaneLine(on: boolean, cut: FeedPaneCut, rows: BookContract[]): FeedFlowLine | null {
+  const name = cut.ticker ? cut.ticker.toUpperCase() : null;
+  const whole = cut.mny === 'all' && cut.tenor === 'all' && !Number.isFinite(cut.dteMax) && !cut.expiry;
+  const zeroDte = !name && cut.dteMax === 0 && cut.tenor === 'all' && !cut.expiry && feedZeroDteSeg(cut.seg) !== null;
+  const ticks = useFeedNameFlow(on && !!name && whole, name);
+  const market = useFeedZeroDte(on && zeroDte, cut.seg, cut.mny);
+  const totals = on && !(name && whole) && !zeroDte;
+  const own = useFeedNameBook(totals && !!name && !rows.some(r => r.ticker === name), name ?? '');
+  const ribbon = useFeedRibbon(totals, name ?? 'SPY');
+  return useMemo(() => {
+    if (!on) return null;
+    if (name && whole) return ticks;
+    if (zeroDte) return market;
+    const src = own && name && !rows.some(r => r.ticker === name) ? own.rows : rows;
+    const cutRows = src.filter(
+      r =>
+        r.dte <= cut.dteMax &&
+        (name ? r.ticker === name : segmentFilter(r, cut.seg)) &&
+        moneynessFilter(r, cut.mny) &&
+        (cut.tenor === 'all' || sleeveForDte(r.dte) === cut.tenor) &&
+        (!cut.expiry || bookExpiryIso(r.expiry) === cut.expiry)
+    );
+    const t = bookTotals(cutRows);
+    return { view: { points: [], ncp: t.ncp, npp: t.npp, vol: cutRows.length ? t.vol : NaN, count: t.count }, spot: ribbon, totalsOnly: true };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on, name, whole, zeroDte, ticks, market, own, rows, ribbon, cut.dteMax, cut.seg, cut.mny, cut.tenor, cut.expiry]);
 }
