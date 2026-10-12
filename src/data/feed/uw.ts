@@ -1260,3 +1260,23 @@ export const uwFinancials = (ticker: string): Promise<FeedResult<UwFinancials>> 
       })),
     };
   });
+
+/* ---- THE MEMBERS (2026-10-12): Congress's filers, their party and seat ---------------------------------------- */
+
+export interface UwPolitician {
+  id: string;
+  name: string;
+  /** "democrat", "republican", "independent" */
+  party: string;
+  /** "house" or "senate" */
+  chamber: string;
+  /** "TN-9" for a representative; a senator's state where UW gives it */
+  district: string;
+}
+
+/** Every member who files, with party and seat. GET /api/congress/politicians — seen live 2026-10-12 (name, party,
+    chamber, district, politician_id) */
+export const uwPoliticians = (): Promise<FeedResult<UwPolitician[]>> =>
+  feedGet('uw', '/api/congress/politicians', undefined, body =>
+    rowsOf(body).map(r => ({ id: str(r.politician_id), name: str(r.name), party: str(r.party), chamber: str(r.chamber), district: r.district == null ? '' : str(r.district) }))
+  );

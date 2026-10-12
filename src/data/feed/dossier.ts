@@ -41,12 +41,12 @@ import type { BookContract } from '../../types/trace';
 import type { UwStockDay } from './uw';
 import { weekDayDate, type EarningsDossier, type EarningsEvent, type EarningsQuarter, type ReportSlot } from '../earnings';
 import type { Sector } from '../universe';
-import type { AssetKind, Chamber, CongressTrade, InsiderFlow, InsiderRole, InsiderTrade, PlanState, ReportOwner, ReportType, TxCode } from '../../types/record';
+import type { AssetKind, Chamber, CongressTrade, Party, InsiderFlow, InsiderRole, InsiderTrade, PlanState, ReportOwner, ReportType, TxCode } from '../../types/record';
 import type { FeedResult } from './client';
 import { useFeedPoll } from './poll';
 import { ROOM_FEEDS, roomSource } from './rooms';
 import { getFeedStatus, useFeedStatus } from './status';
-import { uwCongressTrades, uwEarningsDay, uwEarningsFor, uwInsiderTrades, uwNewsHeadlines, uwQuote, uwStockState, type UwCongressTrade, type UwEarning, type UwHeadline, type UwInsiderTrade, type UwQuote, type UwStockState } from './uw';
+import { uwCongressTrades, uwPoliticians, type UwPolitician, uwEarningsDay, uwEarningsFor, uwInsiderTrades, uwNewsHeadlines, uwQuote, uwStockState, type UwCongressTrade, type UwEarning, type UwHeadline, type UwInsiderTrade, type UwQuote, type UwStockState } from './uw';
 import { massiveBars, massiveTickerDetails, type MassiveBar, type MassiveTickerDetails } from './massive';
 
 const SEC = 1000;
@@ -119,6 +119,26 @@ const memberName = (r: UwCongressTrade): string => r.reporter.replace(/^Hon\.?\s
 /** The asset as filed, its first line, the codes off */
 const assetWords = (notes: string): string => notes.split('\n')[0].replace(/\s*\[[A-Z]{2}\].*$/, '').trim();
 
+/* THE MEMBERS' PARTY AND SEAT (2026-10-12): UW's member list, read once a visit — the filings name the member alone */
+const PARTY: Record<string, Party> = { democrat: 'D', democratic: 'D', republican: 'R', independent: 'I' };
+let members: Map<string, UwPolitician> | null = null;
+let membersAsked: Promise<void> | null = null;
+async function ensureMembers(): Promise<void> {
+  if (members) return;
+  if (!membersAsked)
+    membersAsked = uwPoliticians().then(r => {
+      if (r.ok) members = new Map(r.data.map(m => [m.id, m]));
+      else membersAsked = null;
+    });
+  await membersAsked;
+}
+const seatParts = (m: UwPolitician | undefined): { party: Party | null; state: string; district?: string } => {
+  if (!m) return { party: null, state: '' };
+  const party = PARTY[m.party.toLowerCase()] ?? null;
+  const d = /^([A-Z]{2})(?:-(\d+|AL))?$/.exec(m.district.trim().toUpperCase());
+  return d ? { party, state: d[1], ...(d[2] ? { district: `${d[1]}-${d[2]}` } : {}) } : { party, state: '' };
+};
+
 export function congressRow(r: UwCongressTrade, today: string, n = 0): CongressTrade {
   const ticker = r.ticker.trim().toUpperCase();
   const filedDaysAgo = daysSince(r.filedAt, today);
@@ -127,7 +147,7 @@ export function congressRow(r: UwCongressTrade, today: string, n = 0): CongressT
   const type = typeOf(r.txnType, r.notes);
   return {
     id: `${r.politicianId}|${r.transactionDate}|${r.filedAt}|${ticker || assetWords(r.notes).slice(0, 32)}|${r.amounts}|${type}|${n}`,
-    member: { id: r.politicianId || r.name, name: memberName(r), chamber: CHAMBER[r.memberType.toLowerCase()] ?? 'House', party: null, state: '', committees: [] },
+    member: { id: r.politicianId || r.name, name: memberName(r), chamber: CHAMBER[r.memberType.toLowerCase()] ?? 'House', ...seatParts(members?.get(r.politicianId)), committees: [] },
     ticker,
     assetDescription: assetWords(r.notes) || r.notes,
     assetKind: assetOf(r.notes, ticker),
@@ -169,6 +189,7 @@ const CONGRESS_PAGES: Record<number, number> = { 30: 2, 90: 4, 180: 6 };
 
 async function loadCongress(windowDays: number): Promise<FeedResult<CongressAnswer>> {
   const today = nyToday();
+  await ensureMembers();
   const all: UwCongressTrade[] = [];
   let date: string | undefined;
   let at = Date.now();
@@ -201,6 +222,7 @@ export const useFeedCongress = (on: boolean, windowDays: number) => useFeedPoll<
 /** One name's reports — the latest hundred */
 export const useFeedCongressFor = (on: boolean, ticker: string) =>
   useFeedPoll<CongressTrade[]>(on && ticker && up() ? `dossier:congress-for:${ticker}` : null, async () => {
+    await ensureMembers();
     const r = await uwCongressTrades({ ticker, limit: 100 });
     return r.ok ? { ...r, data: congressRows(r.data).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo) } : r;
   }, 10 * MIN);
@@ -617,3 +639,47 @@ function isoOfLabel(e: EarningsEvent): string | null {
   const iso = `${y}-${m[1]}-${m[2]}`;
   return iso >= today ? iso : `${y + 1}-${m[1]}-${m[2]}`;
 }
+
+/* ---- THE CALENDAR'S NAMES, THEIR RECORD (2026-10-12) ------------------------------------------------------------- */
+
+export interface ReportRecord {
+  /** The average move, either way, the session after the last eight reports, % */
+  histAvgMovePct: number;
+  /** Beats of the estimate in the last eight reported, % of them */
+  beatRate8q: number;
+  pastMoves: { label: string; movePct: number }[];
+}
+
+/** One name's record off its reported rows — the board's "usual move", its beats, its past moves */
+export function reportRecord(rows: UwEarning[], today = nyToday()): ReportRecord {
+  const reported = rows
+    .filter(x => x.actualEps != null && x.reportDate < today)
+    .sort((a, b) => (a.reportDate < b.reportDate ? 1 : -1))
+    .slice(0, 8)
+    .reverse();
+  const moves = reported.map(x => (x.postMove1d == null ? NaN : x.postMove1d * 100));
+  const known = moves.filter(Number.isFinite);
+  const est = reported.filter(x => x.streetMeanEst != null);
+  return {
+    histAvgMovePct: known.length ? known.reduce((a, v) => a + Math.abs(v), 0) / known.length : NaN,
+    beatRate8q: est.length ? (est.filter(x => (x.actualEps as number) > (x.streetMeanEst as number)).length / est.length) * 100 : NaN,
+    pastMoves: reported.map((x, i) => ({ label: quarterLabel(x.endingFiscalQuarter || x.reportDate), movePct: moves[i] })),
+  };
+}
+
+/**
+ * The board's names' records — each name's own reports, asked one name after another (eighty at most, the proxy keeping
+ * each ten minutes) every half hour: so the board can say how each report is priced against the name's usual move.
+ */
+export const useFeedReportRecords = (on: boolean, tickers: string[]) => {
+  /* the names in the order given (the largest first), eighty at most; the key is the set, sorted */
+  const list = Array.from(new Set(tickers.map(t => t.toUpperCase()))).slice(0, 80);
+  return useFeedPoll<Record<string, ReportRecord>>(on && list.length && up() ? `dossier:records:${[...list].sort().join(',')}` : null, async () => {
+    const out: Record<string, ReportRecord> = {};
+    for (const t of list) {
+      const r = await uwEarningsFor(t);
+      if (r.ok) out[t] = reportRecord(r.data);
+    }
+    return { ok: true as const, data: out, at: Date.now() };
+  }, 30 * MIN);
+};

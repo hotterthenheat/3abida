@@ -46,7 +46,7 @@
 */
 
 import { useMemo, useState } from 'react';
-import { boardCalendarDays, movePricedTo, type CalendarDay, useDossierFeed, useFeedEarnings } from '../../data/feed/dossier';
+import { boardCalendarDays, movePricedTo, type CalendarDay, useDossierFeed, useFeedEarnings, useFeedReportRecords } from '../../data/feed/dossier';
 import { useFeedStockDays } from '../../data/feed/stockDay';
 import { Missing, NOT_IN_FEED, byFigure, missing } from '../../components/record/Missing';
 import { RecordPageSkeleton } from './recordSkeletons';
@@ -227,17 +227,33 @@ const Earnings = () => {
   /* the board's names' IV rank and the move priced in to each report, off UW's stock screener (one call for the list) */
   const fedNames = useMemo(() => (fromFeed && fed?.ok ? fed.data.map(e => e.ticker) : []), [fromFeed, fed]);
   const fedDays = useFeedStockDays(fromFeed, fedNames);
+  /* each name's own record: the usual move after its reports, its beats — so the board says how each print is priced */
+  const recordNames = useMemo(
+    () => (fedDays ? [...fedNames].sort((a, b) => (fedDays.get(b)?.marketcap ?? 0) - (fedDays.get(a)?.marketcap ?? 0)).slice(0, 80) : []),
+    [fedNames, fedDays]
+  );
+  const fedRecords = useFeedReportRecords(fromFeed, recordNames);
   const events = useMemo(
     () =>
       fromFeed
         ? (fed?.ok ? fed.data : []).map(e => {
             const d = fedDays?.get(e.ticker);
-            if (!d) return e;
-            const implied = Number.isFinite(e.impliedMovePct) ? e.impliedMovePct : movePricedTo(Math.max(1, Math.round((e.daysOut * 7) / 5)), d.impliedMoves) * 100;
-            return { ...e, impliedMovePct: implied, ivRank: d.ivRank != null ? Math.round(d.ivRank) : e.ivRank, price: Number.isFinite(e.price) ? e.price : d.close ?? NaN };
+            const rec = fedRecords?.ok ? fedRecords.data[e.ticker] : undefined;
+            const implied = Number.isFinite(e.impliedMovePct) || !d ? e.impliedMovePct : movePricedTo(Math.max(1, Math.round((e.daysOut * 7) / 5)), d.impliedMoves) * 100;
+            const hist = rec?.histAvgMovePct ?? e.histAvgMovePct;
+            return {
+              ...e,
+              impliedMovePct: implied,
+              ivRank: d?.ivRank != null ? Math.round(d.ivRank) : e.ivRank,
+              price: Number.isFinite(e.price) ? e.price : d?.close ?? NaN,
+              histAvgMovePct: hist,
+              richness: Number.isFinite(hist) && hist > 0 && Number.isFinite(implied) ? implied / hist : NaN,
+              beatRate8q: rec?.beatRate8q ?? e.beatRate8q,
+              pastMoves: rec?.pastMoves ?? e.pastMoves,
+            };
           })
         : buildEarningsCalendar(),
-    [fromFeed, fed, fedDays]
+    [fromFeed, fed, fedDays, fedRecords]
   );
   /* the macro dates beside the reports — the approximated CPI day stays off a calendar that is UW's */
   const macro = useMemo(() => macroWindow(new Date(), 10, 20).filter(m => !fromFeed || m.label !== 'CPI release'), [fromFeed]);
@@ -269,7 +285,7 @@ const Earnings = () => {
     parts.push(today.length ? `today: ${today.map(e => `${e.ticker} ${slotWord(e)}`).join(', ')}` : 'nothing reports today');
     return parts.join(' · ') + '.';
   }, [inWeeks.length, week, span, rich, fair, cheap, biggest, today, fromFeed]);
-  const showOptions = fromFeed ? SHOW_OPTIONS.map(o => (o.value === 'all' ? o : { ...o, disabled: true, hint: `How the price sits against the usual move — on a name's own page; ${NOT_IN_FEED} for the calendar` })) : SHOW_OPTIONS;
+  const showOptions = SHOW_OPTIONS;
 
   const columnDefs = useMemo<ColDef<EarningsEvent>[]>(
     () => [
