@@ -213,3 +213,6 @@ wall, Range and Close panels read the house's book as before.
 The fallback was checked with the keys blanked (`env UW_API_TOKEN= MASSIVE_API_KEY= node node_modules/vite/bin/vite.js`
 — an empty variable in the process wins over `.env` in `loadEnv`; `npx` drops empty variables, so call Vite directly):
 every Pinpoint page, Terrain and Pulse drew the same boxes as the commit before this wiring, and no console errors.
+
+Screenshots on the vendor's answers, 2026-10-12 around 14:15 New York: `docs/data-feed/levels-2026-10-12-*.png` (the Map,
+Building, Ahead and Terrain dark; At the wall and Terrain light; the Map on a phone).
