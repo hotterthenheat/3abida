@@ -49,6 +49,7 @@ const check = (name: string, ok: boolean) => {
 /* the TTLs by what a path is */
 check('a quote is kept seconds', ttlFor('uw', '/api/stock/SPY/stock-state') <= 5000);
 check('a contract list is kept hours', ttlFor('massive', '/v3/reference/options/contracts') >= 3600_000);
+check("a name's listed expiries are kept minutes", ttlFor('uw', '/api/stock/SPX/expiry-breakdown') >= 10 * 60_000);
 
 /* no key: 503 no-key, and nothing leaves */
 {

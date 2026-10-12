@@ -616,6 +616,32 @@ data: array[3]
 - `/api/stock/{ticker}/stock-state` for a ticker UW does not know answers 200 `{ "data": null }`; `/quote` answers 404
   `stock_quote_not_found`; Massive's `/v3/reference/tickers/{ticker}` answers 404 `NOT_FOUND`.
 
+### What the rail and Compass's calendar learnt (2026-10-12, 13:23 ET)
+- `/api/stock/{index}/stock-state` answers **422** for every index: SPX, NDX, RUT, VIX, XSP — `{ "msg": "Stock state
+  data is not available for index ticker SPX" }`; `/quote` answers 404 `stock_quote_not_found`; `/ohlc/1m` answers 422
+  `cboe_index_access_missing` ("Prices for the CBOE index SPX require provisioned access and CBOE approval"). No index
+  price on the Basic plan; SPY's state the same minute: `close` "777.8", `prev_close` "778.57", `market_time` "regular".
+- `/api/stock/{ticker}/expiry-breakdown` lists each ROOT apart, `expires` YYYY-MM-DD (not always in order — NDX's
+  came out of order):
+
+  | Root | Dates | First | Note |
+  |---|---|---|---|
+  | `SPX` | 20 | 2026-10-16 | the AM-settled third-Friday monthlies, out to 2031-12-19 |
+  | `SPXW` | 40 | 2026-10-12 | every session, then month- and quarter-ends |
+  | `XSP` | 44 | 2026-10-12 | one root (`XSPW` answers `{ "data": [] }`) |
+  | `NDX` / `NDXP` | 14 / 34 | 2026-10-16 / 2026-10-12 | AM monthlies / PM dailies |
+  | `RUT` / `RUTW` | 9 / 23 | 2026-10-16 / 2026-10-12 | AM monthlies / PM dailies |
+  | `VIX` / `VIXW` | 9 / 4 | 2026-10-21 / 2026-10-14 | Wednesdays, the settlement morning |
+  | `SPY`, `QQQ`, `IWM` | 32, 31, 33 | 2026-10-12 | |
+  | `DIA` | 20 | 2026-10-16 | Fridays |
+  | `AAPL` | 24 | 2026-10-12 | |
+  | an unknown ticker (`ZZZZ`) | 0 | | `{ "data": [] }`, 200 |
+
+- **UW's breakdown is read off open interest**: a date listed this morning is not in it until the session after.
+  Massive's `/v3/reference/options/contracts` (one strike near spot, calls, `expiration_date.gte` today) listed
+  2026-10-26 for SPY (33 dates), AAPL (25) and NVDA (26) where UW's listed 32, 24 and 25; TSLA agreed at 22. No other
+  date differed. Massive's rows carry `exercise_style` ("american" on SPY).
+
 ## Massive (Basic) — base `https://api.massive.com`, `apiKey` query parameter
 
 ### `GET /v1/marketstatus/now` — 200

@@ -74,6 +74,8 @@ const TTL: Record<ProviderId, [RegExp, number][]> = {
     [/stock-volume-price-levels/, 60 * S],
     [/spot-exposures|greek-exposure|gex-levels/, 30 * S],
     [/\/congress\/|\/insider\/|\/earnings\//, 10 * MIN],
+    /* a name's listed expiries change once a session (Compass's calendar, 2026-10-12) */
+    [/\/expiry-breakdown$/, 30 * MIN],
   ],
   massive: [
     [/^\/v1\/marketstatus\//, MIN],

@@ -65,16 +65,22 @@ import Fold from '../ui/Fold';
 import Avatar from '../ui/Avatar';
 import { useProfile } from '../../data/profile';
 import { useActiveTicker, useNow, useQuote } from '../../context/MarketDataContext';
-import { useFeedQuote, useTraceSource } from '../../data/feed/trace';
+import { NOT_IN_FEED, useFeedPrice } from '../../data/feed/price';
+import { pageSource } from '../../data/feed/rooms';
+import { useFeedStatus } from '../../data/feed/status';
 
-/* THE RAIL'S PRICE IS THE ROOM'S (2026-10-12): on a Trace page reading the feed, the name's price is the vendor's — the
-   same market as every print under it — never the house's beside it */
-function useRailQuote(ticker: string) {
-  const onTrace = useLocation().pathname.startsWith('/trace');
-  const feed = useTraceSource() === 'feed' && onTrace;
+/* THE RAIL'S PRICE IS THE PAGE'S ROOM'S (2026-10-12): on a page whose room reads the feed (rooms.ts pageSource — Trace
+   and the Dossier today, any room wired later on its own), the name's price is UW's — the same market as every figure
+   under it; on a page whose room reads the house's book, or no room's (Practice, Settings, the Glossary), the house's.
+   Never the vendor's beside the house's on one screen. While a wired room's vendors are still being asked it shows
+   nothing; a name the vendor does not price (the indices) is "—", not in the feed. */
+function useRailQuote(ticker: string): { quote: { spot: number; changePct: number } | null; missing: boolean } {
+  const src = pageSource(useLocation().pathname, useFeedStatus());
   const house = useQuote();
-  const vendor = useFeedQuote(feed, ticker);
-  return feed ? vendor : house;
+  const vendor = useFeedPrice(src === 'feed', ticker);
+  if (src === 'feed') return { quote: vendor.price, missing: vendor.answered && !vendor.price };
+  if (src === 'pending') return { quote: null, missing: false };
+  return { quote: house, missing: false };
 }
 import { useLaunch } from './LaunchTransition';
 import CompanyLogo from '../ui/CompanyLogo';
@@ -142,7 +148,7 @@ const RailSubject = ({
   tipProps: (label: string) => Record<string, unknown>;
 }) => {
   const activeTicker = useActiveTicker();
-  const quote = useRailQuote(activeTicker);
+  const { quote, missing } = useRailQuote(activeTicker);
   const name = lookup(activeTicker)?.name ?? null;
   const change = quote?.changePct ?? 0;
   const priceText = quote ? `$${quote.spot.toFixed(2)}` : '—';
@@ -173,7 +179,7 @@ const RailSubject = ({
       <span className="text-[12px] font-semibold text-textPrimary" data-subject-ticker>
         {activeTicker}
       </span>
-      <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price>
+      <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price title={missing ? NOT_IN_FEED : undefined}>
         {priceText}
       </span>
       {quote && (
@@ -192,7 +198,7 @@ const RailSubject = ({
 /** The phone strip's subject: the name and its price */
 const PhoneSubject = ({ onOpenPalette }: { onOpenPalette: () => void }) => {
   const activeTicker = useActiveTicker();
-  const spot = useRailQuote(activeTicker)?.spot ?? null;
+  const spot = useRailQuote(activeTicker).quote?.spot ?? null;
   const priceText = spot != null ? `$${spot.toFixed(2)}` : '—';
   return (
     <button type="button" onClick={onOpenPalette} aria-label={`Watching ${activeTicker} ${priceText} — switch`} className="inline-flex items-center gap-2 h-11 rounded-md border border-borderMuted bg-chip px-3" data-mobile-subject>

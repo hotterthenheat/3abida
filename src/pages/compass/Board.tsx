@@ -92,6 +92,8 @@ import { structureName } from '../../components/compass/SetupFiling';
 import { readExpiry, type BoardDay } from '../../data/expiryClass';
 import { isIsoDay, oneOf, useAddressCut } from '../../components/trace/addressCut';
 import { nyClock } from '../../core/nyTime';
+import { useListedDates } from '../../data/feed/listings';
+import { isUp, useFeedStatus } from '../../data/feed/status';
 import { CompassPageSkeleton } from '../compassSkeleton';
 
 /** The scanner sweeps on its own cadence — the feed must not vibrate with every price tick. */
@@ -292,15 +294,29 @@ const Board = () => {
   // identical code. Scan-tier cadence: quotes refresh with the sweep.
   const universe = useMemo(() => (scanSnapshot ? Simulator.universeQuotes(scanSnapshot.ticker) : []), [scanSnapshot]);
 
+  /* THE REAL CALENDAR (2026-10-12, data/feed/listings.ts): with UW up, each name's listed dates are the vendor's — the
+     exchange's calendar, not a market reading, so they stand under the house's setups; the board waits for them (its
+     skeleton) rather than filing on the schedule and moving every setup a moment later. UW down: the schedule, as
+     before. */
+  const feedStatus = useFeedStatus();
+  const datesWait = feedStatus.uw.state === 'unknown';
+  const universeNames = useMemo(() => universe.map(q => q.ticker), [universe]);
+  const listed = useListedDates(isUp(feedStatus, 'uw'), universeNames, isoDate(day.today));
+  const listedOf = listed.of;
+  const listedReady = listed.ready && !datesWait;
+  const listedVersion = listed.version;
+
   /* THE POOL: every lens on every tenor, as the engine finds them, each moved onto one of its name's listed dates and
      filed under its category, kinds, structure and tags (the stand-in mapping). Once a sweep — every filter below reads
      it, so a pick re-cuts without a sweep. */
   const pool = useMemo<FiledSetup[]>(() => {
-    if (!scanSnapshot) return [];
+    if (!scanSnapshot || !listedReady) return [];
+    void listedVersion;
     const byLens: { lens: ScannerKey; sleeve: SleeveKey; setups: Setup[] }[] = [];
     for (const sl of SLEEVES) for (const lens of LENSES) byLens.push({ lens, sleeve: sl.key, setups: buildCompassView(scanSnapshot, lens, universe, sl.key).groups.flatMap(g => g.setups) });
-    return filePool(byLens, universe);
-  }, [scanSnapshot, universe]);
+    return filePool(byLens, universe, undefined, listedOf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanSnapshot, universe, listedReady, listedVersion]);
   const filingById = useMemo(() => new Map(pool.map(f => [f.setup.id, f])), [pool]);
 
   /* THE COUNTS — each the board that pick would show (the audit's CO-3: a figure is the number its own board lists): a
@@ -470,11 +486,12 @@ const Board = () => {
   }, [rankedSetups]);
 
   /* THE CALENDAR'S LIT DAYS: every date a name on the board lists, each with its category (data/compassStandIn.ts
-     listingsFor — the feed's own expiry list once it is connected) */
+     listingsFor — the feed's own expiry list while UW is up, data/feed/listings.ts) */
   const calendar = useMemo(() => {
+    void listedVersion;
     const byIso = new Map<string, { e: Expiry; cat: ExpiryCat; am: boolean }>();
     for (const q of universe) {
-      for (const l of listingsFor(q.ticker, day)) {
+      for (const l of listingsFor(q.ticker, day, listedOf(q.ticker))) {
         const r = readExpiry(l, day);
         if (!r) continue;
         const iso = isoDate(l.expires);
@@ -484,7 +501,8 @@ const Board = () => {
       }
     }
     return byIso;
-  }, [universe, day]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [universe, day, listedVersion]);
   /* how many setups each date holds on the cut — said on the day's tooltip */
   const perDay = useMemo(() => {
     const m = new Map<string, number>();
