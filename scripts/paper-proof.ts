@@ -11,6 +11,7 @@ import { EVAL_PLANS, bankedOf, closeStale, endEvaluation, evalRead, flattenAll, 
 import { indexOfFund, isPaperIndex, paperIndex } from '../src/data/paper/products';
 import { expiriesAt, priceWith, type ContractId } from '../src/data/review/quotes';
 import type { Candle } from '../src/types/market';
+import { marketClock } from '../src/core/nyTime';
 
 let failed = 0;
 let passed = 0;
@@ -199,11 +200,11 @@ ok('a winning trade: the floor does not move until the day closes (end of day)',
 /* flat a minute before the bell */
 e = optPlace(e, market(), { contract: atm, side: 'buy', qty: 1, kind: 'market' });
 now = flatByOf(TUE) + 500;
-ok('in the last minute a way out is still taken — only a way in is refused', optRefusal(e, market(), { contract: atm, side: 'sell', qty: 1, kind: 'market' }) === null && (optRefusal(e, market(), { contract: atm, side: 'buy', qty: 1, kind: 'market' }) ?? '').startsWith('It is past 15:59'));
+ok('in the last minute a way out is still taken — only a way in is refused', optRefusal(e, market(), { contract: atm, side: 'sell', qty: 1, kind: 'market' }) === null && (optRefusal(e, market(), { contract: atm, side: 'buy', qty: 1, kind: 'market' }) ?? '').startsWith(`It is past ${marketClock(15, 59, { zone: true, on: now })}`));
 let ev;
 ({ account: e, events: ev } = run(e, 0));
-ok('at 15:59 everything open is closed by the rules, and it is said', optBookOf(e).positions.length === 0 && ev.some(x => x.kind === 'flat' && x.words.startsWith('15:59')));
-ok('from 15:59 no way in is taken, and the page says when the next day begins', (optRefusal(e, market(), { contract: atm, side: 'buy', qty: 1, kind: 'market' }) ?? '').includes('the next trading day begins at 16:00'));
+ok('at 15:59 everything open is closed by the rules, and it is said', optBookOf(e).positions.length === 0 && ev.some(x => x.kind === 'flat' && x.words.startsWith(marketClock(15, 59, { on: now }))));
+ok('from 15:59 no way in is taken, and the page says when the next day begins', (optRefusal(e, market(), { contract: atm, side: 'buy', qty: 1, kind: 'market' }) ?? '').includes(`the next trading day begins at ${marketClock(16, 0, { on: now })}`));
 const closeTue = viewOf(e, market()).equity;
 /* the roll, at the bell */
 now = dayEndsAt(TUE) + 60_000;
@@ -220,8 +221,8 @@ const downTo = spotFor(wed, 5, -1_150);
 e = optPlace(e, market(), { contract: wed, side: 'buy', qty: 5, kind: 'market' });
 px.SPY = downTo;
 ({ account: e, events: ev } = run(e));
-ok('down more than $1,000 on the day: everything is closed and the day is over — not a fail', !!e.dayOver && e.status === 'open' && optBookOf(e).positions.length === 0 && ev.some(x => x.kind === 'day-over' && x.words.includes('16:00 bell')), `day ${viewOf(e, market()).equity - dayOpen}`);
-ok('no way in is taken for the rest of the day, and the page says until when', (optRefusal(e, market(), { contract: wed, side: 'buy', qty: 1, kind: 'market' }) ?? '').startsWith('The day’s limit was reached') && (optRefusal(e, market(), { contract: wed, side: 'buy', qty: 1, kind: 'market' }) ?? '').includes('16:00 bell'));
+ok('down more than $1,000 on the day: everything is closed and the day is over — not a fail', !!e.dayOver && e.status === 'open' && optBookOf(e).positions.length === 0 && ev.some(x => x.kind === 'day-over' && x.words.includes('rolls at the bell')), `day ${viewOf(e, market()).equity - dayOpen}`);
+ok('no way in is taken for the rest of the day, and the page says until when', (optRefusal(e, market(), { contract: wed, side: 'buy', qty: 1, kind: 'market' }) ?? '').startsWith('The day’s limit was reached') && (optRefusal(e, market(), { contract: wed, side: 'buy', qty: 1, kind: 'market' }) ?? '').includes('rolls at the bell'));
 now = dayEndsAt(WED) + 60_000;
 ({ account: e } = run(e, 0));
 ok('the next trading day takes a way in again', !e.dayOver && optRefusal(e, market(), { contract: wed, side: 'buy', qty: 1, kind: 'market' }) === null);

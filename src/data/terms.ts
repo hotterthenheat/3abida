@@ -11,6 +11,8 @@
 ==================================================
 */
 
+import { marketClock } from '../core/nyTime';
+
 export const TERMS = {
   'Expected move': 'The move options are charging for this report — the market’s own guess, as a ± percent.',
   'Typical move': 'How far the stock actually moved after each of its last 8 reports, averaged.',
@@ -169,7 +171,7 @@ export const TERMS = {
     'A 20-bar average with bands 2\u03c3 out. Tight bands mean the tape is coiling; a close outside them means it\u2019s stretched.',
   ATR:
     'Average true range \u2014 how far this name typically travels in a session, gaps included. A wall 0.4 ATR away is the same distance on SPY and on NVDA.',
-  Globex: 'The overnight futures session — Sunday 18:00 to Friday 17:00 New York, with a daily 17:00\u201318:00 break. The equity open is usually decided out here, while the cash tape this desk draws is closed.',
+  Globex: `The overnight futures session — Sunday ${marketClock(18, 0)} to Friday ${marketClock(17, 0, { zone: true })}, with a daily ${marketClock(17, 0)}\u2013${marketClock(18, 0)} break. The equity open is usually decided out here, while the cash tape this desk draws is closed.`,
   VPOC: 'The price where the session traded the most volume — the tape\u2019s own centre of gravity today. Price tends to return to it while value is being accepted.',
   Measure:
     'Drag across the tape for the move it covers: dollars, percent, bars, elapsed, and the same move stated at an annual rate so it can be read against implied volatility.',

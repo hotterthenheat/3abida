@@ -44,6 +44,7 @@ import { agendaReading, bookReading, closeReading, rangeReading, type Reading } 
 import { aheadClock } from '../../data/ahead';
 import { readSessionClock } from '../../data/sessionClock';
 import { agendaOf, bookOf, closeOddsOf, corridorOf, profileOf, scanOf } from '../../data/pinpointBook';
+import { marketClock } from '../../core/nyTime';
 
 export interface WorkspaceCtx {
   ticker: string;
@@ -231,7 +232,7 @@ export const WIDGETS: WidgetDef[] = [
     key: 'where-it-closes',
     read: readClose,
     title: 'Where it closes',
-    sub: 'Where on the price axis the 4:00 print lands',
+    sub: `Where on the price axis the ${marketClock(16, 0)} print lands`,
     description: 'The odds of the close as one silhouette on the price axis, the bands it most often lands inside, the walls and the flip on the same ruler — tightening as the clock runs',
     w: 5,
     h: 4,

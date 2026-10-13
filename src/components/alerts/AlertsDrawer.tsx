@@ -56,7 +56,7 @@ import { ALERT, alpha } from '../gex/paletteInk';
 import { closeAlertsDrawer, useAlertsDrawer } from '../../data/alertsDrawer';
 import { useOverlay } from '../ui/layers';
 import { undoable } from '../ui/undo';
-import { nyClock, nyDay, nyParts, nyWallTime } from '../../core/nyTime';
+import { marketClock, nyClock, nyParts, nyWallTime, viewerDay } from '../../core/nyTime';
 import { SNOOZE_MS } from './AlertToasts';
 import AllComposer from './AllComposer';
 import { usd } from '../../core/format';
@@ -105,11 +105,12 @@ const doorOf = (a: Alert): { label: string; to: string } => {
   }
 };
 
-/* EVERY TIME HERE IS NEW YORK'S (the audit's X2.6 — the drawer printed the machine's own clock beside toasts in ET) */
+/* EVERY TIME HERE IS THE READER'S CLOCK, the toasts' too (2026-10-13 — the owner: every time in the viewer's own zone,
+   12-hour with am/pm); the close an alert ends at is still New York's 16:00, read there */
 const hhmm = (ms: number) => nyClock(ms, { zone: true });
 const hhmmss = (ms: number) => nyClock(ms, { seconds: true, zone: true });
-/** A time that may be another day: "16:00 ET", or "Oct 12, 16:00 ET" */
-const whenAt = (ms: number) => (nyDay(ms) === nyDay(Date.now()) ? hhmm(ms) : `${nyDay(ms)}, ${hhmm(ms)}`);
+/** A time that may be another day: "4:00 pm EDT", or "Oct 12, 4:00 pm EDT" (the reader's day beside the reader's clock) */
+const whenAt = (ms: number) => (viewerDay(ms) === viewerDay(Date.now()) ? hhmm(ms) : `${viewerDay(ms)}, ${hhmm(ms)}`);
 const ALL = 'all';
 
 /* ---- the lifecycle's words (2026-10-09) ------------------------------------------------ */
@@ -142,9 +143,9 @@ const weekClose = (now: number): number => {
 const endAt = (c: EndChoice, now: number): number => (c === 'never' ? 0 : c === 'close' ? nextClose(now) : c === 'hour' ? now + 3_600_000 : weekClose(now));
 const END_OPTIONS: DropdownOption<EndChoice>[] = [
   { value: 'never', label: 'Never', hint: 'It stays set until you take it off' },
-  { value: 'close', label: 'At the close', hint: 'The next 16:00 New York' },
+  { value: 'close', label: 'At the close', hint: `The next close, ${marketClock(16, 0)}` },
   { value: 'hour', label: 'In an hour', hint: 'An hour from now' },
-  { value: 'week', label: 'At the week’s close', hint: 'Friday, 16:00 New York' },
+  { value: 'week', label: 'At the week’s close', hint: `Friday’s close, ${marketClock(16, 0)}` },
 ];
 /** What the current end reads as, for the menu: the choice it matches, else "never" if none is set */
 const endChoiceOf = (a: Alert): EndChoice => {
@@ -482,7 +483,7 @@ const AlertsDrawer = () => {
                       alerted
                       ticker={ticker}
                       words={firedWords(r.alert, ticker)}
-                      state={`alerted ${nyDay(r.at) === nyDay(Date.now()) ? hhmmss(r.at) : `${nyDay(r.at)}, ${hhmmss(r.at)}`}${r.value != null && r.alert.kind !== 'price' ? ` · at ${fmtAlertValue(r.value)}` : ''}${r.mark != null ? ` · ${ticker} ${usd(r.mark)}` : ''}`}
+                      state={`alerted ${viewerDay(r.at) === viewerDay(Date.now()) ? hhmmss(r.at) : `${viewerDay(r.at)}, ${hhmmss(r.at)}`}${r.value != null && r.alert.kind !== 'price' ? ` · at ${fmtAlertValue(r.value)}` : ''}${r.mark != null ? ` · ${ticker} ${usd(r.mark)}` : ''}`}
                       door={{ label: door.label, onClick: () => go(ticker, door.to) }}
                       testId={{ 'data-fired-row': r.key }}
                       action={

@@ -33,6 +33,7 @@
 */
 
 import { FONT_SANS } from '../../../theme/fonts';
+import { clock as readerClock } from '../../../core/nyTime';
 
 /** the broken screen's pixel, in CSS px */
 export const PIX = 2;
@@ -143,10 +144,9 @@ export const inksOf = (el: Element): Ink => {
 
 /* ---- THE CLOCK -------------------------------------------------------------------------------------------------- */
 
-/* THE CLOCK IS NEW YORK'S, as the signature's is (brand/useMarketClock.ts) — the market's own hours, whatever the reader's */
-const NY_S = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
-const NY_M = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-export const clock = (ms: number, seconds: boolean) => (seconds ? NY_S : NY_M).format(ms);
+/* THE TAGS ARE THE READER'S CLOCK (2026-10-13 — the owner: every time on screen in the viewer's own zone, 12-hour with
+   am/pm): "3:35 pm", "3:35:42 pm" — printed through core/nyTime.ts; the day's word below stays New York's (a market day) */
+export const clock = (ms: number, seconds: boolean) => readerClock(ms, { seconds });
 const WEEKDAY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
 const DATE = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', day: 'numeric' });
 /** a day's own words ("Wed 2") — the calendar's, never a price */

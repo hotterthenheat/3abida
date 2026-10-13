@@ -33,10 +33,13 @@
 
 import { ArrowRight, BellRing, X } from 'lucide-react';
 import { usdSigned } from './words';
+import { marketClock } from '../../core/nyTime';
 
 export interface BellFacts {
   /** "Mon, Jun 22" */
   dayWords: string;
+  /** An instant on that day (ms) — the bell's 16:00 New York is printed on the reader's clock for it */
+  on?: number;
   /** Day orders that went unfilled and were cancelled at 16:00 */
   dayOrders: number;
   /** Contracts that expired today: their words, what a share settled at, what the trade made or lost */
@@ -49,6 +52,8 @@ export interface BellFacts {
 
 interface ClosingProps {
   minutesLeft: number;
+  /** An instant on the replayed day (ms) — its bell is printed on the reader's clock for that day */
+  on?: number;
   /** Held contracts that expire today, in words */
   expiring: string[];
   onDismiss: () => void;
@@ -58,13 +63,13 @@ const shell = 'pointer-events-auto rounded-md border bg-panel shadow-[0_8px_28px
 const closeDoor = 'hit inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors';
 
 /** The last fifteen minutes: one line */
-export const ClosingLine = ({ minutesLeft, expiring, onDismiss }: ClosingProps) => (
+export const ClosingLine = ({ minutesLeft, on, expiring, onDismiss }: ClosingProps) => (
   <div className={`${shell} border-warn/40 h-7 pl-2.5 pr-1 inline-flex items-center gap-2 font-mono text-[11px] whitespace-nowrap`} role="status" data-chart-chrome data-review-closing={minutesLeft}>
     <BellRing className="w-3 h-3 text-warn" aria-hidden="true" />
     <span className="font-semibold text-textPrimary">
       {minutesLeft} {minutesLeft === 1 ? 'minute' : 'minutes'} to the bell
     </span>
-    <span className="text-textMuted">the market shuts at 16:00 New York</span>
+    <span className="text-textMuted">the market shuts at {marketClock(16, 0, { zone: true, on })}</span>
     {expiring.length > 0 && (
       <span className="text-warn">
         · {expiring.length === 1 ? expiring[0] : `${expiring.length} contracts`} {expiring.length === 1 ? 'expires' : 'expire'} today — settled at the bell
@@ -83,18 +88,18 @@ interface BellProps {
   onDismiss: () => void;
 }
 
-/** 16:00: the day is over */
+/** The bell (16:00 New York): the day is over */
 export const BellCard = ({ facts, onNextDay, onDismiss }: BellProps) => (
   <div className={`${shell} border-borderMuted w-[min(420px,calc(100vw-48px))] px-3.5 pt-2.5 pb-3`} role="status" aria-live="polite" data-chart-chrome data-review-bell>
     <div className="flex items-center gap-2">
       <BellRing className="w-3.5 h-3.5 text-silver" aria-hidden="true" />
-      <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">The bell · 16:00 New York</span>
+      <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-textPrimary">The bell · {marketClock(16, 0, { zone: true, on: facts.on })}</span>
       <button type="button" onClick={onDismiss} title="Put this away" aria-label="Put this away" className={`hit ${closeDoor} ml-auto`}>
         <X className="w-3 h-3" />
       </button>
     </div>
     <p className="mt-1.5 text-[12px] leading-snug text-textPrimary">{facts.dayWords}’s market is shut.</p>
-    <p className="mt-0.5 text-[11px] leading-snug text-textSecondary">Contracts trade 09:30 to 16:00 — nothing can be bought or sold at the market until the next open. A limit or a stop left now waits for it.</p>
+    <p className="mt-0.5 text-[11px] leading-snug text-textSecondary">Contracts trade {marketClock(9, 30, { on: facts.on })} to {marketClock(16, 0, { on: facts.on })} — nothing can be bought or sold at the market until the next open. A limit or a stop left now waits for it.</p>
     {(facts.dayOrders > 0 || facts.settled.length > 0 || facts.carried > 0) && (
       <ul className="mt-2 pt-2 border-t border-borderSubtle/70 flex flex-col gap-1 font-mono text-[11px] text-textSecondary">
         {facts.settled.map(s => (

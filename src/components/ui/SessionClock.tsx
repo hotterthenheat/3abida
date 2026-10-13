@@ -8,7 +8,9 @@
   icon clock next to the 'to the close'"). The same
   24-unit face every icon on the terminal wears —
   a 2px circle in the current ink, round caps — with
-  the hour and minute hands on New York time and a
+  the hour and minute hands on the reader's clock
+  (2026-10-13 — every time on screen is the
+  reader's own; the session it names is New York's) and a
   hairline second hand sweeping once a minute on the
   compositor, phased to the real second at mount.
   Nothing else: the first cut had a lime hand and a
@@ -21,11 +23,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { readSessionClock, type SessionClock as Session } from '../../data/sessionClock';
+import { nyTextClock } from '../../core/nyTime';
 
-/** Hours, minutes and seconds off the New York wall clock the session reads */
-const parts = (s: Session) => {
-  const [h, m, sec] = s.etTime.split(':').map(Number);
-  return { h, m, sec };
+/** Hours, minutes and seconds the hands show — the reader's own clock, read when the session is (the face is a picture
+    of a time, so it is the reader's, as every printed time is) */
+const parts = (_s: Session) => {
+  const d = new Date();
+  return { h: d.getHours(), m: d.getMinutes(), sec: d.getSeconds() };
 };
 
 const SessionClock = ({ size = 14, className = '' }: { size?: number; className?: string }) => {
@@ -55,7 +59,7 @@ const SessionClock = ({ size = 14, className = '' }: { size?: number; className?
       strokeLinejoin="round"
       className={`shrink-0 ${className}`}
       role="img"
-      aria-label={`${session.label} · ${session.etTime} New York`}
+      aria-label={`${session.label} · ${nyTextClock(session.etTime, undefined, { zone: true })}`}
       data-session-clock
     >
       <circle cx="12" cy="12" r="10" />

@@ -118,7 +118,7 @@ import { askPrints, askStrikes, failWords, forgetFailed, printsState, strikesSta
 import type { RealBook } from '../../data/review/engine';
 import RealDayDoor, { EST, estWords, isEst } from '../../components/review/RealDayDoor';
 import { amendOrder, attachBracket, breakevenOrder, cancelOrder, closePosition, moveClock, placeOrder, readSessions, rebaseOrder, renameSession, trailOrder, useSession } from '../../data/review/store';
-import { DAY_MIN, LAST_MIN, clockWords, dayWords, reviewName } from '../../data/review/tape';
+import { DAY_MIN, LAST_MIN, barTime, clockWords, dayWords, reviewName } from '../../data/review/tape';
 import type { Timeframe } from '../../data/timeframe';
 import type { Candle } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
@@ -428,6 +428,7 @@ const Desk = () => {
   const bellFacts: BellFacts | null = atBell
     ? {
         dayWords: dayWords(cursor.day, true).split(',').slice(0, 2).join(','),
+        on: barTime(cursor.day, 0) * 1000,
         dayOrders: session.orders.filter(o => o.status === 'cancelled' && o.why === 'the day ended' && rungNow(o.done)).length,
         settled: session.fills.filter(f => f.how === 'expired' && rungNow(f.at)).map(f => ({ contract: contractWords(f.contract), price: f.price, pnl: account.trades.find(t => t.how === 'expired' && rungNow(t.closed) && contractKey(t.contract) === contractKey(f.contract))?.pnl ?? null })),
         carried: account.positions.length,
@@ -492,7 +493,7 @@ const Desk = () => {
       title={reviewName(ticker).name}
       spot={chain?.spot ?? spot}
       showName={names.length > 1}
-      stamp={`as it stood · ${clockWords(cursor.minute)}`}
+      stamp={`as it stood · ${clockWords(cursor.minute, cursor.day)}`}
       right={right}
       onRight={setRight}
       expiry={exp}
@@ -615,9 +616,9 @@ const Desk = () => {
         dayMin: DAY_MIN,
         floorDay: floor.day,
         tomorrow,
-        words: `${dayWords(cursor.day)} · ${clockWords(cursor.minute)}`,
+        words: `${dayWords(cursor.day)} · ${clockWords(cursor.minute, cursor.day)}`,
         days: real ? mk.days() : undefined,
-        wordsAt: clockWords,
+        wordsAt: (m: number) => clockWords(m, cursor.day),
         move: to => moveClock(session.id, to),
       }}
       goToTitle={real ? 'Jump the clock to the open of a later real session this one holds — every day between is run' : 'Jump the clock to the open of a later day — every day between is run'}
@@ -629,7 +630,7 @@ const Desk = () => {
             <BellCard facts={bellFacts} onNextDay={tomorrow ? () => seek(0, tomorrow) : null} onDismiss={() => setBellSeen(cursor.day)} />
           ) : null
         ) : minutesLeft <= CLOSING_MIN && closingSeen !== cursor.day ? (
-          <ClosingLine minutesLeft={minutesLeft} expiring={expiringToday} onDismiss={() => setClosingSeen(cursor.day)} />
+          <ClosingLine minutesLeft={minutesLeft} on={barTime(cursor.day, 0) * 1000} expiring={expiringToday} onDismiss={() => setClosingSeen(cursor.day)} />
         ) : null
       }
       full={full}

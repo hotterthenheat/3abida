@@ -7,8 +7,8 @@
 
   WHEN IT IS BACK (2026-10-09, the audit's OU-O7): "until 6:00 ET" had no day and no AM or PM, and was written into the
   page. The end is read from the window's config (data/company.ts MAINTENANCE_UNTIL, or `?until=` in the address) and
-  said in New York's time with its day — "until 6:00 AM ET, Sat, Oct 10". The mark is in its offline state: the S still,
-  no cursor (brand rules).
+  said with its day on the reader's own clock (2026-10-13 — every time in the viewer's zone, 12-hour) — "until 3:00 am
+  PDT, Sat, Oct 10". The mark is in its offline state: the S still, no cursor (brand rules).
 ==================================================
 */
 
@@ -17,16 +17,15 @@ import OutsideFrame from './OutsideFrame';
 import BracketCard from '../../brand/BracketCard';
 import SlayerMark from '../../brand/SlayerMark';
 import { MAINTENANCE_UNTIL } from '../../data/company';
-import { NY_TZ } from '../../core/nyTime';
+import { clock } from '../../core/nyTime';
 
-/** "6:00 AM ET, Sat, Oct 10" — or null for no end, or one already passed */
+/** "3:00 am PDT, Sat, Oct 10" on the reader's clock and calendar — or null for no end, or one already passed */
 const untilWords = (iso: string | null): string | null => {
   if (!iso) return null;
   const at = new Date(iso);
   if (Number.isNaN(at.getTime()) || at.getTime() <= Date.now()) return null;
-  const time = at.toLocaleTimeString('en-US', { timeZone: NY_TZ, hour: 'numeric', minute: '2-digit' });
-  const day = at.toLocaleDateString('en-US', { timeZone: NY_TZ, weekday: 'short', month: 'short', day: 'numeric' });
-  return `${time} ET, ${day}`;
+  const day = at.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${clock(at, { zone: true })}, ${day}`;
 };
 
 const Maintenance = () => {

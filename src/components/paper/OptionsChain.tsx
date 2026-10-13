@@ -52,6 +52,7 @@ import { MULT, type OrderKind } from '../../data/review/engine';
 import { contractWords, legsOf, longLeg, spreadWidth, strikeWords, type ContractId, type Quote, type Right } from '../../data/review/quotes';
 import type { OptDraft } from '../../data/paper/engine';
 import type { DeskChain, DeskContract } from '../../data/weigherDesk';
+import { marketClock } from '../../core/nyTime';
 
 const COLS_KEY = 'slayer_paper_chain_cols';
 /** What the chain opens with: the quote, the delta, the vol, the decay in dollars a day, the interest */
@@ -125,7 +126,7 @@ const OptionsChain = ({ ticker, chain, right, onRight, expiry, expiryOptions, on
       <div className={`${head} h-auto min-h-10 py-1.5 flex-wrap gap-y-1.5`}>
         <span className={headWord}>Chain</span>
         <SideSwitch right={right} onRight={onRight} />
-        {expiry && <DropdownSelect label="Expiry" bare value={expiry} options={expiryOptions} onChange={onExpiry} title="The expiry — those listed today; today’s leaves the list at 16:00" testId="paper-chain-expiry" />}
+        {expiry && <DropdownSelect label="Expiry" bare value={expiry} options={expiryOptions} onChange={onExpiry} title={`The expiry — those listed today; today’s leaves the list at ${marketClock(16, 0)}`} testId="paper-chain-expiry" />}
         <DropdownMulti label="Columns" values={cols} groups={COLUMN_GROUPS} onChange={setCols} emptyWord="Strike only" title="Which facts the chain shows" testId="paper-chain-columns" align="end" />
         {chain && (
           <span className="ml-auto font-mono text-[11px] tnum text-textMuted" title="The move the chain is charging for by this expiry, either way">

@@ -39,7 +39,9 @@ import Ledger from '../core/ledger';
 import { readDeskPrefs } from '../data/deskPrefs';
 import { enrichPrint } from '../data/tape';
 import { announceFeedTick } from '../data/feedTicks';
-import { nyClock } from '../core/nyTime';
+import { nyParts } from '../core/nyTime';
+
+const two = (n: number) => String(n).padStart(2, '0');
 import { h01 } from '../core/rng';
 import type { FlowPrint } from '../types/trace';
 import type { ExecuteResult, LedgerStats, MarketSnapshot, TapeOrder, TickerSymbol, TradeRecord } from '../types/market';
@@ -272,7 +274,10 @@ function backfill(now: number): StampedPrint[] {
         });
       }
     }
-    const time = nyClock(at, { seconds: true });
+    /* a print's `time` is DATA, New York's wall clock ("14:03:42") — Trace reads it as such; it is printed on the reader's
+       clock where it is shown (nyTextClock), never here */
+    const p = nyParts(at);
+    const time = `${two(p.hour)}:${two(p.minute)}:${two(p.second)}`;
     out.unshift(...stampTape(orders, at).map(p => ({ ...p, time })));
   }
   return out;

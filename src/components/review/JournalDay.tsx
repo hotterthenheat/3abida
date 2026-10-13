@@ -205,7 +205,7 @@ const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, co
                     if (!p.row) return <div className="font-mono text-[11px] text-textSecondary">Before the day’s first close</div>;
                     return (
                       <div className="font-mono text-[11px] tnum">
-                        <div className="text-[11px] text-textMuted">{fmtClockLocal(h.time as UTCTimestamp, 'ny')} New York</div>
+                        <div className="text-[11px] text-textMuted">{fmtClockLocal(h.time as UTCTimestamp, 'ny')}</div>
                         <div className="mt-0.5 text-textPrimary truncate">{titleOf(p.row)}</div>
                         <div className={`mt-0.5 font-semibold ${dirInk(p.row.t.pnl)}`}>{usdSigned(p.row.t.pnl)} on it</div>
                         <div className="mt-0.5 text-textSecondary">

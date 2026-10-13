@@ -10,6 +10,13 @@ import { blackScholesGreeks } from './greeks';
 import { dayKey, stream } from './rng';
 import { lookup as universeLookup } from '../data/universe';
 import type { UniverseQuote } from '../types/compass';
+import { nyParts } from './nyTime';
+
+/** "14:03:42" — New York's wall clock, as a print's `time` field carries it (data; printed through nyTextClock) */
+const nyWallText = (at: number): string => {
+  const p = nyParts(at);
+  return [p.hour, p.minute, p.second].map(n => String(n).padStart(2, '0')).join(':');
+};
 
 const Simulator = (() => {
   // Math Helpers
@@ -1024,7 +1031,9 @@ const Simulator = (() => {
         const offset = (Math.floor(Math.random() * 7) - 3) * cfg.step;
         const strike = Math.round(cfg.currentPrice / cfg.step) * cfg.step + offset;
         tape.push({
-          time: new Date().toLocaleTimeString(),
+          /* DATA, New York's wall clock ("14:03:42") — the machine's own toLocaleTimeString() was another zone and
+             another style on every machine; Trace reads this field as New York's and prints it on the reader's clock */
+          time: nyWallText(Date.now()),
           ticker: sym,
           strike: strike.toFixed(2),
           type: Math.random() > 0.5 ? 'C' : 'P',

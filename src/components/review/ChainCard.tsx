@@ -65,7 +65,7 @@ interface Props {
   spot: number;
   /** Two names on the desk: the head says whose chain it is */
   showName: boolean;
-  /** "as it stood · 10:31" · "live" */
+  /** "as it stood · 10:31 am" · "live" */
   stamp: string;
   right: Right;
   onRight: (r: Right) => void;

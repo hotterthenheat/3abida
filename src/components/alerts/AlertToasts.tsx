@@ -137,7 +137,7 @@ const AlertToasts = () => {
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: ALERT }} aria-hidden />
             <span className="font-bold">{x.ticker}</span>
             <span className="text-textPrimary">{firedWords(x.r.alert, x.ticker)}</span>
-            {/* when, on the market's clock — the brand's alert line ends "at 10:42:07 ET" */}
+            {/* when, on the reader's clock — the brand's alert line ends "at 10:42:07 am EDT" */}
             <span className="text-textMuted tnum">at {nyClock(x.r.at, { seconds: true, zone: true })}</span>
           </button>
           {/* SNOOZE (2026-10-09): the alert rests a quarter of an hour — set again if it had gone, and nothing it sleeps

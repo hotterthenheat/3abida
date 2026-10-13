@@ -9,6 +9,7 @@ import { CUT_AT_REST, ENDED, csvOf, cutFromQuery, cutToQuery, entryOf, inCut, in
 import { chainAt, expiriesAt, quoteAt } from '../src/data/review/quotes';
 import { byHour, byName, bySide, bySize, byWeekday, calendarDayOf, dayTotals, grossOf, monthWeeks, runningOf, rowsIn, runsOf, spanOf } from '../src/data/review/journalFigures';
 import { tapeDays } from '../src/data/review/tape';
+import { clock, minuteLabel, viewerZone } from '../src/core/nyTime';
 
 let misses = 0;
 const ok = (what: string, pass: boolean, detail = '') => {
@@ -48,7 +49,7 @@ ok('its times only go forward', eo.points.every((p, i) => i === 0 || p.time > eo
 ok('the walk ends on what the trade made, to the cent', near(eo.points[eo.points.length - 1].pnl, trade.pnl));
 ok('the best is never less than what was taken, the worst never more', eo.best.pnl >= trade.pnl - 0.011 && eo.worst.pnl <= trade.pnl + 0.011, `${eo.worst.pnl.toFixed(2)} … ${trade.pnl.toFixed(2)} … ${eo.best.pnl.toFixed(2)}`);
 ok('a minute’s worth is the bid it could have been sold into, fees in', (() => { const p = eo.points[30]; const bid = quoteAt(call, day, 29 + 30).bid; return near(p.value, bid) && p.pnl < bid * 100 * 2 - trade.cost + 0.011; })());
-ok('the figure reads the desk’s clock: in at the END of its minute', ny(eo.points[0].time) === '10:00' && whenWords(opt, trade.opened).endsWith('10:00'), `${ny(eo.points[0].time)} · ${whenWords(opt, trade.opened)}`);
+ok('the figure reads the desk’s clock: in at the END of its minute', ny(eo.points[0].time) === '10:00' && whenWords(opt, trade.opened).endsWith(minuteLabel(600, eo.points[0].time * 1000)), `${ny(eo.points[0].time)} · ${whenWords(opt, trade.opened)}`);
 ok('the ways out that rode it are found, priced on the contract, with what each would have made', eo.target?.of === 'contract' && eo.stop?.of === 'contract' && (eo.target.pnl ?? 0) > 0 && (eo.stop.pnl ?? 0) < 0);
 ok('kept is a share of the best, or nothing when it never was up', eo.kept === null ? eo.best.pnl <= 0 : eo.kept <= 1 && eo.kept >= -1);
 ok('walked once: the same trade is the same walk', excursionOf(opt) === eo);
@@ -81,7 +82,7 @@ ok('across a cut: what was taken of everything the trades were up at their best'
   const order = rowsOf([s, late]).map(r => r.s.id);
   ok('newest first: the trade closed at 15:00 sorts over the one closed at 11:30', order[0] === 'l', order.join(' › '));
   const r0 = rowsOf([late])[0];
-  ok('…and its instant is the clock its words say', ny(instantOf(r0, r0.t.closed)) === whenWords(r0, r0.t.closed).split(' · ')[1], `${ny(instantOf(r0, r0.t.closed))} · ${whenWords(r0, r0.t.closed)}`);
+  ok('…and its instant is the clock its words say', clock(instantOf(r0, r0.t.closed) * 1000) === whenWords(r0, r0.t.closed).split(' · ')[1], `${clock(instantOf(r0, r0.t.closed) * 1000)} · ${whenWords(r0, r0.t.closed)}`);
 }
 
 /* ---- the entry, the tags, the cut ---- */
@@ -100,7 +101,7 @@ ok('an address that is not ours is the cut at rest', JSON.stringify(cutFromQuery
 /* ---- the file ---- */
 const csv = csvOf([rt, opt], r => ({ best: excursionOf(r).best.pnl, worst: excursionOf(r).worst.pnl }));
 const lines = csv.split('\r\n');
-ok('the file is a head and a line a trade', lines.length === 3 && lines[0].startsWith('Closed (New York),'));
+ok('the file is a head and a line a trade', lines.length === 3 && lines[0].startsWith(`Closed (${viewerZone()}),`));
 ok('words with a comma or a quote in them stay one cell', lines[1].includes('"The name held the put wall, twice."') && lines[1].includes('"Wait for the ""second"" touch"') && wordsOf(entryOf(rt)).includes('twice'));
 
 /* ---- THE FRONT PAGE'S FIGURES (journalFigures.ts, 2026-09-25): the period, the month, the days, the running total, the cuts ---- */
@@ -136,7 +137,7 @@ ok('words with a comma or a quote in them stay one cell', lines[1].includes('"Th
   const side = bySide(rows);
   ok('the way it needed: calls up, puts down, adding up', side[0].n + side[1].n === rows.length && side[1].n === 2 && side[1].net === -40);
   const hrs = byHour(rows);
-  ok('the hours: New York’s, in the order of the day, from when it was OPENED (the 10:05 close was opened at 09:55)', hrs.map(l => l.label).join(',') === '09:00,11:00,12:00,14:00' && hrs[0].n === 2 && hrs.reduce((x, l) => x + l.n, 0) === rows.length, hrs.map(l => l.label).join(','));
+  ok('the hours: New York’s, in the order of the day, from when it was OPENED (the 10:05 close was opened at 09:55)', hrs.map(l => l.label).join(',') === [9, 11, 12, 14].map(h => minuteLabel(h * 60, at('2026-09-21', '12:00'))).join(',') && hrs[0].n === 2 && hrs.reduce((x, l) => x + l.n, 0) === rows.length, hrs.map(l => l.label).join(','));
   ok('the names: the most traded first', byName(rows)[0].label === 'SPY' && byName(rows)[0].n === 4);
 }
 

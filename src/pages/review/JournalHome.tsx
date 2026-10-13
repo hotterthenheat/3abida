@@ -466,7 +466,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
                   if (!p.row) return <div className="font-mono text-[11px] text-textSecondary">Before the period’s first close — nothing made, nothing lost</div>;
                   return (
                     <div className="font-mono text-[11px] tnum">
-                      <div className="text-[11px] text-textMuted">{fmtStampLocal(instantOf(p.row, p.row.t.closed) as UTCTimestamp, 'ny')} · New York</div>
+                      <div className="text-[11px] text-textMuted">{fmtStampLocal(instantOf(p.row, p.row.t.closed) as UTCTimestamp, 'ny')}</div>
                       <div className="mt-0.5 text-textPrimary truncate">{titleOf(p.row)}</div>
                       <div className={`mt-0.5 font-semibold ${dirInk(p.row.t.pnl)}`}>{usdSigned(p.row.t.pnl)} on it</div>
                       <div className="mt-0.5 text-textSecondary">
@@ -497,7 +497,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
 
       {/* ---- FIVE CUTS of the period's trades ---- */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 min-[1700px]:grid-cols-6" data-journal-cuts>
-        <JournalLanes title="By the hour you got in" lanes={hours} rest="The hour each trade was opened, on New York’s clock" testId="hour" />
+        <JournalLanes title="By the hour you got in" lanes={hours} rest="The hour each trade was opened, on your clock" testId="hour" />
         <JournalLanes title="By weekday" lanes={weekdays} rest="The day each trade closed on" testId="weekday" />
         <JournalLanes title="By name" lanes={names} rest="What you traded — the most traded first" testId="name" />
         <JournalLanes title="Long or short" lanes={sides} rest="Longs and calls needed it up; shorts and puts, down" testId="side" />

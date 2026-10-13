@@ -8,6 +8,7 @@
 
 import { ARROW, FONT, PIX, box, chip, clamp, clock, dashedCard, dayWord, ease, frame, hash01, keep, lerp, prose, rgb, rng, type, walk, type Box, type Part, type Pen, type Pill, type Stage } from '../kit';
 import { bell } from './field';
+import { marketClock } from '../../../../core/nyTime';
 
 /* ---- THE ALERTS' LIST: every alert in one place — its bell, its name, what it waits for, its switch --------------- */
 
@@ -815,7 +816,7 @@ export const testCard = (): Part => {
       c.fillStyle = rgb(b.ink.line, sharp ? 0.8 : 0.85);
       if (sharp) c.fillRect(at.x0, y, at.x1 - at.x0, 1.5);
       else for (let x = at.x0; x < at.x1; x += 10 + b.r() * 20) if (b.r() < 0.6) c.fillRect(x, y - 1, 6 + b.r() * 24, 2);
-      type(b, 'back at 06:00 ET', at.x0, at.y0 + 7, { size: 8, hue: b.ink.secondary, share: 0.5 });
+      type(b, `back at ${marketClock(6, 0)}`, at.x0, at.y0 + 7, { size: 8, hue: b.ink.secondary, share: 0.5 });
     },
     tick(f) {
       t = f.t;
@@ -845,7 +846,7 @@ export const testCard = (): Part => {
     },
     read(_c, f, x, y): Pill[] | null {
       if (!s || x < at.x0 || x > at.x1 || y < at.y0 || y > at.y1) return null;
-      return [{ x, y: at.y1 - 16, text: `now ${clock(f.wall, false)} ET`, anchor: 'mid' }];
+      return [{ x, y: at.y1 - 16, text: `now ${clock(f.wall, false)}`, anchor: 'mid' }];
     },
   };
 };

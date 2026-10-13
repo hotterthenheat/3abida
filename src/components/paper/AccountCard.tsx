@@ -43,6 +43,7 @@ import { card, head } from '../review/DeskShell';
 import { TRADES_WORDS, dirInk, usd, usdSigned } from '../review/words';
 import { PRACTICE_SIZES, type EvalPlan, type EvalRead, type PaperAccount, type PaperView } from '../../data/paper/engine';
 import { nyAt } from '../../data/paper/clock';
+import { clock, marketClock } from '../../core/nyTime';
 import PlanRows from './PlanRows';
 
 const STATUS: Record<PaperAccount['status'], { word: string; ink: string }> = {
@@ -151,7 +152,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
   const working = a.opt.orders.filter(o => o.status === 'working').length;
   const tight = ev ? ev.room <= ev.plan.maxLoss * 0.25 : false;
   const flatIn = ev ? ev.flatBy - now : 0;
-  const flatWords = !ev ? '' : ev.inFlatWindow ? 'flat into the close' : nyAt(ev.flatBy).date === nyAt(now).date ? untilWords(flatIn) : `${new Date(ev.flatBy).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })} 15:59`;
+  const flatWords = !ev ? '' : ev.inFlatWindow ? 'flat into the close' : nyAt(ev.flatBy).date === nyAt(now).date ? untilWords(flatIn) : `${new Date(ev.flatBy).toLocaleDateString('en-US', { weekday: 'short' })} ${clock(ev.flatBy)}`;
   const running = accounts.find(x => x.kind === 'evaluation' && x.status === 'open') ?? null;
 
   return (
@@ -219,7 +220,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                   {onEvaluation && (
                     <div className={onPractice ? 'mt-3 pt-3 border-t border-borderSubtle/70' : ''}>
                       <p className="text-[12px] font-medium text-textPrimary">An evaluation</p>
-                      <p className="mt-1 text-[11px] leading-snug text-textMuted">A prop firm’s test, on options: a floor that follows the best close, a day’s limit, a cap on the contracts open at once, two trading days, no day more than half the profit, flat by 15:59 New York.</p>
+                      <p className="mt-1 text-[11px] leading-snug text-textMuted">A prop firm’s test, on options: a floor that follows the best close, a day’s limit, a cap on the contracts open at once, two trading days, no day more than half the profit, flat by {marketClock(15, 59, { zone: true })}.</p>
                       {/* the plans as a small table — a head row says what each figure is (PlanRows) */}
                       <div className="mt-2.5">
                         <PlanRows
@@ -267,7 +268,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
           {a.status !== 'open' && a.statusWhy ? (
             <span className={a.status === 'failed' ? 'text-bear' : a.status === 'passed' ? 'text-bull' : 'text-textSecondary'}>{a.statusWhy}</span>
           ) : ev ? (
-            `Options · the floor follows ${ev.plan.trailing === 'eod' ? 'the best close' : 'the best moment, open trades in'} · flat by 15:59 New York`
+            `Options · the floor follows ${ev.plan.trailing === 'eod' ? 'the best close' : 'the best moment, open trades in'} · flat by ${marketClock(15, 59, { zone: true })}`
           ) : (
             `Options · $${a.fee.toFixed(2)} a contract each way · the account carries from day to day, and through a reload`
           )}
@@ -294,7 +295,7 @@ const AccountCard = ({ account: a, accounts, view: v, ev, now, onPick, onPractic
                 {ev.daysTraded} <span className="text-textMuted">of {ev.plan.minDays}</span>
               </Cell>
               {a.status === 'open' && (
-                <Cell label="Flat by 15:59" testId="paper-flat-by">
+                <Cell label={`Flat by ${marketClock(15, 59)}`} testId="paper-flat-by">
                   <span className={ev.inFlatWindow || flatIn < 15 * 60_000 ? 'text-warn' : ''}>{flatWords}</span>
                 </Cell>
               )}

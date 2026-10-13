@@ -222,9 +222,9 @@ export function sampleAccounts(): PaperAccount[] {
     words[ids[i]] = { setup: SETUPS[(i * 5) % SETUPS.length], plan: slip ? 'no' : 'yes', mood: FEELS[(i * 3) % FEELS.length], ...(slip ? { mistakes: [MISTAKES[(i * 3) % MISTAKES.length]] } : {}), keptAt: nyInstant(LAST, 17 * 60) };
   }
   const days: Record<string, DayNote> = {
-    '2026-09-02': { plan: 'Two trades at most. Nothing after 11:30.', review: 'Kept to it. The second was the better one.' },
+    '2026-09-02': { plan: 'Two trades at most. Nothing after 11:30 am.', review: 'Kept to it. The second was the better one.' },
     '2026-09-15': { plan: 'Only the first pullback in the trend.', review: 'Took a late one anyway. It cost the morning.' },
-    '2026-09-22': { plan: 'Flat into the afternoon. Size down after a loss.', review: 'Sized down, stayed flat after 13:00 — a quiet day is a good day.' },
+    '2026-09-22': { plan: 'Flat into the afternoon. Size down after a loss.', review: 'Sized down, stayed flat after 1:00 pm — a quiet day is a good day.' },
   };
   practice = { ...practice, journal: words, days };
   built = [practice, evaluation];

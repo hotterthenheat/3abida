@@ -58,6 +58,7 @@ import { useStacked } from './scale';
 import { Prompt } from './TerminalWindow';
 import SESSION from './session.json';
 import { pictureIn } from './pixels';
+import { nyTextClock, nyWallTime } from '../../core/nyTime';
 
 type Box = [number, number, number, number];
 interface Beat {
@@ -72,13 +73,18 @@ interface Beat {
 }
 const DATA = SESSION as unknown as { w: number; h: number; frames: number; times: string[]; beats: Beat[] };
 
+/* THE RUN'S TIMES ARE NEW YORK'S (session.json, the run of 2026-10-01) and are PRINTED on the reader's clock, 12-hour
+   (2026-10-13 — the owner: every time on screen in the viewer's own zone) — "9:32 am" in New York */
+const SESSION_DAY = nyWallTime(2026, 10, 1, 12, 0);
+const beatClock = (t: string): string => nyTextClock(t, SESSION_DAY);
+
 /* THE BEATS' WORDS — each read off its picture (session.json `readings`): a new run of the session takes new words */
 const ALL_WORDS: { title: string; text: string }[] = [
   { title: 'Before', text: 'SPY is at 470.29. Overhead sits the heaviest call positioning on the board: the call wall at 475.' },
   { title: 'Positioning shifts', text: 'SPY climbs to 474.04, and the book turns under it: the heaviest strike swings from the 475 calls to the 470 puts.' },
   { title: 'Compass updates', text: 'At 474.82, a breath under the wall, the SPY 475 call becomes Compass’s top pick.' },
   { title: 'The level moves', text: 'SPY trades through 475, and the call wall steps up to 477.' },
-  { title: 'Price meets the level', text: '475 turns from ceiling to floor. The put wall moves up to it at 12:22, and price keeps coming back to it.' },
+  { title: 'Price meets the level', text: `475 turns from ceiling to floor. The put wall moves up to it at ${beatClock('12:22')}, and price keeps coming back to it.` },
 ];
 /* THREE OF THE FIVE (v5, 2026-10-05 — a shorter page): the wall overhead, price through it, and the level it left
    behind becoming the floor. The other two stay in session.json, and the scroll still plays their pictures on the way. */
@@ -142,7 +148,7 @@ export const Bar = ({ time, typed = true, still = false }: { time: string; typed
     <ProductGlyph name="terminal" size={16} bare className="shrink-0 size-[1rem]" />
     {typed && <Prompt path="/pulse" still={still} />}
     <span className="ml-auto pl-4 font-code text-[0.71875rem] tnum text-textMuted whitespace-nowrap" data-session-time>
-      SPY · {time}
+      SPY · {beatClock(time)}
     </span>
   </div>
 );
@@ -221,7 +227,7 @@ const BeatPicture = ({ theme, k }: { theme: Theme; k: number }) => {
   /* the picture the frame is cut from: the beat's focus, or the whole desk */
   const [bx, by, bw] = close ? beat.focus : [0, 0, DATA.w];
   const src = close ? focusSrc(theme, k) : beatSrc(theme, k);
-  const alt = `The Pulse desk at ${beat.time}: ${WORDS[k].title.toLowerCase()}`;
+  const alt = `The Pulse desk at ${beatClock(beat.time)}: ${WORDS[k].title.toLowerCase()}`;
   /* the chip after the strike piece (two pieces), else just past the strike column */
   const chipAt = parts.length > 1 ? parts[0][2] + 4 : undefined;
   let at = 0;
@@ -609,7 +615,7 @@ const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWor
               >
                 {/* the beat's time: the session's own sequence */}
                 <p className={`text-[0.875rem] tnum transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`} data-session-anchor>
-                  {b.time}
+                  {beatClock(b.time)}
                 </p>
                 <h3 className={`mt-4 text-[1.625rem] sm:text-[1.75rem] xl:text-[1.875rem] landing-display font-light leading-[1.05] tracking-[-0.02em] transition-colors duration-300 ${on ? 'text-textPrimary' : 'text-textMuted'}`}>
                   {WORDS[i].title}
@@ -660,7 +666,7 @@ const Session = ({ theme, story, onWords }: { theme: Theme; story?: Story; onWor
                 <img
                   key={lit}
                   src={beatSrc(theme, lit)}
-                  alt={`The Pulse desk at ${BEATS[lit].time}: ${WORDS[lit].title.toLowerCase()}`}
+                  alt={`The Pulse desk at ${beatClock(BEATS[lit].time)}: ${WORDS[lit].title.toLowerCase()}`}
                   decoding="async"
                   draggable={false}
                   className="absolute inset-0 w-full h-full object-cover select-none"

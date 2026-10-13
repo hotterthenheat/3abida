@@ -102,6 +102,7 @@ import { amendOrder, attachOpt, breakevenOrder, cancelOrder, cancelWorking, endE
 import { closeWithUndo, flattenWithUndo, startPracticeWithUndo, takeHereWithUndo } from './undoHands';
 import EvalStrip from '../../components/paper/EvalStrip';
 import { paceOf, paceWords } from '../../data/paper/pace';
+import { marketClock } from '../../core/nyTime';
 
 /* THE CHART'S SETTINGS ON THIS DESK. A name's live chart has its book: the walls, the trails, the vol pane. An index's is
    its fund's candles turned into its level — no book of its own, so the overlays that read one are not offered, and a
@@ -240,7 +241,7 @@ const PaperDesk = () => {
   const spot = spotOf(name);
   const expiries = listedNow(name, m.now);
   const exp = expiry && expiries.some(e => e.iso === expiry) ? expiry : ((expiries.find(e => e.dte >= 5) ?? expiries[0])?.iso ?? null);
-  const expiryOptions: DropdownOption<string>[] = expiries.map(e => ({ value: e.iso, label: `${e.label} · ${e.dte}d`, hint: e.dte === 0 ? 'Expires at today’s 16:00' : `${e.kind === 'monthly' ? 'The monthly' : e.kind === 'daily' ? 'A daily' : 'A weekly'}` }));
+  const expiryOptions: DropdownOption<string>[] = expiries.map(e => ({ value: e.iso, label: `${e.label} · ${e.dte}d`, hint: e.dte === 0 ? `Expires at today’s close, ${marketClock(16, 0)}` : `${e.kind === 'monthly' ? 'The monthly' : e.kind === 'daily' ? 'A daily' : 'A weekly'}` }));
   /* the chain is laddered off a price that stays put, and only re-centred once the name has run most of the ladder away */
   const ck = `${name}|${exp}`;
   if (exp) {
@@ -367,7 +368,7 @@ const PaperDesk = () => {
         name={name}
         realized={bankedOf(account, name) - bankedOf(account, name, dayBeginsAt(account.day))}
         unrealized={positions.reduce((x, p) => x + p.pnl, 0)}
-        dayWord="today (since the 16:00 bell, New York)"
+        dayWord={`today (since the bell, ${marketClock(16, 0, { zone: true })})`}
       />
     ),
   };
