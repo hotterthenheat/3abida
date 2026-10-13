@@ -86,8 +86,6 @@ const Mini = ({ label, value, tone = 'text-textPrimary', title }: { label: strin
 );
 
 const RANGES: FlowRange[] = ['1D', '2D', '3D', '5D', '10D', '1M'];
-/* the feed carries the name's volume a minute, not its premium a minute */
-const FEED_METRICS: NetMetric[] = ['underlyingVol', 'netPremium', 'strikes'];
 const INTERVALS = [1, 5, 15, 30];
 
 /* The engine answers its own question. STATES, not adjectives left to the
@@ -353,7 +351,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
     : 0;
 
   /* ON THE FEED the card reads the contract's own session (data/feed/traceCard.ts) — one day, the book's */
-  const feedCard = useFeedCard(feed, print, intervalMin);
+  const feedCard = useFeedCard(feed, print, opts);
   const standCf = useMemo(() => {
     if (!print || feed) return null;
     try {
@@ -476,13 +474,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
       // The session drives every series in the modal, so it sits dead centre
       // rather than tucked in with the window controls.
       headerCenter={
-        feed ? (
-          /* ON THE FEED the card reads the book's one session — the other days are not in its answers */
-          <span className="inline-flex items-center gap-1 rounded border border-borderMuted bg-chip text-textPrimary px-2 py-0.5 font-mono text-[11px] font-semibold tnum" title={`Other sessions: ${NOT_IN_FEED}`}>
-            <CalendarDays className="w-3 h-3" />
-            {feedSession().live ? 'Today' : nyDay(feedSession().open)}
-          </span>
-        ) : (
+        (
         /* One box for the session (Noah: "the entire box"); the label carries today-vs-past.
            THE PLAIN INK PILL (the house's doors; the foil is "Launch terminal"'s alone — and its words were a literal
            #0a0a0a, the audit's X12) */
@@ -753,7 +745,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     <span className="font-mono text-[11px] text-textMuted">both instruments on one clock</span>
                     <span className="ml-auto flex items-center gap-0.5">
                       {RANGES.map(r => (
-                        <Chip key={r} active={feed ? r === '1D' : r === range} onClick={() => setRange(r)} disabled={feed && r !== '1D'} title={feed && r !== '1D' ? `${r}: ${NOT_IN_FEED}` : `Show ${r}`}>
+                        <Chip key={r} active={r === range} onClick={() => setRange(r)} title={`Show ${r}`}>
                           {r}
                         </Chip>
                       ))}
@@ -768,10 +760,9 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     </span>
                     <span className="w-px h-3.5 bg-borderSubtle" />
                     <Chip
-                      active={singleLegOnly && !feed}
+                      active={singleLegOnly}
                       onClick={() => setSingleLegOnly(!singleLegOnly)}
-                      disabled={feed}
-                      title={feed ? `Single-leg only: ${NOT_IN_FEED}` : 'Hide prints that are one leg of a spread'}
+                      title="Hide prints that are one leg of a spread"
                     >
                       Single-leg only
                     </Chip>
@@ -783,7 +774,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       onShowAvg={setShowAvg}
                       showIv={showIv}
                       onShowIv={setShowIv}
-                      dayOffset={feed ? 0 : dayOffset}
+                      dayOffset={dayOffset}
                       printMin={printMin}
                       syncId="print-tape"
                     />
@@ -793,8 +784,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                     <NetPanels
                       cf={cf}
                       ticker={print.ticker}
-                      metric={feed && metric === 'underlyingUsd' ? 'netPremium' : metric}
-                      metrics={feed ? FEED_METRICS : undefined}
+                      metric={metric}
                       onMetric={setMetric}
                       showCalls={showCalls}
                       onShowCalls={setShowCalls}
@@ -802,7 +792,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                       onShowPuts={setShowPuts}
                       showPrice={showPrice}
                       onShowPrice={setShowPrice}
-                      dayOffset={feed ? 0 : dayOffset}
+                      dayOffset={dayOffset}
                       printMin={printMin}
                       syncId="print-tape"
                     />

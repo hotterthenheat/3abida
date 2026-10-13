@@ -133,13 +133,26 @@ export function buildStockBoard(): StockPick[] {
   }).sort((a, b) => b.composite - a.composite);
 }
 
-export function buildSectorBoard(picks: StockPick[]): SectorRow[] {
+/** A name's pick from its four sleeves — the board's own composite, verdict and read (2026-10-12: the feed's sleeves,
+    read off the vendor's figures, go through the same three) */
+export function pickOf(u: { ticker: string; name: string; sector: Sector }, sl: StockSleeves, price: number, changePct: number, trend: number[]): StockPick {
+  const comp = composite(sl);
+  const verdict: StockVerdict = comp >= 68 ? 'ACCUMULATE' : comp <= 46 ? 'AVOID' : 'HOLD';
+  return { ticker: u.ticker, name: u.name, sector: u.sector, price, changePct, sleeves: sl, composite: comp, verdict, thesis: thesisFor(sl, verdict), trend };
+}
+
+/** `strength` (the feed, 2026-10-12): a sector's one-week and one-month relative strength off the vendor's returns —
+    the rotation's rule reads them as it reads the house's */
+export function buildSectorBoard(picks: StockPick[], strength?: (sector: Sector) => { rs1w: number; rs1m: number } | null): SectorRow[] {
   const day = dayKey();
   return SECTORS.map(sector => {
     const members = picks.filter(p => p.sector === sector);
-    const score = Math.round(members.reduce((a, p) => a + p.composite, 0) / Math.max(members.length, 1));
-    const rs1w = hGauss(`${sector}-${day}-rs1w`) * 1.2 + (score - 55) * 0.05;
-    const rs1m = hGauss(`${sector}-${day}-rs1m`) * 2.2 + (score - 55) * 0.09;
+    /* a name whose screen cannot be read (the feed without a figure) is left out of its sector's, never a zero */
+    const read = members.filter(p => Number.isFinite(p.composite));
+    const score = Math.round(read.reduce((a, p) => a + p.composite, 0) / Math.max(read.length, 1));
+    const fed = strength ? strength(sector) : null;
+    const rs1w = fed ? fed.rs1w : hGauss(`${sector}-${day}-rs1w`) * 1.2 + (score - 55) * 0.05;
+    const rs1m = fed ? fed.rs1m : hGauss(`${sector}-${day}-rs1m`) * 2.2 + (score - 55) * 0.09;
     const breadthPct = Math.round(
       (members.filter(p => p.sleeves.momentum > 50).length / Math.max(members.length, 1)) * 100
     );

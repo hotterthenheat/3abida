@@ -37,14 +37,16 @@
 import { nyIsoDate, nyParts } from '../../core/nyTime';
 import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketOf } from '../congress';
 import { TX_CODES, flowFrom, isChosenBuy } from '../insiders';
-import type { EarningsDossier, EarningsEvent, EarningsQuarter, ReportSlot } from '../earnings';
+import type { BookContract } from '../../types/trace';
+import type { UwStockDay } from './uw';
+import { weekDayDate, type EarningsDossier, type EarningsEvent, type EarningsQuarter, type ReportSlot } from '../earnings';
 import type { Sector } from '../universe';
-import type { AssetKind, Chamber, CongressTrade, InsiderFlow, InsiderRole, InsiderTrade, PlanState, ReportOwner, ReportType, TxCode } from '../../types/record';
+import type { AssetKind, Chamber, CongressTrade, Party, InsiderFlow, InsiderRole, InsiderTrade, PlanState, ReportOwner, ReportType, TxCode } from '../../types/record';
 import type { FeedResult } from './client';
 import { useFeedPoll } from './poll';
 import { ROOM_FEEDS, roomSource } from './rooms';
 import { getFeedStatus, useFeedStatus } from './status';
-import { uwCongressTrades, uwEarningsDay, uwEarningsFor, uwInsiderTrades, uwNewsHeadlines, uwQuote, uwStockState, type UwCongressTrade, type UwEarning, type UwHeadline, type UwInsiderTrade, type UwQuote, type UwStockState } from './uw';
+import { uwCongressTrades, uwPoliticians, type UwPolitician, uwEarningsDay, uwEarningsFor, uwInsiderTrades, uwNewsHeadlines, uwQuote, uwStockState, type UwCongressTrade, type UwEarning, type UwHeadline, type UwInsiderTrade, type UwQuote, type UwStockState } from './uw';
 import { massiveBars, massiveTickerDetails, type MassiveBar, type MassiveTickerDetails } from './massive';
 
 const SEC = 1000;
@@ -117,6 +119,26 @@ const memberName = (r: UwCongressTrade): string => r.reporter.replace(/^Hon\.?\s
 /** The asset as filed, its first line, the codes off */
 const assetWords = (notes: string): string => notes.split('\n')[0].replace(/\s*\[[A-Z]{2}\].*$/, '').trim();
 
+/* THE MEMBERS' PARTY AND SEAT (2026-10-12): UW's member list, read once a visit — the filings name the member alone */
+const PARTY: Record<string, Party> = { democrat: 'D', democratic: 'D', republican: 'R', independent: 'I' };
+let members: Map<string, UwPolitician> | null = null;
+let membersAsked: Promise<void> | null = null;
+async function ensureMembers(): Promise<void> {
+  if (members) return;
+  if (!membersAsked)
+    membersAsked = uwPoliticians().then(r => {
+      if (r.ok) members = new Map(r.data.map(m => [m.id, m]));
+      else membersAsked = null;
+    });
+  await membersAsked;
+}
+const seatParts = (m: UwPolitician | undefined): { party: Party | null; state: string; district?: string } => {
+  if (!m) return { party: null, state: '' };
+  const party = PARTY[m.party.toLowerCase()] ?? null;
+  const d = /^([A-Z]{2})(?:-(\d+|AL))?$/.exec(m.district.trim().toUpperCase());
+  return d ? { party, state: d[1], ...(d[2] ? { district: `${d[1]}-${d[2]}` } : {}) } : { party, state: '' };
+};
+
 export function congressRow(r: UwCongressTrade, today: string, n = 0): CongressTrade {
   const ticker = r.ticker.trim().toUpperCase();
   const filedDaysAgo = daysSince(r.filedAt, today);
@@ -125,7 +147,7 @@ export function congressRow(r: UwCongressTrade, today: string, n = 0): CongressT
   const type = typeOf(r.txnType, r.notes);
   return {
     id: `${r.politicianId}|${r.transactionDate}|${r.filedAt}|${ticker || assetWords(r.notes).slice(0, 32)}|${r.amounts}|${type}|${n}`,
-    member: { id: r.politicianId || r.name, name: memberName(r), chamber: CHAMBER[r.memberType.toLowerCase()] ?? 'House', party: null, state: '', committees: [] },
+    member: { id: r.politicianId || r.name, name: memberName(r), chamber: CHAMBER[r.memberType.toLowerCase()] ?? 'House', ...seatParts(members?.get(r.politicianId)), committees: [] },
     ticker,
     assetDescription: assetWords(r.notes) || r.notes,
     assetKind: assetOf(r.notes, ticker),
@@ -167,6 +189,7 @@ const CONGRESS_PAGES: Record<number, number> = { 30: 2, 90: 4, 180: 6 };
 
 async function loadCongress(windowDays: number): Promise<FeedResult<CongressAnswer>> {
   const today = nyToday();
+  await ensureMembers();
   const all: UwCongressTrade[] = [];
   let date: string | undefined;
   let at = Date.now();
@@ -199,6 +222,7 @@ export const useFeedCongress = (on: boolean, windowDays: number) => useFeedPoll<
 /** One name's reports — the latest hundred */
 export const useFeedCongressFor = (on: boolean, ticker: string) =>
   useFeedPoll<CongressTrade[]>(on && ticker && up() ? `dossier:congress-for:${ticker}` : null, async () => {
+    await ensureMembers();
     const r = await uwCongressTrades({ ticker, limit: 100 });
     return r.ok ? { ...r, data: congressRows(r.data).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo) } : r;
   }, 10 * MIN);
@@ -381,6 +405,14 @@ export interface CalendarDay {
   weekday: number;
 }
 
+/** The days the Earnings board shows, both weeks — the News page's month asks the same days, so one call serves both */
+export function boardCalendarDays(): CalendarDay[] {
+  const wdNow = new Date().getDay();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const WD = [1, 2, 3, 4, 5];
+  return ([0, 1] as const).flatMap(weekIdx => (weekIdx === 0 && wdNow >= 1 && wdNow <= 5 ? WD.filter(wd => wd >= wdNow) : WD).map(weekday => ({ iso: iso(weekDayDate(weekIdx, weekday)), weekIdx, weekday })));
+}
+
 /** The fortnight's reports: every day the board shows, before the open and after the close — one call each */
 export const useFeedEarnings = (on: boolean, days: CalendarDay[]) =>
   useFeedPoll<EarningsEvent[]>(on && days.length && up() ? `dossier:earnings:${days.map(d => d.iso).join(',')}` : null, async () => {
@@ -394,6 +426,8 @@ export const useFeedEarnings = (on: boolean, days: CalendarDay[]) =>
     answers.forEach((a, i) => {
       if (!a.ok) return;
       for (const r of a.data) {
+        /* a row naming no ticker is no report on the board */
+        if (!r.symbol.trim()) continue;
         const e = earningsEvent(r, { weekIdx: asks[i].d.weekIdx, weekday: asks[i].d.weekday }, today);
         const key = `${e.ticker}|${r.reportDate}`;
         if (seen.has(key)) continue;
@@ -531,3 +565,123 @@ export const headlineClock = (at: number): string => {
 };
 
 export { AMOUNT_BRACKETS };
+
+/* ---- A NAME'S REPORT, FILLED (2026-10-12 — the owner: "but i build the UI that the real data goes into") ------------ */
+
+/** The move the options price in to a day `days` out — UW's priced moves at its horizons, read between two by the
+    square root of time (a move grows with it) */
+export function movePricedTo(days: number, moves: [number, number][]): number {
+  if (!moves.length || !(days >= 0)) return NaN;
+  const d = Math.max(1, days);
+  const asc = [...moves].sort((a, b) => a[0] - b[0]);
+  const hi = asc.find(m => m[0] >= d) ?? asc[asc.length - 1];
+  const lo = [...asc].reverse().find(m => m[0] <= d) ?? asc[0];
+  if (hi[0] === lo[0]) return hi[1] * Math.sqrt(d / hi[0]);
+  const t = (Math.sqrt(d) - Math.sqrt(lo[0])) / (Math.sqrt(hi[0]) - Math.sqrt(lo[0]));
+  return lo[1] + t * (hi[1] - lo[1]);
+}
+
+/**
+ * A name's report page filled from the vendor's answers: the move priced in to the report (UW's own figure, else its
+ * priced moves read to the report's day), the IV rank, the odds the record gives — how many of the last reports closed
+ * inside today's priced move, and how many moved up — and the busiest calls and puts expiring at or after the report off
+ * the name's contracts today. What no answer carries (the overnight deflation, the estimates' drift) stays NaN.
+ */
+export function fillDossier(d: EarningsDossier, day: UwStockDay | undefined, rows: BookContract[]): EarningsDossier {
+  const e = { ...d.event };
+  const days = sessionsTo(isoOfLabel(e) ?? nyToday());
+  if (!Number.isFinite(e.impliedMovePct) && day) e.impliedMovePct = movePricedTo(Math.max(1, Math.round(days * 7 / 5)), day.impliedMoves) * 100;
+  if (!Number.isFinite(e.ivRank) && day?.ivRank != null) e.ivRank = Math.round(day.ivRank);
+  if (!Number.isFinite(e.price) && day?.close != null) e.price = day.close;
+  e.richness = Number.isFinite(e.histAvgMovePct) && e.histAvgMovePct > 0 ? e.impliedMovePct / e.histAvgMovePct : NaN;
+  const moved = d.quarters.filter(q => Number.isFinite(q.movePct));
+  const inside = Number.isFinite(e.impliedMovePct) && moved.length ? Math.round((100 * moved.filter(q => Math.abs(q.movePct) <= e.impliedMovePct).length) / moved.length) : NaN;
+  const up = moved.length ? Math.round((100 * moved.filter(q => q.movePct > 0).length) / moved.length) : NaN;
+  /* the busiest contracts on the name today that are still open after the report */
+  const reportIso = isoOfLabel(e);
+  const spanning = rows.filter(r => {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(r.expiry);
+    return m && (!reportIso || `${m[3]}-${m[1]}-${m[2]}` >= reportIso);
+  });
+  const px = e.price;
+  const active = (right: 'C' | 'P') =>
+    spanning
+      .filter(r => r.right === right && r.volume > 0)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 3)
+      .map(r => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(r.expiry);
+        const mid = Number.isFinite(r.last) ? r.last : NaN;
+        const away = Number.isFinite(px) && px > 0 ? ((r.strike - px) / px) * 100 : NaN;
+        const be = Number.isFinite(px) && px > 0 && Number.isFinite(mid) ? (right === 'C' ? ((r.strike + mid - px) / px) * 100 : ((px - (r.strike - mid)) / px) * 100) : NaN;
+        return {
+          id: `${right}-${r.strike}-${r.expiry}`,
+          right: right === 'C' ? ('CALL' as const) : ('PUT' as const),
+          strike: r.strike,
+          label: `${e.ticker} $${r.strike} ${right === 'C' ? 'call' : 'put'} · exp ${r.expiry.slice(0, 5)}`,
+          mid,
+          volume: r.volume,
+          oi: r.oi,
+          volOverOi: r.oi > 0 ? Math.round((r.volume / r.oi) * 100) / 100 : NaN,
+          ivPct: r.iv,
+          fromSpotPct: Math.round(away * 10) / 10,
+          breakevenPct: Math.round(be * 10) / 10,
+          expiry: m ? `${m[3]}-${m[1]}-${m[2]}` : '',
+        };
+      });
+  return { ...d, event: e, probInsidePct: inside, probBeyondPct: Number.isFinite(inside) ? 100 - inside : NaN, probUpPct: up, activeCalls: active('C'), activePuts: active('P') };
+}
+
+/** The report's date as YYYY-MM-DD off the event's label ("Wed 11/18") — the year the nearer one ahead */
+function isoOfLabel(e: EarningsEvent): string | null {
+  const m = /(\d{2})\/(\d{2})$/.exec(e.dateLabel);
+  if (!m) return null;
+  const today = nyToday();
+  const y = Number(today.slice(0, 4));
+  const iso = `${y}-${m[1]}-${m[2]}`;
+  return iso >= today ? iso : `${y + 1}-${m[1]}-${m[2]}`;
+}
+
+/* ---- THE CALENDAR'S NAMES, THEIR RECORD (2026-10-12) ------------------------------------------------------------- */
+
+export interface ReportRecord {
+  /** The average move, either way, the session after the last eight reports, % */
+  histAvgMovePct: number;
+  /** Beats of the estimate in the last eight reported, % of them */
+  beatRate8q: number;
+  pastMoves: { label: string; movePct: number }[];
+}
+
+/** One name's record off its reported rows — the board's "usual move", its beats, its past moves */
+export function reportRecord(rows: UwEarning[], today = nyToday()): ReportRecord {
+  const reported = rows
+    .filter(x => x.actualEps != null && x.reportDate < today)
+    .sort((a, b) => (a.reportDate < b.reportDate ? 1 : -1))
+    .slice(0, 8)
+    .reverse();
+  const moves = reported.map(x => (x.postMove1d == null ? NaN : x.postMove1d * 100));
+  const known = moves.filter(Number.isFinite);
+  const est = reported.filter(x => x.streetMeanEst != null);
+  return {
+    histAvgMovePct: known.length ? known.reduce((a, v) => a + Math.abs(v), 0) / known.length : NaN,
+    beatRate8q: est.length ? (est.filter(x => (x.actualEps as number) > (x.streetMeanEst as number)).length / est.length) * 100 : NaN,
+    pastMoves: reported.map((x, i) => ({ label: quarterLabel(x.endingFiscalQuarter || x.reportDate), movePct: moves[i] })),
+  };
+}
+
+/**
+ * The board's names' records — each name's own reports, asked one name after another (eighty at most, the proxy keeping
+ * each ten minutes) every half hour: so the board can say how each report is priced against the name's usual move.
+ */
+export const useFeedReportRecords = (on: boolean, tickers: string[]) => {
+  /* the names in the order given (the largest first), eighty at most; the key is the set, sorted */
+  const list = Array.from(new Set(tickers.map(t => t.toUpperCase()))).slice(0, 80);
+  return useFeedPoll<Record<string, ReportRecord>>(on && list.length && up() ? `dossier:records:${[...list].sort().join(',')}` : null, async () => {
+    const out: Record<string, ReportRecord> = {};
+    for (const t of list) {
+      const r = await uwEarningsFor(t);
+      if (r.ok) out[t] = reportRecord(r.data);
+    }
+    return { ok: true as const, data: out, at: Date.now() };
+  }, 30 * MIN);
+};

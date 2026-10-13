@@ -46,8 +46,8 @@ export interface Fundamentals {
   valuation: Valuation;
   /** 0–100 */
   healthScore: number;
-  /** Guidance's last change: raised · held · cut */
-  guidance: 'raised' | 'held' | 'cut';
+  /** Guidance's last change: raised · held · cut — '—' where no record says (the feed's plan carries no guidance) */
+  guidance: 'raised' | 'held' | 'cut' | '—';
 }
 
 const SECTOR_PE: Record<string, number> = {

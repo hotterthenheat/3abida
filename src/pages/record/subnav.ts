@@ -22,10 +22,10 @@ export interface RecordSubpage {
 }
 
 export const RECORD_SUBPAGES: RecordSubpage[] = [
-  { path: '/dossier/news', label: 'News', subtitle: 'Every story on the wire today — where it came from, what it does to the name, and the numbers behind it', icon: Newspaper, source: 'Wire', feedSubtitle: 'Every headline on the wire today — when it came, which names it carries, and where they trade', feedSource: 'Wire headlines' },
+  { path: '/dossier/news', label: 'News', subtitle: 'Every story on the wire today — where it came from, what it does to the name, and the numbers behind it', icon: Newspaper, source: 'Wire' },
   { path: '/dossier/earnings', label: 'Earnings', subtitle: 'Every upcoming print priced by us — our implied move against what the name typically does', icon: CalendarClock, source: 'Earnings calendar', feedSubtitle: 'Every report on the calendar for the fortnight — the move its options price, before the open or after the close' },
   { path: '/dossier/insiders', label: 'Insiders', subtitle: 'What the people who run these companies did with their own shares — and whether they chose to', icon: Building2, source: 'SEC Form 4 · filed within two business days of the trade' },
   { path: '/dossier/congress', label: 'Congress', subtitle: 'What members of Congress reported trading, and how long they took to say so', icon: Landmark, source: 'STOCK Act reports · due within 45 days of the trade' },
   /* Stocks joined the Record (Noah, 2026-09-10): every name and sector screened on the four sleeves — the synthesis, so it reads last */
-  { path: '/dossier/stocks', label: 'Stocks', subtitle: 'Every name and sector screened on momentum, quality, flow and news — the strongest first', icon: BarChart3, source: 'Our screens · momentum, quality, flow, news', feedSubtitle: 'Every name with its price and its day — a name’s page holds its company record', feedSource: 'Quotes · company records' },
+  { path: '/dossier/stocks', label: 'Stocks', subtitle: 'Every name and sector screened on momentum, quality, flow and news — the strongest first', icon: BarChart3, source: 'Our screens · momentum, quality, flow, news' },
 ];

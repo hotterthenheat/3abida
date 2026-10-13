@@ -50,6 +50,7 @@ import { Name } from '../../components/ui/Name';
 import { num as fmtNum, pctSigned } from '../../core/format';
 import { DARK_LEADER_FLOOR, useFeedDarkMarket, useFeedQuote, useTraceSource } from '../../data/feed/trace';
 import { feedDarkLeaders, useFeedDarkView } from '../../data/feed/traceDark';
+import { useFeedStockDays } from '../../data/feed/stockDay';
 import { useTraceBook } from '../../components/trace/useTraceBook';
 import { fig } from '../../components/trace/Missing';
 
@@ -258,11 +259,14 @@ const DarkPool = () => {
   /* ---- THE LEADERS — the market's dark tape by sector and name --------------------- */
   const darkMarket = useFeedDarkMarket(onFeed);
   const { book: feedBook } = useTraceBook(activeTicker, marketData);
+  /* each leader's day — its direction and its average volume — off the stock screener, one call for the names */
+  const darkNames = useMemo(() => (onFeed ? Array.from(new Set((darkMarket ?? []).map(p => p.ticker))) : []), [onFeed, darkMarket]);
+  const darkDays = useFeedStockDays(onFeed, darkNames);
   const leaders = useMemo(
-    () => (onFeed ? feedDarkLeaders(darkMarket ?? [], feedBook) : source === 'pending' ? { totalNotional: 0, totalPrints: 0, updated: '—', sectors: [] } : buildDarkPoolLeaders()),
+    () => (onFeed ? feedDarkLeaders(darkMarket ?? [], feedBook, darkDays) : source === 'pending' ? { totalNotional: 0, totalPrints: 0, updated: '—', sectors: [] } : buildDarkPoolLeaders()),
     // prices on the sim-tracked names move with the tick
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [marketData, onFeed, darkMarket, feedBook, source]
+    [marketData, onFeed, darkMarket, feedBook, source, darkDays]
   );
   const sectorOptions = useMemo<DropdownOption<string>[]>(
     () => [{ value: 'ALL', label: 'Every sector', hint: 'The whole dark tape' }, ...leaders.sectors.map(s => ({ value: s.sector, label: s.sector, hint: `${s.sharePct.toFixed(0)}% of the dark tape · ${fmtUsd(s.notional)}` }))],
@@ -330,7 +334,14 @@ const DarkPool = () => {
         sortValue: r => r.price,
         render: r => (
           <span className="text-textPrimary" title={onFeed ? 'The price of its latest cross' : undefined}>
-            ${r.price.toFixed(2)} {!onFeed && <span className={`text-[11px] ${r.dirUp ? 'text-bull' : 'text-bear'}`}>{r.dirUp ? '▲' : '▼'}</span>}
+            ${r.price.toFixed(2)}{' '}
+            {r.dirUp === undefined ? (
+              <span className="text-[11px] text-textSecondary" title="not in the feed">
+                —
+              </span>
+            ) : (
+              <span className={`text-[11px] ${r.dirUp ? 'text-bull' : 'text-bear'}`}>{r.dirUp ? '▲' : '▼'}</span>
+            )}
           </span>
         ),
       },
@@ -384,7 +395,7 @@ const DarkPool = () => {
               <span className="inline-flex items-center gap-1.5">
                 <CompanyLogo ticker={ticker} size={15} />
                 <span className="font-bold">{ticker}</span>
-                {view && Number.isFinite(view.spot) && <span className="text-textPrimary">${view.spot.toFixed(2)}</span>}
+                {view && <span className="text-textPrimary">{Number.isFinite(view.spot) ? `$${view.spot.toFixed(2)}` : <span title="not in the feed">—</span>}</span>}
               </span>
             </Fact>
             <Fact label="Off-exchange" testId="share" title="Share of the session's volume that printed off-exchange">
@@ -424,7 +435,7 @@ const DarkPool = () => {
         controls={
           <>
             <LiveHold paused={hold.paused} onToggle={hold.toggle} heldAt={hold.heldAt} />
-            <DropdownSelect label="Read" value={intent} options={onFeed ? INTENT_OPTIONS.filter(o => o.value !== 'HEDGE FLOW') : INTENT_OPTIONS} onChange={setIntent} title="Which reads to show" testId="dark-pool-read" />
+            <DropdownSelect label="Read" value={intent} options={INTENT_OPTIONS} onChange={setIntent} title="Which reads to show" testId="dark-pool-read" />
             <DropdownSelect label="Size" value={sizeKey} options={SIZE_OPTIONS} onChange={setSizeKey} title="The smallest cross shown" testId="dark-pool-size" />
             <DropdownSelect label="Where" value={where} options={WHERE_OPTIONS} onChange={setWhere} title="On a shelf, between them, or anywhere" testId="dark-pool-where" />
             {shelf && (

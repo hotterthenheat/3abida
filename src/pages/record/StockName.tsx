@@ -46,10 +46,13 @@
                    the Weigher
     ON THE RECORD  insiders and Congress
 
-  FROM THE FEED (2026-10-12): when the Dossier reads
-  the vendors the page is StockNameFeed.tsx — the
-  company record, the quote, the sessions, the next
-  report and the filings; none of the overview below.
+  FROM THE FEED (2026-10-12 — the owner: "but i build
+  the UI that the real data goes into"): the same page
+  on the vendors' answers — the overview's engine run on
+  UW's sessions, book, contracts, dark crosses, wire and
+  filed numbers (data/feed/stockName.ts), the name's own
+  insider and Congress filings; a figure no answer
+  carries is "—" in its place.
 
   States, not orders (the Compass doctrine): the page
   says what it sees — the screen and the lean — never
@@ -58,8 +61,9 @@
 */
 
 import { SayPage } from '../../components/layout/PageMeta';
-import { useDossierFeed } from '../../data/feed/dossier';
-import StockNameFeed from './StockNameFeed';
+import { useDossierFeed, useFeedCongressFor, useFeedInsidersFor } from '../../data/feed/dossier';
+import { useFeedOverview } from '../../data/feed/stockName';
+import { useFeedPrice } from '../../data/feed/price';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, ChevronDown } from 'lucide-react';
@@ -80,7 +84,7 @@ import { fmtClockLocal, fmtDayLocal } from '../../components/gex/chartTime';
 import { When } from '../../components/record/when';
 import { StockGuide } from '../../components/record/StockGuide';
 import { buildStockOverview, fmtMoney, gradeOf, gradeOfComposite, GRADES, healthWord, ordinal, type Factor, type Grade, type Lean, type Pillar, type SourceStatus, type StockOverview, type TimelineKind } from '../../data/stockOverview';
-import { TX_CODES, insiderFlow, isChosenBuy } from '../../data/insiders';
+import { TX_CODES, flowFrom, insiderFlow, isChosenBuy } from '../../data/insiders';
 import { bracketLabel, buildCongress } from '../../data/congress';
 import { lookup } from '../../data/universe';
 import { REVIEW_NAMES } from '../../data/review/tape';
@@ -177,7 +181,9 @@ const JUMPS: [string, string][] = [
   ['insiders', 'Insiders'],
   ['congress', 'Congress'],
 ];
-const pct = (v: number, d = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%`;
+const pct = (v: number, d = 1) => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}%` : '—');
+/** A figure to `d` places, or "—" where the record carries none (the feed, 2026-10-12) */
+const fx = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—');
 /** A chart point's seconds, said as the reader's day or minute */
 const dayOf = (t: number) => fmtDayLocal(t as UTCTimestamp, 'ny');
 const clockOf = (t: number) => fmtClockLocal(t as UTCTimestamp, 'ny');
@@ -258,7 +264,8 @@ const FactorRow = ({ f }: { f: Factor }) => (
     <SignedBar v={f.lean} />
   </div>
 );
-const Money = ({ v, signed = true }: { v: number; signed?: boolean }) => <span className={signed ? (v >= 0 ? 'text-bull' : 'text-bear') : ''}>{fmtMoney(v)}</span>;
+const Money = ({ v, signed = true }: { v: number; signed?: boolean }) =>
+  Number.isFinite(v) ? <span className={signed ? (v >= 0 ? 'text-bull' : 'text-bear') : ''}>{fmtMoney(v)}</span> : <span className="text-textSecondary" title="not in the feed">—</span>;
 
 /** A two-sided share bar: the left side's share of the whole, the rest to the right */
 const ShareBar = ({ left, leftInk = 'bg-bull', rightInk = 'bg-bear/80' }: { left: number; leftInk?: string; rightInk?: string }) => (
@@ -292,7 +299,10 @@ const LevelsScale = ({ spot, putWall, flip, callWall, supreme }: { spot: number;
     { key: 'spot', price: spot, word: 'spot', ink: 'rgb(var(--text-primary))' },
     { key: 'call', price: callWall, word: 'call wall', ink: 'rgb(var(--bull))' },
     { key: 'supreme', price: supreme, word: 'supreme', ink: 'rgb(var(--supreme))' },
-  ].sort((a, b) => a.price - b.price);
+  ]
+    /* a level the book names none for (NaN) is left off the scale */
+    .filter(m => Number.isFinite(m.price))
+    .sort((a, b) => a.price - b.price);
   const lo = marks[0].price;
   const hi = marks[marks.length - 1].price;
   const pad = Math.max((hi - lo) * 0.12, spot * 0.004);
@@ -323,7 +333,7 @@ const LevelsScale = ({ spot, putWall, flip, callWall, supreme }: { spot: number;
       <svg width="100%" height={64} className="block overflow-visible" role="img" aria-label={`The book on a price scale: put wall ${putWall}, flip ${flip}, spot ${spot.toFixed(2)}, call wall ${callWall}, supreme ${supreme}`} data-stock-scale={hot ?? 'rest'}>
         <line x1="0%" x2="100%" y1={32} y2={32} stroke="rgb(var(--ink))" strokeOpacity={0.14} />
         {/* the likely range between the walls, faint */}
-        <rect x={`${x(putWall)}%`} y={29} width={`${Math.max(0, x(callWall) - x(putWall))}%`} height={6} fill={SILVER} fillOpacity={0.1} />
+        {Number.isFinite(putWall) && Number.isFinite(callWall) && <rect x={`${x(putWall)}%`} y={29} width={`${Math.max(0, x(callWall) - x(putWall))}%`} height={6} fill={SILVER} fillOpacity={0.1} />}
         {marks.map((m, i) => {
           const up = rows[i] === 1;
           const isSpot = m.key === 'spot';
@@ -351,6 +361,17 @@ const LevelsScale = ({ spot, putWall, flip, callWall, supreme }: { spot: number;
     The pointer reads the price at any point of the scale and its distance from fair. */
 const FairValueScale = ({ price, fair, vsPct }: { price: number; fair: number; vsPct: number }) => {
   const [at, setAt] = useState<number | null>(null);
+  /* a fair value the record does not carry (the feed's plan, 2026-10-12): the scale stands, its marks "—" */
+  if (!Number.isFinite(fair) || !Number.isFinite(price)) {
+    return (
+      <svg width="100%" height={46} className="block overflow-visible" role="img" aria-label="Fair value not in the feed" data-stock-fair="—">
+        <line x1="0%" x2="100%" y1={22} y2={22} stroke="rgb(var(--ink))" strokeOpacity={0.14} />
+        <text x="50%" y={42} textAnchor="middle" fontSize={11} fontFamily={FONT_SANS} fill="rgb(var(--text-secondary))">
+          fair —
+        </text>
+      </svg>
+    );
+  }
   const x = (p: number) => Math.max(0, Math.min(100, ((p / fair - 0.8) / 0.4) * 100));
   const px = x(price);
   const priceAt = (frac: number) => fair * (0.8 + 0.4 * frac);
@@ -479,30 +500,41 @@ const NoSuchName = ({ T }: { T: string }) => (
 const StockName = () => {
   const { ticker = '' } = useParams();
   const T = ticker.toUpperCase();
-  /* ALL OR NOTHING (data/feed/rooms.ts): the vendors' page for the name when the Dossier reads the feed — Massive's
-     record says whether the name exists at all — else the house's overview */
+  /* ALL OR NOTHING (data/feed/rooms.ts) — ONE PAGE (2026-10-12): the same overview on the vendors' answers when the
+     Dossier reads the feed (data/feed/stockName.ts), else on the house's. On the feed a name outside the terminal's own
+     list is a name when UW prices it */
   const fromFeed = useDossierFeed();
-  if (fromFeed) return <StockNameFeed key={T} T={T} />;
-  return knownName(T) ? <StockNameBody key={T} /> : <NoSuchName T={T} />;
+  const known = knownName(T);
+  const asked = useFeedPrice(fromFeed && !known, T);
+  if (!known && (!fromFeed || (asked.answered && !asked.price))) return <NoSuchName T={T} />;
+  return <StockNameBody key={T} fromFeed={fromFeed} />;
 };
 
-const StockNameBody = () => {
+const StockNameBody = ({ fromFeed }: { fromFeed: boolean }) => {
   const { ticker = '' } = useParams();
   const T = ticker.toUpperCase();
   const navigate = useNavigate();
   const location = useLocation();
   const flowTape = useFlowTape();
-  const seeded = useSeeded(T);
+  const seeded = useSeeded(fromFeed ? '' : T);
   /* the flow, the dark pool and the wire move on the scan tier; the sessions and the sample are tick-stable */
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => setTick(t => t + 1), 10_000);
     return () => window.clearInterval(id);
   }, []);
-  const view = useMemo(() => (seeded ? buildStockOverview(T, flowTape) : null), [T, seeded, tick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const insiders = useMemo(() => insiderFlow(T, 90), [T]);
+  /* ON THE FEED the overview is the vendors' (data/feed/stockName.ts) and the filings are the name's own, as filed */
+  const feedView = useFeedOverview(fromFeed, T);
+  const feedInsiders = useFeedInsidersFor(fromFeed, T);
+  const feedCongress = useFeedCongressFor(fromFeed, T);
+  const houseView = useMemo(() => (!fromFeed && seeded ? buildStockOverview(T, flowTape) : null), [T, seeded, tick, fromFeed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const view = fromFeed ? feedView : houseView;
+  const insiders = useMemo(() => (fromFeed ? (feedInsiders?.ok ? feedInsiders.data : flowFrom(T, [], 90)) : insiderFlow(T, 90)), [T, fromFeed, feedInsiders]);
   const marketInsiders = useMemo(() => insiders.trades.filter(t => TX_CODES[t.code].openMarket).slice(0, 5), [insiders]);
-  const congress = useMemo(() => buildCongress(180).trades.filter(t => t.ticker === T).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo).slice(0, 5), [T]);
+  const congress = useMemo(
+    () => (fromFeed ? (feedCongress?.ok ? feedCongress.data : []) : buildCongress(180).trades.filter(t => t.ticker === T)).sort((a, b) => a.filedDaysAgo - b.filedDaysAgo).slice(0, 5),
+    [T, fromFeed, feedCongress]
+  );
   const [guideOpen, setGuideOpen] = useState(false);
   const [methodOpen, setMethodOpen] = useState(false);
   /* THE KEPT PRINT on today's tape — a click on a bar keeps it; another name lets it go */
@@ -556,7 +588,7 @@ const StockNameBody = () => {
   const maxDelta = Math.max(1, ...view.moves.map(m => Math.abs(m.delta)));
   const forIt = view.contributions.filter(c => c.points > 0).length;
   const againstIt = view.contributions.filter(c => c.points < 0).length;
-  const trajectory = numbers.epsGrowthPct > 12 ? 'accelerating' : numbers.epsGrowthPct > 3 ? 'steady' : 'slowing';
+  const trajectory = !Number.isFinite(numbers.epsGrowthPct) ? '—' : numbers.epsGrowthPct > 12 ? 'accelerating' : numbers.epsGrowthPct > 3 ? 'steady' : 'slowing';
   const insiderTotal = insiders.bought + insiders.sold;
   /* THE SESSIONS ON THE CHART: the closes on their dates, the marks that matter on them */
   const sessionPoints: ChartPoint[] = trend.times.map((t, i) => ({ time: t, value: trend.closes[i] })).slice(-30);
@@ -569,7 +601,7 @@ const StockNameBody = () => {
     ...(trend.ema20 != null ? [{ price: trend.ema20, color: SILVER, title: '20-day', style: 'dashed' as const, name: 'plot' as const }] : []),
     { price: money.levels.putWall, color: 'rgb(var(--bear))', title: 'support', style: 'dashed' as const, name: 'plot' as const },
     { price: money.levels.callWall, color: 'rgb(var(--bull))', title: 'resistance', style: 'dashed' as const, name: 'plot' as const },
-  ];
+  ].filter(l => Number.isFinite(l.price));
   /* the scale holds the line and any level near it (within a quarter of the line's own span past either end), with a
      little air — a wall far from the line is left off the scale rather than flattening thirty sessions into a thread */
   const sessionRange = ((): readonly [number, number] | undefined => {
@@ -866,7 +898,7 @@ const StockNameBody = () => {
               {money.unusual} <span className="text-textMuted">at 2× OI ·</span> {money.darkBlocks} <span className="text-textMuted">of 50K+</span>
             </Fact>
             <Fact label="Dark share" testId="darkshare">
-              {money.dark.dpSharePct.toFixed(0)}% <span className="text-textMuted">· {fmtMoney(money.dark.totalNotional)}</span>
+              {fx(money.dark.dpSharePct, 0)}% <span className="text-textMuted">· {fmtMoney(money.dark.totalNotional)}</span>
             </Fact>
           </dl>
           {/* THE BOOK ON A PRICE SCALE */}
@@ -877,7 +909,7 @@ const StockNameBody = () => {
           <div className="px-5 pb-2" data-stock-flow>
             <div className="flex items-center justify-between font-mono text-[11px] tnum">
               <span className={callShare >= 50 ? 'text-bull font-semibold' : 'text-textSecondary'}>calls {fmtMoney(money.callPremium)}</span>
-              <span className="text-[11px] uppercase tracking-widest text-textMuted">premium today · {money.askSharePct.toFixed(0)}% on the ask · {money.sweepSharePct.toFixed(0)}% swept</span>
+              <span className="text-[11px] uppercase tracking-widest text-textMuted">premium today · {fx(money.askSharePct, 0)}% on the ask · {fx(money.sweepSharePct, 0)}% swept</span>
               <span className={callShare < 50 ? 'text-bear font-semibold' : 'text-textSecondary'}>puts {fmtMoney(money.putPremium)}</span>
             </div>
             <div className="mt-1.5">
@@ -1035,7 +1067,7 @@ const StockNameBody = () => {
             <div className="px-5 py-2.5 border-t border-borderSubtle/40 flex items-center gap-4 font-mono text-[11px] tnum" data-stock-next-earnings>
               {news.nextEarnings ? (
                 <span className="text-textSecondary">
-                  reports <span className="text-textPrimary">{news.nextEarnings.label}</span> · {news.nextEarnings.daysOut === 0 ? 'today' : `in ${news.nextEarnings.daysOut}d`} · the options price <span className="text-textPrimary">±{news.nextEarnings.impliedMovePct.toFixed(1)}%</span>
+                  reports <span className="text-textPrimary">{news.nextEarnings.label}</span> · {news.nextEarnings.daysOut === 0 ? 'today' : `in ${news.nextEarnings.daysOut}d`} · the options price <span className="text-textPrimary">±{fx(news.nextEarnings.impliedMovePct)}%</span>
                   {!news.nextEarnings.confirmed && <span className="text-warn"> · date estimated</span>}
                   {news.reaction && (
                     <span className="text-textMuted">
@@ -1067,10 +1099,10 @@ const StockNameBody = () => {
         >
           <dl className="px-5 pb-2 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
             <Fact label="EPS · last print" testId="eps">
-              ${numbers.epsActual.toFixed(2)} <span className={numbers.epsSurprisePct >= 0 ? 'text-bull' : 'text-bear'}>{pct(numbers.epsSurprisePct)}</span>
+              ${fx(numbers.epsActual, 2)} <span className={numbers.epsSurprisePct >= 0 ? 'text-bull' : 'text-bear'}>{pct(numbers.epsSurprisePct)}</span>
             </Fact>
             <Fact label="Revenue · last print" testId="rev">
-              ${numbers.revenueActualB.toFixed(1)}B <span className={numbers.revenueSurprisePct >= 0 ? 'text-bull' : 'text-bear'}>{pct(numbers.revenueSurprisePct)}</span>
+              ${fx(numbers.revenueActualB)}B <span className={numbers.revenueSurprisePct >= 0 ? 'text-bull' : 'text-bear'}>{pct(numbers.revenueSurprisePct)}</span>
             </Fact>
             <Fact label="Growth · rev · EPS" testId="growth">
               <span className={numbers.revenueGrowthPct >= 0 ? 'text-bull' : 'text-bear'}>{pct(numbers.revenueGrowthPct)}</span> <span className="text-textMuted">·</span> <span className={numbers.epsGrowthPct >= 0 ? 'text-bull' : 'text-bear'}>{pct(numbers.epsGrowthPct)}</span>
@@ -1080,16 +1112,16 @@ const StockNameBody = () => {
               <span className={trajectory === 'accelerating' ? 'text-bull' : trajectory === 'slowing' ? 'text-bear' : ''}>{trajectory}</span>
             </Fact>
             <Fact label="Margins · op · FCF" testId="margins">
-              {numbers.operatingMarginPct.toFixed(1)}% <span className="text-textMuted">·</span> {numbers.freeCashFlowMarginPct.toFixed(1)}%
+              {fx(numbers.operatingMarginPct)}% <span className="text-textMuted">·</span> {fx(numbers.freeCashFlowMarginPct)}%
             </Fact>
             <Fact label="P/E · sector median" testId="pe">
-              {numbers.pe.toFixed(1)} <span className="text-textMuted">· {numbers.sectorMedianPe} · {ordinal(numbers.sectorPercentile)}</span>
+              {fx(numbers.pe)} <span className="text-textMuted">· {Number.isFinite(numbers.sectorMedianPe) ? numbers.sectorMedianPe : '—'} · {Number.isFinite(numbers.sectorPercentile) ? ordinal(numbers.sectorPercentile) : '—'}</span>
             </Fact>
             <Fact label="EV/Sales · PEG" testId="ev">
-              {numbers.evToSales.toFixed(1)} <span className="text-textMuted">·</span> {numbers.peg.toFixed(2)}
+              {fx(numbers.evToSales)} <span className="text-textMuted">·</span> {fx(numbers.peg, 2)}
             </Fact>
             <Fact label="Beats · health" testId="health">
-              {numbers.beats} <span className="text-textMuted">of 8 ·</span> {healthWord(numbers.healthScore)}
+              {Number.isFinite(numbers.beats) ? numbers.beats : '—'} <span className="text-textMuted">of 8 ·</span> {Number.isFinite(numbers.healthScore) ? healthWord(numbers.healthScore) : '—'}
             </Fact>
           </dl>
           {/* FAIR VALUE ON A SCALE */}

@@ -86,8 +86,6 @@ const ROLE_OPTIONS: DropdownOption<RolePick>[] = [
   { value: 'Chief Legal Officer', label: 'Chief Legal Officer', hint: 'The general counsel' },
   { value: '10% owner', label: '10% owner', hint: 'Holders of a tenth of the company' },
 ];
-/* the feed's titles are free text: any other officer it names (2026-10-12) */
-const ROLE_OPTIONS_FEED: DropdownOption<RolePick>[] = [...ROLE_OPTIONS, { value: 'Officer', label: 'Other officer', hint: 'Any other officer a filing names — the title as filed under the person' }];
 const NAMES_OPTIONS: DropdownOption<NamesPick>[] = [
   { value: 'all', label: 'Every name', hint: 'Every company the terminal files' },
   { value: 'board', label: 'Your board', hint: 'The names on your Board' },
@@ -371,7 +369,7 @@ const Insiders = () => {
       <div className="px-5 pb-2 flex items-center gap-2 flex-wrap" data-insiders-controls>
         <DropdownSelect label="Window" value={window} options={WINDOW_OPTIONS} onChange={setWindow} title="How far back the filings run" testId="insiders-window" />
         <DropdownSelect label="Show" value={show} options={SHOW_OPTIONS} onChange={setShow} title="Trades only, or every filing" testId="insiders-show" />
-        <DropdownSelect label="Role" value={role} options={fromFeed ? ROLE_OPTIONS_FEED : ROLE_OPTIONS} onChange={setRole} title="Whose filings" testId="insiders-role" />
+        <DropdownSelect label="Role" value={role} options={ROLE_OPTIONS} onChange={setRole} title="Whose filings" testId="insiders-role" />
         <DropdownSelect label="Names" value={names} options={NAMES_OPTIONS} onChange={setNames} title="Which companies" testId="insiders-names" />
         <div className="ml-auto" title="The names, people and roles on the page right now — tick any number; only those stay">
           <DropdownMulti label="Filter" values={picks} groups={filterGroups} onChange={setPicks} title="Keep only these" testId="insiders-filter" />

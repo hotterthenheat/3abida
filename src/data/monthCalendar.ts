@@ -252,9 +252,14 @@ function earningsEvents(year: number, month: number): CalEvent[] {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 /** The month as weeks of days, Sunday first, every event on its day */
-export function buildMonthCalendar(year: number, month: number): MonthCalendar {
+export function buildMonthCalendar(year: number, month: number, feed?: CalEvent[]): MonthCalendar {
   const today = now();
-  const events = [...macroEvents(year, month), ...earningsEvents(year, month)].sort((a, b) => a.date.getTime() - b.date.getTime());
+  /* THE FEED'S OWN DATES (2026-10-12): the vendor's releases and reports in this month, and the month's market dates
+     (the monthly expiration, month end) — the rules' macro and earnings dates stand aside */
+  const own = feed
+    ? [...feed.filter(e => e.date.getFullYear() === year && e.date.getMonth() === month), ...macroEvents(year, month).filter(e => e.kind === 'market')]
+    : [...macroEvents(year, month), ...earningsEvents(year, month)];
+  const events = own.sort((a, b) => a.date.getTime() - b.date.getTime());
   const byDay = new Map<string, CalEvent[]>();
   for (const e of events) {
     const k = dayKeyOf(e.date);

@@ -75,19 +75,20 @@ import { isCashIndex, useFeedBook } from '../../data/feed/levels';
    as every figure under it; on a page whose room reads the house's book, or no room's (Practice, Settings, the
    Glossary), the house's. Never the vendor's beside the house's on one screen. While a wired room's vendors are still
    being asked it shows nothing. An index has no day state on UW's plan and is never asked (levels.ts isCashIndex): on
-   Pinpoint and Terrain it is the price its book was figured at, its change left off; elsewhere "—", not in the feed. */
+   every feed page it is the price its book was figured at, its change left off (2026-10-12 — the rail keeps a real price
+   on every feed page; it read "—" off Pinpoint and Terrain). */
 function useRailQuote(ticker: string): { quote: { spot: number; changePct: number } | null; missing: boolean } {
   const path = useLocation().pathname;
   const src = pageSource(path, useFeedStatus());
   const house = useQuote();
   const index = isCashIndex(ticker);
   const vendor = useFeedPrice(src === 'feed' && !index, ticker);
-  const levelsPage = /^\/(out\/)?(pinpoint|terrain)(\/|$)/.test(path);
-  const book = useFeedBook(src === 'feed' && levelsPage && (index || (vendor.answered && !vendor.price)), ticker).book;
+  const book = useFeedBook(src === 'feed' && (index || (vendor.answered && !vendor.price)), ticker);
   if (src === 'feed') {
     if (vendor.price) return { quote: vendor.price, missing: false };
-    if (book) return { quote: { spot: book.spot, changePct: NaN }, missing: false };
-    return { quote: null, missing: levelsPage ? false : index || vendor.answered };
+    if (book.book) return { quote: { spot: book.book.spot, changePct: NaN }, missing: false };
+    /* "—" only once the book too has answered with nothing */
+    return { quote: null, missing: !!book.failed };
   }
   if (src === 'pending') return { quote: null, missing: false };
   return { quote: house, missing: false };

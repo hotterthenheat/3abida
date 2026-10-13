@@ -65,7 +65,7 @@ import { isoDate } from '../../core/calendar';
 import { Name } from '../../components/ui/Name';
 import DataState from '../../components/ui/DataState';
 import { expiryLabel, num as fmtNum, usdCompactSigned } from '../../core/format';
-import { feedSession, spreadOf, useFeedMultiLeg, useFeedNameBook, useFeedNameExpiries, useFeedNameFlow, useFeedQuote, useFeedTape, type FeedFlowLine } from '../../data/feed/trace';
+import { feedSession, spreadOf, useFeedMultiLeg, useFeedNameBook, useFeedNameExpiries, useFeedQuote, useFeedTape } from '../../data/feed/trace';
 import type { UwExpiryFlow } from '../../data/feed/uw';
 import { Missing } from '../../components/trace/Missing';
 
@@ -173,19 +173,26 @@ function account(ticker: string, rows: BookContract[], trades: SpreadTrade[], ta
 /* ON THE FEED (2026-10-12) a side is the vendor's: its net premium off its ticks, its day off its flow by expiry (the
    volume, the premium, the sides, the same-day contracts), its structures and prints off the session's, its book off
    its own contracts — a sum over the contracts said only when the answer held the name's whole book */
+/** A sum over the expiries the answer carried — NaN while it has not answered */
+const add0 = (all: UwExpiryFlow[] | null, xs: UwExpiryFlow[], f: (x: UwExpiryFlow) => number): number => (all ? xs.reduce((a, x) => a + f(x), 0) : NaN);
+
 function accountFeed(
   ticker: string,
   book: { rows: BookContract[]; complete: boolean } | null,
-  line: FeedFlowLine | null,
   exps: UwExpiryFlow[] | null,
   spot: number | null,
   trades: SpreadTrade[],
   tape: FlowPrint[],
-  today: string
+  today: string,
+  expiry: string | null
 ): Side {
-  const own = book?.rows ?? [];
+  /* THE EXPIRY CUT ON THE FEED: the name's flow on that expiry alone, its contracts and structures and prints on it */
+  const own = (book?.rows ?? []).filter(r => !expiry || bookExpiryIso(r.expiry) === expiry);
   const whole = !!book?.complete;
-  const e = exps ?? [];
+  const e = (exps ?? []).filter(x => !expiry || x.expiry === expiry);
+  /* the net is the name's own flow by expiry: what was bought at the ask less what was sold on the bid */
+  const netCall = add0(exps, e, x => x.callPremiumAsk - x.callPremiumBid);
+  const netPut = add0(exps, e, x => x.putPremiumAsk - x.putPremiumBid);
   const z = e.filter(x => x.expiry === today);
   const add = (xs: UwExpiryFlow[], f: (x: UwExpiryFlow) => number) => (exps ? xs.reduce((a, x) => a + f(x), 0) : NaN);
   const volume = add(e, x => x.callVolume + x.putVolume);
@@ -203,9 +210,9 @@ function accountFeed(
     ticker,
     spot: spot ?? own[0]?.spot ?? NaN,
     rows: own,
-    net: line ? line.view.ncp - line.view.npp : NaN,
-    netCall: line ? line.view.ncp : NaN,
-    netPut: line ? line.view.npp : NaN,
+    net: netCall - netPut,
+    netCall,
+    netPut,
     odteNet: odteCall - odtePut,
     odteCall,
     odtePut,
@@ -427,7 +434,13 @@ const Compare = () => {
   const noteB = fragment(bQuery, B);
 
   /* THE EXPIRY CUT — the dates either name's book carries */
-  const pairRows = useMemo(() => book.filter(r => r.ticker === A || r.ticker === B), [book, A, B]);
+  /* on the feed each name's own contracts (the vendor's heaviest 500 a name), so the calendar holds both names' dates */
+  const bookA = useFeedNameBook(onFeed, A);
+  const bookB = useFeedNameBook(onFeed, B);
+  const pairRows = useMemo(
+    () => (onFeed ? [...(bookA?.rows ?? []), ...(bookB?.rows ?? [])] : book.filter(r => r.ticker === A || r.ticker === B)),
+    [book, A, B, onFeed, bookA, bookB]
+  );
   const { expiry, setExpiry, expiries, cut: cutExpiry, chosen } = useExpiryCut(pairRows, r => r.expiry);
   const cutRows = useMemo(() => cutExpiry(pairRows), [pairRows, cutExpiry]);
   const cutTrades = useMemo(() => (expiry ? trades.filter(t => bookExpiryIso(t.expiry) === expiry) : trades), [trades, expiry]);
@@ -435,21 +448,17 @@ const Compare = () => {
 
   /* The pane's clock — sampled where the pane samples, so the ledger and the lines agree */
   const nowSec = useMemo(() => paneTimes(A).slice(-1)[0], [A]);
-  const bookA = useFeedNameBook(onFeed, A);
-  const bookB = useFeedNameBook(onFeed, B);
-  const lineA = useFeedNameFlow(onFeed, A);
-  const lineB = useFeedNameFlow(onFeed, B);
   const expA = useFeedNameExpiries(onFeed, A);
   const expB = useFeedNameExpiries(onFeed, B);
   const quoteA = useFeedQuote(onFeed, A);
   const quoteB = useFeedQuote(onFeed, B);
   const sideA = useMemo(
-    () => (onFeed ? accountFeed(A, bookA, lineA, expA, quoteA?.spot ?? null, trades, tape, session.date) : account(A, cutRows, cutTrades, cutTape, nowSec)),
-    [A, cutRows, cutTrades, cutTape, nowSec, onFeed, bookA, lineA, expA, quoteA, trades, tape, session.date]
+    () => (onFeed ? accountFeed(A, bookA, expA, quoteA?.spot ?? null, cutTrades, cutTape, session.date, expiry) : account(A, cutRows, cutTrades, cutTape, nowSec)),
+    [A, cutRows, cutTrades, cutTape, nowSec, onFeed, bookA, expA, quoteA, session.date, expiry]
   );
   const sideB = useMemo(
-    () => (onFeed ? accountFeed(B, bookB, lineB, expB, quoteB?.spot ?? null, trades, tape, session.date) : account(B, cutRows, cutTrades, cutTape, nowSec)),
-    [B, cutRows, cutTrades, cutTape, nowSec, onFeed, bookB, lineB, expB, quoteB, trades, tape, session.date]
+    () => (onFeed ? accountFeed(B, bookB, expB, quoteB?.spot ?? null, cutTrades, cutTape, session.date, expiry) : account(B, cutRows, cutTrades, cutTape, nowSec)),
+    [B, cutRows, cutTrades, cutTape, nowSec, onFeed, bookB, expB, quoteB, session.date, expiry]
   );
   const bands = useMemo(() => ledger(sideA, sideB), [sideA, sideB]);
 
@@ -481,7 +490,7 @@ const Compare = () => {
       <span className="font-mono text-[11px] uppercase tracking-widest text-textSecondary">{which}</span>
       <CompanyLogo ticker={s.ticker} size={16} />
       <span className="font-mono text-[12px] font-bold text-textPrimary">{s.ticker}</span>
-      {Number.isFinite(s.spot) && <span className="font-mono text-[11px] tnum text-textPrimary">${s.spot.toFixed(2)}</span>}
+      <span className="font-mono text-[11px] tnum text-textPrimary">{Number.isFinite(s.spot) ? `$${s.spot.toFixed(2)}` : <Missing />}</span>
       <span className={`ml-auto font-mono text-[11px] tnum font-semibold ${dirInk(s.net)}`}>{signed(s.net)} net</span>
     </div>
   );
@@ -584,7 +593,7 @@ const Compare = () => {
               <ArrowLeftRight className="w-3.5 h-3.5" />
             </button>
             </span>
-            {!onFeed && <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="compare-expiry" />}
+            <ExpiryCalendar value={chosen ? isoDate(chosen.date) : ''} expiries={expiries} onChange={e => setExpiry(isoDate(e.date))} onClear={() => setExpiry(null)} label="Expiry" icon={CalendarDays} steppers={false} title="Only contracts on one expiry — or every expiry" testId="compare-expiry" />
           </>
         }
         sentence={
@@ -616,7 +625,7 @@ const Compare = () => {
                   onTenor={setTenor}
                   dteMax={Infinity}
                   sharedNote="sets both panes"
-                  feed={onFeed ? { line: i === 0 ? lineA : lineB, refName: s.ticker, note: 'every expiry', money: false, tenor: false } : undefined}
+                  feed={onFeed ? { expiry } : undefined}
                 />
               </div>
               {/* the same-day money under the pane — the 0DTE desk's figures for the name */}

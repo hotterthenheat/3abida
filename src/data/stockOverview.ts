@@ -320,7 +320,7 @@ export const ordinal = (n: number): string => {
   return `${n}${s}`;
 };
 const pct = (v: number, d = 1) => pctSigned(v, d);
-export const fmtMoney = (v: number): string => usdCompact(v);
+export const fmtMoney = (v: number): string => (Number.isFinite(v) ? usdCompact(v) : '—');
 const fmtCount = (v: number): string => (v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : `${Math.round(v)}`);
 /** A pillar's score from its factors: 50 + 50 × the leans' weighted mean */
 const scoreOf = (factors: Factor[]): number => {
@@ -506,33 +506,47 @@ const moneyFor = (ticker: string, snapshot: MarketSnapshot, blocks: Candle[][]):
     today,
     busiest: { calls: [...calls].sort(byVol).slice(0, 3), puts: [...puts].sort(byVol).slice(0, 3) },
   };
+  return { read, factors: moneyFactors(read, snapshot.changePercent) };
+};
+
+/** The money pillar's factors off its read — the same for the house's figures and the vendors' (a figure the read does
+    not carry, NaN, is left out) */
+export function moneyFactors(read: MoneyRead, changePercent: number): Factor[] {
+  const { callPremium, putPremium, askSharePct, rvol, dark, sweepSharePct } = read;
   const factors: Factor[] = [];
   const prem = callPremium + putPremium;
-  if (prem > 0) {
+  if (prem > 0 && Number.isFinite(prem)) {
     const ratio = callPremium / Math.max(1, putPremium);
     factors.push({ key: 'premium', label: 'Call premium against put premium', value: `${fmtMoney(callPremium)} vs ${fmtMoney(putPremium)} · ${ratio.toFixed(1)}×`, lean: clamp((callPremium - putPremium) / prem), weight: 0.3, note: ratio >= 1.3 ? 'the money leans to calls' : ratio <= 0.77 ? 'the money leans to puts' : 'about even' });
   }
-  factors.push({ key: 'ask', label: 'Traded on the ask', value: `${askSharePct.toFixed(0)}%`, lean: clamp((askSharePct - 50) / 25), weight: 0.2, note: askSharePct >= 58 ? 'buyers paying up' : askSharePct <= 42 ? 'sellers hitting bids' : 'balanced' });
-  if (rvol != null) factors.push({ key: 'rvol', label: 'Relative volume', value: `${rvol.toFixed(2)}×`, lean: clamp((rvol - 1) * (snapshot.changePercent >= 0 ? 1 : -1)), weight: 0.2, note: rvol >= 1.3 ? `heavy for the name, ${snapshot.changePercent >= 0 ? 'on an up day' : 'on a down day'}` : rvol <= 0.7 ? 'quiet' : 'ordinary' });
-  factors.push({ key: 'dark', label: 'Dark pool posture', value: postureRead(dark), lean: clamp(dark.netPosturePct / 60), weight: 0.2, note: dark.posture === 'ACCUMULATING' ? 'sized prints skew to buying' : dark.posture === 'DISTRIBUTING' ? 'sized prints skew to selling' : 'sized prints balanced' });
-  factors.push({ key: 'sweeps', label: 'Swept', value: `${sweepSharePct.toFixed(0)}% of volume`, lean: clamp(((sweepSharePct - 12) / 20) * (callPremium >= putPremium ? 1 : -1)), weight: 0.1, note: sweepSharePct >= 20 ? 'urgent orders, mostly on the heavier side' : 'little urgency' });
-  return { read, factors };
-};
+  if (Number.isFinite(askSharePct)) factors.push({ key: 'ask', label: 'Traded on the ask', value: `${askSharePct.toFixed(0)}%`, lean: clamp((askSharePct - 50) / 25), weight: 0.2, note: askSharePct >= 58 ? 'buyers paying up' : askSharePct <= 42 ? 'sellers hitting bids' : 'balanced' });
+  if (rvol != null && Number.isFinite(rvol)) factors.push({ key: 'rvol', label: 'Relative volume', value: `${rvol.toFixed(2)}×`, lean: clamp((rvol - 1) * (changePercent >= 0 ? 1 : -1)), weight: 0.2, note: rvol >= 1.3 ? `heavy for the name, ${changePercent >= 0 ? 'on an up day' : 'on a down day'}` : rvol <= 0.7 ? 'quiet' : 'ordinary' });
+  if (dark.prints.length) factors.push({ key: 'dark', label: 'Dark pool posture', value: postureRead(dark), lean: clamp(dark.netPosturePct / 60), weight: 0.2, note: dark.posture === 'ACCUMULATING' ? 'sized prints skew to buying' : dark.posture === 'DISTRIBUTING' ? 'sized prints skew to selling' : 'sized prints balanced' });
+  if (Number.isFinite(sweepSharePct)) factors.push({ key: 'sweeps', label: 'Swept', value: `${sweepSharePct.toFixed(0)}% of volume`, lean: clamp(((sweepSharePct - 12) / 20) * (callPremium >= putPremium ? 1 : -1)), weight: 0.1, note: sweepSharePct >= 20 ? 'urgent orders, mostly on the heavier side' : 'little urgency' });
+  return factors;
+}
 
 /* ---- the news, from the wire ----------------------------------------------------- */
 
-const newsFor = (ticker: string): { read: NewsRead; factors: Factor[]; lastReport: { label: string; epsActual: number; epsEst: number; beat: boolean; movePct: number } | null } => {
+const newsFor = (ticker: string): NewsPart => {
   const stories = buildGeoNews()
     .filter(e => e.item.ticker === ticker)
     .sort((a, b) => a.item.minutesAgo - b.item.minutesAgo);
-  const sentiment = tickerSentiment(ticker);
-  const positive = stories.filter(s => s.grade === 'ALLY').length;
-  const negative = stories.filter(s => s.grade === 'THREAT').length;
   const ev = buildEarningsCalendar().find(e => e.ticker === ticker);
   const nextEarnings = ev ? { label: ev.dateLabel, daysOut: ev.daysOut, impliedMovePct: ev.impliedMovePct, confirmed: ev.confirmed } : null;
   const dossier = buildEarningsDossier(ticker);
-  const quarters = dossier?.quarters ?? [];
-  const reaction = quarters.length ? { pct: quarters.reduce((a, q) => a + Math.abs(q.movePct), 0) / quarters.length, reports: quarters.length } : null;
+  return newsPart(stories, tickerSentiment(ticker), nextEarnings, dossier?.quarters ?? []);
+};
+
+export type NewsPart = { read: NewsRead; factors: Factor[]; lastReport: { label: string; epsActual: number; epsEst: number; beat: boolean; movePct: number } | null };
+
+/** The news pillar off the name's stories, the wire's lean on it, its next report and its last reports — the same for
+    the house's wire and the vendors' */
+export function newsPart(stories: GeoNewsEvent[], sentiment: number, nextEarnings: NewsRead['nextEarnings'], quarters: { label: string; epsActual: number; epsEst: number; epsBeat: boolean; movePct: number }[]): NewsPart {
+  const positive = stories.filter(s => s.grade === 'ALLY').length;
+  const negative = stories.filter(s => s.grade === 'THREAT').length;
+  const moved = quarters.filter(q => Number.isFinite(q.movePct));
+  const reaction = moved.length ? { pct: moved.reduce((a, q) => a + Math.abs(q.movePct), 0) / moved.length, reports: moved.length } : null;
   const lastQ = quarters[quarters.length - 1];
   const lastReport = lastQ ? { label: lastQ.label, epsActual: lastQ.epsActual, epsEst: lastQ.epsEst, beat: lastQ.epsBeat, movePct: lastQ.movePct } : null;
   const reports = [...quarters]
@@ -547,21 +561,26 @@ const newsFor = (ticker: string): { read: NewsRead; factors: Factor[]; lastRepor
   const biggest = stories.reduce<GeoNewsEvent | null>((m, s) => (!m || Math.abs(s.item.prediction.expMove1dPct) > Math.abs(m.item.prediction.expMove1dPct) ? s : m), null);
   if (biggest) factors.push({ key: 'move', label: 'Biggest expected move on the wire', value: pct(biggest.item.prediction.expMove1dPct), lean: clamp(biggest.item.prediction.expMove1dPct / 4), weight: 0.3, note: biggest.item.headline });
   return { read, factors, lastReport };
-};
+}
 
 /* ---- the numbers: the last report ------------------------------------------------- */
 
 const numbersFor = (ticker: string, price: number, sector: string | null): { read: Fundamentals; factors: Factor[] } => {
   const f = sampleFundamentals(ticker, price, sector);
-  const factors: Factor[] = [
-    { key: 'beats', label: 'Beat the estimate', value: `${f.beats} of the last 8`, lean: clamp((f.beats - 4) / 3), weight: 0.2, note: f.beats >= 6 ? 'a habit of beating' : f.beats <= 3 ? 'misses more than it beats' : 'about half the time' },
-    { key: 'growth', label: 'Revenue growth, a year on', value: pct(f.revenueGrowthPct), lean: clamp(f.revenueGrowthPct / 20), weight: 0.25, note: f.revenueGrowthPct >= 12 ? 'growing fast' : f.revenueGrowthPct <= 0 ? 'shrinking' : 'growing' },
-    { key: 'margin', label: 'Operating margin', value: `${f.operatingMarginPct.toFixed(1)}%`, lean: clamp((f.operatingMarginPct - 15) / 20), weight: 0.2, note: f.operatingMarginPct >= 25 ? 'wide margins' : f.operatingMarginPct <= 5 ? 'thin margins' : 'ordinary margins' },
-    { key: 'value', label: 'Price against fair value', value: `${pct(f.vsFairValuePct)} · ${f.valuation}`, lean: clamp(-f.vsFairValuePct / 25), weight: 0.2, note: f.valuation === 'undervalued' ? 'cheap against its own worth' : f.valuation === 'overvalued' ? 'rich against its own worth' : 'about fairly priced' },
-    { key: 'health', label: 'Financial health', value: healthWord(f.healthScore), lean: clamp((f.healthScore - 55) / 30), weight: 0.15, note: f.healthScore >= 70 ? 'a strong balance sheet' : f.healthScore <= 40 ? 'a stretched balance sheet' : 'a sound balance sheet' },
-  ];
-  return { read: f, factors };
+  return { read: f, factors: numbersFactors(f) };
 };
+
+/** The numbers pillar's factors off the fundamentals — a figure the record does not carry (NaN) is left out */
+export function numbersFactors(f: Fundamentals): Factor[] {
+  const fin = Number.isFinite;
+  const out: Factor[] = [];
+  if (fin(f.beats)) out.push({ key: 'beats', label: 'Beat the estimate', value: `${f.beats} of the last 8`, lean: clamp((f.beats - 4) / 3), weight: 0.2, note: f.beats >= 6 ? 'a habit of beating' : f.beats <= 3 ? 'misses more than it beats' : 'about half the time' });
+  if (fin(f.revenueGrowthPct)) out.push({ key: 'growth', label: 'Revenue growth, a year on', value: pct(f.revenueGrowthPct), lean: clamp(f.revenueGrowthPct / 20), weight: 0.25, note: f.revenueGrowthPct >= 12 ? 'growing fast' : f.revenueGrowthPct <= 0 ? 'shrinking' : 'growing' });
+  if (fin(f.operatingMarginPct)) out.push({ key: 'margin', label: 'Operating margin', value: `${f.operatingMarginPct.toFixed(1)}%`, lean: clamp((f.operatingMarginPct - 15) / 20), weight: 0.2, note: f.operatingMarginPct >= 25 ? 'wide margins' : f.operatingMarginPct <= 5 ? 'thin margins' : 'ordinary margins' });
+  if (fin(f.vsFairValuePct)) out.push({ key: 'value', label: 'Price against fair value', value: `${pct(f.vsFairValuePct)} · ${f.valuation}`, lean: clamp(-f.vsFairValuePct / 25), weight: 0.2, note: f.valuation === 'undervalued' ? 'cheap against its own worth' : f.valuation === 'overvalued' ? 'rich against its own worth' : 'about fairly priced' });
+  if (fin(f.healthScore)) out.push({ key: 'health', label: 'Financial health', value: healthWord(f.healthScore), lean: clamp((f.healthScore - 55) / 30), weight: 0.15, note: f.healthScore >= 70 ? 'a strong balance sheet' : f.healthScore <= 40 ? 'a stretched balance sheet' : 'a sound balance sheet' });
+  return out;
+}
 
 /* ---- the words and the sums ------------------------------------------------------ */
 
@@ -638,7 +657,7 @@ const explanationOf = (name: string, screen: Screen, composite: number, pillars:
   /* "the numbers" is a plural: they carry it, they drag on it */
   const many = top.key === 'numbers';
   const carries = top.score >= 50 ? (many ? 'carry it' : 'carries it') : many ? 'drag on it' : 'drags on it';
-  return `${name} reads ${gradeOfComposite(composite)}, leaning ${agreement.lean}: ${top.name.toLowerCase()} ${carries}${tf ? ` — ${tf.label.toLowerCase()} ${tf.value}, ${tf.note}` : ''}; ${second.name.toLowerCase()} ${secondWord}. The numbers put the price ${pct(numbers.vsFairValuePct)} from fair value, ${numbers.valuation}. ${agreement.risk}`;
+  return `${name} reads ${gradeOfComposite(composite)}, leaning ${agreement.lean}: ${top.name.toLowerCase()} ${carries}${tf ? ` — ${tf.label.toLowerCase()} ${tf.value}, ${tf.note}` : ''}; ${second.name.toLowerCase()} ${secondWord}.${Number.isFinite(numbers.vsFairValuePct) ? ` The numbers put the price ${pct(numbers.vsFairValuePct)} from fair value, ${numbers.valuation}.` : ''} ${agreement.risk}`;
 };
 const methodOf = (trend: TrendRead, money: MoneyRead, news: NewsRead, pillars: Pillar[], composite: number, lean: Lean): Method => ({
   observed: [
@@ -674,16 +693,71 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
   const clock = readSessionClock();
   const marketWord = clock.phase === 'OPEN' ? 'market open' : clock.phase === 'AUCTION' ? 'the closing auction' : clock.phase === 'PREMARKET' ? 'pre-market' : clock.phase === 'AFTERHOURS' ? 'after hours' : 'market closed';
   const blocks = sessionBlocks(ticker).filter(b => b.length >= 30);
+  const own = tape.filter(p => p.ticker === ticker);
+  const at = now();
+  const stamp = nyClock(at);
+  return overviewFrom({
+    ticker,
+    name,
+    sector,
+    price: snapshot.spot,
+    changePct: snapshot.changePercent,
+    marketWord,
+    blocks,
+    money: moneyFor(ticker, snapshot, blocks),
+    news: newsFor(ticker),
+    numbers: numbersFor(ticker, snapshot.spot, sector),
+    own,
+    sources: (sessions, news) => [
+      { key: 'price', label: 'Price', status: 'live', stamp: `live · ${stamp}` },
+      { key: 'book', label: 'The options book', status: 'live', stamp: `live · ${stamp}` },
+      { key: 'flow', label: 'The flow book', status: 'live', stamp: `live · ${stamp}` },
+      { key: 'tape', label: 'The tape', status: own.length ? 'live' : 'thin', stamp: own.length ? `live · the newest print ${own[0].time}` : 'no rich prints on the name yet' },
+      { key: 'dark', label: 'Dark pool', status: 'live', stamp: `live · ${stamp}` },
+      { key: 'news', label: 'The wire', status: 'live', stamp: news.stories.length ? `live · the newest story ${news.stories[0].item.time}` : `live · ${stamp}` },
+      { key: 'sessions', label: 'Sessions', status: sessions >= 20 ? 'live' : 'thin', stamp: `${sessions} on hand · the 50- and 200-day averages need more` },
+      { key: 'fundamentals', label: 'Fundamentals', status: 'live', stamp: 'the last report' },
+      { key: 'record', label: 'Insiders and Congress', status: 'live', stamp: 'as filed' },
+    ],
+  });
+}
 
-  const trend = trendFor(blocks, snapshot.spot);
-  const money = moneyFor(ticker, snapshot, blocks);
-  const news = newsFor(ticker);
-  const numbers = numbersFor(ticker, snapshot.spot, sector);
+/** What the overview is read from — the house's simulator, or the vendors' answers (data/feed/stockName.ts) */
+export interface OverviewParts {
+  ticker: string;
+  name: string;
+  sector: string | null;
+  price: number;
+  changePct: number;
+  marketWord: string;
+  /** The name's sessions, oldest first: each session's bars (a daily bar alone is a session too) */
+  blocks: Candle[][];
+  money: { read: MoneyRead; factors: Factor[] };
+  news: { read: NewsRead; factors: Factor[]; lastReport: { label: string; epsActual: number; epsEst: number; beat: boolean; movePct: number } | null };
+  numbers: { read: Fundamentals; factors: Factor[] };
+  /** The tape's prints on the name, newest first */
+  own: FlowPrint[];
+  sources: (sessions: number, news: NewsRead) => Source[];
+  /** Where each pillar's figures come from, when not the house's words */
+  from?: Partial<Record<PillarKey, string>>;
+}
+
+/**
+ * The overview off its parts — the trend from the sessions, the four pillars, the composite and its words, the
+ * session-by-session part, the timeline, the method: the same engine for the house's figures and the vendors'.
+ */
+export function overviewFrom(parts: OverviewParts): StockOverview {
+  const { ticker, name, sector, marketWord, blocks, money, news, numbers, own } = parts;
+  const price = parts.price;
+  const snapshot = { spot: price };
+  const trend = trendFor(blocks, price);
+  /* a pillar with no factor the figures can read (the feed without them) stands in the middle, said so */
+  const scoreOr50 = (f: Factor[]) => (f.length ? scoreOf(f) : 50);
   const pillars: Pillar[] = [
-    { key: 'trend', name: PILLAR_NAMES.trend, score: scoreOf(trend.factors), factors: trend.factors, status: trend.read.sessions >= 20 ? 'live' : 'thin', from: `${trend.read.sessions} sessions on hand` },
-    { key: 'numbers', name: PILLAR_NAMES.numbers, score: scoreOf(numbers.factors), factors: numbers.factors, status: 'live', from: 'the last report' },
-    { key: 'money', name: PILLAR_NAMES.money, score: scoreOf(money.factors), factors: money.factors, status: 'live', from: 'the book, the flow book and the dark pool' },
-    { key: 'news', name: PILLAR_NAMES.news, score: scoreOf(news.factors), factors: news.factors, status: 'live', from: 'the wire' },
+    { key: 'trend', name: PILLAR_NAMES.trend, score: scoreOr50(trend.factors), factors: trend.factors, status: trend.read.sessions >= 20 ? 'live' : 'thin', from: parts.from?.trend ?? `${trend.read.sessions} sessions on hand` },
+    { key: 'numbers', name: PILLAR_NAMES.numbers, score: scoreOr50(numbers.factors), factors: numbers.factors, status: numbers.factors.length ? 'live' : 'thin', from: parts.from?.numbers ?? 'the last report' },
+    { key: 'money', name: PILLAR_NAMES.money, score: scoreOr50(money.factors), factors: money.factors, status: money.factors.length ? 'live' : 'thin', from: parts.from?.money ?? 'the book, the flow book and the dark pool' },
+    { key: 'news', name: PILLAR_NAMES.news, score: scoreOr50(news.factors), factors: news.factors, status: 'live', from: parts.from?.news ?? 'the wire' },
   ];
   const composite = Math.round(pillars.reduce((a, p) => a + p.score * PILLAR_WEIGHTS[p.key], 0));
   const screen = screenOf(composite);
@@ -744,25 +818,12 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
   const contributions = contributionsOf(pillars);
   const moves = movesOf(pillars, composite);
   const agreement = agreementOf(pillars, composite, news.read);
-  const own = tape.filter(p => p.ticker === ticker);
   const prints = {
     buys: [...own].filter(p => p.side === 'ASK').sort((a, b) => b.premium - a.premium).slice(0, 5),
     sells: [...own].filter(p => p.side === 'BID').sort((a, b) => b.premium - a.premium).slice(0, 5),
   };
 
-  const at = now();
-  const stamp = nyClock(at);
-  const sources: Source[] = [
-    { key: 'price', label: 'Price', status: 'live', stamp: `live · ${stamp}` },
-    { key: 'book', label: 'The options book', status: 'live', stamp: `live · ${stamp}` },
-    { key: 'flow', label: 'The flow book', status: 'live', stamp: `live · ${stamp}` },
-    { key: 'tape', label: 'The tape', status: own.length ? 'live' : 'thin', stamp: own.length ? `live · the newest print ${own[0].time}` : 'no rich prints on the name yet' },
-    { key: 'dark', label: 'Dark pool', status: 'live', stamp: `live · ${stamp}` },
-    { key: 'news', label: 'The wire', status: 'live', stamp: news.read.stories.length ? `live · the newest story ${news.read.stories[0].item.time}` : `live · ${stamp}` },
-    { key: 'sessions', label: 'Sessions', status: sessions >= 20 ? 'live' : 'thin', stamp: `${sessions} on hand · the 50- and 200-day averages need more` },
-    { key: 'fundamentals', label: 'Fundamentals', status: 'live', stamp: 'the last report' },
-    { key: 'record', label: 'Insiders and Congress', status: 'live', stamp: 'as filed' },
-  ];
+  const sources: Source[] = parts.sources(sessions, news.read);
   const completeness = Math.round((100 * sources.filter(s => s.status === 'live').length) / sources.length);
 
   return {
@@ -770,7 +831,7 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
     name,
     sector,
     price: snapshot.spot,
-    changePct: snapshot.changePercent,
+    changePct: parts.changePct,
     marketWord,
     pillars,
     composite,

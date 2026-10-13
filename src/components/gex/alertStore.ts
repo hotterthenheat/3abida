@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
+import { alertMarket, spotForArm, type AlertMarket } from './alertMarket';
 
 /*
 ==================================================
@@ -434,7 +435,9 @@ const arm = (ticker: string, make: () => Alert, same: (a: Alert) => boolean): Al
 
 /** `spot` fixes which way the alert has to be crossed. Refused if it is not a
     real number, or a duplicate, or the pane is already carrying its most. */
-export function armPrice(ticker: string, price: number, spot: number): Alert | null {
+export function armPrice(ticker: string, price: number, pageSpot: number): Alert | null {
+  /* the side is taken from the market the alerts watch — the real price while they read the feed (alertMarket.ts) */
+  const spot = spotForArm(ticker, pageSpot);
   if (!isFin(price) || price <= 0 || !isFin(spot)) return null;
   return arm(
     ticker,
@@ -580,7 +583,7 @@ export function clearAlerts(ticker: string): void {
 /** Idempotent: a chart calls this on every tick a crossed alert is seen, and
     only the first call changes anything. Without that guard the fired time
     would keep moving and every pane would repaint on every tick. */
-export function markFired(ticker: string, id: string, at: number, value?: number): void {
+export function markFired(ticker: string, id: string, at: number, value?: number, mark?: number): void {
   const list = read(ticker);
   const hit = list.find(a => a.id === id);
   if (!hit || hit.firedAt !== 0) return;
@@ -597,7 +600,10 @@ export function markFired(ticker: string, id: string, at: number, value?: number
      cleanup that outlived the firing it was cleaning. */
   const prev = getFiredLog(ticker);
   const v = value ?? (hit.kind === 'price' ? hit.price : undefined);
-  logs().set(ticker, [{ key: `${id}-${at}`, alert: { ...hit, firedAt: at }, at, ...(isFin(v) ? { value: v } : {}) }, ...prev].slice(0, FIRED_LOG_CAP));
+  logs().set(
+    ticker,
+    [{ key: `${id}-${at}`, alert: { ...hit, firedAt: at }, at, ...(isFin(v) ? { value: v } : {}), ...(isFin(mark) ? { mark, market: alertMarket() } : {}) }, ...prev].slice(0, FIRED_LOG_CAP)
+  );
   saveLog();
   unseenCounts.set(ticker, (unseenCounts.get(ticker) ?? 0) + 1);
   notifyTicker(ticker);
@@ -657,6 +663,10 @@ export interface FiredRecord {
   at: number;
   /** The figure it fired at, when there is one — the price, the level, the indicator's value */
   value?: number;
+  /** The name's price when it fired, and the market it was read off (ALERTS WATCH THE REAL PRICE, 2026-10-12): 'feed'
+      UW's, 'house' the house's own */
+  mark?: number;
+  market?: AlertMarket;
 }
 
 let firedLogs: Map<string, FiredRecord[]> | null = null;
@@ -682,7 +692,13 @@ function logs(): Map<string, FiredRecord[]> {
           const rec = r as Record<string, unknown>;
           const alert = readAlert(rec?.alert);
           if (!alert || typeof rec.key !== 'string' || !isFin(rec.at)) continue;
-          out.push({ key: rec.key, alert, at: rec.at as number, ...(isFin(rec.value) ? { value: rec.value as number } : {}) });
+          out.push({
+            key: rec.key,
+            alert,
+            at: rec.at as number,
+            ...(isFin(rec.value) ? { value: rec.value as number } : {}),
+            ...(isFin(rec.mark) ? { mark: rec.mark as number, market: rec.market === 'feed' ? ('feed' as const) : ('house' as const) } : {}),
+          });
         }
         if (out.length) firedLogs.set(ticker, out.slice(0, FIRED_LOG_CAP));
       }
@@ -720,7 +736,7 @@ export function rearmFromRecord(ticker: string, key: string, spot: number, now: 
   if (!rec) return null;
   const list = read(ticker);
   if (list.length >= MAX_ALERTS) return null;
-  const fresh: Alert = { ...resetAlert({ ...rec.alert, id: freshId() }, spot, now), setAt: now };
+  const fresh: Alert = { ...resetAlert({ ...rec.alert, id: freshId() }, spotForArm(ticker, spot), now), setAt: now };
   delete fresh.reside;
   delete fresh.quietUntil;
   if (list.some(a => sameIdentity(a, fresh))) return null;

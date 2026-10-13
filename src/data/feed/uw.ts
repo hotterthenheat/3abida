@@ -528,8 +528,23 @@ const darkPrint = (r: Record<string, unknown>): UwDarkPrint => ({
 });
 
 /** Off-exchange prints, newest first: the market's (GET /api/darkpool/recent) or one name's (GET /api/darkpool/{ticker}) */
-export const uwDarkpool = (opts: { ticker?: string; limit?: number; minPremium?: number; date?: string; olderThan?: string } = {}): Promise<FeedResult<UwDarkPrint[]>> =>
-  feedGet('uw', opts.ticker ? `/api/darkpool/${encodeURIComponent(opts.ticker)}` : '/api/darkpool/recent', { limit: opts.limit ?? 100, min_premium: opts.minPremium, date: opts.date, older_than: opts.olderThan }, body => rowsOf(body).map(darkPrint));
+export const uwDarkpool = (opts: { ticker?: string; limit?: number; minPremium?: number; maxPremium?: number; date?: string; olderThan?: string; byPremium?: boolean } = {}): Promise<FeedResult<UwDarkPrint[]>> =>
+  feedGet(
+    'uw',
+    opts.ticker ? `/api/darkpool/${encodeURIComponent(opts.ticker)}` : '/api/darkpool/recent',
+    {
+      limit: opts.limit ?? 100,
+      min_premium: opts.minPremium,
+      max_premium: opts.maxPremium,
+      date: opts.date,
+      older_than: opts.olderThan,
+      /* the day's heaviest first (order_by=premium, order=desc — seen live 2026-10-12; /recent takes no older_than, so the
+         day is walked down by max_premium instead) */
+      order_by: opts.byPremium ? 'premium' : undefined,
+      order: opts.byPremium ? 'desc' : undefined,
+    },
+    body => rowsOf(body).map(darkPrint)
+  );
 
 /* ---- filings: congress, insiders --------------------------------------------------------------------------- */
 
@@ -1121,4 +1136,221 @@ export const uwFlowPerExpiry = (ticker: string, date?: string): Promise<FeedResu
       putVolumeAsk: num0(r.put_volume_ask_side),
       putVolumeBid: num0(r.put_volume_bid_side),
     }))
+  );
+
+/* ---- A NAME'S DAY, MANY AT ONCE (2026-10-12): the stock screener — one call for a list of names ------------------- */
+
+export interface UwStockDay {
+  ticker: string;
+  fullName: string;
+  sector: string;
+  industry: string;
+  close: number | null;
+  prevClose: number | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  /** Shares traded today, and the 30-day average */
+  stockVolume: number | null;
+  avg30Volume: number | null;
+  relativeVolume: number | null;
+  marketcap: number | null;
+  week52High: number | null;
+  week52Low: number | null;
+  /** Fractions: 0.035 is 3.5% */
+  oneWeekPerc: number | null;
+  oneMonthPerc: number | null;
+  threeMonthPerc: number | null;
+  sixMonthPerc: number | null;
+  oneYearPerc: number | null;
+  ytdPerc: number | null;
+  rsi14: number | null;
+  adx14: number | null;
+  sma20: number | null;
+  sma50: number | null;
+  sma200: number | null;
+  ema9: number | null;
+  ema21: number | null;
+  ema50: number | null;
+  atr14: number | null;
+  /** Implied vol (fraction), its rank 0–100, the move priced in over 1 and 30 days (fractions) */
+  iv30d: number | null;
+  ivRank: number | null;
+  impliedMove1: number | null;
+  impliedMove30: number | null;
+  /** The move priced in over each horizon, calendar days → fraction (1, 5, 7, 14, 30, 60, 90, 180, 365) */
+  impliedMoves: [number, number][];
+  realizedVol: number | null;
+  callVolume: number;
+  putVolume: number;
+  callPremium: number | null;
+  putPremium: number | null;
+  netPremium: number | null;
+  netCallPremium: number | null;
+  netPutPremium: number | null;
+  putCallRatio: number | null;
+  callOi: number | null;
+  putOi: number | null;
+  nextEarnings: string;
+  lastEarnings: string;
+  /** The day's net gamma, dollars per 1% move off open interest */
+  gexPerPct: number | null;
+  /** The day's premium on bullish prints (calls at the ask, puts on the bid) and on bearish ones */
+  bullishPremium: number | null;
+  bearishPremium: number | null;
+  /** Earnings per share against the same quarter a year before, as a fraction (1.24 is +124%) */
+  epsGrowth4q: number | null;
+  beta: number | null;
+}
+
+/**
+ * Many names' day in one call: price, ranges, returns, averages, RSI and ADX, implied vol and its rank, the option
+ * volume and premium, the next report. GET /api/screener/stocks (ticker: a comma list — 43 names answered in one call,
+ * seen live 2026-10-12; the Basic plan answers it).
+ */
+export const uwStockScreener = (tickers: string[]): Promise<FeedResult<UwStockDay[]>> =>
+  feedGet('uw', '/api/screener/stocks', { ticker: tickers.join(',') }, body =>
+    rowsOf(body).map(r => ({
+      ticker: str(r.ticker),
+      fullName: r.full_name == null ? '' : str(r.full_name),
+      sector: r.sector == null ? '' : str(r.sector),
+      industry: r.industry_type == null ? '' : str(r.industry_type),
+      close: num(r.close),
+      prevClose: num(r.prev_close),
+      open: num(r.open),
+      high: num(r.high),
+      low: num(r.low),
+      stockVolume: num(r.stock_volume),
+      avg30Volume: num(r.avg30_volume),
+      relativeVolume: num(r.relative_volume),
+      marketcap: num(r.marketcap),
+      week52High: num(r.week_52_high),
+      week52Low: num(r.week_52_low),
+      oneWeekPerc: num(r.one_week_perc),
+      oneMonthPerc: num(r.one_month_perc),
+      threeMonthPerc: num(r.three_month_perc),
+      sixMonthPerc: num(r.six_month_perc),
+      oneYearPerc: num(r.one_year_perc),
+      ytdPerc: num(r.ytd_perc),
+      rsi14: num(r.rsi_14),
+      adx14: num(r.adx_14),
+      sma20: num(r.sma_20),
+      sma50: num(r.sma_50),
+      sma200: num(r.sma_200),
+      ema9: num(r.ema_9),
+      ema21: num(r.ema_21),
+      ema50: num(r.ema_50),
+      atr14: num(r.atr_14),
+      iv30d: num(r.iv30d),
+      ivRank: num(r.iv_rank),
+      impliedMove1: num(r.implied_move_perc_1),
+      impliedMove30: num(r.implied_move_perc_30),
+      impliedMoves: [1, 5, 7, 14, 30, 60, 90, 180, 365].flatMap(d => {
+        const v = num(r[`implied_move_perc_${d}`]);
+        return v === null ? [] : [[d, v] as [number, number]];
+      }),
+      realizedVol: num(r.realized_volatility),
+      callVolume: num0(r.call_volume),
+      putVolume: num0(r.put_volume),
+      callPremium: num(r.call_premium),
+      putPremium: num(r.put_premium),
+      netPremium: num(r.net_premium),
+      netCallPremium: num(r.net_call_premium),
+      netPutPremium: num(r.net_put_premium),
+      putCallRatio: num(r.put_call_ratio),
+      callOi: num(r.call_open_interest),
+      putOi: num(r.put_open_interest),
+      nextEarnings: r.next_earnings_date == null ? '' : str(r.next_earnings_date),
+      lastEarnings: r.last_earnings_date == null ? '' : str(r.last_earnings_date),
+      gexPerPct: num(r.gex_gamma_per_one_percent_move_oi),
+      bullishPremium: num(r.bullish_premium),
+      bearishPremium: num(r.bearish_premium),
+      epsGrowth4q: num(r.eps_growth_4q),
+      beta: num(r.beta),
+    }))
+  );
+
+/* ---- A COMPANY'S FILED NUMBERS (2026-10-12): earnings, income statements, cash flows, balance sheets ---------------- */
+
+export interface UwReportedEps {
+  /** "quarterly" or "annual" */
+  type: string;
+  fiscalEnd: string;
+  reportDate: string;
+  reported: number | null;
+  estimated: number | null;
+  surprisePct: number | null;
+}
+export interface UwIncome {
+  type: string;
+  fiscalEnd: string;
+  revenue: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+}
+export interface UwCashFlow {
+  type: string;
+  fiscalEnd: string;
+  operatingCashflow: number | null;
+  capex: number | null;
+}
+export interface UwBalance {
+  type: string;
+  fiscalEnd: string;
+  currentAssets: number | null;
+  currentLiabilities: number | null;
+  totalDebt: number | null;
+  cash: number | null;
+  equity: number | null;
+  shares: number | null;
+}
+export interface UwFinancials {
+  earnings: UwReportedEps[];
+  income: UwIncome[];
+  cash: UwCashFlow[];
+  balance: UwBalance[];
+}
+
+/** A company's filed numbers, newest first, quarterly and annual. GET /api/stock/{ticker}/financials — the four lists in
+    one answer (seen live 2026-10-12: earnings 140 rows, statements 103 each for NVDA); its estimates are the earnings'
+    EPS alone (the Advanced plan carries the rest) */
+export const uwFinancials = (ticker: string): Promise<FeedResult<UwFinancials>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/financials`, undefined, body => {
+    const d = ((body as { data?: unknown } | null)?.data ?? {}) as Record<string, unknown>;
+    const list = (k: string) => (Array.isArray(d[k]) ? (d[k] as Record<string, unknown>[]) : []);
+    return {
+      earnings: list('earnings').map(r => ({ type: str(r.report_type), fiscalEnd: str(r.fiscal_date_ending), reportDate: r.report_date == null ? '' : str(r.report_date), reported: num(r.reported_eps), estimated: num(r.estimated_eps), surprisePct: num(r.surprise_percentage) })),
+      income: list('income_statements').map(r => ({ type: str(r.report_type), fiscalEnd: str(r.fiscal_date_ending), revenue: num(r.total_revenue), operatingIncome: num(r.operating_income), netIncome: num(r.net_income) })),
+      cash: list('cash_flows').map(r => ({ type: str(r.report_type), fiscalEnd: str(r.fiscal_date_ending), operatingCashflow: num(r.operating_cashflow), capex: num(r.capital_expenditures) })),
+      balance: list('balance_sheets').map(r => ({
+        type: str(r.report_type),
+        fiscalEnd: str(r.fiscal_date_ending),
+        currentAssets: num(r.total_current_assets),
+        currentLiabilities: num(r.total_current_liabilities),
+        totalDebt: num(r.short_long_term_debt_total),
+        cash: num(r.cash_and_short_term_investments),
+        equity: num(r.total_shareholder_equity),
+        shares: num(r.common_stock_shares_outstanding),
+      })),
+    };
+  });
+
+/* ---- THE MEMBERS (2026-10-12): Congress's filers, their party and seat ---------------------------------------- */
+
+export interface UwPolitician {
+  id: string;
+  name: string;
+  /** "democrat", "republican", "independent" */
+  party: string;
+  /** "house" or "senate" */
+  chamber: string;
+  /** "TN-9" for a representative; a senator's state where UW gives it */
+  district: string;
+}
+
+/** Every member who files, with party and seat. GET /api/congress/politicians — seen live 2026-10-12 (name, party,
+    chamber, district, politician_id) */
+export const uwPoliticians = (): Promise<FeedResult<UwPolitician[]>> =>
+  feedGet('uw', '/api/congress/politicians', undefined, body =>
+    rowsOf(body).map(r => ({ id: str(r.politician_id), name: str(r.name), party: str(r.party), chamber: str(r.chamber), district: r.district == null ? '' : str(r.district) }))
   );

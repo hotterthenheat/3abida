@@ -26,6 +26,7 @@ import { useMemo } from 'react';
 import type { FeedResult } from './client';
 import { useFeedPoll } from './poll';
 import { uwStockState, type UwStockState } from './uw';
+import { noteRealPrice } from '../../components/gex/alertMarket';
 
 /** The words a "—" carries when the feed's answer has no such figure */
 export const NOT_IN_FEED = 'not in the feed';
@@ -41,6 +42,8 @@ const HOLD_MS = 5 * 60_000;
 
 /** Names UW will not price (an index's 422) — not asked again this visit, so the console stays quiet */
 const unpriced = new Set<string>();
+/** UW said it will not price this name (an index) */
+export const isUnpriced = (ticker: string): boolean => unpriced.has(ticker.toUpperCase());
 
 const lastGood = new Map<string, { r: FeedResult<UwStockState> & { ok: true }; at: number }>();
 
@@ -48,11 +51,16 @@ const lastGood = new Map<string, { r: FeedResult<UwStockState> & { ok: true }; a
 const passing = (r: FeedResult<UwStockState> & { ok: false }): boolean =>
   r.reason === 'rate' || r.reason === 'timeout' || r.reason === 'network' || (r.reason === 'upstream' && r.status >= 500);
 
-async function loadState(t: string): Promise<FeedResult<UwStockState>> {
+/** A name's day state once — the shared poll's loader, and the alerts' watcher's (its price noted for the alerts) */
+export async function loadState(ticker: string): Promise<FeedResult<UwStockState>> {
+  const t = ticker.toUpperCase();
   if (unpriced.has(t)) return { ok: false, reason: 'upstream', status: 422 };
   const r = await uwStockState(t);
   if (r.ok) {
-    if (r.data.close !== null) lastGood.set(t, { r, at: Date.now() });
+    if (r.data.close !== null) {
+      lastGood.set(t, { r, at: Date.now() });
+      noteRealPrice(t, r.data.close);
+    }
     return r;
   }
   if (r.status === 422) unpriced.add(t);
