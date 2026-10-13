@@ -115,7 +115,13 @@ So after the close the stamp is a later batch time, not the print's.
 The field now keeps such a stamp as a bound: the print was at or before 16:15 on that date (`tradeTimeOf`). The bead
 card says "oldest vol from a print at or before 16:15 Fri", never a time the print could not have had.
 
-Whether the stamp is the print's own during the session is **not yet checked**. It is on the live check's list.
+**In session the stamp is the print's own, to UW's two-second tape tick** (checked 2026-10-13 at 12:12 New York): on
+twelve SPY contracts that had printed 112–119 times that day, `last_tape_time` stood 0.4–2.0 s AFTER the contract's
+newest print in `/option-contract/{id}/flow`, always on an even second (15:33:38Z for a print at 15:33:36.23Z,
+16:05:00Z for 16:04:59.59Z) — the tape tick that processed the print; on six contracts printing every second, the
+stamp's second held a print of theirs on the tape in five, the sixth one second after its last. So a vol's time in
+session is its print's within two seconds, and the field uses the stamp as that time (`tradeTimeOf`); only a stamp
+after the close is a batch time, kept as the bound above.
 
 ## American exercise (review problem 4)
 
@@ -143,12 +149,43 @@ mean re-inverting every vol under an American model each minute.
 For single names, an ex-dividend date inside 60 days makes a call's early exercise possible, which this test does not
 cover (AAPL goes ex around early November). That is **not measured**.
 
+## The live check, Tuesday 2026-10-13, in session (pulled 10:00–12:11 New York)
+
+The same measurement on a second day, inside the session: SPY at five moments (`older_than` 14:00, 14:45, 15:30,
+16:05 and 16:11 UTC; 500 prints each) and QQQ at three. UW's clock and carry hold, per expiry and per hour:
+
+| SPY expiry | n | Calendar IV | UW clock IV | Calendar γ | UW clock γ |
+|---|---|---|---|---|---|
+| Oct 13 (today) | 1,733 | 0.001 (0.00) | 0.001 (0.00) | 0.00% | 0.00% |
+| Oct 14 | 355 | 1.090 (1.38) | 0.001 (0.00) | 6.97% | 0.00% |
+| Oct 15 | 53 | 0.598 (0.74) | 0.002 (0.00) | 3.93% | 0.00% |
+| Oct 16 | 67 | 0.373 (0.56) | 0.002 (0.01) | 2.90% | 0.00% |
+| Oct 19 | 33 | 0.162 (0.38) | 0.003 (0.02) | 1.42% | 0.01% |
+| Oct 23 | 24 | 0.129 (0.19) | 0.002 (0.00) | 0.96% | 0.02% |
+| Oct 30 | 18 | 0.080 (0.12) | 0.004 (0.01) | 0.49% | 0.02% |
+| Nov 13 | 16 | 0.041 (0.08) | 0.005 (0.01) | 0.27% | 0.03% |
+| Nov 20 | 13 | 0.044 (0.09) | 0.006 (0.02) | 0.18% | 0.03% |
+
+QQQ the same (1,150 today's prints at 0.001; Oct 14 at 0.001 against calendar's 1.790 and 7.10% in gamma; Nov 20 at
+0.004). Calendar time misses the next-day contract by MORE in session than it did after hours (1.09 vol points and
+7.0% in gamma at midday against 0.53 and 2.65% on Oct 12's prints), as it must: the gap between calendar time to the
+close and UW's whole day is widest in the morning. The implied τ of the Oct 14 contract is 24.00 hours at 13Z, 14Z,
+15Z and 16Z while calendar time runs 30.00 → 27.92; Oct 15 is 48.0, Oct 16 72.0 at every hour. Trading time is wrong
+by 5.9 vol points on today's contracts and 53% in gamma. Nothing differs from the first day's finding.
+
+**The field against UW's books, 12:13 New York** (model `trail-2026-10-13.4`, the count as received): against the
+every-expiry per-strike book the newest column differs by 12.0% of the book's size over the 60 strikes both hold,
+the same sign on 60 of 60 — a different universe, as expected larger; against the 60-day books (the like-for-like
+reference, fifteen read today) the per-strike gap is 7.1% at the median (4.7–11.4), the summed net has the same sign in
+11 of 15, and the model's net stands below UW's by $1.2–1.9B across the 60 strikes all morning (model −4.05B against
+UW's −1.86B at 10:40; −1.36B against +0.35B at 11:58, the model crossing zero later than UW's book). That is a
+residual of the model stated in How sure, not calibrated away; the per-strike figure is the robust one.
+
 ## What is still open
 
-- **The live check, Tuesday 2026-10-13, 11:30 New York (15:30 UTC):**
-  - the same measurement on that session's prints at the moment;
-  - whether `last_tape_time` is the print's own time in session;
-  - the field's per-strike residual against the books read.
+- **The summed net's bias:** the model's 60-strike net sits $1–2B below UW's 60-day book's through the morning while
+  the per-strike gap is 5–11%; which strikes carry it, and whether it is the American put gap (above) or the vols
+  carried from the session before on untraded contracts, is not measured.
 - **A half day** (13:00 close): today's τ is taken to the 13:00 close, unverified against UW.
 - **UW's rate is a constant here.** It is re-measured by the scripts in `tau/` and changed in `UW_VOL_CONVENTION` with a
   new model version if UW moves it.

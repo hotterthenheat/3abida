@@ -331,7 +331,7 @@ An independent review re-derived the math and checked this report against itself
 
 An earlier version of this section called an after-hours repricing "consistent with calendar time". A second review pointed out that the check could not tell the conventions apart, and that claim is withdrawn.
 
-The discriminating test is in `docs/research-2026-10-13/uw-vol-convention.md`. UW's `theo` equals each print's price, so UW solved its vol from that price. Re-inverting the same price under each candidate clock and carry gives UW's vol back only under UW's own. On 8,096 in-session prints of six names on 2026-10-12, UW's convention is:
+The discriminating test is in `docs/research-2026-10-13/uw-vol-convention.md`. UW's `theo` equals each print's price, so UW solved its vol from that price. Re-inverting the same price under each candidate clock and carry gives UW's vol back only under UW's own. On 8,096 in-session prints of six names on 2026-10-12, and again on 4,000 prints of SPY and QQQ pulled inside the session of 2026-10-13 (the live check: per expiry and per hour, UW's clock within 0.001–0.006 vol points and 0.03% in gamma through 60 days; the next-day contract's implied τ a flat 24.00 hours at every hour while calendar time ran 30.00 → 27.92), UW's convention is:
 
 - European Black–Scholes at r 4.15% and no dividend;
 - **today's expiry on calendar time to its 16:00 close;**
@@ -402,6 +402,13 @@ The close chain is 0.2 MB.
 - **While the day is live:** a session's raw files come to ≈ 26 MB for SPY.
 - **Gzipped as the day turns:** at most ≈ 6 MB for SPY and ≈ 1.3 MB for AAPL. These bounds gzip each read alone; a day's file compresses better, and the real figure is measured after a whole session.
 - **Six SPY-sized names:** at most ≈ 36 MB a session, ≈ 9 GB a year.
+- **Measured on 2026-10-13 at 12:13 New York** (the recorder down for two stretches that morning, so 98 of the session's
+  minutes recorded): a book 46 KB raw and 10.0 KB gzipped in the day's file (4.52 MB / 0.98 MB for 98), a chain read
+  172 KB / 44 KB (1.90 MB / 0.49 MB for 11), a 60-day book 9 KB / 3 KB (15 read), the seed 215 KB / 48 KB. A whole
+  session at the recorder's rates since the second review — a book a minute for 390 minutes, the chain every ten
+  minutes from 04:00 (73 reads, 33 before the open), the 60-day book every five in session — comes to ≈ 32 MB raw and
+  ≈ 7.4 MB gzipped for SPY: over the estimate by the pre-market chain reads (≈ 5.6 MB raw, 1.4 gzipped) and the 60-day
+  books (≈ 0.7 / 0.2) added after it; the per-read sizes held.
 
 **The recorder keeps its history**, gzipped, and never deletes earlier days. Every minute not recorded, or recorded and deleted, is lost for good.
 
