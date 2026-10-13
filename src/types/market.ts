@@ -40,6 +40,13 @@ export interface Candle {
 
 export interface GexLevel {
   strike: number;
+  /* THE FIELD'S PROVENANCE (data/feed/trailField.ts, 2026-10-13) — a modeled cell on the feed: 'modeled' when at least
+     half its gamma was priced on a vol read today, 'carried' when most of it stood on the session before's close vol;
+     `staleSince` the oldest trade (epoch ms) a vol it used came from; `coverage` the share priced on today's vols.
+     Absent on the house's own field and on a book read as it stood. */
+  prov?: 'modeled' | 'carried';
+  staleSince?: number;
+  coverage?: number;
   /** Net GEX at this strike (summed across expiries), signed dollars */
   value: number;
   /** Net delta exposure at the same instant, signed dollars — the trails

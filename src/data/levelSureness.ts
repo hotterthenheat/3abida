@@ -55,6 +55,9 @@ export interface Sureness {
   other: number | null;
   /** That, in one sentence */
   otherWords: string;
+  /** Terrain's field on the feed: how far it stands from the vendor's own figures today (data/feed/trailField.ts
+      fieldResidual) — one line, absent elsewhere */
+  field?: string;
 }
 
 /** The line every surface prints first */

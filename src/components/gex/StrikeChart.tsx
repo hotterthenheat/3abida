@@ -43,9 +43,9 @@ import {
   type Timeframe,
 } from '../../data/timeframe';
 import { GexTrailsPrimitive, trailPaperFrom, type BeadHit } from './gexNodesPrimitive';
-import { trailMeta } from '../../data/feed/trailField';
-import { pct, usdCompact, usdCompactSigned } from '../../core/format';
-import { nyClock as nyClockOf } from '../../core/nyTime';
+import { measuredAt, trailMeta } from '../../data/feed/trailField';
+import { isoDayLabel, pct, usdCompact, usdCompactSigned } from '../../core/format';
+import { nyClock as nyClockOf, nyIsoDate as nyIsoDateOf } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { alertMarket } from './alertMarket';
@@ -578,6 +578,9 @@ export interface ChartTape {
   compareBars?: Record<string, { bars: Candle[]; daily?: Candle[] | null }>;
   /** The name's next report for the events lane — undefined reads the house's calendar, null says there is none */
   earnings?: TapeEarnings | null;
+  /** The macro dates for the events lane — undefined reads the house's calendar (data/events.ts macroWindow); on the feed
+      UW's economic calendar (2026-10-13 — the owner: "nothing on terrain should be made up data") */
+  macro?: MacroDate[];
 }
 /** What a host's layer is handed: the chart, and the series that carries price NOW (a style swap replaces it — ask each
     time, never keep it) */
@@ -3364,12 +3367,13 @@ const StrikeChart = ({
     const key = `${ticker}|${todayIso}`;
     /* a host's tape brings the name's report itself (the feed's record); the house's calendar otherwise */
     const hostEarnings = tapeRef.current?.earnings;
-    const calKey = `${key}|${hostEarnings !== undefined ? 'host' : 'house'}`;
+    const hostMacro = tapeRef.current?.macro;
+    const calKey = `${key}|${hostEarnings !== undefined ? 'host' : 'house'}|${hostMacro ? hostMacro.length : 'house'}`;
     if (eventsCalRef.current?.key !== calKey) {
       eventsCalRef.current = {
         key: calKey,
         earnings: hostEarnings !== undefined ? null : buildEarningsCalendar().find(e => e.ticker === ticker.toUpperCase()) ?? null,
-        macro: macroWindow(now),
+        macro: hostMacro ?? macroWindow(now),
         todayIso,
       };
     }
@@ -5250,25 +5254,47 @@ const StrikeChart = ({
         {/* THE FIELD'S HOVER CARD (2026-10-13) — the event card's own style, beside the bead */}
         {beadCard && !eventCard && (() => {
           const meta = trailMeta(beadCard.snap);
-          const kind = meta?.kind === 'rebuilt' ? (meta.calAt ? `Rebuilt · scaled to the ${nyClockOf(meta.calAt)} read` : 'Rebuilt · before the day\'s first read') : meta?.kind === 'held' ? 'That day\'s book, held' : beadCard.rebuilt ? 'Rebuilt' : 'Measured';
+          const lvl = beadCard.level;
           const w = containerRef.current?.clientWidth ?? 400;
-          const k = beadCard.strike % 1 === 0 ? beadCard.strike.toFixed(0) : beadCard.strike.toFixed(2);
+          const k = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+          /* the cell's provenance on the feed: priced on today's vols or carried from the session before's close, and how
+             old the oldest vol it stands on is; the measured reference beside it, never blended in */
+          const prov = !meta
+            ? null
+            : lvl.prov === 'carried'
+              ? `Carried · vols from ${meta.seedDate ? isoDayLabel(meta.seedDate) : 'the session before'}'s close`
+              : `Modeled · vols read ${meta.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
+          const stale = meta && lvl.staleSince ? `stale since ${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : null;
+          const measured = meta ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
           return (
             <div
-              className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[260px]"
-              style={{ top: Math.max(4, beadCard.y - 64), ...(beadCard.x > w - 270 ? { right: Math.max(4, w - beadCard.x + 10) } : { left: beadCard.x + 10 }) }}
+              className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[300px]"
+              style={{ top: Math.max(4, beadCard.y - 72), ...(beadCard.x > w - 310 ? { right: Math.max(4, w - beadCard.x + 10) } : { left: beadCard.x + 10 }) }}
               data-bead-card
             >
               <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
-                {k} · {nyClockOf(beadCard.time * 1000, { zone: true })}
+                {k(beadCard.strike)} · {nyClockOf(beadCard.time * 1000, { zone: true })}
               </div>
-              <div className="font-mono text-[11px] text-textSecondary mt-0.5 tnum whitespace-nowrap">
-                Net {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book
+              <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
+              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
               </div>
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                Since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
+                Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
+                {beadCard.crossings.length ? ` · crossings near ${beadCard.crossings.map(k).join(', ')}` : ''}
               </div>
-              <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{kind}</div>
+              {prov && (
+                <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
+                  {prov}
+                  {stale ? ` · ${stale}` : ''}
+                </div>
+              )}
+              {meta && (
+                <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
+                  {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : "No book of Unusual Whales' read by then"}
+                </div>
+              )}
+              {meta && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta.model}</div>}
             </div>
           );
         })()}

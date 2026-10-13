@@ -366,7 +366,7 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean })
       }
       const f = /^\/feed\/field\/([A-Za-z0-9.]{1,10})$/.exec(url.pathname);
       if (f) {
-        const r = recorder.serve(f[1]);
+        const r = recorder.serve(f[1], Number(url.searchParams.get('since')) || 0);
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
       const m = /^\/feed\/(uw|massive)(\/.*)$/.exec(url.pathname);

@@ -90,7 +90,7 @@ import { massiveBars } from './massive';
 import type { DarkPoolPrint } from '../../types/gex';
 import type { TapeEarnings } from '../events';
 import { bookSureness } from '../levelSureness';
-import { setMeasuredSource } from './trailField';
+import { setMeasuredSource, takeServerInputs, type ChainRead, type SeedRead, type TotalRead } from './trailField';
 
 /* ---- the switch ------------------------------------------------------------------------------------------------ */
 
@@ -212,6 +212,8 @@ export interface FeedStrike {
   charm: GreekSplit;
   /** Gamma from today's volume — what today's trading put at the strike */
   gexVol: GreekSplit;
+  /** When UW last figured this strike (epoch ms) — strikes in one answer can be hours apart */
+  time?: number;
 }
 
 const split = (put: number, call: number): GreekSplit => ({ put, call, net: put + call });
@@ -225,6 +227,7 @@ export function feedStrike(r: UwStrikeExposure): FeedStrike {
     vanna: split(r.putVannaOi, -r.callVannaOi),
     charm: split(r.putCharmOi, -r.callCharmOi),
     gexVol: split(-r.putGammaVol, -r.callGammaVol),
+    time: Number.isFinite(r.time) ? r.time : undefined,
   };
 }
 
@@ -913,30 +916,37 @@ setMeasuredSource(measuredBooks);
 interface ServerDay {
   name: string;
   day: string;
-  books: { at: number; rows: Record<string, unknown>[] }[];
+  /** The newest moment anything in the answer was received — the next ask's `since` */
+  latest: number;
+  books: { receivedAt: number; rows: Record<string, unknown>[] }[];
+  chains: ChainRead[];
+  seed: SeedRead | null;
+  total: TotalRead | null;
 }
-const serverSeen = new Map<string, number>();
+const serverSeen = new Map<string, { day: string; since: number }>();
 async function loadServerDay(t: string): Promise<FeedResult<ServerDay>> {
-  const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}`)) as FeedResult<ServerDay>;
+  const seen = serverSeen.get(t);
+  const since = seen && seen.day === nyIsoDate() ? seen.since : 0;
+  const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}?since=${since}`)) as FeedResult<ServerDay>;
   if (r.ok && r.data && Array.isArray(r.data.books)) {
-    const from = serverSeen.get(t) ?? 0;
-    let newest = from;
+    /* the books: the measured reference (and Pinpoint's field) */
     for (const b of r.data.books) {
-      if (!(b.at > from)) continue;
-      newest = Math.max(newest, b.at);
       const book = bookFrom(t, b.rows.map(strikeExposure));
       if (book) noteField(book);
     }
-    serverSeen.set(t, newest);
+    /* the chain reads, the seed and UW's whole-book series: the field's inputs (data/feed/trailField.ts) */
+    takeServerInputs(t, r.data.day, { chains: r.data.chains ?? [], seed: r.data.seed ?? null, total: r.data.total ?? null });
+    serverSeen.set(t, { day: r.data.day, since: Math.max(since, r.data.latest ?? 0) });
   }
   return r;
 }
 
-/** Watch a name on the server's recorder and fold its recorded day into the field (every minute while on screen) */
+/** Watch a name on the server's recorder and fold its recorded day into the field (every 15 s while on screen) */
 export function useServerField(on: boolean, ticker: string): void {
   const t = ticker.toUpperCase();
   const key = on && t ? `field:server:${t}` : null;
-  useFeedPoll(key, () => loadServerDay(t), 60_000);
+  /* a local call, answered with what is new since the last — asked every 15 s so a read lands on the chart soon after */
+  useFeedPoll(key, () => loadServerDay(t), 15_000);
 }
 
 /** The books read so far today for a name, oldest first, outside a render (data/feed/pinpointMarket.ts) */

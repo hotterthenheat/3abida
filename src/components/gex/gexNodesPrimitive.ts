@@ -65,6 +65,8 @@ interface Bead {
   t: number;
   /** Sim side-coding: positive = put-dominant (amplifies), negative = call-dominant (absorbs) */
   put: boolean;
+  /** A modeled cell priced mostly on the session before's close vol (data/feed/trailField.ts) — a step quieter */
+  quiet: boolean;
 }
 
 /** One column of the field, ranked and scaled at load time */
@@ -74,8 +76,8 @@ interface Column {
   top: Bead[];
   /** Every strike — only consulted for a focused strike outside the top */
   all: Map<number, Bead>;
-  /** Rebuilt or held, not a book read as it stood — its beads draw a step quieter */
-  rebuilt: boolean;
+  /** The reference this column's beads were measured against (its running scale) */
+  ref: number;
   /* THIS MOMENT'S OWN LEVELS (2026-10-13): the flip and the walls of the column's own book, against its own price —
      core/walls.ts pickFlip (the sign change nearest the price; null where the book never changes sign: a gap, never the
      last one carried) and pickWalls */
@@ -84,9 +86,10 @@ interface Column {
   pw: number | null;
 }
 
-/* REBUILT BEADS, A STEP QUIETER (2026-10-13): a measured moment (a book read as it stood, or the house's own field)
-   draws as ever; a rebuilt one (data/feed/trailField.ts) at 78% of the core's alpha and with a halo a hairline
-   tighter — the same inks, so the field reads as one, and a reader who looks can tell them apart. */
+/* CARRIED BEADS, A STEP QUIETER (2026-10-13): a modeled cell priced on today's vols (data/feed/trailField.ts), and the
+   house's own field, draw as ever; a cell priced mostly on the session before's close vol (carried) at 78% of the
+   core's alpha and with a halo a hairline tighter — the same inks, so the field reads as one, and a reader who looks
+   can tell them apart. */
 const REBUILT_CORE = 0.78;
 const REBUILT_HALO_W = 1.0;
 const REBUILT_HALO_H = 1.6;
@@ -107,6 +110,11 @@ export interface BeadHit {
   /** Its value at the day's 09:30 moment, when the field holds one */
   open: number | null;
   rebuilt: boolean;
+  /** The cell itself — its provenance and staleness on the feed */
+  level: GexSnapshot['levels'][number];
+  /** The column's flip (its sign change nearest its price) and the other crossings near the price, nearest first */
+  flip: number | null;
+  crossings: number[];
   snap: GexSnapshot;
   x: number;
   y: number;
@@ -344,7 +352,7 @@ class TrailsPaneRenderer {
           // Translucent on purpose — the tape reads THROUGH the ribbon
           let core = 0.16 + s * 0.5;
           let halo = 0.04 + s * 0.14;
-          if (col.rebuilt && !isFocus) core *= REBUILT_CORE;
+          if (bead.quiet && !isFocus) core *= REBUILT_CORE;
           if (focus != null && !isFocus) {
             core *= 0.3; // the field steps back
             halo *= 0.3;
@@ -387,9 +395,9 @@ class TrailsPaneRenderer {
           // The halo: wider and taller, faint — what makes the ribbon soft.
           // Gated on real pixels too: a halo around a sub-pixel bead is
           // path-building with no visible return.
-          const haloH = col.rebuilt ? REBUILT_HALO_H : 1.9;
+          const haloH = bead.quiet ? REBUILT_HALO_H : 1.9;
           if (t > 0.2 && ry * haloH > 2.2 * vr) {
-            const hx = rx * (col.rebuilt ? REBUILT_HALO_W : 1.15);
+            const hx = rx * (bead.quiet ? REBUILT_HALO_W : 1.15);
             const p = pathFor(halos, `${inkKey}|${Math.round(halo * 40)}`);
             if (round) {
               p.moveTo(cx + hx, yc);
@@ -734,7 +742,50 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   rev = 0;
   /** Built columns by snapshot identity — see setData's incremental note. */
   private colCache = new WeakMap<GexSnapshot, Column>();
-  private colRef = -1;
+  /** Each column's running reference (see setData) and what it was built from */
+  private refs: number[] = [];
+  private runIds: GexSnapshot[] = [];
+  private runMax: number[] = [];
+  private runHist = new Float64Array(RUN_BINS);
+  private runCount = 0;
+  private runGreek: TrailGreek = 'gex';
+
+  private runFrom(snapshots: GexSnapshot[], greek: TrailGreek): void {
+    const memo = momentMax[greek];
+    let k = 0;
+    if (greek === this.runGreek) while (k < this.runIds.length && k < snapshots.length && this.runIds[k] === snapshots[k]) k++;
+    else this.runGreek = greek;
+    /* roll back what changed */
+    for (let i = this.runIds.length - 1; i >= k; i--) {
+      const m = this.runMax[i];
+      if (m > 0) {
+        this.runHist[binOf(m)]--;
+        this.runCount--;
+      }
+    }
+    this.runIds.length = k;
+    this.runMax.length = k;
+    this.refs.length = k;
+    for (let i = k; i < snapshots.length; i++) {
+      const snap = snapshots[i];
+      let m = memo.get(snap);
+      if (m === undefined) {
+        m = 0;
+        for (const l of snap.levels) {
+          const a = Math.abs(levelValue(l, greek));
+          if (a > m) m = a;
+        }
+        memo.set(snap, m);
+      }
+      if (m > 0) {
+        this.runHist[binOf(m)]++;
+        this.runCount++;
+      }
+      this.runIds.push(snap);
+      this.runMax.push(m);
+      this.refs.push(this.runCount ? quantileOf(this.runHist, this.runCount, 0.85) : 0);
+    }
+  }
 
   /** The Greek the beads draw — see TrailGreek */
   greek: TrailGreek = 'gex';
@@ -744,6 +795,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   setData(snapshots: GexSnapshot[], maxAbs: number, enabled: boolean, barSec = 60, greek: TrailGreek = 'gex'): void {
+    if (greek !== this.colGreek) {
+      this.colCache = new WeakMap();
+      this.colGreek = greek;
+    }
     this.rev++;
     this.snapshots = snapshots;
     this.maxAbs = maxAbs;
@@ -757,41 +812,14 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       if (d > 0 && d < step) step = d;
     }
     this.stepSec = Number.isFinite(step) ? step : barSec;
-    // Strength is ABSOLUTE against a stable window reference (a high
-    // percentile of per-moment maxima), so a wall visibly builds and drains
-    // over time instead of every moment being rescaled to its own peak.
-    // Each moment's maximum is remembered against the snapshot object
-    // (history snapshots are immutable; only the live last one is new each
-    // tick), so a tick reads 1,700 numbers instead of walking 100,000 levels.
-    const maxima: number[] = [];
-    const memo = momentMax[greek];
-    for (const s of snapshots) {
-      let m = memo.get(s);
-      if (m === undefined) {
-        m = 0;
-        for (const l of s.levels) {
-          const a = Math.abs(levelValue(l, greek));
-          if (a > m) m = a;
-        }
-        memo.set(s, m);
-      }
-      if (m > 0) maxima.push(m);
-    }
-    maxima.sort((a, b) => a - b);
-    this.ref = maxima.length ? maxima[Math.min(maxima.length - 1, Math.floor(maxima.length * 0.85))] : 0;
-    // Rank and scale every column NOW — draw() must never sort. And only
-    // the columns that CHANGED (2026-08-29, the Weigher lag hunt): history
-    // snapshots are immutable objects — only the live last one is replaced
-    // each tick — so built columns cache against the snapshot's identity in
-    // a WeakMap. A tick now builds ONE column instead of the whole session;
-    // a reference shift (the 85th-percentile norm moving) drops the cache,
-    // because every bead's t is baked against it.
-    const ref = this.ref;
-    if (ref !== this.colRef || greek !== this.colGreek) {
-      this.colCache = new WeakMap();
-      this.colRef = ref;
-      this.colGreek = greek;
-    }
+    /* THE SCALE RUNS FORWARD (2026-10-13, the research's look-ahead rule): strength is ABSOLUTE against a stable
+       reference — the 85th percentile of the per-moment maxima — but each column's reference is taken over the columns
+       AT OR BEFORE it, so nothing to its right changes what is drawn on its left (it was the whole loaded field: a later
+       column resized every earlier one). Kept incrementally: the maxima go into a log-binned count (1/32 of a decade a
+       bin), so a tick that replaces the live last snapshot re-reads one column, and a store whose front moved
+       starts over in a few milliseconds. */
+    this.runFrom(snapshots, greek);
+    this.ref = this.refs.length ? this.refs[this.refs.length - 1] : 0;
     this.enabled = enabled;
     this.requestUpdate?.();
   }
@@ -801,12 +829,13 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   columnAt(i: number): Column {
     const snap = this.snapshots[i];
     let col = this.colCache.get(snap);
-    if (!col) {
-      const ref = this.ref || 1;
+    const runRef = this.refs[i] || this.ref || 1;
+    if (!col || col.ref !== runRef) {
+      const ref = runRef;
       const all = new Map<number, Bead>();
       for (const l of snap.levels) {
         const v = this.valueOf(l);
-        all.set(l.strike, { strike: l.strike, t: Math.min(1, Math.abs(v) / ref), put: v >= 0 });
+        all.set(l.strike, { strike: l.strike, t: Math.min(1, Math.abs(v) / ref), put: v >= 0, quiet: l.prov === 'carried' });
       }
       const top = [...snap.levels]
         .sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)))
@@ -817,7 +846,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
       const flip = snap.levels.length > 1 ? pickFlip(snap.levels, spot, l => l.value) : null;
       const walls = pickWalls(snap.levels, spot, l => l.value);
-      col = { time: snap.time, top, all, rebuilt: !!snap.rebuilt, flip, cw: walls.callWall, pw: walls.putWall };
+      col = { time: snap.time, top, all, ref, flip, cw: walls.callWall, pw: walls.putWall };
       this.colCache.set(snap, col);
     }
     return col;
@@ -880,7 +909,13 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       open = lo2 ? this.valueOf(lo2) : null;
       break;
     }
-    return { strike: best.strike, time: snap.time, value, share: total > 0 ? Math.abs(value) / total : 0, open, rebuilt: !!snap.rebuilt, snap, x, y: this.series.priceToCoordinate(best.strike) ?? y };
+    /* every sign change of the column's book, nearest its price first — the flip is the first (core/walls.ts pickFlip) */
+    const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
+    const asc = [...snap.levels].sort((a, b) => a.strike - b.strike);
+    const crossings: number[] = [];
+    for (let k = 1; k < asc.length; k++) if (Math.sign(asc[k - 1].value) !== Math.sign(asc[k].value)) crossings.push((asc[k - 1].strike + asc[k].strike) / 2);
+    crossings.sort((a, b) => Math.abs(a - spot) - Math.abs(b - spot));
+    return { strike: best.strike, time: snap.time, value, share: total > 0 ? Math.abs(value) / total : 0, open, rebuilt: !!snap.rebuilt, level: lvl, flip: col.flip, crossings: crossings.slice(1, 4), snap, x, y: this.series.priceToCoordinate(best.strike) ?? y };
   }
 }
 
@@ -901,3 +936,17 @@ function nyOf(timeSec: number): { day: string; minute: number } {
 }
 const nyDayKey = (timeSec: number) => nyOf(timeSec).day;
 const nyMinuteOf = (timeSec: number) => nyOf(timeSec).minute;
+
+/* the running scale's log-binned count: 1/32 of a decade a bin, from $1 to $10^16 */
+const RUN_BINS = 512;
+const binOf = (m: number) => Math.max(0, Math.min(RUN_BINS - 1, Math.floor(Math.log10(Math.max(1, m)) * 32)));
+/** The value at quantile q of a log-binned count — the bin's upper edge */
+function quantileOf(hist: Float64Array, count: number, q: number): number {
+  const want = Math.min(count - 1, Math.floor(count * q));
+  let seen = 0;
+  for (let b = 0; b < hist.length; b++) {
+    seen += hist[b];
+    if (seen > want) return Math.pow(10, (b + 1) / 32);
+  }
+  return Math.pow(10, hist.length / 32);
+}
