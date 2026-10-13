@@ -1,0 +1,376 @@
+/*
+==================================================
+  SLAYER TERMINAL - THE POINT-IN-TIME STORE (server/fieldStore.ts)
+
+  TWO ROWS A MINUTE, A NAME A DAY, NEVER REWRITTEN
+  (2026-10-13 — the owner's item 1: "Append-only store,
+  per ticker per minute … Never rewritten after the
+  fact", and the decision after the data was read:
+  "two rows per minute. (a) 'shown': what Terrain
+  displayed live, never edited. (b) 'final': written
+  by the rebuild path once inputs with event time ≤
+  that minute have arrived (at the next chain read).
+  Final rows must equal the rebuild exactly (same code
+  path). Shown vs final is checked to a tolerance …
+  The scorecard reads final rows only").
+
+  A ROW is one minute's column read the way Terrain
+  reads it: the minute's spot (its bar's close), the
+  flip (the zero crossing nearest spot), the call and
+  put walls, the five heaviest strikes with their
+  signed dollars a 1% move, the column's net (every
+  strike summed — the regime; NOT the flip's side, the
+  two agreed in 46% of 330 live columns on 2026-10-13),
+  the bead scale's reference (the session's 85th
+  percentile of per-column maxima so far, this column
+  in — data/feed/beadScale.ts, the renderer's own
+  count), every strike drawn, the at-the-money straddle
+  for the expiry settling today and for the weekly
+  (the NBBO mids at a chain read, the model's price
+  between reads — labelled), and the data's age.
+
+  SHOWN rows are written by the recorder a minute at a
+  time, from the inputs it had received by the minute's
+  end — the same inputs it serves Terrain, through the
+  same model (data/feed/trailField.ts universeOf and
+  modelColumn) — so a row is the column Terrain drew.
+  Written within three minutes of its minute or not at
+  all: a minute the recorder missed is a gap, never
+  filled in later (a later write could stand on a count
+  that landed in between). Pre-market and after-hours
+  minutes have rows too, as Terrain draws them.
+
+  FINAL rows are written by the rebuild path (server/
+  fieldBackfill.ts today(): the dated chain, the session
+  before's close vols, each traded contract's minute
+  vols) at each chain read, for the regular session's
+  minutes that ended a minute before the inputs were
+  asked. The same functions build a past session, so
+  the day's final rows and its rebuild after the close
+  are one computation on one data set — npm run
+  field:agree checks it to the cell, and shown against
+  final to the tolerance (median ≤ 1%, p90 ≤ 5%, walls
+  and flip equal in ≥ 95% of columns, on a gap-free day).
+
+  ON DISK: .feed-cache/field/<NAME>/<day>/shown.jsonl and
+  final.jsonl, append-only (git-ignored; gzipped in
+  place as the day turns, never deleted). Served by
+  GET /feed/field/<NAME>/store?day=&kind=&since=.
+==================================================
+*/
+
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
+import { join } from 'node:path';
+import { columnSummary, modelColumn, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, type ChainRead, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
+import { RunningScale, columnMax } from '../src/data/feed/beadScale';
+import { nyWallTime } from '../src/core/nyTime';
+import type { MinuteBar, PastDay } from './fieldBackfill';
+
+const ROOT = join(process.cwd(), '.feed-cache', 'field');
+/** The row's own format — a change of what a row holds is a new number */
+export const STORE_FORMAT = 1;
+/** A shown row is written this long after its minute at the latest; later, the minute is a gap */
+export const SHOWN_LATE_MS = 3 * 60_000;
+/** A minute is complete this long after its end (its bar in, its prints reported) */
+export const SHOWN_SETTLE_MS = 5_000;
+/** A final row waits this long past its minute for a print reported late */
+export const FINAL_GRACE_MS = 60_000;
+
+export type Session = 'pre' | 'r' | 'post';
+export type RowKind = 'shown' | 'final';
+export interface StoreRow {
+  f: number;
+  kind: RowKind;
+  /** The minute's start, epoch ms */
+  m: number;
+  /** Written, epoch ms */
+  at: number;
+  model: string;
+  session: Session;
+  spot: number;
+  flip: number | null;
+  cw: number | null;
+  pw: number | null;
+  /** The heaviest strikes, [strike, value] in the house's sign, |value| descending */
+  top: [number, number][];
+  /** Every strike the column holds summed — the regime (estimated dealer gamma, assumed sign) */
+  net: number;
+  /** The column's largest |value| — what the scale counts */
+  max: number;
+  /** The bead scale's reference: the session's 85th percentile of column maxima so far, this one in */
+  ref: number;
+  /** Every strike drawn, [strike, value] ascending by strike */
+  cells: [number, number][];
+  /** The share of the strikes on carried vols */
+  carried: number;
+  /** The at-the-money straddle for the expiry settling today; null when none is listed or priced */
+  str0: StraddleRead | null;
+  /** The weekly's */
+  strW: StraddleRead | null;
+  /** Minutes from the minute's end back to the newest chain read and book it stood on; null on a final row */
+  age: { vols: number | null; book: number | null } | null;
+}
+/** A minute bar as the rows read it (fieldBackfill MinuteBar: the minute's start in seconds, its close, its session) */
+export type Bar = MinuteBar;
+export interface StoreDay {
+  name: string;
+  day: string;
+  kind: RowKind;
+  rows: StoreRow[];
+  /** Minutes the recorder missed (shown) or found no column for */
+  gaps: number;
+}
+
+interface State {
+  written: Set<number>;
+  scale: RunningScale;
+  /** The newest minute written — a row never goes in before one already written */
+  last: number;
+  gaps: number;
+  loaded: boolean;
+}
+
+export function createFieldStore(opts: { root?: string; now?: () => number } = {}) {
+  const root = opts.root ?? ROOT;
+  const clock = opts.now ?? Date.now;
+  const states = new Map<string, State>();
+  const fileOf = (name: string, day: string, kind: RowKind) => join(root, name, day, `${kind}.jsonl`);
+
+  function readRows(name: string, day: string, kind: RowKind): StoreRow[] {
+    const file = fileOf(name, day, kind);
+    let text: string | null = null;
+    try {
+      if (existsSync(file)) text = readFileSync(file, 'utf8');
+      else if (existsSync(`${file}.gz`)) text = gunzipSync(readFileSync(`${file}.gz`)).toString('utf8');
+    } catch {
+      text = null;
+    }
+    if (!text) return [];
+    const out: StoreRow[] = [];
+    for (const line of text.split('\n')) {
+      if (!line) continue;
+      try {
+        out.push(JSON.parse(line) as StoreRow);
+      } catch {
+        /* a line cut short by a restart: the rest of the file stands */
+      }
+    }
+    return out;
+  }
+
+  /** The day's state, replayed from its file once: the minutes written and the scale's count */
+  function stateOf(name: string, day: string, kind: RowKind): State {
+    const key = `${name}|${day}|${kind}`;
+    let st = states.get(key);
+    if (!st) {
+      st = { written: new Set(), scale: new RunningScale(), last: 0, gaps: 0, loaded: false };
+      for (const r of readRows(name, day, kind)) {
+        st.written.add(r.m);
+        st.scale.push(r.max);
+        if (r.m > st.last) st.last = r.m;
+      }
+      st.loaded = true;
+      states.set(key, st);
+    }
+    return st;
+  }
+
+  function append(name: string, day: string, kind: RowKind, row: StoreRow) {
+    try {
+      mkdirSync(join(root, name, day), { recursive: true });
+      appendFileSync(fileOf(name, day, kind), JSON.stringify(row) + '\n');
+    } catch {
+      /* a refused disk: the row is lost, the next minute's is tried */
+    }
+  }
+
+  const sortedCells = (levels: readonly { strike: number; value: number }[]): [number, number][] => [...levels].sort((a, b) => a.strike - b.strike).map(l => [l.strike, l.value]);
+
+  /**
+   * THE SHOWN ROWS for the minutes ended: the recorder's live inputs (its chain reads and seed, as served to Terrain)
+   * and the day's bars so far. Writes and returns the new rows. A minute more than SHOWN_LATE_MS past is a gap.
+   */
+  function shown(name: string, day: string, inputs: ServerInputs, bars: readonly Bar[], books: readonly { receivedAt: number }[]): StoreRow[] {
+    const st = stateOf(name, day, 'shown');
+    const now = clock();
+    const out: StoreRow[] = [];
+    const sorted = [...bars].sort((a, b) => a.time - b.time);
+    let u: ReturnType<typeof universeOf> | null = null;
+    let exps: { today: string | null; weekly: string | null } | null = null;
+    for (const bar of sorted) {
+      const m = bar.time * 1000;
+      const end = m + 60_000;
+      if (end > now - SHOWN_SETTLE_MS) break;
+      if (st.written.has(m)) continue;
+      if (now - end > SHOWN_LATE_MS || m < st.last) {
+        /* the recorder was not here for it: a gap, never filled in */
+        st.written.add(m);
+        st.gaps++;
+        continue;
+      }
+      if (!u) {
+        u = universeOf(name, day, inputs);
+        exps = straddleExpiries(u.expiry, day);
+      }
+      const snap = modelColumn(u, bar);
+      st.written.add(m);
+      st.last = m;
+      if (!snap.levels.length) {
+        st.gaps++;
+        continue;
+      }
+      const sum = columnSummary(snap, bar.close);
+      const max = columnMax(snap.levels);
+      const ref = st.scale.push(max);
+      /* a chain read inside the minute: the straddles are its NBBO mids; else the model's price at the minute */
+      const read = inputs.chains.find(c => c.receivedAt >= m && c.receivedAt < end) ?? null;
+      const straddle = (expiry: string | null): StraddleRead | null => {
+        if (!expiry) return null;
+        return (read ? straddleFromChain(read.rows, expiry, bar.close) : null) ?? straddleAt(u!, bar, expiry);
+      };
+      const r = readAt(u, end);
+      let book = 0;
+      for (const b of books) if (b.receivedAt <= end && b.receivedAt > book) book = b.receivedAt;
+      const row: StoreRow = {
+        f: STORE_FORMAT,
+        kind: 'shown',
+        m,
+        at: now,
+        model: TRAIL_MODEL.version,
+        session: bar.session,
+        spot: bar.close,
+        flip: sum.flip,
+        cw: sum.cw,
+        pw: sum.pw,
+        top: sum.top,
+        net: sum.net,
+        max,
+        ref,
+        cells: sortedCells(snap.levels),
+        carried: sum.carried,
+        str0: straddle(exps!.today),
+        strW: straddle(exps!.weekly),
+        age: { vols: r > 0 ? (end - r) / 60_000 : null, book: book > 0 ? (end - book) / 60_000 : null },
+      };
+      append(name, day, 'shown', row);
+      out.push(row);
+    }
+    return out;
+  }
+
+  /** The rebuild path's inputs for a day — one mapping, the page's (data/feed/levels.ts loadPastDay) and the store's */
+  function inputsOf(past: PastDay): ServerInputs {
+    const [y, mo, d] = past.day.split('-').map(Number);
+    /* the positions dated the session are knowable at its open; no vol comes with them */
+    const open: ChainRead = { receivedAt: nyWallTime(y, mo, d, 9, 30), rows: past.oi.map(([sym, oi]) => [sym, oi, null, null]) };
+    return { chains: [open], seed: past.seed, total: past.total, ticks: past.ticks };
+  }
+
+  /**
+   * THE FINAL ROWS from today's rebuild so far (fieldBackfill today().advance()): the regular session's minutes that
+   * ended FINAL_GRACE_MS before `through`, the moment the inputs were asked — the same functions a past session is
+   * built with, so the rows equal the session's rebuild. Writes and returns the new rows.
+   */
+  function final(name: string, day: string, past: PastDay & { through: number }, bars: readonly Bar[]): StoreRow[] {
+    const st = stateOf(name, day, 'final');
+    const [y, mo, d] = day.split('-').map(Number);
+    const from = nyWallTime(y, mo, d, 9, 30);
+    const to = nyWallTime(y, mo, d, 16, 0);
+    const u = universeOf(name, day, inputsOf(past));
+    const exps = straddleExpiries(u.expiry, day);
+    const out: StoreRow[] = [];
+    for (const bar of [...bars].sort((a, b) => a.time - b.time)) {
+      const m = bar.time * 1000;
+      if (m < from || m >= to) continue;
+      const end = m + 60_000;
+      if (end > past.through - FINAL_GRACE_MS) break;
+      if (st.written.has(m)) continue;
+      if (m < st.last) {
+        st.written.add(m);
+        st.gaps++;
+        continue;
+      }
+      const snap = modelColumn(u, bar);
+      st.written.add(m);
+      st.last = m;
+      if (!snap.levels.length) {
+        st.gaps++;
+        continue;
+      }
+      const sum = columnSummary(snap, bar.close);
+      const max = columnMax(snap.levels);
+      const ref = st.scale.push(max);
+      const row: StoreRow = {
+        f: STORE_FORMAT,
+        kind: 'final',
+        m,
+        at: clock(),
+        model: TRAIL_MODEL.version,
+        session: 'r',
+        spot: bar.close,
+        flip: sum.flip,
+        cw: sum.cw,
+        pw: sum.pw,
+        top: sum.top,
+        net: sum.net,
+        max,
+        ref,
+        cells: sortedCells(snap.levels),
+        carried: sum.carried,
+        str0: exps.today ? straddleAt(u, bar, exps.today) : null,
+        strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null,
+        age: null,
+      };
+      append(name, day, 'final', row);
+      out.push(row);
+    }
+    return out;
+  }
+
+  /** A whole session's rows from a finished rebuild (the agree check, and a past day's final rows): the same code
+      as final(), every regular minute, nothing written */
+  function rowsOf(past: PastDay, bars: readonly Bar[]): StoreRow[] {
+    const [y, mo, d] = past.day.split('-').map(Number);
+    const from = nyWallTime(y, mo, d, 9, 30);
+    const to = nyWallTime(y, mo, d, 16, 0);
+    const u = universeOf(past.name, past.day, inputsOf(past));
+    const exps = straddleExpiries(u.expiry, past.day);
+    const scale = new RunningScale();
+    const out: StoreRow[] = [];
+    for (const bar of [...bars].sort((a, b) => a.time - b.time)) {
+      const m = bar.time * 1000;
+      if (m < from || m >= to) continue;
+      const snap = modelColumn(u, bar);
+      if (!snap.levels.length) continue;
+      const sum = columnSummary(snap, bar.close);
+      const max = columnMax(snap.levels);
+      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleAt(u, bar, exps.today) : null, strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null, age: null });
+    }
+    return out;
+  }
+
+  /** GET /feed/field/<NAME>/store?day=<D>&kind=shown|final&since=<minute ms> */
+  function serve(rawName: string, day: string, kind: string, since = 0): { status: number; body: string } {
+    const name = rawName.toUpperCase();
+    if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(name) || !/^\d{4}-\d{2}-\d{2}$/.test(day) || (kind !== 'shown' && kind !== 'final')) return { status: 400, body: JSON.stringify({ error: 'bad-request' }) };
+    const st = stateOf(name, day, kind);
+    const rows = readRows(name, day, kind).filter(r => r.m > since);
+    const answer: StoreDay = { name, day, kind, rows, gaps: st.gaps };
+    return { status: 200, body: JSON.stringify(answer) };
+  }
+
+  /** The days a name has store rows for, ascending */
+  function days(name: string): string[] {
+    try {
+      return readdirSync(join(root, name.toUpperCase()))
+        .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && (['shown.jsonl', 'final.jsonl', 'shown.jsonl.gz', 'final.jsonl.gz'].some(f => existsSync(join(root, name.toUpperCase(), d, f)))))
+        .sort();
+    } catch {
+      return [];
+    }
+  }
+
+  return { shown, final, rowsOf, serve, days, readRows, inputsOf };
+}
+export type FieldStore = ReturnType<typeof createFieldStore>;

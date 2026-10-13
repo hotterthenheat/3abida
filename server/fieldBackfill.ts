@@ -54,15 +54,16 @@
 ==================================================
 */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 const FILE = 'past.json.gz';
+const META = 'past.meta.json';
 /** The file's own format — a change of what is stored is a new number */
-export const PAST_FORMAT = 1;
+export const PAST_FORMAT = 2;
 const MAX_DTE = 60;
 const BAND = 0.15;
 const MAX_PAGES = 40;
@@ -94,13 +95,55 @@ export interface PastDay {
   /** Each traded contract's vols through the session, flattened [minute start (ms), vol, …] */
   ticks: Record<string, number[]>;
   /** UW's whole book a minute: [minute start (ms), price, gamma per 1% by open interest (UW's sign)] */
-  total: { receivedAt: number; rows: [number, number | null, number][] } | null;
+  /** [minute start (ms), price, gamma per 1% by open interest, by volume, directionalized — UW's sign; the last two since format 2] */
+  total: { receivedAt: number; rows: [number, number | null, number, number?, number?][] } | null;
   /** What it cost and covered */
   calls: number;
   asked: number;
   refused: number;
+  /** Where the session's vols came from: 'minute' UW's per-contract minutes (from about 2025-04-01), 'tape' the day's
+      full tape (server/tapeBackfill.ts, 2024-01-03 to 2025-03-31 — "tape vols"), 'close' the session before's close
+      alone (every cell carried). Format 2 (2026-10-13); a format-1 file is read as 'minute' with ticks, else 'close'. */
+  vols: 'minute' | 'tape' | 'close';
+}
+/** The sidecar the coverage line reads (past.meta.json) */
+export interface PastMeta {
+  vols: PastDay['vols'];
+  builtAt: number;
+  asked: number;
+  refused: number;
+  calls: number;
+}
+export interface Coverage {
+  name: string;
+  /** Sessions built, New York dates ascending */
+  days: string[];
+  first: string | null;
+  last: string | null;
+  byVols: Record<PastDay['vols'], number>;
+  /** Days asked and found to hold no session (or before the plan's window) */
+  none: number;
+  job: JobState;
+}
+export interface JobState {
+  running: boolean;
+  names: string[];
+  from: string;
+  to: string;
+  /** Name-days in the range, built in this run, skipped (built before or no session), failed */
+  days: number;
+  built: number;
+  skipped: number;
+  failed: number;
+  current: string | null;
 }
 
+/** A minute bar as the store reads it: the minute's start (seconds), its close, its session */
+export interface MinuteBar {
+  time: number;
+  close: number;
+  session: 'pre' | 'r' | 'post';
+}
 export interface PastState {
   ready: string[];
   working: string | null;
@@ -172,11 +215,9 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { rows: out, calls };
   }
 
-  async function build(name: string, day: string): Promise<PastDay> {
-    let calls = 0;
-    /* the session's own minutes: its range, and whether it was a session at all */
+  /** The session's own minutes: its range, and whether it was a session at all */
+  async function barsOf(name: string, day: string): Promise<{ open: number; lo: number; hi: number; calls: number; bars: MinuteBar[] }> {
     const bars = await getRows(`/api/stock/${name}/ohlc/1m?date=${day}&limit=2500`);
-    calls++;
     if (!bars.ok) throw new Error(bars.body.includes('historic_data_access_missing') ? 'before the plan’s window' : `bars refused (${bars.status})`);
     const regular = bars.rows.filter(r => r.market_time === 'r');
     if (!regular.length) throw new Error('no session that day');
@@ -188,25 +229,26 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
       hi = Math.max(hi, num(r.high) ?? -Infinity);
     }
     if (!Number.isFinite(open) || !Number.isFinite(lo)) throw new Error('no prices that day');
+    const minutes: MinuteBar[] = bars.rows
+      .map(r => ({ time: Date.parse(String(r.start_time)) / 1000, close: num(r.close) ?? NaN, session: (r.market_time === 'r' ? 'r' : r.market_time === 'pr' ? 'pre' : 'post') as MinuteBar['session'] }))
+      .filter(b => Number.isFinite(b.time) && Number.isFinite(b.close))
+      .sort((a, b) => a.time - b.time);
+    return { open, lo, hi, calls: 1, bars: minutes };
+  }
 
-    /* the positions at the open: open interest dated the session */
-    const last = isoAdd(day, MAX_DTE);
-    const chain = await chainOn(name, day, last);
-    if (!chain) throw new Error('the dated chain was refused');
-    calls += chain.calls;
-    const kept = chain.rows.filter(r => {
+  /** The positions at the open: the contracts with open interest dated the session, within 60 days and 15% of the open */
+  const keptOf = (rows: Row[], day: string, open: number): Row[] =>
+    rows.filter(r => {
       const exp = String(r.expires ?? '');
       const k = num(r.strike) ?? NaN;
       return exp >= day && Math.abs(k - open) <= open * BAND && (num(r.open_interest) ?? 0) > 0;
     });
-    if (!kept.length) throw new Error('no open interest dated that day');
-    const oi: [string, number][] = kept.map(r => [String(r.option_symbol), num(r.open_interest) ?? 0]);
 
-    /* the session before's close: the vols knowable at the open */
-    let seed: PastDay['seed'] = null;
-    const inUniverse = new Set(oi.map(o => o[0]));
+  /** The session before's close: the vols knowable at the open, for the contracts in the universe (a holiday stepped over) */
+  async function seedOf(name: string, day: string, last: string, inUniverse: Set<string>): Promise<{ seed: PastDay['seed']; calls: number }> {
+    let calls = 0;
     let prev = isoAdd(day, -1);
-    for (let tries = 0; tries < 5 && !seed; tries++) {
+    for (let tries = 0; tries < 5; tries++) {
       while (weekdayOf(prev) === 0 || weekdayOf(prev) === 6) prev = isoAdd(prev, -1);
       const c = await chainOn(name, prev, last);
       if (!c) break;
@@ -214,26 +256,20 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
       if (c.rows.length) {
         const rows: [string, number | null, number | null, number][] = [];
         for (const r of c.rows) {
-          const s = String(r.option_symbol ?? '');
-          if (!inUniverse.has(s)) continue;
+          const sym = String(r.option_symbol ?? '');
+          if (!inUniverse.has(sym)) continue;
           const tape = Date.parse(String(r.last_tape_time ?? ''));
-          rows.push([s, num(r.implied_volatility), Number.isFinite(tape) ? tape : null, num(r.open_interest) ?? 0]);
+          rows.push([sym, num(r.implied_volatility), Number.isFinite(tape) ? tape : null, num(r.open_interest) ?? 0]);
         }
-        seed = { date: prev, receivedAt: clock(), rows };
-      } else prev = isoAdd(prev, -1);
+        return { seed: { date: prev, receivedAt: clock(), rows }, calls };
+      }
+      prev = isoAdd(prev, -1);
     }
+    return { seed: null, calls };
+  }
 
-    /* the validation series */
-    const tot = await getRows(`/api/stock/${name}/spot-exposures?date=${day}`);
-    calls++;
-    const total: PastDay['total'] = tot.ok
-      ? {
-          receivedAt: clock(),
-          rows: tot.rows.map(r => [Date.parse(String(r.start_time)), num(r.price), num(r.gamma_per_one_percent_move_oi) ?? 0] as [number, number | null, number]).filter(r => Number.isFinite(r[0])),
-        }
-      : null;
-
-    /* the vols through the session: the contracts that traded within the strikes the field can draw */
+  /** The contracts whose vols are asked: those that traded within 35 strikes of the session's range */
+  function askOf(kept: Row[], lo: number, hi: number): string[] {
     const strikes = [...new Set(kept.map(r => num(r.strike) ?? NaN))].filter(Number.isFinite).sort((a, b) => a - b);
     const idx = (p: number) => {
       let i = 0;
@@ -242,41 +278,144 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     };
     const kLo = strikes[Math.max(0, idx(lo) - STRIKES_EACH_SIDE)];
     const kHi = strikes[Math.min(strikes.length - 1, idx(hi) + STRIKES_EACH_SIDE)];
-    const ask = kept.filter(r => (num(r.volume) ?? 0) > 0 && (num(r.strike) ?? NaN) >= kLo && (num(r.strike) ?? NaN) <= kHi).map(r => String(r.option_symbol));
-    const ticks: Record<string, number[]> = {};
+    return kept.filter(r => (num(r.volume) ?? 0) > 0 && (num(r.strike) ?? NaN) >= kLo && (num(r.strike) ?? NaN) <= kHi).map(r => String(r.option_symbol));
+  }
+
+  /** A contract's minute vols, compressed: [minute start (ms), vol, …] — the middle of UW's iv_low and iv_high (the
+      tape's own minute midpoint to 0.00001, measured 2026-10-13), the regular session's prints alone, a minute kept
+      when its vol moved VOL_STEP from the last kept. Empty with nothing to keep. */
+  function compress(rows: Row[], day: string): number[] {
+    const out: number[] = [];
+    let lastIv = NaN;
+    for (const x of [...rows].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))) {
+      const t = Date.parse(String(x.start_time));
+      const a = num(x.iv_low);
+      const b = num(x.iv_high);
+      if (!Number.isFinite(t) || a == null || b == null || !(a > 0) || !(b > 0)) continue;
+      const at = nyMinute(t);
+      /* the regular session's prints: 09:30 to the 16:15 close of index and fund options */
+      if (at.day !== day || at.minute < 9 * 60 + 30 || at.minute > 16 * 60 + 15) continue;
+      const iv = (a + b) / 2;
+      if (Number.isFinite(lastIv) && Math.abs(iv - lastIv) < VOL_STEP) continue;
+      lastIv = iv;
+      out.push(t, Math.round(iv * 1e5) / 1e5);
+    }
+    return out;
+  }
+
+  /** The vols through the session for these contracts, two in flight, into `ticks` (a contract asked again is replaced) */
+  async function ticksFor(name: string, day: string, syms: string[], ticks: Record<string, number[]>): Promise<{ calls: number; refused: number }> {
+    let calls = 0;
     let refused = 0;
     let next = 0;
     const worker = async () => {
-      while (next < ask.length) {
-        const sym = ask[next++];
+      while (next < syms.length) {
+        const sym = syms[next++];
         const r = await getRows(`/api/option-contract/${sym}/intraday?date=${day}`);
         calls++;
         if (!r.ok) {
           refused++;
           continue;
         }
-        const out: number[] = [];
-        let lastIv = NaN;
-        for (const x of [...r.rows].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))) {
-          const t = Date.parse(String(x.start_time));
-          const a = num(x.iv_low);
-          const b = num(x.iv_high);
-          if (!Number.isFinite(t) || a == null || b == null || !(a > 0) || !(b > 0)) continue;
-          const at = nyMinute(t);
-          /* the regular session's prints: 09:30 to the 16:15 close of index and fund options */
-          if (at.day !== day || at.minute < 9 * 60 + 30 || at.minute > 16 * 60 + 15) continue;
-          const iv = (a + b) / 2;
-          if (Number.isFinite(lastIv) && Math.abs(iv - lastIv) < VOL_STEP) continue;
-          lastIv = iv;
-          out.push(t, Math.round(iv * 1e5) / 1e5);
-        }
+        const out = compress(r.rows, day);
         if (out.length) ticks[sym] = out;
       }
     };
     await Promise.all(Array.from({ length: IN_FLIGHT }, worker));
-    if (ask.length && refused / ask.length > MAX_REFUSED) throw new Error(`${refused} of ${ask.length} contracts refused — tried again later`);
+    return { calls, refused };
+  }
 
-    return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed, ticks, total, calls, asked: ask.length, refused };
+  async function build(name: string, day: string): Promise<PastDay> {
+    let calls = 0;
+    const b = await barsOf(name, day);
+    calls += b.calls;
+
+    /* the positions at the open: open interest dated the session */
+    const last = isoAdd(day, MAX_DTE);
+    const chain = await chainOn(name, day, last);
+    if (!chain) throw new Error('the dated chain was refused');
+    calls += chain.calls;
+    const kept = keptOf(chain.rows, day, b.open);
+    if (!kept.length) throw new Error('no open interest dated that day');
+    const oi: [string, number][] = kept.map(r => [String(r.option_symbol), num(r.open_interest) ?? 0]);
+
+    /* the session before's close: the vols knowable at the open */
+    const s = await seedOf(name, day, last, new Set(oi.map(o => o[0])));
+    calls += s.calls;
+
+    /* the validation series */
+    const tot = await getRows(`/api/stock/${name}/spot-exposures?date=${day}`);
+    calls++;
+    const total: PastDay['total'] = tot.ok
+      ? {
+          receivedAt: clock(),
+          rows: tot.rows
+            .map(r => [Date.parse(String(r.start_time)), num(r.price), num(r.gamma_per_one_percent_move_oi) ?? 0, num(r.gamma_per_one_percent_move_vol) ?? 0, num(r.gamma_per_one_percent_move_dir) ?? 0] as [number, number | null, number, number, number])
+            .filter(r => Number.isFinite(r[0])),
+        }
+      : null;
+
+    /* the vols through the session: the contracts that traded within the strikes the field can draw */
+    const ask = askOf(kept, b.lo, b.hi);
+    const ticks: Record<string, number[]> = {};
+    const t = await ticksFor(name, day, ask, ticks);
+    calls += t.calls;
+    if (ask.length && t.refused / ask.length > MAX_REFUSED) throw new Error(`${t.refused} of ${ask.length} contracts refused — tried again later`);
+
+    return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed: s.seed, ticks, total, calls, asked: ask.length, refused: t.refused, vols: Object.keys(ticks).length ? 'minute' : 'close' };
+  }
+
+  /** TODAY, REBUILT AS IT GOES — the store's final rows (server/fieldStore.ts; the owner, 2026-10-13: "written by the
+      rebuild path once inputs with event time ≤ that minute have arrived (at the next chain read). Final rows must equal
+      the rebuild exactly (same code path)"): the same dated chain, the same seed and the same per-minute vols as build(),
+      the vols asked again for every contract whose volume grew since the last advance, so no band of the day's range
+      (not known yet) chooses them — a contract past the field's strikes draws nothing either way. advance() answers the
+      day so far and `through`, the moment its inputs were asked: a minute that ended before it holds every print it
+      will, bar one reported late. */
+  function today(name: string, day: string) {
+    let base: { oi: [string, number][]; seed: PastDay['seed']; kept: Set<string> } | null = null;
+    let bars: MinuteBar[] = [];
+    const ticks: Record<string, number[]> = {};
+    const volume = new Map<string, number>();
+    let calls = 0;
+    let asked = 0;
+    let refused = 0;
+    async function advance(): Promise<(PastDay & { through: number; bars: MinuteBar[] }) | null> {
+      const through = clock();
+      const last = isoAdd(day, MAX_DTE);
+      const chain = await chainOn(name, day, last);
+      if (!chain) return null;
+      calls += chain.calls;
+      /* the day's bars so far — the same call the rebuild makes, so the final rows stand on the same closes */
+      const b = await barsOf(name, day).catch(() => null);
+      if (!b) return null;
+      calls += b.calls;
+      bars = b.bars;
+      if (!base) {
+        const kept = keptOf(chain.rows, day, b.open);
+        if (!kept.length) return null;
+        const oi: [string, number][] = kept.map(r => [String(r.option_symbol), num(r.open_interest) ?? 0]);
+        const s = await seedOf(name, day, last, new Set(oi.map(o => o[0])));
+        calls += s.calls;
+        base = { oi, seed: s.seed, kept: new Set(oi.map(o => o[0])) };
+      }
+      const grew: string[] = [];
+      for (const r of chain.rows) {
+        const sym = String(r.option_symbol ?? '');
+        if (!base.kept.has(sym)) continue;
+        const v = num(r.volume) ?? 0;
+        if (v > (volume.get(sym) ?? 0)) {
+          grew.push(sym);
+          volume.set(sym, v);
+        }
+      }
+      const t = await ticksFor(name, day, grew, ticks);
+      calls += t.calls;
+      asked += grew.length;
+      refused += t.refused;
+      return { format: PAST_FORMAT, name, day, builtAt: clock(), oi: base.oi, seed: base.seed, ticks: { ...ticks }, total: null, calls, asked, refused, vols: 'minute', through, bars };
+    }
+    return { advance, calls: () => calls };
   }
 
   function save(p: PastDay) {
@@ -285,7 +424,11 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     const tmp = `${file}.tmp`;
     writeFileSync(tmp, gzipSync(Buffer.from(JSON.stringify(p))));
     renameSync(tmp, file);
+    /* the coverage line reads these alone — never the sessions themselves */
+    writeFileSync(join(root, p.name, p.day, META), JSON.stringify({ vols: p.vols, builtAt: p.builtAt, asked: p.asked, refused: p.refused, calls: p.calls } satisfies PastMeta));
   }
+  const noneFile = (name: string, day: string) => join(root, name, day, 'none.json');
+  const noneOf = (name: string, day: string) => existsSync(noneFile(name, day));
 
   /** The next session to build: the name asked most lately, its newest session first */
   function pick(): [string, string] | null {
@@ -366,11 +509,96 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     const name = rawName.toUpperCase();
     if (!NAME_OK.test(name) || !ISO.test(d)) return { status: 400, body: JSON.stringify({ error: 'bad-request' }) };
     try {
-      return { status: 200, body: gunzipSync(readFileSync(fileOf(name, d))).toString('utf8') };
+      const text = gunzipSync(readFileSync(fileOf(name, d))).toString('utf8');
+      if (text.includes('"vols":')) return { status: 200, body: text };
+      /* a format-1 file: its vols named on the way out */
+      const p = JSON.parse(text) as PastDay;
+      p.vols = Object.keys(p.ticks ?? {}).length ? 'minute' : 'close';
+      return { status: 200, body: JSON.stringify(p) };
     } catch {
       return { status: 404, body: JSON.stringify({ error: 'not-built' }) };
     }
   }
 
-  return { ask, day, build, idle: () => !running };
+  /* ---- THE BACKFILL JOB (the owner, 2026-10-13, item 1b: "Extend the existing no-look-ahead rebuild backward across
+     the full window, oldest first. Each day not pulled drops out of the window permanently") ------------------------ */
+  const job: JobState = { running: false, names: [], from: '', to: '', days: 0, built: 0, skipped: 0, failed: 0, current: null };
+  /** Every session from `from` to `to` (the session before today by default), oldest first, each name — a session
+      built is skipped, a day with no session (or before the plan's window) is noted once (none.json) and never asked
+      again, a failure is tried again after RETRY_MS on the next run. A page's own ask is served first between sessions. */
+  async function runRange(names: string[], from: string, to = isoAdd(nyMinute(clock()).day, -1)): Promise<JobState> {
+    if (job.running) return job;
+    const list = names.map(n => n.toUpperCase()).filter(n => NAME_OK.test(n));
+    if (!list.length || !ISO.test(from) || !ISO.test(to)) return job;
+    Object.assign(job, { running: true, names: list, from, to, days: 0, built: 0, skipped: 0, failed: 0, current: null });
+    const days: string[] = [];
+    for (let d = from; d <= to; d = isoAdd(d, 1)) if (weekdayOf(d) !== 0 && weekdayOf(d) !== 6) days.push(d);
+    job.days = days.length * list.length;
+    try {
+      for (const d of days)
+        for (const name of list) {
+          if (has(name, d) || noneOf(name, d)) {
+            job.skipped++;
+            continue;
+          }
+          const key = `${name}|${d}`;
+          const f = failed.get(key);
+          if (f && clock() - f.at < RETRY_MS) {
+            job.failed++;
+            continue;
+          }
+          await run();
+          job.current = key;
+          try {
+            save(await build(name, d));
+            failed.delete(key);
+            job.built++;
+          } catch (e) {
+            const why = e instanceof Error ? e.message : 'refused';
+            if (why === 'no session that day' || why === 'before the plan’s window') {
+              mkdirSync(join(root, name, d), { recursive: true });
+              writeFileSync(noneFile(name, d), JSON.stringify({ why, at: clock() }));
+              job.skipped++;
+            } else {
+              failed.set(key, { why, at: clock() });
+              job.failed++;
+            }
+          }
+          job.current = null;
+        }
+    } finally {
+      job.running = false;
+      job.current = null;
+    }
+    return job;
+  }
+
+  /** GET /feed/field/<NAME>/coverage: the sessions built for a name — "rebuilt <first> to <last>, N sessions" */
+  function coverage(rawName: string): { status: number; body: string } {
+    const name = rawName.toUpperCase();
+    if (!NAME_OK.test(name)) return { status: 400, body: JSON.stringify({ error: 'bad-name' }) };
+    const out: Coverage = { name, days: [], first: null, last: null, byVols: { minute: 0, tape: 0, close: 0 }, none: 0, job: { ...job } };
+    try {
+      for (const d of readdirSync(join(root, name)).sort()) {
+        if (!ISO.test(d)) continue;
+        if (has(name, d)) {
+          out.days.push(d);
+          let vols: PastDay['vols'] = 'minute';
+          try {
+            vols = (JSON.parse(readFileSync(join(root, name, d, META), 'utf8')) as PastMeta).vols ?? 'minute';
+          } catch {
+            /* a session built before the sidecar: its vols are UW's minutes or the close — counted as minutes */
+          }
+          out.byVols[vols]++;
+        } else if (noneOf(name, d)) out.none++;
+      }
+    } catch {
+      /* no folder yet */
+    }
+    out.first = out.days[0] ?? null;
+    out.last = out.days[out.days.length - 1] ?? null;
+    return { status: 200, body: JSON.stringify(out) };
+  }
+
+  return { ask, day, build, today, runRange, coverage, save, has, idle: () => !running && !job.running, job: () => ({ ...job }) };
 }

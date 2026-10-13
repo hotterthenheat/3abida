@@ -45,6 +45,25 @@ const server = createServer((req, res) => {
 server.listen(port, lan ? '0.0.0.0' : '127.0.0.1', () => {
   console.log(`${stamp()} slayer recorder on http://127.0.0.1:${port} — recording ${names.join(', ')} (UW key ${env.UW_API_TOKEN ? 'in' : 'MISSING — nothing will be recorded'})`);
 });
+/* THE BACKFILL JOB (the owner, 2026-10-13, item 1b): BACKFILL_FROM=2025-04-01 rebuilds every session from that date to
+   the session before today for BACKFILL_NAMES (the recorded names but the indices, which have no bars on this plan),
+   oldest first, behind the recorder's own reads — about 1,650 calls and a minute or two a SPY session; a restart picks
+   up where it stopped (a session built is skipped). */
+const from = env.BACKFILL_FROM ?? '';
+if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
+  const INDICES = new Set(['SPX', 'SPXW', 'NDX', 'NDXP', 'RUT', 'RUTW', 'VIX', 'VIXW', 'XSP']);
+  const bnames = (env.BACKFILL_NAMES ?? names.filter(n => !INDICES.has(n)).join(','))
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+  console.log(`${stamp()} backfill ${bnames.join(', ')} from ${from}, oldest first`);
+  void handle.backfill.runRange(bnames, from).then(j => console.log(`${stamp()} backfill done: built ${j.built}, skipped ${j.skipped}, failed ${j.failed} of ${j.days}`));
+  const progress = setInterval(() => {
+    const j = handle.backfill.job();
+    if (j.running) console.log(`${stamp()} backfill ${j.current ?? '…'}: built ${j.built}, skipped ${j.skipped}, failed ${j.failed} of ${j.days}`);
+  }, 10 * 60_000);
+  progress.unref();
+}
 server.on('error', e => {
   console.error(`${stamp()} recorder cannot listen on ${port}: ${String(e)}`);
   process.exit(1);

@@ -1,4 +1,5 @@
 import { HEAT_MODE, heatRampColor, heatRampColorFor } from './heatmap';
+import { RUN_BINS, SCALE_Q, binOf, quantileOf } from '../../data/feed/beadScale';
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
@@ -836,7 +837,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       }
       this.runIds.push(snap);
       this.runMax.push(m);
-      this.refs.push(this.runCount ? quantileOf(this.runHist, this.runCount, 0.85) : 0);
+      this.refs.push(this.runCount ? quantileOf(this.runHist, this.runCount, SCALE_Q) : 0);
     }
   }
 
@@ -992,16 +993,4 @@ function nyOf(timeSec: number): { day: string; minute: number } {
 const nyDayKey = (timeSec: number) => nyOf(timeSec).day;
 const nyMinuteOf = (timeSec: number) => nyOf(timeSec).minute;
 
-/* the running scale's log-binned count: 1/32 of a decade a bin, from $1 to $10^16 */
-const RUN_BINS = 512;
-const binOf = (m: number) => Math.max(0, Math.min(RUN_BINS - 1, Math.floor(Math.log10(Math.max(1, m)) * 32)));
-/** The value at quantile q of a log-binned count — the bin's upper edge */
-function quantileOf(hist: Float64Array, count: number, q: number): number {
-  const want = Math.min(count - 1, Math.floor(count * q));
-  let seen = 0;
-  for (let b = 0; b < hist.length; b++) {
-    seen += hist[b];
-    if (seen > want) return Math.pow(10, (b + 1) / 32);
-  }
-  return Math.pow(10, hist.length / 32);
-}
+/* the running scale's log-binned count lives in data/feed/beadScale.ts — the store runs the same one */

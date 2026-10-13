@@ -55,6 +55,8 @@
 ==================================================
 */
 
+import { isoDayLabel } from '../../core/format';
+import type { FeedBook60 } from './trailModel';
 import { useMemo, useSyncExternalStore } from 'react';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { clock, nyDay, nyIsoDate, nyMinutes, nyWallTime } from '../../core/nyTime';
@@ -905,14 +907,8 @@ function noteField(book: FeedBook) {
 /* THE BOOK ON THE MODEL'S UNIVERSE (the Terrain audit of 2026-10-13, row 41): UW's exposure by expiry and strike, the
    expiries within 60 days summed per strike, in the house's sign — what the field is measured against like for like
    (the per-strike book above spans every expiry; UW's whole-book series every expiry and strike). */
-export interface FeedBook60 {
-  /** When UW figured it (the newest row's time), epoch ms */
-  at: number;
-  spot: number;
-  expiries: string[];
-  /** Ascending; the house's sign */
-  rows: { strike: number; net: number; call: number; put: number }[];
-}
+/* FeedBook60 is defined with the model (trailModel.ts), which the server shares; re-exported here for the pages */
+export type { FeedBook60 } from './trailModel';
 const measured60 = new Map<string, { day: string; books: FeedBook60[] }>();
 function noteMeasured60(t: string, b: NonNullable<ServerDay['books60']>[number]) {
   const day = nyIsoDate(b.receivedAt);
@@ -1082,6 +1078,30 @@ export function useServerPastSessions(on: boolean, ticker: string, bars: readonl
   if (!a) return null;
   const failed = days.filter(d => a.failed && d in a.failed).length;
   return { asked: days.length - failed, ready: Math.min(inPage, a.ready.length), working: a.working };
+}
+
+/** THE COVERAGE LINE (the owner, 2026-10-13, item 1: "session picker shows coverage ('rebuilt <first date> to <last
+    date>, N sessions')"): the sessions the server has rebuilt for a name, asked once a minute while the trail is on */
+export interface FieldCoverage {
+  first: string | null;
+  last: string | null;
+  days: string[];
+  byVols: { minute: number; tape: number; close: number };
+  none: number;
+  job: { running: boolean; built: number; skipped: number; failed: number; days: number; current: string | null };
+}
+export function useFieldCoverage(on: boolean, ticker: string): FieldCoverage | null {
+  const t = ticker.toUpperCase();
+  const r = useFeedPoll(on && t ? `field:coverage:${t}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/coverage`) as Promise<FeedResult<FieldCoverage>>, 60_000);
+  return r?.ok && r.data && Array.isArray(r.data.days) ? r.data : null;
+}
+/** "Earlier sessions rebuilt from the vendor's dated history: Sep 29 to Oct 12, 10 sessions (UW's minute vols 10)." —
+    null with none built */
+export function coverageLine(c: FieldCoverage | null): string | null {
+  if (!c || !c.first || !c.last) return null;
+  const parts = [c.byVols.minute ? `UW's minute vols ${c.byVols.minute}` : '', c.byVols.tape ? `tape vols ${c.byVols.tape}` : '', c.byVols.close ? `the close's vols alone ${c.byVols.close}` : ''].filter(Boolean);
+  const job = c.job.running ? ` The backfill is running: ${c.job.built} built, ${c.job.skipped} skipped, ${c.job.failed} failed of ${c.job.days}.` : '';
+  return `Earlier sessions rebuilt from the vendor's dated history: ${isoDayLabel(c.first)} to ${isoDayLabel(c.last)}, ${c.days.length} session${c.days.length === 1 ? '' : 's'}${parts.length ? ` (${parts.join(', ')})` : ''}.${job}`;
 }
 
 /** The books read so far today for a name, oldest first, outside a render (data/feed/pinpointMarket.ts) */

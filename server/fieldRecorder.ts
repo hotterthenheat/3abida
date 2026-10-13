@@ -60,6 +60,10 @@ import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFile
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
+import type { createFieldBackfill, MinuteBar, PastDay } from './fieldBackfill';
+import type { Bar, FieldStore } from './fieldStore';
+
+type FieldBackfill = ReturnType<typeof createFieldBackfill>;
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 const MAX_NAMES = 6;
@@ -86,8 +90,10 @@ export interface RecordedBook {
   receivedAt: number;
   rows: Row[];
 }
-/** One read of the chain: [OCC symbol, open interest, vol of the last trade or null, that trade's time (ms) or null] */
-export type ChainRow = [string, number, number | null, number | null];
+/** One read of the chain: [OCC symbol, open interest, vol of the last trade or null, that trade's time (ms) or null,
+    NBBO bid or null, NBBO ask or null, the day's volume] — the last three since 2026-10-13 (the store's straddles,
+    server/fieldStore.ts; the owner: "keep the chain's nbbo_bid/nbbo_ask") */
+export type ChainRow = [string, number, number | null, number | null, (number | null)?, (number | null)?, number?];
 export interface RecordedChain {
   receivedAt: number;
   rows: ChainRow[];
@@ -112,8 +118,9 @@ export interface RecordedBook60 {
 }
 export interface RecordedTotal {
   receivedAt: number;
-  /** [minute's start (ms), UW's price, whole book's gamma per 1% by open interest (UW's sign)] */
-  rows: [number, number | null, number][];
+  /** [minute's start (ms), UW's price, the whole book's gamma per 1% by open interest, by volume, directionalized —
+      UW's sign; the last two since 2026-10-13 (the owner: "keep … UW's _vol and _dir series", item 3's attribution)] */
+  rows: [number, number | null, number, number?, number?][];
 }
 /** The day's open-interest switch: the first chain read whose count differed from the read (or seed) before it on a
     large share of the contracts — when UW's published count was received (the owner, 2026-10-13: "measure it from days
@@ -134,6 +141,13 @@ interface Day {
   seed: RecordedSeed | null;
   total: RecordedTotal | null;
   oiSwitch: OiSwitch | null;
+  /** The day's minute bars as read (UW's /ohlc/1m, the last dozen each minute), by the minute's start (seconds) */
+  bars: Map<number, Bar>;
+  /** Today's rebuild as it goes (fieldBackfill today()) — the store's final rows */
+  today: ReturnType<FieldBackfill['today']> | null;
+  finalBusy: boolean;
+  /** The closing pass done: one more advance after 16:00, for the session's last minutes */
+  closed: boolean;
 }
 
 const nyParts = (ms: number) => {
@@ -159,8 +173,20 @@ const occParts = (s: string) => {
 };
 
 const NAME_OK = /^[A-Z][A-Z0-9.]{0,9}$/;
+/** The files gzipped in place as the day turns */
+const PRUNED = new Set(['books.jsonl', 'books60.jsonl', 'chain.jsonl', 'total.json', 'seed.json', 'shown.jsonl', 'final.jsonl']);
+/** Bars are read through the hours Terrain draws: 04:00 to 20:00 New York */
+const barHoursAt = (minute: number) => minute >= 4 * 60 && minute <= 20 * 60;
 
-export function createFieldRecorder(client: FeedClient, opts: { now?: () => number; always?: string[] } = {}) {
+export function createFieldRecorder(client: FeedClient, opts: { now?: () => number; always?: string[]; backfill?: FieldBackfill; store?: FieldStore; root?: string } = {}) {
+  const root = opts.root ?? ROOT;
+  /* the reads in flight — settle() awaits them (the proofs) */
+  const inFlight = new Set<Promise<unknown>>();
+  const track = <T>(p: Promise<T>): Promise<T> => {
+    inFlight.add(p);
+    void p.finally(() => inFlight.delete(p));
+    return p;
+  };
   /* THE NAMES RECORDED WHATEVER THE TABS (the standalone recorder, server/recorderMain.ts): watched from the start and
      never let go for idleness */
   const always = new Set((opts.always ?? []).map(n => n.toUpperCase()).filter(n => NAME_OK.test(n)));
@@ -171,17 +197,18 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
   const busy = new Set<string>();
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  const dirOf = (name: string, day: string) => join(ROOT, name, day);
+  const dirOf = (name: string, day: string) => join(root, name, day);
 
   /** The days before today, kept and gzipped in place — never deleted (see the header) */
   function prune(today: string) {
     try {
-      for (const name of readdirSync(ROOT))
-        for (const day of readdirSync(join(ROOT, name))) {
+      for (const name of readdirSync(root))
+        for (const day of readdirSync(join(root, name))) {
           if (day >= today) continue;
-          const dir = join(ROOT, name, day);
+          const dir = join(root, name, day);
           for (const f of readdirSync(dir)) {
-            if (f.endsWith('.gz')) continue;
+            /* the recorder's and the store's own files alone — the backfill's sidecars stay as they are */
+            if (!PRUNED.has(f)) continue;
             const file = join(dir, f);
             writeFileSync(`${file}.gz`, gzipSync(readFileSync(file)));
             rmSync(file, { force: true });
@@ -224,6 +251,10 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         seed: (x => (x && x.rows.length && x.rows[0].length >= 4 ? x : null))(readJson<RecordedSeed>(join(dir, 'seed.json'))),
         total: readJson<RecordedTotal>(join(dir, 'total.json')),
         oiSwitch: readJson<OiSwitch>(join(dir, 'oi.json')),
+        bars: new Map(),
+        today: null,
+        finalBusy: false,
+        closed: false,
       };
       days.set(name, d);
     }
@@ -311,7 +342,9 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     if (!rows) return;
     const total: RecordedTotal = {
       receivedAt: clock(),
-      rows: rows.map(r => [Date.parse(String(r.start_time)), num(r.price), num(r.gamma_per_one_percent_move_oi) ?? 0] as [number, number | null, number]).filter(r => Number.isFinite(r[0])),
+      rows: rows
+        .map(r => [Date.parse(String(r.start_time)), num(r.price), num(r.gamma_per_one_percent_move_oi) ?? 0, num(r.gamma_per_one_percent_move_vol) ?? 0, num(r.gamma_per_one_percent_move_dir) ?? 0] as [number, number | null, number, number, number])
+        .filter(r => Number.isFinite(r[0])),
     };
     d.total = total;
     write(name, d.day, 'total.json', JSON.stringify(total), false);
@@ -329,7 +362,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         const p = occParts(s);
         if (!p || Math.abs(p.strike - price) > price * BAND) continue;
         const tape = Date.parse(String(r.last_tape_time ?? ''));
-        rows.push([s, num(r.open_interest) ?? 0, num(r.implied_volatility), Number.isFinite(tape) ? tape : null]);
+        rows.push([s, num(r.open_interest) ?? 0, num(r.implied_volatility), Number.isFinite(tape) ? tape : null, num(r.nbbo_bid), num(r.nbbo_ask), num(r.volume) ?? 0]);
       }
       if (got.length < 500) break;
     }
@@ -395,17 +428,50 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     }
   }
 
+  /** The day's minute bars, the last dozen — the store's shown rows stand on each minute's close as Terrain draws it */
+  async function readBars(name: string, d: Day) {
+    const rows = await getRows(`/api/stock/${name}/ohlc/1m?limit=12`);
+    if (!rows) return;
+    for (const r of rows) {
+      const t = Date.parse(String(r.start_time));
+      const close = num(r.close);
+      if (!Number.isFinite(t) || close == null || nyParts(t).day !== d.day) continue;
+      const mt = String(r.market_time ?? 'r');
+      d.bars.set(t / 1000, { time: t / 1000, close, session: mt === 'r' ? 'r' : mt === 'pr' ? 'pre' : 'post' });
+    }
+  }
+
+  /** THE STORE'S FINAL ROWS (server/fieldStore.ts): today rebuilt as it goes, once a chain read — detached from the
+      minute's reads, one at a time a name */
+  async function finalize(name: string, d: Day) {
+    if (!opts.backfill || !opts.store || d.finalBusy) return;
+    d.finalBusy = true;
+    try {
+      d.today ??= opts.backfill.today(name, d.day);
+      /* the day's bars come with the advance (the rebuild's own call), so a recorder started mid-session still
+         writes the final rows for every minute from the open */
+      const past: (PastDay & { through: number; bars: MinuteBar[] }) | null = await d.today.advance();
+      if (past) opts.store.final(name, d.day, past, past.bars);
+    } finally {
+      d.finalBusy = false;
+    }
+  }
+
   /** The chain is read through the pre-market too (04:00 on), so the count UW publishes about 06:45 is received within
       ten minutes — a column before that read stands on the seed's count (data/feed/trailField.ts universeOf) */
   const chainHoursAt = (minute: number) => minute >= 4 * 60 && minute <= 16 * 60;
-  async function serviceName(name: string, inSession: boolean, chainHours = inSession) {
+  async function serviceName(name: string, inSession: boolean, chainHours = inSession, barHours = inSession) {
     if (busy.has(name)) return;
     busy.add(name);
     try {
       const { day } = nyParts(clock());
       const d = dayOf(name, day);
       const lastChain = d.chains[d.chains.length - 1]?.receivedAt ?? 0;
-      if (!d.chains.length || (chainHours && clock() - lastChain >= CHAIN_EVERY_MS)) await readChain(name, d);
+      let readTheChain = false;
+      if (!d.chains.length || (chainHours && clock() - lastChain >= CHAIN_EVERY_MS)) {
+        await readChain(name, d);
+        readTheChain = true;
+      }
       if (inSession || !d.books.length) {
         await readBook(name, d);
         await readTotal(name, d);
@@ -413,6 +479,17 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       const lastBook60 = d.books60[d.books60.length - 1]?.receivedAt ?? 0;
       if (!d.books60.length || (inSession && clock() - lastBook60 >= BOOK60_EVERY_MS)) await readBook60(name, d);
       if (!d.seed) await readSeed(name, d);
+      /* THE STORE (server/fieldStore.ts): the shown rows for the minutes ended, from what was received by each */
+      if (opts.store && (barHours || inSession)) {
+        await readBars(name, d);
+        opts.store.shown(name, d.day, { chains: d.chains, seed: d.seed, total: d.total }, [...d.bars.values()], d.books);
+      }
+      if (readTheChain && inSession) void track(finalize(name, d).catch(() => undefined));
+      /* the closing pass: the minutes before 16:00 that no read in the session reached */
+      if (!inSession && d.today && !d.closed && nyParts(clock()).minute > 16 * 60) {
+        d.closed = true;
+        void track(finalize(name, d).catch(() => undefined));
+      }
     } finally {
       busy.delete(name);
     }
@@ -427,7 +504,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     prune(day);
     const inSession = minute >= 9 * 60 + 30 && minute <= 16 * 60;
     /* one name after another — the proxy's gate keeps UW at three at once with the pages' own polls */
-    for (const name of watched.keys()) await serviceName(name, inSession, chainHoursAt(minute)).catch(() => undefined);
+    for (const name of watched.keys()) await track(serviceName(name, inSession, chainHoursAt(minute), barHoursAt(minute)).catch(() => undefined));
   }
 
   function watch(name: string) {
@@ -451,7 +528,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     /* a name first watched is read at once — its chain, its seed, one book — whatever the hour */
     if (fresh) {
       const { minute, weekday } = nyParts(clock());
-      if (weekday !== 'Sat' && weekday !== 'Sun') void serviceName(name, minute >= 9 * 60 + 30 && minute <= 16 * 60, chainHoursAt(minute)).catch(() => undefined);
+      if (weekday !== 'Sat' && weekday !== 'Sun') void track(serviceName(name, minute >= 9 * 60 + 30 && minute <= 16 * 60, chainHoursAt(minute), barHoursAt(minute)).catch(() => undefined));
     }
   }
 
@@ -484,5 +561,10 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
   /* the always-on names start at once, whether or not a tab ever asks */
   if (always.size && client.hasKey('uw')) for (const n of always) watch(n);
 
-  return { serve, tick, watched: () => [...watched.keys()], always: () => [...always] };
+  /** Every read in flight done, the detached final pass included */
+  async function settle(): Promise<void> {
+    while (inFlight.size) await Promise.all([...inFlight]);
+  }
+
+  return { serve, tick, settle, watched: () => [...watched.keys()], always: () => [...always] };
 }

@@ -804,6 +804,29 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   days). THE PUTS ARE NOT PRICED AMERICAN and UW's per-contract gamma is never carried (it is not repriced along the
   minute path; a past session has only end-of-day greeks): the gap stays the stated residual in How sure. Today's
   +2% is the spot each contract's UW gamma was figured at (its last print's), not calls or puts.
+- THE POINT-IN-TIME STORE AND THE NEXT BUILDS (2026-10-13 — the owner's plan "TERRAIN — NEXT BUILDS, IN PRIORITY
+  ORDER", read against the data, then the owner: "Go on all five"; docs/data-feed.md "The point-in-time store and the
+  backfill"). THE D−1 SPLIT: open interest is day D's count from 7:00 am New York and D−1's before it; books, greeks and
+  vols are D−1 in replay and backfill (`spot-exposures/strike?date=D` and `greek-exposure/strike?date=D` are D's END
+  state — Pinpoint's history read the latter as "the session at its open", to be fixed on the rebuilt field's 9:30
+  column). TWO ROWS A MINUTE (server/fieldStore.ts): "shown", the column Terrain drew, written by the recorder from
+  what it had received by the minute's end, never edited, a minute missed a gap; "final", the rebuild path's column
+  (fieldBackfill `today()`), written at each chain read for the minutes a minute behind the inputs asked, equal to
+  the session's full rebuild to the cell (one code path: data/feed/trailModel.ts, the model split out of trailField.ts
+  with no React and no DOM — the server imports trailModel, never trailField). Shown against final is a TOLERANCE
+  (median ≤ 1%, p90 ≤ 5%, walls and flip equal in ≥ 95% of columns, on a gap-free day — `npm run field:agree`), never
+  an identity: live holds the last print's vol between reads, the rebuild the minute's midpoint. The scorecard reads
+  final rows only. THE REGIME AND THE FLIP STAY SEPARATE (the net of the column and the zero crossing nearest spot
+  agreed in 46% of 330 live columns): never relabel the flip "regime boundary", never assert the net's sign is the
+  flip's side. THE RECORDER KEEPS the chain's nbbo_bid/nbbo_ask and volume and UW's `_vol`/`_dir` series; a store
+  row's straddles are the NBBO mids in a read's minute and the model's price between, `src` says which. THE BEAD
+  SCALE'S REFERENCE is one count (data/feed/beadScale.ts) for the renderer and the store. SPX IS OUT of items 2 and
+  4 until a price source exists (no SPX price on UW Basic or Massive Basic; UW's SPX series price is rounded to 5
+  points; the tape's per-print underlying is the index level with cents — the candidate). THE TAPE'S MINUTE VOLS are
+  the minute's midpoint of print vols (it equals UW's `intraday` midpoint to 0.00001), labelled "tape vols" on a
+  session built from it. WEB PUSH IS HELD until the owner decides; the in-app tiers come first. The backfill job
+  (`npm run feed:backfill`, BACKFILL_FROM on the recorder) runs at home on the always-on machine — about 1,650 calls
+  and 81 s a SPY session.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

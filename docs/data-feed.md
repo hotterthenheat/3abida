@@ -474,6 +474,59 @@ on all seven pages, SPY and SPX, dark and light.
 Screenshots on the vendor's answers, 2026-10-12 around 14:15 New York: `docs/data-feed/levels-2026-10-12-*.png` (the Map,
 Building, Ahead and Terrain dark; At the wall and Terrain light; the Map on a phone).
 
+## The point-in-time store and the backfill (2026-10-13)
+
+The owner's plan ("TERRAIN — NEXT BUILDS", item 1) with the decisions taken after the data was read:
+
+- **The D−1 split.** Open interest is the day's count from 7:00 am New York (`option-chains?date=D` carries the count
+  published the morning of D — the count after D−1's close) and D−1's before it. Books, greeks and vols are D−1 in
+  replay and backfill: `spot-exposures/strike?date=D` is D's 4:00 pm state (127 of 127 strikes within 1% of the
+  recorder's 4:15 pm capture), `greek-exposure/strike?date=D` follows the day and ends at its close, a dated chain's
+  vols are D's close (the seed for D+1). "Use D−1, never D" for OI would have made every column a day stale.
+- **Two rows a minute** (server/fieldStore.ts, `.feed-cache/field/<NAME>/<day>/shown.jsonl` and `final.jsonl`,
+  append-only, gzipped in place as the day turns). A SHOWN row is the column Terrain drew: written by the recorder
+  from the inputs it had received by the minute's end, through the model Terrain runs (data/feed/trailModel.ts —
+  the pure part of trailField.ts, split out so the server and the browser share one code path), within three minutes
+  of its minute or not at all (a minute missed is a gap, never filled in). A FINAL row is the rebuild path's column
+  (server/fieldBackfill.ts `today()`: the dated chain's count, the session before's close vols, each traded
+  contract's minute vols asked again when its volume grew), written at each chain read for the regular minutes that
+  ended a minute before the inputs were asked, and once more after the close. A row holds spot, the flip, the walls,
+  the five heaviest strikes, the net (the regime — every strike summed, NOT the flip's side: the two agreed in 46% of
+  330 live columns), the bead scale's reference (data/feed/beadScale.ts, the renderer's own count), every strike
+  drawn, the share carried, the at-the-money straddles for the expiry settling today and the weekly (the NBBO mids
+  in a chain read's minute, the model's price between — `src` says which) and the data's age. The scorecard (item 2)
+  reads final rows only. Served by `GET /feed/field/<NAME>/store?day=&kind=&since=`.
+- **Live against rebuilt is a tolerance, not an identity** (measured 2026-10-13 on 250 SPY columns): live holds a
+  contract's last print vol between ten-minute reads, the rebuild takes each minute's midpoint — never identical; at
+  a read 0.3% median and 2.0% p90, between reads 0.7% and 3.8%, where the recorder had gaps 1.8% and 12.6%; walls
+  equal in 240 of 250, the flip in 250 of 250. `npm run field:agree -- SPY <day>` judges shown against final to the
+  owner's tolerance (median ≤ 1%, p90 ≤ 5%, walls and flip equal in ≥ 95% of columns) on a gap-free day, and with
+  `--rebuild` checks the final rows against the session's full rebuild to the cell (the same code path, so exact).
+  scripts/field-store-proof.ts runs the recorder, the store and the rebuild on a fake vendor and clock (`npm test`).
+- **The recorder keeps more** (server/fieldRecorder.ts): each chain row carries `nbbo_bid`, `nbbo_ask` and the
+  day's volume; the whole-book series carries UW's `_vol` and `_dir` beside `_oi` (populated from 9:30 am for SPY,
+  SPX and QQQ — item 3's attribution check is possible on Basic, SPX included); the day's minute bars are read each
+  minute (the shown rows' spot).
+- **The backfill job** (`npm run feed:backfill -- SPY,QQQ 2025-04-01`, or `BACKFILL_FROM=2025-04-01` on the
+  always-on recorder, server/recorderMain.ts): every session from the date to the session before today, oldest
+  first, a session built skipped, a day without a session noted once (`none.json`) and never asked again. Measured:
+  a SPY session is about 1,650 calls in 81 s at two in flight; SPX's dated chain is three times SPY's. A session's
+  vols are named (`PastDay.vols`: 'minute' from about 2025-04-01, 'tape' before it once the tape backfill lands,
+  'close' where neither answers) and the coverage line in Terrain's How sure says what is built ("Earlier sessions
+  rebuilt from the vendor's dated history: Sep 29 to Oct 12, 10 sessions"; `GET /feed/field/<NAME>/coverage`).
+- **How far the plan reaches** (probed 2026-10-13): dated chains, books, 1-minute bars and the whole-book series
+  answer back to at least 2024-09-04; the tape archive (`/option-trades/full-tape/{date}`, a 302 to a signed link
+  that lives 120 s; 0.7 to 1.9 GB a day) from 2024-01-03, refused for 2023-10-02; per-contract minute vols from
+  2025-04 (empty on 2025-03-04, full on 2025-04-02) — about 386 sessions; the expiry-strike book from 2025-01-16.
+- **The tape** (one day streamed, 9.2 M prints, nothing written to disk): every print carries `implied_volatility`,
+  `underlying_price`, `nbbo_bid`/`nbbo_ask` and `canceled`. SPY's last print's underlying each minute equals the
+  1-minute bar's close (median 0.000, p90 0.005, max 0.09 over 390 minutes). SPX's and SPXW's underlying price is the
+  index level with cents, in every regular minute, SPX and SPXW agreeing to 0.03 at the median; UW's own SPX series
+  price is rounded to 5 points. The minute's midpoint of print vols equals the per-contract `intraday` midpoint to
+  0.00001, so a tape-built session uses the one definition the minute-vol path uses.
+- **SPX** has no price on this plan (stock-state, ohlc/1m and ohlc/1d answer 422, Massive 403), so it is out of
+  items 2 and 4 until a price source exists; the tape's per-minute underlying is the candidate.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

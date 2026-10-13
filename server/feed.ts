@@ -41,6 +41,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createFieldRecorder } from './fieldRecorder';
 import { createFieldBackfill } from './fieldBackfill';
+import { createFieldStore } from './fieldStore';
 
 export type ProviderId = 'uw' | 'massive';
 
@@ -338,9 +339,11 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
      answered by the always-on recorder there instead, so a dev server that comes and goes never records a day with
      holes beside it (the owner, 2026-10-13: "The recorder must run on an always-on machine"). */
   const upstream = opts.fieldUpstream?.replace(/\/+$/, '') || null;
-  const recorder = createFieldRecorder(client, { always: opts.recordNames });
   /* THE FIELD'S PAST SESSIONS (server/fieldBackfill.ts): a session before today rebuilt from UW's dated history, once */
   const backfill = createFieldBackfill(client);
+  /* THE POINT-IN-TIME STORE (server/fieldStore.ts): two rows a minute, written by the recorder */
+  const store = createFieldStore();
+  const recorder = createFieldRecorder(client, { always: opts.recordNames, backfill, store });
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
   const PROBE_TTL = MIN;
 
@@ -360,7 +363,7 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     res.end(a.body);
   };
 
-  return async (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
+  const handler = async (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
     const raw = req.url ?? '';
     if (!raw.startsWith('/feed/')) return next();
     if (!opts.allowLan && !isLoopback(req.socket.remoteAddress)) return send(res, json(403, { error: 'loopback-only' }));
@@ -378,6 +381,17 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         } catch {
           return send(res, json(502, { error: 'network', where: 'recorder' }));
         }
+      }
+      const sr = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/store$/.exec(url.pathname);
+      if (sr) {
+        const r = store.serve(sr[1], url.searchParams.get('day') ?? '', url.searchParams.get('kind') ?? 'final', Number(url.searchParams.get('since')) || 0);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
+      const cv = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/coverage$/.exec(url.pathname);
+      if (cv) {
+        const r = backfill.coverage(cv[1]);
+        const body = r.status === 200 ? JSON.stringify({ ...(JSON.parse(r.body) as Record<string, unknown>), store: store.days(cv[1]) }) : r.body;
+        return send(res, { status: r.status, contentType: 'application/json', body, from: 'proxy' });
       }
       const past = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/past$/.exec(url.pathname);
       if (past) {
@@ -404,4 +418,6 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
       return send(res, json(500, { error: 'proxy' }));
     }
   };
+  /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
+  return Object.assign(handler, { backfill, recorder, store });
 }

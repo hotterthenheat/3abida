@@ -78,6 +78,8 @@ import {
   useFeedField,
   useServerField,
   useServerPastSessions,
+  useFieldCoverage,
+  coverageLine,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1262,7 +1264,10 @@ const Pane = ({
   const rail = railData;
   /* HOW SURE, WITH THE FIELD (2026-10-13): on the feed the ladder's "How sure" also says how far the modeled field stands
      from Unusual Whales' own figures today — one line, no new panel */
-  const railSure = useMemo(() => (onFeed && fTrail.residual && rail.sure ? rail.sure.map(x => ({ ...x, field: fTrail.residual ?? undefined })) : rail.sure), [onFeed, fTrail.residual, rail.sure]);
+  /* the field's line in How sure: its residual against the vendor's book, and the sessions rebuilt (the coverage line) */
+  const fCoverage = useFieldCoverage(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
+  const fieldLine = useMemo(() => [fTrail.residual, coverageLine(fCoverage)].filter(Boolean).join(' '), [fTrail.residual, fCoverage]);
+  const railSure = useMemo(() => (onFeed && fieldLine && rail.sure ? rail.sure.map(x => ({ ...x, field: fieldLine })) : rail.sure), [onFeed, fieldLine, rail.sure]);
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
 
