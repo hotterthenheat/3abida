@@ -204,11 +204,69 @@ Measured at 13:31 New York on the live chain (4,010 contracts) and three of the 
   American model — the far-dated puts' 2–5% is the American gap this note estimated), and the sum of them is what its
   book carries.
 
-So the gap is systematic and has one source: UW's book sums UW's own per-contract gammas, the model prices every
-contract afresh at one spot, one clock and the last print's vol. The per-strike residual (5–11%) and the summed net's
-sign are stated in How sure as before; nothing is calibrated. What would close it is UW's per-contract gamma itself
-in the chain reads (the recorder drops it today) priced as UW's — a choice for the owner, since it trades the model's
-one clock for UW's undocumented one.
+**Split into calls and puts, by expiry** (the owner's ask, 2026-10-13; measured 13:49 New York, 4,010 contracts, OI × S²
+weighted within 15% of spot, the median per-contract ratio beside it; BS at the chain's IV ÷ UW's chain gamma):
+
+| Expiry | Calls, ratio (median, n) | Puts, ratio (median, n) | Near the money (±2%): calls · puts |
+|---|---|---|---|
+| Oct 13 (today) | 0.992 (—, 87) | 1.042 (1.93, 55) | 0.991 · 1.041 |
+| Oct 14 | 1.006 (2.05, 91) | 0.997 (1.05, 72) | 1.002 · 0.996 |
+| Oct 15 | 1.019 (1.03, 91) | 0.991 (1.02, 63) | 1.022 · 0.984 |
+| Oct 16 | 1.013 (1.00, 123) | 0.992 (1.01, 106) | 1.020 · 0.986 |
+| Oct 19 | 1.040 (0.99, 89) | 0.968 (0.99, 61) | 1.043 · 0.957 |
+| Oct 23 | 1.051 (1.04, 77) | 0.954 (0.97, 82) | 1.065 · 0.939 |
+| Oct 30 | 1.074 (1.07, 103) | 0.944 (0.96, 139) | 1.089 · 0.923 |
+| Nov 6 | 1.093 (1.09, 74) | 0.924 (0.94, 86) | 1.101 · 0.905 |
+| Nov 13 | 1.107 (1.11, 69) | 0.913 (0.93, 90) | 1.118 · 0.890 |
+| Nov 20 | 1.110 (1.10, 79) | 0.914 (0.93, 112) | 1.122 · 0.879 |
+| Nov 27 | 1.127 (1.14, 53) | 0.891 (0.90, 62) | 1.142 · 0.862 |
+| Nov 30 | 1.132 (1.14, 66) | 0.902 (0.91, 91) | 1.145 · 0.860 |
+| All | 1.026 | 0.983 | |
+
+Neither of the two cases the owner set: the puts do not carry it with the calls within 1%, and the calls do not show
+the same gap. They show the OPPOSITE gap of the same size, both growing with time to expiry — the model above UW's
+gamma on calls by 1% at a day and 13% at seven weeks, below it on puts by the same steps. (The 0DTE medians are
+meaningless — a deep-out-of-the-money same-day contract's gamma is a rounding figure on both sides.)
+
+**Put-call parity, the deciding check.** At the same strike and expiry a call and a put have the SAME Black–Scholes
+gamma whatever the carry, so if UW priced both sides as Black–Scholes at one vol, its call and put gammas at a strike
+would be equal. At the strikes within 5% of spot that hold both sides (medians per expiry):
+
+| Expiry | n | UW's γ_call ÷ γ_put | The chain's IV_call ÷ IV_put | BS at each side's own IV, γ_call ÷ γ_put |
+|---|---|---|---|---|
+| Oct 13 (today) | 49 | 0.329 | 0.935 | 0.828 |
+| Oct 14 | 51 | 0.994 | 0.974 | 1.001 |
+| Oct 16 | 63 | 1.395 | 1.045 | 1.000 |
+| Oct 23 | 43 | 0.919 | 1.004 | 1.000 |
+| Oct 30 | 47 | 0.872 | 0.996 | 1.000 |
+| Nov 13 | 38 | 0.818 | 1.004 | 0.998 |
+| Nov 20 | 53 | 0.801 | 1.002 | 0.999 |
+| Nov 27 | 14 | 0.758 | 0.997 | 1.006 |
+| Nov 30 | 27 | 0.770 | 0.985 | 1.012 |
+
+The chain's two vols at a strike agree within 2%, and Black–Scholes at each side's own vol keeps the two gammas equal
+(1.00); UW's own gammas do not — its put gamma stands 20–30% above its call gamma at the same strike by five to seven
+weeks. So UW's per-contract gamma is not Black–Scholes at the chain's vol for either side, and the split is not
+American exercise: SPY pays no dividend inside these expiries, so an American call equals the European one and could
+not sit 13% below it, and the two sides would not move apart symmetrically. It is UW's model or its vol source for the
+`gamma` field — undocumented — and by the owner's rule it stays the stated residual in How sure. Pricing the puts
+American was the other branch and does not apply.
+
+**Where today's +2% sits: in the spot each contract's UW gamma was figured at, not in calls or puts.** Today's
+contracts by moneyness (strike against the spot of the moment, OI-weighted): below spot by more than 1%, the model
+stands at 2.08× UW on calls and 1.51× on puts; from −1% to spot 1.35× and 1.13×; from spot to +1% 0.79× and 0.88×;
+above +1% 1.22× and 1.76×. Both sides above UW below spot and below UW above it is the signature of a gamma figured at
+a HIGHER spot than the current one — each contract's at its own last print (the chain's gammas are as of the prints;
+a same-day profile is so narrow, two hours from expiry, that half a dollar of spot moves a strike's gamma by a third:
+UW's own call-to-put ratio at a same-day strike is 0.33). The model re-prices every contract at one current spot, which
+is the trail's purpose; UW's field is a sum of stale per-contract figures. The 2% is what is left when the two sides
+of spot net against each other.
+
+So the gap is systematic and has one source: UW's book sums UW's own per-contract gammas — figured by a model that
+breaks put-call parity and at each contract's last print — while the model prices every contract afresh at one spot,
+one clock and the last print's vol under Black–Scholes. The per-strike residual (5–11%) and the summed net's sign are
+stated in How sure; nothing is calibrated, and UW's per-contract gamma is not carried (it is not repriced along the
+minute path, and a past session has only end-of-day chain greeks).
 
 ## What is still open
 - **A half day** (13:00 close): today's τ is taken to the 13:00 close, unverified against UW.

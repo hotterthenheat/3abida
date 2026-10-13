@@ -354,9 +354,14 @@ no tab asking; a POST is refused, a vendor route answers through it. docs/data-f
 11.4% to 8.9% and the others not at all), not the stamps (within two minutes). UW's book at a strike is exactly the
 sum of each contract's own `gamma` on the chain × open interest × price² (772: 1,229M both; 780: −1,222M both); the
 model's pricer reproduces that sum within 0.3% over the chain but by expiry runs 1.02 on today's contracts to 0.95 at
-seven weeks, so every strike near the money comes out 30–100M more negative. UW figures each contract's gamma from
-something other than the chain's last-print vol at the current spot (its own vol, or an American model for the puts);
-the model prices every contract afresh at one spot and clock. docs/research-2026-10-13/uw-vol-convention.md.
+seven weeks, so every strike near the money comes out 30–100M more negative. Split into calls and puts by expiry (the owner's
+ask): the calls run ABOVE UW's gamma by 1% at a day and 13% at seven weeks, the puts BELOW it by the same steps —
+opposite signs, the same size, growing with time; and at the same strike UW's own put gamma stands 20–30% above its
+call gamma while the chain's two vols agree within 2% and Black–Scholes keeps them equal. Not American exercise (SPY
+pays no dividend inside 60 days; an American call equals the European); UW's model or vol source for its `gamma`
+field, so by the owner's rule it stays the stated residual — the puts are not priced American. Today's +2% sits in
+the spot each contract's UW gamma was figured at (its last print's), not in calls or puts: below spot both sides
+stand above UW, above spot both below. docs/research-2026-10-13/uw-vol-convention.md.
 
 **4. The prior close.** The rail is right: UW's `prev_close` 778.10 equals Massive's daily close for Oct 12 (the
 official close, the closing auction). 778.06 is the 3:59 pm minute's close on both vendors (UW 778.055, Massive
