@@ -62,7 +62,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { columnSummary, modelColumn, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, type ChainRead, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
+import { columnSummary, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
 import { RunningScale, columnMax } from '../src/data/feed/beadScale';
 import { nyWallTime } from '../src/core/nyTime';
 import type { MinuteBar, PastDay } from './fieldBackfill';
@@ -260,12 +260,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
   }
 
   /** The rebuild path's inputs for a day — one mapping, the page's (data/feed/levels.ts loadPastDay) and the store's */
-  function inputsOf(past: PastDay): ServerInputs {
-    const [y, mo, d] = past.day.split('-').map(Number);
-    /* the positions dated the session are knowable at its open; no vol comes with them */
-    const open: ChainRead = { receivedAt: nyWallTime(y, mo, d, 9, 30), rows: past.oi.map(([sym, oi]) => [sym, oi, null, null]) };
-    return { chains: [open], seed: past.seed, total: past.total, ticks: past.ticks };
-  }
+  const inputsOf = (past: PastDay): ServerInputs => pastInputs(past);
 
   /**
    * THE FINAL ROWS from today's rebuild so far (fieldBackfill today().advance()): the regular session's minutes that

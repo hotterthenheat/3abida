@@ -370,6 +370,30 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
   return { time: bar.time, levels, spot, rebuilt: true };
 }
 
+/* ---- a rebuilt session as the model's inputs — ONE mapping for the server's store, the pages' trail and Pinpoint ------ */
+
+/** What a rebuilt session carries (server/fieldBackfill.ts PastDay, served by /feed/field/<NAME>/day/<D>) */
+export interface PastInputsLike {
+  day: string;
+  /** [OCC symbol, open interest dated the session] */
+  oi: [string, number][];
+  seed: SeedRead | null;
+  ticks?: Record<string, number[]>;
+  total?: TotalRead | null;
+}
+/** The positions dated the session are knowable at its open (and stand from 7:00 am, universeOf); no vol comes with them */
+export function pastInputs(p: PastInputsLike): ServerInputs {
+  const [y, m, d] = p.day.split('-').map(Number);
+  const open: ChainRead = { receivedAt: nyWallTime(y, m, d, 9, 30), rows: p.oi.map(([sym, oi]) => [sym, oi, null, null]) };
+  return { chains: [open], seed: p.seed, total: p.total ?? null, ticks: p.ticks ?? {} };
+}
+/** A past session's book AT ITS OPEN: the rebuilt field's column on the opening bar — the day's published count, the
+    session before's close vols and the first minute's prints, nothing knowable later (the owner, 2026-10-13: UW's
+    greek-exposure/strike?date=D is the day's END state, so Pinpoint's history no longer reads it as the open) */
+export function openColumn(name: string, p: PastInputsLike, bar: { time: number; close: number }): GexSnapshot {
+  return modelColumn(universeOf(name, p.day, pastInputs(p)), bar);
+}
+
 /* ---- the store's reading of a column (server/fieldStore.ts, 2026-10-13) --------------------------------------- */
 
 /** The heaviest strikes a store row keeps */

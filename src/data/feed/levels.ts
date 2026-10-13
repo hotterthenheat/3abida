@@ -55,6 +55,7 @@
 ==================================================
 */
 
+import { pastInputs } from './trailModel';
 import { isoDayLabel } from '../../core/format';
 import type { FeedBook60 } from './trailModel';
 import { useMemo, useSyncExternalStore } from 'react';
@@ -1012,10 +1013,8 @@ async function loadPastDay(t: string, day: string): Promise<void> {
   try {
     const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/day/${day}`)) as FeedResult<PastDayAnswer>;
     if (!r.ok || !r.data || !Array.isArray(r.data.oi)) return;
-    const [y, m, d] = day.split('-').map(Number);
-    /* the positions dated the session are knowable at its open; no vol comes with them */
-    const open: ChainRead = { receivedAt: nyWallTime(y, m, d, 9, 30), rows: r.data.oi.map(([sym, oi]) => [sym, oi, null, null]) };
-    takePastSession(t, day, { chains: [open], seed: r.data.seed, total: r.data.total, ticks: r.data.ticks ?? {} });
+    /* one mapping for the server's store, this page and Pinpoint (trailModel pastInputs) */
+    takePastSession(t, day, pastInputs({ day, oi: r.data.oi, seed: r.data.seed, total: r.data.total, ticks: r.data.ticks ?? {} }));
     pastLoaded.add(key);
     pastLoadedSubs.forEach(f => f());
   } finally {

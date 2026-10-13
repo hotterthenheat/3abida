@@ -28,7 +28,7 @@
                    sessions before by date); daily
                    bars for the ATR (/ohlc/1d)
     the history    each past session's book at its
-                   open (/greek-exposure/strike?date=),
+                   open (the rebuilt field's 9:30 column — never UW's end-of-day state),
                    the last two closes' books (/spot-
                    exposures/strike?date=) with the
                    open interest they closed on, and
@@ -69,7 +69,8 @@ import { CALENDAR_DTES } from '../exposureSurface';
 import type { ExposureSurface } from '../exposureSurface';
 import type { ExposureProfileData } from '../../types/gex';
 import type { Candle, GexLevel, GexSnapshot, MarketSnapshot, StrikeNode, TapeOrder } from '../../types/market';
-import type { FeedFail, FeedResult } from './client';
+import { feedFetch, type FeedFail, type FeedResult } from './client';
+import { openColumn, type PastInputsLike } from './trailModel';
 import {
   aroundPrice,
   bookFrom,
@@ -93,7 +94,6 @@ import {
 import {
   uwFlowPerStrike,
   uwFlowRecent,
-  uwGreekExposureByStrike,
   uwInterpolatedIv,
   uwMaxPain,
   uwOhlc,
@@ -107,7 +107,6 @@ import {
   type UwExpiryStrikeExposure,
   type UwImpliedMove,
   type UwMaxPain,
-  type UwOpenExposure,
   type UwOptionTrade,
   type UwSpotExposure,
   type UwStockState,
@@ -153,7 +152,7 @@ const SPECS: Record<Kind, Spec> = {
   tape: { rank: 3, period: () => 60_000, load: t => uwFlowRecent(t) },
   minutes: { rank: 3, period: arg => (past(arg) ? NEVER : 60_000), load: (t, arg) => uwSpotExposures(t, arg || undefined) },
   pastBars: { rank: 4, period: () => NEVER, load: (t, arg) => uwOhlc(t, { size: '1m', limit: 1000, date: arg }) },
-  open: { rank: 4, period: arg => (past(arg) ? NEVER : 10 * 60_000), load: (t, arg) => uwGreekExposureByStrike(t, arg) },
+  open: { rank: 4, period: arg => (past(arg) ? NEVER : 10 * 60_000), load: (t, arg) => loadOpenColumn(t, arg) },
   close: { rank: 4, period: () => NEVER, load: (t, arg) => loadCloseBook(t, arg) },
   daily: { rank: 5, period: () => 60 * 60_000, load: t => uwOhlc(t, { size: '1d', limit: 40 }) },
 };
@@ -163,6 +162,29 @@ function loadByExpiry(t: string, dates: string[]): Promise<FeedResult<UwExpirySt
   const w = feedWindow(t);
   return uwSpotGexByExpiryStrike(t, dates, { minStrike: w?.lo, maxStrike: w?.hi });
 }
+
+/** A past session's book AT ITS OPEN (`date|open price|first bar's time (s)`): the rebuilt field's 9:30 column
+    (trailModel openColumn) — the day's published count, the session before's close vols, the first minute's prints.
+    UW's greek-exposure/strike?date=D is the day's END state (measured 2026-10-13: nearer the newest book than the
+    prior close), never its open, so it is not read here any more. The server builds the session once when asked
+    (/feed/field/<NAME>/past); until it is built the part fails and is asked again in a minute; a session the server
+    cannot build (before the plan's window) is not asked again this visit. */
+async function loadOpenColumn(t: string, arg: string): Promise<FeedResult<GexLevel[]>> {
+  const [day, openStr, timeStr] = arg.split('|');
+  const open = Number(openStr);
+  const time = Number(timeStr);
+  if (!day || !Number.isFinite(open) || !Number.isFinite(time)) return { ok: false, reason: 'shape', status: 0 };
+  const asked = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/past?days=${day}`)) as FeedResult<{ ready: string[]; failed?: Record<string, string> }>;
+  if (!asked.ok) return asked;
+  if (!Array.isArray(asked.data?.ready) || !asked.data.ready.includes(day)) return { ok: false, reason: asked.data?.failed && day in asked.data.failed ? 'plan' : 'timeout', status: 0 };
+  const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/day/${day}`)) as FeedResult<PastInputsLike & { oi?: unknown }>;
+  if (!r.ok) return r;
+  if (!r.data || !Array.isArray(r.data.oi)) return { ok: false, reason: 'shape', status: 0 };
+  const col = openColumn(t, { day, oi: r.data.oi, seed: r.data.seed ?? null, ticks: r.data.ticks ?? {}, total: r.data.total ?? null }, { time, close: open });
+  return { ok: true, data: col.levels, at: Date.now() };
+}
+/** The open's arg: the day, its opening price and its first bar's time */
+const openArg = (day: string, open: number, time: number) => `${day}|${open}|${time}`;
 
 /** A past session's book as it closed, round that day's close (`date|lo|hi`) */
 function loadCloseBook(t: string, arg: string): Promise<FeedResult<UwStrikeExposure[]>> {
@@ -627,18 +649,16 @@ export function feedLensChain(snap: MarketSnapshot, date: Date, exact = false): 
 
 /* ---- the history ------------------------------------------------------------------------------------------------- */
 
-const levelsOfOpen = (rows: UwOpenExposure[], price: number): GexLevel[] =>
-  aroundPrice(rows, price, FEED_HALF).map(r => ({ strike: r.strike, value: -(r.callGamma + r.putGamma), dex: -(r.callDelta + r.putDelta) }));
-
-/** The book through time: each past session at its open (and the last two at their close, with the open interest they
-    closed on), and today's books as this machine read them, carried on to every minute bar after each read */
+/** The book through time: each past session at its open — the rebuilt field's column on its opening bar (loadOpenColumn),
+    never UW's end-of-day state — (and the last two at their close, with the open interest they closed on), and today's
+    books as this machine read them, carried on to every minute bar after each read */
 function historyOf(t: string): GexSnapshot[] {
   const bars = candlesOf(t) ?? [];
   const sessions = sessionsOf(bars);
   const day0 = today();
   const field = fieldSnaps(t);
   const pastSessions = sessions.filter(s => s.day < day0);
-  const opens = pastSessions.map(s => pastPart<UwOpenExposure[]>(t, 'open', s.day));
+  const opens = pastSessions.map(s => pastPart<GexLevel[]>(t, 'open', openArg(s.day, s.first.open, s.first.time)));
   /* the last three closes — the overnight change reads the two before the trailing session, whichever it is */
   const closers = pastSessions.slice(-3);
   const closes = closers.map(s => pastPart<UwStrikeExposure[]>(t, 'close', closeArg(s.day, s.last.close)));
@@ -647,7 +667,7 @@ function historyOf(t: string): GexSnapshot[] {
     const out: GexSnapshot[] = [];
     pastSessions.forEach((s, i) => {
       const rows = opens[i];
-      if (rows && rows.length) out.push({ time: s.first.time, levels: levelsOfOpen(rows, s.first.open) });
+      if (rows && rows.length) out.push({ time: s.first.time, levels: rows });
       const ci = closers.indexOf(s);
       if (ci >= 0) {
         const book = closes[ci] ? bookFrom(t, closes[ci]!) : null;

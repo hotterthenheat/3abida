@@ -808,8 +808,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   ORDER", read against the data, then the owner: "Go on all five"; docs/data-feed.md "The point-in-time store and the
   backfill"). THE D−1 SPLIT: open interest is day D's count from 7:00 am New York and D−1's before it; books, greeks and
   vols are D−1 in replay and backfill (`spot-exposures/strike?date=D` and `greek-exposure/strike?date=D` are D's END
-  state — Pinpoint's history read the latter as "the session at its open", to be fixed on the rebuilt field's 9:30
-  column). TWO ROWS A MINUTE (server/fieldStore.ts): "shown", the column Terrain drew, written by the recorder from
+  state — Pinpoint's history read the latter as "the session at its open"; since the same day its open is the rebuilt
+  field's column on the opening bar, trailModel `openColumn`, the look-ahead test in field-store-proof). TWO ROWS A MINUTE (server/fieldStore.ts): "shown", the column Terrain drew, written by the recorder from
   what it had received by the minute's end, never edited, a minute missed a gap; "final", the rebuild path's column
   (fieldBackfill `today()`), written at each chain read for the minutes a minute behind the inputs asked, equal to
   the session's full rebuild to the cell (one code path: data/feed/trailModel.ts, the model split out of trailField.ts

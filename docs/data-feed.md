@@ -264,6 +264,15 @@ close) and the price and minute UW figured the hedging at.
 
 ### Pinpoint: the owner's pages, the vendor's figures (2026-10-12, rewired the same evening)
 
+**A past session's open book (2026-10-13).** Pinpoint's history read `/greek-exposure/strike?date=D` as "the session at
+its open". Measured against the recorder's books it is the day's END state (today's dated answer sits nearer the newest
+book than the prior close; a past date's is its close), so the records stood on a look-ahead. Now a past session's open
+is the rebuilt field's column on its opening bar (trailModel `openColumn` through `pastInputs`, one mapping with the
+server's store and Terrain's trail): the day's published count, the session before's close vols, the first minute's
+prints, nothing knowable later; the server builds the session once when asked (`/feed/field/<NAME>/past`), and a
+session not built yet is asked again in a minute. scripts/field-store-proof.ts holds the look-ahead test: every vol
+stamped after 9:31 changed leaves the open column the same; the first minute's own vols move it.
+
 THE UI IS THE OWNER'S; THE FEED FILLS IT. Pinpoint has one set of pages. The feed variants of the afternoon
 (`pages/pinpoint/feed`, a list of strikes in place of each page) are gone: with the room on the feed every page, panel,
 tab, menu, guide and row action (the alert, the Chart door) is the house's, and every engine under it reads the market

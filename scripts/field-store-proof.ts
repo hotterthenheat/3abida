@@ -22,7 +22,7 @@ import { createFieldBackfill } from '../server/fieldBackfill';
 import { createFieldRecorder } from '../server/fieldRecorder';
 import { createFieldStore, SHOWN_LATE_MS, type Bar, type StoreRow } from '../server/fieldStore';
 import type { FeedClient } from '../server/feed';
-import { oiAt, straddleExpiries, straddleFromChain, universeOf, type ChainRow } from '../src/data/feed/trailModel';
+import { oiAt, openColumn, straddleExpiries, straddleFromChain, universeOf, type ChainRow } from '../src/data/feed/trailModel';
 import { RunningScale } from '../src/data/feed/beadScale';
 import { GexTrailsPrimitive } from '../src/components/gex/gexNodesPrimitive';
 import { nyWallTime } from '../src/core/nyTime';
@@ -205,6 +205,18 @@ try {
   const u = universeOf('SPY', D, store.inputsOf(past));
   const j = u.start[STRIKES.indexOf(600)];
   check("the D−1 split: before 7:00 am the session before's count (100), from 7:00 am the day's (120); the vols at the open the close's (0.20)", oiAt(u.oiObs[j], at(6, 0)) === 100 && oiAt(u.oiObs[j], at(7, 0)) === 120 && oiAt(u.oiObs[j], at(9, 30)) === 120 && u.obs[j][0].carried && u.obs[j][0].iv === 0.2);
+  /* Pinpoint's open book (the owner, 2026-10-13: greek-exposure/strike?date=D "is the day's end state, not its open. Fix
+     Pinpoint's history to stop reading it as the open (use the rebuilt field's 9:30 column), and add a look-ahead test") */
+  const openBar = { time: OPEN / 1000, close: closeAt(0) };
+  const base = openColumn('SPY', past, openBar);
+  const later = { ...past, ticks: Object.fromEntries(Object.entries(past.ticks).map(([sym, arr]) => [sym, arr.map((v, i) => (i % 2 === 1 && arr[i - 1] > OPEN + 60_000 ? v + 0.5 : v))])) };
+  const laterCol = openColumn('SPY', later, openBar);
+  const earlier = { ...past, ticks: Object.fromEntries(Object.entries(past.ticks).map(([sym, arr]) => [sym, arr.map((v, i) => (i % 2 === 1 && arr[i - 1] <= OPEN ? v + 0.5 : v))])) };
+  const earlierCol = openColumn('SPY', earlier, openBar);
+  const kOpen = base.levels.find(l => l.strike === 600);
+  check("Pinpoint's open book is the rebuilt field's column on the opening bar: every vol stamped after 9:31 changed and the column is the same", base.levels.length === 9 && JSON.stringify(laterCol.levels) === JSON.stringify(base.levels));
+  check("… and the first minute's own vols move it", JSON.stringify(earlierCol.levels) !== JSON.stringify(base.levels));
+  check("… on the day's published count, never the session before's", kOpen != null && oiAt(universeOf('SPY', D, store.inputsOf(past)).oiObs[u.start[STRIKES.indexOf(600)]], OPEN + 60_000) === 120);
   check('serve: rows after a minute, a bad kind refused', (JSON.parse(store.serve('SPY', D, 'final', final2[0].m).body) as { rows: StoreRow[] }).rows.length === final2.length - 1 && store.serve('SPY', D, 'x').status === 400);
 } finally {
   rmSync(root, { recursive: true, force: true });
