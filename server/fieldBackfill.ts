@@ -63,6 +63,8 @@ import { type TapeDay, type TapeReader, type TapeRow } from './tapeBackfill';
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 const FILE = 'past.json.gz';
 const META = 'past.meta.json';
+/** The session's minute bars as read when it was built (the scorecard's touches stand on their highs and lows) */
+const BARS = 'bars.json.gz';
 /** The file's own format — a change of what is stored is a new number */
 export const PAST_FORMAT = 2;
 const MAX_DTE = 60;
@@ -144,6 +146,9 @@ export interface MinuteBar {
   time: number;
   close: number;
   session: 'pre' | 'r' | 'post';
+  open?: number;
+  high?: number;
+  low?: number;
 }
 export interface PastState {
   ready: string[];
@@ -261,7 +266,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     }
     if (!Number.isFinite(open) || !Number.isFinite(lo)) throw new Error('no prices that day');
     const minutes: MinuteBar[] = bars.rows
-      .map(r => ({ time: Date.parse(String(r.start_time)) / 1000, close: num(r.close) ?? NaN, session: (r.market_time === 'r' ? 'r' : r.market_time === 'pr' ? 'pre' : 'post') as MinuteBar['session'] }))
+      .map(r => ({ time: Date.parse(String(r.start_time)) / 1000, close: num(r.close) ?? NaN, session: (r.market_time === 'r' ? 'r' : r.market_time === 'pr' ? 'pre' : 'post') as MinuteBar['session'], open: num(r.open) ?? undefined, high: num(r.high) ?? undefined, low: num(r.low) ?? undefined }))
       .filter(b => Number.isFinite(b.time) && Number.isFinite(b.close))
       .sort((a, b) => a.time - b.time);
     return { open, lo, hi, calls: 1, bars: minutes };
@@ -334,7 +339,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { calls, refused };
   }
 
-  async function build(name: string, day: string, tape?: Record<string, TapeRow[]>): Promise<PastDay> {
+  async function build(name: string, day: string, tape?: Record<string, TapeRow[]>): Promise<PastDay & { bars: MinuteBar[] }> {
     let calls = 0;
     const b = await barsOf(name, day);
     calls += b.calls;
@@ -376,14 +381,14 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
         const out = compressTicks(rows, day);
         if (out.length) ticks[String(r.option_symbol)] = out;
       }
-      return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed: s.seed, ticks, total, calls, asked, refused: 0, vols: Object.keys(ticks).length ? 'tape' : 'close' };
+      return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed: s.seed, ticks, total, calls, asked, refused: 0, vols: Object.keys(ticks).length ? 'tape' : 'close', bars: b.bars };
     }
     const ask = askOf(kept, b.lo, b.hi);
     const t = await ticksFor(name, day, ask, ticks);
     calls += t.calls;
     if (ask.length && t.refused / ask.length > MAX_REFUSED) throw new Error(`${t.refused} of ${ask.length} contracts refused — tried again later`);
 
-    return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed: s.seed, ticks, total, calls, asked: ask.length, refused: t.refused, vols: Object.keys(ticks).length ? 'minute' : 'close' };
+    return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed: s.seed, ticks, total, calls, asked: ask.length, refused: t.refused, vols: Object.keys(ticks).length ? 'minute' : 'close', bars: b.bars };
   }
 
   /** TODAY, REBUILT AS IT GOES — the store's final rows (server/fieldStore.ts; the owner, 2026-10-13: "written by the
@@ -439,12 +444,14 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { advance, calls: () => calls };
   }
 
-  function save(p: PastDay) {
+  function save(p: PastDay & { bars?: MinuteBar[] }) {
     const file = fileOf(p.name, p.day);
     mkdirSync(join(root, p.name, p.day), { recursive: true });
+    const { bars: minutes, ...session } = p;
     const tmp = `${file}.tmp`;
-    writeFileSync(tmp, gzipSync(Buffer.from(JSON.stringify(p))));
+    writeFileSync(tmp, gzipSync(Buffer.from(JSON.stringify(session))));
     renameSync(tmp, file);
+    if (minutes?.length) writeFileSync(join(root, p.name, p.day, BARS), gzipSync(Buffer.from(JSON.stringify(minutes))));
     /* the coverage line reads these alone — never the sessions themselves */
     writeFileSync(join(root, p.name, p.day, META), JSON.stringify({ vols: p.vols, builtAt: p.builtAt, asked: p.asked, refused: p.refused, calls: p.calls } satisfies PastMeta));
   }
@@ -523,6 +530,24 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     }
     void run();
     return { status: 200, body: JSON.stringify(state) };
+  }
+
+  /** A session's minute bars: the file kept beside it, else one call (kept then) — null where the vendor has none */
+  async function bars(name: string, day: string): Promise<MinuteBar[] | null> {
+    const file = join(root, name, day, BARS);
+    try {
+      if (existsSync(file)) return JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')) as MinuteBar[];
+    } catch {
+      /* a file cut short: read again */
+    }
+    try {
+      const b = await barsOf(name, day);
+      mkdirSync(join(root, name, day), { recursive: true });
+      writeFileSync(file, gzipSync(Buffer.from(JSON.stringify(b.bars))));
+      return b.bars;
+    } catch {
+      return null;
+    }
   }
 
   /** GET /feed/field/<NAME>/day/<D>: a built session's inputs, or 404 */
@@ -631,5 +656,5 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { status: 200, body: JSON.stringify(out) };
   }
 
-  return { ask, day, build, today, runRange, coverage, save, has, useTape, idle: () => !running && !job.running, job: () => ({ ...job }) };
+  return { ask, day, build, bars, today, runRange, coverage, save, has, useTape, idle: () => !running && !job.running, job: () => ({ ...job }) };
 }

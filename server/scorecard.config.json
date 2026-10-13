@@ -1,0 +1,13 @@
+{
+  "version": "record-2026-10-13.1",
+  "tol": { "default": 0.0002, "variants": [0.0001, 0.0005] },
+  "horizons": [15, 30],
+  "excursions": [5, 15, 30],
+  "topK": 3,
+  "random": { "perSide": 20, "seed": 20261013, "lookbackSessions": 21 },
+  "bootstrap": { "reps": 1000, "seed": 20261013 },
+  "regime": { "trailingSessions": 60, "rangeHorizons": [30, 60] },
+  "holdoutMonths": 6,
+  "minTouches": 500,
+  "minMonths": 12
+}

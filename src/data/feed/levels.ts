@@ -1079,6 +1079,21 @@ export function useServerPastSessions(on: boolean, ticker: string, bars: readonl
   return { asked: days.length - failed, ready: Math.min(inPage, a.ready.length), working: a.working };
 }
 
+/** THE TRACK RECORD (the owner's item 2, server/scorecard.ts): the level types scored against their baselines over the
+    store's final rows, one line each for How sure and the hover card, asked every ten minutes while the trail is on */
+export type RecordKind = 'call wall' | 'put wall' | 'flip' | 'top strike';
+export interface TrackRecordCard {
+  lines: Record<RecordKind, string>;
+  holdoutNote: string;
+  main: { sessions: number; months: number; touches: number; variantsTried: number; firstDay: string | null; lastDay: string | null };
+  builtAt: number;
+}
+export function useTrackRecord(on: boolean, ticker: string): TrackRecordCard | null {
+  const t = ticker.toUpperCase();
+  const r = useFeedPoll(on && t ? `field:scorecard:${t}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/scorecard`) as Promise<FeedResult<TrackRecordCard>>, 10 * 60_000);
+  return r?.ok && r.data && r.data.lines ? r.data : null;
+}
+
 /** THE COVERAGE LINE (the owner, 2026-10-13, item 1: "session picker shows coverage ('rebuilt <first date> to <last
     date>, N sessions')"): the sessions the server has rebuilt for a name, asked once a minute while the trail is on */
 export interface FieldCoverage {

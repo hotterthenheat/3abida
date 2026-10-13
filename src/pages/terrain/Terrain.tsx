@@ -1,3 +1,4 @@
+import { isoDayLabel } from '../../core/format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Code2, ExternalLink, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
@@ -80,6 +81,7 @@ import {
   useServerPastSessions,
   useFieldCoverage,
   coverageLine,
+  useTrackRecord,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1267,7 +1269,20 @@ const Pane = ({
   /* the field's line in How sure: its residual against the vendor's book, and the sessions rebuilt (the coverage line) */
   const fCoverage = useFieldCoverage(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
   const fieldLine = useMemo(() => [fTrail.residual, coverageLine(fCoverage)].filter(Boolean).join(' '), [fTrail.residual, fCoverage]);
-  const railSure = useMemo(() => (onFeed && fieldLine && rail.sure ? rail.sure.map(x => ({ ...x, field: fieldLine })) : rail.sure), [onFeed, fieldLine, rail.sure]);
+  /* the track record (the owner's item 2): the level types scored against their baselines, in How sure and the hover card */
+  const fRecord = useTrackRecord(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
+  const recordSure = useMemo(
+    () =>
+      fRecord
+        ? {
+            lines: Object.values(fRecord.lines),
+            note: fRecord.holdoutNote,
+            scope: `Touches counted on ${fRecord.main.sessions} session${fRecord.main.sessions === 1 ? '' : 's'}${fRecord.main.firstDay && fRecord.main.lastDay ? ` (${isoDayLabel(fRecord.main.firstDay)} to ${isoDayLabel(fRecord.main.lastDay)})` : ''}; each level's bounce rate stands beside a strike-matched baseline's, never alone.`,
+          }
+        : undefined,
+    [fRecord]
+  );
+  const railSure = useMemo(() => (onFeed && (fieldLine || recordSure) && rail.sure ? rail.sure.map(x => ({ ...x, ...(fieldLine ? { field: fieldLine } : {}), ...(recordSure ? { record: recordSure } : {}) })) : rail.sure), [onFeed, fieldLine, recordSure, rail.sure]);
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
 
@@ -1737,6 +1752,7 @@ const Pane = ({
               /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
                  not a third of the chart (X11) */
               nyClock
+              recordLines={fRecord?.lines}
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
                  tape — and never spans less than eight strikes, so the ladder keeps its rows (the audit, row 31) */

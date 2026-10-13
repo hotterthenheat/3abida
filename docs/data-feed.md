@@ -551,6 +551,63 @@ The owner's plan ("TERRAIN — NEXT BUILDS", item 1) with the decisions taken af
   differ by 0.00002 at the median and 0.00005 at most; over the 390 columns the cells differ by 0.03% at the median
   and 0.18% at the 90th percentile, the walls agree in 389 of 390 and the flip in 390 of 390.
 
+## The track record (2026-10-13, the owner's item 2)
+
+The levels and the regime scored against baselines, on the store's FINAL rows alone (a rebuilt session's rows are the
+same code's, server/fieldStore.ts `rowsOf`): data/feed/trackRecord.ts is the pure engine, server/scorecard.ts the
+nightly job (after 4:05 pm New York on the always-on recorder, `npm run field:scorecard -- SPY` by hand), served by
+`GET /feed/field/<NAME>/scorecard` and printed in Terrain's How sure ("Track record") and in the hover card when the
+cursor is on the column's call wall, put wall or one of its three heaviest strikes.
+
+- **A level counts only once it has stood a minute** (the row before the bar), **a touch** is a bar whose low–high
+  reaches within `tol` (0.02% of price; 0.01% and 0.05% declared variants) of it, counted once per approach and
+  numbered within the session; **a bounce** at 15 and 30 minutes is the close on the side price came from; **MFE and
+  MAE** over 5, 15 and 30 minutes in points. Each touch carries the level's age, sign and size, the regime tercile
+  (the net over the trailing 60 sessions' rows, point in time), the time bucket and the touch number.
+- **Baselines on the same days, by the same rules**: B1 random (twenty levels above and twenty below the open,
+  uniform within the prior month's largest open-to-high or open-to-low distance, seeded — Osler), B2 strike-matched
+  (at each minute, for each real level, a listed strike on the same side at the same distance within a step whose
+  |gamma| is under the column's median, never a real level), B3 distance-matched (the mirror: the real level's
+  distance from spot when it formed, on the other side, kept until the level changes). The real rate minus B2's
+  carries a 95% interval from a day-block bootstrap (1,000 reps, seeded) and the months won as k of n with a
+  two-sided binomial p. Median MFE and MAE beside.
+- **Regime tests**: the realized range over the next 30 and 60 minutes by regime tercile, raw and over the straddle's
+  implied move; the last half hour (Baltussen et al. 2021): the 3:30 to 4:00 return on the prior-close to 3:30
+  return, by the regime's sign at 3:30, for the house's net and for UW's `_dir` series.
+- **Multiple testing**: every parameter is in server/scorecard.config.json (`record-2026-10-13.1`); the variants
+  tried (96: three tolerances, two horizons, ten splits, four level types, the tolerance variants on the whole
+  alone) stand beside every line; the most recent six months are a hold-out evaluated ONCE per config version and
+  kept in the file with the moment and the version — a run under a new version evaluates it again and says so.
+  A cell under 500 touches or 12 months says "insufficient data (N touches, M months)" and carries no rate.
+- **Acceptance** (scripts/track-record-proof.ts, `npm test`): on a synthetic random walk with arbitrary levels the
+  real levels show no edge over the random and strike-matched baselines (the interval covers zero, thousands of
+  touches a type); a level planted to turn the price back seven of every ten touches reads 71.8% on 156 touches
+  and the engine finds 156 of the generator's 158; a rerun is byte-identical; twelve sessions say insufficient; a
+  level that changes every minute never counts; a strike-matched level is a listed strike and never a real level.
+- **On screen** (2026-10-13, SPY on 12 rebuilt sessions): every line reads "insufficient data", as it must until the
+  backfill at home has run — the job scored 2 main sessions and a 10-session hold-out.
+
+### SPX's price, checked (2026-10-13 — the owner: "per minute, compute SPX_tape / SPY_bar_close over 5 past sessions
+and today. Pass if the ratio stays within ±0.02% of that day's median in ≥99% of regular minutes")
+
+The tape's last SPX or SPXW print each regular minute against SPY's 1-minute bar close of the same minute, through
+the production tape reader:
+
+| Day | Minutes | Median ratio | Within ±0.02% | p99 \|dev\| | Max \|dev\| (minute) |
+|---|---|---|---|---|---|
+| 2026-10-06 | 390 of 390 | 10.03631 | 99.74% | 0.014% | 0.024% (9:30 am) |
+| 2026-10-07 | 390 of 390 | 10.03581 | 99.74% | 0.014% | 0.021% (9:30 am) |
+| 2026-10-08 | 390 of 390 | 10.03552 | 99.74% | 0.018% | 0.023% (12:57 pm) |
+| 2026-10-09 | 390 of 390 | 10.03448 | 99.23% | 0.015% | 0.049% (11:02 am) |
+| 2026-10-12 | 390 of 390 | 10.03442 | 100.00% | 0.014% | 0.019% (9:31 am) |
+| 2026-10-13 | 390 of 390 | 10.03428 | 99.23% | 0.016% | 0.045% (2:05 pm) |
+
+Every day passes; the worst minutes are the open's first and a few single minutes mid-day. So SPX enters items 2
+and 4 on the tape path for its backfill, and live its price is the newest SPX or SPXW print's underlying price
+from the flow endpoint (`/api/option-trades?ticker_symbol=SPX` answers SPXW's prints too), labelled with its print
+time and shown stale once the newest print is older than two minutes. After the close the prints carry no
+underlying price (`null`, seen at 4:50 pm), so the last priced print stands, stale.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

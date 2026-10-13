@@ -66,6 +66,36 @@ if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
   }, 10 * 60_000);
   progress.unref();
 }
+/* THE SCORECARD, NIGHTLY (the owner's item 2: "runs after 4:00 p.m. ET"): once a day after 4:05 pm New York, every
+   recorded name but the indices; and once at start where a name has none yet */
+const nyMinuteNow = () => {
+  const p: Record<string, string> = {};
+  for (const x of new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', hour: 'numeric', minute: 'numeric', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()))
+    if (x.type !== 'literal') p[x.type] = x.value;
+  return { day: `${p.year}-${p.month}-${p.day}`, minute: (Number(p.hour) % 24) * 60 + Number(p.minute) };
+};
+const SCORED = new Set(['SPX', 'SPXW', 'NDX', 'NDXP', 'RUT', 'RUTW', 'VIX', 'VIXW', 'XSP']);
+let scoredDay = '';
+const score = async (why: string) => {
+  for (const n of names) {
+    if (SCORED.has(n)) continue;
+    try {
+      const c = await handle.scorecard.run(n);
+      console.log(`${stamp()} scorecard ${n} (${why}): ${c ? `${c.main.sessions} sessions, ${c.main.touches} touches; ${c.holdoutNote}` : 'nothing to score yet'}`);
+    } catch (e) {
+      console.error(`${stamp()} scorecard ${n} failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+};
+for (const n of names) if (!SCORED.has(n) && !handle.scorecard.read(n)) void score('first run').then(() => undefined);
+const nightly = setInterval(() => {
+  const { day, minute } = nyMinuteNow();
+  if (minute >= 16 * 60 + 5 && scoredDay !== day) {
+    scoredDay = day;
+    void score('after the close');
+  }
+}, 60_000);
+nightly.unref();
 server.on('error', e => {
   console.error(`${stamp()} recorder cannot listen on ${port}: ${String(e)}`);
   process.exit(1);

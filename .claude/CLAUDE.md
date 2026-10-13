@@ -832,6 +832,19 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   from the minute-vol rebuild's by 0.03% at the median, the walls agree in 389 of 390). WEB PUSH IS HELD until the owner decides; the in-app tiers come first. The backfill job
   (`npm run feed:backfill`, BACKFILL_FROM on the recorder) runs at home on the always-on machine — about 1,650 calls
   and 81 s a SPY session.
+- THE TRACK RECORD (2026-10-13, the owner's item 2; docs/data-feed.md "The track record"): data/feed/trackRecord.ts
+  (pure) scores the call wall, put wall, flip and three heaviest strikes on the store's FINAL rows against baselines on
+  the same days — B1 random levels (Osler), B2 strike-matched (same side, same distance, |gamma| under the column's
+  median, never a real level), B3 the mirror — a level counting only once it has stood a minute, a touch once an
+  approach, a bounce the close on the approach side at 15 and 30 minutes, MFE/MAE in points; real − B2 with a seeded
+  day-block bootstrap interval and the months won; the regime's next-range by tercile and Baltussen's last half hour.
+  Every parameter is server/scorecard.config.json, the variants tried print beside every line, the most recent six
+  months are a hold-out evaluated once per config version (server/scorecard.ts, nightly after 4:05 pm on the
+  recorder, `npm run field:scorecard`), and a cell under 500 touches or 12 months says "insufficient data" — NEVER A
+  BARE HELD RATE. How sure's "Track record" and the hover card on a wall or heaviest strike print the lines
+  (levels.ts useTrackRecord, StrikeChart `recordLines`). SPX'S PRICE PASSED THE OWNER'S CHECK (six days, ≥ 99.23% of
+  regular minutes within ±0.02% of the day's median SPX-tape ÷ SPY-close): SPX enters items 2 and 4 on the tape path,
+  and live its price is the newest SPX/SPXW print's underlying price with its print time, stale past two minutes.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

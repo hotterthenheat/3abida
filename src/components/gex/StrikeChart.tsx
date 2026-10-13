@@ -1,3 +1,4 @@
+import { pickWalls } from '../../core/walls';
 import {
   useCallback, useEffect, useMemo, useRef, useReducer, useState,
   useSyncExternalStore,
@@ -763,6 +764,9 @@ interface StrikeChartProps {
   /** NEW YORK'S CLOCK on the axis and the crosshair whatever the reader chose in Settings — a chart of the market's own
       session (Terrain, the Weigher; the audit's X2, 2026-10-09). Read once, when the chart is made. */
   nyClock?: boolean;
+  /** The track record's line a level type (the owner's item 2): the hover card prints the hovered strike's where it is
+      the column's call wall, put wall or one of its heaviest strikes */
+  recordLines?: Partial<Record<'call wall' | 'put wall' | 'flip' | 'top strike', string>>;
   /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
       default). A host whose tape should run near its right edge passes more (the audit's X11: a third to half of the
       chart stood empty past the last candle). */
@@ -1059,7 +1063,7 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
-  nyClock = false,
+  nyClock = false, recordLines,
   historyShare,
   fitCandles = false,
   quote = null,
@@ -5400,6 +5404,17 @@ const StrikeChart = ({
                 Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
                 {beadCard.crossings.length ? ` · crossings near ${beadCard.crossings.map(k).join(', ')}` : ''}
               </div>
+              {(() => {
+                /* THE TRACK RECORD'S LINE (the owner's item 2: "The same line appears in the hover card when the cursor is
+                   on that level"): the hovered strike as the column's call wall, put wall, or one of its three heaviest */
+                if (!recordLines) return null;
+                const spot = beadCard.snap.spot ?? beadCard.snap.levels[Math.floor(beadCard.snap.levels.length / 2)]?.strike ?? 0;
+                const walls = pickWalls(beadCard.snap.levels, spot, l => l.value);
+                const heaviest = [...beadCard.snap.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3);
+                const kind = walls.callWall === lvl.strike ? 'call wall' : walls.putWall === lvl.strike ? 'put wall' : heaviest.some(h => h.strike === lvl.strike) ? 'top strike' : null;
+                const line = kind ? recordLines[kind] : null;
+                return line ? <div className="font-mono text-[11px] text-textMuted whitespace-normal max-w-[360px]">{line}</div> : null;
+              })()}
               {feedCell && (
                 <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
                   {cellBar > 60 && cellAt !== beadCard.time ? `The bar's heaviest minute, ${nyClockOf(cellAt * 1000)} · knowable by ${nyClockOf((cellAt + 60) * 1000)}` : `Knowable by ${nyClockOf((cellAt + 60) * 1000)}`}

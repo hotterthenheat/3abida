@@ -128,6 +128,20 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             <p className="text-textSecondary">{first.field}</p>
           </div>
         )}
+        {first.record && (
+          <div data-how-sure-record>
+            <p className="text-[11px] text-textMuted">Track record</p>
+            <p className="text-[11px] text-textMuted">{first.record.scope}</p>
+            <ul className="flex flex-col gap-1">
+              {first.record.lines.map(l => (
+                <li key={l} className="text-textSecondary">
+                  {l}
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-textMuted">{first.record.note}</p>
+          </div>
+        )}
         <div>
           <p className="text-[11px] text-textMuted">If the side were the other way</p>
           <ul className="flex flex-col gap-1">

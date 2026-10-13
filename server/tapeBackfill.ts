@@ -42,7 +42,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Readable, Transform } from 'node:stream';
+import { Readable, Transform, pipeline } from 'node:stream';
 import { createInflateRaw } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import type { FeedClient } from './feed';
@@ -157,7 +157,13 @@ export function tapeReader(client: FeedClient, opts: { root?: string; log?: (lin
         cb(null, chunk);
       },
     });
-    const inflated = Readable.fromWeb(res.body as unknown as import('node:stream/web').ReadableStream).pipe(counting).pipe(entryBody()).pipe(createInflateRaw());
+    /* one pipeline, so a download cut short (a reset socket, a timeout) ends the lines with an error caught below
+       and never an unhandled one — the always-on recorder must outlive a dropped stream */
+    const inflated = createInflateRaw();
+    let streamError: Error | null = null;
+    pipeline(Readable.fromWeb(res.body as unknown as import('node:stream/web').ReadableStream), counting, entryBody(), inflated, err => {
+      if (err) streamError = err instanceof Error ? err : new Error(String(err));
+    });
     const lines = createInterface({ input: inflated, crlfDelay: Infinity });
     try {
       for await (const line of lines) {
@@ -211,6 +217,10 @@ export function tapeReader(client: FeedClient, opts: { root?: string; log?: (lin
     } catch (e) {
       /* a stream cut short: the day is not built from a part of its tape */
       opts.log?.(`tape ${day}: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    }
+    if (streamError) {
+      opts.log?.(`tape ${day}: the stream ended early (${(streamError as Error).message})`);
       return null;
     }
     /* the minutes into /intraday's shape, a contract at a time */

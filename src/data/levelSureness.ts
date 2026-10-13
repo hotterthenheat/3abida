@@ -58,6 +58,9 @@ export interface Sureness {
   /** Terrain's field on the feed: how far it stands from the vendor's own figures today (data/feed/trailField.ts
       fieldResidual) — one line, absent elsewhere */
   field?: string;
+  /** The track record (data/feed/trackRecord.ts, the owner's item 2): one line a level type, scored against the
+      strike-matched baseline, and the hold-out's standing — Terrain's How sure alone */
+  record?: { lines: string[]; note: string; scope: string };
 }
 
 /** The line every surface prints first */
