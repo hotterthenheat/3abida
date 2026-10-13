@@ -426,6 +426,8 @@ export const useFeedEarnings = (on: boolean, days: CalendarDay[]) =>
     answers.forEach((a, i) => {
       if (!a.ok) return;
       for (const r of a.data) {
+        /* a row naming no ticker is no report on the board */
+        if (!r.symbol.trim()) continue;
         const e = earningsEvent(r, { weekIdx: asks[i].d.weekIdx, weekday: asks[i].d.weekday }, today);
         const key = `${e.ticker}|${r.reportDate}`;
         if (seen.has(key)) continue;
