@@ -374,8 +374,8 @@ name (six at most; two idle hours let it go) and answers what was received after
 the seed, UW's whole-book series. Through the session (09:30–16:00 New York, a weekday) it reads, through the proxy's
 own client, cache and UW gate (three at once): each name's book and whole-book series once a minute, its chain every ten
 minutes (and once on first watch, whatever the hour), the session before's close chain once a day. Append-only files in
-`.feed-cache/field/<NAME>/<YYYY-MM-DD>/` (`books.jsonl`, `chain.jsonl`, `seed.json`, `total.json`; git-ignored, the days
-before deleted). The shell's `FieldRecorder` and each Terrain pane ask it every 15 s (a local call). Measured on SPY,
+`.feed-cache/field/<NAME>/<YYYY-MM-DD>/` (`books.jsonl`, `chain.jsonl`, `seed.json`, `total.json`; git-ignored; the days
+before are kept, gzipped in place, never deleted — an unrecorded or discarded minute is lost for good). The shell's `FieldRecorder` and each Terrain pane ask it every 15 s (a local call). Measured on SPY,
 2026-10-12 after the close: a first watch costs about 4 s and ~21 UW calls (one book, the series, nine chain pages, ten
 seed pages); the first answer is ~460 KB, a `since` answer a few hundred bytes; modeling 755 minutes costs ~320 ms of
 main-thread work in 8 ms slices.

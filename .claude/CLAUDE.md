@@ -701,7 +701,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   mounted by server/feed.ts): GET /feed/field/<NAME>?since= watches a name (six at most) and answers what was received
   since; through the session it reads each name's book and UW's whole-book series once a minute, the chain every ten
   minutes (and once on first watch), the session before's close chain once a day — through the proxy's client and
-  gate, append-only into .feed-cache/field/<NAME>/<day>/ (git-ignored, the days before deleted). The pane's line
+  gate, append-only into .feed-cache/field/<NAME>/<day>/ (git-ignored; the days before kept, gzipped — never deleted, since an unrecorded or discarded minute is lost for good). The pane's line
   ("Trail · it fills as the chain is read", `data-trail-since`) stands only while the field is empty. Pinpoint still
   reads the books read (levels.ts `fieldSnaps`). The events lane's macro dates on the feed are UW's economic calendar
   (news.ts `econMacro`, the high-impact releases, one mark a date), never the house's calendar rules.

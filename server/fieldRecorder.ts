@@ -47,12 +47,15 @@
 
   ON DISK, append-only, git-ignored:
   .feed-cache/field/<NAME>/<YYYY-MM-DD>/{books,chain}.jsonl,
-  total.json, seed.json — a day before today is
-  deleted as the recorder starts and as the day turns.
+  total.json, seed.json. A DAY IS NEVER DELETED (2026-10-13 — the research, reports/Dealer exposure
+  reconstruction.md, and its review: every minute not recorded, or recorded and thrown away, is lost for good — UW
+  never serves the book by strike for an earlier time): as the day turns, the days before are gzipped in place
+  (<file>.gz) and kept, for the backfill and the validation runs to come.
 ==================================================
 */
 
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
 
@@ -136,12 +139,22 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
 
   const dirOf = (name: string, day: string) => join(ROOT, name, day);
 
+  /** The days before today, kept and gzipped in place — never deleted (see the header) */
   function prune(today: string) {
     try {
       for (const name of readdirSync(ROOT))
-        for (const day of readdirSync(join(ROOT, name))) if (day !== today) rmSync(join(ROOT, name, day), { recursive: true, force: true });
+        for (const day of readdirSync(join(ROOT, name))) {
+          if (day >= today) continue;
+          const dir = join(ROOT, name, day);
+          for (const f of readdirSync(dir)) {
+            if (f.endsWith('.gz')) continue;
+            const file = join(dir, f);
+            writeFileSync(`${file}.gz`, gzipSync(readFileSync(file)));
+            rmSync(file, { force: true });
+          }
+        }
     } catch {
-      /* no folder yet */
+      /* no folder yet, or a file still being written — the next turn of the clock tries again */
     }
   }
 

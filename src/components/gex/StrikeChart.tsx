@@ -5279,6 +5279,7 @@ const StrikeChart = ({
                 {k(beadCard.strike)} · {nyClockOf(beadCard.time * 1000, { zone: true })}
               </div>
               <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
+              {feedCell && <div className="text-[11px] text-textMuted">Today's opening book re-evaluated along the price path</div>}
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
                 {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
               </div>
