@@ -190,14 +190,14 @@ const Windows = () => {
   /* ReactNode: the loudest slice's contract is a door into its card. */
   const read = useMemo<ReactNode>(() => {
     if (!win || slices.length === 0)
-      return <RichRead text={`Nothing traded between ${win ? win.label.replace('–', ' and ') : 'these minutes'} New York on this cut.`} />;
+      return <RichRead text={`Nothing traded between ${win ? win.label.replace('–', ' and ') : 'these minutes'} on this cut.`} />;
     const total = slices.reduce((a, s) => a + s.vol, 0);
     const names = new Set(slices.map(s => s.row.ticker)).size;
     const loud = slices[0];
     return (
       <>
         <RichRead
-          text={`Between ${win.label.replace('–', ' and ')} New York ${onFeed ? `prints of $${WINDOW_FLOOR / 1000}K and up carried` : 'the book traded'} ${num(total)} contracts across ${names} names. The loudest: `}
+          text={`Between ${win.label.replace('–', ' and ')} ${onFeed ? `prints of $${WINDOW_FLOOR / 1000}K and up carried` : 'the book traded'} ${num(total)} contracts across ${names} names. The loudest: `}
         />
         <ReadDoor onOpen={() => setOpenKey(loud.row.key)}>
           {loud.row.ticker} {loud.row.strike}
@@ -480,7 +480,7 @@ const Windows = () => {
               </button>
               <span className="inline-flex items-center gap-2 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono">
                 <span className="text-[11px] text-textMuted">Window</span>
-                <span className="text-[11px] font-semibold tnum text-textPrimary">{win ? `${win.label} ET` : '—'}</span>
+                <span className="text-[11px] font-semibold tnum text-textPrimary">{win ? win.label : '—'}</span>
                 {win?.live && (hold.paused ? <span className="text-[11px] text-warn">held</span> : <span className="text-[11px] text-select animate-live-breathe">live</span>)}
               </span>
               <button type="button" onClick={() => setWinSel(Math.min(windows.length - 1, winIdx + 1))} disabled={winIdx >= windows.length - 1} aria-label="Next window" className={stepBtn}>

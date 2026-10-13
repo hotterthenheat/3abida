@@ -819,7 +819,7 @@ export function feedWindows(prints: FeedPrint[], book: BookContract[], s: FeedSe
     const p = latest.get(occ)!;
     return printBookRow(p, p.volume);
   };
-  const windows: IntervalWindow[] = totals.map((v, idx) => ({ idx, label: windowLabel(idx), totalVol: v, live: s.live && idx === nowIdx }));
+  const windows: IntervalWindow[] = totals.map((v, idx) => ({ idx, label: windowLabel(idx, s.open), totalVol: v, live: s.live && idx === nowIdx }));
   const byIdx = new Map<number, IntervalSlice[]>();
   for (const c of cells.values()) {
     const row = rowOf(c.occ);

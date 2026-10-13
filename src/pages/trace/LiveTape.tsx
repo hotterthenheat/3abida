@@ -59,6 +59,7 @@ import { LiveTapeGuide } from '../../components/trace/TraceGuide';
 import { tapeReading } from '../../data/reads';
 import type { FlowPrint, PrintSentiment, TapeSummary } from '../../types/trace';
 import { pctSigned } from '../../core/format';
+import { nyTextClock } from '../../core/nyTime';
 import { fig } from '../../components/trace/Missing';
 import { TAPE_FLOOR, useFeedTape, useTraceSource } from '../../data/feed/trace';
 
@@ -171,7 +172,9 @@ const KIND_WORD: Record<PrintKind, string> = { SWEEP: 'Sweep', BLOCK: 'Block', M
    dot at the cell's edge that reads like a rendering fault, because that is
    what it is. Every width here clears its widest cell; the probe in
    docs/build-lessons checks it rather than trusting the arithmetic. */
-const WIDTHS: Record<string, number> = { time: 124, ticker: 104, contract: 196, dte: 64, otm: 76, quote: 136, size: 152, prem: 92, flow: 92, dayRatio: 100, sentiment: 96, vol: 76, oi: 76, deltaOi: 84, volOverOi: 80, iv: 64 };
+/** A print's time on the reader's clock — the print keeps New York's "14:03:42"; a feed print's own instant names its date */
+const printClock = (p: FlowPrint): string => nyTextClock(p.time, (p as { at?: number }).at);
+const WIDTHS: Record<string, number> = { time: 140, ticker: 104, contract: 196, dte: 64, otm: 76, quote: 136, size: 152, prem: 92, flow: 92, dayRatio: 100, sentiment: 96, vol: 76, oi: 76, deltaOi: 84, volOverOi: 80, iv: 64 };
 /* THE TAPE OPENS ON ELEVEN COLUMNS, NOT EIGHTEEN. Everything below still
    exists and still sorts — it is folded into a compound cell, so showing it
    twice by default would be the clutter the compounding was for. */
@@ -195,7 +198,7 @@ const phoneRow = (r: TapeRow) => {
           <span className="text-[11px] text-textSecondary tnum">{r.p.expiry.slice(0, 5)}</span>
         </>
       }
-      aside={r.p.time}
+      aside={printClock(r.p)}
       figures={[
         <span key="p" className="font-semibold text-textPrimary">{fmtUsd(r.p.premium)}</span>,
         <span key="s">{SIDE_WORD[r.p.side]} ${r.p.fill.toFixed(2)}</span>,
@@ -633,7 +636,7 @@ const LiveTape = () => {
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={printKey(r.p)} make={() => watchPrint(r.p, 'tape')} noun="print" />
             {r.rank !== undefined && <span className="w-7 shrink-0 text-[11px] font-bold text-textPrimary">#{r.rank}</span>}
-            <span className="text-[11px] text-textPrimary">{r.p.time}</span>
+            <span className="text-[11px] text-textPrimary">{printClock(r.p)}</span>
           </span>
         ),
       },

@@ -101,8 +101,9 @@ function expiryLabel(s: BookSession, dte: number): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-/** A New York minute of the day, spoken — "14:30" */
-const clockOf = (minute: number) => minuteLabel(minute);
+/** A New York minute of the day as the data keeps it — "14:30", New York's wall clock (a row's `time`, `lastAt`); a page
+    prints it on the reader's clock through nyTextClock */
+const clockOf = (minute: number) => `${String(Math.floor(minute / 60) % 24).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 /** An epoch second's New York minute of the day */
 const nyMinuteOf = (sec: number) => {
   const p = nyParts(sec * 1000);
@@ -617,7 +618,7 @@ export interface IntervalSlice {
 
 export interface IntervalWindow {
   idx: number;
-  /** "14:30–14:45" */
+  /** "2:30–2:45 pm" — the window on the reader's clock, for the page to print (never a key) */
   label: string;
   /** All contracts' volume inside the window */
   totalVol: number;
@@ -625,9 +626,13 @@ export interface IntervalWindow {
   live: boolean;
 }
 
-/** "14:30–14:45", New York */
-export function windowLabel(idx: number): string {
-  return `${clockOf(windowStart(idx))}–${clockOf(windowStart(idx) + WINDOW_MIN)}`;
+/** New York's quarter hour `idx` PRINTED on the reader's clock — "2:30–2:45 pm" ("11:45 am–12:00 pm" across noon); `on`
+    picks the New York date (today's by default). Display only: a window is keyed and compared by its index. */
+export function windowLabel(idx: number, on?: number): string {
+  const a = minuteLabel(windowStart(idx), on);
+  const b = minuteLabel(windowStart(idx) + WINDOW_MIN, on);
+  const half = (t: string) => t.slice(-3);
+  return half(a) === half(b) ? `${a.slice(0, -3)}–${b}` : `${a}–${b}`;
 }
 
 /** Day-stable per-window weights for one contract — long-tailed, with a rare
@@ -739,7 +744,7 @@ export function intervalWindows(rows: BookContract[], scope = ''): IntervalWindo
   }
   const windows: IntervalWindow[] = totals.map((v, idx) => ({
     idx,
-    label: windowLabel(idx),
+    label: windowLabel(idx, session.open),
     totalVol: Math.round(v),
     live: session.live && idx === qNow,
   }));

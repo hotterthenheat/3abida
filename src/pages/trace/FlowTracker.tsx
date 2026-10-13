@@ -86,7 +86,8 @@ const SOURCE_LABEL: Record<WatchSource, string> = {
   card: 'the card',
 };
 
-/** "14:22" today, "Oct 2, 14:22" for an older one — New York's 24-hour clock and the house's one date style (X2, X2.9) */
+/** "2:22 pm" today, "Oct 2, 2:22 pm" for an older one — on the reader's clock, 12-hour (core/nyTime, 2026-10-13), and the
+    house's one date style (X2.9); "today" is the market's day */
 function markedAt(ms: number): string {
   return nyIsoDate(ms) === nyIsoDate() ? nyClock(ms) : nyStamp(ms);
 }

@@ -15,7 +15,8 @@
   they named.
 
   What it is now:
-    · THE SESSION — 09:30 to 16:00 New York, its 26
+    · THE SESSION — 09:30 to 16:00 New York (printed
+      on the reader's clock, 12-hour), its 26
       quarter hours each at its true x, the future
       empty above the baseline, so the shape never
       changes through the session and a time is
@@ -38,7 +39,7 @@
 
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { WINDOWS_PER_DAY, type IntervalWindow } from '../../data/flowBook';
-import { SESSION_LENGTH_MIN } from '../../core/nyTime';
+import { minuteLabel, SESSION_LENGTH_MIN, SESSION_OPEN_MIN } from '../../core/nyTime';
 import { earnMarks } from './earnedInk';
 
 const SLOTS = WINDOWS_PER_DAY;
@@ -47,14 +48,10 @@ const num = (v: number) => v.toLocaleString('en-US');
 /** A minute of the SESSION (0 = 09:30) at its x */
 const pct = (minute: number) => `${(minute / SESSION_LENGTH_MIN) * 100}%`;
 
-/* Hour marks at their true x, minutes since the open; the open and the close speak louder. */
-const TICKS: { min: number; label: string; edge?: boolean }[] = [
-  { min: 0, label: '09:30', edge: true },
-  { min: 90, label: '11:00' },
-  { min: 210, label: '13:00' },
-  { min: 330, label: '15:00' },
-  { min: 390, label: '16:00', edge: true },
-];
+/* Hour marks at their true x, minutes since the open; the open and the close speak louder. New York's 09:30, 11:00,
+   13:00, 15:00 and 16:00, printed on the reader's clock (minuteLabel — "9:30 am" in New York, "6:30 am" in Los Angeles).
+   On a phone the 15:00 mark stands down: "3:00 pm" beside "4:00 pm" ran into it there. */
+const TICKS: { min: number; edge?: boolean; wide?: boolean }[] = [{ min: 0, edge: true }, { min: 90 }, { min: 210 }, { min: 330, wide: true }, { min: 390, edge: true }];
 
 /* The volume floor's registers — the secondary ink at two strengths, a token on either ground (the audit's X12) */
 const QUIET = 'bg-textSecondary/25 group-hover/slot:bg-textSecondary/50';
@@ -86,7 +83,7 @@ const DayStrip = ({
   const shown = windows[hover ?? selectedIdx] ?? windows[selectedIdx];
 
   const readout = shown
-    ? `${shown.label} ET · ${num(shown.totalVol)} contracts${
+    ? `${shown.label} · ${num(shown.totalVol)} contracts${
         shown.totalVol >= max ? ' · busiest of the day' : ''
       }${shown.live ? (paused ? ' · held' : ' · still filling') : ''}`
     : '';
@@ -103,7 +100,7 @@ const DayStrip = ({
 
   return (
     <div className="relative select-none" onMouseLeave={() => setHover(null)}>
-      <div className="relative h-11" role="tablist" aria-label="The session's quarter hours, New York" onKeyDown={onKeys}>
+      <div className="relative h-11" role="tablist" aria-label="The session's quarter hours" onKeyDown={onKeys}>
         {/* The session as a faint band, its edges the open and the close. */}
         <div aria-hidden className="absolute inset-0 bg-ink/[0.045] border-x border-borderMuted" />
         {/* Baseline */}
@@ -135,7 +132,7 @@ const DayStrip = ({
               aria-selected={sel}
               tabIndex={sel ? 0 : -1}
               data-slot={w.idx}
-              aria-label={`${w.label} New York · ${num(w.totalVol)} contracts`}
+              aria-label={`${w.label} · ${num(w.totalVol)} contracts`}
               onClick={() => onSelect(w.idx)}
               onMouseEnter={() => setHover(w.idx)}
               className={`group/slot absolute inset-y-0 ${sel ? 'bg-silver/[0.10]' : ''}`}
@@ -177,11 +174,11 @@ const DayStrip = ({
           return (
             <span
               key={t.min}
-              className={`absolute top-0 flex flex-col items-center ${t.edge ? 'text-textSecondary' : ''}`}
+              className={`absolute top-0 flex flex-col items-center ${t.edge ? 'text-textSecondary' : ''} ${t.wide ? 'max-sm:hidden' : ''}`}
               style={{ left: pct(t.min), transform: t.min === 0 ? 'none' : t.min >= SESSION_LENGTH_MIN ? 'translateX(-100%)' : 'translateX(-50%)' }}
             >
               <span className={`w-px h-1 ${t.edge ? 'bg-ink/30' : 'bg-ink/15'}`} />
-              <span className="mt-px leading-none">{t.label}</span>
+              <span className="mt-px leading-none whitespace-nowrap">{minuteLabel(SESSION_OPEN_MIN + t.min)}</span>
             </span>
           );
         })}

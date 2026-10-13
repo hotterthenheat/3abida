@@ -46,6 +46,7 @@ import { createViewStore } from '../../data/savedViews';
 import { StructureGuide } from '../../components/trace/TraceGuide';
 import Modal from '../../components/ui/Modal';
 import { expiryLabel, num as fmtNum } from '../../core/format';
+import { nyTextClock } from '../../core/nyTime';
 
 const num = (v: number) => fmtNum(v);
 
@@ -56,7 +57,7 @@ const MONEY_OPTIONS: DropdownOption<'ALL' | 'DEBIT' | 'CREDIT'>[] = [
   { value: 'DEBIT', label: 'Paid', hint: 'Structures that cost money to put on' },
   { value: 'CREDIT', label: 'Collected', hint: 'Structures that paid the trader to put on' },
 ];
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, strategy: 124, strikes: 204, exp: 130, size: 80, net: 100, legs: 64, kind: 108, theta: 96, maxloss: 108, maxprofit: 108 };
+const WIDTHS: Record<string, number> = { time: 100, ticker: 96, strategy: 124, strikes: 204, exp: 130, size: 80, net: 100, legs: 64, kind: 108, theta: 96, maxloss: 108, maxprofit: 108 };
 /* the structure's who on the left; its risk at the right, always on screen (the audit's TR-3: Max loss and Max profit
    stood off a 1280 screen) */
 const PIN_LEFT = ['time', 'ticker'];
@@ -149,7 +150,7 @@ const SpreadCard = ({ trade, onClose }: { trade: SpreadTrade; onClose: () => voi
       }
       headerActions={
         <span className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-          {trade.time}{Number.isFinite(trade.spot) ? ` · spot $${trade.spot.toFixed(2)}` : ''}
+          {nyTextClock(trade.time)}{Number.isFinite(trade.spot) ? ` · spot $${trade.spot.toFixed(2)}` : ''}
         </span>
       }
     >
@@ -266,7 +267,7 @@ const phoneRow = (t: SpreadTrade) => (
         <span className="font-bold tnum">{t.strikesLabel}</span>
       </>
     }
-    aside={t.time}
+    aside={nyTextClock(t.time)}
     figures={[
       <span key="p" className="font-semibold text-textPrimary">{fmtUsd(t.premium)}</span>,
       <span key="n">{Number.isFinite(t.net) ? `$${Math.abs(t.net).toFixed(2)} ${t.net >= 0 ? 'debit' : 'credit'}` : '—'}</span>,
@@ -411,7 +412,7 @@ const MultiLeg = () => {
         render: t => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={structureKey(t)} make={() => watchStructure(t, 'multi-leg')} noun="structure" />
-            <span className="text-[11px] text-textPrimary">{t.time}</span>
+            <span className="text-[11px] text-textPrimary">{nyTextClock(t.time)}</span>
           </span>
         ),
       },

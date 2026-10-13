@@ -70,6 +70,7 @@ import { createViewStore } from '../../data/savedViews';
 import { followThrough, FLAT_PCT, type Follow } from '../../data/followThrough';
 import { rowProps } from '../../components/ui/rowKeys';
 import { num as fmtNum, pctSigned } from '../../core/format';
+import { nyTextClock } from '../../core/nyTime';
 
 const num = (v: number) => fmtNum(v);
 
@@ -79,7 +80,7 @@ const SIDE_OPTIONS: DropdownOption<'ALL' | 'C' | 'P'>[] = [
   { value: 'C', label: 'Calls', hint: 'Calls only' },
   { value: 'P', label: 'Puts', hint: 'Puts only' },
 ];
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, reason: 236, clip: 118, clipprem: 92, sideCol: 64, otm: 76, earn: 92 };
+const WIDTHS: Record<string, number> = { time: 100, ticker: 96, contract: 150, dte: 64, reason: 236, clip: 118, clipprem: 92, sideCol: 64, otm: 76, earn: 92 };
 const FLEXES: Record<string, number> = { reason: 3 };
 const PIN_LEFT = ['time', 'ticker', 'contract'];
 const PIN_RIGHT = ['clipprem'];
@@ -115,7 +116,7 @@ const MissRow = ({ f, reason, onOpen }: { f: Follow; reason: string; onOpen: () 
       {...rowProps(onOpen, `Open ${f.c.row.ticker} ${f.c.row.strike}${f.c.row.right}`)}
       className="flex items-center gap-x-3 gap-y-0.5 flex-wrap px-3 py-1.5 text-[11px] tnum cursor-pointer hover:bg-ink/[0.03] focus-visible:outline-offset-[-2px]"
     >
-      <span className="w-11 text-textSecondary">{f.c.time}</span>
+      <span className="w-16 whitespace-nowrap text-textSecondary">{nyTextClock(f.c.time)}</span>
       <span className="font-semibold text-textPrimary">
         {f.c.row.ticker} {f.c.row.strike}
         {f.c.row.right}
@@ -147,7 +148,7 @@ const phoneRow = (a: Catch) => (
         <span className="text-[11px] text-textSecondary tnum">{a.row.expiry.slice(0, 5)}</span>
       </>
     }
-    aside={a.time}
+    aside={nyTextClock(a.time)}
     figures={[
       <span key="p" className="font-semibold text-textPrimary">{fig(a.clipPremium, v => fmtUsd(v))}</span>,
       <span key="s">{a.side === 'ASK' ? 'ask' : 'bid'} {fig(a.clipFill, v => `$${v.toFixed(2)}`)}</span>,
@@ -304,9 +305,7 @@ const Watchers = () => {
           {latest.row.right}
         </ReadDoor>
         <RichRead
-          text={`, ${Number.isFinite(latest.clipSize) ? `${num(latest.clipSize)} ` : ''}on the ${latest.side === 'ASK' ? 'ask' : 'bid'}${Number.isFinite(latest.clipFill) ? ` at $${latest.clipFill.toFixed(2)}` : ''} (${
-            latest.time
-          }).`}
+          text={`, ${Number.isFinite(latest.clipSize) ? `${num(latest.clipSize)} ` : ''}on the ${latest.side === 'ASK' ? 'ask' : 'bid'}${Number.isFinite(latest.clipFill) ? ` at $${latest.clipFill.toFixed(2)}` : ''} (${nyTextClock(latest.time)}).`}
         />
       </>
     );
@@ -333,7 +332,7 @@ const Watchers = () => {
         render: a => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={contractKey(a.row)} make={() => watchContract(a.row, 'watchers')} />
-            <span className="text-[11px] text-textPrimary">{a.time}</span>
+            <span className="text-[11px] text-textPrimary">{nyTextClock(a.time)}</span>
           </span>
         ),
       },

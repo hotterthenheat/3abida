@@ -24,7 +24,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
-import { nyClock } from '../../core/nyTime';
+import { clock } from '../../core/nyTime';
 
 export interface Hold<T> {
   paused: boolean;
@@ -56,9 +56,6 @@ export function useHold<T>(live: T, resetKey?: unknown): Hold<T> {
   return { paused, toggle, value: paused ? held.current : live, heldAt };
 }
 
-// 24-hour and New York's, like every clock on Trace ("14:03"), never "06:03 PM" nor the machine's zone (the audit's X2)
-const clock = (d: Date) => nyClock(d);
-
 export const LiveHold = ({ paused, onToggle, heldAt }: { paused: boolean; onToggle: () => void; heldAt?: Date | null }) => (
   <span className="inline-flex items-center gap-2 shrink-0">
     <button
@@ -83,8 +80,9 @@ export const LiveHold = ({ paused, onToggle, heldAt }: { paused: boolean; onTogg
         </>
       )}
     </button>
+    {/* on the reader's clock, 12-hour like every clock on Trace ("2:03 pm" — core/nyTime clock, 2026-10-13) */}
     {paused && heldAt && (
-      <span className="font-mono text-[11px] text-textMuted uppercase tracking-wider whitespace-nowrap tnum">as of {clock(heldAt)} ET</span>
+      <span className="font-mono text-[11px] text-textMuted uppercase tracking-wider whitespace-nowrap tnum">as of <span className="normal-case">{clock(heldAt)}</span></span>
     )}
   </span>
 );

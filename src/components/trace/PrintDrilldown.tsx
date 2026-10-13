@@ -28,7 +28,7 @@ import ErrorBoundary from '../ui/ErrorBoundary';
 import FilterTabs from '../ui/FilterTabs';
 import Chip from '../ui/Chip';
 import { printKind, sentimentOf } from '../../data/tape';
-import { nyDay } from '../../core/nyTime';
+import { nyDay, nyTextClock } from '../../core/nyTime';
 import { couldAlsoBe, measuredAgainst } from './printDoubt';
 import { fmtUsd } from '../../data/gex';
 import {
@@ -73,6 +73,8 @@ type TableTab = (typeof TABLE_TABS)[number]['value'];
 
 /* The drilldown reads whatever the feed hands it. A field that is missing must
    render as a dash — never throw and take the page down with it. */
+/** A print's time on the reader's clock — the print keeps New York's "14:03:42"; a feed print's own instant names its date */
+const printClock = (p: FlowPrint): string => nyTextClock(p.time, (p as { at?: number }).at);
 const num = (v: number | undefined | null): string => (Number.isFinite(v as number) ? (v as number).toLocaleString() : '—');
 const fixed = (v: number | undefined | null, dp = 2): string => (Number.isFinite(v as number) ? (v as number).toFixed(dp) : '—');
 const usd = (v: number | undefined | null): string => (Number.isFinite(v as number) ? fmtUsd(v as number) : '—');
@@ -211,8 +213,9 @@ const SequenceStrip = ({
     const bought = siblings.filter(p => p.side === 'ASK').length;
     const sold = siblings.filter(p => p.side === 'BID').length;
     const mid = n - bought - sold;
-    const oldest = siblings[n - 1].time;
-    const newest = siblings[0].time;
+    /* the prints keep New York's clock; the read prints the reader's */
+    const oldest = printClock(siblings[n - 1]);
+    const newest = printClock(siblings[0]);
     const parts = [
       `Part of a sequence — ${n} prints on this contract on the live tape`,
       `${fmtUsd(total)} total`,
@@ -241,7 +244,7 @@ const SequenceStrip = ({
             const ink = p.side === 'MID' ? 'text-textMuted' : 'text-textPrimary';
             const row = (
               <>
-                <span className="w-[86px] shrink-0 font-mono text-[11px] tnum text-textMuted">{p.time}</span>
+                <span className="w-[86px] shrink-0 font-mono text-[11px] tnum text-textMuted">{printClock(p)}</span>
                 <span className={`w-[74px] shrink-0 font-mono text-[11px] font-semibold uppercase tracking-wider ${ink}`}>{word}</span>
                 <span className="font-mono text-[11px] tnum text-textSecondary">
                   {p.size.toLocaleString()} × ${p.fill.toFixed(2)}
@@ -578,7 +581,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
             {/* White: a leg count is a fact, not a status — the tape's own rule (2026-08-30). */}
             {print.legs > 1 && <span className="font-mono text-[11px] text-textPrimary">×{print.legs} legs</span>}
             <SignalBadge tone={SENT_TONE[sent]}>{sent}</SignalBadge>
-            <span className="font-mono text-[11px] text-textSecondary tnum">{print.time}</span>
+            <span className="font-mono text-[11px] text-textSecondary tnum">{printClock(print)}</span>
             <span className={`font-mono text-[11px] uppercase ${print.sweep ? 'text-warn font-semibold' : 'text-textMuted'}`}>
               {{ SWEEP: 'Sweep', BLOCK: 'Block', MULTI: print.strat !== '—' ? print.strat : 'Multi-leg', SINGLE: 'Single print' }[printKind(print)]}
             </span>
@@ -618,7 +621,7 @@ const PrintDrilldown = ({ print, snapshot, onClose, isMarked, onToggleMark, onSt
                 <span className="font-mono text-[11px] tnum text-textMuted">{fixed(print.ask)}</span>
               </div>
               <span className="font-mono text-[11px] text-textSecondary tnum">
-                <RichRead text={`filled $${fixed(print.fill)} × ${num(print.size)} · ${print.time}`} />
+                <RichRead text={`filled $${fixed(print.fill)} × ${num(print.size)} · ${printClock(print)}`} />
               </span>
             </div>
 
@@ -902,7 +905,7 @@ const OrdersTable = ({ cf }: { cf: ReturnType<typeof buildContractFlow> }) => (
       <tbody>
         {cf.orders.slice(0, 60).map(o => (
           <tr key={o.id} className="border-b border-borderSubtle/30 last:border-0 hover:bg-ink/[0.02]">
-            <td className={`${td} text-textSecondary`}>{o.time}</td>
+            <td className={`${td} text-textSecondary whitespace-nowrap`}>{nyTextClock(o.time)}</td>
             <td className={`${td} text-right text-textPrimary`}>${o.price.toFixed(2)}</td>
             <td className={`${td} text-right text-textPrimary`}>{o.size.toLocaleString()}</td>
             <td className={`${td} ${o.side === 'MID' ? 'text-textMuted' : 'text-textPrimary'}`}>

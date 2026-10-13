@@ -49,6 +49,7 @@ import ExpiryCalendar from '../../components/ui/ExpiryCalendar';
 import { useExpiryCut } from '../../components/trace/bookExpiry';
 import { isoDate } from '../../core/calendar';
 import { num as fmtNum, pctSigned } from '../../core/format';
+import { nyTextClock } from '../../core/nyTime';
 
 /* ALL OR NONE (the audit's TR-34): the filters were kept and the screen, the search and the expiry were not, so a
    reopened page came back "Weekly, Swing +1" with no word why. The whole screen is kept now, as the address it is. */
@@ -85,7 +86,7 @@ const phoneRow = (r: BookContract) => (
         <span className="text-[11px] text-textSecondary tnum">{r.expiry.slice(0, 5)}</span>
       </>
     }
-    aside={r.lastAt}
+    aside={nyTextClock(r.lastAt)}
     figures={[
       <span key="p" className="font-semibold text-textPrimary">{fmtUsd(r.premium)}</span>,
       <span key="v">{num(r.volume)} vol</span>,
@@ -122,9 +123,9 @@ const MONEY_OPTIONS: DropdownOption<'any' | 'otm'>[] = [
 const snap = (v: number, steps: number[]) => steps.reduce((best, s) => (s <= v ? s : best), 0);
 
 /** The grid's own widths where flex would starve a cell */
-const WIDTHS: Record<string, number> = { time: 92, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 , lean: 96 };
+const WIDTHS: Record<string, number> = { time: 100, ticker: 96, contract: 150, dte: 64, otm: 76, last: 118, doi: 150, prem: 92, iv: 100, sector: 176 , lean: 96 };
 const TOOLTIPS: Record<string, string> = {
-  time: 'When the contract last printed, New York — the bookmark tracks it in the Tracker',
+  time: 'When the contract last printed — the bookmark tracks it in the Tracker',
   contract: 'The strike, the side and the expiry — click the row for the card',
   otm: 'How far the strike sits from the stock, as a percent',
   voloi: 'Volume over open interest — above 1.5 the positions were built today',
@@ -261,7 +262,7 @@ const OptionsScreener = () => {
         render: r => (
           <span className="inline-flex items-center gap-1.5">
             <WatchStar k={contractKey(r)} make={() => watchContract(r, 'screener')} />
-            <span className="text-[11px] text-textPrimary">{r.lastAt}</span>
+            <span className="text-[11px] text-textPrimary">{nyTextClock(r.lastAt)}</span>
           </span>
         ),
       },
